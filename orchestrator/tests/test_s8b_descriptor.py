@@ -12,9 +12,9 @@ import jsonschema
 import pytest
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 
-from campaign import p2_2, s8b_descriptor  # noqa: E402
+from orchestrator.campaign import p2_2, s8b_descriptor  # noqa: E402
 
 
 SCHEMA_PATH = _HERE.parent / "campaign/s8b_descriptor_schema.json"

@@ -19,13 +19,9 @@ fitness を見せると評価器の優位を評価器の定義で論証する出
 """
 from __future__ import annotations
 
-import os
-import sys
+from orchestrator.campaign.layout import CampaignLayout
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from campaign.layout import CampaignLayout          # noqa: E402
-from critic import digest                           # noqa: E402
+from . import digest
 
 
 class LeakageError(AssertionError):

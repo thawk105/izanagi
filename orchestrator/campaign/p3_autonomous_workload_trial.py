@@ -30,106 +30,61 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-_ORCHESTRATOR_FOR_IMPORT = Path(__file__).resolve().parents[1]
-if str(_ORCHESTRATOR_FOR_IMPORT) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR_FOR_IMPORT))
-
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
-    if str(_ROOT_FOR_IMPORT) not in sys.path:
-        sys.path.insert(0, str(_ROOT_FOR_IMPORT))
-    from orchestrator.campaign import p3_s4_loop as loop_core
-    from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger
-    from orchestrator.campaign import s8c_preregistration
-    from orchestrator.campaign import trial_registry
-    from orchestrator.campaign.reflux_ir import emit_predicate, parse_wire
-    from orchestrator.campaign.autonomous_trial_completeness import (
-        assert_campaign_layer3_chain,
-        assert_autonomous_trial_completeness,
-    )
-    from orchestrator.campaign.auditor_gate import AuditorVerdict, parse_auditor_dict
-    from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
-    from orchestrator.campaign.claude_transport import (
-        ClaudeTransportAdmission,
-        admit_claude_transport,
-        is_valid_pbs_jobid,
-    )
-    from orchestrator.campaign.role_session_isolation import CrossRoleSessionTracker
-    from orchestrator.campaign.layout import (
-        CampaignLayout,
-        _reject_worktree_container,
-        _resolve_exploration_output_root,
-        ensure_exploration_namespace,
-        exploration_campaign_layout,
-    )
-    from orchestrator.campaign import layer3_report
-    from orchestrator.campaign.model import CampaignConfig
-    from orchestrator.campaign.patchharness import applied, assert_pinned_clean, checkout
-    from orchestrator.campaign.pipeline import PerfConfig
-    from orchestrator.campaign.s8b_descriptor import (
-        project_from_search_config,
-        projection_record,
-        validate_descriptor,
-    )
-    from orchestrator.campaign.s8b_prediction_runner import (
-        PredictionRunnerError,
-        ProviderResponse,
-        _canonical_json_bytes,
-        _now_iso,
-        _parse_json_object,
-        _sha256,
-        _write_bytes_bound,
-    )
-else:
-    from . import p3_s4_loop as loop_core
-    from . import p3_s4_loop_trigger_gating as trigger
-    from . import s8c_preregistration
-    from . import trial_registry
-    from .reflux_ir import emit_predicate, parse_wire
-    from .autonomous_trial_completeness import (
-        assert_campaign_layer3_chain,
-        assert_autonomous_trial_completeness,
-    )
-    from .auditor_gate import AuditorVerdict, parse_auditor_dict
-    from .claude_projected_provider import ClaudeProjectedRoleProvider
-    from .claude_transport import (
-        ClaudeTransportAdmission,
-        admit_claude_transport,
-        is_valid_pbs_jobid,
-    )
-    from .role_session_isolation import CrossRoleSessionTracker
-    from .layout import (
-        CampaignLayout,
-        _reject_worktree_container,
-        _resolve_exploration_output_root,
-        ensure_exploration_namespace,
-        exploration_campaign_layout,
-    )
-    from . import layer3_report
-    from .model import CampaignConfig
-    from .patchharness import applied, assert_pinned_clean, checkout
-    from .pipeline import PerfConfig
-    from .s8b_descriptor import (
-        project_from_search_config,
-        projection_record,
-        validate_descriptor,
-    )
-    from .s8b_prediction_runner import (
-        PredictionRunnerError,
-        ProviderResponse,
-        _canonical_json_bytes,
-        _now_iso,
-        _parse_json_object,
-        _sha256,
-        _write_bytes_bound,
-    )
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from . import p3_s4_loop as loop_core
+from . import p3_s4_loop_trigger_gating as trigger
+from . import s8c_preregistration
+from . import trial_registry
+from .reflux_ir import emit_predicate, parse_wire
+from .autonomous_trial_completeness import (
+    assert_campaign_layer3_chain,
+    assert_autonomous_trial_completeness,
+)
+from .auditor_gate import AuditorVerdict, parse_auditor_dict
+from .claude_projected_provider import ClaudeProjectedRoleProvider
+from .claude_transport import (
+    ClaudeTransportAdmission,
+    admit_claude_transport,
+    is_valid_pbs_jobid,
+)
+from .role_session_isolation import CrossRoleSessionTracker
+from .layout import (
+    CampaignLayout,
+    _reject_worktree_container,
+    _resolve_exploration_output_root,
+    ensure_exploration_namespace,
+    exploration_campaign_layout,
+)
+from . import layer3_report
+from .model import CampaignConfig
+from .patchharness import applied, assert_pinned_clean, checkout
+from .pipeline import PerfConfig
+from .s8b_descriptor import (
+    project_from_search_config,
+    projection_record,
+    validate_descriptor,
+)
+from .s8b_prediction_runner import (
+    PredictionRunnerError,
+    ProviderResponse,
+    _canonical_json_bytes,
+    _now_iso,
+    _parse_json_object,
+    _sha256,
+    _write_bytes_bound,
+)
+
+
 
 # The axis driver imports the campaign namespace directly.  Keep the U1 run
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
-from campaign import env_contract, ident  # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from . import env_contract, ident  # noqa: E402
+from .artifact_admission import require_admitted_campaign  # noqa: E402
+from .build_admission import (  # noqa: E402
     BuildAdmissionError,
     BuildRunContext,
     CoderBuildAuthority,
@@ -2362,7 +2317,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         context = contextlib.nullcontext(fixed_sub)
         cache_root = ""
     else:
-        from calibrator.runner import competing_bench_pids
+        from ..calibrator.runner import competing_bench_pids
 
         competitors = competing_bench_pids()
         if competitors:

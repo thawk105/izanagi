@@ -11,11 +11,11 @@ import pytest
 
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_experiment_numbers  # noqa: E402
-from campaign import s8b_floor_contract  # noqa: E402
-from campaign import s8b_oracle_manifest  # noqa: E402
+from orchestrator.campaign import s8b_experiment_numbers  # noqa: E402
+from orchestrator.campaign import s8b_floor_contract  # noqa: E402
+from orchestrator.campaign import s8b_oracle_manifest  # noqa: E402
 
 
 _CONTRACT_SHA256 = "a" * 64
@@ -67,11 +67,12 @@ def test_leaf_import_loads_no_other_campaign_module():
     script = f"""
 import json
 import sys
-sys.path.insert(0, {str(ORCHESTRATOR)!r})
-import campaign.s8b_experiment_numbers
+sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+import orchestrator.campaign.s8b_experiment_numbers
 print(json.dumps(sorted(
     name for name in sys.modules
-    if name.startswith('campaign.') and name != 'campaign.s8b_experiment_numbers'
+    if name.startswith('orchestrator.campaign.')
+    and name != 'orchestrator.campaign.s8b_experiment_numbers'
 )))
 """
     completed = subprocess.run(
@@ -88,11 +89,11 @@ def test_approved_reexports_read_pins_from_leaf_on_import():
     script = f"""
 import json
 import sys
-sys.path.insert(0, {str(ORCHESTRATOR)!r})
-from campaign import s8b_experiment_numbers
+sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+from orchestrator.campaign import s8b_experiment_numbers
 s8b_experiment_numbers.APPROVED_REPS = 7
 s8b_experiment_numbers.APPROVED_EXTIME_S = 7
-from campaign import s8b_approved
+from orchestrator.campaign import s8b_approved
 print(json.dumps({{
     "reps": s8b_approved.APPROVED_REPS,
     "extime_s": s8b_approved.APPROVED_EXTIME_S,

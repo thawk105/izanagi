@@ -9,9 +9,9 @@ from pathlib import Path
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_launch_cert  # noqa: E402
+from orchestrator.campaign import s8b_launch_cert  # noqa: E402
 
 
 _RUN_ID = "20260718T123456Z-abcdef01"

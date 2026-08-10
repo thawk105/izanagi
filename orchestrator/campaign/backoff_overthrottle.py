@@ -22,18 +22,22 @@ from __future__ import annotations
 import hashlib
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from calibrator.benchparse import abort_rate                     # noqa: E402
-from calibrator.runner import run_once                            # noqa: E402
-from campaign import buildcache, source_digest                    # noqa: E402
-from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+from ..calibrator.benchparse import abort_rate                     # noqa: E402
+from ..calibrator.runner import run_once                            # noqa: E402
+from . import buildcache, source_digest                    # noqa: E402
+from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission)
-from campaign.backoff_sweep import SWEEP_US, _BASE                # noqa: E402
-from campaign.model import Genome                                 # noqa: E402
-from campaign.p2_2 import (CCBENCH_COMMIT, CLK, NUMA, RECORDS,     # noqa: E402
+from .backoff_sweep import SWEEP_US, _BASE                # noqa: E402
+from .model import Genome                                 # noqa: E402
+from .p2_2 import (CCBENCH_COMMIT, CLK, NUMA, RECORDS,     # noqa: E402
                            THREADS, _assert_single_tenant)
+
 
 EXTIME = 3
 REPS = 3

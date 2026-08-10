@@ -17,31 +17,31 @@ from unittest import mock
 
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
-sys.path.insert(0, str(_ORCH))
+sys.path.insert(0, str(_ORCH.parent))
 
-from campaign import pipeline
-from campaign import p3_s4_loop as L
-from campaign import p3_s4_loop_trigger_gating as TRIGGER
-from campaign import s6_sort_sweep as S6
-from campaign import wal
-from campaign import env_contract
-from campaign.auditor_gate import AuditorVerdict
+from orchestrator.campaign import pipeline
+from orchestrator.campaign import p3_s4_loop as L
+from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER
+from orchestrator.campaign import s6_sort_sweep as S6
+from orchestrator.campaign import wal
+from orchestrator.campaign import env_contract
+from orchestrator.campaign.auditor_gate import AuditorVerdict
 
-from campaign.build_admission import (
+from orchestrator.campaign.build_admission import (
     BuildProvenance,
     GeneratorId,
     add_coder_build_authority_argument,
     build_run_context,
     derive_build_admission,
 )
-from campaign.materializer_admission import (
+from orchestrator.campaign.materializer_admission import (
     NON_ADMISSIBLE,
     NON_ADMISSIBLE_MATERIALIZERS,
     non_admissible_materializer,
 )
-from campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, STOCK, SourceEvidence
-from campaign.layout import CampaignLayout
-from campaign.model import Genome
+from orchestrator.campaign.source_digest import EMPTY_TRACKED_DIFF_SHA256, STOCK, SourceEvidence
+from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.model import Genome
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -210,7 +210,7 @@ def _public_s6_machine_admission():
         return SimpleNamespace(results=[result])
 
     try:
-        from campaign import patchharness
+        from orchestrator.campaign import patchharness
         with contextlib.ExitStack() as stack:
             for target, name, value in (
                     (S6, "_assert_single_tenant", lambda: None),
@@ -308,7 +308,7 @@ def test_authorityless_trigger_coder_is_rejected_before_build_spy():
     )
     auditor = AuditorVerdict(verdict="pass", diff_digest="fixture")
     try:
-        from campaign import patchharness
+        from orchestrator.campaign import patchharness
         with contextlib.ExitStack() as stack:
             for target, name, value in (
                     (TRIGGER, "_current_site", lambda: TRIGGER.site_policy.OTHER),
@@ -387,7 +387,7 @@ def test_python_ccbench_manual_materializers_are_explicitly_non_admissible():
 
 def test_registry_declares_intentionally_unclosed_surfaces():
     doc = __import__(
-        "campaign.materializer_admission", fromlist=["__doc__"]
+        "orchestrator.campaign.materializer_admission", fromlist=["__doc__"]
     ).__doc__ or ""
     assert "tools/pegasus/*.sh" in doc
     assert "arbitrary binary path" in doc

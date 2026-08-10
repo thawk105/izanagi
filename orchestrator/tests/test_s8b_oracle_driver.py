@@ -26,36 +26,36 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import real_repo_ratified_memo as ratified_memo  # noqa: E402
 import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildRunContext,
     GeneratorId,
     ReviewId,
     ReviewReceipt,
     build_run_context,
 )
-from campaign import env_attestation  # noqa: E402
-from campaign import execution_guard  # noqa: E402
-from campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
-from campaign import s8b_freeze_io  # noqa: E402
-from campaign import s8b_materialization  # noqa: E402
-from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
-from campaign import s8b_oracle_report as report_module  # noqa: E402
-from campaign import s8b_holdout_freeze  # noqa: E402
-from campaign import s8b_ratified_freeze  # noqa: E402
-from campaign import s8b_run_marker  # noqa: E402
-from campaign import t080_freeze_migration as migration  # noqa: E402
-from campaign.layout import campaign_layout  # noqa: E402
-from campaign.model import Genome  # noqa: E402
-from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.campaign import env_attestation  # noqa: E402
+from orchestrator.campaign import execution_guard  # noqa: E402
+from orchestrator.campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from orchestrator.campaign import s8b_freeze_io  # noqa: E402
+from orchestrator.campaign import s8b_materialization  # noqa: E402
+from orchestrator.campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
+from orchestrator.campaign import s8b_oracle_report as report_module  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
+from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
+from orchestrator.campaign import s8b_run_marker  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as migration  # noqa: E402
+from orchestrator.campaign.layout import campaign_layout  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
@@ -620,6 +620,17 @@ def _build_t080_stub_free_e2e_repo(
     in_repo_sources = {
         path for path in source_paths if not path.startswith("external/ccbench/")
     }
+    current_runtime_sources = {
+        path for path in in_repo_sources
+        if path.startswith("orchestrator/campaign/") and path.endswith(".py")
+    }
+    current_production_sources = {
+        "orchestrator/campaign/t080_freeze_migration.py",
+        "orchestrator/campaign/s8b_oracle_driver.py",
+        "orchestrator/campaign/s8b_holdout_freeze.py",
+    }
+    assert current_runtime_sources
+    assert current_production_sources.isdisjoint(in_repo_sources)
     # T-080 は一回限りの historical migration。現在の作業ツリー bytes を basis に
     # すると、後続 wave が既存の unchanged source を変更しただけで閉包を偽造してしまう。
     # 発行済み receipt の commit から source closure を復元し、検査本体の exact 12/51
@@ -652,7 +663,16 @@ def _build_t080_stub_free_e2e_repo(
     receipt = root / migration.RECEIPT_REL
     if not issue_receipt:
         return root, receipt, {}
+    # pin 済み source は fixture repo では historical data のまま保持する。一方、
+    # production builder/verifier/gate が import する閉包は現行世代で統一するため、
+    # fixture 外の source を限定 loader から canonical module 名へ供給する。
+    runtime_source_root = tmp_path / "t080-current-runtime"
+    for relative in sorted(current_runtime_sources):
+        _copy_t080_basis_file(runtime_source_root, relative)
     child = textwrap.dedent("""
+        import importlib
+        import importlib.abc
+        import importlib.util
         import json
         import os
         import subprocess
@@ -673,11 +693,59 @@ def _build_t080_stub_free_e2e_repo(
             return env
 
         root = Path(sys.argv[1]).resolve()
+        runtime_source_root = Path(sys.argv[4]).resolve()
+        runtime_relatives = tuple(json.loads(sys.argv[5]))
+        runtime_modules = {
+            ".".join(Path(relative).with_suffix("").parts): relative
+            for relative in runtime_relatives
+        }
+
+        class _CurrentSourceLoader(importlib.abc.Loader):
+            def __init__(self, fullname, repository_path, source_path):
+                self.fullname = fullname
+                self.repository_path = repository_path
+                self.source_path = source_path
+
+            def create_module(self, spec):
+                return None
+
+            def exec_module(self, module):
+                source = self.source_path.read_bytes()
+                code = compile(source, str(self.repository_path), "exec")
+                exec(code, module.__dict__)
+
+        class _CurrentSourceFinder(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                relative = runtime_modules.get(fullname)
+                if relative is None:
+                    return None
+                repository_path = root / relative
+                source_path = runtime_source_root / relative
+                loader = _CurrentSourceLoader(
+                    fullname, repository_path, source_path,
+                )
+                spec = importlib.util.spec_from_loader(
+                    fullname, loader, origin=str(repository_path),
+                )
+                assert spec is not None
+                spec.has_location = True
+                return spec
+
+        sys.meta_path.insert(0, _CurrentSourceFinder())
         sys.path[0] = str(root)
         from orchestrator.campaign import s1_known_axes_freeze as known
         from orchestrator.campaign import s8b_holdout_freeze as holdout
         from orchestrator.campaign import s8b_oracle_driver as driver
         from orchestrator.campaign import t080_freeze_migration as migration
+        for module_name in sorted(runtime_modules):
+            importlib.import_module(module_name)
+        loaded_runtime_modules = tuple(
+            sys.modules[module_name] for module_name in sorted(runtime_modules)
+        )
+        assert all(
+            isinstance(module.__loader__, _CurrentSourceLoader)
+            for module in loaded_runtime_modules
+        ), loaded_runtime_modules
 
         sys.path.insert(0, str(root))
         modules = (
@@ -691,6 +759,13 @@ def _build_t080_stub_free_e2e_repo(
         assert all(path.is_relative_to(root) for path in module_files), module_files
         module_roots = (migration.ROOT.resolve(), known.ROOT.resolve(), holdout.ROOT.resolve())
         assert module_roots == (root, root, root), module_roots
+        for relative in runtime_relatives:
+            committed = subprocess.run(
+                ["git", "show", f"HEAD:{relative}"], cwd=root, check=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=_sanitized_git_env(),
+            ).stdout
+            assert (root / relative).read_bytes() == committed, relative
 
         basis = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=root, check=True,
@@ -744,7 +819,8 @@ def _build_t080_stub_free_e2e_repo(
     """)
     completed = subprocess.run(
         [sys.executable, "-I", "-B", "-c", child, str(root), r_trailer,
-         "1" if extra_r_path else "0"],
+         "1" if extra_r_path else "0", str(runtime_source_root),
+         json.dumps(sorted(current_runtime_sources))],
         cwd=root, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
         env={
@@ -1120,13 +1196,94 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
     _run_git(root, "add", "-u", migration.RECEIPT_REL)
     _run_git(root, "commit", "-q", "-m", "delete receipt", "-m", "AI-Agent: none")
     basis = _run_git(root, "rev-parse", "HEAD")
+    known = json.loads(
+        (root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8")
+    )
+    source_paths: set[str] = set()
+
+    def collect_source_paths(value) -> None:
+        if isinstance(value, dict):
+            if isinstance(value.get("path"), str) and isinstance(
+                    value.get("sha256"), str):
+                source_paths.add(value["path"])
+            for child_value in value.values():
+                collect_source_paths(child_value)
+        elif isinstance(value, list):
+            for child_value in value:
+                collect_source_paths(child_value)
+
+    collect_source_paths(known)
+    runtime_relatives = sorted(
+        path for path in source_paths
+        if path.startswith("orchestrator/campaign/") and path.endswith(".py")
+    )
+    assert runtime_relatives
+    runtime_source_root = tmp_path / "t080-post-r-current-runtime"
+    for relative in runtime_relatives:
+        _copy_t080_basis_file(runtime_source_root, relative)
+    historical_runtime_bytes = {
+        relative: (root / relative).read_bytes()
+        for relative in runtime_relatives
+    }
     child = textwrap.dedent("""
+        import importlib
+        import importlib.abc
+        import importlib.util
         import json
         import sys
         from pathlib import Path
+
         root = Path(sys.argv[1]).resolve()
+        runtime_source_root = Path(sys.argv[3]).resolve()
+        runtime_relatives = tuple(json.loads(sys.argv[4]))
+        runtime_modules = {
+            ".".join(Path(relative).with_suffix("").parts): relative
+            for relative in runtime_relatives
+        }
+
+        class _CurrentSourceLoader(importlib.abc.Loader):
+            def __init__(self, fullname, repository_path, source_path):
+                self.fullname = fullname
+                self.repository_path = repository_path
+                self.source_path = source_path
+
+            def create_module(self, spec):
+                return None
+
+            def exec_module(self, module):
+                source = self.source_path.read_bytes()
+                code = compile(source, str(self.repository_path), "exec")
+                exec(code, module.__dict__)
+
+        class _CurrentSourceFinder(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                relative = runtime_modules.get(fullname)
+                if relative is None:
+                    return None
+                repository_path = root / relative
+                source_path = runtime_source_root / relative
+                loader = _CurrentSourceLoader(
+                    fullname, repository_path, source_path,
+                )
+                spec = importlib.util.spec_from_loader(
+                    fullname, loader, origin=str(repository_path),
+                )
+                assert spec is not None
+                spec.has_location = True
+                return spec
+
+        sys.meta_path.insert(0, _CurrentSourceFinder())
         sys.path[0] = str(root)
         from orchestrator.campaign import t080_freeze_migration as migration
+        for module_name in sorted(runtime_modules):
+            importlib.import_module(module_name)
+        loaded_runtime_modules = tuple(
+            sys.modules[module_name] for module_name in sorted(runtime_modules)
+        )
+        assert all(
+            type(module.__loader__) is _CurrentSourceLoader
+            for module in loaded_runtime_modules
+        ), loaded_runtime_modules
         try:
             migration.draft_receipt(
                 basis=sys.argv[2], out=migration.DRAFT_REL, root=root,
@@ -1137,7 +1294,8 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
             raise AssertionError("post-R 再発行が拒否されなかった")
     """)
     completed = subprocess.run(
-        [sys.executable, "-I", "-B", "-c", child, str(root), basis],
+        [sys.executable, "-I", "-B", "-c", child, str(root), basis,
+         str(runtime_source_root), json.dumps(runtime_relatives)],
         cwd=root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
         env={
@@ -1146,6 +1304,10 @@ def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(t
             "PYTHONNOUSERSITE": "1",
         },
     )
+    assert {
+        relative: (root / relative).read_bytes()
+        for relative in runtime_relatives
+    } == historical_runtime_bytes
     refusal = json.loads(completed.stdout)
     assert refusal["reason"] == "receipt.invalid"
     assert "issued-but-missing" in refusal["detail"]
@@ -2215,11 +2377,11 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
         import dataclasses, hashlib, json, sys, time
         from pathlib import Path
         from unittest import mock
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import env_contract, execution_guard
-        from campaign.durable_root import DurableRootPolicy
-        from campaign import s8b_oracle_driver as driver
-        from campaign import s8b_oracle_manifest, s8b_ratified_freeze
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import env_contract, execution_guard
+        from orchestrator.campaign.durable_root import DurableRootPolicy
+        from orchestrator.campaign import s8b_oracle_driver as driver
+        from orchestrator.campaign import s8b_oracle_manifest, s8b_ratified_freeze
 
         freeze_path = Path({str(freeze_path)!r})
         raw = freeze_path.read_bytes()
@@ -2959,13 +3121,13 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         import contextlib, hashlib, json, sys
         from pathlib import Path
         from unittest import mock
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import s8b_oracle_driver as driver
-        from campaign import env_contract as ec
-        from campaign import execution_guard
-        from campaign import s8b_ratified_freeze
-        from campaign.model import Genome
-        from campaign.s1_direct_comparison import PreparedCell
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import s8b_oracle_driver as driver
+        from orchestrator.campaign import env_contract as ec
+        from orchestrator.campaign import execution_guard
+        from orchestrator.campaign import s8b_ratified_freeze
+        from orchestrator.campaign.model import Genome
+        from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
         @contextlib.contextmanager
         def fake_prepare(cell, ccbench_pin):
@@ -3049,8 +3211,8 @@ def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import s8b_oracle_driver as driver
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import s8b_oracle_driver as driver
         driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
         rc = driver.main([
             "run-block", "--manifest", {str(manifest_path)!r},
@@ -3892,7 +4054,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
 
 def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path):
     """M-P5: driver opt-in から run_once までを通し、subprocess だけを fake にする。"""
-    from calibrator import runner as calibrator_runner
+    from orchestrator.calibrator import runner as calibrator_runner
 
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
@@ -4138,7 +4300,7 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     """launch_validate が RatifiedFreezeError 以外 (内部 _hf の git/os 走査由来の
     FreezeError 等) を投げても、stack trace を漏らさず v2-execution refusal に翻訳する
     (run_block の refusal 契約を破らない・fail-closed で何も書かない)。"""
-    from campaign import s8b_holdout_freeze  # noqa: PLC0415
+    from orchestrator.campaign import s8b_holdout_freeze  # noqa: PLC0415
 
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
     out_root = root / "output"

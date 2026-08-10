@@ -20,9 +20,13 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from campaign.s6_proposal_rounds import (  # noqa: E402
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from .s6_proposal_rounds import (  # noqa: E402
     RUNS, MAX_RETRY, classify_proposer_output)
+
 
 AMENDMENT_ID = "2026-07-13-fence"
 LEDGER_PATH = RUNS.parent / f"amendment-{AMENDMENT_ID.replace('-fence', '')}-fence.json"

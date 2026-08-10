@@ -8,14 +8,16 @@ import statistics
 import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 from typing import Optional
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(_ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
+from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
 
 INPUT_SCHEMA = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 OUTPUT_SCHEMA = _artifacts.OFFICIAL_VERDICT_SCHEMA

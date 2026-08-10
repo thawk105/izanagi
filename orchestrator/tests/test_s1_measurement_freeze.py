@@ -14,12 +14,12 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 import s1_expected_goldens  # noqa: E402
-from campaign import s1_known_axes_freeze as K  # noqa: E402
-from campaign import s1_measurement_freeze as M  # noqa: E402
-from campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.campaign import s1_known_axes_freeze as K  # noqa: E402
+from orchestrator.campaign import s1_measurement_freeze as M  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 from skiputil import skip  # noqa: E402
 
 
@@ -43,7 +43,7 @@ def _require_submodule_sources() -> None:
 @pytest.fixture(scope="module")
 def real_known_axes_doc():
     """外部 golden と自己検証を通した実 known-axes 文書を module 内で共有する。"""
-    from campaign import pin
+    from orchestrator.campaign import pin
 
     _require_submodule_sources()
     doc = K.build_document()

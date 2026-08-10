@@ -14,11 +14,11 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import s1_verify_extime_calibration as M  # noqa: E402
-from campaign import t080_freeze_migration as T080  # noqa: E402
-from campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
+from orchestrator.campaign import s1_verify_extime_calibration as M  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
 
 
 def _candidate(extime: int, wall: float, *, verdict: str = "serializable",

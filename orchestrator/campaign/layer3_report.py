@@ -34,26 +34,28 @@ import subprocess
 import sys
 import tempfile
 from collections import Counter, defaultdict
-from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import jsonschema
+from pathlib import Path
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 SCHEMA_VERSION = "layer3-material-report/v3"
 LEGACY_SCHEMA_VERSION = "layer3-material-report/v2"
 GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 STAGES = frozenset(("build_start", "build_done", "verify_done", "bench_done", "commit", "abort"))
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
 
-from campaign import (  # noqa: E402
+from . import (  # noqa: E402
     campaign_lock,
     s8c_acceptance_receipt,
     trigger_gate_binding,
     wal,
 )
-from campaign.artifact_admission import (  # noqa: E402
+from .artifact_admission import (  # noqa: E402
     ArtifactAdmissionError,
     require_admitted_campaign,
 )

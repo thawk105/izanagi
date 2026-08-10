@@ -22,7 +22,7 @@ from jsonschema import Draft7Validator
 
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 
 from pegasus_policy_expected_goldens import (  # noqa: E402
     EXPECTED_CURRENT_PEGASUS_POLICY_SHA256,
@@ -616,7 +616,7 @@ _T126_MUTATION_TRANSFORMS = {
     "M11b": (
         "tools/pegasus/t126_qualification.sh",
         "import json,os,re,secrets,stat,sys,time\n",
-        "import json,os,re,secrets,stat,sys,time\nsys.path.insert(0,os.environ[\"IZANAGI_T126_TEST_PERSISTENT_PACKAGE_ROOT\"])\nfrom qualification.atomic_publish import publish_bytes as _persistent_publish\n",
+        "import json,os,re,secrets,stat,sys,time\nsys.path.insert(0,os.environ[\"IZANAGI_T126_TEST_PERSISTENT_PACKAGE_ROOT\"])\nfrom orchestrator.qualification.atomic_publish import publish_bytes as _persistent_publish\n",
     ),
 }
 for _mutation_id, (_source_path, _anchor, _replacement) in (
@@ -627,12 +627,12 @@ for _mutation_id, (_source_path, _anchor, _replacement) in (
     _row["replacement"] = _replacement
     del _row["mutant"]
 
-from qualification import collector, t126_driver  # noqa: E402
-from qualification.atomic_publish import (  # noqa: E402
+from orchestrator.qualification import collector, t126_driver  # noqa: E402
+from orchestrator.qualification.atomic_publish import (  # noqa: E402
     AtomicPublishError,
     publish_bytes,
 )
-from qualification.artifacts import (  # noqa: E402
+from orchestrator.qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationRoot,
     QualificationEventSink,
@@ -647,12 +647,12 @@ from qualification.artifacts import (  # noqa: E402
     validate_failure_receipt_for_retry,
     validate_retry_history,
 )
-from qualification.attempt_ledger import (  # noqa: E402
+from orchestrator.qualification.attempt_ledger import (  # noqa: E402
     AttemptLedgerError,
     SeriesAttemptLedger,
 )
-from qualification.contract import load_protocol  # noqa: E402
-from qualification.contract import (  # noqa: E402
+from orchestrator.qualification.contract import load_protocol  # noqa: E402
+from orchestrator.qualification.contract import (  # noqa: E402
     REGISTERED_DEPENDENCY_BUILD_ARGV,
     ProtocolError,
     REQUIRED_CODE_IDENTITY_PATHS,
@@ -663,21 +663,21 @@ from qualification.contract import (  # noqa: E402
     series_identity,
     validate_protocol,
 )
-from qualification.qsub_binding import (  # noqa: E402
+from orchestrator.qualification.qsub_binding import (  # noqa: E402
     QsubBindingError,
     validate_qsub_binding,
 )
-from qualification.retry_index import (  # noqa: E402
+from orchestrator.qualification.retry_index import (  # noqa: E402
     RetryIndexError,
     validate_retry_index,
 )
-from qualification.series import SeriesFSM  # noqa: E402
-from qualification.t126_driver import (  # noqa: E402
+from orchestrator.qualification.series import SeriesFSM  # noqa: E402
+from orchestrator.qualification.t126_driver import (  # noqa: E402
     _member_identity,
     _parse_genome,
     verify as verify_attempt,
 )
-from qualification.identity import (  # noqa: E402
+from orchestrator.qualification.identity import (  # noqa: E402
     IdentityVerificationError,
     verify_recorded_series_identity,
 )
@@ -1636,13 +1636,13 @@ def test_shell_publishers_recover_all_hard_crash_boundaries(
     data = b'{"complete":true}\n'
     program = (
         "from pathlib import Path\n"
-        "from qualification.atomic_publish import publish_bytes\n"
+        "from orchestrator.qualification.atomic_publish import publish_bytes\n"
         f"publish_bytes(Path({str(target)!r}),{data!r},"
         f"crash_boundary={boundary!r})\n")
     crashed = subprocess.run(
         [sys.executable, "-I", "-B", "-c",
          "import sys;"
-         f"sys.path.insert(0,{str(_HERE.parent)!r});"
+         f"sys.path.insert(0,{str(_HERE.parents[1])!r});"
          + program],
         capture_output=True, text=True)
     assert crashed.returncode in {91, 92, 93, 94}
@@ -2060,12 +2060,12 @@ def test_submitter_has_exact_opt_in_and_imports_persistent_publisher():
     assert '"retry_from_series_id":retry_series_id or None' in script
     assert "full source/tree/gitlink identity unavailable" in script
     assert "required execution input is not tracked" in script
-    assert "from qualification.atomic_publish import publish_bytes" in script
+    assert "from orchestrator.qualification.atomic_publish import publish_bytes" in script
 
 
 def test_job_script_has_no_persistent_import_and_has_isolated_publisher():
     job_script = (_ROOT / "tools/pegasus/t126_qualification.sh").read_text()
-    assert "from qualification.atomic_publish import publish_bytes" not in job_script
+    assert "from orchestrator.qualification.atomic_publish import publish_bytes" not in job_script
     assert '"$PY" -I -S -B - "$JOB_RESULT"' in job_script
     assert "import json,os,re,secrets,stat,sys,time" in job_script
     assert 'ATTEMPT_DIR="$QUAL_ROOT/attempts/$SUBMITTED_ATTEMPT_ID"' in job_script
@@ -5802,8 +5802,9 @@ def test_m11b_exact_spooled_script_uses_embedded_isolated_publisher(
         ["git", "-C", str(repo), "cat-file", "blob",
          f"{commit}:tools/pegasus/t126_qualification.sh"])
     sentinel_root = tmp_path / "sentinel"
-    package = sentinel_root / "qualification"
+    package = sentinel_root / "orchestrator" / "qualification"
     package.mkdir(parents=True)
+    (package.parent / "__init__.py").write_text("", encoding="utf-8")
     (package / "__init__.py").write_text("", encoding="utf-8")
     sentinel = tmp_path / "persistent-import-ran"
     (package / "atomic_publish.py").write_text(

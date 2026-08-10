@@ -23,36 +23,36 @@ import unittest.mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import ident, p3_s4_loop as L                        # noqa: E402
-from campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
-from campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
-from campaign import source_digest, trigger_gate_binding, wal      # noqa: E402
-from campaign.build_admission import (                             # noqa: E402
+from orchestrator.campaign import ident, p3_s4_loop as L                        # noqa: E402
+from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
+from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
+from orchestrator.campaign import source_digest, trigger_gate_binding, wal      # noqa: E402
+from orchestrator.campaign.build_admission import (                             # noqa: E402
     GeneratorId,
     attest_generator_output,
     build_run_context,
     derive_build_admission,
 )
-from campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign  # noqa: E402
-from campaign.loop import CampaignSummary                          # noqa: E402
-from campaign.pipeline import variant_id                           # noqa: E402
-from campaign.source_digest import (                               # noqa: E402
+from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
+from orchestrator.campaign.artifact_admission import require_admitted_campaign  # noqa: E402
+from orchestrator.campaign.loop import CampaignSummary                          # noqa: E402
+from orchestrator.campaign.pipeline import variant_id                           # noqa: E402
+from orchestrator.campaign.source_digest import (                               # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
-from campaign.projection_guard import (                            # noqa: E402
+from orchestrator.campaign.projection_guard import (                            # noqa: E402
     AbilityProbeMaterialError,
     ProjectionPolicyError,
     load_projection_policy,
 )
-from campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
-from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import (Genome, STAGE_ABORT,                  # noqa: E402
+from orchestrator.campaign.diff_quarantine import DiffRejectSubtype            # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                        # noqa: E402
+from orchestrator.campaign.model import (Genome, STAGE_ABORT,                  # noqa: E402
                             STAGE_BUILD_START)
-from critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
+from orchestrator.critic.digest import (DIFF_QUARANTINE_REASON,                 # noqa: E402
                            IdentityProjection,
                            load_diff_rejections,
                            load_liveness_rejections, render_rejections)
@@ -133,7 +133,7 @@ def _mk_trigger_template_dir():
 
 def test_render_hole_preserves_indent_and_replaces_only_hole():
     """hole 行だけがインデント保持で置換され、フレーム (#if/#else/stock 枝) は不変。"""
-    from campaign.diff_quarantine import parse_template_file
+    from orchestrator.campaign.diff_quarantine import parse_template_file
     d = _mk_template_dir()
     m = parse_template_file(os.path.join(d, _SRC_REL), "silo-backoff-magnitude")
     edited = L.render_hole(_TEMPLATE, m, "double now_backoff = 20.0;")
@@ -1490,7 +1490,7 @@ def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
 
 def test_inner_run_recovers_reject_start_before_writing_retry_start():
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     lay = _tmp_layout("inner-reject-recovery")
     cfg, perf = L.default_cfg(), L.default_perf()
@@ -1532,7 +1532,7 @@ def test_inner_run_recovers_reject_start_before_writing_retry_start():
 def test_drive_iteration_checkpoint_survives_across_calls():
     """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     sub = tempfile.mkdtemp(prefix="izanagi_s4loop_public_")
     os.makedirs(os.path.join(sub, "include"))
@@ -1571,7 +1571,7 @@ def test_drive_iteration_checkpoint_survives_across_calls():
 
 def test_drive_iteration_clean_no_build_skips_admitted_critic_digest(monkeypatch):
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     sub = _mk_template_dir(L.SOURCE_REL)
     lay = _tmp_layout("dry-pass-no-digest")

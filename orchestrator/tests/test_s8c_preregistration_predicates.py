@@ -12,11 +12,11 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 _ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
+sys.path.insert(0, str(_ORCHESTRATOR.parent))
 
-from campaign import s8b_holdout_freeze  # noqa: E402
-from campaign import s8c_preregistration as core  # noqa: E402
-from campaign import s8c_preregistration_evidence as M  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
+from orchestrator.campaign import s8c_preregistration as core  # noqa: E402
+from orchestrator.campaign import s8c_preregistration_evidence as M  # noqa: E402
 
 
 CONTRACT_FILE = _ROOT / core.EVIDENCE_CONTRACT_PATH

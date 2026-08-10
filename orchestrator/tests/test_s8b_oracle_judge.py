@@ -11,10 +11,10 @@ from pathlib import Path
 import pytest
 
 ORCH = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ORCH))
+sys.path.insert(0, str(ORCH.parent))
 
-from campaign import s8b_oracle_judge as judge  # noqa: E402
-from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign import s8b_oracle_judge as judge  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction は JSON 形の静止リテラルにしない。

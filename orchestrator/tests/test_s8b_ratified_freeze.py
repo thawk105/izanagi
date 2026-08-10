@@ -27,18 +27,18 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 _ROOT = os.path.dirname(_ORCH)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import s8b_ratified_freeze as M  # noqa: E402
-from campaign import env_contract as EC  # noqa: E402
-from campaign import s8b_floor_campaign as FLOOR  # noqa: E402
-from campaign import s8b_floor_contract as FC  # noqa: E402
-from campaign import s8b_holdout_freeze as HF  # noqa: E402
-from campaign import s8b_prediction_runner as PR  # noqa: E402
-from campaign.durable_root import DurableRootPolicy  # noqa: E402
-from campaign.model import Genome  # noqa: E402
-from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
-from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+from orchestrator.campaign import s8b_ratified_freeze as M  # noqa: E402
+from orchestrator.campaign import env_contract as EC  # noqa: E402
+from orchestrator.campaign import s8b_floor_campaign as FLOOR  # noqa: E402
+from orchestrator.campaign import s8b_floor_contract as FC  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as HF  # noqa: E402
+from orchestrator.campaign import s8b_prediction_runner as PR  # noqa: E402
+from orchestrator.campaign.durable_root import DurableRootPolicy  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
 
@@ -504,7 +504,7 @@ def _install_emitter_selector_prediction(
     predictions_path = root / "output/s8b-freeze/selector_predictions.json"
     if predictions_path.exists():
         return
-    from campaign import s8b_selector_freeze as SF
+    from orchestrator.campaign import s8b_selector_freeze as SF
 
     for relative in _PREDICTION_SOURCE_PATHS.values():
         destination = root / relative

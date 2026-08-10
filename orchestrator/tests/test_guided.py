@@ -19,30 +19,30 @@ import types
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import guided, ident, pipeline, replay, wal         # noqa: E402
-from campaign.build_admission import (                            # noqa: E402
+from orchestrator.campaign import guided, ident, pipeline, replay, wal         # noqa: E402
+from orchestrator.campaign.build_admission import (                            # noqa: E402
     GeneratorId,
     build_run_context,
     derive_build_admission,
 )
-from campaign.genome import SILO_SPACE                            # noqa: E402
-from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
+from orchestrator.campaign.genome import SILO_SPACE                            # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                        # noqa: E402
+from orchestrator.campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_START,  # noqa: E402
                             STAGE_BUILD_DONE, STAGE_COMMIT,
                             CampaignConfig, Genome)
-from campaign.pin import CURRENT_PIN                              # noqa: E402
-from campaign.source_digest import (                              # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN                              # noqa: E402
+from orchestrator.campaign.source_digest import (                              # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
-from campaign.search_baselines import (exact_perm_pvalue_A,       # noqa: E402
+from orchestrator.campaign.search_baselines import (exact_perm_pvalue_A,       # noqa: E402
                                        expectation, oracle_ceiling,
                                        prob_superiority,
                                        prob_superiority_two_sample,
                                        random_reach_distribution, reached_cost)
-from critic.online_digest import LeakageError, online_digest      # noqa: E402
+from orchestrator.critic.online_digest import LeakageError, online_digest      # noqa: E402
 
 _G = "silo|BACK_OFF={b},NO_WAIT_LOCKING_IN_VALIDATION={l},NO_WAIT_OF_TICTOC={t},WAL={w}"
 

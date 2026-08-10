@@ -11,8 +11,8 @@ import pytest
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
-if str(_ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR))
+if str(_ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(_ORCHESTRATOR.parent))
 
 from orchestrator.campaign import campaign_lock, env_contract, wal
 from orchestrator.campaign.layout import CampaignLayout

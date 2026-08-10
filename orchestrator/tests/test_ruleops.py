@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO / "orchestrator"))
+sys.path.insert(0, str(_REPO))
 from tests import repo_tree_util  # noqa: E402
 
 _TOOL = _REPO / "tools" / "ruleops.py"

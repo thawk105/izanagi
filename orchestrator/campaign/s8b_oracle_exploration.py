@@ -11,12 +11,11 @@ from pathlib import Path
 from typing import Optional
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ORCHESTRATOR = Path(__file__).resolve().parent.parent
-    if str(_ORCHESTRATOR) not in sys.path:
-        sys.path.insert(0, str(_ORCHESTRATOR))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
-from campaign.layout import (  # noqa: E402
+from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
+from .layout import (  # noqa: E402
     ExplorationCampaignLayout,
     exploration_campaign_layout,
 )
