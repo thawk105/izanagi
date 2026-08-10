@@ -67,6 +67,10 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   `tools/run_tests.py` の 4 者が読むため、実 repo を読むテストは**存在する**
 - **凍結前の機械走査**: 変更・新規 docs 13 file に holdout 三軸語の conjunction hit
   **0 件 / rc=0** (両 holdout とも)
+- **検査の実測**: 受入全走 **8483 passed / 20 skipped / 547.73 秒 / rc=0**
+  (受入 lease 取得後に local main を取り込んだ tip `ba73d199` で実走)。
+  `check_docs` 違反なし、`spool_fold --dry-run` = planned、provenance 全史監査 rc=0 (2388 件、
+  新規違反なし)。**skip 件数 20 は変更前と同一**で、本 wave は skip を増やしていない
 - **並走ガード 3 条件を遵守した。** 本 wave は**計測系のキュー投入を 1 件も行っていない**
   (床値投入が不可のため)。投入したのは検査系の dispatch だけで、
   provenance 監査 (request `901529.nqsv`、Elapse 17 秒) と受入全走である。
@@ -78,6 +82,14 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
 - **エージェント工数**: codex 子 3 本 (プラン 1 = max / 敵対相談 2 = max)。
   実装子とレビュー子は「実装しない」裁定により起動していない。
   親は brief・実測・裁定・docs・記録
+- **段 8 自己改善**: 候補 3 件を裁定した。(1) 「投入ゼロの wave」で検査系の自動 dispatch を
+  数え落とす件は**採用**し、8b 再開手順書の並走ガード節へ 1 段落統合した (dev-wave 入口ではなく
+  発火元の runbook が正本のため)。(2) 性質検索の hit 行を producer / consumer に分類せず
+  結論した件は、`DW-G03` の「単発事故は局所修復」に従い**不採用** — 本エントリの記録で閉じる。
+  (3) 「単位へ割ったとき片方だけ land した場合の受理集合の向きを `DW-G05` で問う」案は
+  **予算超過で起票へ回した**。追記 258 bytes に対し `docs/dev-wave/**` の L1 unique footprint は
+  予算 10625 bytes に対し余白がほぼゼロで、追記すると 10883 bytes になる。
+  「予算のために安全義務を削除・弱化しない」に従い撤回し、下記「新規」へ起票する
 - **ユーザー手番**: 裁定 5 件 (S-1〜S-4 は [T-783] へ、[T-750] は据え置き)。push は行わない
 
 ## 次の一手差分
@@ -117,3 +129,11 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   触らずに検査する。`tools/mutation_worktree.py` と同型の使い捨て checkout へ patch を当てる案が
   裁定済みの方向。実効回収は 2 node で、残り 2 node は `g++-13` 不在のため
   [T-747] の解消状況に依存する。
+- {{T:dw-g05-partial-land-direction}} **P3・新規 (段 8 発、ユーザー裁定待ち)**:
+  `DW-G05` (成果物影響) は「実装しない・放置した場合」しか問わないため、
+  **scope を単位へ割って片方だけ land した場合**に受理集合がどちらへ動くかが問われない。
+  本 wave はこの非対称性 (site 解決化だけを land すると fail-closed 障壁が外れる) に
+  段 4 まで気づかなかった。追記 258 bytes が `docs/dev-wave/**` の L1 unique footprint 予算
+  10625 bytes を超える (追記後 10883 bytes、余白はほぼゼロ) ため入口・reference へ入らない。
+  [T-786] の docs 予算棚卸し wave の対象へ加えるのが自然。
+  **予算のために安全義務を削除・弱化する案は採らない。**
