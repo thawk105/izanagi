@@ -28,7 +28,7 @@ ORCHESTRATOR = HERE.parent
 ROOT = ORCHESTRATOR.parent
 
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 from skiputil import Skip, skip  # noqa: E402
 
 

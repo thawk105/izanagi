@@ -29,26 +29,26 @@ from types import SimpleNamespace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 import pytest                                                      # noqa: E402
 
-from campaign import axis_trigger_gating as T                      # noqa: E402
-from campaign import ident                                         # noqa: E402
-from campaign import pipeline                                      # noqa: E402
-from campaign import p3_s4_loop as L                               # noqa: E402
-from campaign import s8a_trigger_sweep as W                        # noqa: E402
-from campaign import wal                                           # noqa: E402
-from campaign.artifact_admission import CampaignNotAdmitted         # noqa: E402
-from campaign.build_admission import (BuildAdmissionError,            # noqa: E402
+from orchestrator.campaign import axis_trigger_gating as T                      # noqa: E402
+from orchestrator.campaign import ident                                         # noqa: E402
+from orchestrator.campaign import pipeline                                      # noqa: E402
+from orchestrator.campaign import p3_s4_loop as L                               # noqa: E402
+from orchestrator.campaign import s8a_trigger_sweep as W                        # noqa: E402
+from orchestrator.campaign import wal                                           # noqa: E402
+from orchestrator.campaign.artifact_admission import CampaignNotAdmitted         # noqa: E402
+from orchestrator.campaign.build_admission import (BuildAdmissionError,            # noqa: E402
                                       BuildProvenance, GeneratorId,
                                       attest_generator_output,
                                       build_run_context,
                                       derive_build_admission)
-from campaign.model import STAGE_BUILD_START                       # noqa: E402
-from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
-from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
+from orchestrator.campaign.model import STAGE_BUILD_START                       # noqa: E402
+from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
+from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
@@ -202,7 +202,7 @@ def test_all_candidates_pass_quarantine():
 
 
 def test_s8a_reject_writer_fails_closed_on_unframed_tail():
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_reject_gate_")
@@ -347,7 +347,7 @@ def test_genome_flags():
 
 
 def _install_public_reject_sweep_fakes(monkeypatch, layout):
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     root = tempfile.mkdtemp(prefix="izanagi_s8a_public_sweep_")
     os.makedirs(os.path.join(root, "external", "ccbench"))
@@ -369,7 +369,7 @@ def _install_public_reject_sweep_fakes(monkeypatch, layout):
 
 
 def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_public_resume_")
@@ -392,7 +392,7 @@ def test_public_sweep_fresh_reject_then_next_candidate_resumes(monkeypatch):
 
 
 def test_public_sweep_trigger_crash_tail_fails_before_quarantine_write(monkeypatch):
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_public_crash_tail_")
@@ -419,7 +419,7 @@ def test_public_sweep_trigger_crash_tail_fails_before_quarantine_write(monkeypat
 def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
         monkeypatch):
     """public sweep→実 pipeline admission 境界で exact class 差を固定する。"""
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_admission_")
@@ -494,7 +494,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
 
 def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatch):
     """F4: admission 配線失敗は候補隔離の broad except を通過して停止する。"""
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_admission_error_")
@@ -512,8 +512,8 @@ def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatc
 
 def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkeypatch):
     """検疫通過後の build は policy context と source-bound resolver を受ける。"""
-    from campaign import patchharness
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign import patchharness
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_eval_admission_")
@@ -549,7 +549,7 @@ def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkey
 
 def test_public_sweep_full_frame_fsync_eio_stops_before_next_candidate(
         monkeypatch):
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8a_public_fsync_")
@@ -841,7 +841,7 @@ def _install_post_policy_screen_fixture(layout):
 
 def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch):
     """BENCH_DONE は certified の証拠ではない。screen 数値は WAL にだけ保持する。"""
-    from campaign.layout import CampaignLayout
+    from orchestrator.campaign.layout import CampaignLayout
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8ascreen_")

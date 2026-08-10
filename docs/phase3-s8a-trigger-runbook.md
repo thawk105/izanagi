@@ -63,7 +63,7 @@ axis は `"silo-backoff-trigger-gating"`。direction/magnitude の意味論を�
 
 ### (c) diff プレビュー
 ```
-python3 -m campaign.p3_s4_loop_trigger_gating --preview-wire <5 文字の wire>
+python3 -m orchestrator.campaign.p3_s4_loop_trigger_gating --preview-wire <5 文字の wire>
 ```
 preview も本走と同じ凍結 parser/emitter 経路で正準 C++ を導出する ([T-428])。
 `passed=false` は sort runbook §1(c) と同じ扱い (auditor を呼ばず coder へ差し戻し)。
@@ -79,7 +79,7 @@ sort runbook §1(e) と同じ (auditor.diff_digest は (c) の値をそのまま
 
 ### (f) harness 実走 (single-tenant!)
 ```
-python3 -m campaign.p3_s4_loop_trigger_gating --run-iteration <scratch>/prop.json \
+python3 -m orchestrator.campaign.p3_s4_loop_trigger_gating --run-iteration <scratch>/prop.json \
     --allow-coder-derived-build [--extra-source PATH:ROLE ...]
 ```
 - **`--allow-coder-derived-build` は必須** — coder 由来 source の build は既定拒否であり、

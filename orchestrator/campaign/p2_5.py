@@ -26,13 +26,17 @@ import json
 import os
 import statistics
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import guided                                       # noqa: E402
-from campaign import search_baselines as sb                       # noqa: E402
-from campaign.layout import repo_output_root                      # noqa: E402
-from campaign.p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
+from . import guided                                       # noqa: E402
+from . import search_baselines as sb                       # noqa: E402
+from .layout import repo_output_root                      # noqa: E402
+from .p2_2 import BETWEEN_RUN_CV, WORKLOADS               # noqa: E402
+
 
 GUIDED_PREFIX = "p2-5-guided-"
 

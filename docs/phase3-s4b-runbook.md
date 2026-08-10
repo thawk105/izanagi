@@ -85,7 +85,7 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
 
 ### (d) harness で 1 iteration を実走 (single-tenant!)
 ```
-python3 -m campaign.p3_s4_loop --run-iteration <scratch>/prop.json \
+python3 -m orchestrator.campaign.p3_s4_loop --run-iteration <scratch>/prop.json \
     --allow-coder-derived-build
 ```
 - **`--allow-coder-derived-build` は必須** — coder 由来 source の build は既定拒否であり、

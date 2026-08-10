@@ -26,13 +26,11 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
 REPO_ROOT = ORCHESTRATOR.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from campaign import env_contract as ec  # noqa: E402
-from campaign import env_contract_activation as activation  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import env_contract_activation as activation  # noqa: E402
 
 
 INITIAL_STATE_SHA256 = (
@@ -384,12 +382,12 @@ for owner, names in (
     for name in names:
         setattr(owner, name, guard(f"{owner.__name__}.{name}", getattr(owner, name)))
 
-import campaign.env_contract as module
+import orchestrator.campaign.env_contract as module
 assert module._AUTHORITY_SNAPSHOT is None
 print("import-only-ok")
 '''
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(source_root / "orchestrator")
+    env["PYTHONPATH"] = str(source_root)
     return subprocess.run(
         [sys.executable, "-c", script],
         cwd=cwd,
@@ -1803,9 +1801,9 @@ def test_pegasus_g2_authorization_reaches_certified_sink_without_lookup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
     """serial 2 の g2 解決を authorize→guard→pipeline sink まで固定する。"""
-    from campaign import pipeline, site_policy
-    from campaign.model import Genome
-    from campaign.pipeline import PerfConfig
+    from orchestrator.campaign import pipeline, site_policy
+    from orchestrator.campaign.model import Genome
+    from orchestrator.campaign.pipeline import PerfConfig
     from test_campaign import _BUILD_CONTEXT, _mock_pipeline, _tmp_layout
 
     second = _actual_serial2(tmp_path / "authority")
@@ -1905,7 +1903,7 @@ def test_historical_calibration_is_verified_only_when_resolved_in_source_stage(
     else:
         calibration.write_bytes(calibration.read_bytes() + b"\n")
     script = f'''
-from campaign import env_contract as module
+from orchestrator.campaign import env_contract as module
 current = module.lookup("pegasus")
 assert current.contract_sha256 == {ec.GENERATIONS["pegasus"][1].contract.contract_sha256!r}
 try:
@@ -1919,7 +1917,7 @@ else:
 print("current-ok-historical-rejected")
 '''
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(stage / "orchestrator")
+    env["PYTHONPATH"] = str(stage)
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=stage,
@@ -2036,12 +2034,12 @@ def test_held_lock_fork_reinitializes_child_cache_without_deadlock():
 
 def test_repo_root_is_cwd_independent(tmp_path: Path):
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(ORCHESTRATOR)
+    env["PYTHONPATH"] = str(REPO_ROOT)
     completed = subprocess.run(
         [
             sys.executable,
             "-c",
-            "from campaign.env_contract import lookup; print(lookup('pegasus').generation if False else lookup('pegasus').env_tag)",
+            "from orchestrator.campaign.env_contract import lookup; print(lookup('pegasus').generation if False else lookup('pegasus').env_tag)",
         ],
         cwd=tmp_path,
         env=env,

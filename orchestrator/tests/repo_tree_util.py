@@ -13,6 +13,10 @@ class RepoTreeSnapshotError(RuntimeError):
     """git status snapshot 自体を取得できなかった。"""
 
 
+class RepoTreeListError(RuntimeError):
+    """tracked + untracked の path 一覧を取得できなかった。"""
+
+
 def _repo_status(root: Path) -> bytes:
     try:
         return subprocess.run(
@@ -85,3 +89,38 @@ def assert_repo_tree_unchanged(root: Path, action: Callable[[], T]) -> T:
     after = _repo_status(root)
     _unchanged_assertion(before, after)
     return result
+
+
+def list_tracked_and_untracked_files(root: Path) -> tuple[Path, ...]:
+    """root の tracked + untracked（ignore 対象外）を相対 path で返す。
+
+    呼出 process の cwd には依存せず、git 呼出しはこの関数内の 1 回だけである。
+    """
+    root = Path(root)
+    try:
+        raw = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "-z",
+            ],
+            cwd=str(root),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RepoTreeListError(f"git ls-files を取得できない: {root}") from exc
+
+    paths: list[Path] = []
+    for item in raw.split(b"\0"):
+        if not item:
+            continue
+        relative = Path(_decode_path(item))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise RepoTreeListError(f"git ls-files が不正な相対 path を返した: {relative}")
+        paths.append(relative)
+    return tuple(paths)

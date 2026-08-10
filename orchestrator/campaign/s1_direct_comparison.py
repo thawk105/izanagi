@@ -19,20 +19,23 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Mapping, Optional, Sequence
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
-from campaign.layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
-from campaign.model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
-from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
-from campaign import pipeline  # noqa: E402
-from campaign.build_admission import (REVIEW_RECEIPT_SCHEMA,  # noqa: E402
+from . import env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
+from .layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
+from .model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
+from .pipeline import EvalResult, PerfConfig  # noqa: E402
+from . import pipeline  # noqa: E402
+from .build_admission import (REVIEW_RECEIPT_SCHEMA,  # noqa: E402
                                       GeneratorId, ReviewId, build_run_context,
                                       verify_review_receipt)
 
@@ -131,7 +134,7 @@ def load_verified_freeze(
     document = _load_json_object(freeze_path)
     if verify_document is None:
         try:
-            from campaign import s1_measurement_freeze as freeze_module
+            from . import s1_measurement_freeze as freeze_module
         except ImportError as exc:
             raise DriverError("s1_measurement_freeze を import できない") from exc
         verify_document = freeze_module.verify_document
@@ -494,11 +497,11 @@ def _session_wall_upper_bound_s(role: str) -> float:
 @contextlib.contextmanager
 def prepare_cell(cell: Mapping, ccbench_pin: str):
     """freeze variant の flags/code を使い、使い捨て worktree に該当点を実体化する。"""
-    from campaign import patchharness
-    from campaign import p3_s4_loop as loop_axis
-    from campaign import p3_s4_loop_sort as sort_axis
-    from campaign import axis_trigger_gating as gate_axis
-    from campaign import p3_s4_loop_trigger_gating as gate_loop
+    from . import patchharness
+    from . import p3_s4_loop as loop_axis
+    from . import p3_s4_loop_sort as sort_axis
+    from . import axis_trigger_gating as gate_axis
+    from . import p3_s4_loop_trigger_gating as gate_loop
 
     variant = cell.get("variant")
     configuration = cell.get("configuration")
@@ -660,7 +663,7 @@ def run_role(
         return EXIT_OK
 
     if single_tenant_fn is None:
-        from campaign.p2_2 import _assert_single_tenant
+        from .p2_2 import _assert_single_tenant
         single_tenant_fn = _assert_single_tenant
     try:
         repair = _ensure_campaign(

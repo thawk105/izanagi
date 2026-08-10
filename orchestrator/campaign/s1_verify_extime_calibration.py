@@ -33,20 +33,23 @@ import subprocess
 import sys
 import tempfile
 import time
-from pathlib import Path
 from typing import Callable, Dict, List, Mapping, Optional, Sequence
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
+from . import (axis_trigger_gating, buildcache, p3_s4_loop, pin,  # noqa: E402
                       s1_known_axes_freeze, s8a_trigger_sweep, source_digest,
                       trigger_gate_binding)
-from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission)
-from campaign.layout import repo_output_root                              # noqa: E402
-from campaign.p2_2 import (CLK, NUMA, RECORDS, THREADS,                  # noqa: E402
+from .layout import repo_output_root                              # noqa: E402
+from .p2_2 import (CLK, NUMA, RECORDS, THREADS,                  # noqa: E402
                            _assert_single_tenant)
-from campaign.patchharness import applied, assert_pinned_clean           # noqa: E402
+from .patchharness import applied, assert_pinned_clean           # noqa: E402
+
 
 
 ENV_TAG = "linux-baremetal"

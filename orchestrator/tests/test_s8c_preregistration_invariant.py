@@ -16,12 +16,12 @@ HERE = Path(__file__).resolve().parent
 ORCHESTRATOR = HERE.parent
 ROOT = ORCHESTRATOR.parent
 TOOLS = ROOT / "tools"
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(TOOLS))
 
 import check_docs  # noqa: E402
-from campaign import s8b_holdout_freeze  # noqa: E402
-from campaign import s8c_preregistration as prereg  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
+from orchestrator.campaign import s8c_preregistration as prereg  # noqa: E402
 
 
 PREREG_DOC = ROOT / prereg.SOURCE_PATH

@@ -13,18 +13,18 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
 sys.path.insert(0, str(_HERE))
-sys.path.insert(0, str(_ORCH))
+sys.path.insert(0, str(_ORCH.parent))
 
 import test_campaign as campaign_fixtures  # noqa: E402
 import test_execution_guard as guard_fixtures  # noqa: E402
-from campaign import env_contract, execution_guard, pipeline, wal  # noqa: E402
-from campaign.layout import CampaignLayout  # noqa: E402
-from campaign.model import (  # noqa: E402
+from orchestrator.campaign import env_contract, execution_guard, pipeline, wal  # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
+from orchestrator.campaign.model import (  # noqa: E402
     COMMIT_CONTRACT_SHA256_KEY,
     Genome,
     STAGE_COMMIT,
 )
-from qualification.artifacts import (  # noqa: E402
+from orchestrator.qualification.artifacts import (  # noqa: E402
     QualificationEventSink,
     QualificationRoot,
     create_attempt,

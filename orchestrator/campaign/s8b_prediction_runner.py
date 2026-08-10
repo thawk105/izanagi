@@ -20,47 +20,28 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TextIO
 
-_ORCHESTRATOR_FOR_IMPORT = Path(__file__).resolve().parents[1]
-if str(_ORCHESTRATOR_FOR_IMPORT) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR_FOR_IMPORT))
-
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
-    if str(_ROOT_FOR_IMPORT) not in sys.path:
-        sys.path.insert(0, str(_ROOT_FOR_IMPORT))
-    from orchestrator.campaign.s8b_descriptor import descriptor_for_holdout
-    from orchestrator.campaign.s8b_selector_freeze import (
-        AGENT_DECISION_METHOD,
-        STATIC_DECISION_METHOD,
-        V1_FREEZE_SHA256,
-        build_prediction_freeze,
-        build_prediction_jobs,
-        record_agent_attempt,
-        verify_prediction_freeze,
-        write_prediction_freeze,
-    )
-    from orchestrator.campaign.s8b_selector_input import (
-        STATIC_DEFAULT_CHOICE_ID,
-        build_selector_payload,
-        selector_payload_sha256,
-    )
-else:
-    from .s8b_descriptor import descriptor_for_holdout
-    from .s8b_selector_freeze import (
-        AGENT_DECISION_METHOD,
-        STATIC_DECISION_METHOD,
-        V1_FREEZE_SHA256,
-        build_prediction_freeze,
-        build_prediction_jobs,
-        record_agent_attempt,
-        verify_prediction_freeze,
-        write_prediction_freeze,
-    )
-    from .s8b_selector_input import (
-        STATIC_DEFAULT_CHOICE_ID,
-        build_selector_payload,
-        selector_payload_sha256,
-    )
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from .s8b_descriptor import descriptor_for_holdout
+from .s8b_selector_freeze import (
+    AGENT_DECISION_METHOD,
+    STATIC_DECISION_METHOD,
+    V1_FREEZE_SHA256,
+    build_prediction_freeze,
+    build_prediction_jobs,
+    record_agent_attempt,
+    verify_prediction_freeze,
+    write_prediction_freeze,
+)
+from .s8b_selector_input import (
+    STATIC_DEFAULT_CHOICE_ID,
+    build_selector_payload,
+    selector_payload_sha256,
+)
+
+
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -1456,10 +1437,7 @@ def _assert_selector_run_declarations_from_validated_records(
 
 def _derive_protocol_bytes(root: Path) -> bytes:
     try:
-        if __package__ in {None, ""}:  # pragma: no cover
-            from orchestrator.campaign import s8b_approved, s8b_floor_campaign
-        else:
-            from . import s8b_approved, s8b_floor_campaign
+        from . import s8b_approved, s8b_floor_campaign
         built = s8b_floor_campaign.build_protocol_document(
             s8b_approved.APPROVED_MASTER_SEED,
             s8b_approved.APPROVED_ENV_TAG,

@@ -64,39 +64,42 @@ import tempfile
 import time
 import uuid
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Callable, Mapping, Optional
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from calibrator.runner import (  # noqa: E402
+from ..calibrator.runner import (  # noqa: E402
     CompetingBenchProbeError,
     classify_competing_probe,
     measure_point,
 )
-from campaign import buildcache, s8b_floor_stats, source_digest  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from . import buildcache, s8b_floor_stats, source_digest  # noqa: E402
+from .build_admission import (  # noqa: E402
     GeneratorId,
     ReviewId,
     build_run_context,
     derive_build_admission,
 )
-from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
-from campaign import s8b_floor_contract as _floor_contract  # noqa: E402
-from campaign import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
-from campaign import env_contract as _env_contract  # noqa: E402
-from campaign import env_attestation  # noqa: E402
-from campaign import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
-from campaign import campaign_claim, reservation  # noqa: E402
-from campaign.durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
-from campaign import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
-from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
-from campaign import s8b_selector_freeze as _selector_freeze  # noqa: E402
-from campaign import s8b_prediction_runner as _prediction_runner  # noqa: E402
-from campaign.layout import (  # noqa: E402
+from . import t080_freeze_migration as _t080_migration  # noqa: E402
+from . import s8b_floor_contract as _floor_contract  # noqa: E402
+from . import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
+from . import env_contract as _env_contract  # noqa: E402
+from . import env_attestation  # noqa: E402
+from . import execution_guard  # noqa: E402  (共有 machine-pin + receipt)
+from . import campaign_claim, reservation  # noqa: E402
+from .durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
+from . import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
+from . import s8b_freeze_io as _freeze_io  # noqa: E402
+from . import s8b_selector_freeze as _selector_freeze  # noqa: E402
+from . import s8b_prediction_runner as _prediction_runner  # noqa: E402
+from .layout import (  # noqa: E402
     authorize_output_root,
     ensure_directory_with_capability,
     env_scope_dir,
@@ -104,14 +107,14 @@ from campaign.layout import (  # noqa: E402
     repo_output_root,
     write_capability_for_directory,
 )
-from campaign.p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NUMA は contract 経由)
-from campaign.s1_direct_comparison import prepare_cell  # noqa: E402
-from campaign.s8b_materialization import (  # noqa: E402
+from .p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NUMA は contract 経由)
+from .s1_direct_comparison import prepare_cell  # noqa: E402
+from .s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding,
     reviewed_source_capability,
 )
-from campaign.s8b_launch_cert import (  # noqa: E402
+from .s8b_launch_cert import (  # noqa: E402
     LAUNCH_CERT_SCHEMA,
     LaunchCertError,
     validate_launch_certificate as _validate_launch_certificate,
@@ -454,7 +457,7 @@ def build_protocol_document(master_seed, env_tag, *, stock_configuration,
     既定値を持たない (値の発明・追認を禁止する — 欠落は TypeError で落ちる)。
 
     承認 pin 値 (n_sessions=8 等・閾値・除外理由)・v1 freeze {path, sha256}・ccbench full
-    commit sha は ``campaign.s8b_approved`` を単一源として焼く。**現在値の追認を許さない**
+    commit sha は ``orchestrator.campaign.s8b_approved`` を単一源として焼く。**現在値の追認を許さない**
     (C4-4): 実 v1 bytes が ``APPROVED_FREEZE_SHA256`` と、実 gitlink が ``CCBENCH_FULL_SHA``
     と一致することを組立て前に検証する。``contract_sha256`` は ``env_tag`` から導出する
     (validate_protocol が cross-field 照合する、§5-v)。canonical bytes + sha256 も返す。

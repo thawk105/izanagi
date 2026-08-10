@@ -46,19 +46,23 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import buildcache, site_policy, source_digest            # noqa: E402
-from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+from . import buildcache, site_policy, source_digest            # noqa: E402
+from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission,
                                       require_build_admission)
-from campaign.axis_trigger_gating import (                             # noqa: E402
+from .axis_trigger_gating import (                             # noqa: E402
     INSTR_PATCH, MISATTR_DEFINE, MISATTR_PATCH, PIN, TEMPLATE_PATCH, _BASE)
-from campaign.layout import repo_output_root                           # noqa: E402
-from campaign.model import Genome                                      # noqa: E402
-from campaign.p2_2 import _assert_single_tenant                        # noqa: E402
-from campaign.patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
+from .layout import repo_output_root                           # noqa: E402
+from .model import Genome                                      # noqa: E402
+from .p2_2 import _assert_single_tenant                        # noqa: E402
+from .patchharness import applied, apply_patch, assert_pinned_clean  # noqa: E402
+
 
 ENV_TAG = "linux-baremetal"
 CLK = 2100

@@ -9,7 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from qualification import contract
+from orchestrator.qualification import contract
 
 
 REPO = Path(__file__).resolve().parents[2]
