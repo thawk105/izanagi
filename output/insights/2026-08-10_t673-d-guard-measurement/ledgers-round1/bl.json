@@ -1,0 +1,294 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ada113dc1aff5bd3bffdf34b788e1e86/izdw-ada113dc1a.o900741",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ada113dc1aff5bd3bffdf34b788e1e86/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................                                                        [100%]\n17 passed in 2.82s\n",
+      "stdout_sha256": "b1e943d0e3e7ae33686b35603aa825b7cd0a4d55951e6b5cd09c5a0a6fd9839f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "8d6b7f9a5f981fc17a62c7938a89ee73774cd16d9696888e7b862009a9abce71",
+    "duration_s": 27.142,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "da2911f6926f42eddb59e8b3a1ec79dfee5d7451b0a609b53bbd40455e5bc150",
+    "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+    "runner_sha256": "c372afff3ce14c070c74aafc174233050172a5bd7567c637a91c64ba834c7b1c",
+    "spec_sha256": "14b72acae703380dd4be50baf7bac13adf2a1e009751f04ce30db7eec360d25b",
+    "status": "PASSED",
+    "test_output_sha256": "b1e943d0e3e7ae33686b35603aa825b7cd0a4d55951e6b5cd09c5a0a6fd9839f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1230dd544b43fb7a03764d9372e3a27f84bce583f5055c3ed3f17425a2cdadcc"
+  },
+  "date": "2026-08-10T13:23:19.601075+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b8ee258d615dfa1b7e160865b1433308/izdw-b8ee258d61.o900742",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b8ee258d615dfa1b7e160865b1433308/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........FFFFF.                                                        [100%]\n=================================== FAILURES ===================================\n_______________________ test_loader_invgen_last_rejected _______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_loader_invgen_last_reject0')\n\n    def test_loader_invgen_last_rejected(tmp_path: Path):\n        records, head, catalog, predicate = _case(\n            \"invgen\", position=POSITIONS[\"last\"]\n        )\n        directory = tmp_path / \"authority\"\n        _write_records(directory, records)\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:251: Failed\n__________________________ test_invpred_last_rejected __________________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_invpred_last_rejected():\n>       _require_rejected(_case(\"invpred\", position=POSITIONS[\"last\"]))\n\norchestrator/tests/test_t673_d_probe.py:224: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x14a59ec6f250>)\n\n    def _require_rejected(case) -> None:\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:134: Failed\n_________________________ test_invpred_middle_rejected _________________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_invpred_middle_rejected():\n>       _require_rejected(_case(\"invpred\", position=POSITIONS[\"middle\"]))\n\norchestrator/tests/test_t673_d_probe.py:216: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x14a524d1f250>)\n\n    def _require_rejected(case) -> None:\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:134: Failed\n_________________________ test_invgen_middle_rejected __________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_invgen_middle_rejected():\n>       _require_rejected(_case(\"invgen\", position=POSITIONS[\"middle\"]))\n\norchestrator/tests/test_t673_d_probe.py:192: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"2dbbf0a245d1f797075bf17c867b8b82cd58599ae569f6...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x1506e8f77250>)\n\n    def _require_rejected(case) -> None:\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:134: Failed\n__________________________ test_invgen_last_rejected ___________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_invgen_last_rejected():\n>       _require_rejected(_case(\"invgen\", position=POSITIONS[\"last\"]))\n\norchestrator/tests/test_t673_d_probe.py:200: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"3eebd6ea30e2260e4c14e0c7da0650f86dc9b72f6a9dd0...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x150d3334b250>)\n\n    def _require_rejected(case) -> None:\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:134: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected\nFAILED orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected - ...\nFAILED orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected\nFAILED orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected\nFAILED orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected - F...\n5 failed, 12 passed in 2.84s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected\" nodeid_bytes=69 nodeid_omitted_bytes=0 source_bytes=747 retained_bytes=747 omitted_bytes=0 rendered_excerpt_bytes=778 sha256=91e6b4ad0577f8d0cfa8d2e872b9942c49bdf2309c3dec0a2bc67030f62500ab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_invpred_middle_rejected():\n> >       _require_rejected(_case(\"invpred\", position=POSITIONS[\"middle\"]))\n> \n> orchestrator/tests/test_t673_d_probe.py:216: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x14a524d1f250>)\n> \n>     def _require_rejected(case) -> None:\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected\" nodeid_bytes=68 nodeid_omitted_bytes=0 source_bytes=744 retained_bytes=744 omitted_bytes=0 rendered_excerpt_bytes=775 sha256=1bd280bdef7f33998ab2e4dd0d928c0f0e6b2a1f4364aa7c0c2e2b77432bfb12\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_invgen_middle_rejected():\n> >       _require_rejected(_case(\"invgen\", position=POSITIONS[\"middle\"]))\n> \n> orchestrator/tests/test_t673_d_probe.py:192: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"2dbbf0a245d1f797075bf17c867b8b82cd58599ae569f6...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x1506e8f77250>)\n> \n>     def _require_rejected(case) -> None:\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected\" nodeid_bytes=67 nodeid_omitted_bytes=0 source_bytes=743 retained_bytes=743 omitted_bytes=0 rendered_excerpt_bytes=774 sha256=7816064892f00bbad6c0eec89e4df0754393cfae4f12d7da57bfdc0f05c75213\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_invpred_last_rejected():\n> >       _require_rejected(_case(\"invpred\", position=POSITIONS[\"last\"]))\n> \n> orchestrator/tests/test_t673_d_probe.py:224: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x14a59ec6f250>)\n> \n>     def _require_rejected(case) -> None:\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected\" nodeid_bytes=66 nodeid_omitted_bytes=0 source_bytes=740 retained_bytes=740 omitted_bytes=0 rendered_excerpt_bytes=771 sha256=f0ef74cb7f442dadb73f9f70cde72bf4bac3cfbdd2900dbff40510539ed6087c\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_invgen_last_rejected():\n> >       _require_rejected(_case(\"invgen\", position=POSITIONS[\"last\"]))\n> \n> orchestrator/tests/test_t673_d_probe.py:200: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"3eebd6ea30e2260e4c14e0c7da0650f86dc9b72f6a9dd0...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x150d3334b250>)\n> \n>     def _require_rejected(case) -> None:\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected\" nodeid_bytes=73 nodeid_omitted_bytes=0 source_bytes=566 retained_bytes=566 omitted_bytes=0 rendered_excerpt_bytes=595 sha256=20ac0a1781b96f3cb67501e91b1e6333407491ee6edcc9693ea637929e8b6416\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_loader_invgen_last_reject0')\n> \n>     def test_loader_invgen_last_rejected(tmp_path: Path):\n>         records, head, catalog, predicate = _case(\n>             \"invgen\", position=POSITIONS[\"last\"]\n>         )\n>         directory = tmp_path / \"authority\"\n>         _write_records(directory, records)\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:251: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=3540 retained_bytes=3540 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6008 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "66da4577e7257b4cb89832f87afaf888a302ea74b40575fadb667a2aa6e1d0d2"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "8d6b7f9a5f981fc17a62c7938a89ee73774cd16d9696888e7b862009a9abce71",
+      "duration_s": 26.852,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected"
+      ],
+      "hang_risk": false,
+      "id": "BL-G-N4-GUARD-FALSE",
+      "injection_diff_sha256": "7def17ceac03af9c16744ea703d478fd7c89506911c32b2becf43d0d2d7db7e6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "34afadf6a31db77c8ad7b7d7317ec11787082c5919a0fe9be4f7596c96ada6d4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for successor in successor_rows[:4]:\n",
+          "old": "    for successor in successor_rows:\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    if False:\n",
+          "old": "    if observed_generation_checks != expected_generation_checks:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "c372afff3ce14c070c74aafc174233050172a5bd7567c637a91c64ba834c7b1c",
+      "spec_sha256": "14b72acae703380dd4be50baf7bac13adf2a1e009751f04ce30db7eec360d25b",
+      "status": "KILLED",
+      "test_output_sha256": "66da4577e7257b4cb89832f87afaf888a302ea74b40575fadb667a2aa6e1d0d2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1230dd544b43fb7a03764d9372e3a27f84bce583f5055c3ed3f17425a2cdadcc"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d0747b2750e9795acdb98a702191c44e/izdw-d0747b2750.o900743",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d0747b2750e9795acdb98a702191c44e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............FF.                                                        [100%]\n=================================== FAILURES ===================================\n_________________________ test_invpred_middle_rejected _________________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_invpred_middle_rejected():\n>       _require_rejected(_case(\"invpred\", position=POSITIONS[\"middle\"]))\n\norchestrator/tests/test_t673_d_probe.py:216: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x148e89f2f250>)\n\n    def _require_rejected(case) -> None:\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:134: Failed\n__________________________ test_invpred_last_rejected __________________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_invpred_last_rejected():\n>       _require_rejected(_case(\"invpred\", position=POSITIONS[\"last\"]))\n\norchestrator/tests/test_t673_d_probe.py:224: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x14af273d3250>)\n\n    def _require_rejected(case) -> None:\n>       with pytest.raises(activation.ActivationRecordError):\nE       Failed: DID NOT RAISE ActivationRecordError\n\norchestrator/tests/test_t673_d_probe.py:134: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected\nFAILED orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected - ...\n2 failed, 15 passed in 2.82s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected\" nodeid_bytes=69 nodeid_omitted_bytes=0 source_bytes=747 retained_bytes=747 omitted_bytes=0 rendered_excerpt_bytes=778 sha256=04ac33be2ec639e007fd8f54a6c1db11a268d2a2eba6f5f9592784295f41ccc3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_invpred_middle_rejected():\n> >       _require_rejected(_case(\"invpred\", position=POSITIONS[\"middle\"]))\n> \n> orchestrator/tests/test_t673_d_probe.py:216: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x148e89f2f250>)\n> \n>     def _require_rejected(case) -> None:\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected\" nodeid_bytes=67 nodeid_omitted_bytes=0 source_bytes=743 retained_bytes=743 omitted_bytes=0 rendered_excerpt_bytes=774 sha256=ebf049f71aeedb1fc12cf7b48f97a7ca90d27fb7926d95efd763c1cef8c8fa86\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_invpred_last_rejected():\n> >       _require_rejected(_case(\"invpred\", position=POSITIONS[\"last\"]))\n> \n> orchestrator/tests/test_t673_d_probe.py:224: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ((('00000001.json', b'{\"activation_serial\":1,\"activation_state_sha256\":\"7018cd128d83964e3f60959053f2d058d0aa6513cd1261...e8f4be03fd848eef709e8f538c90551220d61dd9aa1381b10b4a36')), ...}, <function _case.<locals>.predicate at 0x14af273d3250>)\n> \n>     def _require_rejected(case) -> None:\n> >       with pytest.raises(activation.ActivationRecordError):\n> E       Failed: DID NOT RAISE ActivationRecordError\n> \n> orchestrator/tests/test_t673_d_probe.py:134: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1490 retained_bytes=1490 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2649 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b13f630fd5fd0003c3394b9982425a62bfebba59f501ff9886ccef97652c3bab"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "8d6b7f9a5f981fc17a62c7938a89ee73774cd16d9696888e7b862009a9abce71",
+      "duration_s": 26.828,
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected"
+      ],
+      "hang_risk": false,
+      "id": "BL-P-N4-GUARD-FALSE",
+      "injection_diff_sha256": "8f83dffa15ace89f0d97d308781ea10b1d96761e799ab774ee3eefb8adec4426",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0f72aee221344a5f43c0a1deea74c4ccac60e0fe0482bd7aa7000b28211f692d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    for predecessor, successor in changed[:4]:\n",
+          "old": "    for predecessor, successor in changed:\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "new": "    if False:\n",
+          "old": "    if observed_predicate_checks != expected_predicate_checks:\n"
+        }
+      ],
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "c372afff3ce14c070c74aafc174233050172a5bd7567c637a91c64ba834c7b1c",
+      "spec_sha256": "14b72acae703380dd4be50baf7bac13adf2a1e009751f04ce30db7eec360d25b",
+      "status": "KILLED",
+      "test_output_sha256": "b13f630fd5fd0003c3394b9982425a62bfebba59f501ff9886ccef97652c3bab",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1230dd544b43fb7a03764d9372e3a27f84bce583f5055c3ed3f17425a2cdadcc"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9092d4b3ec3148615b0e0b42685406ef/izdw-9092d4b3ec.o900739",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9092d4b3ec3148615b0e0b42685406ef/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted\norchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o\norchestrator/tests/test_t673_d_probe.py::test_valid_m2_accepted\norchestrator/tests/test_t673_d_probe.py::test_invgen_first_rejected\norchestrator/tests/test_t673_d_probe.py::test_invgen_first_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected\norchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected\norchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invpred_first_rejected\norchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected\norchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected\norchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic\norchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted\norchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected\n\n17 tests collected in 1.59s\n",
+        "stdout_sha256": "08b6851f5c0b481f1e357333d50b269060630ab382b401c49f32e01206bcd284"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m2_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_first_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected"
+      ],
+      "duration_s": 37.065,
+      "rc": 0,
+      "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+      "runner_sha256": "c372afff3ce14c070c74aafc174233050172a5bd7567c637a91c64ba834c7b1c",
+      "spec_sha256": "14b72acae703380dd4be50baf7bac13adf2a1e009751f04ce30db7eec360d25b",
+      "status": "PASSED",
+      "tool_sha256": "1230dd544b43fb7a03764d9372e3a27f84bce583f5055c3ed3f17425a2cdadcc"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "BL-G-N4-GUARD-FALSE": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected",
+          "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+          "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected",
+          "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected",
+          "orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7def17ceac03af9c16744ea703d478fd7c89506911c32b2becf43d0d2d7db7e6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for successor in successor_rows[:4]:\n",
+            "old": "    for successor in successor_rows:\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    if False:\n",
+            "old": "    if observed_generation_checks != expected_generation_checks:\n"
+          }
+        ]
+      },
+      "BL-P-N4-GUARD-FALSE": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+          "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8f83dffa15ace89f0d97d308781ea10b1d96761e799ab774ee3eefb8adec4426",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    for predecessor, successor in changed[:4]:\n",
+            "old": "    for predecessor, successor in changed:\n"
+          },
+          {
+            "file": "orchestrator/campaign/env_contract_activation.py",
+            "new": "    if False:\n",
+            "old": "    if observed_predicate_checks != expected_predicate_checks:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "da2911f6926f42eddb59e8b3a1ec79dfee5d7451b0a609b53bbd40455e5bc150",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t673_d_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "85afbbe873c9dbd55adc657d154614a96684ab80",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t673_d_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "486a40790f7d6a8380d8e882f757c2f4b6d5d631",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c372afff3ce14c070c74aafc174233050172a5bd7567c637a91c64ba834c7b1c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "14b72acae703380dd4be50baf7bac13adf2a1e009751f04ce30db7eec360d25b",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t673-d-guard-measurement/scratch/bl/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "1230dd544b43fb7a03764d9372e3a27f84bce583f5055c3ed3f17425a2cdadcc",
+  "updated_at": "2026-08-10T13:24:44.874889+00:00"
+}

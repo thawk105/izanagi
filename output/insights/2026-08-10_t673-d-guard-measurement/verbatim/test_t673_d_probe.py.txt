@@ -1,0 +1,258 @@
+# -*- coding: utf-8 -*-
+"""T-673 D の走査完全性を結果クラス別に測る probe。"""
+from __future__ import annotations
+
+import hashlib
+import os
+import subprocess
+import sys
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
+
+import pytest
+
+
+ORCHESTRATOR = Path(__file__).resolve().parent.parent
+REPO_ROOT = ORCHESTRATOR.parent
+if str(ORCHESTRATOR) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR))
+
+from campaign import env_contract_activation as activation  # noqa: E402
+
+
+ENV_COUNT = 65
+POSITIONS = {"first": 0, "middle": 32, "last": 64}
+SEMANTIC_REASONS = ("exactly +1", "no-op", "successor")
+
+
+def _contract_hash(env_tag: str, generation: int) -> str:
+    material = f"{env_tag}\0generation={generation}".encode("ascii")
+    return hashlib.sha256(material).hexdigest()
+
+
+def _catalog(env_count: int) -> dict[str, tuple[tuple[int, str], ...]]:
+    return {
+        env_tag: tuple(
+            (generation, _contract_hash(env_tag, generation))
+            for generation in (1, 2, 3)
+        )
+        for env_tag in (f"env-{index:03d}" for index in range(env_count))
+    }
+
+
+def _raw(document: Mapping[str, object]) -> bytes:
+    return activation.canonical_record_bytes(document) + b"\n"
+
+
+def _chain(
+    states: Sequence[Sequence[int]],
+    catalog: Mapping[str, tuple[tuple[int, str], ...]],
+) -> tuple[tuple[tuple[str, bytes], ...], dict[str, object]]:
+    records: list[tuple[str, bytes]] = []
+    previous_hash: str | None = None
+    env_tags = sorted(catalog)
+    head: dict[str, object] | None = None
+    for serial, generations in enumerate(states, start=1):
+        if len(generations) != len(env_tags):
+            raise ValueError("state と catalog の env 件数が一致しない")
+        rows = tuple(
+            activation.ActiveContract(
+                env_tag,
+                generation,
+                dict(catalog[env_tag])[generation],
+            )
+            for env_tag, generation in zip(env_tags, generations)
+        )
+        head = activation.build_activation_record(
+            activation_serial=serial,
+            previous_activation_state_sha256=previous_hash,
+            active_contracts=rows,
+        )
+        records.append((f"{serial:08d}.json", _raw(head)))
+        previous_hash = head["activation_state_sha256"]
+    if head is None:
+        raise ValueError("chain は非空でなければならない")
+    return tuple(records), head
+
+
+def _case(
+    kind: str,
+    *,
+    position: int | None = None,
+    env_count: int = ENV_COUNT,
+) -> tuple[
+    tuple[tuple[str, bytes], ...],
+    dict[str, object],
+    dict[str, tuple[tuple[int, str], ...]],
+    Callable[[activation.ActiveContract, activation.ActiveContract], bool],
+]:
+    catalog = _catalog(env_count)
+    predecessor = [1] * env_count
+    successor = [2] * env_count
+    rejected_env: str | None = None
+    if kind == "invgen":
+        if position is None:
+            raise ValueError("invgen には position が必要")
+        predecessor[position] = 2
+        successor[position] = 1
+    elif kind == "invpred":
+        if position is None:
+            raise ValueError("invpred には position が必要")
+        rejected_env = f"env-{position:03d}"
+    elif kind != "valid":
+        raise ValueError(f"未知の case: {kind}")
+
+    records, head = _chain((predecessor, successor), catalog)
+
+    def predicate(
+        _predecessor: activation.ActiveContract,
+        candidate: activation.ActiveContract,
+    ) -> bool:
+        return candidate.env_tag != rejected_env
+
+    return records, head, catalog, predicate
+
+
+def _valid_m2_case():
+    catalog = _catalog(2)
+    records, head = _chain(((1, 1), (1, 2)), catalog)
+    return records, head, catalog, lambda _old, _new: True
+
+
+def _validate(case):
+    records, head, catalog, predicate = case
+    return activation.validate_activation_records(
+        records,
+        registered_contracts=catalog,
+        is_valid_registered_successor=predicate,
+        expected_head_serial=head["activation_serial"],
+        expected_head_state_sha256=head["activation_state_sha256"],
+    )
+
+
+def _require_rejected(case) -> None:
+    with pytest.raises(activation.ActivationRecordError):
+        _validate(case)
+
+
+def _require_semantic_if_rejected(case) -> None:
+    try:
+        _validate(case)
+    except activation.ActivationRecordError as exc:
+        assert any(reason in str(exc) for reason in SEMANTIC_REASONS)
+
+
+def _write_records(directory: Path, records: Sequence[tuple[str, bytes]]) -> None:
+    directory.mkdir()
+    for name, raw in records:
+        (directory / name).write_bytes(raw)
+
+
+def test_valid_m65_accepted():
+    state = _validate(_case("valid"))
+    assert state.activation_serial == 2
+    assert len(state.active_contracts) == ENV_COUNT
+
+
+def test_valid_m65_accepted_under_o():
+    script = """
+from orchestrator.tests.test_t673_d_probe import _case, _validate
+state = _validate(_case("valid"))
+if state.activation_serial != 2 or len(state.active_contracts) != 65:
+    raise RuntimeError("optimized probe returned an invalid state")
+"""
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(REPO_ROOT)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    completed = subprocess.run(
+        [sys.executable, "-O", "-c", script],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def test_valid_m2_accepted():
+    state = _validate(_valid_m2_case())
+    assert tuple(row.generation for row in state.active_contracts) == (1, 2)
+
+
+def test_invgen_first_rejected():
+    _require_rejected(_case("invgen", position=POSITIONS["first"]))
+
+
+def test_invgen_first_reason_semantic():
+    _require_semantic_if_rejected(_case("invgen", position=POSITIONS["first"]))
+
+
+def test_invgen_middle_rejected():
+    _require_rejected(_case("invgen", position=POSITIONS["middle"]))
+
+
+def test_invgen_middle_reason_semantic():
+    _require_semantic_if_rejected(_case("invgen", position=POSITIONS["middle"]))
+
+
+def test_invgen_last_rejected():
+    _require_rejected(_case("invgen", position=POSITIONS["last"]))
+
+
+def test_invgen_last_reason_semantic():
+    _require_semantic_if_rejected(_case("invgen", position=POSITIONS["last"]))
+
+
+def test_invpred_first_rejected():
+    _require_rejected(_case("invpred", position=POSITIONS["first"]))
+
+
+def test_invpred_first_reason_semantic():
+    _require_semantic_if_rejected(_case("invpred", position=POSITIONS["first"]))
+
+
+def test_invpred_middle_rejected():
+    _require_rejected(_case("invpred", position=POSITIONS["middle"]))
+
+
+def test_invpred_middle_reason_semantic():
+    _require_semantic_if_rejected(_case("invpred", position=POSITIONS["middle"]))
+
+
+def test_invpred_last_rejected():
+    _require_rejected(_case("invpred", position=POSITIONS["last"]))
+
+
+def test_invpred_last_reason_semantic():
+    _require_semantic_if_rejected(_case("invpred", position=POSITIONS["last"]))
+
+
+def test_loader_valid_accepted(tmp_path: Path):
+    records, head, catalog, predicate = _case("valid")
+    directory = tmp_path / "authority"
+    _write_records(directory, records)
+    state = activation.load_activation_state(
+        directory,
+        registered_contracts=catalog,
+        is_valid_registered_successor=predicate,
+        expected_head_serial=head["activation_serial"],
+        expected_head_state_sha256=head["activation_state_sha256"],
+    )
+    assert state.activation_serial == 2
+
+
+def test_loader_invgen_last_rejected(tmp_path: Path):
+    records, head, catalog, predicate = _case(
+        "invgen", position=POSITIONS["last"]
+    )
+    directory = tmp_path / "authority"
+    _write_records(directory, records)
+    with pytest.raises(activation.ActivationRecordError):
+        activation.load_activation_state(
+            directory,
+            registered_contracts=catalog,
+            is_valid_registered_successor=predicate,
+            expected_head_serial=head["activation_serial"],
+            expected_head_state_sha256=head["activation_state_sha256"],
+        )

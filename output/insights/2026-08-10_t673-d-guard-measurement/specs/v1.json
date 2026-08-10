@@ -1,0 +1,306 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "V1-G-N1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:1]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m2_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-G-N2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:2]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-G-N3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:3]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-G-N4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:4]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-G-N8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:8]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-G-N63",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:63]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-G-N64",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:64]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_first_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:1]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:2]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:3]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:4]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:8]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_reason_semantic",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N63",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:63]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "V1-P-N64",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:64]:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_valid_m65_accepted_under_o",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_valid_accepted",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_reason_semantic"
+      ],
+      "hang_risk": false
+    }
+  ]
+}
