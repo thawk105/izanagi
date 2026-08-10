@@ -10,6 +10,9 @@
   (KILLED 3 / MISMATCH 4 / **SURVIVED 1**)。生存した M7 は検査側の穴で、erratum として残す。
 - `mutation-spec-v2.json` / `mutation-ledger-v2.json` — 期待 node を実測へ訂正した v2 と
   その台帳 (**8/8 KILLED、SURVIVED 0、MISMATCH 0**)。変異の内容は v1 から変えていない。
+- `mutation-ledger-v3-final.json` — `DW-M07` に従い、受入の赤を閉じた**最終 commit の tree**で
+  同じ spec v2 を本走し直した台帳 (**8/8 KILLED、SURVIVED 0、MISMATCH 0**)。anchor 8 件が
+  単一箇所であることを再検証してから走らせた。
 - `verbatim/` — 段 1 brief、段 5 実装子、段 6 敵対レビュー 2 本、fix 4 巡、焦点再レビューの
   prompt と出力。
 
