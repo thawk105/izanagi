@@ -732,3 +732,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"41827a52a54ec81edf3e323957c4fe6a8d623a833c74e01e3370a5fc6e9ea71f","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
 - {"allocations":{"F:codex-child-oom-under-shared-user-cap":"F202"},"authored":"2026-08-10","content_sha256":"809a17a45a301ef1250e8528d8d09d759195db1f59ae7afcdd62253a1d861718","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
+
+- {"allocations":{"T:s8b-floor-toolchain-binding":"[T-747]","T:s8b-legacy-verify-cli-supersede":"[T-749]","T:s8b-restart-order-vs-generation":"[T-748]","T:s8b-v2-producer-and-manifest-wiring":"[T-750]"},"authored":"2026-08-10","content_sha256":"4815518b3203f106a018dcd12e109954f7dad774170fafded2193af25c6e3261","seq":1,"wave":"dev-wave-t8b-reopen-inspection"}
