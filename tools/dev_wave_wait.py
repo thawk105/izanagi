@@ -34,6 +34,7 @@ _MIN_ACCEPTANCE_POLL_SECONDS = 30
 _MAX_ACCEPTANCE_POLL_SECONDS = 120
 _DEFAULT_ACCEPTANCE_MAX_WAIT_SECONDS = 7200
 _STAGE_TIMEOUT_SECONDS = 300
+_STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _GIT_ENV_KEYS = frozenset(
     {
@@ -87,11 +88,20 @@ class _Effects:
     unlink: Callable[[Path], None]
 
 
+class _LeaseOwnership(Enum):
+    # claim 中の所有権は NONE / UNKNOWN / ACQUIRED。RETAINED は成功確定後の終端。
+    NONE = "none"
+    UNKNOWN = "unknown"
+    ACQUIRED = "acquired"
+    RETAINED = "retained"
+
+
 @dataclass
 class _AcceptanceLifecycle:
-    claim_started: bool = False
+    ownership: _LeaseOwnership = _LeaseOwnership.NONE
     acquired_at: float | None = None
-    keep_lease: bool = False
+    merge_pending: bool = False
+    cleanup_failure: _Outcome | None = None
 
 
 class _StageFailure(Exception):
@@ -112,29 +122,54 @@ def _run_subprocess(
     values = list(argv)
     kwargs: dict[str, object] = {
         "cwd": cwd,
-        "check": False,
         "text": True,
         "shell": False,
     }
+    bounded_stage = False
     if values and values[0] == "git":
         kwargs["env"] = {
             key: value for key, value in os.environ.items() if key not in _GIT_ENV_KEYS
         }
-        if stage_policy:
-            kwargs["timeout"] = _STAGE_TIMEOUT_SECONDS
+        bounded_stage = stage_policy
     elif (
         stage_policy
         and len(values) >= 2
         and Path(values[1]).name == "wave_land_window.py"
     ):
-        kwargs["timeout"] = _STAGE_TIMEOUT_SECONDS
+        bounded_stage = True
     if capture:
-        kwargs["capture_output"] = True
-    result = subprocess.run(values, **kwargs)
+        kwargs["stdout"] = subprocess.PIPE
+        kwargs["stderr"] = subprocess.PIPE
+    if not bounded_stage:
+        result = subprocess.run(values, check=False, **kwargs)
+        return _CommandResult(
+            result.returncode,
+            result.stdout if capture else "",
+            result.stderr if capture else "",
+        )
+
+    # Stage subprocess だけを専用 group に閉じる。受入 command は無制限のまま。
+    process = subprocess.Popen(values, start_new_session=True, **kwargs)
+    try:
+        stdout, stderr = process.communicate(timeout=_STAGE_TIMEOUT_SECONDS)
+    except BaseException:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                pass
+        raise
     return _CommandResult(
-        result.returncode,
-        result.stdout if capture else "",
-        result.stderr if capture else "",
+        process.returncode,
+        stdout if capture else "",
+        stderr if capture else "",
     )
 
 
@@ -424,6 +459,14 @@ def _main_sha(effects: _Effects, repo: Path, stage: str) -> str:
     return value
 
 
+def _head_sha(effects: _Effects, repo: Path, stage: str) -> str:
+    result = _run_capture(effects, ("git", "rev-parse", "HEAD"), repo, stage)
+    value = result.stdout.strip()
+    if _SHA_RE.fullmatch(value) is None:
+        raise _StageFailure(stage)
+    return value
+
+
 def _behind_count(effects: _Effects, repo: Path, stage: str) -> int:
     result = _run_capture(
         effects,
@@ -501,7 +544,7 @@ def _claim_once(
     lifecycle: _AcceptanceLifecycle | None = None,
 ) -> str:
     if lifecycle is not None:
-        lifecycle.claim_started = True
+        lifecycle.ownership = _LeaseOwnership.UNKNOWN
     result = _run_capture(
         effects,
         _lease_command(repo, "claim", lease_dir, wave, main_sha),
@@ -512,6 +555,13 @@ def _claim_once(
     state = parsed.get("state")
     if not isinstance(state, str) or state not in _CLAIM_STATES:
         raise _StageFailure("claim-state")
+    if lifecycle is not None:
+        lifecycle.ownership = (
+            _LeaseOwnership.ACQUIRED
+            if state == "acquired"
+            else _LeaseOwnership.NONE
+        )
+        # held/queued の待ち札は 300 秒で失効するため、他 holder を release しない。
     return state
 
 
@@ -585,13 +635,42 @@ def _release_once(
 
 
 def _abort_pending_merge(effects: _Effects, repo: Path) -> _Outcome:
+    failure: _Outcome | None = None
     try:
         result = effects.run(("git", "merge", "--abort"), repo, True)
     except BaseException:
-        return _Outcome(RC_CLEANUP_FAILED, "merge-abort")
-    if result.returncode != 0:
-        return _Outcome(RC_CLEANUP_FAILED, "merge-abort", result.returncode)
-    return _Outcome(RC_OK)
+        failure = _Outcome(RC_CLEANUP_FAILED, "merge-abort")
+    else:
+        if result.returncode != 0:
+            failure = _Outcome(
+                RC_CLEANUP_FAILED, "merge-abort", result.returncode
+            )
+
+    try:
+        merge_head = effects.run(
+            ("git", "rev-parse", "-q", "--verify", "MERGE_HEAD"),
+            repo,
+            True,
+        )
+    except BaseException:
+        merge_head = None
+    if (merge_head is None or merge_head.returncode != 1) and failure is None:
+        failure = _Outcome(RC_CLEANUP_FAILED, "merge-abort-state")
+
+    try:
+        status = effects.run(
+            ("git", "status", "--porcelain", "--untracked-files=no"),
+            repo,
+            True,
+        )
+    except BaseException:
+        status = None
+    if (
+        (status is None or status.returncode != 0 or status.stdout)
+        and failure is None
+    ):
+        failure = _Outcome(RC_CLEANUP_FAILED, "merge-abort-clean")
+    return _Outcome(RC_OK) if failure is None else failure
 
 
 def _normalize_child_rc(returncode: int) -> int:
@@ -637,6 +716,32 @@ def _cleanup_after_claim(
     return cleanup_failure
 
 
+def _cleanup_lifecycle(
+    lifecycle: _AcceptanceLifecycle,
+    effects: _Effects,
+    repo: Path,
+    lease_dir: Path,
+    wave: str,
+) -> _Outcome | None:
+    if lifecycle.ownership not in {
+        _LeaseOwnership.UNKNOWN,
+        _LeaseOwnership.ACQUIRED,
+    }:
+        return lifecycle.cleanup_failure
+    merge_pending = lifecycle.merge_pending
+    # cleanup 権限を実処理より先に消費し、signal/finally の再入を no-op にする。
+    lifecycle.ownership = _LeaseOwnership.NONE
+    lifecycle.merge_pending = False
+    lifecycle.cleanup_failure = _cleanup_after_claim(
+        effects,
+        repo,
+        lease_dir,
+        wave,
+        merge_pending=merge_pending,
+    )
+    return lifecycle.cleanup_failure
+
+
 def run_acceptance(
     *,
     wave: str,
@@ -651,10 +756,9 @@ def run_acceptance(
 ) -> _Outcome:
     active_lifecycle = lifecycle or _AcceptanceLifecycle()
     primary = _Outcome(RC_FAIL_CLOSED, "internal")
-    merge_pending = False
-    keep_lease = False
     cleanup_failure: _Outcome | None = None
     validated_message: Path | None = None
+    committed_sha: str | None = None
     try:
         _identity_preflight(effects, repo, wave)
         if merge_message_file is not None and not effects.is_file(merge_message_file):
@@ -676,7 +780,7 @@ def run_acceptance(
             validated_message = _validated_message_copy(merge_message_file, effects)
             if validated_message is None:
                 raise _StageFailure("merge-message")
-            merge_pending = True
+            active_lifecycle.merge_pending = True
             _run_capture(
                 effects,
                 ("git", "merge", "--no-ff", "--no-commit", "main"),
@@ -695,10 +799,11 @@ def run_acceptance(
                 repo,
                 "commit",
             )
-            merge_pending = False
+            active_lifecycle.merge_pending = False
+            committed_sha = _head_sha(effects, repo, "commit-rev-parse")
             committed_message = _run_capture(
                 effects,
-                ("git", "log", "-1", "--format=%B", "HEAD"),
+                ("git", "log", "-1", "--format=%B", committed_sha),
                 repo,
                 "commit-message-postcheck",
             ).stdout
@@ -706,6 +811,11 @@ def run_acceptance(
                 raise _StageFailure("commit-message-postcheck")
         if _behind_count(effects, repo, "postcheck") != 0:
             raise _StageFailure("postcheck")
+        if (
+            committed_sha is not None
+            and _head_sha(effects, repo, "commit-head-postcheck") != committed_sha
+        ):
+            raise _StageFailure("commit-head-postcheck")
         print(
             "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),
             file=sys.stderr,
@@ -734,8 +844,7 @@ def run_acceptance(
                 "exclusivity is lost after expiry"
             )
             print("known limitation: no fencing token is provided")
-            keep_lease = True
-            active_lifecycle.keep_lease = True
+            active_lifecycle.ownership = _LeaseOwnership.RETAINED
             primary = _Outcome(RC_OK)
         else:
             primary = _Outcome(child_rc, "acceptance-command", child.returncode)
@@ -753,17 +862,13 @@ def run_acceptance(
                 effects.unlink(validated_message)
             except OSError:
                 pass
-        if (
-            active_lifecycle.claim_started
-            and not (keep_lease and primary.rc == RC_OK)
-        ):
-            cleanup_failure = _cleanup_after_claim(
-                effects,
-                repo,
-                lease_dir,
-                wave,
-                merge_pending=merge_pending,
-            )
+        cleanup_failure = _cleanup_lifecycle(
+            active_lifecycle,
+            effects,
+            repo,
+            lease_dir,
+            wave,
+        )
     return cleanup_failure if cleanup_failure is not None else primary
 
 
@@ -776,27 +881,42 @@ def _lease_dir(argument: Path | None, effects: _Effects) -> Path:
     return Path(value)
 
 
-def _install_signal_handlers(
-    cleanup_held_lease: Callable[[], None] | None = None,
-) -> dict[int, object]:
+def _install_signal_handlers() -> dict[int, object]:
     # SIGKILL と host 停止は unwind 不能なので既存 lease TTL に委ねる。
     previous: dict[int, object] = {}
 
     def handler(signum: int, frame: object) -> None:
         del frame
-        if cleanup_held_lease is not None:
-            cleanup_held_lease()
         raise _SignalReceived(signum)
 
-    for signum in _HANDLED_SIGNALS:
-        previous[signum] = signal.getsignal(signum)
-        signal.signal(signum, handler)
+    try:
+        for signum in _HANDLED_SIGNALS:
+            previous[signum] = signal.getsignal(signum)
+            signal.signal(signum, handler)
+    except BaseException:
+        _restore_signal_handlers(previous)
+        raise
     return previous
 
 
 def _restore_signal_handlers(previous: dict[int, object]) -> None:
-    for signum, handler in previous.items():
-        signal.signal(signum, handler)
+    previous_mask: set[signal.Signals] | None = None
+    pthread_sigmask = getattr(signal, "pthread_sigmask", None)
+    if pthread_sigmask is not None:
+        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+    failure: BaseException | None = None
+    try:
+        for signum, handler in previous.items():
+            try:
+                signal.signal(signum, handler)
+            except BaseException as exc:
+                if failure is None:
+                    failure = exc
+    finally:
+        if previous_mask is not None:
+            pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+    if failure is not None:
+        raise failure
 
 
 def _print_outcome(outcome: _Outcome) -> None:
@@ -830,24 +950,7 @@ def main(
             active_repo = Path.cwd() if repo is None else repo
             lease_dir = _lease_dir(args.lease_dir, active_effects)
             lifecycle = _AcceptanceLifecycle()
-
-            def cleanup_held_lease() -> None:
-                if not (lifecycle.claim_started and lifecycle.keep_lease):
-                    return
-                lifecycle.keep_lease = False
-                cleanup = _cleanup_after_claim(
-                    active_effects,
-                    active_repo,
-                    lease_dir,
-                    args.wave,
-                    merge_pending=False,
-                )
-                if cleanup is None:
-                    lifecycle.claim_started = False
-                else:
-                    _print_outcome(cleanup)
-
-            previous = _install_signal_handlers(cleanup_held_lease)
+            previous = _install_signal_handlers()
             try:
                 outcome = run_acceptance(
                     wave=args.wave,
@@ -860,12 +963,6 @@ def main(
                     effects=active_effects,
                     lifecycle=lifecycle,
                 )
-                if outcome.rc == RC_OK:
-                    # handler を有効にした try 内から直接 return する。ここまでの
-                    # signal は callback が lease を解放し、except が非成功へ正規化する。
-                    _print_outcome(outcome)
-                    return outcome.rc
-                _restore_signal_handlers(previous)
             except BaseException as exc:
                 if isinstance(exc, _SignalReceived):
                     outcome = _Outcome(128 + exc.signum, f"signal-{exc.signum}")
@@ -873,22 +970,44 @@ def main(
                     outcome = _Outcome(RC_INTERRUPTED, "keyboard-interrupt")
                 else:
                     outcome = _Outcome(RC_FAIL_CLOSED, "internal")
-                if lifecycle.claim_started:
-                    cleanup = _cleanup_after_claim(
-                        active_effects,
-                        active_repo,
-                        lease_dir,
-                        args.wave,
-                        merge_pending=False,
-                    )
-                    if cleanup is not None:
-                        outcome = cleanup
-                try:
-                    _restore_signal_handlers(previous)
-                except BaseException:
-                    # lease cleanup は完了済み。handler 復元失敗も成功へ倒さない。
-                    if outcome.rc == RC_OK:
-                        outcome = _Outcome(RC_FAIL_CLOSED, "signal-restore")
+                cleanup = _cleanup_lifecycle(
+                    lifecycle,
+                    active_effects,
+                    active_repo,
+                    lease_dir,
+                    args.wave,
+                )
+                if cleanup is not None:
+                    outcome = cleanup
+            finally:
+                restored = False
+                while not restored:
+                    try:
+                        _restore_signal_handlers(previous)
+                        restored = True
+                    except BaseException as exc:
+                        if isinstance(exc, _SignalReceived):
+                            outcome = _Outcome(
+                                128 + exc.signum, f"signal-{exc.signum}"
+                            )
+                        elif isinstance(exc, KeyboardInterrupt):
+                            outcome = _Outcome(
+                                RC_INTERRUPTED, "keyboard-interrupt"
+                            )
+                        else:
+                            outcome = _Outcome(
+                                RC_FAIL_CLOSED, "signal-restore"
+                            )
+                            restored = True
+                        cleanup = _cleanup_lifecycle(
+                            lifecycle,
+                            active_effects,
+                            active_repo,
+                            lease_dir,
+                            args.wave,
+                        )
+                        if cleanup is not None:
+                            outcome = cleanup
     except _StageFailure as exc:
         outcome = exc.outcome
     except (Exception, KeyboardInterrupt):
