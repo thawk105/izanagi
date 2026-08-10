@@ -59,15 +59,24 @@ title: [T-695] + [T-700] の §60 裁定を実施した — land 関門を新規
   D271 適用除外は {{D:o25-admission-exemption}} に、pin 済み節の外側の残余は
   {{D:normative-section-exact-pin}} に記録した。
 - **設計判断は {{D:o25-admission-exemption}} と {{D:normative-section-exact-pin}}。**
-- **受入全走は 1 走で緑。** tip `d54c80a1` で **rc=0 / 8,326 passed / 20 skipped / 530.61 秒**。
-  lease は `acquired` 直後に local main を取り直して 1 回取り込んでから走らせ、終了時に release した
-  (待ち手 script が claim・取り直し・merge・投入・release を 1 本で行う)。
-  親検査は投入前に `check_docs` rc=0、`spool_fold --dry-run` rc=0、全史 provenance 監査 rc=0。
+- **受入は 2 走した。採用値は land 対象 tip `0bfbdc6a` の 2 走目 = `rc=0 / 8,412 passed /
+  20 skipped / 546.38 秒`。** どちらも緑で、赤は 1 件も出ていない。
+  - 1 走目は tip `d54c80a1` で **rc=0 / 8,326 passed / 20 skipped / 530.61 秒**。
+  - **1 走目の後に lease を release してしまったのが手順の誤りだった。** runbook §7.3 は
+    受入から land までを 1 つの lease で覆う設計で、release は land の終端に置く。
+    親が自作した待ち手 script が受入終了時に release したため、land 用に取り直す羽目になり、
+    その待ち時間 (5 分) の間に main が 21 commit 進んで**受入を 1 走やり直した**。
+  - 2 走目は書き換わった runbook の正本待ち手 `tools/dev_wave_wait.py acceptance` を使った。
+    同 script は claim・取り直し・merge・投入まで行い、lease を保持したまま rc=0 で返す。
+  親検査は各走の前に `check_docs` rc=0、`spool_fold --dry-run` rc=0、全史 provenance 監査 rc=0。
   **land tip は受入 tip より 1 commit 進む。** 差分はこの worklog fragment への受入結果の追記だけで、
   コード・テスト・reference・入口を含まない。
-- **wave 中に local main を 3 回取り込んだ** (`f4435e48`、`ae6db879`、`6d8b8f1b`、計 35 commit)。
-  1 回目は段 5 の実装子を投入直後に停止させて先行させたもので、main 側 3 commit が
+- **wave 中に local main を 5 回取り込んだ** (`f4435e48`、`ae6db879`、`6d8b8f1b`、`ccbed760`、
+  `eb426342`)。1 回目は段 5 の実装子を投入直後に停止させて先行させたもので、main 側 3 commit が
   本 wave の編集対象 (`tools/check_docs.py` −166 行ほか) を書き換えていたためである。
+  4・5 回目は land 用 lease の取り直しと受入再走に伴うもので、いずれも
+  `docs/skill-self-improvement.md` の main 側変更が `## 検査と commit 境界` 節であり、
+  本 wave が exact pin した `## routing` 節には掛からないことを確認した。
 - **エージェント工数: 親 1、Codex 子 9** (段 2 plan 1、段 3 敵対 2、段 5 実装 1、
   段 6 fix 4 (うち 1 は自分が新設したテストの是正)、段 6 敵対レビュー 2、焦点再レビュー 1
   — 実装系は `-s workspace-write`・`reasoning=high`、相談・レビュー系は `-s read-only`)。
