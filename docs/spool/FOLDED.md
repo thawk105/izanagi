@@ -700,3 +700,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:certified-sink-gate":"[T-734]","T:enforcement-transitive-closure":"[T-733]","T:local-run-tmp-git-ancestor":"[T-736]","T:source-closure-wire-rename":"[T-735]"},"authored":"2026-08-10","content_sha256":"6c9f1ec00aa4f17ec4d82ee26f0dfcf33f2b85e29d0d0c1daa6de8a125413d16","seq":1,"wave":"dev-wave-t721-source-closure"}
 - {"allocations":{"D:enforcement-source-closure":"D268"},"authored":"2026-08-10","content_sha256":"30ef680599ddee8710abeada63b11fb32eb996010177904d1db064b326f9b858","seq":2,"wave":"dev-wave-t721-source-closure"}
 - {"allocations":{"F:acceptance-lease-starves-on-prefetch-merge":"F197"},"authored":"2026-08-10","content_sha256":"d6c4c1b0754b907f02d26107bd66eb915c20ffcb72b7094d975db6b372b11605","seq":3,"wave":"dev-wave-t721-source-closure"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"6dffa1ea154f5b8901abd0160d3ad89bf1c21a012933af4dc7770a05eaa6a31d","seq":34,"wave":"rulings-20260806-a"}
