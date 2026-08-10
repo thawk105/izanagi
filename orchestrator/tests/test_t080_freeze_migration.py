@@ -1127,6 +1127,202 @@ def test_history_touches_batch_is_equivalent_to_sequential_any():
         assert migration._any_history_touches_path(touching, "target.txt", root) is True
 
 
+def test_history_touches_path_positive_control_matrix(tmp_path: Path):
+    """[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。"""
+    target = "target.txt"
+    history_cases: list[tuple[int, str, str, Path, bool]] = []
+
+    def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:
+        root = tmp_path / name
+        root.mkdir()
+        _init_repo(root)
+        for relative, contents in files.items():
+            (root / relative).write_text(contents, encoding="utf-8")
+        return root, _commit_all(root, f"seed {name}")
+
+    root, _ = repo_with_files("modified", {target: "before\n"})
+    (root / target).write_text("after\n", encoding="utf-8")
+    modified_commit = _commit_all(root, "modify target")
+    modified_root = root
+    modified_oid = _run_git(
+        root, "rev-parse", f"{modified_commit}:{target}",
+    ).decode().strip()
+    history_cases.append((1, "modified", modified_commit, root, True))
+
+    root, _ = repo_with_files("deleted", {target: "before\n"})
+    (root / target).unlink()
+    history_cases.append((2, "deleted", _commit_all(root, "delete target"), root, True))
+
+    root, _ = repo_with_files("rename-source", {target: "rename me\n"})
+    _run_git(root, "mv", target, "renamed.txt")
+    history_cases.append((
+        3, "rename source", _commit_all(root, "rename target away"), root, True,
+    ))
+
+    root, _ = repo_with_files("rename-destination", {"source.txt": "rename me\n"})
+    _run_git(root, "mv", "source.txt", target)
+    history_cases.append((
+        4, "rename destination", _commit_all(root, "rename source to target"), root, True,
+    ))
+
+    root, _ = repo_with_files("symlink", {target: "regular\n"})
+    (root / target).unlink()
+    (root / target).symlink_to("symlink-destination")
+    history_cases.append((
+        5, "regular to symlink", _commit_all(root, "target to symlink"), root, True,
+    ))
+
+    root, gitlink_target = repo_with_files("gitlink", {target: "regular\n"})
+    (root / target).unlink()
+    _run_git(
+        root, "update-index", "--add", "--cacheinfo",
+        f"160000,{gitlink_target},{target}",
+    )
+    _run_git(root, "commit", "-q", "-m", "target to gitlink", "-m", "AI-Agent: none")
+    gitlink_commit = _run_git(root, "rev-parse", "HEAD").decode().strip()
+    history_cases.append((6, "regular to gitlink", gitlink_commit, root, True))
+
+    root = tmp_path / "added"
+    root.mkdir()
+    _init_repo(root)
+    (root / target).write_text("added\n", encoding="utf-8")
+    added_commit = _commit_all(root, "add target")
+    added_root = root
+    added_oid = _run_git(
+        root, "rev-parse", f"{added_commit}:{target}",
+    ).decode().strip()
+    history_cases.append((7, "added", added_commit, root, False))
+
+    root, _ = repo_with_files("unrelated", {target: "unchanged\n"})
+    (root / "base.txt").write_text("unrelated change\n", encoding="utf-8")
+    history_cases.append((
+        8, "unrelated", _commit_all(root, "modify unrelated file"), root, False,
+    ))
+
+    root = tmp_path / "root-add"
+    root.mkdir()
+    _run_git(root, "init", "-q")
+    _run_git(root, "config", "user.name", "T080 Test")
+    _run_git(root, "config", "user.email", "t080@example.invalid")
+    (root / target).write_text("root addition\n", encoding="utf-8")
+    root_commit = _commit_all(root, "root adds target")
+    history_cases.append((9, "root addition", root_commit, root, False))
+
+    root, common = repo_with_files("merge-two", {target: "common\n"})
+    (root / "first.txt").write_text("first parent\n", encoding="utf-8")
+    first_parent = _commit_all(root, "first parent")
+    _run_git(root, "checkout", "-q", "-b", "second", common)
+    (root / target).write_text("second parent\n", encoding="utf-8")
+    second_parent = _commit_all(root, "second parent changes target")
+    first_tree = _run_git(root, "rev-parse", f"{first_parent}^{{tree}}").decode().strip()
+    merge_two = _run_git(
+        root, "commit-tree", first_tree,
+        "-p", first_parent, "-p", second_parent,
+        input_bytes=b"two-parent merge\n\nAI-Agent: none\n",
+    ).decode().strip()
+    history_cases.append((10, "second parent differs", merge_two, root, True))
+
+    root, common = repo_with_files("merge-three", {target: "common\n"})
+    (root / "first.txt").write_text("first parent\n", encoding="utf-8")
+    first_parent = _commit_all(root, "first parent")
+    _run_git(root, "checkout", "-q", "-b", "second", common)
+    (root / "second.txt").write_text("second parent\n", encoding="utf-8")
+    second_parent = _commit_all(root, "second parent")
+    _run_git(root, "checkout", "-q", "-b", "third", common)
+    (root / target).write_text("third parent\n", encoding="utf-8")
+    third_parent = _commit_all(root, "third parent changes target")
+    first_tree = _run_git(root, "rev-parse", f"{first_parent}^{{tree}}").decode().strip()
+    merge_three = _run_git(
+        root, "commit-tree", first_tree,
+        "-p", first_parent, "-p", second_parent, "-p", third_parent,
+        input_bytes=b"three-parent merge\n\nAI-Agent: none\n",
+    ).decode().strip()
+    history_cases.append((11, "third parent differs", merge_three, root, True))
+
+    exact_copy_root, exact_copy_base = repo_with_files(
+        "unchanged-copy-source", {target: "same bytes\n"},
+    )
+    (exact_copy_root / "copy.txt").write_bytes((exact_copy_root / target).read_bytes())
+    exact_copy_commit = _commit_all(exact_copy_root, "copy unchanged target")
+    exact_copy_oid = _run_git(
+        exact_copy_root, "rev-parse", f"{exact_copy_base}:{target}",
+    ).decode().strip()
+    history_cases.append((
+        12, "unchanged exact copy source", exact_copy_commit, exact_copy_root, True,
+    ))
+
+    assert [number for number, *_rest in history_cases] == list(range(1, 13))
+    assert any(expected is True for *_case, expected in history_cases)
+    for number, label, commit, root, expected in history_cases:
+        if number == 12:
+            actual = migration._history_touches_path(
+                commit, target, root, duplicate_oid=exact_copy_oid,
+            )
+        else:
+            actual = migration._history_touches_path(commit, target, root)
+        assert actual is expected, (number, label, actual, expected)
+
+    near_copy_contents = "".join(
+        f"stable line {number:03d}: exact-copy boundary\n" for number in range(100)
+    )
+    near_copy_root, near_copy_base = repo_with_files(
+        "changed-copy-source", {target: near_copy_contents},
+    )
+    changed_contents = near_copy_contents.replace(
+        "stable line 050: exact-copy boundary",
+        "changed line 050: exact-copy boundary",
+    )
+    (near_copy_root / "copy.txt").write_text(changed_contents, encoding="utf-8")
+    near_copy_commit = _commit_all(near_copy_root, "copy and change target contents")
+    near_copy_oid = _run_git(
+        near_copy_root, "rev-parse", f"{near_copy_base}:{target}",
+    ).decode().strip()
+    # このケースが True へ戻ったら、それは 2026-08-09 のユーザー裁定
+    # 「--find-copies-harder を外し、exact copy だけを OID で検出する」の逆行である。
+    # 期待値を変える前に裁定をやり直すこと。
+    assert migration._history_touches_path(
+        near_copy_commit, target, near_copy_root, duplicate_oid=near_copy_oid,
+    ) is False, "case 12b: changed near-copy must not match the target blob OID"
+
+    assert migration._history_touches_path(
+        exact_copy_commit, target, exact_copy_root, duplicate_oid=None,
+    ) is False, "exact copy must remain undetected when duplicate_oid is omitted"
+
+    # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。
+    assert migration._history_touches_path(
+        modified_commit, target, modified_root, duplicate_oid=modified_oid,
+    ) is True
+    # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。
+    assert migration._history_touches_path(
+        added_commit, target, added_root, duplicate_oid=added_oid,
+    ) is False
+
+    aggregate_root, _ = repo_with_files("aggregate", {target: "before\n"})
+    (aggregate_root / "base.txt").write_text("false commit\n", encoding="utf-8")
+    false_commit = _commit_all(aggregate_root, "unrelated aggregate commit")
+    (aggregate_root / target).write_text("after\n", encoding="utf-8")
+    true_commit = _commit_all(aggregate_root, "touching aggregate commit")
+    error_commit = "f" * 40
+
+    try:
+        migration._history_touches_path(error_commit, target, aggregate_root)
+    except migration.MigrationError:
+        pass
+    else:
+        raise AssertionError("case 13: nonexistent commit must raise MigrationError")
+
+    assert migration._any_history_touches_path(
+        frozenset((error_commit, false_commit, true_commit)), target, aggregate_root,
+    ) is True
+    _expect_reason(
+        lambda: migration._any_history_touches_path(
+            frozenset((false_commit, error_commit)), target, aggregate_root,
+        ),
+        "receipt.git_error",
+    )
+    assert migration._any_history_touches_path(frozenset(), target, aggregate_root) is False
+
+
 def test_cat_blob_memoizes_per_object_without_changing_bytes():
     """[T-057] `_cat_blob` は (root, spec) 単位で memo し、内容を変えない。
 
