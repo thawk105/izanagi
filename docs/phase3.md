@@ -746,10 +746,24 @@ mutation 8/8 を閉じたため、一括 downshift はせず、観測→制限�
 - [T-183] **P1、T-179 後: F43/F45 型の早期停止と回復** — exit 0 の短小/断片出力と
   safety-filter 非ゼロ終了を別分類し、同一失敗の無制限再試行を禁止する。F43/F45 由来 fixture で
   zero-output、validator reject、retry 上限、代替経路不能時の fail-closed を検証する。
-- [T-184] **P1、T-180〜T-183 後: 証拠に基づく既定 policy 採用** — 各 pilot の台帳を比較し、
-  model/reasoning/resource/retry の stage matrix を DW-O01 と worker 契約へ一度だけ反映する。
-  受入は docs drift 検査、選択理由 receipt、critical stage の品質不変、旧 policy への明示 rollback
-  を含み、新たな比較実験はこの ID に持ち込まない。
+- [T-184] **P1・reasoning 面は採用済み (2026-08-10)、resource/retry は残: 証拠に基づく既定
+  policy 採用** — 各 pilot の台帳を比較し、model/reasoning/resource/retry の stage matrix を
+  DW-O01 と worker 契約へ一度だけ反映する。受入は docs drift 検査、選択理由 receipt、
+  critical stage の品質不変、旧 policy への明示 rollback を含み、
+  新たな比較実験はこの ID に持ち込まない。
+  **2026-08-10 に reasoning 面だけを確定した** — 段 2 / 段 3 = `max`、段 5 = `high` は
+  **対象工程の直接比較証拠が無いことを明記した保守的据え置き**として採用し、
+  段 6 の `high` は D243 の追認とした。**値は 1 つも変更していない。**
+  [T-181] の認証再走と erratum は待機条件の充足にだけ使い、段 6 focused review の限定観測を
+  他工程へ外挿しない (台帳に工程軸の field は無く、束縛された 2 prompt はいずれも段 6)。
+  **機械 pin は増やしていない** — 段 5 節への pin 拡大は [T-667] が「見送りで終端」と裁定済みで、
+  再訪条件 (当該節の drift の実測) は workers.md の全 19 commit 走査で **drift 0 件**、すなわち
+  不成立だった。選択理由・実測・rollback・裁定パッケージ 3 件は
+  `output/insights/2026-08-10_t184-reasoning-policy-adoption.md`。
+  **本項は完了していない。** resource envelope (DW-O01 の launcher 結線と stage 別上限値) は
+  設計択一として裁定へ、retry policy は [T-183] 未完了で依存が未充足。
+  **reasoning 面の採用を [T-316] / [T-665]/[T-662] の待ち解除根拠にしてはならない** —
+  それらが待つのは canonical stage matrix と起動前 policy であり、本項は未発行である。
 
 ### RuleOps hardening (P3、T-143 残余)
 
