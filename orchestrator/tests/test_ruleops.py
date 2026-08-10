@@ -43,14 +43,15 @@ _ROOT_KEYS = {
     "schema_version", "authority", "default_effect", "candidates",
 }
 _TEST_CANDIDATE_KEYS = {
-    "path", "kind", "target_blob", "rationale", "test_evidence",
+    "path", "kind", "epoch", "target_blob", "rationale", "test_evidence",
 }
 _TEST_EVIDENCE_KEYS = {
     "replacement_guards", "replacement_nodes", "semantic_queries",
     "observed_hits", "pickaxe_events", "mutation_receipts",
 }
 _CHECK_OUTPUT_KEYS = {
-    "structurally_valid", "candidate_count", "human_approved",
+    "structurally_valid", "candidate_count", "candidate_windows",
+    "human_approved",
 }
 _INVENTORY_ROOT_KEYS = {
     "schema_version", "head", "object_format", "items", "skipped_non_utf8",
@@ -153,6 +154,7 @@ def _base_repo(tmp_path: Path) -> Path:
     _git(repo, "init", "-q")
     _git(repo, "config", "user.email", "ruleops@example.invalid")
     _git(repo, "config", "user.name", "RuleOps Test")
+    _git(repo, "commit", "--allow-empty", "-qm", "epoch seed")
     _write(
         repo,
         "orchestrator/tests/test_candidate.py",
@@ -262,7 +264,7 @@ def _empty_ledger():
         "authority": "none",
         "candidates": [],
         "default_effect": "no-state-change",
-        "schema_version": "ruleops-candidates/v1",
+        "schema_version": "ruleops-candidates/v2",
     }
 
 
@@ -319,13 +321,23 @@ def _valid_test_ledger(
         candidate_path,
         receipt_path=receipt_path,
     )
-    base_commit = _git(
+    epoch = _git(
         repo,
         "rev-list",
         "--max-parents=0",
         "HEAD",
     ).stdout.strip()
+    candidate_commit = _git(
+        repo,
+        "log",
+        "-1",
+        "--format=%H",
+        "HEAD",
+        "--",
+        candidate_path,
+    ).stdout.strip()
     candidate = {
+        "epoch": epoch,
         "kind": "test",
         "path": candidate_path,
         "rationale": "guard is duplicated and requires human ruling",
@@ -346,7 +358,7 @@ def _valid_test_ledger(
             ],
             "pickaxe_events": [
                 {
-                    "commit": base_commit,
+                    "commit": candidate_commit,
                     "query": "obsolete sentinel",
                     "rationale": "literal fixture history review",
                     "review": "relevant",
@@ -376,7 +388,14 @@ def _valid_test_ledger(
 
 
 def _valid_insight_ledger(repo: Path):
+    epoch = _git(
+        repo,
+        "rev-list",
+        "--max-parents=0",
+        "HEAD",
+    ).stdout.strip()
     candidate = {
+        "epoch": epoch,
         "kind": "insight",
         "path": "output/insights/report.md",
         "rationale": "literal derived-report fixture for human ruling",
@@ -825,6 +844,7 @@ def test_signal_and_candidate_cardinality_overflow_have_explicit_reasons(
     assert caught.value.reason == "evidence-overflow"
 
     candidate = {
+        "epoch": "0" * 40,
         "kind": "insight",
         "path": "output/insights/report.md",
         "rationale": "bounded cardinality",
@@ -849,6 +869,10 @@ def test_pickaxe_raw_history_is_cached_by_snapshot_token_before_control_filter(
 ):
     repo = _base_repo(tmp_path)
     snapshot = R._capture_snapshot(repo)
+    epoch = _git(
+        repo, "rev-list", "--max-parents=0", "HEAD",
+    ).stdout.strip()
+    epoch_commits = R._epoch_commits(snapshot, epoch, label="test.epoch")
     guard_path = "orchestrator/tests/test_guard.py"
     guard_entry = snapshot.entries[guard_path]
     calls = []
@@ -863,11 +887,19 @@ def test_pickaxe_raw_history_is_cached_by_snapshot_token_before_control_filter(
         return original(repo_path, subcommand, *args, **kwargs)
 
     monkeypatch.setattr(R, "_git_read", recording)
-    first, first_excluded = R._pickaxe(snapshot, ["obsolete sentinel"], {})
+    first, first_excluded = R._pickaxe(
+        snapshot,
+        ["obsolete sentinel"],
+        {},
+        epoch=epoch,
+        epoch_commits=epoch_commits,
+    )
     second, second_excluded = R._pickaxe(
         snapshot,
         ["obsolete sentinel"],
         {guard_path: guard_entry.oid},
+        epoch=epoch,
+        epoch_commits=epoch_commits,
     )
     assert len(calls) == 1
     assert first and not first_excluded
@@ -887,10 +919,638 @@ def test_global_signal_token_budget_rejects_before_pickaxe_history(
             AssertionError("history query must not run"),
         ),
     )
+    monkeypatch.setattr(
+        R,
+        "_epoch_commits",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("epoch history query must not run"),
+        ),
+    )
     _write_json(repo, "docs/ruleops-candidates.json", ledger)
     with pytest.raises(R.RuleOpsError) as caught:
         R.validate_candidate_ledger(repo)
     assert caught.value.reason == "signal-token-limit"
+
+
+def test_inspect_draft_emits_candidate_epoch_and_v2_schema(tmp_path):
+    repo = _base_repo(tmp_path)
+    inspected = R.inspect_target(
+        repo,
+        "orchestrator/tests/test_candidate.py",
+        queries=["obsolete sentinel"],
+        draft=True,
+    )
+    expected_epoch = _git(
+        repo, "rev-list", "--max-parents=0", "HEAD",
+    ).stdout.strip()
+    assert inspected["schema_version"] == "ruleops-inspection/v2"
+    assert inspected["epoch"] == expected_epoch
+    assert inspected["candidate_draft"]["epoch"] == expected_epoch
+
+
+def test_check_and_inspect_emit_candidate_audit_horizon(tmp_path):
+    repo = _base_repo(tmp_path)
+    ledger = _valid_test_ledger(repo)
+    candidate = ledger["candidates"][0]
+    inspected = R.inspect_target(
+        repo,
+        candidate["path"],
+        queries=["obsolete sentinel"],
+        epoch=candidate["epoch"],
+    )
+    checked = R.validate_candidate_ledger(repo)
+    assert inspected["epoch"] == candidate["epoch"]
+    assert inspected["pickaxe_window_commits"] == 2
+    assert checked["candidate_windows"] == [{
+        "epoch": candidate["epoch"],
+        "path": candidate["path"],
+        "pickaxe_window_commits": 2,
+    }]
+
+
+def test_local_rename_config_does_not_change_evidence_or_acceptance(tmp_path):
+    repo = _base_repo(tmp_path)
+    old_path = "output/insights/report.md"
+    candidate_path = "output/insights/renamed-report.md"
+    source_path = "output/insights/source.md"
+    original = (repo / old_path).read_text(encoding="utf-8")
+    _write(repo, old_path, original + f"\n{Path(candidate_path).name}\n")
+    epoch = _commit(repo, "seed rename-sensitive signal")
+    _git(repo, "mv", old_path, candidate_path)
+    _commit(repo, "rename insight candidate")
+    ledger_path = "docs/rename-config-candidates.json"
+
+    def inspect_and_check(diff_renames):
+        _git(repo, "config", "diff.renames", diff_renames)
+        _git(repo, "config", "diff.renameLimit", "7")
+        inspected = R.inspect_target(
+            repo,
+            candidate_path,
+            epoch=epoch,
+            draft=True,
+        )
+        candidate = inspected["candidate_draft"]
+        candidate["rationale"] = "rename config invariance fixture"
+        evidence = candidate["insight_evidence"]
+        evidence["source_artifacts"] = [{
+            "blob": _blob(repo, source_path),
+            "path": source_path,
+        }]
+        evidence["observed_hits"] = _reviewed(inspected["observed_hits"])
+        evidence["pickaxe_events"] = _reviewed(inspected["pickaxe_events"])
+        ledger = _empty_ledger()
+        ledger["candidates"] = [candidate]
+        _write_json(repo, ledger_path, ledger)
+        return inspected, _run_cli(repo, "check", "--ledger", ledger_path)
+
+    true_inspection, true_check = inspect_and_check("true")
+    false_inspection, false_check = inspect_and_check("false")
+    assert true_inspection["observed_hits"] == false_inspection["observed_hits"]
+    assert true_inspection["pickaxe_events"] == false_inspection["pickaxe_events"]
+    assert true_check.returncode == false_check.returncode == 0
+    assert json.loads(true_check.stdout) == json.loads(false_check.stdout)
+
+
+def test_epoch_horizon_residual_allows_path_refresh_to_hide_old_signal_history(
+    tmp_path,
+):
+    """C-01 residual: a path refresh may advance the declared audit horizon."""
+
+    repo = _base_repo(tmp_path)
+    root = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+    material = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    candidate = "orchestrator/tests/test_candidate.py"
+    _write(
+        repo,
+        candidate,
+        "def test_candidate_obsolete_sentinel():\n    assert True\n# refreshed\n",
+    )
+    _commit(repo, "refresh candidate path")
+    default = R.inspect_target(repo, candidate, queries=["obsolete sentinel"])
+    explicit = R.inspect_target(
+        repo,
+        candidate,
+        queries=["obsolete sentinel"],
+        epoch=root,
+    )
+    assert default["epoch"] == material
+    assert explicit["epoch"] == root
+    assert not default["pickaxe_events"]
+    assert any(event["commit"] == material for event in explicit["pickaxe_events"])
+
+
+def test_pickaxe_queries_only_validated_epoch_window(tmp_path, monkeypatch):
+    repo = _base_repo(tmp_path)
+    snapshot = R._capture_snapshot(repo)
+    epoch = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+    commits = R._epoch_commits(snapshot, epoch, label="test.epoch")
+    calls = []
+    original = R._git_read
+
+    def recording(repo_path, subcommand, *args, **kwargs):
+        if subcommand == "log" and any(str(arg).startswith("-S") for arg in args):
+            calls.append((args, kwargs))
+        return original(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_git_read", recording)
+    R._pickaxe(
+        snapshot,
+        ("obsolete sentinel",),
+        {},
+        epoch=epoch,
+        epoch_commits=commits,
+    )
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert snapshot.head in args
+    assert f"^{epoch}" in args
+    assert "HEAD" not in args
+    assert kwargs["commit_count"] == len(commits)
+
+
+def test_pickaxe_cache_key_includes_epoch_and_token(tmp_path, monkeypatch):
+    repo = _base_repo(tmp_path)
+    snapshot = R._capture_snapshot(repo)
+    root = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+    head = snapshot.head
+    calls = 0
+    original = R._git_read
+
+    def recording(repo_path, subcommand, *args, **kwargs):
+        nonlocal calls
+        if subcommand == "log" and any(str(arg).startswith("-S") for arg in args):
+            calls += 1
+        return original(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_git_read", recording)
+    R._pickaxe(
+        snapshot,
+        ("absent token",),
+        {},
+        epoch=root,
+        epoch_commits={head},
+    )
+    R._pickaxe(
+        snapshot,
+        ("absent token",),
+        {},
+        epoch=head,
+        epoch_commits=frozenset(),
+    )
+    assert calls == 2
+
+
+@pytest.mark.parametrize(
+    ("case", "reason"),
+    [
+        ("bad-oid", "bad-oid"),
+        ("missing", "epoch-not-commit"),
+        ("blob", "epoch-not-commit"),
+        ("non-ancestor", "epoch-non-ancestor"),
+    ],
+)
+def test_candidate_epoch_rejects_each_invalid_boundary(tmp_path, case, reason):
+    repo = _base_repo(tmp_path)
+    ledger = _valid_test_ledger(repo)
+    if case == "bad-oid":
+        epoch = "BAD"
+    elif case == "missing":
+        epoch = "f" * 40
+    elif case == "blob":
+        epoch = _run_checked(
+            ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+            input=b"not a commit\n",
+            capture_output=True,
+        ).stdout.decode("ascii").strip()
+    else:
+        branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        root = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+        _git(repo, "checkout", "-qb", "epoch-unrelated", root)
+        _write(repo, "unrelated-epoch.txt", "unrelated\n")
+        epoch = _commit(repo, "unrelated epoch")
+        _git(repo, "checkout", "-q", branch)
+    ledger["candidates"][0]["epoch"] = epoch
+    _write_json(repo, "docs/ruleops-candidates.json", ledger)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.validate_candidate_ledger(repo)
+    assert caught.value.reason == reason
+
+
+def test_candidate_epoch_distance_accepts_limit_and_rejects_limit_plus_one_bounded(
+    tmp_path, monkeypatch,
+):
+    repo = _base_repo(tmp_path)
+    epoch = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+    monkeypatch.setattr(R, "MAX_PICKAXE_EPOCH_COMMITS", 1)
+    snapshot = R._capture_snapshot(repo)
+    assert len(R._epoch_commits(snapshot, epoch, label="test.epoch")) == 1
+    _write(repo, "one-too-many.txt", "extra\n")
+    _commit(repo, "one beyond epoch cap")
+    snapshot = R._capture_snapshot(repo)
+    calls = []
+    original = R._git_read
+
+    def recording(repo_path, subcommand, *args, **kwargs):
+        if subcommand == "log" and "--format=%H" in args:
+            calls.append(args)
+        return original(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_git_read", recording)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._epoch_commits(snapshot, epoch, label="test.epoch")
+    assert caught.value.reason == "stale-epoch"
+    assert any("--max-count=2" in args for args in calls)
+
+
+def test_reviewed_pickaxe_event_outside_epoch_is_rejected_before_compare(tmp_path):
+    repo = _base_repo(tmp_path)
+    snapshot = R._capture_snapshot(repo)
+    epoch = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+    row = [{
+        "commit": epoch,
+        "query": "obsolete sentinel",
+        "rationale": "outside lower boundary",
+        "review": "relevant",
+    }]
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._validate_reviewed_pickaxe(
+            row,
+            snapshot,
+            epoch_commits={snapshot.head},
+            label="test.pickaxe",
+        )
+    assert caught.value.reason == "pickaxe-event-outside-epoch"
+
+
+def test_epoch_window_pickaxe_exact_set_rejects_missing_and_extra(tmp_path):
+    repo = _base_repo(tmp_path)
+    ledger = _valid_test_ledger(repo)
+    events = ledger["candidates"][0]["test_evidence"]["pickaxe_events"]
+    missing = copy.deepcopy(ledger)
+    missing["candidates"][0]["test_evidence"]["pickaxe_events"] = []
+    _write_json(repo, "docs/ruleops-candidates.json", missing)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.validate_candidate_ledger(repo)
+    assert caught.value.reason == "unresolved-pickaxe-event"
+    extra = copy.deepcopy(ledger)
+    extra["candidates"][0]["test_evidence"]["pickaxe_events"] = [
+        *events,
+        {
+            "commit": events[0]["commit"],
+            "query": "inside-window extra query",
+            "rationale": "must remain exact",
+            "review": "relevant",
+        },
+    ]
+    _write_json(repo, "docs/ruleops-candidates.json", extra)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.validate_candidate_ledger(repo)
+    assert caught.value.reason == "unresolved-pickaxe-event"
+
+
+def test_pickaxe_rejects_git_output_outside_validated_epoch_set(
+    tmp_path, monkeypatch,
+):
+    repo = _base_repo(tmp_path)
+    snapshot = R._capture_snapshot(repo)
+    epoch = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+    original = R._git_read
+
+    def outside(repo_path, subcommand, *args, **kwargs):
+        if subcommand == "log" and any(str(arg).startswith("-S") for arg in args):
+            return f"RULEOPS-COMMIT:{epoch}\0outside.txt\0".encode("ascii")
+        return original(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_git_read", outside)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._pickaxe(
+            snapshot,
+            ("signal",),
+            {},
+            epoch=epoch,
+            epoch_commits={snapshot.head},
+        )
+    assert caught.value.reason == "bad-history"
+
+
+def test_pickaxe_uses_epoch_commit_count_for_d265_timeout_budget(
+    tmp_path, monkeypatch,
+):
+    repo = _base_repo(tmp_path)
+    snapshot = R._capture_snapshot(repo)
+    seen = []
+    original = R._git_read
+
+    def recording(repo_path, subcommand, *args, **kwargs):
+        if subcommand == "log" and any(str(arg).startswith("-S") for arg in args):
+            seen.append(kwargs["commit_count"])
+            return b""
+        return original(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_git_read", recording)
+    R._pickaxe(
+        snapshot,
+        ("absent",),
+        {},
+        epoch="c" * 40,
+        epoch_commits={"1" * 40, "2" * 40, "3" * 40},
+    )
+    assert seen == [3]
+
+
+def test_v2_control_ledger_requires_well_formed_candidate_epoch(tmp_path):
+    repo = _base_repo(tmp_path)
+    ledger = _valid_test_ledger(repo)
+    snapshot = R._capture_snapshot(repo)
+    R._strict_ledger_control(_canonical(ledger), snapshot, label="ledger")
+    ledger["candidates"][0]["epoch"] = "BAD"
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._strict_ledger_control(_canonical(ledger), snapshot, label="ledger")
+    assert caught.value.reason == "bad-oid"
+
+
+def test_candidate_epoch_must_contain_target_last_change(tmp_path):
+    repo = tmp_path / "target-change-gate"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "ruleops@example.invalid")
+    _git(repo, "config", "user.name", "RuleOps Test")
+    source_path = "output/insights/source.md"
+    candidate_path = "output/insights/target-change.md"
+    _write(repo, source_path, _TYPED_MARKER + "# source\n")
+    epoch = _commit(repo, "epoch source")
+    _write(
+        repo,
+        candidate_path,
+        _TYPED_MARKER + f"# report\n\nderived from {source_path}\n",
+    )
+    _commit(repo, "candidate added")
+    _git(repo, "commit", "--allow-empty", "-qm", "first follow-up")
+    _git(repo, "commit", "--allow-empty", "-qm", "second follow-up")
+    inspected = R.inspect_target(repo, candidate_path, epoch=epoch, draft=True)
+    candidate = inspected["candidate_draft"]
+    candidate["rationale"] = "target change gate acceptance fixture"
+    evidence = candidate["insight_evidence"]
+    evidence["source_artifacts"] = [{
+        "blob": _blob(repo, source_path),
+        "path": source_path,
+    }]
+    evidence["observed_hits"] = _reviewed(inspected["observed_hits"])
+    evidence["pickaxe_events"] = _reviewed(inspected["pickaxe_events"])
+    ledger = _empty_ledger()
+    ledger["candidates"] = [candidate]
+    ledger_path = "docs/target-change-candidates.json"
+    _write_json(repo, ledger_path, ledger)
+    positive = R.validate_candidate_ledger(repo, ledger_path)
+    assert positive["candidate_count"] == 1
+    assert positive["candidate_windows"][0]["pickaxe_window_commits"] == 3
+
+    head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    empty = copy.deepcopy(ledger)
+    empty["candidates"][0]["epoch"] = head
+    empty["candidates"][0]["insight_evidence"]["pickaxe_events"] = []
+    _write_json(repo, ledger_path, empty)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.validate_candidate_ledger(repo, ledger_path)
+    assert caught.value.reason == "epoch-after-target-change"
+
+    _git(repo, "commit", "--allow-empty", "-qm", "unrelated nonempty window")
+    nonempty = copy.deepcopy(empty)
+    nonempty["candidates"][0]["epoch"] = head
+    _write_json(repo, ledger_path, nonempty)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.validate_candidate_ledger(repo, ledger_path)
+    assert caught.value.reason == "epoch-after-target-change"
+
+
+def test_inspect_root_change_without_parent_fails_epoch_unavailable(tmp_path):
+    repo = tmp_path / "root-only"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "ruleops@example.invalid")
+    _git(repo, "config", "user.name", "RuleOps Test")
+    path = "orchestrator/tests/test_root_candidate.py"
+    _write(repo, path, "def test_root_candidate():\n    assert True\n")
+    _commit(repo, "root candidate")
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.inspect_target(repo, path, draft=True)
+    assert caught.value.reason == "epoch-unavailable"
+
+
+def test_inspect_default_epoch_uses_first_parent_of_last_change_merge(tmp_path):
+    repo = _base_repo(tmp_path)
+    candidate_path = "orchestrator/tests/test_candidate.py"
+    main = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "checkout", "-qb", "default-epoch-side", fork)
+    _write(repo, "side-only.txt", "side\n")
+    _commit(repo, "side material")
+    _git(repo, "checkout", "-q", main)
+    _write(repo, "main-only.txt", "main\n")
+    first_parent = _commit(repo, "main material")
+    _git(repo, "merge", "--no-ff", "--no-commit", "default-epoch-side")
+    original = (repo / candidate_path).read_text(encoding="utf-8")
+    _write(repo, candidate_path, original + "# changed by merge commit\n")
+    merge_commit = _commit(repo, "merge changes candidate")
+    assert _git(repo, "rev-parse", f"{merge_commit}^1").stdout.strip() == first_parent
+    _git(repo, "rev-parse", f"{merge_commit}^2")
+    inspected = R.inspect_target(repo, candidate_path, draft=True)
+    assert inspected["epoch"] == first_parent
+
+
+def test_merge_side_commit_inside_window_is_accepted_as_pickaxe_event(tmp_path):
+    repo = _base_repo(tmp_path)
+    original = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "checkout", "-qb", "epoch-side", fork)
+    path = "orchestrator/tests/test_side_candidate.py"
+    token = "merge-side-pickaxe-sentinel"
+    _write(repo, path, f"def test_side_candidate():\n    assert '{token}'\n")
+    side_commit = _commit(repo, "side candidate")
+    _git(repo, "checkout", "-q", original)
+    _write(repo, "main-before-merge.txt", "main\n")
+    epoch = _commit(repo, "main epoch after side fork")
+    _git(repo, "merge", "--no-ff", "-qm", "merge epoch side", "epoch-side")
+    snapshot = R._capture_snapshot(repo)
+    commits = R._epoch_commits(snapshot, epoch, label="test.epoch")
+    assert side_commit in commits
+    R._validate_epoch_target_change(
+        snapshot, epoch, commits, path, label="test.epoch",
+    )
+    events, _ = R._pickaxe(
+        snapshot,
+        (token,),
+        {},
+        epoch=epoch,
+        epoch_commits=commits,
+    )
+    assert {event["commit"] for event in events} >= {side_commit}
+    reviewed = R._validate_reviewed_pickaxe(
+        _reviewed(events),
+        snapshot,
+        epoch_commits=commits,
+        label="test.pickaxe",
+    )
+    assert side_commit in {event["commit"] for event in reviewed}
+
+
+def test_receipt_head_outside_epoch_window_is_rejected(tmp_path):
+    """Reject a receipt head on an old fork even when membership would pass."""
+
+    repo = _base_repo(tmp_path)
+    candidate_path = "orchestrator/tests/test_candidate.py"
+    candidate_text = (
+        (repo / candidate_path).read_text(encoding="utf-8")
+        + "# candidate changed inside epoch window\n"
+    )
+    main = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "checkout", "-qb", "old-receipt-fork", fork)
+    _write(repo, candidate_path, candidate_text)
+    _write(repo, "side-only.txt", "old receipt fork\n")
+    receipt_head = _commit(repo, "old fork receipt head")
+    _git(repo, "checkout", "-q", main)
+    _git(repo, "commit", "--allow-empty", "-qm", "main epoch after old fork")
+    epoch = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _write(repo, candidate_path, candidate_text)
+    _commit(repo, "candidate change inside epoch window")
+    receipt_rel = "output/insights/candidate-ruleops-receipt.json"
+    receipt = {
+        "advisory_only": True,
+        "authority": "none",
+        "baseline_rc": 0,
+        "candidate_blob": _blob(repo, candidate_path),
+        "candidate_excluded": True,
+        "candidate_path": candidate_path,
+        "default_effect": "no-state-change",
+        "head": receipt_head,
+        "human_review_required": True,
+        "mutants": [{
+            "failed_nodes": ["orchestrator/tests/test_guard.py::test_guard"],
+            "guard_path": "orchestrator/tests/test_guard.py",
+            "status": "KILLED",
+        }],
+        "restored_rc": 0,
+        "review_state": "reviewed",
+        "schema_version": "ruleops-mutation-receipt/v1",
+    }
+    _write_json(repo, receipt_rel, receipt)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "--amend", "-qm", "candidate change inside epoch window")
+    _git(repo, "merge", "--no-ff", "-qm", "merge old receipt fork", "old-receipt-fork")
+    snapshot = R._capture_snapshot(repo)
+    controls = {receipt_rel: snapshot.entries[receipt_rel].oid}
+    tokens = R._signal_tokens(snapshot, candidate_path, ("obsolete sentinel",))
+    observed, _ = R._observed_hits(
+        snapshot, tokens, controls, link_target=candidate_path,
+    )
+    commits = R._epoch_commits(snapshot, epoch, label="test.epoch")
+    pickaxe, _ = R._pickaxe(
+        snapshot,
+        tokens,
+        controls,
+        epoch=epoch,
+        epoch_commits=commits,
+    )
+    assert receipt_head in commits
+    assert _git(repo, "merge-base", epoch, receipt_head).stdout.strip() != epoch
+    R._validate_epoch_target_change(
+        snapshot,
+        epoch,
+        commits,
+        candidate_path,
+        label="test.epoch",
+    )
+    candidate = {
+        "epoch": epoch,
+        "kind": "test",
+        "path": candidate_path,
+        "rationale": "receipt epoch ancestry gate fixture",
+        "target_blob": _blob(repo, candidate_path),
+        "test_evidence": {
+            "mutation_receipts": [{
+                "blob": _blob(repo, receipt_rel),
+                "path": receipt_rel,
+            }],
+            "observed_hits": _reviewed(observed),
+            "pickaxe_events": _reviewed(pickaxe),
+            "replacement_guards": [{
+                "blob": _blob(repo, "orchestrator/tests/test_guard.py"),
+                "path": "orchestrator/tests/test_guard.py",
+            }],
+            "replacement_nodes": [{
+                "blob": _blob(repo, "orchestrator/tests/test_guard.py"),
+                "nodeid": "orchestrator/tests/test_guard.py::test_guard",
+            }],
+            "semantic_queries": ["obsolete sentinel"],
+        },
+    }
+    ledger = _empty_ledger()
+    ledger["candidates"] = [candidate]
+    _write_json(repo, "docs/ruleops-candidates.json", ledger)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R.validate_candidate_ledger(repo)
+    assert caught.value.reason == "receipt-head-outside-epoch"
+
+
+def test_receipt_head_inside_epoch_window_is_accepted(tmp_path):
+    repo = _base_repo(tmp_path)
+    _valid_test_ledger(repo)
+    assert R.validate_candidate_ledger(repo)["candidate_count"] == 1
+
+
+def test_pickaxe_epoch_budget_stays_under_outer_preflight_timeout():
+    assert R.MAX_CANDIDATES * (2 + R.MAX_QUERY_COUNT) == 6
+    assert R.MAX_SIGNAL_TOKENS == 6
+    modeled_pickaxe_budget = (
+        R.MAX_PICKAXE_EPOCH_COMMITS
+        * R.MAX_SIGNAL_TOKENS
+        * R.PICKAXE_RATE_SECONDS_PER_TOKEN_COMMIT
+    )
+    assert modeled_pickaxe_budget == 30.0
+    assert modeled_pickaxe_budget <= 45.0
+    internal = (
+        R.GIT_TIMEOUT_BASE_SECONDS
+        + R.MAX_PICKAXE_EPOCH_COMMITS
+        * R.GIT_TIMEOUT_RATE_SECONDS_PER_COMMIT
+    )
+    assert internal == 55.0
+    assert internal < 60.0
+    module = ast.parse(_RUN_TESTS_TOOL.read_text(encoding="utf-8"))
+    preflight = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_preflight_ruleops"
+    )
+    timeout_literals = [
+        keyword.value.value
+        for node in ast.walk(preflight)
+        if isinstance(node, ast.Call)
+        for keyword in node.keywords
+        if keyword.arg == "timeout"
+        and isinstance(keyword.value, ast.Constant)
+        and keyword.value.value == 60
+    ]
+    assert timeout_literals == [60]
+
+
+def test_receipt_range_uses_epoch_window_for_timeout_units(tmp_path, monkeypatch):
+    repo = _base_repo(tmp_path)
+    ledger = _valid_test_ledger(repo)
+    epoch = ledger["candidates"][0]["epoch"]
+    snapshot = R._capture_snapshot(repo)
+    expected_window = len(R._epoch_commits(snapshot, epoch, label="test.epoch"))
+    seen = []
+    original = R._git_read
+
+    def recording(repo_path, subcommand, *args, **kwargs):
+        if kwargs.get("timeout_mode") == "log-receipt-range":
+            seen.append(kwargs["commit_count"])
+        return original(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_git_read", recording)
+    assert R.validate_candidate_ledger(repo)["candidate_count"] == 1
+    assert seen == [expected_window]
 
 
 @pytest.mark.parametrize(
@@ -934,6 +1594,9 @@ def test_symlink_and_gitlink_candidate_targets_rejected(tmp_path):
     _git(repo, "commit", "-qm", "nonregular candidates")
     for path in ("output/insights/link.md", "output/insights/gitlink"):
         candidate = {
+            "epoch": _git(
+                repo, "rev-list", "--max-parents=0", "HEAD",
+            ).stdout.strip(),
             "insight_evidence": {
                 "artifact_class": "derived-report",
                 "observed_hits": [],
@@ -973,10 +1636,15 @@ def test_blob_drift_and_kind_drift_each_rejected(tmp_path):
 
 def test_m5_committed_nonempty_package_excludes_only_ledger_and_receipt(tmp_path):
     repo = _base_repo(tmp_path)
-    _valid_test_ledger(repo, commit_ledger=True)
+    ledger = _valid_test_ledger(repo, commit_ledger=True)
     result = R.validate_candidate_ledger(repo)
     assert result == {
         "candidate_count": 1,
+        "candidate_windows": [{
+            "epoch": ledger["candidates"][0]["epoch"],
+            "path": "orchestrator/tests/test_candidate.py",
+            "pickaxe_window_commits": 3,
+        }],
         "human_approved": False,
         "structurally_valid": True,
     }
@@ -1005,9 +1673,12 @@ def test_inspect_draft_to_committed_receipt_and_nonempty_check_journey(tmp_path)
     )
     root_commit = _git(
         repo,
-        "rev-list",
-        "--max-parents=0",
+        "log",
+        "-1",
+        "--format=%H",
         "HEAD",
+        "--",
+        candidate_path,
     ).stdout.strip()
     literal_observed = [
         {
@@ -1078,6 +1749,11 @@ def test_inspect_draft_to_committed_receipt_and_nonempty_check_journey(tmp_path)
     assert result.returncode == 0, result.stderr.decode()
     assert json.loads(result.stdout) == {
         "candidate_count": 1,
+        "candidate_windows": [{
+            "epoch": candidate["epoch"],
+            "path": candidate_path,
+            "pickaxe_window_commits": 3,
+        }],
         "human_approved": False,
         "structurally_valid": True,
     }
@@ -1122,13 +1798,23 @@ def test_m6_ledger_wide_candidate_cycle_rejected_before_signal_review(tmp_path):
         guard_path="orchestrator/tests/test_second_guard.py",
         nodeid="orchestrator/tests/test_second_guard.py::test_second_guard",
     )
-    base_commit = _git(
+    epoch = _git(
         repo,
         "rev-list",
         "--max-parents=0",
         "HEAD",
     ).stdout.strip()
+    first_signal_commit = _git(
+        repo,
+        "log",
+        "-1",
+        "--format=%H",
+        "HEAD",
+        "--",
+        first_path,
+    ).stdout.strip()
     first = {
+        "epoch": epoch,
         "kind": "test",
         "path": first_path,
         "rationale": "independently valid first candidate",
@@ -1149,7 +1835,7 @@ def test_m6_ledger_wide_candidate_cycle_rejected_before_signal_review(tmp_path):
             ],
             "pickaxe_events": [
                 {
-                    "commit": base_commit,
+                    "commit": first_signal_commit,
                     "query": "obsolete sentinel",
                     "rationale": "literal first candidate history",
                     "review": "relevant",
@@ -1168,6 +1854,7 @@ def test_m6_ledger_wide_candidate_cycle_rejected_before_signal_review(tmp_path):
         },
     }
     second = {
+        "epoch": epoch,
         "kind": "test",
         "path": second_path,
         "rationale": "independently valid second candidate",
@@ -1247,6 +1934,7 @@ def test_m6_ledger_wide_candidate_cycle_rejected_before_signal_review(tmp_path):
         R._validate_test_evidence(
             candidate,
             snapshot,
+            epoch=candidate["epoch"],
             candidate_paths=frozenset(),
             ledger_path="docs/ruleops-candidates.json",
             ledger_controls={},
@@ -1286,9 +1974,21 @@ def test_m7_unresolved_observed_hit_is_single_rejection(tmp_path):
 
 def test_unresolved_pickaxe_event_is_single_rejection(tmp_path):
     repo = _base_repo(tmp_path)
+    token = "create-use-remove pickaxe sentinel"
+    transient = "output/insights/transient-pickaxe.txt"
+    _write(repo, transient, token + "\n")
+    created = _commit(repo, "create transient pickaxe signal")
+    (repo / transient).unlink()
+    removed = _commit(repo, "remove transient pickaxe signal")
     ledger = _valid_test_ledger(repo)
-    events = ledger["candidates"][0]["test_evidence"]["pickaxe_events"]
-    assert events
+    evidence = ledger["candidates"][0]["test_evidence"]
+    evidence["semantic_queries"] = [token]
+    evidence["observed_hits"] = []
+    evidence["pickaxe_events"] = _reviewed([
+        {"commit": created, "query": token},
+        {"commit": removed, "query": token},
+    ])
+    events = evidence["pickaxe_events"]
     events.pop()
     _write_json(repo, "docs/ruleops-candidates.json", ledger)
     with pytest.raises(R.RuleOpsError) as caught:
@@ -1608,7 +2308,11 @@ def test_receipt_epoch_path_union_exposes_rename_copy_and_merge(tmp_path):
     _git(repo, "merge", "--no-ff", "-qm", "merge epoch side", "receipt-epoch-side")
 
     snapshot = R._capture_snapshot(repo)
-    changed = R._receipt_epoch_changed_paths(snapshot, receipt_head)
+    changed = R._receipt_epoch_changed_paths(
+        snapshot,
+        receipt_head,
+        pickaxe_window_commits=snapshot.commit_count,
+    )
     assert {
         "output/reports/report.md",
         "output/reports/renamed.md",
@@ -1631,6 +2335,7 @@ def test_m9_check_output_exact_keys_and_forbidden_claims_absent(tmp_path):
     assert set(output) == _CHECK_OUTPUT_KEYS
     assert output == {
         "candidate_count": 0,
+        "candidate_windows": [],
         "human_approved": False,
         "structurally_valid": True,
     }
@@ -1900,6 +2605,11 @@ def test_git_timeout_detail_carries_mode_and_budget(tmp_path, monkeypatch):
             "(mode=log-pickaxe, budget=21.295s, units=37)",
         ),
         (
+            "log-pickaxe-epoch",
+            "git log timeout "
+            "(mode=log-pickaxe-epoch, budget=21.295s, units=37)",
+        ),
+        (
             "log-receipt-range",
             "git log timeout "
             "(mode=log-receipt-range, budget=21.295s, units=37)",
@@ -1920,6 +2630,7 @@ def test_git_timeout_detail_carries_mode_and_budget(tmp_path, monkeypatch):
         "log-last-change",
         "log-control-change",
         "log-pickaxe",
+        "log-pickaxe-epoch",
         "log-receipt-range",
         "cat-file-batch",
         "diff-tree-stdin",
@@ -1967,19 +2678,48 @@ def test_git_timeout_detail_identifies_production_mode(
         elif timeout_mode == "log-control-change":
             R._control_last_changes(snapshot, {path: entry.oid})
         elif timeout_mode == "log-pickaxe":
-            R._pickaxe(snapshot, ("signal",), {})
+            R._pickaxe(
+                snapshot,
+                ("signal",),
+                {},
+                epoch="c" * 40,
+                epoch_commits={f"{index:040x}" for index in range(37)},
+            )
+        elif timeout_mode == "log-pickaxe-epoch":
+            R._git_read(
+                tmp_path,
+                "log",
+                head,
+                "--",
+                commit_count=37,
+                timeout_mode="log-pickaxe-epoch",
+            )
         elif timeout_mode == "log-receipt-range":
-            R._receipt_epoch_changed_paths(snapshot, "c" * 40)
+            R._receipt_epoch_changed_paths(
+                snapshot,
+                "c" * 40,
+                pickaxe_window_commits=37,
+            )
         elif timeout_mode == "cat-file-batch":
             R._batch_blobs(snapshot, (entry,))
         else:
-            R._receipt_epoch_changed_paths(snapshot, "c" * 40)
+            R._receipt_epoch_changed_paths(
+                snapshot,
+                "c" * 40,
+                pickaxe_window_commits=37,
+            )
     assert caught.value.reason == "git-timeout"
     assert str(caught.value) == expected
 
 
 def test_capture_snapshot_counts_history_once(tmp_path, monkeypatch):
-    repo = _base_repo(tmp_path)
+    repo = tmp_path / "three-commit-repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "ruleops@example.invalid")
+    _git(repo, "config", "user.name", "RuleOps Test")
+    _write(repo, "first.txt", "first\n")
+    _commit(repo, "first")
     _write(repo, "second.txt", "second\n")
     _commit(repo, "second")
     _write(repo, "third.txt", "third\n")
@@ -2112,8 +2852,18 @@ def test_history_queries_receive_captured_commit_count(tmp_path, monkeypatch):
     monkeypatch.setattr(R.subprocess, "run", fake_run)
     assert R._last_changes(snapshot, (path,))[path][0] == head
     assert R._control_last_changes(snapshot, {path: entry.oid})[path] == head
-    assert R._pickaxe(snapshot, ("signal",), {}) == ([], [])
-    assert R._receipt_epoch_changed_paths(snapshot, "c" * 40) == frozenset()
+    assert R._pickaxe(
+        snapshot,
+        ("signal",),
+        {},
+        epoch="c" * 40,
+        epoch_commits={f"{index:040x}" for index in range(37)},
+    ) == ([], [])
+    assert R._receipt_epoch_changed_paths(
+        snapshot,
+        "c" * 40,
+        pickaxe_window_commits=37,
+    ) == frozenset()
     log_timeouts = [
         kwargs["timeout"] for command, kwargs in calls if "log" in command
     ]
@@ -2434,6 +3184,11 @@ def test_separate_dirty_custom_ledger_remains_valid_positive_control(tmp_path):
     _write_json(repo, custom, ledger)
     assert R.validate_candidate_ledger(repo, custom) == {
         "candidate_count": 1,
+        "candidate_windows": [{
+            "epoch": ledger["candidates"][0]["epoch"],
+            "path": "orchestrator/tests/test_candidate.py",
+            "pickaxe_window_commits": 2,
+        }],
         "human_approved": False,
         "structurally_valid": True,
     }
@@ -2635,6 +3390,7 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
     candidates = []
     for index, (candidate_path, query) in enumerate(controlled):
         candidates.append({
+            "epoch": inspected["epoch"],
             "kind": "test",
             "path": candidate_path,
             "rationale": "independent controlled real-checkout package",
@@ -2685,3 +3441,7 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
     elapsed = time.monotonic() - started
     print(f"RULEOPS_MAX_PACKAGE_PREFLIGHT_SECONDS={elapsed:.3f}")
     assert elapsed < 60
+    assert elapsed < 45, (
+        "[T-726] の epoch 時限措置が予算 (外側 60 秒の 75%) を使い切った。"
+        "恒久案の再裁定へ戻すこと"
+    )
