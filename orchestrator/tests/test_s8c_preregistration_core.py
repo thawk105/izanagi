@@ -25,6 +25,16 @@ sys.path.insert(0, str(_ORCHESTRATOR.parent))
 from orchestrator.campaign import s8c_preregistration as M  # noqa: E402
 
 
+EVIDENCE_CONTRACT_FILE = _ROOT / M.EVIDENCE_CONTRACT_PATH
+LEGACY_NUL_CONTRACT = (
+    b'{"conditions":[{"consumer_requirement":{"path":'
+    b'"orchestrator/campaign/trial_registry.py\\u0000alias"}}]}'
+)
+LEGACY_NUL_CONTRACT_SHA256 = (
+    "5203daa58be7cc33303ded109851d9ab9feabc34177a5aa0afef8488ccb6ba7b"
+)
+LEGACY_NUL_CONTRACT_POINTER = "/conditions/0/consumer_requirement/path"
+
 FIELD_NAMES = (
     "累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限",
     "env_tag (実測環境)",
@@ -108,6 +118,87 @@ def _commit(root: Path, subject: str) -> str:
     return _git(root, "rev-parse", "HEAD")
 
 
+def _contract_path_cases() -> tuple[tuple[str, tuple[str | int, ...]], ...]:
+    """production helper から独立に、実契約の全 ``path`` 位置を文書順で列挙する。"""
+    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
+    cases: list[tuple[str, tuple[str | int, ...]]] = []
+
+    def visit(node: object, pointer: str, selectors: tuple[str | int, ...]) -> None:
+        if isinstance(node, dict):
+            for key, child in node.items():
+                child_pointer = f"{pointer}/{key}"
+                child_selectors = (*selectors, key)
+                if key == "path" and isinstance(child, str):
+                    cases.append((child_pointer, child_selectors))
+                visit(child, child_pointer, child_selectors)
+        elif isinstance(node, list):
+            for index, child in enumerate(node):
+                visit(child, f"{pointer}/{index}", (*selectors, index))
+
+    visit(value, "", ())
+    return tuple(cases)
+
+
+EVIDENCE_CONTRACT_PATH_CASES = _contract_path_cases()
+
+
+def _contract_with_selector_suffix(
+    selectors: tuple[str | int, ...], suffix: str
+) -> bytes:
+    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
+    target = value
+    for selector in selectors[:-1]:
+        target = target[selector]
+    target[selectors[-1]] += suffix
+    return json.dumps(value, ensure_ascii=False).encode("utf-8")
+
+
+def _contract_with_path_suffix(*, owner: str, suffix: str) -> tuple[bytes, str]:
+    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
+    condition_index = len(value["conditions"]) - 1
+    row = value["conditions"][condition_index]
+    if owner == "required":
+        evidence_index = len(row["required_evidence"]) - 1
+        target = row["required_evidence"][evidence_index]
+        pointer = (
+            f"/conditions/{condition_index}"
+            f"/required_evidence/{evidence_index}/path"
+        )
+    elif owner == "consumer":
+        target = row["consumer_requirement"]
+        pointer = f"/conditions/{condition_index}/consumer_requirement/path"
+    else:
+        raise AssertionError(owner)
+    target["path"] += suffix
+    return json.dumps(value, ensure_ascii=False).encode("utf-8"), pointer
+
+
+def _contract_with_interior_path_nul(*, owner: str) -> tuple[bytes, str, str]:
+    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
+    condition_index = len(value["conditions"]) - 1
+    row = value["conditions"][condition_index]
+    if owner == "required":
+        evidence_index = len(row["required_evidence"]) - 1
+        target = row["required_evidence"][evidence_index]
+        pointer = (
+            f"/conditions/{condition_index}"
+            f"/required_evidence/{evidence_index}/path"
+        )
+    elif owner == "consumer":
+        target = row["consumer_requirement"]
+        pointer = f"/conditions/{condition_index}/consumer_requirement/path"
+    else:
+        raise AssertionError(owner)
+    original = target["path"]
+    insertion_index = len(original) // 2
+    target["path"] = f"{original[:insertion_index]}\x00{original[insertion_index:]}"
+    return (
+        json.dumps(value, ensure_ascii=False).encode("utf-8"),
+        pointer,
+        target["path"],
+    )
+
+
 def _record_raw(
     root: Path,
     generation: int,
@@ -136,6 +227,28 @@ def _install_g1(root: Path) -> tuple[str, bytes]:
     raw = _record_raw(root, 1, supersedes=None, ruling=None, reason="initial contract")
     _write(root, M.generation_path(1), raw)
     return _commit(root, "install g1"), raw
+
+
+def _install_legacy_nul_bound_g1(root: Path) -> str:
+    """T-739 より前の hash literal に束縛した NUL 契約 g1 を導入する。"""
+    assert b"\\u0000" in LEGACY_NUL_CONTRACT
+    assert b"\x00" not in LEGACY_NUL_CONTRACT
+    _write(root, M.EVIDENCE_CONTRACT_PATH, LEGACY_NUL_CONTRACT)
+    contract = M.parse_preregistration_markdown(
+        (root / M.SOURCE_PATH).read_bytes()
+    )
+    record_raw = M._canonical_bytes(
+        M._record_document(
+            1,
+            None,
+            contract,
+            LEGACY_NUL_CONTRACT_SHA256,
+            "pre-T-739 NUL fixture",
+            None,
+        )
+    )
+    _write(root, M.generation_path(1), record_raw)
+    return _commit(root, "install legacy NUL-bound g1")
 
 
 def _install_revision(
@@ -432,6 +545,159 @@ def test_evidence_contract_hash_is_semantic_canonical_json() -> None:
     assert M.evidence_contract_sha256(compact) == M.evidence_contract_sha256(formatted)
 
 
+def test_contract_path_inventory_has_expected_count() -> None:
+    assert len(EVIDENCE_CONTRACT_PATH_CASES) == 38
+
+
+@pytest.mark.parametrize(
+    ("pointer", "selectors"),
+    [
+        pytest.param(pointer, selectors, id=pointer)
+        for pointer, selectors in EVIDENCE_CONTRACT_PATH_CASES
+    ],
+)
+def test_evidence_contract_hash_rejects_nul_at_every_consumed_path(
+    pointer: str,
+    selectors: tuple[str | int, ...],
+) -> None:
+    raw = _contract_with_selector_suffix(selectors, "\x00alias")
+    assert b"\\u0000" in raw
+    assert b"\x00" not in raw
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == f"[evidence-contract-path-nul] {pointer!r}"
+    assert "\x00" not in str(caught.value)
+
+
+@pytest.mark.parametrize("owner", ["required", "consumer"])
+def test_evidence_contract_hash_rejects_nul_at_interior_position(
+    owner: str,
+) -> None:
+    raw, pointer, path = _contract_with_interior_path_nul(owner=owner)
+    nul_index = path.index("\x00")
+    assert not path.endswith("\x00")
+    assert path[nul_index + 1 :]
+    assert b"\\u0000" in raw
+    assert b"\x00" not in raw
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == f"[evidence-contract-path-nul] {pointer!r}"
+    assert "\x00" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("owner", "control", "expected_sha256"),
+    [
+        pytest.param(
+            "required",
+            "\r",
+            "a53554ac79ea305eb33fe4beb5ab632210412ffc8a0e3cb0b0b162031c1a934f",
+            id="required-cr",
+        ),
+        pytest.param(
+            "required",
+            "\n",
+            "d63d61cf3ac869c4cbeec55bb0653388ad714f8f1d82b4bc8b598b3edb83741e",
+            id="required-lf",
+        ),
+        pytest.param(
+            "consumer",
+            "\r",
+            "838af0062396626023fcc499335ba4cdd0ba48493848d24cb2070858541e5a88",
+            id="consumer-cr",
+        ),
+        pytest.param(
+            "consumer",
+            "\n",
+            "bc15be4f3f187774fabe62c3b163c462864fa2efbc22590613597e05d5f6457f",
+            id="consumer-lf",
+        ),
+    ],
+)
+def test_evidence_contract_hash_accepts_non_nul_path_controls(
+    owner: str,
+    control: str,
+    expected_sha256: str,
+) -> None:
+    raw, _ = _contract_with_path_suffix(owner=owner, suffix=control)
+    # 変更前に標準ライブラリだけで求めた literal へ固定し、過剰拒否と hash drift を同時に検出する。
+    assert M.evidence_contract_sha256(raw) == expected_sha256
+
+
+def test_evidence_contract_hash_accepts_non_path_nul() -> None:
+    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
+    value["conditions"][0]["static_only_note"] += "\x00data"
+    raw = json.dumps(value, ensure_ascii=False).encode("utf-8")
+    # exact hash は NUL 検査を全 string へ広げる過剰拒否と canonicalization drift を殺す。
+    assert M.evidence_contract_sha256(raw) == (
+        "77cd405fcc67ebd51416d4329edee3a2ecd9ed8ef0be71855d94c32486915735"
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "pointer"),
+    [
+        pytest.param(
+            b'{"conditions":{"path":"x\\u0000alias"}}',
+            "/conditions/path",
+            id="conditions-dict",
+        ),
+        pytest.param(
+            b'{"conditions":[{"required_evidence":[[{"path":"x\\u0000alias"}]]}]}',
+            "/conditions/0/required_evidence/0/0/path",
+            id="non-dict-required-evidence-wrapper",
+        ),
+        pytest.param(
+            b'{"metadata":{"path":"x\\u0000alias"}}',
+            "/metadata/path",
+            id="unknown-metadata-path",
+        ),
+    ],
+)
+def test_evidence_contract_hash_rejects_nul_in_malformed_shape_path(
+    raw: bytes,
+    pointer: str,
+) -> None:
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == f"[evidence-contract-path-nul] {pointer!r}"
+    assert "\x00" not in str(caught.value)
+
+
+def test_evidence_contract_hash_preserves_canonicalization_reason_before_nul() -> None:
+    raw = (
+        b'{"conditions":[{"required_evidence":'
+        b'[{"path":"x\\u0000\\ud800"}]}]}'
+    )
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+    assert caught.value.reason == "evidence-contract-json"
+
+
+def test_current_evidence_contract_hash_is_frozen() -> None:
+    assert M.evidence_contract_sha256(EVIDENCE_CONTRACT_FILE.read_bytes()) == (
+        "c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471"
+    )
+
+
+def test_existing_g1_record_pins_are_unchanged() -> None:
+    record = json.loads((_ROOT / M.generation_path(1)).read_bytes())
+    assert record["evidence_contract_sha256"] == (
+        "c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471"
+    )
+    assert record["protected_sha256"] == (
+        "853e6c44442780f180997b86819efaa8cbf245ae15d1a37a83e5b9a4ee99286e"
+    )
+    assert record["generation_number"] == 1
+
+
 @pytest.mark.parametrize(
     "old,new",
     [
@@ -513,6 +779,37 @@ def test_section5_json_semantic_empty_values_are_unfilled(value: str, reason: st
     )
     assert finding.status is M.FieldStatus.UNFILLED
     assert finding.reason_code == reason
+
+
+def test_validate_condition_freeze_at_rejects_legacy_frozen_nul_path_contract(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    head = _install_legacy_nul_bound_g1(root)
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.validate_condition_freeze_at(root, head)
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == (
+        f"[evidence-contract-path-nul] {LEGACY_NUL_CONTRACT_POINTER!r}"
+    )
+    assert "\x00" not in str(caught.value)
+
+
+def test_activation_report_marks_legacy_nul_bound_freeze_invalid(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    head = _install_legacy_nul_bound_g1(root)
+
+    report = M.activation_report_at(root, head)
+
+    assert report.condition_freeze_valid is False
+    assert report.freeze_reason_code == "evidence-contract-path-nul"
+    assert report.freeze_generation is None
+    assert report.protected_sha256 is None
+    assert report.effective is False
 
 
 def test_recorded_revision_is_accepted_and_ruling_is_checked_at_revision_commit(tmp_path: Path) -> None:
@@ -964,6 +1261,54 @@ def test_effective_preregistration_cannot_be_constructed_or_dataclass_replaced(t
         dataclasses.replace(effective)
     with pytest.raises(dataclasses.FrozenInstanceError):
         effective._report = report
+
+
+def test_prepare_revision_rejects_nul_path_contract_before_create(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    evidence_raw, pointer = _contract_with_path_suffix(
+        owner="required",
+        suffix="\x00alias",
+    )
+    _write(root, M.EVIDENCE_CONTRACT_PATH, evidence_raw)
+    destination = root / M.generation_path(1)
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.prepare_revision(
+            root,
+            revision_reason="must reject NUL path contract",
+        )
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == f"[evidence-contract-path-nul] {pointer!r}"
+    assert "\x00" not in str(caught.value)
+    assert not destination.exists()
+
+
+def test_prepare_revision_rejects_nul_path_contract_with_existing_freeze(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    _install_g1(root)
+    evidence_raw, pointer = _contract_with_path_suffix(
+        owner="consumer",
+        suffix="\x00alias",
+    )
+    _write(root, M.EVIDENCE_CONTRACT_PATH, evidence_raw)
+    destination = root / M.generation_path(2)
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.prepare_revision(
+            root,
+            ruling_reference="D327",
+            revision_reason="must reject NUL path contract",
+        )
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == f"[evidence-contract-path-nul] {pointer!r}"
+    assert "\x00" not in str(caught.value)
+    assert not destination.exists()
 
 
 def test_prepare_revision_is_exclusive_create(tmp_path: Path) -> None:
