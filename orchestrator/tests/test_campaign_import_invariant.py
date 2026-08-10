@@ -24,6 +24,9 @@ PATH_RULE = "campaign-orchestrator-sys-path"
 BOOTSTRAP_RULE = "campaign-direct-bootstrap"
 DOCS_RULE = "legacy-campaign-doc-command"
 RELATIVE_RULE = "campaign-absolute-sibling-import"
+KNOWN_RULES = frozenset(
+    {LEGACY_RULE, PATH_RULE, BOOTSTRAP_RULE, DOCS_RULE, RELATIVE_RULE}
+)
 
 DIRECT_BOOTSTRAP = '''if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -536,6 +539,12 @@ def _assert_ledger_matches(
     )
 
 
+def _assert_rule_ledger_matches(repository_scan: RepositoryScan, rule: str) -> None:
+    actual = tuple(item for item in repository_scan.violations if item.rule == rule)
+    expected = tuple(item for item in KNOWN_EXCEPTIONS if item.rule == rule)
+    _assert_ledger_matches(actual, expected)
+
+
 @pytest.fixture(scope="module")
 def repository_scan() -> RepositoryScan:
     return scan_repository(REPOSITORY)
@@ -547,30 +556,28 @@ def test_repository_scan_set_is_nonempty_and_contains_sentinels(repository_scan:
 
 
 def test_real_repository_legacy_namespace_matches_exception_ledger(repository_scan: RepositoryScan):
-    legacy = tuple(item for item in repository_scan.violations if item.rule == LEGACY_RULE)
-    _assert_ledger_matches(legacy, KNOWN_EXCEPTIONS)
+    _assert_rule_ledger_matches(repository_scan, LEGACY_RULE)
 
 
 def test_real_campaign_package_has_canonical_direct_bootstrap(repository_scan: RepositoryScan):
-    violations = tuple(
-        item for item in repository_scan.violations if item.rule in {PATH_RULE, BOOTSTRAP_RULE}
-    )
-    assert not violations, violations
+    for rule in (PATH_RULE, BOOTSTRAP_RULE):
+        _assert_rule_ledger_matches(repository_scan, rule)
 
 
 def test_real_current_docs_have_no_legacy_module_command(repository_scan: RepositoryScan):
-    violations = tuple(item for item in repository_scan.violations if item.rule == DOCS_RULE)
-    assert not violations, violations
+    _assert_rule_ledger_matches(repository_scan, DOCS_RULE)
 
 
 def test_real_campaign_package_uses_relative_sibling_imports(repository_scan: RepositoryScan):
-    violations = tuple(item for item in repository_scan.violations if item.rule == RELATIVE_RULE)
-    assert not violations, violations
+    _assert_rule_ledger_matches(repository_scan, RELATIVE_RULE)
 
 
 def test_known_exception_ledger_is_unique_rationalized_and_commented(repository_scan: RepositoryScan):
     keys = [item.key() for item in KNOWN_EXCEPTIONS]
     assert len(keys) == len(set(keys))
+    ledger_rules = {item.rule for item in KNOWN_EXCEPTIONS}
+    unknown_rules = ledger_rules - KNOWN_RULES
+    assert not unknown_rules, f"unknown ledger rules={sorted(unknown_rules)!r}"
     for item in KNOWN_EXCEPTIONS:
         assert item.rationale.strip()
         assert _RATIONALE_RE.search(item.rationale)
