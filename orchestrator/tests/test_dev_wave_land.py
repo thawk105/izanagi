@@ -2237,6 +2237,101 @@ def test_land_folds_rotation_inside_lock() -> None:
         assert declared.ok, declared
 
 
+def test_land_folds_failure_supersede_inside_lock() -> None:
+    """実 spool_fold の supersede 追記を cooperative land lock 内で適用する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        canonical = {
+            "docs/worklog.md": (
+                "# worklog\n\n## ローテーション\n\n---\n\n"
+                "## 2026-08-01 (1) — seed\n\n- seed\n\n"
+                "### 次の一手\n\n- [T-001] seed\n"
+            ),
+            "docs/decisions.md": (
+                "# decisions\n\n## D1. seed (2026-08-01)\n\n**決定:** seed\n"
+            ),
+            "docs/failures.md": (
+                "# failures\n\n## エントリ\n\n### F1. seed [手順漏れ]\n"
+                "- 事象: seed\n- 根本原因: seed\n- 恒久対応: seed\n- 再発検知: seed\n"
+            ),
+            "docs/phase3.md": (
+                "# phase3\n\n## 見送り台帳\n\n### プロセス文書系\n\n"
+                "- [T-050] 既存見送り — 理由: seed\n\n"
+                "### 研究・計測系\n\n- [T-051] 既存見送り — 理由: seed\n\n"
+                "### 裁定・完了記録\n\n- [T-052] 完了済み\n"
+            ),
+            "docs/archive/README.md": "# archive\n\n## 現在の収容物\n",
+            "tools/check_docs.py": "WORKLOG_ROTATE_BYTES = 100000\n",
+        }
+        for relative, content in canonical.items():
+            path = wave / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8", newline="\n")
+        fragment_relative = "docs/spool/failures/2026-08-10-test-wave-1.md"
+        (wave / fragment_relative).write_text(
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: failures\n"
+            "authored: 2026-08-10\n"
+            "wave: test-wave\n"
+            "seq: 1\n"
+            "---\n"
+            "## supersede 追記\n\n"
+            "- F1 **supersede: 2026-08-10** — lock 内 fold。\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        _git(wave, "add", "-A")
+        _git(wave, "commit", "-qm", "add failure supersede fold fixture")
+        tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, tip=tip)
+        real_fold = LAND._load_spool_fold()
+
+        class ObservedFold:
+            def __init__(self):
+                self.lock_observed = False
+
+            def __getattr__(self, name: str):
+                return getattr(real_fold, name)
+
+            def apply_fold(self, repo_path: Path, plan):
+                contender = os.open(
+                    repo.main / ".git" / "dev-wave-land.lock",
+                    os.O_RDWR | os.O_NOFOLLOW,
+                )
+                try:
+                    try:
+                        fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        self.lock_observed = True
+                    else:
+                        raise AssertionError("failure supersede fold ran outside land lock")
+                finally:
+                    os.close(contender)
+                return real_fold.apply_fold(repo_path, plan)
+
+        observed = ObservedFold()
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: observed),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert observed.lock_observed
+        assert not (repo.main / fragment_relative).exists()
+        assert (
+            "- **supersede: 2026-08-10** — lock 内 fold。\n"
+            in (repo.main / "docs/failures.md").read_text(encoding="utf-8")
+        )
+        assert result.fold_commit_sha == result.main_after
+
+
 def test_p06_supervised_branch_slug_with_matching_fragments_can_fold() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]

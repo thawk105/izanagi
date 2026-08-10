@@ -54,6 +54,18 @@ ARCHIVE_ENTRY_RE = re.compile(
 NEXT_ACTION_HEADING_RE = re.compile(r"^### 次の一手(?:[ \t].*)?$", re.MULTILINE)
 DECISION_ID_RE = re.compile(r"^## D(?P<number>[1-9][0-9]*)\.", re.MULTILINE)
 FAILURE_ID_RE = re.compile(r"^### F(?P<number>[1-9][0-9]*)\.", re.MULTILINE)
+FAILURE_SUPERSEDE_ITEM_RE = re.compile(
+    r"^- F(?P<number>[1-9][0-9]*) "
+    r"(?P<body>\*\*supersede: (?P<date>\d{4}-\d{2}-\d{2})\*\* — "
+    r"(?P<detail>[^\n]*\S[^\n]*))$"
+)
+FAILURE_RECURRENCE_SUPERSEDE_MISUSE_RE = re.compile(
+    r"^ {0,3}-[ \t]+\*\*supersede:"
+)
+FAILURE_RECURRENCE_ZERO_WIDTH_TRANSLATION = str.maketrans(
+    "", "", "\u200b\u200c\u200d\u2060\ufeff"
+)
+FAILURE_SUPERSEDE_FORBIDDEN_LINE_BREAKS = frozenset("\r\v\f\u0085\u2028\u2029")
 DEFERRED_HEADING_RE = re.compile(r"^## 見送り台帳(?:[ \t].*)?$", re.MULTILINE)
 COMPLETION_HEADING_RE = re.compile(r"^### 裁定・完了記録(?:[ \t].*)?$", re.MULTILINE)
 H3_RE = re.compile(r"^### (?P<title>[^\n]+)$", re.MULTILINE)
@@ -220,6 +232,12 @@ class _DeferredAppend:
 
 
 @dataclasses.dataclass(frozen=True)
+class _FailureSupersede:
+    target_number: int
+    line: str
+
+
+@dataclasses.dataclass(frozen=True)
 class _WorklogDelta:
     prose: str
     operations: tuple[_Operation, ...]
@@ -351,8 +369,13 @@ def _item_continuations_are_indented(block: str) -> bool:
     return all(not line or line.startswith("  ") for line in block.rstrip("\n").split("\n")[1:])
 
 
-def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
-    """HTML comment を同じ長さの空白へ置換し、行をまたぐ状態を返す。"""
+def _mask_html_comments(
+    line: str,
+    in_comment: bool,
+    *,
+    preserve_width: bool = True,
+) -> tuple[str, bool]:
+    """HTML comment を空白または空文字へ投影し、行をまたぐ状態を返す。"""
 
     visible: list[str] = []
     cursor = 0
@@ -360,11 +383,13 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
         if in_comment:
             end = line.find("-->", cursor)
             if end < 0:
-                visible.append(" " * (len(line) - cursor))
+                if preserve_width:
+                    visible.append(" " * (len(line) - cursor))
                 cursor = len(line)
             else:
                 end += len("-->")
-                visible.append(" " * (end - cursor))
+                if preserve_width:
+                    visible.append(" " * (end - cursor))
                 cursor = end
                 in_comment = False
             continue
@@ -384,6 +409,7 @@ def _visible_markdown_lines_in_container(
     text: str,
     *,
     list_container_width: int,
+    collapse_html_comments: bool = False,
 ) -> list[tuple[str, int, str]]:
     """指定した list container 内で可視行と offset・改行を返す。"""
 
@@ -424,7 +450,11 @@ def _visible_markdown_lines_in_container(
                 offset += len(raw_line)
                 continue
 
-        visible, in_comment = _mask_html_comments(line, in_comment)
+        visible, in_comment = _mask_html_comments(
+            line,
+            in_comment,
+            preserve_width=not collapse_html_comments,
+        )
         fence_match = FENCE_OPEN_RE.fullmatch(fence_view(visible))
         if fence_match is not None:
             marker = fence_match.group("marker")
@@ -438,10 +468,18 @@ def _visible_markdown_lines_in_container(
     return lines
 
 
-def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
+def _visible_markdown_lines(
+    text: str,
+    *,
+    collapse_html_comments: bool = False,
+) -> list[tuple[str, int, str]]:
     """top-level の code fence / HTML comment 外の可視行を返す。"""
 
-    return _visible_markdown_lines_in_container(text, list_container_width=0)
+    return _visible_markdown_lines_in_container(
+        text,
+        list_container_width=0,
+        collapse_html_comments=collapse_html_comments,
+    )
 
 
 def _visible_item_markdown_lines(text: str) -> list[tuple[str, int, str]]:
@@ -678,8 +716,9 @@ def _failure_symbols(fragment: Fragment) -> tuple[list[Symbol], list[Issue]]:
     issues: list[Issue] = []
     h2s = list(re.finditer(r"^## (?P<title>[^\n]+)$", fragment.body, re.MULTILINE))
     names = [match.group("title") for match in h2s]
-    if not names or names != [name for name in ("新規", "再発") if name in names]:
-        issues.append(Issue(fragment.path, 1, "failure-sections", f"{fragment.path}: H2 は `新規`、`再発` の順で一意に置く"))
+    canonical_names = ("新規", "再発", "supersede 追記")
+    if not names or names != [name for name in canonical_names if name in names]:
+        issues.append(Issue(fragment.path, 1, "failure-sections", f"{fragment.path}: H2 は `新規`、`再発`、`supersede 追記` の順で一意に置く"))
     new_region = ""
     new_offset = 0
     if "新規" in names:
@@ -733,6 +772,52 @@ def _failure_symbols(fragment: Fragment) -> tuple[list[Symbol], list[Issue]]:
         ))
         if len(headings) != len(all_h3):
             issues.append(_issue(fragment.path, fragment.body, start, "failure-recurrence-shape", f"{fragment.path}: 再発 target が不正"))
+        for visible, line_offset, _ in _visible_markdown_lines(
+            region,
+            collapse_html_comments=True,
+        ):
+            normalized = visible.translate(FAILURE_RECURRENCE_ZERO_WIDTH_TRANSLATION)
+            if FAILURE_RECURRENCE_SUPERSEDE_MISUSE_RE.match(normalized):
+                issues.append(_issue(
+                    fragment.path,
+                    fragment.body,
+                    start + line_offset,
+                    "failure-recurrence-supersede-misuse",
+                    f"{fragment.path}: supersede 追記を `再発` 節へ置けない",
+                ))
+    if "supersede 追記" in names:
+        index = names.index("supersede 追記")
+        start = h2s[index].end() + 1
+        end = h2s[index + 1].start() if index + 1 < len(h2s) else len(fragment.body)
+        region = fragment.body[start:end]
+        items: list[tuple[str, int]] = []
+        offset = 0
+        for line in region.split("\n"):
+            if line.strip():
+                items.append((line, start + offset))
+            offset += len(line) + 1
+        if not items:
+            issues.append(_issue(
+                fragment.path,
+                fragment.body,
+                start,
+                "failure-supersede-empty",
+                f"{fragment.path}: 使用した `supersede 追記` 節には item が 1 件以上必要",
+            ))
+        for line, line_offset in items:
+            item = FAILURE_SUPERSEDE_ITEM_RE.fullmatch(line)
+            if (
+                item is None
+                or not _valid_date(item.group("date"))
+                or any(character in line for character in FAILURE_SUPERSEDE_FORBIDDEN_LINE_BREAKS)
+            ):
+                issues.append(_issue(
+                    fragment.path,
+                    fragment.body,
+                    line_offset,
+                    "failure-supersede-shape",
+                    f"{fragment.path}: supersede 追記 item の shape が不正",
+                ))
     return symbols, issues
 
 
@@ -792,6 +877,23 @@ def _fragment_from_file(repo: Path, ledger: str, path: Path) -> tuple[Fragment |
     expected = f"{authored}-{wave}-{seq_text}.md"
     if path.name != expected:
         issues.append(Issue(rel, 1, "filename", f"{rel}: frontmatter から再構成した filename {expected!r} と不一致"))
+    if ledger == "failures" and "\r" in body:
+        h2s = list(re.finditer(r"^## (?P<title>[^\n]+)$", body, re.MULTILINE))
+        for index, h2 in enumerate(h2s):
+            if h2.group("title") != "supersede 追記":
+                continue
+            start = h2.end() + 1
+            end = h2s[index + 1].start() if index + 1 < len(h2s) else len(body)
+            region = body[start:end]
+            if "\r" in region:
+                issues.append(_issue(
+                    rel,
+                    body,
+                    start + region.index("\r"),
+                    "failure-supersede-shape",
+                    f"{rel}: supersede 追記 item の shape が不正",
+                ))
+                break
     if issues:
         return None, issues
     fragment = Fragment(rel, ledger, authored, wave, int(seq_text), fields.get("title"), body, raw, _sha256(raw))
@@ -1544,15 +1646,36 @@ def _render_decisions(fragment: Fragment, fold_date: str, allocations: Mapping[t
     return "\n".join(lines).strip("\n") + "\n"
 
 
-def _failure_parts(fragment: Fragment, allocations: Mapping[tuple[str, str, str], str]) -> tuple[list[str], list[tuple[int, str]]]:
+def _failure_parts(
+    fragment: Fragment,
+    allocations: Mapping[tuple[str, str, str], str],
+) -> tuple[list[str], list[tuple[int, str]], list[_FailureSupersede]]:
     body = _replace_placeholders(fragment.body, fragment.wave, allocations)
-    h2s = list(re.finditer(r"^## (?P<title>新規|再発)$", body, re.MULTILINE))
+    h2s = list(re.finditer(r"^## (?P<title>新規|再発|supersede 追記)$", body, re.MULTILINE))
     new_entries: list[str] = []
     recurrences: list[tuple[int, str]] = []
+    supersedes: list[_FailureSupersede] = []
     for index, h2 in enumerate(h2s):
         start = h2.end() + 1
         end = h2s[index + 1].start() if index + 1 < len(h2s) else len(body)
         region = body[start:end]
+        if h2.group("title") == "supersede 追記":
+            for line in region.split("\n"):
+                if not line.strip():
+                    continue
+                item = FAILURE_SUPERSEDE_ITEM_RE.fullmatch(line)
+                if item is None or any(
+                    character in line
+                    for character in FAILURE_SUPERSEDE_FORBIDDEN_LINE_BREAKS
+                ):
+                    raise SpoolValidationError([
+                        Issue(fragment.path, 1, "failure-supersede-shape", "supersede 追記 item の shape が不正")
+                    ])
+                supersedes.append(_FailureSupersede(
+                    int(item.group("number")),
+                    item.group("body"),
+                ))
+            continue
         h3s = list(re.finditer(r"^### (?P<title>[^\n]+)$", region, re.MULTILINE))
         for h3_index, h3 in enumerate(h3s):
             entry_end = h3s[h3_index + 1].start() if h3_index + 1 < len(h3s) else len(region)
@@ -1565,7 +1688,7 @@ def _failure_parts(fragment: Fragment, allocations: Mapping[tuple[str, str, str]
                     raise SpoolValidationError([Issue(fragment.path, 1, "failure-recurrence", "再発 target が不正")])
                 payload = entry[h3.end() - h3.start():].strip("\n") + "\n"
                 recurrences.append((int(target.group("number")), payload))
-    return new_entries, recurrences
+    return new_entries, recurrences, supersedes
 
 
 def _insert_failure_recurrences(failures: str, recurrences: Sequence[tuple[int, str]]) -> str:
@@ -1589,6 +1712,90 @@ def _insert_failure_recurrences(failures: str, recurrences: Sequence[tuple[int, 
         payload = "\n" + "\n".join(item.strip("\n") for item in grouped[number]) + "\n"
         rendered = rendered[:offset] + payload + rendered[offset:]
     return rendered
+
+
+def _insert_failure_supersedes(
+    failures: str,
+    supersedes: Sequence[_FailureSupersede],
+) -> str:
+    if not supersedes:
+        return failures
+    headings = list(FAILURE_ID_RE.finditer(failures))
+    positions: dict[int, int] = {}
+    starts: dict[int, int] = {}
+    for index, heading in enumerate(headings):
+        number = int(heading.group("number"))
+        if number in positions:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/failures.md",
+                    _line(failures, heading.start()),
+                    "failure-duplicate",
+                    f"F{number} が重複",
+                )
+            ])
+        starts[number] = heading.start()
+        entry_end = headings[index + 1].start() if index + 1 < len(headings) else len(failures)
+        entry = failures[heading.start():entry_end]
+        nonempty_lines = list(re.finditer(r"^[^\n]*\S[^\n]*(?:\n|$)", entry, re.MULTILINE))
+        positions[number] = heading.start() + nonempty_lines[-1].end()
+    grouped: dict[int, list[str]] = {}
+    seen: set[tuple[int, str]] = set()
+    for supersede in supersedes:
+        number = supersede.target_number
+        if number not in positions:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/failures.md",
+                    1,
+                    "failure-supersede-missing",
+                    f"supersede 追記 target F{number} が不存在",
+                )
+            ])
+        rendered_line = "- " + supersede.line
+        identity = (number, rendered_line)
+        existing_lines = failures[starts[number]:positions[number]].split("\n")
+        if rendered_line in existing_lines or identity in seen:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/failures.md",
+                    _line(failures, starts[number]),
+                    "failure-supersede-duplicate-line",
+                    f"supersede 追記 target F{number} に同一行が存在",
+                )
+            ])
+        grouped.setdefault(number, []).append(rendered_line)
+        seen.add(identity)
+    rendered = failures
+    for number in sorted(grouped, key=lambda value: positions[value], reverse=True):
+        offset = positions[number]
+        payload = "\n".join(grouped[number]) + "\n"
+        rendered = rendered[:offset] + payload + rendered[offset:]
+    return rendered
+
+
+def _assert_failure_topology(
+    before_numbers: Sequence[int],
+    rendered_failures: str,
+    appended_numbers: Sequence[int],
+    allocated_numbers: Sequence[int],
+) -> None:
+    expected = [*before_numbers, *appended_numbers]
+    actual = [int(match.group("number")) for match in FAILURE_ID_RE.finditer(rendered_failures)]
+    if (
+        sorted(appended_numbers) != sorted(allocated_numbers)
+        or len(expected) != len(set(expected))
+        or len(actual) != len(set(actual))
+        or actual != expected
+    ):
+        raise SpoolValidationError([
+            Issue(
+                "docs/failures.md",
+                1,
+                "failure-topology",
+                f"描画後の F heading 列が不正: expected={expected}, actual={actual}",
+            )
+        ])
 
 
 def _load_rotate_limit(repo: Path) -> int:
@@ -1837,14 +2044,42 @@ def plan_fold(
     rendered_failures_text = failures
     new_failure_entries: list[str] = []
     recurrence_entries: list[tuple[int, str]] = []
+    supersede_entries: list[_FailureSupersede] = []
     for fragment in (item for item in fragments if item.ledger == "failures"):
-        new_entries, recurrences = _failure_parts(fragment, allocations)
+        new_entries, recurrences, supersedes = _failure_parts(fragment, allocations)
         new_failure_entries.extend(new_entries)
         recurrence_entries.extend(recurrences)
+        supersede_entries.extend(supersedes)
     rendered_failures_text = _insert_failure_recurrences(rendered_failures_text, recurrence_entries)
+    rendered_failures_text = _insert_failure_supersedes(rendered_failures_text, supersede_entries)
     rendered_failures = rendered_failures_text.encode("utf-8")
+    appended_failure_numbers: list[int] = []
     for entry in new_failure_entries:
+        first_line = entry.split("\n", 1)[0]
+        heading = FAILURE_ID_RE.match(first_line)
+        if heading is None:
+            raise SpoolValidationError([
+                Issue(
+                    "docs/failures.md",
+                    1,
+                    "failure-topology",
+                    f"追加 F entry の先頭行が不正: {first_line!r}",
+                )
+            ])
+        appended_failure_numbers.append(int(heading.group("number")))
         rendered_failures = _append_bytes(rendered_failures, entry)
+    rendered_failures_text = rendered_failures.decode("utf-8")
+    allocated_failure_numbers = [
+        int(allocations[symbol.key][1:])
+        for symbol in symbols
+        if symbol.namespace == "F"
+    ]
+    _assert_failure_topology(
+        failure_numbers,
+        rendered_failures_text,
+        appended_failure_numbers,
+        allocated_failure_numbers,
+    )
 
     receipt_lines: list[str] = []
     fragment_receipts: list[FragmentReceipt] = []

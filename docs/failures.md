@@ -14,6 +14,10 @@
 - 機械化できる対応は機械化を優先する (lint・hook・driver 検査 > 行動規律 > 記憶)
 - エントリは追記のみ。**同じ型が再発したら既存エントリに「再発: 日付」を追記して顕在化させる**
   (再発ゼロがこの台帳の成功条件)
+- **再発と supersede を混同しない。** 同型の事象が新たに起きたら「再発」、既存エントリの
+  **記述だけが後続の事実で古くなった**なら `- **supersede: 日付** — ...` を同エントリへ追記する。
+  supersede は再発件数に数えず、過去の事象記録も消さない (現行状態を局所的に明示するだけである)。
+  記録手段は `docs/spool/failures/README.md` の `supersede 追記` 節
 - 型タグ: [捏造/幻覚] [恒真ゲート] [セッション死・救出] [権限逸脱] [ドリフト]
   [コンテキスト浪費] [計測汚染] [手順漏れ] [テスト代表性]
 
@@ -3609,6 +3613,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   登録した。実際には同じ入力経路を共有する既存 2 node も赤くなり MISMATCH。変異の適用範囲を
   field 不在経路だけへ狭めたうえで、コードを読んで期待 node を 2 件に確定して再走し 4/4 一致。
   初回台帳は erratum として保持している。
+
+- **再発: 2026-08-11** — 本 wave の変異 7 件のうち 2 件 (M02 暦日検査の無効化、M05 target
+  不存在検査の無効化) が MISMATCH。いずれも赤は出ており検出は成立していたが、登録した期待 node が
+  1 件ずつ不足していた。実際には同じ不正入力を使う consumer 側のテスト
+  (`test_spool_guard_reports_failure_supersede_issue`) と CLI 側のテスト
+  (`test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes`) も同時に赤くなる。
+  観測集合で再登録して再走し 2/2 KILLED。初回台帳は erratum として保持している。
+  **恒久対応の内容は変わらないが、3 例目まで機械強制が無いことが顕在化した** — 同じ不正 fixture を
+  複数層のテストが共有する設計では、層の数だけ赤 node が増えるのが正常である。
 ### F139. 実機の外部書式と防壁を机上で仮定し、実験 leg を 3 度空振りさせた [手順漏れ] [テスト代表性]
 
 - 事象: 生死確認 probe の実走で、机上レビューを通過した実装が実機で 3 回止まった。
@@ -4865,6 +4878,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す。
 - 再発検知: 待ち手 log (`lease.log`) に `acquired` があるのに `acceptance-status.txt` が
   `behind-main:*` になる組み合わせ。この組が出たら待ち手が取り込みを行っていない。
+- **supersede: 2026-08-11** — 恒久対応末尾の「runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す」は F197 で実施済み ([T-732] 裁定 (a)、待ち手内 merge が §7.3 の正本)。
 
 ### F197. 受入 lease の取り込み手順が待機時間の長い区画で飢餓し、取得した lease を捨てた [手順漏れ]
 
@@ -5109,3 +5123,31 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 中間 directory が無い状態からの起動を `orchestrator/tests/test_dev_wave_codex.py` の
   回帰テストに置いた。あわせて、land する起動経路は wave 内で実際に 1 度使う (dogfood)。
   **この欠陥は段 3 と段 6 の静的レビュー計 4 本では出ず、実起動で初めて出た。**
+
+### F209. 依存物ガードの疑似スキップと防壁配線欠落の skip が、受入全走を緑のまま素通りしていた [恒真ゲート] [テスト代表性]
+
+- 事象: 静的全数走査で 4 箇所が見つかった。(1) `orchestrator/tests/test_calibrator.py` の
+  F3 (計測前の単独性確認) 実プロセス番人 2 本が `pgrep` / `/proc` 不在時に早期 `return` で
+  打ち切り、**pytest は正常 return を PASS に数える**。(2) `orchestrator/tests/test_hooks.py` の
+  `test_settings_json_wires_all_hooks` が `.claude/settings.json` に `hooks` key が無いと skip し、
+  第二防壁の配線が丸ごと消えた構成を受入が緑で通す。(3)
+  `orchestrator/tests/test_dev_waves_isolation_contract.py` が conftest import 中の全 `ImportError` を
+  「pytest 不在」と誤ラベルして skip。(4) `orchestrator/tests/test_p3_s4_loop_trigger_gating.py` の
+  `_pinned_clean_sub_or_skip` が git の全例外を「submodule 未取得」の skip に化かす
+  (呼び出し元 0 件の死んだ罠)。いずれも赤にならないため、受入全走の rc と件数からは見えない。
+- 根本原因: 規約 (`orchestrator/tests/README.md` の「依存物不在時の skip (可視化)」= print + return の
+  疑似スキップ禁止と、二重 runner 契約の Skip 分離計上) が**文章としてしか存在せず、機械検査が
+  無かった**。(1) は同ファイルの `_run()` が `except Skip` を持たないため、規約どおり
+  `skiputil.skip` を使うと素の runner で ERROR に化ける構造になっており、規約違反の方が
+  「動く」状態だった。(2) は hooks 未配線時代 (D30 の over-claim 事件) の暫定 skip が、
+  配線完了後も残った陳腐化である。
+- 恒久対応: 4 箇所を修正し (疑似 return → `skiputil.skip`、`_run()` の Skip 計上、
+  hooks key 欠落の assert failure 化、`ImportError` の `exc.name == "pytest"` 限定、死んだ helper の削除)、
+  **巻き戻しを撃つ positive control を 2 本新設**した
+  (`test_calibrator.py::test_competing_bench_pids_missing_dependency_is_visible_skip` と
+  `test_hooks.py::test_settings_json_missing_hooks_is_assertion_failure`)。
+  どちらも変異 matrix で kill されることを実測済み (M2 / M3)。
+- 再発検知: 上記 2 本の positive control が、それぞれ「依存物不在が PASS に化ける」形と
+  「防壁配線の欠落が skip で通る」形の巻き戻しを赤にする。族全体を撃つ meta 検査は、
+  疑似 return の producer が 1 ファイルだけであるため `DW-G03` に従い作っていない
+  (2 例目が出たら `test_plain_runner_coverage.py` へ寄せる)。
