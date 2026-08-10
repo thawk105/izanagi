@@ -685,3 +685,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:ruleops-batch-blob-memory-bound":"[T-729]","T:ruleops-cap-is-per-call-only":"[T-727]","T:ruleops-default-controls-swallows-git-timeout":"[T-728]","T:ruleops-preflight-60s-ceiling":"[T-726]"},"authored":"2026-08-10","content_sha256":"ca4813c584ee0bf9761ed74a81a732d9e47a11d126b7ee8b5f61d788ee7023f1","seq":1,"wave":"dev-wave-t510-ruleops-git-budget"}
 - {"allocations":{"D:ruleops-git-timeout-budget":"D265"},"authored":"2026-08-10","content_sha256":"cf9bd040483ffd734475868a4c3a2c170c6278268a0b253517501563c6658bd5","seq":2,"wave":"dev-wave-t510-ruleops-git-budget"}
 - {"allocations":{"F:parametrize-id-breaks-node-extraction":"F194"},"authored":"2026-08-10","content_sha256":"dc8e2d7254b89ce830d0fd139c648e27221e7ad4a9523e0988d55d7d72cf5574","seq":3,"wave":"dev-wave-t510-ruleops-git-budget"}
+
+- {"allocations":{"D:stage-reasoning-policy-adoption":"D266"},"authored":"2026-08-10","content_sha256":"099f190e68c68fe2641b109a49d90306e80fb9f192c4c5d1d7673fc0a9e359bf","seq":1,"wave":"dev-wave-t184-reasoning-policy"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"266de09a59255b4d3170967e0eaf3cc43fec34f470d67b251338cfc4a1d42c75","seq":2,"wave":"dev-wave-t184-reasoning-policy"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"658e3387528edbfc7c5c62b68af8d9828792d5009adac54da8dd87b9c03808d8","seq":3,"wave":"dev-wave-t184-reasoning-policy"}
