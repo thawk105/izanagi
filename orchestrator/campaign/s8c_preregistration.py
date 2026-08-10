@@ -962,7 +962,7 @@ def read_blob_at(
 ) -> Optional[bytes]:
     rendered = path if isinstance(path, str) else str(path)
     text = "".join((rendered,))
-    if "\r" in text or "\n" in text:
+    if "\x00" in text or "\r" in text or "\n" in text:
         raise PreregistrationError("path-control-char")
     root = Path(repo_root).resolve()
     resolved = resolve_commit(root, commit)

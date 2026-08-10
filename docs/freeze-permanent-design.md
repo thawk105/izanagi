@@ -12,6 +12,18 @@
 起草過程: codex 草案 → 敵対相談 2 本 (両 NO-GO) → 親裁定 → 親起草 v2 → 敵対レビュー 2 本 (両 NO-GO、
 計 30 所見) → 全所見反映の本版。逐語は `output/insights/2026-07-22_t080-freeze-permanent-design.md`。
 
+**適用範囲 (2026-08-10 追記、[T-657] R3)。** 本書は freeze 族**内部**の設計正本であり、R1..R16 の
+本文は変更していない。較正 (環境契約の活性化) と凍結の世代交代を**束ねる上位層**は
+`docs/calibration-freeze-authority-bundle-design.md` が正本である。precedence は状態文ではなく
+repo から判定する — **上位 namespace の pointer record が上位 resolver の検証をちょうど 1 つ通って
+解決できる HEAD では、production authority は上位束であり、freeze 族の束は上位束の**成分**になる**
+(成分を個別に解決すると、上位が承認していない組合せが再生成されるため、それ単体を production
+authority として読んではならない)。**成分として参照されるのは上位の承認 record が名指しした
+freeze 束であって、本書 §7 の active-bundle pointer が指すものとは限らない** — 上位束は人間承認を
+経た未発効 (`approved-inactive`) の freeze 束も参照できるためである (上位正本 §7.2)。**解決できない HEAD** — record が無い、
+複数ある、検証に落ちる — では、本書の記述がそのまま現行契約である。**存在するだけでは足りない**
+(壊れた record が置かれただけで正本が切り替わってはならない)。同じ規則を上位正本 §1 にも置く。
+
 ---
 
 ## 1. 現状の実測 (2026-07-22、すべて再実測)

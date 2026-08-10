@@ -1,0 +1,128 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "    if isinstance(value, str):\n        text = \"\".join((value,))\n        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    else:\n        text = _nonempty_string(value, where=where)\n    path = _nonempty_string(text, where=where)\n",
+          "new": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    path = _nonempty_string(value, where=where)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M01b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+          "new": "        if \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n",
+          "new": "    if \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+          "new": "        if any(ord(ch) < 0x20 for ch in text):\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "    if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n",
+          "new": "    if any(ord(ch) < 0x20 for ch in text):\n        raise PreregistrationError(\"path-control-char\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "        text = \"\".join((value,))\n",
+          "new": "        text = value\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "old": "        raise EvidenceContractError(\"contract-path\", where)\n    return path\n",
+          "new": "        raise EvidenceContractError(\"contract-path\", where)\n    return value if isinstance(value, str) else path\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

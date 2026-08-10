@@ -1,0 +1,739 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d715e490149bb917bbe43874100add1c/izdw-d715e49014.o900342",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d715e490149bb917bbe43874100add1c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n........................................................................ [ 84%]\n..........................                                               [100%]\n170 passed in 3.02s\n",
+      "stdout_sha256": "67f078d748d56a5c3be238fd3422181d29a59c1a5107ed3483c2967704038ecf"
+    },
+    "artifact_error": null,
+    "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+    "duration_s": 26.859,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "3504b99d299ad563168b3dfce16b657ae487817d39ab71d9723dce2f905ad44e",
+    "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+    "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+    "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+    "status": "PASSED",
+    "test_output_sha256": "67f078d748d56a5c3be238fd3422181d29a59c1a5107ed3483c2967704038ecf",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+  },
+  "date": "2026-08-10T09:41:34.366350+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8dcd9cb6ea5be0952dfb7518c872b9f3/izdw-8dcd9cb6ea.o900343",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8dcd9cb6ea5be0952dfb7518c872b9f3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n......................F.F............................................... [ 84%]\n......F.FF................                                               [100%]\n=================================== FAILURES ===================================\n____ test_contract_loader_rejects_embedded_path_control_chars[consumer-nul] ____\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nowner = 'consumer', control = '\\x00'\n\n    @pytest.mark.parametrize(\n        (\"owner\", \"control\"),\n        [\n            pytest.param(\"required\", \"\\r\", id=\"required-cr\"),\n            pytest.param(\"required\", \"\\n\", id=\"required-lf\"),\n            pytest.param(\"required\", \"\\x00\", id=\"required-nul\"),\n            pytest.param(\"consumer\", \"\\r\", id=\"consumer-cr\"),\n            pytest.param(\"consumer\", \"\\n\", id=\"consumer-lf\"),\n            pytest.param(\"consumer\", \"\\x00\", id=\"consumer-nul\"),\n        ],\n    )\n    def test_contract_loader_rejects_embedded_path_control_chars(\n        owner: str, control: str\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        candidate = f\"dir/in{control}side.py\"\n        assert candidate == candidate.strip()\n        if owner == \"required\":\n            value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n        else:\n            value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n    \n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n_ test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul] _\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ncontrol = '\\x00'\n\n    @pytest.mark.parametrize(\n        \"control\",\n        [\n            pytest.param(\"\\r\", id=\"trailing-cr\"),\n            pytest.param(\"\\n\", id=\"trailing-lf\"),\n            pytest.param(\"\\x00\", id=\"trailing-nul\"),\n        ],\n    )\n    def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(\n        control: str,\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        current = value[\"conditions\"][0][\"required_evidence\"][0][\"path\"]\n        value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = current + control\n    \n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:227: Failed\n__________ test_safe_path_returns_exact_str_for_accepted_str_subclass __________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:\n        class AcceptedPath(str):\n            pass\n    \n        candidate = AcceptedPath(\"nested/accepted.py\")\n        result = M._safe_path(candidate, where=\"accepted.path\")\n>       assert type(result) is str\nE       AssertionError: assert <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> is str\nE        +  where <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> = type('nested/accepted.py')\n\norchestrator/tests/test_s8c_preregistration_predicates.py:275: AssertionError\n____ test_contract_loader_rejects_embedded_path_control_chars[required-nul] ____\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\nowner = 'required', control = '\\x00'\n\n    @pytest.mark.parametrize(\n        (\"owner\", \"control\"),\n        [\n            pytest.param(\"required\", \"\\r\", id=\"required-cr\"),\n            pytest.param(\"required\", \"\\n\", id=\"required-lf\"),\n            pytest.param(\"required\", \"\\x00\", id=\"required-nul\"),\n            pytest.param(\"consumer\", \"\\r\", id=\"consumer-cr\"),\n            pytest.param(\"consumer\", \"\\n\", id=\"consumer-lf\"),\n            pytest.param(\"consumer\", \"\\x00\", id=\"consumer-nul\"),\n        ],\n    )\n    def test_contract_loader_rejects_embedded_path_control_chars(\n        owner: str, control: str\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        candidate = f\"dir/in{control}side.py\"\n        assert candidate == candidate.strip()\n        if owner == \"required\":\n            value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n        else:\n            value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n    \n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n___________ test_safe_path_rejects_membership_spoofing_str_subclass ____________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_safe_path_rejects_membership_spoofing_str_subclass() -> None:\n        class MembershipSpoofingPath(str):\n            def __contains__(self, item: object) -> bool:\n                return False\n    \n        candidate = MembershipSpoofingPath(\"nested/in\\rside.py\")\n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:264: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass\n5 failed, 165 passed in 2.99s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=1206 retained_bytes=1206 omitted_bytes=0 rendered_excerpt_bytes=1288 sha256=f220be3d39570dab02aaab697bda521955c577cb994dcb0145d1c559107ab858\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> owner = 'consumer', control = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         (\"owner\", \"control\"),\n>         [\n>             pytest.param(\"required\", \"\\x5cr\", id=\"required-cr\"),\n>             pytest.param(\"required\", \"\\x5cn\", id=\"required-lf\"),\n>             pytest.param(\"required\", \"\\x5cx00\", id=\"required-nul\"),\n>             pytest.param(\"consumer\", \"\\x5cr\", id=\"consumer-cr\"),\n>             pytest.param(\"consumer\", \"\\x5cn\", id=\"consumer-lf\"),\n>             pytest.param(\"consumer\", \"\\x5cx00\", id=\"consumer-nul\"),\n>         ],\n>     )\n>     def test_contract_loader_rejects_embedded_path_control_chars(\n>         owner: str, control: str\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         candidate = f\"dir/in{control}side.py\"\n>         assert candidate == candidate.strip()\n>         if owner == \"required\":\n>             value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n>         else:\n>             value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n>     \n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=1206 retained_bytes=1206 omitted_bytes=0 rendered_excerpt_bytes=1288 sha256=054ce3c2aa922ae58b688c3c779010414a13e06973d1f0c16ed84aa9a536956b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n> owner = 'required', control = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         (\"owner\", \"control\"),\n>         [\n>             pytest.param(\"required\", \"\\x5cr\", id=\"required-cr\"),\n>             pytest.param(\"required\", \"\\x5cn\", id=\"required-lf\"),\n>             pytest.param(\"required\", \"\\x5cx00\", id=\"required-nul\"),\n>             pytest.param(\"consumer\", \"\\x5cr\", id=\"consumer-cr\"),\n>             pytest.param(\"consumer\", \"\\x5cn\", id=\"consumer-lf\"),\n>             pytest.param(\"consumer\", \"\\x5cx00\", id=\"consumer-nul\"),\n>         ],\n>     )\n>     def test_contract_loader_rejects_embedded_path_control_chars(\n>         owner: str, control: str\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         candidate = f\"dir/in{control}side.py\"\n>         assert candidate == candidate.strip()\n>         if owner == \"required\":\n>             value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n>         else:\n>             value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n>     \n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]\" nodeid_bytes=144 nodeid_omitted_bytes=0 source_bytes=814 retained_bytes=814 omitted_bytes=0 rendered_excerpt_bytes=873 sha256=a75f2eaa7fd98cedaad0b23ad72f665b4b863ac2a6daabe4b12aec3a349f4dd6\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> control = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         \"control\",\n>         [\n>             pytest.param(\"\\x5cr\", id=\"trailing-cr\"),\n>             pytest.param(\"\\x5cn\", id=\"trailing-lf\"),\n>             pytest.param(\"\\x5cx00\", id=\"trailing-nul\"),\n>         ],\n>     )\n>     def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(\n>         control: str,\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         current = value[\"conditions\"][0][\"required_evidence\"][0][\"path\"]\n>         value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = current + control\n>     \n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:227: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=752 retained_bytes=752 omitted_bytes=0 rendered_excerpt_bytes=779 sha256=eb89e9772df299829b504ffcb387fe15beb6cd1bb5037591bd879ed533e7169c\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:\n>         class AcceptedPath(str):\n>             pass\n>     \n>         candidate = AcceptedPath(\"nested/accepted.py\")\n>         result = M._safe_path(candidate, where=\"accepted.path\")\n> >       assert type(result) is str\n> E       AssertionError: assert <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> is str\n> E        +  where <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> = type('nested/accepted.py')\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:275: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=508 retained_bytes=508 omitted_bytes=0 rendered_excerpt_bytes=536 sha256=6bd4d3f99b0f7d68a1409747965b280f34fe2159425d9baca5bad89d6a9ae6ae\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_safe_path_rejects_membership_spoofing_str_subclass() -> None:\n>         class MembershipSpoofingPath(str):\n>             def __contains__(self, item: object) -> bool:\n>                 return False\n>     \n>         candidate = MembershipSpoofingPath(\"nested/in\\x5crside.py\")\n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:264: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=4486 retained_bytes=4486 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7380 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0e9358e52a971eb28caf04eb075450a63f313fbd331f25abe8f6e3ddadf5c664"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 26.961,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "3264cff3bdbdfcefda25d887cf962d449f6ab2277ab113ce43506e7b151d7e37",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e6eddc346fb49da072dc8cae6cf02e331b317953c78a7a35c14a57f7e99aa651",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    path = _nonempty_string(value, where=where)\n",
+          "old": "    if isinstance(value, str):\n        text = \"\".join((value,))\n        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    else:\n        text = _nonempty_string(value, where=where)\n    path = _nonempty_string(text, where=where)\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "0e9358e52a971eb28caf04eb075450a63f313fbd331f25abe8f6e3ddadf5c664",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ea58b2a54228909b8474a88e61ef2a2c/izdw-ea58b2a542.o900344",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ea58b2a54228909b8474a88e61ef2a2c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n.........F..F.......................................................F... [ 84%]\n..........................                                               [100%]\n=================================== FAILURES ===================================\n____ test_contract_loader_rejects_embedded_path_control_chars[consumer-nul] ____\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\nowner = 'consumer', control = '\\x00'\n\n    @pytest.mark.parametrize(\n        (\"owner\", \"control\"),\n        [\n            pytest.param(\"required\", \"\\r\", id=\"required-cr\"),\n            pytest.param(\"required\", \"\\n\", id=\"required-lf\"),\n            pytest.param(\"required\", \"\\x00\", id=\"required-nul\"),\n            pytest.param(\"consumer\", \"\\r\", id=\"consumer-cr\"),\n            pytest.param(\"consumer\", \"\\n\", id=\"consumer-lf\"),\n            pytest.param(\"consumer\", \"\\x00\", id=\"consumer-nul\"),\n        ],\n    )\n    def test_contract_loader_rejects_embedded_path_control_chars(\n        owner: str, control: str\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        candidate = f\"dir/in{control}side.py\"\n        assert candidate == candidate.strip()\n        if owner == \"required\":\n            value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n        else:\n            value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n    \n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n_ test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul] _\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ncontrol = '\\x00'\n\n    @pytest.mark.parametrize(\n        \"control\",\n        [\n            pytest.param(\"\\r\", id=\"trailing-cr\"),\n            pytest.param(\"\\n\", id=\"trailing-lf\"),\n            pytest.param(\"\\x00\", id=\"trailing-nul\"),\n        ],\n    )\n    def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(\n        control: str,\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        current = value[\"conditions\"][0][\"required_evidence\"][0][\"path\"]\n        value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = current + control\n    \n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:227: Failed\n____ test_contract_loader_rejects_embedded_path_control_chars[required-nul] ____\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\nowner = 'required', control = '\\x00'\n\n    @pytest.mark.parametrize(\n        (\"owner\", \"control\"),\n        [\n            pytest.param(\"required\", \"\\r\", id=\"required-cr\"),\n            pytest.param(\"required\", \"\\n\", id=\"required-lf\"),\n            pytest.param(\"required\", \"\\x00\", id=\"required-nul\"),\n            pytest.param(\"consumer\", \"\\r\", id=\"consumer-cr\"),\n            pytest.param(\"consumer\", \"\\n\", id=\"consumer-lf\"),\n            pytest.param(\"consumer\", \"\\x00\", id=\"consumer-nul\"),\n        ],\n    )\n    def test_contract_loader_rejects_embedded_path_control_chars(\n        owner: str, control: str\n    ) -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        candidate = f\"dir/in{control}side.py\"\n        assert candidate == candidate.strip()\n        if owner == \"required\":\n            value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n        else:\n            value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n    \n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]\n3 failed, 167 passed in 3.11s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=1206 retained_bytes=1206 omitted_bytes=0 rendered_excerpt_bytes=1288 sha256=1d89fd95e9239b0f8ae3cbd3dd19328237d4c565bbe1a7fa6551064d94450f3f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n> owner = 'required', control = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         (\"owner\", \"control\"),\n>         [\n>             pytest.param(\"required\", \"\\x5cr\", id=\"required-cr\"),\n>             pytest.param(\"required\", \"\\x5cn\", id=\"required-lf\"),\n>             pytest.param(\"required\", \"\\x5cx00\", id=\"required-nul\"),\n>             pytest.param(\"consumer\", \"\\x5cr\", id=\"consumer-cr\"),\n>             pytest.param(\"consumer\", \"\\x5cn\", id=\"consumer-lf\"),\n>             pytest.param(\"consumer\", \"\\x5cx00\", id=\"consumer-nul\"),\n>         ],\n>     )\n>     def test_contract_loader_rejects_embedded_path_control_chars(\n>         owner: str, control: str\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         candidate = f\"dir/in{control}side.py\"\n>         assert candidate == candidate.strip()\n>         if owner == \"required\":\n>             value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n>         else:\n>             value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n>     \n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]\" nodeid_bytes=129 nodeid_omitted_bytes=0 source_bytes=1205 retained_bytes=1205 omitted_bytes=0 rendered_excerpt_bytes=1287 sha256=683546dd820914d04de18baa89146ed1a842f77cd73d34a885742788487632df\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> owner = 'consumer', control = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         (\"owner\", \"control\"),\n>         [\n>             pytest.param(\"required\", \"\\x5cr\", id=\"required-cr\"),\n>             pytest.param(\"required\", \"\\x5cn\", id=\"required-lf\"),\n>             pytest.param(\"required\", \"\\x5cx00\", id=\"required-nul\"),\n>             pytest.param(\"consumer\", \"\\x5cr\", id=\"consumer-cr\"),\n>             pytest.param(\"consumer\", \"\\x5cn\", id=\"consumer-lf\"),\n>             pytest.param(\"consumer\", \"\\x5cx00\", id=\"consumer-nul\"),\n>         ],\n>     )\n>     def test_contract_loader_rejects_embedded_path_control_chars(\n>         owner: str, control: str\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         candidate = f\"dir/in{control}side.py\"\n>         assert candidate == candidate.strip()\n>         if owner == \"required\":\n>             value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n>         else:\n>             value[\"conditions\"][0][\"consumer_requirement\"][\"path\"] = candidate\n>     \n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:204: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]\" nodeid_bytes=144 nodeid_omitted_bytes=0 source_bytes=813 retained_bytes=813 omitted_bytes=0 rendered_excerpt_bytes=872 sha256=c5cc2133c21e81574144252ff6d479852c60f0bfe03e4dd6d6f5ce187e3f815b\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> control = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         \"control\",\n>         [\n>             pytest.param(\"\\x5cr\", id=\"trailing-cr\"),\n>             pytest.param(\"\\x5cn\", id=\"trailing-lf\"),\n>             pytest.param(\"\\x5cx00\", id=\"trailing-nul\"),\n>         ],\n>     )\n>     def test_contract_loader_reports_explicit_path_reason_for_trailing_controls(\n>         control: str,\n>     ) -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         current = value[\"conditions\"][0][\"required_evidence\"][0][\"path\"]\n>         value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = current + control\n>     \n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:227: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3224 retained_bytes=3224 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5156 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b65d862395f9b2699b1893696050176c326e2ecddbd87db1779354f9748d56ed"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 26.901,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]"
+      ],
+      "hang_risk": false,
+      "id": "M01b",
+      "injection_diff_sha256": "f46c141749f69513637157d7eace3a7ace204731f00c588d42bfb010d85c7ff9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b76cc176a1d18ced0638c6c89c37ca559228fe84d9688d03017e14333f2615f3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        if \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+          "old": "        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "b65d862395f9b2699b1893696050176c326e2ecddbd87db1779354f9748d56ed",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e3132708b9bdb2e7abd015838bb96b4a/izdw-e3132708b9.o900345",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e3132708b9bdb2e7abd015838bb96b4a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n....................................................................F... [ 84%]\n....F.....................                                               [100%]\n=================================== FAILURES ===================================\n______________ test_read_blob_at_rejects_nul_alias[embedded-nul] _______________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_read_blob_at_rejects_nul_0')\nsuffix = '\\x00not-the-contract-path'\n\n    @pytest.mark.parametrize(\n        \"suffix\",\n        [\n            pytest.param(\"\\x00\", id=\"trailing-nul\"),\n            pytest.param(\"\\x00not-the-contract-path\", id=\"embedded-nul\"),\n        ],\n    )\n    def test_read_blob_at_rejects_nul_alias(tmp_path: Path, suffix: str) -> None:\n        root = _init_repo(tmp_path)\n        prefix_path = \"alias-target.txt\"\n        prefix_blob = b\"nul-prefix-blob\\n\"\n        _write(root, prefix_path, prefix_blob)\n        head = _commit(root, \"NUL alias fixture\")\n        candidate = prefix_path + suffix\n    \n        _assert_tree_blob(root, head, prefix_path, prefix_blob)\n        assert candidate != prefix_path\n        assert candidate == candidate.strip()\n        assert _legacy_unframed_blob(root, head, candidate) == prefix_blob\n>       with pytest.raises(M.PreregistrationError) as caught:\nE       Failed: DID NOT RAISE PreregistrationError\n\norchestrator/tests/test_s8c_preregistration_core.py:1029: Failed\n______________ test_read_blob_at_rejects_nul_alias[trailing-nul] _______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_read_blob_at_rejects_nul_0')\nsuffix = '\\x00'\n\n    @pytest.mark.parametrize(\n        \"suffix\",\n        [\n            pytest.param(\"\\x00\", id=\"trailing-nul\"),\n            pytest.param(\"\\x00not-the-contract-path\", id=\"embedded-nul\"),\n        ],\n    )\n    def test_read_blob_at_rejects_nul_alias(tmp_path: Path, suffix: str) -> None:\n        root = _init_repo(tmp_path)\n        prefix_path = \"alias-target.txt\"\n        prefix_blob = b\"nul-prefix-blob\\n\"\n        _write(root, prefix_path, prefix_blob)\n        head = _commit(root, \"NUL alias fixture\")\n        candidate = prefix_path + suffix\n    \n        _assert_tree_blob(root, head, prefix_path, prefix_blob)\n        assert candidate != prefix_path\n        assert candidate == candidate.strip()\n        assert _legacy_unframed_blob(root, head, candidate) == prefix_blob\n>       with pytest.raises(M.PreregistrationError) as caught:\nE       Failed: DID NOT RAISE PreregistrationError\n\norchestrator/tests/test_s8c_preregistration_core.py:1029: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]\nFAILED orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]\n2 failed, 168 passed in 3.34s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1133 retained_bytes=1133 omitted_bytes=0 rendered_excerpt_bytes=1202 sha256=4b7aaa3862a22ba5b7add57b507100c1bf1fb1bfdfe05209e1c7ab1041ea3ca0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_read_blob_at_rejects_nul_0')\n> suffix = '\\x5cx00not-the-contract-path'\n> \n>     @pytest.mark.parametrize(\n>         \"suffix\",\n>         [\n>             pytest.param(\"\\x5cx00\", id=\"trailing-nul\"),\n>             pytest.param(\"\\x5cx00not-the-contract-path\", id=\"embedded-nul\"),\n>         ],\n>     )\n>     def test_read_blob_at_rejects_nul_alias(tmp_path: Path, suffix: str) -> None:\n>         root = _init_repo(tmp_path)\n>         prefix_path = \"alias-target.txt\"\n>         prefix_blob = b\"nul-prefix-blob\\x5cn\"\n>         _write(root, prefix_path, prefix_blob)\n>         head = _commit(root, \"NUL alias fixture\")\n>         candidate = prefix_path + suffix\n>     \n>         _assert_tree_blob(root, head, prefix_path, prefix_blob)\n>         assert candidate != prefix_path\n>         assert candidate == candidate.strip()\n>         assert _legacy_unframed_blob(root, head, candidate) == prefix_blob\n> >       with pytest.raises(M.PreregistrationError) as caught:\n> E       Failed: DID NOT RAISE PreregistrationError\n> \n> orchestrator/tests/test_s8c_preregistration_core.py:1029: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1112 retained_bytes=1112 omitted_bytes=0 rendered_excerpt_bytes=1181 sha256=aeadb3425cf02798998540c47533ed32c418129de08adb08513a9efd6a526c07\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_read_blob_at_rejects_nul_0')\n> suffix = '\\x5cx00'\n> \n>     @pytest.mark.parametrize(\n>         \"suffix\",\n>         [\n>             pytest.param(\"\\x5cx00\", id=\"trailing-nul\"),\n>             pytest.param(\"\\x5cx00not-the-contract-path\", id=\"embedded-nul\"),\n>         ],\n>     )\n>     def test_read_blob_at_rejects_nul_alias(tmp_path: Path, suffix: str) -> None:\n>         root = _init_repo(tmp_path)\n>         prefix_path = \"alias-target.txt\"\n>         prefix_blob = b\"nul-prefix-blob\\x5cn\"\n>         _write(root, prefix_path, prefix_blob)\n>         head = _commit(root, \"NUL alias fixture\")\n>         candidate = prefix_path + suffix\n>     \n>         _assert_tree_blob(root, head, prefix_path, prefix_blob)\n>         assert candidate != prefix_path\n>         assert candidate == candidate.strip()\n>         assert _legacy_unframed_blob(root, head, candidate) == prefix_blob\n> >       with pytest.raises(M.PreregistrationError) as caught:\n> E       Failed: DID NOT RAISE PreregistrationError\n> \n> orchestrator/tests/test_s8c_preregistration_core.py:1029: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2245 retained_bytes=2245 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3556 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ec61776d36f7fe54337e5bff626258ae8bf6e2e780970a3a22907536e8ab2953"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 26.862,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "371dc5e42a712b153c924afb9aaf7a4993ac84cf1a532284dfb2d3b9b868e4ed",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9e398207970ab509eb2bf086e0ffcb558719e32f15bbab7bacdc96881f1f9fe2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    if \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n",
+          "old": "    if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "ec61776d36f7fe54337e5bff626258ae8bf6e2e780970a3a22907536e8ab2953",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f75df67d6537856cc89a26d252eac0a/izdw-7f75df67d6.o900347",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f75df67d6537856cc89a26d252eac0a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n........................................................................ [ 84%]\n...........F..............                                               [100%]\n=================================== FAILURES ===================================\n________________ test_contract_loader_accepts_embedded_tab_path ________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_contract_loader_accepts_embedded_tab_path() -> None:\n        value = json.loads(CONTRACT_FILE.read_bytes())\n        candidate = \"nested/tab\\tpath.py\"\n        value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n        raw = json.dumps(value, ensure_ascii=False).encode(\"utf-8\")\n    \n>       contract = M.load_contract_bytes(raw)\n\norchestrator/tests/test_s8c_preregistration_predicates.py:254: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8c_preregistration_evidence.py:229: in load_contract_bytes\n    path=_safe_path(item[\"path\"], where=f\"C{number:02d}.{kind}.path\"),\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nvalue = 'nested/tab\\tpath.py', where = 'C01.workload_supervisor.path'\n\n    def _safe_path(value: object, *, where: str) -> str:\n        if isinstance(value, str):\n            text = \"\".join((value,))\n            if any(ord(ch) < 0x20 for ch in text):\n>               raise EvidenceContractError(\"contract-path-control-char\", repr(where))\nE               campaign.s8c_preregistration_evidence.EvidenceContractError: [contract-path-control-char] 'C01.workload_supervisor.path'\n\norchestrator/campaign/s8c_preregistration_evidence.py:187: EvidenceContractError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path\n1 failed, 169 passed in 4.51s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1342 retained_bytes=1342 omitted_bytes=0 rendered_excerpt_bytes=1401 sha256=c5388d3bd8eb9fef138b9950b4ce1548c5d773365f97fe93c0adc771249f126e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_contract_loader_accepts_embedded_tab_path() -> None:\n>         value = json.loads(CONTRACT_FILE.read_bytes())\n>         candidate = \"nested/tab\\x5ctpath.py\"\n>         value[\"conditions\"][0][\"required_evidence\"][0][\"path\"] = candidate\n>         raw = json.dumps(value, ensure_ascii=False).encode(\"utf-8\")\n>     \n> >       contract = M.load_contract_bytes(raw)\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:254: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8c_preregistration_evidence.py:229: in load_contract_bytes\n>     path=_safe_path(item[\"path\"], where=f\"C{number:02d}.{kind}.path\"),\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> value = 'nested/tab\\x5ctpath.py', where = 'C01.workload_supervisor.path'\n> \n>     def _safe_path(value: object, *, where: str) -> str:\n>         if isinstance(value, str):\n>             text = \"\".join((value,))\n>             if any(ord(ch) < 0x20 for ch in text):\n> >               raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n> E               campaign.s8c_preregistration_evidence.EvidenceContractError: [contract-path-control-char] 'C01.workload_supervisor.path'\n> \n> orchestrator/campaign/s8c_preregistration_evidence.py:187: EvidenceContractError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1342 retained_bytes=1342 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2134 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "40208714dc0a5c96bf083bb787ac9a66e5ea7c566d86424b0403d3d28b4600db"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 37.131,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "68c35fc3bfe0c05d566a2f00ef52e5b15dfe89a0b4c5b069e3ac0fa6376120cf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "764485a22ce15ef692c147f12594cfe9d8e8880e6dfee2ed93736cd33c84c881",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        if any(ord(ch) < 0x20 for ch in text):\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+          "old": "        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "40208714dc0a5c96bf083bb787ac9a66e5ea7c566d86424b0403d3d28b4600db",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d41074e7f4d91759667abfa0dab91e4d/izdw-d41074e7f4.o900348",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d41074e7f4d91759667abfa0dab91e4d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n........................................................................ [ 84%]\n.......F..................                                               [100%]\n=================================== FAILURES ===================================\n_________________ test_read_blob_at_accepts_embedded_tab_path __________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_read_blob_at_accepts_embe0')\n\n    def test_read_blob_at_accepts_embedded_tab_path(tmp_path: Path) -> None:\n        root = _init_repo(tmp_path)\n        candidate = \"nested/tab\\tpath.py\"\n        payload = b\"embedded-tab-path\\n\"\n        _write(root, candidate, payload)\n        head = _commit(root, \"embedded TAB path\")\n    \n>       assert M.read_blob_at(root, head, candidate) == payload\n\norchestrator/tests/test_s8c_preregistration_core.py:1090: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_read_blob_at_accepts_embe0/repo')\ncommit = '13736a3f28fbcca8c35c8b07aa0bb9245807f736'\npath = 'nested/tab\\tpath.py', required = True\n\n    def read_blob_at(\n        repo_root: Path | str, commit: str, path: str, *, required: bool = True\n    ) -> Optional[bytes]:\n        rendered = path if isinstance(path, str) else str(path)\n        text = \"\".join((rendered,))\n        if any(ord(ch) < 0x20 for ch in text):\n>           raise PreregistrationError(\"path-control-char\")\nE           campaign.s8c_preregistration.PreregistrationError: path-control-char\n\norchestrator/campaign/s8c_preregistration.py:966: PreregistrationError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path\n1 failed, 169 passed in 3.15s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1330 retained_bytes=1330 omitted_bytes=0 rendered_excerpt_bytes=1400 sha256=f7d60e1c07781a0516830c91f5ae7a16478727922a0eb88f91ab783d9781a272\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_read_blob_at_accepts_embe0')\n> \n>     def test_read_blob_at_accepts_embedded_tab_path(tmp_path: Path) -> None:\n>         root = _init_repo(tmp_path)\n>         candidate = \"nested/tab\\x5ctpath.py\"\n>         payload = b\"embedded-tab-path\\x5cn\"\n>         _write(root, candidate, payload)\n>         head = _commit(root, \"embedded TAB path\")\n>     \n> >       assert M.read_blob_at(root, head, candidate) == payload\n> \n> orchestrator/tests/test_s8c_preregistration_core.py:1090: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_read_blob_at_accepts_embe0/repo')\n> commit = '13736a3f28fbcca8c35c8b07aa0bb9245807f736'\n> path = 'nested/tab\\x5ctpath.py', required = True\n> \n>     def read_blob_at(\n>         repo_root: Path | str, commit: str, path: str, *, required: bool = True\n>     ) -> Optional[bytes]:\n>         rendered = path if isinstance(path, str) else str(path)\n>         text = \"\".join((rendered,))\n>         if any(ord(ch) < 0x20 for ch in text):\n> >           raise PreregistrationError(\"path-control-char\")\n> E           campaign.s8c_preregistration.PreregistrationError: path-control-char\n> \n> orchestrator/campaign/s8c_preregistration.py:966: PreregistrationError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1330 retained_bytes=1330 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2123 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e968ed13b0274e1a3e66be2d55e884a43b986fe4dc8da679ad9b336f52880ff8"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 31.98,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path"
+      ],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "cf98c4b247c13a265f0a587ddabf2757b034752713ca88eb5850aac3e5c7e99a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4c5056598b1faab55b257275a2a731d779cdda9edd8cd00be07cccb8c1a0c092",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "new": "    if any(ord(ch) < 0x20 for ch in text):\n        raise PreregistrationError(\"path-control-char\")\n",
+          "old": "    if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "e968ed13b0274e1a3e66be2d55e884a43b986fe4dc8da679ad9b336f52880ff8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c77484183f6c83a7b1dc12150471af2a/izdw-c77484183f.o900349",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c77484183f6c83a7b1dc12150471af2a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n.....................................................F.F................ [ 84%]\n..........................                                               [100%]\n=================================== FAILURES ===================================\n___________ test_safe_path_rejects_membership_spoofing_str_subclass ____________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_safe_path_rejects_membership_spoofing_str_subclass() -> None:\n        class MembershipSpoofingPath(str):\n            def __contains__(self, item: object) -> bool:\n                return False\n    \n        candidate = MembershipSpoofingPath(\"nested/in\\rside.py\")\n>       with pytest.raises(M.EvidenceContractError) as caught:\nE       Failed: DID NOT RAISE EvidenceContractError\n\norchestrator/tests/test_s8c_preregistration_predicates.py:264: Failed\n__________ test_safe_path_returns_exact_str_for_accepted_str_subclass __________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:\n        class AcceptedPath(str):\n            pass\n    \n        candidate = AcceptedPath(\"nested/accepted.py\")\n        result = M._safe_path(candidate, where=\"accepted.path\")\n>       assert type(result) is str\nE       AssertionError: assert <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> is str\nE        +  where <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> = type('nested/accepted.py')\n\norchestrator/tests/test_s8c_preregistration_predicates.py:275: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\n2 failed, 168 passed in 3.10s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=752 retained_bytes=752 omitted_bytes=0 rendered_excerpt_bytes=779 sha256=c721b34a44a480104a9af4a4bc548876ed1a9d10e60bfd10bdd0684bb8c80541\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:\n>         class AcceptedPath(str):\n>             pass\n>     \n>         candidate = AcceptedPath(\"nested/accepted.py\")\n>         result = M._safe_path(candidate, where=\"accepted.path\")\n> >       assert type(result) is str\n> E       AssertionError: assert <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> is str\n> E        +  where <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> = type('nested/accepted.py')\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:275: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=508 retained_bytes=508 omitted_bytes=0 rendered_excerpt_bytes=536 sha256=2b901af0f05e32a280e177f00ac92c8c9a30455ef58d36e74b0cd0f11fa868b3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_safe_path_rejects_membership_spoofing_str_subclass() -> None:\n>         class MembershipSpoofingPath(str):\n>             def __contains__(self, item: object) -> bool:\n>                 return False\n>     \n>         candidate = MembershipSpoofingPath(\"nested/in\\x5crside.py\")\n> >       with pytest.raises(M.EvidenceContractError) as caught:\n> E       Failed: DID NOT RAISE EvidenceContractError\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:264: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1260 retained_bytes=1260 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2509 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4277b84ff74c1ebdaeaab59c0366494b36f66eadf39c50456b80bb58d0b60206"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 26.872,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "401873b7e1af8a6169e4e5ae03ec5788d799e38735affa1438307716a400fd84",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "aeb9f55c4eaf8f68b213671a82c605692d856ca44f914175f67f1d87b10109cd",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        text = value\n",
+          "old": "        text = \"\".join((value,))\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "4277b84ff74c1ebdaeaab59c0366494b36f66eadf39c50456b80bb58d0b60206",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/70559854fba961398b6716413242989a/izdw-70559854fb.o900350",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/70559854fba961398b6716413242989a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 42%]\n.......................................F................................ [ 84%]\n..........................                                               [100%]\n=================================== FAILURES ===================================\n__________ test_safe_path_returns_exact_str_for_accepted_str_subclass __________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:\n        class AcceptedPath(str):\n            pass\n    \n        candidate = AcceptedPath(\"nested/accepted.py\")\n        result = M._safe_path(candidate, where=\"accepted.path\")\n>       assert type(result) is str\nE       AssertionError: assert <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> is str\nE        +  where <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> = type('nested/accepted.py')\n\norchestrator/tests/test_s8c_preregistration_predicates.py:275: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\n1 failed, 169 passed in 3.53s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=751 retained_bytes=751 omitted_bytes=0 rendered_excerpt_bytes=778 sha256=ce41a00e690741e2b86912ff814cdf84c978c3096c5165d8adbbf8a38b4fb931\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_safe_path_returns_exact_str_for_accepted_str_subclass() -> None:\n>         class AcceptedPath(str):\n>             pass\n>     \n>         candidate = AcceptedPath(\"nested/accepted.py\")\n>         result = M._safe_path(candidate, where=\"accepted.path\")\n> >       assert type(result) is str\n> E       AssertionError: assert <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> is str\n> E        +  where <class 'test_s8c_preregistration_predicates.test_safe_path_returns_exact_str_for_accepted_str_subclass.<locals>.AcceptedPath'> = type('nested/accepted.py')\n> \n> orchestrator/tests/test_s8c_preregistration_predicates.py:275: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=751 retained_bytes=751 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1518 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "234e3c1a2963a124b86ac9927a89bf62bb5bfe41dab5652c0d3833325f9091d7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "5c0fd226c979f930f6af16d61a19980ae4864aef42740a857d6c11646f38d208",
+      "duration_s": 26.902,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+      ],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "c238afcfdbf9c11a4821f84cf79f20aad6130002c43422a20e6f985f8ef92a25",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "822fac120934c2bc0bc718c82879af42e2de60932efc6c0d00b1da8df525c42e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "new": "        raise EvidenceContractError(\"contract-path\", where)\n    return value if isinstance(value, str) else path\n",
+          "old": "        raise EvidenceContractError(\"contract-path\", where)\n    return path\n"
+        }
+      ],
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "KILLED",
+      "test_output_sha256": "234e3c1a2963a124b86ac9927a89bf62bb5bfe41dab5652c0d3833325f9091d7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a8365815ead10183bbba1f20a93269d1/izdw-a8365815ea.o900341",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a8365815ead10183bbba1f20a93269d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_preregistration_core.py::test_current_markdown_extracts_nine_fields_and_conditions_1_to_12\norchestrator/tests/test_s8c_preregistration_core.py::test_heading_rewording_changes_hash_but_missing_duplicate_and_level_change_fail\norchestrator/tests/test_s8c_preregistration_core.py::test_table_lexer_handles_escaped_pipe_and_code_span\norchestrator/tests/test_s8c_preregistration_core.py::test_layout_only_whitespace_line_wrap_and_bold_preserve_hashes\norchestrator/tests/test_s8c_preregistration_core.py::test_paragraph_list_and_fenced_code_node_kind_changes_hash\norchestrator/tests/test_s8c_preregistration_core.py::test_fence_scanner_uses_commonmark_marker_width_info_and_indent\norchestrator/tests/test_s8c_preregistration_core.py::test_list_item_fence_exact_fixture_is_rejected_fail_closed\norchestrator/tests/test_s8c_preregistration_core.py::test_section6_list_container_fence_is_rejected_fail_closed\norchestrator/tests/test_s8c_preregistration_core.py::test_normalization_v2_conformance_corpus\norchestrator/tests/test_s8c_preregistration_core.py::test_field_set_is_order_independent_but_names_and_normative_policy_are_protected\norchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_is_semantic_canonical_json\norchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[\\u4fdd\\u8a3c-\\u78ba\\u8a8d]\norchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[\\u6570\\u5024 48-\\u6570\\u5024 47]\norchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[\\u5426\\u5b9a\\u3084\\u6570\\u5024-\\u6570\\u5024]\norchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[\\u6761\\u4ef6 2-\\u6761\\u4ef6 \\u4e8c]\norchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[\\u6a5f\\u68b0\\u691c\\u67fb\\u3059\\u308b\\u3002-\\u6a5f\\u68b0\\u691c\\u67fb\\u3059\\u308b\\uff01]\norchestrator/tests/test_s8c_preregistration_core.py::test_condition_order_and_continuation_are_part_of_hash\norchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-condition-numbering0]\norchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-condition-numbering1]\norchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-condition-nested-replacement]\norchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-unclosed-fence]\norchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-reference-link-definition]\norchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-raw-html]\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_placeholder_and_arbitrary_nonempty_are_not_filled\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[null-json-null]\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\"-json-empty-string]\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\\u672a\\u8a18\\u5165\"-json-placeholder-string]\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\\uff08\\u672a\\u8a18\\u5165\\uff09\"-json-placeholder-string]\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[[]-json-empty-container]\norchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[{}-json-empty-container]\norchestrator/tests/test_s8c_preregistration_core.py::test_recorded_revision_is_accepted_and_ruling_is_checked_at_revision_commit\norchestrator/tests/test_s8c_preregistration_core.py::test_operational_artifacts_do_not_enter_closed_freeze_namespace\norchestrator/tests/test_s8c_preregistration_core.py::test_unrecorded_change_is_rejected_even_after_revert\norchestrator/tests/test_s8c_preregistration_core.py::test_generation_gap_bad_supersedes_unknown_key_and_noncanonical_are_rejected\norchestrator/tests/test_s8c_preregistration_core.py::test_generation_mutation_and_delete_readd_are_rejected\norchestrator/tests/test_s8c_preregistration_core.py::test_generation_added_without_protected_change_is_spurious\norchestrator/tests/test_s8c_preregistration_core.py::test_valid_successor_merge_is_accepted\norchestrator/tests/test_s8c_preregistration_core.py::test_successor_merge_rejects_merge_commit_with_different_state\norchestrator/tests/test_s8c_preregistration_core.py::test_mutually_different_revisions_merge_fails_closed\norchestrator/tests/test_s8c_preregistration_core.py::test_merge_transition_alone_rejects_mutually_divergent_revisions\norchestrator/tests/test_s8c_preregistration_core.py::test_same_revision_introduced_on_two_forks_is_rejected\norchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_accepts_exact_recomputed_capability\norchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_missing_or_wrong_type[none]\norchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_missing_or_wrong_type[wrong-type]\norchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_different_commit\norchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_tampered_digest\norchestrator/tests/test_s8c_preregistration_core.py::test_revision_requires_ruling_reference_and_existing_ledger_entry\norchestrator/tests/test_s8c_preregistration_core.py::test_revision_ruling_must_be_structured_decisions_heading\norchestrator/tests/test_s8c_preregistration_core.py::test_record_schema_has_no_self_or_commit_hash_fields\norchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-UNSATISFIED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-EVIDENCE_UNDEFINED]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-ERROR]\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-NOT_EVALUATED]\norchestrator/tests/test_s8c_preregistration_core.py::test_missing_evaluator_module_yields_twelve_evidence_undefined\norchestrator/tests/test_s8c_preregistration_core.py::test_activation_report_records_both_module_blob_hashes_at_commit\norchestrator/tests/test_s8c_preregistration_core.py::test_private_conjunction_helper_reads_commit_blob_not_dirty_worktree\norchestrator/tests/test_s8c_preregistration_core.py::test_production_entrypoints_do_not_accept_registry_injection\norchestrator/tests/test_s8c_preregistration_core.py::test_cli_has_only_check_and_prepare_revision_commands\norchestrator/tests/test_s8c_preregistration_core.py::test_effective_preregistration_cannot_be_constructed_or_dataclass_replaced\norchestrator/tests/test_s8c_preregistration_core.py::test_prepare_revision_is_exclusive_create\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook\norchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_generation_commit_and_blob_limits_fail_closed\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_constants_match_preregistered_measurement\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-stdin]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[empty-stdin]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[legal-linear-example]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[max-batch-requests]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[above-max-batch-requests]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-trailing-lf]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[not-byte-length]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[lf-framing-only]\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_never_exceeds_absolute_cap\norchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_clamps_requests_before_rate_amplification\norchestrator/tests/test_s8c_preregistration_core.py::test_git_uses_one_internal_budget_and_preserves_timeout_reason\norchestrator/tests/test_s8c_preregistration_core.py::test_git_budget_caller_surfaces_match_exact_contract\norchestrator/tests/test_s8c_preregistration_core.py::test_git_failed_reason_is_preserved_with_computed_budget\norchestrator/tests/test_s8c_preregistration_core.py::test_git_input_limit_stops_before_subprocess\norchestrator/tests/test_s8c_preregistration_core.py::test_git_output_limit_stops_repository_probe\norchestrator/tests/test_s8c_preregistration_core.py::test_batch_request_limit_stops_before_git\norchestrator/tests/test_s8c_preregistration_core.py::test_total_blob_limit_stops_before_blob_batch\norchestrator/tests/test_s8c_preregistration_predicates.py::test_predicate_registry_is_exactly_c01_through_c12\norchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates\norchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review\norchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_undefined_is_never_satisfied\norchestrator/tests/test_s8c_preregistration_predicates.py::test_missing_target_module_is_capability_probe_not_exception\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_semantic_hash_ignores_formatting_but_not_values\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_unknown_and_duplicate_keys\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path\norchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass\norchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass\norchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction\norchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_does_not_add_a_holdout_axis_conjunction\norchestrator/tests/test_s8c_preregistration_predicates.py::test_satisfiable_predicate_requires_negative_control\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c01_perf_scale_regression-C01]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c04_partial_crash_survives-C04]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c09_acceptance_skips_layer3-C09]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c11_generation_cap_reverts_to_one-C11]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c12_resume_or_multi_process_allowed-C12]\norchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_reads_commit_blob_not_dirty_worktree\norchestrator/tests/test_s8c_preregistration_predicates.py::test_live_evaluator_bytes_must_match_commit_blob\norchestrator/tests/test_s8c_preregistration_predicates.py::test_live_core_bytes_must_match_commit_blob\norchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_prohibition_ruling_blob_alone_is_not_compliance\n\n170 tests collected in 1.29s\n",
+        "stdout_sha256": "c3087ab961e384e64fb879761a2bb7c1d5b5f140d2aa1af54b0da1fa6ff700ee"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_current_markdown_extracts_nine_fields_and_conditions_1_to_12",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_heading_rewording_changes_hash_but_missing_duplicate_and_level_change_fail",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_table_lexer_handles_escaped_pipe_and_code_span",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_layout_only_whitespace_line_wrap_and_bold_preserve_hashes",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_paragraph_list_and_fenced_code_node_kind_changes_hash",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_fence_scanner_uses_commonmark_marker_width_info_and_indent",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_list_item_fence_exact_fixture_is_rejected_fail_closed",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section6_list_container_fence_is_rejected_fail_closed",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_normalization_v2_conformance_corpus",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_field_set_is_order_independent_but_names_and_normative_policy_are_protected",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_evidence_contract_hash_is_semantic_canonical_json",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[/u4fdd/u8a3c-/u78ba/u8a8d]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[/u6570/u5024 48-/u6570/u5024 47]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[/u5426/u5b9a/u3084/u6570/u5024-/u6570/u5024]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[/u6761/u4ef6 2-/u6761/u4ef6 /u4e8c]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_word_number_negation_and_punctuation_change_condition_hash[/u6a5f/u68b0/u691c/u67fb/u3059/u308b/u3002-/u6a5f/u68b0/u691c/u67fb/u3059/u308b/uff01]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_condition_order_and_continuation_are_part_of_hash",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-condition-numbering0]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-condition-numbering1]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-condition-nested-replacement]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-unclosed-fence]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-reference-link-definition]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_parser_rejects_numbering_fence_reference_definition_and_html[<lambda>-raw-html]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_placeholder_and_arbitrary_nonempty_are_not_filled",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[null-json-null]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"\"-json-empty-string]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"/u672a/u8a18/u5165\"-json-placeholder-string]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[\"/uff08/u672a/u8a18/u5165/uff09\"-json-placeholder-string]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[[]-json-empty-container]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_section5_json_semantic_empty_values_are_unfilled[{}-json-empty-container]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_recorded_revision_is_accepted_and_ruling_is_checked_at_revision_commit",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_operational_artifacts_do_not_enter_closed_freeze_namespace",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_unrecorded_change_is_rejected_even_after_revert",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_generation_gap_bad_supersedes_unknown_key_and_noncanonical_are_rejected",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_generation_mutation_and_delete_readd_are_rejected",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_generation_added_without_protected_change_is_spurious",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_valid_successor_merge_is_accepted",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_successor_merge_rejects_merge_commit_with_different_state",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_mutually_different_revisions_merge_fails_closed",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_merge_transition_alone_rejects_mutually_divergent_revisions",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_same_revision_introduced_on_two_forks_is_rejected",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_accepts_exact_recomputed_capability",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_missing_or_wrong_type[none]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_missing_or_wrong_type[wrong-type]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_different_commit",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_require_effective_preregistration_rejects_tampered_digest",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_revision_requires_ruling_reference_and_existing_ledger_entry",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_revision_ruling_must_be_structured_decisions_heading",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_record_schema_has_no_self_or_commit_hash_fields",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_every_non_satisfied_status_keeps_effective_false[NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[0-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[1-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[2-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[3-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[4-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[5-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[6-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[7-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[8-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[9-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[10-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-UNSATISFIED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-EVIDENCE_UNDEFINED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-ERROR]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_requires_all_twelve[11-NOT_EVALUATED]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_missing_evaluator_module_yields_twelve_evidence_undefined",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_activation_report_records_both_module_blob_hashes_at_commit",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_private_conjunction_helper_reads_commit_blob_not_dirty_worktree",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_production_entrypoints_do_not_accept_registry_injection",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_cli_has_only_check_and_prepare_revision_commands",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_effective_preregistration_cannot_be_constructed_or_dataclass_replaced",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_prepare_revision_is_exclusive_create",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_generation_commit_and_blob_limits_fail_closed",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_constants_match_preregistered_measurement",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-stdin]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[empty-stdin]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[legal-linear-example]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[above-max-batch-requests]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[no-trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[not-byte-length]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_from_request_count[lf-framing-only]",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_never_exceeds_absolute_cap",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_timeout_budget_clamps_requests_before_rate_amplification",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_uses_one_internal_budget_and_preserves_timeout_reason",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_budget_caller_surfaces_match_exact_contract",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_failed_reason_is_preserved_with_computed_budget",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_input_limit_stops_before_subprocess",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_git_output_limit_stops_repository_probe",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_batch_request_limit_stops_before_git",
+        "orchestrator/tests/test_s8c_preregistration_core.py::test_total_blob_limit_stops_before_blob_batch",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_predicate_registry_is_exactly_c01_through_c12",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_snapshot_has_zero_satisfied_predicates",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_current_repository_gap_reason_snapshot_requires_cross_wave_review",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_undefined_is_never_satisfied",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_missing_target_module_is_capability_probe_not_exception",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_semantic_hash_ignores_formatting_but_not_values",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_unknown_and_duplicate_keys",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_does_not_add_a_holdout_axis_conjunction",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_satisfiable_predicate_requires_negative_control",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c01_perf_scale_regression-C01]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c04_partial_crash_survives-C04]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c09_acceptance_skips_layer3-C09]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c10_raw_response_unbound-C10]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c11_generation_cap_reverts_to_one-C11]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_noop_and_token_only_fixtures_never_satisfy[nc_c12_resume_or_multi_process_allowed-C12]",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_evidence_reads_commit_blob_not_dirty_worktree",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_live_evaluator_bytes_must_match_commit_blob",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_live_core_bytes_must_match_commit_blob",
+        "orchestrator/tests/test_s8c_preregistration_predicates.py::test_c11_prohibition_ruling_blob_alone_is_not_compliance"
+      ],
+      "duration_s": 26.882,
+      "rc": 0,
+      "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+      "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+      "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+      "status": "PASSED",
+      "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3264cff3bdbdfcefda25d887cf962d449f6ab2277ab113ce43506e7b151d7e37",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    path = _nonempty_string(value, where=where)\n",
+            "old": "    if isinstance(value, str):\n        text = \"\".join((value,))\n        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    else:\n        text = _nonempty_string(value, where=where)\n    path = _nonempty_string(text, where=where)\n"
+          }
+        ]
+      },
+      "M01b": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-nul]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-nul]",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-nul]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f46c141749f69513637157d7eace3a7ace204731f00c588d42bfb010d85c7ff9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "        if \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+            "old": "        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[trailing-nul]",
+          "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_nul_alias[embedded-nul]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "371dc5e42a712b153c924afb9aaf7a4993ac84cf1a532284dfb2d3b9b868e4ed",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "    if \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n",
+            "old": "    if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_embedded_tab_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "68c35fc3bfe0c05d566a2f00ef52e5b15dfe89a0b4c5b069e3ac0fa6376120cf",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "        if any(ord(ch) < 0x20 for ch in text):\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+            "old": "        if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n            raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_embedded_tab_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cf98c4b247c13a265f0a587ddabf2757b034752713ca88eb5850aac3e5c7e99a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration.py",
+            "new": "    if any(ord(ch) < 0x20 for ch in text):\n        raise PreregistrationError(\"path-control-char\")\n",
+            "old": "    if \"\\x00\" in text or \"\\r\" in text or \"\\n\" in text:\n        raise PreregistrationError(\"path-control-char\")\n"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_rejects_membership_spoofing_str_subclass",
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "401873b7e1af8a6169e4e5ae03ec5788d799e38735affa1438307716a400fd84",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "        text = value\n",
+            "old": "        text = \"\".join((value,))\n"
+          }
+        ]
+      },
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_preregistration_predicates.py::test_safe_path_returns_exact_str_for_accepted_str_subclass"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c238afcfdbf9c11a4821f84cf79f20aad6130002c43422a20e6f985f8ef92a25",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+            "new": "        raise EvidenceContractError(\"contract-path\", where)\n    return value if isinstance(value, str) else path\n",
+            "old": "        raise EvidenceContractError(\"contract-path\", where)\n    return path\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "3504b99d299ad563168b3dfce16b657ae487817d39ab71d9723dce2f905ad44e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8c_preregistration_core.py",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "131c65f18319ec299630237dbf46044f15ee56ff",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8c_preregistration_core.py",
+      "orchestrator/tests/test_s8c_preregistration_predicates.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "d3207bf98095daa134cb33a3c3d6ef8648f4a100",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "2b1ebbd934e8fe84e075ec04a73a1d7fae2889e5df0b0fdc7af3f9887543a22a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "044267f378df0ba58f58e8f5411c64d12df8ce07e76b0d10a047df11534328ec",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "f434369855bc8ee665be61c3fe250275c4047033e2b327bcfbe29dbe1aef764a",
+  "updated_at": "2026-08-10T09:45:37.809418+00:00"
+}

@@ -708,3 +708,19 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dev-wave-waiter-pid-rule":"[T-738]"},"authored":"2026-08-10","content_sha256":"8760c421bdb160d883242aa54e9744f7d51b817bc648503dc0bb546d503e7a77","seq":1,"wave":"dev-wave-t139-addendum-b2"}
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"0d2deb65ee395bbaca60e6ad675a034b101058ff4d5456f06c719908b0517b59","seq":2,"wave":"dev-wave-t139-addendum-b2"}
+
+- {"allocations":{"D:guard-input-exact-str":"D269","D:lease-waiter-internal-merge":"D270"},"authored":"2026-08-10","content_sha256":"86d758a5a14bc4b0f26948944511a527d9618bf3b46d32195a91702b6a389eac","seq":1,"wave":"dev-wave-t730-t732-nul-lease-merge"}
+- {"allocations":{"T:canonical-acceptance-waiter":"[T-740]","T:freeze-layer-nul-gate":"[T-739]","T:guard-non-str-input":"[T-742]","T:spool-failures-supersede":"[T-741]"},"authored":"2026-08-10","content_sha256":"8a8198cdf3879b8c767a61f329681bc9075cd3145eb05d470ca1cfd4f316b483","seq":2,"wave":"dev-wave-t730-t732-nul-lease-merge"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"44f5cd3abd359686c54d6e70a80a80dc4d2b6e42f7d3f0b3690f108075523102","seq":1,"wave":"dev-wave-t700-t695-l2-admission"}
+- {"allocations":{"D:l2-admission":"D271"},"authored":"2026-08-10","content_sha256":"9e4c3d2516ad308561c46849bd2ac24e73ee2cbb3ecb385812bf8f44059c912c","seq":2,"wave":"dev-wave-t700-t695-l2-admission"}
+
+- {"allocations":{"T:design-wave-review-rubric":"[T-743]"},"authored":"2026-08-10","content_sha256":"dcf3d95092953538995c2dd5fbbce9a08de1e05ebd724b9a4c895c584c77d190","seq":1,"wave":"dev-wave-t657-permanent-bundle-design"}
+- {"allocations":{"D:calibration-freeze-authority-bundle":"D272","D:design-completion-criteria-need-positive-fixture":"D273"},"authored":"2026-08-10","content_sha256":"c374d85c32f03fd3af64c1d44156fa7445205be3ad52b3f3b28032671674ca36","seq":2,"wave":"dev-wave-t657-permanent-bundle-design"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"b58f7cd63dc6d660ec4c093de828ea58eeadd3a19ff66bfc93afe339915808c6","seq":35,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"7f6b1aa4e7c0aff0f018c1d0c281300a39a8cf333c1f63f73ad75adf0791ee1b","seq":36,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"879632ecf64347ab0c2bac75dc005814cb2fa731670586bb1a6fa8f0c33fa554","seq":3,"wave":"dev-wave-t657-permanent-bundle-design"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"a8b728430377d9a540619e9cbb17234b05c2aab1beacece6be4b2f77e03261d1","seq":37,"wave":"rulings-20260806-a"}
