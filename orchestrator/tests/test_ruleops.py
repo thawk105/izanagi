@@ -6,6 +6,7 @@ M1〜M12 は production 定数から期待外延を導出せず、各 test の l
 """
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import json
@@ -1665,6 +1666,458 @@ def test_all_argparse_failures_use_stable_cli_args_envelope(argv):
     assert result.returncode == 2
     assert result.stderr.startswith(b"ruleops: cli-args: ")
     assert b"Traceback" not in result.stderr
+
+
+def test_git_timeout_budget_constants_match_preregistered_measurement():
+    assert R.GIT_TIMEOUT_BASE_SECONDS == 20.0
+    assert R.GIT_TIMEOUT_RATE_SECONDS_PER_COMMIT == 0.035
+    assert R.GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST == 0.013
+    assert R.GIT_TIMEOUT_CAP_SECONDS == 300.0
+    assert not hasattr(R, "GIT_TIMEOUT_SECONDS")
+
+
+def test_git_timeout_budget_cap_is_a_bare_literal():
+    module = ast.parse(_TOOL.read_text(encoding="utf-8"), filename=str(_TOOL))
+    assignments = [
+        node
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name)
+            and target.id == "GIT_TIMEOUT_CAP_SECONDS"
+            for target in node.targets
+        )
+    ]
+    assert len(assignments) == 1
+    value = assignments[0].value
+    assert isinstance(value, ast.Constant)
+    assert type(value.value) in {int, float}
+    assert value.value == 300.0
+
+
+def test_git_timeout_workload_has_no_clamp_calls():
+    """Reject min/max clamps even when their thresholds exceed all test points."""
+    module = ast.parse(_TOOL.read_text(encoding="utf-8"), filename=str(_TOOL))
+    functions = [
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_git_timeout_workload"
+    ]
+    assert len(functions) == 1
+    clamp_calls = [
+        node
+        for statement in functions[0].body
+        for node in ast.walk(statement)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"min", "max"}
+    ]
+    assert clamp_calls == []
+
+
+@pytest.mark.parametrize(
+    ("subcommand", "args", "input_bytes", "commit_count", "expected"),
+    [
+        ("log", ("HEAD", "--"), b"x\ny\n", 7, 20.245),
+        ("log", ("HEAD", "--"), b"", 3_000, 125.0),
+        ("log", ("HEAD", "--"), b"x\ny\n", None, 20.0),
+        ("diff-tree", ("--stdin",), b"a\nb", 99, 20.07),
+        ("cat-file", ("--batch",), b"a\nb", 99, 20.026),
+        ("cat-file", ("--batch",), b"x\n" * 8_000, 99, 124.0),
+    ],
+    ids=[
+        "log-history",
+        "log-beyond-current-repo",
+        "log-bootstrap",
+        "diff-tree-stdin",
+        "cat-file-batch",
+        "cat-file-beyond-current-repo",
+    ],
+)
+def test_git_timeout_budget_selects_units_and_rates(
+    subcommand, args, input_bytes, commit_count, expected,
+):
+    actual = R._git_timeout_budget_seconds(
+        subcommand,
+        args,
+        input_bytes=input_bytes,
+        commit_count=commit_count,
+    )
+    assert actual == pytest.approx(expected)
+    assert expected < 300.0
+
+
+@pytest.mark.parametrize(
+    ("subcommand", "args", "input_bytes"),
+    [
+        ("grep", ("-F", "token"), b"x\n" * 50_000),
+        ("ls-tree", ("-r", "HEAD"), b"x\n" * 50_000),
+        ("rev-parse", ("HEAD",), b"x\n" * 50_000),
+        ("merge-base", ("HEAD", "HEAD"), b"x\n" * 50_000),
+        (
+            "for-each-ref",
+            ("--format=%(refname)",),
+            b"x\n" * 50_000,
+        ),
+        ("cat-file", ("-t", "HEAD"), b"x\n" * 50_000),
+        ("cat-file", ("blob", "HEAD"), b"x\n" * 50_000),
+    ],
+    ids=[
+        "grep", "ls-tree", "rev-parse", "merge-base", "for-each-ref",
+        "cat-file-type", "cat-file-blob",
+    ],
+)
+def test_git_timeout_budget_keeps_light_commands_at_base(
+    subcommand, args, input_bytes,
+):
+    assert R._git_timeout_budget_seconds(
+        subcommand,
+        args,
+        input_bytes=input_bytes,
+        commit_count=100_000,
+    ) == 20.0
+
+
+@pytest.mark.parametrize("mode", ["log", "cat-file-batch"])
+def test_git_timeout_budget_uses_rate_independent_absolute_cap(
+    monkeypatch, mode,
+):
+    monkeypatch.setattr(R, "GIT_TIMEOUT_CAP_SECONDS", 123.0)
+    monkeypatch.setattr(R, "GIT_TIMEOUT_RATE_SECONDS_PER_COMMIT", 50.0)
+    monkeypatch.setattr(R, "GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST", 50.0)
+    if mode == "log":
+        actual = R._git_timeout_budget_seconds("log", ("HEAD",), commit_count=100)
+    else:
+        actual = R._git_timeout_budget_seconds(
+            "cat-file",
+            ("--batch",),
+            input_bytes=b"x\n" * 100,
+        )
+    assert actual == 123.0
+
+
+@pytest.mark.parametrize(
+    ("subcommand", "args", "input_bytes", "commit_count", "expected"),
+    [
+        ("log", ("HEAD", "--"), None, 7, 20.245),
+        ("cat-file", ("--batch",), b"first\nsecond\n", None, 20.026),
+        ("diff-tree", ("--stdin",), b"a\nb", None, 20.07),
+    ],
+    ids=["log", "cat-file-batch", "diff-tree-stdin"],
+)
+def test_git_read_passes_computed_budget_to_subprocess(
+    tmp_path,
+    monkeypatch,
+    subcommand,
+    args,
+    input_bytes,
+    commit_count,
+    expected,
+):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    assert R._git_read(
+        tmp_path,
+        subcommand,
+        *args,
+        input_bytes=input_bytes,
+        commit_count=commit_count,
+    ) == b""
+    assert len(calls) == 1
+    assert calls[0][1]["timeout"] == pytest.approx(expected)
+
+
+def test_git_timeout_is_fatal_and_not_retried(
+    tmp_path, monkeypatch, capsys,
+):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._git_read(tmp_path, "log", "HEAD", "--", commit_count=7)
+    assert len(calls) == 1
+    assert caught.value.reason == "git-timeout"
+
+    def raise_timeout(_repo):
+        raise caught.value
+
+    monkeypatch.setattr(R, "_capture_snapshot", raise_timeout)
+    assert R.main(["inventory", "--repo", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("ruleops: git-timeout: ")
+    assert "Traceback" not in captured.err
+
+
+def test_git_timeout_detail_carries_mode_and_budget(tmp_path, monkeypatch):
+    def fake_run(command, **kwargs):
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._git_read(
+            tmp_path,
+            "cat-file",
+            "--batch",
+            input_bytes=b"first\nsecond\n",
+        )
+    assert str(caught.value) == (
+        "git cat-file timeout (budget=20.026s, units=2)"
+    )
+
+
+@pytest.mark.parametrize(
+    ("timeout_mode", "expected"),
+    [
+        (
+            "log-bootstrap",
+            "git log timeout "
+            "(mode=log-bootstrap, budget=20.000s, units=0)",
+        ),
+        (
+            "log-last-change",
+            "git log timeout "
+            "(mode=log-last-change, budget=21.295s, units=37)",
+        ),
+        (
+            "log-control-change",
+            "git log timeout "
+            "(mode=log-control-change, budget=21.295s, units=37)",
+        ),
+        (
+            "log-pickaxe",
+            "git log timeout "
+            "(mode=log-pickaxe, budget=21.295s, units=37)",
+        ),
+        (
+            "log-receipt-range",
+            "git log timeout "
+            "(mode=log-receipt-range, budget=21.295s, units=37)",
+        ),
+        (
+            "cat-file-batch",
+            "git cat-file timeout "
+            "(mode=cat-file-batch, budget=20.013s, units=1)",
+        ),
+        (
+            "diff-tree-stdin",
+            "git diff-tree timeout "
+            "(mode=diff-tree-stdin, budget=20.035s, units=1)",
+        ),
+    ],
+    ids=[
+        "log-bootstrap",
+        "log-last-change",
+        "log-control-change",
+        "log-pickaxe",
+        "log-receipt-range",
+        "cat-file-batch",
+        "diff-tree-stdin",
+    ],
+)
+def test_git_timeout_detail_identifies_production_mode(
+    tmp_path, monkeypatch, timeout_mode, expected,
+):
+    head = "a" * 40
+    path = "orchestrator/tests/test_guard.py"
+    entry = R.TreeEntry("100644", "blob", "b" * 40, 1, path)
+    snapshot = R.RepoSnapshot(
+        repo=tmp_path,
+        head=head,
+        object_format="sha1",
+        commit_count=37,
+        entries={path: entry},
+    )
+
+    def fake_git_text(_repo, subcommand, *args):
+        if (subcommand, *args) == ("rev-parse", "--show-object-format"):
+            return "sha1"
+        if (subcommand, *args) == ("rev-parse", "HEAD"):
+            return head
+        raise AssertionError((subcommand, args))
+
+    def fake_run(command, **kwargs):
+        if timeout_mode == "diff-tree-stdin" and "log" in command:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=(head + "\0").encode("ascii"),
+                stderr=b"",
+            )
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(R, "_git_text", fake_git_text)
+    monkeypatch.setattr(R, "_assert_history_boundary", lambda _repo: None)
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    with pytest.raises(R.RuleOpsError) as caught:
+        if timeout_mode == "log-bootstrap":
+            R._capture_snapshot(tmp_path)
+        elif timeout_mode == "log-last-change":
+            R._last_changes(snapshot, (path,))
+        elif timeout_mode == "log-control-change":
+            R._control_last_changes(snapshot, {path: entry.oid})
+        elif timeout_mode == "log-pickaxe":
+            R._pickaxe(snapshot, ("signal",), {})
+        elif timeout_mode == "log-receipt-range":
+            R._receipt_epoch_changed_paths(snapshot, "c" * 40)
+        elif timeout_mode == "cat-file-batch":
+            R._batch_blobs(snapshot, (entry,))
+        else:
+            R._receipt_epoch_changed_paths(snapshot, "c" * 40)
+    assert caught.value.reason == "git-timeout"
+    assert str(caught.value) == expected
+
+
+def test_capture_snapshot_counts_history_once(tmp_path, monkeypatch):
+    repo = _base_repo(tmp_path)
+    _write(repo, "second.txt", "second\n")
+    _commit(repo, "second")
+    _write(repo, "third.txt", "third\n")
+    _commit(repo, "third")
+    captured_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    events = []
+    original_boundary = R._assert_history_boundary
+    original_read = R._git_read
+
+    def recording_boundary(repo_path):
+        events.append(("boundary", ()))
+        return original_boundary(repo_path)
+
+    def recording_read(repo_path, subcommand, *args, **kwargs):
+        if subcommand in {"log", "ls-tree"}:
+            events.append((subcommand, args))
+        return original_read(repo_path, subcommand, *args, **kwargs)
+
+    monkeypatch.setattr(R, "_assert_history_boundary", recording_boundary)
+    monkeypatch.setattr(R, "_git_read", recording_read)
+    snapshot = R._capture_snapshot(repo)
+    bootstrap = [event for event in events if event[0] == "log"]
+    assert snapshot.commit_count == 3
+    assert len(bootstrap) == 1
+    assert bootstrap[0][1] == ("--format=%H", "-z", captured_head, "--")
+    assert [event[0] for event in events].index("boundary") < [
+        event[0] for event in events
+    ].index("log") < [event[0] for event in events].index("ls-tree")
+    assert "rev-list" not in R._GIT_SUBCOMMANDS
+
+
+def test_bootstrap_log_uses_base_budget(tmp_path, monkeypatch):
+    head = "a" * 40
+    calls = []
+
+    def fake_git_text(_repo, subcommand, *args):
+        if (subcommand, *args) == ("rev-parse", "--show-object-format"):
+            return "sha1"
+        if (subcommand, *args) == ("rev-parse", "HEAD"):
+            return head
+        raise AssertionError((subcommand, args))
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        if "log" in command:
+            stdout = (head + "\0").encode("ascii")
+        elif "ls-tree" in command:
+            stdout = b""
+        else:
+            raise AssertionError(command)
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr=b"")
+
+    monkeypatch.setattr(R, "_git_text", fake_git_text)
+    monkeypatch.setattr(R, "_assert_history_boundary", lambda _repo: None)
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    snapshot = R._capture_snapshot(tmp_path)
+    assert snapshot.commit_count == 1
+    log_calls = [kwargs for command, kwargs in calls if "log" in command]
+    assert len(log_calls) == 1
+    assert log_calls[0]["timeout"] == 20.0
+
+
+@pytest.mark.parametrize(
+    "bootstrap_output",
+    [
+        b"",
+        b"\xff\0",
+        b"not-an-oid\0",
+    ],
+    ids=["empty", "non-ascii", "invalid-oid"],
+)
+def test_bootstrap_log_rejects_malformed_history(
+    tmp_path, monkeypatch, bootstrap_output,
+):
+    head = "a" * 40
+
+    def fake_git_text(_repo, subcommand, *args):
+        if (subcommand, *args) == ("rev-parse", "--show-object-format"):
+            return "sha1"
+        if (subcommand, *args) == ("rev-parse", "HEAD"):
+            return head
+        raise AssertionError((subcommand, args))
+
+    def fake_run(command, **_kwargs):
+        if "log" not in command:
+            raise AssertionError(command)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=bootstrap_output,
+            stderr=b"",
+        )
+
+    monkeypatch.setattr(R, "_git_text", fake_git_text)
+    monkeypatch.setattr(R, "_assert_history_boundary", lambda _repo: None)
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    with pytest.raises(R.RuleOpsError) as caught:
+        R._capture_snapshot(tmp_path)
+    assert caught.value.reason == "bad-history"
+
+
+def test_history_queries_receive_captured_commit_count(tmp_path, monkeypatch):
+    head = "a" * 40
+    path = "orchestrator/tests/test_guard.py"
+    entry = R.TreeEntry("100644", "blob", "b" * 40, 1, path)
+    snapshot = R.RepoSnapshot(
+        repo=tmp_path,
+        head=head,
+        object_format="sha1",
+        commit_count=37,
+        entries={path: entry},
+    )
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        if "--format=RULEOPS-COMMIT:%H%x09%cI" in command:
+            stdout = (
+                f"RULEOPS-COMMIT:{head}\t2026-08-10T00:00:00+00:00\0"
+                f"{path}\0"
+            ).encode("utf-8")
+        elif "--format=RULEOPS-COMMIT:%H" in command and not any(
+            arg.startswith("-S") for arg in command
+        ):
+            stdout = f"RULEOPS-COMMIT:{head}\0{path}\0".encode("utf-8")
+        else:
+            stdout = b""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr=b"")
+
+    monkeypatch.setattr(R.subprocess, "run", fake_run)
+    assert R._last_changes(snapshot, (path,))[path][0] == head
+    assert R._control_last_changes(snapshot, {path: entry.oid})[path] == head
+    assert R._pickaxe(snapshot, ("signal",), {}) == ([], [])
+    assert R._receipt_epoch_changed_paths(snapshot, "c" * 40) == frozenset()
+    log_timeouts = [
+        kwargs["timeout"] for command, kwargs in calls if "log" in command
+    ]
+    assert log_timeouts == pytest.approx([21.295, 21.295, 21.295, 21.295])
 
 
 def test_git_read_closed_set_and_environment_scrub(tmp_path, monkeypatch):
