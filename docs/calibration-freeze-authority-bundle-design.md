@@ -495,6 +495,11 @@ digest は A と一致し、`approval_raw_sha256` は A の raw bytes および 
 承認 A は applicable な `unresolved` を含む profile を持つ束を作ってよい (`approved-inactive` まで
 進める)。**発効 X は、applicable な項目に `unresolved` が 1 件でもあれば拒否する。**
 
+**未裁定 ID の `selection` enum は、その裁定が land する commit で追加する。** それまで検証器は
+当該 ID の `resolved` を受理しない。裁定前に `resolved` と書ける実装は、裁定を経ずに発効へ
+進める抜け道になる。したがって「裁定が済むまで status が `incomplete` のままである」ことは
+欠陥ではなく、意図した fail-closed である。
+
 ---
 
 ## 9. 移行が触らねばならない層
@@ -610,9 +615,11 @@ exact に書かない。書けないからである。** 段 0 で次を確定�
 - fixture を実際に走らせる**検査 node の名前**と、その実行が受入に含まれること。
   **node 名を書くだけでは足りない** — 検査は、manifest の全 fixture が実際に読まれ、
   その `input` が実 entrypoint へ渡されたことを実行記録として突き合わせる。
-- **未実装の層は `pending` と明示する。** 対象 entrypoint がまだ存在しない行は、
-  fixture 内で `pending` (理由と、将来の entrypoint 名を伴う) とし、manifest がその件数を数える。
-  `pending` を実装済みの体裁で隠さない。
+- **実行できていない行は `pending` と明示する。** 対象 entrypoint がまだ存在しない行だけでなく、
+  **entrypoint は存在するが実行可能な入力をまだ構築していない行**も `pending` である。
+  fixture 内で理由と entrypoint 名を伴って `pending` とし、manifest がその件数を数える。
+  `pending` を実装済みの体裁で隠さない。**どちらの `pending` も段 0 未完了の理由になる**ため、
+  この区別が保証を緩めることはない。
 - **`unresolved` は不変条件 fixture の代用にできない。** 裁定待ちを表す `unresolved` は
   §8.1 の裁定 profile の側にだけ書き、§7.2 / §11 の行に対する fixture の代わりにしない。
   代用を許すと、最重要の不変条件を fixture 無しのまま完了と算出できる (段 0 wave の
@@ -704,6 +711,13 @@ manifest でも整合検査だけは通せる (段 0 wave の敵対レビュー�
 
 **この 6 行は、今日すでに production で発火する。** したがって §10 の fixture は、これらを
 **実 entrypoint へ実際に流す**陽性・陰性の対として持つ。宣言だけの期待値は判定にしない。
+
+**fixture の射程は、名指しした entrypoint が担う層に限る。** §11.1 の fixture が固定するのは
+その entrypoint の fail-closed 挙動であって、上位の semantic 層まで検証したとは主張しない
+(例えば活性化 chain の検証器は chain と head の整合を担い、凍結成果物の内容妥当性は担わない)。
+射程を書かずに「実 entrypoint で確認した」とだけ書くと、合成入力が実物より甘い場合に
+過剰主張になる (段 0 wave の敵対レビューが指摘した)。上位層の検証は、それを担う entrypoint の
+行として別に持つ。
 
 ### 11.2 新設する拒否 (現行には存在しない)
 
