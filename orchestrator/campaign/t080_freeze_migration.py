@@ -846,7 +846,10 @@ def _descendants_of(graph: CommitGraph, ancestor: str) -> frozenset[str]:
     return frozenset(seen)
 
 
-def _any_history_touches_path(commits: Iterable[str], path: str, root: Path) -> bool:
+def _any_history_touches_path(
+    commits: Iterable[str], path: str, root: Path,
+    duplicate_oid: Optional[str] = None,
+) -> bool:
     """`_history_touches_path` を commit 集合へ適用する ([T-057])。
 
     各 commit のクエリは互いに独立な read-only の `git diff-tree` なので、
@@ -859,13 +862,18 @@ def _any_history_touches_path(commits: Iterable[str], path: str, root: Path) -> 
     if not targets:
         return False
     if len(targets) == 1:
-        return _history_touches_path(targets[0], path, root)
+        return _history_touches_path(targets[0], path, root, duplicate_oid)
     error: Optional[MigrationError] = None
     touched = False
     with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(8, len(targets))) as pool:
         futures = [
-            (commit, pool.submit(_history_touches_path, commit, path, root))
+            (
+                commit,
+                pool.submit(
+                    _history_touches_path, commit, path, root, duplicate_oid,
+                ),
+            )
             for commit in targets
         ]
         for commit, future in futures:
@@ -882,19 +890,43 @@ def _any_history_touches_path(commits: Iterable[str], path: str, root: Path) -> 
     return False
 
 
-def _history_touches_path(commit: str, path: str, root: Path) -> bool:
+def _history_touches_path(
+    commit: str, path: str, root: Path, duplicate_oid: Optional[str] = None,
+) -> bool:
+    """対象 path の M/D/R/C/T と、期待 blob の別 path への exact copy を検出する。
+
+    ``--find-copies-harder`` を使わず、``--raw`` の destination OID が
+    ``duplicate_oid`` と一致する別 path も検出する。2026-08-09 のユーザー裁定により、
+    検出しなくなったのは中身を変えたうえでの copy (50--99% 類似) だけである。
+
+    descendant 20 commit の実測は従来 45.31 秒、``--raw`` では 0.075 秒で、
+    1529 commit への外挿は従来約 3470 秒 (8-thread 約 434 秒)、``--raw`` 約 6 秒だった。
+    """
     out = _git_text(
         [
-            "diff-tree", "--root", "--no-commit-id", "--name-status", "-m", "-r",
-            "-M", "-C", "--find-copies-harder", commit,
+            "diff-tree", "--root", "--no-commit-id", "--raw", "-m", "-r",
+            "-M", "-C", commit,
         ], root,
     )
     for line in out.splitlines():
-        fields = line.split("\t")
-        if not fields:
+        metadata, separator, paths_text = line.partition("\t")
+        if not separator:
             continue
-        status_code = fields[0][:1]
-        if status_code in {"M", "D", "R", "C", "T"} and path in fields[1:]:
+        metadata_fields = metadata.split()
+        if len(metadata_fields) != 5 or not metadata_fields[0].startswith(":"):
+            continue
+        _src_mode, _dst_mode, _src_oid, dst_oid, status = metadata_fields
+        paths = paths_text.split("\t")
+        status_code = status[:1]
+        if status_code in {"M", "D", "R", "C", "T"} and path in paths:
+            return True
+        destination_path = paths[-1]
+        if (
+            duplicate_oid is not None
+            and dst_oid.strip("0")
+            and dst_oid == duplicate_oid
+            and destination_path != path
+        ):
             return True
     return False
 
@@ -1752,7 +1784,7 @@ def inspect_receipt_history(
             break
     if _any_history_touches_path(
         (commit for commit in descendants if commit != introduction),
-        RECEIPT_REL, root,
+        RECEIPT_REL, root, duplicate_oid=expected_oid,
     ):
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
         issued_but_missing = True
