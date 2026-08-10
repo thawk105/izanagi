@@ -784,3 +784,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:fold-dryrun-before-acceptance":"F212","F:guard-preempts-later-diagnostics":"F211","F:preregistered-nodes-need-runner-scope":"F210"},"authored":"2026-08-11","content_sha256":"8ddb59e74f014e310821bea4e3906095b3b611f95208e777e9f643d1fb2a5799","seq":2,"wave":"dev-wave-t673-d-guard-measurement"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"199e9ebf96f81a4dd884fd290170f3cd3878b05dd29f7a7085fa9178a5389a74","seq":4,"wave":"dev-wave-t675-address-edge-lint"}
+
+- {"allocations":{"D:normative-section-exact-pin":"D280","D:o25-admission-exemption":"D279"},"authored":"2026-08-11","content_sha256":"b3fa7a42d1f53200ad1ca7e086bc6d75ae0642391beab98f344dc7fa9cdfeee9","seq":1,"wave":"dev-wave-t695-t700-l2-routing"}
+- {"allocations":{"T:ruling-numbers-are-means":"[T-780]","T:stage5-recheck-main":"[T-779]"},"authored":"2026-08-11","content_sha256":"d9441702895a5163b09686eafd9a5eb223a5adb2e6cacd9217cc21eb159c3888","seq":2,"wave":"dev-wave-t695-t700-l2-routing"}
