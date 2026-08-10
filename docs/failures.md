@@ -14,6 +14,10 @@
 - 機械化できる対応は機械化を優先する (lint・hook・driver 検査 > 行動規律 > 記憶)
 - エントリは追記のみ。**同じ型が再発したら既存エントリに「再発: 日付」を追記して顕在化させる**
   (再発ゼロがこの台帳の成功条件)
+- **再発と supersede を混同しない。** 同型の事象が新たに起きたら「再発」、既存エントリの
+  **記述だけが後続の事実で古くなった**なら `- **supersede: 日付** — ...` を同エントリへ追記する。
+  supersede は再発件数に数えず、過去の事象記録も消さない (現行状態を局所的に明示するだけである)。
+  記録手段は `docs/spool/failures/README.md` の `supersede 追記` 節
 - 型タグ: [捏造/幻覚] [恒真ゲート] [セッション死・救出] [権限逸脱] [ドリフト]
   [コンテキスト浪費] [計測汚染] [手順漏れ] [テスト代表性]
 
@@ -543,6 +547,25 @@
   本走では 15/15 が期待一致し、`DW-M08` に従って「受理集合を変える kill 12」
   「diagnostic sensitivity pin 2 (M4 / M5)」「SURVIVED 1 (M6、mask を事前登録済み)」に
   分けて記録した。**総数を 15 kill と書かないことが対応の本体である。**
+
+- **再発: 2026-08-10 ([T-737] wave)。** 事前登録した 8 変異の kill 意味論が、**上位層の 2 node に
+  ついてだけ成立していなかった**。65 env の合成 registry で `[:N]` 縮退を入れると遷移 gate は
+  通るが、その直後に `env_contract.py:535` の `_verify_entry_calibration` が存在しない合成
+  calibration を検証して**別理由で**拒否するため、`ec.current_activation_state()` を入口にした
+  node は赤くなっても受理集合が反転しない (`DW-M03` の semantic kill でない)。
+  **今回の新しさは、mask が変異位置の「手前」ではなく「後続」にあったこと**である。
+  `DW-M01` は既に「同じ入力を拒否する層が**前後に**無いこと」を求めており契約に穴はない。
+  破れたのは適用であって規則ではない — 親は段 4 で手前の層 (schema 検査・catalog 照合・chain 検査) だけを
+  読んで登録し、gate の**後続**にある別 module の検証層を見なかった。段 6 の敵対レビュー 2 本が
+  独立に検出し (2026-07-26 / 2026-08-08 の再発と同じ通過経路)、変異実測の前に落ちた。
+  一方で**本エントリの恒久対応 (i) の文言は `DW-M01` より狭く「その位置より手前」しか書いていない。**
+  正本は `DW-M01` の「前後」であり、(i) はそれに合わせて読むこと。
+  再照準は、受理集合が実際に反転する下位入口 (本件では `activation.load_activation_state`) へ
+  semantic kill を移し、上位層の node は**到達性 + 診断感度の pin** として `DW-M08` の別枠に
+  記録することで行った。本走は最終 commit `f9b44c4c` で 8/8 KILLED + 正例 1/1 KILLED、
+  変更前 HEAD 側 4/4 SURVIVED、いずれも事前登録と完全一致した。**総数を 13 kill と書かず、
+  層ごとに何が言えるかを `output/insights/2026-08-10_t737-loader-issuer-pin/README.md` の表で
+  書き分けたことが対応の本体である。**
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -3590,6 +3613,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   登録した。実際には同じ入力経路を共有する既存 2 node も赤くなり MISMATCH。変異の適用範囲を
   field 不在経路だけへ狭めたうえで、コードを読んで期待 node を 2 件に確定して再走し 4/4 一致。
   初回台帳は erratum として保持している。
+
+- **再発: 2026-08-11** — 本 wave の変異 7 件のうち 2 件 (M02 暦日検査の無効化、M05 target
+  不存在検査の無効化) が MISMATCH。いずれも赤は出ており検出は成立していたが、登録した期待 node が
+  1 件ずつ不足していた。実際には同じ不正入力を使う consumer 側のテスト
+  (`test_spool_guard_reports_failure_supersede_issue`) と CLI 側のテスト
+  (`test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes`) も同時に赤くなる。
+  観測集合で再登録して再走し 2/2 KILLED。初回台帳は erratum として保持している。
+  **恒久対応の内容は変わらないが、3 例目まで機械強制が無いことが顕在化した** — 同じ不正 fixture を
+  複数層のテストが共有する設計では、層の数だけ赤 node が増えるのが正常である。
 ### F139. 実機の外部書式と防壁を机上で仮定し、実験 leg を 3 度空振りさせた [手順漏れ] [テスト代表性]
 
 - 事象: 生死確認 probe の実走で、机上レビューを通過した実装が実機で 3 回止まった。
@@ -4846,6 +4878,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す。
 - 再発検知: 待ち手 log (`lease.log`) に `acquired` があるのに `acceptance-status.txt` が
   `behind-main:*` になる組み合わせ。この組が出たら待ち手が取り込みを行っていない。
+- **supersede: 2026-08-11** — 恒久対応末尾の「runbook §7.3 の待ち手契約自体の改訂は本 wave の scope 外であり、裁定へ返す」は F197 で実施済み ([T-732] 裁定 (a)、待ち手内 merge が §7.3 の正本)。
 
 ### F197. 受入 lease の取り込み手順が待機時間の長い区画で飢餓し、取得した lease を捨てた [手順漏れ]
 
@@ -5057,3 +5090,36 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ形の赤が出たら、まず incoming 側 checker
   (`git show main:tools/check_ai_provenance.py`) に当該 SHA が登録されているかを見る。
   登録済みなら wave 側 checker の陳腐化であって、履歴の欠陥ではない。
+
+### F207. 派生関数を期待値の出所にしたテストは、その派生関数の変異を検出できない [恒真ゲート] [検出力]
+
+- 事象: docs 権威から起動値を導出する機構で、`derive_launch` の段 6 effort を別の許容値へ
+  置換する変異が生存した。対象テストは 623 passed / 0 failed で全緑、段 3 と段 6 の
+  敵対レビュー計 4 本も通過した後だった。**束縛の中核主張がテストで証明されていなかった。**
+- 根本原因: 2 本のテストが期待値を `derive_launch(snapshot_authority(...), ...)` から取っていた。
+  派生関数そのものを変異させると期待値も一緒に動くため、比較が恒真になる。
+  静的レビューはこの循環を「期待値を hardcode していない良いテスト」と読んで見逃した。
+- 恒久対応: D276。
+  実体は `orchestrator/tests/test_dev_wave_launch_authority.py` の
+  `test_review_effort_matches_independent_docs_cross_check` /
+  `test_focus_effort_matches_independent_docs_cross_check` /
+  `test_all_stage_models_match_independent_docs_cross_check` で、
+  docs 節から独立に抽出した値と派生値の一致を要求する。
+- 再発検知: 同 3 本を変異 matrix の期待 node として登録する。派生関数の値を固定値へ置換する
+  変異 (本 wave の M08 / M08c) が KILLED になることを再走で確認した。
+
+### F208. 文書化した起動 route が実際には起動できない [手順漏れ]
+
+- 事象: `DW-O01` を新しい dispatcher 経路へ差し替えた直後、その契約どおりに段 6 の
+  レビュー 2 本を起動したところ両方 rc=2 で即死した。**契約に従うと codex 子が 1 本も起動できない
+  状態を land しかけた。**
+- 根本原因: 2 つ重なっていた。(i) 文書の route 行が必須引数を欠いていた。
+  (ii) dispatcher が生成 path の directory を作らず、launcher の `_preflight_run` が
+  `receipt.parent` / `manifest.parent` の実在を検査した**後で** `artifact_dir` を作る順序のため、
+  receipt と manifest を artifact_dir の中に置く構成では必ず先に落ちる。
+- 恒久対応: dispatcher が生成 path の directory を先に作る
+  (`tools/dev_wave_codex.py`。launcher の parent 実在検査は緩めない)。
+  文書の route 行は実行可能な参照へ直し、残りの引数は `--help` に従うと明記した。
+- 再発検知: 中間 directory が無い状態からの起動を `orchestrator/tests/test_dev_wave_codex.py` の
+  回帰テストに置いた。あわせて、land する起動経路は wave 内で実際に 1 度使う (dogfood)。
+  **この欠陥は段 3 と段 6 の静的レビュー計 4 本では出ず、実起動で初めて出た。**
