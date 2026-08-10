@@ -41,7 +41,17 @@ title: [T-184] の工程別 reasoning policy を現行値のまま採用した �
   `test_codex_worker_launch.py::test_late_rollout_writer_does_not_change_sealed_receipt`。
   同一 checkout の単独再走は 1 passed / 3.35 秒で再現せず、docs のみの差分は当該 file へ
   到達しえないため `DW-O18` により帰属しない。F57 の再発として起票した。
-  確認のための 2 走目は local main (`e91bf56d`) を取り込んだうえで実施する。
+  **確認の 2 走目は local main を取り込んだ tip `835c6594` で rc=0 /
+  7912 passed / 20 skipped / 470.55 秒**。赤は再現しなかった。
+  wall が 1316 秒から 470 秒へ縮んだのは本 wave の差分ではなく、
+  取り込んだ [T-201] の freeze receipt 履歴走査の置換による。
+- **受入 lease の飽和で 4 回空振りした (記録として残す)。** 待ちの間に local main が
+  2 度進んで `--ff-only` が通らず rc=21 で 2 回、10 分周期の他 wave に先取りされて
+  90 分の期限切れ rc=20 で 1 回止まった。**待ち手と受入投入を同一スクリプトに置くだけでは
+  足りず、lease 取得後の main 取り込みまで同一スクリプトに入れないと競合が閉じない。**
+  最終的に待ち間隔を 30 秒から 10 秒へ詰めて取得した。
+- 記録 commit は受入 tip より後になる。**測定 tip = `835c6594`、land tip はそれ以降**であり、
+  差分は worklog / failures fragment の記録のみで実装面を含まない。
 - 選択理由・実測・rollback・裁定パッケージ 3 件の正本は
   `output/insights/2026-08-10_t184-reasoning-policy-adoption.md`。
 
