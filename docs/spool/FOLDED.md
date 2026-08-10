@@ -677,3 +677,19 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acceptance-lease-merge-after-acquire":"[T-725]"},"authored":"2026-08-10","content_sha256":"5929e142d566ff342ef56afc16f385a0a5b6215f736bcf36d27c73da3e8a6ce4","seq":1,"wave":"dev-wave-t674-d125-supersession"}
 - {"allocations":{"D:d125-campaign-id-invariance-superseded":"D261"},"authored":"2026-08-10","content_sha256":"c0cdbb8d3048dfd73a586c1ee19598352f6daf44c01f06ba1744112c8f5d5a7d","seq":1,"wave":"dev-wave-t674-d125-supersession"}
 - {"allocations":{"F:acceptance-lease-behind-livelock":"F191"},"authored":"2026-08-10","content_sha256":"39a653c683bd34052d1e340797ba9b7e1007711ab5a06431b70ffebf29fa9409","seq":2,"wave":"dev-wave-t674-d125-supersession"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"0a984a5c01892fa8d09210efff675181e8123b09f8a4e90e0e5615cbf9de1bd2","seq":1,"wave":"dev-wave-t139-producer-slice"}
+- {"allocations":{"D:t139-erratum-validator-registry":"D263","D:t139-reference-binding-not-a-gate":"D264","D:t139-stage2-approval-payload":"D262"},"authored":"2026-08-10","content_sha256":"3af3cd1569bba51d4e28ccbc9aaa32e8a46a5a087476196fed1454531d661706","seq":2,"wave":"dev-wave-t139-producer-slice"}
+- {"allocations":{"F:codex-child-reads-parent-protocol-as-own":"F193","F:lease-json-matched-as-plaintext":"F192"},"authored":"2026-08-10","content_sha256":"a54723a8be242d3e875f4a7245bfb67cfbe91d146e9514539fbfd0e6a0d0e264","seq":3,"wave":"dev-wave-t139-producer-slice"}
+
+- {"allocations":{"T:ruleops-batch-blob-memory-bound":"[T-729]","T:ruleops-cap-is-per-call-only":"[T-727]","T:ruleops-default-controls-swallows-git-timeout":"[T-728]","T:ruleops-preflight-60s-ceiling":"[T-726]"},"authored":"2026-08-10","content_sha256":"ca4813c584ee0bf9761ed74a81a732d9e47a11d126b7ee8b5f61d788ee7023f1","seq":1,"wave":"dev-wave-t510-ruleops-git-budget"}
+- {"allocations":{"D:ruleops-git-timeout-budget":"D265"},"authored":"2026-08-10","content_sha256":"cf9bd040483ffd734475868a4c3a2c170c6278268a0b253517501563c6658bd5","seq":2,"wave":"dev-wave-t510-ruleops-git-budget"}
+- {"allocations":{"F:parametrize-id-breaks-node-extraction":"F194"},"authored":"2026-08-10","content_sha256":"dc8e2d7254b89ce830d0fd139c648e27221e7ad4a9523e0988d55d7d72cf5574","seq":3,"wave":"dev-wave-t510-ruleops-git-budget"}
+
+- {"allocations":{"D:stage-reasoning-policy-adoption":"D266"},"authored":"2026-08-10","content_sha256":"099f190e68c68fe2641b109a49d90306e80fb9f192c4c5d1d7673fc0a9e359bf","seq":1,"wave":"dev-wave-t184-reasoning-policy"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"266de09a59255b4d3170967e0eaf3cc43fec34f470d67b251338cfc4a1d42c75","seq":2,"wave":"dev-wave-t184-reasoning-policy"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"658e3387528edbfc7c5c62b68af8d9828792d5009adac54da8dd87b9c03808d8","seq":3,"wave":"dev-wave-t184-reasoning-policy"}
+
+- {"allocations":{"T:evidence-path-nul-alias":"[T-730]","T:land-test-scope-dependent-red":"[T-731]"},"authored":"2026-08-10","content_sha256":"f781fc1618f9e716fdb2d21c08c180ae3cf042d915b5165236ddd5eba8223a7d","seq":1,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
+- {"allocations":{"D:evidence-path-identity-wall":"D267"},"authored":"2026-08-10","content_sha256":"0e2c2976175b17aee371e1b7d52689b99de518b247e77a40c612d149facafe14","seq":2,"wave":"dev-wave-t714-evidence-path-ctrlchar"}
+- {"allocations":{"F:lease-claim-output-is-json":"F195"},"authored":"2026-08-10","content_sha256":"b1412b2d5f85d7070f373cef0afad7daafb583d0bb7e6ae9614ef474c602c8ad","seq":3,"wave":"dev-wave-t714-evidence-path-ctrlchar"}

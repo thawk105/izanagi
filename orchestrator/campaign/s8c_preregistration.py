@@ -960,9 +960,13 @@ def resolve_commit(repo_root: Path | str, commit: str = "HEAD") -> str:
 def read_blob_at(
     repo_root: Path | str, commit: str, path: str, *, required: bool = True
 ) -> Optional[bytes]:
+    rendered = path if isinstance(path, str) else str(path)
+    text = "".join((rendered,))
+    if "\r" in text or "\n" in text:
+        raise PreregistrationError("path-control-char")
     root = Path(repo_root).resolve()
     resolved = resolve_commit(root, commit)
-    spec = f"{resolved}:{path}"
+    spec = f"{resolved}:{text}"
     result = _git_text(root, ["cat-file", "--batch-check"], stdin=f"{spec}\n".encode())
     tokens = result.split()
     if tokens and tokens[-1] == "missing":
@@ -974,7 +978,7 @@ def read_blob_at(
     if len(tokens) < 3 or not tokens[2].isdigit():
         raise PreregistrationError("cat-file-header", result)
     if int(tokens[2]) > MAX_BLOB_BYTES:
-        raise PreregistrationError("blob-byte-limit", path)
+        raise PreregistrationError("blob-byte-limit", text)
     return _git(root, ["cat-file", "blob", tokens[0]])
 
 
