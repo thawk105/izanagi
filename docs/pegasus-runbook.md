@@ -756,60 +756,113 @@ export IZANAGI_DEV_WAVE_JOBS_DIR=/work/1/SFC/tanab/dev-wave-jobs   # 上と同�
   **main に land 済みの文書がその絶対 path (または探索根より下位の祖先 dir) を参照している**
   場合だけである。bytes だけ一致する候補は抑止せず、報告行に注記が付く。
 
-### 7.3 並行 wave の受入 lease (`tools/wave_land_window.py`)
+### 7.3 待ち手の正本 (`tools/dev_wave_wait.py`) と受入 lease (`tools/wave_land_window.py`)
 
-並行 dev-wave が同じ main を base に受入全走を重ね、追い越された側の約 1055 秒が丸ごと無駄に
-なるのを減らすための**排他予約**である。lease directory は
-**`/work/1/SFC/tanab/dev-wave-jobs/land-lease/`** (作成済み、mode 700)。repo 外に置くのは
-wave worktree の clean-tree gate と land の untracked 検査に掛けないためである。
+役割は 2 層に分かれる。**`tools/wave_land_window.py` が lease の primitive、
+`tools/dev_wave_wait.py` が待ち手の正本**である。**待ち手を自分で書き起こさない ([T-740])。**
+散文から書き起こす限り同型の欠陥が入ることは実測済みで、実際に (i) `claim` の JSON 出力を
+`case "$out" in *acquired*)` で glob 判定した例 (F192)、(ii) producer の死を
+`until ! pgrep -f "$PAT"` で判定して待ち手自身の argv に自己マッチし、`.done` も成果物も
+揃った後に 20 時間 23 分と 7 時間 36 分 滞留して wave が無音で死んだ例 (F32 の再発) がある。
+
+lease directory は **`/work/1/SFC/tanab/dev-wave-jobs/land-lease/`** (作成済み、mode 700)。
+repo 外に置くのは wave worktree の clean-tree gate と land の untracked 検査に掛けないためである。
+
+#### 受入 lease の待ち手
 
 ```
 export IZANAGI_WAVE_LEASE_DIR=/work/1/SFC/tanab/dev-wave-jobs/land-lease
 W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
-M=$(git rev-parse main)           # 40 桁。自分の checkout の local main
-python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
+python3 tools/dev_wave_wait.py acceptance --wave "$W" \
+  --merge-message-file <merge 用 message file> \
+  -- python3 tools/run_tests.py
 ```
 
-- `state=acquired` のときだけ受入全走を投入する。`held` / `queued` / `stale-held` / `unavailable`
-  および非 0 rc では**投入しない**。`held` / `queued` なら local main を取り直して再度 `claim` する。
-- **`claim` の出力は JSON、`status` の出力は key=value である。** 待ち手は `claim` の出力を
-  JSON として parse して `state` を見る。`status` の見た目に合わせて `state=acquired` の
-  文字列一致で待つと、lease が空いても永久に一致せず待ち続ける。判定は `state` の値と
-  `acquired` の **exact 比較**で行う。出力全体への部分一致 (`case *acquired*` / glob / grep) で
-  判定しない — `state` 以外の field や診断文に同じ語が出れば偽陽性になる。
-- **待ち手の各段は 1 コマンド 1 値へ分解し、rc と値を別々に判定する。** rc をパイプへ通さない、
+- **受入 command は `--` の後ろへ裸形で渡す。** `-q` / `-rf` などを足すと
+  `tools/run_tests.py` の acceptance shape 判定が False になり、受入専用の事前検査が
+  黙って無効化される (`_is_acceptance_run` の default-deny に落ちる)。報告用の整形が要るなら
+  受入とは別の走行を立てる。
+- **`--merge-message-file` は待機を始める前に用意しておく。** behind が判明した時点で必須になり、
+  無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
+- **rc=0 は「受入 command が緑で、lease を保持したまま返った」を意味する。** 成功時は release
+  しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外のすべての終わり方
+  (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
+- 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (lease 未取得、Git 失敗、
+  再検査で先行が残る 等)、`74` = cleanup (merge abort / release) の完了を確認できない、
+  それ以外の非 0 = 受入 command の rc。
+
+script が担う判定は次のとおりで、**同じ内容を別 shell loop として書き直さない**。
+
+- `claim` の出力は rc=0 のときだけ JSON として parse し、トップレベル `state` の値と
+  `acquired` の **exact 比較**で投入可否を決める。出力全体への部分一致
+  (`case *acquired*` / glob / grep) では判定しない — `state` 以外の field や診断文に
+  同じ語が出れば偽陽性になる。**`claim` の出力は JSON、`status` の出力は key=value である**
+  (`status --json` のときだけ JSON)。
+- 各段は 1 コマンド 1 値へ分解し、rc と値を別々に判定する。rc をパイプへ通さない、
   `|| true` で潰さない、複合条件を 1 行にまとめない。これらはいずれも赤を緑に見せる。
-- **待ちは 30〜120 秒周期の loop にする ([T-684])。** `claim` は待ち行列 (FIFO 相当) の待ち札を
-  作り、呼ぶたびにその生存を更新する。**待ち札は最後の `claim` から 300 秒で失効する**ので、
-  一度だけ `claim` して長く放置すると順番を失い、後から来た wave に追い越される。
-  `queued` は「lease は空いているが自分より先に待っている wave がいる」を意味する。
+- claim の前に tree identity を検査する — git worktree の中であること、HEAD が detached で
+  ないこと、`git rev-parse --show-toplevel` が起動 cwd と一致すること、branch 名が wave slug で
+  終わること、tracked に未 commit の変更が無いこと。自動 merge/commit が別 checkout へ
+  入るのを止めるためである。
+- **`acquired` の直後に待ち手自身が local main を取り直して取り込む ([T-732] 裁定 (a) の正本)。**
+  待っている間に先行 holder が land するので、`claim` 時の `main_sha` は取得時点の main では
+  ない。取り込まずに走らせると land 対象 tip が main の子孫でなくなり、全走をやり直すことになる。
+  順序は `git rev-parse main` → `git rev-list --count HEAD..main` → (非 0 のときだけ)
+  **所有実装面の overlap 判定** → `git merge --no-ff --no-commit main` →
+  `git commit --dry-run -F` → `git commit -F` → 作成 commit の SHA を固定して message の
+  trailer を確認 → `HEAD..main` の再検査、である。
+  **`--ff-only` と `--no-edit` は使わない** (wave branch が自前 commit を持つと fast-forward
+  できず `Not possible to fast-forward` で止まる)。中断は `git merge --abort` → `release` の順。
+- **merge の前に所有実装面の overlap を見る。** `git diff --name-only HEAD...main` の結果に
+  本 wave が触った実装面 path が含まれるなら、**待ち手では merge せず親へ戻す** (fail-closed)。
+  両親が同じ実装面を変えた merge 結果はどちらの親とも異なるため `DW-O17` が Codex
+  `role=author` を要求するが、trailer を固定した待ち手の message file では条件を満たせない。
+  待ち手が判定しなければ無審査の merge commit ができ、land の provenance 監査まで赤にならない。
+  本 wave が触った実装面 path は `--owned-path` で外から渡す (repo へ固定値を焼かない)。
+- 待ちの周期は 30〜120 秒 (既定 30 秒)、claim loop の全体上限は既定 7200 秒である。
+- `claim` が構造化された `held` / `queued` を返した時点で「この呼出しが lease を作った可能性」は
+  消えるので、**その後の失敗では release しない**。`release` の権限証明は wave slug の digest
+  だけであり、同一 slug の別 invocation が保持中の lease を消してしまうためである。
+  自分の待ち札は残るが 300 秒で失効する。
+
+#### 背景 producer の待ち手
+
+```
+python3 tools/dev_wave_wait.py producer \
+  --done-file <job>/<name>.done \
+  --artifact-file <job>/<name>.md \
+  --pid-file <job>/<name>.pid
+```
+
+- 完了は **`.done` 実在・成果物実在・producer の死**の 3 点照合で判定する。
+- **producer の生死は pid で見る** — exact PID の `kill(pid, 0)` と `/proc/<pid>/stat` の
+  starttime 束縛だけを使う。PID 再利用は starttime の差で死と判定し、zombie は死として扱う。
+  **照合 pattern を受け取る CLI 面は無い。** `pgrep -f <pattern>` の待ちループは、待ち手自身の
+  argv がその pattern を含むため常に自己マッチして終わらない (F32)。
+- **PID は producer script 自身が `echo $$` で書き出す** (`--pid-file`)。待ち手が `pgrep` で
+  推測すると起動ラッパの PID を掴む (F156)。`.done` の除去は producer script の冒頭に置く。
+- producer の死後に `.done` か成果物が欠けていれば、最大 30 秒の猶予で再確認してから
+  fail-closed で非 0 を返す (NFS の可視性遅延で成功済み producer を失敗扱いにしないため)。
+
+#### lease そのものの性質と既知限界
+
+- **待ちは待ち札 (FIFO 相当) を作る ([T-684])。** `claim` は呼ぶたびに待ち札の生存を更新する。
+  **待ち札は最後の `claim` から 300 秒で失効する**ので、一度だけ `claim` して長く放置すると
+  順番を失う。`queued` は「lease は空いているが自分より先に待っている wave がいる」を意味する。
 - **受入を直ちに投入できる状態になってから待ち始める。** 先頭を取ってから準備に手間取ると、
   その間ほかの wave 全部が待つ (head-of-line blocking)。
 - **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
   待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1273 秒) に比例する。
-- **`acquired` の直後に、待ち手自身が local main を取り直して取り込んでから投入する
-  ([T-732] 裁定 (a) の正本)。** 待っている間に先行 holder が land するので、`claim` 時の
-  `main_sha` は取得時点の main ではない。取り込まずに走らせると land 対象 tip が main の
-  子孫でなくなり、全走をもう一度やり直すことになる。次の順で、すべて待ち手 script の中で行う。
-  1. `git rev-parse main` で local main を**取り直す** (`claim` に渡した `$M` を使い回さない)。
-  2. `git rev-list --count HEAD..main` を見る。**非 0 のときだけ**
-     `git merge --no-ff --no-commit main` → `git commit -F <message file>` で merge commit を作る。
-     0 なら merge しない (`nothing to commit` で止まるだけである)。
-  3. **`git merge --ff-only main` と `--no-edit` は使わない。** wave branch が自前 commit を
-     持った時点で fast-forward できず `Not possible to fast-forward` で止まる。merge commit の
-     provenance は `DW-O17` に従い、AI-Agent trailer を message file に書く。
-     commit の前に `git commit --dry-run -F <message file>` を単独で走らせ rc を見る。
-  4. merge の後に `git rev-list --count HEAD..main` を再検査する。0 でなければ投入しない。
-  5. **1〜4 の各コマンドの rc を個別に見て、非 0 なら受入を投入しない。** 中断するときは
-     `git merge --abort` (merge 進行中なら) → `release --wave "$W"` の順に実行して親へ戻す。
-     競合も同じ扱いとする。
-- **claim の loop・上の取り直し・merge・受入投入は同じ待ち手 script に置く。** 取り込みを親の
+  **待ち周期を詰めても追い越しは消えない** — 原因は周期ではなく待ち行列長であり、
+  効くのは上の「待ち手内で取り込む」手順である (F196)。
+- **claim の loop・main の取り直し・merge・受入投入は同じ待ち手 script に置く。** 取り込みを親の
   事前作業にし、待ち手を `git rev-list --count HEAD..main` の検査だけにすると、待機中に main が
   進むたびに取得した lease を捨てる (2026-08-10 実測: 24 分待って `acquired`、その時点で
-  15 commit 遅れ。別 wave では 4 回空振り)。この手順が無くすのは「待機中に land 済みとなった
-  差分」による再走だけであり、4 の再検査から投入までの間に main が進む残余 race は残る
-  (fencing token が無いので閉じられない)。
-- 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
+  15 commit 遅れ。別 wave では 4 回空振り)。
+- 待ち手が閉じない残余 race が 1 つ残る — 最後の `HEAD..main` 再検査から受入 command 起動までの
+  間に main が進む場合である (fencing token が無いので閉じられない)。
+- 受入と land の**どの終わり方でも** lease を手放す。待ち手は成功時だけ保持したまま返すので、
+  **land の終端では親が `release --wave "$W"` を実行する** (赤・失敗・中断を含む)。
   他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
 - land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
   照合した peer へ 1 度だけ送る。

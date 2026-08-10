@@ -1,0 +1,48 @@
+diff --git a/orchestrator/campaign/env_contract_activation.py b/orchestrator/campaign/env_contract_activation.py
+index 2d4adf9c..9f2eb4ee 100644
+--- a/orchestrator/campaign/env_contract_activation.py
++++ b/orchestrator/campaign/env_contract_activation.py
+@@ -272,7 +272,10 @@ def _validate_activation_transition(
+         )
+ 
+     changed: list[tuple[ActiveContract, ActiveContract]] = []
++    expected_generation_checks = len(successor_rows)
++    observed_generation_checks = 0
+     for successor in successor_rows:
++        observed_generation_checks += 1
+         predecessor = predecessor_by_env[successor.env_tag]
+         if (
+             predecessor.generation,
+@@ -296,8 +299,18 @@ def _validate_activation_transition(
+             f"serial={activation_serial}"
+         )
+ 
++    if observed_generation_checks != expected_generation_checks:
++        raise ActivationRecordError(
++            "activation transition scan count mismatch: site=G "
++            f"expected={expected_generation_checks} "
++            f"observed={observed_generation_checks} serial={activation_serial}"
++        )
++
++    expected_predicate_checks = len(changed)
++    observed_predicate_checks = 0
+     first_failure: tuple[str, BaseException | None] | None = None
+     for predecessor, successor in changed:
++        observed_predicate_checks += 1
+         try:
+             result = is_valid_registered_successor(predecessor, successor)
+         # process 中断を握り潰さないため、BaseException は包まずそのまま伝播させる。
+@@ -327,6 +340,13 @@ def _validate_activation_transition(
+         if cause is not None:
+             raise ActivationRecordError(message) from cause
+         raise ActivationRecordError(message)
++    if observed_predicate_checks != expected_predicate_checks:
++        raise ActivationRecordError(
++            "activation transition scan count mismatch: site=P "
++            f"expected={expected_predicate_checks} "
++            f"observed={observed_predicate_checks} serial={activation_serial}"
++        )
++
+ 
+ 
+ def validate_activation_records(

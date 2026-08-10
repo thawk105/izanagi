@@ -44,6 +44,122 @@ _S09_ACCEPTANCE_ORDER_LITERAL = (
     "`DW-O23` を行う。"
 )
 
+_SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION = """## 入力と開始
+
+- 第一声から進捗、裁定、最終報告、`result:` まで、ユーザー向け出力はすべて日本語にする。
+- `CLAUDE.md` のクラス 3 起動手順を実行し、引数があれば対象にする: $ARGUMENTS
+- wave 開始時に `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave を読み、
+  専用 handoff に「dev-wave 改善候補」節を作る。
+- 無人継続の外部 supervisor は、最初の `claude -p` spawn 前に
+  `docs/dev-wave/core.md` の `DW-CTX` を読む。
+
+"""
+_PRE_WAVE_DEV_WAVE_COMMAND_START_SECTION = """## 入力と開始
+
+- 第一声から進捗、裁定、最終報告、`result:` まで、ユーザー向け出力はすべて日本語にする。
+- `CLAUDE.md` のクラス 3 起動手順を実行し、引数があれば対象にする: $ARGUMENTS
+- wave 開始時に `docs/skill-self-improvement.md` の「発火 gate」と「dev-wave」を読み、
+  専用 handoff に「dev-wave 改善候補」節を作る。
+- 無人継続の外部 supervisor は、最初の `claude -p` spawn 前に
+  `docs/dev-wave/core.md` の `DW-CTX` を読む。
+
+"""
+_SYNTHETIC_CODEX_DEV_WAVE_START_SECTION = """## 開始する
+
+1. リポジトリ直下の `AGENTS.md` と `CLAUDE.md` を全文読み、依頼をクラス 3 として起動する。
+2. ユーザーが指定した対象を優先する。対象がなければ worklog 末尾の「次の一手」から 1 件選ぶ。
+3. `.claude/commands/dev-wave.md` を全文読む。同ファイルを 9 段状態機械、段 dispatch、条件 dispatch、
+   巻き戻し、停止条件の共通 dispatcher として扱う。
+4. `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave 終端を読み、専用 handoff に
+   `dev-wave 改善候補` 節を作る。
+5. main では編集しない。既存の専用 Codex worktree があれば状態と対象を照合して再利用し、
+   なければ local main の HEAD から `.codex/worktrees/` 配下に専用 branch/worktree を作る。
+
+参照先の節は、dispatcher が指定する段または条件の直前に読み直す。記憶や本 Skill の要約で代用しない。
+参照先が不在、読取不能、非一意、または期限後に条件成立が判明した場合は dispatcher どおり
+fail-closed に停止または巻き戻す。
+
+"""
+_PRE_WAVE_CODEX_DEV_WAVE_START_SECTION = """## 開始する
+
+1. リポジトリ直下の `AGENTS.md` と `CLAUDE.md` を全文読み、依頼をクラス 3 として起動する。
+2. ユーザーが指定した対象を優先する。対象がなければ worklog 末尾の「次の一手」から 1 件選ぶ。
+3. `.claude/commands/dev-wave.md` を全文読む。同ファイルを 9 段状態機械、段 dispatch、条件 dispatch、
+   巻き戻し、停止条件の共通 dispatcher として扱う。
+4. `docs/skill-self-improvement.md` の発火 gate と dev-wave 終端を読み、専用 handoff に
+   `dev-wave 改善候補` 節を作る。
+5. main では編集しない。既存の専用 Codex worktree があれば状態と対象を照合して再利用し、
+   なければ local main の HEAD から `.codex/worktrees/` 配下に専用 branch/worktree を作る。
+
+参照先の節は、dispatcher が指定する段または条件の直前に読み直す。記憶や本 Skill の要約で代用しない。
+参照先が不在、読取不能、非一意、または期限後に条件成立が判明した場合は dispatcher どおり
+fail-closed に停止または巻き戻す。
+
+"""
+_SYNTHETIC_SELF_ROUTING_SECTION = """## routing
+
+1. 新しい失敗型・near miss・既存防壁の破れは `docs/failures.md` へ送る。
+   同型再発なら新しい F を作らず、既存 F に「再発: 日付」を追記する。
+2. 長期の設計、権限、正本、interface を変える採用済み判断は `docs/decisions.md` へ送る。
+   未裁定または大きい変更を既成事実にせず、裁定パッケージとしてユーザーへ返す。
+3. dev-wave 固有の手順は発火段に対応する `docs/dev-wave/` の既存 leaf 節へ統合し、意味を保って
+   統合できない場合だけ新しい節・ファイルを候補にする。新規 L2 節の登録は鏡像の
+   「発火実績あり × 義務が現に機械代替されていない × 同じ意味検索で反証も同一発火点の
+   既存正本もなし」を満たす場合だけとする (D271)。L2 (条件成立時だけ読む節) の削除を裁定
+   パッケージへ送れるのは「発火実績なし × テスト/機械検査で義務代替済み」の両条件を満たす
+   節だけで、実施はユーザー裁定に限る。「発火実績なし」は ID 件数でなく repo 全体
+   (insights・memo 含む) の意味検索で反証されないことを確認する。
+4. cleanup-branches / rulings の短い手順は各 command の既存節を是正する。
+   長い事故説明は F ポインタにし、裁定待ち・branch 状態・可変データを command へ書かない。
+5. 同じ内容を複数の行き先へ全文複製しない。入口は命令と dispatch、reference は実行手順、
+   failures は事象・原因・恒久対応、decisions は採用理由を担う。
+
+"""
+_PRE_WAVE_SELF_ROUTING_SECTION = """## routing
+
+1. 新しい失敗型・near miss・既存防壁の破れは `docs/failures.md` へ送る。
+   同型再発なら新しい F を作らず、既存 F に「再発: 日付」を追記する。
+2. 長期の設計、権限、正本、interface を変える採用済み判断は `docs/decisions.md` へ送る。
+   未裁定または大きい変更を既成事実にせず、裁定パッケージとしてユーザーへ返す。
+3. dev-wave 固有の手順は発火段に対応する `docs/dev-wave/` の既存 leaf 節へ統合する。
+   新しい節・ファイルは、既存節へ意味を保って統合できない場合だけ候補にする。
+   節の削除を裁定パッケージへ送れるのは、L2 (条件成立時だけ読む節) のうち「発火実績なし ×
+   テスト/機械検査で義務代替済み」の両条件を満たすものだけとする。「発火実績なし」は
+   ID 件数でなく repo 全体 (insights・memo 含む) の意味検索で反証されないことを確認する。
+   削除の実施はユーザー裁定に限る。
+4. cleanup-branches / rulings の短い手順は各 command の既存節を是正する。
+   長い事故説明は F ポインタにし、裁定待ち・branch 状態・可変データを command へ書かない。
+5. 同じ内容を複数の行き先へ全文複製しない。入口は命令と dispatch、reference は実行手順、
+   failures は事象・原因・恒久対応、decisions は採用理由を担う。
+
+"""
+_SYNTHETIC_DW_O25_SECTION = """## DW-O25 — ff-only land の全史 provenance 関門
+
+D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
+lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
+"""
+
+_SYNTHETIC_OPERATION_SECTION_IDS = (
+    "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
+    "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
+    "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
+    "DW-O23", "DW-O25",
+)
+_SYNTHETIC_ALL_OPERATIONS_REF = (
+    "`docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
+    "`DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25`"
+)
+_SYNTHETIC_STAGE_5_6_CONDITIONAL_ROWS = (
+    "| 段 5 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, "
+    "`DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |",
+    "| 段 6 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, "
+    "`DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |",
+)
+_SYNTHETIC_CONDITION_25_ROW = (
+    "| 25 | main を進める land を起動する直前 | "
+    "`docs/dev-wave/operations.md`: `DW-O25` |"
+)
+
 _SYNTHETIC_ADMISSION_ENTRIES = {
     "tools/pegasus/collect_receipt.py": {
         "class": "unknown",
@@ -158,13 +274,12 @@ TASKS = {
 """
 
 
-# operations 由来の条件 dispatch key (O07/O15/O21/O22 を除く 19 件)。契約から導出するが、
-# exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
-_OPERATION_CONDITION_KEYS = sorted(
-    key
-    for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
-    if any(path == "docs/dev-wave/operations.md" for path, _ in pairs)
-)
+# operations 由来の条件 dispatch key (O07/O15/O21/O22/O24 を除く 20 件)。
+# 合成 fixture を production contract と独立させるため、ここでは手書きする。
+_OPERATION_CONDITION_KEYS = [
+    "01", "02", "03", "04", "05", "06", "08", "09", "10", "11",
+    "12", "13", "14", "16", "17", "18", "19", "20", "23", "25",
+]
 
 
 _PLACEHOLDER_DEBT_WORKLOG = (
@@ -440,15 +555,9 @@ def _write_command_guard_docs(root: str) -> None:
                 chunks.append(f"`{path}` の全節")
             elif (
                 path == "docs/dev-wave/operations.md"
-                and sections == [
-                    f"DW-O{i:02d}"
-                    for i in check_docs._OPERATION_NUMBERS
-                ]
+                and sections == list(_SYNTHETIC_OPERATION_SECTION_IDS)
             ):
-                chunks.append(
-                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
-                    "`DW-O16`〜`DW-O20`, `DW-O23`"
-                )
+                chunks.append(_SYNTHETIC_ALL_OPERATIONS_REF)
             else:
                 ids = ", ".join(f"`{section}`" for section in sections)
                 chunks.append(f"`{path}`: {ids}")
@@ -460,6 +569,8 @@ def _write_command_guard_docs(root: str) -> None:
         ("C", check_docs.STAGE_CONDITIONAL_DISPATCH_CONTRACT),
     ):
         for key, pairs in contract.items():
+            if mode == "C" and key in {"段 5", "段 6"}:
+                continue
             grouped: dict[str, set[tuple[str, str]]] = {}
             for path, section in pairs:
                 grouped.setdefault(path, set()).add((path, section))
@@ -474,17 +585,23 @@ def _write_command_guard_docs(root: str) -> None:
                     stage_rows.append(f"| {key} |{mode}| {refs(s06)} |")
                 else:
                     stage_rows.append(f"| {key} |{mode}| {refs(path_pairs)} |")
-    condition_rows = "\n".join(
-        f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | {refs(pairs)} |"
-        for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
-    )
+    stage_rows.extend(_SYNTHETIC_STAGE_5_6_CONDITIONAL_ROWS)
+    condition_rows = "\n".join([
+        *(
+            f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | "
+            f"{refs(pairs)} |"
+            for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
+            if key != "25"
+        ),
+        _SYNTHETIC_CONDITION_25_ROW,
+    ])
     dev_wave = f"""---
 description: synthetic dev-wave
 argument-hint: [synthetic]
 disable-model-invocation: true
 ---
 
-$ARGUMENTS
+{_SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION}## 読み込み契約
 
 条件には最遅読了段がある。`DW-O08`、`DW-O09`、`DW-O10` は段 1 brief 前、
 `DW-O13` は段 2 プラン前が期限である。期限後に成立したら成果物を invalidate し、
@@ -522,6 +639,7 @@ docs/skill-self-improvement.md
 """
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
+    _write(root, "tools/dev_wave_codex.py", "# synthetic Codex dispatcher\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
     codex_skill = """---
@@ -531,9 +649,18 @@ description: synthetic Codex dev-wave skill
 
 # Dev Wave
 
-    """ + "\n".join(check_docs.CODEX_DEV_WAVE_SKILL_LITERALS) + "\n" + (
-        check_docs.CODEX_DEV_WAVE_STAGE9_LAND_LITERAL + "\n"
-    )
+""" + _SYNTHETIC_CODEX_DEV_WAVE_START_SECTION + """## Codex 向けに適合する
+
+manager は実装面を直接編集しない。
+worker は docs/dev-wave/workers.md と docs/dev-wave/operations.md に従い、codex exec で起動して
+collaboration child で代替しない。
+`.codex/role-adapters/*.json` は起動しない。`hooks/README.md` を手動で守る。
+supervised manifest は実行せず、段 1〜9 と local main の契約に従う。
+
+## 1 wave を閉じる
+
+段 9 は dispatcher が指定する共通 land 契約だけに従い、Codex 固有の取り込み手順を重ねない。
+"""
     _write(root, ".agents/skills/dev-wave/SKILL.md", codex_skill)
     _write(
         root,
@@ -565,9 +692,14 @@ description: synthetic Codex rulings skill
         _SYNTHETIC_CLEANUP_OPENAI_YAML,
     )
 
-    for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
+    for rel, contract_sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
+        sections = (
+            _SYNTHETIC_OPERATION_SECTION_IDS
+            if rel == "docs/dev-wave/operations.md"
+            else sorted(contract_sections)
+        )
         rendered_sections = []
-        for section in sorted(sections):
+        for section in sections:
             body = "body"
             if rel == "docs/dev-wave/workers.md" and section == "DW-S02":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL
@@ -579,7 +711,9 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE
             if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
                 body += (
-                    "\n\n`codex exec -m <model>`\n\n"
+                    "\n\n"
+                    + check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+                    + "\n\n"
                     + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
                 )
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
@@ -591,7 +725,10 @@ description: synthetic Codex rulings skill
                 )
             if rel == "docs/dev-wave/operations.md" and section == "DW-O23":
                 body += "\n\n`tools/dev_wave_land.py`"
-            rendered_sections.append(f"## {section} — synthetic\n\n{body}")
+            if rel == "docs/dev-wave/operations.md" and section == "DW-O25":
+                rendered_sections.append(_SYNTHETIC_DW_O25_SECTION.rstrip("\n"))
+            else:
+                rendered_sections.append(f"## {section} — synthetic\n\n{body}")
         text = "# synthetic reference\n\n" + "\n\n".join(rendered_sections) + "\n"
         literals = check_docs.CODEX_FIRST_REFERENCE_LITERALS.get(rel, ())
         if literals:
@@ -604,11 +741,7 @@ description: synthetic Codex rulings skill
 
 body
 
-## routing
-
-body
-
-## command 入口の編集条件
+""" + _SYNTHETIC_SELF_ROUTING_SECTION + """## command 入口の編集条件
 
 body
 
@@ -718,6 +851,14 @@ def _build_min_repo() -> str:
     _dst = os.path.join(root, "tools", "check_docs.py")
     os.makedirs(os.path.dirname(_dst))
     shutil.copy(check_docs.__file__, _dst)
+    authority_dst = os.path.join(
+        root, "tools", "dev_waves", "launch_authority.py"
+    )
+    os.makedirs(os.path.dirname(authority_dst))
+    shutil.copy(
+        check_docs.REPO / "tools" / "dev_waves" / "launch_authority.py",
+        authority_dst,
+    )
     shutil.copy(check_docs.REPO / "tools" / "spool_fold.py", os.path.dirname(_dst))
     _write_empty_spool_layout(root)
 
@@ -729,7 +870,11 @@ def _build_min_repo() -> str:
     _write(root, os.path.join("orchestrator", "campaign", "pin.py"),
            'CURRENT_PIN = "abc1234def5678"\n')
     _write(root, os.path.join("docs", "decisions.md"),
-           "## D1 placeholder decision\n\n本文。\n")
+           "## D1 placeholder decision\n\n本文。\n\n"
+           "## D254 placeholder decision\n\n本文。\n\n"
+           "## D271 placeholder decision\n\n本文。\n")
+    _write(root, os.path.join("docs", "failures.md"),
+           "# placeholder failures\n")
     _write(root, os.path.join("docs", "archive", "README.md"),
            _archive_readme())
     _write(
@@ -1693,6 +1838,34 @@ def test_spool_guard_valid_pending_fragment_is_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_spool_guard_reports_failure_supersede_issue():
+    """supersede の validate issue を check_docs main の spool finding へ伝播する。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/spool/failures/2026-08-10-wave-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: failures\n"
+            "authored: 2026-08-10\n"
+            "wave: wave\n"
+            "seq: 1\n"
+            "---\n"
+            "## supersede 追記\n\n"
+            "- F1 **supersede: 2026-13-45** — invalid calendar date\n",
+        )
+        result = _assert_violation(
+            root,
+            "spool failure-supersede-shape",
+            "supersede 追記 item の shape が不正",
+        )
+        assert "Traceback" not in result.stdout + result.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_spool_guard_unresolved_reference_propagates_to_main():
     """未解決 spool 参照は main() の rc=1 へ伝播する。"""
 
@@ -1870,7 +2043,7 @@ def test_dev_wave_layer_budget_contract_is_literal():
         for section in (
             'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10', 'DW-O11',
             'DW-O12', 'DW-O14', 'DW-O16', 'DW-O17', 'DW-O18', 'DW-O19',
-            'DW-O20',
+            'DW-O20', 'DW-O25',
         )
     }
 
@@ -2306,7 +2479,7 @@ _TEST_DEV_WAVE_LAYERS = {
         for section in (
             'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10', 'DW-O11',
             'DW-O12', 'DW-O14', 'DW-O16', 'DW-O17', 'DW-O18', 'DW-O19',
-            'DW-O20',
+            'DW-O20', 'DW-O25',
         )
     },
 }
@@ -2363,13 +2536,13 @@ def _grow_test_section(
         re.MULTILINE | re.DOTALL,
     )
     assert match is not None and add_bytes >= 0
-    payload = "x" * add_bytes
+    if add_bytes == 0:
+        return
+    payload = ("x" * (add_bytes - 1)) + "\n"
     if multibyte:
-        assert add_bytes >= 3
-        payload = "あ" + ("x" * (add_bytes - 3))
-    insertion = match.end()
-    while insertion > match.start() and text[insertion - 1] in "\r\n":
-        insertion -= 1
+        assert add_bytes >= 4
+        payload = "あ" + ("x" * (add_bytes - 4)) + "\n"
+    insertion = text.index("\n", match.start(), match.end()) + 1
     _write(root, rel, text[:insertion] + payload + text[insertion:])
 
 
@@ -2901,6 +3074,14 @@ def test_dev_wave_new_gate_case_registration_is_complete():
         "test_dev_wave_layer_coverage_rejects_anonymous_visible_h2_only",
         "test_dev_wave_shared_reference_edges_are_typed",
         "test_dev_wave_l2_accepts_dw_o20_plus_154_bytes",
+        "test_cleanup_address_edge_rejects_split_lines",
+        "test_cleanup_address_edge_rejects_id_adjacent_decoy",
+        "test_cleanup_address_edge_rejects_non_code_span_path_decoy",
+        "test_cleanup_address_edge_rejects_raw_html_block",
+        "test_cleanup_address_edge_rejects_link_definition",
+        "test_cleanup_address_edge_rejects_frontmatter_decoy",
+        "test_cleanup_address_edge_accepts_rewording",
+        "test_cleanup_address_edge_accepts_baseline",
     ):
         assert source.count(f"def {test_name}(") == 1
 
@@ -4807,6 +4988,12 @@ def _rewrite_matching_lines(
     )
 
 
+def _insert_before_unique_marker(root: str, rel: str, marker: str, addition: str) -> None:
+    text = _read(root, rel)
+    assert text.count(marker) == 1, (rel, marker, text.count(marker))
+    _write(root, rel, text.replace(marker, addition + marker, 1))
+
+
 def _mutate_command_guard(root: str, case: str) -> None:
     if case == "command_byte_over":
         _pad_to_bytes(
@@ -4856,6 +5043,31 @@ def _mutate_command_guard(root: str, case: str) -> None:
             "disable-model-invocation: false",
             1,
         ))
+    elif case == "command_startup_wave_pre_form":
+        rel = ".claude/commands/dev-wave.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,
+                _PRE_WAVE_DEV_WAVE_COMMAND_START_SECTION,
+                1,
+            ),
+        )
+    elif case == "command_startup_routing_blockquoted":
+        rel = ".claude/commands/dev-wave.md"
+        current = (
+            "- wave 開始時に `docs/skill-self-improvement.md` の"
+            "発火 gate・routing・dev-wave を読み、\n"
+            "  専用 handoff に「dev-wave 改善候補」節を作る。\n"
+        )
+        blockquoted = (
+            "> - wave 開始時に `docs/skill-self-improvement.md` の"
+            "発火 gate・routing・dev-wave を読み、\n"
+            ">   専用 handoff に「dev-wave 改善候補」節を作る。\n"
+        )
+        assert _read(root, rel).count(current) == 1
+        _write(root, rel, _read(root, rel).replace(current, blockquoted, 1))
     elif case == "reference_section_deleted":
         rel = "docs/dev-wave/mutation.md"
         _write(root, rel, _read(root, rel).replace(
@@ -4895,6 +5107,14 @@ def _mutate_command_guard(root: str, case: str) -> None:
             lambda line: line.startswith("| 段 6 |")
             and "`docs/dev-wave/operations.md`" in line,
             lambda line: "",
+        )
+    elif case == "stage6_o25_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 6 |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: line.replace(", `DW-O25`", "", 1),
         )
     elif case == "stage8_operations_deleted":
         _rewrite_matching_lines(
@@ -4959,10 +5179,28 @@ def _mutate_command_guard(root: str, case: str) -> None:
             lambda line: line.startswith("| 24 |"),
             lambda line: "",
         )
+    elif case == "condition_25_deleted":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 25 |"),
+            lambda line: "",
+        )
+    elif case == "condition_25_trigger_broadened":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 25 |"),
+            lambda line: line.replace(
+                "main を進める land を起動する直前",
+                "local main を取り込む直前",
+                1,
+            ),
+        )
     elif case == "self_heading_deleted":
         rel = "docs/skill-self-improvement.md"
         _write(root, rel, _read(root, rel).replace(
-            "## routing\n", "", 1
+            "## 発火 gate\n", "", 1
         ))
     elif case == "self_h3_deleted":
         rel = "docs/skill-self-improvement.md"
@@ -4977,9 +5215,25 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, _read(root, rel).replace(
             "docs/skill-self-improvement.md", "self contract omitted", 1
         ))
+    elif case == "self_l2_admission_wave_pre_form":
+        rel = "docs/skill-self-improvement.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                _SYNTHETIC_SELF_ROUTING_SECTION,
+                _PRE_WAVE_SELF_ROUTING_SECTION,
+                1,
+            ),
+        )
     elif case == "reference_orphan_h2":
         rel = "docs/dev-wave/operations.md"
-        _write(root, rel, _read(root, rel) + "\n## DW-X99 — orphan\n\nbody\n")
+        _insert_before_unique_marker(
+            root,
+            rel,
+            "## DW-O25 —",
+            "## DW-X99 — orphan\n\nbody\n\n",
+        )
     elif case == "dispatch_heading_duplicated":
         rel = ".claude/commands/dev-wave.md"
         _write(root, rel, _read(root, rel) + "\n## 段 dispatch\n\n")
@@ -5068,7 +5322,32 @@ def _mutate_command_guard(root: str, case: str) -> None:
         )
     elif case == "operations_land_helper_outside_o23":
         rel = "docs/dev-wave/operations.md"
-        _write(root, rel, _read(root, rel) + "\ntools/dev_wave_land.py\n")
+        _insert_before_unique_marker(
+            root,
+            rel,
+            "## DW-O23 —",
+            "tools/dev_wave_land.py\n\n",
+        )
+    elif case == "o25_contract_weakened":
+        rel = "docs/dev-wave/operations.md"
+        current = "480 秒以内の rc=0 を必須とする"
+        assert _read(root, rel).count(current) == 1
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(current, "赤でも警告に留める", 1),
+        )
+    elif case == "o25_before_o01":
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        assert text.count(_SYNTHETIC_DW_O25_SECTION) == 1
+        text = text.replace("\n\n" + _SYNTHETIC_DW_O25_SECTION, "", 1)
+        insertion = text.index("## DW-O01 ")
+        _write(
+            root,
+            rel,
+            text[:insertion] + _SYNTHETIC_DW_O25_SECTION + text[insertion:],
+        )
     elif case == "codex_skill_deleted":
         os.remove(os.path.join(
             root, ".agents", "skills", "dev-wave", "SKILL.md"
@@ -5082,10 +5361,35 @@ def _mutate_command_guard(root: str, case: str) -> None:
         ))
     elif case == "codex_skill_adapter_deleted":
         rel = ".agents/skills/dev-wave/SKILL.md"
-        literal = check_docs.CODEX_DEV_WAVE_SKILL_LITERALS[0]
+        literal = "docs/dev-wave/workers.md"
+        assert _read(root, rel).count(literal) == 1
         _write(root, rel, _read(root, rel).replace(
             literal, "common dispatcher omitted", 1,
         ))
+    elif case == "codex_startup_wave_pre_form":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                _SYNTHETIC_CODEX_DEV_WAVE_START_SECTION,
+                _PRE_WAVE_CODEX_DEV_WAVE_START_SECTION,
+                1,
+            ),
+        )
+    elif case == "codex_startup_routing_moved":
+        rel = ".agents/skills/dev-wave/SKILL.md"
+        item = (
+            "4. `docs/skill-self-improvement.md` の発火 gate・routing・"
+            "dev-wave 終端を読み、専用 handoff に\n"
+            "   `dev-wave 改善候補` 節を作る。\n"
+        )
+        text = _read(root, rel)
+        assert text.count(item) == 1
+        text = text.replace(item, "", 1)
+        marker = "## Codex 向けに適合する\n\n"
+        assert text.count(marker) == 1
+        _write(root, rel, text.replace(marker, marker + item + "\n", 1))
     elif case == "codex_skill_stage9_land_literal_deleted":
         rel = ".agents/skills/dev-wave/SKILL.md"
         _write(
@@ -5203,12 +5507,15 @@ _COMMAND_GUARD_CASES = [
     "frontmatter_duplicate",
     "frontmatter_malformed",
     "disable_value_changed",
+    "command_startup_wave_pre_form",
+    "command_startup_routing_blockquoted",
     "reference_section_deleted",
     "reference_section_duplicated",
     "stage2_operations_deleted",
     "stage3_o13_deleted",
     "stage6_s05_inheritance_deleted",
     "stage6_all_operations_deleted",
+    "stage6_o25_deleted",
     "stage8_operations_deleted",
     "stage8_self_deleted",
     "stage9_land_operation_deleted",
@@ -5217,10 +5524,13 @@ _COMMAND_GUARD_CASES = [
     "condition_supervisor_deleted",
     "condition_land_operation_deleted",
     "condition_waiter_deleted",
+    "condition_25_deleted",
+    "condition_25_trigger_broadened",
     "self_heading_deleted",
     "self_h3_deleted",
     "self_long_line",
     "self_reference_deleted",
+    "self_l2_admission_wave_pre_form",
     "reference_orphan_h2",
     "dispatch_heading_duplicated",
     "dispatch_heading_missing",
@@ -5234,10 +5544,14 @@ _COMMAND_GUARD_CASES = [
     "core_land_helper_outside_s09",
     "o23_land_helper_deleted",
     "operations_land_helper_outside_o23",
+    "o25_contract_weakened",
+    "o25_before_o01",
     "codex_skill_deleted",
     "codex_skill_extra_file",
     "codex_skill_name_changed",
     "codex_skill_adapter_deleted",
+    "codex_startup_wave_pre_form",
+    "codex_startup_routing_moved",
     "codex_skill_stage9_land_literal_deleted",
     "codex_skill_openai_changed",
     "codex_skill_land_helper_duplicated",
@@ -5272,12 +5586,15 @@ _COMMAND_GUARD_NEEDLES = {
     "frontmatter_duplicate": "frontmatter key 重複",
     "frontmatter_malformed": "frontmatter を一意に解析できない",
     "disable_value_changed": "disable-model-invocation は 'true' 必須",
+    "command_startup_wave_pre_form": "可視 H2 節 '入力と開始' の節全体",
+    "command_startup_routing_blockquoted": "可視 H2 節 '入力と開始' の節全体",
     "reference_section_deleted": "H2 見出し DW-M05 が 0 件",
     "reference_section_duplicated": "H2 見出し DW-M05 が 2 件",
     "stage2_operations_deleted": "段 dispatch '段 2 preflight' の U edge が契約と不一致",
     "stage3_o13_deleted": "段 dispatch '段 3 preflight' の U edge が契約と不一致",
     "stage6_s05_inheritance_deleted": "段 dispatch '段 6' の U edge が契約と不一致",
     "stage6_all_operations_deleted": "段 dispatch '段 6' の C edge が契約と不一致",
+    "stage6_o25_deleted": "段 dispatch '段 6' の C edge が契約と不一致",
     "stage8_operations_deleted": "段 dispatch '段 8 preflight' の C edge が契約と不一致",
     "stage8_self_deleted": "段 dispatch '段 8 preflight' の U edge が契約と不一致",
     "stage9_land_operation_deleted": "段 dispatch '段 9' の U edge が契約と不一致",
@@ -5286,10 +5603,13 @@ _COMMAND_GUARD_NEEDLES = {
     "condition_supervisor_deleted": "条件 dispatch '22' が契約と不一致",
     "condition_land_operation_deleted": "条件 dispatch '23' が契約と不一致",
     "condition_waiter_deleted": "条件 dispatch '24' が契約と不一致",
-    "self_heading_deleted": "H2 見出し 'routing' が 0 件",
+    "condition_25_deleted": "条件 dispatch '25' が契約と不一致",
+    "condition_25_trigger_broadened": "条件 dispatch '25' が契約と不一致",
+    "self_heading_deleted": "H2 見出し '発火 gate' が 0 件",
     "self_h3_deleted": "H3 見出し 'cleanup-branches' が 0 件",
     "self_long_line": "最長行予算",
     "self_reference_deleted": "docs/skill-self-improvement.md への到達性がない",
+    "self_l2_admission_wave_pre_form": "可視 H2 節 'routing' の節全体",
     "reference_orphan_h2": "dispatch 契約にない孤児 H2",
     "dispatch_heading_duplicated": "段/条件 dispatch 表を一意に抽出できない",
     "dispatch_heading_missing": "段/条件 dispatch 表を一意に抽出できない",
@@ -5303,10 +5623,14 @@ _COMMAND_GUARD_NEEDLES = {
     "core_land_helper_outside_s09": "path-section外=1",
     "o23_land_helper_deleted": "land helper path は全体で exact 1 件",
     "operations_land_helper_outside_o23": "land helper path は全体で exact 1 件",
+    "o25_contract_weakened": "可視 H2 節 'DW-O25 — ff-only land の全史 provenance 関門' の節全体",
+    "o25_before_o01": "DW-O25 は DW-O23 より後に置く",
     "codex_skill_deleted": "Codex dev-wave Skill の必須 file が不在",
     "codex_skill_extra_file": "Codex dev-wave Skill の予算未登録実体",
     "codex_skill_name_changed": "name は 'dev-wave' 必須",
     "codex_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_startup_wave_pre_form": "可視 H2 節 '開始する' の節全体",
+    "codex_startup_routing_moved": "可視 H2 節 '開始する' の節全体",
     "codex_skill_stage9_land_literal_deleted": "exact adapter literal が 0 件",
     "codex_skill_openai_changed": "生成済み Skill interface 契約と不一致",
     "codex_skill_land_helper_duplicated": "共通 dispatcher の leaf path を重複 pin",
@@ -5337,23 +5661,46 @@ _COMMAND_GUARD_EXPECTED_COUNTS["condition_all_operations_deleted"] = len(
 )
 _COMMAND_GUARD_EXPECTED_COUNTS.update({
     "dispatch_allowlist": 2,
+    "codex_startup_wave_pre_form": 2,
 })
 
 
 def test_command_guard_case_registration_is_complete():
-    """条件 24 の case 実在と guard 登録表の key 一致を固定する。"""
+    """条件 24/25 と新節 pin の case 実在、guard 登録表の key 一致を固定する。"""
 
     case_keys = set(_COMMAND_GUARD_CASES)
     assert "condition_waiter_deleted" in case_keys
+    assert {
+        "condition_25_deleted",
+        "condition_25_trigger_broadened",
+        "stage6_o25_deleted",
+        "o25_contract_weakened",
+        "o25_before_o01",
+        "command_startup_wave_pre_form",
+        "command_startup_routing_blockquoted",
+        "codex_startup_wave_pre_form",
+        "codex_startup_routing_moved",
+        "self_l2_admission_wave_pre_form",
+    } <= case_keys
     assert (
         case_keys
         == set(_COMMAND_GUARD_NEEDLES)
         == set(_COMMAND_GUARD_EXPECTED_COUNTS)
     )
+    with open(__file__, encoding="utf-8") as source_file:
+        source = source_file.read()
+    for test_name in (
+        "test_condition_25_contract_pins_exact_trigger_and_target",
+        "test_normative_exact_section_contract_is_handwritten_and_complete",
+        "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
+        "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
+        "test_normative_exact_section_pins_accept_real_repo",
+    ):
+        assert source.count(f"def {test_name}(") == 1
 
 
 def test_operation_contract_pins_exact_section_set():
-    """operations 契約の外延と配線を literal で固定する (O15 削除後の 19 節)。
+    """operations 契約の外延と配線を literal で固定する (O15 削除後の 20 節)。
 
     checker とテスト fixture は同じ `_OPERATION_NUMBERS` から導出される (F9 型の
     自己整合面)。fixture の literal range 表記が単純な縮小・拡大を先に赤くし、
@@ -5365,8 +5712,9 @@ def test_operation_contract_pins_exact_section_set():
         "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
         "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
         "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
-        "DW-O23",
+        "DW-O23", "DW-O25",
     }
+    assert set(_SYNTHETIC_OPERATION_SECTION_IDS) == expected
     assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
     assert check_docs._ALL_OPERATIONS == frozenset(
         (operations, section) for section in expected
@@ -5414,6 +5762,18 @@ def test_condition_24_contract_pins_exact_target():
         ("docs/dev-wave/core.md", "DW-C00")
     }
     assert "24" not in _OPERATION_CONDITION_KEYS
+
+
+def test_condition_25_contract_pins_exact_trigger_and_target():
+    """fixture から独立した literal で条件 25 の trigger/target を固定する。"""
+
+    assert check_docs.CONDITION_TRIGGER_CONTRACT["25"] == (
+        "main を進める land を起動する直前"
+    )
+    assert check_docs.CONDITION_DISPATCH_CONTRACT["25"] == {
+        ("docs/dev-wave/operations.md", "DW-O25")
+    }
+    assert "25" in _OPERATION_CONDITION_KEYS
 
 
 def _replace_workers_section_literal(text, section_id, replacement):
@@ -6332,7 +6692,7 @@ def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
             _replace_reference_section_literal(
                 _read(root, rel),
                 "DW-O01",
-                "-m <model>",
+                check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL,
                 "--model-from-dispatcher",
             ),
         )
@@ -6342,6 +6702,111 @@ def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
         )
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (
+        lambda line: f"> {line}",
+        lambda line: f"- {line}",
+        lambda line: f"<div>\n{line}\n</div>\n",
+        lambda line: f"この route では起動しない: {line}",
+    ),
+)
+def test_dev_wave_dispatch_route_requires_visible_top_level_full_match(
+    replacement,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        changed = text.replace(route, replacement(route), 1)
+        assert changed != text
+        _write(root, rel, changed)
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+def test_dev_wave_dispatch_route_rejects_separator_in_normative_candidate(
+    separator,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        changed_route = route.replace(" --stage", f"{separator}--stage", 1)
+        assert changed_route != route
+        _write(root, rel, text.replace(route, changed_route, 1))
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+_ROUTE_SEPARATOR_NON_CANDIDATE_CASES = (
+    "fence",
+    "html_comment",
+    "raw_html",
+    "visible_prose",
+    "non_target_section",
+)
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+@pytest.mark.parametrize("case", _ROUTE_SEPARATOR_NON_CANDIDATE_CASES)
+def test_dev_wave_dispatch_route_accepts_separator_outside_candidate(
+    case,
+    separator,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        decoy = f"補足{separator}説明"
+        if case == "fence":
+            payload = f"```text\n{decoy}\n```"
+        elif case == "html_comment":
+            payload = f"<!-- {decoy} -->"
+        elif case == "raw_html":
+            payload = f"<div>\n{decoy}\n</div>\n"
+        elif case == "visible_prose":
+            payload = f"非規範の補足: {decoy}"
+        elif case == "non_target_section":
+            marker = "## DW-O02 — synthetic\n\n"
+            assert marker in text
+            changed = text.replace(marker, f"{marker}{decoy}\n\n", 1)
+            payload = None
+        else:  # pragma: no cover - registration meta-test が閉じる
+            raise AssertionError(case)
+        if payload is not None:
+            changed = text.replace(route, f"{payload}\n{route}", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert _finding_set(res) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_route_separator_non_candidate_registration_is_complete():
+    assert set(_ROUTE_SEPARATOR_NON_CANDIDATE_CASES) == {
+        "fence",
+        "html_comment",
+        "raw_html",
+        "visible_prose",
+        "non_target_section",
+    }
 
 
 def test_dev_wave_model_pin_rejects_slug_in_dw_s05_a():
@@ -6399,10 +6864,11 @@ def test_dev_wave_model_pin_rejects_duplicate_dw_o01_section():
     root = _build_min_repo()
     try:
         rel = "docs/dev-wave/operations.md"
-        _write(
+        _insert_before_unique_marker(
             root,
             rel,
-            _read(root, rel) + "\n## DW-O01 — duplicate\n\nbody\n",
+            "## DW-O25 —",
+            "## DW-O01 — duplicate\n\nbody\n\n",
         )
         # DW-O01 重複は model pin と既存 H2 一意性の冗長 gate である。
         _assert_findings(
@@ -6452,6 +6918,11 @@ def test_dev_wave_model_pin_contract_is_time_invariant():
         "gpt-5.4-mini",
         "gpt-6-next",
     ]
+    assert check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL == (
+        "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
+        "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
+        "が docs 権威から導出。caller 指定は不可。"
+    )
 
 
 def test_codex_dev_wave_skill_contract_pins_exact_surface():
@@ -6463,7 +6934,9 @@ def test_codex_dev_wave_skill_contract_pins_exact_surface():
     }
     assert check_docs.CODEX_DEV_WAVE_SKILL_LITERALS == (
         ".claude/commands/dev-wave.md",
-        "docs/skill-self-improvement.md",
+        "4. `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave "
+        "終端を読み、専用 handoff に\n"
+        "   `dev-wave 改善候補` 節を作る。",
         "docs/dev-wave/workers.md",
         "docs/dev-wave/operations.md",
         "manager は実装面を直接編集しない",
@@ -6482,6 +6955,132 @@ def test_codex_dev_wave_skill_contract_pins_exact_surface():
         '  default_prompt: "Use $dev-wave to run one Izanagi development wave '
         'for the specified task."\n'
     )
+
+
+def test_normative_exact_section_contract_is_handwritten_and_complete():
+    """production 定数と合成 fixture の共謀的縮小を独立 literal で拒否する。"""
+
+    assert check_docs.DEV_WAVE_COMMAND_START_SECTION_LITERAL == (
+        _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION
+    )
+    assert check_docs.CODEX_DEV_WAVE_START_SECTION_LITERAL == (
+        _SYNTHETIC_CODEX_DEV_WAVE_START_SECTION
+    )
+    assert check_docs.DEV_WAVE_SELF_ROUTING_SECTION_LITERAL == (
+        _SYNTHETIC_SELF_ROUTING_SECTION
+    )
+    assert check_docs.DEV_WAVE_DW_O25_SECTION_LITERAL == (
+        _SYNTHETIC_DW_O25_SECTION
+    )
+    assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
+        (".claude/commands/dev-wave.md", "入力と開始"):
+            _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION,
+        ("docs/skill-self-improvement.md", "routing"):
+            _SYNTHETIC_SELF_ROUTING_SECTION,
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O25 — ff-only land の全史 provenance 関門",
+        ): _SYNTHETIC_DW_O25_SECTION,
+    }
+
+
+def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
+    """pin 済み 4 節の内側へ raw HTML block を差し込むと拒否する。"""
+
+    cases = (
+        (
+            ".claude/commands/dev-wave.md",
+            "入力と開始",
+        ),
+        (
+            "docs/skill-self-improvement.md",
+            "routing",
+        ),
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O25 — ff-only land の全史 provenance 関門",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "開始する",
+        ),
+    )
+    for rel, heading in cases:
+        root = _build_min_repo()
+        try:
+            text = _read(root, rel)
+            marker = f"## {heading}\n\n"
+            assert text.count(marker) == 1
+            changed = text.replace(
+                marker,
+                f"## {heading}\n<div>ただし routing 文書は任意参照とする</div>\n",
+                1,
+            )
+            _write(root, rel, changed)
+            _assert_violation(
+                root,
+                f"{rel}: H2 節 {heading!r} の raw slice と可視 slice が不一致 — "
+                "raw_sections=1, visible_sections=1",
+            )
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target():
+    """題なし DW-O23 でも順序を検査し、対象欠落時も専用 finding を出す。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel).replace(
+            "## DW-O23 — synthetic",
+            "## DW-O23",
+            1,
+        )
+        assert text.count(_SYNTHETIC_DW_O25_SECTION) == 1
+        text = text.replace("\n\n" + _SYNTHETIC_DW_O25_SECTION, "", 1)
+        marker = "## DW-O23\n"
+        assert text.count(marker) == 1
+        text = text.replace(
+            marker,
+            _SYNTHETIC_DW_O25_SECTION + "\n" + marker,
+            1,
+        )
+        _write(root, rel, text)
+        _assert_violation(root, "DW-O25 は DW-O23 より後に置く")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                "## DW-O23 — synthetic",
+                "### DW-O23 — missing as H2",
+                1,
+            ),
+        )
+        _assert_violation(
+            root,
+            "可視 H2 の順序 pin 対象が一意でない — DW-O23=0, DW-O25=1",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_normative_exact_section_pins_accept_real_repo():
+    """新 pin が過剰拒否に変異したとき実 repo 正例で必ず落ちる。"""
+
+    res = subprocess.run(
+        [sys.executable, os.path.join(_REPO, "tools", "check_docs.py")],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, f"実 repo で過剰拒否した:\n{res.stdout}\n{res.stderr}"
+    assert "違反なし" in res.stdout, res.stdout
 
 
 def test_codex_rulings_skill_contract_pins_exact_surface():
@@ -6704,6 +7303,176 @@ def test_cleanup_metadata_policy_change_is_rejected():
         assert res.returncode == 1, res.stdout
         assert _violation_count(res) == 1, res.stdout
         assert "生成済み Skill interface 契約と不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _rebind_synthetic_cleanup_command_digest(root: str) -> None:
+    rel = ".claude/commands/cleanup-branches.md"
+    digest = hashlib.sha256(_read(root, rel).encode("utf-8")).hexdigest()
+    assert digest != check_docs.CLEANUP_COMMAND_SHA256
+    checker_rel = "tools/check_docs.py"
+    checker = _read(root, checker_rel)
+    old = (
+        "CLEANUP_COMMAND_SHA256 = (\n"
+        f'    "{check_docs.CLEANUP_COMMAND_SHA256}"\n'
+        ")"
+    )
+    assert checker.count(old) == 1
+    _write(root, checker_rel, checker.replace(
+        old,
+        "CLEANUP_COMMAND_SHA256 = (\n"
+        f'    "{digest}"\n'
+        ")",
+        1,
+    ))
+
+
+def _assert_cleanup_address_edge_violation(root: str) -> None:
+    rel = ".claude/commands/cleanup-branches.md"
+    res = _assert_violation(
+        root,
+        f"{rel}: F26 と `docs/failures.md` が同一可視行に共起しない",
+    )
+    assert _violation_count(res) == 1, res.stdout
+    assert f"{rel}: whole-file SHA-256 が契約と不一致" not in res.stdout
+
+
+def test_cleanup_address_edge_rejects_split_lines():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "正本は F26。\n`docs/failures.md`",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_id_adjacent_decoy():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "旧 `docs/failures.md` の F260 は無効。",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_non_code_span_path_decoy():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "正本は docs/failures.md の F26。",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_raw_html_block():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "",
+            1,
+        )
+        changed += "\n<div hidden>F26 (`docs/failures.md`)</div>\n"
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_link_definition():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "",
+            1,
+        )
+        changed += "\n[F26]: https://invalid.example/docs/failures.md\n"
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_frontmatter_decoy():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        original = _read(root, rel)
+        description = (
+            "description: マージ済みブランチと worktree を安全手順で掃除する "
+            "(submodule 罠対応、push 系はユーザー引き渡し)"
+        )
+        edge = "正本は `docs/failures.md` F26。"
+        assert original.count(description) == 1
+        assert original.count(edge) == 1
+        changed = original.replace(
+            description,
+            "description: F26 `docs/failures.md`",
+            1,
+        ).replace(
+            edge,
+            "",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_accepts_rewording():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        original = _read(root, rel)
+        source = "正本は `docs/failures.md` F26。"
+        assert original.count(source) == 1
+        changed = original.replace(
+            source,
+            "F26 (`docs/failures.md`) が正本。",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_accepts_baseline():
+    root = _build_min_repo()
+    try:
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
