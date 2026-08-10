@@ -117,3 +117,14 @@ core は追補 B を「本走の投入より前」としか要求しないが、
 
 docs のみにつき実装子は起動しない。親が `addendum-b.md` / `package.md` / `README.md` を書く。
 段 6 は敵対レビュー 2 本 + 焦点再レビューを行う。
+
+## erratum 1 (2026-08-10、原文は変更しない)
+
+上の実測 4 で「`output/insights/` 配下の erratum は `erratum-core-s15.md` だけ」と無限定に書いたが、
+これは誤りである。`output/insights/` 配下には他 study・他 wave の erratum が多数実在する
+(`find output/insights -name '*erratum*'` で 20 件以上)。
+
+**正しい主張は次の限定形である。** T-139 の凍結 core (`2026-08-07_t139-mainrun-design/preregistration.md`)
+を対象とする erratum は `2026-08-08_t139-addendum-a/erratum-core-s15.md` の 1 本だけであり、
+core §7 を supersede する文書は存在しない。**この限定形でも実測 4 の結論 (R2 (a) の erratum は未発行)
+は変わらない。**段 6 焦点再レビューの B #8 に対応する。

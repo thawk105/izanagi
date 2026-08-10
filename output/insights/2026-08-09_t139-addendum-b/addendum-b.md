@@ -178,13 +178,19 @@ separate_ledger:
 原子的に行い、**`(publication_family_root, ordinal)` は一意でなければならない。**
 失敗・中断・未公表でも entry を削除せず、ordinal を解放または再利用しない。
 
-受領証は、台帳の path・予約 entry の digest・予約 commit を必須記録とする
-(`a13` が primary 台帳へ課したものと同型)。validator は台帳を読み直して重複が無いことを確認する。
-**本書の宣言 (`ordinal = 1`) は自己申告であり、それ自体は権威ではない。**
-台帳側の予約が無い、重複している、または digest が一致しない場合は、本追補の解決を失敗させ、
-**`submit_main` の投入前の admission deny** とする。
+**本書の宣言 (`ordinal = 1`) は自己申告であり、それ自体は権威ではない。**権威は canonical な
+公表台帳の側にあり、上の create-only 予約と `(publication_family_root, ordinal)` の一意性が
+それを担う。この一意性が成立しないまま本走を投入してはならない。
 
-**時相境界。**上の拒否はすべて `submit_main` の投入**前**の admission に属し、
+**本 field は core §12 の必須記録項目を増やさず、validator の受理条件を追加しない。**
+core §12 が列挙する必須項目に、公表台帳の path・予約 entry の digest・予約 commit は含まれていない。
+これらを受領証の必須記録に加えることは、必須 schema と受理集合を変える **core の変更**である。
+core §12 は producer が宣言できる閉集合の種別について「field 名は実装 wave の新 D で確定する」と
+定めており、`b03` はその決定を先取りしない。**受領証にどの field を置くか、validator がどの照合を
+行うかは producer 実装 wave の責務である。**追加の受領証 schema が必要になったなら、
+それは新しい core を伴う**別 study** の裁定対象とする (core §14)。
+
+**時相境界。**上の「投入してはならない」は `submit_main` の投入**前**の admission に属し、
 core §9 の attempt failure 分類を増やさない。性能測定の**開始後**に不一致が判明した場合は
 core §9 の既存分類へのみ写し、**予備割当てによる置換・ordinal の解放・新しい失敗分類の作成を
 行わない。**開始後の失敗を開始前の infra failure へ写さない (core §13 の否定検査 8、§14 の線)。
@@ -202,6 +208,9 @@ core §9 の既存分類へのみ写し、**予備割当てによる置換・ord
 
 - **本書が投入 gate を機械的に実装した、とは主張しない。**本書は文書上の値と規則だけを定める。
   resolver・producer・validator・消費側・台帳・投入 script は producer 実装 wave の責務である。
+- **本書が受領証 schema や validator の受理集合を定めた、とは主張しない。**`b03` は正規の根の
+  同定方法 (caller 非選択、create-only、`(root, ordinal)` の一意性) だけを定め、core §12 の
+  必須記録項目を 1 つも増やさない。台帳の実体化と照合手順は producer 実装 wave の責務である。
 - **本書が公表手続きの正本である、とは主張しない。**公表セルの identity、検定統計量、`p` 値の構成、
   多重性の調整方式、同時区間の構成は本書の閉集合の外にあり、**現時点でどの凍結文書にも
   一意には定まっていない。**この欠落を本書は解消しない。
