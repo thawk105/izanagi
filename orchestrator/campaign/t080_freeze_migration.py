@@ -650,8 +650,8 @@ def _assert_repository_root(root: Path) -> None:
 
 def _assert_cli_root(root: Path) -> None:
     """書込み CLI が、この module と同じ実 repository だけを対象にする。"""
-    from orchestrator.campaign import s1_known_axes_freeze as known_module
-    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
+    from . import s1_known_axes_freeze as known_module
+    from . import s8b_holdout_freeze as holdout_module
 
     try:
         resolved = Path(root).resolve(strict=True)
@@ -1375,7 +1375,7 @@ def _draft_reconstruct_known_axes(
     pairing: Optional[Callable[[Mapping[str, object]], None]] = None,
 ) -> Mapping[str, object]:
     if builder is None or pairing is None:
-        from orchestrator.campaign import s1_known_axes_freeze as known_module
+        from . import s1_known_axes_freeze as known_module
         builder = builder or known_module.build_document
         pairing = pairing or known_module.assert_s1b_pairing
     projected = copy.deepcopy(legacy)
@@ -1408,7 +1408,7 @@ def _draft_reconstruct_holdout(
     searcher: Optional[Callable[..., Mapping[str, object]]] = None,
     search_assertion: Optional[Callable[[Mapping[str, object]], None]] = None,
 ) -> Mapping[str, object]:
-    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
+    from . import s8b_holdout_freeze as holdout_module
     verifier = verifier or holdout_module.verify_document
     searcher = searcher or holdout_module.search_repository
     search_assertion = search_assertion or holdout_module._assert_search_pass
@@ -1566,7 +1566,7 @@ def _load_artifact(
 
 
 def _assert_receipt_does_not_pollute_scan(root: Path) -> Mapping[str, object]:
-    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
+    from . import s8b_holdout_freeze as holdout_module
     report = holdout_module.search_repository(root)
     holdout_module._assert_search_pass(report)
     return report
@@ -1836,7 +1836,7 @@ def _validate_positive_control(root: Path) -> None:
 def _verify_known_schema(
     receipt: Mapping[str, object], known: Mapping[str, object],
 ) -> None:
-    from orchestrator.campaign import s1_known_axes_freeze as known_module
+    from . import s1_known_axes_freeze as known_module
     projected_known = copy.deepcopy(known)
     for record in receipt["source_repins"]:
         if record["artifact"] == "known_axes":
@@ -1850,7 +1850,7 @@ def _verify_known_schema(
 def _verify_known_pairing(
     receipt: Mapping[str, object], known: Mapping[str, object],
 ) -> None:
-    from orchestrator.campaign import s1_known_axes_freeze as known_module
+    from . import s1_known_axes_freeze as known_module
     projected_known = copy.deepcopy(known)
     for record in receipt["source_repins"]:
         if record["artifact"] == "known_axes":
@@ -1869,7 +1869,7 @@ def _verify_holdout_live_scan(
     凍結 document の検索式・照合規約・候補対応を live report に束縛してから
     層 2 の pass 条件を検査する。legacy verifier や他 module 属性は差し替えない。
     """
-    from orchestrator.campaign import s8b_holdout_freeze as holdout_module
+    from . import s8b_holdout_freeze as holdout_module
     try:
         report = holdout_module.search_repository(root)
         frozen_holdouts = holdout_doc.get("holdouts")

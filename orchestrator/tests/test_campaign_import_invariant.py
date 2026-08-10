@@ -111,6 +111,70 @@ KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
         matched_text=_legacy_module(),
         rationale="D149(5): 二重 namespace topology test の module 清掃条件",
     ),
+    # 根拠: T-720 R1 — provenance に記録する値であり import ではない
+    ImportException(
+        path="orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+        line=288,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module("axis_trigger_gating"),
+        rationale="T-720 R1: 挙動保持対象の provenance 値であり import ではない",
+    ),
+    # 根拠: D149 決定 (5) — sink の mask 再検証が参照する peer literal
+    ImportException(
+        path="orchestrator/campaign/reflux_ir.py",
+        line=82,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module("reflux_ir"),
+        rationale="D149(5): sink の mask 再検証が参照する peer literal",
+    ),
+    # 根拠: T-720 — campaign.lock は module でなく検査対象の file 名
+    ImportException(
+        path="orchestrator/tests/test_s8b_oracle_driver.py",
+        line=3454,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module("lock"),
+        rationale="T-720: campaign.lock という file 名を含む拒否文言の検査",
+    ),
+    # 根拠: T-720 R5 — どこからも参照されない休眠歴史 artifact
+    ImportException(
+        path="output/insights/2026-07-29_t139-ladder-verbatim/t139_probe_correctness.py",
+        line=20,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module(),
+        rationale="T-720 R5: どこからも参照されない休眠歴史 artifact",
+    ),
+    # 根拠: T-720 R5 — どこからも参照されない休眠歴史 artifact
+    ImportException(
+        path="output/insights/2026-08-04_wave-a-campaign-transport-smoke/driver/smoke_driver.py",
+        line=8,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module(),
+        rationale="T-720 R5: どこからも参照されない休眠歴史 artifact",
+    ),
+    # 根拠: T-720 R5 — どこからも参照されない休眠歴史 artifact
+    ImportException(
+        path="output/insights/2026-08-04_wave-a-campaign-transport-smoke/driver/smoke_driver.py",
+        line=9,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module(),
+        rationale="T-720 R5: どこからも参照されない休眠歴史 artifact",
+    ),
+    # 根拠: T-720 R5 — どこからも参照されない休眠歴史 artifact
+    ImportException(
+        path="output/insights/2026-08-04_wave-a-campaign-transport-smoke/driver/smoke_driver.py",
+        line=10,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module("build_admission"),
+        rationale="T-720 R5: どこからも参照されない休眠歴史 artifact",
+    ),
+    # 根拠: T-720 R2 — --repo-root が指す別 checkout を読む契約上の絶対 import
+    ImportException(
+        path="orchestrator/campaign/certified_writer_preflight.py",
+        line=160,
+        rule=RELATIVE_RULE,
+        matched_text="orchestrator.campaign.certified_writer_admission",
+        rationale="T-720 R2: --repo-root が指す別 checkout を読むための絶対 import",
+    ),
 )
 
 
@@ -334,6 +398,10 @@ def _has_main_guard(tree: ast.AST) -> bool:
     return False
 
 
+def _has_relative_import(tree: ast.AST) -> bool:
+    return any(isinstance(node, ast.ImportFrom) and node.level > 0 for node in ast.walk(tree))
+
+
 def scan_campaign_shape(
     path: str,
     source: str,
@@ -363,7 +431,7 @@ def scan_campaign_shape(
                 matched = ast.get_source_segment(source, node) or "sys.path mutation"
                 found.add(_violation(path, node.lineno, PATH_RULE, matched))
 
-    if _has_main_guard(tree) and source.count(DIRECT_BOOTSTRAP) != 1:
+    if _has_main_guard(tree) and _has_relative_import(tree) and source.count(DIRECT_BOOTSTRAP) != 1:
         found.add(_violation(path, 1, BOOTSTRAP_RULE, "direct CLI bootstrap count != 1"))
     return tuple(sorted(found))
 
@@ -575,14 +643,38 @@ def test_r_a_positive_controls(case: str, source: str, module: str):
 
 
 def test_r_b_positive_control_rejects_wrong_direct_bootstrap():
-    source = '''from pathlib import Path
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    missing_bootstrap = '''from . import ident
 if __name__ == "__main__":
     raise SystemExit(0)
 '''
-    rules = {item.rule for item in scan_campaign_shape("orchestrator/campaign/control.py", source)}
-    assert rules == {PATH_RULE, BOOTSTRAP_RULE}
+    malformed_bootstrap = DIRECT_BOOTSTRAP.replace(
+        "direct CLI execution", "direct execution"
+    ) + '''
+
+from . import ident
+
+if __name__ == "__main__":
+    raise SystemExit(0)
+'''
+    wrong_path = '''from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from . import ident
+if __name__ == "__main__":
+    raise SystemExit(0)
+'''
+    no_relative_import = '''if __name__ == "__main__":
+    raise SystemExit(0)
+'''
+
+    path = "orchestrator/campaign/control.py"
+    assert {item.rule for item in scan_campaign_shape(path, missing_bootstrap)} == {BOOTSTRAP_RULE}
+    assert {item.rule for item in scan_campaign_shape(path, malformed_bootstrap)} == {BOOTSTRAP_RULE}
+    assert {item.rule for item in scan_campaign_shape(path, wrong_path)} == {
+        PATH_RULE,
+        BOOTSTRAP_RULE,
+    }
+    assert scan_campaign_shape(path, no_relative_import) == ()
 
 
 def test_r_c_positive_control_rejects_legacy_doc_command():
