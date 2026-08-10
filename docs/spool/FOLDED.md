@@ -714,3 +714,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"44f5cd3abd359686c54d6e70a80a80dc4d2b6e42f7d3f0b3690f108075523102","seq":1,"wave":"dev-wave-t700-t695-l2-admission"}
 - {"allocations":{"D:l2-admission":"D271"},"authored":"2026-08-10","content_sha256":"9e4c3d2516ad308561c46849bd2ac24e73ee2cbb3ecb385812bf8f44059c912c","seq":2,"wave":"dev-wave-t700-t695-l2-admission"}
+
+- {"allocations":{"T:design-wave-review-rubric":"[T-743]"},"authored":"2026-08-10","content_sha256":"dcf3d95092953538995c2dd5fbbce9a08de1e05ebd724b9a4c895c584c77d190","seq":1,"wave":"dev-wave-t657-permanent-bundle-design"}
+- {"allocations":{"D:calibration-freeze-authority-bundle":"D272","D:design-completion-criteria-need-positive-fixture":"D273"},"authored":"2026-08-10","content_sha256":"c374d85c32f03fd3af64c1d44156fa7445205be3ad52b3f3b28032671674ca36","seq":2,"wave":"dev-wave-t657-permanent-bundle-design"}
