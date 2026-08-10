@@ -1,0 +1,40 @@
+{
+ "estimated_run_seconds": 120,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1B",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "    \"25\": \"land を起動する直前\",\n",
+     "old": "    \"25\": \"main を進める land を起動する直前\",\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M11B",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "481 秒以内の rc=0 を必須とする",
+     "old": "480 秒以内の rc=0 を必須とする"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1200
+}

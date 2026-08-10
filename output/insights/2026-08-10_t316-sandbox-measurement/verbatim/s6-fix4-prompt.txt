@@ -1,0 +1,59 @@
+あなたは izanagi の dev-wave 実装子 (Codex role=author) である。日本語で報告せよ。
+**これは敵対レビューの新しい巡ではなく、親の実測で出た赤 1 件を閉じるための最小是正である。**
+段 5 実装子契約 (DW-S05-A / B / C) を継承する。
+
+# 権限境界
+
+- 編集してよいのはコードとテストだけ。`docs/` は 1 byte も編集しない。
+- commit しない。`qsub` / `qstat` / `qdel` を実行しない。
+- **封じ込め要求を緩めない。** 既存の判定契約 (G1 / G2) を弱める修正は禁止する。
+- **この 1 件以外に手を広げない。** 他の改善・整理・リファクタを混ぜないこと。
+
+# 親の実測 (2026-08-10)
+
+```
+python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_t316_sandbox_probe.py -q
+→ 1 failed, 99 passed
+
+FAILED orchestrator/tests/test_t316_sandbox_probe.py::test_runner_seam_distinguishes_bwrap_setup_failure_from_payload_denial
+
+    runner = _SequenceRunner([
+        _command_record("T316_SENTINEL|network_dns|REACHED\n"),
+        _command_record("", rc=125),
+    ])
+    ...
+    assert observation["inside_blocked"] is False          # ← 通っている
+>   assert observation["inside_payload_state"] == "missing"
+E   AssertionError: assert 'abnormal-exit' == 'missing'
+```
+
+**安全性の穴ではない。** `inside_blocked is False` は成立しており、封じ込めとは数えていない。
+不一致はあなた自身が書いた実装とテストの間の**診断ラベルの食い違い**である
+(sentinel 不在 + rc=125 = bwrap setup 失敗を、実装は `abnormal-exit`、テストは `missing` と呼んでいる)。
+
+# 処置 (この形で閉じよ)
+
+**2 つの事実を別々の field に保て。**「sentinel があったか」と「process が正常終了したか」は
+独立した観測であり、片方でもう片方を上書きしない。
+
+- `inside_payload_state` は **sentinel の有無と内容だけ**で決める。
+  sentinel が無い・parse できない → `missing`。
+- process の終了状況 (timeout、signal 死、想定外 rc、bwrap setup 失敗) は
+  **別 field** に記録する (名前はあなたが決めてよい。既存 field があればそれを使う)。
+- **判定への影響は変えない。** 上記のどちらであっても封じ込めとは数えず、
+  `inconclusive` (非 `go`) に落ちること。G1 の
+  「timeout・signal 死・想定外 rc・sentinel 後の teardown 失敗は inconclusive」を維持せよ。
+- テストは**両方の field を assert** せよ (sentinel 側 = `missing`、終了状況側 = 異常終了を示す値)。
+  期待値を実装に合わせて書き換えるだけの修正にしないこと。
+
+# 検査
+
+`python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_t316_sandbox_probe.py -q`
+を実走せよ。**`--force-dispatch` を必ず付けること** (付けないと login の bounded local へ倒れ、
+cgroup attest race で rc=16 になる)。それでも実走できなければ出力を貼り「実装済み・未実走」と書け。
+
+# 出力
+
+最後に必ず `## 総括` を付け、変更した field 名と意味、編集ファイル、
+走らせた検査の nodeid と結果 (passed / failed 件数)、
+G1 / G2 の判定契約に回帰が無いことの根拠を書け。

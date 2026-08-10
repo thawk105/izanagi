@@ -1,0 +1,103 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M01c",
+      "category": "negative",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "            if (match := pattern.fullmatch(visible)) is not None:\n                matches.append(match)\n",
+          "new": "            if (match := pattern.search(visible)) is not None:\n                matches.append(match)\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[blockquote]",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[list]",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[negation]",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[link_example]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_route_requires_visible_top_level_full_match[<lambda>0]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_route_requires_visible_top_level_full_match[<lambda>1]",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_dispatch_route_requires_visible_top_level_full_match[<lambda>3]"
+      ]
+    },
+    {
+      "id": "M03b",
+      "category": "negative",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "        if not any(sentinel in visible for sentinel in sentinels):\n            if (match := pattern.fullmatch(visible)) is not None:\n                matches.append(match)\n            continue\n        parts = separator_re.split(visible)\n        candidates = {\n            separator_re.sub(\"\", visible),\n            separator_re.sub(\" \", visible),\n            *parts,\n        }\n        if any(pattern.fullmatch(candidate) is not None for candidate in candidates):\n            raise AuthorityError(\n                f\"{label}: 規範候補位置に U+2028/U+2029 がある\"\n            )\n",
+          "new": "        cleaned = separator_re.sub(\"\", visible)\n        if (match := pattern.fullmatch(cleaned)) is not None:\n            matches.append(match)\n        continue\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[u2028]",
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_model_normative_line_decoys_fail_closed[u2029]"
+      ]
+    },
+    {
+      "id": "M05c",
+      "category": "negative",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        context_model = payload.get(\"model\")\n        context_reasoning = payload.get(\"effort\")\n",
+          "new": "        context_model = payload.get(\"model\", event.get(\"model\"))\n        context_reasoning = payload.get(\"effort\", event.get(\"effort\"))\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_turn_context_top_level_and_collaboration_decoys_are_rejected",
+        "orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_job_rejects_prior_invalid_attempt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[author-None]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[consult-sol]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_checker_rejects_v3_acceptance_with_prior_invalid_attempt"
+      ]
+    },
+    {
+      "id": "M06c",
+      "category": "negative",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        if any(\n            item[\"evidence_status\"] != \"complete\" for item in attempts\n        ):\n            return \"not_accepted\", \"max_attempts\", 1\n        return \"accepted\", \"completed\", 0\n",
+          "new": "        return \"accepted\", \"completed\", 0\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_job_rejects_prior_invalid_attempt",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[author-None]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[consult-sol]",
+        "orchestrator/tests/test_codex_worker_launch.py::test_checker_rejects_v3_acceptance_with_prior_invalid_attempt",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[oversize]"
+      ]
+    },
+    {
+      "id": "M08c",
+      "category": "negative",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/dev_waves/launch_authority.py",
+          "old": "    if stage == \"review\":\n        effort = snapshot.review_effort\n",
+          "new": "    if stage == \"review\":\n        effort = \"low\"\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_launch_authority.py::test_review_effort_matches_independent_docs_cross_check"
+      ]
+    }
+  ]
+}

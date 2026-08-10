@@ -1,0 +1,64 @@
+あなたは izanagi プロジェクトの**実装子 (Codex role=author)** である。日本語で報告せよ。
+
+## 最初に読むもの (読めなければ即停止し、その旨だけを報告せよ)
+
+1. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t739-freeze-nul/s4-adjudication.md` — **親の裁定。これが仕様である。**
+   §2 (プラン v2)、§3 (実測オラクル)、§4 (変異事前登録) を全文読むこと。
+2. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t739-freeze-nul/brief.md` — 親 brief。
+3. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t739-freeze-nul/s2.md` — 起草プラン (**親が §1 で一部を却下している。
+   裁定と食い違う箇所は裁定が優先する**)。
+4. `orchestrator/campaign/s8c_preregistration.py`、`orchestrator/tests/test_s8c_preregistration_core.py`。
+
+## 権限境界 (違反したら差し戻す)
+
+- **編集してよいのはコードとテストだけである。** 具体的には
+  `orchestrator/campaign/s8c_preregistration.py` と
+  `orchestrator/tests/test_s8c_preregistration_core.py` の 2 ファイルだけを編集せよ。
+- **docs を編集してはならない。commit してはならない。** `git add` / `git commit` / `git checkout` を実行しない。
+- 契約 JSON (`s8c_preregistration_evidence_contract.v1.json`)、
+  `output/s8c-preregistration/condition-freeze/condition-freeze.v1.g1.json`、
+  `s8c_preregistration_evidence.py` は **1 byte も変更してはならない**。
+- 指示にない受理集合の拡大・縮小をしない。裁定 §2.2 の差分**だけ**を作ること。
+- 既存テストの期待値を変更・反転・緩和・skip・削除してはならない。既存テストが赤くなったら、
+  実装側が誤りである。期待値の方が誤りだと判断したら、実装を変えず**報告して止まれ**。
+- 正しさゲートを緩める変更 (検査の skip、fail-open、try/except での握り潰し) を禁じる。
+
+## 実装
+
+裁定 §2.1 のコードを実装せよ。逐語をそのまま使ってよいが、周囲のコードの書き方 (型注釈、docstring の
+言語と体裁、命名) に合わせること。裁定 §2.3 の 11 個のテストを実装せよ。
+
+テストで守ること。
+
+- **期待値を production の helper から導出しない。** とくに
+  - 全 path 位置の列挙は、テスト側に独立した小さな走査を書く (`_assert_no_nul_in_contract_paths` を呼ばない)。
+  - 履歴検証 E2E の legacy hash は、裁定 §3 の literal
+    `5203daa58be7cc33303ded109851d9ab9feabc34177a5aa0afef8488ccb6ba7b` を使い、
+    `M._sha256(M._DOMAIN_EVIDENCE + M._canonical_bytes(...))` で**再計算しない**。
+  - legacy 契約の bytes もテスト内の literal とし、実契約ファイルから導出しない。
+- **hash 受理テストは `len(...) == 64` で済ませない。** 具体的な hash 値の一致を assert すること
+  (literal で固定するか、同じ入力に対する決定性を別途固定するか、どちらでもよいが理由をコメントに書く)。
+- 期待値に working tree の hash など**揮発する診断値を焼き込まない**。
+- fixture を甘くして緑にしない。既存 fixture (`_init_repo`, `_write`, `_commit`, `_record_raw`,
+  `_install_g1`) の意味を変えない。
+- テストを新設するので、テストを制約する meta-test があれば**それも走らせること**
+  (`orchestrator/tests/README.md` と `tools/check_docs.py` の対象範囲を確認せよ)。
+
+## 検査と報告
+
+- 走らせたコマンドと **nodeid・範囲**を報告に必ず併記せよ。走らせていないものを「緑」と書いてはならない。
+- 少なくとも次を走らせること (repo root を cwd にする)。
+  ```
+  python3 -m pytest orchestrator/tests/test_s8c_preregistration_core.py -q -rf
+  python3 -m pytest orchestrator/tests/test_s8c_preregistration_predicates.py orchestrator/tests/test_s8c_preregistration_invariant.py -q -rf
+  ```
+- `git init` を使う fixture が sandbox で動かない場合は、**テストを弱めずに**その事実を報告せよ
+  (親が実環境で走らせる)。
+- 完了報告に、**所有外の caller・共有 fixture・consumer test への波及可能性**を静的に列挙せよ。
+- 赤が残るならその内訳を明記せよ。親 docs は未 land なので、docs 検査の赤は期待赤である。
+
+## 出力形式
+
+末尾に `## 総括` 節を設け、(1) 変更したファイルと関数、(2) 追加した nodeid の全列挙、
+(3) 実走した command と結果 (passed/failed の数)、(4) 未実走・未解決事項、(5) 波及可能性、
+を書くこと。

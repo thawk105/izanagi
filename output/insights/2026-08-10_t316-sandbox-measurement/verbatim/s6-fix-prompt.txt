@@ -1,0 +1,150 @@
+あなたは izanagi の dev-wave 段 6 fix 子 (Codex role=author) である。日本語で報告せよ。
+段 5 実装子契約 (DW-S05-A / B / C) を全文継承する。
+
+# 防御目的
+
+この probe は「AI が生成した C++ を build/run しても計測基盤と正しさ判定を壊せない」ことを
+計算ノードで実測するためのものである。段 6 の敵対レビュー 2 本が **いずれも NO-GO** と判定した。
+中心の欠陥は「封じ込めが効いていないのに `go` を返せる」= 偽 GO である。
+あなたの仕事は、その偽 GO 経路を閉じることである。
+
+# 0. 最初に読むもの (読めなければ即停止して報告)
+
+1. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t316-sandbox-measure/s1-brief.md` — 親の段 1 brief
+2. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t316-sandbox-measure/s6-lensA-out.md` — レンズ A 所見
+3. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t316-sandbox-measure/s6-lensB-out.md` — レンズ B 所見
+4. 実ファイル: `tools/pegasus/probes/t316_sandbox_backend_probe.py` / `.pbs`、
+   `orchestrator/tests/test_t316_sandbox_probe.py`、`tools/pegasus/policies/t316_sandbox_backend_v1.json`
+5. 先例: `tools/pegasus/probes/t139_r4_env_probe.pbs` (expected commit / clean tree /
+   runtime SHA 束縛 / 部分永続化の実在パターン)
+
+# 1. 権限境界 (段 5 と同じ。違反禁止)
+
+- 編集してよいのは **コードとテストと機械設定だけ**。`docs/` は 1 byte も編集しない。
+- **commit しない。** `git commit` / `git add` / branch 操作をしない。
+- `qsub` / `qstat` / `qdel` を実行しない。
+- **production の受理集合を緩めない。** 実装を fail-open にして辻褄を合わせることを禁じる。
+- **既存 tracked テストの期待値を反転・緩和・skip・削除しない。** 期待値が誤りだと判断したら
+  実装を変えず、報告して止めよ。
+  - **例外を 1 件だけ明示的に許可する**: `orchestrator/tests/test_hooks.py` の
+    Pegasus admission registry 閉集合 fixture は、本 wave が正当に追加した 2 実行体
+    (`tools/pegasus/probes/t316_sandbox_backend_probe.py` / `.pbs`、いずれも `dispatch-required`)
+    を含むよう**追加**してよい。既存 entry の class を変える・条件を緩めることは禁止。
+    同種の閉集合 literal が他テスト (例 `orchestrator/tests/test_claude_transport.py` の
+    policy registry 独立 literal) にもあれば、同じく**追加のみ**行ってよい。
+- 段 4 の規模上限: 編集対象は上記 5 ファイル群に限る。新規 production module を作らない。
+
+# 2. 親の裁定 (real / refuted / scope)。この表のとおりに処置せよ
+
+## 採用 = 直す (blocker)
+
+- **F1 (lensA#1) 任意の非 0 終了・timeout を封じ込め成功にしている。**
+  `rc != 0` だけで `inside_blocked=True` にしてはならない。各 payload は
+  **自分が何を達成したかを構造化 sentinel として stdout に出す**設計へ変えよ
+  (例: 固定 marker + `REACHED` / `DENIED:<errno 名>` / `ERROR:<種別>`)。
+  判定は「payload が走ったうえで拒否された」ことを要求し、
+  **sentinel が無い・parse できない・payload が起動すらしていない場合は `inconclusive`** とする
+  (`go` にしない)。bwrap 自身の setup 失敗と payload の拒否を区別せよ。
+- **F2 (lensA#2 = lensB#6) S4 が「子孫が死んだ」を検査していない。**
+  escape した子孫の PID を実際に読み返し、**その PID が消滅したこと**を有界時間の polling で
+  確認せよ。PID 再利用に当たらないよう起動時刻等で同一性を確かめること。
+  pidfile が無い・読めない・子孫が生存 → それぞれ区別して `inconclusive` / `no-go` にせよ。
+  marker 不在だけを封じ込めの根拠にしてはならない。
+- **F3 (lensA#3) S5 の無限ループ制御が恒真である。**
+  内外とも probe 自身の `timeout_s=1` で終わるため、封じ込めの有無に関わらず同じ観測になる。
+  無限ループの封じ込めは bwrap の性質ではなく **timeout + process-tree kill 層**の性質である。
+  よって (a) この項目を「timeout/kill 層の検査」として S4 と同じ機序 (子孫 PID の消滅確認) で
+  測るか、(b) backend の性質として測れないことを明示して `inconclusive` を返すか、
+  いずれかにせよ。**probe の timeout が必ず作る観測を `go` の根拠にしてはならない。**
+- **F4 (lensA#4 = lensB#4) 計測 ID が計算ノードにも実行 bytes にも束縛されていない。**
+  先例 (`t139_r4_env_probe.pbs`) に倣い、次を receipt に束縛せよ。
+  (a) 計算ノードで走った証拠 — `hostname`、`PBS_NODEFILE` の実在と内容、`PBS_JOBID`、
+      **login node で走った場合は fail-closed で停止する**こと。
+  (b) 実行 bytes — probe `.py` / `.pbs` / policy JSON の SHA-256 を実行時に自分で計算して記録する。
+  (c) 期待 commit と worktree root を PBS 側の必須環境変数として受け取り、
+      実際の `git rev-parse HEAD` と照合し、不一致なら停止する。対象 path が dirty なら停止する。
+  これらは「どの bytes をどこで測ったか」を後から復元するための束縛であり、省略できない。
+- **F5 (lensB#2) S3 の write 正負制御が `O_EXCL` の marker 残留で恒真化している。**
+  outside と inside で **別 path** を使うか、各試行の前に確実に消せ。
+  失敗理由を errno で区別し、`EEXIST` を封じ込め (`EACCES` / `EROFS` / `EPERM`) と混同するな。
+  特に `write_repo` と `source_read_only` は、RO bind を RW bind に壊したときに
+  **必ず `no-go` になる**こと (これが正しさの本体である)。
+- **F6 (lensA#6 = lensB#5) fail-soft 契約を満たさず、部分結果を失うか壊れた receipt を残す。**
+  各 stage 完了時に**部分状態を永続化**し、SIGTERM / walltime kill / crash でも
+  そこまでの結果が残るようにせよ。最終 receipt は
+  **temp file へ書く → fsync → 既存を置換しない rename → directory fsync → `COMPLETED` marker**
+  の順で publish せよ。壊れた・部分的な JSON が canonical path に残ってはならない。
+- **F7 (lensB#3) S7 の 1 回対比較は性能測定として識別不能である。**
+  内外を **複数回、順序を反転させて交互に**実行し、中央値と散らばりを記録せよ。
+  warm-up を分離し、実行直前・直後に単独性 (他ユーザ process、load) を記録して verdict に使え。
+  `perf stat` の出力と実効 thread 数を検証し、検証できなければその旨を記録せよ。
+  比が elapsed 由来であること、TPS ではないことを receipt の field 名で明示せよ。
+
+## 採用 = 直す (must-fix)
+
+- **F8 (lensA#5) S5 が runtime profile だけで、S6 の build profile を測っていない。**
+  build profile は host `/bin` を bind するため `std::system` の成立条件が異なる。
+  **脅威 4 種を build profile でも実行**し、profile ごとに分けて記録・判定せよ。
+- **F9 (lensA#9 + lensB#8) proxy / agent socket の扱い。**
+  - 親から `HTTPS_PROXY` と `SSH_AUTH_SOCK` を受け取るのをやめよ。**親が渡す環境変数は
+    third-party cache と dependency root の 2 つだけ**にする。
+  - proxy 到達検査は、計算ノードの環境に proxy 設定があればそれを使い、無ければ
+    `blocked` と理由を記録する。**receipt に credential を残すな** — proxy URI は
+    scheme と host だけを記録し、userinfo・token・query は落とせ。argv 記録も同様に redact せよ。
+  - SSH agent socket の正例は login の socket path に依存させず、**計算ノード内で自分が作る
+    UNIX socket** を正例にせよ (到達できることを自分で示し、sandbox 内から到達できないことを測る)。
+- **F10 (lensB#7) S6 に外側正例が無く、入力 source が pin されていない。**
+  同じ build を sandbox 外でも実行して正例とし、**sandbox 起因の失敗**と
+  toolchain/source 起因の失敗を区別せよ。CCBench・third-party は HEAD だけでなく
+  dirty / untracked を拒否し、実際に build した tree の同一性を記録せよ。
+- **F11 (lensB#9) toolchain 契約が sandbox 内へ保存されない。**
+  PBS が用意した python3.10 を sandbox 内でも解決できるようにするか、
+  解決できないことを検出して記録せよ。cmake / compiler の version と path を記録せよ。
+  `numactl` 不在は「測定できない (blocked, 理由付き)」であって backend の欠陥ではない。
+  両者を verdict で区別せよ。
+- **F12 (lensA#7) 単体テストが observer → judge の結線を検査していない。**
+  現行テストは実装の定数から「良い観測」を合成して純関数へ渡すだけで、恒真 probe を検出できない。
+  **次の変異が緑のまま通らないこと**をテストで保証せよ (親が同じ変異を harness で実走する)。
+  - 観測器側で `inside_blocked` を常に True にする
+  - `aggregate_verdicts` / `_merge_stage_verdicts` の優先順を入れ替える
+  - `S3_CATEGORIES` / `S5_CATEGORIES` からカテゴリを削る (定数を共有する parametrize では検出できない。
+    **期待カテゴリ集合をテスト側に独立に literal で持て** — 独立 oracle にすること)
+  - `verdict_s4` / `verdict_s6` / `verdict_s7` を無条件 `go` にする
+  - receipt writer を overwrite 可・非 atomic にする
+  観測器は subprocess を使うため、**注入可能な runner seam** を設けて偽の観測を流し込めるようにし、
+  実 network / 実 PBS 無しで結線を検査せよ。
+
+## 採用 = 直す (nit、安価なもの)
+
+- **F13 (lensB#10)** proxy host が数値 IP のとき `network_dns` が DNS 検査にならない。
+  DNS 検査は名前解決を要する対象で行うか、DNS 検査になっていないことを記録せよ。
+- **F14 (lensB#11)** receipt の profile 節が観測と無関係な自己申告になっている。
+  `runtime_hides_bin_shell` 等は**観測結果から導出**するか、自己申告であると field 名で明示せよ。
+
+## scope 外 (親裁定。直さない。ただし「測っていない」ことを機械可読に明示せよ)
+
+- **F15 (lensA#8 = lensB#1) R3-1 の性能要件 (stock/variant 双方の性能差、trace run、
+  floor 再較正要否) を本 probe は満たしていない。** 親はこれを **real と裁定するが、
+  本 wave の scope 外**とする (variant 側は合成 pipeline を要し、計測段の生死確認の射程を超える)。
+  **あなたがすべきことは実装ではなく明示である:**
+  - receipt に `r3_1_coverage` (または同等) の機械可読 field を持たせ、
+    **discharge した R3-1 項目**と **discharge していない項目** (stock/variant 双方の性能差、
+    trace 実行、floor 再較正要否) を列挙せよ。
+  - `overall` が `go` でも **R3-1 全体の完了を意味しない**ことを receipt 自身に書け。
+  - S7 の `go` が「overhead 比を記録できた」以上を主張しないことを field 名と reason code で示せ。
+  - 未 discharge 項目を「測った」と読める語を receipt から排除せよ。
+
+# 3. 検査と報告
+
+- 所見ごとに **closed / partial / regressed** の対応表を作れ (DW-O16)。表なしで閉じたと判定しない。
+- 緑を主張するなら走らせた nodeid と範囲を併記せよ。実走できなければ「実装済み・未実走」と書く。
+  試すなら `python3 tools/run_tests.py orchestrator/tests/test_t316_sandbox_probe.py -q` の
+  単一ファイルにせよ (`python3 -m pytest` の直接起動は hook が拒否する)。
+- 親が渡す環境変数の最終集合を明示せよ (F9 により 2 つ + 期待 commit / worktree root)。
+- 波及: 所有外の caller、共有 fixture、consumer test を静的に列挙せよ。
+
+# 4. 出力
+
+最後に必ず `## 総括` を付け、F1〜F15 の closed / partial / regressed 表、
+編集ファイル一覧、走らせた検査の nodeid と結果、親が qsub するときの正確な command と
+環境変数集合、残る既知の限界を書け。

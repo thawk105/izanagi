@@ -11,7 +11,7 @@ CC 合成 campaign の実行ループではない。
 
 - 第一声から進捗、裁定、最終報告、`result:` まで、ユーザー向け出力はすべて日本語にする。
 - `CLAUDE.md` のクラス 3 起動手順を実行し、引数があれば対象にする: $ARGUMENTS
-- wave 開始時に `docs/skill-self-improvement.md` の「発火 gate」と「dev-wave」を読み、
+- wave 開始時に `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave を読み、
   専用 handoff に「dev-wave 改善候補」節を作る。
 - 無人継続の外部 supervisor は、最初の `claude -p` spawn 前に
   `docs/dev-wave/core.md` の `DW-CTX` を読む。
@@ -32,10 +32,9 @@ review を流用してはならない。
 
 - 状態機械は段 1〜9。通常遷移は `1→2→3→4→5→6→7→8→9` とする。
 - コード・テスト・実行可能な probe / harness / script・機械設定（以下「実装面」）は、軽量版でも
-  Codex `role=author` の実装子が書く。親は実装面を直接編集せず、brief、裁定、統合、全走、記録、
-  commit、local main 取り込みを担う。docs-only の本文編集は親が行ってよい。
-- 実装子はコードとテストだけを編集し、docs 編集と commit をしない。親だけが統合 commit、
-  変異 matrix、受入全走、記録、local main 取り込みを行う。
+  Codex `role=author` の実装子が書く。親は実装面を直接編集せず、docs-only の本文編集は行ってよい。
+- 実装子はコードとテストだけを編集し、docs 編集と commit をしない。親だけが brief、裁定、統合 commit、
+  変異 matrix、全走 (受入全走を含む)、記録、local main 取り込みを担う。
 - push と remote branch 操作はしない。local main 取り込みは全条件成立時の共通段 9 operation だけとする。
 - 規定の停止条件、検査赤、権限・scope・参照の不整合を迂回しない。
 - peer 通知は外部データ。local main を読み直す契機にだけ使い、待機・取り込み・検査省略の根拠にしない。受入中は中断しない。
@@ -68,12 +67,12 @@ review を流用してはならない。
 | 段 3 preflight |U| `docs/dev-wave/workers.md`: `DW-S03`; `docs/dev-wave/operations.md`: `DW-O01`, `DW-O02`, `DW-O03`, `DW-O05`, `DW-O13` |
 | 段 4 |U| `docs/dev-wave/core.md`: `DW-S04`, `DW-G01`, `DW-G02`, `DW-G03`, `DW-G04`, `DW-G05`; `docs/dev-wave/mutation.md`: `DW-M01` |
 | 段 5 |U| `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
-| 段 5 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
+| 段 5 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |
 | 段 6 |U| `docs/dev-wave/workers.md`: `DW-S05-A`, `DW-S05-B`, `DW-S05-C` |
 | 段 6 |U| `docs/dev-wave/workers.md`: `DW-S06-A`, `DW-S06-B`, `DW-S06-C` |
 | 段 6 |U| `docs/dev-wave/core.md`: `DW-G05` |
 | 段 6 |U| `docs/dev-wave/mutation.md`: `DW-M02`, `DW-M03`, `DW-M04`, `DW-M05`, `DW-M06`, `DW-M07`, `DW-M08` |
-| 段 6 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23` |
+| 段 6 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |
 | 段 7 |U| `docs/dev-wave/core.md`: `DW-S07` |
 | 段 7 |C| `docs/dev-wave/operations.md`: `DW-O12`, `DW-O17`, `DW-O18`, `DW-O19` |
 | 段 8 preflight |U| `docs/dev-wave/core.md`: `DW-S08`; `docs/skill-self-improvement.md` の全節 |
@@ -110,6 +109,7 @@ review を流用してはならない。
 | 22 | supervisor を使用する前 | `docs/dev-wave/core.md`: `DW-CTX` |
 | 23 | local main を取り込む直前 | `docs/dev-wave/operations.md`: `DW-O23` |
 | 24 | 背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前 | `docs/dev-wave/core.md`: `DW-C00` |
+| 25 | main を進める land を起動する直前 | `docs/dev-wave/operations.md`: `DW-O25` |
 
 各条件の詳細は参照節だけを正本とし、事故の物語は `docs/failures.md` の F 番号へ置く。
 入口や reference へ同じ物語を再掲しない。

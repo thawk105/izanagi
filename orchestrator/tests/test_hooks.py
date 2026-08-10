@@ -1293,6 +1293,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t139_r4_env_probe.sh": "dispatch-required",
     "tools/pegasus/probes/t293_perf_site_probe.pbs": "unknown",
     "tools/pegasus/probes/t293_perf_site_probe.py": "unknown",
+    "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": "dispatch-required",
+    "tools/pegasus/probes/t316_sandbox_backend_probe.py": "dispatch-required",
     "tools/pegasus/probes/t419_probe_causality.pbs": "unknown",
     "tools/pegasus/probes/t419_probe_causality.py": "unknown",
     "tools/pegasus/probes/t503_restore_durability_probe.pbs": "unknown",
@@ -1411,6 +1413,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "probe artifact has no login admission ruling",
         "primary_gate": "hook deny pending admission evidence",
         "evidence": "unmeasured probe artifact"
+    },
+    "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": {
+        "class": "dispatch-required",
+        "reason": "gen_S sandbox-backend measurement PBS job body",
+        "primary_gate": "PBS allocation and job-body environment validation",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/probes/t316_sandbox_backend_probe.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side sandbox and performance measurement probe",
+        "primary_gate": "PBS_JOBID and compute allocation owned by t316_sandbox_backend_probe.pbs",
+        "evidence": "static compute-side call-site classification"
     },
     "tools/pegasus/probes/t419_probe_causality.pbs": {
         "class": "unknown",
@@ -2925,13 +2939,10 @@ def test_agent_all_project_roles_pinned():
 
 # ---------- 配線と煙テスト ----------
 
-def test_settings_json_wires_all_hooks():
-    p = os.path.join(_REPO, ".claude", "settings.json")
-    with open(p, encoding="utf-8") as f:
-        cfg = json.load(f)
-    if "hooks" not in cfg:
-        skip("hooks 未配線 (方針 A で最小防壁へ再設計中、D30)。"
-             "settings.json に PreToolUse を配線する step で自動再有効化される")
+def _assert_settings_json_wires_all_hooks(cfg):
+    assert "hooks" in cfg, (
+        "hooks 配線が消えている: 実装・配線状態の正本 hooks/README.md に反する"
+    )
     pre = cfg["hooks"]["PreToolUse"]
     cmds = " ".join(h["command"] for e in pre for h in e["hooks"])
     matchers = [e["matcher"] for e in pre]
@@ -2947,6 +2958,24 @@ def test_settings_json_wires_all_hooks():
     assert any(m == "Read" for m in matchers), "guard_read の Read matcher が未配線"
     assert "guard_agent.py" in cmds
     assert any(m == "Agent" for m in matchers), "guard_agent の Agent matcher が未配線"
+
+
+def test_settings_json_wires_all_hooks():
+    p = os.path.join(_REPO, ".claude", "settings.json")
+    with open(p, encoding="utf-8") as f:
+        cfg = json.load(f)
+    _assert_settings_json_wires_all_hooks(cfg)
+
+
+def test_settings_json_missing_hooks_is_assertion_failure():
+    try:
+        _assert_settings_json_wires_all_hooks({})
+    except AssertionError as exc:
+        reason = str(exc)
+        assert "配線が消えている" in reason
+        assert "hooks/README.md" in reason
+    else:
+        raise AssertionError("hooks key 欠落が assert failure にならなかった")
 
 
 def test_hook_scripts_run_as_subprocess():

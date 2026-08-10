@@ -1,0 +1,281 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/6087b71af02283acf364e590ebf04662/izdw-6087b71af0.o900979",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/6087b71af02283acf364e590ebf04662/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................                                            [100%]\n29 passed in 3.28s\n",
+      "stdout_sha256": "b55d63abec6c4308107cd686e32586c7d1c4978d46b1542141909e9ab92bd654"
+    },
+    "artifact_error": null,
+    "collection_sha256": "38c863bc5e10de5a3ae6afd1bb5945ff65756e9ba69e8bbd6bec02ac4fc20216",
+    "duration_s": 32.058,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "aec0d8210aa2d5c4d43a62020d8345d2487635b21fb96d07302bf21cafe904fe",
+    "repo_head": "2bdaf8cdedf0421521e11cb7fe8f4b571636316b",
+    "runner_sha256": "ec148bc6f20f010550ac1ad0c3fef58f2913e886c1965ff0b34ec10b40b545d1",
+    "spec_sha256": "5dbdbaa8e319f96783f5fa7f968df7a5bbfd70d8d66ecfd696d3b60cb6a82423",
+    "status": "PASSED",
+    "test_output_sha256": "b55d63abec6c4308107cd686e32586c7d1c4978d46b1542141909e9ab92bd654",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "5409959978195e652d0a358a98ccc912481599cca7d17c55ec66edbd5b5bb415"
+  },
+  "date": "2026-08-10T15:13:21.275215+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/32d86911a538d4de01f8f9d11e34c272/izdw-32d86911a5.o900981",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/32d86911a538d4de01f8f9d11e34c272/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................FF.....                                            [100%]\n=================================== FAILURES ===================================\n_______ test_failure_supersede_body_shape_and_calendar_date_are_rejected _______\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_failure_supersede_body_sh0')\n\n    def test_failure_supersede_body_shape_and_calendar_date_are_rejected(tmp_path: Path) -> None:\n        \"\"\"M6: label・区切り・本文・暦日のどれかが不正なら専用 shape issue。\"\"\"\n    \n        items = (\n            \"- F1 stale\",\n            \"- F1 - **supersede: 2026-08-10** — fold が付ける marker を本文へ書いた\",\n            \"- F01 **supersede: 2026-08-10** — non-canonical target\",\n            \"- F1 **supersede: 2026-13-45** — x\",\n            \"- F1 **supersede: 2026-08-10** —\",\n            \"- F1 **supersede: 2026-08-10** —    \",\n            \"- F1 **supersede: 2026-08-10** - x\",\n        )\n        for index, item in enumerate(items):\n            parent = tmp_path / f\"case-{index}\"\n            parent.mkdir()\n            repo = _repo(parent)\n            _fragment(repo, \"failures\", f\"## supersede 追記\\n\\n{item}\\n\")\n>           assert [issue.code for issue in spool_fold.validate_spool_tree(repo)] == [\n                \"failure-supersede-shape\"\n            ]\nE           AssertionError: assert [] == ['failure-supersede-shape']\nE             \nE             Right contains one more item: 'failure-supersede-shape'\nE             Use -v to get more diff\n\norchestrator/tests/test_spool_fold.py:1256: AssertionError\n_______________ test_spool_guard_reports_failure_supersede_issue _______________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_spool_guard_reports_failure_supersede_issue():\n        \"\"\"supersede の validate issue を check_docs main の spool finding へ伝播する。\"\"\"\n    \n        root = _build_min_repo()\n        try:\n            _write(\n                root,\n                \"docs/spool/failures/2026-08-10-wave-1.md\",\n                \"---\\n\"\n                \"schema: izanagi-spool-v1\\n\"\n                \"ledger: failures\\n\"\n                \"authored: 2026-08-10\\n\"\n                \"wave: wave\\n\"\n                \"seq: 1\\n\"\n                \"---\\n\"\n                \"## supersede 追記\\n\\n\"\n                \"- F1 **supersede: 2026-13-45** — invalid calendar date\\n\",\n            )\n>           result = _assert_violation(\n                root,\n                \"spool failure-supersede-shape\",\n                \"supersede 追記 item の shape が不正\",\n            )\n\norchestrator/tests/test_check_docs.py:1714: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nroot = '/tmp/izanagi_checkdocs_dfrvu_x_'\nneedles = ('spool failure-supersede-shape', 'supersede 追記 item の shape が不正')\n\n    def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:\n        res = _run_check(root)\n>       assert res.returncode == 1, f\"違反 fixture が赤にならなかった:\\n{res.stdout}\\n{res.stderr}\"\nE       AssertionError: 違反 fixture が赤にならなかった:\nE         check_docs: 違反なし\nE         \nE         \nE       assert 0 == 1\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_dfrvu_x_/tools/check_docs.py'], returncode=0, stdout='check_docs: 違反なし\\n', stderr='').returncode\n\norchestrator/tests/test_check_docs.py:704: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected\nFAILED orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue\n2 failed, 27 passed in 3.31s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1793 retained_bytes=1793 omitted_bytes=0 rendered_excerpt_bytes=2081 sha256=ad2b62b33be945739234d22ac6ad7e1393c23031b39b5197bc6536ab11641359\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_spool_guard_reports_failure_supersede_issue():\n>         \"\"\"supersede \\u306e validate issue \\u3092 check_docs main \\u306e spool finding \\u3078\\u4f1d\\u64ad\\u3059\\u308b\\u3002\"\"\"\n>     \n>         root = _build_min_repo()\n>         try:\n>             _write(\n>                 root,\n>                 \"docs/spool/failures/2026-08-10-wave-1.md\",\n>                 \"---\\x5cn\"\n>                 \"schema: izanagi-spool-v1\\x5cn\"\n>                 \"ledger: failures\\x5cn\"\n>                 \"authored: 2026-08-10\\x5cn\"\n>                 \"wave: wave\\x5cn\"\n>                 \"seq: 1\\x5cn\"\n>                 \"---\\x5cn\"\n>                 \"## supersede \\u8ffd\\u8a18\\x5cn\\x5cn\"\n>                 \"- F1 **supersede: 2026-13-45** \\u2014 invalid calendar date\\x5cn\",\n>             )\n> >           result = _assert_violation(\n>                 root,\n>                 \"spool failure-supersede-shape\",\n>                 \"supersede \\u8ffd\\u8a18 item \\u306e shape \\u304c\\u4e0d\\u6b63\",\n>             )\n> \n> orchestrator/tests/test_check_docs.py:1714: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> root = '/tmp/izanagi_checkdocs_dfrvu_x_'\n> needles = ('spool failure-supersede-shape', 'supersede \\u8ffd\\u8a18 item \\u306e shape \\u304c\\u4e0d\\u6b63')\n> \n>     def _assert_violation(root: str, *needles: str) -> subprocess.CompletedProcess:\n>         res = _run_check(root)\n> >       assert res.returncode == 1, f\"\\u9055\\u53cd fixture \\u304c\\u8d64\\u306b\\u306a\\u3089\\u306a\\u304b\\u3063\\u305f:\\x5cn{res.stdout}\\x5cn{res.stderr}\"\n> E       AssertionError: \\u9055\\u53cd fixture \\u304c\\u8d64\\u306b\\u306a\\u3089\\u306a\\u304b\\u3063\\u305f:\n> E         check_docs: \\u9055\\u53cd\\u306a\\u3057\n> E         \n> E         \n> E       assert 0 == 1\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/tmp/izanagi_checkdocs_dfrvu_x_/tools/check_docs.py'], returncode=0, stdout='check_docs: \\u9055\\u53cd\\u306a\\u3057\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_check_docs.py:704: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1403 retained_bytes=1403 omitted_bytes=0 rendered_excerpt_bytes=1593 sha256=86f60e560a2229a5225bee2102f849ed61324ecdc9bb94362c8ddbccb3205ae2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw8/test_failure_supersede_body_sh0')\n> \n>     def test_failure_supersede_body_shape_and_calendar_date_are_rejected(tmp_path: Path) -> None:\n>         \"\"\"M6: label\\u30fb\\u533a\\u5207\\u308a\\u30fb\\u672c\\u6587\\u30fb\\u66a6\\u65e5\\u306e\\u3069\\u308c\\u304b\\u304c\\u4e0d\\u6b63\\u306a\\u3089\\u5c02\\u7528 shape issue\\u3002\"\"\"\n>     \n>         items = (\n>             \"- F1 stale\",\n>             \"- F1 - **supersede: 2026-08-10** \\u2014 fold \\u304c\\u4ed8\\u3051\\u308b marker \\u3092\\u672c\\u6587\\u3078\\u66f8\\u3044\\u305f\",\n>             \"- F01 **supersede: 2026-08-10** \\u2014 non-canonical target\",\n>             \"- F1 **supersede: 2026-13-45** \\u2014 x\",\n>             \"- F1 **supersede: 2026-08-10** \\u2014\",\n>             \"- F1 **supersede: 2026-08-10** \\u2014    \",\n>             \"- F1 **supersede: 2026-08-10** - x\",\n>         )\n>         for index, item in enumerate(items):\n>             parent = tmp_path / f\"case-{index}\"\n>             parent.mkdir()\n>             repo = _repo(parent)\n>             _fragment(repo, \"failures\", f\"## supersede \\u8ffd\\u8a18\\x5cn\\x5cn{item}\\x5cn\")\n> >           assert [issue.code for issue in spool_fold.validate_spool_tree(repo)] == [\n>                 \"failure-supersede-shape\"\n>             ]\n> E           AssertionError: assert [] == ['failure-supersede-shape']\n> E             \n> E             Right contains one more item: 'failure-supersede-shape'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_spool_fold.py:1256: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3196 retained_bytes=3196 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4832 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "de2582e2db0873f0e9c9807bdd9bd0da97db90d7ac97ed09a1e2b2e987f0dad9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "38c863bc5e10de5a3ae6afd1bb5945ff65756e9ba69e8bbd6bec02ac4fc20216",
+      "duration_s": 32.05,
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "29e065feb867fe9dd5364303272c04807499fc73d698a77ead8130dae3370c24",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3c6b26c301d1506f7c01c27bc677520561715cc1a97580a8e987d6dd97bb9927",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "new": "                or False\n",
+          "old": "                or not _valid_date(item.group(\"date\"))\n"
+        }
+      ],
+      "repo_head": "2bdaf8cdedf0421521e11cb7fe8f4b571636316b",
+      "runner_sha256": "ec148bc6f20f010550ac1ad0c3fef58f2913e886c1965ff0b34ec10b40b545d1",
+      "spec_sha256": "5dbdbaa8e319f96783f5fa7f968df7a5bbfd70d8d66ecfd696d3b60cb6a82423",
+      "status": "KILLED",
+      "test_output_sha256": "de2582e2db0873f0e9c9807bdd9bd0da97db90d7ac97ed09a1e2b2e987f0dad9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5409959978195e652d0a358a98ccc912481599cca7d17c55ec66edbd5b5bb415"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/78400656a1df2add5c294c8663a74e98/izdw-78400656a1.o900982",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/78400656a1df2add5c294c8663a74e98/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................FF.....                                            [100%]\n=================================== FAILURES ===================================\n______________ test_failure_supersede_missing_target_is_rejected _______________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_failure_supersede_missing0')\n\n    def test_failure_supersede_missing_target_is_rejected(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        _fragment(repo, \"failures\", _failure_body(supersedes=((999, _supersede(\"不存在\")),)))\n>       _raises(\"failure-supersede-missing\", spool_fold.plan_fold, repo)\n\norchestrator/tests/test_spool_fold.py:1288: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_spool_fold.py:218: in _raises\n    callable_object(*args)\ntools/spool_fold.py:2054: in plan_fold\n    rendered_failures_text = _insert_failure_supersedes(rendered_failures_text, supersede_entries)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfailures = '# failures\\n\\n## エントリ\\n\\n### F1. seed [手順漏れ]\\n- 事象: seed\\n- 根本原因: seed\\n- 恒久対応: seed\\n- 再発検知: seed\\n'\nsupersedes = [_FailureSupersede(target_number=999, line='**supersede: 2026-08-10** — 不存在')]\n\n    def _insert_failure_supersedes(\n        failures: str,\n        supersedes: Sequence[_FailureSupersede],\n    ) -> str:\n        if not supersedes:\n            return failures\n        headings = list(FAILURE_ID_RE.finditer(failures))\n        positions: dict[int, int] = {}\n        starts: dict[int, int] = {}\n        for index, heading in enumerate(headings):\n            number = int(heading.group(\"number\"))\n            if number in positions:\n                raise SpoolValidationError([\n                    Issue(\n                        \"docs/failures.md\",\n                        _line(failures, heading.start()),\n                        \"failure-duplicate\",\n                        f\"F{number} が重複\",\n                    )\n                ])\n            starts[number] = heading.start()\n            entry_end = headings[index + 1].start() if index + 1 < len(headings) else len(failures)\n            entry = failures[heading.start():entry_end]\n            nonempty_lines = list(re.finditer(r\"^[^\\n]*\\S[^\\n]*(?:\\n|$)\", entry, re.MULTILINE))\n            positions[number] = heading.start() + nonempty_lines[-1].end()\n        grouped: dict[int, list[str]] = {}\n        seen: set[tuple[int, str]] = set()\n        for supersede in supersedes:\n            number = supersede.target_number\n            if False:\n                raise SpoolValidationError([\n                    Issue(\n                        \"docs/failures.md\",\n                        1,\n                        \"failure-supersede-missing\",\n                        f\"supersede 追記 target F{number} が不存在\",\n                    )\n                ])\n            rendered_line = \"- \" + supersede.line\n            identity = (number, rendered_line)\n>           existing_lines = failures[starts[number]:positions[number]].split(\"\\n\")\nE           KeyError: 999\n\ntools/spool_fold.py:1757: KeyError\n___ test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes ___\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_cli_dry_run_reports_failu0')\n\n    def test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes(tmp_path: Path) -> None:\n        \"\"\"CLI --dry-run: fold-time issue は rc=1 の JSON となり、canonical/state を変更しない。\"\"\"\n    \n        repo = _repo(tmp_path)\n        _fragment(\n            repo,\n            \"failures\",\n            _failure_body(supersedes=((999, _supersede(\"CLI missing target\")),)),\n        )\n        shutil.copy2(ROOT / \"tools/spool_fold.py\", repo / \"tools/spool_fold.py\")\n        before = {\n            path.relative_to(repo).as_posix(): path.read_bytes()\n            for path in sorted(repo.rglob(\"*\"))\n            if path.is_file() and \".git\" not in path.parts\n        }\n        completed = subprocess.run(\n            [\n                sys.executable,\n                str(repo / \"tools/spool_fold.py\"),\n                \"--dry-run\",\n                \"--fold-date\",\n                \"2026-08-10\",\n            ],\n            check=False,\n            text=True,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n        )\n>       payload = json.loads(completed.stderr)\n\norchestrator/tests/test_spool_fold.py:2546: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n/usr/lib/python3.10/json/decoder.py:337: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <json.decoder.JSONDecoder object at 0x14d5d4344070>\ns = 'Traceback (most recent call last):\\n  File \"/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_cli_dry_run_reports_failu0/...sert_failure_supersedes\\n    existing_lines = failures[starts[number]:positions[number]].split(\"\\\\n\")\\nKeyError: 999\\n'\nidx = 0\n\n    def raw_decode(self, s, idx=0):\n        \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n        a JSON document) and return a 2-tuple of the Python\n        representation and the index in ``s`` where the document ended.\n    \n        This can be used to decode a JSON document from a string that may\n        have extraneous data at the end.\n    \n        \"\"\"\n        try:\n            obj, end = self.scan_once(s, idx)\n        except StopIteration as err:\n>           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\n/usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected\nFAILED orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes\n2 failed, 27 passed in 3.31s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=2988 retained_bytes=2988 omitted_bytes=0 rendered_excerpt_bytes=3273 sha256=84e07b10c054959db772ae7290d4c1af82d8ee0a0778f4d55380e1d452fc2808\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_failure_supersede_missing0')\n> \n>     def test_failure_supersede_missing_target_is_rejected(tmp_path: Path) -> None:\n>         repo = _repo(tmp_path)\n>         _fragment(repo, \"failures\", _failure_body(supersedes=((999, _supersede(\"\\u4e0d\\u5b58\\u5728\")),)))\n> >       _raises(\"failure-supersede-missing\", spool_fold.plan_fold, repo)\n> \n> orchestrator/tests/test_spool_fold.py:1288: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_spool_fold.py:218: in _raises\n>     callable_object(*args)\n> tools/spool_fold.py:2054: in plan_fold\n>     rendered_failures_text = _insert_failure_supersedes(rendered_failures_text, supersede_entries)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> failures = '# failures\\x5cn\\x5cn## \\u30a8\\u30f3\\u30c8\\u30ea\\x5cn\\x5cn### F1. seed [\\u624b\\u9806\\u6f0f\\u308c]\\x5cn- \\u4e8b\\u8c61: seed\\x5cn- \\u6839\\u672c\\u539f\\u56e0: seed\\x5cn- \\u6052\\u4e45\\u5bfe\\u5fdc: seed\\x5cn- \\u518d\\u767a\\u691c\\u77e5: seed\\x5cn'\n> supersedes = [_FailureSupersede(target_number=999, line='**supersede: 2026-08-10** \\u2014 \\u4e0d\\u5b58\\u5728')]\n> \n>     def _insert_failure_supersedes(\n>         failures: str,\n>         supersedes: Sequence[_FailureSupersede],\n>     ) -> str:\n>         if not supersedes:\n>             return failures\n>         headings = list(FAILURE_ID_RE.finditer(failures))\n>         positions: dict[int, int] = {}\n>         starts: dict[int, int] = {}\n>         for index, heading in enumerate(headings):\n>             number = int(heading.group(\"number\"))\n>             if number in positions:\n>                 raise SpoolValidationError([\n>                     Issue(\n>                         \"docs/failures.md\",\n>                         _line(failures, heading.start()),\n>                         \"failure-duplicate\",\n>                         f\"F{number} \\u304c\\u91cd\\u8907\",\n>                     )\n>                 ])\n>             starts[number] = heading.start()\n>             entry_end = headings[index + 1].start() if index + 1 < len(headings) else len(failures)\n>             entry = failures[heading.start():entry_end]\n>             nonempty_lines = list(re.finditer(r\"^[^\\x5cn]*\\x5cS[^\\x5cn]*(?:\\x5cn|$)\", entry, re.MULTILINE))\n>             positions[number] = heading.start() + nonempty_lines[-1].end()\n>         grouped: dict[int, list[str]] = {}\n>         seen: set[tuple[int, str]] = set()\n>         for supersede in supersedes:\n>             number = supersede.target_number\n>             if False:\n>                 raise SpoolValidationError([\n>                     Issue(\n>                         \"docs/failures.md\",\n>                         1,\n>                         \"failure-supersede-missing\",\n>                         f\"supersede \\u8ffd\\u8a18 target F{number} \\u304c\\u4e0d\\u5b58\\u5728\",\n>                     )\n>                 ])\n>             rendered_line = \"- \" + supersede.line\n>             identity = (number, rendered_line)\n> >           existing_lines = failures[starts[number]:positions[number]].split(\"\\x5cn\")\n> E           KeyError: 999\n> \n> tools/spool_fold.py:1757: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=2657 retained_bytes=2657 omitted_bytes=0 rendered_excerpt_bytes=2839 sha256=a766a1aaac4eaa3c28ac4cd4ec89958262a6d07683ae01debd86f6b8a08ed584\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_cli_dry_run_reports_failu0')\n> \n>     def test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes(tmp_path: Path) -> None:\n>         \"\"\"CLI --dry-run: fold-time issue \\u306f rc=1 \\u306e JSON \\u3068\\u306a\\u308a\\u3001canonical/state \\u3092\\u5909\\u66f4\\u3057\\u306a\\u3044\\u3002\"\"\"\n>     \n>         repo = _repo(tmp_path)\n>         _fragment(\n>             repo,\n>             \"failures\",\n>             _failure_body(supersedes=((999, _supersede(\"CLI missing target\")),)),\n>         )\n>         shutil.copy2(ROOT / \"tools/spool_fold.py\", repo / \"tools/spool_fold.py\")\n>         before = {\n>             path.relative_to(repo).as_posix(): path.read_bytes()\n>             for path in sorted(repo.rglob(\"*\"))\n>             if path.is_file() and \".git\" not in path.parts\n>         }\n>         completed = subprocess.run(\n>             [\n>                 sys.executable,\n>                 str(repo / \"tools/spool_fold.py\"),\n>                 \"--dry-run\",\n>                 \"--fold-date\",\n>                 \"2026-08-10\",\n>             ],\n>             check=False,\n>             text=True,\n>             stdout=subprocess.PIPE,\n>             stderr=subprocess.PIPE,\n>         )\n> >       payload = json.loads(completed.stderr)\n> \n> orchestrator/tests/test_spool_fold.py:2546: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/json/__init__.py:346: in loads\n>     return _default_decoder.decode(s)\n> /usr/lib/python3.10/json/decoder.py:337: in decode\n>     obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <json.decoder.JSONDecoder object at 0x14d5d4344070>\n> s = 'Traceback (most recent call last):\\x5cn  File \"/tmp/pytest-of-tanab/pytest-0/popen-gw26/test_cli_dry_run_reports_failu0/...sert_failure_supersedes\\x5cn    existing_lines = failures[starts[number]:positions[number]].split(\"\\x5c\\x5cn\")\\x5cnKeyError: 999\\x5cn'\n> idx = 0\n> \n>     def raw_decode(self, s, idx=0):\n>         \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n>         a JSON document) and return a 2-tuple of the Python\n>         representation and the index in ``s`` where the document ended.\n>     \n>         This can be used to decode a JSON document from a string that may\n>         have extraneous data at the end.\n>     \n>         \"\"\"\n>         try:\n>             obj, end = self.scan_once(s, idx)\n>         except StopIteration as err:\n> >           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\n> E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n> \n> /usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5645 retained_bytes=5645 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7279 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3d07e183f6b6c942eadd52982f4cafbdd55bebad8c5fb5d2f508efe28f7c30c7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "38c863bc5e10de5a3ae6afd1bb5945ff65756e9ba69e8bbd6bec02ac4fc20216",
+      "duration_s": 26.926,
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes"
+      ],
+      "hang_risk": false,
+      "id": "M05",
+      "injection_diff_sha256": "099c4de22a13587095c07773254d2ea1b57de5faf4e07f09dcc10d462e766239",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3e8d36031dcce6fd9bd9643d813f0a9194823f4c1e89b7b7a2aebdc41834daa3",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "new": "        if False:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n",
+          "old": "        if number not in positions:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n"
+        }
+      ],
+      "repo_head": "2bdaf8cdedf0421521e11cb7fe8f4b571636316b",
+      "runner_sha256": "ec148bc6f20f010550ac1ad0c3fef58f2913e886c1965ff0b34ec10b40b545d1",
+      "spec_sha256": "5dbdbaa8e319f96783f5fa7f968df7a5bbfd70d8d66ecfd696d3b60cb6a82423",
+      "status": "KILLED",
+      "test_output_sha256": "3d07e183f6b6c942eadd52982f4cafbdd55bebad8c5fb5d2f508efe28f7c30c7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5409959978195e652d0a358a98ccc912481599cca7d17c55ec66edbd5b5bb415"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/0213fa20d801ecf527742fb214496a71/izdw-0213fa20d8.o900978",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/output/pegasus-dispatch/0213fa20d801ecf527742fb214496a71/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_spool_fold.py::test_failure_supersede_only_fragment_inserts_at_entry_end_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_recurrence_precedes_supersede_for_same_target_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_order_is_deterministic_by_fragment_key_and_item_index\norchestrator/tests/test_spool_fold.py::test_failure_supersede_body_resolves_cross_ledger_placeholder\norchestrator/tests/test_spool_fold.py::test_failure_supersede_target_placeholder_is_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_section_order_and_uniqueness_are_rejected\norchestrator/tests/test_spool_fold.py::test_empty_failure_supersede_section_is_rejected\norchestrator/tests/test_spool_fold.py::test_multiline_h3_and_base_failure_supersede_shapes_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_unicode_line_breaks_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_accepted_body_is_preserved_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_canonical_target_ids\norchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_existing_identical_line\norchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_line_within_same_fold\norchestrator/tests/test_spool_fold.py::test_failure_recurrence_and_supersede_identical_line_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_substring_of_existing_line_is_accepted\norchestrator/tests/test_spool_fold.py::test_failure_recurrence_supersede_misuse_is_rejected_but_prose_mention_is_accepted\norchestrator/tests/test_spool_fold.py::test_failure_topology_rejects_forged_heading_from_recurrence\norchestrator/tests/test_spool_fold.py::test_failure_list_marker_neutralizes_heading_if_shape_gate_regresses\norchestrator/tests/test_spool_fold.py::test_failure_topology_accepts_mixed_new_recurrence_and_supersede\norchestrator/tests/test_spool_fold.py::test_failure_topology_uses_new_entry_append_order_across_fragments\norchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments\norchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes\norchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue\norchestrator/tests/test_dev_wave_land.py::test_land_folds_failure_supersede_inside_lock\n\n29/557 tests collected (528 deselected) in 0.45s\n",
+        "stdout_sha256": "15a18970c13f00c4990bdfc323cacb18acc71cb028d871597b9ed5f81e2048be"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_only_fragment_inserts_at_entry_end_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_precedes_supersede_for_same_target_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_order_is_deterministic_by_fragment_key_and_item_index",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_resolves_cross_ledger_placeholder",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_target_placeholder_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_section_order_and_uniqueness_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_empty_failure_supersede_section_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_multiline_h3_and_base_failure_supersede_shapes_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_unicode_line_breaks_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_accepted_body_is_preserved_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_canonical_target_ids",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_existing_identical_line",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_line_within_same_fold",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_and_supersede_identical_line_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_substring_of_existing_line_is_accepted",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_supersede_misuse_is_rejected_but_prose_mention_is_accepted",
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_rejects_forged_heading_from_recurrence",
+        "orchestrator/tests/test_spool_fold.py::test_failure_list_marker_neutralizes_heading_if_shape_gate_regresses",
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_accepts_mixed_new_recurrence_and_supersede",
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_uses_new_entry_append_order_across_fragments",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_failure_supersede_inside_lock"
+      ],
+      "duration_s": 21.681,
+      "rc": 0,
+      "repo_head": "2bdaf8cdedf0421521e11cb7fe8f4b571636316b",
+      "runner_sha256": "ec148bc6f20f010550ac1ad0c3fef58f2913e886c1965ff0b34ec10b40b545d1",
+      "spec_sha256": "5dbdbaa8e319f96783f5fa7f968df7a5bbfd70d8d66ecfd696d3b60cb6a82423",
+      "status": "PASSED",
+      "tool_sha256": "5409959978195e652d0a358a98ccc912481599cca7d17c55ec66edbd5b5bb415"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected",
+          "orchestrator/tests/test_check_docs.py::test_spool_guard_reports_failure_supersede_issue"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "29e065feb867fe9dd5364303272c04807499fc73d698a77ead8130dae3370c24",
+        "replacements": [
+          {
+            "file": "tools/spool_fold.py",
+            "new": "                or False\n",
+            "old": "                or not _valid_date(item.group(\"date\"))\n"
+          }
+        ]
+      },
+      "M05": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected",
+          "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "099c4de22a13587095c07773254d2ea1b57de5faf4e07f09dcc10d462e766239",
+        "replacements": [
+          {
+            "file": "tools/spool_fold.py",
+            "new": "        if False:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n",
+            "old": "        if number not in positions:\n            raise SpoolValidationError([\n                Issue(\n                    \"docs/failures.md\",\n                    1,\n                    \"failure-supersede-missing\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "aec0d8210aa2d5c4d43a62020d8345d2487635b21fb96d07302bf21cafe904fe",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "-k",
+      "supersede or failure_topology or failure_list_marker",
+      "orchestrator/tests/test_spool_fold.py",
+      "orchestrator/tests/test_check_docs.py",
+      "orchestrator/tests/test_dev_wave_land.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "2bdaf8cdedf0421521e11cb7fe8f4b571636316b",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-q",
+      "-rf",
+      "-k",
+      "supersede or failure_topology or failure_list_marker",
+      "orchestrator/tests/test_spool_fold.py",
+      "orchestrator/tests/test_check_docs.py",
+      "orchestrator/tests/test_dev_wave_land.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e7f7479d2f897ec18c53be37aff38d6045178bcc",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "ec148bc6f20f010550ac1ad0c3fef58f2913e886c1965ff0b34ec10b40b545d1",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "5dbdbaa8e319f96783f5fa7f968df7a5bbfd70d8d66ecfd696d3b60cb6a82423",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t741-failures-supersede/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "5409959978195e652d0a358a98ccc912481599cca7d17c55ec66edbd5b5bb415",
+  "updated_at": "2026-08-10T15:14:56.986497+00:00"
+}

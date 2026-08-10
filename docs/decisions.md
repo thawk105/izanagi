@@ -12606,3 +12606,401 @@ control の path 限定 `log` は履歴長に比例したまま残る。
 - 算術 pin だけで時限を機械化する案 — 定数を積一定で入れ替えると緑のままになり、実時間が
   倍化しても発火しない。実測 guard を別に置いた。
 - 全史 pickaxe を維持して外側 60 秒を引き上げる案 — ユーザー裁定で不採用。履歴長にも追随しない。
+
+## D275. dev-wave の起動値は docs 権威から導出し、caller に指定させない (2026-08-11)
+
+**決定:**
+
+- dev-wave の codex 子は `tools/dev_wave_codex.py` 経由で起動する。`DW-O01` の規範行がこの経路を
+  指定し、`tools/check_docs.py` が可視 top-level の full-match で pin する。
+- **model は全段**、`DW-O01` の model 権威行から導出する。`--model` は launcher から削除し、
+  既定値も置かない。
+- **effort は段 6 の review / focus だけ**、`DW-S06-A` / `DW-S06-C` から導出する。
+  それ以外の段は権威が存在しないので `effort_authority="unbound"` を receipt へ記録し、
+  `--reasoning` を caller から取る。authority-bound な段では `--reasoning` の指定を禁止する
+  (第二の権威を作らない)。
+- **parse 対象は上記 3 節だけ。** `DW-S02` / `DW-S03` / `DW-S05-A` / `DW-S06-B` は parse しない。
+  sandbox も導出しない。
+- 権威は job ごとに snapshot する。`authority_commit` と対象節の sha256 を receipt へ固定し、
+  working tree が当該 commit と 1 byte でも異なれば起動前に停止する。live HEAD とは照合しない。
+- 規範位置は可視 top-level の full-match に限る。blockquote、list、link 例示、否定文、
+  raw HTML block、Unicode 行分離は規範として受理しない。
+- 実効値の照合は**全 `turn_context` の `payload.model` / `.effort` だけ**を見る。
+  top-level への fallback を持たない。`collaboration_mode.settings.*` は読まない。
+- 記録値は `recorded_*`、要求値は `requested_*` と別名で持ち、記録値を served identity の
+  attest として扱わない。
+
+**理由:**
+
+- 起動値の権威 (docs) と実引数を突き合わせる層がどこにも無く、存在しない effort 値でも
+  rc=0 で通ることが F56 で実測されていた。
+- launcher は既に「caller が要求した値」対「実効値」を全 `turn_context` で照合していた。
+  欠けていたのは「docs 権威」対「要求値」の一段だけだった。
+- parse 対象を 3 節に限るのは、段 5 の機械 pin 拡大が見送り裁定の射程にあり、
+  sandbox は docs に値そのものが存在しないためである。名指しされた範囲を超えて
+  受理集合を変えない。
+- authority を job ごとに snapshot するのは、権威行が時間変化し、wave が自分の land する契約を
+  wave 内で dogfood する運用が実在するためである。
+
+**却下した選択肢:**
+
+- **caller の `--model` / `--reasoning` を assertion として残す** — 第二の権威になる。
+- **段 5 の `DW-S05-A` も parse する** — 見送り裁定の射程を侵し、節の書式を事実上凍結する。
+- **`DW-S06-A` / `DW-S06-C` へ sandbox 値を新設する** — 無裁定の受理集合変更である。
+- **live HEAD を権威にする** — 過去 wave に偽の赤が出る。
+- **契約文だけで raw `codex exec` を禁じる** — docs pin と同じ強度しかなく、
+  本機構が解こうとしている問題の再演になる。
+
+## D276. 派生値の検査は独立した oracle を持たせる (2026-08-11)
+
+**決定:** docs から導出した値を検査するテストは、期待値を派生関数自身から取ってはならない。
+docs を独立に読む最小の抽出をテスト側に置き、両者の一致を要求する。
+期待値の literal をテストへ書くことは、これとは別に禁じる。
+
+**理由:** 期待値を派生関数から取ると、その派生関数を変異させたとき期待値も一緒に動くため、
+変異が検出できない。実際に本 wave では、対象テスト 623 全緑・敵対レビュー 4 本通過の状態で
+派生関数の変異が生存し、束縛の中核主張が未証明であることが変異でだけ判明した。
+
+**却下した選択肢:**
+
+- **期待値を literal で書く** — 機械 pin を増やさないという既存の見送り裁定の実質的な再提案になる。
+- **派生関数を呼ぶ既存テストを消す** — 循環していても回帰検出には効く。消さずに独立検査を足す。
+
+## D277. 較正と凍結の上位権限束 — 段 0 の語彙・schema・完了判定 (2026-08-11)
+
+**決定:**
+
+- **候補 record は権威 directory の外の候補 namespace に置き、公式 record を「包む」。**
+  公式 activation record の exact key 集合を変えない。包む側は
+  `schema_version` / `lifecycle_state` / `activation_record` / `activation_record_raw_sha256` の
+  exact 4 key とし、chain の検証は公式側の規則をそのまま再利用する (別の緩い規則を作らない)。
+- **上位束の承認 A と発効 X はどちらも人間が行う。** A は承認 record 1 file の追加のみ、
+  X は有効 head literal を保持する方式ゆえ exact 3 path (公式 activation record の追加、
+  head literal の更新、上位 pointer の追加)。いずれも非 merge で、逐語の人間 trailer を要求する。
+- **lockstep は検査 receipt の自己申告 `pass` で満たしてはならない。** 承認 record の成分一覧に
+  対し、(a) 環境成分と凍結成分が親束の同名成分と双方とも異なること、(b) 環境成分が同じ列の
+  候補 record と一致すること、(c) 凍結成分が下位 family 自身の検証器が承認済みと判定した参照で
+  あることを**再計算**する。
+- **上位 digest は下位と別の domain separator を新設し、原像を exact 7 成分の固定順とする。**
+  承認 record 自身の bytes を原像に入れない。凍結側の separator と成分数は 1 byte も変えない。
+- **裁定 profile は固定 ID 集合・`status` enum・applicability 表を持つ record とする。**
+  未裁定 ID の `selection` enum は、その裁定が land する commit で追加する。それまで検証器は
+  当該 ID の `resolved` を受理しない。裁定が済むまで status が未完了のままなのは意図した
+  fail-closed である。
+- **Git に導入 commit を持たない実行時成果物は、proof chain の根に置く admission record で
+  分類する。** legacy 側は発効 commit の **strict** ancestor を要求し、その根を列挙した catalog
+  自身も strict ancestor で導入され、hash を検査 receipt と承認 record へ束縛する。
+  発効後に catalog へ根を足して legacy を名乗る経路と、既存成果物の遡及拒否の**両方**を閉じる。
+- **fixture の manifest は閉じた集合とし、設計文書の不変条件行と全単射にする。**
+  hash pin は「実 bytes」「manifest literal」「検査側の独立期待値」の 3 者比較とし、
+  期待値を入力から生成しない。裁定待ちを表す印を不変条件 fixture の代用にしない。
+  実行できていない行は `pending` として理由と entrypoint を持ち、件数を manifest が数える。
+- **整合検査と完了要求を分ける。** 整合検査の緑を段の完了証明として使えない名前と出力契約にし、
+  完了要求は fail-closed の別 API とする。未完了を成功結果として返さない。
+- **保存すべき既存拒否の fixture は、実 entrypoint へ入力を流して受理と拒否を観測する。**
+  ただし射程は当該 entrypoint が担う層に限り、上位の semantic 層まで検証したと主張しない。
+
+**理由:**
+
+- 上位に別 domain separator の束を置けば、承認済みの下位契約を 1 byte も変えずに済む。
+  下位 digest へ環境成分を足す案は承認済み契約の改訂を要する。
+- 陰性条件だけを完了判定にすると、何も受理しない実装が全段で緑になる。陽性条件は fixture を
+  名指ししなければ判定にならず、fixture を置くだけでは検査を一度も呼ばない実装が完了を主張できる。
+  この 3 段の穴は、設計段の敵対レビューと実装段の敵対レビューが独立に構成した。
+- 「持っている」ではなく「識別に使われている」を検査しなければ、schema を満たしたまま
+  表示専用 field で条件を満たしたと主張できる。同型の構成が承認 record・pointer・検査 receipt・
+  裁定 profile・候補 record の 5 つすべてに存在する。
+- 発効の瞬間に受理集合が変わる以上、変える対象と時点を機械的に判定できる形で書く義務がある。
+  自己申告の「移行中だから」を通してはならない。
+
+**却下した選択肢:**
+
+- **終端と有効 head の一致検査を束参照検査へ置換する案** — 現行の正しい fail-closed を 1 つ消す。
+  候補を権威 directory の外へ置けば、その拒否を保存したまま候補を表現できる。
+- **有効 head literal を record 由来へ移す案** — 環境契約 source の blob 変化という review signal と、
+  loader closure 経由の間接 pin を失う。代替の data-side pin は同一の保証ではない。
+- **未裁定 ID にも `resolved` を書けるようにする案** — 裁定を経ずに発効へ進める抜け道になる。
+- **不変条件行を「裁定待ち」印で埋められるようにする案** — 最重要の不変条件を fixture 無しのまま
+  完了と算出できる。裁定待ちは裁定 profile と required gate の側にだけ書く。
+- **合成入力を実物より甘いまま「実 entrypoint で確認した」と書く案** — 過剰主張である。
+  射程を明記するか、担当 entrypoint の行として別に持つ。
+
+## D278. 住所 (address edge) の構造 lint は非協調 drift の検出であって防壁ではない (2026-08-11)
+
+**決定:** whole-file SHA-256 pin と構造 lint の責務を分ける。command 本文から他文書にしか無い
+義務への**到達 edge (住所)** を機械が検査してよい対象は、その edge の**構造**だけとする。
+呼称は **「住所 (address edge) の構造 lint」**とし、「意味検査の機械化」とは呼ばない。
+効能は**非協調 drift の検出と、意図の diff への顕在化**に限り、**trust root は人間レビュー**である
+(敵対監査はその判断材料を作る手順であって trust root ではない)。
+「協調改変を防ぐ防壁」と書いてはならない。
+
+**理由:**
+- whole-file SHA-256 pin は期待値と異なる bytes だけを検知し、義務の意味を保証しない。安全義務の
+  文を削って pin 3 箇所 (checker 定数・test 定数・test 内の逐語コピー) を同時再同期すれば検査は
+  通る。実測で `check_docs` rc=0 / 違反なし、`test_check_docs.py` 357 passed / rc=0 だった。
+- 期待値 (必須 edge の一覧) は同じ commit で削除できるので、edge 契約も trust root にならない。
+  増えるのはレビュー時の顕著性だけである。sha256 の再同期は意味を持たない機械作業で byte 予算に
+  追われた編集が自然に行うが、edge 契約から 1 行消す差分は自己記述的で「到達契約を外した」と読める。
+- 「到達性は機械が守り、意味は人間が守る」は既にこの repo の実装方針である。pin 済み command の
+  正本ポインタ到達性検査、`docs/archive/` の双方向到達性 lint、dispatch inventory の
+  同一可視行からの typed edge 構成が既に存在する。新しいのは検査パターンではなく対象だけである。
+- **検出できるのは非協調な drift だけである。**この lint は Markdown の意味を解釈しないので、
+  次はすべて素通りする — 同一 commit で期待値ごと消す協調改変、inline の hidden HTML、
+  4-space indented code block、link definition の quoted title、打ち消し線で消した prose、
+  そして「この住所を参照してはならない」のような否定形の prose。**穴の列挙が短いことを
+  検出力の証拠にしてはならない。**
+- **edge の書き方を 1 つの形に固定する契約である。**同一可視行かつ backtick 込みの
+  code span という**形**を要求するので、見出しと本文に分けた 2 行形、key/value の 2 行表、
+  backtick の無い Markdown link は赤になる。これは偽陽性ではなく、住所の書式を 1 つに畳む副作用で
+  ある。書式を変えたければ lint 側の契約を同じ commit で変える。
+- 実装面は `tools/check_docs.py` (Python) にあり `TextLimit` の byte 予算の対象外である。
+  「機械化は `docs/dev-wave/**` の byte 予算に阻まれている」という先行記述は誤りである。
+
+**却下した選択肢:**
+- 「意味検査の機械化」という呼称 — 自然文の意味検査は恒真化しやすく、偽陰性が防壁の錯覚を生む
+  (D30 / D45 と同根)。この lint は日本語の文言を pin しない。語順・助詞を変えた正当な言い換えは
+  緑のままであることを実測で確認した。
+- 必須要素を token の存在へ分解する形 — 安全義務の文を削ったうえで path を別行へ足す攻撃を
+  1 件も検出しない (実測)。同一可視行の共起でなければ迂回を殺せない。
+- 単純な部分文字列一致 — `F260` と `archive/docs/failures.md.bak`、link definition、表セル横断、
+  block raw HTML で偽の edge を作れる。ASCII 英数字に隣接しない ID と backtick 込みの
+  exact code span を要求し、raw HTML block も不可視化しなければならない。
+- 族一般化 (helper path の literal 固定、Skill 側、全 path の実在性、全 ID の到達性) —
+  同型欠陥が独立に 2 件再現していない (`DW-G03`)。2 例目が出るまで却下する。
+
+## D279. 明示裁定による L2 admission の個別適用除外は `DW-O25` 限りとし先例にしない (2026-08-11)
+
+**決定:** `docs/dev-wave/operations.md` の `DW-O25` (ff-only land の全史 provenance 関門) は、
+D271 が新規 L2 節へ課す 3 条件のうち**条件 2 (現に機械代替されていない) と条件 3 (意味検索で
+反証されず同一発火点の既存正本もなし) を満たさないまま登録した**。根拠はユーザーの明示裁定
+(2026-08-10 /rulings §60、`[T-695]` (i)「新規 L2 節を作り登録する」) である。
+
+この適用除外は **`DW-O25` 限りの一回限り**であり、**将来の L2 admission の先例にしない**。
+以後の新規 L2 節は D271 の 3 条件をすべて満たすか、同じくユーザーの明示裁定を要する。
+「過去に例がある」を admission の根拠にしてはならない。
+
+**満たさない事実の逐語:**
+
+- 条件 2 — 同じ義務は `tools/dev_wave_land.py` に runtime gate として実装済みで、
+  非 0 拒否と main 不変を検証するテストも存在する。
+- 条件 3 — D254 が同じ発火点 (ff-only land) の同じ義務を既に逐語で規定している。
+  `DW-O25` はその reference 同期であり、定義上「同一発火点の既存正本」が存在する。
+
+**理由:**
+
+- D271 が塞ぎたかったのは「byte 余白が空いたことを理由に見送り済み候補を復活させる」非対称である。
+  本件はその型ではなく、**ユーザーが reference 同期を明示的に要求した**ものである。
+- 機械代替済みを理由に本文を置かない運用は、同じユーザーが §54 で既に否定している
+  (「実装が強制するから本文不要」は採らない)。条件 2 を機械的に適用すると、
+  §54 の裁定と正面から衝突する。
+- 適用除外を記録せずに登録すると、次の wave が「D271 は満たさなくても通る」と読む。
+  除外の射程を節 1 つに束縛して明文化することが、規範を空洞化させない唯一の方法である。
+
+**却下した選択肢:**
+
+- **D271 の条件 2・3 を一般に緩める** — 削除側の鏡像という設計意図が消え、
+  byte 余白による復活を塞げなくなる。
+- **`DW-O25` を登録しない** — ユーザーの明示裁定に反する。親が承認済み裁定を不採用にしない。
+- **除外を worklog にだけ書く** — 将来の admission 判断者は decisions を索引して読む。
+  規範 (D271) の隣に置かなければ届かない。
+
+## D280. dev-wave の規範節は可視 H2 節全体を exact で pin し、不可視構造を節内に許さない (2026-08-11)
+
+**決定:** dev-wave の起動導線と routing を担う規範節は、**可視 H2 節全体の exact 一致**で
+`tools/check_docs.py` が pin する。対象は `.claude/commands/dev-wave.md` の `## 入力と開始`、
+`.agents/skills/dev-wave/SKILL.md` の `## 開始する`、`docs/skill-self-improvement.md` の
+`## routing`、`docs/dev-wave/operations.md` の `DW-O25` の 4 節である。
+
+- 比較は **dispatch 可視化を通した slice だけ**で行い、raw slice と混ぜない。
+- 同じ 4 節について **raw slice と可視 slice の一致**も要求する。
+  節の内側に fence・HTML comment・raw HTML block を置けない。
+- `DW-O25` の可視 H2 が `DW-O23` の可視 H2 より後にあることを検査する。
+  対象 H2 の探索は**題の有無に依らず**行い、欠落・重複は fail-closed で finding にする。
+
+**理由:**
+
+- 規範節は「どの語で義務が書かれているか」が意味を持つ。語の言い換え・item の移動・
+  例外文の差し込みは、いずれも義務を弱めるのに従来の検査 (H2 の有無、literal の出現件数) を通る。
+- 節全体 exact にすると、pin 済み節の**内側**へ例外規定を差し込む経路が閉じる。
+- 順序 pin の heading 探索を題込みの前方一致にすると、題を消すだけで検査が
+  finding を出さずに通る。実装時にこの形が実際に入り、敵対レビューが検出した。
+  **見つからない場合に黙って通す検査は恒真と同じである。**
+
+**閉じない残余:** pin 済み節の**外側** (同じ file の他節) へ「ただし任意参照とする」型の
+例外文を置く経路は残る。全 file を exact pin すると通常の docs 改訂が checker 改変を
+必須にするため採らなかった。dispatch 契約がどの節を読むかを限定していることが緩和になる。
+
+**却下した選択肢:**
+
+- **literal の出現件数だけを pin する** — blockquote 化・別節移動・言い換えを通す。
+- **raw slice を exact 比較する** — fence や HTML comment の正当な使用まで拒否し、
+  可視化を通した検査と二重管理になる。
+- **全 file を exact pin する** — 誤字修正のたびに checker 改変が要り、実運用が回らない。
+
+## D281. 凍結層の NUL 検査は key 名で再帰走査し canonical 化の後に置く (2026-08-11)
+
+**決定:** evidence contract の hash 関数 (`evidence_contract_sha256`) に NUL 検査を 1 箇所だけ足す。
+走査対象は **parsed value 全域のうち key が exact `path` かつ値が `str`** のものとし、
+**canonical 化に成功した後・hash を返す前**に置く。reason は `evidence-contract-path-nul`、
+detail は `repr(JSON pointer)` だけで生 path を載せない。契約 schema の検証はしない。
+
+**理由:**
+- 凍結発行と履歴検証はこの 1 関数を通るので、ここが唯一の choke point である。呼出し側 2 箇所へ
+  個別に置くより閉包が強い。
+- 走査を「v1 schema が path を置く 2 位置」に限定すると、`conditions` を dict にする等の
+  malformed shape に NUL path を仕込んで凍結記録へ束縛できてしまう。それは「凍結可能だが発効不能」
+  という不採用済みの境界を作り直すことになる。key 名で再帰走査すれば、拒否するのは依然として
+  「`path` field の NUL」だけで、裁定の NUL-only 制約から出ない。
+- canonical 化の**前**に置くと、NUL path と unpaired surrogate を併せ持つ入力の理由語が既存の
+  `evidence-contract-json` から新しい語へ変わる。NUL を含まない入力の受理集合・理由語・
+  理由の優先順位を 1 つも変えないため、後に置く。
+- 走査は再帰でなく明示 stack にする。深い入れ子で `RecursionError` (既存 `except` が捕まえない例外) を
+  出さないためであり、`reversed(...)` で pop 順を文書順へ揃えて報告 pointer を決定的にする。
+
+**却下した選択肢:**
+- 契約読込 (`load_contract_bytes`) 全体の流用 — NUL 以外の schema 違反も拒否するため受理集合が変わる。
+- 「invalid contract も凍結可能だが発効不能」という境界の維持と保証文の限定 — 凍結台帳・proof chain の
+  受理集合に不正契約が残る。
+- raw bytes の NUL 走査 — strict JSON は生の制御文字を拒否するので、NUL は `\u0000` escape でしか
+  到達しない。bytes 走査では検出できない (実測)。
+- 走査を深さ比例メモリへ書き換える案 — 幅広入力の追加割当は raw の約 11.6 倍で幅に対して平坦であり、
+  手前の parse + canonical 化のピーク (約 17 倍) の方が大きい。読取経路には 16 MiB の上限があるため、
+  走査だけが原因で落ちる入力は作れない。防御的堅牢化として見送る。
+- 例外 detail を RFC 6901 の `~0` / `~1` へ escape する案 — 位置参照の表示だけの問題で、
+  受理集合・hash・台帳の値は変わらない。
+
+## D282. T-139 の再発行 record-items・受領証 schema・第 2 erratum の承認を機械可読 payload として固定し、D262 の `record_items` 承認を role 付きで前向きに失効させる (2026-08-11)
+
+**決定:** 次の payload を canonical 台帳へ固定する。この payload を fold した commit を `F_r` と呼び、
+後続 wave が発行する approval manifest は `F_r` を `approval_fold_commit` として literal で持つ。
+**resolver は manifest を信用する前に、`F_r` の `docs/decisions.md` から本 payload を読み、
+manifest の三つ組集合・erratum 順序・合成 digest・保証境界が本 payload と exact 一致することを
+要求しなければならない** (manifest だけを trust root にすると、`approval_fold_commit` を保った偽 manifest が
+自分の宣言値で自己整合してしまう)。
+
+```text
+decision_kind = t139-preregistration-approval-supersession/v1
+
+forward_supersedes:
+  D262.approved_blobs.record_items   (旧 blob は post-F_r manifest の record_items role では非承認)
+  D263.reason                        (「同じ core に対する第 2 の erratum が既に承認済みである」の事実文)
+
+preserved:
+  D262 の target_core / addendum_a / derivation_map / erratum(t139-core-s15-exactkey-v1) の承認
+  D263 の決定本文 (erratum_id 別 validator、未知 ID の fail-closed)
+  D264 の gate 完成までの 4 名前非 export
+
+target_core:
+  path   = output/insights/2026-08-07_t139-mainrun-design/preregistration.md
+  commit = 88d68f9127b31df5aafc3d59607896626a1652e8
+  sha256 = ac939af4de87dff0cd3964e37cef975d57919a709d57f4e9523c8b6a9fcd60e9
+
+approved_blobs:
+  addendum_a
+    path   = output/insights/2026-08-08_t139-r4-env-probe/addendum-a-reissue.md
+    commit = 622bd786191d40bda388596fa2adbf119ee84c9a
+    sha256 = f7db96ce8ecb12359fedf56baea24939c629d4d16a1ec167c183425ea198cfec
+  derivation_map
+    path   = output/insights/2026-08-08_t139-r4-env-probe/derivation-map.md
+    commit = 7ec088163dee920f0b8e1e9783faa6e36b22b730
+    sha256 = bf5b6783b5a1a0b6c495618fe5292a968e44712d857cf84bdc436dcf027f6025
+  erratum_t139_core_s15_exactkey_v1
+    path   = output/insights/2026-08-08_t139-addendum-a/erratum-core-s15.md
+    commit = 1d235e0e455020cf54e66cf83304961910c369d8
+    sha256 = a1abc60ef8e3f4346f61fbdd8282c295f353ca272062af02a856e3c5de9dd6d3
+  record_items
+    path   = output/insights/2026-08-11_t139-manifest-land1/record-items-v2.md
+    commit = d0e7645192d56f429fc8d8a04f9c1776d50978d9
+    sha256 = 61ba2f8b009ab6a17d657a5e3af3ce8a3afb251e3da664fc0117cd46a048a480
+  receipt_schema
+    path   = output/insights/2026-08-11_t139-manifest-land1/receipt-schema-v1.json
+    commit = d0e7645192d56f429fc8d8a04f9c1776d50978d9
+    sha256 = d541ccd5919c7c3545c04a806ca7f9cf04e6391cdf1791d7b9273317199b047e
+  erratum_t139_core_s7_stresscheck_v1
+    path   = output/insights/2026-08-11_t139-manifest-land1/erratum-core-s7-stresscheck-v2.md
+    commit = d0e7645192d56f429fc8d8a04f9c1776d50978d9
+    sha256 = deedd71b97640213035c76dac1b22ea15bb21d447991000b0e433de873684df2
+
+erratum_application_order = [t139-core-s15-exactkey-v1, t139-core-s7-stresscheck-v1]
+composed_sha256           = e0b0caeaca9300acffbb5cd6b81db7b6fb7fa8f9eeab81219affb4e2f94a8e0c
+
+not_approved_as_record_items_root:
+  path   = output/insights/2026-08-08_t139-addendum-a/record-items.md
+  sha256 = 1957026c83db3486a39508a9aae07fd03ff5ac84d4edfc0d24b7051758f78fd3
+  note   = D262 時点の承認記録は改変しない。ただし F_r 以後の T-139 approval manifest において
+           本 blob は record_items role の承認対象ではなく、resolver はこれを拒否しなければならない。
+
+operational_boundary = """
+この保証は、指定された一つの canonical local main、その Git common directory、
+tools/dev_wave_land.py を通り同一 land lock 下で取り込まれた予約履歴、およびその全履歴を
+毎回再検査する trusted resolver / report の範囲に限る。独立 clone、別 common directory、
+権威台帳外の投入、履歴を共有しない writer、同一権限の非協調 writer、canonical main の外で
+作られた競合予約は保証しない。
+"""
+
+alpha_reservation:
+  ledger_path              = output/registry/t139-alpha-reservations.jsonl
+  family_root              = dce4ae4fed6f4fb33747165c5b92c16d01822850
+  ordinal                  = 1
+  entry_canonical_bytes    = {"family_root":"dce4ae4fed6f4fb33747165c5b92c16d01822850","kind":"alpha_reservation","ordinal":1,"schema_version":"t139-alpha-reservation/v1"}
+  reservation_entry_sha256 = 52ba3d2c86f7554d78433a1dec4f3364f1db2b8dd1e6aa0360f4428f93127cf3
+  ledger_blob_sha256       = 38968a7b248af2bce089edc2e37024cb9b1fbe21fc20edb7914d82600579dc65
+  entry_serialization      = UTF-8 の RFC 8259 JSON object。key は Unicode code point 昇順、
+                             separators は "," と ":"、挿入空白なし、行内に LF を含まない。
+                             行は末尾 LF で終端し、reservation_entry_sha256 はその LF を含まない
+                             142 bytes に対する SHA-256 である。ledger_blob_sha256 は LF を含む
+                             file 全体 (143 bytes) の SHA-256 である。
+  ledger_introduction      = 本 payload を fold する land と同一 land lock 内で exact 1 回。
+                             mode は regular (100644)。以後は append-only であり、既存行の編集・
+                             削除・並べ替え・rename/copy・delete-and-recreate を拒否する
+  reservation_commit       = pin しない。record-items-v2.md §6.7 (7) に従い validator が
+                             「当該行が初めて出現した commit」として全履歴から再導出する
+```
+
+**理由:**
+
+- **D262 は現行 record-items の digest を承認済み blob として固定しており、`F_e` より後に生まれた
+  blob を `F_e` が承認することはできない。** ユーザー裁定 Q-A が求めた「record-items への承認済み修正」を
+  実現するには、再発行版を承認する新しい decision を先に fold するしかない (2 段 land の第 1 段)。
+- **旧 blob を「非承認」と一言で書くと、D262 の歴史的承認記録と矛盾する。** そこで
+  `not_approved_as_record_items_root` として **role と時点を限定**した。旧 blob は D262 時点では
+  承認済みであり、`F_r` 以後の manifest の `record_items` role では承認対象でない。
+- **第 2 erratum は core の較正義務を 2 箇所 (221 行と 333 行) 置換する。**`較正` を含む行は
+  凍結 core にちょうど 2 件あり、1 箇所だけの置換では「§7 = stress check、§14 = 較正」の
+  二重状態が残る (絶対規律 3 が禁じる「保証していない性質を保証したと書く」)。
+  合成 digest は親が凍結 core の blob から独立に算出し、適用順に不変であることも確認した。
+- **承認済み追補 A の `a12` 見出し行に残る `較正` の語は据え置く。** 直後の本文が
+  「本 field はその較正を与えない」と明記しており、受理集合を動かさない語の整合のために
+  承認済み三つ組を組み替えると、digest を pin する payload と実装 pin が連鎖的に変わる。
+  当該見出しは **legacy label であり較正の主張ではない**。
+- **受領証 schema は JSON Schema draft-07 で発行する。** 実行環境の `jsonschema` は 3.2.0 で
+  2020-12 の validator を持たず、repo の既存受領証 schema も draft-07 + `definitions` 形式である。
+  dialect を実装に合わせないと、承認した schema をその時点の engine で検査できない。
+- **`a13` の予約 entry を本 payload と同じ land へ同梱する** (ユーザー裁定 S5 (a)、2026-08-11)。
+  予約は pilot 投入より前に canonical 台帳へ入っている必要があり、受領証は pilot の後に入る。
+  land は tested tip を一度だけ ff/fold するため、予約を land 2 に置くと時系列が閉じない。
+  予約 entry は data であって gate ではなく、land lock の内側で取り込まれるので `a13` の
+  「producer が選べない canonical な台帳で原子的に」を満たす。
+- **予約 entry の台帳 path・行の canonical bytes・serialization は本 payload が新たに閉じた。**
+  `record-items-v2.md` §6.7 は validator が行う検査 (append-only 全履歴走査、canonical bytes 照合、
+  `(family_root, ordinal)` の全履歴一意性) を定めるが、**台帳 path・行の key 集合・serialization
+  規則を literal では定めていない**。定めないと 2 実装が同じ予約から別 digest を出し、
+  `reservation_entry_sha256` を独立再導出できない。`family_root` は本 study の族を定義する
+  事前登録承認の fold commit `F_e` を採る (`F_e` は canonical main の祖先であり、§6.7 (2) の
+  全世代走査の起点として使える)。**台帳は append-only で導入も exact 1 回であるため、
+  この 1 行は事実上不可逆である。**
+- **本 payload は resolver が機械的に読める形で書く。** manifest だけを trust root にすると、
+  `approval_fold_commit` を保った偽 manifest が自分の宣言値で自己整合する。台帳 → manifest の
+  第 1 矢印を resolver の必須検査に含める。
+
+**却下した選択肢:**
+
+- 草案 (1 operation の第 2 erratum) をそのまま承認する — 置換後 core が二重状態のまま凍結される。
+- 承認済み追補 A を再発行して `a12` 見出しも整合させる — 受理集合を動かさない語の整合のために
+  承認済み三つ組と実装 pin を連鎖的に変える。壊すものが得るものより大きい。
+- 受領証 schema を JSON Schema 2020-12 で発行する — 承認時点の検査実体が存在せず、
+  engine の差 (`unevaluated*` の扱い) が受理集合を動かす経路が残る。
+- D262 全体を失効させる — `target_core` / `addendum_a` / `derivation_map` / 第 1 erratum の承認は
+  正しく、実装 pin も依存している。失効させるのは `record_items` role の 1 項でよい。
+- 旧 record-items を無条件に非承認と書く — D262 の歴史的記録と矛盾する。
+- manifest だけを trust root にする — 偽 manifest が自己整合する経路が残る。
