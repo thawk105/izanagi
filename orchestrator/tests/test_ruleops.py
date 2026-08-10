@@ -1399,21 +1399,20 @@ def test_receipt_head_outside_epoch_window_is_rejected(tmp_path):
 
     repo = _base_repo(tmp_path)
     candidate_path = "orchestrator/tests/test_candidate.py"
+    original_candidate = (repo / candidate_path).read_text(encoding="utf-8")
     candidate_text = (
-        (repo / candidate_path).read_text(encoding="utf-8")
-        + "# candidate changed inside epoch window\n"
+        original_candidate + "# temporary candidate change on old fork\n"
     )
     main = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
     fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
     _git(repo, "checkout", "-qb", "old-receipt-fork", fork)
     _write(repo, candidate_path, candidate_text)
-    _write(repo, "side-only.txt", "old receipt fork\n")
-    receipt_head = _commit(repo, "old fork receipt head")
+    _commit(repo, "temporary candidate change on old fork")
+    _write(repo, candidate_path, original_candidate)
+    receipt_head = _commit(repo, "old fork receipt head restores candidate")
     _git(repo, "checkout", "-q", main)
     _git(repo, "commit", "--allow-empty", "-qm", "main epoch after old fork")
     epoch = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    _write(repo, candidate_path, candidate_text)
-    _commit(repo, "candidate change inside epoch window")
     receipt_rel = "output/insights/candidate-ruleops-receipt.json"
     receipt = {
         "advisory_only": True,
@@ -1435,9 +1434,9 @@ def test_receipt_head_outside_epoch_window_is_rejected(tmp_path):
         "schema_version": "ruleops-mutation-receipt/v1",
     }
     _write_json(repo, receipt_rel, receipt)
-    _git(repo, "add", "-A")
-    _git(repo, "commit", "--amend", "-qm", "candidate change inside epoch window")
-    _git(repo, "merge", "--no-ff", "-qm", "merge old receipt fork", "old-receipt-fork")
+    _commit(repo, "receipt on main epoch branch")
+    _git(repo, "checkout", "-q", "old-receipt-fork")
+    _git(repo, "merge", "--no-ff", "-qm", "merge main receipt branch", main)
     snapshot = R._capture_snapshot(repo)
     controls = {receipt_rel: snapshot.entries[receipt_rel].oid}
     tokens = R._signal_tokens(snapshot, candidate_path, ("obsolete sentinel",))
@@ -1453,7 +1452,13 @@ def test_receipt_head_outside_epoch_window_is_rejected(tmp_path):
         epoch_commits=commits,
     )
     assert receipt_head in commits
+    assert _git(repo, "rev-parse", "HEAD^1").stdout.strip() == receipt_head
     assert _git(repo, "merge-base", epoch, receipt_head).stdout.strip() != epoch
+    assert R._receipt_epoch_changed_paths(
+        snapshot,
+        receipt_head,
+        pickaxe_window_commits=len(commits),
+    ) == {receipt_rel}
     R._validate_epoch_target_change(
         snapshot,
         epoch,
