@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-10
 wave: dev-wave-s1-design-choice
 seq: 1
-title: 段 7 前提 S1 の設計択一パッケージを返した — 2 案は同じ目標の代替でなく、案 A には登録済み負債 4 件が束ねられていた (docs のみ、実装差分ゼロ、branch worktree-dev-wave-s1-design-choice)
+title: 段 7 前提 S1 の設計択一パッケージを返した — 2 案は同じ目標の代替でなく、案 A には登録済み負債 4 件が束ねられていた (docs のみ、実装差分ゼロ、受入 8012 passed / 20 skipped / rc=0 / 512.26 秒、branch worktree-dev-wave-s1-design-choice)
 ---
 
 ## 本文
@@ -69,6 +69,16 @@ title: 段 7 前提 S1 の設計択一パッケージを返した — 2 案は�
   実装差分ゼロのため段 5・6 を飛ばし `4→7→8→9`。変異 matrix は `DW-S04` の免除
   (実装差分ゼロの「実装しない」裁定) に該当。段 2 の待ち手を 1 度張り替えた
   (最初の上限 30 分が短く、codex は生存していた)。
+
+- **受入全走 = 8012 passed / 20 skipped / rc=0 / 512.26 秒** (tested tip `875c888a`、
+  Pegasus dispatch request 900750.nqsv)。docs のみの wave だが免除せず実走した — 本 wave は
+  `docs/spool/` と `output/insights/` を新設しており、実 repo を読む検査 (`check_docs`、
+  spool fragment の形式検査、insights 配置の検査) が対象になるため。
+  `check_docs.py` rc=0、`check_ai_provenance.py` rc=0 (2221 件・新規違反なし)、
+  `spool_fold.py --dry-run` rc=0。受入 lease は 115 回目の claim で取得し、
+  取得時点で 5 commit 先行していた local main を待ち手内で取り込んでから走らせた。
+  並走ガード (ii) の確認 = 投入時点のキューは他 wave の受入 dispatch (`izdw-*`) だけで、
+  [T-139] の pilot は投入不可のまま (同 wave の handoff が正本)。
 
 ## 次の一手差分
 
