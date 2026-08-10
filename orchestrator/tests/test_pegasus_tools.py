@@ -577,17 +577,20 @@ def test_smoke_toolchain_capture_detects_nonzero_gcc_version(tmp_path):
     ],
 )
 def test_normalize_request_id_strips_only_one_exact_zero_prefix(raw, expected):
-    if str(REPO / "orchestrator") not in sys.path:
-        sys.path.insert(0, str(REPO / "orchestrator"))
-    from calibrator.schema_v2 import normalize_request_id
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    from orchestrator.calibrator.schema_v2 import normalize_request_id
 
     assert normalize_request_id(raw) == expected
 
 
 def test_normalize_request_id_rejects_empty_string():
-    if str(REPO / "orchestrator") not in sys.path:
-        sys.path.insert(0, str(REPO / "orchestrator"))
-    from calibrator.schema_v2 import CalibrationSchemaError, normalize_request_id
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    from orchestrator.calibrator.schema_v2 import (
+        CalibrationSchemaError,
+        normalize_request_id,
+    )
 
     with pytest.raises(CalibrationSchemaError):
         normalize_request_id("")
@@ -953,9 +956,9 @@ def test_collect_receipt_missing_input_is_nonzero(tmp_path, capsys):
 
 def test_make_acquisition_receipt_round_trip_and_field_drop(tmp_path):
     writer = _load("acquisition_writer_fixture", TOOL_DIR / "make_acquisition_receipt.py")
-    if str(ORCHESTRATOR := REPO / "orchestrator") not in sys.path:
-        sys.path.insert(0, str(ORCHESTRATOR))
-    from calibrator import schema_v2
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    from orchestrator.calibrator import schema_v2
     from test_schema_v2 import _valid_document
 
     document = _valid_document()

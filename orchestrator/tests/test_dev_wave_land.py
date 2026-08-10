@@ -77,9 +77,9 @@ def _campaign_import_scope():
     """Campaign imports may edit sys.path; restore the complete list on exit."""
     saved_sys_path = sys.path[:]
     try:
-        orchestrator_path = str(ROOT / "orchestrator")
-        if orchestrator_path not in sys.path:
-            sys.path.insert(0, orchestrator_path)
+        repo_path = str(ROOT)
+        if repo_path not in sys.path:
+            sys.path.insert(0, repo_path)
         yield
     finally:
         sys.path[:] = saved_sys_path
@@ -3195,12 +3195,12 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
     """F98 正例: fake evaluator の exploration campaign は wave 外だけを汚す。"""
     with _campaign_import_scope():
         from types import SimpleNamespace
-        from campaign import env_contract, layout as layout_module, loop, pipeline, wal
-        from campaign.build_admission import GeneratorId, build_run_context
-        from campaign.model import (
+        from orchestrator.campaign import env_contract, layout as layout_module, loop, pipeline, wal
+        from orchestrator.campaign.build_admission import GeneratorId, build_run_context
+        from orchestrator.campaign.model import (
             CampaignConfig, Genome, STAGE_ABORT, STAGE_BUILD_START,
         )
-        from campaign.pipeline import EvalResult, PerfConfig
+        from orchestrator.campaign.pipeline import EvalResult, PerfConfig
 
     env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
     sentinel = object()
@@ -3300,7 +3300,7 @@ def test_exploration_external_root_keeps_wave_clean() -> None:
 def test_exploration_default_root_stops_before_wave_dirt() -> None:
     """M6/F98 負例: wave-local default は ensure gate で作成前に拒否する。"""
     with _campaign_import_scope():
-        from campaign import layout as layout_module
+        from orchestrator.campaign import layout as layout_module
 
     env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
     sentinel = object()

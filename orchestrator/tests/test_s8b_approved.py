@@ -19,15 +19,15 @@ from pathlib import Path
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import env_contract  # noqa: E402
-from campaign import pin  # noqa: E402
-from campaign import s8b_approved  # noqa: E402
-from campaign import s8b_experiment_numbers  # noqa: E402
-from campaign import s8b_floor_campaign  # noqa: E402
-from campaign import s8b_floor_stats  # noqa: E402
-from campaign import s8b_ratified_freeze  # noqa: E402
+from orchestrator.campaign import env_contract  # noqa: E402
+from orchestrator.campaign import pin  # noqa: E402
+from orchestrator.campaign import s8b_approved  # noqa: E402
+from orchestrator.campaign import s8b_experiment_numbers  # noqa: E402
+from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
+from orchestrator.campaign import s8b_floor_stats  # noqa: E402
+from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
 from tests.skiputil import Skip, skip  # noqa: E402
 
 

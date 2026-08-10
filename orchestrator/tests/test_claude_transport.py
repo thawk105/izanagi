@@ -19,7 +19,7 @@ if str(_ROOT) not in sys.path:
 from orchestrator.campaign import claude_transport as T  # noqa: E402
 from orchestrator.campaign import claude_projected_provider as CP  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
 )
@@ -175,6 +175,7 @@ def test_committed_policy_matches_independent_literal_hash_and_registry() -> Non
             "orchestrator/qualification/t126_reservation_policy_v1.json",
             "tools/pegasus/policies/calibration_v1.json",
             "tools/pegasus/policies/floor_v1.json",
+            "tools/pegasus/policies/t316_sandbox_backend_v1.json",
             "tools/pegasus/policies/transport_v1.json",
             "tools/pegasus/policy.json",
         ],

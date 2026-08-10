@@ -20,9 +20,9 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 _ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
+sys.path.insert(0, str(_ORCHESTRATOR.parent))
 
-from campaign import s8c_preregistration as M  # noqa: E402
+from orchestrator.campaign import s8c_preregistration as M  # noqa: E402
 
 
 FIELD_NAMES = (
@@ -908,7 +908,7 @@ def test_missing_evaluator_module_yields_twelve_evidence_undefined(tmp_path: Pat
 def test_activation_report_records_both_module_blob_hashes_at_commit(tmp_path: Path) -> None:
     root = _init_repo(tmp_path, filled=True)
     core_bytes = Path(M.__file__).read_bytes()
-    from campaign import s8c_preregistration_evidence as evaluator_module
+    from orchestrator.campaign import s8c_preregistration_evidence as evaluator_module
 
     evaluator = Path(evaluator_module.__file__).read_bytes()
     _write(root, M.CORE_MODULE_PATH, core_bytes)

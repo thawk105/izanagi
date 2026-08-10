@@ -19,17 +19,20 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import model, pipeline, s1_stats, wal  # noqa: E402
-from campaign.layout import repo_output_root  # noqa: E402
-from campaign.s1_direct_comparison import (  # noqa: E402
+from . import model, pipeline, s1_stats, wal  # noqa: E402
+from .layout import repo_output_root  # noqa: E402
+from .s1_direct_comparison import (  # noqa: E402
     BUDGET_REL,
     FREEZE_REL,
     layout_for,
@@ -783,7 +786,7 @@ def build_report(
     document: Optional[Mapping] = None
     try:
         if freeze_verify is None:
-            from campaign import s1_measurement_freeze
+            from . import s1_measurement_freeze
             document = s1_measurement_freeze.verify(freeze_path)
         else:
             document = freeze_verify(freeze_path)

@@ -51,11 +51,11 @@ from unittest import mock
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_oracle_driver as driver  # noqa: E402
-from campaign import t080_freeze_migration as migration  # noqa: E402
+from orchestrator.campaign import s8b_oracle_driver as driver  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as migration  # noqa: E402
 
 # import 時点の本番実装を捕まえる。`migration.verify_receipt` を直接呼ぶのではなく
 # **本番の resolver そのもの**を memo することで、MigrationError → 構造化 refusal の翻訳を含めて

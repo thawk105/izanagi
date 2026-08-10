@@ -14,15 +14,18 @@ import random
 import re
 import subprocess
 import sys
-from pathlib import Path
 from typing import Callable, Dict, Mapping, Optional, Sequence
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import pin  # noqa: E402
-from campaign import s1_known_axes_freeze as known_axes  # noqa: E402
+from . import pin  # noqa: E402
+from . import s1_known_axes_freeze as known_axes  # noqa: E402
 
 
 ROOT = _ORCHESTRATOR.parent

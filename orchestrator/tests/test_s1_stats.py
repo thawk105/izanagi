@@ -10,9 +10,9 @@ from itertools import combinations
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import s1_stats  # noqa: E402
+from orchestrator.campaign import s1_stats  # noqa: E402
 
 
 def _reference_ranks2(values):

@@ -32,12 +32,12 @@ _ENV_CONTRACT_IMPORT_CLOSURE_ADDITIONS = (
 
 
 def test_t419_env_contract_dirty_closure_is_covered_by_identity_authority():
-    orchestrator = str(_ROOT / "orchestrator")
-    sys.path.insert(0, orchestrator)
+    repo_root = str(_ROOT)
+    sys.path.insert(0, repo_root)
     try:
-        from qualification.contract import REQUIRED_CODE_IDENTITY_PATHS
+        from orchestrator.qualification.contract import REQUIRED_CODE_IDENTITY_PATHS
     finally:
-        assert sys.path[0] == orchestrator
+        assert sys.path[0] == repo_root
         sys.path.pop(0)
     assert set(_ENV_CONTRACT_IMPORT_CLOSURE_ADDITIONS) <= REQUIRED_CODE_IDENTITY_PATHS
 

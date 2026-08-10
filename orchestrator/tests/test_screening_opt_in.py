@@ -9,12 +9,12 @@ from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import backoff_sweep as B                         # noqa: E402
-from campaign import s6_sort_sweep as S6                        # noqa: E402
-from campaign import s8a_trigger_sweep as S8                    # noqa: E402
-from campaign.build_admission import (GeneratorId,               # noqa: E402
+from orchestrator.campaign import backoff_sweep as B                         # noqa: E402
+from orchestrator.campaign import s6_sort_sweep as S6                        # noqa: E402
+from orchestrator.campaign import s8a_trigger_sweep as S8                    # noqa: E402
+from orchestrator.campaign.build_admission import (GeneratorId,               # noqa: E402
                                       build_run_context)
 
 

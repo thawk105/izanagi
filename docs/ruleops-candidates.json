@@ -1,5 +1,5 @@
 {
-  "schema_version": "ruleops-candidates/v1",
+  "schema_version": "ruleops-candidates/v2",
   "authority": "none",
   "default_effect": "no-state-change",
   "candidates": []

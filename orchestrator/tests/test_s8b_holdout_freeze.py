@@ -17,10 +17,10 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import s8b_holdout_freeze as M  # noqa: E402
-from campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as M  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 import t080_fixture_roots as FIXTURE_ROOTS  # noqa: E402
 
 

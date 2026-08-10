@@ -3388,14 +3388,13 @@ def _sha256_path(path: Path) -> str:
 def _load_calibration(
     repo_root: Path, expected_submission_sha256: str
 ) -> dict[str, Any]:
-    orchestrator = repo_root / "orchestrator"
-    sys.path.insert(0, str(orchestrator))
+    sys.path.insert(0, str(repo_root))
     try:
-        from campaign import env_contract
+        from orchestrator.campaign import env_contract
 
         contract = env_contract.lookup("pegasus")
     finally:
-        if sys.path and sys.path[0] == str(orchestrator):
+        if sys.path and sys.path[0] == str(repo_root):
             sys.path.pop(0)
     relative = Path(contract.calibration_ref.path)
     if relative.is_absolute():
@@ -3628,11 +3627,10 @@ def _parser_crosscheck(repo_root: Path, raw_paths: Sequence[Path]) -> dict[str, 
             },
             "files": [],
         }
-    orchestrator = repo_root / "orchestrator"
-    sys.path.insert(0, str(orchestrator))
+    sys.path.insert(0, str(repo_root))
     try:
         try:
-            from campaign import env_attestation
+            from orchestrator.campaign import env_attestation
         except Exception as exc:
             return {"status": "unavailable", "error": _error(exc)}
         results = []
@@ -3664,7 +3662,7 @@ def _parser_crosscheck(repo_root: Path, raw_paths: Sequence[Path]) -> dict[str, 
             "files": results,
         }
     finally:
-        if sys.path and sys.path[0] == str(orchestrator):
+        if sys.path and sys.path[0] == str(repo_root):
             sys.path.pop(0)
 
 

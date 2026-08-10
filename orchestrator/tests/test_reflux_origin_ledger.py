@@ -25,9 +25,9 @@ from typing import Callable
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
-sys.path.insert(0, os.fspath(_ORCHESTRATOR))
+sys.path.insert(0, os.fspath(_ORCHESTRATOR.parent))
 
-from campaign import reflux_origin_ledger as ledger  # noqa: E402
+from orchestrator.campaign import reflux_origin_ledger as ledger  # noqa: E402
 
 
 FORMULA = "q-lower-bound/base+perRound*R+Emin/v1"
@@ -1027,8 +1027,8 @@ def test_v04_global_flock_race_reentry_and_public_signature(tmp_path: Path) -> N
         return f"""
 import errno,fcntl,os,sys
 from pathlib import Path
-sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
-from campaign import reflux_origin_ledger as l
+sys.path.insert(0,{os.fspath(_ORCHESTRATOR.parent)!r})
+from orchestrator.campaign import reflux_origin_ledger as l
 s=l._store_for_repo(Path({os.fspath(process_repo)!r}),committed_ref='HEAD',fixture=True)
 e=l.BatchReserved(
     {process_event.batch_id!r},
@@ -1410,8 +1410,8 @@ def _crash_script(
 ) -> str:
     return f"""
 import os,sys
-sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
-from campaign import reflux_origin_ledger as l
+sys.path.insert(0,{os.fspath(_ORCHESTRATOR.parent)!r})
+from orchestrator.campaign import reflux_origin_ledger as l
 s=l._fixture_store_for_test({os.fspath(repo)!r},'HEAD',initialize=False)
 e=l.BatchReserved(
     {reserved.batch_id!r},
@@ -1784,7 +1784,6 @@ def test_v12_production_path_in_subprocess_temp_repository(tmp_path: Path) -> No
     origin = _independent_origin(raw)
     script = f"""
 import sys
-sys.path.insert(0,{os.fspath(repo / 'orchestrator')!r})
 sys.path.insert(0,{os.fspath(repo)!r})
 from orchestrator.campaign import reflux_origin_ledger as l
 l._fixture_store_for_test({os.fspath(repo)!r},'HEAD')
@@ -2290,8 +2289,8 @@ def test_v15_strict_authority_event_json_paths_types_and_limits(tmp_path: Path) 
     fifo_script = f"""
 import os,sys
 from pathlib import Path
-sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
-from campaign import reflux_origin_ledger as l
+sys.path.insert(0,{os.fspath(_ORCHESTRATOR.parent)!r})
+from orchestrator.campaign import reflux_origin_ledger as l
 try:
     s=l._fixture_store_for_test(Path({os.fspath(fifo_repo)!r}),'HEAD',initialize=False)
     with l._locked(s) as a:
@@ -3641,8 +3640,8 @@ event=l.BatchCommitted(
     )
     return f"""
 import os,sys
-sys.path.insert(0,{os.fspath(_ORCHESTRATOR)!r})
-from campaign import reflux_origin_ledger as l
+sys.path.insert(0,{os.fspath(_ORCHESTRATOR.parent)!r})
+from orchestrator.campaign import reflux_origin_ledger as l
 s=l._fixture_store_for_test({os.fspath(repo)!r},'HEAD',initialize=False)
 with l._locked(s) as authority:
     snap=l._read_origin_locked(s,authority,{origin!r})

@@ -1,0 +1,115 @@
+あなたは izanagi の dev-wave 段 5 実装子 (Codex role=author) である。日本語で報告せよ。
+
+# 0. 最初に読むもの (読めなければ即停止して報告)
+
+1. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t316-sandbox-measure/s1-brief.md` — 親の段 1 brief。本作業の正本。
+2. `output/insights/2026-08-09_t316-semantic-gate/package.md` の R1・R3-1・R3-2 — ユーザー裁定済みの設計前提。
+3. `tools/pegasus/README.md` の §0 (admission) と §6、`docs/pegasus-runbook.md` の §3 (バッチジョブ)・§7.0.0。
+4. 既存の実在パターン: `tools/pegasus/probes/t139_r4_env_probe.py` / `.pbs` / `.sh`、
+   `tools/pegasus/probes/t293_perf_site_probe.py` / `.pbs`、`tools/pegasus/admission_registry.json`、
+   `tools/pegasus/policies/registry_v1.json`、`tools/pegasus/policy.json`。
+
+いずれかが読めない場合は実装せず、読めなかった path を明記して停止せよ。
+
+# 1. 権限境界 (違反禁止)
+
+- **編集してよいのはコードとテストと機械設定だけ**である。`docs/` 配下は 1 byte も編集しない。
+- **commit しない。** `git commit` / `git add` / branch 操作を一切行わない。作業木に置くだけでよい。
+- `qsub` / `qstat` / `qdel` を実行しない (sandbox が socket を拒む。投入は親が行う)。
+- 既存テストの期待値を変更・反転・緩和・skip・削除しない。既存 production コードの受理集合を変えない。
+- `external/ccbench` (submodule)、`output/` の既存 artifact、`docs/`、`hooks/` を変更しない。
+
+# 2. 作るもの
+
+## (a) `tools/pegasus/probes/t316_sandbox_backend_probe.py`
+
+Pegasus 計算ノード上で sandbox backend を実測する staged probe。python3.10 で動くこと。
+標準ライブラリのみ (repo 内 module の import は可、ただし production を変更しない)。
+
+**段 (stage) は brief の S1〜S7 に一致させる。**
+
+- S1 backend inventory: `bwrap` / `unshare` / `setpriv` / `nsenter` の在否と version、kernel release、
+  seccomp・user namespace・landlock の可用性、node 名 (`hostname`)、`PBS_JOBID`、
+  **単独性証拠** (load average、他ユーザ process の有無、`nproc`、cpu affinity)。
+- S2 namespace 起動: user / pid / net / mount namespace を候補 profile で起動できるか。
+- S3 封じ込め負制御。**各項目に必ず「sandbox 外での正例」を対で実行する。**
+  - 外部 network への TCP connect (名前解決と直接 IP の両方)
+  - HTTP(S) proxy 環境変数が指す proxy 経由の到達
+  - `$HOME` 配下・SSH agent socket (`$SSH_AUTH_SOCK`)・`~/.ssh`・`~/.codex` 等の credential への到達
+  - scratch 以外への write (`$HOME`、repo 内、`/tmp`)
+  - source tree が read-only であること (書き込み試行が失敗すること)
+- S4 process-tree timeout: `setsid()` で process group を抜けた子孫が、親 timeout 後に残存しないこと。
+- S5 脅威 4 種の実発火制御: 最小の C++ ソースを probe 自身が生成して build し、profile 内外で実行する。
+  (i) `std::system` による外部 command 実行、(ii) socket による外向き connect、
+  (iii) 想定外 path への `std::ofstream` write、(iv) 無限ループ (timeout で殺されること)。
+  **profile 外では 4 種とも「成功する」ことを示すこと** (示せなければその項目は inconclusive)。
+- S6 build 実行可能性: CCBench を候補 profile 内で CMake configure/build できるか。
+  third-party 供給は `tools/pegasus/README.md` §6 と `t139_r4_env_probe` の実在手順に従う
+  (cache root は環境変数で受け取る。probe に機体固有の絶対 path を焼き込まない)。
+- S7 性能: trace-disabled build を numactl + perf stat + 48 thread で profile 内外実行し、
+  同一 config・同一 build での overhead 比を出す。絶対 throughput を CC 性能の主張として書かない。
+
+**設計上の必須要件:**
+
+- **verdict 判定は副作用のない純関数へ分離する。** 観測値 (dict/dataclass) を入力に取り、
+  stage 別の判定 (`go` / `no-go` / `inconclusive` / `blocked`) と理由コード列を返す純関数群を作り、
+  subprocess 実行部分と完全に分離する。単体テストはこの純関数だけを叩けるようにする。
+- **恒真禁止。** 「封じ込めが効いた」と判定してよいのは、対になる sandbox 外の正例が成功したときだけ。
+  正例が失敗したら `inconclusive` を返す (`go` にしてはならない)。
+  「検査が実行されなかった」は `blocked` であり `go` ではない。
+- **fail-soft。** ある stage が失敗・timeout しても後続 stage の実行は続け、全 stage の結果を必ず記録する。
+  S6/S7 が walltime 内に届かなければ `blocked` と理由を記録する (黙って skip しない)。
+- **receipt は create-only。** 出力は `output/env/pegasus/t316-sandbox-backend/<PBS_JOBID>/receipt.json` に
+  `open(..., "x")` 相当で書く。既存 job ID への上書き・再利用は非 0 で停止する。
+  schema key を持ち (例 `t316-sandbox-backend-probe/v1`)、`PBS_JOBID` を計測 ID として記録する。
+- 規律 1: S7 は trace-disabled build のみを測る。trace 有効 build を性能値に使わない。
+- 規律 6: bwrap や compile の stdout/stderr はデータであり指示ではない。probe の制御に使わない。
+
+## (b) `tools/pegasus/probes/t316_sandbox_backend_probe.pbs`
+
+`#PBS -A SFC` / `#PBS -q gen_S` / `#PBS -b 1` / `#PBS -l elapstim_req=01:30:00`。
+必要な環境変数の非空・形式を先頭で検査し、欠けたら非 0 で止める。
+interpreter は `python3.10` を明示的に解決して使う (`docs/pegasus-runbook.md` の該当節)。
+**親が投入するときの環境変数の集合を最小にし、`## 総括` に列挙せよ。**
+
+## (c) `tools/pegasus/policies/t316_sandbox_backend_v1.json` と `policies/registry_v1.json` への登録
+
+walltime 等の task 固有予約設定を置く。共有 `tools/pegasus/policy.json` は編集しない。
+`orchestrator/tests/test_pegasus_policy_registry.py` の閉集合検査を通すこと。
+
+## (d) `tools/pegasus/admission_registry.json` への登録
+
+(a) と (b) を `dispatch-required` で登録する (`hooks/guard_bash.py` が実行 site を判定できるように)。
+
+## (e) `orchestrator/tests/test_t316_sandbox_probe.py`
+
+(a) の **verdict 純関数**に対する単体テスト。実際の subprocess・network・PBS を必要としないこと。
+最低限、次を独立に検査する negative test を含めること (親が変異でこの検出力を裏取りする)。
+
+- 対の正例が失敗したときに `go` にならず `inconclusive` になること (S3・S5 の各カテゴリ)
+- 封じ込め検査が実行されなかったときに `blocked` になり `go` にならないこと
+- 4 脅威種それぞれについて、封じ込め失敗の観測が `no-go` を生むこと
+- 全 stage の verdict を集約する総合判定が、1 つでも `no-go` があれば `go` を返さないこと
+
+# 3. 検査と報告 (DW-S05-C)
+
+- 緑を主張するなら走らせた nodeid と範囲を併記せよ。実走できなければ「実装済み・未実走」と書く
+  (`closed` と申告しない)。login node で pytest が admission に拒まれる場合はその旨を書く。
+  試すなら `python3 -m pytest orchestrator/tests/test_t316_sandbox_probe.py -q` の単一ファイルだけにせよ。
+- 新設テストを制約する meta-test (`orchestrator/tests/test_check_docs.py`、
+  `orchestrator/tests/test_hooks.py`、`orchestrator/tests/test_pegasus_policy_registry.py`) への
+  波及を静的に列挙せよ。走らせられるなら走らせて nodeid を書け。
+- 期待値に working tree の hash 等、揮発する診断 payload を焼き込まない。
+- 指示にない受理集合の拡大・縮小をしない。
+- 所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙せよ。
+- **親 docs は未 land である。** docs 側の記述が無いことで赤くなる検査があるなら、その集合を事前に列挙せよ。
+
+# 4. 出力
+
+最後に必ず `## 総括` という見出しを付け、次を書け。
+
+- 作成・変更した file の一覧 (path と役割)
+- verdict 純関数の module path と関数名 (親が変異事前登録に使う)
+- 親が `qsub` するときの正確な command と環境変数の集合
+- 走らせた検査の nodeid と結果、走らせられなかったものとその理由
+- 既知の限界と、S6/S7 が walltime 内に届かない可能性の見積り

@@ -372,6 +372,14 @@
   producer process の死の 3 点照合**で全例を看破した。恒久対応は既存の `DW-O01` で足りる —
   加えて待ち手は persistent 側で張り、偽完了を受けても kill も再 arm もしない (本 wave では
   偽完了を孤児と誤認して待ち手を 1 度落とした)。
+
+- **再発: 2026-08-10** — 2026-08-09 と同型を独立 3 例。受入全走の待ち手へ
+  `.done` 不在・producer 生存・計算ノード job が `qstat` で RUN のまま
+  「ACCEPTANCE-DONE rc=0」が届いた。3 例とも成果物実在・`.done`・producer 死の 3 点照合で
+  弾き、実完了は `.done` の出現でのみ返る待ちに切り替えて確認した
+  (実測 = 8012 passed / 20 skipped / 511.08 秒 / rc=0)。**恒久対応は既存の `DW-O01` で足りる。**
+  本 wave の追加事実は、**偽完了が同一 wave 内で反復し、待ち手を張り直すたびに再発する**点である
+  — 1 度弾いたから以後は正しい、とは扱えない。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -2830,6 +2838,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異 harness の文脈でしか書かれていない**。実際には親が張る全ての子 process 待ち手で発火する。
   射程拡張の逐語 draft (112 bytes) は本 wave の裁定パッケージ §B-5 にあるが、
   `docs/dev-wave/**` の byte 予算 (25,187 / 25,200) に阻まれて採録できていない。
+
+- **再発: 2026-08-10** — 四つ目の方向。投入直後の `pgrep -f <script>` が**複数 pid** を返し、
+  親がそのうち一時的な pid を待ち条件にしたため、**走行中の受入全走を「producer 死」と誤判定**した
+  (実体は別 pid で生存、計算ノード job も RUN)。F104 系の既往は
+  「並行 wave の子に一致」「自分の子に一致しない」「待ち手自身に一致」の 3 方向で、
+  **同一 producer の複数 pid から誤った 1 つを選ぶ**形は射程外だった。
+  判別 = pid を待ち条件にする前に `ps -o pid,ppid,etime,cmd -p <pid>` で実体を確認し、
+  script 本体の pid (親 shell ではなく) を選ぶ。復旧は正しい pid での待ち手張り直しで足りた。
 ### F105. 事前登録変異のテストが空 directory を untracked file とみなしていた [テスト代表性]
 
 - 事象: 変異 M6 (`--untracked-files=all` を落とす) を殺すテストが、fixture で
@@ -3329,6 +3345,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `tools/check_ai_provenance.py` の full-history 監査が既に検出する
   (本件もそれで顕在化した)。preflight の `--dry-run -F` 単独通過を根拠にしない。
 
+
+- **再発: 2026-08-10** — 受入 lease 取得直後の main 取り込み merge で再発した。競合なしの
+  auto-merge だったが combined diff がテスト 2 件を含み、message が `role=integrator` 1 行
+  だけだった。取り込み後の full 監査が 1 新規違反として検出。実装面を書いたのは本 wave の
+  Codex 子なので `role=author` を併記して amend し、再走で全走 rc=0 を確認した。
+  merge message 生成器 (wave の `write_merge_msg.py`) が integrator 行しか書かない形だったのが
+  直接原因で、生成器側を直した。
 ### F126. 後段の fail-closed 安全弁が、狙った検査の変異を隠した [恒真ゲート] [変異帰属]
 
 - 事象: 世代 validator に「構造・連番・key 一致・hash 一意性・隣接遷移」の検査と、その後段に
@@ -4865,3 +4888,172 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ならない (`failed_keys == expected_keys` の完全一致契約)。
 - 近縁: F185 (同じ field を local 実測から決めて dispatch 経路の下限を割った)、
   F87 (`MISMATCH` を期待 node の過少列挙として読む型)。
+
+### F199. 新設した静的検査が「実際に使われていた書き方での再発」を素通りしていた [恒真ゲート] [テスト代表性]
+
+- 事象: [T-720] で新設した import 不変条件検査が、`orchestrator/campaign/**` への
+  `<repo>/orchestrator` の `sys.path` 挿入を **`pathlib` の書き方でしか検出できなかった**。
+  段 2 プラン、段 3 敵対相談 2 本、段 6 敵対レビュー 2 本、焦点再レビュー 1 本の**計 6 本の
+  静的レビューを通っても検出されず**、変異 M11 を実際に注入して初めて生存として現れた。
+  是正後も module 別名 (`import os as _o`) 経由が素通りし、2 巡目の変異でまた生存した。
+- 根本原因: 検査が「禁止したい**効果**」ではなく「禁止したい**書き方**」を列挙していた。
+  `sys.path.insert(0, str(Path(__file__).resolve().parents[1]))` は解釈できたが、
+  **本 wave 以前に実コードが使っていた**
+  `sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` は
+  解釈できなかった。レビューは「回避形がある」という一般的指摘はしたが、
+  **最も起こりやすい再発の形が既に取り残されている**ことは指摘できなかった。
+  レビューは設計を読む。変異は実際に注入する。この差が出た。
+- 分離できた範囲: 統一そのもの (production の import 形) には欠陥が無く、
+  欠陥は新設した検査側だけにあった。既存の受理集合は変わっていない。
+- 恒久対応: `_path_expression_kind` を、`pathlib` と `os.path` の両慣用形について
+  **深さを数えて解決先 path を決める**形へ変え、lexical scope を尊重した module alias 表で
+  別名も解決する。`orchestrator/tests/test_campaign_import_invariant.py` に、
+  5 つの正例 (素の `os.path` / module 別名 / `os.path` 自体の別名 / `from import` の別名 /
+  `pathlib` 別名) と 2 つの負例 (repo root は許す) を逐語で固定した。
+- 再発検知: 同型は「新設した検査を、その検査が禁止したい**実際の過去のコード**に対して
+  走らせていない」ときに起きる。変異事前登録に
+  **「wave 前の実コードと同型の形」を必ず 1 件入れる**ことで検出できる。
+  本 wave の変異 M11 がその役を果たした。
+
+### F200. 横断 import 統一の scope を「対象 package を読む箇所」だけで数え、二次波及を落とした [手順漏れ] [テスト代表性]
+
+- 事象: [T-720] の受入全走で 20 件が赤くなった。原因は
+  `tools/pegasus/submit_t126_qualification.sh` の heredoc 3 箇所と
+  `tools/pegasus/collect_t126_qualification.py` が、`<repo>/orchestrator` を `sys.path` へ入れて
+  **top-level `qualification`** として読んでいたこと。本 wave が
+  `orchestrator/qualification/**` を canonical 化したのでこの経路が壊れた。
+  `:410` の heredoc は qsub の**前**に走るため script がそこで終了し、
+  テストが待つ疑似 qsub に到達せず `assert entered.exists()` が 19 件落ちた。
+- 根本原因: scope 列挙を **`campaign` を import する箇所**の grep で作った。
+  統一のために `qualification` / `critic` / `calibrator` も canonical 化したのに、
+  **それらを読む消費者は数え直さなかった。** 一次の対象 (campaign) だけを閉包と見なし、
+  同じ wave が副次的に変えた package の消費者を落とした。
+- 分離できた範囲: 親が同一 worktree で ref だけを切り替える 3 走
+  (tip → main → tip) で帰属を確定した。修正前 tip 20 failed / main 0 failed / tip 20 failed、
+  修正後は 3 走とも 347 passed / 0 failed。フレークとの区別を実測で付けた。
+- 恒久対応: `orchestrator/tests/test_campaign_import_invariant.py` の R-A は
+  repo 全体の legacy `campaign` namespace を機械検査するが、
+  **`qualification` など他 package の旧形は検査対象外**である。
+  横断的な import 統一を行う wave は、**統一した package ごとに消費者を数え直す**。
+  memory `import-unification-count-consumers-per-package` に規律として残す。
+- 再発検知: 同型は「複数 package を同時に canonical 化し、scope 表を 1 つの package の
+  grep で作った」ときに起きる。統一対象の各 package について
+  `grep -rn "sys.path.*orchestrator"` と `from <pkg>` を独立に数えれば検出できる。
+
+### F201. 親の裁定「既存テストを完全に無編集で残す」が実測で倒れた [手順漏れ]
+
+- 事象: 段 4 で「二重 namespace を検査する既存テスト 2 本は期待値も import 形も一切変えない」と
+  裁定したが、`test_campaign.py` の別名 pin テストについて成立しなかった。
+  同テストは module 冒頭の legacy import と対で成立しており、実装子が指示どおり
+  「関数本体だけ」を保護した結果、冒頭が canonical・関数が legacy という**分裂**が残った。
+  テストが `layout_module._effective_uid` を差し替えてから canonical 側の関数を呼ぶため、
+  差し替えが別 module object に当たって静かに空振りし、計算ノードで 2 件が赤になった。
+- 根本原因: 親が保護範囲を「関数」の粒度で書いた。テストが依存するのは関数の外にある
+  module-level import だった。**保護対象を「テストが成立するために必要な依存の閉包」で
+  書かなかった**ことが原因である。
+  さらに、統一後は `importlib.import_module("orchestrator.campaign.layout")` が
+  同一 object を返すため、そのテストは元の書き方では意図を表現できなくなる。
+  「完全に無編集」は原理的に不可能だった。
+- 分離できた範囲: もう 1 本 (`test_reflux_ir.py` の D149(5) peer 受理) は
+  連鎖が campaign 内に閉じるため無編集で成立し、計算ノードで緑を実測した。
+  裁定が倒れたのは 1 本だけである。
+- 恒久対応: 最終形は「module 冒頭は canonical、別名テストの中だけで実 legacy namespace を読む」。
+  **assert は 1 つも変えていない。** 途中で採った合成 module への置換は、段 6 レビューが
+  「実 topology の退行を検出しなくなる」と正しく指摘したので撤回した。
+  規律としては、**保護対象を書くときは依存の閉包で書き、実測で倒れたら親が裁定を直す**に尽きる。
+- 再発検知: 同型は「テストの一部だけを例外として保護し、残りを機械変換した」ときに起きる。
+  保護した関数が参照する module-level の名前を列挙して、
+  同じ例外に含まれているかを確認すれば検出できる。
+
+### F202. 並行 wave が増えると codex 子が共有 16GiB 上限で無音 kill される [セッション死・救出]
+
+- 事象: 本 wave で read-only の codex 子が **3 回**、`.done` を書かず log を途中で切って消滅した
+  (段 2 の 1 本目、段 3 レンズ A・B の初回)。error 文字列も終了メッセージも出ない。
+  いずれも大きいファイル (`tools/check_docs.py` 4500 行超、`docs/decisions.md`) を
+  丸ごと表示した直後だった。
+- 根本原因: login node の cgroup 上限は **session ではなく user 単位**である。
+  実測 = `/sys/fs/cgroup/user.slice/user-<uid>.slice/memory.max` が
+  **17179869184 (16 GiB)**、同 `memory.events` の `oom_kill` が 1308。
+  自分の子が居ない時点でも `memory.current` が 10.6 GB あり、これは
+  **同時に走る別の背景 job (別 wave) の codex 子が同じ user slice を食っている**ためである。
+  1 wave 単独の見積りで子を並列投入すると、他 wave の分と合算して上限に当たる。
+- 影響: 実害は wall-clock のみ。pid 監視の待ち手が 3 回とも producer 死を検出したため、
+  無音ハングにはならなかった。`.done` の出現だけを待つ待ち手なら 3 回とも永久に待つ。
+- 恒久対応: memory `login-node-memory-cap-16gib` の「上限は user 単位で全並行 job が共有する」
+  という射程を運用へ効かせる — (1) 待ち手は必ず pid を待ち条件に含める
+  (`docs/dev-wave/core.md` `DW-C00` の「生産者の死も待ち条件に含める」が既に義務化しており、
+  本件はその義務が実際に効いた事例である)、(2) 子の prompt に**巨大ファイルの全文表示を
+  禁じ、行範囲読みを指示する**。本 wave では (2) を適用した prompt へ差し替えた 2 本が
+  いずれも完走した (段 2 再投入、段 3 レンズ A・B の再投入)。
+- 再発検知: 子が死んだら `/sys/fs/cgroup/user.slice/user-<uid>.slice/memory.events` の
+  `oom_kill` を読む。増えていれば資源であり、prompt や認証を疑う前に並列度を下げる。
+
+### F203. 同一タスクの背景 job が 2 本、同じ worktree と job dir を共有した [手順漏れ]
+
+- 事象: 同じ [T-726] の `/dev-wave` を受け取った背景 job が 2 本同時に走り、
+  `EnterWorktree` の名前が同じだったため一方が他方の worktree を resume した。両者が同じ
+  job artifact dir を使い、handoff を相互に上書きした。上書きされた側は当初これを
+  「外部からの内容混入」と判定して規律 6 の anomaly として扱っており、原因究明に時間を使った。
+  同じ計測 (最大 package preflight) を 2 本が独立に計算ノードへ投入する重複も起きた
+  (36.467 秒と 36.527 秒。値自体は 0.06 秒差で整合した)。
+- 根本原因: wave slug が worktree 名・branch 名・job dir 名の唯一の識別子であり、
+  **タスク ID から機械的に決まる**。同じタスクを 2 回起動すると必ず衝突する。
+  `EnterWorktree` は既存名を resume する仕様で、これ自体は正しい動作である。
+  起動時の 3 点検査 (`tools/check_wave_startup.py`) は local main との乖離・handoff の実在を
+  見るが、**同じ worktree を他 process が使用中かは見ない**。
+- 恒久対応: memory `dev-wave-duplicate-job-collision` — handoff が自分の書いた内容と違ったら
+  外部混入と断ずる前に重複起動を疑い、`pgrep -af <worktree path>` と worktree lock 保持者を見て、
+  後着が撤退する。機械化 (`tools/check_wave_startup.py` に「同一 worktree path を argv に持つ
+  生存 process が自分以外に居ない」の fails-closed 検査を足す) は
+  [T-754] として起票した。
+- 再発検知: 起動直後に handoff の内容が自分の書いたものと異なることを検出したら、
+  外部混入と断ずる前に `pgrep -af <worktree path>` と `git worktree list` の lock 保持者を見る。
+  今回は先方からの cross-session message で原因が判明した。
+
+### F204. 過剰拒否の方向が無検査で、機能を丸ごと無効化しても全テストが緑だった [恒真ゲート] [テスト代表性]
+
+- 事象: 変異 M7 (`if by_stage.get("S7") == "go":` → `if False:`) が SURVIVED。
+  probe の R3-1 coverage から perf 由来の discharge 項目を丸ごと発行しなくしても、
+  115 件のテストが 1 件も落ちなかった。等価変異ではない — 実測 receipt `0:900427.nqsv` は
+  当該項目を持っており、変異を入れると観測可能に消える。
+- 根本原因: `test_performance_discharge_requires_s7_go` が「S7 が go **でない**ときに
+  discharge しない」方向だけを検査し、「go の**ときに** discharge する」方向を検査していなかった。
+  条件付き発行を「発行しない側」だけで固定すると、発行経路を殺す変異が生き残る。
+- 恒久対応: 双方向を固定するテストを追加した
+  (`orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_when_s7_go` と
+  `::test_containment_discharge_when_all_containment_stages_go`)。期待値は production から
+  import せず独立 literal で持つ。2 走目で M7 は KILLED。
+- 再発検知: 条件付き発行を新設する wave では、発行条件を `if False:` に潰す変異を
+  事前登録する (本 wave の `output/insights/2026-08-10_t316-sandbox-measurement/mutation-spec-v2.json`
+  の M7 が雛形)。静的レビュー 3 本 (敵対 2 + 焦点再) はこの穴を見つけられなかった。
+
+### F205. tmpfs でしか成立しない syscall を実出力先の前提にし、単体テストが緑のまま実機だけが落ちる形になった [テスト代表性] [計測汚染]
+
+- 事象: receipt の atomic publish に `renameat2(RENAME_NOREPLACE)` を使ったが、この機体の `/work` は
+  **通常ファイルに対しても EINVAL** を返す。単体テストは `tmp_path` (= `/tmp`、tmpfs) で走るため緑になり、
+  実出力先が `/work` 配下である実機の publish だけが必ず失敗する形だった。
+  90 分の測定を終えてから receipt を書けない、という最悪形の手前で親の実測が捕まえた。
+- 根本原因: `docs/pegasus-runbook.md` は **directory** の create-only publish について EINVAL を
+  記録していたが、通常ファイルは未実測だった。子はその未実測の隙間を埋めずに採用した。
+- 恒久対応: `os.link(tmp, final)` + `os.unlink(tmp)` による create-only publish へ置換
+  (親が同じ `/work` 上で新規名 OK / 既存名 EEXIST を実測)。加えて probe は起動直後に
+  **実出力先 directory で publish 機構の自己検査**を行い、失敗したら測定を始める前に停止する。
+- 再発検知: publish 関数へ EINVAL を注入し、canonical path に部分ファイルも `COMPLETED` も
+  残さないことを検査するテストを追加した。**永続化先の filesystem が単体テストの tmp と
+  異なる成果物では、その filesystem で機構を実測してから採用する。**
+
+### F206. 取り込み前の古い checker で incoming range を監査し、登録済みの既知違反を赤と誤認した [手順漏れ] [ドリフト]
+
+- 事象: 受入直前の `check_ai_provenance.py --range HEAD..main` が 4 違反で赤になり、
+  受入投入を 2 度止めた。実体は別 wave の merge commit 4 件で、**main 側の checker には
+  既知違反として登録済み**だった。wave 側 worktree は取り込み前の古い checker を持つため、
+  その登録を知らないまま赤を出していた。取り込み後の full 監査は同じ木で緑になる。
+- 根本原因: `DW-O17` は「`OLD_HEAD..HEAD` は補助で、correction を含むときは両 commit を含む
+  range か full 監査だけを権威とする」と定めている。既知違反台帳の更新は correction であり、
+  それが incoming 側にあるとき、**取り込み前の checker で incoming range を測る手順自体**が誤り。
+  他セッションの land 済み履歴を書き換えたくなる方向へ誘導する点で有害である。
+- 恒久対応: 受入 script の incoming gate を廃し、**取り込み後の full 監査**を権威にした
+  (本 wave の `acceptance.sh`)。`DW-O17` の既存規定で説明できる誤用なので新しい規則は足さない。
+- 再発検知: 同じ形の赤が出たら、まず incoming 側 checker
+  (`git show main:tools/check_ai_provenance.py`) に当該 SHA が登録されているかを見る。
+  登録済みなら wave 側 checker の陳腐化であって、履歴の欠陥ではない。

@@ -17,16 +17,16 @@ import pytest
 
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
-if str(_ORCH) not in sys.path:
-    sys.path.insert(0, str(_ORCH))
+if str(_ORCH.parent) not in sys.path:
+    sys.path.insert(0, str(_ORCH.parent))
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
-from calibrator import schema_v2 as sv2  # noqa: E402
-from campaign import calibration_verify as cv  # noqa: E402
-from campaign import env_attestation as ea  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign import execution_guard as eg  # noqa: E402
+from orchestrator.calibrator import schema_v2 as sv2  # noqa: E402
+from orchestrator.campaign import calibration_verify as cv  # noqa: E402
+from orchestrator.campaign import env_attestation as ea  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import execution_guard as eg  # noqa: E402
 from test_schema_v2 import _valid_document  # noqa: E402
 
 
@@ -1096,11 +1096,11 @@ def test_calibration_verify_import_closure_excludes_env_contract():
             sys.executable,
             "-c",
             (
-                "import sys; from campaign import calibration_verify; "
-                "print('campaign.env_contract' in sys.modules)"
+                "import sys; from orchestrator.campaign import calibration_verify; "
+                "print('orchestrator.campaign.env_contract' in sys.modules)"
             ),
         ],
-        cwd=_ORCH,
+        cwd=_ORCH.parent,
         check=True,
         capture_output=True,
         text=True,

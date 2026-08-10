@@ -38,9 +38,11 @@ from .schema_v2 import (SCHEMA_VERSION, normalize_request_id,
                         validate_calibration_v2)
 from .sweep import MAX_RECORDS_DEFAULT, calibrate
 from .tsc import TscMeasurement, measure_tsc
-from campaign import env_attestation as _env_attestation
-from campaign.execution_guard import (effective_clock_comparison_diagnostics,
-                                      effective_clock_comparison_passes)
+from orchestrator.campaign import env_attestation as _env_attestation
+from orchestrator.campaign.execution_guard import (
+    effective_clock_comparison_diagnostics,
+    effective_clock_comparison_passes,
+)
 
 
 # C3-3/C3-7 frozen certification coordinates. Cooldown values come directly from
@@ -361,7 +363,7 @@ def _profile_dict(value: object) -> dict:
 
 
 def _default_probe():
-    from campaign import env_attestation
+    from orchestrator.campaign import env_attestation
     fn = getattr(env_attestation, "probe", None)
     if fn is None:
         fn = getattr(env_attestation, "probe_hardware", None)

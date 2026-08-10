@@ -47,8 +47,8 @@ def _detect_site_under_test():
 @pytest.fixture
 def _activate_synthetic_env_authority(monkeypatch):
     """合成契約を registry と activation record の正規経路で認可する。"""
-    from campaign import env_contract as ec
-    from campaign import env_contract_activation as activation
+    from orchestrator.campaign import env_contract as ec
+    from orchestrator.campaign import env_contract_activation as activation
 
     def activate(contract, *, repo_root: Path, authority_dir: Path):
         root = Path(repo_root).resolve()
@@ -96,7 +96,7 @@ def _activate_synthetic_env_authority(monkeypatch):
 
     yield activate
     # monkeypatch 復元後の初回参照が production authority を再 load するよう cache を残さない。
-    from campaign import env_contract as ec
+    from orchestrator.campaign import env_contract as ec
     ec._clear_authority_cache_for_tests()
 
 
@@ -104,23 +104,19 @@ def _activate_synthetic_env_authority(monkeypatch):
 def _declare_default_test_site(request, monkeypatch):
     """Make ambient machine identity irrelevant unless a test declares a site.
 
-    Test modules are imported before fixture setup, so patch both supported import
-    names when present.  Keep ``current_site`` itself intact and neutralize only its
-    inputs.  A test's own monkeypatch/direct replacement runs later and therefore
-    wins for explicit login/compute/suspect cases.
+    Test modules are imported before fixture setup, so patch the canonical module
+    when present.  Keep ``current_site`` itself intact and neutralize only its inputs.
+    A test's own monkeypatch/direct replacement runs later and therefore wins for
+    explicit login/compute/suspect cases.
     """
     if "_detect_site_under_test" in request.fixturenames:
         return
-    for module_name in (
-        "campaign.site_policy",
-        "orchestrator.campaign.site_policy",
-    ):
-        module = sys.modules.get(module_name)
-        if module is not None:
-            monkeypatch.setattr(
-                module, "socket", SimpleNamespace(gethostname=lambda: "test-host")
-            )
-            monkeypatch.setattr(module, "_has_nqsv", lambda: False)
+    module = sys.modules.get("orchestrator.campaign.site_policy")
+    if module is not None:
+        monkeypatch.setattr(
+            module, "socket", SimpleNamespace(gethostname=lambda: "test-host")
+        )
+        monkeypatch.setattr(module, "_has_nqsv", lambda: False)
 
 
 # 単一 pytest runner invocation 内で、親 repo status と共有 ccbench worktree の
@@ -224,18 +220,11 @@ def _isolate_task_run_recording_env(monkeypatch):
 def _isolate_exploration_output_root_env(monkeypatch):
     """Exploration root selection and its process pin never leak across tests."""
     monkeypatch.delenv("IZANAGI_EXPLORATION_OUTPUT_ROOT", raising=False)
-    module_names = ("campaign.layout", "orchestrator.campaign.layout")
-    module = next(
-        (sys.modules[name] for name in module_names if name in sys.modules),
-        None,
-    )
+    module = sys.modules.get("orchestrator.campaign.layout")
     if module is not None:
         module._reset_exploration_output_root_pin_for_tests()
     yield
-    module = next(
-        (sys.modules[name] for name in module_names if name in sys.modules),
-        None,
-    )
+    module = sys.modules.get("orchestrator.campaign.layout")
     if module is not None:
         module._reset_exploration_output_root_pin_for_tests()
 

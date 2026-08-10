@@ -19,9 +19,9 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import profiler_directive as M  # noqa: E402
+from orchestrator.campaign import profiler_directive as M  # noqa: E402
 
 
 _REGIONS = ["cc/silo/transaction.cc", "cc/silo/silo.cc", "include/backoff.hh"]

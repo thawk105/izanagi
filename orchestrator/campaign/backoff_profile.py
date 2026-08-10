@@ -30,18 +30,22 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from calibrator.benchparse import (abort_rate as parse_abort,    # noqa: E402
+from ..calibrator.benchparse import (abort_rate as parse_abort,    # noqa: E402
                                    parse_bench_stdout, throughput_tps)
-from campaign import buildcache, source_digest                   # noqa: E402
-from campaign.build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
+from . import buildcache, source_digest                   # noqa: E402
+from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission)
-from campaign.layout import env_scope_dir                    # noqa: E402
-from campaign.model import Genome                                # noqa: E402
-from campaign.p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
+from .layout import env_scope_dir                    # noqa: E402
+from .model import Genome                                # noqa: E402
+from .p2_2 import (CCBENCH_COMMIT, CLK, ENV_TAG, EXTIME,  # noqa: E402
                            RECORDS, THREADS, _assert_single_tenant)
+
 
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
 NUMA = ["numactl", "--interleave=all"]

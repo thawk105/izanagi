@@ -17,14 +17,14 @@ import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from calibrator.analyze import (find_saturation, noise_floor,        # noqa: E402
+from orchestrator.calibrator.analyze import (find_saturation, noise_floor,        # noqa: E402
                                 scale_sensitivity)
-from calibrator.benchparse import (actual_extime, parse_bench_stdout,  # noqa: E402
+from orchestrator.calibrator.benchparse import (actual_extime, parse_bench_stdout,  # noqa: E402
                                     throughput_tps)
-from calibrator.model import PerfCounters, ScalePoint                # noqa: E402
-from calibrator.perfparse import parse_perf_stat                     # noqa: E402
+from orchestrator.calibrator.model import PerfCounters, ScalePoint                # noqa: E402
+from orchestrator.calibrator.perfparse import parse_perf_stat                     # noqa: E402
 
 
 def _pt(records, miss_rate, threads=8, tps=None, maxrss_mb=None):
@@ -131,14 +131,14 @@ def test_benchparse_throughput_fallback():
 
 def test_benchparse_nan_is_none():
     m = parse_bench_stdout("batch_abort_rate:\t-nan\n")
-    from calibrator.benchparse import _num
+    from orchestrator.calibrator.benchparse import _num
     assert _num(m["batch_abort_rate"]) is None
 
 
 # ===== leading indicators (P2-3, §3.5) =====
 
 def test_benchparse_abort_rate_and_latency():
-    from calibrator.benchparse import abort_rate, latency_ns
+    from orchestrator.calibrator.benchparse import abort_rate, latency_ns
     # abort_rate ラベルがあればそれを優先 (生カウントより)
     m = parse_bench_stdout("abort_rate:\t0.0260\nabort_counts_:\t999\ncommit_counts_:\t1\n")
     assert abort_rate(m) == 0.0260
@@ -149,7 +149,7 @@ def test_benchparse_abort_rate_and_latency():
 
 
 def test_benchparse_abort_rate_nan_falls_back_to_counts():
-    from calibrator.benchparse import abort_rate
+    from orchestrator.calibrator.benchparse import abort_rate
     m = parse_bench_stdout("abort_rate:\t-nan\nabort_counts_:\t10\ncommit_counts_:\t90\n")
     assert abort_rate(m) == 0.1                    # -nan ラベルは無効 → 10/(10+90)
 
@@ -336,7 +336,7 @@ def _completed_process(returncode, stdout=_BENCH):
 
 def test_run_once_records_rc_and_keeps_three_tuple_when_not_strict():
     """M-P1a: rc 収集を opt-in しても既存 3-tuple 契約は変えない。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     returncodes = []
 
     result = runner.run_once(
@@ -351,7 +351,7 @@ def test_run_once_records_rc_and_keeps_three_tuple_when_not_strict():
 
 def test_run_once_records_rc_before_strict_failure():
     """M-P1b: strict nonzero が例外になっても、発生済み rc は失わない。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     returncodes = []
 
     try:
@@ -369,7 +369,7 @@ def test_run_once_records_rc_before_strict_failure():
 
 def test_run_once_records_rc_before_metrics_parse_failure():
     """M-P1c: stdout metrics が空でも、完了した subprocess の rc は失わない。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     returncodes = []
 
     try:
@@ -390,7 +390,7 @@ def test_measure_point_survives_partial_rep_failure():
 
     倍々スイープ末尾で 1 rep がコケても測定点全体を捨てない (reps>=2 の冗長性を活かす)。
     握り潰さず notes に残す (規律3: 沈黙させない)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     calls = {"n": 0}
     good = ({"throughput[tps]": "1000", "maxrss": "100 kB"},
             PerfCounters(llc_load_misses=10, llc_loads=100), 0.5)
@@ -416,7 +416,7 @@ def test_measure_point_survives_partial_rep_failure():
 
 def test_measure_point_all_reps_fail_raises():
     """全 rep が run_once 例外なら集約 RuntimeError (測定不能を沈黙で None 化しない)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
 
     def fake_run_once(binary, gflags, numactl=None, timeout_s=120.0, extra_env=None):
         raise RuntimeError("ccbench produced no metrics (injected)")
@@ -441,8 +441,8 @@ def test_measure_point_all_reps_fail_raises():
 def test_clocks_fallback_recorded_in_result():
     """TSC 実測失敗時のフォールバック 2100 が result.clocks_per_us (成果物 JSON/MD)
     にも記録される (notes だけの semi-silent を解消、audit §2)。"""
-    from calibrator import sweep
-    from calibrator.model import CalibrationResult
+    from orchestrator.calibrator import sweep
+    from orchestrator.calibrator.model import CalibrationResult
     res = CalibrationResult(env_tag="t", threads=1, clocks_per_us=None)
     assert sweep._apply_clocks_fallback(res, None) == 2100
     assert res.clocks_per_us == 2100
@@ -463,7 +463,7 @@ def test_clocks_fallback_recorded_in_result():
 def test_competing_bench_pids_pattern_is_path_independent():
     """pgrep へ渡すパターンが `build-variants/` 接頭辞を要求しないことを固定する
     (退行防止: 旧パターンへの巻き戻しを検知するテスト)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     calls = []
 
     def fake_run(cmd, capture_output=True, text=True):
@@ -492,7 +492,7 @@ def test_competing_bench_pids_excludes_own_pid_only():
     """B-2: 除外されるのは自プロセス自身 (os.getpid()) の行**だけ**。自 PID 以外の
     行 (他者・孤児・自分の子を含む) はすべて競合として残る (子孫まで除外していた旧実装
     からの縮小 — この振る舞いへの逆戻りを検知する回帰テスト)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     own = os.getpid()
     fake_stdout = (
         f"{own} /out/s8b-build-cache/gen0/ycsb_self.exe\n"
@@ -521,7 +521,7 @@ def test_competing_bench_pids_non_self_descendant_pid_is_competing():
     """B-2: 自 PID 以外の PID は「自分の子孫かどうか」に関係なく競合として残る。
     仮に子孫集合による除外へ逆戻りすると、直前 run 残骸/自分の子が黙って落ちる
     (孤児 livelock 汚染の再来) — その回帰を固定する。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     own = os.getpid()
     # own+1 は「自 PID ではない」ことだけが本質 (子孫かどうかを問わず残るべき)。
     other_pid = own + 1
@@ -546,7 +546,7 @@ def test_competing_bench_pids_non_self_descendant_pid_is_competing():
 def test_competing_bench_pids_unparseable_pid_kept_fails_closed():
     """pgrep 行の先頭 token が PID としてパースできない (想定外の出力形) 場合は
     素性不明として競合側に残す (規律4: 検知を弱める方向に倒さない)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     fake_stdout = "not-a-pid some garbage ycsb_x.exe\n"
 
     def fake_run(cmd, capture_output=True, text=True):
@@ -577,7 +577,7 @@ def _probe_result(*, returncode=0, stdout="", stderr="", exc=None):
     """固定 rc/stdout/stderr (または例外) の pgrep 下で competing_bench_pids を呼び、
     戻り値 or 送出された CompetingBenchProbeError を返す。素の runner でも動くよう
     monkeypatch fixture でなく手動 save/restore を使う (このファイルの既存様式)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
 
     def fake_run(cmd, capture_output=True, text=True):
         if exc is not None:
@@ -594,7 +594,7 @@ def _probe_result(*, returncode=0, stdout="", stderr="", exc=None):
 
 def _expect_probe_error(**kw):
     """_probe_result が CompetingBenchProbeError を送出することを固定し、例外を返す。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     try:
         _probe_result(**kw)
     except runner.CompetingBenchProbeError as e:
@@ -668,7 +668,7 @@ def test_competing_bench_pids_subprocess_error_is_probe_error():
 
 def test_competing_bench_probe_error_as_dict_carries_structured_fields():
     """CompetingBenchProbeError.as_dict が WAL payload 用の全キーを持つ (B-6)。"""
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     e = runner.CompetingBenchProbeError(
         "unexpected-rc", ["pgrep", "-af", "x"], returncode=2, errno=None,
         stdout="o" * 5000, stderr="e" * 5000)
@@ -728,7 +728,7 @@ def test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected():
     (F3 admission 強化の本題 — path 非依存化がなければ旧パターンは無反応だった)。"""
     if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
         return          # pgrep/proc が無い環境ではスキップ相当 (対象外環境)
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     pid_file = os.path.join(tempfile.gettempdir(),
                             f"_izanagi_test_orphan_{os.getpid()}.pid")
     fake_argv0 = "/tmp/out/s8b-build-cache/gen0/ycsb_orphan_admission_test.exe"
@@ -757,7 +757,7 @@ def test_competing_bench_pids_real_own_child_detected():
     本題 — 子孫除外へ逆戻りするとこの子が黙って落ちる)。"""
     if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
         return
-    from calibrator import runner
+    from orchestrator.calibrator import runner
     fake_argv0 = f"/tmp/out/s8b-build-cache/gen0/ycsb_child_admission_test_{os.getpid()}.exe"
     child = _spawn_fake_bench_child(fake_argv0)
     try:
