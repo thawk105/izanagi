@@ -6383,6 +6383,83 @@ def test_dev_wave_dispatch_route_requires_visible_top_level_full_match(
         shutil.rmtree(root, ignore_errors=True)
 
 
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+def test_dev_wave_dispatch_route_rejects_separator_in_normative_candidate(
+    separator,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        changed_route = route.replace(" --stage", f"{separator}--stage", 1)
+        assert changed_route != route
+        _write(root, rel, text.replace(route, changed_route, 1))
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+_ROUTE_SEPARATOR_NON_CANDIDATE_CASES = (
+    "fence",
+    "html_comment",
+    "raw_html",
+    "visible_prose",
+    "non_target_section",
+)
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+@pytest.mark.parametrize("case", _ROUTE_SEPARATOR_NON_CANDIDATE_CASES)
+def test_dev_wave_dispatch_route_accepts_separator_outside_candidate(
+    case,
+    separator,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        decoy = f"補足{separator}説明"
+        if case == "fence":
+            payload = f"```text\n{decoy}\n```"
+        elif case == "html_comment":
+            payload = f"<!-- {decoy} -->"
+        elif case == "raw_html":
+            payload = f"<div>\n{decoy}\n</div>\n"
+        elif case == "visible_prose":
+            payload = f"非規範の補足: {decoy}"
+        elif case == "non_target_section":
+            marker = "## DW-O02 — synthetic\n\n"
+            assert marker in text
+            changed = text.replace(marker, f"{marker}{decoy}\n\n", 1)
+            payload = None
+        else:  # pragma: no cover - registration meta-test が閉じる
+            raise AssertionError(case)
+        if payload is not None:
+            changed = text.replace(route, f"{payload}\n{route}", 1)
+        assert changed != text
+        _write(root, rel, changed)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+        assert _finding_set(res) == set()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_route_separator_non_candidate_registration_is_complete():
+    assert set(_ROUTE_SEPARATOR_NON_CANDIDATE_CASES) == {
+        "fence",
+        "html_comment",
+        "raw_html",
+        "visible_prose",
+        "non_target_section",
+    }
+
+
 def test_dev_wave_model_pin_rejects_slug_in_dw_s05_a():
     _assert_model_slug_production_path_rejects(
         "docs/dev-wave/workers.md",
@@ -6491,6 +6568,11 @@ def test_dev_wave_model_pin_contract_is_time_invariant():
         "gpt-5.4-mini",
         "gpt-6-next",
     ]
+    assert check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL == (
+        "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
+        "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
+        "が docs 権威から導出。caller 指定は不可。"
+    )
 
 
 def test_codex_dev_wave_skill_contract_pins_exact_surface():

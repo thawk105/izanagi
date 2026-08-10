@@ -26,6 +26,7 @@ from pathlib import Path
 
 from dev_waves.launch_authority import (
     AuthorityError,
+    visible_top_level_matches,
     visible_top_level_lines,
 )
 
@@ -283,8 +284,8 @@ DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING = (
 )
 DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL = (
     "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
-    "で起動。model は全段、effort は段 6 の review / focus が docs 権威から"
-    "導出され、caller は指定できない。"
+    "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
+    "が docs 権威から導出。caller 指定は不可。"
 )
 DEV_WAVE_MODEL_SLUG_RE = re.compile(
     r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
@@ -3686,12 +3687,19 @@ def _check_dev_wave_model_pins(
             findings.append(DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING)
         else:
             dw_o01_match = dw_o01_matches[0]
-            visible_dw_o01 = _visible_markdown_text(
-                dw_o01_match.group("body")
-            )
-            authority_count = visible_dw_o01.count(
-                DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
-            )
+            body = dw_o01_match.group("body")
+            try:
+                authority_count = len(
+                    visible_top_level_matches(
+                        body,
+                        re.compile(
+                            re.escape(DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL)
+                        ),
+                        label="DW-O01 model authority",
+                    )
+                )
+            except AuthorityError:
+                authority_count = 0
             authority_residue = _visible_markdown_text(
                 dw_o01_match.group(0)
             ).replace(
@@ -3704,10 +3712,13 @@ def _check_dev_wave_model_pins(
             ):
                 findings.append(DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING)
             try:
-                route_count = sum(
-                    visible == DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
-                    for visible, _offset, _newline in visible_top_level_lines(
-                        dw_o01_match.group("body")
+                route_count = len(
+                    visible_top_level_matches(
+                        body,
+                        re.compile(
+                            re.escape(DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL)
+                        ),
+                        label="DW-O01 dispatcher route",
                     )
                 )
             except AuthorityError:

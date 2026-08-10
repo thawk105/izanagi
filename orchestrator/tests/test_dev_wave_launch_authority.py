@@ -14,6 +14,7 @@ from tools.dev_waves.launch_authority import (
     AuthorityError,
     derive_launch,
     snapshot_authority,
+    visible_top_level_lines,
 )
 
 
@@ -154,6 +155,69 @@ def test_authority_decoy_case_registration_is_complete() -> None:
         "u2028",
         "u2029",
     }
+
+
+_SEPARATOR_NON_CANDIDATE_CASES = (
+    "fence",
+    "html_comment",
+    "raw_html",
+    "visible_prose",
+    "non_target_section",
+)
+
+
+def _insert_separator_non_candidate(
+    text: str, case: str, separator: str
+) -> str:
+    line = _authority_line(text)
+    decoy = f"補足{separator}説明"
+    if case == "fence":
+        replacement = f"```text\n{decoy}\n```\n{line}"
+    elif case == "html_comment":
+        replacement = f"<!-- {decoy} -->\n{line}"
+    elif case == "raw_html":
+        replacement = f"<div>\n{decoy}\n</div>\n\n{line}"
+    elif case == "visible_prose":
+        replacement = f"非規範の補足: {decoy}\n{line}"
+    elif case == "non_target_section":
+        return text + f"\n非対象節の補足: {decoy}\n"
+    else:  # pragma: no cover - registration meta-test が閉じる
+        raise AssertionError(case)
+    changed = text.replace(line, replacement, 1)
+    assert changed != text
+    return changed
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+@pytest.mark.parametrize("case", _SEPARATOR_NON_CANDIDATE_CASES)
+def test_unicode_separator_outside_normative_candidate_is_accepted(
+    tmp_path: Path, case: str, separator: str
+) -> None:
+    original = (_ROOT / _OPERATIONS).read_text(encoding="utf-8")
+    root = _prepare_repo(
+        tmp_path,
+        operations=_insert_separator_non_candidate(original, case, separator),
+    )
+    snapshot_authority(root)
+
+
+def test_separator_non_candidate_registration_is_complete() -> None:
+    assert set(_SEPARATOR_NON_CANDIDATE_CASES) == {
+        "fence",
+        "html_comment",
+        "raw_html",
+        "visible_prose",
+        "non_target_section",
+    }
+
+
+def test_visible_top_level_lines_keeps_legacy_default_separator_rejection() -> None:
+    text = "補足\u2028説明\n"
+    with pytest.raises(AuthorityError):
+        visible_top_level_lines(text)
+    assert visible_top_level_lines(
+        text, reject_unicode_separators=False
+    )
 
 
 def test_dirty_working_tree_authority_is_rejected(tmp_path: Path) -> None:

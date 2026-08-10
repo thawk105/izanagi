@@ -240,6 +240,46 @@ def visible_top_level_lines(
     return lines
 
 
+def _unicode_separator_sentinels(text: str) -> dict[str, str]:
+    first = "\ue000"
+    second = "\ue001"
+    while first in text:
+        first += "\ue000"
+    while second in text:
+        second += "\ue001"
+    return {"\u2028": first, "\u2029": second}
+
+
+def visible_top_level_matches(
+    text: str, pattern: re.Pattern[str], *, label: str
+) -> list[re.Match[str]]:
+    """可視 top-level の full-match を返し、候補位置の Unicode 偽装だけ拒否する。"""
+
+    separator_sentinels = _unicode_separator_sentinels(text)
+    protected = text.translate(str.maketrans(separator_sentinels))
+    matches: list[re.Match[str]] = []
+    sentinels = tuple(separator_sentinels.values())
+    separator_re = re.compile("|".join(map(re.escape, sentinels)))
+    for visible, _offset, _newline in visible_top_level_lines(
+        protected, reject_unicode_separators=False
+    ):
+        if not any(sentinel in visible for sentinel in sentinels):
+            if (match := pattern.fullmatch(visible)) is not None:
+                matches.append(match)
+            continue
+        parts = separator_re.split(visible)
+        candidates = {
+            separator_re.sub("", visible),
+            separator_re.sub(" ", visible),
+            *parts,
+        }
+        if any(pattern.fullmatch(candidate) is not None for candidate in candidates):
+            raise AuthorityError(
+                f"{label}: 規範候補位置に U+2028/U+2029 がある"
+            )
+    return matches
+
+
 def _visible_h2_sections(text: str, section_id: str) -> list[str]:
     lines = visible_top_level_lines(text, reject_unicode_separators=False)
     headings: list[tuple[str, int]] = []
@@ -264,11 +304,7 @@ def _one_section(documents: Mapping[str, str], path: str, section: str) -> str:
 
 
 def _one_normative_line(section_text: str, pattern: re.Pattern[str], label: str) -> re.Match[str]:
-    matches = [
-        match
-        for visible, _offset, _newline in visible_top_level_lines(section_text)
-        if (match := pattern.fullmatch(visible)) is not None
-    ]
+    matches = visible_top_level_matches(section_text, pattern, label=label)
     if len(matches) != 1:
         raise AuthorityError(f"{label}: 規範行が {len(matches)} 件")
     return matches[0]

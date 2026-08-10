@@ -1027,6 +1027,33 @@ def test_payload_empty_rejects_top_level_and_collaboration_mode_decoys(
     assert row["reasoning"] == ""
 
 
+def test_mixed_present_and_missing_turn_context_authority_is_only_inconsistent(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    valid = {
+        "model": "gpt-valid",
+        "effort": "high",
+    }
+    missing = {
+        "model": "gpt-decoy",
+        "effort": "high",
+        "object_level": True,
+        "payload": {},
+    }
+    spec = {
+        **_healthy_specs()[0],
+        "contexts": [valid, missing],
+    }
+    root = _materialize(tmp_path / "sessions", [spec])
+    rc, output, stderr = _run_json(capsys, root, "--strict")
+
+    assert rc == 2
+    assert list(output["issues"]) == ["inconsistent_turn_context"]
+    assert len(output["issues"]["inconsistent_turn_context"]) == 1
+    assert "inconsistent turn_context" in stderr
+    assert "missing turn_context payload authority" not in stderr
+
+
 def test_same_session_id_in_two_files_fails_closed(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1301,7 +1328,7 @@ def test_manifest_v2_reads_sibling_worktree_sessions_and_stage_lane(
             stage="consult",
             lane="luna",
             repo_root="/synthetic/worktree-b",
-            receipt_path="/synthetic/receipt-b.json",
+            receipt_path="/synthetic/receipt-a.json",
         ),
     ]
     manifest = tmp_path / "manifest-v2.json"

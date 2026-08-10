@@ -325,7 +325,6 @@ def _load_manifest(path: Path) -> dict[str, Any]:
         raise _ManifestError("manifest.sessions must contain 1..1024 entries")
     seen_attempts: set[tuple[str, int]] = set()
     seen_sessions: set[str] = set()
-    receipt_owners: dict[str, str] = {}
     job_identities: dict[str, tuple[Any, ...]] = {}
     for index, raw_session in enumerate(sessions):
         location = f"manifest.sessions[{index}]"
@@ -378,13 +377,20 @@ def _load_manifest(path: Path) -> dict[str, Any]:
             for field in (
                 "repo_root",
                 "requested_cwd",
-                "recorded_cwd",
                 "sessions_root",
                 "receipt_path",
             ):
                 value = session[field]
                 if not isinstance(value, str) or not os.path.isabs(value):
                     raise _ManifestError(f"{location}.{field} must be absolute")
+            recorded_cwd = session["recorded_cwd"]
+            if recorded_cwd is not None and (
+                not isinstance(recorded_cwd, str)
+                or not os.path.isabs(recorded_cwd)
+            ):
+                raise _ManifestError(
+                    f"{location}.recorded_cwd must be absolute or null"
+                )
             for field in ("base_commit", "authority_commit"):
                 value = session[field]
                 if (
@@ -398,9 +404,6 @@ def _load_manifest(path: Path) -> dict[str, Any]:
                 is None
             ):
                 raise _ManifestError(f"{location}.authority_digest must be sha256")
-            owner = receipt_owners.setdefault(session["receipt_path"], job_id)
-            if owner != job_id:
-                raise _ManifestError("receipt_path is shared by different jobs")
             identity = tuple(
                 session[field]
                 for field in (
@@ -468,6 +471,7 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
     record = _new_record(path)
     issues: dict[str, list[str]] = {}
     first_turn_context: tuple[str, str] | None = None
+    turn_context_rows: list[tuple[str, tuple[str, str], bool]] = []
     previous_cumulative_total: int | None = None
     previous_cumulative_usage: dict[str, int] | None = None
     with path.open("rb") as stream:
@@ -524,31 +528,24 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
                 record["turn_contexts"] += 1
                 raw_model = payload.get("model")
                 raw_reasoning = payload.get("effort")
-                if (
-                    not isinstance(raw_model, str)
-                    or not raw_model
-                    or not isinstance(raw_reasoning, str)
-                    or not raw_reasoning
-                ):
-                    issues.setdefault(
-                        "missing_turn_context_authority", []
-                    ).append(line_location)
+                has_authority = bool(
+                    isinstance(raw_model, str)
+                    and raw_model
+                    and isinstance(raw_reasoning, str)
+                    and raw_reasoning
+                )
                 model = raw_model if isinstance(raw_model, str) else ""
                 reasoning = (
                     raw_reasoning if isinstance(raw_reasoning, str) else ""
                 )
                 context = (model, reasoning)
+                turn_context_rows.append(
+                    (line_location, context, has_authority)
+                )
                 if first_turn_context is None:
                     first_turn_context = context
                     record["model"] = model
                     record["reasoning"] = reasoning
-                elif context != first_turn_context:
-                    issues.setdefault(
-                        "inconsistent_turn_context", []
-                    ).append(
-                        f"{line_location}: "
-                        f"{context!r} != {first_turn_context!r}"
-                    )
                 continue
             if item_type != "event_msg":
                 continue
@@ -639,6 +636,25 @@ def _stream_rollout(path: Path) -> tuple[dict[str, Any], dict[str, list[str]]]:
     record["cumulative_minus_per_turn"] = (
         record["cli_reported"] - record["per_turn_sum"]
     )
+    if turn_context_rows:
+        authoritative = [
+            (location, context)
+            for location, context, has_authority in turn_context_rows
+            if has_authority
+        ]
+        if not authoritative:
+            issues["missing_turn_context_authority"] = [
+                location for location, _context, _valid in turn_context_rows
+            ]
+        else:
+            reference = authoritative[0][1]
+            inconsistent = [
+                f"{location}: {context!r} != {reference!r}"
+                for location, context, has_authority in turn_context_rows
+                if not has_authority or context != reference
+            ]
+            if inconsistent:
+                issues["inconsistent_turn_context"] = inconsistent
     return record, issues
 
 

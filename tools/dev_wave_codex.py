@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
@@ -14,7 +15,6 @@ from typing import Sequence
 STAGES = ("plan", "consult", "author", "review", "fix", "focus")
 LANES = ("sol", "luna")
 AUTHORITY_BOUND_STAGES = frozenset({"review", "focus"})
-WORKSPACE_WRITE_STAGES = frozenset({"author", "fix"})
 
 # These are deliberately operational defaults, not docs authority.
 DEFAULT_MAX_WALL_CLOCK_S = 3600
@@ -51,7 +51,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("-o", "--output-file", type=Path, required=True)
     parser.add_argument("--reasoning")
     parser.add_argument(
-        "--sandbox", choices=("read-only", "workspace-write")
+        "--sandbox", choices=("read-only", "workspace-write"), required=True
     )
     parser.add_argument("--repo-root", type=Path, default=repo_root)
     parser.add_argument("--job-id")
@@ -155,18 +155,24 @@ def _launcher_argv(
     artifact_root = _absolute(parser, args.artifact_root, "--artifact-root")
     output_file = _absolute(parser, args.output_file, "--output-file")
     base_commit = _resolve_base_commit(parser, repo_root)
-
     job_key = args.stage + (f"-{args.lane}" if args.lane else "")
-    job_id = args.job_id or f"{args.wave}-{job_key}"
+    job_id = args.job_id
+    if job_id is None:
+        try:
+            prompt_bytes = prompt_file.read_bytes()
+        except OSError as exc:
+            parser.error(f"--prompt-file を読めない: {exc}")
+        if not prompt_bytes:
+            parser.error("--prompt-file は non-empty file が必要")
+        prompt_sha256 = hashlib.sha256(prompt_bytes).hexdigest()
+        job_id = f"{args.wave}-{job_key}-{prompt_sha256}"
+    if len(job_id) > 128:
+        parser.error("生成した --job-id は 128 文字以内でなければならない")
     wave_artifact_root = artifact_root / args.wave
     artifact_dir = wave_artifact_root / job_id
+    args.generated_directories = (wave_artifact_root, artifact_dir)
     receipt = artifact_dir / "receipt.json"
     manifest = wave_artifact_root / "manifest.json"
-    sandbox = args.sandbox or (
-        "workspace-write"
-        if args.stage in WORKSPACE_WRITE_STAGES
-        else "read-only"
-    )
 
     argv = [
         "python3",
@@ -192,7 +198,7 @@ def _launcher_argv(
             "--cwd",
             os.fspath(repo_root),
             "--sandbox",
-            sandbox,
+            args.sandbox,
         )
     )
     if args.stage not in AUTHORITY_BOUND_STAGES:
@@ -218,6 +224,29 @@ def _launcher_argv(
     return argv
 
 
+def _create_generated_directories(
+    parser: argparse.ArgumentParser, directories: Sequence[Path]
+) -> None:
+    for directory in directories:
+        created = False
+        try:
+            directory.mkdir(mode=0o700)
+            created = True
+        except FileExistsError:
+            pass
+        except OSError as exc:
+            parser.error(f"生成 directory を作れない: {directory}: {exc}")
+        if not directory.is_dir():
+            parser.error(f"生成 path が directory ではない: {directory}")
+        if created:
+            try:
+                directory.chmod(0o700)
+            except OSError as exc:
+                parser.error(
+                    f"生成 directory を mode 0o700 にできない: {directory}: {exc}"
+                )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
@@ -225,6 +254,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_run:
         print("\n".join(launcher_argv))
         return 0
+    _create_generated_directories(parser, args.generated_directories)
     try:
         return subprocess.run(launcher_argv, check=False).returncode
     except OSError as exc:

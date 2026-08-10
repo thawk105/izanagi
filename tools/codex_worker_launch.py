@@ -284,6 +284,7 @@ class RolloutState:
     pending: bytes = b""
     sha256: Any = field(default_factory=hashlib.sha256)
     session_meta_count: int = 0
+    session_meta_correlated: bool = False
     context_count: int = 0
     recorded_cwd: str | None = None
     recorded_models: list[str | None] = field(default_factory=list)
@@ -642,7 +643,6 @@ def _validate_manifest(value: object) -> dict[str, Any]:
         raise LaunchError("manifest.sessions は 1..1024 件でなければならない")
     job_attempts: set[tuple[str, int]] = set()
     session_ids: set[str] = set()
-    receipt_owners: dict[str, str] = {}
     job_identities: dict[str, tuple[object, ...]] = {}
     validated: list[dict[str, Any]] = []
     for index, raw_entry in enumerate(sessions):
@@ -689,13 +689,17 @@ def _validate_manifest(value: object) -> dict[str, Any]:
             for field_name in (
                 "repo_root",
                 "requested_cwd",
-                "recorded_cwd",
                 "sessions_root",
                 "receipt_path",
             ):
                 _absolute_path(
                     entry[field_name],
                     label=f"manifest.sessions[{index}].{field_name}",
+                )
+            if entry["recorded_cwd"] is not None:
+                _absolute_path(
+                    entry["recorded_cwd"],
+                    label=f"manifest.sessions[{index}].recorded_cwd",
                 )
             if (
                 not isinstance(entry["base_commit"], str)
@@ -716,9 +720,6 @@ def _validate_manifest(value: object) -> dict[str, Any]:
                 raise LaunchError(
                     f"manifest.sessions[{index}].authority_digest が不正"
                 )
-            owner = receipt_owners.setdefault(entry["receipt_path"], job_id)
-            if owner != job_id:
-                raise LaunchError("manifest の receipt_path が別 job と重複")
             identity = tuple(
                 entry[name]
                 for name in (
@@ -799,12 +800,6 @@ def _append_manifest(
             for item in manifest["sessions"]
         ):
             raise LaunchError("manifest session_id が別 job/attempt と重複")
-        if any(
-            item["receipt_path"] == entry["receipt_path"]
-            and item["job_id"] != entry["job_id"]
-            for item in manifest["sessions"]
-        ):
-            raise LaunchError("manifest receipt_path が別 job と重複")
         manifest["sessions"].append(entry)
         manifest["sessions"].sort(
             key=lambda item: (
@@ -949,6 +944,8 @@ def _consume_rollout_event(
             return
         if meta_id != rollout.session_id:
             rollout.invalid = True
+        else:
+            rollout.session_meta_correlated = True
         recorded_cwd = payload.get("cwd")
         if not isinstance(recorded_cwd, str) or recorded_cwd != cwd:
             rollout.invalid = True
@@ -1339,7 +1336,7 @@ def _attempt_loop(
             if (
                 rollout is None
                 or rollout.session_meta_count != 1
-                or rollout.invalid
+                or not rollout.session_meta_correlated
                 or session_id in state.manifested_session_ids
             ):
                 continue
@@ -1538,13 +1535,12 @@ def _writer_truth(
     attempts: Sequence[Mapping[str, Any]],
     *,
     max_attempts: int,
-    effort_authority: str = "unbound",
 ) -> tuple[str, str, int]:
     """Writer-side truth table. Checker はこの関数を呼ばない。"""
     if attempts and attempts[-1]["accepted"]:
         if any(item["limit_trigger"] is not None for item in attempts):
             raise LaunchError("accepted job に limit_trigger がある")
-        if effort_authority == "docs" and any(
+        if any(
             item["evidence_status"] != "complete" for item in attempts
         ):
             return "not_accepted", "max_attempts", 1
@@ -1655,7 +1651,6 @@ def _receipt(
         outcome, stop_reason, launcher_rc = _writer_truth(
             attempts,
             max_attempts=args.max_attempts,
-            effort_authority=args.launch_requirement.effort_authority,
         )
     actuals = _sum_attempts(attempts)
     actuals["wall_clock_s"] = Decimal(
@@ -1756,6 +1751,31 @@ def _codex_version(path: Path) -> str:
     return value
 
 
+def _git_common_dir(path: Path, *, label: str) -> Path:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", os.fspath(path), "rev-parse", "--git-common-dir"],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise LaunchError(f"{label} git common-dir 検査に失敗: {exc}") from exc
+    raw = completed.stdout.strip()
+    if completed.returncode != 0 or not raw or "\n" in raw:
+        raise LaunchError(f"{label} の git common-dir を解決できない")
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = path / candidate
+    try:
+        return candidate.resolve(strict=True)
+    except OSError as exc:
+        raise LaunchError(f"{label} の git common-dir を解決できない") from exc
+
+
 def _verify_repo_binding(repo_root: Path, cwd: Path, base_commit: str) -> None:
     try:
         cwd.relative_to(repo_root)
@@ -1793,6 +1813,15 @@ def _verify_repo_binding(repo_root: Path, cwd: Path, base_commit: str) -> None:
         raise LaunchError("--repo-root は repository root でなければならない")
     if exists.returncode != 0:
         raise LaunchError("--base-commit が --repo-root の repository に存在しない")
+    common_dirs = {
+        _git_common_dir(_ROOT, label="launcher repository"),
+        _git_common_dir(repo_root, label="--repo-root"),
+        _git_common_dir(cwd, label="--cwd"),
+    }
+    if len(common_dirs) != 1:
+        raise LaunchError(
+            "launcher repository/--repo-root/--cwd の git common-dir が一致しない"
+        )
 
 
 def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
@@ -1979,13 +2008,21 @@ def _run_supervised(
         prior["cli_reported"] += attempt["cli_reported"]
         if attempt["accepted"] or attempt["limit_trigger"] is not None:
             break
-        if (
-            prior["model_calls"] >= args.max_model_calls
-            or prior["cli_reported"] >= args.max_cli_reported_tokens
-            or Decimal(_monotonic_ns() - started_ns)
+        if attempt_index >= args.max_attempts:
+            continue
+        retry_limit: str | None = None
+        if prior["model_calls"] >= args.max_model_calls:
+            retry_limit = "max_model_calls"
+        elif prior["cli_reported"] >= args.max_cli_reported_tokens:
+            retry_limit = "max_cli_reported_tokens"
+        elif (
+            Decimal(_monotonic_ns() - started_ns)
             / Decimal(1_000_000_000)
             >= args.max_wall_clock_s
         ):
+            retry_limit = "max_wall_clock_s"
+        if retry_limit is not None:
+            attempt["limit_trigger"] = retry_limit
             break
     _latch_final_job_limit(args, attempts, job_started_ns=started_ns)
     receipt = _receipt(
@@ -2527,7 +2564,6 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     accepted_count = sum(bool(item["accepted"]) for item in attempts)
     authority_retry_rejected = bool(
         schema_version == 3
-        and receipt["effort_authority"] == "docs"
         and attempts
         and attempts[-1]["accepted"]
         and any(item["evidence_status"] != "complete" for item in attempts)
@@ -2616,7 +2652,7 @@ def _recompute_attempt_metering(
     model: str,
     reasoning: str,
     cwd: str,
-) -> tuple[str, str, dict[str, int]]:
+) -> tuple[str, str, dict[str, int], dict[str, str | None]]:
     state = AttemptState(
         attempt_index=attempt["attempt_index"],
         started_ns=0,
@@ -2675,7 +2711,16 @@ def _recompute_attempt_metering(
                 cwd=cwd,
             )
     state.session_ids = list(attempt["session_ids"])
-    return _evidence_status(state), _metering_status(state), _rollout_actuals(state)
+    recorded_cwds = {
+        session_id: rollout.recorded_cwd
+        for session_id, rollout in state.rollouts.items()
+    }
+    return (
+        _evidence_status(state),
+        _metering_status(state),
+        _rollout_actuals(state),
+        recorded_cwds,
+    )
 
 
 def _check_external_expectations(
@@ -2848,7 +2893,7 @@ def _audit_receipt_value(
                 raise LaunchError("attempt rollout seal が不一致")
             if rollout_path.stat().st_size > rollout["bytes"]:
                 rollout_grew = True
-        evidence, metering, actuals = _recompute_attempt_metering(
+        evidence, metering, actuals, recorded_cwds = _recompute_attempt_metering(
             attempt,
             model=requested_model,
             reasoning=requested_effort,
@@ -2890,7 +2935,7 @@ def _audit_receipt_value(
                     "repo_root": receipt["repo_root"],
                     "base_commit": receipt["base_commit"],
                     "requested_cwd": receipt["requested_cwd"],
-                    "recorded_cwd": receipt["recorded_cwd"],
+                    "recorded_cwd": recorded_cwds[session_id],
                     "sessions_root": receipt["sessions_root"],
                     "receipt_path": receipt["receipt_path"],
                     "authority_commit": receipt["authority_snapshot"]["authority_commit"],

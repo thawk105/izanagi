@@ -720,9 +720,12 @@ def usage(input_tokens=100, cached=20, output_tokens=10, total=110):
 def create_rollout(session_id):
     path = session_root / f"rollout-2026-07-29T00-00-00-{session_id}.jsonl"
     with path.open("w", encoding="utf-8") as stream:
+        meta_payload = {"session_id": session_id}
+        if mode != "cwd_missing":
+            meta_payload["cwd"] = sys.argv[sys.argv.index("-C") + 1]
         write_line(stream, {
             "type": "session_meta",
-            "payload": {"session_id": session_id, "cwd": sys.argv[sys.argv.index("-C") + 1]},
+            "payload": meta_payload,
         })
         if mode == "payload_decoy":
             write_line(stream, {
@@ -1108,6 +1111,47 @@ def _prepare_authority_repo(path: Path) -> tuple[Path, str]:
         stdout=subprocess.PIPE,
     ).stdout.strip()
     return root, commit
+
+
+def _prepare_authority_worktree(
+    main: Path, path: Path
+) -> tuple[Path, str]:
+    commit = subprocess.run(
+        ["git", "-C", os.fspath(main), "rev-parse", "HEAD"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            os.fspath(main),
+            "worktree",
+            "add",
+            "--detach",
+            "-q",
+            os.fspath(path),
+            commit,
+        ],
+        check=True,
+    )
+    return path, commit
+
+
+def _remove_authority_worktree(main: Path, path: Path) -> None:
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            os.fspath(main),
+            "worktree",
+            "remove",
+            "--force",
+            os.fspath(path),
+        ],
+        check=True,
+    )
 
 
 def _assert_pid_gone(pid: int) -> None:
@@ -1919,7 +1963,7 @@ def test_authority_bound_launch_uses_derived_model_and_effort(
 def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
     tmp_path: Path,
 ) -> None:
-    completed, receipt, _paths = _run_case(
+    completed, receipt, paths = _run_case(
         tmp_path, "payload_decoy", expected_returncode=1
     )
     assert receipt is not None
@@ -1928,6 +1972,28 @@ def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
     assert receipt["recorded_model"] is None
     assert receipt["recorded_effort"] is None
     assert receipt["recorded_turn_context_count"] == 1
+    manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+    assert [entry["session_id"] for entry in manifest["sessions"]] == (
+        receipt["attempts"][0]["session_ids"]
+    )
+
+
+def test_correlated_authority_invalid_session_uses_nullable_manifest_value(
+    tmp_path: Path,
+) -> None:
+    completed, receipt, paths = _run_case(
+        tmp_path, "cwd_missing", expected_returncode=1
+    )
+    assert receipt is not None
+    assert completed.returncode == 1
+    assert receipt["attempts"][0]["evidence_status"] == "invalid"
+    assert receipt["recorded_cwd"] is None
+    manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+    assert manifest["sessions"][0]["recorded_cwd"] is None
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 1, checked.stderr
 
 
 def test_authority_bound_job_rejects_prior_invalid_attempt(
@@ -1954,6 +2020,75 @@ def test_authority_bound_job_rejects_prior_invalid_attempt(
     assert receipt["attempts"][-1]["accepted"] is True
     assert receipt["outcome"] == "not_accepted"
     assert receipt["launcher_rc"] == 1
+
+
+@pytest.mark.parametrize(
+    ("stage", "lane"),
+    [("author", None), ("consult", "sol")],
+)
+def test_all_v3_stages_reject_prior_invalid_attempt(
+    stage: str,
+    lane: str | None,
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        stage=stage,
+        lane=lane,
+        max_attempts=2,
+        sandbox="read-only",
+    )
+    env["FAKE_SEQUENCE"] = "payload_decoy,normal"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert [item["evidence_status"] for item in receipt["attempts"]] == [
+        "invalid",
+        "complete",
+    ]
+    assert receipt["attempts"][-1]["accepted"] is True
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["launcher_rc"] == 1
+
+
+def test_checker_rejects_v3_acceptance_with_prior_invalid_attempt(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        stage="author",
+        max_attempts=2,
+        sandbox="read-only",
+    )
+    env["FAKE_SEQUENCE"] = "payload_decoy,normal"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    final_attempt = receipt["attempts"][-1]
+    receipt.update(
+        {
+            "outcome": "accepted",
+            "stop_reason": "completed",
+            "launcher_rc": 0,
+            "output_sha256": final_attempt["output_sha256"],
+        }
+    )
+    paths["output"].write_bytes(Path(final_attempt["output_path"]).read_bytes())
+    paths["receipt"].write_text(
+        json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    assert checked.returncode == 2
+    assert "truth table" in checked.stderr
 
 
 def test_limit_stop_is_never_accepted(tmp_path: Path) -> None:
@@ -2204,6 +2339,33 @@ def test_cumulative_limits_do_not_reset_between_attempts(
     assert receipt["attempts"][1]["accepted"] is False
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def test_retry_admission_exact_model_call_limit_is_not_accepted(
+    tmp_path: Path,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        sandbox="read-only",
+        max_attempts=3,
+        max_calls=1,
+        max_tokens=100000,
+        max_wall="3",
+    )
+    env["FAKE_MODE"] = "retry_reject"
+    _run_launcher_subprocess(
+        command, env=env, paths=paths, expected_returncode=1
+    )
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+
+    assert receipt["outcome"] == "not_accepted"
+    assert receipt["stop_reason"] == "max_model_calls"
+    assert receipt["actuals"]["attempt_count"] == 1
+    assert receipt["actuals"]["model_calls"] == 1
+    assert receipt["attempts"][0]["limit_trigger"] == "max_model_calls"
+    assert paths["counter"].read_text(encoding="ascii") == "1"
 
 
 def test_max_attempts_never_spawns_extra_attempt(tmp_path: Path) -> None:
@@ -2562,6 +2724,38 @@ def test_manifest_v2_accepts_two_sibling_worktree_repo_roots(
     }
 
 
+def test_preflight_accepts_sibling_worktree_with_same_git_common_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    main, _main_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    repo, commit = _prepare_authority_worktree(
+        main, tmp_path / "sibling-worktree"
+    )
+    try:
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+        job_root = tmp_path / "job"
+        job_root.mkdir()
+        command, env, paths = _base_command(
+            job_root,
+            fake=fake,
+            repo_root=repo,
+            base_commit=commit,
+        )
+        env["FAKE_MODE"] = "normal"
+        _run_main_in_process(
+            command,
+            env,
+            monkeypatch,
+            paths=paths,
+            expected_returncode=0,
+        )
+        assert paths["receipt"].exists()
+    finally:
+        _remove_authority_worktree(main, repo)
+
+
 def test_manifest_v1_cannot_receive_new_stage_bound_session(
     tmp_path: Path,
 ) -> None:
@@ -2768,42 +2962,56 @@ def test_check_receipt_detects_output_tampering(tmp_path: Path) -> None:
 
 def test_check_receipt_reconstructs_authority_from_recorded_commit(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, commit = _prepare_authority_repo(tmp_path / "authority-repo")
-    fake = _write_fake_codex(tmp_path / "fake-codex")
-    job_root = tmp_path / "job"
-    job_root.mkdir()
-    command, env, paths = _base_command(
-        job_root,
-        fake=fake,
-        repo_root=repo,
-        base_commit=commit,
+    main, _main_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    repo, commit = _prepare_authority_worktree(
+        main, tmp_path / "authority-worktree"
     )
-    _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=0
-    )
-    operations = repo / "docs/dev-wave/operations.md"
-    text = operations.read_text(encoding="utf-8")
-    line = next(item for item in text.splitlines() if "`<model>`:" in item)
-    models = re.findall(r"gpt-[A-Za-z0-9._-]+", line)
-    changed_line = (
-        line.replace(models[0], "MODEL-TEMP")
-        .replace(models[1], models[0])
-        .replace("MODEL-TEMP", models[1])
-    )
-    operations.write_text(text.replace(line, changed_line, 1), encoding="utf-8")
-    subprocess.run(
-        ["git", "-C", os.fspath(repo), "add", "docs/dev-wave/operations.md"],
-        check=True,
-    )
-    subprocess.run(
-        ["git", "-C", os.fspath(repo), "commit", "-qm", "new authority"],
-        check=True,
-    )
-    checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
-    )
-    assert checked.returncode == 0, checked.stderr
+    try:
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+        job_root = tmp_path / "job"
+        job_root.mkdir()
+        command, env, paths = _base_command(
+            job_root,
+            fake=fake,
+            repo_root=repo,
+            base_commit=commit,
+        )
+        _run_main_in_process(
+            command,
+            env,
+            monkeypatch,
+            paths=paths,
+            expected_returncode=0,
+        )
+        operations = repo / "docs/dev-wave/operations.md"
+        text = operations.read_text(encoding="utf-8")
+        line = next(item for item in text.splitlines() if "`<model>`:" in item)
+        models = re.findall(r"gpt-[A-Za-z0-9._-]+", line)
+        changed_line = (
+            line.replace(models[0], "MODEL-TEMP")
+            .replace(models[1], models[0])
+            .replace("MODEL-TEMP", models[1])
+        )
+        operations.write_text(
+            text.replace(line, changed_line, 1), encoding="utf-8"
+        )
+        subprocess.run(
+            ["git", "-C", os.fspath(repo), "add", "docs/dev-wave/operations.md"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", os.fspath(repo), "commit", "-qm", "new authority"],
+            check=True,
+        )
+        checked = subprocess.run(
+            _check_command(paths), text=True, capture_output=True, timeout=10
+        )
+        assert checked.returncode == 0, checked.stderr
+    finally:
+        _remove_authority_worktree(main, repo)
 
 
 def test_docs_authority_alone_rejects_consistent_effort_mutation(
@@ -3091,6 +3299,85 @@ def test_preflight_rejects_cwd_outside_repo_and_unknown_base(
     assert not outside_paths["receipt"].exists()
     assert "--base-commit" in unknown.stderr
     assert not unknown_paths["receipt"].exists()
+
+
+def test_preflight_rejects_foreign_repo_before_artifact_creation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    launcher_repo, _launcher_commit = _prepare_authority_repo(
+        tmp_path / "launcher-repo"
+    )
+    repo, commit = _prepare_authority_repo(tmp_path / "foreign-repo")
+    monkeypatch.setattr(LAUNCHER, "_ROOT", launcher_repo)
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    job_root = tmp_path / "job"
+    job_root.mkdir()
+    command, env, paths = _base_command(
+        job_root,
+        fake=fake,
+        repo_root=repo,
+        base_commit=commit,
+    )
+
+    _run_main_in_process(
+        command,
+        env,
+        monkeypatch,
+        paths=paths,
+        expected_returncode=2,
+    )
+
+    captured = capsys.readouterr()
+    assert "git common-dir" in captured.err
+    assert not paths["artifact"].exists()
+    assert not paths["receipt"].exists()
+    assert not paths["manifest"].exists()
+
+
+def test_preflight_rejects_nested_foreign_repo_as_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main, _main_commit = _prepare_authority_repo(tmp_path / "main-repo")
+    repo, commit = _prepare_authority_worktree(
+        main, tmp_path / "outer-worktree"
+    )
+    try:
+        monkeypatch.setattr(LAUNCHER, "_ROOT", main)
+        nested = repo / "nested-repo"
+        nested.mkdir()
+        subprocess.run(
+            ["git", "-C", os.fspath(nested), "init", "-q"], check=True
+        )
+        fake = _write_fake_codex(tmp_path / "fake-codex")
+        job_root = tmp_path / "job"
+        job_root.mkdir()
+        command, env, paths = _base_command(
+            job_root,
+            fake=fake,
+            repo_root=repo,
+            base_commit=commit,
+            cwd=nested,
+        )
+
+        _run_main_in_process(
+            command,
+            env,
+            monkeypatch,
+            paths=paths,
+            expected_returncode=2,
+        )
+
+        captured = capsys.readouterr()
+        assert "git common-dir" in captured.err
+        assert not paths["artifact"].exists()
+        assert not paths["receipt"].exists()
+        assert not paths["manifest"].exists()
+    finally:
+        _remove_authority_worktree(main, repo)
 
 
 @pytest.mark.parametrize("field", ["wave_id", "repo_root", "base_commit"])
