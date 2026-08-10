@@ -43,6 +43,7 @@ title: [T-674] の残余 (5) を消化し D125 決定 (2) の campaign id 不変
   「取得した時点で local main が先行しており、runbook §7.3 の behind 検査に掛かって lease を
   返す」形で、先行量は 7 / 3 / 5 commit だった。3 回目は待ち行列にいる間に先行を検知して
   **lease を消費せずに**戻る形へ直したが、それでも取り込み → 並び直しの間に追い越された。
+  失敗の型は {{F:acceptance-lease-behind-livelock}}。
 - **4 回目で待ち手の中に `--no-ff` merge を入れ、1 走で通した。これは runbook §7.3 の
   「0 でなければ lease を返して親へ戻す」からの逸脱であり、`DW-O12` に従って差をそのまま記録する。**
   同節が禁じているのは**待ち手内の `--ff-only`** で、wave が自前 commit を持つと必ず失敗するため
@@ -73,3 +74,15 @@ title: [T-674] の残余 (5) を消化し D125 決定 (2) の campaign id 不変
   見送りで決着済みであり、6 問すべてが終端した。
   remaining: none
   base: a81cc2a17c416746c28b7bf248bfe02220f226c6b5516b7cccef78089cc84857
+
+### 新規
+
+- {{T:acceptance-lease-merge-after-acquire}} **P2・新規 (裁定パッケージ)**: 受入 lease を取得した
+  時点で local main が先行していたとき、`docs/pegasus-runbook.md` §7.3 の「lease を返して親へ戻す」を
+  維持するか、**待ち手内の `--no-ff` merge を許す**形へ改めるか。実測は
+  {{F:acceptance-lease-behind-livelock}} — 現行手順は並行 land が高頻度の時間帯に livelock し、
+  1 wave が実走 0 のまま約 2 時間を空費した。`--no-ff` を許すと head-of-line blocking が発生するが、
+  本 wave の実測では取得から走行開始まで 3 秒だった。**親の推奨は「許す + 安全側の配線 3 点を必須に
+  する」** — 現行手順が禁じている実体は待ち手内の `--ff-only` であり、`--no-ff` はその失敗要因を
+  持たない。全 wave の公平性に効くため親が独断で runbook を書き換えず裁定へ返す。
+  暫定の運用は memory `acceptance-lease-poll-30s` の「取得後の取り込み」節。
