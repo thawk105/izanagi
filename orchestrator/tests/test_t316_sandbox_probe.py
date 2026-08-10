@@ -1067,3 +1067,12 @@ def test_performance_discharge_requires_s7_go(
         "single stock trace-disabled binary sandbox elapsed-overhead sample"
         not in receipt["r3_1_coverage"]["discharged_by_this_probe"]
     )
+
+
+def _run() -> int:
+    """pytest fixtures と parametrize を含む全 node を素の runner からも実行する。"""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
