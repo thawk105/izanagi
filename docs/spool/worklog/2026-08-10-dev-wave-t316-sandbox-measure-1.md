@@ -46,8 +46,26 @@ title: [T-316] 計測段を計算ノードで実走し、build profile が std::
   receipt の出力先は `/work` 配下なので、単体テストが tmpfs で緑でも実機の publish だけが落ちる。
   親が実測して `os.link` による create-only publish へ置き換えた。runbook は directory についてしか
   記録していなかった。
-- **エージェント工数: 親 1、Codex 子 9** (段 5 実装 1、段 6 敵対レビュー 2、fix 4 巡 + 検査穴 fix 1、
-  焦点再レビュー 1。実装系は `-s workspace-write`・`reasoning=high`、レビュー系は `-s read-only`)。
+- **エージェント工数: 親 1、Codex 子 10** (段 5 実装 1、段 6 敵対レビュー 2、fix 5 巡 + 検査穴 fix 1、
+  焦点再レビュー 1、受入赤 fix 1。実装系は `-s workspace-write`・`reasoning=high`、
+  レビュー系は `-s read-only`)。
+- **受入は 3 走した。採用値は land 対象 tip `f332271e` の 3 走目 = `8129 passed / 20 skipped /
+  511.96 秒 / rc=0`。**
+  - 1 走目 (tip `cad2192f`、2 failed / 8097 passed / 20 skipped / 508.47 秒) の赤 2 件は
+    本 wave の登録漏れで、`test_claude_transport` の policy registry 独立 literal 閉集合と
+    `test_plain_runner_coverage` の自走 harness 契約だった。追加のみで閉じた。
+  - 2 走目 (tip `0561b2ee`、1 failed / 8127 passed / 20 skipped) の赤 1 件は
+    `test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]`。
+    本 wave の差分が到達しないファイルであり、`DW-O18` に従い単独再走したところ
+    **3 passed、ファイル全体でも 77 passed で再現せずフレークと確定**した。落ちた述語は
+    `process_group_residual` と `termination_verified` で、並行 session の codex 子が居る間に
+    出る既知の外乱感受型と整合する。
+- **取り込み時の provenance で 2 種類の赤を切り分けた ({{F:stale-checker-range-audit}})。**
+  1 つ目は偽陽性で、他 wave の merge 4 件は main 側 checker に既知違反として登録済みなのに、
+  取り込み前の古い checker で `HEAD..main` を測ったため赤が出た (`DW-O17` の
+  「correction を含むときは full 監査だけが権威」)。2 つ目は実害で、**本 wave の merge commit の
+  combined diff が実装面 path (テスト 2 件) を含むのに Codex `role=author` 行が無かった**。
+  実装面を書いたのは本 wave の Codex 子なので併記して amend し、全走 rc=0 を確認した。
 
 ## 次の一手差分
 
