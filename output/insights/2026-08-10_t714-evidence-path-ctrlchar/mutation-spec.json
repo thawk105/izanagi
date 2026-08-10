@@ -1,0 +1,271 @@
+{
+ "estimated_run_seconds": 300,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "    if False and (\"\\r\" in text or \"\\n\" in text):\n",
+     "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "    if \"\\r\" in text:\n",
+     "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "    if \"\\n\" in text:\n",
+     "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "        raise PreregistrationError(\"blob-missing\")\n",
+     "old": "        raise PreregistrationError(\"path-control-char\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_trailing_cr_without_aliasing",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-cr]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_embedded_path_control_chars[embedded-lf]",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_standalone_embedded_cr_as_policy",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_rejects_control_chars_after_single_stringification"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "        raise PreregistrationError(\"path-control-char\", text)\n",
+     "old": "        raise PreregistrationError(\"path-control-char\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "    text = rendered\n",
+     "old": "    text = \"\".join((rendered,))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "    if False and isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n",
+     "old": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "    path = _nonempty_string(value, where=where)\n    if isinstance(path, str) and (\"\\r\" in path or \"\\n\" in path):\n        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n",
+     "old": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n    path = _nonempty_string(value, where=where)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "    if isinstance(value, str) and (\"\\r\" in value):\n",
+     "old": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "        raise EvidenceContractError(\"contract-path\", repr(where))\n",
+     "old": "        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[consumer-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M11",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "        raise EvidenceContractError(\"contract-path-control-char\", value)\n",
+     "old": "        raise EvidenceContractError(\"contract-path-control-char\", repr(where))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_rejects_embedded_path_control_chars[required-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-cr]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_reports_explicit_path_reason_for_trailing_controls[trailing-lf]",
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_registry_rejects_control_char_contract_before_evidence_ref_construction"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "                    path=_nonempty_string(item[\"path\"], where=f\"C{number:02d}.{kind}.path\"),\n",
+     "old": "                    path=_safe_path(item[\"path\"], where=f\"C{number:02d}.{kind}.path\"),\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_accepts_normal_path",
+    "orchestrator/tests/test_s8c_preregistration_core.py::test_read_blob_at_uses_checked_text_without_str_subclass_format_hook"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration.py",
+     "new": "    if True:\n",
+     "old": "    if \"\\r\" in text or \"\\n\" in text:\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8c_preregistration_predicates.py::test_contract_loader_accepts_normal_relative_paths"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8c_preregistration_evidence.py",
+     "new": "    if True:\n",
+     "old": "    if isinstance(value, str) and (\"\\r\" in value or \"\\n\" in value):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}

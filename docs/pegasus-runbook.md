@@ -770,6 +770,9 @@ python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
 
 - `state=acquired` のときだけ受入全走を投入する。`held` / `queued` / `stale-held` / `unavailable`
   および非 0 rc では**投入しない**。`held` / `queued` なら local main を取り直して再度 `claim` する。
+- **`claim` の出力は JSON、`status` の出力は key=value である。** 待ち手は `claim` の出力を
+  JSON として parse して `state` を見る。`status` の見た目に合わせて `state=acquired` の
+  文字列一致で待つと、lease が空いても永久に一致せず待ち続ける。
 - **待ちは 30〜120 秒周期の loop にする ([T-684])。** `claim` は待ち行列 (FIFO 相当) の待ち札を
   作り、呼ぶたびにその生存を更新する。**待ち札は最後の `claim` から 300 秒で失効する**ので、
   一度だけ `claim` して長く放置すると順番を失い、後から来た wave に追い越される。
