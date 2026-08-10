@@ -13,7 +13,7 @@ Izanagi の開発作業を 1 wave だけ進める。ユーザー向けの途中�
 2. ユーザーが指定した対象を優先する。対象がなければ worklog 末尾の「次の一手」から 1 件選ぶ。
 3. `.claude/commands/dev-wave.md` を全文読む。同ファイルを 9 段状態機械、段 dispatch、条件 dispatch、
    巻き戻し、停止条件の共通 dispatcher として扱う。
-4. `docs/skill-self-improvement.md` の発火 gate と dev-wave 終端を読み、専用 handoff に
+4. `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave 終端を読み、専用 handoff に
    `dev-wave 改善候補` 節を作る。
 5. main では編集しない。既存の専用 Codex worktree があれば状態と対象を照合して再利用し、
    なければ local main の HEAD から `.codex/worktrees/` 配下に専用 branch/worktree を作る。

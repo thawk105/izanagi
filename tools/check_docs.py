@@ -331,9 +331,70 @@ DEV_WAVE_REASONING_EFFORT_RE = re.compile(
     r"(?P=quote)"
     r"(?=$|[ \t\r\n`。、，,;；!?！？()（）\[\]{}「」『』])"
 )
+DEV_WAVE_COMMAND_START_SECTION_LITERAL = """## 入力と開始
+
+- 第一声から進捗、裁定、最終報告、`result:` まで、ユーザー向け出力はすべて日本語にする。
+- `CLAUDE.md` のクラス 3 起動手順を実行し、引数があれば対象にする: $ARGUMENTS
+- wave 開始時に `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave を読み、
+  専用 handoff に「dev-wave 改善候補」節を作る。
+- 無人継続の外部 supervisor は、最初の `claude -p` spawn 前に
+  `docs/dev-wave/core.md` の `DW-CTX` を読む。
+
+"""
+CODEX_DEV_WAVE_STARTUP_ROUTING_ITEM_LITERAL = """4. `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave 終端を読み、専用 handoff に
+   `dev-wave 改善候補` 節を作る。"""
+CODEX_DEV_WAVE_START_SECTION_LITERAL = """## 開始する
+
+1. リポジトリ直下の `AGENTS.md` と `CLAUDE.md` を全文読み、依頼をクラス 3 として起動する。
+2. ユーザーが指定した対象を優先する。対象がなければ worklog 末尾の「次の一手」から 1 件選ぶ。
+3. `.claude/commands/dev-wave.md` を全文読む。同ファイルを 9 段状態機械、段 dispatch、条件 dispatch、
+   巻き戻し、停止条件の共通 dispatcher として扱う。
+4. `docs/skill-self-improvement.md` の発火 gate・routing・dev-wave 終端を読み、専用 handoff に
+   `dev-wave 改善候補` 節を作る。
+5. main では編集しない。既存の専用 Codex worktree があれば状態と対象を照合して再利用し、
+   なければ local main の HEAD から `.codex/worktrees/` 配下に専用 branch/worktree を作る。
+
+参照先の節は、dispatcher が指定する段または条件の直前に読み直す。記憶や本 Skill の要約で代用しない。
+参照先が不在、読取不能、非一意、または期限後に条件成立が判明した場合は dispatcher どおり
+fail-closed に停止または巻き戻す。
+
+"""
+DEV_WAVE_SELF_ROUTING_SECTION_LITERAL = """## routing
+
+1. 新しい失敗型・near miss・既存防壁の破れは `docs/failures.md` へ送る。
+   同型再発なら新しい F を作らず、既存 F に「再発: 日付」を追記する。
+2. 長期の設計、権限、正本、interface を変える採用済み判断は `docs/decisions.md` へ送る。
+   未裁定または大きい変更を既成事実にせず、裁定パッケージとしてユーザーへ返す。
+3. dev-wave 固有の手順は発火段に対応する `docs/dev-wave/` の既存 leaf 節へ統合し、意味を保って
+   統合できない場合だけ新しい節・ファイルを候補にする。新規 L2 節の登録は鏡像の
+   「発火実績あり × 義務が現に機械代替されていない × 同じ意味検索で反証も同一発火点の
+   既存正本もなし」を満たす場合だけとする (D271)。L2 (条件成立時だけ読む節) の削除を裁定
+   パッケージへ送れるのは「発火実績なし × テスト/機械検査で義務代替済み」の両条件を満たす
+   節だけで、実施はユーザー裁定に限る。「発火実績なし」は ID 件数でなく repo 全体
+   (insights・memo 含む) の意味検索で反証されないことを確認する。
+4. cleanup-branches / rulings の短い手順は各 command の既存節を是正する。
+   長い事故説明は F ポインタにし、裁定待ち・branch 状態・可変データを command へ書かない。
+5. 同じ内容を複数の行き先へ全文複製しない。入口は命令と dispatch、reference は実行手順、
+   failures は事象・原因・恒久対応、decisions は採用理由を担う。
+
+"""
+DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 provenance 関門
+
+D254 に従い、land は `locked_main != tested_tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。
+lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
+"""
+DEV_WAVE_EXACT_VISIBLE_SECTIONS = {
+    (".claude/commands/dev-wave.md", "入力と開始"):
+        DEV_WAVE_COMMAND_START_SECTION_LITERAL,
+    ("docs/skill-self-improvement.md", "routing"):
+        DEV_WAVE_SELF_ROUTING_SECTION_LITERAL,
+    ("docs/dev-wave/operations.md", "DW-O25 — ff-only land の全史 provenance 関門"):
+        DEV_WAVE_DW_O25_SECTION_LITERAL,
+}
+
 CODEX_DEV_WAVE_SKILL_LITERALS = (
     ".claude/commands/dev-wave.md",
-    "docs/skill-self-improvement.md",
+    CODEX_DEV_WAVE_STARTUP_ROUTING_ITEM_LITERAL,
     "docs/dev-wave/workers.md",
     "docs/dev-wave/operations.md",
     "manager は実装面を直接編集しない",
@@ -421,8 +482,8 @@ COMMAND_INTERFACES = {
 
 # DW-O07 は T-154(1) 裁定 (2026-07-28) で削除済み — 復活時は裁定を新規に起こす。
 # DW-O15 も T-450 裁定で削除済み — 復活時は裁定を新規に起こす。
-# DW-O21/O22 は core の external continuation 条件が使用済みなので、land は DW-O23。
-_OPERATION_NUMBERS = (*range(1, 7), *range(8, 15), *range(16, 21), 23)
+# DW-O21/O22 は core の external continuation 条件が使用済みなので、land は DW-O23/O25。
+_OPERATION_NUMBERS = (*range(1, 7), *range(8, 15), *range(16, 21), 23, 25)
 DEV_WAVE_LAND_HELPER = "tools/dev_wave_land.py"
 DEV_WAVE_LAND_UNIQUE_ROUTE_LITERAL = (
     "`tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路"
@@ -600,6 +661,7 @@ CONDITION_TRIGGER_CONTRACT = {
     "22": "supervisor を使用する前",
     "23": "local main を取り込む直前",
     "24": "背景 producer・待ち手の生成 / 再利用 / 停止、通知処理、待ち条件作成の直前",
+    "25": "main を進める land を起動する直前",
 }
 
 D2_ROLLBACK_STRUCTURE = re.compile(
@@ -999,6 +1061,53 @@ def _visible_dispatch_inventory_text(text: str) -> str:
         visible + newline
         for visible, _, newline in _dispatch_visible_markdown_lines(text)
     )
+
+
+def _h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str]]]:
+    """与えられた Markdown の H2 順序と節全体 slice を返す。"""
+
+    headings = list(re.finditer(r"^##\s+(.+?)\s*$", text, re.MULTILINE))
+    order: list[str] = []
+    sections: dict[str, list[str]] = {}
+    for index, heading in enumerate(headings):
+        title = heading.group(1)
+        end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+        order.append(title)
+        sections.setdefault(title, []).append(text[heading.start():end])
+    return order, sections
+
+
+def _visible_h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str]]]:
+    """dispatch 可視化後の H2 順序と節全体 slice を返す。"""
+
+    return _h2_section_slices(_visible_dispatch_inventory_text(text))
+
+
+def _check_exact_visible_h2_section(
+    findings: list[str],
+    *,
+    rel: str,
+    text: str,
+    heading: str,
+    expected: str,
+) -> None:
+    """H2 節の raw/可視一致と可視内容を exact pin する。"""
+
+    _, raw_sections = _h2_section_slices(text)
+    _, visible_sections = _visible_h2_section_slices(text)
+    raw_actual = raw_sections.get(heading, [])
+    visible_actual = visible_sections.get(heading, [])
+    if raw_actual != visible_actual:
+        findings.append(
+            f"{rel}: H2 節 {heading!r} の raw slice と可視 slice が不一致 — "
+            f"raw_sections={len(raw_actual)}, "
+            f"visible_sections={len(visible_actual)}"
+        )
+    if visible_actual != [expected]:
+        findings.append(
+            f"{rel}: 可視 H2 節 {heading!r} の節全体が exact 契約と不一致 — "
+            f"sections={len(visible_actual)}"
+        )
 
 
 def _top_level_items(body: str) -> list[tuple[str, int]]:
@@ -3385,6 +3494,7 @@ def _check_codex_skill_guard(
     expected_sha256: str | None = None,
     forbidden_literals: tuple[str, ...] = (),
     exact_literals: tuple[str, ...] = (),
+    exact_visible_sections: Mapping[str, str] | None = None,
     forbidden_patterns: tuple[tuple[re.Pattern[str], str], ...] = (),
 ) -> None:
     """repo-scoped Codex Skill の閉包・interface・必須 adapter を検査する。"""
@@ -3502,6 +3612,14 @@ def _check_codex_skill_guard(
                 findings.append(
                     f"{skill_rel}: exact adapter literal が {count} 件 — {literal!r}"
                 )
+        for heading, expected in (exact_visible_sections or {}).items():
+            _check_exact_visible_h2_section(
+                findings,
+                rel=skill_rel,
+                text=skill_text,
+                heading=heading,
+                expected=expected,
+            )
         for pattern, label_text in forbidden_patterns:
             if pattern.search(skill_text):
                 findings.append(
@@ -4039,6 +4157,40 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         ):
             findings.append(f"{rel}: docs/skill-self-improvement.md への到達性がない")
 
+    for (rel, heading), expected in DEV_WAVE_EXACT_VISIBLE_SECTIONS.items():
+        text = decoded.get(rel)
+        if text is None:
+            continue
+        _check_exact_visible_h2_section(
+            findings,
+            rel=rel,
+            text=text,
+            heading=heading,
+            expected=expected,
+        )
+
+    if operations_text is not None:
+        operation_order, _ = _visible_h2_section_slices(operations_text)
+        operation_positions: dict[str, list[int]] = {
+            "DW-O23": [],
+            "DW-O25": [],
+        }
+        for index, title in enumerate(operation_order):
+            section_match = re.match(r"[^\s—]+", title)
+            if section_match is not None and section_match.group(0) in operation_positions:
+                operation_positions[section_match.group(0)].append(index)
+        if any(len(positions) != 1 for positions in operation_positions.values()):
+            findings.append(
+                "docs/dev-wave/operations.md: 可視 H2 の順序 pin 対象が一意でない — "
+                f"DW-O23={len(operation_positions['DW-O23'])}, "
+                f"DW-O25={len(operation_positions['DW-O25'])}"
+            )
+        elif operation_positions["DW-O25"][0] <= operation_positions["DW-O23"][0]:
+            findings.append(
+                "docs/dev-wave/operations.md: 可視 H2 の順序が契約と不一致 — "
+                "DW-O25 は DW-O23 より後に置く"
+            )
+
     for rel, sections in REQUIRED_REFERENCE_SECTIONS.items():
         text = decoded.get(rel)
         if text is None:
@@ -4408,6 +4560,9 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         openai_yaml=CODEX_DEV_WAVE_OPENAI_YAML,
         forbidden_literals=(DEV_WAVE_LAND_HELPER,),
         exact_literals=(CODEX_DEV_WAVE_STAGE9_LAND_LITERAL,),
+        exact_visible_sections={
+            "開始する": CODEX_DEV_WAVE_START_SECTION_LITERAL,
+        },
         forbidden_patterns=(
             (ALTERNATE_LAND_HELPER_COMMAND, "alternate land helper command"),
             (DIRECT_MAIN_FF_COMMAND, "direct git merge --ff-only main mutation"),
