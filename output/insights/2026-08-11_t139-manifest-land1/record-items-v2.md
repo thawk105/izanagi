@@ -24,7 +24,21 @@ supersedes_draft_sha256: 5f07e9177736739fdb80a7df00a84c6f84751bf8d3c5e686adc4478
   approval manifest だけである (`authority: none` は「本書が可変状態の正本ではない」を意味する)。
 - 本書は実装ではない。schema を機械化する producer / validator の実装は本書の射程外である。
 
-### 0.1 前 2 版から変えた点 (すべて受理条件に効く)
+### 0.1 受領証の粒度 (前 2 版が定めていなかった)
+
+**受領証 1 枚は study stage 1 つ**に対応する (`study_stage ∈ {pilot, main_run}`)。
+1 割当てに 1 枚ではない。理由は次の 3 つで、いずれも前 2 版の本文から導かれる。
+
+1. `attempts[]` は置換関係 (`replaces_attempt_id`) を持つ。置換は**別の割当て**で行われるため、
+   1 割当ての受領証では置換関係が受領証を跨ぎ、参照整合性を検査できない。
+2. `a13` の予約 (`(family_root, ordinal)`) と `series_id` は study に 1 つであり、割当てごとに増えない。
+3. `a01` (B) の検証割当ては study stage に 1 本であり、その correctness / liveness 証拠を
+   性能割当ての受領証へ 1 枚ずつ複製すると、同じ証拠が複数の受領証で別々に申告されうる。
+
+したがって「1 cluster = 36 run」は**割当てあたりの件数**であり、配列長の上限ではない。
+pilot の受領証は `36 × |pilot_cluster_slots| = 288` の planned run を持つ。
+
+### 0.2 前 2 版から変えた点 (すべて受理条件に効く)
 
 | # | 変更 | 理由 |
 |---|---|---|
@@ -40,6 +54,7 @@ supersedes_draft_sha256: 5f07e9177736739fdb80a7df00a84c6f84751bf8d3c5e686adc4478
 | C10 | `admission_telemetry[].kind` の `calibration_simulation` を `stress_check_simulation` へ改めた | core §7 の較正義務は erratum によって「事前固定 stress model のもとでの確認」へ置換される |
 | C11 | 否定検査の列挙を**実在 field だけ**にした | 前版は `admission_telemetry[].returncode` を挙げていたが、その key は存在しない。本書は qsub の returncode を `attempts[].qsub_result.returncode` として実在させ、否定検査の対象にする |
 | C12 | 第三分岐が開ける捏造余地を非保証として明記した | 承認時に引き受ける残余であることを文書に固定する (§9) |
+| C13 | **受領証の粒度を study stage 1 つに定めた** (§0.1) | 前 2 版は粒度を定めておらず、1 割当て 1 枚と読むと置換関係が受領証を跨いで検査不能になり、検証割当ての証拠が複数受領証に重複申告される |
 
 ## 1. 設計原則 (D162 の直接適用)
 
@@ -276,7 +291,8 @@ runs[] = { run_id, cluster_slot, workload, block_index, permutation,
     preceding_wait.required_s integer enum [0, 30, 60]
 ```
 
-- `runs[]` は 1 cluster **36 要素** (6 permutation block × 3 arm × 2 workload)。
+- `runs[]` は `pilot_cluster_slots` (または `main_run` の消費 slot 集合) の**各 slot について
+  ちょうど 36 要素** (6 permutation block × 3 arm × 2 workload)。pilot なら合計 288 要素。
 - `predecessor_arm == START` は block 先頭 (`position == 1`) のときに限る。
 - `effective_flags` と `opt_parameters` の値は追補 A `a07` の表と exact 一致でなければならない。
 
@@ -419,7 +435,7 @@ malformed_reason      enum { short_columns, negative_delta, nonpositive_total,
 
 | `reason_code` | 要求する条件 |
 |---|---|
-| `completed` | `allocation_id` 非 null、`performance_started_marker` 非 null、`failure_evidence == null`、当該 attempt の actual run が planned schedule と **36 run の完全双射** |
+| `completed` | `allocation_id` 非 null、`performance_started_marker` 非 null、`failure_evidence == null`、当該 attempt の actual run が**その attempt の `cluster_slot` に属する 36 planned run** と完全双射 |
 | `pre_performance_infra_failure` | `performance_started_marker == null` **かつ** 当該 attempt を参照する `actual_runs[]` が **0 件** **かつ** `environment_observations[]` から `a03` の不成立・malformed が **1 件も導けない** **かつ** `failure_evidence` 非 null |
 | `post_performance_failure` | 下記 3 経路のいずれか 1 つ以上を満たし、`failure_evidence` 非 null |
 | `correctness_anomaly` | `replaces_attempt_id == null` (終端 reject)、`failure_evidence.kind == correctness` |
@@ -485,9 +501,15 @@ R_new = ( R_old ∪ { 経路 3 だけで post_performance_failure を満たす�
 
 ### 6.2 planned ↔ actual
 
-- `completed` の attempt だけが 36 run の**完全双射**を要求される。
-- 失敗 attempt の actual run 列は planned schedule に対する**厳密な prefix** であり、
+- `completed` の attempt だけが、その `cluster_slot` の 36 planned run に対する**完全双射**を
+  要求される。
+- 失敗 attempt の actual run 列は当該 slot の planned schedule に対する**厳密な prefix** であり、
   failure evidence pointer を伴う。**欠けた run を後から補って双射を成立させることを禁じる。**
+- `pilot_cluster_slots` の各 slot について、`completed` の attempt は**高々 1 つ**である。
+- `allocations[]` は `allocation_role == verification` を**ちょうど 1 件**持ち、
+  各 `pilot_cluster_slots` の slot について `performance_cluster` を **1 件以上**持つ
+  (置換は同じ slot で新しい割当てを消費する)。すべての `performance_cluster` 割当ての
+  `cluster_slot_or_null` は `pilot_cluster_slots` の要素でなければならない。
 
 ### 6.3 絶対規律 1 (trace / perf の分離)
 
@@ -591,6 +613,24 @@ block 順は追補 A `a09` の `key(j, w, p)` を再計算して定める。実 
   全必須 key を `required` に列挙する。条件付き不在は key 省略ではなく**明示的な `null`** で表す。
 - **duplicate JSON key は schema 検査の前段の parser で拒否する。**
 - §6 の cross-field 制約は JSON Schema では表現しない。**固定 semantic validator** が再計算する。
+### 7.1 draft-07 では表現できず、固定 semantic validator が担う制約
+
+dialect の能力上、次は schema に書けない。**書けないことを schema の側で偽装しない** —
+これらは semantic validator の必須責務として実装 wave が持つ。
+
+```text
+- 配列内で「種別ごとにちょうど N 件」 — environment.attestations[] の profile_kind == expected が
+  ちょうど 1 件、liveness[] の probe == liveness_run がちょうど 6 件かつ (arm, workload) を
+  過不足なく覆うこと。schema は「必要な組合せが存在する」ところまでしか書けない
+- ordinal の 1 起点連番・欠番なし (全配列)
+- field 単位の一意性 — errata[].erratum_id、run_id / attempt_id / allocation_id
+- §4.5 / §4.8 の値が追補 A a07 / a08 / a09 の逐語と一致すること
+- planned_execution.runs[] の件数が 36 × |消費 slot 集合| であること
+- §6 の全 cross-field 制約 (foreign key、双射、prefix、実待機、観測窓、binary 非同一、
+  schedule 再導出、台帳全履歴、時間算術、writer 認可)
+- duplicate JSON key の拒否 (parse 前段)
+```
+
 - **conformance vectors** (正例 1 本と、§6 の各制約に対する負例 1 本以上) を実装 wave が発行し、
   その digest を approval manifest が pin する。vectors は test 資材であり本書と同じ land では
   発行しない。engine は schema と vectors の実装であって規範ではなく、
