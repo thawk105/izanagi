@@ -1,0 +1,750 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/1cadd543e473f289a66bdb35507181f5/izdw-1cadd543e4.o896577",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/1cadd543e473f289a66bdb35507181f5/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................                               [100%]\n42 passed in 2.38s\n",
+      "stdout_sha256": "116ff9c3cdb52a4d04f9a928ebf36c6ac2773a9f7ae17e3f83f7558f3d94a0f3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+    "duration_s": 21.767,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "36a9062d026ed2dae3c7bd7d978b37a88abdf114c8004b2aa742995695f8dda6",
+    "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+    "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+    "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+    "status": "PASSED",
+    "test_output_sha256": "116ff9c3cdb52a4d04f9a928ebf36c6ac2773a9f7ae17e3f83f7558f3d94a0f3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+  },
+  "date": "2026-08-08T23:26:50.805199+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/8274b9ec7ef8732cdbd91ecc82dccd9e/izdw-8274b9ec7e.o896578",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/8274b9ec7ef8732cdbd91ecc82dccd9e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................................                               [100%]\n42 passed in 2.38s\n",
+        "stdout_sha256": "116ff9c3cdb52a4d04f9a928ebf36c6ac2773a9f7ae17e3f83f7558f3d94a0f3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 26.792,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "1f045c720b6ef92635817e408150a72c56ac6f6715b19d15c10fd4264489d21c",
+      "matches_expectation": false,
+      "rc": 0,
+      "registration_sha256": "25f85534b22d17243e00161012377665086f13fff432fe02d281270a81d1a022",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "            \"-C\", commit,\n",
+          "old": "            \"-M\", \"-C\", commit,\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "SURVIVED",
+      "test_output_sha256": "116ff9c3cdb52a4d04f9a928ebf36c6ac2773a9f7ae17e3f83f7558f3d94a0f3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/46a5717ef8cea0165acdd289a84bc24e/izdw-46a5717ef8.o896579",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/46a5717ef8cea0165acdd289a84bc24e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................F......F                               [100%]\n=================================== FAILURES ===================================\n__ test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4 __\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4():\n        temp, root, _introduction, _raw = _repo_with_receipt()\n        try:\n            path = root / migration.RECEIPT_REL\n            path.chmod(0o755)\n            _commit_all(root, \"change receipt mode\")\n            result = migration.inspect_receipt_history(root=root)\n            assert result.state == \"issued-but-missing\"\n            assert any(\"receipt.history_mutated\" in refusal for refusal in result.refusals)\n        finally:\n            temp.cleanup()\n    \n        captured = []\n        original = migration._git_text\n        try:\n            migration._git_text = lambda args, _root: captured.append(tuple(args)) or \"\"\n            assert migration._history_touches_path(\"a\" * 40, migration.RECEIPT_REL, Path(\".\")) is False\n        finally:\n            migration._git_text = original\n>       assert captured and \"-m\" in captured[0] and \"-r\" in captured[0]\nE       AssertionError: assert ([('diff-tree', '--root', '--no-commit-id', '--raw', '-r', '-M', ...)] and '-m' in ('diff-tree', '--root', '--no-commit-id', '--raw', '-r', '-M', ...))\n\norchestrator/tests/test_t080_freeze_migration.py:717: AssertionError\n______________ test_history_touches_path_positive_control_matrix _______________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0')\n\n    def test_history_touches_path_positive_control_matrix(tmp_path: Path):\n        \"\"\"[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。\"\"\"\n        target = \"target.txt\"\n        history_cases: list[tuple[int, str, str, Path, bool]] = []\n    \n        def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:\n            root = tmp_path / name\n            root.mkdir()\n            _init_repo(root)\n            for relative, contents in files.items():\n                (root / relative).write_text(contents, encoding=\"utf-8\")\n            return root, _commit_all(root, f\"seed {name}\")\n    \n        root, _ = repo_with_files(\"modified\", {target: \"before\\n\"})\n        (root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        modified_commit = _commit_all(root, \"modify target\")\n        modified_root = root\n        modified_oid = _run_git(\n            root, \"rev-parse\", f\"{modified_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((1, \"modified\", modified_commit, root, True))\n    \n        root, _ = repo_with_files(\"deleted\", {target: \"before\\n\"})\n        (root / target).unlink()\n        history_cases.append((2, \"deleted\", _commit_all(root, \"delete target\"), root, True))\n    \n        root, _ = repo_with_files(\"rename-source\", {target: \"rename me\\n\"})\n        _run_git(root, \"mv\", target, \"renamed.txt\")\n        history_cases.append((\n            3, \"rename source\", _commit_all(root, \"rename target away\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"rename-destination\", {\"source.txt\": \"rename me\\n\"})\n        _run_git(root, \"mv\", \"source.txt\", target)\n        history_cases.append((\n            4, \"rename destination\", _commit_all(root, \"rename source to target\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"symlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        (root / target).symlink_to(\"symlink-destination\")\n        history_cases.append((\n            5, \"regular to symlink\", _commit_all(root, \"target to symlink\"), root, True,\n        ))\n    \n        root, gitlink_target = repo_with_files(\"gitlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        _run_git(\n            root, \"update-index\", \"--add\", \"--cacheinfo\",\n            f\"160000,{gitlink_target},{target}\",\n        )\n        _run_git(root, \"commit\", \"-q\", \"-m\", \"target to gitlink\", \"-m\", \"AI-Agent: none\")\n        gitlink_commit = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n        history_cases.append((6, \"regular to gitlink\", gitlink_commit, root, True))\n    \n        root = tmp_path / \"added\"\n        root.mkdir()\n        _init_repo(root)\n        (root / target).write_text(\"added\\n\", encoding=\"utf-8\")\n        added_commit = _commit_all(root, \"add target\")\n        added_root = root\n        added_oid = _run_git(\n            root, \"rev-parse\", f\"{added_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((7, \"added\", added_commit, root, False))\n    \n        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})\n        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")\n        history_cases.append((\n            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,\n        ))\n    \n        root = tmp_path / \"root-add\"\n        root.mkdir()\n        _run_git(root, \"init\", \"-q\")\n        _run_git(root, \"config\", \"user.name\", \"T080 Test\")\n        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")\n        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")\n        root_commit = _commit_all(root, \"root adds target\")\n        history_cases.append((9, \"root addition\", root_commit, root, False))\n    \n        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_two = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent,\n            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((10, \"second parent differs\", merge_two, root, True))\n    \n        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)\n        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")\n        third_parent = _commit_all(root, \"third parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_three = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,\n            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((11, \"third parent differs\", merge_three, root, True))\n    \n        exact_copy_root, exact_copy_base = repo_with_files(\n            \"unchanged-copy-source\", {target: \"same bytes\\n\"},\n        )\n        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())\n        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")\n        exact_copy_oid = _run_git(\n            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",\n        ).decode().strip()\n        history_cases.append((\n            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,\n        ))\n    \n        assert [number for number, *_rest in history_cases] == list(range(1, 13))\n        assert any(expected is True for *_case, expected in history_cases)\n        for number, label, commit, root, expected in history_cases:\n            if number == 12:\n                actual = migration._history_touches_path(\n                    commit, target, root, duplicate_oid=exact_copy_oid,\n                )\n            else:\n                actual = migration._history_touches_path(commit, target, root)\n>           assert actual is expected, (number, label, actual, expected)\nE           AssertionError: (10, 'second parent differs', False, True)\nE           assert False is True\n\norchestrator/tests/test_t080_freeze_migration.py:1263: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\n2 failed, 40 passed in 2.31s\n",
+        "stdout_sha256": "32181a7b55b557726a156d4bcc25d976b5a8c27fb849f89ff8977075c69f89a1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 26.852,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "2ae9fc4b248e7263bab1d7b62d61477e54727e3a4be78286437bf3b68b8ab81c",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "ee0aa5cbd565f48234c31f50335093e57753d2c1947719b646fa6bb8ad80974b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "            \"diff-tree\", \"--root\", \"--no-commit-id\", \"--raw\", \"-r\",\n",
+          "old": "            \"diff-tree\", \"--root\", \"--no-commit-id\", \"--raw\", \"-m\", \"-r\",\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "MISMATCH",
+      "test_output_sha256": "32181a7b55b557726a156d4bcc25d976b5a8c27fb849f89ff8977075c69f89a1",
+      "test_output_tail": [
+        "            root, \"rev-parse\", f\"{added_commit}:{target}\",",
+        "        ).decode().strip()",
+        "        history_cases.append((7, \"added\", added_commit, root, False))",
+        "    ",
+        "        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})",
+        "        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")",
+        "        history_cases.append((",
+        "            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,",
+        "        ))",
+        "    ",
+        "        root = tmp_path / \"root-add\"",
+        "        root.mkdir()",
+        "        _run_git(root, \"init\", \"-q\")",
+        "        _run_git(root, \"config\", \"user.name\", \"T080 Test\")",
+        "        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")",
+        "        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")",
+        "        root_commit = _commit_all(root, \"root adds target\")",
+        "        history_cases.append((9, \"root addition\", root_commit, root, False))",
+        "    ",
+        "        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})",
+        "        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")",
+        "        first_parent = _commit_all(root, \"first parent\")",
+        "        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)",
+        "        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")",
+        "        second_parent = _commit_all(root, \"second parent changes target\")",
+        "        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()",
+        "        merge_two = _run_git(",
+        "            root, \"commit-tree\", first_tree,",
+        "            \"-p\", first_parent, \"-p\", second_parent,",
+        "            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",",
+        "        ).decode().strip()",
+        "        history_cases.append((10, \"second parent differs\", merge_two, root, True))",
+        "    ",
+        "        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})",
+        "        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")",
+        "        first_parent = _commit_all(root, \"first parent\")",
+        "        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)",
+        "        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")",
+        "        second_parent = _commit_all(root, \"second parent\")",
+        "        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)",
+        "        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")",
+        "        third_parent = _commit_all(root, \"third parent changes target\")",
+        "        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()",
+        "        merge_three = _run_git(",
+        "            root, \"commit-tree\", first_tree,",
+        "            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,",
+        "            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",",
+        "        ).decode().strip()",
+        "        history_cases.append((11, \"third parent differs\", merge_three, root, True))",
+        "    ",
+        "        exact_copy_root, exact_copy_base = repo_with_files(",
+        "            \"unchanged-copy-source\", {target: \"same bytes\\n\"},",
+        "        )",
+        "        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())",
+        "        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")",
+        "        exact_copy_oid = _run_git(",
+        "            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",",
+        "        ).decode().strip()",
+        "        history_cases.append((",
+        "            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,",
+        "        ))",
+        "    ",
+        "        assert [number for number, *_rest in history_cases] == list(range(1, 13))",
+        "        assert any(expected is True for *_case, expected in history_cases)",
+        "        for number, label, commit, root, expected in history_cases:",
+        "            if number == 12:",
+        "                actual = migration._history_touches_path(",
+        "                    commit, target, root, duplicate_oid=exact_copy_oid,",
+        "                )",
+        "            else:",
+        "                actual = migration._history_touches_path(commit, target, root)",
+        ">           assert actual is expected, (number, label, actual, expected)",
+        "E           AssertionError: (10, 'second parent differs', False, True)",
+        "E           assert False is True",
+        "",
+        "orchestrator/tests/test_t080_freeze_migration.py:1263: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t080_freeze_migration.py::test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4",
+        "FAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix",
+        "2 failed, 40 passed in 2.31s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/22cc9f3394fde5c2822b003c25e644e8/izdw-22cc9f3394.o896581",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/22cc9f3394fde5c2822b003c25e644e8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F...F                               [100%]\n=================================== FAILURES ===================================\n__________ test_history_touches_batch_is_equivalent_to_sequential_any __________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_history_touches_batch_is_equivalent_to_sequential_any():\n        \"\"\"[T-057] 並行版 `_any_history_touches_path` は逐次 `any(...)` と同値。\n    \n        merge・rename・無関係 commit を含む履歴で、全体・部分集合・空集合・単一要素の\n        すべてについて逐次版と一致することを固定する。並行化で「触っているのに False」\n        (検出力の喪失) や「触っていないのに True」(過剰拒否) になる退行を殺す。\n        負例 control として、対象 path を触らない commit だけの部分集合が False になることも要求する。\n        \"\"\"\n        with tempfile.TemporaryDirectory() as tmp:\n            root = Path(tmp) / \"repo\"\n            root.mkdir()\n            _init_repo(root)\n            (root / \"a.txt\").write_text(\"a1\\n\", encoding=\"utf-8\")\n            c1 = _commit_all(root, \"add a\")\n            (root / \"target.txt\").write_text(\"t1\\n\", encoding=\"utf-8\")\n            c2 = _commit_all(root, \"add target\")\n            (root / \"a.txt\").write_text(\"a2\\n\", encoding=\"utf-8\")\n            c3 = _commit_all(root, \"modify a only\")\n            _run_git(root, \"checkout\", \"-q\", \"-b\", \"side\", c1)\n            (root / \"b.txt\").write_text(\"b1\\n\", encoding=\"utf-8\")\n            c4 = _commit_all(root, \"add b on side\")\n            _run_git(root, \"checkout\", \"-q\", \"-B\", \"main\", c3)\n            _run_git(root, \"merge\", \"-q\", \"--no-ff\", \"-m\", \"merge side\", c4)\n            c5 = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n            (root / \"target.txt\").write_text(\"t2\\n\", encoding=\"utf-8\")\n            c6 = _commit_all(root, \"modify target\")\n            _run_git(root, \"mv\", \"a.txt\", \"renamed_a.txt\")\n            c7 = _commit_all(root, \"rename a\")\n    \n            touching = (c2, c6)\n            non_touching = (c1, c3, c4, c5, c7)\n            for subset in (\n                (),\n                (c1,),\n                (c2,),\n                non_touching,\n                touching,\n                (c1, c2, c3, c4, c5, c6, c7),\n                (c7, c6, c5, c4, c3, c2, c1),\n            ):\n                expected = any(\n                    migration._history_touches_path(commit, \"target.txt\", root)\n                    for commit in subset\n                )\n                actual = migration._any_history_touches_path(subset, \"target.txt\", root)\n                assert actual == expected, (subset, actual, expected)\n>           assert migration._any_history_touches_path(\n                non_touching, \"target.txt\", root) is False\nE           AssertionError: assert True is False\nE            +  where True = <function _any_history_touches_path at 0x148267e4dd80>(('5fcdb5944901b2f2e11452525b5e7e22b808c26e', 'd71064239089a0f6d1d0f28116cbff71a5d4fa3e', '15ae19ca815555907a9021937c9eecf9eaa03860', '02fea31667238acd829815d9e1a9d566175c03d6', 'e18432d9202afcfd8c42d43cdf601fd40dc51689'), 'target.txt', PosixPath('/tmp/tmppwmkk98m/repo'))\nE            +    where <function _any_history_touches_path at 0x148267e4dd80> = migration._any_history_touches_path\n\norchestrator/tests/test_t080_freeze_migration.py:1125: AssertionError\n______________ test_history_touches_path_positive_control_matrix _______________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0')\n\n    def test_history_touches_path_positive_control_matrix(tmp_path: Path):\n        \"\"\"[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。\"\"\"\n        target = \"target.txt\"\n        history_cases: list[tuple[int, str, str, Path, bool]] = []\n    \n        def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:\n            root = tmp_path / name\n            root.mkdir()\n            _init_repo(root)\n            for relative, contents in files.items():\n                (root / relative).write_text(contents, encoding=\"utf-8\")\n            return root, _commit_all(root, f\"seed {name}\")\n    \n        root, _ = repo_with_files(\"modified\", {target: \"before\\n\"})\n        (root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        modified_commit = _commit_all(root, \"modify target\")\n        modified_root = root\n        modified_oid = _run_git(\n            root, \"rev-parse\", f\"{modified_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((1, \"modified\", modified_commit, root, True))\n    \n        root, _ = repo_with_files(\"deleted\", {target: \"before\\n\"})\n        (root / target).unlink()\n        history_cases.append((2, \"deleted\", _commit_all(root, \"delete target\"), root, True))\n    \n        root, _ = repo_with_files(\"rename-source\", {target: \"rename me\\n\"})\n        _run_git(root, \"mv\", target, \"renamed.txt\")\n        history_cases.append((\n            3, \"rename source\", _commit_all(root, \"rename target away\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"rename-destination\", {\"source.txt\": \"rename me\\n\"})\n        _run_git(root, \"mv\", \"source.txt\", target)\n        history_cases.append((\n            4, \"rename destination\", _commit_all(root, \"rename source to target\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"symlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        (root / target).symlink_to(\"symlink-destination\")\n        history_cases.append((\n            5, \"regular to symlink\", _commit_all(root, \"target to symlink\"), root, True,\n        ))\n    \n        root, gitlink_target = repo_with_files(\"gitlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        _run_git(\n            root, \"update-index\", \"--add\", \"--cacheinfo\",\n            f\"160000,{gitlink_target},{target}\",\n        )\n        _run_git(root, \"commit\", \"-q\", \"-m\", \"target to gitlink\", \"-m\", \"AI-Agent: none\")\n        gitlink_commit = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n        history_cases.append((6, \"regular to gitlink\", gitlink_commit, root, True))\n    \n        root = tmp_path / \"added\"\n        root.mkdir()\n        _init_repo(root)\n        (root / target).write_text(\"added\\n\", encoding=\"utf-8\")\n        added_commit = _commit_all(root, \"add target\")\n        added_root = root\n        added_oid = _run_git(\n            root, \"rev-parse\", f\"{added_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((7, \"added\", added_commit, root, False))\n    \n        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})\n        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")\n        history_cases.append((\n            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,\n        ))\n    \n        root = tmp_path / \"root-add\"\n        root.mkdir()\n        _run_git(root, \"init\", \"-q\")\n        _run_git(root, \"config\", \"user.name\", \"T080 Test\")\n        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")\n        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")\n        root_commit = _commit_all(root, \"root adds target\")\n        history_cases.append((9, \"root addition\", root_commit, root, False))\n    \n        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_two = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent,\n            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((10, \"second parent differs\", merge_two, root, True))\n    \n        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)\n        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")\n        third_parent = _commit_all(root, \"third parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_three = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,\n            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((11, \"third parent differs\", merge_three, root, True))\n    \n        exact_copy_root, exact_copy_base = repo_with_files(\n            \"unchanged-copy-source\", {target: \"same bytes\\n\"},\n        )\n        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())\n        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")\n        exact_copy_oid = _run_git(\n            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",\n        ).decode().strip()\n        history_cases.append((\n            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,\n        ))\n    \n        assert [number for number, *_rest in history_cases] == list(range(1, 13))\n        assert any(expected is True for *_case, expected in history_cases)\n        for number, label, commit, root, expected in history_cases:\n            if number == 12:\n                actual = migration._history_touches_path(\n                    commit, target, root, duplicate_oid=exact_copy_oid,\n                )\n            else:\n                actual = migration._history_touches_path(commit, target, root)\n>           assert actual is expected, (number, label, actual, expected)\nE           AssertionError: (7, 'added', True, False)\nE           assert True is False\n\norchestrator/tests/test_t080_freeze_migration.py:1263: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_batch_is_equivalent_to_sequential_any\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\n2 failed, 40 passed in 2.33s\n",
+        "stdout_sha256": "33b229592342d15a2d556ac195cc74bad3b77ac86bfab2e2d4579d00fcde1488"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 21.741,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_batch_is_equivalent_to_sequential_any",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "3d1a8463fd8a8d3934d30303356683c954141b1f35df3c0a6f5a28ed00d4f7ee",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "82bcdcfb01e8673d7aa16c6b54a391ecdbb1d2c562282dea8b73ce2d3a5ee887",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "        if status_code in {\"A\", \"M\", \"D\", \"R\", \"C\", \"T\"} and path in paths:\n",
+          "old": "        if status_code in {\"M\", \"D\", \"R\", \"C\", \"T\"} and path in paths:\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "MISMATCH",
+      "test_output_sha256": "33b229592342d15a2d556ac195cc74bad3b77ac86bfab2e2d4579d00fcde1488",
+      "test_output_tail": [
+        "            root, \"rev-parse\", f\"{added_commit}:{target}\",",
+        "        ).decode().strip()",
+        "        history_cases.append((7, \"added\", added_commit, root, False))",
+        "    ",
+        "        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})",
+        "        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")",
+        "        history_cases.append((",
+        "            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,",
+        "        ))",
+        "    ",
+        "        root = tmp_path / \"root-add\"",
+        "        root.mkdir()",
+        "        _run_git(root, \"init\", \"-q\")",
+        "        _run_git(root, \"config\", \"user.name\", \"T080 Test\")",
+        "        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")",
+        "        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")",
+        "        root_commit = _commit_all(root, \"root adds target\")",
+        "        history_cases.append((9, \"root addition\", root_commit, root, False))",
+        "    ",
+        "        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})",
+        "        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")",
+        "        first_parent = _commit_all(root, \"first parent\")",
+        "        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)",
+        "        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")",
+        "        second_parent = _commit_all(root, \"second parent changes target\")",
+        "        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()",
+        "        merge_two = _run_git(",
+        "            root, \"commit-tree\", first_tree,",
+        "            \"-p\", first_parent, \"-p\", second_parent,",
+        "            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",",
+        "        ).decode().strip()",
+        "        history_cases.append((10, \"second parent differs\", merge_two, root, True))",
+        "    ",
+        "        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})",
+        "        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")",
+        "        first_parent = _commit_all(root, \"first parent\")",
+        "        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)",
+        "        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")",
+        "        second_parent = _commit_all(root, \"second parent\")",
+        "        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)",
+        "        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")",
+        "        third_parent = _commit_all(root, \"third parent changes target\")",
+        "        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()",
+        "        merge_three = _run_git(",
+        "            root, \"commit-tree\", first_tree,",
+        "            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,",
+        "            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",",
+        "        ).decode().strip()",
+        "        history_cases.append((11, \"third parent differs\", merge_three, root, True))",
+        "    ",
+        "        exact_copy_root, exact_copy_base = repo_with_files(",
+        "            \"unchanged-copy-source\", {target: \"same bytes\\n\"},",
+        "        )",
+        "        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())",
+        "        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")",
+        "        exact_copy_oid = _run_git(",
+        "            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",",
+        "        ).decode().strip()",
+        "        history_cases.append((",
+        "            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,",
+        "        ))",
+        "    ",
+        "        assert [number for number, *_rest in history_cases] == list(range(1, 13))",
+        "        assert any(expected is True for *_case, expected in history_cases)",
+        "        for number, label, commit, root, expected in history_cases:",
+        "            if number == 12:",
+        "                actual = migration._history_touches_path(",
+        "                    commit, target, root, duplicate_oid=exact_copy_oid,",
+        "                )",
+        "            else:",
+        "                actual = migration._history_touches_path(commit, target, root)",
+        ">           assert actual is expected, (number, label, actual, expected)",
+        "E           AssertionError: (7, 'added', True, False)",
+        "E           assert True is False",
+        "",
+        "orchestrator/tests/test_t080_freeze_migration.py:1263: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_batch_is_equivalent_to_sequential_any",
+        "FAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix",
+        "2 failed, 40 passed in 2.33s"
+      ],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/6ef7d5e942780f2398294781ec40cfba/izdw-6ef7d5e942.o896582",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/6ef7d5e942780f2398294781ec40cfba/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n______________ test_history_touches_path_positive_control_matrix _______________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0')\n\n    def test_history_touches_path_positive_control_matrix(tmp_path: Path):\n        \"\"\"[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。\"\"\"\n        target = \"target.txt\"\n        history_cases: list[tuple[int, str, str, Path, bool]] = []\n    \n        def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:\n            root = tmp_path / name\n            root.mkdir()\n            _init_repo(root)\n            for relative, contents in files.items():\n                (root / relative).write_text(contents, encoding=\"utf-8\")\n            return root, _commit_all(root, f\"seed {name}\")\n    \n        root, _ = repo_with_files(\"modified\", {target: \"before\\n\"})\n        (root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        modified_commit = _commit_all(root, \"modify target\")\n        modified_root = root\n        modified_oid = _run_git(\n            root, \"rev-parse\", f\"{modified_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((1, \"modified\", modified_commit, root, True))\n    \n        root, _ = repo_with_files(\"deleted\", {target: \"before\\n\"})\n        (root / target).unlink()\n        history_cases.append((2, \"deleted\", _commit_all(root, \"delete target\"), root, True))\n    \n        root, _ = repo_with_files(\"rename-source\", {target: \"rename me\\n\"})\n        _run_git(root, \"mv\", target, \"renamed.txt\")\n        history_cases.append((\n            3, \"rename source\", _commit_all(root, \"rename target away\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"rename-destination\", {\"source.txt\": \"rename me\\n\"})\n        _run_git(root, \"mv\", \"source.txt\", target)\n        history_cases.append((\n            4, \"rename destination\", _commit_all(root, \"rename source to target\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"symlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        (root / target).symlink_to(\"symlink-destination\")\n        history_cases.append((\n            5, \"regular to symlink\", _commit_all(root, \"target to symlink\"), root, True,\n        ))\n    \n        root, gitlink_target = repo_with_files(\"gitlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        _run_git(\n            root, \"update-index\", \"--add\", \"--cacheinfo\",\n            f\"160000,{gitlink_target},{target}\",\n        )\n        _run_git(root, \"commit\", \"-q\", \"-m\", \"target to gitlink\", \"-m\", \"AI-Agent: none\")\n        gitlink_commit = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n        history_cases.append((6, \"regular to gitlink\", gitlink_commit, root, True))\n    \n        root = tmp_path / \"added\"\n        root.mkdir()\n        _init_repo(root)\n        (root / target).write_text(\"added\\n\", encoding=\"utf-8\")\n        added_commit = _commit_all(root, \"add target\")\n        added_root = root\n        added_oid = _run_git(\n            root, \"rev-parse\", f\"{added_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((7, \"added\", added_commit, root, False))\n    \n        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})\n        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")\n        history_cases.append((\n            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,\n        ))\n    \n        root = tmp_path / \"root-add\"\n        root.mkdir()\n        _run_git(root, \"init\", \"-q\")\n        _run_git(root, \"config\", \"user.name\", \"T080 Test\")\n        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")\n        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")\n        root_commit = _commit_all(root, \"root adds target\")\n        history_cases.append((9, \"root addition\", root_commit, root, False))\n    \n        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_two = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent,\n            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((10, \"second parent differs\", merge_two, root, True))\n    \n        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)\n        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")\n        third_parent = _commit_all(root, \"third parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_three = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,\n            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((11, \"third parent differs\", merge_three, root, True))\n    \n        exact_copy_root, exact_copy_base = repo_with_files(\n            \"unchanged-copy-source\", {target: \"same bytes\\n\"},\n        )\n        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())\n        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")\n        exact_copy_oid = _run_git(\n            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",\n        ).decode().strip()\n        history_cases.append((\n            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,\n        ))\n    \n        assert [number for number, *_rest in history_cases] == list(range(1, 13))\n        assert any(expected is True for *_case, expected in history_cases)\n        for number, label, commit, root, expected in history_cases:\n            if number == 12:\n                actual = migration._history_touches_path(\n                    commit, target, root, duplicate_oid=exact_copy_oid,\n                )\n            else:\n                actual = migration._history_touches_path(commit, target, root)\n>           assert actual is expected, (number, label, actual, expected)\nE           AssertionError: (4, 'rename destination', False, True)\nE           assert False is True\n\norchestrator/tests/test_t080_freeze_migration.py:1263: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\n1 failed, 41 passed in 2.30s\n",
+        "stdout_sha256": "bde015fc9922f5536383eebcd3368a8a3f0bf1623f20eccd89889070cf1f75fa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 26.787,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "41b726df77b07f798c412972a819d217a3e8e67734543e6cabe8e2c03a6e51f4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "964baea3289682f82486c5ab21f0621d352297ffe3132d4eba28afa743bd4978",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "        if status_code in {\"M\", \"D\", \"R\", \"C\", \"T\"} and path == paths[0]:\n",
+          "old": "        if status_code in {\"M\", \"D\", \"R\", \"C\", \"T\"} and path in paths:\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "KILLED",
+      "test_output_sha256": "bde015fc9922f5536383eebcd3368a8a3f0bf1623f20eccd89889070cf1f75fa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/615a7a2fa64820cfbe9d6245ae53c4fa/izdw-615a7a2fa6.o896583",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/615a7a2fa64820cfbe9d6245ae53c4fa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n______________ test_history_touches_path_positive_control_matrix _______________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\nargs = ['diff-tree', '--root', '--no-commit-id', '--raw', '-m', '-r', ...]\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0/aggregate')\nstdin = None\n\n    def _git(args: Sequence[str], root: Path, *, stdin: Optional[bytes] = None) -> bytes:\n        try:\n>           completed = subprocess.run(\n                [\"git\", *_GIT_HARDEN, *args], cwd=root, env=_git_env(), input=stdin,\n                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,\n            )\n\norchestrator/campaign/t080_freeze_migration.py:561: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ninput = None, capture_output = False, timeout = None, check = True\npopenargs = (['git', '-c', 'core.useReplaceRefs=false', '-c', 'core.fsmonitor=false', '-c', ...],)\nkwargs = {'cwd': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0/aggregate'), 'env': {'SHEL.../apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}, 'stdout': -1, 'stderr': -1}\n\n    def run(*popenargs,\n            input=None, capture_output=False, timeout=None, check=False, **kwargs):\n        \"\"\"Run command with arguments and return a CompletedProcess instance.\n    \n        The returned instance will have attributes args, returncode, stdout and\n        stderr. By default, stdout and stderr are not captured, and those attributes\n        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,\n        or pass capture_output=True to capture both.\n    \n        If check is True and the exit code was non-zero, it raises a\n        CalledProcessError. The CalledProcessError object will have the return code\n        in the returncode attribute, and output & stderr attributes if those streams\n        were captured.\n    \n        If timeout is given, and the process takes too long, a TimeoutExpired\n        exception will be raised.\n    \n        There is an optional argument \"input\", allowing you to\n        pass bytes or a string to the subprocess's stdin.  If you use this argument\n        you may not also use the Popen constructor's \"stdin\" argument, as\n        it will be used internally.\n    \n        By default, all communication is in bytes, and therefore any \"input\" should\n        be bytes, and the stdout and stderr will be bytes. If in text mode, any\n        \"input\" should be a string, and stdout and stderr will be strings decoded\n        according to locale encoding, or by \"encoding\" if set. Text mode is\n        triggered by setting any of text, encoding, errors or universal_newlines.\n    \n        The other arguments are the same as for the Popen constructor.\n        \"\"\"\n        if input is not None:\n            if kwargs.get('stdin') is not None:\n                raise ValueError('stdin and input arguments may not both be used.')\n            kwargs['stdin'] = PIPE\n    \n        if capture_output:\n            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n                raise ValueError('stdout and stderr arguments may not be used '\n                                 'with capture_output.')\n            kwargs['stdout'] = PIPE\n            kwargs['stderr'] = PIPE\n    \n        with Popen(*popenargs, **kwargs) as process:\n            try:\n                stdout, stderr = process.communicate(input, timeout=timeout)\n            except TimeoutExpired as exc:\n                process.kill()\n                if _mswindows:\n                    # Windows accumulates the output in a single blocking\n                    # read() call run on child threads, with the timeout\n                    # being done in a join() on those threads.  communicate()\n                    # _after_ kill() is required to collect that and add it\n                    # to the exception.\n                    exc.stdout, exc.stderr = process.communicate()\n                else:\n                    # POSIX _communicate already populated the output so\n                    # far into the TimeoutExpired exception.\n                    process.wait()\n                raise\n            except:  # Including KeyboardInterrupt, communicate handled that.\n                process.kill()\n                # We don't call process.wait() as .__exit__ does that for us.\n                raise\n            retcode = process.poll()\n            if check and retcode:\n>               raise CalledProcessError(retcode, process.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['git', '-c', 'core.useReplaceRefs=false', '-c', 'core.fsmonitor=false', '-c', 'core.untrackedCache=false', 'diff-tree', '--root', '--no-commit-id', '--raw', '-m', '-r', '-M', '-C', 'ffffffffffffffffffffffffffffffffffffffff']' returned non-zero exit status 128.\n\n/usr/lib/python3.10/subprocess.py:526: CalledProcessError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0')\n\n    def test_history_touches_path_positive_control_matrix(tmp_path: Path):\n        \"\"\"[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。\"\"\"\n        target = \"target.txt\"\n        history_cases: list[tuple[int, str, str, Path, bool]] = []\n    \n        def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:\n            root = tmp_path / name\n            root.mkdir()\n            _init_repo(root)\n            for relative, contents in files.items():\n                (root / relative).write_text(contents, encoding=\"utf-8\")\n            return root, _commit_all(root, f\"seed {name}\")\n    \n        root, _ = repo_with_files(\"modified\", {target: \"before\\n\"})\n        (root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        modified_commit = _commit_all(root, \"modify target\")\n        modified_root = root\n        modified_oid = _run_git(\n            root, \"rev-parse\", f\"{modified_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((1, \"modified\", modified_commit, root, True))\n    \n        root, _ = repo_with_files(\"deleted\", {target: \"before\\n\"})\n        (root / target).unlink()\n        history_cases.append((2, \"deleted\", _commit_all(root, \"delete target\"), root, True))\n    \n        root, _ = repo_with_files(\"rename-source\", {target: \"rename me\\n\"})\n        _run_git(root, \"mv\", target, \"renamed.txt\")\n        history_cases.append((\n            3, \"rename source\", _commit_all(root, \"rename target away\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"rename-destination\", {\"source.txt\": \"rename me\\n\"})\n        _run_git(root, \"mv\", \"source.txt\", target)\n        history_cases.append((\n            4, \"rename destination\", _commit_all(root, \"rename source to target\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"symlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        (root / target).symlink_to(\"symlink-destination\")\n        history_cases.append((\n            5, \"regular to symlink\", _commit_all(root, \"target to symlink\"), root, True,\n        ))\n    \n        root, gitlink_target = repo_with_files(\"gitlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        _run_git(\n            root, \"update-index\", \"--add\", \"--cacheinfo\",\n            f\"160000,{gitlink_target},{target}\",\n        )\n        _run_git(root, \"commit\", \"-q\", \"-m\", \"target to gitlink\", \"-m\", \"AI-Agent: none\")\n        gitlink_commit = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n        history_cases.append((6, \"regular to gitlink\", gitlink_commit, root, True))\n    \n        root = tmp_path / \"added\"\n        root.mkdir()\n        _init_repo(root)\n        (root / target).write_text(\"added\\n\", encoding=\"utf-8\")\n        added_commit = _commit_all(root, \"add target\")\n        added_root = root\n        added_oid = _run_git(\n            root, \"rev-parse\", f\"{added_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((7, \"added\", added_commit, root, False))\n    \n        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})\n        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")\n        history_cases.append((\n            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,\n        ))\n    \n        root = tmp_path / \"root-add\"\n        root.mkdir()\n        _run_git(root, \"init\", \"-q\")\n        _run_git(root, \"config\", \"user.name\", \"T080 Test\")\n        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")\n        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")\n        root_commit = _commit_all(root, \"root adds target\")\n        history_cases.append((9, \"root addition\", root_commit, root, False))\n    \n        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_two = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent,\n            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((10, \"second parent differs\", merge_two, root, True))\n    \n        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)\n        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")\n        third_parent = _commit_all(root, \"third parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_three = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,\n            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((11, \"third parent differs\", merge_three, root, True))\n    \n        exact_copy_root, exact_copy_base = repo_with_files(\n            \"unchanged-copy-source\", {target: \"same bytes\\n\"},\n        )\n        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())\n        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")\n        exact_copy_oid = _run_git(\n            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",\n        ).decode().strip()\n        history_cases.append((\n            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,\n        ))\n    \n        assert [number for number, *_rest in history_cases] == list(range(1, 13))\n        assert any(expected is True for *_case, expected in history_cases)\n        for number, label, commit, root, expected in history_cases:\n            if number == 12:\n                actual = migration._history_touches_path(\n                    commit, target, root, duplicate_oid=exact_copy_oid,\n                )\n            else:\n                actual = migration._history_touches_path(commit, target, root)\n            assert actual is expected, (number, label, actual, expected)\n    \n        near_copy_contents = \"\".join(\n            f\"stable line {number:03d}: exact-copy boundary\\n\" for number in range(100)\n        )\n        near_copy_root, near_copy_base = repo_with_files(\n            \"changed-copy-source\", {target: near_copy_contents},\n        )\n        changed_contents = near_copy_contents.replace(\n            \"stable line 050: exact-copy boundary\",\n            \"changed line 050: exact-copy boundary\",\n        )\n        (near_copy_root / \"copy.txt\").write_text(changed_contents, encoding=\"utf-8\")\n        near_copy_commit = _commit_all(near_copy_root, \"copy and change target contents\")\n        near_copy_oid = _run_git(\n            near_copy_root, \"rev-parse\", f\"{near_copy_base}:{target}\",\n        ).decode().strip()\n        # このケースが True へ戻ったら、それは 2026-08-09 のユーザー裁定\n        # 「--find-copies-harder を外し、exact copy だけを OID で検出する」の逆行である。\n        # 期待値を変える前に裁定をやり直すこと。\n        assert migration._history_touches_path(\n            near_copy_commit, target, near_copy_root, duplicate_oid=near_copy_oid,\n        ) is False, \"case 12b: changed near-copy must not match the target blob OID\"\n    \n        assert migration._history_touches_path(\n            exact_copy_commit, target, exact_copy_root, duplicate_oid=None,\n        ) is False, \"exact copy must remain undetected when duplicate_oid is omitted\"\n    \n        # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。\n        assert migration._history_touches_path(\n            modified_commit, target, modified_root, duplicate_oid=modified_oid,\n        ) is True\n        # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。\n        assert migration._history_touches_path(\n            added_commit, target, added_root, duplicate_oid=added_oid,\n        ) is False\n    \n        aggregate_root, _ = repo_with_files(\"aggregate\", {target: \"before\\n\"})\n        (aggregate_root / \"base.txt\").write_text(\"false commit\\n\", encoding=\"utf-8\")\n        false_commit = _commit_all(aggregate_root, \"unrelated aggregate commit\")\n        (aggregate_root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        true_commit = _commit_all(aggregate_root, \"touching aggregate commit\")\n        error_commit = \"f\" * 40\n    \n        try:\n            migration._history_touches_path(error_commit, target, aggregate_root)\n        except migration.MigrationError:\n            pass\n        else:\n            raise AssertionError(\"case 13: nonexistent commit must raise MigrationError\")\n    \n>       assert migration._any_history_touches_path(\n            frozenset((error_commit, false_commit, true_commit)), target, aggregate_root,\n        ) is True\n\norchestrator/tests/test_t080_freeze_migration.py:1314: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/t080_freeze_migration.py:887: in _any_history_touches_path\n    raise error\norchestrator/campaign/t080_freeze_migration.py:881: in _any_history_touches_path\n    if future.result():\n/usr/lib/python3.10/concurrent/futures/_base.py:458: in result\n    return self.__get_result()\n/usr/lib/python3.10/concurrent/futures/_base.py:403: in __get_result\n    raise self._exception\n/usr/lib/python3.10/concurrent/futures/thread.py:58: in run\n    result = self.fn(*self.args, **self.kwargs)\norchestrator/campaign/t080_freeze_migration.py:905: in _history_touches_path\n    out = _git_text(\norchestrator/campaign/t080_freeze_migration.py:597: in _git_text\n    return _git(args, root, stdin=stdin).decode(\"utf-8\", \"strict\").strip()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = ['diff-tree', '--root', '--no-commit-id', '--raw', '-m', '-r', ...]\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0/aggregate')\nstdin = None\n\n    def _git(args: Sequence[str], root: Path, *, stdin: Optional[bytes] = None) -> bytes:\n        try:\n            completed = subprocess.run(\n                [\"git\", *_GIT_HARDEN, *args], cwd=root, env=_git_env(), input=stdin,\n                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,\n            )\n        except (OSError, subprocess.CalledProcessError) as exc:\n            raw = getattr(exc, \"stderr\", b\"\") or str(exc).encode(\"utf-8\", \"replace\")\n            detail = raw.decode(\"utf-8\", \"replace\") if isinstance(raw, bytes) else str(raw)\n>           raise MigrationError(\"receipt.git_error\", f\"git {' '.join(args)}: {detail.strip()}\") from exc\nE           orchestrator.campaign.t080_freeze_migration.MigrationError: [receipt.git_error] git diff-tree --root --no-commit-id --raw -m -r -M -C ffffffffffffffffffffffffffffffffffffffff: fatal: bad object ffffffffffffffffffffffffffffffffffffffff\n\norchestrator/campaign/t080_freeze_migration.py:568: MigrationError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\n1 failed, 41 passed in 2.50s\n",
+        "stdout_sha256": "29a9315b6db051878155ace4e4bd0cfaf0ff29bcf26079205d64ebfa7a0a873f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 26.771,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "32e07e888470b5cdae1b1fd793d3fbdf5d0c0abffd48e2b296a005dfe7882c75",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ee3bd5ee761a4f6fb98586014eda59375e44a0f7333267ef264cdaa0cc626e8f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "    if error is not None:\n        raise error\n    if touched:\n        return True\n",
+          "old": "    if touched:\n        return True\n    if error is not None:\n        raise error\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "KILLED",
+      "test_output_sha256": "29a9315b6db051878155ace4e4bd0cfaf0ff29bcf26079205d64ebfa7a0a873f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/4f77612f97bbfb32c29c52ed51a361cc/izdw-4f77612f97.o896584",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/4f77612f97bbfb32c29c52ed51a361cc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F...F                               [100%]\n=================================== FAILURES ===================================\n______ test_state_rename_copy_type_change_and_worktree_loss_are_rejected _______\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_state_rename_copy_type_change_and_worktree_loss_are_rejected():\n        operations = (\"rename\", \"copy\", \"type\", \"worktree-missing\", \"broken-symlink\")\n        for operation in operations:\n            temp, root, _introduction, raw = _repo_with_receipt()\n            try:\n                path = root / migration.RECEIPT_REL\n                if operation == \"rename\":\n                    path.rename(path.with_name(\"renamed.json\"))\n                    _commit_all(root, operation)\n                elif operation == \"copy\":\n                    (root / \"copy.json\").write_bytes(raw)\n                    _commit_all(root, operation)\n                elif operation == \"type\":\n                    path.unlink()\n                    path.symlink_to(\"missing-target\")\n                    _commit_all(root, operation)\n                elif operation == \"worktree-missing\":\n                    path.unlink()\n                else:\n                    path.unlink()\n                    path.symlink_to(\"missing-target\")\n>               assert migration.inspect_receipt_history(root=root).state == \"issued-but-missing\", operation\nE               AssertionError: copy\nE               assert 'invalid' == 'issued-but-missing'\nE                 \nE                 - issued-but-missing\nE                 + invalid\n\norchestrator/tests/test_t080_freeze_migration.py:830: AssertionError\n______________ test_history_touches_path_positive_control_matrix _______________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0')\n\n    def test_history_touches_path_positive_control_matrix(tmp_path: Path):\n        \"\"\"[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。\"\"\"\n        target = \"target.txt\"\n        history_cases: list[tuple[int, str, str, Path, bool]] = []\n    \n        def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:\n            root = tmp_path / name\n            root.mkdir()\n            _init_repo(root)\n            for relative, contents in files.items():\n                (root / relative).write_text(contents, encoding=\"utf-8\")\n            return root, _commit_all(root, f\"seed {name}\")\n    \n        root, _ = repo_with_files(\"modified\", {target: \"before\\n\"})\n        (root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        modified_commit = _commit_all(root, \"modify target\")\n        modified_root = root\n        modified_oid = _run_git(\n            root, \"rev-parse\", f\"{modified_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((1, \"modified\", modified_commit, root, True))\n    \n        root, _ = repo_with_files(\"deleted\", {target: \"before\\n\"})\n        (root / target).unlink()\n        history_cases.append((2, \"deleted\", _commit_all(root, \"delete target\"), root, True))\n    \n        root, _ = repo_with_files(\"rename-source\", {target: \"rename me\\n\"})\n        _run_git(root, \"mv\", target, \"renamed.txt\")\n        history_cases.append((\n            3, \"rename source\", _commit_all(root, \"rename target away\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"rename-destination\", {\"source.txt\": \"rename me\\n\"})\n        _run_git(root, \"mv\", \"source.txt\", target)\n        history_cases.append((\n            4, \"rename destination\", _commit_all(root, \"rename source to target\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"symlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        (root / target).symlink_to(\"symlink-destination\")\n        history_cases.append((\n            5, \"regular to symlink\", _commit_all(root, \"target to symlink\"), root, True,\n        ))\n    \n        root, gitlink_target = repo_with_files(\"gitlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        _run_git(\n            root, \"update-index\", \"--add\", \"--cacheinfo\",\n            f\"160000,{gitlink_target},{target}\",\n        )\n        _run_git(root, \"commit\", \"-q\", \"-m\", \"target to gitlink\", \"-m\", \"AI-Agent: none\")\n        gitlink_commit = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n        history_cases.append((6, \"regular to gitlink\", gitlink_commit, root, True))\n    \n        root = tmp_path / \"added\"\n        root.mkdir()\n        _init_repo(root)\n        (root / target).write_text(\"added\\n\", encoding=\"utf-8\")\n        added_commit = _commit_all(root, \"add target\")\n        added_root = root\n        added_oid = _run_git(\n            root, \"rev-parse\", f\"{added_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((7, \"added\", added_commit, root, False))\n    \n        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})\n        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")\n        history_cases.append((\n            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,\n        ))\n    \n        root = tmp_path / \"root-add\"\n        root.mkdir()\n        _run_git(root, \"init\", \"-q\")\n        _run_git(root, \"config\", \"user.name\", \"T080 Test\")\n        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")\n        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")\n        root_commit = _commit_all(root, \"root adds target\")\n        history_cases.append((9, \"root addition\", root_commit, root, False))\n    \n        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_two = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent,\n            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((10, \"second parent differs\", merge_two, root, True))\n    \n        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)\n        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")\n        third_parent = _commit_all(root, \"third parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_three = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,\n            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((11, \"third parent differs\", merge_three, root, True))\n    \n        exact_copy_root, exact_copy_base = repo_with_files(\n            \"unchanged-copy-source\", {target: \"same bytes\\n\"},\n        )\n        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())\n        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")\n        exact_copy_oid = _run_git(\n            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",\n        ).decode().strip()\n        history_cases.append((\n            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,\n        ))\n    \n        assert [number for number, *_rest in history_cases] == list(range(1, 13))\n        assert any(expected is True for *_case, expected in history_cases)\n        for number, label, commit, root, expected in history_cases:\n            if number == 12:\n                actual = migration._history_touches_path(\n                    commit, target, root, duplicate_oid=exact_copy_oid,\n                )\n            else:\n                actual = migration._history_touches_path(commit, target, root)\n>           assert actual is expected, (number, label, actual, expected)\nE           AssertionError: (12, 'unchanged exact copy source', False, True)\nE           assert False is True\n\norchestrator/tests/test_t080_freeze_migration.py:1263: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_state_rename_copy_type_change_and_worktree_loss_are_rejected\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\n2 failed, 40 passed in 2.30s\n",
+        "stdout_sha256": "c1d985c192f0497732f6197e5c6be0464d3c3676c674f88ab3b0446e64c74865"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 26.813,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_rename_copy_type_change_and_worktree_loss_are_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_rename_copy_type_change_and_worktree_loss_are_rejected",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "23364841c83b92e496a15bfbeb7f4315968188c25af4970a165cc6b3333ec16a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e3c330ff04f9577c4728092bf0737c80c473ec63aa2b762570e2c1cdcfd876b6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "",
+          "old": "        if (\n            duplicate_oid is not None\n            and dst_oid.strip(\"0\")\n            and dst_oid == duplicate_oid\n            and destination_path != path\n        ):\n            return True\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "KILLED",
+      "test_output_sha256": "c1d985c192f0497732f6197e5c6be0464d3c3676c674f88ab3b0446e64c74865",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/4ace319c74ad1355ad106d4b4ffbb3b1/izdw-4ace319c74.o896585",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/4ace319c74ad1355ad106d4b4ffbb3b1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................F                               [100%]\n=================================== FAILURES ===================================\n______________ test_history_touches_path_positive_control_matrix _______________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0')\n\n    def test_history_touches_path_positive_control_matrix(tmp_path: Path):\n        \"\"\"[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。\"\"\"\n        target = \"target.txt\"\n        history_cases: list[tuple[int, str, str, Path, bool]] = []\n    \n        def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:\n            root = tmp_path / name\n            root.mkdir()\n            _init_repo(root)\n            for relative, contents in files.items():\n                (root / relative).write_text(contents, encoding=\"utf-8\")\n            return root, _commit_all(root, f\"seed {name}\")\n    \n        root, _ = repo_with_files(\"modified\", {target: \"before\\n\"})\n        (root / target).write_text(\"after\\n\", encoding=\"utf-8\")\n        modified_commit = _commit_all(root, \"modify target\")\n        modified_root = root\n        modified_oid = _run_git(\n            root, \"rev-parse\", f\"{modified_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((1, \"modified\", modified_commit, root, True))\n    \n        root, _ = repo_with_files(\"deleted\", {target: \"before\\n\"})\n        (root / target).unlink()\n        history_cases.append((2, \"deleted\", _commit_all(root, \"delete target\"), root, True))\n    \n        root, _ = repo_with_files(\"rename-source\", {target: \"rename me\\n\"})\n        _run_git(root, \"mv\", target, \"renamed.txt\")\n        history_cases.append((\n            3, \"rename source\", _commit_all(root, \"rename target away\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"rename-destination\", {\"source.txt\": \"rename me\\n\"})\n        _run_git(root, \"mv\", \"source.txt\", target)\n        history_cases.append((\n            4, \"rename destination\", _commit_all(root, \"rename source to target\"), root, True,\n        ))\n    \n        root, _ = repo_with_files(\"symlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        (root / target).symlink_to(\"symlink-destination\")\n        history_cases.append((\n            5, \"regular to symlink\", _commit_all(root, \"target to symlink\"), root, True,\n        ))\n    \n        root, gitlink_target = repo_with_files(\"gitlink\", {target: \"regular\\n\"})\n        (root / target).unlink()\n        _run_git(\n            root, \"update-index\", \"--add\", \"--cacheinfo\",\n            f\"160000,{gitlink_target},{target}\",\n        )\n        _run_git(root, \"commit\", \"-q\", \"-m\", \"target to gitlink\", \"-m\", \"AI-Agent: none\")\n        gitlink_commit = _run_git(root, \"rev-parse\", \"HEAD\").decode().strip()\n        history_cases.append((6, \"regular to gitlink\", gitlink_commit, root, True))\n    \n        root = tmp_path / \"added\"\n        root.mkdir()\n        _init_repo(root)\n        (root / target).write_text(\"added\\n\", encoding=\"utf-8\")\n        added_commit = _commit_all(root, \"add target\")\n        added_root = root\n        added_oid = _run_git(\n            root, \"rev-parse\", f\"{added_commit}:{target}\",\n        ).decode().strip()\n        history_cases.append((7, \"added\", added_commit, root, False))\n    \n        root, _ = repo_with_files(\"unrelated\", {target: \"unchanged\\n\"})\n        (root / \"base.txt\").write_text(\"unrelated change\\n\", encoding=\"utf-8\")\n        history_cases.append((\n            8, \"unrelated\", _commit_all(root, \"modify unrelated file\"), root, False,\n        ))\n    \n        root = tmp_path / \"root-add\"\n        root.mkdir()\n        _run_git(root, \"init\", \"-q\")\n        _run_git(root, \"config\", \"user.name\", \"T080 Test\")\n        _run_git(root, \"config\", \"user.email\", \"t080@example.invalid\")\n        (root / target).write_text(\"root addition\\n\", encoding=\"utf-8\")\n        root_commit = _commit_all(root, \"root adds target\")\n        history_cases.append((9, \"root addition\", root_commit, root, False))\n    \n        root, common = repo_with_files(\"merge-two\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / target).write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_two = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent,\n            input_bytes=b\"two-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((10, \"second parent differs\", merge_two, root, True))\n    \n        root, common = repo_with_files(\"merge-three\", {target: \"common\\n\"})\n        (root / \"first.txt\").write_text(\"first parent\\n\", encoding=\"utf-8\")\n        first_parent = _commit_all(root, \"first parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"second\", common)\n        (root / \"second.txt\").write_text(\"second parent\\n\", encoding=\"utf-8\")\n        second_parent = _commit_all(root, \"second parent\")\n        _run_git(root, \"checkout\", \"-q\", \"-b\", \"third\", common)\n        (root / target).write_text(\"third parent\\n\", encoding=\"utf-8\")\n        third_parent = _commit_all(root, \"third parent changes target\")\n        first_tree = _run_git(root, \"rev-parse\", f\"{first_parent}^{{tree}}\").decode().strip()\n        merge_three = _run_git(\n            root, \"commit-tree\", first_tree,\n            \"-p\", first_parent, \"-p\", second_parent, \"-p\", third_parent,\n            input_bytes=b\"three-parent merge\\n\\nAI-Agent: none\\n\",\n        ).decode().strip()\n        history_cases.append((11, \"third parent differs\", merge_three, root, True))\n    \n        exact_copy_root, exact_copy_base = repo_with_files(\n            \"unchanged-copy-source\", {target: \"same bytes\\n\"},\n        )\n        (exact_copy_root / \"copy.txt\").write_bytes((exact_copy_root / target).read_bytes())\n        exact_copy_commit = _commit_all(exact_copy_root, \"copy unchanged target\")\n        exact_copy_oid = _run_git(\n            exact_copy_root, \"rev-parse\", f\"{exact_copy_base}:{target}\",\n        ).decode().strip()\n        history_cases.append((\n            12, \"unchanged exact copy source\", exact_copy_commit, exact_copy_root, True,\n        ))\n    \n        assert [number for number, *_rest in history_cases] == list(range(1, 13))\n        assert any(expected is True for *_case, expected in history_cases)\n        for number, label, commit, root, expected in history_cases:\n            if number == 12:\n                actual = migration._history_touches_path(\n                    commit, target, root, duplicate_oid=exact_copy_oid,\n                )\n            else:\n                actual = migration._history_touches_path(commit, target, root)\n            assert actual is expected, (number, label, actual, expected)\n    \n        near_copy_contents = \"\".join(\n            f\"stable line {number:03d}: exact-copy boundary\\n\" for number in range(100)\n        )\n        near_copy_root, near_copy_base = repo_with_files(\n            \"changed-copy-source\", {target: near_copy_contents},\n        )\n        changed_contents = near_copy_contents.replace(\n            \"stable line 050: exact-copy boundary\",\n            \"changed line 050: exact-copy boundary\",\n        )\n        (near_copy_root / \"copy.txt\").write_text(changed_contents, encoding=\"utf-8\")\n        near_copy_commit = _commit_all(near_copy_root, \"copy and change target contents\")\n        near_copy_oid = _run_git(\n            near_copy_root, \"rev-parse\", f\"{near_copy_base}:{target}\",\n        ).decode().strip()\n        # このケースが True へ戻ったら、それは 2026-08-09 のユーザー裁定\n        # 「--find-copies-harder を外し、exact copy だけを OID で検出する」の逆行である。\n        # 期待値を変える前に裁定をやり直すこと。\n        assert migration._history_touches_path(\n            near_copy_commit, target, near_copy_root, duplicate_oid=near_copy_oid,\n        ) is False, \"case 12b: changed near-copy must not match the target blob OID\"\n    \n        assert migration._history_touches_path(\n            exact_copy_commit, target, exact_copy_root, duplicate_oid=None,\n        ) is False, \"exact copy must remain undetected when duplicate_oid is omitted\"\n    \n        # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。\n        assert migration._history_touches_path(\n            modified_commit, target, modified_root, duplicate_oid=modified_oid,\n        ) is True\n        # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。\n>       assert migration._history_touches_path(\n            added_commit, target, added_root, duplicate_oid=added_oid,\n        ) is False\nE       AssertionError: assert True is False\nE        +  where True = <function _history_touches_path at 0x14d0e01d9e10>('13286520e2a428100bf36f3c6c2c4ba2f7a07975', 'target.txt', PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_history_touches_path_posi0/added'), duplicate_oid='d5f7fc3f74f7dec08280f370a975b112e8f60818')\nE        +    where <function _history_touches_path at 0x14d0e01d9e10> = migration._history_touches_path\n\norchestrator/tests/test_t080_freeze_migration.py:1296: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\n1 failed, 41 passed in 2.35s\n",
+        "stdout_sha256": "4fd78a72e78588fb9cb1ca8c902788c3a21f660ba800bbaa5ebf116546f30656"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "345e072682e259b26dbae98c9216937402832f1e645a0560c8e6495da54f9d67",
+      "duration_s": 26.879,
+      "expected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "8010c683abba57506a30499b92ff40ba9d452b227ebb79018b0d8be100ff352a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "48e65f4fa589bcb1f62c3ca55b0810815d8a113bd5a9fa9e9f0c37504723e598",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t080_freeze_migration.py",
+          "new": "",
+          "old": "            and destination_path != path\n"
+        }
+      ],
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "KILLED",
+      "test_output_sha256": "4fd78a72e78588fb9cb1ca8c902788c3a21f660ba800bbaa5ebf116546f30656",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/116b0b1d4cc16c12fab61f9b92d4be76/izdw-116b0b1d4c.o896576",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/output/pegasus-dispatch/116b0b1d4cc16c12fab61f9b92d4be76/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t080_freeze_migration.py::test_schema_accepts_exact_active_and_draft_shapes\norchestrator/tests/test_t080_freeze_migration.py::test_strict_json_rejects_duplicate_nan_bom_non_utf8_and_nonobject\norchestrator/tests/test_t080_freeze_migration.py::test_canonical_rejects_pretty_trailing_newline_and_accepts_exact_bytes\norchestrator/tests/test_t080_freeze_migration.py::test_schema_rejects_unknown_key_confirmation_and_count_errors\norchestrator/tests/test_t080_freeze_migration.py::test_rfc6901_escape_array_and_canonical_roundtrip\norchestrator/tests/test_t080_freeze_migration.py::test_repin_duplicate_missing_surplus_and_report_cross_field_are_rejected\norchestrator/tests/test_t080_freeze_migration.py::test_structural_schema_then_fixed_closure_and_scan_both_reject_axis_payload\norchestrator/tests/test_t080_freeze_migration.py::test_source_closure_exact_12_changed_51_unchanged_and_count_negatives\norchestrator/tests/test_t080_freeze_migration.py::test_draft_reconstruction_deep_equality_is_independent_m01_kill\norchestrator/tests/test_t080_freeze_migration.py::test_production_has_no_cross_module_attribute_assignment_f1\norchestrator/tests/test_t080_freeze_migration.py::test_deterministic_fields_and_reconstruction_rerun_reject_mismatch_f2\norchestrator/tests/test_t080_freeze_migration.py::test_public_gate_rejects_tampered_holdout_projected_hash_t091\norchestrator/tests/test_t080_freeze_migration.py::test_live_scan_evidence_ignores_only_scope_counters_not_acceptance_f2\norchestrator/tests/test_t080_freeze_migration.py::test_live_scan_is_bound_to_frozen_expressions_match_convention_and_candidates_g1\norchestrator/tests/test_t080_freeze_migration.py::test_gate_normalizes_unexpected_check_exceptions_and_continues_g5\norchestrator/tests/test_t080_freeze_migration.py::test_state_never_issued_and_present_invalid\norchestrator/tests/test_t080_freeze_migration.py::test_state_clean_introduction_is_invalid_until_full_schema_passes\norchestrator/tests/test_t080_freeze_migration.py::test_state_active_valid_after_schema_topology_and_all_independent_gates\norchestrator/tests/test_t080_freeze_migration.py::test_invalid_r_topology_keeps_independent_ccbench_refusal_j4\norchestrator/tests/test_t080_freeze_migration.py::test_invalid_r_trailer_is_rejected_exactly\norchestrator/tests/test_t080_freeze_migration.py::test_state_post_r_delete_is_issued_but_missing\norchestrator/tests/test_t080_freeze_migration.py::test_state_modify_then_revert_is_issued_but_missing\norchestrator/tests/test_t080_freeze_migration.py::test_state_delete_then_readd_same_bytes_is_issued_but_missing\norchestrator/tests/test_t080_freeze_migration.py::test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4\norchestrator/tests/test_t080_freeze_migration.py::test_issued_but_missing_continues_independent_checks_and_observation_is_null_f4\norchestrator/tests/test_t080_freeze_migration.py::test_static_adapter_discards_clean_envelope_when_any_check_refuses_f4\norchestrator/tests/test_t080_freeze_migration.py::test_draft_precondition_rejects_head_mismatch_dirty_and_post_r_reissue\norchestrator/tests/test_t080_freeze_migration.py::test_draft_precondition_detects_hermetic_submodule_dirty\norchestrator/tests/test_t080_freeze_migration.py::test_state_rename_copy_type_change_and_worktree_loss_are_rejected\norchestrator/tests/test_t080_freeze_migration.py::test_hardening_rejects_shallow_replace_graft_and_alternates\norchestrator/tests/test_t080_freeze_migration.py::test_git_environment_injection_is_removed\norchestrator/tests/test_t080_freeze_migration.py::test_draft_basis_source_bytes_mode_root_and_git_cache_hardening_f3\norchestrator/tests/test_t080_freeze_migration.py::test_ccbench_current_and_basis_gitlink_have_independent_reasons_m11_m12\norchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error\norchestrator/tests/test_t080_freeze_migration.py::test_repin_report_resolves_nearest_commit_and_numeric_diff_only\norchestrator/tests/test_t080_freeze_migration.py::test_artifact_raw_bytes_are_checked_before_semantic_parse_m08\norchestrator/tests/test_t080_freeze_migration.py::test_positive_control_production_literals_are_exact\norchestrator/tests/test_t080_freeze_migration.py::test_cli_verify_rc_contract_for_refusal_success_and_internal_error\norchestrator/tests/test_t080_freeze_migration.py::test_cli_draft_validate_and_finalize_expected_refusals_return_two\norchestrator/tests/test_t080_freeze_migration.py::test_history_touches_batch_is_equivalent_to_sequential_any\norchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix\norchestrator/tests/test_t080_freeze_migration.py::test_cat_blob_memoizes_per_object_without_changing_bytes\n\n42 tests collected in 0.09s\n",
+        "stdout_sha256": "85834c41d171aa8f94eedaf2c999d7e43cd0bbdb3960901254eae44436e7317f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t080_freeze_migration.py::test_schema_accepts_exact_active_and_draft_shapes",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_strict_json_rejects_duplicate_nan_bom_non_utf8_and_nonobject",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_canonical_rejects_pretty_trailing_newline_and_accepts_exact_bytes",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_schema_rejects_unknown_key_confirmation_and_count_errors",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_rfc6901_escape_array_and_canonical_roundtrip",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_repin_duplicate_missing_surplus_and_report_cross_field_are_rejected",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_structural_schema_then_fixed_closure_and_scan_both_reject_axis_payload",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_source_closure_exact_12_changed_51_unchanged_and_count_negatives",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_draft_reconstruction_deep_equality_is_independent_m01_kill",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_production_has_no_cross_module_attribute_assignment_f1",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_deterministic_fields_and_reconstruction_rerun_reject_mismatch_f2",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_public_gate_rejects_tampered_holdout_projected_hash_t091",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_live_scan_evidence_ignores_only_scope_counters_not_acceptance_f2",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_live_scan_is_bound_to_frozen_expressions_match_convention_and_candidates_g1",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_gate_normalizes_unexpected_check_exceptions_and_continues_g5",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_never_issued_and_present_invalid",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_clean_introduction_is_invalid_until_full_schema_passes",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_active_valid_after_schema_topology_and_all_independent_gates",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_invalid_r_topology_keeps_independent_ccbench_refusal_j4",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_invalid_r_trailer_is_rejected_exactly",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_post_r_delete_is_issued_but_missing",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_modify_then_revert_is_issued_but_missing",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_delete_then_readd_same_bytes_is_issued_but_missing",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_issued_but_missing_continues_independent_checks_and_observation_is_null_f4",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_static_adapter_discards_clean_envelope_when_any_check_refuses_f4",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_draft_precondition_rejects_head_mismatch_dirty_and_post_r_reissue",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_draft_precondition_detects_hermetic_submodule_dirty",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_state_rename_copy_type_change_and_worktree_loss_are_rejected",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_hardening_rejects_shallow_replace_graft_and_alternates",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_git_environment_injection_is_removed",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_draft_basis_source_bytes_mode_root_and_git_cache_hardening_f3",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ccbench_current_and_basis_gitlink_have_independent_reasons_m11_m12",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_ancestry_missing_nonancestor_ancestor_noncommit_and_git_error",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_repin_report_resolves_nearest_commit_and_numeric_diff_only",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_artifact_raw_bytes_are_checked_before_semantic_parse_m08",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_positive_control_production_literals_are_exact",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_cli_verify_rc_contract_for_refusal_success_and_internal_error",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_cli_draft_validate_and_finalize_expected_refusals_return_two",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_batch_is_equivalent_to_sequential_any",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix",
+        "orchestrator/tests/test_t080_freeze_migration.py::test_cat_blob_memoizes_per_object_without_changing_bytes"
+      ],
+      "duration_s": 26.895,
+      "rc": 0,
+      "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+      "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+      "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+      "status": "PASSED",
+      "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7"
+    },
+    "hang_timeout_seconds": 30.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1f045c720b6ef92635817e408150a72c56ac6f6715b19d15c10fd4264489d21c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "            \"-C\", commit,\n",
+            "old": "            \"-M\", \"-C\", commit,\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2ae9fc4b248e7263bab1d7b62d61477e54727e3a4be78286437bf3b68b8ab81c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "            \"diff-tree\", \"--root\", \"--no-commit-id\", \"--raw\", \"-r\",\n",
+            "old": "            \"diff-tree\", \"--root\", \"--no-commit-id\", \"--raw\", \"-m\", \"-r\",\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3d1a8463fd8a8d3934d30303356683c954141b1f35df3c0a6f5a28ed00d4f7ee",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "        if status_code in {\"A\", \"M\", \"D\", \"R\", \"C\", \"T\"} and path in paths:\n",
+            "old": "        if status_code in {\"M\", \"D\", \"R\", \"C\", \"T\"} and path in paths:\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "41b726df77b07f798c412972a819d217a3e8e67734543e6cabe8e2c03a6e51f4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "        if status_code in {\"M\", \"D\", \"R\", \"C\", \"T\"} and path == paths[0]:\n",
+            "old": "        if status_code in {\"M\", \"D\", \"R\", \"C\", \"T\"} and path in paths:\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "32e07e888470b5cdae1b1fd793d3fbdf5d0c0abffd48e2b296a005dfe7882c75",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "    if error is not None:\n        raise error\n    if touched:\n        return True\n",
+            "old": "    if touched:\n        return True\n    if error is not None:\n        raise error\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix",
+          "orchestrator/tests/test_t080_freeze_migration.py::test_state_rename_copy_type_change_and_worktree_loss_are_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "23364841c83b92e496a15bfbeb7f4315968188c25af4970a165cc6b3333ec16a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "",
+            "old": "        if (\n            duplicate_oid is not None\n            and dst_oid.strip(\"0\")\n            and dst_oid == duplicate_oid\n            and destination_path != path\n        ):\n            return True\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t080_freeze_migration.py::test_history_touches_path_positive_control_matrix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8010c683abba57506a30499b92ff40ba9d452b227ebb79018b0d8be100ff352a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/t080_freeze_migration.py",
+            "new": "",
+            "old": "            and destination_path != path\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "36a9062d026ed2dae3c7bd7d978b37a88abdf114c8004b2aa742995695f8dda6",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t080_freeze_migration.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 120.0
+  },
+  "repo_head": "525ccb61007cd8eff9de3d0afe986b293f435d3c",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t080_freeze_migration.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "03b8014c214cba9053be15e07abf6b017134328f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b1459d79058b98cf193d25b48fb824750a324494960340930c5b50a48f0fbcef",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a9acdfb140584bded0ad12299cdf61737ead6f1b06749cc580b9dcbb23d0681a",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 4,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-suite-floor-recheck/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "930ac66759d3627bb51cbc3c592a7dce00d0ce7041c05abbd55d5267919d45e7",
+  "updated_at": "2026-08-08T23:30:23.267700+00:00"
+}
