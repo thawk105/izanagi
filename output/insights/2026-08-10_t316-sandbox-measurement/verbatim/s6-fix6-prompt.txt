@@ -1,0 +1,57 @@
+あなたは izanagi の dev-wave 実装子 (Codex role=author) である。日本語で報告せよ。
+**変異 matrix で生存した変異 1 件に対し、検査側 (テスト) を直す作業である。**
+段 5 実装子契約 (DW-S05-A / B / C) を継承する。
+
+# 何が起きたか (親の実測)
+
+変異 matrix を実走したところ、次の変異が **SURVIVED (実測 failure 0 件)** だった。
+
+```
+M7: tools/pegasus/probes/t316_sandbox_backend_probe.py
+    old: '    if by_stage.get("S7") == "go":'
+    new: '    if False:'
+    → 期待 KILLED / 実測 SURVIVED、落ちたテストは 0 件
+```
+
+これは `_r3_1_coverage()` で **S7 の discharge 項目を丸ごと発行しなくする**変異である。
+`test_performance_discharge_requires_s7_go` は「S7 が go **でない**ときに discharge しない」
+方向しか検査しておらず、「S7 が go の**ときに discharge する**」方向 (= 過剰拒否) が無検査だった。
+
+**等価変異ではない。** 実測 receipt (`0:900427.nqsv`) は
+`discharged_by_this_probe = ["single stock trace-disabled binary sandbox elapsed-overhead sample"]`
+を持っており、この変異を入れると観測可能に消える。
+
+# 権限境界
+
+- 編集してよいのは**テストだけ**である。`tools/pegasus/probes/t316_sandbox_backend_probe.py` の
+  production ロジックは変更しない (変異が生存したのは production ではなく検査の穴が原因)。
+- `docs/` は 1 byte も編集しない。commit しない。`qsub` / `qstat` / `qdel` を実行しない。
+- 既存テストの期待値を反転・緩和・skip・削除しない。**追加のみ**行う。
+- **この 1 件以外に手を広げない。**
+
+# 直すもの
+
+`orchestrator/tests/test_t316_sandbox_probe.py` に、**両方向**を固定するテストを足せ。
+
+1. **正方向 (今回抜けていた側)**: S7 が `go` のとき、`_r3_1_coverage()` の
+   `discharged_by_this_probe` に perf 由来の項目が**実際に入る**こと。
+   項目の文字列も独立 literal として固定せよ (production から import して比較しない)。
+2. 同様に、封じ込め stage 側 (S1〜S5 がすべて `go`) のときに containment 由来の項目が
+   **実際に入る**ことも固定せよ。こちらも同型の穴が無いか確認し、無ければ足す。
+3. 既存の負方向 (非 go のとき discharge しない) は維持する。
+
+**上記の変異 `if by_stage.get("S7") == "go":` → `if False:` を入れたら必ず赤くなる**ことを、
+あなた自身の推論で確認して報告せよ (実際に production を書き換えて試すことは禁止。
+書き換えたなら必ず元に戻し、その旨を報告せよ)。
+
+# 検査
+
+`python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_t316_sandbox_probe.py -q`
+を実走せよ。**`--force-dispatch` を必ず付ける。**
+実走できなければ出力を貼り「実装済み・未実走」と書け。
+
+# 出力
+
+最後に必ず `## 総括` を付け、追加したテストの nodeid、
+それが M7 変異を検出する理由、走らせた検査の結果 (passed / failed 件数)、
+production を 1 byte も変えていないことの明示を書け。
