@@ -59,6 +59,20 @@ _SHELL_MODULE_LITERAL_RE = re.compile(
 )
 _RATIONALE_RE = re.compile(r"(?:D|F|T)-?\d+")
 _LEXICAL_SCOPES = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+_ALIAS_LEXICAL_SCOPES = _LEXICAL_SCOPES + (
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+)
+_DEFAULT_MODULE_REFERENCES = {
+    "sys": "sys",
+    "os": "os",
+    "site": "site",
+    "pathlib": "pathlib",
+    "Path": "pathlib.Path",
+    "environ": "os.environ",
+}
 
 
 @dataclass(frozen=True, order=True)
@@ -311,6 +325,113 @@ def _static_name_contexts(tree: ast.AST) -> dict[int, dict[str, str]]:
     }
 
 
+def _module_alias_contexts(tree: ast.AST) -> dict[int, dict[str, str]]:
+    """各 lexical scope で一意な import alias だけを node ごとに返す。"""
+    assert isinstance(tree, ast.Module)
+    node_scopes: dict[int, ast.AST] = {}
+    scope_parents: dict[int, ast.AST | None] = {id(tree): None}
+    scopes: list[ast.AST] = [tree]
+
+    def bind(node: ast.AST, scope: ast.AST) -> None:
+        node_scopes[id(node)] = scope
+        for child in ast.iter_child_nodes(node):
+            child_scope = scope
+            if isinstance(child, _ALIAS_LEXICAL_SCOPES):
+                child_scope = child
+                scope_parents[id(child)] = scope
+                scopes.append(child)
+            bind(child, child_scope)
+
+    bind(tree, tree)
+    bindings_by_scope: dict[int, dict[str, list[str | None]]] = {
+        id(scope): {} for scope in scopes
+    }
+    star_import_scopes: set[int] = set()
+
+    def add(scope: ast.AST, name: str, canonical: str | None) -> None:
+        bindings_by_scope[id(scope)].setdefault(name, []).append(canonical)
+
+    def definition_scope(node: ast.AST) -> ast.AST:
+        scope = node_scopes[id(node)]
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            parent = scope_parents[id(scope)]
+            assert parent is not None
+            return parent
+        return scope
+
+    for node in ast.walk(tree):
+        scope = node_scopes[id(node)]
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                bound = alias.asname or alias.name.split(".", 1)[0]
+                canonical = alias.name if alias.asname else alias.name.split(".", 1)[0]
+                add(scope, bound, canonical)
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name == "*":
+                    star_import_scopes.add(id(scope))
+                    continue
+                canonical = (
+                    f"{node.module}.{alias.name}"
+                    if node.level == 0 and node.module
+                    else None
+                )
+                add(scope, alias.asname or alias.name, canonical)
+
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            add(scope, node.id, None)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            add(definition_scope(node), node.name, None)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            arguments = (
+                [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+                + ([node.args.vararg] if node.args.vararg is not None else [])
+                + ([node.args.kwarg] if node.args.kwarg is not None else [])
+            )
+            for argument in arguments:
+                add(scope, argument.arg, None)
+        if isinstance(node, ast.ExceptHandler) and node.name:
+            add(scope, node.name, None)
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            add(scope, node.name, None)
+        if isinstance(node, ast.MatchMapping) and node.rest:
+            add(scope, node.rest, None)
+        if isinstance(node, (ast.Global, ast.Nonlocal)):
+            for name in node.names:
+                add(scope, name, None)
+
+    aliases_by_scope: dict[int, dict[str, str]] = {}
+    for scope in scopes:
+        parent = scope_parents[id(scope)]
+        # A class namespace is not an enclosing lexical scope for nested code objects.
+        while parent is not None and isinstance(parent, ast.ClassDef):
+            parent = scope_parents[id(parent)]
+        bindings = bindings_by_scope[id(scope)]
+        inherited = (
+            {
+                name: value
+                for name, value in aliases_by_scope[id(parent)].items()
+                if name not in bindings
+            }
+            if parent is not None
+            else {
+                name: value
+                for name, value in _DEFAULT_MODULE_REFERENCES.items()
+                if name not in bindings
+            }
+        )
+        aliases = {} if id(scope) in star_import_scopes else inherited
+        if id(scope) not in star_import_scopes:
+            for name, values in bindings.items():
+                if len(values) == 1 and values[0] is not None:
+                    aliases[name] = values[0]
+        aliases_by_scope[id(scope)] = aliases
+
+    return {
+        node_id: aliases_by_scope[id(scope)] for node_id, scope in node_scopes.items()
+    }
+
+
 def _is_non_module_legacy_literal(value: str) -> bool:
     """file/path 文脈として許容する legacy 風 literal の共通判定。"""
     return value == _legacy_module("lock") or value.startswith(
@@ -453,35 +574,30 @@ def scan_legacy_namespace(
     return tuple(sorted(found))
 
 
-def _is_sys_path(node: ast.AST) -> bool:
-    return (
-        isinstance(node, ast.Attribute)
-        and node.attr == "path"
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "sys"
-    )
+def _canonical_reference(node: ast.AST, aliases: dict[str, str]) -> str | None:
+    if isinstance(node, ast.Name):
+        return aliases.get(node.id)
+    if isinstance(node, ast.Attribute):
+        value = _canonical_reference(node.value, aliases)
+        return f"{value}.{node.attr}" if value is not None else None
+    return None
 
 
-def _is_site_addsitedir(node: ast.AST) -> bool:
-    return (
-        isinstance(node, ast.Attribute)
-        and node.attr == "addsitedir"
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "site"
-    )
+def _is_sys_path(node: ast.AST, aliases: dict[str, str]) -> bool:
+    return _canonical_reference(node, aliases) == "sys.path"
 
 
-def _is_pythonpath_target(node: ast.AST) -> bool:
+def _is_site_addsitedir(node: ast.AST, aliases: dict[str, str]) -> bool:
+    return _canonical_reference(node, aliases) == "site.addsitedir"
+
+
+def _is_pythonpath_target(node: ast.AST, aliases: dict[str, str]) -> bool:
     if not isinstance(node, ast.Subscript):
         return False
-    container = node.value
-    is_environ = (
-        isinstance(container, ast.Attribute)
-        and container.attr == "environ"
-        and isinstance(container.value, ast.Name)
-        and container.value.id == "os"
-    ) or (isinstance(container, ast.Name) and container.id == "environ")
-    return is_environ and _static_string(node.slice, {}) == "PYTHONPATH"
+    return (
+        _canonical_reference(node.value, aliases) == "os.environ"
+        and _static_string(node.slice, {}) == "PYTHONPATH"
+    )
 
 
 _SYMBOLIC_REPOSITORY = "/<repository>"
@@ -489,18 +605,17 @@ _SYMBOLIC_FILE = f"{_SYMBOLIC_REPOSITORY}/orchestrator/campaign/<file>"
 _SYMBOLIC_ORCHESTRATOR = f"{_SYMBOLIC_REPOSITORY}/orchestrator"
 
 
-def _is_os_path_call(node: ast.Call, name: str) -> bool:
-    return (
-        isinstance(node.func, ast.Attribute)
-        and node.func.attr == name
-        and isinstance(node.func.value, ast.Attribute)
-        and node.func.value.attr == "path"
-        and isinstance(node.func.value.value, ast.Name)
-        and node.func.value.value.id == "os"
-    )
+def _is_os_path_call(
+    node: ast.Call, name: str, aliases: dict[str, str]
+) -> bool:
+    return _canonical_reference(node.func, aliases) == f"os.path.{name}"
 
 
-def _path_expression_kind(node: ast.AST, kinds: dict[str, str]) -> str | None:
+def _path_expression_kind(
+    node: ast.AST,
+    kinds: dict[str, str],
+    aliases: dict[str, str],
+) -> str | None:
     if isinstance(node, ast.Name):
         if node.id == "__file__":
             return _SYMBOLIC_FILE
@@ -509,15 +624,15 @@ def _path_expression_kind(node: ast.AST, kinds: dict[str, str]) -> str | None:
         parts = Path(node.value).parts
         return _SYMBOLIC_ORCHESTRATOR if parts and parts[-1] == "orchestrator" else None
     if isinstance(node, ast.Call):
-        if _is_os_path_call(node, "dirname"):
+        if _is_os_path_call(node, "dirname", aliases):
             if len(node.args) != 1 or node.keywords:
                 return None
-            kind = _path_expression_kind(node.args[0], kinds)
+            kind = _path_expression_kind(node.args[0], kinds, aliases)
             return os.path.dirname(kind) if kind is not None else None
-        if _is_os_path_call(node, "join"):
+        if _is_os_path_call(node, "join", aliases):
             if not node.args or node.keywords:
                 return None
-            kind = _path_expression_kind(node.args[0], kinds)
+            kind = _path_expression_kind(node.args[0], kinds, aliases)
             if kind is None:
                 return None
             suffixes = [_static_string(argument, {}) for argument in node.args[1:]]
@@ -526,22 +641,31 @@ def _path_expression_kind(node: ast.AST, kinds: dict[str, str]) -> str | None:
             return os.path.normpath(
                 os.path.join(kind, *(suffix for suffix in suffixes if suffix is not None))
             )
-        if _is_os_path_call(node, "abspath") or _is_os_path_call(node, "realpath"):
+        if _is_os_path_call(node, "abspath", aliases) or _is_os_path_call(
+            node, "realpath", aliases
+        ):
             if len(node.args) != 1 or node.keywords:
                 return None
-            return _path_expression_kind(node.args[0], kinds)
+            return _path_expression_kind(node.args[0], kinds, aliases)
         if (
             isinstance(node.func, ast.Attribute)
             and node.func.attr in {"absolute", "resolve"}
             and not node.args
             and not node.keywords
         ):
-            return _path_expression_kind(node.func.value, kinds)
-        if len(node.args) == 1 and not node.keywords:
-            return _path_expression_kind(node.args[0], kinds)
+            return _path_expression_kind(node.func.value, kinds, aliases)
+        if (
+            len(node.args) == 1
+            and not node.keywords
+            and (
+                _canonical_reference(node.func, aliases) == "pathlib.Path"
+                or (isinstance(node.func, ast.Name) and node.func.id == "str")
+            )
+        ):
+            return _path_expression_kind(node.args[0], kinds, aliases)
         return None
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
-        left = _path_expression_kind(node.left, kinds)
+        left = _path_expression_kind(node.left, kinds, aliases)
         right = _static_string(node.right, {})
         if left is not None and right is not None:
             return os.path.normpath(os.path.join(left, right))
@@ -555,19 +679,21 @@ def _path_expression_kind(node: ast.AST, kinds: dict[str, str]) -> str | None:
         and isinstance(node.slice.value, int)
         and node.slice.value >= 0
     ):
-        kind = _path_expression_kind(node.value.value, kinds)
+        kind = _path_expression_kind(node.value.value, kinds, aliases)
         if kind is None:
             return None
         for _ in range(node.slice.value + 1):
             kind = os.path.dirname(kind)
         return kind
     if isinstance(node, ast.Attribute) and node.attr == "parent":
-        kind = _path_expression_kind(node.value, kinds)
+        kind = _path_expression_kind(node.value, kinds, aliases)
         return os.path.dirname(kind) if kind is not None else None
     return None
 
 
-def _path_kinds(tree: ast.AST) -> dict[str, str]:
+def _path_kinds(
+    tree: ast.AST, alias_contexts: dict[int, dict[str, str]]
+) -> dict[str, str]:
     kinds: dict[str, str] = {}
     assignments = [node for node in ast.walk(tree) if isinstance(node, (ast.Assign, ast.AnnAssign))]
     for _ in range(len(assignments) + 1):
@@ -576,7 +702,9 @@ def _path_kinds(tree: ast.AST) -> dict[str, str]:
             value_node = assignment.value
             if value_node is None:
                 continue
-            kind = _path_expression_kind(value_node, kinds)
+            kind = _path_expression_kind(
+                value_node, kinds, alias_contexts[id(value_node)]
+            )
             if kind is None:
                 continue
             targets = assignment.targets if isinstance(assignment, ast.Assign) else [assignment.target]
@@ -657,19 +785,21 @@ def scan_campaign_shape(
     tree = ast.parse(source, filename=path) if tree is None else tree
     assert isinstance(tree, ast.Module)
     found: set[Violation] = set()
-    kinds = _path_kinds(tree)
+    alias_contexts = _module_alias_contexts(tree)
+    kinds = _path_kinds(tree, alias_contexts)
     for node in ast.walk(tree):
+        aliases = alias_contexts[id(node)]
         values: list[ast.AST] = []
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Attribute)
-            and _is_sys_path(node.func.value)
+            and _is_sys_path(node.func.value, aliases)
             and node.func.attr in {"insert", "append", "extend"}
         ):
             values = node.args[1:] if node.func.attr == "insert" else node.args
         elif (
             isinstance(node, ast.Call)
-            and _is_site_addsitedir(node.func)
+            and _is_site_addsitedir(node.func, aliases)
         ):
             values = node.args
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -677,16 +807,17 @@ def scan_campaign_shape(
             if any(
                 (
                     isinstance(target, ast.Subscript)
-                    and _is_sys_path(target.value)
+                    and _is_sys_path(target.value, aliases)
                 )
-                or _is_pythonpath_target(target)
+                or _is_pythonpath_target(target, aliases)
                 for target in targets
             ):
                 values = [node.value] if node.value is not None else []
         for value in values:
             candidates = value.elts if isinstance(value, (ast.List, ast.Tuple)) else [value]
             if any(
-                _path_expression_kind(item, kinds) == _SYMBOLIC_ORCHESTRATOR
+                _path_expression_kind(item, kinds, alias_contexts[id(item)])
+                == _SYMBOLIC_ORCHESTRATOR
                 for item in candidates
             ):
                 matched = ast.get_source_segment(source, node) or "sys.path mutation"
@@ -1181,6 +1312,97 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.realpath
     assert scan_campaign_shape(path, join_unresolved_suffix) == ()
 
 
+@pytest.mark.parametrize(
+    ("case", "source"),
+    [
+        (
+            "plain",
+            '''# (1) 素の形 (既に検出できている。回帰させないこと)
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+''',
+        ),
+        (
+            "module-alias",
+            '''# (2) module の別名
+import os as _o, sys as _s
+_s.path.insert(0, _o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))))
+''',
+        ),
+        (
+            "os-path-alias",
+            '''# (3) os.path 自体の別名
+import os.path as _p
+import sys
+sys.path.insert(0, _p.dirname(_p.dirname(_p.abspath(__file__))))
+''',
+        ),
+        (
+            "from-import-alias",
+            '''# (4) from import の別名
+from os import path as _p
+from os.path import dirname as _d, abspath as _a
+import sys
+sys.path.insert(0, _d(_d(_a(__file__))))
+''',
+        ),
+        (
+            "pathlib-alias",
+            '''# (5) pathlib 側の別名
+import sys
+from pathlib import Path as _P
+sys.path.insert(0, str(_P(__file__).resolve().parents[1]))
+''',
+        ),
+    ],
+    ids=["plain", "module-alias", "os-path-alias", "from-import-alias", "pathlib-alias"],
+)
+def test_r_b_module_alias_positive_controls(case: str, source: str):
+    violations = scan_campaign_shape("orchestrator/campaign/x.py", source)
+    assert len(violations) == 1, case
+    assert [item.rule for item in violations] == [PATH_RULE]
+
+
+@pytest.mark.parametrize(
+    ("case", "source"),
+    [
+        (
+            "pathlib-repository",
+            '''import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+''',
+        ),
+        (
+            "os-repository",
+            '''import os as _o, sys as _s
+_s.path.insert(0, _o.path.dirname(_o.path.dirname(_o.path.dirname(_o.path.abspath(__file__)))))
+''',
+        ),
+    ],
+    ids=["pathlib-repository", "os-repository"],
+)
+def test_r_b_module_alias_negative_controls(case: str, source: str):
+    assert scan_campaign_shape("orchestrator/campaign/x.py", source) == (), case
+    if case == "os-repository":
+        ambiguous_aliases = (
+            '''import os as _o, sys as _s
+_o = runtime_os
+_s.path.insert(0, _o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))))
+''',
+            '''import os as _o, sys as _s
+import sys as _s
+_s.path.insert(0, _o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))))
+''',
+            '''import os as _o, sys as _s
+def mutate(_o):
+    _s.path.insert(0, _o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))))
+''',
+        )
+        for ambiguous in ambiguous_aliases:
+            assert scan_campaign_shape("orchestrator/campaign/x.py", ambiguous) == ()
+
+
 def test_r_c_positive_control_rejects_legacy_doc_command():
     source = f"python3 -m {_legacy_module('p3_s4_loop')} --help\n"
     violations = scan_current_doc("docs/control.md", source)
@@ -1302,6 +1524,14 @@ def _run() -> int:
             invocations = [
                 (case, (case, source, module))
                 for case, source, module in fn.pytestmark[0].args[1]
+            ]
+        elif fn in {
+            test_r_b_module_alias_positive_controls,
+            test_r_b_module_alias_negative_controls,
+        }:
+            invocations = [
+                (case, (case, source))
+                for case, source in fn.pytestmark[0].args[1]
             ]
         elif "repository_scan" in inspect.signature(fn).parameters:
             invocations = [(fn.__name__, (scan_value,))]
