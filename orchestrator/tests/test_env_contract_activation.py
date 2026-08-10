@@ -2402,10 +2402,15 @@ def test_issue_main_rejects_generation_skip_at_last_of_65_envs_without_publishin
     initial_state = _initial_state_from_head(head)
     target_generations = (2,) * (_PIN_ENV_COUNT - 1) + (3,)
     argv = _active_argv(_PIN_ENV_TAGS, target_generations)
+    activation_state_calls = []
+
+    def current_activation_state_spy():
+        activation_state_calls.append(None)
+        return initial_state
 
     monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
     monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
-    monkeypatch.setattr(ec, "current_activation_state", lambda: initial_state)
+    monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
     monkeypatch.setattr(
         ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())
     )
@@ -2420,13 +2425,13 @@ def test_issue_main_rejects_generation_skip_at_last_of_65_envs_without_publishin
     )
     real_entries_before = _entry_sha256s(real_authority)
     sys_path_before = tuple(sys.path)
-    assert sys.modules["campaign.env_contract"] is ec
     try:
         with pytest.raises(SystemExit) as exc_info:
             issuer.main(argv)
     finally:
         sys.path[:] = sys_path_before
         assert _entry_sha256s(real_authority) == real_entries_before
+        assert activation_state_calls == [None]
     assert exc_info.value.code == 1
     error = capsys.readouterr().err
     assert "exactly +1" in error
@@ -2448,6 +2453,11 @@ def test_issue_main_rejects_invalid_successor_at_last_of_65_changed_envs_without
     initial_state = _initial_state_from_head(head)
     argv = _active_argv(_PIN_ENV_TAGS, (2,) * _PIN_ENV_COUNT)
     original_is_valid_successor = ec.is_valid_successor
+    activation_state_calls = []
+
+    def current_activation_state_spy():
+        activation_state_calls.append(None)
+        return initial_state
 
     def reject_last_successor(predecessor, successor):
         if successor.env_tag == _LAST_PIN_ENV_TAG:
@@ -2456,7 +2466,7 @@ def test_issue_main_rejects_invalid_successor_at_last_of_65_changed_envs_without
 
     monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
     monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
-    monkeypatch.setattr(ec, "current_activation_state", lambda: initial_state)
+    monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
     monkeypatch.setattr(
         ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())
     )
@@ -2472,13 +2482,13 @@ def test_issue_main_rejects_invalid_successor_at_last_of_65_changed_envs_without
     )
     real_entries_before = _entry_sha256s(real_authority)
     sys_path_before = tuple(sys.path)
-    assert sys.modules["campaign.env_contract"] is ec
     try:
         with pytest.raises(SystemExit) as exc_info:
             issuer.main(argv)
     finally:
         sys.path[:] = sys_path_before
         assert _entry_sha256s(real_authority) == real_entries_before
+        assert activation_state_calls == [None]
     assert exc_info.value.code == 1
     error = capsys.readouterr().err
     assert "successor でない" in error
@@ -2498,10 +2508,15 @@ def test_issue_main_accepts_65_env_plus_one_and_publishes(
     _write_raw_records(authority, records)
     initial_state = _initial_state_from_head(head)
     argv = _active_argv(_PIN_ENV_TAGS, (2,) * _PIN_ENV_COUNT)
+    activation_state_calls = []
+
+    def current_activation_state_spy():
+        activation_state_calls.append(None)
+        return initial_state
 
     monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
     monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
-    monkeypatch.setattr(ec, "current_activation_state", lambda: initial_state)
+    monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
     monkeypatch.setattr(
         ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())
     )
@@ -2514,12 +2529,12 @@ def test_issue_main_accepts_65_env_plus_one_and_publishes(
     )
     real_entries_before = _entry_sha256s(real_authority)
     sys_path_before = tuple(sys.path)
-    assert sys.modules["campaign.env_contract"] is ec
     try:
         result = issuer.main(argv)
     finally:
         sys.path[:] = sys_path_before
         assert _entry_sha256s(real_authority) == real_entries_before
+        assert activation_state_calls == [None]
 
     assert result == 0
     published = authority / "00000002.json"
