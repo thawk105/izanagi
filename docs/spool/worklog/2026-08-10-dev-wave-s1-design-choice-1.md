@@ -80,6 +80,13 @@ title: 段 7 前提 S1 の設計択一パッケージを返した — 2 案は�
   並走ガード (ii) の確認 = 投入時点のキューは他 wave の受入 dispatch (`izdw-*`) だけで、
   [T-139] の pilot は投入不可のまま (同 wave の handoff が正本)。
 
+- **段 8 の候補は 1 件で、予算に阻まれて差し戻した。** 段 2 の待ち手が固定上限 30 分で切れ、
+  codex が生きているのに「失敗」通知を出した。`DW-O01` は `nohup setsid` を指示しており、
+  `setsid` の fork で投入時 pid が子のものにならないため、pid 経由の生存判定が効かない。
+  生存を log の mtime 停滞で見る 1 行を `DW-O01` へ足したが `check_docs` が赤
+  (L1.5 unique footprint 9766 > 予算 9566)。予算値を上げないという契約に従って差し戻し、
+  {{T:dev-wave-waiter-liveness-note}} として起票した。
+
 ## 次の一手差分
 
 ### 新規
@@ -94,6 +101,12 @@ title: 段 7 前提 S1 の設計択一パッケージを返した — 2 案は�
   verifier 側の完全性検査。`test_verifier.py:601`–`638` の characterization 2 本を反転する。
   2026-07-02 洗練検査の [HIGH] finding が archive にしか無く現行台帳から見えなかったため起票。
   単独 wave にするか S1 移植へ束ねるかは {{T:s1-design-choice-ruling}} の Q1 で決まる
+- {{T:dev-wave-waiter-liveness-note}} **P3**: `DW-O01` へ待ち手の生存判定を 1 行足す —
+  「固定上限だけで生産者の死と判定しない。`setsid` が fork するため投入時 pid は子のものでは
+  ないので、log の mtime 停滞を生存条件に入れる」。本 wave の段 8 で実際に書いて
+  `check_docs` に落とされた (`docs/dev-wave/**` の L1.5 unique footprint が 9766 > 予算 9566、
+  空きゼロ) ため差し戻した。自己改善契約どおり予算値は上げない。
+  同 footprint の陳腐化行を 1 行削るか、既存文へ意味等価に畳めた場合だけ入れる
 - {{T:ccbench-anatomy-corrections}} **P2**: 既存 docs の誤り 3 件の訂正 —
   `ccbench-anatomy.md:211` (ermia active は raw cstamp)、同 `:126` (mocc の自由軸は 2 つ)、
   `phase3.md:269` (si の trace-hook 既存)。1 件目は S1 着手時の必須知識として書かれており、
