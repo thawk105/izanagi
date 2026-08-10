@@ -15,7 +15,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
-import importlib.util
+import importlib
 import inspect
 import io
 import json
@@ -39,6 +39,8 @@ except ModuleNotFoundError as exc:
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
+_REPOSITORY = os.path.dirname(_ORCH)
+sys.path.insert(0, _REPOSITORY)
 
 from orchestrator.campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
                       site_policy, source_digest, trigger_gate_binding, wal)
@@ -6023,20 +6025,12 @@ def test_exploration_output_root_pin_is_shared_and_locked_across_aliases():
     sentinel = object()
     env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
     saved_env = os.environ.get(env_name, sentinel)
-    spec = importlib.util.spec_from_file_location(
-        "orchestrator.campaign._layout_alias_probe", layout_module.__file__,
-    )
-    assert spec is not None and spec.loader is not None
-    alternate = importlib.util.module_from_spec(spec)
-    saved_alias = sys.modules.get(spec.name, sentinel)
-    sys.modules[spec.name] = alternate
+    saved_sys_path = sys.path[:]
     try:
-        spec.loader.exec_module(alternate)
+        sys.path.insert(0, _ORCH)
+        alternate = importlib.import_module("campaign.layout")
     finally:
-        if saved_alias is sentinel:
-            sys.modules.pop(spec.name, None)
-        else:
-            sys.modules[spec.name] = saved_alias
+        sys.path[:] = saved_sys_path
     first = _tmpdir("izanagi_alias_pin_first_")
     second = _tmpdir("izanagi_alias_pin_second_")
     layout_module._reset_exploration_output_root_pin_for_tests()

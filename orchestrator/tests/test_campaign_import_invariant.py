@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
-"""campaign import 形を tracked + untracked の実 repository へ束縛する。"""
+"""campaign import 形を tracked + untracked の実 repository へ束縛する。
+
+gitignore された未追跡 source は operational source 集合に含まれない既知の限界がある。
+"""
 from __future__ import annotations
 
 import ast
+import inspect
 import io
+import os
 import re
 import sys
 import tokenize
@@ -17,6 +22,7 @@ REPOSITORY = ORCHESTRATOR.parent
 sys.path.insert(0, str(REPOSITORY))
 
 from orchestrator.tests import repo_tree_util  # noqa: E402
+from skiputil import Skip  # noqa: E402
 
 
 LEGACY_RULE = "legacy-campaign-namespace"
@@ -46,6 +52,9 @@ _IMPORT_LINE_RE = re.compile(
     r"|import\s+(campaign(?:\.[A-Za-z_]\w*)*))"
 )
 _MODULE_ARG_RE = re.compile(r"(?<![\w.])-m\s+(campaign\.[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\b")
+_SHELL_MODULE_LITERAL_RE = re.compile(
+    r"(?<![\w.])(campaign\.[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?![\w.])"
+)
 _RATIONALE_RE = re.compile(r"(?:D|F|T)-?\d+")
 
 
@@ -85,10 +94,18 @@ KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
     # 根拠: T-720 — campaign.lock は module でなく検査対象の file 名
     ImportException(
         path="orchestrator/tests/test_campaign.py",
-        line=4594,
+        line=4596,
         rule=LEGACY_RULE,
         matched_text=_legacy_module("lock"),
         rationale="T-720: campaign.lock という file 名を含む拒否文言の検査",
+    ),
+    # 根拠: T-720 — 実 import topology を検査するための legacy alias
+    ImportException(
+        path="orchestrator/tests/test_campaign.py",
+        line=6031,
+        rule=LEGACY_RULE,
+        matched_text=_legacy_module("layout"),
+        rationale="T-720: 実 import topology を検査するための legacy alias",
     ),
     # 根拠: D149 決定 (5) — sink の mask 再検証を実 import topology で検査する
     ImportException(
@@ -180,6 +197,12 @@ KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
     ),
 )
 
+EXPECTED_EXCEPTION_COUNT = 13
+MINIMUM_RULE_EXCEPTION_COUNTS = {
+    LEGACY_RULE: 12,
+    RELATIVE_RULE: 1,
+}
+
 
 def _violation(path: str, line: int, rule: str, matched_text: str) -> Violation:
     return Violation(path=path, line=line, rule=rule, matched_text=matched_text)
@@ -188,6 +211,18 @@ def _violation(path: str, line: int, rule: str, matched_text: str) -> Violation:
 def _static_string(node: ast.AST, names: dict[str, str]) -> str | None:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "join"
+        and len(node.args) == 1
+        and not node.keywords
+        and isinstance(node.args[0], (ast.List, ast.Tuple))
+    ):
+        separator = _static_string(node.func.value, names)
+        items = [_static_string(item, names) for item in node.args[0].elts]
+        if separator is not None and all(item is not None for item in items):
+            return separator.join(item for item in items if item is not None)
     if isinstance(node, ast.Name):
         return names.get(node.id)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
@@ -243,6 +278,22 @@ def _textual_legacy_hits(text: str, base_line: int = 1) -> list[tuple[int, str]]
     return hits
 
 
+def _shell_legacy_hits(text: str) -> list[tuple[int, str]]:
+    """shell 全体から campaign module literal を拾う。"""
+    hits = set(_textual_legacy_hits(text))
+    lines = text.splitlines()
+    for match in _SHELL_MODULE_LITERAL_RE.finditer(text):
+        line = 1 + text.count("\n", 0, match.start())
+        if line <= len(lines) and lines[line - 1].lstrip().startswith("#"):
+            continue
+        hits.add((line, match.group(1)))
+    return sorted(
+        (line, module)
+        for line, module in hits
+        if line > len(lines) or not lines[line - 1].lstrip().startswith("#")
+    )
+
+
 def scan_legacy_namespace(
     path: str,
     source: str,
@@ -253,10 +304,9 @@ def scan_legacy_namespace(
     found: set[Violation] = set()
     suffix = Path(path).suffix
 
-    if suffix == ".sh":
-        for line, module in _textual_legacy_hits(source):
-            if not source.splitlines()[line - 1].lstrip().startswith("#"):
-                found.add(_violation(path, line, LEGACY_RULE, module))
+    if suffix in {".sh", ".bash"} or (not suffix and source.startswith("#!")):
+        for line, module in _shell_legacy_hits(source):
+            found.add(_violation(path, line, LEGACY_RULE, module))
         return tuple(sorted(found))
 
     if tree is None:
@@ -312,7 +362,7 @@ def scan_legacy_namespace(
 
         # dotted literal は呼出形によらず module path と判定する。root 単体は
         # 通常の campaign label と衝突するため、上の利用文脈内だけを対象にする。
-        if isinstance(node, (ast.Constant, ast.JoinedStr, ast.BinOp)):
+        if isinstance(node, (ast.Constant, ast.JoinedStr, ast.BinOp, ast.Call)):
             value = _static_string(node, names)
             if value is None:
                 continue
@@ -337,6 +387,28 @@ def _is_sys_path(node: ast.AST) -> bool:
         and isinstance(node.value, ast.Name)
         and node.value.id == "sys"
     )
+
+
+def _is_site_addsitedir(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "addsitedir"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "site"
+    )
+
+
+def _is_pythonpath_target(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Subscript):
+        return False
+    container = node.value
+    is_environ = (
+        isinstance(container, ast.Attribute)
+        and container.attr == "environ"
+        and isinstance(container.value, ast.Name)
+        and container.value.id == "os"
+    ) or (isinstance(container, ast.Name) and container.id == "environ")
+    return is_environ and _static_string(node.slice, {}) == "PYTHONPATH"
 
 
 def _path_expression_kind(node: ast.AST, kinds: dict[str, str]) -> str | None:
@@ -405,6 +477,15 @@ def _has_relative_import(tree: ast.AST) -> bool:
     return any(isinstance(node, ast.ImportFrom) and node.level > 0 for node in ast.walk(tree))
 
 
+def _direct_bootstrap_nodes(tree: ast.Module, source: str) -> list[ast.stmt]:
+    """module 直下にある逐語 bootstrap の実文だけを返す。"""
+    return [
+        node
+        for node in tree.body
+        if ast.get_source_segment(source, node) == DIRECT_BOOTSTRAP
+    ]
+
+
 def scan_campaign_shape(
     path: str,
     source: str,
@@ -413,6 +494,7 @@ def scan_campaign_shape(
 ) -> tuple[Violation, ...]:
     """R-B: campaign package の sys.path と direct CLI bootstrap を検査する。"""
     tree = ast.parse(source, filename=path) if tree is None else tree
+    assert isinstance(tree, ast.Module)
     found: set[Violation] = set()
     kinds = _path_kinds(tree)
     for node in ast.walk(tree):
@@ -424,9 +506,21 @@ def scan_campaign_shape(
             and node.func.attr in {"insert", "append", "extend"}
         ):
             values = node.args[1:] if node.func.attr == "insert" else node.args
+        elif (
+            isinstance(node, ast.Call)
+            and _is_site_addsitedir(node.func)
+        ):
+            values = node.args
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-            if any(isinstance(target, ast.Subscript) and _is_sys_path(target.value) for target in targets):
+            if any(
+                (
+                    isinstance(target, ast.Subscript)
+                    and _is_sys_path(target.value)
+                )
+                or _is_pythonpath_target(target)
+                for target in targets
+            ):
                 values = [node.value] if node.value is not None else []
         for value in values:
             candidates = value.elts if isinstance(value, (ast.List, ast.Tuple)) else [value]
@@ -434,8 +528,27 @@ def scan_campaign_shape(
                 matched = ast.get_source_segment(source, node) or "sys.path mutation"
                 found.add(_violation(path, node.lineno, PATH_RULE, matched))
 
-    if _has_main_guard(tree) and _has_relative_import(tree) and source.count(DIRECT_BOOTSTRAP) != 1:
-        found.add(_violation(path, 1, BOOTSTRAP_RULE, "direct CLI bootstrap count != 1"))
+    if _has_main_guard(tree) and _has_relative_import(tree):
+        bootstrap_nodes = _direct_bootstrap_nodes(tree, source)
+        relative_import_lines = [
+            node.lineno
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.level > 0
+        ]
+        valid_bootstrap = (
+            len(bootstrap_nodes) == 1
+            and source.count(DIRECT_BOOTSTRAP) == 1
+            and bootstrap_nodes[0].lineno < min(relative_import_lines)
+        )
+        if not valid_bootstrap:
+            found.add(
+                _violation(
+                    path,
+                    1,
+                    BOOTSTRAP_RULE,
+                    "direct CLI bootstrap is not one top-level statement before relative imports",
+                )
+            )
     return tuple(sorted(found))
 
 
@@ -491,23 +604,38 @@ def _is_current_doc(relative: Path) -> bool:
 
 
 def scan_repository(root: Path) -> RepositoryScan:
-    """列挙 1 回・各 file 読取 1 回で実 repository の全規則を評価する。"""
+    """列挙 1 回・選択した各 file の全内容読取 1 回で全規則を評価する。
+
+    gitignore された未追跡 source は ``list_tracked_and_untracked_files`` の契約上対象外。
+    """
     relative_paths = repo_tree_util.list_tracked_and_untracked_files(root)
     operational = {
         path.as_posix()
         for path in relative_paths
-        if not _excluded(path) and path.suffix in {".py", ".sh"}
+        if not _excluded(path) and path.suffix in {".py", ".sh", ".bash"}
     }
     docs = {
         path.as_posix()
         for path in relative_paths
         if not _excluded(path) and _is_current_doc(path)
     }
-    selected = operational | docs
     sources = {
         path: (root / path).read_bytes().decode("utf-8", "surrogateescape")
-        for path in selected
+        for path in operational | docs
     }
+    for relative in relative_paths:
+        if _excluded(relative) or relative.suffix:
+            continue
+        absolute = root / relative
+        if not absolute.is_file() or not os.access(absolute, os.X_OK):
+            continue
+        with absolute.open("rb") as candidate:
+            if candidate.read(2) != b"#!":
+                continue
+        source = absolute.read_bytes().decode("utf-8", "surrogateescape")
+        path = relative.as_posix()
+        operational.add(path)
+        sources[path] = source
 
     violations: list[Violation] = []
     for path in operational:
@@ -545,7 +673,7 @@ def _assert_rule_ledger_matches(repository_scan: RepositoryScan, rule: str) -> N
     _assert_ledger_matches(actual, expected)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def repository_scan() -> RepositoryScan:
     return scan_repository(REPOSITORY)
 
@@ -573,6 +701,14 @@ def test_real_campaign_package_uses_relative_sibling_imports(repository_scan: Re
 
 
 def test_known_exception_ledger_is_unique_rationalized_and_commented(repository_scan: RepositoryScan):
+    assert len(KNOWN_EXCEPTIONS) == EXPECTED_EXCEPTION_COUNT
+    rule_counts = {
+        rule: sum(item.rule == rule for item in KNOWN_EXCEPTIONS)
+        for rule in KNOWN_RULES
+    }
+    for rule, minimum in MINIMUM_RULE_EXCEPTION_COUNTS.items():
+        assert rule_counts[rule] >= minimum
+
     keys = [item.key() for item in KNOWN_EXCEPTIONS]
     assert len(keys) == len(set(keys))
     ledger_rules = {item.rule for item in KNOWN_EXCEPTIONS}
@@ -635,18 +771,43 @@ def test_known_exception_ledger_is_unique_rationalized_and_commented(repository_
             f'argv = ["python3", "-m", "{_legacy_module("p3_s4_loop")}"]\n',
             _legacy_module("p3_s4_loop"),
         ),
+        (
+            "shell-python-c",
+            "python3 -c 'import importlib; importlib.import_module(\""
+            f"{_legacy_module('env_attestation')}"
+            "\")'\n",
+            _legacy_module("env_attestation"),
+        ),
+        (
+            "str-join",
+            'import importlib\nimportlib.import_module(".".join(("'
+            f"{_legacy_module()}"
+            '", "env_contract")))\n',
+            _legacy_module("env_contract"),
+        ),
     ],
     ids=[
         "plain-from-import",
         "arbitrary-callable",
         "shell-heredoc",
         "subprocess-module-argv",
+        "shell-python-c",
+        "str-join",
     ],
 )
 def test_r_a_positive_controls(case: str, source: str, module: str):
-    suffix = ".sh" if case == "shell-heredoc" else ".py"
+    suffix = ".sh" if case in {"shell-heredoc", "shell-python-c"} else ".py"
     violations = scan_legacy_namespace(f"synthetic/control{suffix}", source)
     assert any(item.matched_text == module for item in violations)
+    if case == "shell-python-c":
+        assert any(
+            item.matched_text == module
+            for item in scan_legacy_namespace("synthetic/control.bash", source)
+        )
+        assert any(
+            item.matched_text == module
+            for item in scan_legacy_namespace("synthetic/control", "#!/bin/bash\n" + source)
+        )
 
 
 def test_r_b_positive_control_rejects_wrong_direct_bootstrap():
@@ -673,6 +834,24 @@ if __name__ == "__main__":
     no_relative_import = '''if __name__ == "__main__":
     raise SystemExit(0)
 '''
+    fake_bootstrap = '''from . import ident
+_FAKE = ''' + repr(DIRECT_BOOTSTRAP) + '''
+if __name__ == "__main__":
+    raise SystemExit(0)
+'''
+    late_bootstrap = '''from . import ident
+''' + DIRECT_BOOTSTRAP + '''
+if __name__ == "__main__":
+    raise SystemExit(0)
+'''
+    addsitedir_path = '''from pathlib import Path
+import site
+site.addsitedir(str(Path(__file__).resolve().parents[1]))
+'''
+    pythonpath_assignment = '''from pathlib import Path
+import os
+os.environ["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
+'''
 
     path = "orchestrator/campaign/control.py"
     assert {item.rule for item in scan_campaign_shape(path, missing_bootstrap)} == {BOOTSTRAP_RULE}
@@ -681,6 +860,10 @@ if __name__ == "__main__":
         PATH_RULE,
         BOOTSTRAP_RULE,
     }
+    assert {item.rule for item in scan_campaign_shape(path, fake_bootstrap)} == {BOOTSTRAP_RULE}
+    assert {item.rule for item in scan_campaign_shape(path, late_bootstrap)} == {BOOTSTRAP_RULE}
+    assert {item.rule for item in scan_campaign_shape(path, addsitedir_path)} == {PATH_RULE}
+    assert {item.rule for item in scan_campaign_shape(path, pythonpath_assignment)} == {PATH_RULE}
     assert scan_campaign_shape(path, no_relative_import) == ()
 
 
@@ -724,3 +907,52 @@ def test_exception_ledger_comparison_rejects_stale_entry():
     )
     with pytest.raises(AssertionError, match="stale"):
         _assert_ledger_matches((), (stale,))
+
+
+def _run() -> int:
+    fns = [
+        value
+        for name, value in sorted(globals().items())
+        if name.startswith("test_") and callable(value)
+    ]
+    scan_value: RepositoryScan | None = None
+    scan_error: Exception | None = None
+    try:
+        scan_value = scan_repository(REPOSITORY)
+    except Exception as exc:  # noqa: BLE001 - fixture failure is reported per consumer
+        scan_error = exc
+
+    passed = failed = skipped = 0
+    for fn in fns:
+        if fn is test_r_a_positive_controls:
+            invocations = [
+                (case, (case, source, module))
+                for case, source, module in fn.pytestmark[0].args[1]
+            ]
+        elif "repository_scan" in inspect.signature(fn).parameters:
+            invocations = [(fn.__name__, (scan_value,))]
+        else:
+            invocations = [(fn.__name__, ())]
+
+        for label, args in invocations:
+            try:
+                if "repository_scan" in inspect.signature(fn).parameters and scan_error is not None:
+                    raise scan_error
+                fn(*args)
+                print(f"PASS {fn.__name__}[{label}]")
+                passed += 1
+            except Skip as exc:
+                print(f"SKIP {fn.__name__}[{label}]: {exc}")
+                skipped += 1
+            except AssertionError as exc:
+                print(f"FAIL {fn.__name__}[{label}]: {exc}")
+                failed += 1
+            except Exception as exc:  # noqa: BLE001
+                print(f"ERROR {fn.__name__}[{label}]: {type(exc).__name__}: {exc}")
+                failed += 1
+    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
