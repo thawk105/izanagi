@@ -19,6 +19,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
+from skiputil import Skip, skip                                                   # noqa: E402
 from orchestrator.calibrator.analyze import (find_saturation, noise_floor,        # noqa: E402
                                 scale_sensitivity)
 from orchestrator.calibrator.benchparse import (actual_extime, parse_bench_stdout,  # noqa: E402
@@ -727,7 +728,7 @@ def test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected():
     (8b の `s8b-build-cache` 配下相当の cmdline) が実 pgrep 越しに検知される
     (F3 admission 強化の本題 — path 非依存化がなければ旧パターンは無反応だった)。"""
     if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
-        return          # pgrep/proc が無い環境ではスキップ相当 (対象外環境)
+        skip("pgrep コマンドまたは /proc が利用できない")
     from orchestrator.calibrator import runner
     pid_file = os.path.join(tempfile.gettempdir(),
                             f"_izanagi_test_orphan_{os.getpid()}.pid")
@@ -756,7 +757,7 @@ def test_competing_bench_pids_real_own_child_detected():
     cmdline) は子孫であっても除外されず、競合として検出される (own-PID-only 縮小の
     本題 — 子孫除外へ逆戻りするとこの子が黙って落ちる)。"""
     if shutil.which("pgrep") is None or not os.path.isdir("/proc"):
-        return
+        skip("pgrep コマンドまたは /proc が利用できない")
     from orchestrator.calibrator import runner
     fake_argv0 = f"/tmp/out/s8b-build-cache/gen0/ycsb_child_admission_test_{os.getpid()}.exe"
     child = _spawn_fake_bench_child(fake_argv0)
@@ -771,24 +772,63 @@ def test_competing_bench_pids_real_own_child_detected():
         child.wait(timeout=5)
 
 
+def _skip_exception_types():
+    """skiputil.skip が実行環境に応じて投げうる例外型を集める。"""
+    types = [Skip]
+    try:
+        import pytest
+    except ImportError:
+        return tuple(types)
+    skipped = getattr(pytest.skip, "Exception", None)
+    if isinstance(skipped, type) and issubclass(skipped, BaseException):
+        types.append(skipped)
+    return tuple(types)
+
+
+def test_competing_bench_pids_missing_dependency_is_visible_skip():
+    """README「依存物不在時の skip (可視化)」への疑似 return 回帰を撃つ。
+    pgrep 不在時に実プロセス検査 2 本が PASS せず、skip 例外を送出することを固定する。
+    """
+    skip_exceptions = _skip_exception_types()
+    original_which = shutil.which
+    shutil.which = lambda _name: None
+    try:
+        for test_fn in (
+            test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected,
+            test_competing_bench_pids_real_own_child_detected,
+        ):
+            try:
+                test_fn()
+            except skip_exceptions:
+                continue
+            raise AssertionError(
+                f"{test_fn.__name__} が依存物不在を PASS に化かした"
+            )
+    finally:
+        shutil.which = original_which
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
-    passed = failed = 0
+    passed = failed = skipped = 0
     for fn in fns:
         try:
             fn()
             print(f"PASS {fn.__name__}")
             passed += 1
+        except Skip as e:
+            print(f"SKIP {fn.__name__}: {e}")
+            skipped += 1
         except AssertionError as e:
             print(f"FAIL {fn.__name__}: {e}")
             failed += 1
         except Exception as e:  # noqa: BLE001
             print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
             failed += 1
-    print(f"\n{passed} passed, {failed} failed")
+    print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
 
 

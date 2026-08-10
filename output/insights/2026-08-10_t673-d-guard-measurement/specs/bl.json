@@ -1,0 +1,56 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "BL-G-N4-GUARD-FALSE",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for successor in successor_rows:\n",
+          "new": "    for successor in successor_rows[:4]:\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if observed_generation_checks != expected_generation_checks:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invgen_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_loader_invgen_last_rejected"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "BL-P-N4-GUARD-FALSE",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    for predecessor, successor in changed:\n",
+          "new": "    for predecessor, successor in changed[:4]:\n"
+        },
+        {
+          "file": "orchestrator/campaign/env_contract_activation.py",
+          "old": "    if observed_predicate_checks != expected_predicate_checks:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_middle_rejected",
+        "orchestrator/tests/test_t673_d_probe.py::test_invpred_last_rejected"
+      ],
+      "hang_risk": false
+    }
+  ]
+}
+

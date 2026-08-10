@@ -168,6 +168,35 @@ def _worklog_body(
     return "\n".join(section.rstrip("\n") for section in sections) + "\n"
 
 
+def _failure_body(
+    *,
+    new: tuple[str, ...] = (),
+    recurrences: tuple[tuple[int, str], ...] = (),
+    supersedes: tuple[tuple[int, str], ...] = (),
+) -> str:
+    sections: list[str] = []
+    if new:
+        sections.append("## 新規\n\n" + "\n".join(entry.strip("\n") for entry in new))
+    if recurrences:
+        sections.append(
+            "## 再発\n\n"
+            + "\n".join(
+                f"### F{number}\n\n{payload.strip(chr(10))}"
+                for number, payload in recurrences
+            )
+        )
+    if supersedes:
+        sections.append(
+            "## supersede 追記\n\n"
+            + "\n".join(f"- F{number} {body}" for number, body in supersedes)
+        )
+    return "\n\n".join(sections) + "\n"
+
+
+def _supersede(detail: str, *, date: str = "2026-08-10") -> str:
+    return f"**supersede: {date}** — {detail}"
+
+
 def _active_block(task_id: str) -> str:
     return _item(task_id, f"現本文 {task_id}")
 
@@ -201,6 +230,13 @@ def _phase_after(repo: Path) -> bytes:
     return _target(
         spool_fold.plan_fold(repo, fold_date="2026-08-02"),
         "docs/phase3.md",
+    ).after_bytes
+
+
+def _failures_after(repo: Path) -> bytes:
+    return _target(
+        spool_fold.plan_fold(repo, fold_date="2026-08-10"),
+        "docs/failures.md",
     ).after_bytes
 
 
@@ -1052,6 +1088,503 @@ def test_failure_section_payload_without_valid_h3_is_rejected(tmp_path: Path) ->
     _fragment(repo, "failures", "## 新規\n\n- dropped payload\n")
     codes = [issue.code for issue in spool_fold.validate_spool_tree(repo)]
     assert codes == ["failure-new-empty", "failure-unconsumed"]
+
+
+def test_failure_supersede_only_fragment_inserts_at_entry_end_byte_exact(tmp_path: Path) -> None:
+    """M1/M10: supersede 単独を受理し、fold が `- ` を付けて境界へ exact splice する。"""
+
+    repo = _repo(tmp_path)
+    failures = repo / "docs/failures.md"
+    with failures.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write("### F2. second [手順漏れ]\n- 事象: second\n")
+    before = failures.read_bytes()
+    body = _supersede("F1 だけを更新。")
+    _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
+    offset = before.index(b"### F2.")
+    line = f"- {body}".encode()
+    assert _failures_after(repo) == _splice_exact(before, ((offset, line + b"\n"),))
+
+
+def test_failure_recurrence_precedes_supersede_for_same_target_byte_exact(tmp_path: Path) -> None:
+    """M4: 同一 F では再発全件の後に supersede 全件を置く。"""
+
+    repo = _repo(tmp_path)
+    before = (repo / "docs/failures.md").read_bytes()
+    recurrence = "- **再発: 2026-08-10** — 再発を先に置く。"
+    supersede = _supersede("supersede を後に置く。")
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(
+            recurrences=((1, recurrence),),
+            supersedes=((1, supersede),),
+        ),
+    )
+    expected = before + f"\n{recurrence}\n- {supersede}\n".encode()
+    assert _failures_after(repo) == expected
+
+
+def test_failure_supersede_order_is_deterministic_by_fragment_key_and_item_index(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(supersedes=((1, _supersede("A10")),)),
+        wave="wave-a",
+        seq=10,
+    )
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(supersedes=(
+            (1, _supersede("A2-first")),
+            (1, _supersede("A2-second")),
+        )),
+        wave="wave-a",
+        seq=2,
+    )
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(supersedes=((1, _supersede("B1")),)),
+        wave="wave-b",
+        seq=1,
+    )
+    first = spool_fold.plan_fold(repo, fold_date="2026-08-10")
+    second = spool_fold.plan_fold(repo, fold_date="2026-08-10")
+    rendered = _target(first, "docs/failures.md").after_bytes.decode()
+    assert first.as_dict() == second.as_dict()
+    assert [rendered.index(label) for label in ("A2-first", "A2-second", "A10", "B1")] == sorted(
+        rendered.index(label) for label in ("A2-first", "A2-second", "A10", "B1")
+    )
+
+
+def test_failure_supersede_body_resolves_cross_ledger_placeholder(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "decisions", "## {{D:reason}}. reason\n", wave="same-wave")
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(supersedes=((1, _supersede("根拠 {{D:reason}}")),)),
+        wave="same-wave",
+    )
+    rendered = _failures_after(repo).decode()
+    assert "- **supersede: 2026-08-10** — 根拠 D2\n" in rendered
+    assert "{{" not in rendered and "}}" not in rendered
+
+
+def test_failure_supersede_target_placeholder_is_rejected(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    new_entry = (
+        "### {{F:future}}. future [手順漏れ]\n"
+        "- 事象: x\n- 根本原因: x\n- 恒久対応: x\n- 再発検知: x\n"
+    )
+    body = _failure_body(new=(new_entry,)) + (
+        "\n## supersede 追記\n\n"
+        f"- {{{{F:future}}}} {_supersede('placeholder target')}\n"
+    )
+    _fragment(repo, "failures", body)
+    assert [issue.code for issue in spool_fold.validate_spool_tree(repo)] == [
+        "failure-supersede-shape"
+    ]
+
+
+def test_failure_supersede_section_order_and_uniqueness_are_rejected(tmp_path: Path) -> None:
+    cases = (
+        (
+            "## supersede 追記\n\n"
+            f"- F1 {_supersede('先行')}\n\n"
+            "## 再発\n\n### F1\n\n- **再発: 2026-08-10** — 後続\n"
+        ),
+        (
+            "## supersede 追記\n\n"
+            f"- F1 {_supersede('一件目')}\n\n"
+            "## supersede 追記\n\n"
+            f"- F1 {_supersede('二件目')}\n"
+        ),
+    )
+    for index, body in enumerate(cases):
+        parent = tmp_path / f"case-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        _fragment(repo, "failures", body)
+        assert "failure-sections" in [
+            issue.code for issue in spool_fold.validate_spool_tree(repo)
+        ]
+
+
+def test_empty_failure_supersede_section_is_rejected(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "failures", "## supersede 追記\n")
+    assert [issue.code for issue in spool_fold.validate_spool_tree(repo)] == [
+        "failure-supersede-empty"
+    ]
+
+
+def test_multiline_h3_and_base_failure_supersede_shapes_are_rejected(tmp_path: Path) -> None:
+    cases = (
+        f"- F1 {_supersede('一行目')}\n  継続行",
+        "### F1\n\n" + _supersede("H3"),
+        f"- F1 {_supersede('base')}\n  base: {'0' * 64}",
+    )
+    for index, item in enumerate(cases):
+        parent = tmp_path / f"case-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        _fragment(repo, "failures", f"## supersede 追記\n\n{item}\n")
+        codes = [issue.code for issue in spool_fold.validate_spool_tree(repo)]
+        assert codes and set(codes) == {"failure-supersede-shape"}
+
+
+def test_failure_supersede_body_shape_and_calendar_date_are_rejected(tmp_path: Path) -> None:
+    """M6: label・区切り・本文・暦日のどれかが不正なら専用 shape issue。"""
+
+    items = (
+        "- F1 stale",
+        "- F1 - **supersede: 2026-08-10** — fold が付ける marker を本文へ書いた",
+        "- F01 **supersede: 2026-08-10** — non-canonical target",
+        "- F1 **supersede: 2026-13-45** — x",
+        "- F1 **supersede: 2026-08-10** —",
+        "- F1 **supersede: 2026-08-10** —    ",
+        "- F1 **supersede: 2026-08-10** - x",
+    )
+    for index, item in enumerate(items):
+        parent = tmp_path / f"case-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        _fragment(repo, "failures", f"## supersede 追記\n\n{item}\n")
+        assert [issue.code for issue in spool_fold.validate_spool_tree(repo)] == [
+            "failure-supersede-shape"
+        ]
+
+
+def test_failure_supersede_unicode_line_breaks_are_rejected(tmp_path: Path) -> None:
+    separators = ("\u2028", "\u2029", "\u0085", "\r", "\v", "\f")
+    for index, separator in enumerate(separators):
+        parent = tmp_path / f"case-{index}"
+        parent.mkdir()
+        repo = _repo(parent)
+        _fragment(
+            repo,
+            "failures",
+            _failure_body(supersedes=((1, _supersede(f"before{separator}after")),)),
+        )
+        assert "failure-supersede-shape" in [
+            issue.code for issue in spool_fold.validate_spool_tree(repo)
+        ]
+
+
+def test_failure_supersede_accepted_body_is_preserved_byte_exact(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    before = (repo / "docs/failures.md").read_bytes()
+    body = _supersede("zero-width:\u200b word-joiner:\u2060 emoji:🧭")
+    _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
+    assert _failures_after(repo) == before + f"- {body}\n".encode()
+
+
+def test_failure_supersede_missing_target_is_rejected(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "failures", _failure_body(supersedes=((999, _supersede("不存在")),)))
+    _raises("failure-supersede-missing", spool_fold.plan_fold, repo)
+
+
+def test_failure_supersede_rejects_duplicate_canonical_target_ids(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    with (repo / "docs/failures.md").open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write("\n### F1. duplicate [手順漏れ]\n- 事象: duplicate\n")
+    _fragment(repo, "failures", _failure_body(supersedes=((1, _supersede("一意性")),)))
+    _raises("failure-duplicate", spool_fold.plan_fold, repo)
+
+
+def test_failure_supersede_rejects_existing_identical_line(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    body = _supersede("既存と同一。")
+    with (repo / "docs/failures.md").open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(f"- {body}\n")
+    _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
+    _raises("failure-supersede-duplicate-line", spool_fold.plan_fold, repo)
+
+
+def test_failure_supersede_rejects_duplicate_line_within_same_fold(tmp_path: Path) -> None:
+    body = _supersede("fold 内重複。")
+    for across_fragments in (False, True):
+        parent = tmp_path / ("across" if across_fragments else "within")
+        parent.mkdir()
+        repo = _repo(parent)
+        if across_fragments:
+            _fragment(repo, "decisions", "## {{D:reason}}. reason\n", wave="same-wave")
+            _fragment(
+                repo,
+                "failures",
+                _failure_body(supersedes=((1, _supersede("根拠 D2")),)),
+                wave="same-wave",
+                seq=1,
+            )
+            _fragment(
+                repo,
+                "failures",
+                _failure_body(supersedes=((1, _supersede("根拠 {{D:reason}}")),)),
+                wave="same-wave",
+                seq=2,
+            )
+        else:
+            _fragment(repo, "failures", _failure_body(supersedes=((1, body), (1, body))))
+        _raises("failure-supersede-duplicate-line", spool_fold.plan_fold, repo)
+
+
+def test_failure_recurrence_and_supersede_identical_line_are_rejected(tmp_path: Path) -> None:
+    """R5: recurrence 適用後の exact 行を supersede helper が重複として拒否する。"""
+
+    repo = _repo(tmp_path)
+    body = _supersede("cross-section 同一行。")
+    failures = (repo / "docs/failures.md").read_text(encoding="utf-8")
+    after_recurrence = spool_fold._insert_failure_recurrences(
+        failures,
+        ((1, f"- {body}\n"),),
+    )
+    _raises(
+        "failure-supersede-duplicate-line",
+        spool_fold._insert_failure_supersedes,
+        after_recurrence,
+        (spool_fold._FailureSupersede(1, body),),
+    )
+
+
+def test_failure_supersede_substring_of_existing_line_is_accepted(tmp_path: Path) -> None:
+    """M5: byte-exact でない部分一致を過剰拒否しない。"""
+
+    repo = _repo(tmp_path)
+    body = _supersede("短い本文")
+    with (repo / "docs/failures.md").open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(f"- {body}だが既存行は長い\n")
+    _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
+    assert f"- {body}\n" in _failures_after(repo).decode()
+
+
+def test_failure_recurrence_supersede_misuse_is_rejected_but_prose_mention_is_accepted(tmp_path: Path) -> None:
+    """M8/R4: reserved list prefix だけを拒否し、本文中の語は既存受理集合に残す。"""
+
+    misuses = (
+        "- **supersede: 2026-08-10** — 誤用",
+        "- **super<!--internal-->sede: 2026-08-10** — 誤用",
+        "- <!--before-label-->**supersede: 2026-08-10** — 誤用",
+        "<!--before-item-->- **supersede: 2026-08-10** — 誤用",
+        "- **supersede<!--after-label-->: 2026-08-10** — 誤用",
+        "- **supersede:<!--after-prefix--> 2026-08-10** — 誤用",
+        " - **supersede: 2026-08-10** — 誤用",
+        "  - **supersede: 2026-08-10** — 誤用",
+        "   - **supersede: 2026-08-10** — 誤用",
+        "-\t**supersede: 2026-08-10** — 誤用",
+        "- **super\u200bsede: 2026-08-10** — 誤用",
+        "- **super\u200csede: 2026-08-10** — 誤用",
+        "- **super\u200dsede: 2026-08-10** — 誤用",
+        "- **super\u2060sede: 2026-08-10** — 誤用",
+        "- **super\ufeffsede: 2026-08-10** — 誤用",
+    )
+    for index, payload in enumerate(misuses):
+        bad_parent = tmp_path / f"bad-{index}"
+        bad_parent.mkdir()
+        bad = _repo(bad_parent)
+        _fragment(
+            bad,
+            "failures",
+            _failure_body(recurrences=((1, payload),)),
+        )
+        assert [issue.code for issue in spool_fold.validate_spool_tree(bad)] == [
+            "failure-recurrence-supersede-misuse"
+        ]
+
+    fenced_parent = tmp_path / "fenced"
+    fenced_parent.mkdir()
+    fenced = _repo(fenced_parent)
+    fenced_payload = (
+        "```markdown\n"
+        "- **supersede: 2026-08-10** — fence 内 decoy\n"
+        "```"
+    )
+    _fragment(fenced, "failures", _failure_body(recurrences=((1, fenced_payload),)))
+    assert spool_fold.validate_spool_tree(fenced) == []
+
+    accepted = (
+        "    - **supersede: 2026-08-10** — 4-space indent code block",
+        "- **ｓｕｐｅｒｓｅｄｅ: 2026-08-10** — ASCII 予約ラベルではない",
+        "- **再発: 2026-08-10** — supersede 追記が無く記録が遅れた。",
+    )
+    for index, payload in enumerate(accepted):
+        good_parent = tmp_path / f"good-{index}"
+        good_parent.mkdir()
+        good = _repo(good_parent)
+        _fragment(good, "failures", _failure_body(recurrences=((1, payload),)))
+        assert spool_fold.validate_spool_tree(good) == []
+        assert payload in _failures_after(good).decode()
+
+
+def test_failure_topology_rejects_forged_heading_from_recurrence(tmp_path: Path) -> None:
+    """M7: upstream parser が壊れても plan の描画後 topology が偽 F heading を拒否する。"""
+
+    repo = _repo(tmp_path)
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(recurrences=((1, "- **再発: 2026-08-10** — seed"),)),
+    )
+    original = spool_fold._failure_parts
+    spool_fold._failure_parts = lambda *_args: ([], [(1, "### F999. forged\n")], [])
+    try:
+        _raises("failure-topology", spool_fold.plan_fold, repo)
+    finally:
+        spool_fold._failure_parts = original
+
+
+def test_failure_list_marker_neutralizes_heading_if_shape_gate_regresses(tmp_path: Path) -> None:
+    """M9: R2 が破れても R1 が raw heading を list item 化し topology を保存する。"""
+
+    repo = _repo(tmp_path)
+    _fragment(repo, "failures", _failure_body(supersedes=((1, _supersede("seed")),)))
+    original = spool_fold._failure_parts
+    spool_fold._failure_parts = lambda *_args: (
+        [],
+        [],
+        [spool_fold._FailureSupersede(1, "### F999. forged")],
+    )
+    try:
+        rendered = _failures_after(repo).decode()
+    finally:
+        spool_fold._failure_parts = original
+    assert "\n- ### F999. forged\n" in rendered
+    assert [int(match.group("number")) for match in spool_fold.FAILURE_ID_RE.finditer(rendered)] == [1]
+
+
+def test_failure_topology_accepts_mixed_new_recurrence_and_supersede(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    first_new_entry = (
+        "### {{F:first}}. first [手順漏れ]\n"
+        "- 事象: x\n- 根本原因: x\n- 恒久対応: x\n- 再発検知: x\n"
+    )
+    second_new_entry = (
+        "### {{F:second}}. second [手順漏れ]\n"
+        "- 事象: x\n- 根本原因: x\n- 恒久対応: x\n- 再発検知: x\n"
+    )
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(
+            new=(first_new_entry, second_new_entry),
+            recurrences=((1, "- **再発: 2026-08-10** — mixed"),),
+            supersedes=((1, _supersede("mixed")),),
+        ),
+    )
+    rendered = _failures_after(repo).decode()
+    assert [int(match.group("number")) for match in spool_fold.FAILURE_ID_RE.finditer(rendered)] == [1, 2, 3]
+
+
+def test_failure_topology_uses_new_entry_append_order_across_fragments(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    first_path_entry = (
+        "### {{F:first-path}}. first path [手順漏れ]\n"
+        "- 事象: x\n- 根本原因: x\n- 恒久対応: x\n- 再発検知: x\n"
+    )
+    second_path_entry = (
+        "### {{F:second-path}}. second path [手順漏れ]\n"
+        "- 事象: x\n- 根本原因: x\n- 恒久対応: x\n- 再発検知: x\n"
+    )
+    _fragment(
+        repo,
+        "failures",
+        "## 新規\n\n\n\n" + first_path_entry,
+        authored="2026-08-01",
+        wave="same-wave",
+        seq=1,
+    )
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(new=(second_path_entry,)),
+        authored="2026-08-02",
+        wave="same-wave",
+        seq=1,
+    )
+    assert spool_fold.validate_spool_tree(repo) == []
+    rendered = _failures_after(repo).decode()
+    assert [
+        int(match.group("number"))
+        for match in spool_fold.FAILURE_ID_RE.finditer(rendered)
+    ] == [1, 3, 2]
+    assert rendered.index("### F3. first path") < rendered.index("### F2. second path")
+
+
+def test_failure_supersede_replay_guards_exact_and_changed_fragments(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    body = _failure_body(supersedes=((1, _supersede("replay")),))
+    fragment = _fragment(repo, "failures", body)
+    raw = fragment.read_bytes()
+    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo, fold_date="2026-08-10"))
+    fragment.parent.mkdir(parents=True, exist_ok=True)
+    fragment.write_bytes(raw)
+    _raises("receipt-replay", spool_fold.plan_fold, repo)
+    fragment.unlink()
+    _fragment(repo, "failures", body, seq=2)
+    _raises("failure-supersede-duplicate-line", spool_fold.plan_fold, repo)
+
+
+def test_failure_new_and_recurrence_only_output_remains_byte_exact(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    before = (repo / "docs/failures.md").read_bytes()
+    recurrence = "- **再発: 2026-08-10** — legacy path"
+    new_entry = (
+        "### {{F:new}}. new [手順漏れ]\n"
+        "- 事象: x\n- 根本原因: x\n- 恒久対応: x\n- 再発検知: x\n"
+    )
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(new=(new_entry,), recurrences=((1, recurrence),)),
+    )
+    expected = before + f"\n{recurrence}\n\n".encode() + new_entry.replace("{{F:new}}", "F2").encode()
+    assert _failures_after(repo) == expected
+
+
+def test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact(tmp_path: Path) -> None:
+    repo = _copy_real_canonical_family(tmp_path)
+    before = (repo / "docs/failures.md").read_bytes()
+    boundary = re.search(rb"^### F2\.", before, re.MULTILINE)
+    assert boundary is not None
+    assert before[:boundary.start()].endswith(b"\n")
+    assert not before[:boundary.start()].endswith(b"\n\n")
+    body = _supersede("実 canonical の空行なし境界。")
+    _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
+    expected = _splice_exact(before, ((boundary.start(), f"- {body}\n".encode()),))
+    assert _failures_after(repo) == expected
+
+
+def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path) -> None:
+    """M2: F197 見出しから挿入 offset を動的に求める実 canonical golden。"""
+
+    repo = _copy_real_canonical_family(tmp_path)
+    before = (repo / "docs/failures.md").read_bytes()
+    boundary = re.search(rb"^### F197\.", before, re.MULTILINE)
+    assert boundary is not None
+    assert before[:boundary.start()].endswith(b"\n\n")
+    assert not before[:boundary.start()].endswith(b"\n\n\n")
+    body = _supersede("実 canonical の F196/F197 境界。")
+    _fragment(repo, "failures", _failure_body(supersedes=((196, body),)))
+    expected = _splice_exact(before, ((boundary.start() - 1, f"- {body}\n".encode()),))
+    assert _failures_after(repo) == expected
+
+
+def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) -> None:
+    """M3: 最終 F の offset は既存末尾 LF の後ろである。"""
+
+    repo = _copy_real_canonical_family(tmp_path)
+    before = (repo / "docs/failures.md").read_bytes()
+    headings = list(spool_fold.FAILURE_ID_RE.finditer(before.decode()))
+    assert headings and before.endswith(b"\n") and not before.endswith(b"\n\n")
+    assert spool_fold.FAILURE_ID_RE.search(before.decode(), headings[-1].end()) is None
+    number = int(headings[-1].group("number"))
+    body = _supersede("実 canonical の EOF 境界。")
+    _fragment(repo, "failures", _failure_body(supersedes=((number, body),)))
+    expected = _splice_exact(before, ((len(before), f"- {body}\n".encode()),))
+    assert _failures_after(repo) == expected
 
 
 def test_n11_existing_canonical_bytes_are_only_appended_or_inserted(tmp_path: Path) -> None:
@@ -1978,6 +2511,49 @@ def test_cli_dry_run_emits_json_without_writes(tmp_path: Path) -> None:
     }
     assert payload["status"] == "planned" and payload["targets"]
     assert payload["fold_date"] == "2026-08-02"
+    assert before == after
+    assert not spool_fold._state_path(repo).exists()
+
+
+def test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes(tmp_path: Path) -> None:
+    """CLI --dry-run: fold-time issue は rc=1 の JSON となり、canonical/state を変更しない。"""
+
+    repo = _repo(tmp_path)
+    _fragment(
+        repo,
+        "failures",
+        _failure_body(supersedes=((999, _supersede("CLI missing target")),)),
+    )
+    shutil.copy2(ROOT / "tools/spool_fold.py", repo / "tools/spool_fold.py")
+    before = {
+        path.relative_to(repo).as_posix(): path.read_bytes()
+        for path in sorted(repo.rglob("*"))
+        if path.is_file() and ".git" not in path.parts
+    }
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "tools/spool_fold.py"),
+            "--dry-run",
+            "--fold-date",
+            "2026-08-10",
+        ],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    payload = json.loads(completed.stderr)
+    after = {
+        path.relative_to(repo).as_posix(): path.read_bytes()
+        for path in sorted(repo.rglob("*"))
+        if path.is_file() and ".git" not in path.parts
+    }
+    assert completed.returncode == 1 and completed.stdout == ""
+    assert payload["status"] == "invalid"
+    assert [issue["code"] for issue in payload["issues"]] == [
+        "failure-supersede-missing"
+    ]
     assert before == after
     assert not spool_fold._state_path(repo).exists()
 

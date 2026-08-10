@@ -130,8 +130,10 @@ def _real_repo_serial_nodes() -> frozenset[str]:
     """conftest の正本を読む。pytest 不在の素の runner では検査を skip する。"""
     try:
         from orchestrator.tests.conftest import REAL_REPO_SERIAL_NODES
-    except ImportError as exc:  # pytest 不在 — conftest が import できない
-        skip(f"conftest を import できない ({exc})")
+    except ImportError as exc:
+        if exc.name == "pytest":
+            skip(f"pytest 不在のため conftest を import できない ({exc})")
+        raise
     return frozenset(REAL_REPO_SERIAL_NODES)
 
 

@@ -1,0 +1,25 @@
+{
+ "estimated_run_seconds": 180,
+ "hang_timeout_seconds": 1200,
+ "mutations": [
+  {
+   "category": "positive",
+   "expected_nodes": [
+    "orchestrator/tests/test_env_contract_activation.py::test_issue_main_accepts_65_env_plus_one_and_publishes",
+    "orchestrator/tests/test_env_contract_activation.py::test_loader_leaf_accepts_65_env_plus_one"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "OVERREJECT",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/env_contract_activation.py",
+     "new": "        if successor.generation != predecessor.generation:\n",
+     "old": "        if successor.generation != predecessor.generation + 1:\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 900
+}

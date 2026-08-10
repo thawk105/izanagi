@@ -12,7 +12,8 @@
         "effort": "high",
         "object_level": true,
         "payload": {
-          "schema": "object-level"
+          "model": "gpt-second",
+          "effort": "high"
         }
       }
     ]
@@ -30,7 +31,8 @@
         "effort": "max",
         "object_level": true,
         "payload": {
-          "schema": "object-level"
+          "model": "gpt-same",
+          "effort": "max"
         }
       }
     ]
