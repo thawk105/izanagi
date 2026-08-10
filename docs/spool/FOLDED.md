@@ -696,3 +696,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:acceptance-lease-waiter-merge-contract":"[T-732]"},"authored":"2026-08-10","content_sha256":"2c1c15e4f84e1d4b7eb69a32537ebb7dd9497f3f872c73c6c6428f5c6548d8af","seq":1,"wave":"dev-wave-t683-caller-closure"}
 - {"allocations":{"F:acceptance-lease-overtaken-while-queued":"F196"},"authored":"2026-08-10","content_sha256":"96c287c043ca741889af665c49470ae575021a5c84c5821eca1a525a934424bc","seq":2,"wave":"dev-wave-t683-caller-closure"}
+
+- {"allocations":{"T:certified-sink-gate":"[T-734]","T:enforcement-transitive-closure":"[T-733]","T:local-run-tmp-git-ancestor":"[T-736]","T:source-closure-wire-rename":"[T-735]"},"authored":"2026-08-10","content_sha256":"6c9f1ec00aa4f17ec4d82ee26f0dfcf33f2b85e29d0d0c1daa6de8a125413d16","seq":1,"wave":"dev-wave-t721-source-closure"}
+- {"allocations":{"D:enforcement-source-closure":"D268"},"authored":"2026-08-10","content_sha256":"30ef680599ddee8710abeada63b11fb32eb996010177904d1db064b326f9b858","seq":2,"wave":"dev-wave-t721-source-closure"}
+- {"allocations":{"F:acceptance-lease-starves-on-prefetch-merge":"F197"},"authored":"2026-08-10","content_sha256":"d6c4c1b0754b907f02d26107bd66eb915c20ffcb72b7094d975db6b372b11605","seq":3,"wave":"dev-wave-t721-source-closure"}
