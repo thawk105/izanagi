@@ -205,6 +205,28 @@ def _legacy_unframed_blob(root: Path, commit: str, path: str) -> bytes:
     return M._git(root, ["cat-file", "blob", tokens[0]])
 
 
+def _assert_tree_blob(root: Path, commit: str, path: str, expected: bytes) -> None:
+    """Tree の exact path が intended blob を指すことを直接確認する。"""
+    tree = subprocess.run(
+        ["git", "ls-tree", "-rz", "--full-tree", commit],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+        timeout=10,
+    ).stdout
+    expected_path = path.encode("utf-8")
+    for entry in tree.split(b"\0"):
+        metadata, separator, candidate_path = entry.partition(b"\t")
+        if separator and candidate_path == expected_path:
+            _, kind, object_id = metadata.split()
+            assert kind == b"blob"
+            actual = M._git(root, ["cat-file", "blob", object_id.decode("ascii")])
+            assert actual == expected
+            return
+    pytest.fail(f"controlled fixture path is absent from tree: {path!r}")
+
+
 def test_current_markdown_extracts_nine_fields_and_conditions_1_to_12() -> None:
     contract = M.parse_preregistration_markdown(
         (_ROOT / M.SOURCE_PATH).read_bytes()
@@ -1005,6 +1027,7 @@ def test_read_blob_at_rejects_embedded_path_control_chars(
     _write(root, candidate, intended_blob)
     head = _commit(root, "embedded control alias fixture")
 
+    _assert_tree_blob(root, head, candidate, intended_blob)
     assert candidate == candidate.strip()
     assert intended_blob != prefix_blob
     assert _legacy_unframed_blob(root, head, candidate) == prefix_blob
@@ -1012,6 +1035,46 @@ def test_read_blob_at_rejects_embedded_path_control_chars(
         M.read_blob_at(root, head, candidate)
     assert caught.value.reason == "path-control-char"
     assert str(caught.value) == "path-control-char"
+
+
+def test_read_blob_at_rejects_standalone_embedded_cr_as_policy(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    candidate = "alias-\r-target.txt"
+    intended_blob = b"standalone-embedded-cr-blob\n"
+    _write(root, candidate, intended_blob)
+    head = _commit(root, "standalone embedded CR fixture")
+
+    _assert_tree_blob(root, head, candidate, intended_blob)
+    assert candidate == candidate.strip()
+    assert _legacy_unframed_blob(root, head, candidate) == intended_blob
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.read_blob_at(root, head, candidate)
+    assert caught.value.reason == "path-control-char"
+    assert str(caught.value) == "path-control-char"
+
+
+def test_read_blob_at_uses_checked_text_without_str_subclass_format_hook(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    _write(root, "alias-target.txt", b"wrong-prefix-blob\n")
+    intended_path = "alias-target-controlled.txt"
+    intended_blob = b"intended-subclass-path-blob\n"
+    _write(root, intended_path, intended_blob)
+    head = _commit(root, "str subclass format hook fixture")
+
+    class FormattingPath(str):
+        format_calls = 0
+
+        def __format__(self, format_spec: str) -> str:
+            self.format_calls += 1
+            return "alias-target.txt\r"
+
+    candidate = FormattingPath(intended_path)
+    assert M.read_blob_at(root, head, candidate) == intended_blob
+    assert candidate.format_calls == 0
 
 
 def test_read_blob_at_rejects_control_chars_after_single_stringification(

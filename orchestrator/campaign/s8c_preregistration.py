@@ -960,7 +960,8 @@ def resolve_commit(repo_root: Path | str, commit: str = "HEAD") -> str:
 def read_blob_at(
     repo_root: Path | str, commit: str, path: str, *, required: bool = True
 ) -> Optional[bytes]:
-    text = path if isinstance(path, str) else str(path)
+    rendered = path if isinstance(path, str) else str(path)
+    text = "".join((rendered,))
     if "\r" in text or "\n" in text:
         raise PreregistrationError("path-control-char")
     root = Path(repo_root).resolve()
