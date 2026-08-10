@@ -53,7 +53,7 @@ sort 軸の授業料: 偵察 (D46) が LLM ループ実走 (iteration 1) の**�
 - **誰が・いつ**: 信頼中核 (メインセッション) が、段階 A で axis-proposer の入力を組み立てる
   直前に導出する。perf 計測は環境 runbook に従い計測ノードで行う (pegasus は
   `tools/pegasus/t141_region_profile.sh` が採取 job の前例。trace-disabled build に限る、規律 1)。
-- **どう**: `python3 -m campaign.profiler_directive derive --report <srcline report> \
+- **どう**: `python3 -m orchestrator.campaign.profiler_directive derive --report <srcline report> \
   --source-root <計測時の ccbench ソース root> --regions-from <N1 provenance JSON>`。
   regions は正規の N1 provenance (`output/insights/2026-07-10_s8a-n1-provenance.json`) から
   読むこと (--region の直接指定はテスト・アドホック用)。人間発のヒントは `declare` で

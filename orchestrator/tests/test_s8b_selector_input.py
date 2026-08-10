@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 
-from campaign import s8b_descriptor, s8b_holdout_freeze, s8b_selector_input  # noqa: E402
+from orchestrator.campaign import s8b_descriptor, s8b_holdout_freeze, s8b_selector_input  # noqa: E402
 
 
 FREEZE_PATH = _HERE.parents[1] / "output/s8b-freeze/holdout_freeze.json"

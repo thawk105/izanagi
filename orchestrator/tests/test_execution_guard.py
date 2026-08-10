@@ -22,13 +22,13 @@ from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 sys.path.insert(0, _HERE)
 
-from calibrator import schema_v2 as sv2  # noqa: E402
-from campaign import env_attestation as ea  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign import execution_guard as eg  # noqa: E402
+from orchestrator.calibrator import schema_v2 as sv2  # noqa: E402
+from orchestrator.campaign import env_attestation as ea  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import execution_guard as eg  # noqa: E402
 from test_schema_v2 import _valid_document  # noqa: E402
 
 

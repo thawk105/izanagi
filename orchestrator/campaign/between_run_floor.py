@@ -32,19 +32,23 @@ from __future__ import annotations
 import json
 import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from calibrator.analyze import noise_floor                       # noqa: E402
-from calibrator.runner import measure_point                      # noqa: E402
-from calibrator.stability import between_run_noise_floor        # noqa: E402
-from campaign import buildcache, pin, source_digest              # noqa: E402
-from campaign.build_admission import (GeneratorId, build_run_context,  # noqa: E402
+from ..calibrator.analyze import noise_floor                       # noqa: E402
+from ..calibrator.runner import measure_point                      # noqa: E402
+from ..calibrator.stability import between_run_noise_floor        # noqa: E402
+from . import buildcache, pin, source_digest              # noqa: E402
+from .build_admission import (GeneratorId, build_run_context,  # noqa: E402
                                       derive_build_admission)
-from campaign.layout import env_scope_dir                    # noqa: E402
-from campaign.model import Genome                                # noqa: E402
-from campaign.p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
+from .layout import env_scope_dir                    # noqa: E402
+from .model import Genome                                # noqa: E402
+from .p2_2 import (CLK, ENV_TAG, EXTIME,                 # noqa: E402
                            NUMA, RECORDS, THREADS, _assert_single_tenant)
+
 
 CCBENCH_COMMIT = pin.CURRENT_PIN   # docstring「pin の注記」参照 (2026-07-11)
 

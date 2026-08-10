@@ -34,24 +34,28 @@ import argparse
 import os
 import shutil
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import env_contract, ident, pipeline, wal            # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign # noqa: E402
-from campaign.build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
+from . import env_contract, ident, pipeline, wal            # noqa: E402
+from .artifact_admission import require_admitted_campaign # noqa: E402
+from .build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.layout import exploration_campaign_layout            # noqa: E402
-from campaign.loop import run_campaign                             # noqa: E402
-from campaign.model import CampaignConfig, Genome                  # noqa: E402
-from campaign.p2_2 import _assert_single_tenant                    # noqa: E402
-from campaign.patchharness import applied, assert_pinned_clean     # noqa: E402
-from campaign.pipeline import PerfConfig                           # noqa: E402
-from campaign.p3_s4_loop import make_critic_identity_projection    # noqa: E402
-from critic.digest import (Rejection, load_liveness_rejections,    # noqa: E402
+from .layout import exploration_campaign_layout            # noqa: E402
+from .loop import run_campaign                             # noqa: E402
+from .model import CampaignConfig, Genome                  # noqa: E402
+from .p2_2 import _assert_single_tenant                    # noqa: E402
+from .patchharness import applied, assert_pinned_clean     # noqa: E402
+from .pipeline import PerfConfig                           # noqa: E402
+from .p3_s4_loop import make_critic_identity_projection    # noqa: E402
+from ..critic.digest import (Rejection, load_liveness_rejections,    # noqa: E402
                            load_rejections, load_verify_abort_signals,
                            render_rejections)
+
 
 PIN = "dff0f1e"
 ENV_TAG = "linux-baremetal"

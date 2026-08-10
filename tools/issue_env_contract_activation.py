@@ -158,11 +158,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # Authority import/load は argparse が入力を受理した後に限る。
     repo_root = Path(__file__).resolve().parents[1]
-    orchestrator_root = repo_root / "orchestrator"
-    if str(orchestrator_root) not in sys.path:
-        sys.path.insert(0, str(orchestrator_root))
-    from campaign import env_contract as contract
-    from campaign import env_contract_activation as activation
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from orchestrator.campaign import env_contract as contract
+    from orchestrator.campaign import env_contract_activation as activation
 
     assignments: dict[str, int] = {}
     for env_tag, generation in args.active:

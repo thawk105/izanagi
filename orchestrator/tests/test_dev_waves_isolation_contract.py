@@ -21,7 +21,7 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 _REPO_ROOT = _ORCHESTRATOR.parent
-for _path in (str(_HERE), str(_ORCHESTRATOR), str(_REPO_ROOT)):
+for _path in (str(_HERE), str(_REPO_ROOT)):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 

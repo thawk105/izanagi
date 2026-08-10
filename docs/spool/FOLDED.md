@@ -724,3 +724,17 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"879632ecf64347ab0c2bac75dc005814cb2fa731670586bb1a6fa8f0c33fa554","seq":3,"wave":"dev-wave-t657-permanent-bundle-design"}
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"a8b728430377d9a540619e9cbb17234b05c2aab1beacece6be4b2f77e03261d1","seq":37,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dual-namespace-permanent-policy":"[T-744]","T:import-scan-non-source-artifacts":"[T-745]","T:t720-untracked-campaign-residue":"[T-746]"},"authored":"2026-08-10","content_sha256":"0491ac2f3fe3e69ea572ab6cc5ce9433a8295c296709da05d70080cd43b00ab2","seq":1,"wave":"dev-wave-t720-import-unify"}
+- {"allocations":{"F:mutation-found-what-review-missed":"F199","F:parent-ruling-broke-under-measurement":"F201","F:secondary-fanout-missed-in-scope":"F200"},"authored":"2026-08-10","content_sha256":"9fe7d314d8e899dc0d4e43d97a1453bbda95736d765d84d3ecace076b5b8aba5","seq":2,"wave":"dev-wave-t720-import-unify"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"366815694db051a27b38084a10a8b059299e18a2ee4f277585da2b0288eeca99","seq":38,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"41827a52a54ec81edf3e323957c4fe6a8d623a833c74e01e3370a5fc6e9ea71f","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
+- {"allocations":{"F:codex-child-oom-under-shared-user-cap":"F202"},"authored":"2026-08-10","content_sha256":"809a17a45a301ef1250e8528d8d09d759195db1f59ae7afcdd62253a1d861718","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
+
+- {"allocations":{"T:s8b-floor-toolchain-binding":"[T-747]","T:s8b-legacy-verify-cli-supersede":"[T-749]","T:s8b-restart-order-vs-generation":"[T-748]","T:s8b-v2-producer-and-manifest-wiring":"[T-750]"},"authored":"2026-08-10","content_sha256":"4815518b3203f106a018dcd12e109954f7dad774170fafded2193af25c6e3261","seq":1,"wave":"dev-wave-t8b-reopen-inspection"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"ef6aa8e3d0bfa277d1b4ffd41e65078779237887f435f627dfc6a12db2248a70","seq":39,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"3b60930af22d7ef5f32818ed5bd5eb17ef7b9dc7db86b2f80f32f9c09d52460d","seq":40,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"3b0f46e7a810f14b9403f9bba09635a3121bc6b489f5533ea471c377b509e1d0","seq":41,"wave":"rulings-20260806-a"}

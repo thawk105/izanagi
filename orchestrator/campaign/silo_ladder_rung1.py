@@ -18,7 +18,6 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import random
 import re
 import secrets
@@ -30,15 +29,17 @@ import sys
 import tempfile
 import time
 from typing import Any, Iterable, Mapping, Sequence
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _IMPORT_ROOT = Path(__file__).resolve().parents[2]
 _ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
-for _root in (_IMPORT_ROOT, _ORCHESTRATOR_ROOT):
-    if str(_root) not in sys.path:
-        sys.path.insert(0, str(_root))
 
-from campaign import env_attestation, env_contract, execution_guard, patchharness
-from campaign import silo_ladder_rung1_contract as patch_contract
+from . import env_attestation, env_contract, execution_guard, patchharness
+from . import silo_ladder_rung1_contract as patch_contract
 
 
 SCHEMA_VERSION = "silo_ladder_rung1/v1"

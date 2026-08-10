@@ -14,17 +14,17 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
-_ORCHESTRATOR = Path(__file__).resolve().parents[1]
-if str(_ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.qualification"
 
-from qualification.contract import (  # noqa: E402
+from .contract import (  # noqa: E402
     REGISTERED_DEPENDENCY_BUILD_ARGV,
     canonical_json_bytes,
     load_protocol,
     series_identity,
 )
-from qualification.t126_driver import build_series_preimage  # noqa: E402
+from .t126_driver import build_series_preimage  # noqa: E402
 
 
 class SubmissionPreparationError(RuntimeError):

@@ -21,20 +21,20 @@ import pytest
 TESTS = Path(__file__).resolve().parent
 ORCH = TESTS.parent
 sys.path.insert(0, str(TESTS))
-sys.path.insert(0, str(ORCH))
+sys.path.insert(0, str(ORCH.parent))
 
-from campaign import axis_trigger_gating, env_contract, pipeline, wal  # noqa: E402
-from campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
+from orchestrator.campaign import axis_trigger_gating, env_contract, pipeline, wal  # noqa: E402
+from orchestrator.campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.layout import CampaignLayout  # noqa: E402
-from campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: E402
-from campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
-from campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256, STOCK,  # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
+from orchestrator.campaign.model import Genome, STAGE_BUILD_START, STAGE_S1_SESSION  # noqa: E402
+from orchestrator.campaign.pipeline import EvalResult, PerfConfig  # noqa: E402
+from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256, STOCK,  # noqa: E402
                                     SourceEvidence)
-from campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
-from campaign import s1_direct_comparison as S  # noqa: E402
-from campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
+from orchestrator.campaign import s1_direct_comparison as S  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 from s1_expected_goldens import (  # noqa: E402
     EXPECTED_GATES,
     EXPECTED_IDENT_ALL_PREDICATE,
@@ -258,7 +258,7 @@ def _green(genome, *args, **kwargs):
 
 
 def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
-    from campaign.s1_measurement_freeze import FreezeError
+    from orchestrator.campaign.s1_measurement_freeze import FreezeError
 
     calls = []
 
@@ -276,7 +276,7 @@ def test_modified_freeze_is_refused_before_campaign_start(tmp_path):
 
 def test_receipt_exists_but_direct_comparison_loader_stays_legacy_strict(
         tmp_path, monkeypatch):
-    from campaign.s1_measurement_freeze import FreezeError
+    from orchestrator.campaign.s1_measurement_freeze import FreezeError
 
     receipt = tmp_path / T080.RECEIPT_REL
     receipt.parent.mkdir(parents=True)
@@ -315,8 +315,8 @@ def test_direct_comparison_production_module_does_not_import_t080_adapter():
 
 def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch):
     """固定値は flag だけで選び、backoff EVOLVE-BLOCK を置換しない。"""
-    from campaign import patchharness
-    from campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import patchharness
+    from orchestrator.campaign import p3_s4_loop as loop_axis
 
     worktree = tmp_path / "worktree"
     include = worktree / "include"
@@ -354,7 +354,7 @@ def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch
 
 
 def test_prepare_backoff_fixed_best_refuses_flag_value_mismatch(tmp_path, monkeypatch):
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     worktree = tmp_path / "worktree"
     monkeypatch.setattr(patchharness, "checkout", lambda *args, **kwargs: _fixture_checkout(worktree))
@@ -370,8 +370,8 @@ def test_prepare_backoff_fixed_best_refuses_flag_value_mismatch(tmp_path, monkey
 
 def _capture_prepare_quarantine(
         tmp_path, monkeypatch, cell, implementation_key):
-    from campaign import patchharness
-    from campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import patchharness
+    from orchestrator.campaign import p3_s4_loop as loop_axis
 
     expected = copy.deepcopy(cell)
     worktree = tmp_path / "worktree"
@@ -438,8 +438,8 @@ def test_prepare_configuration_allowlist_is_fixed_six():
 @pytest.mark.parametrize("configuration", ["stock_common", "p2_2_flag_opt"])
 def test_prepare_flags_only_configurations_do_not_patch_or_quarantine(
         tmp_path, monkeypatch, configuration):
-    from campaign import patchharness
-    from campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import patchharness
+    from orchestrator.campaign import p3_s4_loop as loop_axis
 
     worktree = tmp_path / "worktree"
     monkeypatch.setattr(
@@ -470,7 +470,7 @@ def test_prepare_flags_only_configurations_do_not_patch_or_quarantine(
 )
 def test_prepare_rejects_multiple_unknown_configurations_before_checkout(
         monkeypatch, configuration):
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(
         patchharness, "checkout",
@@ -488,7 +488,7 @@ def test_prepare_rejects_multiple_unknown_configurations_before_checkout(
 
 def test_prepare_rejects_configuration_added_only_to_producer_domain(
         monkeypatch):
-    from campaign import patchharness, s1_measurement_freeze
+    from orchestrator.campaign import patchharness, s1_measurement_freeze
 
     added = "future_configuration"
     monkeypatch.setattr(
@@ -511,7 +511,7 @@ def test_prepare_rejects_configuration_added_only_to_producer_domain(
 
 def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(
         monkeypatch):
-    from campaign import patchharness, s1_measurement_freeze
+    from orchestrator.campaign import patchharness, s1_measurement_freeze
 
     added = "future_configuration"
     monkeypatch.setattr(
@@ -525,7 +525,7 @@ def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(
             "producer 追加値を checkout してはならない"
         ),
     )
-    module_name = "campaign._s1_direct_comparison_producer_independence_test"
+    module_name = "orchestrator.campaign._s1_direct_comparison_producer_independence_test"
     spec = importlib.util.spec_from_file_location(module_name, S.__file__)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -550,7 +550,7 @@ def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(
 
 
 def test_real_source_digest_unifies_all_outer_whitespace_tokens(tmp_path):
-    from campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import p3_s4_loop as loop_axis
 
     _require_g13()
     sub, head = _fake_ccbench_repo(tmp_path / "fake-ccbench")
@@ -632,8 +632,8 @@ def test_prepare_accepts_six_frozen_gate_predicates(
 
 
 def test_prepare_rejects_noncanonical_freeze_predicate(tmp_path, monkeypatch):
-    from campaign import patchharness
-    from campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import patchharness
+    from orchestrator.campaign import p3_s4_loop as loop_axis
 
     predicate = "izanagi_gate_pass = true;"
     worktree = tmp_path / "worktree"
@@ -666,7 +666,7 @@ def test_prepare_rejects_noncanonical_freeze_predicate(tmp_path, monkeypatch):
 
 def test_prepare_rejects_noncanonical_predicate_with_real_quarantine(
         tmp_path, monkeypatch):
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     predicate = "izanagi_gate_pass = true;"
     worktree = tmp_path / "worktree"
@@ -711,7 +711,7 @@ def test_prepare_rejects_noncanonical_predicate_with_real_quarantine(
 )
 def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
         tmp_path, monkeypatch, comparator):
-    from campaign import p3_s4_loop_sort as sort_axis
+    from orchestrator.campaign import p3_s4_loop_sort as sort_axis
 
     cell = {
         "configuration": "sort_best",
@@ -755,7 +755,7 @@ def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
 )
 def test_prepare_system_gate_passes_predicate_verbatim_to_quarantine(
         tmp_path, monkeypatch, predicate):
-    from campaign import axis_trigger_gating as gate_axis
+    from orchestrator.campaign import axis_trigger_gating as gate_axis
 
     cell = {
         "configuration": "system_gate",
@@ -799,7 +799,7 @@ def test_prepare_system_gate_passes_predicate_verbatim_to_quarantine(
 )
 def test_prepare_ident_all_passes_predicate_verbatim_to_quarantine(
         tmp_path, monkeypatch, predicate):
-    from campaign import axis_trigger_gating as gate_axis
+    from orchestrator.campaign import axis_trigger_gating as gate_axis
 
     cell = {
         "configuration": "ident_all",

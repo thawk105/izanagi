@@ -30,6 +30,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, Protocol, Sequence
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
 
 SOURCE_PATH = "docs/phase3-8c-preregistration.md"
 FREEZE_DIR = "output/s8c-preregistration/condition-freeze"
@@ -1501,19 +1505,15 @@ def _default_registry_results(root: Path, commit: str, module_blob: Optional[byt
     if module_blob is None:
         return _undefined_predicates("evaluator-module-absent-at-commit")
     module = None
-    for name in (
-        "orchestrator.campaign.s8c_preregistration_evidence",
-        "campaign.s8c_preregistration_evidence",
-    ):
-        try:
-            module = importlib.import_module(name)
-            break
-        except ModuleNotFoundError as exc:
-            if exc.name not in {name, name.split(".")[0]}:
-                return tuple(
-                    PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-import-error", ())
-                    for identifier in PREDICATE_IDS
-                )
+    name = "orchestrator.campaign.s8c_preregistration_evidence"
+    try:
+        module = importlib.import_module(name)
+    except ModuleNotFoundError as exc:
+        if exc.name not in {name, name.split(".")[0]}:
+            return tuple(
+                PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-import-error", ())
+                for identifier in PREDICATE_IDS
+            )
     if module is None:
         return _undefined_predicates("evaluator-module-unavailable")
     module_file = getattr(module, "__file__", None)

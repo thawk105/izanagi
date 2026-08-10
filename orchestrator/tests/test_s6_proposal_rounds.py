@@ -19,10 +19,10 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import s6_proposal_rounds as M  # noqa: E402
-from campaign import source_digest  # noqa: E402
+from orchestrator.campaign import s6_proposal_rounds as M  # noqa: E402
+from orchestrator.campaign import source_digest  # noqa: E402
 
 
 def _proposal(**over):

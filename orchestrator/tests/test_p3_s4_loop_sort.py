@@ -18,18 +18,18 @@ import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import ident, p3_s4_loop as L                         # noqa: E402
-from campaign import p3_s4_loop_sort as S                           # noqa: E402
-from campaign import wal                                            # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign   # noqa: E402
-from campaign.diff_quarantine import DiffRejectSubtype              # noqa: E402
-from campaign.layout import CampaignLayout                          # noqa: E402
-from campaign.model import Genome                                   # noqa: E402
-from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
-from critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
+from orchestrator.campaign import ident, p3_s4_loop as L                         # noqa: E402
+from orchestrator.campaign import p3_s4_loop_sort as S                           # noqa: E402
+from orchestrator.campaign import wal                                            # noqa: E402
+from orchestrator.campaign.artifact_admission import require_admitted_campaign   # noqa: E402
+from orchestrator.campaign.diff_quarantine import DiffRejectSubtype              # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                          # noqa: E402
+from orchestrator.campaign.model import Genome                                   # noqa: E402
+from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
+from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
+from orchestrator.critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (sort marker) を写した fixture。silo-sort-variant.patch
@@ -207,7 +207,7 @@ def test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_su
 def test_render_rejections_uses_auditor_hint_for_auditor_subtypes():
     """render_rejections が auditor-* subtype には diff-quarantine 用の読み方でなく
     auditor 専用の読み方ヒントを出す (critic.digest の微修正、敵対レビュー 2026-07-10)。"""
-    from critic.digest import render_rejections
+    from orchestrator.critic.digest import render_rejections
     d = _mk_template_dir()
     digest = _digest_for(d)
     auditor = S.AuditorVerdict(verdict="reject", diff_digest=digest, violations=[{"type": 15}])
@@ -390,7 +390,7 @@ def test_drive_iteration_recovers_real_wal_start_before_entry_stop():
 def test_inner_run_recovers_reject_start_before_writing_retry_start():
     import contextlib
     from unittest import mock
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     lay = _tmp_layout("inner-reject-recovery")
     cfg, perf = S.default_cfg(), S.default_perf()
@@ -433,7 +433,7 @@ def test_drive_iteration_checkpoint_survives_across_calls():
     """fresh reject が identity を確立し、次候補の public drive が resume できる。"""
     import contextlib
     from unittest import mock
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     sub = _mk_template_dir()
     lay = _tmp_layout("drivereject")

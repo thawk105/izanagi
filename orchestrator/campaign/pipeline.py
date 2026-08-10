@@ -23,15 +23,11 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-import sys as _sys
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_sys.path.insert(0, os.path.dirname(_HERE))   # orchestrator/ を import パスに
-
-from calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
+from ..calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
                                competing_bench_pids, measure_point, settle)
-from calibrator.stability import remeasure_until_stable         # noqa: E402
-from verifier import result_to_dict, verify_trace_dir          # noqa: E402
-from verifier.parse import ParseError                           # noqa: E402
+from ..calibrator.stability import remeasure_until_stable         # noqa: E402
+from ..verifier import result_to_dict, verify_trace_dir          # noqa: E402
+from ..verifier.parse import ParseError                           # noqa: E402
 
 from . import (buildcache, env_contract as _env_contract, execution_guard, ident,
                source_digest, wal)  # noqa: E402
@@ -162,7 +158,7 @@ class QualificationPipelinePolicy:
     def __init__(self, *, _token: object, event_sink: object):
         if _token is not _QUALIFICATION_POLICY_TOKEN:
             raise TypeError("use QualificationPipelinePolicy.t126_pegasus()")
-        from qualification.artifacts import QualificationEventSink
+        from ..qualification.artifacts import QualificationEventSink
         if type(event_sink) is not QualificationEventSink:
             raise TypeError(
                 "qualification event_sink must be exact QualificationEventSink")

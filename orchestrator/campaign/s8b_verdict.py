@@ -61,54 +61,31 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Optional
 
-_ORCHESTRATOR_FOR_IMPORT = Path(__file__).resolve().parents[1]
-if str(_ORCHESTRATOR_FOR_IMPORT) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR_FOR_IMPORT))
-
-from campaign import s8b_oracle_artifacts as _artifacts  # noqa: E402
-
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
-    if str(_ROOT_FOR_IMPORT) not in sys.path:
-        sys.path.insert(0, str(_ROOT_FOR_IMPORT))
-    from orchestrator.campaign.s8b_freeze_io import (
-        FreezeIOError,
-        load_verified_freeze,
-    )
-    from orchestrator.campaign.s8b_oracle_manifest import (
-        STOCK_CONFIGURATION,
-        ManifestError,
-        _validate_execution_snapshot,
-    )
-    from orchestrator.campaign.s8b_selector_freeze import (
-        ROOT,
-        SelectorFreezeError,
-        verify_prediction_freeze,
-    )
-    from orchestrator.campaign.s8b_selector_input import (
-        CHOICE_TO_BINDING,
-        STATIC_DEFAULT_CHOICE_ID,
-        SelectorInputError,
-    )
-    from orchestrator.campaign.s8b_descriptor import DescriptorError
-else:
-    from .s8b_freeze_io import FreezeIOError, load_verified_freeze
-    from .s8b_oracle_manifest import (
-        STOCK_CONFIGURATION,
-        ManifestError,
-        _validate_execution_snapshot,
-    )
-    from .s8b_selector_freeze import (
-        ROOT,
-        SelectorFreezeError,
-        verify_prediction_freeze,
-    )
-    from .s8b_selector_input import (
-        CHOICE_TO_BINDING,
-        STATIC_DEFAULT_CHOICE_ID,
-        SelectorInputError,
-    )
-    from .s8b_descriptor import DescriptorError
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from .s8b_freeze_io import FreezeIOError, load_verified_freeze
+from .s8b_oracle_manifest import (
+    STOCK_CONFIGURATION,
+    ManifestError,
+    _validate_execution_snapshot,
+)
+from .s8b_selector_freeze import (
+    ROOT,
+    SelectorFreezeError,
+    verify_prediction_freeze,
+)
+from .s8b_selector_input import (
+    CHOICE_TO_BINDING,
+    STATIC_DEFAULT_CHOICE_ID,
+    SelectorInputError,
+)
+from .s8b_descriptor import DescriptorError
+
+
+from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
+
 
 
 # schema v2: per-pair floor / scale gate / protocol_violations の導入で出力形が
