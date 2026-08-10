@@ -49,6 +49,12 @@ title: cleanup-branches command の住所 (address edge) を構造 lint で塞�
 - **codex 子は 2 回とも pytest を実走できなかった。**login の headroom 不足 (約 1.73 GB /
   user slice 約 12.5 GiB 使用) と sandbox 内の `qstat` 不通で rc=16。子は正直に
   「実装済み・未実走」と申告し、親が `--force-dispatch` で計算ノードへ投げて実測した。
+- **段 8 の改善候補 1 件は byte 予算に阻まれ、裁定へ返した。**候補は `DW-M08` への 1 文
+  「期待 node と記録 node は集合の完全一致で判定するので、runner の test 集合を変異の影響範囲へ
+  絞る」。実測すると `docs/dev-wave/**` の L1.5 unique footprint が 9688 bytes となり予算 9566 を
+  122 bytes 超える (追記は 134 bytes、超過前の実測余白は 12 bytes)。**byte を捻出するために
+  既存の義務を削るのは F173 そのものなので行わず、追記を撤回した。**この規律は本 wave が
+  塞いだ穴の当事者そのものである。→ {{T:mutation-expected-node-scope-doc}}
 - 受入全走: **未実走** (本 fragment を含む最終 tip で走らせ、結果は後続の docs commit で確定する)。
 
 ## 次の一手差分
@@ -67,6 +73,11 @@ title: cleanup-branches command の住所 (address edge) を構造 lint で塞�
   いずれからも呼ばれず、land も fold 経路でしか呼ばない。あわせて、Markdown の意味解釈を要する
   偽 edge (inline hidden HTML、4-space indented code block、link definition の quoted title、
   打ち消し線、否定形 prose) を塞ぐかどうかも裁定する。`DW-G03` の独立 2 例が揃うまでは却下が既定。
+- {{T:mutation-expected-node-scope-doc}} **P3・新規 (本エントリ、段 8 自己改善)**:
+  `DW-M08` へ「期待 node と記録 node は集合の完全一致で判定するので、runner の test 集合を変異の
+  影響範囲へ絞る」を足すかを裁定する。134 bytes の追記に対し `docs/dev-wave/**` の L1.5 余白は
+  12 bytes しかない。予算のために既存の義務を削る道は取らない。予算値の引き上げは
+  `docs/skill-self-improvement.md` により独立審査対象である。
 
 ### 見送り追記
 
