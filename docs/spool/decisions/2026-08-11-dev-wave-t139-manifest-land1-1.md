@@ -74,6 +74,24 @@ tools/dev_wave_land.py を通り同一 land lock 下で取り込まれた予約�
 権威台帳外の投入、履歴を共有しない writer、同一権限の非協調 writer、canonical main の外で
 作られた競合予約は保証しない。
 """
+
+alpha_reservation:
+  ledger_path              = output/registry/t139-alpha-reservations.jsonl
+  family_root              = dce4ae4fed6f4fb33747165c5b92c16d01822850
+  ordinal                  = 1
+  entry_canonical_bytes    = {"family_root":"dce4ae4fed6f4fb33747165c5b92c16d01822850","kind":"alpha_reservation","ordinal":1,"schema_version":"t139-alpha-reservation/v1"}
+  reservation_entry_sha256 = 52ba3d2c86f7554d78433a1dec4f3364f1db2b8dd1e6aa0360f4428f93127cf3
+  ledger_blob_sha256       = 38968a7b248af2bce089edc2e37024cb9b1fbe21fc20edb7914d82600579dc65
+  entry_serialization      = UTF-8 の RFC 8259 JSON object。key は Unicode code point 昇順、
+                             separators は "," と ":"、挿入空白なし、行内に LF を含まない。
+                             行は末尾 LF で終端し、reservation_entry_sha256 はその LF を含まない
+                             142 bytes に対する SHA-256 である。ledger_blob_sha256 は LF を含む
+                             file 全体 (143 bytes) の SHA-256 である。
+  ledger_introduction      = 本 payload を fold する land と同一 land lock 内で exact 1 回。
+                             mode は regular (100644)。以後は append-only であり、既存行の編集・
+                             削除・並べ替え・rename/copy・delete-and-recreate を拒否する
+  reservation_commit       = pin しない。record-items-v2.md §6.7 (7) に従い validator が
+                             「当該行が初めて出現した commit」として全履歴から再導出する
 ```
 
 **理由:**
@@ -95,6 +113,19 @@ tools/dev_wave_land.py を通り同一 land lock 下で取り込まれた予約�
 - **受領証 schema は JSON Schema draft-07 で発行する。** 実行環境の `jsonschema` は 3.2.0 で
   2020-12 の validator を持たず、repo の既存受領証 schema も draft-07 + `definitions` 形式である。
   dialect を実装に合わせないと、承認した schema をその時点の engine で検査できない。
+- **`a13` の予約 entry を本 payload と同じ land へ同梱する** (ユーザー裁定 S5 (a)、2026-08-11)。
+  予約は pilot 投入より前に canonical 台帳へ入っている必要があり、受領証は pilot の後に入る。
+  land は tested tip を一度だけ ff/fold するため、予約を land 2 に置くと時系列が閉じない。
+  予約 entry は data であって gate ではなく、land lock の内側で取り込まれるので `a13` の
+  「producer が選べない canonical な台帳で原子的に」を満たす。
+- **予約 entry の台帳 path・行の canonical bytes・serialization は本 payload が新たに閉じた。**
+  `record-items-v2.md` §6.7 は validator が行う検査 (append-only 全履歴走査、canonical bytes 照合、
+  `(family_root, ordinal)` の全履歴一意性) を定めるが、**台帳 path・行の key 集合・serialization
+  規則を literal では定めていない**。定めないと 2 実装が同じ予約から別 digest を出し、
+  `reservation_entry_sha256` を独立再導出できない。`family_root` は本 study の族を定義する
+  事前登録承認の fold commit `F_e` を採る (`F_e` は canonical main の祖先であり、§6.7 (2) の
+  全世代走査の起点として使える)。**台帳は append-only で導入も exact 1 回であるため、
+  この 1 行は事実上不可逆である。**
 - **本 payload は resolver が機械的に読める形で書く。** manifest だけを trust root にすると、
   `approval_fold_commit` を保った偽 manifest が自分の宣言値で自己整合する。台帳 → manifest の
   第 1 矢印を resolver の必須検査に含める。
