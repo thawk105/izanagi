@@ -1,0 +1,59 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/addendum_envelope.py",
+          "old": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n    }\n)",
+          "new": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n    }\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/addendum_envelope.py",
+          "old": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n    }\n)",
+          "new": "T139_EXACT_FIELDS = frozenset(\n    {\n        \"a01\",\n        \"a02\",\n        \"a03\",\n        \"a04\",\n        \"a05\",\n        \"a06\",\n        \"a07\",\n        \"a08\",\n        \"a09\",\n        \"a10\",\n        \"a11\",\n        \"a12\",\n        \"a13\",\n        \"a14\",\n    }\n)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/addendum_envelope.py",
+          "old": "    for line in lines:\n        if fence_character is not None:",
+          "new": "    for line in lines:\n        if \"`\" in line:\n            visible.append(False)\n            if fence_character is None:\n                fence_character = \"`\"\n                fence_width = 1\n            else:\n                fence_character = None\n                fence_width = 0\n            continue\n        if fence_character is not None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
