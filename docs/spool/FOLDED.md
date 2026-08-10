@@ -760,3 +760,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:ident-activation-transition-pin":"[T-762]","T:issuer-test-syspath-restore":"[T-764]","T:loader-layer-semantic-kill":"[T-763]"},"authored":"2026-08-11","content_sha256":"99160070130fccb08a124d2a83e30d6f3e28ee20985f176265c84450cc0878eb","seq":1,"wave":"dev-wave-t737-rebuild"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"f3efe767a9e2d7159943b8d415c9592cb9a0f4b736e25101433a43391ed71897","seq":2,"wave":"dev-wave-t737-rebuild"}
+
+- {"allocations":{"T:dw-s04-zero-diff-exemption":"[T-765]"},"authored":"2026-08-11","content_sha256":"0e4ac88a7b7cd2b218ec6fc79ce761306b0c7c1da933328a7d947930c02b3061","seq":1,"wave":"dev-wave-t139-publication-core"}
