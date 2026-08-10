@@ -13,10 +13,10 @@ import jsonschema
 import pytest
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 sys.path.insert(0, str(_HERE.parents[1] / "tools"))
 
-from campaign import s8b_selector_output  # noqa: E402
+from orchestrator.campaign import s8b_selector_output  # noqa: E402
 import check_docs  # noqa: E402
 
 

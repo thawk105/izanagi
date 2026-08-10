@@ -26,34 +26,34 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
-from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
-from campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
-from campaign import site_policy                                    # noqa: E402
-from campaign import wal                                            # noqa: E402
-from campaign.artifact_admission import (                           # noqa: E402
+from orchestrator.campaign import env_contract, execution_guard, ident, p3_s4_loop as L  # noqa: E402
+from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
+from orchestrator.campaign import p3_s4_loop_trigger_gating as T                 # noqa: E402
+from orchestrator.campaign import site_policy                                    # noqa: E402
+from orchestrator.campaign import wal                                            # noqa: E402
+from orchestrator.campaign.artifact_admission import (                           # noqa: E402
     ArtifactAdmissionError,
     require_admitted_campaign,
 )
-from campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
+from orchestrator.campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
                                     auditor_reject_result,
                                     parse_auditor_dict)
-from campaign.build_admission import (GeneratorId, add_coder_build_authority_argument,  # noqa: E402
+from orchestrator.campaign.build_admission import (GeneratorId, add_coder_build_authority_argument,  # noqa: E402
                                       build_run_context)
-from campaign.layout import CampaignLayout                          # noqa: E402
-from campaign.model import CampaignConfig, Genome                  # noqa: E402
-from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
-from campaign.projection_guard import (                              # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                          # noqa: E402
+from orchestrator.campaign.model import CampaignConfig, Genome                  # noqa: E402
+from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY               # noqa: E402
+from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
+from orchestrator.campaign.projection_guard import (                              # noqa: E402
     CODER_CONTRACT_IMPLEMENTATION,
     CODER_CONTRACT_TRIGGER_WIRE,
     assert_closed_proposal_schema,
 )
-from campaign.reflux_ir import (RefluxIRError, TriggerGateIR,        # noqa: E402
+from orchestrator.campaign.reflux_ir import (RefluxIRError, TriggerGateIR,        # noqa: E402
                                 emit_predicate, encode_wire, parse_wire)
-from campaign.trigger_gate_binding import (                          # noqa: E402
+from orchestrator.campaign.trigger_gate_binding import (                          # noqa: E402
     SCHEMA_VERSION as TRIGGER_GATE_BINDING_SCHEMA,
     WAL_RECORD_STAGE as TRIGGER_GATE_BINDING_WAL_STAGE,
     TriggerGateBinding,
@@ -160,7 +160,7 @@ def _digest_for(d: str, wire: str = _CLEAN_WIRE) -> str:
     predicate = emit_predicate(parse_wire(wire))
     _res, _b, _e, working_diff = L.quarantine(d, predicate, marker_id=T.MARKER_ID,
                                               source_rel=_SRC_REL, write=False)
-    from campaign.auditor_gate import compute_diff_digest
+    from orchestrator.campaign.auditor_gate import compute_diff_digest
     return compute_diff_digest(working_diff)
 
 
@@ -390,7 +390,7 @@ def _measurement_case(
 ):
     """clean proposal を run_campaign 直前まで進める一時 layout の case。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     sub = _mk_template_dir()
     lay = _tmp_layout("measurement")
@@ -444,7 +444,7 @@ def _reject_case(monkeypatch, *, site, wire=_CLEAN_WIRE,
                  lookup=env_contract.lookup):
     """正準 wire の auditor reject を sink まで進める一時 layout の case。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     sub = _mk_template_dir()
     lay = _tmp_layout("reject")
@@ -675,7 +675,7 @@ def test_fixture_cli_uses_authoritative_layout_and_preserves_legacy_bytes(
     tmp_path, monkeypatch,
 ):
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     legacy = CampaignLayout(str(tmp_path / "legacy")).ensure()
     legacy_digest = os.path.join(legacy.root, T.DIGEST_BASENAME)
@@ -747,7 +747,7 @@ def test_fixture_no_build_cli_fresh_layout_uses_provenance_without_digest_mock(
     tmp_path, monkeypatch,
 ):
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     root = tmp_path / "repo"
     fixed_sub = root / "external" / "ccbench"
@@ -832,7 +832,7 @@ def test_compute_measurement_sink_requires_build_context_before_campaign(monkeyp
 
 
 def test_compute_existing_loop_state_rejected_after_neutralized_freshness(monkeypatch):
-    from campaign import p3_autonomous_workload_trial as autonomous
+    from orchestrator.campaign import p3_autonomous_workload_trial as autonomous
 
     contract = env_contract.lookup("pegasus")
     invoke, lay, calls = _measurement_case(
@@ -1026,7 +1026,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
         monkeypatch, tmp_path, _activate_synthetic_env_authority):
     """R16 measurement 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     contract = _sentinel_contract()
     _activate_synthetic_env_authority(
@@ -1091,7 +1091,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_measurement_sink(
 def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
     """R16 reject 実経路。import 後の module 再束縛や動的 reflection は保証外。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     contract = _sentinel_contract()
     looked_up = []
@@ -1142,7 +1142,7 @@ def test_fresh_default_seams_flow_distinct_contract_to_reject_sink(monkeypatch):
 
 def test_clean_dry_pass_still_admitted_on_pegasus(monkeypatch):
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     sub = _mk_template_dir()
     lay = _tmp_layout("dry-pass-pegasus")
@@ -1233,13 +1233,13 @@ def test_driver_ast_pins_reject_m20_through_m23_source_mutants():
         'not os.environ.get("IZANAGI_ALLOW_PEGASUS"):',
     )
     legacy_import = (
-        "from campaign import p3_s4_loop as L                              "
+        "from orchestrator.campaign import p3_s4_loop as L                              "
         "# noqa: E402\n"
     )
     m22 = _replace_once(
         source,
         legacy_import,
-        legacy_import + "from campaign.p3_s4_loop import CLK as LEGACY_CLK\n",
+        legacy_import + "from orchestrator.campaign.p3_s4_loop import CLK as LEGACY_CLK\n",
     )
     m22 = _replace_once(
         m22,
@@ -1360,7 +1360,7 @@ def test_quarantine_and_audit_allows_predicate_outer_indentation(monkeypatch):
         sub, indented, marker_id=T.MARKER_ID, source_rel=T.SOURCE_REL,
         write=False,
     )
-    from campaign.auditor_gate import compute_diff_digest
+    from orchestrator.campaign.auditor_gate import compute_diff_digest
     monkeypatch.setattr(T, "emit_predicate", lambda _ir: indented)
     assert T._quarantine_and_audit(
         sub,
@@ -1437,7 +1437,7 @@ def test_quarantine_and_audit_rejects_crossed_predicate_and_binding_before_mater
 
 def test_preview_and_run_share_canonical_materialization(monkeypatch):
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(
         patchharness, "assert_pinned_clean", lambda *_args, **_kwargs: None,
@@ -2047,7 +2047,7 @@ def test_drive_trigger_crash_tail_fails_before_stop_checkpoint_and_provenance(
 
 def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
@@ -2189,7 +2189,7 @@ def _pinned_clean_sub_or_skip():
 def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
     """fresh reject 後も次候補の public funnel が identity を照合して resume する。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     sub = _mk_template_dir()
@@ -2243,7 +2243,7 @@ def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):
 def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monkeypatch):
     """同じ variant の build 前 reject も attempt ごとに provenance へ転記する。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     sub = _mk_template_dir()
@@ -2287,7 +2287,7 @@ def test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id(monk
 def test_drive_iteration_dry_pass_provenance_has_no_attempt_id(monkeypatch):
     """WAL build_start のない dry-pass を admission 対象 attempt に偽装しない。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     sub = _mk_template_dir()
@@ -2319,7 +2319,7 @@ def test_drive_iteration_entry_failure_blocks_checkpoint(monkeypatch):
     """provenance entry が書けない iteration は checkpoint を前進させない (FC-1(b) 裁定 —
     「WAL/checkpoint は進んだが記録なし」の中途半端を作らない)。"""
     import contextlib
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     monkeypatch.setattr(T, "_current_site", lambda: site_policy.OTHER)
     sub = _mk_template_dir()

@@ -38,18 +38,18 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import env_contract as ec  # noqa: E402
-from campaign import campaign_claim, reservation  # noqa: E402
-from campaign import env_attestation  # noqa: E402
-from campaign import s8b_floor_campaign  # noqa: E402
-from campaign import s8b_floor_stats  # noqa: E402
-from campaign import s8b_materialization  # noqa: E402
-from campaign import s8b_launch_cert  # noqa: E402
-from campaign import s8b_prediction_runner  # noqa: E402
-from campaign import s8b_selector_freeze  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign import campaign_claim, reservation  # noqa: E402
+from orchestrator.campaign import env_attestation  # noqa: E402
+from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
+from orchestrator.campaign import s8b_floor_stats  # noqa: E402
+from orchestrator.campaign import s8b_materialization  # noqa: E402
+from orchestrator.campaign import s8b_launch_cert  # noqa: E402
+from orchestrator.campaign import s8b_prediction_runner  # noqa: E402
+from orchestrator.campaign import s8b_selector_freeze  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildProvenance,
     GeneratorId,
     ReviewId,
@@ -57,11 +57,11 @@ from campaign.build_admission import (  # noqa: E402
     derive_build_admission,
     require_build_admission,
 )
-from campaign.model import Genome  # noqa: E402
-from campaign.p2_2 import ENV_TAG  # noqa: E402
-from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
-from campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.p2_2 import ENV_TAG  # noqa: E402
+from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
@@ -5098,8 +5098,8 @@ def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import s8b_floor_campaign as floor
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import s8b_floor_campaign as floor
         sys.exit(floor.main(["--mode", "pilot", "--protocol", {str(protocol_path)!r}]))
         """
     )

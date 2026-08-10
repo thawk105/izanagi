@@ -34,7 +34,7 @@ from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleP
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
 from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
 from orchestrator.critic.digest import DiffQuarantineRejection
-from calibrator import runner as calibrator_runner
+from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock
 
@@ -1001,7 +1001,7 @@ def test_fixture_no_build_cli_uses_public_drive_without_critic_digest(
     tmp_path, monkeypatch,
 ) -> None:
     """P+1: documented 8c CLI reaches the real public drive on a fresh layout."""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
 
     ccbench = tmp_path / "ccbench"
     source = ccbench / A.trigger.SOURCE_REL

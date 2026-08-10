@@ -22,14 +22,14 @@ from typing import Any, Mapping
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 ORCHESTRATOR = ROOT / "orchestrator"
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from pegasus_policy_expected_goldens import (  # noqa: E402
     EXPECTED_CURRENT_PEGASUS_POLICY_SHA256,
     EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
 )
-from campaign import env_attestation, env_contract, execution_guard  # noqa: E402
-from campaign.silo_ladder_rung1 import (  # noqa: E402
+from orchestrator.campaign import env_attestation, env_contract, execution_guard  # noqa: E402
+from orchestrator.campaign.silo_ladder_rung1 import (  # noqa: E402
     PIN,
     REPORT_MACRO,
     RUNG_MACRO,
@@ -41,8 +41,8 @@ from campaign.silo_ladder_rung1 import (  # noqa: E402
     validate_compile_argv,
     validate_nqsv_accounting_epilogue,
 )
-from verifier.core import verify_trace_dir  # noqa: E402
-from verifier.report import result_to_dict  # noqa: E402
+from orchestrator.verifier.core import verify_trace_dir  # noqa: E402
+from orchestrator.verifier.report import result_to_dict  # noqa: E402
 
 
 EVIDENCE = (

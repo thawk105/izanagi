@@ -19,7 +19,7 @@ if str(_ROOT) not in sys.path:
 from orchestrator.campaign import claude_transport as T  # noqa: E402
 from orchestrator.campaign import claude_projected_provider as CP  # noqa: E402
 from orchestrator.campaign import p3_autonomous_workload_trial as A  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
 )

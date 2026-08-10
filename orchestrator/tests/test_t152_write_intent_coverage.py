@@ -15,9 +15,9 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ORCHESTRATOR = os.path.dirname(HERE)
 ROOT = os.path.dirname(ORCHESTRATOR)
-sys.path.insert(0, ORCHESTRATOR)
+sys.path.insert(0, ROOT)
 
-from campaign import t152_write_intent_coverage as driver  # noqa: E402
+from orchestrator.campaign import t152_write_intent_coverage as driver  # noqa: E402
 
 
 # Independent test-side literals: do not import the driver's reason constants.

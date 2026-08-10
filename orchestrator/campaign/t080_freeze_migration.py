@@ -25,11 +25,12 @@ from collections import deque
 from pathlib import Path, PurePosixPath
 from typing import Callable, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 RECEIPT_REL = "output/t080-migration/legacy-freeze-repin.receipt.json"
 DRAFT_REL = "output/t080-migration/legacy-freeze-repin.receipt.draft.json"

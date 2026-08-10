@@ -11,10 +11,10 @@ from types import SimpleNamespace
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "orchestrator"))
+sys.path.insert(0, str(REPO))
 
-from campaign import pegasus_floor_scoping as scoping  # noqa: E402
-from campaign.p2_2 import _assert_single_tenant         # noqa: E402
+from orchestrator.campaign import pegasus_floor_scoping as scoping  # noqa: E402
+from orchestrator.campaign.p2_2 import _assert_single_tenant         # noqa: E402
 
 
 # 未既知性検索へ静止した三軸 JSON を足さない。key/value は別々に構成する。

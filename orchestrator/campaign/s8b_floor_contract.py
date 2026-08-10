@@ -20,7 +20,7 @@ import random
 from collections.abc import Callable, Mapping
 from typing import Optional
 
-from campaign import s8b_experiment_numbers as _experiment_numbers
+from . import s8b_experiment_numbers as _experiment_numbers
 
 
 # 版名は一括 v2 改版し交差受理を拒否する。freeze schema は v1 freeze を読むため据置。

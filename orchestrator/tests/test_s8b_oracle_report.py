@@ -20,12 +20,12 @@ import pytest
 
 ORCH = Path(__file__).resolve().parents[1]
 ROOT = ORCH.parent
-sys.path.insert(0, str(ORCH))
+sys.path.insert(0, str(ORCH.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
-from campaign import (  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
     env_contract,
     execution_guard,
     model,
@@ -37,8 +37,8 @@ from campaign import (  # noqa: E402
     s8b_oracle_report as report,
     wal,
 )
-from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
-from campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign.layout import campaign_layout, exploration_campaign_layout  # noqa: E402
 
 
 # 注意: holdout の三軸 conjunction はテストへ静止させない。
@@ -1343,14 +1343,14 @@ def test_cli_legacy_subprocess_creates_output(tmp_path):
     completed = subprocess.run(
         [
             sys.executable,
-            "-m", "campaign.s8b_oracle_report",
+            "-m", "orchestrator.campaign.s8b_oracle_report",
             "report",
             "--manifest", str(manifest_path),
             "--output-root", str(tmp_path / "subprocess-output"),
             "--out", str(output),
             "--repo-root", str(repo_root),
         ],
-        cwd=ORCH,
+        cwd=ROOT,
         text=True,
         capture_output=True,
         check=False,

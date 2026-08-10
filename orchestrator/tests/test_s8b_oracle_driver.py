@@ -26,36 +26,36 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import real_repo_ratified_memo as ratified_memo  # noqa: E402
 import real_repo_receipt_memo as receipt_memo  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildRunContext,
     GeneratorId,
     ReviewId,
     ReviewReceipt,
     build_run_context,
 )
-from campaign import env_attestation  # noqa: E402
-from campaign import execution_guard  # noqa: E402
-from campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
-from campaign import s8b_freeze_io  # noqa: E402
-from campaign import s8b_materialization  # noqa: E402
-from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
-from campaign import s8b_oracle_report as report_module  # noqa: E402
-from campaign import s8b_holdout_freeze  # noqa: E402
-from campaign import s8b_ratified_freeze  # noqa: E402
-from campaign import s8b_run_marker  # noqa: E402
-from campaign import t080_freeze_migration as migration  # noqa: E402
-from campaign.layout import campaign_layout  # noqa: E402
-from campaign.model import Genome  # noqa: E402
-from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.campaign import env_attestation  # noqa: E402
+from orchestrator.campaign import execution_guard  # noqa: E402
+from orchestrator.campaign import model, pipeline, s8b_budget, s8b_oracle_driver as driver, wal  # noqa: E402
+from orchestrator.campaign import s8b_freeze_io  # noqa: E402
+from orchestrator.campaign import s8b_materialization  # noqa: E402
+from orchestrator.campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
+from orchestrator.campaign import s8b_oracle_report as report_module  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
+from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
+from orchestrator.campaign import s8b_run_marker  # noqa: E402
+from orchestrator.campaign import t080_freeze_migration as migration  # noqa: E402
+from orchestrator.campaign.layout import campaign_layout  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 
 from test_schema_v2 import _valid_document as _valid_calibration_v2  # noqa: E402
 
@@ -2215,11 +2215,11 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
         import dataclasses, hashlib, json, sys, time
         from pathlib import Path
         from unittest import mock
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import env_contract, execution_guard
-        from campaign.durable_root import DurableRootPolicy
-        from campaign import s8b_oracle_driver as driver
-        from campaign import s8b_oracle_manifest, s8b_ratified_freeze
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import env_contract, execution_guard
+        from orchestrator.campaign.durable_root import DurableRootPolicy
+        from orchestrator.campaign import s8b_oracle_driver as driver
+        from orchestrator.campaign import s8b_oracle_manifest, s8b_ratified_freeze
 
         freeze_path = Path({str(freeze_path)!r})
         raw = freeze_path.read_bytes()
@@ -2959,13 +2959,13 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         import contextlib, hashlib, json, sys
         from pathlib import Path
         from unittest import mock
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import s8b_oracle_driver as driver
-        from campaign import env_contract as ec
-        from campaign import execution_guard
-        from campaign import s8b_ratified_freeze
-        from campaign.model import Genome
-        from campaign.s1_direct_comparison import PreparedCell
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import s8b_oracle_driver as driver
+        from orchestrator.campaign import env_contract as ec
+        from orchestrator.campaign import execution_guard
+        from orchestrator.campaign import s8b_ratified_freeze
+        from orchestrator.campaign.model import Genome
+        from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
         @contextlib.contextmanager
         def fake_prepare(cell, ccbench_pin):
@@ -3049,8 +3049,8 @@ def test_cli_subprocess_returns_rc_2_on_gate_refused(tmp_path):
     script = textwrap.dedent(
         f"""
         import sys
-        sys.path.insert(0, {str(ORCHESTRATOR)!r})
-        from campaign import s8b_oracle_driver as driver
+        sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+        from orchestrator.campaign import s8b_oracle_driver as driver
         driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
         rc = driver.main([
             "run-block", "--manifest", {str(manifest_path)!r},
@@ -3892,7 +3892,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
 
 def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path):
     """M-P5: driver opt-in から run_once までを通し、subprocess だけを fake にする。"""
-    from calibrator import runner as calibrator_runner
+    from orchestrator.calibrator import runner as calibrator_runner
 
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
@@ -4138,7 +4138,7 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     """launch_validate が RatifiedFreezeError 以外 (内部 _hf の git/os 走査由来の
     FreezeError 等) を投げても、stack trace を漏らさず v2-execution refusal に翻訳する
     (run_block の refusal 契約を破らない・fail-closed で何も書かない)。"""
-    from campaign import s8b_holdout_freeze  # noqa: PLC0415
+    from orchestrator.campaign import s8b_holdout_freeze  # noqa: PLC0415
 
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
     out_root = root / "output"

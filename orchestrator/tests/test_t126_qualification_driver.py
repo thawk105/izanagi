@@ -16,18 +16,18 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent.parent
 sys.path.insert(0, str(_HERE))
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 
 import test_campaign as campaign_fixtures  # noqa: E402
-from calibrator import schema_v2  # noqa: E402
-from campaign import env_attestation, env_contract, pipeline  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.calibrator import schema_v2  # noqa: E402
+from orchestrator.campaign import env_attestation, env_contract, pipeline  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildProvenance,
     GeneratorId,
     build_run_context,
 )
-from campaign.model import Genome  # noqa: E402
-from qualification.artifacts import (  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationEventSink,
     QualificationLayout,
@@ -36,9 +36,9 @@ from qualification.artifacts import (  # noqa: E402
     load_jsonl_strict,
     validate_member_evidence,
 )
-from qualification.contract import load_protocol  # noqa: E402
-from qualification.series import SeriesFSM, SeriesStateError, replay_ledger  # noqa: E402
-from qualification.t126_driver import (  # noqa: E402
+from orchestrator.qualification.contract import load_protocol  # noqa: E402
+from orchestrator.qualification.series import SeriesFSM, SeriesStateError, replay_ledger  # noqa: E402
+from orchestrator.qualification.t126_driver import (  # noqa: E402
     ActiveProcessGroups,
     AttestationError,
     MemberRunError,
@@ -47,7 +47,7 @@ from qualification.t126_driver import (  # noqa: E402
     QualificationDriverError,
     run_series,
 )
-from qualification import t126_driver  # noqa: E402
+from orchestrator.qualification import t126_driver  # noqa: E402
 from test_schema_v2 import _valid_document  # noqa: E402
 
 
@@ -584,7 +584,7 @@ def test_active_process_group_cleanup_kills_real_child_and_grandchild():
 def test_actual_term_hup_handler_cleans_descendant_process_group(sig):
     code = """
 import os,signal,sys,time
-from qualification.t126_driver import ActiveProcessGroups
+from orchestrator.qualification.t126_driver import ActiveProcessGroups
 with ActiveProcessGroups(0.2) as groups:
     child=os.fork()
     if child==0:
@@ -602,7 +602,7 @@ with ActiveProcessGroups(0.2) as groups:
 """
     completed = subprocess.run(
         [sys.executable, "-c", code, str(int(sig))],
-        cwd=_ROOT, env={**os.environ, "PYTHONPATH": str(_HERE.parent)},
+        cwd=_ROOT, env={**os.environ, "PYTHONPATH": str(_ROOT)},
         capture_output=True, text=True, timeout=5)
     assert completed.returncode != 0
     pgid = int(completed.stdout.splitlines()[0])

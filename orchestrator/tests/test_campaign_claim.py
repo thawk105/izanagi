@@ -11,10 +11,10 @@ from pathlib import Path
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign.campaign_claim import (  # noqa: E402
+from orchestrator.campaign.campaign_claim import (  # noqa: E402
     ClaimError,
     ClaimRecord,
     acquire_claim,
@@ -62,7 +62,7 @@ def test_acquire_writes_durable_json_and_duplicate_exposes_owner(tmp_path: Path)
 
 
 def test_acquire_fsyncs_claim_file_and_parent_directory(tmp_path: Path, monkeypatch):
-    import campaign.campaign_claim as module
+    import orchestrator.campaign.campaign_claim as module
 
     calls = []
     monkeypatch.setattr(module.os, "fsync", lambda fd: calls.append(fd))
@@ -72,7 +72,7 @@ def test_acquire_fsyncs_claim_file_and_parent_directory(tmp_path: Path, monkeypa
 
 
 def test_claim_has_no_release_or_stale_recovery_api():
-    import campaign.campaign_claim as module
+    import orchestrator.campaign.campaign_claim as module
 
     assert not hasattr(module, "release_claim")
     assert not hasattr(module, "recover_stale_claim")
@@ -90,7 +90,7 @@ def test_two_real_processes_racing_acquire_have_exactly_one_winner(tmp_path: Pat
 import json
 import os
 import sys
-from campaign.campaign_claim import ClaimError, ClaimRecord, acquire_claim, read_proc_starttime
+from orchestrator.campaign.campaign_claim import ClaimError, ClaimRecord, acquire_claim, read_proc_starttime
 
 ready_fd = int(sys.argv[1])
 start_fd = int(sys.argv[2])
@@ -110,7 +110,7 @@ else:
     print(json.dumps({"ok": True, "pid": os.getpid()}))
 '''
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(ORCHESTRATOR)
+    env["PYTHONPATH"] = str(ORCHESTRATOR.parent)
     children = [
         subprocess.Popen(
             [sys.executable, "-c", script, str(ready_w), str(start_r), str(tmp_path)],

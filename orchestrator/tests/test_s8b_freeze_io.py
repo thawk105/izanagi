@@ -20,10 +20,10 @@ from pathlib import Path
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_freeze_io as fio  # noqa: E402
+from orchestrator.campaign import s8b_freeze_io as fio  # noqa: E402
 
 
 def _write(path: Path, text: str) -> Path:
@@ -140,9 +140,9 @@ def test_floor_alone_does_not_import_oracle_driver():
     を import していたため、この assert は赤だった (中立 leaf 化前の positive control)。
     """
     script = (
-        f"import sys; sys.path.insert(0, {str(ORCHESTRATOR)!r}); "
-        "import campaign.s8b_floor_campaign; "
-        "sys.exit(0 if 'campaign.s8b_oracle_driver' not in sys.modules else 1)"
+        f"import sys; sys.path.insert(0, {str(ORCHESTRATOR.parent)!r}); "
+        "import orchestrator.campaign.s8b_floor_campaign; "
+        "sys.exit(0 if 'orchestrator.campaign.s8b_oracle_driver' not in sys.modules else 1)"
     )
     proc = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True,
@@ -153,9 +153,9 @@ def test_floor_alone_does_not_import_oracle_driver():
 def test_oracle_alone_still_imports():
     """oracle_driver 単独 import は健全 (leaf を経由して loader を得る)。"""
     script = (
-        f"import sys; sys.path.insert(0, {str(ORCHESTRATOR)!r}); "
-        "import campaign.s8b_oracle_driver as d; "
-        "import campaign.s8b_freeze_io as fio; "
+        f"import sys; sys.path.insert(0, {str(ORCHESTRATOR.parent)!r}); "
+        "import orchestrator.campaign.s8b_oracle_driver as d; "
+        "import orchestrator.campaign.s8b_freeze_io as fio; "
         "sys.exit(0 if d._freeze_io is fio else 1)"
     )
     proc = subprocess.run(
@@ -169,13 +169,13 @@ def test_oracle_alone_still_imports():
 # --------------------------------------------------------------------------- #
 
 def test_driver_does_not_re_export_loader_names():
-    from campaign import s8b_oracle_driver as driver
+    from orchestrator.campaign import s8b_oracle_driver as driver
     assert not hasattr(driver, "VerifiedFreeze")
     assert not hasattr(driver, "load_verified_freeze")
 
 
 def test_floor_does_not_re_export_loader_names():
-    from campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign import s8b_floor_campaign as floor
     assert not hasattr(floor, "VerifiedFreeze")
     assert not hasattr(floor, "load_verified_freeze")
 
@@ -185,8 +185,8 @@ def test_floor_does_not_re_export_loader_names():
 # --------------------------------------------------------------------------- #
 
 def test_verified_freeze_class_identity_is_single():
-    from campaign import s8b_oracle_driver as driver
-    from campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign import s8b_oracle_driver as driver
+    from orchestrator.campaign import s8b_floor_campaign as floor
     assert driver._freeze_io.VerifiedFreeze is fio.VerifiedFreeze
     assert floor._freeze_io.VerifiedFreeze is fio.VerifiedFreeze
 
@@ -200,7 +200,7 @@ def test_floor_no_longer_direct_imports_clk_or_numactl():
 
     旧 wave の ``floor.NUMACTL is p2_2.NUMA`` identity は contract 化で消える。ENV_TAG のみ
     machine-pin 用に残す。"""
-    from campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign import s8b_floor_campaign as floor
     assert not hasattr(floor, "NUMACTL")   # p2_2.NUMA の直 import は削除された
     assert not hasattr(floor, "CLK")       # p2_2.CLK の直 import も削除された
     assert hasattr(floor, "ENV_TAG")       # machine-pin 用にのみ残す
@@ -215,11 +215,11 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     from types import SimpleNamespace
     from unittest import mock
 
-    from campaign import env_contract as ec
-    from campaign import s8b_floor_campaign as floor
-    from campaign.model import Genome
-    from campaign.p2_2 import ENV_TAG
-    from campaign.s1_direct_comparison import PreparedCell
+    from orchestrator.campaign import env_contract as ec
+    from orchestrator.campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign.model import Genome
+    from orchestrator.campaign.p2_2 import ENV_TAG
+    from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
     configs = ("stock_common", "alt_a")
     shape = {"records": 730079, "threads": 17,

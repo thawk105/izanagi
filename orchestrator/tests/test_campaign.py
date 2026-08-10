@@ -41,10 +41,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _ORCH)
 
-from campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
+from orchestrator.campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
                       site_policy, source_digest, trigger_gate_binding, wal)
-from campaign import env_contract as ec                          # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import env_contract as ec                          # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildAdmission,
     BuildAdmissionError,
     GeneratorId,
@@ -53,23 +53,23 @@ from campaign.build_admission import (  # noqa: E402
     derive_build_admission,
 )
 from campaign import layout as layout_module                     # noqa: E402
-from campaign.layout import (CampaignLayout,                     # noqa: E402
+from orchestrator.campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
                              campaign_layout, ensure_exploration_namespace,
                              exploration_campaign_layout)
-from campaign.lock import BenchBusy, bench_lock                  # noqa: E402
-from campaign.model import (CampaignConfig, Genome,              # noqa: E402
+from orchestrator.campaign.lock import BenchBusy, bench_lock                  # noqa: E402
+from orchestrator.campaign.model import (CampaignConfig, Genome,              # noqa: E402
                             COMMIT_CONTRACT_SHA256_KEY,
                             STAGE_BENCH_DONE, STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_ABORT, STAGE_VERIFY_DONE,
                             STAGE_S1_SESSION, STAGE_S8B_ORACLE_SESSION,
                             STAGES, WAL_STAGES, WalRecord)
-from campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
+from orchestrator.campaign.pipeline import (EvalResult, PerfConfig,           # noqa: E402
                                ScreeningConfig)
-from campaign.reflux_ir import TriggerGateIR, emit_predicate     # noqa: E402
-from campaign.source_digest import SourceEvidence                # noqa: E402
+from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate     # noqa: E402
+from orchestrator.campaign.source_digest import SourceEvidence                # noqa: E402
 from skiputil import Skip, skip                                  # noqa: E402
-from verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
+from orchestrator.verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
 from certified_writer_fixtures import (                          # noqa: E402
     build_admission_fixture,
@@ -425,7 +425,7 @@ def test_different_runtime_contracts_keep_same_campaign_id():
 
 
 def test_run_campaign_binds_guard_contract_before_campaign_id():
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     cfg = CampaignConfig(
         spec_slug="contract", search_tag="order",
@@ -588,9 +588,9 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     """pre-T343/T530 の歴史値を残し、authority-free current ID を固定する。"""
     import dataclasses
 
-    from campaign.backoff_sweep import WORKLOADS as BACKOFF_WORKLOADS
-    from campaign.backoff_sweep import config_for as backoff_config
-    from campaign.s6_sort_sweep import config_for as s6_config
+    from orchestrator.campaign.backoff_sweep import WORKLOADS as BACKOFF_WORKLOADS
+    from orchestrator.campaign.backoff_sweep import config_for as backoff_config
+    from orchestrator.campaign.s6_sort_sweep import config_for as s6_config
 
     workloads = {
         "write-heavy": {"ycsb_zipf_skew": "0.9", "ycsb_rratio": "5", "ycsb_rmw": "0"},
@@ -1121,7 +1121,7 @@ def test_unbound_legacy_and_guided_campaigns_remain_readable():
     wal.log(legacy, "legacy-v", STAGE_COMMIT, "historical-env", {"fitness_tps": 1.0})
     assert wal.replay(legacy)["legacy-v"].committed
 
-    from campaign import guided, replay
+    from orchestrator.campaign import guided, replay
 
     trial = "fixture"
     meta = {
@@ -2582,8 +2582,8 @@ def test_trigger_fixture_has_32_unique_predicates_source_bytes_and_variant_ids()
 
 
 def test_trigger_campaign_epoch_never_writes_pre_t428_paths():
-    from campaign import loop as campaign_loop
-    from campaign import p3_s4_loop_trigger_gating as trigger_driver
+    from orchestrator.campaign import loop as campaign_loop
+    from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger_driver
 
     # 4f0d020 default_cfg の marker 前 other/compute config を ident.campaign_id で再計算。
     old_ids = {
@@ -2914,7 +2914,7 @@ def test_p1_pipeline_accepts_registered_contract_without_enabling_v2_build():
 
 
 def test_p1_run_campaign_accepts_registered_contract():
-    from campaign import loop as campaign_loop
+    from orchestrator.campaign import loop as campaign_loop
 
     cfg = CampaignConfig(
         spec_slug="authorization-positive",
@@ -3033,8 +3033,8 @@ def test_certified_writer_preflight_cli_input_error_is_exit_four():
 
 
 def test_certified_writer_preflight_cli_acceptance_is_silent_and_read_only():
-    from campaign import certified_writer_admission as admission
-    from campaign import certified_writer_preflight as helper
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import certified_writer_preflight as helper
 
     scratch = Path(_tmpdir("izanagi_preflight_accept_"))
     repo = scratch / "repo"
@@ -3077,8 +3077,8 @@ def test_certified_writer_preflight_cli_acceptance_is_silent_and_read_only():
 
 
 def test_p2_actual_floor_and_t126_admission_accept_valid_evidence(tmp_path=None):
-    from campaign import certified_writer_admission as admission
-    from campaign import certified_writer_preflight as helper
+    from orchestrator.campaign import certified_writer_admission as admission
+    from orchestrator.campaign import certified_writer_preflight as helper
 
     root = Path(tmp_path) if tmp_path is not None else Path(
         _tmpdir("izanagi_actual_admission_")
@@ -3461,7 +3461,7 @@ def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt
 
 def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_builds():
     lay = _tmp_layout()
-    from campaign import axis_trigger_gating
+    from orchestrator.campaign import axis_trigger_gating
 
     source_root = _tmpdir("izanagi_trigger_materialized_")
     source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
@@ -3514,7 +3514,7 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
 
 def test_trigger_binding_rejects_crossed_materialized_predicate_and_mask():
     lay = _tmp_layout()
-    from campaign import axis_trigger_gating
+    from orchestrator.campaign import axis_trigger_gating
 
     source_root = _tmpdir("izanagi_trigger_cross_binding_")
     source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
@@ -3619,8 +3619,8 @@ def test_build_admission_is_immutable_and_rejects_nonexact_values():
 
 
 def test_build_admission_loop_and_screening_revalidate_before_build_entry_spy():
-    from campaign import loop as L
-    from campaign import screening_driver as SD
+    from orchestrator.campaign import loop as L
+    from orchestrator.campaign import screening_driver as SD
 
     bad = object()
     cfg = CampaignConfig(
@@ -3680,8 +3680,8 @@ def test_build_admission_noncoder_opt_in_is_rejected_independently():
 
 
 def test_build_admission_preview_never_reaches_build_entry_with_or_without_opt_in():
-    from campaign import p3_s4_loop_sort as sort_preview
-    from campaign import p3_s4_loop_trigger_gating as trigger_preview
+    from orchestrator.campaign import p3_s4_loop_sort as sort_preview
+    from orchestrator.campaign import p3_s4_loop_trigger_gating as trigger_preview
 
     previews = []
     build_entries = []
@@ -4912,7 +4912,7 @@ def test_pipeline_bench_probe_error_aborts_with_structured_payload():
     """B-1/B-6: bench 直前の競合検知 probe (pgrep) が実行失敗すると、握りつぶさず
     bench-probe-error で abort し、abort payload に構造化 probe_error (kind/argv/
     returncode/errno/stdout/stderr) を残す (WAL 永続経路)。実 bench は走らない。"""
-    from calibrator.runner import CompetingBenchProbeError
+    from orchestrator.calibrator.runner import CompetingBenchProbeError
     lay = _tmp_layout()
     probe_err = CompetingBenchProbeError(
         "unexpected-rc", ["pgrep", "-af", "x"], returncode=2, stderr="pgrep boom")
@@ -4934,7 +4934,7 @@ def test_pipeline_verify_probe_error_aborts_and_clears_verdict():
     verify-probe-error で abort し、legacy パスの 'serializable' を持ち越さず
     (aborted=True かつ verdict 空)、probe_error payload と S2 workload タグを残す。
     S2 の trace は走らない (probe 手前で reject)。"""
-    from calibrator.runner import CompetingBenchProbeError
+    from orchestrator.calibrator.runner import CompetingBenchProbeError
     lay = _tmp_layout()
     numa = ["numactl", "--interleave=all"]
     probe_err = CompetingBenchProbeError(
@@ -4962,7 +4962,7 @@ def test_loop_probe_error_is_retryable_after_recovery():
     """B-3/D-3 番人テスト: bench-probe-error / verify-probe-error abort (transient 環境
     故障) は permanent skip でなく probe 復旧後の次 run で同一 variant が再評価される。
     run1 = probe 故障で terminal abort、run2 = 復旧 → 再評価・commit を固定する。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
     for reason in ("bench-probe-error", "verify-probe-error"):
         out_root = _tmpdir("izanagi_loop_probe_")
         cfg = CampaignConfig(spec_slug="t", search_tag="enum",
@@ -5008,7 +5008,7 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
     加え identity-error も復旧後に再評価されること (意図的な loop.py との一致) を固定し、
     同時に非 retryable な terminal (verifier-red) は skip され続けること (過剰な広がりの番人)
     も固定する。run1 = terminal abort、run2 = 復旧後の evaluate_candidate 呼び出し。"""
-    from campaign import screening_driver as SD
+    from orchestrator.campaign import screening_driver as SD
     retryable = ("bench-probe-error", "verify-probe-error", "identity-error")
     for reason in retryable + ("verifier-red",):
         out_root = _tmpdir("izanagi_screen_probe_")
@@ -5059,7 +5059,7 @@ def test_screening_driver_probe_error_is_retryable_after_recovery():
 def test_loop_enables_s2_extra_correctness_via_search_config():
     """D36 決定4-1: search_config[SEARCH_CONFIG_VERIFY_KEY]=='legacy+s2' で
     run_campaign が evaluate() に S2 extra_correctness を渡す (opt-in の配線点)。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     captured = {}
 
@@ -5104,7 +5104,7 @@ def test_loop_enables_s2_extra_correctness_via_search_config():
 def test_loop_omits_extra_correctness_without_verify_search_config():
     """回帰確認: search_config に verify キーが無い既存 campaign は extra_correctness
     が None のまま (S2 は opt-in、既存 campaign の挙動を変えない)。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     captured = {}
 
@@ -5144,7 +5144,7 @@ def test_loop_omits_extra_correctness_without_verify_search_config():
 
 
 def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     captured = {"resolve": [], "evaluate": []}
     contract = ec.lookup("pegasus")
@@ -5205,7 +5205,7 @@ def test_m12_loop_compute_uses_gxx_and_forwards_only_contract_and_prefix():
 
 
 def test_required_contract_is_attested_once_at_run_campaign_sink():
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     contract = ec.lookup("pegasus")
     receipt = {"schema": "fixture-required-receipt"}
@@ -5291,7 +5291,7 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
 
     loop は src_token id で skip/abort キーを揃える (D24)。identity 核 (source_digest) は実
     g++/git 依存ゆえ mock し、src_token を制御する (Exception なら identity-error 経路)。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
     out_root = _tmpdir("izanagi_loop_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content=spec_content, ccbench_commit="deadbeef")
@@ -5315,7 +5315,7 @@ def _loop_with_fake_eval(fake_eval, genomes, spec_content, do_bench=False,
 
 def test_run_campaign_default_namespace_remains_official():
     """selector 省略時は既存どおり official root を使う。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     out_root = _tmpdir("izanagi_loop_namespace_default_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
@@ -5335,7 +5335,7 @@ def test_run_campaign_default_namespace_remains_official():
 
 def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
     """exploration selector が marker/lock/WAL/evaluate の同一 layout まで届く。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     out_root = _tmpdir("izanagi_loop_namespace_exploration_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
@@ -5385,7 +5385,7 @@ def test_run_campaign_exploration_namespace_reaches_lock_wal_and_pipeline():
 
 def test_run_campaign_rejects_unknown_namespace_before_output_creation():
     """未知 namespace は official fallback せず directory 作成前に拒否する。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     parent = _tmpdir("izanagi_loop_namespace_unknown_")
     out_root = os.path.join(parent, "must-not-exist")
@@ -5406,7 +5406,7 @@ def test_run_campaign_rejects_unknown_namespace_before_output_creation():
 
 def test_run_campaign_namespace_does_not_change_campaign_id():
     """namespace は runtime path selector であり identity preimage へ入らない。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     out_root = _tmpdir("izanagi_loop_namespace_identity_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
@@ -5490,7 +5490,7 @@ def test_loop_recovery_skips_committed_src_token_variant():
     """WAL に src_token id で commit 済みの variant は再起動で skip する (リカバリ冪等 D, [HIGH])。
     旧実装は loop が stock id で skip 判定し WAL の src_token id terminal と一致せず再評価していた。
     fake_eval は commit WAL を書かないので、前回 run の成果を WAL に直接 seed して模す。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
     out_root = _tmpdir("izanagi_loop_recov_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="recov", ccbench_commit="deadbeef")
@@ -5532,7 +5532,7 @@ def test_loop_recovery_skips_committed_src_token_variant():
 
 def test_replay_accepts_matching_contract_bound_commit_and_skips_evaluation():
     """lock=H_A/全COMMIT=H_A は terminal skip し evaluate/build を呼ばない。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     out_root = _tmpdir("t530_matching_resume_")
     cfg = CampaignConfig(
@@ -5602,7 +5602,7 @@ def test_loop_isolates_identity_error():
 def test_loop_identity_error_is_retryable_after_repair():
     """identity-error abort (transient) は permanent skip でなく環境修復後に再評価される (D25)。
     旧挙動は stock id terminal abort → 永久 skip で stock baseline を silently drop していた。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
     out_root = _tmpdir("izanagi_loop_iderr_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="id-retry", ccbench_commit="deadbeef")
@@ -5648,7 +5648,7 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
     旧実装は retryable 判定が st.last (最終レコード) 依存だったため、BUILD_START が
     最後になると判定から漏れ、aborted の粘着により permanent skip が復活していた
     (洗練検査 2026-07-02 HIGH)。overnight クラッシュ→再起動は WAL の設計前提。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
     out_root = _tmpdir("izanagi_loop_iderr_crash_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="id-retry-crash", ccbench_commit="deadbeef")
@@ -5693,8 +5693,8 @@ def test_loop_identity_error_retryable_survives_inflight_crash():
 
 def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
     """実 evaluate/WAL writer の start→process death→resume 境界を通す。"""
-    from campaign import artifact_admission
-    from campaign import loop as L
+    from orchestrator.campaign import artifact_admission
+    from orchestrator.campaign import loop as L
 
     class ProcessCrash(BaseException):
         pass
@@ -5775,7 +5775,7 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
 def test_loop_identity_skip_is_visible_when_stock_id_terminal():
     """identity 確定不能かつ stock id が terminal 済みのときの skip は identity_skipped
     として summary に分離カウントされる (規律3: 成果物からの欠落を沈黙させない)。"""
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
     out_root = _tmpdir("izanagi_loop_idskip_")
     cfg = CampaignConfig(spec_slug="t", search_tag="enum",
                          spec_content="id-skip-vis", ccbench_commit="deadbeef")
@@ -6089,7 +6089,7 @@ def test_autonomous_trial_env_run_root_and_worktree_container_gate():
     """M7: 8c 省略 root は env base を使い、materialize 前に同じ gate を通る。"""
     from pathlib import Path
 
-    from campaign import p3_autonomous_workload_trial as autonomous
+    from orchestrator.campaign import p3_autonomous_workload_trial as autonomous
 
     sentinel = object()
     env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
@@ -6359,8 +6359,8 @@ def test_ensure_exploration_namespace_enforces_shared_marker_contract():
 
 def test_report_verdict_surfaces_near_floor():
     """compare の near_floor (floor 近傍の faster) がレポート文字列に出る (dead wiring 防止)。"""
-    from calibrator.stability import Comparison
-    from campaign.p2_2_report import _verdict_str
+    from orchestrator.calibrator.stability import Comparison
+    from orchestrator.campaign.p2_2_report import _verdict_str
     near = Comparison(verdict="faster", rel_median=0.035, p=0.012, near_floor=True)
     far = Comparison(verdict="faster", rel_median=0.40, p=0.012, near_floor=False)
     assert "cross-run 再現で裏取り要" in _verdict_str(near)
@@ -6640,7 +6640,7 @@ def test_axis_driver_source_rel_within_edit_surface():
     軸取り違え (例: sort driver が backoff.hh を指す) を全通しする (段 6 RA-2) ため、
     driver ごとの期待値を literal pin する。取り違えると driver は marker 不在の
     ソースを読み malformed reject に落ち、certified 受理集合が全 reject に縮む。"""
-    from campaign import axis_trigger_gating, p3_s4_loop, p3_s4_loop_sort
+    from orchestrator.campaign import axis_trigger_gating, p3_s4_loop, p3_s4_loop_sort
     expected = [
         (p3_s4_loop, "include/backoff.hh"),          # 段 4 backoff 軸
         (p3_s4_loop_sort, "cc/silo/transaction.cc"),  # sort 軸 (D38)
@@ -6661,8 +6661,8 @@ def test_lock_path_edit_surface_requires_auditor_live():
     auditor live の機械 4 点 (s3_lock_coverage.json の all_pass) が緑であることを強制
     する — 宣言でなくテストで gate する (test_settings_json_wires_both_hooks と同形式)。
     これで「auditor 不在で lock 経路が編集可能になる窓」を sequencing 依存でなく機械で塞ぐ。"""
-    from campaign import source_digest
-    from campaign.layout import repo_output_root
+    from orchestrator.campaign import source_digest
+    from orchestrator.campaign.layout import repo_output_root
     if "cc/silo/transaction.cc" not in source_digest.EVOLVE_BLOCK_SOURCES:
         return                              # 段 3: 編集面外ゆえ含意は空真 (発火せず)
     # ここに来る = 段 5 で lock 経路を編集面に開いた。auditor live を要求する。
@@ -7691,7 +7691,7 @@ def test_patchharness_apply_revert_roundtrip():
     """apply/revert ハーネス (phase3.md blocking): pinned-clean → apply → body →
     revert で working-tree が完全に戻る。patch が新規作成したファイル (checkout では
     消えない untracked 残骸) も除去される。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
     newf = os.path.join(sub, "include", "synth_new.hh")
@@ -7730,7 +7730,7 @@ def test_patchharness_apply_revert_roundtrip():
 def test_patchharness_git_retries_index_lock_then_succeeds():
     """checkout/apply の index.lock rc=128 だけを 200ms 間隔で retry し、成功時も
     CompletedProcess の追加属性に回数・理由を残す (silent retry にしない)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     results = [
         subprocess.CompletedProcess([], 128, "", "fatal: Unable to create 'index.lock'"),
         subprocess.CompletedProcess([], 128, "", "fatal: index.lock: File exists"),
@@ -7757,7 +7757,7 @@ def test_patchharness_git_retries_index_lock_then_succeeds():
 
 def test_patchharness_git_non_index_lock_failure_is_not_retried():
     """同じ rc=128 でも index.lock 以外は従来どおり 1 回で失敗結果を返す。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     calls = []
 
     def runner(command, **kwargs):
@@ -7776,7 +7776,7 @@ def test_patchharness_git_non_index_lock_failure_is_not_retried():
 
 def test_patchharness_git_index_lock_retry_exhaustion_fails_closed():
     """index.lock が解けなくても retry は 5 回で打ち切り、rc=128 と痕跡を返す。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     calls = []
     sleeps = []
 
@@ -7796,7 +7796,7 @@ def test_patchharness_git_index_lock_retry_exhaustion_fails_closed():
 
 def test_patchharness_git_disables_optional_locks_in_environment():
     """全 git 共通経路が親 env を保ったまま GIT_OPTIONAL_LOCKS=0 を上書きする。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     captured = {}
 
     def runner(command, **kwargs):
@@ -7815,7 +7815,7 @@ def test_patchharness_git_disables_optional_locks_in_environment():
 def test_patchharness_fails_closed_on_dirty_or_unpinned_tree():
     """apply 前の pinned-clean assert: tracked 改変が残る tree / pin 不一致 / 空 pin には
     patch を当てない (前 variant の revert 漏れ・別セッション残骸との合成を防ぐ)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     # pin 不一致・空 pin
     for bad_pin in ("0000000", ""):
@@ -7846,7 +7846,7 @@ def test_patchharness_applied_rejects_dirty_tree():
     patch を当てず body にも入らない。assert_pinned_clean 単体が正しくても applied() が
     呼ばなければ防壁にならない — 駆動を消しても全緑のままだった
     (2026-07-03 敵対検証 medium: テスト正直さ)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     hh = os.path.join(sub, "include", "backoff.hh")
     # 有効な patch を用意 (enter 内の順序が変わっても patch 読み込み失敗を dirty 拒否と
@@ -7878,7 +7878,7 @@ def test_patchharness_applied_rejects_dirty_tree():
 def test_patchharness_checkout_creates_isolated_worktree():
     """段5 git worktree 隔離: checkout() は pin_commit で使い捨て worktree を作り、
     exit で `git worktree list` から消える (base repo の working-tree は無傷)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     with patchharness.checkout(head[:12], base_dir=sub) as wt:
         assert wt != sub
@@ -7898,7 +7898,7 @@ def test_patchharness_checkout_creates_isolated_worktree():
 def test_patchharness_checkout_two_concurrent_worktrees_independent():
     """同一 base から 2 つの checkout() を同時に開いても互いに干渉しない
     (段5 の目的そのもの: 呼び出しごとに一意パスなので並行評価が競合しない)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     with patchharness.checkout(head[:12], base_dir=sub) as wt1:
         with patchharness.checkout(head[:12], base_dir=sub) as wt2:
@@ -7919,7 +7919,7 @@ def test_patchharness_checkout_two_concurrent_worktrees_independent():
 def test_patchharness_checkout_composes_with_applied():
     """checkout() が返す worktree path を applied() にそのまま渡せる (責務分離の確認)。
     patch は worktree 内だけに当たり、base repo の working-tree は無傷のまま。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     hh_base = os.path.join(sub, "include", "backoff.hh")
     with open(hh_base, "w", encoding="utf-8") as f:
@@ -7944,7 +7944,7 @@ def test_patchharness_checkout_composes_with_applied():
 def test_patchharness_checkout_raises_on_add_failure():
     """存在しない pin では git worktree add が失敗し、fails-closed で RuntimeError になる
     (親ディレクトリの後始末も行う — テスト後に残骸が残らないことも確認)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     try:
         with patchharness.checkout("0" * 40, base_dir=sub):
@@ -7957,7 +7957,7 @@ def test_patchharness_checkout_leak_raises():
     """worktree 破棄後も base の一覧に残っていたら (leak) 沈黙せず例外にする (規律6)。
     実 remove は正常に走らせつつ、直後の監視関数だけ「まだ残っている」ふりに差し替えて
     fails-closed 経路を検査する (removal 自体を偽装すると実体の破棄まで検証できない)。"""
-    from campaign import patchharness
+    from orchestrator.campaign import patchharness
     sub, head, git = _fake_ccbench_repo()
     saved = patchharness._worktree_paths
     captured = {}
@@ -7974,7 +7974,7 @@ def test_patchharness_checkout_leak_raises():
 
 
 def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     out_root = _tmpdir("izanagi_loop_tail_resume_")
     cfg = ident.bind_admission_policy(
@@ -8049,7 +8049,7 @@ def test_loop_resume_repairs_tail_before_replay_and_surfaces_receipt():
 
 
 def test_loop_does_not_append_abort_after_wal_io_error():
-    from campaign import loop as L
+    from orchestrator.campaign import loop as L
 
     failures = (
         wal.WalAppendError("fixture-wal", 20, 7, "write", OSError("disk")),

@@ -17,24 +17,24 @@ import pytest
 
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
-sys.path.insert(0, str(_ORCH))
+sys.path.insert(0, str(_ORCH.parent))
 
-from campaign import p2_2_report, replay, s6_sort_sweep, s8a_trigger_sweep, wal  # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign                # noqa: E402
-from campaign.backoff_repro import _bench_tps                              # noqa: E402
-from campaign.build_admission import (                                     # noqa: E402
+from orchestrator.campaign import p2_2_report, replay, s6_sort_sweep, s8a_trigger_sweep, wal  # noqa: E402
+from orchestrator.campaign.artifact_admission import require_admitted_campaign                # noqa: E402
+from orchestrator.campaign.backoff_repro import _bench_tps                              # noqa: E402
+from orchestrator.campaign.build_admission import (                                     # noqa: E402
     GeneratorId,
     build_run_context,
     derive_build_admission,
 )
-from campaign.layout import CampaignLayout                                # noqa: E402
-from campaign.model import STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT     # noqa: E402
-from campaign.pin import CURRENT_PIN                                       # noqa: E402
-from campaign.source_digest import (                                       # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                                # noqa: E402
+from orchestrator.campaign.model import STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT     # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN                                       # noqa: E402
+from orchestrator.campaign.source_digest import (                                       # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
-from critic.digest import load_screen_rejections, load_workload            # noqa: E402
+from orchestrator.critic.digest import load_screen_rejections, load_workload            # noqa: E402
 
 _FIXTURE = _HERE / "fixtures" / "bench_first_screen_reject_6f169f90.jsonl"
 _BASELINE = "84319b1127a6"

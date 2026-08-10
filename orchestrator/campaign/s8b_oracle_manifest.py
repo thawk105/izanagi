@@ -14,8 +14,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Dict, Mapping, Sequence
 
-from campaign import s8b_oracle_artifacts as _artifacts
-from campaign import s8b_experiment_numbers as _experiment_numbers
+from . import s8b_oracle_artifacts as _artifacts
+from . import s8b_experiment_numbers as _experiment_numbers
 
 
 _HERE = Path(__file__).resolve().parent

@@ -21,26 +21,21 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
-import sys
 from pathlib import Path
 from typing import Mapping
 
-_HERE = Path(__file__).resolve().parent
-_ORCHESTRATOR = _HERE.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
-
-from campaign import pipeline  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from . import pipeline  # noqa: E402
+from .build_admission import (  # noqa: E402
     REVIEW_RECEIPT_SCHEMA,
     ReviewId,
     ReviewReceipt,
     verify_review_receipt,
 )
-from campaign.materializer_admission import (  # noqa: E402
+from .materializer_admission import (  # noqa: E402
     CLOSED_PYTHON_MATERIALIZER_SITES,
 )
-from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
-from campaign.source_digest import SourceEvidence  # noqa: E402
+from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
+from .source_digest import SourceEvidence  # noqa: E402
 
 
 # Compatibility view for the repository-wide AST closure sentinel.  The sole

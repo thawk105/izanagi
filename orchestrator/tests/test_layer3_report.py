@@ -14,9 +14,9 @@ from pathlib import Path
 import pytest
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
+sys.path.insert(0, str(_HERE.parents[1]))
 
-from campaign import (  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
     autonomous_trial_completeness,
     campaign_lock,
     contract_loader_binding,
@@ -28,13 +28,13 @@ from campaign import (  # noqa: E402
     trigger_gate_binding,
     wal,
 )
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
     derive_build_admission,
 )
-from campaign.pin import CURRENT_PIN  # noqa: E402
-from campaign.source_digest import (  # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
