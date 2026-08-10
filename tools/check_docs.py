@@ -24,6 +24,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from dev_waves.launch_authority import (
+    AuthorityError,
+    visible_top_level_lines,
+)
+
 REPO = Path(__file__).resolve().parent.parent
 
 # living docs = 現在の状態・設計を主張する文書。ここに可変状態の再掲と行番号参照を禁止する。
@@ -273,8 +278,13 @@ DEV_WAVE_DW_O01_SECTION_CARDINALITY_FINDING = (
     "codex subprocess 起動契約を検査できない"
 )
 DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING = (
-    "docs/dev-wave/operations.md: DW-O01 の可視本文に `-m <model>` が "
-    "1 件でない — dispatcher が定める model の束縛位置を保持する"
+    "docs/dev-wave/operations.md: DW-O01 の可視 top-level に dispatcher route 行が "
+    "exact 1 件でない — dispatcher が定める model の束縛位置を保持する"
+)
+DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL = (
+    "`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` "
+    "で起動。model は全段、effort は段 6 の review / focus が docs 権威から"
+    "導出され、caller は指定できない。"
 )
 DEV_WAVE_MODEL_SLUG_RE = re.compile(
     r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
@@ -922,123 +932,7 @@ def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
 def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
     """reference 契約用に raw HTML block も除いた可視行を返す。"""
 
-    lines: list[tuple[str, int, str]] = []
-    in_comment = False
-    fence: tuple[str, int] | None = None
-    raw_html_end: re.Pattern[str] | None = None
-    raw_html_until_blank = False
-    previous_line_blank = True
-    offset = 0
-    for raw_line in text.splitlines(keepends=True):
-        line = raw_line.rstrip("\r\n")
-        newline = raw_line[len(line):]
-        may_start_type7_html = previous_line_blank
-        previous_line_blank = not line.strip()
-        if raw_html_end is not None:
-            lines.append(("", offset, newline))
-            if raw_html_end.search(line):
-                raw_html_end = None
-            offset += len(raw_line)
-            continue
-        if raw_html_until_blank:
-            if line.strip():
-                lines.append(("", offset, newline))
-                offset += len(raw_line)
-                continue
-            raw_html_until_blank = False
-
-        if fence is not None:
-            marker_char, marker_len = fence
-            stripped = line.lstrip(" \t")
-            indent = len(line) - len(stripped)
-            if indent <= 3 and re.fullmatch(
-                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
-            ):
-                fence = None
-            lines.append(("", offset, newline))
-            offset += len(raw_line)
-            continue
-
-        # fence opener の info string 内にある `<!--` は comment 開始ではない。
-        # comment 継続中でない行は opener を先に判定する。
-        if not in_comment:
-            fence_match = FENCE_OPEN_RE.fullmatch(line)
-            if fence_match is not None:
-                marker = fence_match.group("marker")
-                fence = (marker[0], len(marker))
-                lines.append(("", offset, newline))
-                offset += len(raw_line)
-                continue
-
-        visible, in_comment = _mask_html_comments(line, in_comment)
-        fence_match = FENCE_OPEN_RE.fullmatch(visible)
-        if fence_match is not None:
-            marker = fence_match.group("marker")
-            fence = (marker[0], len(marker))
-            lines.append(("", offset, newline))
-            offset += len(raw_line)
-            continue
-
-        stripped = visible.lstrip(" \t")
-        indent = len(visible) - len(stripped)
-        if indent <= 3:
-            raw_start = re.match(
-                r"(?i)<(script|pre|style|textarea)(?:[ \t>]|$)", stripped
-            )
-            if raw_start is not None:
-                tag = raw_start.group(1)
-                end_re = re.compile(rf"(?i)</{re.escape(tag)}[ \t]*>")
-                lines.append(("", offset, newline))
-                if end_re.search(stripped) is None:
-                    raw_html_end = end_re
-                offset += len(raw_line)
-                continue
-            raw_delimiters = (
-                (r"<\?", re.compile(r"\?>")),
-                (r"<!\[CDATA\[", re.compile(r"\]\]>")),
-                (r"<![A-Z]", re.compile(r">")),
-            )
-            delimiter = next(
-                (
-                    end_re
-                    for start_re, end_re in raw_delimiters
-                    if re.match(start_re, stripped)
-                ),
-                None,
-            )
-            if delimiter is not None:
-                lines.append(("", offset, newline))
-                if delimiter.search(stripped) is None:
-                    raw_html_end = delimiter
-                offset += len(raw_line)
-                continue
-            block_tag = re.match(
-                r"(?i)</?(?:address|article|aside|base|basefont|blockquote|body|"
-                r"caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|"
-                r"fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|"
-                r"head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|"
-                r"nav|noframes|ol|optgroup|option|p|param|search|section|summary|"
-                r"table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)",
-                stripped,
-            )
-            if block_tag is not None:
-                lines.append(("", offset, newline))
-                raw_html_until_blank = True
-                offset += len(raw_line)
-                continue
-            complete_tag = re.fullmatch(
-                r"(?i)</?[A-Z][A-Z0-9-]*(?:[ \t]+[^<>]*)?[ \t]*/?>[ \t]*",
-                stripped,
-            )
-            if may_start_type7_html and complete_tag is not None:
-                lines.append(("", offset, newline))
-                raw_html_until_blank = True
-                offset += len(raw_line)
-                continue
-
-        lines.append((visible, offset, newline))
-        offset += len(raw_line)
-    return lines
+    return visible_top_level_lines(text, reject_unicode_separators=False)
 
 
 def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
@@ -3809,7 +3703,16 @@ def _check_dev_wave_model_pins(
                 or DEV_WAVE_MODEL_SLUG_RE.search(authority_residue) is not None
             ):
                 findings.append(DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING)
-            if visible_dw_o01.count("-m <model>") != 1:
+            try:
+                route_count = sum(
+                    visible == DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+                    for visible, _offset, _newline in visible_top_level_lines(
+                        dw_o01_match.group("body")
+                    )
+                )
+            except AuthorityError:
+                route_count = 0
+            if route_count != 1:
                 findings.append(DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING)
 
         operations_outside_dw_o01 = dw_o01_pattern.sub("", operations_text)

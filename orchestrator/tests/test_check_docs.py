@@ -522,6 +522,7 @@ docs/skill-self-improvement.md
 """
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
+    _write(root, "tools/dev_wave_codex.py", "# synthetic Codex dispatcher\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
     codex_skill = """---
@@ -579,7 +580,9 @@ description: synthetic Codex rulings skill
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S06_C_REASONING_HIGH_SENTENCE
             if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
                 body += (
-                    "\n\n`codex exec -m <model>`\n\n"
+                    "\n\n"
+                    + check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+                    + "\n\n"
                     + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
                 )
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
@@ -718,6 +721,14 @@ def _build_min_repo() -> str:
     _dst = os.path.join(root, "tools", "check_docs.py")
     os.makedirs(os.path.dirname(_dst))
     shutil.copy(check_docs.__file__, _dst)
+    authority_dst = os.path.join(
+        root, "tools", "dev_waves", "launch_authority.py"
+    )
+    os.makedirs(os.path.dirname(authority_dst))
+    shutil.copy(
+        check_docs.REPO / "tools" / "dev_waves" / "launch_authority.py",
+        authority_dst,
+    )
     shutil.copy(check_docs.REPO / "tools" / "spool_fold.py", os.path.dirname(_dst))
     _write_empty_spool_layout(root)
 
@@ -6332,10 +6343,38 @@ def test_dev_wave_model_pin_rejects_missing_dw_o01_model_placeholder():
             _replace_reference_section_literal(
                 _read(root, rel),
                 "DW-O01",
-                "-m <model>",
+                check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL,
                 "--model-from-dispatcher",
             ),
         )
+        _assert_findings(
+            root,
+            check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (
+        lambda line: f"> {line}",
+        lambda line: f"- {line}",
+        lambda line: f"<div>\n{line}\n</div>\n",
+        lambda line: f"この route では起動しない: {line}",
+    ),
+)
+def test_dev_wave_dispatch_route_requires_visible_top_level_full_match(
+    replacement,
+):
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        route = check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
+        changed = text.replace(route, replacement(route), 1)
+        assert changed != text
+        _write(root, rel, changed)
         _assert_findings(
             root,
             check_docs.DEV_WAVE_DW_O01_MODEL_PLACEHOLDER_FINDING,

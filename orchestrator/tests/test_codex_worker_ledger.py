@@ -106,6 +106,10 @@ def _materialize(
             if context.get("object_level"):
                 context_line["model"] = context["model"]
                 context_line["effort"] = context["effort"]
+                if "collaboration_mode" in context:
+                    context_line["collaboration_mode"] = context[
+                        "collaboration_mode"
+                    ]
             else:
                 context_line["payload"] = {
                     "model": context["model"],
@@ -277,6 +281,32 @@ def _write_manifest(
         encoding="utf-8",
     )
     return path
+
+
+def _manifest_v2_session(
+    session_id: str,
+    *,
+    job_id: str,
+    stage: str,
+    lane: str | None,
+    repo_root: str,
+    receipt_path: str,
+) -> dict[str, Any]:
+    return {
+        "job_id": job_id,
+        "attempt_index": 1,
+        "session_id": session_id,
+        "stage": stage,
+        "lane": lane,
+        "repo_root": repo_root,
+        "base_commit": "a" * 40,
+        "requested_cwd": repo_root,
+        "recorded_cwd": repo_root,
+        "sessions_root": "/synthetic/sessions",
+        "receipt_path": receipt_path,
+        "authority_commit": "b" * 40,
+        "authority_digest": "c" * 64,
+    }
 
 
 def _incremental_usage_pairs(
@@ -948,9 +978,17 @@ def test_inconsistent_turn_context_fails_closed(
 def test_object_level_turn_context_model_and_effort_are_read(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    root = _materialize(
-        tmp_path / "sessions", _case("turn_context_object_level")
-    )
+    context = {
+        "model": "gpt-object-level",
+        "effort": "max",
+        "object_level": True,
+        "payload": {"model": "gpt-object-level", "effort": "max"},
+    }
+    spec = {
+        **_healthy_specs()[0],
+        "contexts": [context, dict(context)],
+    }
+    root = _materialize(tmp_path / "sessions", [spec])
     rc, output, stderr = _run_json(capsys, root, "--strict")
     row = output["sessions"][0]
     assert rc == 0
@@ -959,6 +997,34 @@ def test_object_level_turn_context_model_and_effort_are_read(
     assert row["turn_contexts"] == 2
     assert row["model"] == "gpt-object-level"
     assert row["reasoning"] == "max"
+
+
+def test_payload_empty_rejects_top_level_and_collaboration_mode_decoys(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    decoy = {
+        "model": "gpt-object-level",
+        "effort": "max",
+        "object_level": True,
+        "payload": {},
+        "collaboration_mode": {
+            "settings": {"model": "gpt-object-level", "effort": "max"}
+        },
+    }
+    spec = {
+        **_healthy_specs()[0],
+        "contexts": [decoy, dict(decoy)],
+    }
+    root = _materialize(tmp_path / "sessions", [spec])
+    rc, output, stderr = _run_json(capsys, root, "--strict")
+    row = output["sessions"][0]
+    assert rc == 2
+    assert "missing turn_context payload authority" in stderr
+    assert list(output["issues"]) == ["missing_turn_context_authority"]
+    assert len(output["issues"]["missing_turn_context_authority"]) == 2
+    assert row["turn_contexts"] == 2
+    assert row["model"] == ""
+    assert row["reasoning"] == ""
 
 
 def test_same_session_id_in_two_files_fails_closed(
@@ -1213,6 +1279,49 @@ def test_manifest_missing_session_fails_without_strict(
     assert output["totals"]["sessions"] == 1
     assert output["issues"]["manifest_missing_session"] == [missing_id]
     assert "manifest session missing from rollout" in stderr
+
+
+def test_manifest_v2_reads_sibling_worktree_sessions_and_stage_lane(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    specs = _healthy_specs()[:2]
+    root = _materialize(tmp_path / "sessions", specs)
+    sessions = [
+        _manifest_v2_session(
+            specs[0]["id"],
+            job_id="author-a",
+            stage="author",
+            lane=None,
+            repo_root="/synthetic/worktree-a",
+            receipt_path="/synthetic/receipt-a.json",
+        ),
+        _manifest_v2_session(
+            specs[1]["id"],
+            job_id="consult-b",
+            stage="consult",
+            lane="luna",
+            repo_root="/synthetic/worktree-b",
+            receipt_path="/synthetic/receipt-b.json",
+        ),
+    ]
+    manifest = tmp_path / "manifest-v2.json"
+    manifest.write_text(
+        json.dumps(
+            {"schema_version": 2, "wave_id": "wave-v2", "sessions": sessions},
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    rc, output, stderr = _run_json(
+        capsys, root, "--manifest", str(manifest), "--strict"
+    )
+    assert rc == 0
+    assert stderr == ""
+    assert [(row["stage"], row["lane"]) for row in output["sessions"]] == [
+        ("author", None),
+        ("consult", "luna"),
+    ]
 
 
 def test_empty_manifest_is_rc2(

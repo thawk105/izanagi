@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+"""dev-wave Codex worker launcher への thin dispatcher。"""
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Sequence
+
+
+STAGES = ("plan", "consult", "author", "review", "fix", "focus")
+LANES = ("sol", "luna")
+AUTHORITY_BOUND_STAGES = frozenset({"review", "focus"})
+WORKSPACE_WRITE_STAGES = frozenset({"author", "fix"})
+
+# These are deliberately operational defaults, not docs authority.
+DEFAULT_MAX_WALL_CLOCK_S = 3600
+DEFAULT_MAX_MODEL_CALLS = 100
+DEFAULT_MAX_CLI_REPORTED_TOKENS = 1_000_000
+
+_SLUG_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+_HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
+_NON_AUTHORITY_HELP = "これは非権威の運用既定であり docs 権威ではない"
+
+
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("正整数が必要") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("正整数が必要")
+    return parsed
+
+
+def _parser() -> argparse.ArgumentParser:
+    repo_root = Path(__file__).resolve().parents[1]
+    parser = argparse.ArgumentParser(
+        description=(
+            "dev-wave の入力から codex_worker_launch.py run の必須 argv を生成する"
+        )
+    )
+    parser.add_argument("--stage", choices=STAGES, required=True)
+    parser.add_argument("--lane", choices=LANES)
+    parser.add_argument("--wave", required=True, help="wave slug")
+    parser.add_argument("--prompt-file", type=Path, required=True)
+    parser.add_argument("--artifact-root", type=Path, required=True)
+    parser.add_argument("-o", "--output-file", type=Path, required=True)
+    parser.add_argument("--reasoning")
+    parser.add_argument(
+        "--sandbox", choices=("read-only", "workspace-write")
+    )
+    parser.add_argument("--repo-root", type=Path, default=repo_root)
+    parser.add_argument("--job-id")
+    parser.add_argument(
+        "--max-wall-clock-s",
+        type=_positive_int,
+        default=DEFAULT_MAX_WALL_CLOCK_S,
+        help=(
+            f"wall-clock 上限 (既定: {DEFAULT_MAX_WALL_CLOCK_S}); "
+            f"{_NON_AUTHORITY_HELP}"
+        ),
+    )
+    parser.add_argument(
+        "--max-model-calls",
+        type=_positive_int,
+        default=DEFAULT_MAX_MODEL_CALLS,
+        help=(
+            f"model call 観測上限 (既定: {DEFAULT_MAX_MODEL_CALLS}); "
+            f"{_NON_AUTHORITY_HELP}"
+        ),
+    )
+    parser.add_argument(
+        "--max-cli-reported-tokens",
+        type=_positive_int,
+        default=DEFAULT_MAX_CLI_REPORTED_TOKENS,
+        help=(
+            "CLI reported token 観測上限 "
+            f"(既定: {DEFAULT_MAX_CLI_REPORTED_TOKENS}); {_NON_AUTHORITY_HELP}"
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="生成した argv を 1 行 1 引数で表示し、起動しない",
+    )
+    return parser
+
+
+def _absolute(parser: argparse.ArgumentParser, path: Path, option: str) -> Path:
+    if not path.is_absolute():
+        parser.error(f"{option} は absolute path が必要")
+    return path.resolve(strict=False)
+
+
+def _resolve_base_commit(
+    parser: argparse.ArgumentParser, repo_root: Path
+) -> str:
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                os.fspath(repo_root),
+                "rev-parse",
+                "--verify",
+                "HEAD^{commit}",
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        parser.error(f"--repo-root の HEAD を解決できない: {exc}")
+    commit = result.stdout.strip()
+    if result.returncode != 0 or _HEX40_RE.fullmatch(commit) is None:
+        detail = result.stderr.strip() or "40 桁 commit を得られなかった"
+        parser.error(f"--repo-root の HEAD を解決できない: {detail}")
+    return commit
+
+
+def _validate_combinations(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> None:
+    if _SLUG_RE.fullmatch(args.wave) is None:
+        parser.error("--wave は path separator を含まない slug が必要")
+    if args.job_id is not None and _SLUG_RE.fullmatch(args.job_id) is None:
+        parser.error("--job-id は path separator を含まない id が必要")
+    if args.stage == "consult":
+        if args.lane is None:
+            parser.error("--stage consult には --lane が必要")
+    elif args.lane is not None:
+        parser.error("--lane は --stage consult でだけ指定できる")
+    if args.stage in AUTHORITY_BOUND_STAGES:
+        if args.reasoning is not None:
+            parser.error(
+                "--reasoning は --stage review/focus では指定できない"
+            )
+    elif args.reasoning is None or not args.reasoning.strip():
+        parser.error(
+            "--reasoning は --stage review/focus 以外では必須"
+        )
+
+
+def _launcher_argv(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> list[str]:
+    _validate_combinations(parser, args)
+    repo_root = _absolute(parser, args.repo_root, "--repo-root")
+    prompt_file = _absolute(parser, args.prompt_file, "--prompt-file")
+    artifact_root = _absolute(parser, args.artifact_root, "--artifact-root")
+    output_file = _absolute(parser, args.output_file, "--output-file")
+    base_commit = _resolve_base_commit(parser, repo_root)
+
+    job_key = args.stage + (f"-{args.lane}" if args.lane else "")
+    job_id = args.job_id or f"{args.wave}-{job_key}"
+    wave_artifact_root = artifact_root / args.wave
+    artifact_dir = wave_artifact_root / job_id
+    receipt = artifact_dir / "receipt.json"
+    manifest = wave_artifact_root / "manifest.json"
+    sandbox = args.sandbox or (
+        "workspace-write"
+        if args.stage in WORKSPACE_WRITE_STAGES
+        else "read-only"
+    )
+
+    argv = [
+        "python3",
+        os.fspath(repo_root / "tools" / "codex_worker_launch.py"),
+        "run",
+        "--stage",
+        args.stage,
+    ]
+    if args.lane is not None:
+        argv.extend(("--lane", args.lane))
+    argv.extend(
+        (
+            "--job-id",
+            job_id,
+            "--wave-id",
+            args.wave,
+            "--repo-root",
+            os.fspath(repo_root),
+            "--base-commit",
+            base_commit,
+            "--prompt-file",
+            os.fspath(prompt_file),
+            "--cwd",
+            os.fspath(repo_root),
+            "--sandbox",
+            sandbox,
+        )
+    )
+    if args.stage not in AUTHORITY_BOUND_STAGES:
+        argv.extend(("--reasoning", args.reasoning))
+    argv.extend(
+        (
+            "--max-wall-clock-s",
+            str(args.max_wall_clock_s),
+            "--max-model-calls",
+            str(args.max_model_calls),
+            "--max-cli-reported-tokens",
+            str(args.max_cli_reported_tokens),
+            "--artifact-dir",
+            os.fspath(artifact_dir),
+            "--output-file",
+            os.fspath(output_file),
+            "--receipt",
+            os.fspath(receipt),
+            "--manifest",
+            os.fspath(manifest),
+        )
+    )
+    return argv
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = _parser()
+    args = parser.parse_args(argv)
+    launcher_argv = _launcher_argv(parser, args)
+    if args.dry_run:
+        print("\n".join(launcher_argv))
+        return 0
+    try:
+        return subprocess.run(launcher_argv, check=False).returncode
+    except OSError as exc:
+        parser.error(f"launcher を起動できない: {exc}")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

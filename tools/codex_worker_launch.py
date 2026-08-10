@@ -21,7 +21,7 @@ import sys
 import time
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -44,6 +44,14 @@ from orchestrator.codex_roles.events import (  # noqa: E402
 )
 from tools import check_codex_output as _validator  # noqa: E402
 from tools.dev_waves.effort_levels import CODEX_REASONING_EFFORTS  # noqa: E402
+from tools.dev_waves.launch_authority import (  # noqa: E402
+    STAGES,
+    AuthorityError,
+    AuthoritySnapshot,
+    LaunchRequirement,
+    derive_launch,
+    snapshot_authority,
+)
 from tools.dev_waves.schema import (  # noqa: E402
     DevWavesError,
     canonical_bytes,
@@ -156,6 +164,59 @@ _RECEIPT_V2_ONLY_FIELDS = frozenset(
     }
 )
 _RECEIPT_FIELDS_V1 = _RECEIPT_FIELDS_V2 - _RECEIPT_V2_ONLY_FIELDS
+_RECORDED_VALUES_SEMANTICS = (
+    "Codex CLI rollout の記録値であり served model の attest ではない"
+)
+_AUTHORITY_SNAPSHOT_FIELDS = frozenset(
+    {"authority_commit", "sections", "digest"}
+)
+_AUTHORITY_SECTION_FIELDS = frozenset({"path", "section", "sha256"})
+_RECEIPT_FIELDS_V3 = frozenset(
+    {
+        "schema_version",
+        "job_id",
+        "stage",
+        "lane",
+        "prompt_sha256",
+        "requested_model",
+        "requested_effort",
+        "effort_authority",
+        "recorded_model",
+        "recorded_effort",
+        "recorded_turn_context_count",
+        "recorded_values_semantics",
+        "sandbox",
+        "requested_cwd",
+        "recorded_cwd",
+        "repo_root",
+        "base_commit",
+        "sessions_root",
+        "artifact_dir",
+        "output_path",
+        "output_sha256",
+        "manifest_path",
+        "receipt_path",
+        "manifest_wave_id",
+        "authority_snapshot",
+        "codex_version",
+        "codex_executable_path",
+        "codex_executable_sha256",
+        "model_calls_semantics",
+        "possible_unobserved_overshoot",
+        "limits_assertion",
+        "wall_clock_scope",
+        "retry_classification",
+        "escaped_process_containment",
+        "limits",
+        "actuals",
+        "outcome",
+        "stop_reason",
+        "launcher_rc",
+        "codex_exit_code",
+        "validator_rc",
+        "attempts",
+    }
+)
 _LIMIT_FIELDS = frozenset(
     {
         "max_wall_clock_s",
@@ -177,11 +238,29 @@ _ACTUAL_FIELDS = frozenset(
         "cli_reported",
     }
 )
-_MANIFEST_FIELDS = frozenset(
+_MANIFEST_FIELDS_V1 = frozenset(
     {"schema_version", "wave_id", "repo_root", "base_commit", "sessions"}
 )
-_MANIFEST_ENTRY_FIELDS = frozenset(
+_MANIFEST_ENTRY_FIELDS_V1 = frozenset(
     {"job_id", "attempt_index", "session_id"}
+)
+_MANIFEST_FIELDS_V2 = frozenset({"schema_version", "wave_id", "sessions"})
+_MANIFEST_ENTRY_FIELDS_V2 = frozenset(
+    {
+        "job_id",
+        "attempt_index",
+        "session_id",
+        "stage",
+        "lane",
+        "repo_root",
+        "base_commit",
+        "requested_cwd",
+        "recorded_cwd",
+        "sessions_root",
+        "receipt_path",
+        "authority_commit",
+        "authority_digest",
+    }
 )
 
 
@@ -206,6 +285,9 @@ class RolloutState:
     sha256: Any = field(default_factory=hashlib.sha256)
     session_meta_count: int = 0
     context_count: int = 0
+    recorded_cwd: str | None = None
+    recorded_models: list[str | None] = field(default_factory=list)
+    recorded_efforts: list[str | None] = field(default_factory=list)
     model_calls: int = 0
     usage: dict[str, int] | None = None
     latest_usage: dict[str, int] | None = None
@@ -535,27 +617,43 @@ def _load_json(path: Path, *, label: str) -> object:
 
 
 def _validate_manifest(value: object) -> dict[str, Any]:
-    manifest = _closed_object(
-        value, _MANIFEST_FIELDS, label="CodexWorkerSessionManifest"
-    )
-    if manifest["schema_version"] != 1:
+    if not isinstance(value, dict):
+        raise LaunchError("manifest が object ではない")
+    schema_version = value.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version not in (1, 2):
         raise LaunchError("manifest.schema_version が不正")
+    fields = _MANIFEST_FIELDS_V1 if schema_version == 1 else _MANIFEST_FIELDS_V2
+    manifest = _closed_object(
+        value, fields, label="CodexWorkerSessionManifest"
+    )
     wave_id = manifest["wave_id"]
     if not isinstance(wave_id, str) or _ID_RE.fullmatch(wave_id) is None:
         raise LaunchError("manifest.wave_id が不正")
-    _absolute_path(manifest["repo_root"], label="manifest.repo_root")
-    base_commit = manifest["base_commit"]
-    if not isinstance(base_commit, str) or _COMMIT_RE.fullmatch(base_commit) is None:
-        raise LaunchError("manifest.base_commit が不正")
+    if schema_version == 1:
+        _absolute_path(manifest["repo_root"], label="manifest.repo_root")
+        base_commit = manifest["base_commit"]
+        if (
+            not isinstance(base_commit, str)
+            or _COMMIT_RE.fullmatch(base_commit) is None
+        ):
+            raise LaunchError("manifest.base_commit が不正")
     sessions = manifest["sessions"]
     if not isinstance(sessions, list) or not 1 <= len(sessions) <= 1024:
         raise LaunchError("manifest.sessions は 1..1024 件でなければならない")
     job_attempts: set[tuple[str, int]] = set()
     session_ids: set[str] = set()
+    receipt_owners: dict[str, str] = {}
+    job_identities: dict[str, tuple[object, ...]] = {}
     validated: list[dict[str, Any]] = []
     for index, raw_entry in enumerate(sessions):
         entry = _closed_object(
-            raw_entry, _MANIFEST_ENTRY_FIELDS, label=f"manifest.sessions[{index}]"
+            raw_entry,
+            (
+                _MANIFEST_ENTRY_FIELDS_V1
+                if schema_version == 1
+                else _MANIFEST_ENTRY_FIELDS_V2
+            ),
+            label=f"manifest.sessions[{index}]",
         )
         job_id = entry["job_id"]
         if not isinstance(job_id, str) or _ID_RE.fullmatch(job_id) is None:
@@ -576,28 +674,87 @@ def _validate_manifest(value: object) -> dict[str, Any]:
             raise LaunchError("manifest の session_id が重複")
         job_attempts.add(key)
         session_ids.add(session_id)
-        validated.append(
-            {
-                "job_id": job_id,
-                "attempt_index": attempt_index,
-                "session_id": session_id,
-            }
-        )
-    return {
-        "schema_version": 1,
+        normalized = {
+            "job_id": job_id,
+            "attempt_index": attempt_index,
+            "session_id": session_id,
+        }
+        if schema_version == 2:
+            stage = entry["stage"]
+            lane = entry["lane"]
+            if stage not in STAGES:
+                raise LaunchError(f"manifest.sessions[{index}].stage が不正")
+            if (stage == "consult") != (lane in ("sol", "luna")):
+                raise LaunchError(f"manifest.sessions[{index}].lane が不正")
+            for field_name in (
+                "repo_root",
+                "requested_cwd",
+                "recorded_cwd",
+                "sessions_root",
+                "receipt_path",
+            ):
+                _absolute_path(
+                    entry[field_name],
+                    label=f"manifest.sessions[{index}].{field_name}",
+                )
+            if (
+                not isinstance(entry["base_commit"], str)
+                or _COMMIT_RE.fullmatch(entry["base_commit"]) is None
+            ):
+                raise LaunchError(f"manifest.sessions[{index}].base_commit が不正")
+            if (
+                not isinstance(entry["authority_commit"], str)
+                or _COMMIT_RE.fullmatch(entry["authority_commit"]) is None
+            ):
+                raise LaunchError(
+                    f"manifest.sessions[{index}].authority_commit が不正"
+                )
+            if (
+                not isinstance(entry["authority_digest"], str)
+                or _SHA256_RE.fullmatch(entry["authority_digest"]) is None
+            ):
+                raise LaunchError(
+                    f"manifest.sessions[{index}].authority_digest が不正"
+                )
+            owner = receipt_owners.setdefault(entry["receipt_path"], job_id)
+            if owner != job_id:
+                raise LaunchError("manifest の receipt_path が別 job と重複")
+            identity = tuple(
+                entry[name]
+                for name in (
+                    "stage",
+                    "lane",
+                    "repo_root",
+                    "base_commit",
+                    "requested_cwd",
+                    "recorded_cwd",
+                    "sessions_root",
+                    "receipt_path",
+                    "authority_commit",
+                    "authority_digest",
+                )
+            )
+            previous = job_identities.setdefault(job_id, identity)
+            if previous != identity:
+                raise LaunchError("manifest の同一 job retry identity が不一致")
+            normalized.update({name: entry[name] for name in entry if name not in normalized})
+        validated.append(normalized)
+    result = {
+        "schema_version": schema_version,
         "wave_id": wave_id,
-        "repo_root": manifest["repo_root"],
-        "base_commit": base_commit,
         "sessions": validated,
     }
+    if schema_version == 1:
+        result.update(
+            {"repo_root": manifest["repo_root"], "base_commit": base_commit}
+        )
+    return result
 
 
 def _append_manifest(
     path: Path,
     *,
     wave_id: str,
-    repo_root: str,
-    base_commit: str,
     entry: dict[str, Any],
     critical_section_hook: Callable[[], None] | None = None,
 ) -> None:
@@ -614,16 +771,12 @@ def _append_manifest(
             manifest = _validate_manifest(_load_json(path, label="manifest"))
             if manifest["wave_id"] != wave_id:
                 raise LaunchError("manifest header の wave_id が異なる")
-            if manifest["repo_root"] != repo_root:
-                raise LaunchError("manifest header の repo_root が異なる")
-            if manifest["base_commit"] != base_commit:
-                raise LaunchError("manifest header の base_commit が異なる")
+            if manifest["schema_version"] != 2:
+                raise LaunchError("manifest v1 へ v2 session を append できない")
         else:
             manifest = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "wave_id": wave_id,
-                "repo_root": repo_root,
-                "base_commit": base_commit,
                 "sessions": [],
             }
         same_key = [
@@ -646,6 +799,12 @@ def _append_manifest(
             for item in manifest["sessions"]
         ):
             raise LaunchError("manifest session_id が別 job/attempt と重複")
+        if any(
+            item["receipt_path"] == entry["receipt_path"]
+            and item["job_id"] != entry["job_id"]
+            for item in manifest["sessions"]
+        ):
+            raise LaunchError("manifest receipt_path が別 job と重複")
         manifest["sessions"].append(entry)
         manifest["sessions"].sort(
             key=lambda item: (
@@ -656,6 +815,7 @@ def _append_manifest(
         )
         if len(manifest["sessions"]) > 1024:
             raise LaunchError("manifest.sessions 上限 1024 件を超過")
+        _validate_manifest(manifest)
         if critical_section_hook is not None:
             critical_section_hook()
         _atomic_replace_json(path, manifest)
@@ -772,6 +932,7 @@ def _consume_rollout_event(
     *,
     model: str,
     reasoning: str,
+    cwd: str,
 ) -> None:
     item_type = event.get("type")
     payload = event.get("payload")
@@ -788,11 +949,27 @@ def _consume_rollout_event(
             return
         if meta_id != rollout.session_id:
             rollout.invalid = True
+        recorded_cwd = payload.get("cwd")
+        if not isinstance(recorded_cwd, str) or recorded_cwd != cwd:
+            rollout.invalid = True
+        else:
+            rollout.recorded_cwd = recorded_cwd
     elif item_type == "turn_context":
         rollout.context_count += 1
-        context_model = payload.get("model", event.get("model"))
-        context_reasoning = payload.get("effort", event.get("effort"))
-        if context_model != model or context_reasoning != reasoning:
+        context_model = payload.get("model")
+        context_reasoning = payload.get("effort")
+        rollout.recorded_models.append(
+            context_model if isinstance(context_model, str) else None
+        )
+        rollout.recorded_efforts.append(
+            context_reasoning if isinstance(context_reasoning, str) else None
+        )
+        if (
+            not isinstance(context_model, str)
+            or not isinstance(context_reasoning, str)
+            or context_model != model
+            or context_reasoning != reasoning
+        ):
             rollout.invalid = True
     elif item_type == "event_msg" and payload.get("type") == "token_count":
         rollout.model_calls += 1
@@ -829,7 +1006,7 @@ def _consume_rollout_event(
 
 
 def _tail_rollout(
-    rollout: RolloutState, *, model: str, reasoning: str
+    rollout: RolloutState, *, model: str, reasoning: str, cwd: str
 ) -> None:
     with rollout.path.open("rb") as stream:
         stream.seek(rollout.offset)
@@ -859,7 +1036,7 @@ def _tail_rollout(
             rollout.invalid = True
             continue
         _consume_rollout_event(
-            rollout, event, model=model, reasoning=reasoning
+            rollout, event, model=model, reasoning=reasoning, cwd=cwd
         )
 
 
@@ -1102,6 +1279,9 @@ def _attempt_loop(
     codex_path: Path,
     expected_binary_sha256: str,
 ) -> dict[str, Any]:
+    requirement: LaunchRequirement = args.launch_requirement
+    if requirement.effort is None:
+        raise LaunchError("launch requirement の effort が未束縛")
     current_sha256, _ = _hash_file(codex_path)
     if current_sha256 != expected_binary_sha256:
         raise LaunchError("retry 間で codex executable が変化した")
@@ -1118,9 +1298,9 @@ def _attempt_loop(
         "exec",
         "--json",
         "-m",
-        args.model,
+        requirement.model,
         "-c",
-        f'model_reasoning_effort="{args.reasoning}"',
+        f'model_reasoning_effort="{requirement.effort}"',
         "-s",
         args.sandbox,
         "-C",
@@ -1147,7 +1327,10 @@ def _attempt_loop(
         _discover_rollouts(state, args.sessions_root)
         for rollout in state.rollouts.values():
             _tail_rollout(
-                rollout, model=args.model, reasoning=args.reasoning
+                rollout,
+                model=requirement.model,
+                reasoning=requirement.effort,
+                cwd=os.fspath(args.cwd),
             )
         if not register_manifest:
             return
@@ -1164,12 +1347,20 @@ def _attempt_loop(
             _append_manifest(
                 args.manifest,
                 wave_id=args.wave_id,
-                repo_root=os.fspath(args.repo_root),
-                base_commit=args.base_commit,
                 entry={
                     "job_id": args.job_id,
                     "attempt_index": attempt_index,
                     "session_id": session_id,
+                    "stage": requirement.stage,
+                    "lane": requirement.lane,
+                    "repo_root": os.fspath(args.repo_root),
+                    "base_commit": args.base_commit,
+                    "requested_cwd": os.fspath(args.cwd),
+                    "recorded_cwd": rollout.recorded_cwd,
+                    "sessions_root": os.fspath(args.sessions_root),
+                    "receipt_path": os.fspath(args.receipt),
+                    "authority_commit": args.authority_snapshot.authority_commit,
+                    "authority_digest": args.authority_snapshot.digest,
                 },
             )
             state.manifested_session_ids.add(session_id)
@@ -1347,11 +1538,16 @@ def _writer_truth(
     attempts: Sequence[Mapping[str, Any]],
     *,
     max_attempts: int,
+    effort_authority: str = "unbound",
 ) -> tuple[str, str, int]:
     """Writer-side truth table. Checker はこの関数を呼ばない。"""
     if attempts and attempts[-1]["accepted"]:
         if any(item["limit_trigger"] is not None for item in attempts):
             raise LaunchError("accepted job に limit_trigger がある")
+        if effort_authority == "docs" and any(
+            item["evidence_status"] != "complete" for item in attempts
+        ):
+            return "not_accepted", "max_attempts", 1
         return "accepted", "completed", 0
     for attempt in attempts:
         if attempt["limit_trigger"] is not None:
@@ -1389,6 +1585,50 @@ def _sum_attempts(attempts: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     return actuals
 
 
+def _recorded_summary(
+    attempts: Sequence[Mapping[str, Any]],
+) -> tuple[str | None, str | None, int, str | None]:
+    models: list[str | None] = []
+    efforts: list[str | None] = []
+    cwds: list[str | None] = []
+    for attempt in attempts:
+        for rollout in attempt["rollouts"]:
+            raw = Path(rollout["path"]).read_bytes()[: rollout["bytes"]]
+            for raw_line in raw.splitlines():
+                if not raw_line.strip():
+                    continue
+                try:
+                    event = strict_json_loads(
+                        raw_line.decode("utf-8"),
+                        label="recorded rollout JSONL",
+                        max_bytes=_MAX_EVENT_LINE_BYTES,
+                    )
+                except (UnicodeDecodeError, EventValidationError):
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                payload = event.get("payload")
+                if not isinstance(payload, dict):
+                    payload = {}
+                if event.get("type") == "turn_context":
+                    model = payload.get("model")
+                    effort = payload.get("effort")
+                    models.append(model if isinstance(model, str) else None)
+                    efforts.append(effort if isinstance(effort, str) else None)
+                elif event.get("type") == "session_meta":
+                    cwd = payload.get("cwd")
+                    cwds.append(cwd if isinstance(cwd, str) else None)
+
+    def unique(values: Sequence[str | None]) -> str | None:
+        return (
+            values[0]
+            if values and values[0] is not None and all(item == values[0] for item in values)
+            else None
+        )
+
+    return unique(models), unique(efforts), len(models), unique(cwds)
+
+
 def _receipt(
     args: argparse.Namespace,
     *,
@@ -1413,30 +1653,47 @@ def _receipt(
         )
     else:
         outcome, stop_reason, launcher_rc = _writer_truth(
-            attempts, max_attempts=args.max_attempts
+            attempts,
+            max_attempts=args.max_attempts,
+            effort_authority=args.launch_requirement.effort_authority,
         )
     actuals = _sum_attempts(attempts)
     actuals["wall_clock_s"] = Decimal(
         _monotonic_ns() - job_started_ns
     ) / Decimal(1_000_000_000)
     last = attempts[-1] if attempts else None
+    recorded_model, recorded_effort, context_count, recorded_cwd = (
+        _recorded_summary(attempts)
+    )
+    requirement: LaunchRequirement = args.launch_requirement
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "job_id": args.job_id,
+        "stage": requirement.stage,
+        "lane": requirement.lane,
         "prompt_sha256": hashlib.sha256(args.prompt_bytes).hexdigest(),
-        "model": args.model,
-        "reasoning": args.reasoning,
+        "requested_model": requirement.model,
+        "requested_effort": requirement.effort,
+        "effort_authority": requirement.effort_authority,
+        "recorded_model": recorded_model,
+        "recorded_effort": recorded_effort,
+        "recorded_turn_context_count": context_count,
+        "recorded_values_semantics": _RECORDED_VALUES_SEMANTICS,
         "sandbox": args.sandbox,
-        "cwd": os.fspath(args.cwd),
+        "requested_cwd": os.fspath(args.cwd),
+        "recorded_cwd": recorded_cwd,
+        "repo_root": os.fspath(args.repo_root),
+        "base_commit": args.base_commit,
+        "sessions_root": os.fspath(args.sessions_root),
         "artifact_dir": os.fspath(args.artifact_dir),
         "output_path": os.fspath(args.output_file),
         "output_sha256": (
             last["output_sha256"] if outcome == "accepted" and last else None
         ),
         "manifest_path": os.fspath(args.manifest),
+        "receipt_path": os.fspath(args.receipt),
         "manifest_wave_id": args.wave_id,
-        "manifest_repo_root": os.fspath(args.repo_root),
-        "manifest_base_commit": args.base_commit,
+        "authority_snapshot": args.authority_snapshot.as_dict(),
         "codex_version": codex_version,
         "codex_executable_path": os.fspath(codex_path),
         "codex_executable_sha256": codex_sha256,
@@ -1539,6 +1796,25 @@ def _verify_repo_binding(repo_root: Path, cwd: Path, base_commit: str) -> None:
 
 
 def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
+    if not args.repo_root.is_absolute():
+        raise LaunchError("--repo-root は absolute path が必要")
+    args.repo_root = args.repo_root.resolve()
+    args.authority_snapshot = snapshot_authority(args.repo_root)
+    derived = derive_launch(
+        args.authority_snapshot, stage=args.stage, lane=args.lane
+    )
+    if derived.effort_authority == "docs":
+        if args.reasoning is not None:
+            raise LaunchError(
+                "review/focus では --reasoning を指定できない"
+            )
+        args.launch_requirement = derived
+    else:
+        if args.reasoning is None:
+            raise LaunchError(
+                "docs 未束縛 stage では --reasoning が必須"
+            )
+        args.launch_requirement = replace(derived, effort=args.reasoning)
     for name in ("cwd", "repo_root", "artifact_dir", "output_file", "receipt", "manifest"):
         path = getattr(args, name)
         if not path.is_absolute():
@@ -1566,7 +1842,6 @@ def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
     args.prompt_bytes = prompt_bytes
     args.prompt_text = prompt_text
     args.cwd = args.cwd.resolve()
-    args.repo_root = args.repo_root.resolve()
     _verify_repo_binding(args.repo_root, args.cwd, args.base_commit)
     if args.output_file.exists():
         raise LaunchError("--output-file は不在でなければならない")
@@ -1585,22 +1860,14 @@ def _preflight_run(args: argparse.Namespace) -> tuple[Path, str, str]:
     args.manifest = args.manifest.resolve(strict=False)
     args.sessions_root = args.sessions_root.resolve(strict=False)
     if args.manifest.exists():
-        # structural corruption と header identity を spawn 前に止める。
+        # structural corruption と version identity を spawn 前に止める。
         manifest = _validate_manifest(
             _load_json(args.manifest, label="existing manifest")
         )
-        expected_header = (
-            args.wave_id,
-            os.fspath(args.repo_root),
-            args.base_commit,
-        )
-        actual_header = (
-            manifest["wave_id"],
-            manifest["repo_root"],
-            manifest["base_commit"],
-        )
-        if actual_header != expected_header:
-            raise LaunchError("existing manifest header が run identity と異なる")
+        if manifest["schema_version"] != 2:
+            raise LaunchError("manifest v1 へ v2 run を append できない")
+        if manifest["wave_id"] != args.wave_id:
+            raise LaunchError("existing manifest wave_id が run identity と異なる")
     if args.receipt.exists():
         try:
             _validate_receipt(_load_json(args.receipt, label="existing receipt"))
@@ -2034,7 +2301,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if (
         isinstance(schema_version, bool)
         or not isinstance(schema_version, int)
-        or schema_version not in (1, 2)
+        or schema_version not in (1, 2, 3)
     ):
         raise LaunchError("receipt.schema_version が不正")
     actual_fields = frozenset(value)
@@ -2047,8 +2314,10 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             expected_fields = _RECEIPT_FIELDS_V2
         else:
             expected_fields = _RECEIPT_FIELDS_V1
-    else:
+    elif schema_version == 2:
         expected_fields = _RECEIPT_FIELDS_V2
+    else:
+        expected_fields = _RECEIPT_FIELDS_V3
     receipt = dict(_closed_object(value, expected_fields, label="receipt"))
     if (
         not isinstance(receipt["job_id"], str)
@@ -2060,19 +2329,60 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         or _SHA256_RE.fullmatch(receipt["prompt_sha256"]) is None
     ):
         raise LaunchError("receipt.prompt_sha256 が不正")
-    for field_name in ("model", "reasoning", "codex_version"):
+    if schema_version == 3:
+        if receipt["stage"] not in STAGES:
+            raise LaunchError("receipt.stage が不正")
+        if (receipt["stage"] == "consult") != (
+            receipt["lane"] in ("sol", "luna")
+        ):
+            raise LaunchError("receipt.lane が不正")
+        model_field = "requested_model"
+        reasoning_field = "requested_effort"
+        cwd_field = "requested_cwd"
+        if receipt["effort_authority"] not in ("docs", "unbound"):
+            raise LaunchError("receipt.effort_authority が不正")
+        if (receipt["stage"] in ("review", "focus")) != (
+            receipt["effort_authority"] == "docs"
+        ):
+            raise LaunchError("receipt effort authority と stage が不一致")
+        for field_name in ("recorded_model", "recorded_effort", "recorded_cwd"):
+            if receipt[field_name] is not None and (
+                not isinstance(receipt[field_name], str)
+                or not receipt[field_name]
+            ):
+                raise LaunchError(f"receipt.{field_name} が不正")
+        _strict_int(
+            receipt["recorded_turn_context_count"],
+            label="receipt.recorded_turn_context_count",
+        )
+        if receipt["recorded_values_semantics"] != _RECORDED_VALUES_SEMANTICS:
+            raise LaunchError("receipt.recorded_values_semantics が不正")
+    else:
+        model_field = "model"
+        reasoning_field = "reasoning"
+        cwd_field = "cwd"
+    for field_name in (model_field, reasoning_field, "codex_version"):
         if not isinstance(receipt[field_name], str) or not receipt[field_name]:
             raise LaunchError(f"receipt.{field_name} が不正")
     if receipt["sandbox"] not in ("read-only", "workspace-write"):
         raise LaunchError("receipt.sandbox が不正")
     for field_name in (
-        "cwd",
+        cwd_field,
         "artifact_dir",
         "output_path",
         "manifest_path",
+        *(('receipt_path',) if schema_version == 3 else ()),
         "codex_executable_path",
     ):
         _absolute_path(receipt[field_name], label=f"receipt.{field_name}")
+    if schema_version == 3:
+        for field_name in ("repo_root", "sessions_root"):
+            _absolute_path(receipt[field_name], label=f"receipt.{field_name}")
+        if (
+            not isinstance(receipt["base_commit"], str)
+            or _COMMIT_RE.fullmatch(receipt["base_commit"]) is None
+        ):
+            raise LaunchError("receipt.base_commit が不正")
     if "manifest_repo_root" in receipt:
         _absolute_path(
             receipt["manifest_repo_root"], label="receipt.manifest_repo_root"
@@ -2082,6 +2392,45 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         or _COMMIT_RE.fullmatch(receipt["manifest_base_commit"]) is None
     ):
         raise LaunchError("receipt.manifest_base_commit が不正")
+    if schema_version == 3:
+        snapshot = _closed_object(
+            receipt["authority_snapshot"],
+            _AUTHORITY_SNAPSHOT_FIELDS,
+            label="authority_snapshot",
+        )
+        if (
+            not isinstance(snapshot["authority_commit"], str)
+            or _COMMIT_RE.fullmatch(snapshot["authority_commit"]) is None
+        ):
+            raise LaunchError("authority_snapshot.authority_commit が不正")
+        if (
+            not isinstance(snapshot["digest"], str)
+            or _SHA256_RE.fullmatch(snapshot["digest"]) is None
+        ):
+            raise LaunchError("authority_snapshot.digest が不正")
+        sections = snapshot["sections"]
+        if not isinstance(sections, list) or len(sections) != 3:
+            raise LaunchError("authority_snapshot.sections が不正")
+        section_keys: set[tuple[str, str]] = set()
+        for index, raw_section in enumerate(sections):
+            section = _closed_object(
+                raw_section,
+                _AUTHORITY_SECTION_FIELDS,
+                label=f"authority_snapshot.sections[{index}]",
+            )
+            if not isinstance(section["path"], str) or not section["path"]:
+                raise LaunchError("authority_snapshot section path が不正")
+            if not isinstance(section["section"], str) or not section["section"]:
+                raise LaunchError("authority_snapshot section id が不正")
+            if (
+                not isinstance(section["sha256"], str)
+                or _SHA256_RE.fullmatch(section["sha256"]) is None
+            ):
+                raise LaunchError("authority_snapshot section sha256 が不正")
+            key = (section["path"], section["section"])
+            if key in section_keys:
+                raise LaunchError("authority_snapshot section が重複")
+            section_keys.add(key)
     for field_name in ("output_sha256",):
         value_hash = receipt[field_name]
         if value_hash is not None and (
@@ -2111,7 +2460,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     if "wall_clock_scope" in receipt:
         expected_wall_scope = (
             "launcher_start_to_receipt_fields_finalized"
-            if schema_version == 2
+            if schema_version in (2, 3)
             else "launcher_process"
         )
         if receipt["wall_clock_scope"] != expected_wall_scope:
@@ -2176,6 +2525,13 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         raise LaunchError("attempts 空は launcher_error だけで許可される")
     # Checker-side truth table: writer の _writer_truth から独立に閉じる。
     accepted_count = sum(bool(item["accepted"]) for item in attempts)
+    authority_retry_rejected = bool(
+        schema_version == 3
+        and receipt["effort_authority"] == "docs"
+        and attempts
+        and attempts[-1]["accepted"]
+        and any(item["evidence_status"] != "complete" for item in attempts)
+    )
     triggered = [
         item["limit_trigger"]
         for item in attempts
@@ -2195,6 +2551,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
             and receipt["launcher_rc"] == 0
             and accepted_count == 1
             and attempts[-1]["accepted"]
+            and not authority_retry_rejected
             and not triggered
             and within_limits
             and receipt["output_sha256"] == attempts[-1]["output_sha256"]
@@ -2204,7 +2561,7 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         valid_truth = (
             receipt["stop_reason"] == expected_stop
             and receipt["launcher_rc"] == 1
-            and accepted_count == 0
+            and (accepted_count == 0 or authority_retry_rejected)
             and receipt["output_sha256"] is None
         )
     else:
@@ -2216,6 +2573,14 @@ def _validate_receipt(value: object) -> dict[str, Any]:
         )
     if not valid_truth:
         raise LaunchError("receipt truth table が不正")
+    if schema_version == 3 and receipt["outcome"] == "accepted":
+        if not (
+            receipt["recorded_model"] == receipt["requested_model"]
+            and receipt["recorded_effort"] == receipt["requested_effort"]
+            and receipt["recorded_turn_context_count"] >= 1
+            and receipt["recorded_cwd"] == receipt["requested_cwd"]
+        ):
+            raise LaunchError("receipt recorded/requested binding が不正")
     expected_overshoot = any(
         item["metering_status"] != "complete"
         or item["limit_trigger"] is not None
@@ -2250,6 +2615,7 @@ def _recompute_attempt_metering(
     *,
     model: str,
     reasoning: str,
+    cwd: str,
 ) -> tuple[str, str, dict[str, int]]:
     state = AttemptState(
         attempt_index=attempt["attempt_index"],
@@ -2302,7 +2668,11 @@ def _recompute_attempt_metering(
                 rollout.invalid = True
                 continue
             _consume_rollout_event(
-                rollout, event, model=model, reasoning=reasoning
+                rollout,
+                event,
+                model=model,
+                reasoning=reasoning,
+                cwd=cwd,
             )
     state.session_ids = list(attempt["session_ids"])
     return _evidence_status(state), _metering_status(state), _rollout_actuals(state)
@@ -2311,17 +2681,18 @@ def _recompute_attempt_metering(
 def _check_external_expectations(
     receipt: Mapping[str, Any], expectations: Mapping[str, Any]
 ) -> list[str]:
+    v3 = receipt["schema_version"] == 3
     direct = {
         "prompt_sha256": "prompt_sha256",
         "job_id": "job_id",
         "wave_id": "manifest_wave_id",
-        "repo_root": "manifest_repo_root",
-        "base_commit": "manifest_base_commit",
+        "repo_root": "repo_root" if v3 else "manifest_repo_root",
+        "base_commit": "base_commit" if v3 else "manifest_base_commit",
         "output_path": "output_path",
-        "model": "model",
-        "reasoning": "reasoning",
+        "model": "requested_model" if v3 else "model",
+        "reasoning": "requested_effort" if v3 else "reasoning",
         "sandbox": "sandbox",
-        "cwd": "cwd",
+        "cwd": "requested_cwd" if v3 else "cwd",
     }
     for option_name, receipt_name in direct.items():
         expected = expectations.get(option_name)
@@ -2377,6 +2748,34 @@ def _audit_receipt_value(
     executable bytes の hash だけを再束縛する。
     """
     receipt = _validate_receipt(receipt_value)
+    v3 = receipt["schema_version"] == 3
+    requested_model = receipt["requested_model"] if v3 else receipt["model"]
+    requested_effort = (
+        receipt["requested_effort"] if v3 else receipt["reasoning"]
+    )
+    requested_cwd = receipt["requested_cwd"] if v3 else receipt["cwd"]
+    if v3:
+        try:
+            historical = snapshot_authority(
+                Path(receipt["repo_root"]),
+                commit=receipt["authority_snapshot"]["authority_commit"],
+            )
+            derived = derive_launch(
+                historical, stage=receipt["stage"], lane=receipt["lane"]
+            )
+        except AuthorityError as exc:
+            raise LaunchError(f"authority snapshot を再構成できない: {exc}") from exc
+        if historical.as_dict() != receipt["authority_snapshot"]:
+            raise LaunchError("authority_snapshot が commit 由来値と不一致")
+        if (
+            derived.model != receipt["requested_model"]
+            or derived.effort_authority != receipt["effort_authority"]
+            or (
+                derived.effort_authority == "docs"
+                and derived.effort != receipt["requested_effort"]
+            )
+        ):
+            raise LaunchError("requested launch 値が docs authority と不一致")
     compatibility_skips = _receipt_compatibility_skips(receipt)
     self_asserted = _check_external_expectations(receipt, expectations)
     if Path(receipt["manifest_path"]) != manifest_path:
@@ -2390,16 +2789,22 @@ def _audit_receipt_value(
         )
         if manifest["wave_id"] != receipt["manifest_wave_id"]:
             raise LaunchError("receipt と manifest の wave_id が不一致")
-        if (
-            "manifest_repo_root" in receipt
-            and manifest["repo_root"] != receipt["manifest_repo_root"]
-        ):
-            raise LaunchError("receipt と manifest の repo_root が不一致")
-        if (
-            "manifest_base_commit" in receipt
-            and manifest["base_commit"] != receipt["manifest_base_commit"]
-        ):
-            raise LaunchError("receipt と manifest の base_commit が不一致")
+        if v3:
+            if manifest["schema_version"] != 2:
+                raise LaunchError("receipt v3 には manifest v2 が必要")
+        else:
+            if manifest["schema_version"] != 1:
+                raise LaunchError("receipt v1/v2 には manifest v1 が必要")
+            if (
+                "manifest_repo_root" in receipt
+                and manifest["repo_root"] != receipt["manifest_repo_root"]
+            ):
+                raise LaunchError("receipt と manifest の repo_root が不一致")
+            if (
+                "manifest_base_commit" in receipt
+                and manifest["base_commit"] != receipt["manifest_base_commit"]
+            ):
+                raise LaunchError("receipt と manifest の base_commit が不一致")
     elif recorded_sessions or receipt["outcome"] == "accepted":
         raise LaunchError("recorded session に必要な manifest が無い")
     else:
@@ -2445,8 +2850,9 @@ def _audit_receipt_value(
                 rollout_grew = True
         evidence, metering, actuals = _recompute_attempt_metering(
             attempt,
-            model=receipt["model"],
-            reasoning=receipt["reasoning"],
+            model=requested_model,
+            reasoning=requested_effort,
+            cwd=requested_cwd,
         )
         recomputed_attempts.append(actuals)
         if evidence != attempt["evidence_status"]:
@@ -2469,12 +2875,49 @@ def _audit_receipt_value(
             )
         ):
             raise LaunchError("attempt session が manifest に無い")
+        if v3 and manifest is not None:
+            for session_id in rollout_session_ids:
+                matching = [
+                    item
+                    for item in manifest["sessions"]
+                    if item["job_id"] == receipt["job_id"]
+                    and item["attempt_index"] == attempt["attempt_index"]
+                    and item["session_id"] == session_id
+                ]
+                expected_entry = {
+                    "stage": receipt["stage"],
+                    "lane": receipt["lane"],
+                    "repo_root": receipt["repo_root"],
+                    "base_commit": receipt["base_commit"],
+                    "requested_cwd": receipt["requested_cwd"],
+                    "recorded_cwd": receipt["recorded_cwd"],
+                    "sessions_root": receipt["sessions_root"],
+                    "receipt_path": receipt["receipt_path"],
+                    "authority_commit": receipt["authority_snapshot"]["authority_commit"],
+                    "authority_digest": receipt["authority_snapshot"]["digest"],
+                }
+                if len(matching) != 1:
+                    raise LaunchError("receipt v3 session が manifest v2 に一意でない")
+                for field_name in expected_entry:
+                    if matching[0][field_name] != expected_entry[field_name]:
+                        raise LaunchError(
+                            f"receipt v3 と manifest v2 の {field_name} が不一致"
+                        )
     for field_name in _ACTUAL_FIELDS - {"wall_clock_s", "attempt_count"}:
         recomputed = sum(item[field_name] for item in recomputed_attempts)
         if receipt["actuals"][field_name] != recomputed:
             raise LaunchError(f"actuals.{field_name} sealed artifact 再計算が不一致")
     if receipt["actuals"]["attempt_count"] != len(recomputed_attempts):
         raise LaunchError("actuals.attempt_count 再計算が不一致")
+    if v3:
+        model, effort, count, cwd = _recorded_summary(receipt["attempts"])
+        if (
+            receipt["recorded_model"] != model
+            or receipt["recorded_effort"] != effort
+            or receipt["recorded_turn_context_count"] != count
+            or receipt["recorded_cwd"] != cwd
+        ):
+            raise LaunchError("receipt recorded_* sealed artifact 再計算が不一致")
     expected_overshoot = any(
         attempt["metering_status"] != "complete"
         or attempt["limit_trigger"] is not None
@@ -2540,6 +2983,8 @@ def _parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     run = subparsers.add_parser("run")
+    run.add_argument("--stage", choices=STAGES, required=True)
+    run.add_argument("--lane", choices=("sol", "luna"))
     run.add_argument("--job-id", required=True)
     run.add_argument("--wave-id", required=True)
     run.add_argument("--repo-root", type=Path, required=True)
@@ -2551,9 +2996,8 @@ def _parser() -> argparse.ArgumentParser:
         choices=("read-only", "workspace-write"),
         required=True,
     )
-    run.add_argument("--model", default="gpt-5.6-sol")
     run.add_argument(
-        "--reasoning", choices=CODEX_REASONING_EFFORTS, required=True
+        "--reasoning", choices=CODEX_REASONING_EFFORTS
     )
     run.add_argument(
         "--max-wall-clock-s", type=_positive_decimal, required=True
@@ -2661,7 +3105,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args.launcher_started_ns = launcher_started_ns
         return _run(args)
-    except (LaunchError, OSError, ValueError) as exc:
+    except (AuthorityError, LaunchError, OSError, ValueError) as exc:
         print(f"NG: {exc}", file=sys.stderr)
         return 2
 
