@@ -114,6 +114,13 @@ title: RuleOps の pickaxe を candidate epoch 窓へ限定し、時限の失効
   `info/grafts` を置いて全照会を偽 topology 上で走らせ、emit 前までに除去すると両端の検査を
   通る (段 3 A-05)。本 wave 以前からある性質で、窓限定とは独立。全 Git 照会を immutable な
   metadata snapshot か排他区間へ閉じる必要があり、`DW-G02` に従い 1 cycle 後へ送った。
+- {{T:mutation-expected-nodes-two-pass}} **P3・新規**: 段 8 の自己改善候補を予算超過で起票へ回した
+  分。`DW-M08` へ「記録 node が期待の真上位集合になる MISMATCH は過小予測であって生存ではない。
+  実測 node を写した spec で当該変異だけ再走して確定し、初回 ledger を erratum として残す」を
+  2 行で統合しようとしたが、`docs/dev-wave/**` の L1.5 unique footprint が **9,802 bytes** となり
+  予算 **9,566 bytes** を超えて `check_docs` が拒否した (超過 236 bytes)。予算は引き上げない
+  方針のため統合せず、`docs/dev-wave/mutation.md` は変更していない。本 wave は初回走で 8 件中
+  3 件がこの形の MISMATCH になり、再走 1 回分 (約 12 分) を余分に使っている。
 - {{T:wave-startup-detect-duplicate-job}} **P3・新規**: `tools/check_wave_startup.py` は local main
   との乖離と handoff の実在を見るが、**同じ worktree を他 process が使用中かを見ない**。同一
   タスクの背景 job を 2 本起動すると slug が一致するため必ず同じ worktree へ入る
