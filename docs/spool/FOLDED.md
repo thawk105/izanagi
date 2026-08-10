@@ -727,3 +727,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dual-namespace-permanent-policy":"[T-744]","T:import-scan-non-source-artifacts":"[T-745]","T:t720-untracked-campaign-residue":"[T-746]"},"authored":"2026-08-10","content_sha256":"0491ac2f3fe3e69ea572ab6cc5ce9433a8295c296709da05d70080cd43b00ab2","seq":1,"wave":"dev-wave-t720-import-unify"}
 - {"allocations":{"F:mutation-found-what-review-missed":"F199","F:parent-ruling-broke-under-measurement":"F201","F:secondary-fanout-missed-in-scope":"F200"},"authored":"2026-08-10","content_sha256":"9fe7d314d8e899dc0d4e43d97a1453bbda95736d765d84d3ecace076b5b8aba5","seq":2,"wave":"dev-wave-t720-import-unify"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"366815694db051a27b38084a10a8b059299e18a2ee4f277585da2b0288eeca99","seq":38,"wave":"rulings-20260806-a"}
