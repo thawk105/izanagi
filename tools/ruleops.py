@@ -23,8 +23,8 @@ from typing import Any, Collection, Iterable, Mapping, Sequence
 
 
 INVENTORY_SCHEMA = "ruleops-inventory/v2"
-INSPECTION_SCHEMA = "ruleops-inspection/v1"
-LEDGER_SCHEMA = "ruleops-candidates/v1"
+INSPECTION_SCHEMA = "ruleops-inspection/v2"
+LEDGER_SCHEMA = "ruleops-candidates/v2"
 RECEIPT_SCHEMA = "ruleops-mutation-receipt/v1"
 INSIGHT_MARKER_SCHEMA = "ruleops-insight/v1"
 DEFAULT_LEDGER = "docs/ruleops-candidates.json"
@@ -38,6 +38,14 @@ MAX_REVIEW_RATIONALE_CHARS = 2_048
 MAX_QUERY_CHARS = 128
 MAX_QUERY_COUNT = 1
 MAX_SIGNAL_TOKENS = 6
+# 親実測 = 36.467 秒 / 2,502 commit / 6 signal token
+# r0 = 36.467 / (2502 * 6) = 0.002429 秒/(token·commit)。
+# 安全係数 2 で上方丸め → 0.005。
+# 20.0 + 1000 * 0.035 = 55.0 < 60.0
+# 1000 * 6 * 0.005 = 30.0 <= 45.0
+# The 0.005 rate is an arithmetic pin only, not a runtime timeout budget.
+MAX_PICKAXE_EPOCH_COMMITS = 1_000
+PICKAXE_RATE_SECONDS_PER_TOKEN_COMMIT = 0.005
 MAX_EVIDENCE_ITEMS = 128
 GIT_TIMEOUT_BASE_SECONDS = 20.0
 # Primary measurements at e91bf56d covered 2,402 commits: path-limited log
@@ -75,10 +83,10 @@ _ROOT_KEYS = frozenset({
     "schema_version", "authority", "default_effect", "candidates",
 })
 _CANDIDATE_KEYS = frozenset({
-    "path", "kind", "target_blob", "rationale", "test_evidence",
+    "path", "kind", "epoch", "target_blob", "rationale", "test_evidence",
 })
 _INSIGHT_CANDIDATE_KEYS = frozenset({
-    "path", "kind", "target_blob", "rationale", "insight_evidence",
+    "path", "kind", "epoch", "target_blob", "rationale", "insight_evidence",
 })
 _TEST_EVIDENCE_KEYS = frozenset({
     "replacement_guards", "replacement_nodes", "semantic_queries",
@@ -114,6 +122,8 @@ _GIT_CONFIG_OVERRIDES = (
     ("log.showSignature", "false"),
     ("diff.external", ""),
     ("diff.trustExitCode", "false"),
+    ("diff.renames", "false"),
+    ("diff.renameLimit", "0"),
     ("submodule.recurse", "false"),
     ("grep.recurseSubmodules", "false"),
 )
@@ -146,9 +156,13 @@ class RepoSnapshot:
     blob_cache: dict[str, bytes] = field(default_factory=dict, compare=False)
     grep_cache: dict[str, tuple[str, ...]] = field(default_factory=dict, compare=False)
     pickaxe_cache: dict[
-        str,
+        tuple[str, str],
         tuple[tuple[str, tuple[str, ...]], ...],
     ] = field(default_factory=dict, compare=False)
+    epoch_commits_cache: dict[str, frozenset[str]] = field(
+        default_factory=dict,
+        compare=False,
+    )
     control_change_cache: dict[
         tuple[tuple[str, str], ...],
         dict[str, str],
@@ -990,12 +1004,17 @@ def _pickaxe(
     snapshot: RepoSnapshot,
     tokens: Sequence[str],
     controls: Mapping[str, str],
+    *,
+    epoch: str,
+    epoch_commits: Collection[str],
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     events: list[dict[str, str]] = []
     excluded: list[dict[str, str]] = []
+    allowed_commits = frozenset(epoch_commits)
     control_changes = _control_last_changes(snapshot, controls)
     for token in sorted(set(tokens)):
-        cached = snapshot.pickaxe_cache.get(token)
+        cache_key = (epoch, token)
+        cached = snapshot.pickaxe_cache.get(cache_key)
         if cached is None:
             raw = _git_read(
                 snapshot.repo,
@@ -1006,17 +1025,24 @@ def _pickaxe(
                 "--name-only",
                 f"-S{token}",
                 snapshot.head,
+                f"^{epoch}",
                 "--",
                 ":(top)",
-                commit_count=snapshot.commit_count,
+                commit_count=len(allowed_commits),
                 timeout_mode="log-pickaxe",
             )
             by_commit = _parse_pickaxe_paths(snapshot, raw)
+            outside = sorted(set(by_commit) - allowed_commits)
+            if outside:
+                _fail(
+                    "bad-history",
+                    f"pickaxe が epoch 窓外 commit を返した: {outside[:3]}",
+                )
             cached = tuple(
                 (commit, tuple(sorted(paths)))
                 for commit, paths in by_commit.items()
             )
-            snapshot.pickaxe_cache[token] = cached
+            snapshot.pickaxe_cache[cache_key] = cached
         token_events: list[dict[str, str]] = []
         token_excluded: list[dict[str, str]] = []
         for commit, raw_paths in cached:
@@ -1086,7 +1112,7 @@ def _default_controls(
             head_raw = _blob(snapshot, entry)
             if raw != head_raw:
                 return controls
-            doc = _strict_ledger_control(head_raw, label=DEFAULT_LEDGER)
+            doc = _strict_ledger_control(head_raw, snapshot, label=DEFAULT_LEDGER)
             controls[DEFAULT_LEDGER] = entry.oid
             if isinstance(doc, dict) and isinstance(doc.get("candidates"), list):
                 for candidate in doc["candidates"]:
@@ -1173,6 +1199,7 @@ def inspect_target(
     *,
     queries: Sequence[str] = (),
     draft: bool = False,
+    epoch: str | None = None,
 ) -> dict[str, Any]:
     snapshot = _capture_snapshot(repo)
     target = _repo_path(path, label="inspect path")
@@ -1193,17 +1220,41 @@ def inspect_target(
             _fail("duplicate-query", f"query 重複: {text!r}")
         normalized_queries.append(text)
     item = _inventory_item(snapshot, target, scoped)
+    epoch_anchor = (
+        _default_epoch(snapshot, target)
+        if epoch is None
+        else _validate_oid(epoch, snapshot, label="inspect.epoch")
+    )
+    epoch_commits = _epoch_commits(
+        snapshot,
+        epoch_anchor,
+        label="inspect.epoch",
+    )
+    _validate_epoch_target_change(
+        snapshot,
+        epoch_anchor,
+        epoch_commits,
+        target,
+        label="inspect.epoch",
+    )
     controls = _default_controls(snapshot, target)
     tokens = _signal_tokens(snapshot, target, normalized_queries)
     observed, excluded_observed = _observed_hits(
         snapshot, tokens, controls, link_target=target,
     )
-    pickaxe, excluded_pickaxe = _pickaxe(snapshot, tokens, controls)
+    pickaxe, excluded_pickaxe = _pickaxe(
+        snapshot,
+        tokens,
+        controls,
+        epoch=epoch_anchor,
+        epoch_commits=epoch_commits,
+    )
     _check_signal_limit(observed, pickaxe, label=target)
     candidate = None
     receipt_draft = None
     if draft:
         common = {
+            "epoch": epoch_anchor,
             "kind": scoped,
             "path": target,
             "rationale": "",
@@ -1261,6 +1312,7 @@ def inspect_target(
         candidate = common
     output = {
         "candidate_draft": candidate,
+        "epoch": epoch_anchor,
         "excluded_hits": {
             "observed_hits": excluded_observed,
             "pickaxe_events": excluded_pickaxe,
@@ -1268,6 +1320,7 @@ def inspect_target(
         "head": snapshot.head,
         "observed_hits": observed,
         "pickaxe_events": pickaxe,
+        "pickaxe_window_commits": len(epoch_commits),
         "schema_version": INSPECTION_SCHEMA,
         "target": item,
         "mutation_receipt_draft": receipt_draft,
@@ -1349,7 +1402,12 @@ def _read_regular_file_bounded(
         os.close(descriptor)
 
 
-def _strict_ledger_control(raw: bytes, *, label: str) -> dict[str, Any]:
+def _strict_ledger_control(
+    raw: bytes,
+    snapshot: RepoSnapshot,
+    *,
+    label: str,
+) -> dict[str, Any]:
     root = _exact_dict(
         _strict_json(raw, label=label, max_bytes=MAX_LEDGER_BYTES),
         _ROOT_KEYS,
@@ -1376,6 +1434,11 @@ def _strict_ledger_control(raw: bytes, *, label: str) -> dict[str, Any]:
             raw_candidate,
             keys,
             label=f"{label}.candidate[{index}]",
+        )
+        _validate_oid(
+            candidate["epoch"],
+            snapshot,
+            label=f"{label}.candidate[{index}].epoch",
         )
         if kind == "test":
             evidence = _exact_dict(
@@ -1488,6 +1551,145 @@ def _validate_oid(value: Any, snapshot: RepoSnapshot, *, label: str) -> str:
     return oid
 
 
+def _epoch_commits(
+    snapshot: RepoSnapshot,
+    epoch: str,
+    *,
+    label: str,
+) -> frozenset[str]:
+    cached = snapshot.epoch_commits_cache.get(epoch)
+    if cached is not None:
+        return cached
+    kind = _git_read(
+        snapshot.repo,
+        "cat-file",
+        "-t",
+        epoch,
+        allowed_rc=frozenset({0, 128}),
+    )
+    if kind != b"commit\n":
+        _fail("epoch-not-commit", f"{label}: epoch commit が存在しない: {epoch}")
+    raw_merge_base = _git_read(
+        snapshot.repo,
+        "merge-base",
+        epoch,
+        snapshot.head,
+        allowed_rc=frozenset({0, 1}),
+    )
+    try:
+        merge_base = raw_merge_base.decode("ascii", "strict").strip()
+    except UnicodeDecodeError as exc:
+        raise RuleOpsError("bad-history", "epoch merge-base が非 ASCII") from exc
+    if merge_base != epoch:
+        _fail(
+            "epoch-non-ancestor",
+            f"{label}: epoch が current snapshot の祖先でない: {epoch}",
+        )
+    raw_commits = _git_read(
+        snapshot.repo,
+        "log",
+        "--format=%H",
+        "-z",
+        f"--max-count={MAX_PICKAXE_EPOCH_COMMITS + 1}",
+        snapshot.head,
+        f"^{epoch}",
+        "--",
+        commit_count=MAX_PICKAXE_EPOCH_COMMITS + 1,
+        timeout_mode="log-pickaxe-epoch",
+    )
+    commits: list[str] = []
+    for chunk in raw_commits.split(b"\0"):
+        if not chunk:
+            continue
+        try:
+            commit = chunk.decode("ascii", "strict")
+        except UnicodeDecodeError as exc:
+            raise RuleOpsError("bad-history", "epoch commit が非 ASCII") from exc
+        if _OID_RE[snapshot.object_format].fullmatch(commit) is None:
+            _fail("bad-history", f"epoch commit OID 不正: {commit!r}")
+        commits.append(commit)
+    if len(commits) != len(set(commits)):
+        _fail("bad-history", "epoch commit が重複")
+    if len(commits) > MAX_PICKAXE_EPOCH_COMMITS:
+        _fail(
+            "stale-epoch",
+            f"{label}: epoch..HEAD commit 数 {len(commits)} "
+            f"> {MAX_PICKAXE_EPOCH_COMMITS}",
+        )
+    result = frozenset(commits)
+    snapshot.epoch_commits_cache[epoch] = result
+    return result
+
+
+def _validate_epoch_target_change(
+    snapshot: RepoSnapshot,
+    epoch: str,
+    epoch_commits: Collection[str],
+    path: str,
+    *,
+    label: str,
+) -> None:
+    raw = _git_read(
+        snapshot.repo,
+        "log",
+        "--max-count=1",
+        "--format=%H",
+        "-z",
+        snapshot.head,
+        f"^{epoch}",
+        "--",
+        f":(top,literal){path}",
+        commit_count=len(epoch_commits),
+        timeout_mode="log-pickaxe-epoch",
+    )
+    changes = [chunk for chunk in raw.split(b"\0") if chunk]
+    if len(changes) != 1:
+        _fail(
+            "epoch-after-target-change",
+            f"{label}: epoch 窓が candidate path の最終変更を含まない: {path}",
+        )
+    try:
+        commit = changes[0].decode("ascii", "strict")
+    except UnicodeDecodeError as exc:
+        raise RuleOpsError("bad-history", "target change commit が非 ASCII") from exc
+    if (
+        _OID_RE[snapshot.object_format].fullmatch(commit) is None
+        or commit not in epoch_commits
+    ):
+        _fail("bad-history", f"target change commit が epoch 窓外: {commit!r}")
+
+
+def _default_epoch(snapshot: RepoSnapshot, path: str) -> str:
+    raw = _git_read(
+        snapshot.repo,
+        "log",
+        "--max-count=1",
+        "--format=%H%x00%P",
+        "-z",
+        snapshot.head,
+        "--",
+        f":(top,literal){path}",
+        commit_count=1,
+        timeout_mode="log-pickaxe-epoch",
+    )
+    fields = raw.split(b"\0")
+    if len(fields) < 3 or not fields[0]:
+        _fail("bad-history", f"candidate path の最終変更を取得できない: {path}")
+    try:
+        commit = fields[0].decode("ascii", "strict")
+        parents = fields[1].decode("ascii", "strict").split()
+    except UnicodeDecodeError as exc:
+        raise RuleOpsError("bad-history", "target change ancestry が非 ASCII") from exc
+    if _OID_RE[snapshot.object_format].fullmatch(commit) is None:
+        _fail("bad-history", f"target change commit OID 不正: {commit!r}")
+    if not parents:
+        _fail("epoch-unavailable", f"candidate path の最終変更 commit に親がない: {path}")
+    epoch = parents[0]
+    if _OID_RE[snapshot.object_format].fullmatch(epoch) is None:
+        _fail("bad-history", f"target change parent OID 不正: {epoch!r}")
+    return epoch
+
+
 def _validate_blob_ref(
     value: Any,
     snapshot: RepoSnapshot,
@@ -1594,6 +1796,7 @@ def _validate_reviewed_pickaxe(
     value: Any,
     snapshot: RepoSnapshot,
     *,
+    epoch_commits: Collection[str],
     label: str,
 ) -> list[dict[str, str]]:
     rows = _array(value, label=label, maximum=MAX_EVIDENCE_ITEMS)
@@ -1607,6 +1810,11 @@ def _validate_reviewed_pickaxe(
         commit = _validate_oid(
             item["commit"], snapshot, label=f"{label}[{index}].commit",
         )
+        if commit not in epoch_commits:
+            _fail(
+                "pickaxe-event-outside-epoch",
+                f"{label}[{index}].commit: epoch 窓外: {commit}",
+            )
         review = _string(
             item["review"],
             label=f"{label}[{index}].review",
@@ -1737,6 +1945,8 @@ def _receipt_head_tree_blob(
 def _receipt_epoch_changed_paths(
     snapshot: RepoSnapshot,
     receipt_head: str,
+    *,
+    pickaxe_window_commits: int,
 ) -> frozenset[str]:
     raw_commits = _git_read(
         snapshot.repo,
@@ -1745,7 +1955,7 @@ def _receipt_epoch_changed_paths(
         "-z",
         f"{receipt_head}..{snapshot.head}",
         "--",
-        commit_count=snapshot.commit_count,
+        commit_count=pickaxe_window_commits,
         timeout_mode="log-receipt-range",
     )
     commits: list[str] = []
@@ -1797,6 +2007,8 @@ def _validate_receipt(
     replacement_guards: frozenset[str],
     replacement_nodes: frozenset[str],
     allowed_epoch_paths: frozenset[str],
+    epoch: str,
+    pickaxe_window_commits: int,
 ) -> None:
     receipt = _receipt_document(snapshot, entry)
     if receipt["schema_version"] != RECEIPT_SCHEMA:
@@ -1815,12 +2027,32 @@ def _validate_receipt(
         receipt_head,
         candidate_path,
     )
+    raw_epoch_base = _git_read(
+        snapshot.repo,
+        "merge-base",
+        epoch,
+        receipt_head,
+        allowed_rc=frozenset({0, 1}),
+    )
+    try:
+        epoch_base = raw_epoch_base.decode("ascii", "strict").strip()
+    except UnicodeDecodeError as exc:
+        raise RuleOpsError("bad-history", "receipt epoch merge-base が非 ASCII") from exc
+    if epoch_base != epoch:
+        _fail(
+            "receipt-head-outside-epoch",
+            f"{entry.path}: receipt head が candidate epoch 窓外: {receipt_head}",
+        )
     if head_candidate_blob != candidate_blob:
         _fail(
             "receipt-candidate-blob",
             f"{entry.path}: receipt head candidate blob 不一致",
         )
-    changed_paths = _receipt_epoch_changed_paths(snapshot, receipt_head)
+    changed_paths = _receipt_epoch_changed_paths(
+        snapshot,
+        receipt_head,
+        pickaxe_window_commits=pickaxe_window_commits,
+    )
     unrelated = sorted(changed_paths - allowed_epoch_paths)
     if unrelated:
         _fail(
@@ -1929,12 +2161,21 @@ def _validate_test_evidence(
     candidate: Mapping[str, Any],
     snapshot: RepoSnapshot,
     *,
+    epoch: str,
     candidate_paths: frozenset[str],
     ledger_path: str,
     ledger_controls: Mapping[str, str],
     ledger_receipt_paths: frozenset[str],
 ) -> None:
     path = candidate["path"]
+    epoch_commits = _epoch_commits(snapshot, epoch, label=f"{path}.epoch")
+    _validate_epoch_target_change(
+        snapshot,
+        epoch,
+        epoch_commits,
+        path,
+        label=f"{path}.epoch",
+    )
     target_blob = candidate["target_blob"]
     evidence = _exact_dict(
         candidate["test_evidence"], _TEST_EVIDENCE_KEYS, label=f"{path}.test_evidence",
@@ -2044,7 +2285,10 @@ def _validate_test_evidence(
         evidence["observed_hits"], snapshot, label=f"{path}.observed_hits",
     )
     reviewed_pickaxe = _validate_reviewed_pickaxe(
-        evidence["pickaxe_events"], snapshot, label=f"{path}.pickaxe_events",
+        evidence["pickaxe_events"],
+        snapshot,
+        epoch_commits=epoch_commits,
+        label=f"{path}.pickaxe_events",
     )
     for receipt_path in sorted(receipt_paths):
         _validate_receipt(
@@ -2055,12 +2299,20 @@ def _validate_test_evidence(
             replacement_guards=frozenset(guard_paths),
             replacement_nodes=frozenset(nodeids),
             allowed_epoch_paths=frozenset({ledger_path, *ledger_receipt_paths}),
+            epoch=epoch,
+            pickaxe_window_commits=len(epoch_commits),
         )
     tokens = _signal_tokens(snapshot, path, normalized_queries)
     observed, _ = _observed_hits(
         snapshot, tokens, controls, link_target=path,
     )
-    pickaxe, _ = _pickaxe(snapshot, tokens, controls)
+    pickaxe, _ = _pickaxe(
+        snapshot,
+        tokens,
+        controls,
+        epoch=epoch,
+        epoch_commits=epoch_commits,
+    )
     _check_signal_limit(observed, pickaxe, label=path)
     _compare_signals(
         observed,
@@ -2075,11 +2327,20 @@ def _validate_insight_evidence(
     candidate: Mapping[str, Any],
     snapshot: RepoSnapshot,
     *,
+    epoch: str,
     candidate_paths: frozenset[str],
     ledger_path: str,
     ledger_controls: Mapping[str, str],
 ) -> None:
     path = candidate["path"]
+    epoch_commits = _epoch_commits(snapshot, epoch, label=f"{path}.epoch")
+    _validate_epoch_target_change(
+        snapshot,
+        epoch,
+        epoch_commits,
+        path,
+        label=f"{path}.epoch",
+    )
     evidence = _exact_dict(
         candidate["insight_evidence"],
         _INSIGHT_EVIDENCE_KEYS,
@@ -2125,13 +2386,22 @@ def _validate_insight_evidence(
         evidence["observed_hits"], snapshot, label=f"{path}.observed_hits",
     )
     reviewed_pickaxe = _validate_reviewed_pickaxe(
-        evidence["pickaxe_events"], snapshot, label=f"{path}.pickaxe_events",
+        evidence["pickaxe_events"],
+        snapshot,
+        epoch_commits=epoch_commits,
+        label=f"{path}.pickaxe_events",
     )
     tokens = _signal_tokens(snapshot, path, ())
     observed, _ = _observed_hits(
         snapshot, tokens, controls, link_target=path,
     )
-    pickaxe, _ = _pickaxe(snapshot, tokens, controls)
+    pickaxe, _ = _pickaxe(
+        snapshot,
+        tokens,
+        controls,
+        epoch=epoch,
+        epoch_commits=epoch_commits,
+    )
     _check_signal_limit(observed, pickaxe, label=path)
     _compare_signals(
         observed,
@@ -2170,6 +2440,7 @@ def validate_candidate_ledger(
     )
     paths: list[str] = []
     kinds: list[str] = []
+    epochs: list[str] = []
     for index, raw_candidate in enumerate(candidates_raw):
         if not isinstance(raw_candidate, dict):
             _fail("schema-type", f"candidate[{index}]: object が必要")
@@ -2188,6 +2459,9 @@ def validate_candidate_ledger(
         )
         if pinned != entry.oid:
             _fail("blob-drift", f"candidate[{index}]: target blob drift")
+        epoch = _validate_oid(
+            candidate["epoch"], snapshot, label=f"candidate[{index}].epoch",
+        )
         _review_text(
             candidate["rationale"],
             label=f"candidate[{index}].rationale",
@@ -2195,6 +2469,7 @@ def validate_candidate_ledger(
         )
         paths.append(path)
         kinds.append(kind)
+        epochs.append(epoch)
     candidate_paths = frozenset(paths)
     if ledger_rel in candidate_paths:
         _fail(
@@ -2265,13 +2540,14 @@ def validate_candidate_ledger(
             )
         head_ledger = _blob(snapshot, ledger_entry)
         if raw == head_ledger:
-            _strict_ledger_control(head_ledger, label=ledger_rel)
+            _strict_ledger_control(head_ledger, snapshot, label=ledger_rel)
             ledger_controls[ledger_rel] = ledger_entry.oid
-    for candidate, kind in zip(candidates_raw, kinds):
+    for candidate, kind, epoch in zip(candidates_raw, kinds, epochs):
         if kind == "test":
             _validate_test_evidence(
                 candidate,
                 snapshot,
+                epoch=epoch,
                 candidate_paths=candidate_paths,
                 ledger_path=ledger_rel,
                 ledger_controls=ledger_controls,
@@ -2281,12 +2557,27 @@ def validate_candidate_ledger(
             _validate_insight_evidence(
                 candidate,
                 snapshot,
+                epoch=epoch,
                 candidate_paths=candidate_paths,
                 ledger_path=ledger_rel,
                 ledger_controls=ledger_controls,
             )
     output = {
         "candidate_count": len(candidates_raw),
+        "candidate_windows": [
+            {
+                "epoch": epoch,
+                "path": candidate["path"],
+                "pickaxe_window_commits": len(
+                    _epoch_commits(
+                        snapshot,
+                        epoch,
+                        label=f"{candidate['path']}.epoch",
+                    )
+                ),
+            }
+            for candidate, epoch in zip(candidates_raw, epochs)
+        ],
         "human_approved": False,
         "structurally_valid": True,
     }
@@ -2312,6 +2603,7 @@ def _parser() -> argparse.ArgumentParser:
 
     inspect = subparsers.add_parser("inspect")
     inspect.add_argument("path")
+    inspect.add_argument("--epoch")
     inspect.add_argument("--query", action="append", default=[])
     inspect.add_argument("--draft", action="store_true")
     inspect.add_argument("--repo", default=".")
@@ -2333,6 +2625,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.path,
                 queries=args.query,
                 draft=args.draft,
+                epoch=args.epoch,
             )
         elif args.command == "check":
             output = validate_candidate_ledger(args.repo, args.ledger)

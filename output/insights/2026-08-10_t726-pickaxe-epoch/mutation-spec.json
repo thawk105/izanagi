@@ -1,0 +1,136 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_pickaxe_queries_only_validated_epoch_window"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "                f\"-S{token}\",\n                snapshot.head,\n                f\"^{epoch}\",\n",
+          "new": "                f\"-S{token}\",\n                snapshot.head,\n"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_reviewed_pickaxe_event_outside_epoch_is_rejected_before_compare"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "        if commit not in epoch_commits:\n            _fail(\n                \"pickaxe-event-outside-epoch\",\n                f\"{label}[{index}].commit: epoch 窓外: {commit}\",\n            )\n",
+          "new": "        if commit not in epoch_commits:\n            continue\n"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_candidate_epoch_distance_accepts_limit_and_rejects_limit_plus_one_bounded"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "    if len(commits) > MAX_PICKAXE_EPOCH_COMMITS:\n",
+          "new": "    if len(commits) >= MAX_PICKAXE_EPOCH_COMMITS:\n"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_candidate_epoch_must_contain_target_last_change"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "    if len(changes) != 1:\n        _fail(\n            \"epoch-after-target-change\",\n",
+          "new": "    if len(changes) != 1:\n        return\n        _fail(\n            \"epoch-after-target-change\",\n"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_receipt_head_outside_epoch_window_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "    if epoch_base != epoch:\n        _fail(\n            \"receipt-head-outside-epoch\",\n",
+          "new": "    if epoch_base != epoch and False:\n        _fail(\n            \"receipt-head-outside-epoch\",\n"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_pickaxe_epoch_budget_stays_under_outer_preflight_timeout"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "MAX_PICKAXE_EPOCH_COMMITS = 1_000\n",
+          "new": "MAX_PICKAXE_EPOCH_COMMITS = 1_500\n"
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_pickaxe_queries_only_validated_epoch_window"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "                commit_count=len(allowed_commits),\n                timeout_mode=\"log-pickaxe\",\n",
+          "new": "                commit_count=snapshot.commit_count,\n                timeout_mode=\"log-pickaxe\",\n"
+        }
+      ]
+    },
+    {
+      "id": "M8",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_merge_side_commit_inside_window_is_accepted_as_pickaxe_event"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "        f\"--max-count={MAX_PICKAXE_EPOCH_COMMITS + 1}\",\n",
+          "new": "        \"--first-parent\",\n        f\"--max-count={MAX_PICKAXE_EPOCH_COMMITS + 1}\",\n"
+        }
+      ]
+    }
+  ]
+}
