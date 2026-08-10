@@ -773,3 +773,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:codex-launch-receipt-termination-flake":"[T-772]"},"authored":"2026-08-11","content_sha256":"0737287d91b73ca7de58b7b83851202b211ffb50f094ab0bb00c884ea07aca3d","seq":1,"wave":"dev-wave-t657-stage0"}
 - {"allocations":{"D:calibration-freeze-authority-stage0":"D277"},"authored":"2026-08-11","content_sha256":"1a5c8f5867e3ae82e46b70a97c624e86f3f0d8f6e3b59e75b62c5e306c39e62f","seq":2,"wave":"dev-wave-t657-stage0"}
+
+- {"allocations":{"T:dev-wave-l15-budget-exhausted":"[T-775]","T:mutation-harness-hang-artifact":"[T-776]","T:waiter-acceptance-shape":"[T-774]","T:waiter-consumer-binding":"[T-773]"},"authored":"2026-08-11","content_sha256":"3392c7f4bd6ad5e3fa96586922a788eb9e18939c75f74345edc4d3f137f2a939","seq":1,"wave":"dev-wave-t740-canonical-waiter"}
+
+- {"allocations":{"D:address-edge-structural-lint":"D278"},"authored":"2026-08-11","content_sha256":"a78beec6b59fc844746ca03860cbb5635b10acd63cda7ba9089b83f14fbef7e1","seq":1,"wave":"dev-wave-t675-address-edge-lint"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"be8f9a33e21fb89216e0324cc408127a6c161afb86ac78e5b55bafe2b6e8a8c1","seq":2,"wave":"dev-wave-t675-address-edge-lint"}
+- {"allocations":{"T:address-edge-lint-layer-coverage":"[T-777]","T:mutation-expected-node-scope-doc":"[T-778]"},"authored":"2026-08-11","content_sha256":"d3477ea1fc3923a0efd0d0004ad28d157e967f56c0c51d4664158c4b1f969f96","seq":3,"wave":"dev-wave-t675-address-edge-lint"}
