@@ -620,6 +620,17 @@ def _build_t080_stub_free_e2e_repo(
     in_repo_sources = {
         path for path in source_paths if not path.startswith("external/ccbench/")
     }
+    current_runtime_sources = {
+        path for path in in_repo_sources
+        if path.startswith("orchestrator/campaign/") and path.endswith(".py")
+    }
+    current_production_sources = {
+        "orchestrator/campaign/t080_freeze_migration.py",
+        "orchestrator/campaign/s8b_oracle_driver.py",
+        "orchestrator/campaign/s8b_holdout_freeze.py",
+    }
+    assert current_runtime_sources
+    assert current_production_sources.isdisjoint(in_repo_sources)
     # T-080 は一回限りの historical migration。現在の作業ツリー bytes を basis に
     # すると、後続 wave が既存の unchanged source を変更しただけで閉包を偽造してしまう。
     # 発行済み receipt の commit から source closure を復元し、検査本体の exact 12/51
@@ -652,7 +663,16 @@ def _build_t080_stub_free_e2e_repo(
     receipt = root / migration.RECEIPT_REL
     if not issue_receipt:
         return root, receipt, {}
+    # pin 済み source は fixture repo では historical data のまま保持する。一方、
+    # production builder/verifier/gate が import する閉包は現行世代で統一するため、
+    # fixture 外の source を限定 loader から canonical module 名へ供給する。
+    runtime_source_root = tmp_path / "t080-current-runtime"
+    for relative in sorted(current_runtime_sources):
+        _copy_t080_basis_file(runtime_source_root, relative)
     child = textwrap.dedent("""
+        import importlib
+        import importlib.abc
+        import importlib.util
         import json
         import os
         import subprocess
@@ -673,11 +693,59 @@ def _build_t080_stub_free_e2e_repo(
             return env
 
         root = Path(sys.argv[1]).resolve()
+        runtime_source_root = Path(sys.argv[4]).resolve()
+        runtime_relatives = tuple(json.loads(sys.argv[5]))
+        runtime_modules = {
+            ".".join(Path(relative).with_suffix("").parts): relative
+            for relative in runtime_relatives
+        }
+
+        class _CurrentSourceLoader(importlib.abc.Loader):
+            def __init__(self, fullname, repository_path, source_path):
+                self.fullname = fullname
+                self.repository_path = repository_path
+                self.source_path = source_path
+
+            def create_module(self, spec):
+                return None
+
+            def exec_module(self, module):
+                source = self.source_path.read_bytes()
+                code = compile(source, str(self.repository_path), "exec")
+                exec(code, module.__dict__)
+
+        class _CurrentSourceFinder(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                relative = runtime_modules.get(fullname)
+                if relative is None:
+                    return None
+                repository_path = root / relative
+                source_path = runtime_source_root / relative
+                loader = _CurrentSourceLoader(
+                    fullname, repository_path, source_path,
+                )
+                spec = importlib.util.spec_from_loader(
+                    fullname, loader, origin=str(repository_path),
+                )
+                assert spec is not None
+                spec.has_location = True
+                return spec
+
+        sys.meta_path.insert(0, _CurrentSourceFinder())
         sys.path[0] = str(root)
         from orchestrator.campaign import s1_known_axes_freeze as known
         from orchestrator.campaign import s8b_holdout_freeze as holdout
         from orchestrator.campaign import s8b_oracle_driver as driver
         from orchestrator.campaign import t080_freeze_migration as migration
+        for module_name in sorted(runtime_modules):
+            importlib.import_module(module_name)
+        loaded_runtime_modules = tuple(
+            sys.modules[module_name] for module_name in sorted(runtime_modules)
+        )
+        assert all(
+            isinstance(module.__loader__, _CurrentSourceLoader)
+            for module in loaded_runtime_modules
+        ), loaded_runtime_modules
 
         sys.path.insert(0, str(root))
         modules = (
@@ -691,6 +759,13 @@ def _build_t080_stub_free_e2e_repo(
         assert all(path.is_relative_to(root) for path in module_files), module_files
         module_roots = (migration.ROOT.resolve(), known.ROOT.resolve(), holdout.ROOT.resolve())
         assert module_roots == (root, root, root), module_roots
+        for relative in runtime_relatives:
+            committed = subprocess.run(
+                ["git", "show", f"HEAD:{relative}"], cwd=root, check=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=_sanitized_git_env(),
+            ).stdout
+            assert (root / relative).read_bytes() == committed, relative
 
         basis = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=root, check=True,
@@ -744,7 +819,8 @@ def _build_t080_stub_free_e2e_repo(
     """)
     completed = subprocess.run(
         [sys.executable, "-I", "-B", "-c", child, str(root), r_trailer,
-         "1" if extra_r_path else "0"],
+         "1" if extra_r_path else "0", str(runtime_source_root),
+         json.dumps(sorted(current_runtime_sources))],
         cwd=root, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
         env={
