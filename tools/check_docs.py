@@ -1063,19 +1063,24 @@ def _visible_dispatch_inventory_text(text: str) -> str:
     )
 
 
-def _visible_h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str]]]:
-    """dispatch 可視化後の H2 順序と節全体 slice を返す。"""
+def _h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str]]]:
+    """与えられた Markdown の H2 順序と節全体 slice を返す。"""
 
-    visible_text = _visible_dispatch_inventory_text(text)
-    headings = list(re.finditer(r"^##\s+(.+?)\s*$", visible_text, re.MULTILINE))
+    headings = list(re.finditer(r"^##\s+(.+?)\s*$", text, re.MULTILINE))
     order: list[str] = []
     sections: dict[str, list[str]] = {}
     for index, heading in enumerate(headings):
         title = heading.group(1)
-        end = headings[index + 1].start() if index + 1 < len(headings) else len(visible_text)
+        end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
         order.append(title)
-        sections.setdefault(title, []).append(visible_text[heading.start():end])
+        sections.setdefault(title, []).append(text[heading.start():end])
     return order, sections
+
+
+def _visible_h2_section_slices(text: str) -> tuple[list[str], dict[str, list[str]]]:
+    """dispatch 可視化後の H2 順序と節全体 slice を返す。"""
+
+    return _h2_section_slices(_visible_dispatch_inventory_text(text))
 
 
 def _check_exact_visible_h2_section(
@@ -1086,14 +1091,22 @@ def _check_exact_visible_h2_section(
     heading: str,
     expected: str,
 ) -> None:
-    """raw HTML を含む不可視面を除いた H2 節全体を exact pin する。"""
+    """H2 節の raw/可視一致と可視内容を exact pin する。"""
 
-    _, sections = _visible_h2_section_slices(text)
-    actual = sections.get(heading, [])
-    if actual != [expected]:
+    _, raw_sections = _h2_section_slices(text)
+    _, visible_sections = _visible_h2_section_slices(text)
+    raw_actual = raw_sections.get(heading, [])
+    visible_actual = visible_sections.get(heading, [])
+    if raw_actual != visible_actual:
+        findings.append(
+            f"{rel}: H2 節 {heading!r} の raw slice と可視 slice が不一致 — "
+            f"raw_sections={len(raw_actual)}, "
+            f"visible_sections={len(visible_actual)}"
+        )
+    if visible_actual != [expected]:
         findings.append(
             f"{rel}: 可視 H2 節 {heading!r} の節全体が exact 契約と不一致 — "
-            f"sections={len(actual)}"
+            f"sections={len(visible_actual)}"
         )
 
 
@@ -4139,19 +4152,21 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
 
     if operations_text is not None:
         operation_order, _ = _visible_h2_section_slices(operations_text)
-        o23_heading = next(
-            (title for title in operation_order if title.startswith("DW-O23 —")),
-            None,
-        )
-        o25_heading = next(
-            (title for title in operation_order if title.startswith("DW-O25 —")),
-            None,
-        )
-        if (
-            o23_heading is not None
-            and o25_heading is not None
-            and operation_order.index(o25_heading) <= operation_order.index(o23_heading)
-        ):
+        operation_positions: dict[str, list[int]] = {
+            "DW-O23": [],
+            "DW-O25": [],
+        }
+        for index, title in enumerate(operation_order):
+            section_match = re.match(r"[^\s—]+", title)
+            if section_match is not None and section_match.group(0) in operation_positions:
+                operation_positions[section_match.group(0)].append(index)
+        if any(len(positions) != 1 for positions in operation_positions.values()):
+            findings.append(
+                "docs/dev-wave/operations.md: 可視 H2 の順序 pin 対象が一意でない — "
+                f"DW-O23={len(operation_positions['DW-O23'])}, "
+                f"DW-O25={len(operation_positions['DW-O25'])}"
+            )
+        elif operation_positions["DW-O25"][0] <= operation_positions["DW-O23"][0]:
             findings.append(
                 "docs/dev-wave/operations.md: 可視 H2 の順序が契約と不一致 — "
                 "DW-O25 は DW-O23 より後に置く"

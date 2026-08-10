@@ -139,6 +139,27 @@ D254 に従い、land は `locked_main != tested_tip` のときだけ lock を�
 lock 再取得後に全検査をやり直し、`tip_sha` / `checker_blob_sha` / `executed_bytes_sha` / `returncode` を束縛した receipt を lock 内で再照合する。`already-landed` の no-op と active fold transaction の recovery では監査を起動しない。
 """
 
+_SYNTHETIC_OPERATION_SECTION_IDS = (
+    "DW-O01", "DW-O02", "DW-O03", "DW-O04", "DW-O05", "DW-O06",
+    "DW-O08", "DW-O09", "DW-O10", "DW-O11", "DW-O12", "DW-O13",
+    "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
+    "DW-O23", "DW-O25",
+)
+_SYNTHETIC_ALL_OPERATIONS_REF = (
+    "`docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
+    "`DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25`"
+)
+_SYNTHETIC_STAGE_5_6_CONDITIONAL_ROWS = (
+    "| 段 5 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, "
+    "`DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |",
+    "| 段 6 |C| `docs/dev-wave/operations.md`: `DW-O01`〜`DW-O06`, "
+    "`DW-O08`〜`DW-O14`, `DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25` |",
+)
+_SYNTHETIC_CONDITION_25_ROW = (
+    "| 25 | main を進める land を起動する直前 | "
+    "`docs/dev-wave/operations.md`: `DW-O25` |"
+)
+
 _SYNTHETIC_ADMISSION_ENTRIES = {
     "tools/pegasus/collect_receipt.py": {
         "class": "unknown",
@@ -253,13 +274,12 @@ TASKS = {
 """
 
 
-# operations 由来の条件 dispatch key (O07/O15/O21/O22/O24 を除く 20 件)。契約から導出するが、
-# exact な外延は test_operation_contract_pins_exact_section_set が literal で pin する。
-_OPERATION_CONDITION_KEYS = sorted(
-    key
-    for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
-    if any(path == "docs/dev-wave/operations.md" for path, _ in pairs)
-)
+# operations 由来の条件 dispatch key (O07/O15/O21/O22/O24 を除く 20 件)。
+# 合成 fixture を production contract と独立させるため、ここでは手書きする。
+_OPERATION_CONDITION_KEYS = [
+    "01", "02", "03", "04", "05", "06", "08", "09", "10", "11",
+    "12", "13", "14", "16", "17", "18", "19", "20", "23", "25",
+]
 
 
 _PLACEHOLDER_DEBT_WORKLOG = (
@@ -535,15 +555,9 @@ def _write_command_guard_docs(root: str) -> None:
                 chunks.append(f"`{path}` の全節")
             elif (
                 path == "docs/dev-wave/operations.md"
-                and sections == [
-                    f"DW-O{i:02d}"
-                    for i in check_docs._OPERATION_NUMBERS
-                ]
+                and sections == list(_SYNTHETIC_OPERATION_SECTION_IDS)
             ):
-                chunks.append(
-                    f"`{path}`: `DW-O01`〜`DW-O06`, `DW-O08`〜`DW-O14`, "
-                    "`DW-O16`〜`DW-O20`, `DW-O23`, `DW-O25`"
-                )
+                chunks.append(_SYNTHETIC_ALL_OPERATIONS_REF)
             else:
                 ids = ", ".join(f"`{section}`" for section in sections)
                 chunks.append(f"`{path}`: {ids}")
@@ -555,6 +569,8 @@ def _write_command_guard_docs(root: str) -> None:
         ("C", check_docs.STAGE_CONDITIONAL_DISPATCH_CONTRACT),
     ):
         for key, pairs in contract.items():
+            if mode == "C" and key in {"段 5", "段 6"}:
+                continue
             grouped: dict[str, set[tuple[str, str]]] = {}
             for path, section in pairs:
                 grouped.setdefault(path, set()).add((path, section))
@@ -569,10 +585,16 @@ def _write_command_guard_docs(root: str) -> None:
                     stage_rows.append(f"| {key} |{mode}| {refs(s06)} |")
                 else:
                     stage_rows.append(f"| {key} |{mode}| {refs(path_pairs)} |")
-    condition_rows = "\n".join(
-        f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | {refs(pairs)} |"
-        for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
-    )
+    stage_rows.extend(_SYNTHETIC_STAGE_5_6_CONDITIONAL_ROWS)
+    condition_rows = "\n".join([
+        *(
+            f"| {key} | {check_docs.CONDITION_TRIGGER_CONTRACT[key]} | "
+            f"{refs(pairs)} |"
+            for key, pairs in check_docs.CONDITION_DISPATCH_CONTRACT.items()
+            if key != "25"
+        ),
+        _SYNTHETIC_CONDITION_25_ROW,
+    ])
     dev_wave = f"""---
 description: synthetic dev-wave
 argument-hint: [synthetic]
@@ -670,9 +692,14 @@ description: synthetic Codex rulings skill
         _SYNTHETIC_CLEANUP_OPENAI_YAML,
     )
 
-    for rel, sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
+    for rel, contract_sections in check_docs.REQUIRED_REFERENCE_SECTIONS.items():
+        sections = (
+            _SYNTHETIC_OPERATION_SECTION_IDS
+            if rel == "docs/dev-wave/operations.md"
+            else sorted(contract_sections)
+        )
         rendered_sections = []
-        for section in sorted(sections):
+        for section in sections:
             body = "body"
             if rel == "docs/dev-wave/workers.md" and section == "DW-S02":
                 body += "\n\n" + check_docs.DEV_WAVE_DW_S02_REASONING_MAX_LITERAL
@@ -5629,6 +5656,8 @@ def test_command_guard_case_registration_is_complete():
     for test_name in (
         "test_condition_25_contract_pins_exact_trigger_and_target",
         "test_normative_exact_section_contract_is_handwritten_and_complete",
+        "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
+        "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
         "test_normative_exact_section_pins_accept_real_repo",
     ):
         assert source.count(f"def {test_name}(") == 1
@@ -5649,6 +5678,7 @@ def test_operation_contract_pins_exact_section_set():
         "DW-O14", "DW-O16", "DW-O17", "DW-O18", "DW-O19", "DW-O20",
         "DW-O23", "DW-O25",
     }
+    assert set(_SYNTHETIC_OPERATION_SECTION_IDS) == expected
     assert check_docs.REQUIRED_REFERENCE_SECTIONS[operations] == expected
     assert check_docs._ALL_OPERATIONS == frozenset(
         (operations, section) for section in expected
@@ -6916,6 +6946,93 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
             "DW-O25 — ff-only land の全史 provenance 関門",
         ): _SYNTHETIC_DW_O25_SECTION,
     }
+
+
+def test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections():
+    """pin 済み 4 節の内側へ raw HTML block を差し込むと拒否する。"""
+
+    cases = (
+        (
+            ".claude/commands/dev-wave.md",
+            "入力と開始",
+        ),
+        (
+            "docs/skill-self-improvement.md",
+            "routing",
+        ),
+        (
+            "docs/dev-wave/operations.md",
+            "DW-O25 — ff-only land の全史 provenance 関門",
+        ),
+        (
+            ".agents/skills/dev-wave/SKILL.md",
+            "開始する",
+        ),
+    )
+    for rel, heading in cases:
+        root = _build_min_repo()
+        try:
+            text = _read(root, rel)
+            marker = f"## {heading}\n\n"
+            assert text.count(marker) == 1
+            changed = text.replace(
+                marker,
+                f"## {heading}\n<div>ただし routing 文書は任意参照とする</div>\n",
+                1,
+            )
+            _write(root, rel, changed)
+            _assert_violation(
+                root,
+                f"{rel}: H2 節 {heading!r} の raw slice と可視 slice が不一致 — "
+                "raw_sections=1, visible_sections=1",
+            )
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+def test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target():
+    """題なし DW-O23 でも順序を検査し、対象欠落時も専用 finding を出す。"""
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel).replace(
+            "## DW-O23 — synthetic",
+            "## DW-O23",
+            1,
+        )
+        assert text.count(_SYNTHETIC_DW_O25_SECTION) == 1
+        text = text.replace("\n\n" + _SYNTHETIC_DW_O25_SECTION, "", 1)
+        marker = "## DW-O23\n"
+        assert text.count(marker) == 1
+        text = text.replace(
+            marker,
+            _SYNTHETIC_DW_O25_SECTION + "\n" + marker,
+            1,
+        )
+        _write(root, rel, text)
+        _assert_violation(root, "DW-O25 は DW-O23 より後に置く")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+    root = _build_min_repo()
+    try:
+        rel = "docs/dev-wave/operations.md"
+        _write(
+            root,
+            rel,
+            _read(root, rel).replace(
+                "## DW-O23 — synthetic",
+                "### DW-O23 — missing as H2",
+                1,
+            ),
+        )
+        _assert_violation(
+            root,
+            "可視 H2 の順序 pin 対象が一意でない — DW-O23=0, DW-O25=1",
+        )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_normative_exact_section_pins_accept_real_repo():
