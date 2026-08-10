@@ -774,7 +774,11 @@ python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
   および非 0 rc では**投入しない**。`held` / `queued` なら local main を取り直して再度 `claim` する。
 - **`claim` の出力は JSON、`status` の出力は key=value である。** 待ち手は `claim` の出力を
   JSON として parse して `state` を見る。`status` の見た目に合わせて `state=acquired` の
-  文字列一致で待つと、lease が空いても永久に一致せず待ち続ける。
+  文字列一致で待つと、lease が空いても永久に一致せず待ち続ける。判定は `state` の値と
+  `acquired` の **exact 比較**で行う。出力全体への部分一致 (`case *acquired*` / glob / grep) で
+  判定しない — `state` 以外の field や診断文に同じ語が出れば偽陽性になる。
+- **待ち手の各段は 1 コマンド 1 値へ分解し、rc と値を別々に判定する。** rc をパイプへ通さない、
+  `|| true` で潰さない、複合条件を 1 行にまとめない。これらはいずれも赤を緑に見せる。
 - **待ちは 30〜120 秒周期の loop にする ([T-684])。** `claim` は待ち行列 (FIFO 相当) の待ち札を
   作り、呼ぶたびにその生存を更新する。**待ち札は最後の `claim` から 300 秒で失効する**ので、
   一度だけ `claim` して長く放置すると順番を失い、後から来た wave に追い越される。
@@ -783,16 +787,28 @@ python3 tools/wave_land_window.py claim --wave "$W" --main-sha "$M"
   その間ほかの wave 全部が待つ (head-of-line blocking)。
 - **FIFO が保証するのは「後着が先着を追い越さない」ことだけで、待ち時間の上界ではない。**
   待ち時間は待ち行列の長さと受入 1 回の所要 (1055〜1273 秒) に比例する。
-- **`acquired` の直後に local main を取り込んでから投入する。** 待っている間に先行 holder が land
-  するので、`claim` 時の `main_sha` は待ち始めた時点の main ではない。取り込まずに走らせると
-  land 対象 tip が main の子孫でなくなり、全走をもう一度やり直すことになる (2026-08-09 に
-  12 commit 差で 1324 秒を空費)。**この取り込みに `git merge --ff-only main` を使ってはならない** —
-  wave branch が自前 commit を持った時点で fast-forward できず `Not possible to fast-forward` で
-  止まる。**取り込みは待ち手自身が `acquired` の直後に merge commit として行う** (message は
-  `git commit -F` へ渡す file に用意し、`--no-edit` を使わない)。競合したら `merge --abort` して
-  lease を返し親へ戻す。取り込みを親の事前作業にして待ち手を `git rev-list --count HEAD..main`
-  の検査だけにすると、待機中に main が進むたびに取得した lease を捨てることになる
-  (2026-08-10 実測: 24 分待って `acquired`、その時点で 15 commit 遅れ)。
+- **`acquired` の直後に、待ち手自身が local main を取り直して取り込んでから投入する
+  ([T-732] 裁定 (a) の正本)。** 待っている間に先行 holder が land するので、`claim` 時の
+  `main_sha` は取得時点の main ではない。取り込まずに走らせると land 対象 tip が main の
+  子孫でなくなり、全走をもう一度やり直すことになる。次の順で、すべて待ち手 script の中で行う。
+  1. `git rev-parse main` で local main を**取り直す** (`claim` に渡した `$M` を使い回さない)。
+  2. `git rev-list --count HEAD..main` を見る。**非 0 のときだけ**
+     `git merge --no-ff --no-commit main` → `git commit -F <message file>` で merge commit を作る。
+     0 なら merge しない (`nothing to commit` で止まるだけである)。
+  3. **`git merge --ff-only main` と `--no-edit` は使わない。** wave branch が自前 commit を
+     持った時点で fast-forward できず `Not possible to fast-forward` で止まる。merge commit の
+     provenance は `DW-O17` に従い、AI-Agent trailer を message file に書く。
+     commit の前に `git commit --dry-run -F <message file>` を単独で走らせ rc を見る。
+  4. merge の後に `git rev-list --count HEAD..main` を再検査する。0 でなければ投入しない。
+  5. **1〜4 の各コマンドの rc を個別に見て、非 0 なら受入を投入しない。** 中断するときは
+     `git merge --abort` (merge 進行中なら) → `release --wave "$W"` の順に実行して親へ戻す。
+     競合も同じ扱いとする。
+- **claim の loop・上の取り直し・merge・受入投入は同じ待ち手 script に置く。** 取り込みを親の
+  事前作業にし、待ち手を `git rev-list --count HEAD..main` の検査だけにすると、待機中に main が
+  進むたびに取得した lease を捨てる (2026-08-10 実測: 24 分待って `acquired`、その時点で
+  15 commit 遅れ。別 wave では 4 回空振り)。この手順が無くすのは「待機中に land 済みとなった
+  差分」による再走だけであり、4 の再検査から投入までの間に main が進む残余 race は残る
+  (fencing token が無いので閉じられない)。
 - 受入と land の**どの終わり方でも** `release --wave "$W"` する (赤・失敗・中断を含む)。
   他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
 - land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
@@ -804,7 +820,8 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 ```
 
 - 取り残した lease は TTL (既定 2400 秒) で自然失効する。失効までの間は他 wave の受入投入が
-  止まるので、release を忘れないこと。
+  止まるので、release を忘れないこと。**受入を 2 度走らせると 2 走で TTL を超える** (1 走
+  1055〜1273 秒)。2 走目の前に `claim` し直す。取り直せなければ 2 走目を投入しない。
 - **既知の限界 (裁定パッケージ)**: TTL 超過で lease を取り直した場合、旧 holder の受入は
   止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
   悪化はしない。release の権限証明は wave slug の digest だけである。
