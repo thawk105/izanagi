@@ -1233,7 +1233,7 @@ def test_driver_ast_pins_reject_m20_through_m23_source_mutants():
         'not os.environ.get("IZANAGI_ALLOW_PEGASUS"):',
     )
     legacy_import = (
-        "from orchestrator.campaign import p3_s4_loop as L                              "
+        "from . import p3_s4_loop as L                              "
         "# noqa: E402\n"
     )
     m22 = _replace_once(

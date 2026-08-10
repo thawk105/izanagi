@@ -6,6 +6,7 @@ gitignore された未追跡 source は operational source 集合に含まれな
 from __future__ import annotations
 
 import ast
+import collections
 import inspect
 import io
 import os
@@ -91,8 +92,8 @@ class ImportException:
     matched_text: str
     rationale: str
 
-    def key(self) -> tuple[str, int, str, str]:
-        return (self.path, self.line, self.rule, self.matched_text)
+    def key(self) -> tuple[str, str, str]:
+        return (self.path, self.rule, self.matched_text)
 
 
 @dataclass(frozen=True)
@@ -108,18 +109,10 @@ def _legacy_module(suffix: str | None = None) -> str:
 
 
 KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
-    # 根拠: T-720 — campaign.lock は module でなく検査対象の file 名
-    ImportException(
-        path="orchestrator/tests/test_campaign.py",
-        line=4596,
-        rule=LEGACY_RULE,
-        matched_text=_legacy_module("lock"),
-        rationale="T-720: campaign.lock という file 名を含む拒否文言の検査",
-    ),
     # 根拠: T-720 — 実 import topology を検査するための legacy alias
     ImportException(
         path="orchestrator/tests/test_campaign.py",
-        line=6031,
+        line=7857,
         rule=LEGACY_RULE,
         matched_text=_legacy_module("layout"),
         rationale="T-720: 実 import topology を検査するための legacy alias",
@@ -140,14 +133,6 @@ KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
         matched_text=_legacy_module(),
         rationale="D149(5): 二重 namespace 下でも sink が peer 値を受理することの検査",
     ),
-    # 根拠: D149 決定 (5) — topology test 後の legacy module 清掃条件
-    ImportException(
-        path="orchestrator/tests/test_reflux_ir.py",
-        line=284,
-        rule=LEGACY_RULE,
-        matched_text=_legacy_module(),
-        rationale="D149(5): 二重 namespace topology test の module 清掃条件",
-    ),
     # 根拠: T-720 R1 — provenance に記録する値であり import ではない
     ImportException(
         path="orchestrator/campaign/p3_s4_loop_trigger_gating.py",
@@ -163,14 +148,6 @@ KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
         rule=LEGACY_RULE,
         matched_text=_legacy_module("reflux_ir"),
         rationale="D149(5): sink の mask 再検証が参照する peer literal",
-    ),
-    # 根拠: T-720 — campaign.lock は module でなく検査対象の file 名
-    ImportException(
-        path="orchestrator/tests/test_s8b_oracle_driver.py",
-        line=3454,
-        rule=LEGACY_RULE,
-        matched_text=_legacy_module("lock"),
-        rationale="T-720: campaign.lock という file 名を含む拒否文言の検査",
     ),
     # 根拠: T-720 R5 — どこからも参照されない休眠歴史 artifact
     ImportException(
@@ -214,9 +191,9 @@ KNOWN_EXCEPTIONS: tuple[ImportException, ...] = (
     ),
 )
 
-EXPECTED_EXCEPTION_COUNT = 13
+EXPECTED_EXCEPTION_COUNT = 10
 MINIMUM_RULE_EXCEPTION_COUNTS = {
-    LEGACY_RULE: 12,
+    LEGACY_RULE: 9,
     RELATIVE_RULE: 1,
 }
 
@@ -228,6 +205,21 @@ def _violation(path: str, line: int, rule: str, matched_text: str) -> Violation:
 def _static_string(node: ast.AST, names: dict[str, str]) -> str | None:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
+    if (
+        isinstance(node, ast.Call)
+        and (
+            (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "textwrap"
+                and node.func.attr == "dedent"
+            )
+            or (isinstance(node.func, ast.Name) and node.func.id == "dedent")
+        )
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        return _static_string(node.args[0], names)
     if (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
@@ -251,6 +243,8 @@ def _static_string(node: ast.AST, names: dict[str, str]) -> str | None:
         for value in node.values:
             if isinstance(value, ast.FormattedValue):
                 item = _static_string(value.value, names)
+                if item is None:
+                    item = "__DYNAMIC__"
             else:
                 item = _static_string(value, names)
             if item is None:
@@ -488,13 +482,66 @@ def _shell_legacy_hits(text: str) -> list[tuple[int, str]]:
     return sorted(hits)
 
 
+def _scan_python_bare_literals(path: str) -> bool:
+    """Python literal の裸掃きを operational production だけに限定する。"""
+    parts = Path(path).parts
+    if not parts:
+        return False
+    if parts[0] in {"tools", "output"}:
+        return True
+    return len(parts) >= 2 and parts[0] == "orchestrator" and parts[1] != "tests"
+
+
+def _add_exact_module_literal(
+    found: set[Violation], path: str, node: ast.AST, value: str | None
+) -> None:
+    if (
+        value is not None
+        and _MODULE_PATH_RE.fullmatch(value)
+        and not _is_non_module_legacy_literal(value)
+    ):
+        found.add(_violation(path, node.lineno, LEGACY_RULE, value))
+
+
+def _static_string_origin_line(
+    tree: ast.AST,
+    node: ast.AST,
+    value: str,
+    name_contexts: dict[int, dict[str, str]],
+) -> int:
+    """argv が名前経由のときは一意な source 代入位置へ戻す。"""
+    if not isinstance(node, ast.Name):
+        return node.lineno
+    candidates: list[ast.AST] = []
+    for assignment in ast.walk(tree):
+        if not isinstance(assignment, (ast.Assign, ast.AnnAssign)):
+            continue
+        value_node = assignment.value
+        if value_node is None:
+            continue
+        targets = (
+            assignment.targets
+            if isinstance(assignment, ast.Assign)
+            else [assignment.target]
+        )
+        if not any(
+            isinstance(target, ast.Name) and target.id == node.id
+            for target in targets
+        ):
+            continue
+        if _static_string(value_node, name_contexts[id(value_node)]) == value:
+            candidates.append(value_node)
+    return candidates[0].lineno if len(candidates) == 1 else node.lineno
+
+
 def scan_legacy_namespace(
     path: str,
     source: str,
     *,
     tree: ast.AST | None = None,
+    _bare_literals: bool | None = None,
 ) -> tuple[Violation, ...]:
-    """R-A: module path literal と import 文から legacy namespace を検出する。"""
+    """R-A: legacy namespace を operational な Python 文脈から検出する。"""
     found: set[Violation] = set()
     suffix = Path(path).suffix
 
@@ -509,6 +556,12 @@ def scan_legacy_namespace(
         except SyntaxError as exc:
             raise AssertionError(f"R-A scan 対象 Python を parse できない: {path}:{exc.lineno}: {exc.msg}") from exc
 
+    bare_literals = (
+        _scan_python_bare_literals(path)
+        if _bare_literals is None
+        else _bare_literals
+    )
+    name_contexts = _static_name_contexts(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -518,7 +571,6 @@ def scan_legacy_namespace(
             if node.level == 0 and node.module is not None and _MODULE_PATH_RE.fullmatch(node.module):
                 found.add(_violation(path, node.lineno, LEGACY_RULE, node.module))
 
-    name_contexts = _static_name_contexts(tree)
     for node in ast.walk(tree):
         names = name_contexts[id(node)]
         if isinstance(node, ast.Subscript) and (
@@ -528,9 +580,59 @@ def scan_legacy_namespace(
             and node.value.value.id == "sys"
         ):
             value = _static_string(node.slice, names)
-            if value is not None and _MODULE_PATH_RE.fullmatch(value):
-                found.add(_violation(path, node.slice.lineno, LEGACY_RULE, value))
-        elif isinstance(node, ast.Compare):
+            _add_exact_module_literal(found, path, node.slice, value)
+        elif isinstance(node, ast.Call):
+            for argument in [*node.args, *(item.value for item in node.keywords)]:
+                value = _static_string(argument, names)
+                if value is None or "." not in value:
+                    continue
+                _add_exact_module_literal(
+                    found, path, argument, value
+                )
+
+        # list/tuple argv は代入後に subprocess へ渡される形もあるため、
+        # literal 本体で -m / -c の後続値を評価する。
+        if isinstance(node, (ast.List, ast.Tuple)):
+            values = [_static_string(item, names) for item in node.elts]
+            for index, value in enumerate(values[:-1]):
+                following_node = node.elts[index + 1]
+                following = values[index + 1]
+                if value == "-m":
+                    _add_exact_module_literal(found, path, following_node, following)
+                elif value == "-c" and following is not None:
+                    source_line = _static_string_origin_line(
+                        tree, following_node, following, name_contexts
+                    )
+                    try:
+                        embedded_tree = ast.parse(following, filename=f"{path}::<python-c>")
+                    except SyntaxError:
+                        embedded_hits = _textual_legacy_hits(following)
+                        for inner_line, module in embedded_hits:
+                            found.add(
+                                _violation(
+                                    path,
+                                    source_line + inner_line - 1,
+                                    LEGACY_RULE,
+                                    module,
+                                )
+                            )
+                    else:
+                        for item in scan_legacy_namespace(
+                            path,
+                            following,
+                            tree=embedded_tree,
+                            _bare_literals=True,
+                        ):
+                            found.add(
+                                _violation(
+                                    path,
+                                    source_line + item.line - 1,
+                                    item.rule,
+                                    item.matched_text,
+                                )
+                            )
+
+        if bare_literals and isinstance(node, ast.Compare):
             expressions = [node.left, *node.comparators]
             comparison_mentions_module_name = any(
                 isinstance(item, ast.Name) and item.id in {"name", "module", "module_name"}
@@ -555,9 +657,11 @@ def scan_legacy_namespace(
                 if "." in value or comparison_mentions_module_name:
                     found.add(_violation(path, expression.lineno, LEGACY_RULE, value))
 
-        # dotted literal は呼出形によらず module path と判定する。root 単体は
-        # 通常の campaign label と衝突するため、上の利用文脈内だけを対象にする。
-        if isinstance(node, (ast.Constant, ast.JoinedStr, ast.BinOp, ast.Call)):
+        # production は合成 source をデータとして持たないため、裸 literal
+        # まで検査する。tests は上の import/call/sys.modules/argv に限る。
+        if bare_literals and isinstance(
+            node, (ast.Constant, ast.JoinedStr, ast.BinOp, ast.Call)
+        ):
             value = _static_string(node, names)
             if value is None:
                 continue
@@ -950,11 +1054,13 @@ def _assert_ledger_matches(
     actual: tuple[Violation, ...],
     expected: tuple[ImportException, ...],
 ) -> None:
-    actual_set = {(item.path, item.line, item.rule, item.matched_text) for item in actual}
-    expected_set = {item.key() for item in expected}
-    assert actual_set == expected_set, (
-        f"unlisted={sorted(actual_set - expected_set)!r} "
-        f"stale={sorted(expected_set - actual_set)!r}"
+    actual_counts = collections.Counter(
+        (item.path, item.rule, item.matched_text) for item in actual
+    )
+    expected_counts = collections.Counter(item.key() for item in expected)
+    assert actual_counts == expected_counts, (
+        f"unlisted={sorted((actual_counts - expected_counts).elements())!r} "
+        f"stale={sorted((expected_counts - actual_counts).elements())!r}"
     )
 
 
@@ -998,6 +1104,22 @@ def test_repository_scan_set_is_nonempty_and_contains_sentinels(repository_scan:
 def test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end():
     files = {
         "src/legacy.py": f"import {_legacy_module('legacy_rule')}\n",
+        "orchestrator/tests/test_embedded_python_c.py": (
+            "import subprocess, textwrap\n"
+            "runtime = object()\n"
+            "child = textwrap.dedent(f'''marker = {runtime!r}\n"
+            f"from {_legacy_module('python_c_rule')} import run\n"
+            "''')\n"
+            "subprocess.run(['python3', '-c', child])\n"
+        ),
+        "orchestrator/tests/test_synthetic_source_data.py": (
+            "import pytest\n"
+            "@pytest.mark.parametrize(('source',), [\n"
+            f"    ('from {_legacy_module('fixture_data')} import run\\n',),\n"
+            "])\n"
+            "def test_fixture_data(source):\n"
+            "    assert source\n"
+        ),
         "scripts/check.sh": (
             "python3 -c 'import importlib; "
             f'importlib.import_module("{_legacy_module("shell_rule")}")\'\n'
@@ -1066,15 +1188,23 @@ def test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end():
             "orchestrator.campaign",
         ),
         _violation(
+            "orchestrator/tests/test_embedded_python_c.py",
+            4,
+            LEGACY_RULE,
+            _legacy_module("python_c_rule"),
+        ),
+        _violation(
             "scripts/check", 2, LEGACY_RULE, _legacy_module("executable_rule")
         ),
         _violation("scripts/check.bash", 1, LEGACY_RULE, _legacy_module("bash_rule")),
         _violation("scripts/check.sh", 1, LEGACY_RULE, _legacy_module("shell_rule")),
         _violation("src/legacy.py", 1, LEGACY_RULE, _legacy_module("legacy_rule")),
     )
-    assert actual.violations == tuple(sorted(expected))
+    assert actual.violations == tuple(sorted(expected)), (actual.violations, expected)
     assert {
         "src/legacy.py",
+        "orchestrator/tests/test_embedded_python_c.py",
+        "orchestrator/tests/test_synthetic_source_data.py",
         "scripts/check.sh",
         "scripts/check.bash",
         "scripts/check",
@@ -1111,8 +1241,8 @@ def test_known_exception_ledger_is_unique_rationalized_and_commented(repository_
     for rule, minimum in MINIMUM_RULE_EXCEPTION_COUNTS.items():
         assert rule_counts[rule] >= minimum
 
-    keys = [item.key() for item in KNOWN_EXCEPTIONS]
-    assert len(keys) == len(set(keys))
+    annotated_keys = [(item.key(), item.line) for item in KNOWN_EXCEPTIONS]
+    assert len(annotated_keys) == len(set(annotated_keys))
     ledger_rules = {item.rule for item in KNOWN_EXCEPTIONS}
     unknown_rules = ledger_rules - KNOWN_RULES
     assert not unknown_rules, f"unknown ledger rules={sorted(unknown_rules)!r}"
@@ -1492,6 +1622,22 @@ def test_exception_ledger_comparison_rejects_stale_entry():
     )
     with pytest.raises(AssertionError, match="stale"):
         _assert_ledger_matches((), (stale,))
+
+
+def test_exception_ledger_line_is_annotation_not_identity():
+    actual = (
+        _violation("synthetic.py", 999, LEGACY_RULE, _legacy_module("same")),
+    )
+    expected = (
+        ImportException(
+            path="synthetic.py",
+            line=1,
+            rule=LEGACY_RULE,
+            matched_text=_legacy_module("same"),
+            rationale="T-720: line drift control",
+        ),
+    )
+    _assert_ledger_matches(actual, expected)
 
 
 def test_exception_ledger_comparison_rejects_empty_ledger_with_real_violation():

@@ -4125,7 +4125,7 @@ def _certified_writer_resolve_path(path, rel_path):
 
 def test_certified_writer_authorization_caller_inventory_is_closed():
     """Close repo source outside tests, VCS/worktrees, generated, and vendored trees."""
-    from campaign import loop as campaign_loop
+    from orchestrator.campaign import loop as campaign_loop
 
     for callable_obj in (campaign_loop.run_campaign, pipeline.evaluate):
         parameter = inspect.signature(callable_obj).parameters["authorization_contract"]
