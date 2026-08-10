@@ -23,21 +23,25 @@ import hashlib
 import os
 import sys
 from typing import Optional
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign.loop import run_campaign                          # noqa: E402
-from campaign.build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
+from .loop import run_campaign                          # noqa: E402
+from .build_admission import (BuildRunContext, GeneratorId,  # noqa: E402
                                       attest_generator_output, build_run_context)
-from campaign.layout import CampaignLayout                      # noqa: E402
-from campaign.model import CampaignConfig, Genome               # noqa: E402
-from campaign.p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
+from .layout import CampaignLayout                      # noqa: E402
+from .model import CampaignConfig, Genome               # noqa: E402
+from .p2_2 import (CLK, ENV_TAG, EXTIME, NUMA, RECORDS,  # noqa: E402
                            REPS, THREADS, _assert_single_tenant)
-from campaign.pipeline import PerfConfig                        # noqa: E402
-from campaign import (env_contract, ident, pin, screening_driver,
+from .pipeline import PerfConfig                        # noqa: E402
+from . import (env_contract, ident, pin, screening_driver,
                       source_digest, wal)  # noqa: E402
-from campaign.loop import CampaignSummary                       # noqa: E402
-from campaign.pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
+from .loop import CampaignSummary                       # noqa: E402
+from .pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
+
 
 CCBENCH_COMMIT = pin.CURRENT_PIN      # d706650 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
 

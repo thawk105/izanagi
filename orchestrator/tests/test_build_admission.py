@@ -14,10 +14,10 @@ from types import SimpleNamespace
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import source_digest  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import source_digest  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     ADMISSION_SCHEMA,
     REVIEW_RECEIPT_SCHEMA,
     BuildAdmission,
@@ -33,9 +33,9 @@ from campaign.build_admission import (  # noqa: E402
     validate_build_admission_receipt,
     verify_review_receipt,
 )
-from campaign.model import Genome  # noqa: E402
-from campaign.pin import CURRENT_PIN  # noqa: E402
-from campaign.source_digest import (  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
     SOURCE_EVIDENCE_SCHEMA,
     STOCK,
     SourceEvidence,

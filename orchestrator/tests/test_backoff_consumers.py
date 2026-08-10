@@ -13,12 +13,12 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 _REPO = os.path.dirname(_ORCH)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import wal                                      # noqa: E402
-from campaign.backoff_repro import _bench_tps                 # noqa: E402
-from campaign.layout import CampaignLayout                    # noqa: E402
-from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,    # noqa: E402
+from orchestrator.campaign import wal                                      # noqa: E402
+from orchestrator.campaign.backoff_repro import _bench_tps                 # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                    # noqa: E402
+from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,    # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
 
 

@@ -13,9 +13,9 @@ from pathlib import Path
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 REPOSITORY = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_holdout_freeze as M  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as M  # noqa: E402
 
 
 KNOWN_CONJUNCTION_HITS: dict[str, list[str]] = {

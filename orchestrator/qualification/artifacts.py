@@ -17,10 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
-if __package__ and __package__.startswith("orchestrator."):
-    from ..campaign import campaign_lock
-else:
-    from campaign import campaign_lock
+from ..campaign import campaign_lock
 
 from .contract import (
     attempt_identity,

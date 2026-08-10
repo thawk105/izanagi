@@ -18,12 +18,12 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_materialization as M  # noqa: E402
-from campaign import env_contract as ec  # noqa: E402
-from campaign.model import Genome  # noqa: E402
-from campaign.s1_direct_comparison import PreparedCell  # noqa: E402
+from orchestrator.campaign import s8b_materialization as M  # noqa: E402
+from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 
 
 def _prepared(protocol: str, flags: dict, src_token: str) -> PreparedCell:
@@ -293,9 +293,9 @@ def test_prepared_binding_cleanup_exception_not_swallowed():
 # --------------------------------------------------------------------------- #
 
 def test_binding_key_sets_are_equivalent_across_consumers():
-    from campaign import s8b_oracle_driver as driver
-    from campaign import s8b_oracle_manifest as manifest
-    from campaign import s8b_oracle_report as report
+    from orchestrator.campaign import s8b_oracle_driver as driver
+    from orchestrator.campaign import s8b_oracle_manifest as manifest
+    from orchestrator.campaign import s8b_oracle_report as report
 
     producer_keys = {
         "genome_canonical", "src_token", "variant_id", "entry_sha256",
@@ -314,7 +314,7 @@ def test_binding_key_sets_are_equivalent_across_consumers():
 
 
 def test_binding_from_prepared_key_set_matches_driver_binding_keys():
-    from campaign import s8b_oracle_driver as driver
+    from orchestrator.campaign import s8b_oracle_driver as driver
 
     identity = M.binding_from_prepared(_ENTRY, _cell())
     assert set(identity) == driver._BINDING_KEYS
@@ -375,7 +375,7 @@ _DRIFT_FIXTURES = [
 
 
 def _manifest_accepts(entry) -> bool:
-    from campaign import s8b_oracle_manifest as manifest
+    from orchestrator.campaign import s8b_oracle_manifest as manifest
 
     schedule = {"rows": [{"holdout_id": "H1", "configuration_id": "stock"}]}
     try:
@@ -386,7 +386,7 @@ def _manifest_accepts(entry) -> bool:
 
 
 def _report_accepts(entry) -> bool:
-    from campaign import s8b_oracle_report as report
+    from orchestrator.campaign import s8b_oracle_report as report
 
     return report._binding_schema_issues(
         entry, holdout="H1", configuration="stock") == []
@@ -446,7 +446,7 @@ def test_floor_manifest_golden_stable():
     binding identity は共有 producer が生成するので、この golden が変われば binding か
     manifest 構造が抽出前後で変化したことを検出する。"""
     from unittest import mock
-    from campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign import s8b_floor_campaign as floor
 
     entry_stock = {"configuration": "stock", "flags": {"BACKOFF_FIXED": 0}}
     entry_v1 = {"configuration": "v1", "flags": {"BACKOFF_FIXED": 5, "SPIN": 1}}
@@ -533,7 +533,7 @@ def test_floor_manifest_golden_stable():
 # --------------------------------------------------------------------------- #
 
 def test_oracle_boundary_converts_to_oracle_driver_error():
-    from campaign import s8b_oracle_driver as driver
+    from orchestrator.campaign import s8b_oracle_driver as driver
 
     def prepare_fn(cell, ccbench_pin):
         return {"not": "a prepared cell"}  # binding_from_prepared が拒否する
@@ -549,7 +549,7 @@ def test_oracle_boundary_converts_to_oracle_driver_error():
 
 
 def test_floor_boundary_converts_to_floor_campaign_error():
-    from campaign import s8b_floor_campaign as floor
+    from orchestrator.campaign import s8b_floor_campaign as floor
 
     def prepare_fn(cell, ccbench_pin):
         return {"not": "a prepared cell"}
@@ -568,14 +568,20 @@ def test_floor_boundary_converts_to_floor_campaign_error():
 # --------------------------------------------------------------------------- #
 
 @pytest.mark.parametrize("imports", [
-    ["campaign.s8b_floor_campaign"],
-    ["campaign.s8b_oracle_driver"],
-    ["campaign.s8b_floor_campaign", "campaign.s8b_oracle_driver"],
-    ["campaign.s8b_oracle_driver", "campaign.s8b_floor_campaign"],
+    ["orchestrator.campaign.s8b_floor_campaign"],
+    ["orchestrator.campaign.s8b_oracle_driver"],
+    [
+        "orchestrator.campaign.s8b_floor_campaign",
+        "orchestrator.campaign.s8b_oracle_driver",
+    ],
+    [
+        "orchestrator.campaign.s8b_oracle_driver",
+        "orchestrator.campaign.s8b_floor_campaign",
+    ],
 ])
 def test_cold_import_orders(imports):
     stmts = "; ".join(f"import {mod}" for mod in imports)
-    script = f"import sys; sys.path.insert(0, {str(ORCHESTRATOR)!r}); {stmts}"
+    script = f"import sys; sys.path.insert(0, {str(ORCHESTRATOR.parent)!r}); {stmts}"
     proc = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True,
     )

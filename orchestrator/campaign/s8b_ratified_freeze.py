@@ -37,14 +37,14 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
-from campaign import env_contract as _env_contract
-from campaign import env_attestation as _env_attestation
-from campaign import execution_guard as _execution_guard
-from campaign import s8b_floor_contract as _floor_contract
-from campaign import s8b_floor_stats as _floor_stats
-from campaign import s8b_holdout_freeze as _hf
-from campaign.s8b_holdout_freeze import TOP_LEVEL_KEYS as V1_TOP_LEVEL_KEYS
-from campaign.s8b_launch_cert import (
+from . import env_contract as _env_contract
+from . import env_attestation as _env_attestation
+from . import execution_guard as _execution_guard
+from . import s8b_floor_contract as _floor_contract
+from . import s8b_floor_stats as _floor_stats
+from . import s8b_holdout_freeze as _hf
+from .s8b_holdout_freeze import TOP_LEVEL_KEYS as V1_TOP_LEVEL_KEYS
+from .s8b_launch_cert import (
     LaunchCertError as _LaunchCertError,
     parse_official_run_path as _parse_official_run_path,
     validate_launch_certificate as _validate_launch_certificate,
@@ -2476,8 +2476,8 @@ def _selector_evidence_exempt_exact(*, head: str, root: Path) -> Dict[str, str]:
         return {}
 
     try:
-        from campaign import s8b_prediction_runner as _prediction_runner
-        from campaign import s8b_selector_freeze as _selector_freeze
+        from . import s8b_prediction_runner as _prediction_runner
+        from . import s8b_selector_freeze as _selector_freeze
     except ImportError as exc:  # pragma: no cover - package installation failure
         raise RatifiedFreezeError(
             "scan-exemption-invalid", f"selector verifier を import できない: {exc}",

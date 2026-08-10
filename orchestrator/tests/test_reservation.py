@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parent.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign.env_contract import IsolationPolicy  # noqa: E402
-from campaign.reservation import (  # noqa: E402
+from orchestrator.campaign.env_contract import IsolationPolicy  # noqa: E402
+from orchestrator.campaign.reservation import (  # noqa: E402
     ReservationError,
     check_reservation,
     is_reservation_required,

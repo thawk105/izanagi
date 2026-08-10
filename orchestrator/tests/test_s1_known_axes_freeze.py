@@ -19,9 +19,9 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, _HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import s1_known_axes_freeze as M  # noqa: E402
+from orchestrator.campaign import s1_known_axes_freeze as M  # noqa: E402
 from s1_expected_goldens import (  # noqa: E402
     EXPECTED_BACKOFF,
     EXPECTED_P2,
@@ -160,14 +160,14 @@ def test_duplicate_trigger_names_and_alias_collisions_fail_closed():
 def test_consumer_import_defers_trigger_name_collision_until_first_check():
     script = inspect.cleandoc(
         """
-        from campaign import s8a_trigger_sweep
+        from orchestrator.campaign import s8a_trigger_sweep
 
         original_subset_name = s8a_trigger_sweep.subset_name
         canonical_name = original_subset_name(())
         predicate = s8a_trigger_sweep.predicate_for(())
         s8a_trigger_sweep.subset_name = lambda _reasons: "duplicate"
 
-        from campaign import s1_measurement_freeze as consumer
+        from orchestrator.campaign import s1_measurement_freeze as consumer
 
         known_axes = consumer.known_axes
         assert known_axes._TRIGGER_NAME_MASK_BINDING_CACHE is None
@@ -191,7 +191,7 @@ def test_consumer_import_defers_trigger_name_collision_until_first_check():
     )
     completed = subprocess.run(
         [sys.executable, "-c", script],
-        cwd=M.ROOT / "orchestrator",
+        cwd=M.ROOT,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -441,7 +441,7 @@ def test_verify_document_rejects_noncanonical_predicate_before_rebuild():
 
 
 def test_backoff_sweep_grid_matches_registered_golden():
-    from campaign import backoff_sweep
+    from orchestrator.campaign import backoff_sweep
 
     assert tuple(backoff_sweep.SWEEP_US) == EXPECTED_SWEEP_US
 
@@ -625,7 +625,7 @@ def test_silo_cmake_rel_matches_source_digest_template():
     source_digest._PROTOCOL_CMAKE との整合)。s1 本体は generator 自己 hash + sources pin
     (known_axes_freeze.json) で凍結されているため**編集せず**、外部から関係だけを機械検査
     する (2026-07-28 段 4 裁定、F27 回避)。"""
-    from campaign import source_digest
+    from orchestrator.campaign import source_digest
     assert M.SILO_CMAKE_REL == (
         "external/ccbench/" + source_digest._PROTOCOL_CMAKE.format(protocol="silo")), \
         "s1 の SILO_CMAKE_REL と source_digest._PROTOCOL_CMAKE がドリフト。s1 は凍結 pin " \

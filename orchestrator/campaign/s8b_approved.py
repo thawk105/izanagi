@@ -34,9 +34,9 @@ import しない (循環回避)。
 """
 from __future__ import annotations
 
-from campaign import s8b_experiment_numbers as _experiment_numbers
-from campaign import s8b_floor_stats
-from campaign.s8b_ratified_freeze import V1_FREEZE_PATH, V1_FREEZE_SHA256
+from . import s8b_experiment_numbers as _experiment_numbers
+from . import s8b_floor_stats
+from .s8b_ratified_freeze import V1_FREEZE_PATH, V1_FREEZE_SHA256
 
 # --- 公式実験数値 pin (単一源 = s8b_experiment_numbers、裁定 2026-07-19) --- #
 APPROVED_EXTIME_S = _experiment_numbers.APPROVED_EXTIME_S

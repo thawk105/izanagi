@@ -7,7 +7,7 @@
 構築 (`BACKOFF_FIXED` 前提) と attribution 整合チェック (`_NOW_BACKOFF_RE` = backoff
 固有の変数名/数値リテラル前提) が転用不可なため。共有できる汎用ヘルパ (`quarantine`/
 `record_diff_reject`/`make_critic_digest`/`check_stop`/`LoopState` 永続化等) は
-`campaign.p3_s4_loop` を `L` としてそのまま import し再利用する (`L.` 接頭辞 = backoff
+`orchestrator.campaign.p3_s4_loop` を `L` としてそのまま import し再利用する (`L.` 接頭辞 = backoff
 driver と共有しているコードの目印)。
 
 sort 戦略固有の設計 (敵対レビュー 2026-07-10、3レンズで確定):
@@ -60,32 +60,36 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import env_contract, ident, pin, wal                # noqa: E402
-from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign.artifact_admission import require_admitted_campaign # noqa: E402
-from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+from . import env_contract, ident, pin, wal                # noqa: E402
+from . import p3_s4_loop as L                              # noqa: E402
+from .artifact_admission import require_admitted_campaign # noqa: E402
+from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
+from .auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, compute_diff_digest,
                                    parse_auditor_dict)
-from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
-from campaign.layout import (CampaignLayout,                       # noqa: E402
+from .diff_quarantine import DiffQuarantineResult          # noqa: E402
+from .layout import (CampaignLayout,                       # noqa: E402
                              exploration_campaign_layout)
-from campaign.loop import run_campaign                             # noqa: E402
-from campaign.model import CampaignConfig, Genome                  # noqa: E402
-from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
-from campaign.projection_guard import (                            # noqa: E402
+from .loop import run_campaign                             # noqa: E402
+from .model import CampaignConfig, Genome                  # noqa: E402
+from .pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
+from .pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from .projection_guard import (                            # noqa: E402
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
-from critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
-from critic.digest import load_diff_rejections                     # noqa: E402
+from ..critic.digest import DIFF_QUARANTINE_REASON                   # noqa: E402
+from ..critic.digest import load_diff_rejections                     # noqa: E402
+
 
 # ---- campaign 定数 (s5_permutation_coverage.py 様式。実走前に pin/env を確認する) ----
 PIN = pin.CURRENT_PIN                 # d706650 (izanagi-trace, permutation 保存 assert 込み)
@@ -120,7 +124,7 @@ class CoderProposalSort:
 
 
 # AuditorVerdict / AuditorGateFailure / compute_diff_digest / _AUDITOR_VERDICTS は
-# `campaign.auditor_gate` へ共有昇格した (段 8a E 段レビュー 2026-07-12 — コード片軸
+# `orchestrator.campaign.auditor_gate` へ共有昇格した (段 8a E 段レビュー 2026-07-12 — コード片軸
 # 2 軸目)。本モジュールの公開名 (S.AuditorVerdict 等) は import で同一オブジェクトの
 # まま維持 (既存テスト・runbook 無改変)。
 
@@ -221,7 +225,7 @@ def run_one_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     dry/実 build いずれの経路でも通す (`_quarantine_and_audit` に factoring — backoff 版は
     dry/build で quarantine 呼び出しを重複させていたが、本 driver は auditor gate が
     増えた分ここで共通化した)。"""
-    from campaign.patchharness import applied
+    from .patchharness import applied
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:
@@ -367,7 +371,7 @@ def _preview_diff(implementation_path: str, sub: str, root: str) -> Dict:
     implementation テキストファイルを読み、テンプレ骨格下で `quarantine(write=False)` を
     実走し working_diff + diff_digest を返す。auditor の入力構築 (diff 本文) と、
     proposal JSON の `auditor.diff_digest` (機械照合対象) の両方をこの一手で揃える。"""
-    from campaign.patchharness import applied, assert_pinned_clean
+    from .patchharness import applied, assert_pinned_clean
     with open(implementation_path, encoding="utf-8") as f:
         implementation = f.read()
     assert_pinned_clean(sub, PIN)
@@ -419,8 +423,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         coder_authority=None if a.no_build else a.coder_build_authority,
     )
 
-    from campaign import patchharness
-    from campaign.p2_2 import _assert_single_tenant
+    from . import patchharness
+    from .p2_2 import _assert_single_tenant
     if not a.no_build:
         _assert_single_tenant()
     patchharness.assert_pinned_clean(fixed_sub, PIN)
@@ -475,7 +479,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"=== 段5 sort-strategy loop 1 iteration (機械 E2E, reflux={a.reflux}, "
           f"build={not a.no_build}, isolate_worktree={isolate}) ===")
     with wt_cm as sub:
-        from campaign.patchharness import applied
+        from .patchharness import applied
         with applied(os.path.join(root, TEMPLATE_PATCH), PIN, sub):
             res, _b, _e, working_diff = L.quarantine(
                 sub, fixture_impl, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=False)

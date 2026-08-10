@@ -21,13 +21,13 @@ import tempfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign.diff_quarantine import (DiffQuarantine,             # noqa: E402
+from orchestrator.campaign.diff_quarantine import (DiffQuarantine,             # noqa: E402
                                       DiffRejectSubtype,
                                       TemplateMarker, parse_diff,
                                       parse_template_file)
-from campaign.diff_quarantine import _same_file as _sf            # noqa: E402
+from orchestrator.campaign.diff_quarantine import _same_file as _sf            # noqa: E402
 
 # 実 backoff.hh の EVOLVE-BLOCK 骨格を写した fixture (フレーム = BEGIN/コメント/#if/#else/
 # stock 枝/#endif/END、hole = #if と #else の間の 1 行)。

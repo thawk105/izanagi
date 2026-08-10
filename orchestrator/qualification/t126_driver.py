@@ -20,15 +20,24 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-_ORCHESTRATOR = Path(__file__).resolve().parents[1]
-if str(_ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(_ORCHESTRATOR))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.qualification"
 
-from campaign import env_attestation, env_contract, pipeline, reservation, source_digest  # noqa: E402
-from campaign.build_admission import GeneratorId, build_run_context  # noqa: E402
-from campaign.model import Genome  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
+    env_attestation,
+    env_contract,
+    pipeline,
+    reservation,
+    source_digest,
+)
+from orchestrator.campaign.build_admission import (  # noqa: E402
+    GeneratorId,
+    build_run_context,
+)
+from orchestrator.campaign.model import Genome  # noqa: E402
 
-from qualification.artifacts import (  # noqa: E402
+from .artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationEventSink,
     QualificationRoot,
@@ -47,8 +56,8 @@ from qualification.artifacts import (  # noqa: E402
     validate_json_schema,
     verify_manifest_entries,
 )
-from qualification.attempt_ledger import SeriesAttemptLedger  # noqa: E402
-from qualification.contract import (  # noqa: E402
+from .attempt_ledger import SeriesAttemptLedger  # noqa: E402
+from .contract import (  # noqa: E402
     ProtocolError,
     REQUIRED_CODE_IDENTITY_PATHS,
     REQUIRED_SCRIPT_IDENTITY_PATHS,
@@ -60,13 +69,13 @@ from qualification.contract import (  # noqa: E402
     series_identity,
     sprt_decide,
 )
-from qualification.series import SeriesFSM, replay_ledger  # noqa: E402
-from qualification.identity import (  # noqa: E402
+from .series import SeriesFSM, replay_ledger  # noqa: E402
+from .identity import (  # noqa: E402
     verify_recorded_series_identity,
     verify_submission_script_chain,
 )
-from qualification.qsub_binding import validate_qsub_binding  # noqa: E402
-from qualification.retry_index import (  # noqa: E402
+from .qsub_binding import validate_qsub_binding  # noqa: E402
+from .retry_index import (  # noqa: E402
     RetryIndexError,
     validate_retry_index,
 )

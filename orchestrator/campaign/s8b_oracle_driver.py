@@ -15,42 +15,45 @@ import subprocess
 import sys
 import time
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Mapping, Optional, Sequence
+from pathlib import Path
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
 
-from campaign import model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from . import model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from .build_admission import (  # noqa: E402
     GeneratorId,
     ReviewId,
     build_run_context,
 )
-from campaign import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
-from campaign import campaign_claim as _campaign_claim  # noqa: E402
-from campaign import s8b_freeze_io as _freeze_io  # noqa: E402
-from campaign import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
-from campaign import env_contract as _env_contract  # noqa: E402
-from campaign import env_attestation as _env_attestation  # noqa: E402
-from campaign import execution_guard  # noqa: E402
-from campaign import reservation as _reservation  # noqa: E402
-from campaign import s8b_ratified_freeze  # noqa: E402
-from campaign import t080_freeze_migration as _t080_migration  # noqa: E402
-from campaign.layout import campaign_layout, repo_output_root  # noqa: E402
-from campaign.layout import write_capability_for_directory  # noqa: E402
-from campaign.durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
-from campaign.p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
-from campaign.s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
-from campaign.s8b_materialization import (  # noqa: E402
+from . import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
+from . import campaign_claim as _campaign_claim  # noqa: E402
+from . import s8b_freeze_io as _freeze_io  # noqa: E402
+from . import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
+from . import env_contract as _env_contract  # noqa: E402
+from . import env_attestation as _env_attestation  # noqa: E402
+from . import execution_guard  # noqa: E402
+from . import reservation as _reservation  # noqa: E402
+from . import s8b_ratified_freeze  # noqa: E402
+from . import t080_freeze_migration as _t080_migration  # noqa: E402
+from .layout import campaign_layout, repo_output_root  # noqa: E402
+from .layout import write_capability_for_directory  # noqa: E402
+from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
+from .p2_2 import ENV_TAG as MACHINE_ENV_TAG  # noqa: E402  (machine-pin 名のみ)
+from .s1_direct_comparison import PreparedCell, prepare_cell  # noqa: E402
+from .s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding as _materialization_prepared_binding,
     reviewed_source_capability,
 )
-from campaign import s1_known_axes_freeze, s8b_holdout_freeze  # noqa: E402
-from campaign.s8b_oracle_manifest import (  # noqa: E402
+from . import s1_known_axes_freeze, s8b_holdout_freeze  # noqa: E402
+from .s8b_oracle_manifest import (  # noqa: E402
     VerifiedManifest,
     config_for_block,
     verify_manifest,

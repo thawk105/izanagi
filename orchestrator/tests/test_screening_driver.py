@@ -11,21 +11,21 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import env_contract, ident, screening_driver, wal  # noqa: E402
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign import env_contract, ident, screening_driver, wal  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     attest_generator_output,
     build_run_context,
     derive_build_admission,
 )
-from campaign.layout import campaign_layout                     # noqa: E402
-from campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
+from orchestrator.campaign.layout import campaign_layout                     # noqa: E402
+from orchestrator.campaign.model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT,
                             CampaignConfig, Genome)
-from campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
-from campaign.source_digest import (  # noqa: E402
+from orchestrator.campaign.pipeline import EvalResult, PerfConfig             # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SOURCE_EVIDENCE_SCHEMA,
     SourceEvidence,
