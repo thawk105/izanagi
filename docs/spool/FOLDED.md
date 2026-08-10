@@ -669,3 +669,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:spool-fold-carry-legacy-stub":"[T-724]"},"authored":"2026-08-09","content_sha256":"e9960b1c781698e7993a4f9300c5da716ec39d6ec54c6bd9e72b76eb48bf76bd","seq":1,"wave":"dev-wave-suite-floor-recheck"}
 - {"allocations":{"D:history-scan-copy-clause":"D260"},"authored":"2026-08-09","content_sha256":"6c6600c4d34b76efa90cd09f746d177c6574d7a9e09a2b36ed36086f3c754fe2","seq":2,"wave":"dev-wave-suite-floor-recheck"}
 - {"allocations":{"F:acceptance-in-synthetic-checkout":"F189","F:spool-fold-carry-legacy-stub":"F190"},"authored":"2026-08-10","content_sha256":"7dba74ed1840e72ec32ad8631933c3721844210457179f75f09cad2401237f87","seq":3,"wave":"dev-wave-suite-floor-recheck"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"5b1881d8f7ad1bf260020af2eaad898636047e92d12a4513148892a8447febad","seq":33,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"dc5f52dc273b8564523dc8ff71506345404333c836dc67e897fb3797fdf72b6d","seq":1,"wave":"dev-wave-t657-restore-redesign"}
+
+- {"allocations":{"T:acceptance-lease-merge-after-acquire":"[T-725]"},"authored":"2026-08-10","content_sha256":"5929e142d566ff342ef56afc16f385a0a5b6215f736bcf36d27c73da3e8a6ce4","seq":1,"wave":"dev-wave-t674-d125-supersession"}
+- {"allocations":{"D:d125-campaign-id-invariance-superseded":"D261"},"authored":"2026-08-10","content_sha256":"c0cdbb8d3048dfd73a586c1ee19598352f6daf44c01f06ba1744112c8f5d5a7d","seq":1,"wave":"dev-wave-t674-d125-supersession"}
+- {"allocations":{"F:acceptance-lease-behind-livelock":"F191"},"authored":"2026-08-10","content_sha256":"39a653c683bd34052d1e340797ba9b7e1007711ab5a06431b70ffebf29fa9409","seq":2,"wave":"dev-wave-t674-d125-supersession"}
