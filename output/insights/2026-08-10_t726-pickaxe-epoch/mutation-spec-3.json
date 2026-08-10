@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_ruleops.py::test_receipt_head_outside_epoch_window_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "tools/ruleops.py",
+          "old": "    if epoch_base != epoch:\n        _fail(\n            \"receipt-head-outside-epoch\",\n",
+          "new": "    if epoch_base != epoch and False:\n        _fail(\n            \"receipt-head-outside-epoch\",\n"
+        }
+      ]
+    }
+  ]
+}
