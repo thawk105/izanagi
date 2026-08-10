@@ -39,7 +39,26 @@ MAX_QUERY_CHARS = 128
 MAX_QUERY_COUNT = 1
 MAX_SIGNAL_TOKENS = 6
 MAX_EVIDENCE_ITEMS = 128
-GIT_TIMEOUT_SECONDS = 20
+GIT_TIMEOUT_BASE_SECONDS = 20.0
+# Primary measurements at e91bf56d covered 2,402 commits: path-limited log
+# 0.437 s, full-history log -S 7.084--7.919 s, ls-tree 0.093 s, grep
+# 0.370 s, and the bootstrap commit count 0.034 s.  cat-file --batch took
+# 0.609 s for 6,494 requests / 99,981,192 bytes.  The T-648 20 s cutoff
+# therefore gives a lower bound of 8.33e-3 s/commit (45.8x the unloaded
+# 0.182e-3); a safety factor of four gives 0.0333, rounded up to 0.035.
+GIT_TIMEOUT_RATE_SECONDS_PER_COMMIT = 0.035
+# T-639's 20 s cutoff gives 3.08e-3 s/request (32.8x the unloaded 9.38e-5);
+# the same safety factor gives 0.0123, rounded up to 0.013.  T-553's 0.0086
+# is not reusable because it measured --batch-check (headers only), not the
+# --batch protocol used here.
+GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST = 0.013
+# This rate-independent literal is an absolute limit for each Git call, not a
+# cumulative run limit: 1/8 of the compute-node default 2,400 s walltime.  It
+# is reached at 8,000 commits / about 21,538 requests.  Recalibrate if history
+# exceeds 8,000 commits, git-timeout recurs at the same nodeid, or
+# output/insights exceeds 20,000 entries.  The linear model is a hypothesis,
+# not a guarantee.
+GIT_TIMEOUT_CAP_SECONDS = 300.0
 
 _TEST_PATH_RE = re.compile(r"^orchestrator/tests/test_[^/]+\.py$")
 _INSIGHT_PATH_RE = re.compile(r"^output/insights/.+")
@@ -122,6 +141,7 @@ class RepoSnapshot:
     repo: Path
     head: str
     object_format: str
+    commit_count: int
     entries: Mapping[str, TreeEntry]
     blob_cache: dict[str, bytes] = field(default_factory=dict, compare=False)
     grep_cache: dict[str, tuple[str, ...]] = field(default_factory=dict, compare=False)
@@ -318,12 +338,56 @@ def _git_env() -> dict[str, str]:
     return env
 
 
+def _git_timeout_workload(
+    subcommand: str,
+    args: Sequence[str],
+    *,
+    input_bytes: bytes | None = None,
+    commit_count: int | None = None,
+) -> tuple[int, float]:
+    input_lines = 0
+    if input_bytes:
+        input_lines = input_bytes.count(b"\n") + int(
+            not input_bytes.endswith(b"\n")
+        )
+    if subcommand == "log" and commit_count is not None:
+        return commit_count, GIT_TIMEOUT_RATE_SECONDS_PER_COMMIT
+    if subcommand == "diff-tree" and args and args[0] == "--stdin":
+        return input_lines, GIT_TIMEOUT_RATE_SECONDS_PER_COMMIT
+    if subcommand == "cat-file" and args and args[0] == "--batch":
+        return input_lines, GIT_TIMEOUT_RATE_SECONDS_PER_REQUEST
+    return 0, 0.0
+
+
+def _git_timeout_budget_seconds(
+    subcommand: str,
+    args: Sequence[str],
+    *,
+    input_bytes: bytes | None = None,
+    commit_count: int | None = None,
+) -> float:
+    """Return a workload-scaled, per-call Git timeout budget."""
+
+    units, rate = _git_timeout_workload(
+        subcommand,
+        args,
+        input_bytes=input_bytes,
+        commit_count=commit_count,
+    )
+    return min(
+        GIT_TIMEOUT_BASE_SECONDS + units * rate,
+        GIT_TIMEOUT_CAP_SECONDS,
+    )
+
+
 def _git_read(
     repo: Path,
     subcommand: str,
     *args: str,
     input_bytes: bytes | None = None,
     allowed_rc: frozenset[int] = frozenset({0}),
+    commit_count: int | None = None,
+    timeout_mode: str | None = None,
 ) -> bytes:
     """Run one command from the closed read-only Git set."""
 
@@ -343,6 +407,18 @@ def _git_read(
     elif subcommand == "grep":
         command.append("--no-recurse-submodules")
     command.extend(args)
+    timeout_seconds = _git_timeout_budget_seconds(
+        subcommand,
+        args,
+        input_bytes=input_bytes,
+        commit_count=commit_count,
+    )
+    units, _ = _git_timeout_workload(
+        subcommand,
+        args,
+        input_bytes=input_bytes,
+        commit_count=commit_count,
+    )
     try:
         result = subprocess.run(
             command,
@@ -350,10 +426,15 @@ def _git_read(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=_git_env(),
-            timeout=GIT_TIMEOUT_SECONDS,
+            timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:
-        raise RuleOpsError("git-timeout", f"git {subcommand} timeout") from exc
+        mode_detail = "" if timeout_mode is None else f"mode={timeout_mode}, "
+        raise RuleOpsError(
+            "git-timeout",
+            f"git {subcommand} timeout "
+            f"({mode_detail}budget={timeout_seconds:.3f}s, units={units})",
+        ) from exc
     except OSError as exc:
         raise RuleOpsError("git-unavailable", f"git {subcommand} 実行不能: {exc}") from exc
     if result.returncode not in allowed_rc:
@@ -384,6 +465,31 @@ def _capture_snapshot(repo_value: Path | str) -> RepoSnapshot:
     if _OID_RE[object_format].fullmatch(head) is None:
         _fail("bad-oid", f"HEAD OID が {object_format} 形式でない")
     _assert_history_boundary(repo)
+    # This bootstrap log stays at BASE to avoid making the history count depend
+    # on the history count; the measured 2,402-commit enumeration took 0.034 s.
+    raw_commits = _git_read(
+        repo,
+        "log",
+        "--format=%H",
+        "-z",
+        head,
+        "--",
+        timeout_mode="log-bootstrap",
+    )
+    commits: list[str] = []
+    for chunk in raw_commits.split(b"\0"):
+        if not chunk:
+            continue
+        try:
+            commit = chunk.decode("ascii", "strict")
+        except UnicodeDecodeError as exc:
+            raise RuleOpsError("bad-history", "history commit が非 ASCII") from exc
+        if _OID_RE[object_format].fullmatch(commit) is None:
+            _fail("bad-history", f"history commit OID 不正: {commit!r}")
+        commits.append(commit)
+    if not commits:
+        _fail("bad-history", "history commit が空")
+    commit_count = len(commits)
     raw_tree = _git_read(repo, "ls-tree", "-r", "-l", "-z", head, "--")
     entries: dict[str, TreeEntry] = {}
     for chunk in raw_tree.split(b"\0"):
@@ -404,7 +510,13 @@ def _capture_snapshot(repo_value: Path | str) -> RepoSnapshot:
             _fail("duplicate-tree-path", f"HEAD tree path 重複: {path}")
         size = None if size_text == "-" else _integer_text(size_text, label=f"{path}:size")
         entries[path] = TreeEntry(mode, kind, oid, size, path)
-    return RepoSnapshot(repo, head, object_format, entries)
+    return RepoSnapshot(
+        repo=repo,
+        head=head,
+        object_format=object_format,
+        commit_count=commit_count,
+        entries=entries,
+    )
 
 
 def _assert_history_boundary(repo: Path) -> None:
@@ -488,6 +600,7 @@ def _batch_blobs(
         "cat-file",
         "--batch",
         input_bytes=request,
+        timeout_mode="cat-file-batch",
     )
     offset = 0
     result: dict[str, bytes] = dict(cached)
@@ -545,6 +658,8 @@ def _last_changes(
         "--",
         ":(top,literal)orchestrator/tests",
         ":(top,literal)output/insights",
+        commit_count=snapshot.commit_count,
+        timeout_mode="log-last-change",
     )
     current: tuple[str, str] | None = None
     result: dict[str, tuple[str, str]] = {}
@@ -855,6 +970,8 @@ def _control_last_changes(
         snapshot.head,
         "--",
         *(f":(top,literal){path}" for path, _ in key),
+        commit_count=snapshot.commit_count,
+        timeout_mode="log-control-change",
     )
     by_commit = _parse_pickaxe_paths(snapshot, raw)
     result: dict[str, str] = {}
@@ -891,6 +1008,8 @@ def _pickaxe(
                 snapshot.head,
                 "--",
                 ":(top)",
+                commit_count=snapshot.commit_count,
+                timeout_mode="log-pickaxe",
             )
             by_commit = _parse_pickaxe_paths(snapshot, raw)
             cached = tuple(
@@ -1626,6 +1745,8 @@ def _receipt_epoch_changed_paths(
         "-z",
         f"{receipt_head}..{snapshot.head}",
         "--",
+        commit_count=snapshot.commit_count,
+        timeout_mode="log-receipt-range",
     )
     commits: list[str] = []
     for chunk in raw_commits.split(b"\0"):
@@ -1653,6 +1774,7 @@ def _receipt_epoch_changed_paths(
         "-z",
         "--",
         input_bytes=("\n".join(commits) + "\n").encode("ascii"),
+        timeout_mode="diff-tree-stdin",
     )
     paths: set[str] = set()
     for chunk in raw_paths.split(b"\0"):
