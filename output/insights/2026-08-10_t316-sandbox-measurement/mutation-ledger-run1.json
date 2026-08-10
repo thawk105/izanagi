@@ -1,0 +1,1077 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/6245af21262fe8450babb05db8025470/izdw-6245af2126.o900442",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/6245af21262fe8450babb05db8025470/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n...........................................                              [100%]\n115 passed in 2.59s\n",
+      "stdout_sha256": "87f4e66ba98d17bece44c60b48afc4ac3502c63eb060fe9adbecfef04a74ecc9"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+    "duration_s": 37.154,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "5bb4f020a1d8abe09670c97bdebdf32c9644c7e650a36aeca4fba2fc6e2ce6fc",
+    "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+    "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+    "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+    "status": "PASSED",
+    "test_output_sha256": "87f4e66ba98d17bece44c60b48afc4ac3502c63eb060fe9adbecfef04a74ecc9",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+  },
+  "date": "2026-08-10T11:00:14.616062+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/5f502f85e66ca8011f7e8fdaaa5bf037/izdw-5f502f85e6.o900444",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/5f502f85e66ca8011f7e8fdaaa5bf037/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n.F.F..............F........................                              [100%]\n=================================== FAILURES ===================================\n________________ test_category_oracles_are_independent_literals ________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_category_oracles_are_independent_literals() -> None:\n        assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES\n        assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES\n        assert probe.S5_PROFILES == EXPECTED_S5_PROFILES\n>       assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS\nE       AssertionError: assert {'network_dns...NOENT'}), ...} == {'network_dns...NOENT'}), ...}\nE         \nE         Omitting 12 identical items, use -vv to show\nE         Differing items:\nE         {'write_tmp': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_tmp': frozenset({'EACCES', 'EPERM', 'EROFS'})}\nE         {'write_home': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_home': frozenset({'EACCES', 'EPERM', 'EROFS'})}\nE         {'write_repo': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_repo': frozenset({'EACCES', 'EPERM', 'EROFS'})}\nE         {'file_write': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'file_write': frozenset({'EACCES', 'EPERM', 'EROFS'})}\nE         {'source_read_only': f...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError\n___________________ test_eexist_is_not_a_containment_denial ____________________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_eexist_is_not_a_containment_denial() -> None:\n        record = _command_record(\"T316_SENTINEL|write_repo|DENIED|EEXIST\\n\")\n        parsed = probe._parse_payload_sentinel(record, \"write_repo\")\n>       assert parsed == {\"state\": \"invalid\", \"detail\": \"EEXIST\"}\nE       AssertionError: assert {'state': 'de...il': 'EEXIST'} == {'state': 'in...il': 'EEXIST'}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'state': 'denied'} != {'state': 'invalid'}\nE         Use -v to get more diff\n\norchestrator/tests/test_t316_sandbox_probe.py:307: AssertionError\n________ test_containment_mechanism_table_matches_independent_literals _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_containment_mechanism_table_matches_independent_literals() -> None:\n>       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {\n            category: {\n                \"denial\": EXPECTED_ACTIVE_DENIALS[category],\n                \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],\n            }\n            for category in EXPECTED_CONTAINMENT_DENIALS\n        }\nE       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}\nE         \nE         Omitting 12 identical items, use -vv to show\nE         Differing items:\nE         {'write_repo': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_repo': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}\nE         {'write_home': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_home': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}\nE         {'write_tmp': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence...\nE         \nE         ...Full output truncated (4 lines hidden), use '-vv' to show\n\norchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\n3 failed, 112 passed in 2.61s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1309 retained_bytes=1309 omitted_bytes=0 rendered_excerpt_bytes=1352 sha256=d1675a381553c3f825551d4eb94610b508ccb31b3b2a8cca7b091d11777274af\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_containment_mechanism_table_matches_independent_literals() -> None:\n> >       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {\n>             category: {\n>                 \"denial\": EXPECTED_ACTIVE_DENIALS[category],\n>                 \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],\n>             }\n>             for category in EXPECTED_CONTAINMENT_DENIALS\n>         }\n> E       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}\n> E         \n> E         Omitting 12 identical items, use -vv to show\n> E         Differing items:\n> E         {'write_repo': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_repo': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}\n> E         {'write_home': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_home': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}\n> E         {'write_tmp': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence...\n> E         \n> E         ...Full output truncated (4 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1289 retained_bytes=1289 omitted_bytes=0 rendered_excerpt_bytes=1330 sha256=a459fed84b71acbf2c6fc3501659937f01567c07e6bb70e31fc689dbea066833\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_category_oracles_are_independent_literals() -> None:\n>         assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES\n>         assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES\n>         assert probe.S5_PROFILES == EXPECTED_S5_PROFILES\n> >       assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS\n> E       AssertionError: assert {'network_dns...NOENT'}), ...} == {'network_dns...NOENT'}), ...}\n> E         \n> E         Omitting 12 identical items, use -vv to show\n> E         Differing items:\n> E         {'write_tmp': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_tmp': frozenset({'EACCES', 'EPERM', 'EROFS'})}\n> E         {'write_home': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_home': frozenset({'EACCES', 'EPERM', 'EROFS'})}\n> E         {'write_repo': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_repo': frozenset({'EACCES', 'EPERM', 'EROFS'})}\n> E         {'file_write': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'file_write': frozenset({'EACCES', 'EPERM', 'EROFS'})}\n> E         {'source_read_only': f...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=661 retained_bytes=661 omitted_bytes=0 rendered_excerpt_bytes=693 sha256=f2d6d198a3a7808efdeba7e0e40221114115b8bf7c6432d7d3569e18cffa11af\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_eexist_is_not_a_containment_denial() -> None:\n>         record = _command_record(\"T316_SENTINEL|write_repo|DENIED|EEXIST\\x5cn\")\n>         parsed = probe._parse_payload_sentinel(record, \"write_repo\")\n> >       assert parsed == {\"state\": \"invalid\", \"detail\": \"EEXIST\"}\n> E       AssertionError: assert {'state': 'de...il': 'EEXIST'} == {'state': 'in...il': 'EEXIST'}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Differing items:\n> E         {'state': 'denied'} != {'state': 'invalid'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:307: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3259 retained_bytes=3259 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4967 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "81ebf312210f566ea585b417a83ae3dd7524fb1083a62103b0eb22f7a3289073"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 32.256,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "abbcdea57cad594dfb327aa01ec0a20a7a17348c2711127ed106e23e5ab9497d",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "ca8a1f30fe9df57258ba5b74394b1810a171ac9f77acd511d9c70712cb58595b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "_WRITE_CONTAINMENT_ERRNOS = frozenset({\"EACCES\", \"EPERM\", \"EROFS\", \"EEXIST\"})",
+          "old": "_WRITE_CONTAINMENT_ERRNOS = frozenset({\"EACCES\", \"EPERM\", \"EROFS\"})"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "MISMATCH",
+      "test_output_sha256": "81ebf312210f566ea585b417a83ae3dd7524fb1083a62103b0eb22f7a3289073",
+      "test_output_tail": [
+        "E         Differing items:",
+        "E         {'write_repo': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_repo': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}",
+        "E         {'write_home': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_home': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}",
+        "E         {'write_tmp': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence...",
+        "E         ",
+        "E         ...Full output truncated (4 lines hidden), use '-vv' to show",
+        "",
+        "orchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "FAILED orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial",
+        "FAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals",
+        "3 failed, 112 passed in 2.61s",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1309 retained_bytes=1309 omitted_bytes=0 rendered_excerpt_bytes=1352 sha256=d1675a381553c3f825551d4eb94610b508ccb31b3b2a8cca7b091d11777274af",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw1] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_containment_mechanism_table_matches_independent_literals() -> None:",
+        "> >       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {",
+        ">             category: {",
+        ">                 \"denial\": EXPECTED_ACTIVE_DENIALS[category],",
+        ">                 \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],",
+        ">             }",
+        ">             for category in EXPECTED_CONTAINMENT_DENIALS",
+        ">         }",
+        "> E       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}",
+        "> E         ",
+        "> E         Omitting 12 identical items, use -vv to show",
+        "> E         Differing items:",
+        "> E         {'write_repo': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_repo': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}",
+        "> E         {'write_home': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}} != {'write_home': {'denial': frozenset({'EACCES', 'EPERM', 'EROFS'}), 'absence': frozenset({'ENOENT'})}}",
+        "> E         {'write_tmp': {'denial': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'}), 'absence...",
+        "> E         ",
+        "> E         ...Full output truncated (4 lines hidden), use '-vv' to show",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1289 retained_bytes=1289 omitted_bytes=0 rendered_excerpt_bytes=1330 sha256=a459fed84b71acbf2c6fc3501659937f01567c07e6bb70e31fc689dbea066833",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw0] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_category_oracles_are_independent_literals() -> None:",
+        ">         assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES",
+        ">         assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES",
+        ">         assert probe.S5_PROFILES == EXPECTED_S5_PROFILES",
+        "> >       assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS",
+        "> E       AssertionError: assert {'network_dns...NOENT'}), ...} == {'network_dns...NOENT'}), ...}",
+        "> E         ",
+        "> E         Omitting 12 identical items, use -vv to show",
+        "> E         Differing items:",
+        "> E         {'write_tmp': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_tmp': frozenset({'EACCES', 'EPERM', 'EROFS'})}",
+        "> E         {'write_home': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_home': frozenset({'EACCES', 'EPERM', 'EROFS'})}",
+        "> E         {'write_repo': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'write_repo': frozenset({'EACCES', 'EPERM', 'EROFS'})}",
+        "> E         {'file_write': frozenset({'EACCES', 'EEXIST', 'EPERM', 'EROFS'})} != {'file_write': frozenset({'EACCES', 'EPERM', 'EROFS'})}",
+        "> E         {'source_read_only': f...",
+        "> E         ",
+        "> E         ...Full output truncated (2 lines hidden), use '-vv' to show",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=661 retained_bytes=661 omitted_bytes=0 rendered_excerpt_bytes=693 sha256=f2d6d198a3a7808efdeba7e0e40221114115b8bf7c6432d7d3569e18cffa11af",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw33] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_eexist_is_not_a_containment_denial() -> None:",
+        ">         record = _command_record(\"T316_SENTINEL|write_repo|DENIED|EEXIST\\x5cn\")",
+        ">         parsed = probe._parse_payload_sentinel(record, \"write_repo\")",
+        "> >       assert parsed == {\"state\": \"invalid\", \"detail\": \"EEXIST\"}",
+        "> E       AssertionError: assert {'state': 'de...il': 'EEXIST'} == {'state': 'in...il': 'EEXIST'}",
+        "> E         ",
+        "> E         Omitting 1 identical items, use -vv to show",
+        "> E         Differing items:",
+        "> E         {'state': 'denied'} != {'state': 'invalid'}",
+        "> E         Use -v to get more diff",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:307: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3259 retained_bytes=3259 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4967 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/e8da881aae5609d676e5e5f1ceccd7d8/izdw-e8da881aae.o900446",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/e8da881aae5609d676e5e5f1ceccd7d8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n...F......F................................                              [100%]\n=================================== FAILURES ===================================\n________________ test_category_oracles_are_independent_literals ________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_category_oracles_are_independent_literals() -> None:\n        assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES\n        assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES\n        assert probe.S5_PROFILES == EXPECTED_S5_PROFILES\n>       assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS\nE       AssertionError: assert {'network_dns...NOENT'}), ...} == {'network_dns...NOENT'}), ...}\nE         \nE         Omitting 14 identical items, use -vv to show\nE         Differing items:\nE         {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}\nE         {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}\nE         {'network_proxy': frozenset({'EACCES', 'EAFNOSUPPORT', '...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError\n________ test_containment_mechanism_table_matches_independent_literals _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_containment_mechanism_table_matches_independent_literals() -> None:\n>       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {\n            category: {\n                \"denial\": EXPECTED_ACTIVE_DENIALS[category],\n                \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],\n            }\n            for category in EXPECTED_CONTAINMENT_DENIALS\n        }\nE       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}\nE         \nE         Omitting 14 identical items, use -vv to show\nE         Differing items:\nE         {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'}), 'absence': frozenset()}}\nE         {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT'...\nE         \nE         ...Full output truncated (3 lines hidden), use '-vv' to show\n\norchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\n2 failed, 113 passed in 2.62s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1298 retained_bytes=1298 omitted_bytes=0 rendered_excerpt_bytes=1339 sha256=7eee07708c6d10d98bd19aa35e615a52bf4edc13c27123b15863abe2835e715b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_containment_mechanism_table_matches_independent_literals() -> None:\n> >       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {\n>             category: {\n>                 \"denial\": EXPECTED_ACTIVE_DENIALS[category],\n>                 \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],\n>             }\n>             for category in EXPECTED_CONTAINMENT_DENIALS\n>         }\n> E       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}\n> E         \n> E         Omitting 14 identical items, use -vv to show\n> E         Differing items:\n> E         {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'}), 'absence': frozenset()}}\n> E         {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT'...\n> E         \n> E         ...Full output truncated (3 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1304 sha256=aed24d2d79056f2f4ab2909aee57f05bc10273fd5cdbdca7f8457566f7283e64\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_category_oracles_are_independent_literals() -> None:\n>         assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES\n>         assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES\n>         assert probe.S5_PROFILES == EXPECTED_S5_PROFILES\n> >       assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS\n> E       AssertionError: assert {'network_dns...NOENT'}), ...} == {'network_dns...NOENT'}), ...}\n> E         \n> E         Omitting 14 identical items, use -vv to show\n> E         Differing items:\n> E         {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}\n> E         {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}\n> E         {'network_proxy': frozenset({'EACCES', 'EAFNOSUPPORT', '...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2565 retained_bytes=2565 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3812 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "01c8b4958b1057fd1fa243c150a96fd2d99966f6668c6411ed27b33ed405590d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 26.873,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_connection_refused_is_reachability_evidence_and_no_go"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "2d6bbe26ba735bfcc45675ff6d47c90d5e7cea594a8e8001ff859b1acf91eb1b",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "97b666c3378b5650b26ef6ed4276e668205ff8f501cc4c804e740d3a1f81c204",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "_ROUTE_CONTAINMENT_ERRNOS = frozenset(\n    {\"EACCES\", \"EPERM\", \"ENETDOWN\", \"ENETUNREACH\", \"EHOSTUNREACH\", \"EAFNOSUPPORT\", \"ECONNREFUSED\"}\n)",
+          "old": "_ROUTE_CONTAINMENT_ERRNOS = frozenset(\n    {\"EACCES\", \"EPERM\", \"ENETDOWN\", \"ENETUNREACH\", \"EHOSTUNREACH\", \"EAFNOSUPPORT\"}\n)"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "MISMATCH",
+      "test_output_sha256": "01c8b4958b1057fd1fa243c150a96fd2d99966f6668c6411ed27b33ed405590d",
+      "test_output_tail": [
+        "E         Differing items:",
+        "E         {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}",
+        "E         {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}",
+        "E         {'network_proxy': frozenset({'EACCES', 'EAFNOSUPPORT', '...",
+        "E         ",
+        "E         ...Full output truncated (2 lines hidden), use '-vv' to show",
+        "",
+        "orchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError",
+        "________ test_containment_mechanism_table_matches_independent_literals _________",
+        "[gw1] linux -- Python 3.10.12 /bin/python3.10",
+        "",
+        "    def test_containment_mechanism_table_matches_independent_literals() -> None:",
+        ">       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {",
+        "            category: {",
+        "                \"denial\": EXPECTED_ACTIVE_DENIALS[category],",
+        "                \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],",
+        "            }",
+        "            for category in EXPECTED_CONTAINMENT_DENIALS",
+        "        }",
+        "E       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}",
+        "E         ",
+        "E         Omitting 14 identical items, use -vv to show",
+        "E         Differing items:",
+        "E         {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'}), 'absence': frozenset()}}",
+        "E         {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT'...",
+        "E         ",
+        "E         ...Full output truncated (3 lines hidden), use '-vv' to show",
+        "",
+        "orchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "FAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals",
+        "2 failed, 113 passed in 2.62s",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1298 retained_bytes=1298 omitted_bytes=0 rendered_excerpt_bytes=1339 sha256=7eee07708c6d10d98bd19aa35e615a52bf4edc13c27123b15863abe2835e715b",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw1] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_containment_mechanism_table_matches_independent_literals() -> None:",
+        "> >       assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {",
+        ">             category: {",
+        ">                 \"denial\": EXPECTED_ACTIVE_DENIALS[category],",
+        ">                 \"absence\": EXPECTED_CONTAINMENT_ABSENCES[category],",
+        ">             }",
+        ">             for category in EXPECTED_CONTAINMENT_DENIALS",
+        ">         }",
+        "> E       AssertionError: assert {'network_dns...OENT'})}, ...} == {'network_dns...OENT'})}, ...}",
+        "> E         ",
+        "> E         Omitting 14 identical items, use -vv to show",
+        "> E         Differing items:",
+        "> E         {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'}), 'absence': frozenset()}}",
+        "> E         {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...}), 'absence': frozenset()}} != {'network_proxy': {'denial': frozenset({'EACCES', 'EAFNOSUPPORT'...",
+        "> E         ",
+        "> E         ...Full output truncated (3 lines hidden), use '-vv' to show",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:175: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1304 sha256=aed24d2d79056f2f4ab2909aee57f05bc10273fd5cdbdca7f8457566f7283e64",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw0] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_category_oracles_are_independent_literals() -> None:",
+        ">         assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES",
+        ">         assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES",
+        ">         assert probe.S5_PROFILES == EXPECTED_S5_PROFILES",
+        "> >       assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS",
+        "> E       AssertionError: assert {'network_dns...NOENT'}), ...} == {'network_dns...NOENT'}), ...}",
+        "> E         ",
+        "> E         Omitting 14 identical items, use -vv to show",
+        "> E         Differing items:",
+        "> E         {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}",
+        "> E         {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', ...})} != {'network_direct_ip': frozenset({'EACCES', 'EAFNOSUPPORT', 'EHOSTUNREACH', 'ENETDOWN', 'ENETUNREACH', 'EPERM'})}",
+        "> E         {'network_proxy': frozenset({'EACCES', 'EAFNOSUPPORT', '...",
+        "> E         ",
+        "> E         ...Full output truncated (2 lines hidden), use '-vv' to show",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:170: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2565 retained_bytes=2565 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3812 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/21f789659cbbea44a72947907f7976e7/izdw-21f789659c.o900448",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/21f789659cbbea44a72947907f7976e7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n..........F....F...........................                              [100%]\n=================================== FAILURES ===================================\n________________ test_category_oracles_are_independent_literals ________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_category_oracles_are_independent_literals() -> None:\n        assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES\n        assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES\n        assert probe.S5_PROFILES == EXPECTED_S5_PROFILES\n        assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS\n>       assert probe._PAYLOAD_NORMAL_RETURN_CODES == frozenset({0})\nE       assert frozenset({0, 9}) == frozenset({0})\nE         \nE         Extra items in the left set:\nE         9\nE         Use -v to get more diff\n\norchestrator/tests/test_t316_sandbox_probe.py:171: AssertionError\n_ test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit] _\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_paired_command_rejects_de0')\ninside_rc = 9, timed_out = False, process_state = 'unexpected-exit'\n\n    @pytest.mark.parametrize(\n        (\"inside_rc\", \"timed_out\", \"process_state\"),\n        [(-9, True, \"timed-out\"), (9, False, \"unexpected-exit\")],\n    )\n    def test_paired_command_rejects_denied_after_abnormal_exit(\n        tmp_path: Path, inside_rc: int, timed_out: bool, process_state: str\n    ) -> None:\n        runner = _SequenceRunner([\n            _command_record(\"T316_SENTINEL|network_direct_ip|REACHED\\n\"),\n            _command_record(\n                \"T316_SENTINEL|network_direct_ip|DENIED|ENETUNREACH\\n\",\n                rc=inside_rc,\n                timed_out=timed_out,\n            ),\n        ])\n        scratch = tmp_path / \"scratch\"\n        scratch.mkdir()\n        (scratch / \"empty-tmp\").mkdir()\n        profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n        observation = probe._paired_command(\n            profile, [\"payload\"], sentinel_category=\"network_direct_ip\"\n        )\n>       assert observation[\"inside_blocked\"] is False\nE       assert True is False\n\norchestrator/tests/test_t316_sandbox_probe.py:405: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]\n2 failed, 113 passed in 2.62s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1297 retained_bytes=1297 omitted_bytes=0 rendered_excerpt_bytes=1366 sha256=7b2313796d3a2e1be29709348af4e71011589927320415a4ca0e327868a9fd40\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_paired_command_rejects_de0')\n> inside_rc = 9, timed_out = False, process_state = 'unexpected-exit'\n> \n>     @pytest.mark.parametrize(\n>         (\"inside_rc\", \"timed_out\", \"process_state\"),\n>         [(-9, True, \"timed-out\"), (9, False, \"unexpected-exit\")],\n>     )\n>     def test_paired_command_rejects_denied_after_abnormal_exit(\n>         tmp_path: Path, inside_rc: int, timed_out: bool, process_state: str\n>     ) -> None:\n>         runner = _SequenceRunner([\n>             _command_record(\"T316_SENTINEL|network_direct_ip|REACHED\\x5cn\"),\n>             _command_record(\n>                 \"T316_SENTINEL|network_direct_ip|DENIED|ENETUNREACH\\x5cn\",\n>                 rc=inside_rc,\n>                 timed_out=timed_out,\n>             ),\n>         ])\n>         scratch = tmp_path / \"scratch\"\n>         scratch.mkdir()\n>         (scratch / \"empty-tmp\").mkdir()\n>         profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n>         observation = probe._paired_command(\n>             profile, [\"payload\"], sentinel_category=\"network_direct_ip\"\n>         )\n> >       assert observation[\"inside_blocked\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:405: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=659 retained_bytes=659 omitted_bytes=0 rendered_excerpt_bytes=690 sha256=dc179eda9cc0e2aecb74eac15333a537b89a8417b0460722c8c2324a47690949\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_category_oracles_are_independent_literals() -> None:\n>         assert probe.S3_CATEGORIES == EXPECTED_S3_CATEGORIES\n>         assert probe.S5_CATEGORIES == EXPECTED_S5_CATEGORIES\n>         assert probe.S5_PROFILES == EXPECTED_S5_PROFILES\n>         assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS\n> >       assert probe._PAYLOAD_NORMAL_RETURN_CODES == frozenset({0})\n> E       assert frozenset({0, 9}) == frozenset({0})\n> E         \n> E         Extra items in the left set:\n> E         9\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:171: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1956 retained_bytes=1956 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3240 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4a2da312da39bad7a7379b168f905a5ece50f0b42ab5cc2a1da3851796b63c50"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 26.856,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "a44364e498d951085feef97edfb3a9caa4fc22cc8da84996db5ae1ba86501344",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f24714d0c6a54a8186c15faf1b8fd3da6e5a73ea934ad153f248e848abb61553",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "_PAYLOAD_NORMAL_RETURN_CODES = frozenset({0, 9})",
+          "old": "_PAYLOAD_NORMAL_RETURN_CODES = frozenset({0})"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "KILLED",
+      "test_output_sha256": "4a2da312da39bad7a7379b168f905a5ece50f0b42ab5cc2a1da3851796b63c50",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/c64ce2c5576c25a4c8285f34506cf6d9/izdw-c64ce2c557.o900450",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/c64ce2c5576c25a4c8285f34506cf6d9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n............F..F...........................                              [100%]\n=================================== FAILURES ===================================\n__ test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out] ___\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_paired_command_rejects_de0')\ninside_rc = -9, timed_out = True, process_state = 'timed-out'\n\n    @pytest.mark.parametrize(\n        (\"inside_rc\", \"timed_out\", \"process_state\"),\n        [(-9, True, \"timed-out\"), (9, False, \"unexpected-exit\")],\n    )\n    def test_paired_command_rejects_denied_after_abnormal_exit(\n        tmp_path: Path, inside_rc: int, timed_out: bool, process_state: str\n    ) -> None:\n        runner = _SequenceRunner([\n            _command_record(\"T316_SENTINEL|network_direct_ip|REACHED\\n\"),\n            _command_record(\n                \"T316_SENTINEL|network_direct_ip|DENIED|ENETUNREACH\\n\",\n                rc=inside_rc,\n                timed_out=timed_out,\n            ),\n        ])\n        scratch = tmp_path / \"scratch\"\n        scratch.mkdir()\n        (scratch / \"empty-tmp\").mkdir()\n        profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n        observation = probe._paired_command(\n            profile, [\"payload\"], sentinel_category=\"network_direct_ip\"\n        )\n        assert observation[\"inside_blocked\"] is False\n        assert observation[\"inside_payload_state\"] == \"denied\"\n        assert observation[\"inside_process_state\"] == process_state\n>       assert probe._paired_verdict(\n            \"S3\", \"network_direct_ip\", observation\n        ).verdict == \"inconclusive\"\nE       AssertionError: assert 'no-go' == 'inconclusive'\nE         \nE         - inconclusive\nE         + no-go\n\norchestrator/tests/test_t316_sandbox_probe.py:408: AssertionError\n_ test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit] _\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_paired_command_rejects_de0')\ninside_rc = 9, timed_out = False, process_state = 'unexpected-exit'\n\n    @pytest.mark.parametrize(\n        (\"inside_rc\", \"timed_out\", \"process_state\"),\n        [(-9, True, \"timed-out\"), (9, False, \"unexpected-exit\")],\n    )\n    def test_paired_command_rejects_denied_after_abnormal_exit(\n        tmp_path: Path, inside_rc: int, timed_out: bool, process_state: str\n    ) -> None:\n        runner = _SequenceRunner([\n            _command_record(\"T316_SENTINEL|network_direct_ip|REACHED\\n\"),\n            _command_record(\n                \"T316_SENTINEL|network_direct_ip|DENIED|ENETUNREACH\\n\",\n                rc=inside_rc,\n                timed_out=timed_out,\n            ),\n        ])\n        scratch = tmp_path / \"scratch\"\n        scratch.mkdir()\n        (scratch / \"empty-tmp\").mkdir()\n        profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n        observation = probe._paired_command(\n            profile, [\"payload\"], sentinel_category=\"network_direct_ip\"\n        )\n        assert observation[\"inside_blocked\"] is False\n        assert observation[\"inside_payload_state\"] == \"denied\"\n        assert observation[\"inside_process_state\"] == process_state\n>       assert probe._paired_verdict(\n            \"S3\", \"network_direct_ip\", observation\n        ).verdict == \"inconclusive\"\nE       AssertionError: assert 'no-go' == 'inconclusive'\nE         \nE         - inconclusive\nE         + no-go\n\norchestrator/tests/test_t316_sandbox_probe.py:408: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]\n2 failed, 113 passed in 2.62s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]\" nodeid_bytes=126 nodeid_omitted_bytes=0 source_bytes=1635 retained_bytes=1635 omitted_bytes=0 rendered_excerpt_bytes=1720 sha256=3a7e287d16acc09b138d38e2b63107c2d7e76943fd9c2a87938bfd528f5dc869\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_paired_command_rejects_de0')\n> inside_rc = 9, timed_out = False, process_state = 'unexpected-exit'\n> \n>     @pytest.mark.parametrize(\n>         (\"inside_rc\", \"timed_out\", \"process_state\"),\n>         [(-9, True, \"timed-out\"), (9, False, \"unexpected-exit\")],\n>     )\n>     def test_paired_command_rejects_denied_after_abnormal_exit(\n>         tmp_path: Path, inside_rc: int, timed_out: bool, process_state: str\n>     ) -> None:\n>         runner = _SequenceRunner([\n>             _command_record(\"T316_SENTINEL|network_direct_ip|REACHED\\x5cn\"),\n>             _command_record(\n>                 \"T316_SENTINEL|network_direct_ip|DENIED|ENETUNREACH\\x5cn\",\n>                 rc=inside_rc,\n>                 timed_out=timed_out,\n>             ),\n>         ])\n>         scratch = tmp_path / \"scratch\"\n>         scratch.mkdir()\n>         (scratch / \"empty-tmp\").mkdir()\n>         profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n>         observation = probe._paired_command(\n>             profile, [\"payload\"], sentinel_category=\"network_direct_ip\"\n>         )\n>         assert observation[\"inside_blocked\"] is False\n>         assert observation[\"inside_payload_state\"] == \"denied\"\n>         assert observation[\"inside_process_state\"] == process_state\n> >       assert probe._paired_verdict(\n>             \"S3\", \"network_direct_ip\", observation\n>         ).verdict == \"inconclusive\"\n> E       AssertionError: assert 'no-go' == 'inconclusive'\n> E         \n> E         - inconclusive\n> E         + no-go\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:408: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1629 retained_bytes=1629 omitted_bytes=0 rendered_excerpt_bytes=1714 sha256=2c74cd191da28675f9790803cb67a66c875e173bcb79617e2abec8cce7c6e48b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw45/test_paired_command_rejects_de0')\n> inside_rc = -9, timed_out = True, process_state = 'timed-out'\n> \n>     @pytest.mark.parametrize(\n>         (\"inside_rc\", \"timed_out\", \"process_state\"),\n>         [(-9, True, \"timed-out\"), (9, False, \"unexpected-exit\")],\n>     )\n>     def test_paired_command_rejects_denied_after_abnormal_exit(\n>         tmp_path: Path, inside_rc: int, timed_out: bool, process_state: str\n>     ) -> None:\n>         runner = _SequenceRunner([\n>             _command_record(\"T316_SENTINEL|network_direct_ip|REACHED\\x5cn\"),\n>             _command_record(\n>                 \"T316_SENTINEL|network_direct_ip|DENIED|ENETUNREACH\\x5cn\",\n>                 rc=inside_rc,\n>                 timed_out=timed_out,\n>             ),\n>         ])\n>         scratch = tmp_path / \"scratch\"\n>         scratch.mkdir()\n>         (scratch / \"empty-tmp\").mkdir()\n>         profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n>         observation = probe._paired_command(\n>             profile, [\"payload\"], sentinel_category=\"network_direct_ip\"\n>         )\n>         assert observation[\"inside_blocked\"] is False\n>         assert observation[\"inside_payload_state\"] == \"denied\"\n>         assert observation[\"inside_process_state\"] == process_state\n> >       assert probe._paired_verdict(\n>             \"S3\", \"network_direct_ip\", observation\n>         ).verdict == \"inconclusive\"\n> E       AssertionError: assert 'no-go' == 'inconclusive'\n> E         \n> E         - inconclusive\n> E         + no-go\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:408: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3264 retained_bytes=3264 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4649 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9de0f9fbadced301a8b712bb5f58d2fa464abb52cabcd52cca7ca1204f6b36ae"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 26.872,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "0b92695b87e6e65ebb2c55452eab0758d1f56f3d785c1530ed7794cf5a4e4240",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5e3edaef7dd024ccdcc2e46fe565a3e02b445ccdf42b77d58a3958ff257c5b7f",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "",
+          "old": "    if observation.get(\"inside_process_state\") != \"normal-exit\":\n        return StageVerdict(\n            stage, \"inconclusive\", (f\"{prefix}_NEGATIVE_PROCESS_EXIT_ABNORMAL\",)\n        )\n"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "KILLED",
+      "test_output_sha256": "9de0f9fbadced301a8b712bb5f58d2fa464abb52cabcd52cca7ca1204f6b36ae",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/ceb32226e7e436116b4e8c6e7d2c7867/izdw-ceb32226e7.o900451",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/ceb32226e7e436116b4e8c6e7d2c7867/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n...F............................F.F..F.....                              [100%]\n=================================== FAILURES ===================================\n___________ test_write_enoent_with_inside_side_effect_remains_no_go ____________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_write_enoent_with_inside_side_effect_remains_no_go() -> None:\n        observation = {\n            **_paired(inside_state=\"invalid\", inside_blocked=False),\n            \"sentinel_category\": \"file_write\",\n            \"inside_payload_detail\": \"ENOENT\",\n            \"outside_path\": \"/same/path\",\n            \"inside_path\": \"/same/path\",\n            \"inside_side_effect_observed\": True,\n        }\n        verdict = probe._paired_verdict(\"S5\", \"build_file_write\", observation)\n        assert verdict.verdict == \"no-go\"\n>       assert verdict.reason_codes == (\"S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED\",)\nE       AssertionError: assert ('S5_BUILD_FI...CT_UNPROVEN',) == ('S5_BUILD_FI...CT_OBSERVED',)\nE         \nE         At index 0 diff: 'S5_BUILD_FILE_WRITE_SIDE_EFFECT_UNPROVEN' != 'S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED'\nE         Use -v to get more diff\n\norchestrator/tests/test_t316_sandbox_probe.py:239: AssertionError\n___ test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence ____\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152463af5a80>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_s5_build_system_side_effe0')\n\n    def test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path\n    ) -> None:\n        stages = _good_stages()\n        same_target = \"/home/tester/s5-build-write\"\n        stages[\"S5\"][\"build\"][\"file_write\"] = {\n            **_paired(inside_state=\"invalid\", inside_blocked=False),\n            \"sentinel_category\": \"file_write\",\n            \"inside_payload_detail\": \"ENOENT\",\n            \"outside_path\": same_target,\n            \"inside_path\": same_target,\n            \"inside_side_effect_observed\": False,\n        }\n        stages[\"S5\"][\"build\"][\"system_command\"] = {\n            **_paired(inside_state=\"reached\", inside_blocked=False),\n            \"sentinel_category\": \"system_command\",\n            \"inside_side_effect_observed\": True,\n        }\n        rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n        by_stage = {item[\"stage\"]: item for item in receipt[\"stage_verdicts\"]}\n        assert rc == 3\n        assert by_stage[\"S5\"][\"verdict\"] == \"no-go\"\n        assert \"S5_BUILD_FILE_WRITE_CONTAINED_BY_ABSENCE\" in by_stage[\"S5\"][\"reason_codes\"]\n>       assert \"S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED\" in by_stage[\"S5\"][\"reason_codes\"]\nE       AssertionError: assert 'S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED' in ['S5_RUNTIME_SYSTEM_COMMAND_CONTAINED', 'S5_RUNTIME_NETWORK_CONTAINED', 'S5_RUNTIME_FILE_WRITE_CONTAINED', 'S5_RUNTIME_INFINITE_LOOP_TERMINATED', 'S5_BUILD_SYSTEM_COMMAND_CONTAINMENT_FAILED', 'S5_BUILD_NETWORK_CONTAINED', ...]\n\norchestrator/tests/test_t316_sandbox_probe.py:837: AssertionError\n___ test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo] ___\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_actual_write_observer_can0')\nstage = 'S3', category = 'write_repo'\n\n    @pytest.mark.parametrize(\n        (\"stage\", \"category\"), [(\"S3\", \"write_repo\"), (\"S5\", \"file_write\")]\n    )\n    def test_actual_write_observer_cannot_hide_inside_side_effect(\n        tmp_path: Path, stage: str, category: str\n    ) -> None:\n        scratch = tmp_path / f\"scratch-{stage}\"\n        scratch.mkdir()\n        (scratch / \"empty-tmp\").mkdir()\n        outside_path = tmp_path / f\"{stage}-outside\"\n        inside_path = tmp_path / f\"{stage}-inside\"\n        calls = 0\n    \n        def runner(_argv: Any, **_kwargs: Any) -> dict[str, Any]:\n            nonlocal calls\n            path = outside_path if calls == 0 else inside_path\n            path.write_text(\"side effect\", encoding=\"utf-8\")\n            calls += 1\n            return _command_record(f\"T316_SENTINEL|{category}|REACHED\\n\")\n    \n        profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n        observation = probe._observe_write_pair(\n            profile, [\"outside\"], [\"inside\"], outside_path, inside_path, category\n        )\n        assert observation[\"inside_payload_state\"] == \"reached\"\n        assert observation[\"inside_blocked\"] is False\n        assert observation[\"inside_side_effect_observed\"] is True\n        # state を誤って denied に固定しても、marker が no-go を維持する。\n        observation[\"inside_payload_state\"] = \"denied\"\n        observation[\"inside_blocked\"] = True\n>       assert probe._paired_verdict(stage, category, observation).verdict == \"no-go\"\nE       AssertionError: assert 'go' == 'no-go'\nE         \nE         - no-go\nE         + go\n\norchestrator/tests/test_t316_sandbox_probe.py:563: AssertionError\n___ test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write] ___\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_actual_write_observer_can0')\nstage = 'S5', category = 'file_write'\n\n    @pytest.mark.parametrize(\n        (\"stage\", \"category\"), [(\"S3\", \"write_repo\"), (\"S5\", \"file_write\")]\n    )\n    def test_actual_write_observer_cannot_hide_inside_side_effect(\n        tmp_path: Path, stage: str, category: str\n    ) -> None:\n        scratch = tmp_path / f\"scratch-{stage}\"\n        scratch.mkdir()\n        (scratch / \"empty-tmp\").mkdir()\n        outside_path = tmp_path / f\"{stage}-outside\"\n        inside_path = tmp_path / f\"{stage}-inside\"\n        calls = 0\n    \n        def runner(_argv: Any, **_kwargs: Any) -> dict[str, Any]:\n            nonlocal calls\n            path = outside_path if calls == 0 else inside_path\n            path.write_text(\"side effect\", encoding=\"utf-8\")\n            calls += 1\n            return _command_record(f\"T316_SENTINEL|{category}|REACHED\\n\")\n    \n        profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n        observation = probe._observe_write_pair(\n            profile, [\"outside\"], [\"inside\"], outside_path, inside_path, category\n        )\n        assert observation[\"inside_payload_state\"] == \"reached\"\n        assert observation[\"inside_blocked\"] is False\n        assert observation[\"inside_side_effect_observed\"] is True\n        # state を誤って denied に固定しても、marker が no-go を維持する。\n        observation[\"inside_payload_state\"] = \"denied\"\n        observation[\"inside_blocked\"] = True\n>       assert probe._paired_verdict(stage, category, observation).verdict == \"no-go\"\nE       AssertionError: assert 'go' == 'no-go'\nE         \nE         - no-go\nE         + go\n\norchestrator/tests/test_t316_sandbox_probe.py:563: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]\n4 failed, 111 passed in 2.64s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1836 retained_bytes=1836 omitted_bytes=0 rendered_excerpt_bytes=1978 sha256=ee58c2544d5a9dd158b44dfb0fb921346cc8c7b0f509173bbba0508eb19ef469\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_actual_write_observer_can0')\n> stage = 'S3', category = 'write_repo'\n> \n>     @pytest.mark.parametrize(\n>         (\"stage\", \"category\"), [(\"S3\", \"write_repo\"), (\"S5\", \"file_write\")]\n>     )\n>     def test_actual_write_observer_cannot_hide_inside_side_effect(\n>         tmp_path: Path, stage: str, category: str\n>     ) -> None:\n>         scratch = tmp_path / f\"scratch-{stage}\"\n>         scratch.mkdir()\n>         (scratch / \"empty-tmp\").mkdir()\n>         outside_path = tmp_path / f\"{stage}-outside\"\n>         inside_path = tmp_path / f\"{stage}-inside\"\n>         calls = 0\n>     \n>         def runner(_argv: Any, **_kwargs: Any) -> dict[str, Any]:\n>             nonlocal calls\n>             path = outside_path if calls == 0 else inside_path\n>             path.write_text(\"side effect\", encoding=\"utf-8\")\n>             calls += 1\n>             return _command_record(f\"T316_SENTINEL|{category}|REACHED\\x5cn\")\n>     \n>         profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n>         observation = probe._observe_write_pair(\n>             profile, [\"outside\"], [\"inside\"], outside_path, inside_path, category\n>         )\n>         assert observation[\"inside_payload_state\"] == \"reached\"\n>         assert observation[\"inside_blocked\"] is False\n>         assert observation[\"inside_side_effect_observed\"] is True\n>         # state \\u3092\\u8aa4\\u3063\\u3066 denied \\u306b\\u56fa\\u5b9a\\u3057\\u3066\\u3082\\u3001marker \\u304c no-go \\u3092\\u7dad\\u6301\\u3059\\u308b\\u3002\n>         observation[\"inside_payload_state\"] = \"denied\"\n>         observation[\"inside_blocked\"] = True\n> >       assert probe._paired_verdict(stage, category, observation).verdict == \"no-go\"\n> E       AssertionError: assert 'go' == 'no-go'\n> E         \n> E         - no-go\n> E         + go\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:563: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1836 retained_bytes=1836 omitted_bytes=0 rendered_excerpt_bytes=1978 sha256=277e096384225163e2b7d91eaac3c1133c767181ff900578db6a2a39372eaf7c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_actual_write_observer_can0')\n> stage = 'S5', category = 'file_write'\n> \n>     @pytest.mark.parametrize(\n>         (\"stage\", \"category\"), [(\"S3\", \"write_repo\"), (\"S5\", \"file_write\")]\n>     )\n>     def test_actual_write_observer_cannot_hide_inside_side_effect(\n>         tmp_path: Path, stage: str, category: str\n>     ) -> None:\n>         scratch = tmp_path / f\"scratch-{stage}\"\n>         scratch.mkdir()\n>         (scratch / \"empty-tmp\").mkdir()\n>         outside_path = tmp_path / f\"{stage}-outside\"\n>         inside_path = tmp_path / f\"{stage}-inside\"\n>         calls = 0\n>     \n>         def runner(_argv: Any, **_kwargs: Any) -> dict[str, Any]:\n>             nonlocal calls\n>             path = outside_path if calls == 0 else inside_path\n>             path.write_text(\"side effect\", encoding=\"utf-8\")\n>             calls += 1\n>             return _command_record(f\"T316_SENTINEL|{category}|REACHED\\x5cn\")\n>     \n>         profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)\n>         observation = probe._observe_write_pair(\n>             profile, [\"outside\"], [\"inside\"], outside_path, inside_path, category\n>         )\n>         assert observation[\"inside_payload_state\"] == \"reached\"\n>         assert observation[\"inside_blocked\"] is False\n>         assert observation[\"inside_side_effect_observed\"] is True\n>         # state \\u3092\\u8aa4\\u3063\\u3066 denied \\u306b\\u56fa\\u5b9a\\u3057\\u3066\\u3082\\u3001marker \\u304c no-go \\u3092\\u7dad\\u6301\\u3059\\u308b\\u3002\n>         observation[\"inside_payload_state\"] = \"denied\"\n>         observation[\"inside_blocked\"] = True\n> >       assert probe._paired_verdict(stage, category, observation).verdict == \"no-go\"\n> E       AssertionError: assert 'go' == 'no-go'\n> E         \n> E         - no-go\n> E         + go\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:563: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1821 retained_bytes=1821 omitted_bytes=0 rendered_excerpt_bytes=1886 sha256=3ceb3e94b131653a30213ae777420fe7e2f0e850f1dde75cd53e53a166c9d7bd\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152463af5a80>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_s5_build_system_side_effe0')\n> \n>     def test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path\n>     ) -> None:\n>         stages = _good_stages()\n>         same_target = \"/home/tester/s5-build-write\"\n>         stages[\"S5\"][\"build\"][\"file_write\"] = {\n>             **_paired(inside_state=\"invalid\", inside_blocked=False),\n>             \"sentinel_category\": \"file_write\",\n>             \"inside_payload_detail\": \"ENOENT\",\n>             \"outside_path\": same_target,\n>             \"inside_path\": same_target,\n>             \"inside_side_effect_observed\": False,\n>         }\n>         stages[\"S5\"][\"build\"][\"system_command\"] = {\n>             **_paired(inside_state=\"reached\", inside_blocked=False),\n>             \"sentinel_category\": \"system_command\",\n>             \"inside_side_effect_observed\": True,\n>         }\n>         rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>         by_stage = {item[\"stage\"]: item for item in receipt[\"stage_verdicts\"]}\n>         assert rc == 3\n>         assert by_stage[\"S5\"][\"verdict\"] == \"no-go\"\n>         assert \"S5_BUILD_FILE_WRITE_CONTAINED_BY_ABSENCE\" in by_stage[\"S5\"][\"reason_codes\"]\n> >       assert \"S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED\" in by_stage[\"S5\"][\"reason_codes\"]\n> E       AssertionError: assert 'S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED' in ['S5_RUNTIME_SYSTEM_COMMAND_CONTAINED', 'S5_RUNTIME_NETWORK_CONTAINED', 'S5_RUNTIME_FILE_WRITE_CONTAINED', 'S5_RUNTIME_INFINITE_LOOP_TERMINATED', 'S5_BUILD_SYSTEM_COMMAND_CONTAINMENT_FAILED', 'S5_BUILD_NETWORK_CONTAINED', ...]\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:837: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=980 retained_bytes=980 omitted_bytes=0 rendered_excerpt_bytes=1021 sha256=845102916c73a278fc0ac938ba4325c760edcab39d54dc9446df02f092f73954\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_write_enoent_with_inside_side_effect_remains_no_go() -> None:\n>         observation = {\n>             **_paired(inside_state=\"invalid\", inside_blocked=False),\n>             \"sentinel_category\": \"file_write\",\n>             \"inside_payload_detail\": \"ENOENT\",\n>             \"outside_path\": \"/same/path\",\n>             \"inside_path\": \"/same/path\",\n>             \"inside_side_effect_observed\": True,\n>         }\n>         verdict = probe._paired_verdict(\"S5\", \"build_file_write\", observation)\n>         assert verdict.verdict == \"no-go\"\n> >       assert verdict.reason_codes == (\"S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED\",)\n> E       AssertionError: assert ('S5_BUILD_FI...CT_UNPROVEN',) == ('S5_BUILD_FI...CT_OBSERVED',)\n> E         \n> E         At index 0 diff: 'S5_BUILD_FILE_WRITE_SIDE_EFFECT_UNPROVEN' != 'S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6473 retained_bytes=6473 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8970 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5d8ba2b99a29eb1bc9ecc5dc07df017ac571f87564127dc5eea9cc520268550a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 32.033,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "745f76754de53b0e47da34ad9ca5df8dbdeedf93b1a1c41f25836139963ef67f",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "e3341c5f974188462ad602dc5982455d3c3760d8d93862fb4f9cb8a2dfc3a8d7",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "",
+          "old": "    if observation.get(\"inside_side_effect_observed\") is True:\n        return StageVerdict(stage, \"no-go\", (f\"{prefix}_SIDE_EFFECT_OBSERVED\",))\n"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "MISMATCH",
+      "test_output_sha256": "5d8ba2b99a29eb1bc9ecc5dc07df017ac571f87564127dc5eea9cc520268550a",
+      "test_output_tail": [
+        ">             return _command_record(f\"T316_SENTINEL|{category}|REACHED\\x5cn\")",
+        ">     ",
+        ">         profile = probe.SandboxProfile(\"/bin/false\", tmp_path, scratch, (), runner=runner)",
+        ">         observation = probe._observe_write_pair(",
+        ">             profile, [\"outside\"], [\"inside\"], outside_path, inside_path, category",
+        ">         )",
+        ">         assert observation[\"inside_payload_state\"] == \"reached\"",
+        ">         assert observation[\"inside_blocked\"] is False",
+        ">         assert observation[\"inside_side_effect_observed\"] is True",
+        ">         # state \\u3092\\u8aa4\\u3063\\u3066 denied \\u306b\\u56fa\\u5b9a\\u3057\\u3066\\u3082\\u3001marker \\u304c no-go \\u3092\\u7dad\\u6301\\u3059\\u308b\\u3002",
+        ">         observation[\"inside_payload_state\"] = \"denied\"",
+        ">         observation[\"inside_blocked\"] = True",
+        "> >       assert probe._paired_verdict(stage, category, observation).verdict == \"no-go\"",
+        "> E       AssertionError: assert 'go' == 'no-go'",
+        "> E         ",
+        "> E         - no-go",
+        "> E         + go",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:563: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=1821 retained_bytes=1821 omitted_bytes=0 rendered_excerpt_bytes=1886 sha256=3ceb3e94b131653a30213ae777420fe7e2f0e850f1dde75cd53e53a166c9d7bd",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw34] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152463af5a80>",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_s5_build_system_side_effe0')",
+        "> ",
+        ">     def test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence(",
+        ">         monkeypatch: pytest.MonkeyPatch, tmp_path: Path",
+        ">     ) -> None:",
+        ">         stages = _good_stages()",
+        ">         same_target = \"/home/tester/s5-build-write\"",
+        ">         stages[\"S5\"][\"build\"][\"file_write\"] = {",
+        ">             **_paired(inside_state=\"invalid\", inside_blocked=False),",
+        ">             \"sentinel_category\": \"file_write\",",
+        ">             \"inside_payload_detail\": \"ENOENT\",",
+        ">             \"outside_path\": same_target,",
+        ">             \"inside_path\": same_target,",
+        ">             \"inside_side_effect_observed\": False,",
+        ">         }",
+        ">         stages[\"S5\"][\"build\"][\"system_command\"] = {",
+        ">             **_paired(inside_state=\"reached\", inside_blocked=False),",
+        ">             \"sentinel_category\": \"system_command\",",
+        ">             \"inside_side_effect_observed\": True,",
+        ">         }",
+        ">         rc, receipt = _run_injected(monkeypatch, tmp_path, stages)",
+        ">         by_stage = {item[\"stage\"]: item for item in receipt[\"stage_verdicts\"]}",
+        ">         assert rc == 3",
+        ">         assert by_stage[\"S5\"][\"verdict\"] == \"no-go\"",
+        ">         assert \"S5_BUILD_FILE_WRITE_CONTAINED_BY_ABSENCE\" in by_stage[\"S5\"][\"reason_codes\"]",
+        "> >       assert \"S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED\" in by_stage[\"S5\"][\"reason_codes\"]",
+        "> E       AssertionError: assert 'S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED' in ['S5_RUNTIME_SYSTEM_COMMAND_CONTAINED', 'S5_RUNTIME_NETWORK_CONTAINED', 'S5_RUNTIME_FILE_WRITE_CONTAINED', 'S5_RUNTIME_INFINITE_LOOP_TERMINATED', 'S5_BUILD_SYSTEM_COMMAND_CONTAINMENT_FAILED', 'S5_BUILD_NETWORK_CONTAINED', ...]",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:837: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=980 retained_bytes=980 omitted_bytes=0 rendered_excerpt_bytes=1021 sha256=845102916c73a278fc0ac938ba4325c760edcab39d54dc9446df02f092f73954",
+        "--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---",
+        "> [gw6] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        ">     def test_write_enoent_with_inside_side_effect_remains_no_go() -> None:",
+        ">         observation = {",
+        ">             **_paired(inside_state=\"invalid\", inside_blocked=False),",
+        ">             \"sentinel_category\": \"file_write\",",
+        ">             \"inside_payload_detail\": \"ENOENT\",",
+        ">             \"outside_path\": \"/same/path\",",
+        ">             \"inside_path\": \"/same/path\",",
+        ">             \"inside_side_effect_observed\": True,",
+        ">         }",
+        ">         verdict = probe._paired_verdict(\"S5\", \"build_file_write\", observation)",
+        ">         assert verdict.verdict == \"no-go\"",
+        "> >       assert verdict.reason_codes == (\"S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED\",)",
+        "> E       AssertionError: assert ('S5_BUILD_FI...CT_UNPROVEN',) == ('S5_BUILD_FI...CT_OBSERVED',)",
+        "> E         ",
+        "> E         At index 0 diff: 'S5_BUILD_FILE_WRITE_SIDE_EFFECT_UNPROVEN' != 'S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED'",
+        "> E         Use -v to get more diff",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:239: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=4 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6473 retained_bytes=6473 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8970 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/2eeee2b312fe2757e1e71d6fd90d77b6/izdw-2eeee2b312.o900452",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/2eeee2b312fe2757e1e71d6fd90d77b6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n...................................FFFFF...                              [100%]\n=================================== FAILURES ===================================\n______ test_containment_discharge_requires_each_containment_stage_go[S4] _______\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df3e3b5ba0>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_containment_discharge_req0')\nstage = 'S4'\n\n    @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n    def test_containment_discharge_requires_each_containment_stage_go(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n    ) -> None:\n        stages = _good_stages()\n        if stage == \"S1\":\n            stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n        elif stage == \"S2\":\n            stages[stage] = {\n                \"attempted\": True,\n                \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n            }\n        elif stage == \"S3\":\n            stages[stage][\"write_repo\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        elif stage == \"S4\":\n            stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n        else:\n            stages[stage][\"runtime\"][\"network\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert (\n            \"compute-node backend containment observations\"\n            not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n        )\nE       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n\norchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n______ test_containment_discharge_requires_each_containment_stage_go[S5] _______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14affa895a50>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_containment_discharge_req0')\nstage = 'S5'\n\n    @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n    def test_containment_discharge_requires_each_containment_stage_go(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n    ) -> None:\n        stages = _good_stages()\n        if stage == \"S1\":\n            stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n        elif stage == \"S2\":\n            stages[stage] = {\n                \"attempted\": True,\n                \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n            }\n        elif stage == \"S3\":\n            stages[stage][\"write_repo\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        elif stage == \"S4\":\n            stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n        else:\n            stages[stage][\"runtime\"][\"network\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert (\n            \"compute-node backend containment observations\"\n            not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n        )\nE       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n\norchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n______ test_containment_discharge_requires_each_containment_stage_go[S3] _______\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150f56551b40>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_containment_discharge_req0')\nstage = 'S3'\n\n    @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n    def test_containment_discharge_requires_each_containment_stage_go(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n    ) -> None:\n        stages = _good_stages()\n        if stage == \"S1\":\n            stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n        elif stage == \"S2\":\n            stages[stage] = {\n                \"attempted\": True,\n                \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n            }\n        elif stage == \"S3\":\n            stages[stage][\"write_repo\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        elif stage == \"S4\":\n            stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n        else:\n            stages[stage][\"runtime\"][\"network\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert (\n            \"compute-node backend containment observations\"\n            not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n        )\nE       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n\norchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n______ test_containment_discharge_requires_each_containment_stage_go[S2] _______\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fa706e5cc0>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_containment_discharge_req0')\nstage = 'S2'\n\n    @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n    def test_containment_discharge_requires_each_containment_stage_go(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n    ) -> None:\n        stages = _good_stages()\n        if stage == \"S1\":\n            stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n        elif stage == \"S2\":\n            stages[stage] = {\n                \"attempted\": True,\n                \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n            }\n        elif stage == \"S3\":\n            stages[stage][\"write_repo\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        elif stage == \"S4\":\n            stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n        else:\n            stages[stage][\"runtime\"][\"network\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert (\n            \"compute-node backend containment observations\"\n            not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n        )\nE       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n\norchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n______ test_containment_discharge_requires_each_containment_stage_go[S1] _______\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1544c8b4fd90>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_containment_discharge_req0')\nstage = 'S1'\n\n    @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n    def test_containment_discharge_requires_each_containment_stage_go(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n    ) -> None:\n        stages = _good_stages()\n        if stage == \"S1\":\n            stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n        elif stage == \"S2\":\n            stages[stage] = {\n                \"attempted\": True,\n                \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n            }\n        elif stage == \"S3\":\n            stages[stage][\"write_repo\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        elif stage == \"S4\":\n            stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n        else:\n            stages[stage][\"runtime\"][\"network\"] = _paired(\n                inside_state=\"reached\", inside_blocked=False\n            )\n        _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert (\n            \"compute-node backend containment observations\"\n            not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n        )\nE       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n\norchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]\n5 failed, 110 passed in 2.61s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1703 retained_bytes=1703 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=5099a4fc844bfd9290755c47dfe74867a410310454fd7e4373d980ddb9e39207\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fa706e5cc0>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_containment_discharge_req0')\n> stage = 'S2'\n> \n>     @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n>     def test_containment_discharge_requires_each_containment_stage_go(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n>     ) -> None:\n>         stages = _good_stages()\n>         if stage == \"S1\":\n>             stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n>         elif stage == \"S2\":\n>             stages[stage] = {\n>                 \"attempted\": True,\n>                 \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>             }\n>         elif stage == \"S3\":\n>             stages[stage][\"write_repo\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         elif stage == \"S4\":\n>             stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n>         else:\n>             stages[stage][\"runtime\"][\"network\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert (\n>             \"compute-node backend containment observations\"\n>             not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n>         )\n> E       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1703 retained_bytes=1703 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=90d3caf78f2c461abce673275e013669beb780d3f730eab38c9c794e5f313507\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150f56551b40>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_containment_discharge_req0')\n> stage = 'S3'\n> \n>     @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n>     def test_containment_discharge_requires_each_containment_stage_go(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n>     ) -> None:\n>         stages = _good_stages()\n>         if stage == \"S1\":\n>             stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n>         elif stage == \"S2\":\n>             stages[stage] = {\n>                 \"attempted\": True,\n>                 \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>             }\n>         elif stage == \"S3\":\n>             stages[stage][\"write_repo\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         elif stage == \"S4\":\n>             stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n>         else:\n>             stages[stage][\"runtime\"][\"network\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert (\n>             \"compute-node backend containment observations\"\n>             not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n>         )\n> E       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1703 retained_bytes=1703 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=03ae220163ffdbca7ebd593776de7d95efbc1a7b01100cc1013231d3e863f211\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df3e3b5ba0>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_containment_discharge_req0')\n> stage = 'S4'\n> \n>     @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n>     def test_containment_discharge_requires_each_containment_stage_go(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n>     ) -> None:\n>         stages = _good_stages()\n>         if stage == \"S1\":\n>             stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n>         elif stage == \"S2\":\n>             stages[stage] = {\n>                 \"attempted\": True,\n>                 \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>             }\n>         elif stage == \"S3\":\n>             stages[stage][\"write_repo\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         elif stage == \"S4\":\n>             stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n>         else:\n>             stages[stage][\"runtime\"][\"network\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert (\n>             \"compute-node backend containment observations\"\n>             not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n>         )\n> E       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1703 retained_bytes=1703 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=7443622d7572d74d1c1b1dc34a6a7f92c39e51717caf8933bb125c13f2ec7793\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14affa895a50>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_containment_discharge_req0')\n> stage = 'S5'\n> \n>     @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n>     def test_containment_discharge_requires_each_containment_stage_go(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n>     ) -> None:\n>         stages = _good_stages()\n>         if stage == \"S1\":\n>             stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n>         elif stage == \"S2\":\n>             stages[stage] = {\n>                 \"attempted\": True,\n>                 \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>             }\n>         elif stage == \"S3\":\n>             stages[stage][\"write_repo\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         elif stage == \"S4\":\n>             stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n>         else:\n>             stages[stage][\"runtime\"][\"network\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert (\n>             \"compute-node backend containment observations\"\n>             not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n>         )\n> E       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1701 retained_bytes=1701 omitted_bytes=0 rendered_excerpt_bytes=1774 sha256=a84eaf786f6104345752cf029aef74d1e082f82c37cf0ef8d85bd14ac473cc46\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1544c8b4fd90>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_containment_discharge_req0')\n> stage = 'S1'\n> \n>     @pytest.mark.parametrize(\"stage\", [\"S1\", \"S2\", \"S3\", \"S4\", \"S5\"])\n>     def test_containment_discharge_requires_each_containment_stage_go(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str\n>     ) -> None:\n>         stages = _good_stages()\n>         if stage == \"S1\":\n>             stages[stage] = {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}\n>         elif stage == \"S2\":\n>             stages[stage] = {\n>                 \"attempted\": True,\n>                 \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>             }\n>         elif stage == \"S3\":\n>             stages[stage][\"write_repo\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         elif stage == \"S4\":\n>             stages[stage][\"inside_pid_status\"] = \"alive-same-process\"\n>         else:\n>             stages[stage][\"runtime\"][\"network\"] = _paired(\n>                 inside_state=\"reached\", inside_blocked=False\n>             )\n>         _rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert (\n>             \"compute-node backend containment observations\"\n>             not in receipt[\"r3_1_coverage\"][\"discharged_by_this_probe\"]\n>         )\n> E       AssertionError: assert 'compute-node backend containment observations' not in ['compute-node backend containment observations', 'single stock trace-disabled binary sandbox elapsed-overhead sample']\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=8513 retained_bytes=8513 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11431 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9618845a1b49cd4d5967d1b79da6fe45378ecb024fd5a3c2765dadad11229483"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 26.851,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "19e0a583d5f3241ede6b7d1ea07dd9a72b1205bfb36de974be3e3dc90637dab5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0baa95267c80de4a8badfadedf75aecc790a4aeacea3f4897478653753a8495d",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    if True:",
+          "old": "    if all(by_stage.get(f\"S{index}\") == \"go\" for index in range(1, 6)):"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "KILLED",
+      "test_output_sha256": "9618845a1b49cd4d5967d1b79da6fe45378ecb024fd5a3c2765dadad11229483",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/7c82028720c3cf935c1852c8a092d9ea/izdw-7c82028720.o900453",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/7c82028720c3cf935c1852c8a092d9ea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n...........................................                              [100%]\n115 passed in 2.61s\n",
+        "stdout_sha256": "76df4ab7415a8b662b2698bc8c3ac41cf085b2ac97c5b54779e98e430726df32"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 26.892,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_requires_s7_go"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "87252503fc83715dae659c8abf46bbaa81cc791def7064b60148904802020043",
+      "matches_expectation": false,
+      "rc": 0,
+      "registration_sha256": "b319b4328e9cd32d9cc9ef7d195805dc7ca947dc19a7699cf670321e2c6e32cd",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    if False:",
+          "old": "    if by_stage.get(\"S7\") == \"go\":"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "SURVIVED",
+      "test_output_sha256": "76df4ab7415a8b662b2698bc8c3ac41cf085b2ac97c5b54779e98e430726df32",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/c0e4df4fb4e101f34230d89fc5421da4/izdw-c0e4df4fb4.o900454",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/c0e4df4fb4e101f34230d89fc5421da4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 62%]\n....................F...............F..F...                              [100%]\n=================================== FAILURES ===================================\n_ test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive] _\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ce01325de0>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_injected_observer_flows_t0')\nstage = 'S7'\nreplacement = {'attempted': True, 'outside_success': True, 'inside_success': True, 'same_binary': True, ...}\nexpected = 'inconclusive'\n\n    @pytest.mark.parametrize(\n        (\"stage\", \"replacement\", \"expected\"),\n        [\n            (\"S1\", {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}, \"no-go\"),\n            (\n                \"S2\",\n                {\n                    \"attempted\": True,\n                    \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n                },\n                \"no-go\",\n            ),\n            (\n                \"S3\",\n                {\n                    **_good_s3(),\n                    \"write_repo\": _paired(inside_state=\"reached\", inside_blocked=False),\n                },\n                \"no-go\",\n            ),\n            (\"S4\", {**_good_s4(), \"inside_pid_status\": \"alive-same-process\"}, \"no-go\"),\n            (\n                \"S5\",\n                {\n                    **_good_s5(),\n                    \"runtime\": {\n                        **_good_s5()[\"runtime\"],\n                        \"system_command\": _paired(\n                            inside_state=\"reached\", inside_blocked=False\n                        ),\n                    },\n                },\n                \"no-go\",\n            ),\n            (\"S6\", {**_good_s6(), \"outside_success\": False}, \"inconclusive\"),\n            (\"S7\", {**_good_s7(), \"perf_output_valid\": False}, \"inconclusive\"),\n        ],\n    )\n    def test_injected_observer_flows_through_judge_and_overall(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n        stage: str, replacement: dict[str, Any], expected: str,\n    ) -> None:\n        stages = _good_stages()\n        stages[stage] = replacement\n        rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert rc == 3\nE       assert 0 == 3\n\norchestrator/tests/test_t316_sandbox_probe.py:807: AssertionError\n_ test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive] _\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15287b541f00>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_injected_observer_flows_t0')\nstage = 'S6'\nreplacement = {'attempted': True, 'source_identity_valid': True, 'outside_success': False, 'inside_success': True, ...}\nexpected = 'inconclusive'\n\n    @pytest.mark.parametrize(\n        (\"stage\", \"replacement\", \"expected\"),\n        [\n            (\"S1\", {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}, \"no-go\"),\n            (\n                \"S2\",\n                {\n                    \"attempted\": True,\n                    \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n                },\n                \"no-go\",\n            ),\n            (\n                \"S3\",\n                {\n                    **_good_s3(),\n                    \"write_repo\": _paired(inside_state=\"reached\", inside_blocked=False),\n                },\n                \"no-go\",\n            ),\n            (\"S4\", {**_good_s4(), \"inside_pid_status\": \"alive-same-process\"}, \"no-go\"),\n            (\n                \"S5\",\n                {\n                    **_good_s5(),\n                    \"runtime\": {\n                        **_good_s5()[\"runtime\"],\n                        \"system_command\": _paired(\n                            inside_state=\"reached\", inside_blocked=False\n                        ),\n                    },\n                },\n                \"no-go\",\n            ),\n            (\"S6\", {**_good_s6(), \"outside_success\": False}, \"inconclusive\"),\n            (\"S7\", {**_good_s7(), \"perf_output_valid\": False}, \"inconclusive\"),\n        ],\n    )\n    def test_injected_observer_flows_through_judge_and_overall(\n        monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n        stage: str, replacement: dict[str, Any], expected: str,\n    ) -> None:\n        stages = _good_stages()\n        stages[stage] = replacement\n        rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n>       assert rc == 3\nE       assert 0 == 3\n\norchestrator/tests/test_t316_sandbox_probe.py:807: AssertionError\n_______ test_overall_priority_is_fail_closed[replacement2-inconclusive] ________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\nreplacement = StageVerdict(stage='S4', verdict='inconclusive', reason_codes=('x',))\nexpected = 'inconclusive'\n\n    @pytest.mark.parametrize(\n        (\"replacement\", \"expected\"),\n        [\n            (probe.StageVerdict(\"S4\", \"no-go\", (\"x\",)), \"no-go\"),\n            (probe.StageVerdict(\"S4\", \"blocked\", (\"x\",)), \"blocked\"),\n            (probe.StageVerdict(\"S4\", \"inconclusive\", (\"x\",)), \"inconclusive\"),\n        ],\n    )\n    def test_overall_priority_is_fail_closed(replacement: Any, expected: str) -> None:\n        verdicts = [probe.StageVerdict(f\"S{index}\", \"go\", (\"ok\",)) for index in range(1, 8)]\n        verdicts[3] = replacement\n>       assert probe.aggregate_verdicts(verdicts).verdict == expected\nE       AssertionError: assert 'go' == 'inconclusive'\nE         \nE         - inconclusive\nE         + go\n\norchestrator/tests/test_t316_sandbox_probe.py:724: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]\nFAILED orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]\n3 failed, 112 passed in 2.61s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=2152 retained_bytes=2152 omitted_bytes=0 rendered_excerpt_bytes=2267 sha256=1fdbae9309bde14556db29c82eefac3cb8baa48b7ddc0f86d32deeb76c4af70e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15287b541f00>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_injected_observer_flows_t0')\n> stage = 'S6'\n> replacement = {'attempted': True, 'source_identity_valid': True, 'outside_success': False, 'inside_success': True, ...}\n> expected = 'inconclusive'\n> \n>     @pytest.mark.parametrize(\n>         (\"stage\", \"replacement\", \"expected\"),\n>         [\n>             (\"S1\", {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}, \"no-go\"),\n>             (\n>                 \"S2\",\n>                 {\n>                     \"attempted\": True,\n>                     \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>                 },\n>                 \"no-go\",\n>             ),\n>             (\n>                 \"S3\",\n>                 {\n>                     **_good_s3(),\n>                     \"write_repo\": _paired(inside_state=\"reached\", inside_blocked=False),\n>                 },\n>                 \"no-go\",\n>             ),\n>             (\"S4\", {**_good_s4(), \"inside_pid_status\": \"alive-same-process\"}, \"no-go\"),\n>             (\n>                 \"S5\",\n>                 {\n>                     **_good_s5(),\n>                     \"runtime\": {\n>                         **_good_s5()[\"runtime\"],\n>                         \"system_command\": _paired(\n>                             inside_state=\"reached\", inside_blocked=False\n>                         ),\n>                     },\n>                 },\n>                 \"no-go\",\n>             ),\n>             (\"S6\", {**_good_s6(), \"outside_success\": False}, \"inconclusive\"),\n>             (\"S7\", {**_good_s7(), \"perf_output_valid\": False}, \"inconclusive\"),\n>         ],\n>     )\n>     def test_injected_observer_flows_through_judge_and_overall(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n>         stage: str, replacement: dict[str, Any], expected: str,\n>     ) -> None:\n>         stages = _good_stages()\n>         stages[stage] = replacement\n>         rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert rc == 3\n> E       assert 0 == 3\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:807: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=2141 retained_bytes=2141 omitted_bytes=0 rendered_excerpt_bytes=2256 sha256=0c407971577cae16fb8570a463e604208c1765ec5bd945143ebd1fd54ae51714\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ce01325de0>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_injected_observer_flows_t0')\n> stage = 'S7'\n> replacement = {'attempted': True, 'outside_success': True, 'inside_success': True, 'same_binary': True, ...}\n> expected = 'inconclusive'\n> \n>     @pytest.mark.parametrize(\n>         (\"stage\", \"replacement\", \"expected\"),\n>         [\n>             (\"S1\", {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}, \"no-go\"),\n>             (\n>                 \"S2\",\n>                 {\n>                     \"attempted\": True,\n>                     \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},\n>                 },\n>                 \"no-go\",\n>             ),\n>             (\n>                 \"S3\",\n>                 {\n>                     **_good_s3(),\n>                     \"write_repo\": _paired(inside_state=\"reached\", inside_blocked=False),\n>                 },\n>                 \"no-go\",\n>             ),\n>             (\"S4\", {**_good_s4(), \"inside_pid_status\": \"alive-same-process\"}, \"no-go\"),\n>             (\n>                 \"S5\",\n>                 {\n>                     **_good_s5(),\n>                     \"runtime\": {\n>                         **_good_s5()[\"runtime\"],\n>                         \"system_command\": _paired(\n>                             inside_state=\"reached\", inside_blocked=False\n>                         ),\n>                     },\n>                 },\n>                 \"no-go\",\n>             ),\n>             (\"S6\", {**_good_s6(), \"outside_success\": False}, \"inconclusive\"),\n>             (\"S7\", {**_good_s7(), \"perf_output_valid\": False}, \"inconclusive\"),\n>         ],\n>     )\n>     def test_injected_observer_flows_through_judge_and_overall(\n>         monkeypatch: pytest.MonkeyPatch, tmp_path: Path,\n>         stage: str, replacement: dict[str, Any], expected: str,\n>     ) -> None:\n>         stages = _good_stages()\n>         stages[stage] = replacement\n>         rc, receipt = _run_injected(monkeypatch, tmp_path, stages)\n> >       assert rc == 3\n> E       assert 0 == 3\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:807: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=924 retained_bytes=924 omitted_bytes=0 rendered_excerpt_bytes=971 sha256=16080e096459402c25e40230f715c6a359927ef87af85a682786492d771e546c\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> replacement = StageVerdict(stage='S4', verdict='inconclusive', reason_codes=('x',))\n> expected = 'inconclusive'\n> \n>     @pytest.mark.parametrize(\n>         (\"replacement\", \"expected\"),\n>         [\n>             (probe.StageVerdict(\"S4\", \"no-go\", (\"x\",)), \"no-go\"),\n>             (probe.StageVerdict(\"S4\", \"blocked\", (\"x\",)), \"blocked\"),\n>             (probe.StageVerdict(\"S4\", \"inconclusive\", (\"x\",)), \"inconclusive\"),\n>         ],\n>     )\n>     def test_overall_priority_is_fail_closed(replacement: Any, expected: str) -> None:\n>         verdicts = [probe.StageVerdict(f\"S{index}\", \"go\", (\"ok\",)) for index in range(1, 8)]\n>         verdicts[3] = replacement\n> >       assert probe.aggregate_verdicts(verdicts).verdict == expected\n> E       AssertionError: assert 'go' == 'inconclusive'\n> E         \n> E         - inconclusive\n> E         + go\n> \n> orchestrator/tests/test_t316_sandbox_probe.py:724: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5217 retained_bytes=5217 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7173 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6a1a93733211ad3be69179472e9a1e61939518ac020d5de01b4b23ef54a0224e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1d4cec363fb43c3adad7251e005c66a485d3a52b079c16e7bd9a5fa33e160ed5",
+      "duration_s": 32.027,
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_scratch_positive_control_failure_reaches_stage_and_overall"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "9b8fb25d9528d661dc18e16586ebb1e9e184009c10305d5ca9a925e5789adce1",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "b476c02a4c26b8a61e1b858fda4e25350f3167b3eacbd0de2d74e3e3f8278361",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    reasons = tuple(reason for item in verdicts for reason in item.reason_codes)\n    values = {item.verdict for item in verdicts}\n    for value in (\"no-go\", \"blocked\", \"go\", \"inconclusive\"):\n        if value in values:\n            return StageVerdict(\"overall\", value, reasons)",
+          "old": "    reasons = tuple(reason for item in verdicts for reason in item.reason_codes)\n    values = {item.verdict for item in verdicts}\n    for value in (\"no-go\", \"blocked\", \"inconclusive\", \"go\"):\n        if value in values:\n            return StageVerdict(\"overall\", value, reasons)"
+        }
+      ],
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "MISMATCH",
+      "test_output_sha256": "6a1a93733211ad3be69179472e9a1e61939518ac020d5de01b4b23ef54a0224e",
+      "test_output_tail": [
+        "> expected = 'inconclusive'",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         (\"stage\", \"replacement\", \"expected\"),",
+        ">         [",
+        ">             (\"S1\", {\"attempted\": True, \"tools\": {\"bwrap\": {\"available\": False}}}, \"no-go\"),",
+        ">             (",
+        ">                 \"S2\",",
+        ">                 {",
+        ">                     \"attempted\": True,",
+        ">                     \"namespace_checks\": {\"user\": False, \"pid\": True, \"net\": True, \"mnt\": True},",
+        ">                 },",
+        ">                 \"no-go\",",
+        ">             ),",
+        ">             (",
+        ">                 \"S3\",",
+        ">                 {",
+        ">                     **_good_s3(),",
+        ">                     \"write_repo\": _paired(inside_state=\"reached\", inside_blocked=False),",
+        ">                 },",
+        ">                 \"no-go\",",
+        ">             ),",
+        ">             (\"S4\", {**_good_s4(), \"inside_pid_status\": \"alive-same-process\"}, \"no-go\"),",
+        ">             (",
+        ">                 \"S5\",",
+        ">                 {",
+        ">                     **_good_s5(),",
+        ">                     \"runtime\": {",
+        ">                         **_good_s5()[\"runtime\"],",
+        ">                         \"system_command\": _paired(",
+        ">                             inside_state=\"reached\", inside_blocked=False",
+        ">                         ),",
+        ">                     },",
+        ">                 },",
+        ">                 \"no-go\",",
+        ">             ),",
+        ">             (\"S6\", {**_good_s6(), \"outside_success\": False}, \"inconclusive\"),",
+        ">             (\"S7\", {**_good_s7(), \"perf_output_valid\": False}, \"inconclusive\"),",
+        ">         ],",
+        ">     )",
+        ">     def test_injected_observer_flows_through_judge_and_overall(",
+        ">         monkeypatch: pytest.MonkeyPatch, tmp_path: Path,",
+        ">         stage: str, replacement: dict[str, Any], expected: str,",
+        ">     ) -> None:",
+        ">         stages = _good_stages()",
+        ">         stages[stage] = replacement",
+        ">         rc, receipt = _run_injected(monkeypatch, tmp_path, stages)",
+        "> >       assert rc == 3",
+        "> E       assert 0 == 3",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:807: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=924 retained_bytes=924 omitted_bytes=0 rendered_excerpt_bytes=971 sha256=16080e096459402c25e40230f715c6a359927ef87af85a682786492d771e546c",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw20] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> replacement = StageVerdict(stage='S4', verdict='inconclusive', reason_codes=('x',))",
+        "> expected = 'inconclusive'",
+        "> ",
+        ">     @pytest.mark.parametrize(",
+        ">         (\"replacement\", \"expected\"),",
+        ">         [",
+        ">             (probe.StageVerdict(\"S4\", \"no-go\", (\"x\",)), \"no-go\"),",
+        ">             (probe.StageVerdict(\"S4\", \"blocked\", (\"x\",)), \"blocked\"),",
+        ">             (probe.StageVerdict(\"S4\", \"inconclusive\", (\"x\",)), \"inconclusive\"),",
+        ">         ],",
+        ">     )",
+        ">     def test_overall_priority_is_fail_closed(replacement: Any, expected: str) -> None:",
+        ">         verdicts = [probe.StageVerdict(f\"S{index}\", \"go\", (\"ok\",)) for index in range(1, 8)]",
+        ">         verdicts[3] = replacement",
+        "> >       assert probe.aggregate_verdicts(verdicts).verdict == expected",
+        "> E       AssertionError: assert 'go' == 'inconclusive'",
+        "> E         ",
+        "> E         - inconclusive",
+        "> E         + go",
+        "> ",
+        "> orchestrator/tests/test_t316_sandbox_probe.py:724: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5217 retained_bytes=5217 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7173 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/c2daa153956f1ce173a8b911a86554fd/izdw-c2daa15395.o900441",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/output/pegasus-dispatch/c2daa153956f1ce173a8b911a86554fd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S3-write_home-write_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-runtime_file_write-file_write]\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-build_file_write-file_write]\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_failed_positive_control_is_not_containment\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_different_positive_target_is_inconclusive\norchestrator/tests/test_t316_sandbox_probe.py::test_active_write_denial_keeps_contained_reason_code\norchestrator/tests/test_t316_sandbox_probe.py::test_outside_denial_reports_node_capability_unavailable\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_dns]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_direct_ip]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_proxy]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_agent]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_codex_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_repo]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_tmp]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[source_read_only]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[missing]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[error]\norchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[not-executed]\norchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_dns-EAI_AGAIN-denied]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-EAI_AGAIN-invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-ETIMEDOUT-invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-EROFS-denied]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-ENOENT-invalid]\norchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[credential_home-ENOENT-denied]\norchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ERROR]\norchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ENOSYS]\norchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record0-timed-out]\norchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record1-unexpected-exit]\norchestrator/tests/test_t316_sandbox_probe.py::test_connection_refused_is_reachability_evidence_and_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]\norchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]\norchestrator/tests/test_t316_sandbox_probe.py::test_runner_seam_distinguishes_bwrap_setup_failure_from_payload_denial\norchestrator/tests/test_t316_sandbox_probe.py::test_poll_pid_identity_reports_a_live_same_process\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_descendant_observer_preserves_inside_survival_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_binary_descendant_observer_preserves_inside_survival_no_go\norchestrator/tests/test_t316_sandbox_probe.py::test_identity_unresolved_cleanup_uses_owned_token_fallback\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]\norchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_uses_one_target_for_absence_control\norchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|DENIED|ENOENT\\n-False-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|COMMAND_EXIT_1\\n-False-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|SIDE_EFFECT_WITH_FAILURE\\n-True-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_cleanup_failure_makes_performance_inconclusive\norchestrator/tests/test_t316_sandbox_probe.py::test_process_tenancy_keeps_excluded_system_and_own_observations\norchestrator/tests/test_t316_sandbox_probe.py::test_system_daemons_do_not_count_as_co_tenants\norchestrator/tests/test_t316_sandbox_probe.py::test_other_non_system_user_process_prevents_exclusivity\norchestrator/tests/test_t316_sandbox_probe.py::test_load_average_threshold_still_prevents_exclusivity\norchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses1-blocked]\norchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses2-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement1-blocked]\norchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad1-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad2-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad3-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad4-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad5-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S1-replacement0-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S2-replacement1-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S3-replacement2-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S4-replacement3-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S5-replacement4-no-go]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]\norchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_dns]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_direct_ip]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_proxy]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_agent]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_codex_dir]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_home]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_repo]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_tmp]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[source_read_only]\norchestrator/tests/test_t316_sandbox_probe.py::test_s3_scratch_positive_control_failure_reaches_stage_and_overall\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-runtime]\norchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-build]\norchestrator/tests/test_t316_sandbox_probe.py::test_receipt_publish_is_atomic_create_only_and_completed\norchestrator/tests/test_t316_sandbox_probe.py::test_publish_failure_never_leaves_canonical_partial_json\norchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_publish_is_atomic_and_create_only\norchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_short_write_never_publishes_marker\norchestrator/tests/test_t316_sandbox_probe.py::test_publish_preflight_einval_stops_before_measurement\norchestrator/tests/test_t316_sandbox_probe.py::test_r3_1_coverage_does_not_overclaim\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]\norchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]\norchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_requires_s7_go\n\n115 tests collected in 0.24s\n",
+        "stdout_sha256": "3451f8c8ee1347b3b9fc32e84bfb1e2ff62e1eef482a662703d068049e63456c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_mechanism_table_matches_independent_literals",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S3-write_home-write_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-runtime_file_write-file_write]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_is_contained_by_absence_only_with_strict_controls[S5-build_file_write-file_write]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_failed_positive_control_is_not_containment",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_inside_side_effect_remains_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_write_enoent_with_different_positive_target_is_inconclusive",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_active_write_denial_keeps_contained_reason_code",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_outside_denial_reports_node_capability_unavailable",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_dns]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_direct_ip]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[network_proxy]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_agent]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_ssh_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[credential_codex_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[write_tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_failed_positive_control_is_inconclusive[source_read_only]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[system_command-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[network-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[file_write-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_containment_failure_is_not_go[infinite_loop-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[missing]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[error]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_boolean_inside_blocked_cannot_replace_structured_sentinel[not-executed]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_dns-EAI_AGAIN-denied]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-EAI_AGAIN-invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[network_direct_ip-ETIMEDOUT-invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-EROFS-denied]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[write_repo-ENOENT-invalid]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_denial_errno_is_scoped_to_its_category[credential_home-ENOENT-denied]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ERROR]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_unknown_or_error_sentinel_is_never_denied[ENOSYS]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record0-timed-out]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_payload_sentinel_and_process_exit_are_independent[record1-unexpected-exit]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_connection_refused_is_reachability_evidence_and_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_runner_seam_distinguishes_bwrap_setup_failure_from_payload_denial",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_poll_pid_identity_reports_a_live_same_process",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_descendant_observer_preserves_inside_survival_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_binary_descendant_observer_preserves_inside_survival_no_go",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_identity_unresolved_cleanup_uses_owned_token_fallback",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S3-write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_cannot_hide_inside_side_effect[S5-file_write]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_actual_write_observer_uses_one_target_for_absence_control",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|DENIED|ENOENT/n-False-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|COMMAND_EXIT_1/n-False-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_observer_distinguishes_shell_absence_command_failure_and_side_effect[T316_SENTINEL|system_command|ERROR|SIDE_EFFECT_WITH_FAILURE/n-True-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_cleanup_failure_makes_performance_inconclusive",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_process_tenancy_keeps_excluded_system_and_own_observations",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_system_daemons_do_not_count_as_co_tenants",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_other_non_system_user_process_prevents_exclusivity",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_load_average_threshold_still_prevents_exclusivity",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses1-blocked]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_merge_priority_is_fail_closed[statuses2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement1-blocked]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s4-bad1-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad2-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s6-bad3-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad4-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_stage_judges_reject_injected_bad_observations[verdict_s7-bad5-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S1-replacement0-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S2-replacement1-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S3-replacement2-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S4-replacement3-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S5-replacement4-no-go]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_dns]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_direct_ip]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[network_proxy]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_agent]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_ssh_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[credential_codex_dir]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_home]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_repo]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[write_tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s3_category_failure_reaches_stage_and_overall[source_read_only]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_scratch_positive_control_failure_reaches_stage_and_overall",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[system_command-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[network-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[file_write-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-runtime]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_each_s5_category_failure_reaches_stage_and_overall[infinite_loop-build]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_receipt_publish_is_atomic_create_only_and_completed",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_publish_failure_never_leaves_canonical_partial_json",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_publish_is_atomic_and_create_only",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_completed_marker_short_write_never_publishes_marker",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_publish_preflight_einval_stops_before_measurement",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_r3_1_coverage_does_not_overclaim",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_requires_s7_go"
+      ],
+      "duration_s": 26.992,
+      "rc": 0,
+      "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+      "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+      "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+      "status": "PASSED",
+      "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_eexist_is_not_a_containment_denial"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "abbcdea57cad594dfb327aa01ec0a20a7a17348c2711127ed106e23e5ab9497d",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "_WRITE_CONTAINMENT_ERRNOS = frozenset({\"EACCES\", \"EPERM\", \"EROFS\", \"EEXIST\"})",
+            "old": "_WRITE_CONTAINMENT_ERRNOS = frozenset({\"EACCES\", \"EPERM\", \"EROFS\"})"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_connection_refused_is_reachability_evidence_and_no_go"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2d6bbe26ba735bfcc45675ff6d47c90d5e7cea594a8e8001ff859b1acf91eb1b",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "_ROUTE_CONTAINMENT_ERRNOS = frozenset(\n    {\"EACCES\", \"EPERM\", \"ENETDOWN\", \"ENETUNREACH\", \"EHOSTUNREACH\", \"EAFNOSUPPORT\", \"ECONNREFUSED\"}\n)",
+            "old": "_ROUTE_CONTAINMENT_ERRNOS = frozenset(\n    {\"EACCES\", \"EPERM\", \"ENETDOWN\", \"ENETUNREACH\", \"EHOSTUNREACH\", \"EAFNOSUPPORT\"}\n)"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_category_oracles_are_independent_literals",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a44364e498d951085feef97edfb3a9caa4fc22cc8da84996db5ae1ba86501344",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "_PAYLOAD_NORMAL_RETURN_CODES = frozenset({0, 9})",
+            "old": "_PAYLOAD_NORMAL_RETURN_CODES = frozenset({0})"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[-9-True-timed-out]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_paired_command_rejects_denied_after_abnormal_exit[9-False-unexpected-exit]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0b92695b87e6e65ebb2c55452eab0758d1f56f3d785c1530ed7794cf5a4e4240",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "",
+            "old": "    if observation.get(\"inside_process_state\") != \"normal-exit\":\n        return StageVerdict(\n            stage, \"inconclusive\", (f\"{prefix}_NEGATIVE_PROCESS_EXIT_ABNORMAL\",)\n        )\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "745f76754de53b0e47da34ad9ca5df8dbdeedf93b1a1c41f25836139963ef67f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "",
+            "old": "    if observation.get(\"inside_side_effect_observed\") is True:\n        return StageVerdict(stage, \"no-go\", (f\"{prefix}_SIDE_EFFECT_OBSERVED\",))\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S1]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S2]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S3]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S4]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_containment_discharge_requires_each_containment_stage_go[S5]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "19e0a583d5f3241ede6b7d1ea07dd9a72b1205bfb36de974be3e3dc90637dab5",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    if True:",
+            "old": "    if all(by_stage.get(f\"S{index}\") == \"go\" for index in range(1, 6)):"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_performance_discharge_requires_s7_go"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "87252503fc83715dae659c8abf46bbaa81cc791def7064b60148904802020043",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    if False:",
+            "old": "    if by_stage.get(\"S7\") == \"go\":"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_overall_priority_is_fail_closed[replacement2-inconclusive]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S6-replacement5-inconclusive]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_injected_observer_flows_through_judge_and_overall[S7-replacement6-inconclusive]",
+          "orchestrator/tests/test_t316_sandbox_probe.py::test_s3_scratch_positive_control_failure_reaches_stage_and_overall"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9b8fb25d9528d661dc18e16586ebb1e9e184009c10305d5ca9a925e5789adce1",
+        "replacements": [
+          {
+            "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+            "new": "    reasons = tuple(reason for item in verdicts for reason in item.reason_codes)\n    values = {item.verdict for item in verdicts}\n    for value in (\"no-go\", \"blocked\", \"go\", \"inconclusive\"):\n        if value in values:\n            return StageVerdict(\"overall\", value, reasons)",
+            "old": "    reasons = tuple(reason for item in verdicts for reason in item.reason_codes)\n    values = {item.verdict for item in verdicts}\n    for value in (\"no-go\", \"blocked\", \"inconclusive\", \"go\"):\n        if value in values:\n            return StageVerdict(\"overall\", value, reasons)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "5bb4f020a1d8abe09670c97bdebdf32c9644c7e650a36aeca4fba2fc6e2ce6fc",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t316_sandbox_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "c1567514e66652c698d3851d7bc2e5246bb3ff0c",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t316_sandbox_probe.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3878f972c71e7ed687947e1c77a1eaa32cabcb6e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "a703c2babb7fb03b61cf44e218dc2849ce0fc691e13eb11dffc410634d0f6ee5",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "70c70478f987dbe008237d57733ea49b27ebc7bae10a426a824a1af1595abfe6",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 4,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 3,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t316-sandbox-measure/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "f70bc5aab388903fc1e40c1f5542160f47096b9732b27b1bdb65319babaed930",
+  "updated_at": "2026-08-10T11:04:54.141087+00:00"
+}
