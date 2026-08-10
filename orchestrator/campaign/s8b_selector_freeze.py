@@ -21,31 +21,19 @@ from pathlib import Path
 from typing import Any
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
-    _ROOT_FOR_IMPORT = Path(__file__).resolve().parents[2]
-    if str(_ROOT_FOR_IMPORT) not in sys.path:
-        sys.path.insert(0, str(_ROOT_FOR_IMPORT))
-    from orchestrator.campaign.s8b_descriptor import descriptor_for_holdout
-    from orchestrator.campaign.s8b_selector_input import (
-        CHOICE_TO_BINDING,
-        STATIC_DEFAULT_CHOICE_ID,
-        build_selector_payload,
-        selector_payload_sha256,
-    )
-    from orchestrator.campaign.s8b_selector_output import (
-        SelectorOutputError,
-        parse_selector_output,
-    )
-    from orchestrator.campaign.s8b_ratified_freeze import V1_FREEZE_SHA256
-else:
-    from .s8b_descriptor import descriptor_for_holdout
-    from .s8b_selector_input import (
-        CHOICE_TO_BINDING,
-        STATIC_DEFAULT_CHOICE_ID,
-        build_selector_payload,
-        selector_payload_sha256,
-    )
-    from .s8b_selector_output import SelectorOutputError, parse_selector_output
-    from .s8b_ratified_freeze import V1_FREEZE_SHA256
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
+from .s8b_descriptor import descriptor_for_holdout
+from .s8b_selector_input import (
+    CHOICE_TO_BINDING,
+    STATIC_DEFAULT_CHOICE_ID,
+    build_selector_payload,
+    selector_payload_sha256,
+)
+from .s8b_selector_output import SelectorOutputError, parse_selector_output
+from .s8b_ratified_freeze import V1_FREEZE_SHA256
+
 
 
 ROOT = Path(__file__).resolve().parents[2]

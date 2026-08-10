@@ -15,11 +15,11 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 _ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
+sys.path.insert(0, str(_ORCHESTRATOR.parent))
 sys.path.insert(0, str(_HERE))
 
-from campaign import s8b_oracle_manifest as manifest  # noqa: E402
-from campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign import s8b_oracle_manifest as manifest  # noqa: E402
+from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 
 

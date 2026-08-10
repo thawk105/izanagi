@@ -6,11 +6,11 @@
 正本は D51 + insight `output/insights/2026-07-12_s8a-stage-e-design-review.md`。
 
 sort 版との構造差 (新テンプレの形):
-  - **軸定数は全て `campaign.axis_trigger_gating` から import する** (自前定義しない)。
+  - **軸定数は全て `orchestrator.campaign.axis_trigger_gating` から import する** (自前定義しない)。
     軸定数ブロックが C 段成果物として先に在り、D 偵察器 (`s8a_trigger_sweep.py`) と
     本 driver の両方がそこから import する — sort 軸の歴史的経緯 (偵察器が E 段 driver を
     import) の逆転が完成する (D48 必須条件 5、axis-onboarding §1 脚注)。
-  - auditor 機械 gate の軸非依存部品は `campaign.auditor_gate` を使う (共有昇格)。
+  - auditor 機械 gate の軸非依存部品は `orchestrator.campaign.auditor_gate` を使う (共有昇格)。
   - hole は骨格の述語代入 1 行 (`izanagi_gate_pass = <述語>;`、D49 決定 2)。coder 出力は
     `CoderProposalTriggerGating` の固定 5-bit wire (value なし)。
   - 構文契約 grep は受理 gate ではなく、凍結 emitter 出力の内部 drift assertion。
@@ -44,37 +44,40 @@ import sys
 import time
 from dataclasses import dataclass, replace
 from typing import Dict, List, Optional, Sequence, Tuple
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import env_contract, execution_guard, ident, site_policy, wal  # noqa: E402
-from campaign import p3_s4_loop as L                              # noqa: E402
-from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+from . import env_contract, execution_guard, ident, site_policy, wal  # noqa: E402
+from . import p3_s4_loop as L                              # noqa: E402
+from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.auditor_gate import (AuditorGateFailure,            # noqa: E402
+from .auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict, assert_digest_matches,
                                    auditor_reject_result, parse_auditor_dict,
                                    compute_diff_digest)
-from campaign.axis_trigger_gating import (_BASE, MARKER_ID, PIN,  # noqa: E402
+from .axis_trigger_gating import (_BASE, MARKER_ID, PIN,  # noqa: E402
                                           SOURCE_REL, SYNTAX_CONTRACT_FORBIDDEN,
                                           TEMPLATE_PATCH)
-from campaign.diff_quarantine import DiffQuarantineResult          # noqa: E402
-from campaign.layout import (CampaignLayout,                       # noqa: E402
+from .diff_quarantine import DiffQuarantineResult          # noqa: E402
+from .layout import (CampaignLayout,                       # noqa: E402
                              exploration_campaign_layout)
-from campaign.loop import run_campaign                             # noqa: E402
-from campaign.model import CampaignConfig, Genome, STAGE_BUILD_START  # noqa: E402
-from campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
-from campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
-from campaign.projection_guard import (                            # noqa: E402
+from .loop import run_campaign                             # noqa: E402
+from .model import CampaignConfig, Genome, STAGE_BUILD_START  # noqa: E402
+from .pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
+from .pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
+from .projection_guard import (                            # noqa: E402
     CODER_CONTRACT_TRIGGER_WIRE,
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
-from campaign import reflux_ir as _reflux_ir                       # noqa: E402
-from campaign.reflux_ir import (TriggerGateIR, emit_predicate,     # noqa: E402
+from . import reflux_ir as _reflux_ir                       # noqa: E402
+from .reflux_ir import (TriggerGateIR, emit_predicate,     # noqa: E402
                                 parse_wire)
-from campaign.trigger_gate_binding import (                        # noqa: E402
+from .trigger_gate_binding import (                        # noqa: E402
     SCHEMA_VERSION as TRIGGER_GATE_BINDING_SCHEMA,
     WAL_RECORD_STAGE as TRIGGER_GATE_BINDING_WAL_STAGE,
     TriggerGateBinding,
@@ -82,6 +85,7 @@ from campaign.trigger_gate_binding import (                        # noqa: E402
     expected_predicate_sha256,
     new_nonce,
 )
+
 
 # ---- campaign 定数 (軸定数は axis_trigger_gating が正本 — ここは環境・計測の定数のみ) ----
 ENV_TAG = "linux-baremetal"
@@ -554,7 +558,7 @@ def _run_one_iteration_resolved(
         build_context: Optional[BuildRunContext] = None,
 ) -> Dict:
     """実 site/contract/layout を公開 API で一度だけ解決した後の内部実装。"""
-    from campaign.patchharness import applied
+    from .patchharness import applied
     _assert_trigger_proposal_contract(planner, coder)
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -831,7 +835,7 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
 def _preview_wire(wire: str, sub: str, root: str) -> Dict:
     """auditor へ渡す実 diff を得る (メインセッションが auditor spawn 前に呼ぶ。
     sort 版と同型)。"""
-    from campaign.patchharness import applied, assert_pinned_clean
+    from .patchharness import applied, assert_pinned_clean
     predicate = emit_predicate(parse_wire(wire))
     assert_pinned_clean(sub, PIN)
     with applied(_template_patch_path(root), PIN, sub):
@@ -889,8 +893,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         coder_authority=None if a.no_build else a.coder_build_authority,
     )
 
-    from campaign import patchharness
-    from campaign.p2_2 import _assert_single_tenant
+    from . import patchharness
+    from .p2_2 import _assert_single_tenant
     if not a.no_build:
         _assert_single_tenant()
     patchharness.assert_pinned_clean(fixed_sub, PIN)
@@ -944,7 +948,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"=== 段8a trigger-gating loop 1 iteration (機械 E2E, reflux={a.reflux}, "
           f"build={not a.no_build}, isolate_worktree={isolate}) ===")
     with wt_cm as sub:
-        from campaign.patchharness import applied
+        from .patchharness import applied
         with applied(_template_patch_path(root), PIN, sub):
             fixture_predicate = emit_predicate(parse_wire(fixture_wire))
             res, _b, _e, working_diff = L.quarantine(

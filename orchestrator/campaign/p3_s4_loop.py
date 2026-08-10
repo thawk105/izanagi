@@ -48,37 +48,41 @@ import sys
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import env_contract, ident, trigger_gate_binding, wal  # noqa: E402
-from campaign.axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
-from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+from . import env_contract, ident, trigger_gate_binding, wal  # noqa: E402
+from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
+from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.artifact_admission import (AdmittedCampaign,        # noqa: E402
+from .artifact_admission import (AdmittedCampaign,        # noqa: E402
                                          require_admitted_campaign)
-from campaign.diff_quarantine import (DiffQuarantine,              # noqa: E402
+from .diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffQuarantineResult,
                                       parse_template_file)
-from campaign.layout import (CampaignLayout,                       # noqa: E402
+from .layout import (CampaignLayout,                       # noqa: E402
                              exploration_campaign_layout)
-from campaign.loop import run_campaign                             # noqa: E402
-from campaign.model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
+from .loop import run_campaign                             # noqa: E402
+from .model import (STAGE_ABORT, STAGE_BUILD_START,         # noqa: E402
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
-from campaign.pipeline import PerfConfig                           # noqa: E402
-from campaign.projection_guard import (                            # noqa: E402
+from .pipeline import PerfConfig                           # noqa: E402
+from .projection_guard import (                            # noqa: E402
     assert_closed_proposal_schema,
     assert_no_ability_probe_material,
 )
-from critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
+from ..critic.digest import (DIFF_QUARANTINE_REASON,                  # noqa: E402
                            STOCK_SRC_TOKEN,
                            build_digest, load_diff_rejections,
                            load_liveness_rejections, load_rejections,
                            load_verify_abort_signals, render_rejections,
                            render_text)
-from critic.identity_projection import IdentityProjection          # noqa: E402
+from ..critic.identity_projection import IdentityProjection          # noqa: E402
+
 
 # ---- campaign 定数 (p3_s4_red 様式。実走前に pin/env を確認する) -----------------
 PIN = "028f34d"                       # 段4/D38 時点で凍結した pin (当時の submodule HEAD、
@@ -856,7 +860,7 @@ def run_one_iteration(cfg: CampaignConfig, perf: PerfConfig,
 
     Returns: {"outcome": rejected|certified|aborted|dry-pass, "variant": ..., ...}。
     """
-    from campaign.patchharness import applied
+    from .patchharness import applied
     if build_context is None and not do_build:
         build_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     if type(build_context) is not BuildRunContext:
@@ -1074,8 +1078,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     root = _repo_root()
     fixed_sub = os.path.join(root, "external", "ccbench")
-    from campaign import patchharness
-    from campaign.p2_2 import _assert_single_tenant
+    from . import patchharness
+    from .p2_2 import _assert_single_tenant
     if not a.no_build:
         _assert_single_tenant()
     patchharness.assert_pinned_clean(fixed_sub, PIN)

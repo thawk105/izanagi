@@ -13,11 +13,10 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 
-# orchestrator/calibrate.py と同じく、repo 内 orchestrator を import root にする。
+# orchestrator/calibrate.py と同じく、repo root を import root にする。
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
-_ORCHESTRATOR = os.path.join(_REPO_ROOT, "orchestrator")
-sys.path.insert(0, _ORCHESTRATOR)
+sys.path.insert(0, _REPO_ROOT)
 
 
 def _write_create_only(path: Path, payload: Mapping[str, Any]) -> None:
@@ -33,7 +32,7 @@ def run(
     importer: Callable[[str], object] = importlib.import_module,
 ) -> tuple[int, dict[str, Any]]:
     try:
-        module = importer("campaign.env_attestation")
+        module = importer("orchestrator.campaign.env_attestation")
         probe_fn = getattr(module, "probe")
         serialize_profile = getattr(module, "observed_profile_to_dict")
     except Exception as exc:  # import/attribute failure must remain visible and non-zero

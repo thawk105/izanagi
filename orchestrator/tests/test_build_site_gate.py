@@ -15,9 +15,9 @@ from unittest.mock import patch
 
 _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
-sys.path.insert(0, str(_ORCH))
+sys.path.insert(0, str(_ORCH.parent))
 
-from campaign import (  # noqa: E402
+from orchestrator.campaign import (  # noqa: E402
     buildcache,
     pipeline,
     s2_verify_calibration,
@@ -26,19 +26,19 @@ from campaign import (  # noqa: E402
     s8a_trigger_coverage,
     site_policy,
 )
-from campaign.env_contract import (  # noqa: E402
+from orchestrator.campaign.env_contract import (  # noqa: E402
     CalibrationRef,
     ExecutionEnvironmentContract,
     IsolationPolicy,
 )
-from campaign.build_admission import (  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
     GeneratorId,
     build_run_context,
     derive_build_admission,
 )
-from campaign.model import Genome  # noqa: E402
-from campaign.pin import CURRENT_PIN  # noqa: E402
-from campaign.source_digest import (  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SOURCE_EVIDENCE_SCHEMA,
     SourceEvidence,

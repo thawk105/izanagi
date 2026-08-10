@@ -12,9 +12,9 @@ import pytest
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 _ROOT = _ORCHESTRATOR.parent
-sys.path.insert(0, str(_ORCHESTRATOR))
+sys.path.insert(0, str(_ORCHESTRATOR.parent))
 
-from campaign import s8b_budget  # noqa: E402
+from orchestrator.campaign import s8b_budget  # noqa: E402
 
 
 FREEZE_PATH = _ROOT / "output/s8b-freeze/holdout_freeze.json"

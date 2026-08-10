@@ -18,28 +18,28 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import env_contract, ident, pipeline, wal           # noqa: E402
-from campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
+from orchestrator.campaign import env_contract, ident, pipeline, wal           # noqa: E402
+from orchestrator.campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
                                          require_admitted_campaign)
-from campaign.build_admission import (                            # noqa: E402
+from orchestrator.campaign.build_admission import (                            # noqa: E402
     GeneratorId,
     attest_generator_output,
     build_run_context,
     derive_build_admission,
 )
-from campaign.layout import CampaignLayout                        # noqa: E402
-from campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
+from orchestrator.campaign.layout import CampaignLayout                        # noqa: E402
+from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
                             STAGE_BUILD_DONE, STAGE_BUILD_START,
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
-from campaign.pin import CURRENT_PIN                              # noqa: E402
-from campaign.source_digest import (                              # noqa: E402
+from orchestrator.campaign.pin import CURRENT_PIN                              # noqa: E402
+from orchestrator.campaign.source_digest import (                              # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
-from critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E402
+from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E402
                            IdentityProjection, LivenessRejection,
                            Rejection, VerifyAbortSignal,
                            build_digest, load_diff_rejections,
@@ -637,7 +637,7 @@ def test_verify_abort_signal_prefers_first_pass_when_s2_writes_second_record():
 
 def test_stock_token_matches_source_digest():
     """STOCK_SRC_TOKEN のローカル定数が source_digest.STOCK から drift しない。"""
-    from campaign import source_digest
+    from orchestrator.campaign import source_digest
     assert STOCK_SRC_TOKEN == source_digest.STOCK
 
 

@@ -53,10 +53,10 @@ from unittest import mock
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-if str(ORCHESTRATOR) not in sys.path:
-    sys.path.insert(0, str(ORCHESTRATOR))
+if str(ORCHESTRATOR.parent) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_oracle_driver as driver  # noqa: E402
+from orchestrator.campaign import s8b_oracle_driver as driver  # noqa: E402
 
 # import 時点の本番 loader を捕まえる。patch は `driver.s8b_ratified_freeze` の属性を
 # 差し替えるが、ここで捕まえた参照は差し替え前の本番実装なので再帰しない。

@@ -14,9 +14,9 @@ import subprocess
 from pathlib import Path
 from typing import Mapping
 
-from calibrator.schema_v2 import normalize_request_id
-from campaign import env_attestation, env_contract, s8b_floor_campaign, site_policy
-from qualification import artifacts, attempt_ledger, contract, qsub_binding
+from ..calibrator.schema_v2 import normalize_request_id
+from . import env_attestation, env_contract, s8b_floor_campaign, site_policy
+from ..qualification import artifacts, attempt_ledger, contract, qsub_binding
 
 
 _HEX32 = re.compile(r"[0-9a-f]{32}")

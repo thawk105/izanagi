@@ -138,7 +138,7 @@ git -C "$REPO_ROOT" archive --format=tar "$SOURCE_COMMIT" \
   orchestrator tools/pegasus/policy.json \
   | tar -xf - -C "$SUBMISSION_STAGE"
 SUBMISSION_HELPER="$SUBMISSION_STAGE/orchestrator/qualification/submission.py"
-STAGED_ORCHESTRATOR="$SUBMISSION_STAGE/orchestrator"
+STAGED_REPO_ROOT="$SUBMISSION_STAGE"
 [[ -f "$SUBMISSION_HELPER" && ! -L "$SUBMISSION_HELPER" ]] || exit 2
 
 for tracked in \
@@ -254,12 +254,12 @@ if [[ -n "$RETRY_FROM" ]]; then
     exit 2
   }
   readarray -t RETRY_ID < <(python3 -I -B - "$RETRY_FROM" "$REPO_ROOT" \
-    "$STAGED_ORCHESTRATOR" <<'PY'
+    "$STAGED_REPO_ROOT" <<'PY'
 import json,sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[3])
-from qualification.artifacts import validate_failure_receipt_for_retry
-from qualification.contract import load_protocol
+from orchestrator.qualification.artifacts import validate_failure_receipt_for_retry
+from orchestrator.qualification.contract import load_protocol
 d=validate_failure_receipt_for_retry(
     Path(sys.argv[1]),Path(sys.argv[2]),load_protocol())
 print(d["qualification_attempt_id"])
@@ -402,17 +402,17 @@ INTENT_SHA256=$(sha256sum "$SUBMISSION_DIR/submission-intent.json" | awk '{print
 [[ "$INTENT_SHA256" =~ ^[0-9a-f]{64}$ ]] || exit 2
 
 reserve_series_attempt() {
-  python3 -I -B - "$REPO_ROOT" "$STAGED_ORCHESTRATOR" "$SERIES_ID" "$NONCE" \
+  python3 -I -B - "$REPO_ROOT" "$STAGED_REPO_ROOT" "$SERIES_ID" "$NONCE" \
     "$INTENT_SHA256" "$RETRY_INDEX" "$RETRY_ATTEMPT_ID" \
     "$RETRY_RECEIPT_SHA256" <<'PY'
 import sys
 from pathlib import Path
 repo=Path(sys.argv[1]); sys.path.insert(0,sys.argv[2])
 series,nonce,intent,index,prior,prior_receipt=sys.argv[3:]
-from qualification.artifacts import QualificationRoot
-from qualification.attempt_ledger import SeriesAttemptLedger
-from qualification.contract import load_protocol
-protocol=load_protocol(Path(sys.argv[2])/"qualification/t126_control_v1.json")
+from orchestrator.qualification.artifacts import QualificationRoot
+from orchestrator.qualification.attempt_ledger import SeriesAttemptLedger
+from orchestrator.qualification.contract import load_protocol
+protocol=load_protocol(Path(sys.argv[2])/"orchestrator/qualification/t126_control_v1.json")
 ledger=SeriesAttemptLedger(
     QualificationRoot(repo).issue(),series,protocol["retry"]["eligible_reasons"])
 index=int(index)
@@ -530,18 +530,18 @@ PY
 publish_qsub_binding() {
   python3 -I -S -B - "$SUBMISSION_DIR/qsub-binding.json" \
     "$SUBMISSION_DIR/qsub.stdout" "$NONCE" "$INTENT_SHA256" \
-    "$INVOCATION_SHA256" "$RETRY_INDEX" "$STAGED_ORCHESTRATOR" <<'PY'
+    "$INVOCATION_SHA256" "$RETRY_INDEX" "$STAGED_REPO_ROOT" <<'PY'
 import json,sys
 from pathlib import Path
-path,stdout_path,nonce,intent,invocation,index,orchestrator=sys.argv[1:]
+path,stdout_path,nonce,intent,invocation,index,repo_root=sys.argv[1:]
 raw=Path(stdout_path).read_bytes()
 try:
     stdout=raw.decode("utf-8",errors="strict")
 except UnicodeDecodeError as exc:
     raise SystemExit("qsub stdout is not strict UTF-8") from exc
-sys.path.insert(0,orchestrator)
-from qualification.atomic_publish import publish_bytes
-from qualification.qsub_binding import (
+sys.path.insert(0,repo_root)
+from orchestrator.qualification.atomic_publish import publish_bytes
+from orchestrator.qualification.qsub_binding import (
     job_id_from_qsub_stdout,validate_qsub_binding)
 value={
     "schema_version":"t126-qsub-binding/v2",
@@ -564,12 +564,12 @@ PY
 load_qsub_binding() {
   python3 -I -S -B - "$SUBMISSION_DIR/qsub-binding.json" \
     "$NONCE" "$INTENT_SHA256" "$INVOCATION_SHA256" "$RETRY_INDEX" \
-    "$STAGED_ORCHESTRATOR" <<'PY'
+    "$STAGED_REPO_ROOT" <<'PY'
 import sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[6])
-from qualification.artifacts import load_json_strict
-from qualification.qsub_binding import validate_qsub_binding
+from orchestrator.qualification.artifacts import load_json_strict
+from orchestrator.qualification.qsub_binding import validate_qsub_binding
 value=validate_qsub_binding(
     load_json_strict(Path(sys.argv[1])),
     expected_nonce=sys.argv[2],
@@ -582,11 +582,11 @@ PY
 
 bind_qsub_attempt() {
   BINDING_SHA256=$(sha256sum "$SUBMISSION_DIR/qsub-binding.json" | awk '{print $1}')
-  ATTEMPT_ID=$(python3 -I -B - "$STAGED_ORCHESTRATOR" "$SERIES_ID" "$JOB_ID" "$NONCE" \
+  ATTEMPT_ID=$(python3 -I -B - "$STAGED_REPO_ROOT" "$SERIES_ID" "$JOB_ID" "$NONCE" \
     "$RETRY_INDEX" "$INTENT_SHA256" <<'PY'
 import sys
 sys.path.insert(0,sys.argv[1])
-from qualification.contract import attempt_identity
+from orchestrator.qualification.contract import attempt_identity
 _,series,job,nonce,index,intent=sys.argv[1:]
 print(attempt_identity({
  "schema_version":"t126-qualification-attempt-identity/v1",
@@ -594,17 +594,17 @@ print(attempt_identity({
  "retry_index":int(index),"submission_intent_sha256":intent}))
 PY
   )
-  python3 -I -B - "$REPO_ROOT" "$STAGED_ORCHESTRATOR" "$SERIES_ID" \
+  python3 -I -B - "$REPO_ROOT" "$STAGED_REPO_ROOT" "$SERIES_ID" \
     "$RETRY_INDEX" "$NONCE" \
     "$JOB_ID" "$ATTEMPT_ID" "$INVOCATION_SHA256" "$BINDING_SHA256" <<'PY'
 import sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[2])
-from qualification.artifacts import QualificationRoot
-from qualification.attempt_ledger import SeriesAttemptLedger
-from qualification.contract import load_protocol
+from orchestrator.qualification.artifacts import QualificationRoot
+from orchestrator.qualification.attempt_ledger import SeriesAttemptLedger
+from orchestrator.qualification.contract import load_protocol
 repo=Path(sys.argv[1]); series,index,nonce,job,attempt,invocation,evidence=sys.argv[3:]
-protocol=load_protocol(Path(sys.argv[2])/"qualification/t126_control_v1.json")
+protocol=load_protocol(Path(sys.argv[2])/"orchestrator/qualification/t126_control_v1.json")
 SeriesAttemptLedger(
     QualificationRoot(repo).issue(),series,
     protocol["retry"]["eligible_reasons"]).bind_submitted(
@@ -733,13 +733,13 @@ python3 -I -B - "$SUBMISSION_DIR" "$JOB_ID" "$NONCE" "$SOURCE_COMMIT" \
   "$PROTOCOL_SHA256" "$PROJECT" "$QUEUE" "$NODES" "$WALLTIME_S" \
   "$RETRY_INDEX" "$DRY_RUN" "$RETRY_ATTEMPT_ID" \
   "$RETRY_SERIES_ID" "$RETRY_RECEIPT_SHA256" "$SERIES_ID" "$INTENT_SHA256" \
-  "$BINDING_SHA256" "$INVOCATION_SHA256" "$STAGED_ORCHESTRATOR" <<'PY'
+  "$BINDING_SHA256" "$INVOCATION_SHA256" "$STAGED_REPO_ROOT" <<'PY'
 import hashlib,json,os,sys
 (root, job_id, nonce, commit, tree, gitlink, job_sha, collector_sha,
  protocol_sha, project, queue, nodes, walltime, retry_index, dry_run,
  retry_attempt_id,retry_series_id,retry_receipt_sha256,series_id,
  intent_sha256,qsub_binding_sha256,qsub_invocation_sha256,
- staged_orchestrator) = sys.argv[1:]
+ staged_repo_root) = sys.argv[1:]
 captures={}
 for name in ("qstat_Q","pegasusinfo","rbudgetcheck","check_quota"):
     captures[name]={
@@ -775,8 +775,8 @@ p={
      os.path.join(root,"submission-intent.json"),encoding="utf-8"))[
          "prepared_epoch"]),
 }
-sys.path.insert(0,staged_orchestrator)
-from qualification.contract import attempt_identity
+sys.path.insert(0,staged_repo_root)
+from orchestrator.qualification.contract import attempt_identity
 attempt_preimage={
  "schema_version":"t126-qualification-attempt-identity/v1",
  "qualification_series_id":series_id,"pbs_job_id":job_id,"nonce":nonce,
@@ -784,8 +784,8 @@ attempt_preimage={
 p["qualification_attempt_id"]=attempt_identity(attempt_preimage)
 target=os.path.join(root,"submit-receipt.json")
 data=(json.dumps(p,sort_keys=True,separators=(",",":"),allow_nan=False)+"\n").encode()
-sys.path.insert(0,staged_orchestrator)
-from qualification.atomic_publish import publish_bytes
+sys.path.insert(0,staged_repo_root)
+from orchestrator.qualification.atomic_publish import publish_bytes
 publish_bytes(
     __import__("pathlib").Path(target),data,
     crash_boundary=os.environ.get("IZANAGI_T126_TEST_RECEIPT_CRASH",""))

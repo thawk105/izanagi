@@ -11,9 +11,9 @@ import pytest
 
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 
-from campaign import s8b_outcome_stage_contract as contract  # noqa: E402
+from orchestrator.campaign import s8b_outcome_stage_contract as contract  # noqa: E402
 
 
 def _row(
@@ -92,12 +92,12 @@ def test_leaf_import_loads_no_other_campaign_module():
     script = f"""
 import json
 import sys
-sys.path.insert(0, {str(ORCHESTRATOR)!r})
-import campaign.s8b_outcome_stage_contract
+sys.path.insert(0, {str(ORCHESTRATOR.parent)!r})
+import orchestrator.campaign.s8b_outcome_stage_contract
 print(json.dumps(sorted(
     name for name in sys.modules
-    if name.startswith('campaign.')
-    and name != 'campaign.s8b_outcome_stage_contract'
+    if name.startswith('orchestrator.campaign.')
+    and name != 'orchestrator.campaign.s8b_outcome_stage_contract'
 )))
 """
     completed = subprocess.run(

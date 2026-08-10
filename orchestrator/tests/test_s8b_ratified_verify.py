@@ -22,15 +22,15 @@ import pytest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 _ROOT = os.path.dirname(_ORCH)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 sys.path.insert(0, _HERE)
 
-from campaign import s8b_ratified_freeze as M  # noqa: E402
-from campaign import s8b_holdout_freeze as HF  # noqa: E402
-from campaign import env_contract as EC  # noqa: E402
-from campaign import s8b_floor_contract as FC  # noqa: E402
-from campaign import s8b_floor_stats as FS  # noqa: E402
-from campaign import s8b_selector_freeze as SF  # noqa: E402
+from orchestrator.campaign import s8b_ratified_freeze as M  # noqa: E402
+from orchestrator.campaign import s8b_holdout_freeze as HF  # noqa: E402
+from orchestrator.campaign import env_contract as EC  # noqa: E402
+from orchestrator.campaign import s8b_floor_contract as FC  # noqa: E402
+from orchestrator.campaign import s8b_floor_stats as FS  # noqa: E402
+from orchestrator.campaign import s8b_selector_freeze as SF  # noqa: E402
 import test_s8b_ratified_freeze as B  # noqa: E402  (fixture 共用)
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"

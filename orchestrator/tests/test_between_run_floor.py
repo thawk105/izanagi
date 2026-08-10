@@ -14,11 +14,11 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from calibrator import runner                          # noqa: E402
-from campaign import between_run_floor                 # noqa: E402
-from campaign.p2_2 import _assert_single_tenant         # noqa: E402
+from orchestrator.calibrator import runner                          # noqa: E402
+from orchestrator.campaign import between_run_floor                 # noqa: E402
+from orchestrator.campaign.p2_2 import _assert_single_tenant         # noqa: E402
 
 
 def test_between_run_floor_uses_p2_2_assert_single_tenant():

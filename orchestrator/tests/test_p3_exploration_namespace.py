@@ -17,20 +17,20 @@ import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign import ident, layout as layout_module, wal            # noqa: E402
-from campaign import env_contract                                  # noqa: E402
-from campaign import patchharness                                  # noqa: E402
-from campaign import p3_kickoff as KICKOFF                          # noqa: E402
-from campaign import p3_s4_loop as LOOP                             # noqa: E402
-from campaign import p3_s4_loop_sort as SORT                        # noqa: E402
-from campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
-from campaign import p3_s4_red as RED                               # noqa: E402
-from campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
+from orchestrator.campaign import ident, layout as layout_module, wal            # noqa: E402
+from orchestrator.campaign import env_contract                                  # noqa: E402
+from orchestrator.campaign import patchharness                                  # noqa: E402
+from orchestrator.campaign import p3_kickoff as KICKOFF                          # noqa: E402
+from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
+from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
+from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
+from orchestrator.campaign import p3_s4_red as RED                               # noqa: E402
+from orchestrator.campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
                                       build_run_context)
-from campaign.layout import exploration_campaign_layout             # noqa: E402
+from orchestrator.campaign.layout import exploration_campaign_layout             # noqa: E402
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
 
 
@@ -81,7 +81,7 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
         name, module, monkeypatch, tmp_path,
         _activate_synthetic_env_authority):
     """各 coder CLI の正例は exact CODER_DERIVED/opt-in true だけを検査する。"""
-    from campaign import p2_2
+    from orchestrator.campaign import p2_2
 
     seen = []
 

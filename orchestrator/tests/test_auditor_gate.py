@@ -13,12 +13,12 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
-from campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
+from orchestrator.campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
                                    assert_digest_matches, auditor_reject_result,
                                    compute_diff_digest, parse_auditor_dict)
-from critic.digest import DIFF_QUARANTINE_REASON                        # noqa: E402
+from orchestrator.critic.digest import DIFF_QUARANTINE_REASON                        # noqa: E402
 
 
 def test_assert_digest_matches_returns_actual_on_match():

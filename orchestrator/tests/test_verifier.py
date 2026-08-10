@@ -11,13 +11,13 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
+sys.path.insert(0, os.path.dirname(_ORCH))
 
 from skiputil import Skip, skip                               # noqa: E402
-from verifier import render_text, verify_trace_dir, result_to_dict  # noqa: E402
-from verifier.dsg import DSG                                  # noqa: E402
-from verifier.model import (CycleEdge, EdgeReason, RW, WR, WW)  # noqa: E402
-from verifier.parse import ParseError, parse_trace_dir        # noqa: E402
+from orchestrator.verifier import render_text, verify_trace_dir, result_to_dict  # noqa: E402
+from orchestrator.verifier.dsg import DSG                                  # noqa: E402
+from orchestrator.verifier.model import (CycleEdge, EdgeReason, RW, WR, WW)  # noqa: E402
+from orchestrator.verifier.parse import ParseError, parse_trace_dir        # noqa: E402
 
 FIX = os.path.join(_HERE, "fixtures")
 # repo ルート相対で実 Silo トレース (生成済みなら)

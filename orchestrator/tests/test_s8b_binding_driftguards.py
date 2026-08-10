@@ -30,12 +30,12 @@ import pytest
 
 ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
-sys.path.insert(0, str(ORCHESTRATOR))
+sys.path.insert(0, str(ORCHESTRATOR.parent))
 sys.path.insert(0, str(ORCHESTRATOR / "tests"))
 
-from campaign import s8b_oracle_driver as driver  # noqa: E402
-from campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
-from campaign import s8b_oracle_report as report_module  # noqa: E402
+from orchestrator.campaign import s8b_oracle_driver as driver  # noqa: E402
+from orchestrator.campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
+from orchestrator.campaign import s8b_oracle_report as report_module  # noqa: E402
 
 # Lane A が並行編集中の driver test から fixture helper だけを import 再利用する
 # (編集はしない)。helper は freeze/manifest を公開 API 経由で構築するため、loader
@@ -355,11 +355,10 @@ def test_receipt_memo_delegates_to_production_verifier_exactly_once():
 
 
 def test_receipt_memo_patches_the_driver_module_the_tests_import():
-    """patch 先は `campaign.s8b_oracle_driver` (テストが使う側)。
+    """patch 先は canonical driver module (テストが使う側)。
 
-    同一ファイルでも `orchestrator.campaign.s8b_oracle_driver` は別 module object であり、
-    そちらを patch すると memo は 1 度も発火せず静かに空振りする。その退行では
-    実 verifier の呼び出しが 2 回に戻るのでここが赤になる。
+    memo とテストが共有する module object 以外を patch すると memo は 1 度も発火せず
+    静かに空振りする。その退行では実 verifier の呼び出しが 2 回に戻るのでここが赤になる。
     spy の呼び出し回数 (2) も同時に固定し、回数を観測しているテストの計数が memo で
     壊れないことを示す。
     """
@@ -487,8 +486,8 @@ def test_ratified_memo_reraises_the_production_exception_object(factory):
 def test_ratified_memo_patches_the_module_object_the_driver_uses():
     """patch 先は本番 driver が保持する `driver.s8b_ratified_freeze`。
 
-    別 module object (`orchestrator.campaign....`) を patch する退行では memo が
-    1 度も発火せず、本番 loader の呼び出しが 2 回に戻るのでここが赤になる。spy の
+    driver が保持しない別 module object を patch する退行では memo が 1 度も発火せず、
+    本番 loader の呼び出しが 2 回に戻るのでここが赤になる。spy の
     呼び出し回数 (2) も固定し、回数を観測するテストの計数が memo で壊れないことを示す。
     """
     sentinel = object()

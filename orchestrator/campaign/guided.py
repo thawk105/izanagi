@@ -28,20 +28,24 @@ import os
 import random
 import sys
 from typing import List
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
-from campaign import ident, replay, wal                           # noqa: E402
-from campaign.build_admission import (GeneratorId,                # noqa: E402
+from . import ident, replay, wal                           # noqa: E402
+from .build_admission import (GeneratorId,                # noqa: E402
                                       build_run_context)
-from campaign.genome import SILO_SPACE                            # noqa: E402
-from campaign.layout import CampaignLayout, repo_output_root      # noqa: E402
-from campaign.model import (CampaignConfig, STAGE_BENCH_DONE,     # noqa: E402
+from .genome import SILO_SPACE                            # noqa: E402
+from .layout import CampaignLayout, repo_output_root      # noqa: E402
+from .model import (CampaignConfig, STAGE_BENCH_DONE,     # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT,
                             STAGE_VERIFY_DONE)
-from campaign.p2_2 import BETWEEN_RUN_CV, ENV_TAG, WORKLOADS      # noqa: E402
-from campaign.search_baselines import reached_cost               # noqa: E402
-from critic.online_digest import online_digest_text              # noqa: E402
+from .p2_2 import BETWEEN_RUN_CV, ENV_TAG, WORKLOADS      # noqa: E402
+from .search_baselines import reached_cost               # noqa: E402
+from ..critic.online_digest import online_digest_text              # noqa: E402
+
 
 BUDGET = len(SILO_SPACE.enumerate())          # 予算上限 N=8 (最悪 = 全探索に縮退)
 
