@@ -31,6 +31,7 @@
 | `s6-fix.md` | 段 6 | fix 1 巡目 |
 | `s6-refocus.md` | 段 6 | 焦点再レビュー (`DW-O16`) |
 | `s6-fix2.md` | 段 6 | fix 2 巡目 |
+| `s6-fix3.md` | 段 6 | fix 3 巡目 (所有実装面 overlap 判定の実装) |
 
 **敵対 3 本 (段 3 の 2 レンズは別として、段 6 のレビュー 2 本と焦点再レビュー) はすべて NO-GO を
 返した。** blocker は 4 件で、うち 1 件は 1 巡目の fix が作り込んだ退行である。
@@ -42,8 +43,15 @@
 | 台帳 | spec | 結果 | 位置づけ |
 |---|---|---|---|
 | `mutation-ledger-1-aborted.json` | (spec-2 の M1 を実 `pgrep` で書いた版) | **abort** | erratum。下記参照 |
-| `mutation-ledger-2.json` | `mutation-spec-2.json` | KILLED 2 / MISMATCH 6 / **SURVIVED 0** | 事前登録した node 予測での走行 |
-| `mutation-ledger-3.json` | `mutation-spec-3.json` | **KILLED 8 / SURVIVED 0** | 期待 node を実測へ揃えた確定走 |
+| `mutation-ledger-2.json` | `mutation-spec-2.json` | KILLED 2 / MISMATCH 6 / **SURVIVED 0** | 事前登録した node 予測での走行 (M1〜M8) |
+| `mutation-ledger-3.json` | `mutation-spec-3.json` | **KILLED 8 / SURVIVED 0** | 期待 node を実測へ揃えた走行 (M1〜M8) |
+| `mutation-ledger-4.json` | `mutation-spec-4.json` | KILLED 6 / MISMATCH 3 / **SURVIVED 0** | fix 3 巡目の新設 gate を M9 として足した走行 |
+| `mutation-ledger-5.json` | `mutation-spec-5.json` | **KILLED 9 / SURVIVED 0** | 確定走 (M1〜M9) |
+
+ledger-3 から ledger-4 の間に fix 3 巡目が入り、新設 gate (所有実装面 overlap) の M9 を
+`DW-M01` に従って事前登録した。fix でテストが増えたため M3 / M6 の失敗 node 集合も広がり、
+ledger-4 では 3 件が MISMATCH になった。ledger-5 がその実測へ揃えた確定走である。
+**どの走行でも SURVIVED は 0 である。**
 
 **1 本目の abort は harness の限界を実測した** (worklog の同 wave エントリで新規起票している)。
 M1 を*実の* `pgrep -f <pid>` で書いたところ pytest が hang し、harness の hang timeout (300 秒) が
@@ -74,6 +82,7 @@ M1 を注入 seam (`effects.run`) 経由の決定的な形へ再照準して 2 �
 | M6 | 失敗終端では必ず release する | — |
 | M7 | 完了は `.done` と成果物の両方で判定する | `wait6.sh:3-8` (`.done` 2 つだけで判定) |
 | M8 | claim 前に branch identity を検査する | — |
+| M9 | merge 前に所有実装面の overlap を見て、非空なら merge しない | — (fix 3 巡目で新設、88a5c1a3 の規範) |
 
 M1 と M2 は memory `mutation-must-include-pre-wave-form` が要求する「wave 前の実コードの形」
 そのものである。

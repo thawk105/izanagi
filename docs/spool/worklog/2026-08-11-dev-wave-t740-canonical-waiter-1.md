@@ -46,6 +46,24 @@ title: 待ち手の正本 script を新設し、自己マッチによる無音�
   「正本を作っても consumer が読まなければ F191/F192/F32 は止まらない」と指摘したもので、
   正しい。本 wave の scope は裁定 (a) の文言どおり「script の新設 + runbook §7.3 からの参照」まで
   である。
+- **受入は 3 走した。成果物自身を待ち手に使ったので、1・2 走目が実地検証になった。**
+  1 走目は待機中に main が 19 commit 進み、待ち手内 merge が `docs/pegasus-runbook.md` で競合した。
+  script は設計どおり merge を中止し (`MERGE_HEAD` なし・tree clean)、lease を release して
+  rc=70 で止まった — 無音で進まず壊れた状態も残さなかった。
+  2 走目は 1 件だけ赤で `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted`
+  (他は 8354 passed / 20 skipped)。新設テストに自走 harness も allowlist 記載も無いと
+  `python3 file.py` が 0 件実行の偽緑になる、という機械強制である。**この赤は親の指示不足で出た**
+  — 実装子プロンプトは `DW-S05-C` の「meta-test も走らせる」を書いたうえで
+  `test_campaign_import_invariant.py` だけを名指ししており、子は名指しされた方だけを走らせた。
+  3 走目が緑である。
+- **1 走目の競合が新しい実装要件を運んできた。** 待機中に別 wave が §7.3 へ
+  「merge の前に所有実装面の overlap を見て、非空なら待ち手では merge せず親へ戻す」を
+  land させていた (88a5c1a3、`DW-O17` が両親と異なる実装面に Codex `role=author` を要求するため)。
+  正本 script が正本文書に反したままになるので fix 3 巡目で実装し (`--owned-path` は
+  repeatable で外から渡す)、新設 gate として変異 M9 を事前登録して matrix を 9 件へ広げた。
+- **受入した tip と land する tip は 1 commit 違う。** 受入は `5cbcf077` (待ち手が lease 取得後に
+  作った main 取り込み merge) で走らせ、land するのはその上に本 fragment の受入値を積んだ
+  docs のみの tip である。実装面は 1 byte も動いていない。
 - 逐語は `output/insights/2026-08-11_t740-canonical-waiter/` に凍結した。
 
 ## 次の一手差分
@@ -57,7 +75,7 @@ title: 待ち手の正本 script を新設し、自己マッチによる無音�
   2 サブコマンドに収め、自己マッチ (`pgrep` pattern を受け取る CLI 面を持たない)、
   claim の exact JSON 判定、各段の rc 個別判定、待ち手内での main 取り込み、
   成功時の lease 保持と全失敗経路での release を構造的に固定した。
-  変異 8/8 KILLED (生存ゼロ)。受入全走の結果は本文に追記する。
+  受入 8389 passed / 20 skipped / 517.82 秒 / rc=0、変異 9/9 KILLED (生存ゼロ)。
   remaining: none
   base: 160aa03f853fdbfd23db9b38a98ff1b328f7a2bcb5348526fe8b0fb9ca71915d
 
@@ -75,6 +93,19 @@ title: 待ち手の正本 script を新設し、自己マッチによる無音�
   選択肢 = (a) `tools/run_tests.py` の acceptance shape であることを検査する /
   (b) 任意 argv のまま親の記録責任に委ねる (本 wave の実装)。
   成果物影響 = (b) のままなら待ち手 rc を受入完了の証拠として誤読する余地が残る。
+- {{T:dev-wave-l15-budget-exhausted}} **P2・新規・ユーザー裁定待ち**: 段 8 の自己改善候補 2 件が
+  `docs/dev-wave/**` の L1.5 予算 (上限 9566 bytes) の**余白 0** に阻まれ、実装せず止めた。
+  候補 = (i) `DW-S05-C` の「meta-test も走らせる」へ「**親の名指しを網羅と見なさず子が自分で
+  洗い出す**」を足す (本 wave で親が `test_campaign_import_invariant.py` だけを名指しし、
+  `test_plain_runner_coverage.py` が受入で赤になった実害がある)、
+  (ii) `DW-M08` へ「KILLED 判定は失敗 node 集合の完全一致なので予測を実測へ揃える走行を
+  見込む」を足す (本 wave で変異 matrix を 2 度余分に走らせた)。
+  (i) だけでも 60 bytes 超過する。意味を保った縮約の余地は無く、
+  `docs/skill-self-improvement.md` の「予算に収まらなければ変更を止めてユーザー裁定へ返す」
+  「予算値を上げる変更は独立審査対象」に従って起票する。
+  選択肢 = (a) L1.5 予算の独立審査を行う / (b) 既存 L1.5 節のうち陳腐化したものを
+  テスト化して空ける / (c) 現状維持で候補を破棄する。
+  成果物影響 = (c) のままなら、親が meta-test を部分列挙するたびに同型の受入赤が出る。
 - {{T:mutation-harness-hang-artifact}} **P3・新規**: 変異 harness の dispatch 経路で
   変異が hang timeout に掛かると、receipt が `outcome.kind=infra` になり
   `job_stdout_path` が埋まらないため、`artifact dispatch path field が文字列でない` で
