@@ -117,6 +117,8 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
 worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.py`（背景jobは
 `--external-handoff <handoff>`付き）を実行し、非0なら停止する。HEAD差は`--ff-only`だけで揃える（F48）。
+新規worktreeはsubmodule未初期化で非0になる。worktree内で`git submodule update --init`を実行して
+再検査する（`deinit`は使わない）。
 
 ## DW-O23 — 並行 session の local main land
 
