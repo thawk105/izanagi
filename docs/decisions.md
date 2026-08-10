@@ -12030,3 +12030,228 @@ entry を exact copy として検出する。期待 OID は callsite から `dup
 
 **研究状態への影響:** certified 選択・材料レポート・proof chain・凍結 bytes は不変である。
 変わるのは freeze receipt 検証の受理集合のうち、上記 1 ケースだけである。
+
+## D261. D125 決定 (2) のうち「OTHER の campaign_id は 1 bit も変えない」だけを前向きに失効させ、env による identity 分離は残す (2026-08-10)
+
+**背景:** D125 決定 (2) は独立した 2 つの内容を 1 項に束ねている。(i) Pegasus 契約のときだけ
+`search_config` へ `measurement_env` を足し campaign identity を env で分離する、
+(ii) OTHER の campaign_id は 1 bit も変えない (既存 campaign の再開互換)。
+**(ii) は既に破れており、破ったのは本 D ではない。** ユーザー裁定は、この失効を遡及改変ではなく
+前向き supersession の新 D として記録することを求めた。
+
+**実測 (一次資料):**
+
+- (i) の実装は実在する。`orchestrator/campaign/p3_s4_loop_trigger_gating.py` の
+  `_CAMPAIGN_ENV_KEY = "measurement_env"` と、`PEGASUS_COMPUTE` 側だけへ足す site 射影である。
+  OTHER の `search_config` には入らず、同 module の test が両方向 (compute にある / OTHER にない) を
+  pin している。
+- (ii) は 3 世代で 3 回破られた。`orchestrator/tests/test_p3_s4_loop_trigger_gating.py` が
+  pre-T343 / T343 / T530 の OTHER・COMPUTE 計 6 値を定数として並べ、**現行の OTHER id は T343 値**で
+  あることを等号で、T530 値でないことを非等号で pin する。D259 決定 1 が契約 hash を identity
+  pre-image から外した結果、現行値は T530 値ではなく T343 値へ戻っている。
+- 既存成果物との対応: `output/campaigns/` は 30 campaign・30 lock。pre-T343 値を名に持つ dir は 1、
+  現行値 (T343 値) を持つ dir は 0、T530 値を持つ dir は 0。
+  **再計算した campaign_id は既存 dir を 1 本も指さない。**
+- 既存成果物の到達性を担保しているのは id ではなく dir 名 prefix である。
+  `orchestrator/campaign/replay.py` の `discover_campaign_dir` は `<slug>-<search_tag>-*` の glob で
+  discover し、docstring が「id の pre-image に依存しない (C1 回避)」と明記する。
+
+**決定 (1): D125 決定 (2) のうち (i) env による identity 分離は存続する。** 正本は D259 決定 7
+(「契約 hash は id に入れないが env tag は入る」という非対称の明文化) であり、本 D はこれを覆さない。
+
+**決定 (2): D125 決定 (2) のうち (ii)「OTHER の campaign_id は 1 bit も変えない」は本 D の日付を
+もって失効する。** 以後この文を有効な不変条件として引いてはならない。失効の理由は方針変更ではなく
+**事実の追認**である — 上記のとおり land 済み production が既に 3 回破っており、不変を保つ機構は
+存在しない。
+
+**決定 (3): 失効は前向きのみとし、遡及改変をしない。** D125 の本文、当該変更以降の worklog、
+既存 campaign directory と lock の bytes は 1 byte も書き換えない。歴史記録の改竄を避けるためであり、
+dev-wave 契約の受入免除証拠を巡る裁定で採った「旧射程を precedent として引く canonical decisions は
+遡及改変せず前向き supersession だけで足りる」と同じ扱いである。
+
+**決定 (4): campaign_id の pre-image を変える変更で「既存成果物が到達不能になる」を blocker と
+しない。** 根拠は決定 (2) の実測 — discover が id 非依存であり、再計算 id は現時点で既に既存 dir を
+1 本も指していない。これは本 D が新設する緩和ではなく status quo の明文化であり、契約 hash 束縛の
+実装 wave が同じ実測で blocker から外した判断と同一である。
+**ただし id を literal 固定するテストは同じ変更単位で更新する義務を残す** — 現に 6 定数がその履歴を
+保持しており、この pin が無ければ 3 回の変化はいずれも沈黙していた。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+本 D は**記録であって機構ではない**。
+
+- 「今後 campaign_id が安定する」とは名乗らない。安定させる仕組みは無く、pre-image を変える
+  変更は今後も id を変える。
+- 「既存成果物が引ける」ことを保証しているのは prefix discover の 1 点だけである。
+  dir 名 prefix (`<slug>-<search_tag>-`) を変える変更は依然として到達性を壊す。
+- 本 D はコードを 1 byte も変えないので、受理集合・certified 選択・レポートの値・proof 参照は
+  いずれも変わらない。変わるのは**今後の wave が blocker と判定する集合**だけである。
+
+**却下した選択肢:**
+
+- **D125 決定 (2) 全体を失効させる案。** (i) の env 分離は現に実装されて動いており、
+  D259 決定 7 が identity に残すと明示裁定している。全体失効は生きている裁定を巻き込む。
+- **D125 本文へ取り消し線・注記を入れる案。** 遡及改変であり、裁定時点の記録を読めなくする。
+  ユーザー裁定も「遡及改変なし」を明示している。
+- **id 不変を回復する実装 (pre-image を pre-T343 形式へ戻す) を作る案。** identity と受理集合を
+  再び動かす変更であり、裁定が求めているのは失効の記録だけである。実装は裁定範囲外。
+
+## D262. 追補 A 一式の承認を機械可読 payload として canonical 台帳へ固定する (2026-08-10)
+
+**決定:** 2026-08-09 に一括承認された追補 A 一式 (再発行版・判定写像・erratum・record-items) の
+承認事実を、次の payload として canonical 台帳へ固定する。この payload を fold した commit を
+`F_e` と呼び、後続 wave が発行する approval manifest はこの `F_e` を
+`approval_fold_commit` として literal で持つ。
+
+```text
+target_core:
+  path   = output/insights/2026-08-07_t139-mainrun-design/preregistration.md
+  commit = 88d68f9127b31df5aafc3d59607896626a1652e8
+  sha256 = ac939af4de87dff0cd3964e37cef975d57919a709d57f4e9523c8b6a9fcd60e9
+
+approved_blobs:
+  addendum_a
+    path   = output/insights/2026-08-08_t139-r4-env-probe/addendum-a-reissue.md
+    commit = 622bd786191d40bda388596fa2adbf119ee84c9a
+    sha256 = f7db96ce8ecb12359fedf56baea24939c629d4d16a1ec167c183425ea198cfec
+  derivation_map
+    path   = output/insights/2026-08-08_t139-r4-env-probe/derivation-map.md
+    commit = 7ec088163dee920f0b8e1e9783faa6e36b22b730
+    sha256 = bf5b6783b5a1a0b6c495618fe5292a968e44712d857cf84bdc436dcf027f6025
+  erratum
+    path   = output/insights/2026-08-08_t139-addendum-a/erratum-core-s15.md
+    commit = 1d235e0e455020cf54e66cf83304961910c369d8
+    sha256 = a1abc60ef8e3f4346f61fbdd8282c295f353ca272062af02a856e3c5de9dd6d3
+  record_items
+    path   = output/insights/2026-08-08_t139-addendum-a/record-items.md
+    commit = 1d235e0e455020cf54e66cf83304961910c369d8
+    sha256 = 1957026c83db3486a39508a9aae07fd03ff5ac84d4edfc0d24b7051758f78fd3
+
+erratum_application_order = [t139-core-s15-exactkey-v1]
+composed_sha256           = d1782b04ceb7cd56a3d10e2e6efb4eb7f90e6a89506a74bba727d34a5f79de82
+
+superseded (承認されていない。同じ core 三つ組を本文に持つ旧版):
+  path   = output/insights/2026-08-08_t139-addendum-a/addendum-a.md
+  sha256 = 1f5612587ffeacd39285a28fb1b2e35df6e904689ec30bcc4877e85223146bdd
+```
+
+**理由:**
+
+- 承認済み erratum は「resolver は approval manifest から `approval_fold_commit` と blob identity を
+  取得する。caller の引数や受領証の自己申告からは取らない」を要求し、
+  「manifest が存在しない状態で本 erratum を適用してはならない」と明記する。
+  その manifest はまだ実体化していない。
+- **manifest は自分自身の fold commit の SHA を literal で持てない。**したがって承認 payload を
+  先に fold して `F_e` を確定し、その子孫に manifest を置く二段構成が構造的に必要である。
+  本決定はその第 1 段にあたる。
+- 承認済み追補 A を名乗る blob は 2 つ実在し、**どちらも同じ core 三つ組を本文に記す**。
+  path だけ、あるいは本文の従属先だけで判別すると旧版が gate を通る。
+  したがって payload は blob digest で pin し、旧版を非承認として名指しする。
+- 合成後 digest は親が一次資料から独立に算出した
+  (`F` の core blob 450 行に対し erratum の 2 operation を適用して SHA-256 を取った)。
+  同じ値を本 wave の Codex 実装がテストで再現しており、手計算だけを根拠にしていない。
+
+**却下した選択肢:**
+
+- 裁定記録 (worklog エントリ) をそのまま trust root にする — 散文であり blob digest を持たないため、
+  resolver が承認済み blob の identity を台帳から検証できない。
+- manifest と payload を同一 commit へ入れる — 自己参照になり構成できない。
+- caller が承認済み blob の三つ組を引数で渡す形 — どの決定がその blob を承認したかを
+  resolver が再導出できず、trust root にならない。
+
+## D263. erratum 固有の不変条件は `erratum_id` 別 validator に持たせ、未知 ID は fail-closed にする (2026-08-10)
+
+**決定:** 凍結 core へ erratum を適用する実装は、**erratum 文書ごとに固有の受理述語**を
+`erratum_id` で引く registry に持たせる。registry に無い `erratum_id` は解決失敗とする。
+非重複検査・適用順序・合成後 digest の照合は erratum に依存しない共通処理として分離する。
+
+**理由:**
+
+- 承認済み erratum の §3 が課す検査 (operation 数がちょうど 2、対象行の `old_sha256` 一致、
+  特定トークンの出現がちょうど 2 件でありその 2 行が operation 行と一致、差分が 1 トークン) は
+  **その erratum 固有の主張**であり、他の erratum には当てはまらない。
+- 実際、同じ core に対する第 2 の erratum が既に承認済みである。
+  固有検査を全 erratum へ一律に課す実装は、その第 2 erratum を必ず誤って拒否する。
+  承認済み erratum 自身が singleton 契約を捨てて exact set へ改めたのは、この事態を避けるためである。
+- 未知 ID で**検査を飛ばして通す**設計は、erratum を 1 枚足すだけで受理述語を書き換える
+  一般経路を開く。fail-closed だけが安全側である。
+
+**却下した選択肢:**
+
+- 固有検査を全 erratum へ一律適用 — 承認済みの第 2 erratum を構造的に拒否する。
+- 未知 ID は共通検査だけで通す — 凍結文書の受理述語を後から緩める経路になる。
+- 検査対象トークンを operation から推論する — 規則が文書に書かれておらず、実装依存の推測になる。
+
+## D264. 参照束縛の純関数は投入 gate と明示的に分離し、gate API を export しない (2026-08-10)
+
+**決定:** 凍結 blob への参照束縛 (blob 読取・erratum 適用・追補 envelope の exact-key 抽出) を
+実装する module は、**投入 gate ではない**ことを docstring で宣言し、
+`resolve_effective_preregistration` / `PreregBinding` / `submit_pilot` / `verify_receipt` の
+4 名前を export しない。これを機械検査で固定する。
+
+**理由:**
+
+- 事前登録 core の投入 gate は、承認 manifest・祖先検査・受領証照合を伴う 3 段の順序検査である。
+  その部品だけが先に存在すると、**部品を組み合わせただけの経路が gate を通ったように見える**。
+- 台帳だけが「producer 実装済み」へ進む半実装は、直前の wave が blocker と判定した形である。
+  宣言を docstring に置き、export を機械検査で固定することで、記録と実体の乖離を防ぐ。
+- 期待集合を caller が選べる汎用 API は、`a13` を欠く閉集合を渡す経路を残す。
+  承認済み閉集合には**期待集合を引数に取らない専用入口**を置く。
+
+**却下した選択肢:**
+
+- gate API の空実装や恒真 deny stub を先に置く — 実装済みと誤認され、後から受理条件だけが凍結される。
+- 汎用 API だけを提供する — caller が閉集合を選べる経路が残る。
+
+## D265. ruleops の git timeout は subcommand 別の作業量比例予算にする (2026-08-10)
+
+**決定:** `tools/ruleops.py` の固定 `GIT_TIMEOUT_SECONDS = 20` を廃し、
+`min(BASE + units x rate, CAP)` の per-call 予算へ置き換える。units と rate は subcommand で決める。
+
+- `log`: units = snapshot 捕捉時に一度数えた commit 数、rate = `PER_COMMIT` (0.035 秒/commit)
+- `diff-tree --stdin`: units = stdin 行数、rate = `PER_COMMIT` (同じ tree diff 作業)
+- `cat-file --batch`: units = stdin 行数、rate = `PER_REQUEST` (0.013 秒/要求)
+- `grep` / `ls-tree` / `rev-parse` / `merge-base` / `for-each-ref` / `cat-file -t` /
+  `cat-file blob`: BASE 20.0 秒に据え置く
+
+`CAP = 300.0` は rate から独立した literal で、**1 回の git 呼び出しの絶対上限であって
+1 走行の累積上限ではない**。commit 数の取得は既存 closed set 内の `log --format=%H` で行い、
+`rev-list` を `_GIT_SUBCOMMANDS` へ足さない。この bootstrap 自身は循環回避のため BASE 固定とする。
+timeout の detail には mode label と実予算を載せる。reason 文字列 `git-timeout`、CLI exit code 2、
+retry の不在は変えない。
+
+保証するのは次である。**timeout 以外の validation predicate は変えない。予算延長で新たに rc=0 に
+なるのは、同一 snapshot 上で git が完全な正常結果を返し後続の全検証を通った走行に限る。**
+部分結果・retry・握り潰しによる rc=0 は作らない。ただし bootstrap は履歴の走査可能性を新たに
+要求するため、祖先 object を欠く repo は `git-failed` で落ちる。これは受理集合を狭める方向の
+変更であり、意図的に fail-closed のまま残す。
+
+**理由:**
+- D172 は同じ定数を「変えない」と決めていたが、解除条件として「閾値の変更・retry の導入は、
+  原因が理由行付きで特定できてから独立に裁定する」を自ら明記していた。理由行付きの再発が
+  3 回記録され、ユーザー裁定が下りた時点でこの条件は満たされる。本 D は D172 を迂回せず、
+  その解除条件に沿って supersede する。
+- D172 の却下理由「理由不明のまま上げると、真に固まった git を待つ時間だけが伸びる」への回答が
+  subcommand 別の設計である。伸びるのは実際に重い呼び出しだけで、軽い 7 種は 20 秒のまま動かない。
+- **欠陥は履歴長への非追随だけではなかった。** 一次資料の失敗記録が示す実際の経路は
+  `inventory` の `cat-file --batch` と path 限定 `log` で、無負荷実測はそれぞれ 0.609 秒
+  (6,494 要求 / 99,981,192 bytes) と 0.437 秒 (2,402 commit) である。20 秒での打ち切りは
+  33〜46 倍の尾部事象を意味する。作業量で課金することは、**観測された尾部倍率を大きく上回る
+  余裕を各呼び出しへ与える**手段として機能する (それぞれ 171 倍・238 倍)。
+- 定数は各経路自身の打ち切り観測から導いた。`PER_COMMIT` = 20/2402 = 8.33e-3 秒/commit に
+  安全係数 4、`PER_REQUEST` = 20/6494 = 3.08e-3 秒/要求に同じ係数。線形式は仮説であって
+  保証ではなく、再較正トリガを production comment に書いた。
+
+**却下した選択肢:**
+- 定数の一律引き上げ — 履歴長にも要求数にも追随せず、D172 が却下した形そのものである。
+- stdin 行数だけを単位にする既存 module の方式の流用 — ruleops の重い呼び出しのうち
+  `log` 族は stdin を持たないため単位が取れない。
+- 別 module が確定した 0.0086 秒/要求の流用 — あれは `--batch-check` (header のみ) の実測で、
+  本 module が使う `--batch` (本文込み) とは protocol が違う。
+- `CAP` を `BASE + 上限 x rate` の式で書く案 — rate を上げた分だけ天井が伸び、絶対上限にならない。
+  値が偶然一致しても構造として誤りなので、代入 RHS が単一 literal であることを `ast` で固定する。
+- workload に `min(units, N)` の clamp を置く案 — CAP が先に効くため semantic kill にならず、
+  かつ N を大きく取る変異をテスト点の追加では原理的に殺せない。clamp の不在を `ast` で検査する。
+- `rev-list --count` の導入 — read-only closed set を広げる。既存 `log` で同じ値が
+  0.034 秒で得られるため、防壁を広げる理由がない。
+- retry の導入 — D172 が却下したとおり、観測すべき事実を隠す。本 D でも導入しない。

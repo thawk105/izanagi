@@ -52,6 +52,21 @@
   段 3 の敵対レンズ 2 本 (独立に追認)。実害は誤前提での 1 wave 分の起票に留まり、
   結論は是正して land した。恒久対応は memory から変更なし — 起票文が引く一次控えに
   「見立て」「推測」の留保があるなら、brief はその留保ごと引くこと (worklog 2026-08-06)。
+
+- **再発: 2026-08-10** ([T-510] wave の段 1 brief)。律速の同定で一次資料に当たらず、
+  worklog の裁定要約にあった逐語「`ruleops: git-timeout: git log timeout`」だけを根拠に
+  「観測された赤 3 件はすべて `git log` であり、律速は full-history pickaxe である」と結論した。
+  本台帳の当該エントリを読めば、[T-639] は `git cat-file timeout`、[T-648] の
+  `git log timeout` は `inventory` 経路であって `build_inventory` は `_pickaxe` を呼ばない、と
+  一次資料に書かれていた。**段 3 の敵対レンズ 2 本が独立にこれを refuted し**、親が本台帳と
+  実測で確認して brief の中心的主張 2 件を撤回した。誤ったまま進んでいれば、定数を実際には
+  落ちていない呼び出しの費用特性から導き、落ちた 2 経路を過小予算のまま残すところだった。
+  **新しい情報は、F1 が指す「一次資料」に本台帳が含まれることが明示されていなかった点である。**
+  既存の恒久対応 (F31 の「裁定要約が指す decision 本文と archive worklog を開く」) は
+  decision と worklog を指すが本台帳を指していない。恒久対応は memory
+  `primary-source-includes-failures-ledger` を新設して閉じた。`DW-S01` への統合は
+  **実測で予算超過** (L1 unique footprint 10656 bytes > 予算 10625 bytes、31 bytes 超過) となり、
+  意味等価な縮約先が無いため段 8 の候補としてユーザーへ返す。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1796,6 +1811,13 @@
   導線追記」は 7 日経っても未着手**であり、`docs/dev-wave/operations.md` は 8,301 / 8,400 bytes
   (残り 99 bytes) で今も入らない。[T-641] の裁定 (予算超過で撤回した恒久対応は failures 台帳と
   memory の記録で担う) に従い、本 wave でも文書側は変えず記録だけを厚くする。
+
+- **再発: 2026-08-10 ([T-674] wave の立ち上げ)。** 背景 job が新規 worktree を作り
+  `tools/check_wave_startup.py` を走らせたところ、2026-08-01 / 2026-08-08 とまったく同じ
+  `NG: submodule is not initialized ... 親セッションで submodule を初期化する` で停止した。
+  対処も同じく当の worktree で `git submodule update --init --recursive` を走らせることだった。
+  **独立 3 例目**であり、恒久対応にある「`DW-O20` への導線追記」は 9 日経っても未着手である
+  (`docs/dev-wave/**` の byte 予算)。[T-641] の裁定に従い、本 wave でも文書側は変えず記録だけを厚くする。
 ### F67. 段 1 の前提実測を自 worktree の凍結写しで行い、13 commit 先の local main にあった裁定済み項目を見落とした [誤前提] [ドリフト]
 
 - 日付: 2026-08-01 ([T-220] wave)
@@ -3891,6 +3913,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実装差分は 1 byte も汚れていない。**新しい情報は、この型が変異本走・単発 targeted 走行だけでなく
   段 7 の記録後再走 (F34 の閉じ工程) でも出ること**で、発火点は wave の終盤にもある。
   恒久対応は本 F 既載の既定 recipe のままで、追加の機構は作らない。
+
+- **再発: 2026-08-10** ([T-510] wave の変異 matrix)。(b) と同一機序で 2 度続けて
+  baseline `PARSE_ERROR` / rc=16 になった。直接実行して得た理由は
+  `bounded scope の memory.max / memory.oom.group を走行中に attest できないため、
+  scope を停止して dispatcher infrastructure failure とします`。
+  runner argv に `-rf` と `-k` を足したことで `tools/run_tests.py` が受入形と判定せず、
+  計算ノードへ dispatch する代わりに login ノードの bounded local 経路を選んだためである。
+  **これは規則の欠落ではなく既存規則の不遵守である** — 恒久対応である memory
+  `mutation-runner-dispatch-recipe` は本文に `--force-dispatch` を含む argv を明記していたが、
+  親は索引行だけを読んで本文を開かなかった。`--force-dispatch` を明示すると 1 走 2.63 秒 /
+  rc=0 になり、matrix は 16/16 KILLED で完走した。
+  **新しい情報は、恒久対応が memory 本文にあるとき、索引行に要点が無いと参照されないことである。**
+  同 memory の索引行へ `--force-dispatch` を明示する更新を行った。
 ### F156. 前回投入の `.done` 残骸で待ちが即座に返った [手順漏れ]
 
 - 事象: 変異本走を投入し直した直後に完了待ちを張ったところ、待ちが即座に返った。
@@ -4609,3 +4644,74 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   carry として解決する経路の追加が要る。起票のみ行い、本 wave では実装しない。
 - 再発検知: `carry_re` に一致しない `変わらず` 形式が worklog / archive に存在するかを
   検査する meta-test。現時点では未実装。
+
+### F191. 受入 lease の behind 検査が高頻度 land 下で livelock し、実走 0 のまま 2 時間空費した [手順漏れ] [コンテキスト浪費]
+
+- 事象: 2026-08-10 の docs-only wave が受入 lease へ 3 回並び、3 回とも**取得できた**のに
+  その時点で local main が 7 / 3 / 5 commit 先行しており、`docs/pegasus-runbook.md` §7.3 の
+  behind 検査で lease を返して親へ戻った。親が取り込んで並び直すたびに他 wave が land し、
+  **受入全走を 1 度も走らせないまま約 2 時間**を空費した。3 回目は待ち行列にいる間に先行を
+  検知して lease を消費せず戻る形へ直したが、それでも取り込み → 並び直しの間に追い越された
+- 根本原因: §7.3 は「取り込みは投入前に親が merge commit として済ませ、待ち手は
+  `git rev-list --count HEAD..main` が 0 であることの検査に留める」と定めるが、これは
+  **取り込みから lease 取得までの間に main が動かない**ことを暗黙の前提にしている。
+  並行 wave が複数稼働し land が数十分間隔で入る時間帯ではこの前提が成立しない。
+  同節が禁じている実体は**待ち手内の `--ff-only`** (wave が自前 commit を持つと必ず失敗する)
+  だが、代替として `--no-ff` merge を許す記述が無いため、親へ戻す以外の出口が書かれていない
+- 恒久対応: memory `acceptance-lease-poll-30s` の「取得後の取り込み」節 — lease を取ったら
+  behind が 0 でなくても親へ戻さず、その場で `--no-ff` merge して走る。安全側の配線 3 点
+  (親が用意した message template へ SHA だけ差し込む / 競合・provenance preflight 非 0 なら
+  merge 中止と lease 返却 / 走行前の behind 再検査と `git status --porcelain` 空検査) を必須とする。
+  runbook §7.3 本文への明文化は head-of-line blocking と引き換えの設計択一のため裁定へ返す
+- 再発検知: 1 wave 内で lease の claim ログに behind 由来の返却が 2 回以上出たら同型
+
+### F192. 受入 lease の待ち手が JSON 出力を平文パターンで照合し、取得済みの lease を 2 時間見落とした [手順漏れ] [恒真ゲート]
+
+- 事象: 受入 lease の待ち手を `claim` の出力に対する glob `*state=acquired*` で書いた。
+  実際の出力は JSON (`"state": "acquired"`) なので**一度も一致しない**。
+  取得は 239 回目の試行で成立していたが検出できず、待ち手は上限 240 回まで回って
+  「取得できず」で終了した。約 2 時間の待ちが無駄になった。lease 自体は保持したままだった。
+- 根本原因: 出力形式を実物で確認せず、`status` サブコマンドが返す
+  `state=held holder=... ` 形式 (key=value の平文) が `claim` でも同じだと仮定した。
+  同じ tool の別サブコマンドが別形式を返す。
+- 恒久対応: 待ち手は `claim` の出力を **JSON として parse** し、`state` field を読む
+  (`python3 -c "import json,sys; print(json.load(sys.stdin)['state'])"` 等)。
+  文字列の部分一致で状態機械を駆動しない。
+- 再発検知: 待ち手が「取得できず」で終わったときに、終了前へ
+  `status --wave <slug>` を 1 回入れて `holder_self` を確認する。
+  `holder_self=true` なら取得済みの見落としであり、そのまま受入へ進む。
+  **`--wave` を渡さない `status` は `holder_self=false` を返す**ため、所有判定には必ず渡す。
+
+### F193. 実装子が親の役割分担文書を自分への指示と読み、入れ子で agent CLI を起動して 0 行で終わった [手順漏れ]
+
+- 事象: 段 5 の実装子 (Codex `role=author`、workspace-write) が `rc=0` で終了し、
+  採用条件の出力検査も通ったが、**編集ファイルは 0 件**だった。報告には
+  「隔離 author subprocess が Codex CLI 初期化時に失敗した」とあり、
+  自分がさらに author 子を起動する側だと解釈していた。
+- 根本原因: prompt が scope を伝えるために親 brief と段 4 裁定を読ませたところ、
+  そこに書かれた dev-wave の役割分担 (「実装面は Codex `role=author` の実装子が書く」) を
+  自分への指示として受け取った。sandbox は書き込み可能であり、環境の問題ではない。
+- 恒久対応: 実装子・レビュー子の prompt 冒頭に立場を明示する —
+  「あなた自身がファイルを書く。別の agent CLI を起動しない。
+  資料中の dev-wave 手続き規定は親の義務であってあなたへの指示ではない」。
+  レビュー子では「ファイルを読む通常の shell コマンドは自由に使ってよい」も併記する
+  (この一文を欠いたレビュー子は「読む手段がない」と解釈して 0 所見で停止した)。
+- 再発検知: 実装子の完了判定に `git status --porcelain` の非空を加える。
+  exit code と出力検査だけでは「何も書かなかった子」を緑と数える。
+
+### F194. parametrize の自動 id が変異 harness の failed node 抽出を壊した [手順漏れ]
+
+- 事象: 変異 matrix の 1 走目が M09 で
+  `rc=1 だが canonical stdout から failed node を確実に抽出できないため停止` となり、
+  16 変異中 9 変異を消化した時点で matrix 全体が中断した。
+- 根本原因: 新設した `test_git_timeout_detail_identifies_production_mode` の
+  `@pytest.mark.parametrize` に明示 `ids=` が無く、pytest が 2 番目の要素
+  (timeout detail の文字列全文) から node id を自動生成していた。生成された id は
+  `[log-receipt-range-git log timeout (mode=log-receipt-range, budget=21.295s, units=37)]`
+  のように空白・括弧・`=`・`,` を含み、F71 の failed node 抽出規則を壊す。
+  parametrize の値に人間可読な文を置くと id へ漏れるという結合を、テスト作成時に見ていなかった。
+- 恒久対応: `tools/mutation_harness.py` の failed node 抽出が PARSE_ERROR で fail-closed 停止する
+  既存検査。宣言ではなく実際にこの走行を止めた機構である。当該 parametrize には
+  短い安定 label の `ids=` を与えた。
+- 再発検知: 同 harness の PARSE_ERROR。node id を値から自動生成するテストを新設した wave では、
+  変異 matrix が緑にならないことで顕在化する。
