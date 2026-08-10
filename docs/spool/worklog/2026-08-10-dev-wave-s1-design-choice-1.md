@@ -79,6 +79,9 @@ title: 段 7 前提 S1 の設計択一パッケージを返した — 2 案は�
   取得時点で 5 commit 先行していた local main を待ち手内で取り込んでから走らせた。
   並走ガード (ii) の確認 = 投入時点のキューは他 wave の受入 dispatch (`izdw-*`) だけで、
   [T-139] の pilot は投入不可のまま (同 wave の handoff が正本)。
+  記録 commit を積んだ後、land が要求する「tested tip == wave HEAD」を満たすため、
+  最終 tip で同じ受入をもう 1 走した (`tools/dev_wave_land.py` は宣言 tip と HEAD の一致を
+  `rc=AUDIT` で機械検査する)。land したのは 2 走目を通した tip である。
 
 - **段 8 の候補は 1 件で、予算に阻まれて差し戻した。** 段 2 の待ち手が固定上限 30 分で切れ、
   codex が生きているのに「失敗」通知を出した。`DW-O01` は `nohup setsid` を指示しており、
