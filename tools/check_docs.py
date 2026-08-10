@@ -4073,6 +4073,25 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         text = decoded.get(rel)
         if text is None:
             continue
+        if rel == ".claude/commands/cleanup-branches.md":
+            command_body = text
+            command_lines = text.splitlines()
+            if command_lines and command_lines[0] == "---":
+                try:
+                    frontmatter_end = command_lines.index("---", 1)
+                except ValueError:
+                    pass
+                else:
+                    command_body = "\n".join(command_lines[frontmatter_end + 1:])
+            if not any(
+                re.search(r"(?<![0-9A-Za-z])F26(?![0-9A-Za-z])", line)
+                and "`docs/failures.md`" in line
+                for line in _visible_dispatch_inventory_text(command_body).splitlines()
+            ):
+                findings.append(
+                    f"{rel}: F26 と `docs/failures.md` が同一可視行に共起しない — "
+                    "他文書にしか無い義務への到達 edge を失っている"
+                )
         parsed = _parse_frontmatter(text)
         if parsed is None:
             findings.append(f"{rel}: frontmatter を一意に解析できない")

@@ -2901,6 +2901,14 @@ def test_dev_wave_new_gate_case_registration_is_complete():
         "test_dev_wave_layer_coverage_rejects_anonymous_visible_h2_only",
         "test_dev_wave_shared_reference_edges_are_typed",
         "test_dev_wave_l2_accepts_dw_o20_plus_154_bytes",
+        "test_cleanup_address_edge_rejects_split_lines",
+        "test_cleanup_address_edge_rejects_id_adjacent_decoy",
+        "test_cleanup_address_edge_rejects_non_code_span_path_decoy",
+        "test_cleanup_address_edge_rejects_raw_html_block",
+        "test_cleanup_address_edge_rejects_link_definition",
+        "test_cleanup_address_edge_rejects_frontmatter_decoy",
+        "test_cleanup_address_edge_accepts_rewording",
+        "test_cleanup_address_edge_accepts_baseline",
     ):
         assert source.count(f"def {test_name}(") == 1
 
@@ -6704,6 +6712,176 @@ def test_cleanup_metadata_policy_change_is_rejected():
         assert res.returncode == 1, res.stdout
         assert _violation_count(res) == 1, res.stdout
         assert "生成済み Skill interface 契約と不一致" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _rebind_synthetic_cleanup_command_digest(root: str) -> None:
+    rel = ".claude/commands/cleanup-branches.md"
+    digest = hashlib.sha256(_read(root, rel).encode("utf-8")).hexdigest()
+    assert digest != check_docs.CLEANUP_COMMAND_SHA256
+    checker_rel = "tools/check_docs.py"
+    checker = _read(root, checker_rel)
+    old = (
+        "CLEANUP_COMMAND_SHA256 = (\n"
+        f'    "{check_docs.CLEANUP_COMMAND_SHA256}"\n'
+        ")"
+    )
+    assert checker.count(old) == 1
+    _write(root, checker_rel, checker.replace(
+        old,
+        "CLEANUP_COMMAND_SHA256 = (\n"
+        f'    "{digest}"\n'
+        ")",
+        1,
+    ))
+
+
+def _assert_cleanup_address_edge_violation(root: str) -> None:
+    rel = ".claude/commands/cleanup-branches.md"
+    res = _assert_violation(
+        root,
+        f"{rel}: F26 と `docs/failures.md` が同一可視行に共起しない",
+    )
+    assert _violation_count(res) == 1, res.stdout
+    assert f"{rel}: whole-file SHA-256 が契約と不一致" not in res.stdout
+
+
+def test_cleanup_address_edge_rejects_split_lines():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "正本は F26。\n`docs/failures.md`",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_id_adjacent_decoy():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "旧 `docs/failures.md` の F260 は無効。",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_non_code_span_path_decoy():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "正本は docs/failures.md の F26。",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_raw_html_block():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "",
+            1,
+        )
+        changed += "\n<div hidden>F26 (`docs/failures.md`)</div>\n"
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_link_definition():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        changed = _read(root, rel).replace(
+            "正本は `docs/failures.md` F26。",
+            "",
+            1,
+        )
+        changed += "\n[F26]: https://invalid.example/docs/failures.md\n"
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_rejects_frontmatter_decoy():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        original = _read(root, rel)
+        description = (
+            "description: マージ済みブランチと worktree を安全手順で掃除する "
+            "(submodule 罠対応、push 系はユーザー引き渡し)"
+        )
+        edge = "正本は `docs/failures.md` F26。"
+        assert original.count(description) == 1
+        assert original.count(edge) == 1
+        changed = original.replace(
+            description,
+            "description: F26 `docs/failures.md`",
+            1,
+        ).replace(
+            edge,
+            "",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        _assert_cleanup_address_edge_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_accepts_rewording():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        original = _read(root, rel)
+        source = "正本は `docs/failures.md` F26。"
+        assert original.count(source) == 1
+        changed = original.replace(
+            source,
+            "F26 (`docs/failures.md`) が正本。",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_address_edge_accepts_baseline():
+    root = _build_min_repo()
+    try:
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
