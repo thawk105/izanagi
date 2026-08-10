@@ -40,6 +40,25 @@ def _authority_line(text: str) -> str:
     return matches[0]
 
 
+def _independent_docs_section(path: Path, section_id: str) -> str:
+    text = path.read_text(encoding="utf-8")
+    matches = re.findall(
+        rf"^## {re.escape(section_id)}(?:[ \t]+—[^\r\n]*)?[ \t]*\r?\n"
+        r"(.*?)(?=^## |\Z)",
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _independent_reasoning(path: Path, section_id: str) -> str:
+    section = _independent_docs_section(path, section_id)
+    matches = re.findall(r"`reasoning=([A-Za-z0-9_-]+)`", section)
+    assert len(matches) == 1
+    return matches[0]
+
+
 def _prepare_repo(tmp_path: Path, *, operations: str | None = None) -> Path:
     root = tmp_path / "repo"
     (root / "docs/dev-wave").mkdir(parents=True)
@@ -89,6 +108,40 @@ def test_snapshot_and_derive_current_authority_positive(tmp_path: Path) -> None:
     assert requirements[("author", None)].effort is None
     assert requirements[("author", None)].effort_authority == "unbound"
     assert len(snapshot.sections) == 3
+
+
+def test_review_effort_matches_independent_docs_cross_check() -> None:
+    expected = _independent_reasoning(_ROOT / _WORKERS, "DW-S06-A")
+    requirement = derive_launch(
+        snapshot_authority(_ROOT), stage="review", lane=None
+    )
+    assert requirement.effort == expected
+
+
+def test_focus_effort_matches_independent_docs_cross_check() -> None:
+    expected = _independent_reasoning(_ROOT / _WORKERS, "DW-S06-C")
+    requirement = derive_launch(
+        snapshot_authority(_ROOT), stage="focus", lane=None
+    )
+    assert requirement.effort == expected
+
+
+def test_all_stage_models_match_independent_docs_cross_check() -> None:
+    section = _independent_docs_section(_ROOT / _OPERATIONS, "DW-O01")
+    expected_models = re.findall(r"`(gpt-[A-Za-z0-9._-]+)`", section)
+    assert len(expected_models) == 3
+
+    snapshot = snapshot_authority(_ROOT)
+    for stage in STAGES:
+        if stage == "consult":
+            for lane, expected in zip(
+                ("sol", "luna"), expected_models[:2], strict=True
+            ):
+                requirement = derive_launch(snapshot, stage=stage, lane=lane)
+                assert requirement.model == expected
+        else:
+            requirement = derive_launch(snapshot, stage=stage, lane=None)
+            assert requirement.model == expected_models[2]
 
 
 def _mutate_normative_line(text: str, case: str) -> str:
