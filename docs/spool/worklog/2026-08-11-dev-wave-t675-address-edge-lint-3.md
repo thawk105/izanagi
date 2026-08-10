@@ -70,7 +70,8 @@ title: cleanup-branches command の住所 (address edge) を構造 lint で塞�
   rc=0**。その tip は provenance 拒否で捨てたので、下の値が最終 tip の本走である。
   変異 matrix も最終 tip で再走し、作り直し前と同じく 8/8 KILLED (baseline rc=0) を得た。
   **再走時に 1 走目の ledger を上書きしてしまい、凍結する台帳は最終 tip の 1 本だけである。**
-- 受入全走: **未実走** (本 fragment を含む最終 tip で走らせ、結果は後続の docs commit で確定する)。
+- 受入全走: **8397 passed / 20 skipped / 502.53 秒 / rc=0** (tip `c22610d1`)。本 fragment へこの値を書き込む commit は
+  docs のみで、受入を再走していない。
 
 ## 次の一手差分
 
