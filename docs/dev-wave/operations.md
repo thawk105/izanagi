@@ -5,11 +5,11 @@
 
 ## DW-O01 — codex subprocess 起動
 
-`codex exec -m <model> -c model_reasoning_effort="<効いた値>" -s <sandbox> -C <dir> -o <出力>.md "$(cat prompt.txt)" < /dev/null` を `bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach する。
-投入前に prompt の非空を検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定する。
-ログの grep も完了通知も判定にしてはならず（通知は子より先行しうる）、
-成果物は `-o` の最終メッセージから読む（F23/F24）。
-採用条件 = `tools/check_codex_output.py <出力>.md` の rc=0（prompt に `## 総括` を義務付ける。F43）。
+`tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動。model は全段、effort は段 6 の review / focus が docs 権威から導出され、caller は指定できない。
+`bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach。
+prompt 非空を投入前に検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定。
+grep も完了通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
+採用は `tools/check_codex_output.py <出力>.md` の rc=0（prompt は `## 総括` 必須。F43）。
 `<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
 
 ## DW-O02 — job artifact
