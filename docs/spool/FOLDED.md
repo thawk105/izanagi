@@ -729,3 +729,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:mutation-found-what-review-missed":"F199","F:parent-ruling-broke-under-measurement":"F201","F:secondary-fanout-missed-in-scope":"F200"},"authored":"2026-08-10","content_sha256":"9fe7d314d8e899dc0d4e43d97a1453bbda95736d765d84d3ecace076b5b8aba5","seq":2,"wave":"dev-wave-t720-import-unify"}
 
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"366815694db051a27b38084a10a8b059299e18a2ee4f277585da2b0288eeca99","seq":38,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"41827a52a54ec81edf3e323957c4fe6a8d623a833c74e01e3370a5fc6e9ea71f","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
+- {"allocations":{"F:codex-child-oom-under-shared-user-cap":"F202"},"authored":"2026-08-10","content_sha256":"809a17a45a301ef1250e8528d8d09d759195db1f59ae7afcdd62253a1d861718","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
