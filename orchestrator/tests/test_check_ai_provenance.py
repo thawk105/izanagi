@@ -1325,7 +1325,7 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     assert "違反なし" in capsys.readouterr().out
 
 
-def test_known_violation_ledger_is_exactly_thirty_literal_entries():
+def test_known_violation_ledger_is_exactly_thirty_four_literal_entries():
     malformed_value = (
         "product=claude; model=claude-opus-5[1m]; reasoning=high; "
         "role=orchestrator"
@@ -1337,6 +1337,16 @@ def test_known_violation_ledger_is_exactly_thirty_literal_entries():
     malformed_note = (
         "実装面は Codex `role=author` が書き親が統合したため内容は正確で綴りだけの誤り；"
         "不適合は model の角括弧と role=orchestrator；22 件の trailer literal は同一；"
+    )
+    t720_ruling = (
+        "2026-08-10 [T-720] 受入後の land 前裁定 (ユーザー選択 (a))"
+    )
+    t720_note = (
+        "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
+        "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
+        "wave 側は Codex `role=author`、main 側は各 wave land 時に監査済みで merge 自体に"
+        "新規著作なし；親作成 merge のため Codex 著者とは記さない；横断統一 wave 固有"
+        "（通常 merge 例 fbc95b2f は片親と一致）"
     )
     observed = tuple(
         (
@@ -1391,10 +1401,14 @@ def test_known_violation_ledger_is_exactly_thirty_literal_entries():
         ("aaffa644a969f0a58969b2661318bda4c42ac767", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=merge（全 parent 共通の combined path なし）", malformed_value),
         ("6f5411ceb7cc5d872e3112fb6d04013367ac092e", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（worklog fragment）", malformed_value),
         ("797db5def66ef1d318d06c7aa189ea51a66c9312", "malformed-ai-agent", malformed_ruling, malformed_note + "変更 path 種別=docs（worklog fragment）", malformed_value),
+        ("b2e627a507cb50971168e4453457d5a1d87c274a", "missing-codex-author", t720_ruling, t720_note, ""),
+        ("dd87829899f674c8ad7854070d8a124d0ae9fe3a", "missing-codex-author", t720_ruling, t720_note, ""),
+        ("d72c18cdd3c81278e844b4fd15e9682e98e62c20", "missing-codex-author", t720_ruling, t720_note, ""),
+        ("668f4dfe1026a4ad5e7603e8161b1f3166ce589c", "missing-codex-author", t720_ruling, t720_note, ""),
     )
-    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 30
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 34
     assert observed == expected
-    assert len({row[0] for row in expected}) == 30
+    assert len({row[0] for row in expected}) == 34
     assert provenance._LEDGER_FINDING_KINDS == frozenset({
         "missing-ai-agent", "missing-codex-author", "malformed-ai-agent",
     })
@@ -1435,6 +1449,10 @@ def test_known_violation_ledger_matches_real_commit_findings():
         "aaffa644a969f0a58969b2661318bda4c42ac767",
         "6f5411ceb7cc5d872e3112fb6d04013367ac092e",
         "797db5def66ef1d318d06c7aa189ea51a66c9312",
+        "b2e627a507cb50971168e4453457d5a1d87c274a",
+        "dd87829899f674c8ad7854070d8a124d0ae9fe3a",
+        "d72c18cdd3c81278e844b4fd15e9682e98e62c20",
+        "668f4dfe1026a4ad5e7603e8161b1f3166ce589c",
     ]
     audit = provenance._audit_history(commits)
     assert audit.findings == []
@@ -1471,6 +1489,10 @@ def test_known_violation_ledger_matches_real_commit_findings():
         ("aaffa644a969f0a58969b2661318bda4c42ac767", "malformed-ai-agent"),
         ("6f5411ceb7cc5d872e3112fb6d04013367ac092e", "malformed-ai-agent"),
         ("797db5def66ef1d318d06c7aa189ea51a66c9312", "malformed-ai-agent"),
+        ("b2e627a507cb50971168e4453457d5a1d87c274a", "missing-codex-author"),
+        ("dd87829899f674c8ad7854070d8a124d0ae9fe3a", "missing-codex-author"),
+        ("d72c18cdd3c81278e844b4fd15e9682e98e62c20", "missing-codex-author"),
+        ("668f4dfe1026a4ad5e7603e8161b1f3166ce589c", "missing-codex-author"),
     ]
 
 
