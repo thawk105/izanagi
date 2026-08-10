@@ -677,3 +677,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acceptance-lease-merge-after-acquire":"[T-725]"},"authored":"2026-08-10","content_sha256":"5929e142d566ff342ef56afc16f385a0a5b6215f736bcf36d27c73da3e8a6ce4","seq":1,"wave":"dev-wave-t674-d125-supersession"}
 - {"allocations":{"D:d125-campaign-id-invariance-superseded":"D261"},"authored":"2026-08-10","content_sha256":"c0cdbb8d3048dfd73a586c1ee19598352f6daf44c01f06ba1744112c8f5d5a7d","seq":1,"wave":"dev-wave-t674-d125-supersession"}
 - {"allocations":{"F:acceptance-lease-behind-livelock":"F191"},"authored":"2026-08-10","content_sha256":"39a653c683bd34052d1e340797ba9b7e1007711ab5a06431b70ffebf29fa9409","seq":2,"wave":"dev-wave-t674-d125-supersession"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"0a984a5c01892fa8d09210efff675181e8123b09f8a4e90e0e5615cbf9de1bd2","seq":1,"wave":"dev-wave-t139-producer-slice"}
+- {"allocations":{"D:t139-erratum-validator-registry":"D263","D:t139-reference-binding-not-a-gate":"D264","D:t139-stage2-approval-payload":"D262"},"authored":"2026-08-10","content_sha256":"3af3cd1569bba51d4e28ccbc9aaa32e8a46a5a087476196fed1454531d661706","seq":2,"wave":"dev-wave-t139-producer-slice"}
+- {"allocations":{"F:codex-child-reads-parent-protocol-as-own":"F193","F:lease-json-matched-as-plaintext":"F192"},"authored":"2026-08-10","content_sha256":"a54723a8be242d3e875f4a7245bfb67cfbe91d146e9514539fbfd0e6a0d0e264","seq":3,"wave":"dev-wave-t139-producer-slice"}
