@@ -57,25 +57,60 @@ _ROUTE_CONTAINMENT_ERRNOS = frozenset(
 )
 _WRITE_CONTAINMENT_ERRNOS = frozenset({"EACCES", "EPERM", "EROFS"})
 _INVISIBLE_CONTAINMENT_ERRNOS = frozenset({"ENOENT"})
-# 拒否原因の唯一の正本。テストはこの表を独立 literal と比較する。
+_WRITE_CATEGORIES = frozenset(
+    {"write_home", "write_repo", "write_tmp", "source_read_only", "file_write"}
+)
+# errno と封じ込め機序の唯一の正本。テストはこの表を独立 literal と比較する。
+_CONTAINMENT_ERRNOS_BY_CATEGORY: Mapping[
+    str, Mapping[str, frozenset[str]]
+] = {
+    "network_dns": {
+        "denial": frozenset({"EAI_AGAIN", "EAI_NONAME"}), "absence": frozenset()
+    },
+    "network_direct_ip": {"denial": _ROUTE_CONTAINMENT_ERRNOS, "absence": frozenset()},
+    "network_proxy": {"denial": _ROUTE_CONTAINMENT_ERRNOS, "absence": frozenset()},
+    "credential_home": {
+        "denial": frozenset(), "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "credential_ssh_agent": {
+        "denial": frozenset(), "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "credential_ssh_dir": {
+        "denial": frozenset(), "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "credential_codex_dir": {
+        "denial": frozenset(), "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "write_home": {
+        "denial": _WRITE_CONTAINMENT_ERRNOS, "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "write_repo": {
+        "denial": _WRITE_CONTAINMENT_ERRNOS, "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "write_tmp": {
+        "denial": _WRITE_CONTAINMENT_ERRNOS, "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "source_read_only": {
+        "denial": _WRITE_CONTAINMENT_ERRNOS, "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "scratch_write": {"denial": frozenset(), "absence": frozenset()},
+    "system_command": {
+        "denial": frozenset(), "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "network": {"denial": _ROUTE_CONTAINMENT_ERRNOS, "absence": frozenset()},
+    "file_write": {
+        "denial": _WRITE_CONTAINMENT_ERRNOS, "absence": _INVISIBLE_CONTAINMENT_ERRNOS
+    },
+    "escaped_descendant": {"denial": frozenset(), "absence": frozenset()},
+    "infinite_loop": {"denial": frozenset(), "absence": frozenset()},
+}
+# 旧 parser の state view。write の ENOENT だけは既存どおり invalid に保ち、
+# verdict が同一 path と副作用なしを検査して absence として扱う。
 _CONTAINMENT_DENIALS_BY_CATEGORY: Mapping[str, frozenset[str]] = {
-    "network_dns": frozenset({"EAI_AGAIN", "EAI_NONAME"}),
-    "network_direct_ip": _ROUTE_CONTAINMENT_ERRNOS,
-    "network_proxy": _ROUTE_CONTAINMENT_ERRNOS,
-    "credential_home": _INVISIBLE_CONTAINMENT_ERRNOS,
-    "credential_ssh_agent": _INVISIBLE_CONTAINMENT_ERRNOS,
-    "credential_ssh_dir": _INVISIBLE_CONTAINMENT_ERRNOS,
-    "credential_codex_dir": _INVISIBLE_CONTAINMENT_ERRNOS,
-    "write_home": _WRITE_CONTAINMENT_ERRNOS,
-    "write_repo": _WRITE_CONTAINMENT_ERRNOS,
-    "write_tmp": _WRITE_CONTAINMENT_ERRNOS,
-    "source_read_only": _WRITE_CONTAINMENT_ERRNOS,
-    "scratch_write": frozenset(),
-    "system_command": _INVISIBLE_CONTAINMENT_ERRNOS,
-    "network": _ROUTE_CONTAINMENT_ERRNOS,
-    "file_write": _WRITE_CONTAINMENT_ERRNOS,
-    "escaped_descendant": frozenset(),
-    "infinite_loop": frozenset(),
+    category: mechanisms["denial"] | (
+        mechanisms["absence"] if category not in _WRITE_CATEGORIES else frozenset()
+    )
+    for category, mechanisms in _CONTAINMENT_ERRNOS_BY_CATEGORY.items()
 }
 _PAYLOAD_NORMAL_RETURN_CODES = frozenset({0})
 _NETWORK_CONNECT_CATEGORIES = frozenset(
@@ -112,6 +147,10 @@ def _paired_verdict(
         return StageVerdict(
             stage, "inconclusive", (f"{prefix}_POSITIVE_PROCESS_EXIT_ABNORMAL",)
         )
+    if observation.get("outside_payload_state") == "denied":
+        return StageVerdict(
+            stage, "inconclusive", (f"{prefix}_NODE_CAPABILITY_UNAVAILABLE",)
+        )
     if observation.get("outside_payload_state") != "reached":
         return StageVerdict(stage, "inconclusive", (f"{prefix}_POSITIVE_SENTINEL_INVALID",))
     if observation.get("outside_success") is not True:
@@ -127,6 +166,29 @@ def _paired_verdict(
             stage, "inconclusive", (f"{prefix}_NEGATIVE_PROCESS_EXIT_ABNORMAL",)
         )
     inside_state = observation.get("inside_payload_state")
+    sentinel_category = observation.get("sentinel_category")
+    mechanisms = (
+        _CONTAINMENT_ERRNOS_BY_CATEGORY.get(sentinel_category)
+        if isinstance(sentinel_category, str) else None
+    )
+    absence_observed = (
+        isinstance(mechanisms, Mapping)
+        and observation.get("inside_payload_detail") in mechanisms["absence"]
+        and inside_state in {"denied", "invalid"}
+    )
+    if absence_observed:
+        if sentinel_category in _WRITE_CATEGORIES and (
+            observation.get("outside_path") != observation.get("inside_path")
+            or not isinstance(observation.get("outside_path"), str)
+        ):
+            return StageVerdict(
+                stage, "inconclusive", (f"{prefix}_POSITIVE_CONTROL_TARGET_MISMATCH",)
+            )
+        if sentinel_category in _WRITE_CATEGORIES and (
+            observation.get("inside_side_effect_observed") is not False
+        ):
+            return StageVerdict(stage, "no-go", (f"{prefix}_SIDE_EFFECT_UNPROVEN",))
+        return StageVerdict(stage, "go", (f"{prefix}_CONTAINED_BY_ABSENCE",))
     if inside_state not in {"reached", "denied"}:
         return StageVerdict(
             stage, "inconclusive", (f"{prefix}_NEGATIVE_SENTINEL_INVALID",)
@@ -551,10 +613,42 @@ def _tool_record(name: str) -> dict[str, Any]:
     return record
 
 
-def _other_user_processes() -> dict[str, Any]:
-    own_uid = os.getuid()
-    pids: list[int] = []
-    uids: set[int] = set()
+def _process_group(pairs: Sequence[tuple[int, int]]) -> dict[str, Any]:
+    return {
+        "present": bool(pairs),
+        "count": len(pairs),
+        "uids": sorted({uid for _pid, uid in pairs}),
+        "pids": sorted(pid for pid, _uid in pairs),
+    }
+
+
+def _classify_process_owners(
+    process_owners: Mapping[int, int], own_uid: int
+) -> dict[str, Any]:
+    pairs = sorted(process_owners.items())
+    other_non_root = [
+        (pid, uid) for pid, uid in pairs if uid not in (0, own_uid)
+    ]
+    co_tenants = [
+        (pid, uid) for pid, uid in pairs if uid >= 1000 and uid != own_uid
+    ]
+    excluded_system = [
+        (pid, uid) for pid, uid in pairs if uid < 1000 and uid != own_uid
+    ]
+    excluded_own = [(pid, uid) for pid, uid in pairs if uid == own_uid]
+    return {
+        # 旧観測を落とさず残す。専有判定には次の uid>=1000 集合だけを使う。
+        "other_non_root_user_processes": _process_group(other_non_root),
+        "other_non_system_user_processes": _process_group(co_tenants),
+        "excluded_system_processes": _process_group(excluded_system),
+        "excluded_own_processes": _process_group(excluded_own),
+        "co_tenant_uid_minimum": 1000,
+        "own_uid": own_uid,
+    }
+
+
+def _process_tenancy_evidence() -> dict[str, Any]:
+    process_owners: dict[int, int] = {}
     for entry in Path("/proc").iterdir():
         if not entry.name.isdigit():
             continue
@@ -566,10 +660,8 @@ def _other_user_processes() -> dict[str, Any]:
             uid = int(line.split()[1])
         except (OSError, StopIteration, ValueError, IndexError):
             continue
-        if uid not in (0, own_uid):
-            pids.append(int(entry.name))
-            uids.add(uid)
-    return {"present": bool(pids), "count": len(pids), "uids": sorted(uids), "pids": sorted(pids)}
+        process_owners[int(entry.name)] = uid
+    return _classify_process_owners(process_owners, os.getuid())
 
 
 def _landlock_record() -> dict[str, Any]:
@@ -609,7 +701,7 @@ def observe_s1() -> dict[str, Any]:
         "landlock": _landlock_record(),
         "exclusivity_evidence": {
             "load_average": list(os.getloadavg()),
-            "other_non_root_user_processes": _other_user_processes(),
+            **_process_tenancy_evidence(),
             "nproc": os.cpu_count(),
             "cpu_affinity": sorted(os.sched_getaffinity(0)),
         },
@@ -739,6 +831,7 @@ def _paired_command(
     inside_process = _process_exit(inside)
     return {
         "attempted": outside.get("executed") is True and inside.get("attempted") is True,
+        "sentinel_category": sentinel_category,
         "outside_success": (
             outside_payload["state"] == "reached"
             and outside_process["state"] == "normal-exit"
@@ -866,18 +959,22 @@ def _observe_write_pair(
 ) -> dict[str, Any]:
     """実 command seam と marker 副作用を同時に通す write observer。"""
     outside = profile.runner(outside_command, timeout_s=15, env=dict(os.environ))
-    inside = profile.run(inside_command, timeout_s=15, build=build)
     outside_payload = _parse_payload_sentinel(outside, category)
-    inside_payload = _parse_payload_sentinel(inside, category)
     outside_process = _process_exit(outside)
+    outside_marker_present = outside_path.is_file()
+    if outside_path == inside_path and outside_marker_present:
+        _cleanup_marker(outside_path)
+    inside = profile.run(inside_command, timeout_s=15, build=build)
+    inside_payload = _parse_payload_sentinel(inside, category)
     inside_process = _process_exit(inside)
     inside_marker_present = inside_path.is_file()
     return {
         "attempted": outside.get("executed") is True and inside.get("attempted") is True,
+        "sentinel_category": category,
         "outside_success": (
             outside_payload["state"] == "reached"
             and outside_process["state"] == "normal-exit"
-            and outside_path.is_file()
+            and outside_marker_present
         ),
         "inside_blocked": (
             inside_payload["state"] == "denied"
@@ -1051,20 +1148,17 @@ def observe_s3(profile: SandboxProfile, python: str, repo_root: Path, scratch: P
         "source_read_only": repo_root / f".t316-source-ro-{job_tag}",
     }
     for category, base_path in write_targets.items():
-        outside_path = base_path.with_name(base_path.name + "-outside")
-        inside_path = base_path.with_name(base_path.name + "-inside")
-        for path in (outside_path, inside_path):
-            _cleanup_marker(path)
+        target_path = base_path.with_name(base_path.name + "-paired")
+        _cleanup_marker(target_path)
         observations[category] = _observe_write_pair(
             profile,
-            _write_command(python, category, outside_path),
-            _write_command(python, category, inside_path),
-            outside_path,
-            inside_path,
+            _write_command(python, category, target_path),
+            _write_command(python, category, target_path),
+            target_path,
+            target_path,
             category,
         )
-        for path in (outside_path, inside_path):
-            _cleanup_marker(path)
+        _cleanup_marker(target_path)
 
     scratch_marker = scratch / "s3-scratch-write"
     _cleanup_marker(scratch_marker)
@@ -1510,9 +1604,8 @@ def observe_s5(
         prefix = f"s5-{profile_name}"
         system_outside = scratch / f"{prefix}-system-outside"
         system_inside = scratch / f"{prefix}-system-inside"
-        write_outside = Path(os.environ.get("HOME", "/nonexistent")) / f"t316-{prefix}-write-outside"
-        write_inside = Path(os.environ.get("HOME", "/nonexistent")) / f"t316-{prefix}-write-inside"
-        for path in (system_outside, system_inside, write_outside, write_inside):
+        write_target = Path(os.environ.get("HOME", "/nonexistent")) / f"t316-{prefix}-write-paired"
+        for path in (system_outside, system_inside, write_target):
             _cleanup_marker(path)
         system_pair = _observe_system_pair(
             profile, binary, system_outside, system_inside, build=build
@@ -1527,10 +1620,10 @@ def observe_s5(
 
         write_pair = _observe_write_pair(
             profile,
-            [str(binary), "write", str(write_outside), "file_write"],
-            [str(binary), "write", str(write_inside), "file_write"],
-            write_outside,
-            write_inside,
+            [str(binary), "write", str(write_target), "file_write"],
+            [str(binary), "write", str(write_target), "file_write"],
+            write_target,
+            write_target,
             "file_write",
             build=build,
         )
@@ -1546,7 +1639,7 @@ def observe_s5(
         for observation in result[profile_name].values():
             observation["fixture"] = fixture
             observation["compile"] = compile_record
-        for path in (system_outside, system_inside, write_outside, write_inside):
+        for path in (system_outside, system_inside, write_target):
             _cleanup_marker(path)
     return result
 
@@ -1816,13 +1909,13 @@ def _resolve_perf(repo_root: Path) -> Optional[str]:
 def _measurement_environment() -> dict[str, Any]:
     return {
         "monotonic_ns": time.monotonic_ns(), "load_average": list(os.getloadavg()),
-        "other_non_root_user_processes": _other_user_processes(),
+        **_process_tenancy_evidence(),
         "nproc": os.cpu_count(), "cpu_affinity": sorted(os.sched_getaffinity(0)),
     }
 
 
 def _exclusive_snapshot_valid(snapshot: Mapping[str, Any], max_load_per_cpu: float) -> bool:
-    users = snapshot.get("other_non_root_user_processes")
+    users = snapshot.get("other_non_system_user_processes")
     load = snapshot.get("load_average")
     nproc = snapshot.get("nproc")
     return (
@@ -1953,6 +2046,12 @@ def observe_s7(
         "effective_thread_count_valid": all(item["effective_thread_count_valid"] for item in runs),
         "perf_output_valid": all(item["perf_output_valid"] for item in runs),
         "exclusivity_valid": all(item["exclusivity_valid"] for item in runs),
+        "exclusivity_criteria": {
+            "co_tenant_uid_minimum": 1000,
+            "system_uid_range_excluded": "uid < 1000",
+            "own_uid_excluded": True,
+            "max_load_per_cpu": max_load_per_cpu,
+        },
         "warmup_valid": outside_warmup.get("rc") == 0 and inside_warmup.get("rc") == 0,
         "warmup_separate_from_samples": True,
         "warmup": {"outside": outside_warmup, "inside": inside_warmup},

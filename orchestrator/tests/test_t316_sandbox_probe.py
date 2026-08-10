@@ -53,6 +53,33 @@ EXPECTED_CONTAINMENT_DENIALS = {
     "escaped_descendant": frozenset(),
     "infinite_loop": frozenset(),
 }
+EXPECTED_CONTAINMENT_ABSENCES = {
+    "network_dns": frozenset(),
+    "network_direct_ip": frozenset(),
+    "network_proxy": frozenset(),
+    "credential_home": frozenset({"ENOENT"}),
+    "credential_ssh_agent": frozenset({"ENOENT"}),
+    "credential_ssh_dir": frozenset({"ENOENT"}),
+    "credential_codex_dir": frozenset({"ENOENT"}),
+    "write_home": frozenset({"ENOENT"}),
+    "write_repo": frozenset({"ENOENT"}),
+    "write_tmp": frozenset({"ENOENT"}),
+    "source_read_only": frozenset({"ENOENT"}),
+    "scratch_write": frozenset(),
+    "system_command": frozenset({"ENOENT"}),
+    "network": frozenset(),
+    "file_write": frozenset({"ENOENT"}),
+    "escaped_descendant": frozenset(),
+    "infinite_loop": frozenset(),
+}
+EXPECTED_ACTIVE_DENIALS = {
+    **EXPECTED_CONTAINMENT_DENIALS,
+    "credential_home": frozenset(),
+    "credential_ssh_agent": frozenset(),
+    "credential_ssh_dir": frozenset(),
+    "credential_codex_dir": frozenset(),
+    "system_command": frozenset(),
+}
 
 
 def _paired(*, inside_state: str = "denied", inside_blocked: bool = True) -> dict[str, Any]:
@@ -142,6 +169,106 @@ def test_category_oracles_are_independent_literals() -> None:
     assert probe.S5_PROFILES == EXPECTED_S5_PROFILES
     assert probe._CONTAINMENT_DENIALS_BY_CATEGORY == EXPECTED_CONTAINMENT_DENIALS
     assert probe._PAYLOAD_NORMAL_RETURN_CODES == frozenset({0})
+
+
+def test_containment_mechanism_table_matches_independent_literals() -> None:
+    assert probe._CONTAINMENT_ERRNOS_BY_CATEGORY == {
+        category: {
+            "denial": EXPECTED_ACTIVE_DENIALS[category],
+            "absence": EXPECTED_CONTAINMENT_ABSENCES[category],
+        }
+        for category in EXPECTED_CONTAINMENT_DENIALS
+    }
+
+
+@pytest.mark.parametrize(
+    ("stage", "verdict_category", "sentinel_category"),
+    [
+        ("S3", "write_home", "write_home"),
+        ("S5", "runtime_file_write", "file_write"),
+        ("S5", "build_file_write", "file_write"),
+    ],
+)
+def test_write_enoent_is_contained_by_absence_only_with_strict_controls(
+    stage: str, verdict_category: str, sentinel_category: str
+) -> None:
+    target = "/same/positive-control-target"
+    observation = {
+        **_paired(inside_state="invalid", inside_blocked=False),
+        "sentinel_category": sentinel_category,
+        "inside_payload_detail": "ENOENT",
+        "outside_path": target,
+        "inside_path": target,
+        "inside_side_effect_observed": False,
+    }
+    verdict = probe._paired_verdict(stage, verdict_category, observation)
+    assert verdict.verdict == "go"
+    assert verdict.reason_codes == (
+        f"{stage}_{verdict_category}_CONTAINED_BY_ABSENCE".upper(),
+    )
+
+
+def test_write_enoent_with_failed_positive_control_is_not_containment() -> None:
+    observation = {
+        **_paired(inside_state="invalid", inside_blocked=False),
+        "sentinel_category": "write_home",
+        "outside_success": False,
+        "outside_payload_state": "invalid",
+        "outside_payload_detail": "ENOENT",
+        "inside_payload_detail": "ENOENT",
+        "outside_path": "/same/path",
+        "inside_path": "/same/path",
+        "inside_side_effect_observed": False,
+    }
+    verdict = probe._paired_verdict("S3", "write_home", observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.verdict != "go"
+
+
+def test_write_enoent_with_inside_side_effect_remains_no_go() -> None:
+    observation = {
+        **_paired(inside_state="invalid", inside_blocked=False),
+        "sentinel_category": "file_write",
+        "inside_payload_detail": "ENOENT",
+        "outside_path": "/same/path",
+        "inside_path": "/same/path",
+        "inside_side_effect_observed": True,
+    }
+    verdict = probe._paired_verdict("S5", "build_file_write", observation)
+    assert verdict.verdict == "no-go"
+    assert verdict.reason_codes == ("S5_BUILD_FILE_WRITE_SIDE_EFFECT_OBSERVED",)
+
+
+def test_write_enoent_with_different_positive_target_is_inconclusive() -> None:
+    observation = {
+        **_paired(inside_state="invalid", inside_blocked=False),
+        "sentinel_category": "write_repo",
+        "inside_payload_detail": "ENOENT",
+        "outside_path": "/outside/path",
+        "inside_path": "/inside/path",
+        "inside_side_effect_observed": False,
+    }
+    verdict = probe._paired_verdict("S3", "write_repo", observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.reason_codes == ("S3_WRITE_REPO_POSITIVE_CONTROL_TARGET_MISMATCH",)
+
+
+def test_active_write_denial_keeps_contained_reason_code() -> None:
+    verdict = probe._paired_verdict("S3", "write_repo", _paired())
+    assert verdict.verdict == "go"
+    assert verdict.reason_codes == ("S3_WRITE_REPO_CONTAINED",)
+
+
+def test_outside_denial_reports_node_capability_unavailable() -> None:
+    observation = {
+        **_paired(),
+        "outside_success": False,
+        "outside_payload_state": "denied",
+        "outside_payload_detail": "EAI_AGAIN",
+    }
+    verdict = probe._paired_verdict("S3", "network_dns", observation)
+    assert verdict.verdict == "inconclusive"
+    assert verdict.reason_codes == ("S3_NETWORK_DNS_NODE_CAPABILITY_UNAVAILABLE",)
 
 
 @pytest.mark.parametrize("category", EXPECTED_S3_CATEGORIES)
@@ -436,6 +563,36 @@ def test_actual_write_observer_cannot_hide_inside_side_effect(
     assert probe._paired_verdict(stage, category, observation).verdict == "no-go"
 
 
+def test_actual_write_observer_uses_one_target_for_absence_control(
+    tmp_path: Path,
+) -> None:
+    scratch = tmp_path / "scratch-absence"
+    scratch.mkdir()
+    (scratch / "empty-tmp").mkdir()
+    target = tmp_path / "paired-target"
+    calls = 0
+
+    def runner(_argv: Any, **_kwargs: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            target.write_text("outside positive", encoding="utf-8")
+            return _command_record("T316_SENTINEL|write_home|REACHED\n")
+        assert not target.exists()
+        return _command_record("T316_SENTINEL|write_home|DENIED|ENOENT\n")
+
+    profile = probe.SandboxProfile("/bin/false", tmp_path, scratch, (), runner=runner)
+    observation = probe._observe_write_pair(
+        profile, ["outside"], ["inside"], target, target, "write_home"
+    )
+    assert observation["outside_success"] is True
+    assert observation["outside_path"] == observation["inside_path"] == str(target)
+    assert observation["inside_side_effect_observed"] is False
+    verdict = probe._paired_verdict("S3", "write_home", observation)
+    assert verdict.verdict == "go"
+    assert verdict.reason_codes == ("S3_WRITE_HOME_CONTAINED_BY_ABSENCE",)
+
+
 @pytest.mark.parametrize(
     ("inside_sentinel", "inside_marker", "expected"),
     [
@@ -484,6 +641,60 @@ def test_cleanup_failure_makes_performance_inconclusive() -> None:
     verdict = probe.verdict_s7(observation)
     assert verdict.verdict == "inconclusive"
     assert verdict.reason_codes == ("S7_PREVIOUS_PAYLOAD_CLEANUP_UNPROVEN",)
+
+
+def test_process_tenancy_keeps_excluded_system_and_own_observations() -> None:
+    evidence = probe._classify_process_owners(
+        {10: 0, 11: 100, 12: 997, 13: 1000, 14: 2000}, own_uid=1000
+    )
+    assert evidence["other_non_root_user_processes"] == {
+        "present": True, "count": 3, "uids": [100, 997, 2000], "pids": [11, 12, 14]
+    }
+    assert evidence["other_non_system_user_processes"] == {
+        "present": True, "count": 1, "uids": [2000], "pids": [14]
+    }
+    assert evidence["excluded_system_processes"] == {
+        "present": True, "count": 3, "uids": [0, 100, 997], "pids": [10, 11, 12]
+    }
+    assert evidence["excluded_own_processes"] == {
+        "present": True, "count": 1, "uids": [1000], "pids": [13]
+    }
+
+
+def test_system_daemons_do_not_count_as_co_tenants() -> None:
+    snapshot = {
+        "other_non_root_user_processes": {
+            "present": True, "count": 18, "uids": [100, 997], "pids": list(range(18))
+        },
+        "other_non_system_user_processes": {
+            "present": False, "count": 0, "uids": [], "pids": []
+        },
+        "load_average": [0.25, 0.5, 0.75],
+        "nproc": 48,
+    }
+    assert probe._exclusive_snapshot_valid(snapshot, 1.0) is True
+
+
+def test_other_non_system_user_process_prevents_exclusivity() -> None:
+    snapshot = {
+        "other_non_system_user_processes": {
+            "present": True, "count": 1, "uids": [2000], "pids": [42]
+        },
+        "load_average": [0.0, 0.0, 0.0],
+        "nproc": 48,
+    }
+    assert probe._exclusive_snapshot_valid(snapshot, 1.0) is False
+
+
+def test_load_average_threshold_still_prevents_exclusivity() -> None:
+    snapshot = {
+        "other_non_system_user_processes": {
+            "present": False, "count": 0, "uids": [], "pids": []
+        },
+        "load_average": [48.01, 0.0, 0.0],
+        "nproc": 48,
+    }
+    assert probe._exclusive_snapshot_valid(snapshot, 1.0) is False
 
 
 @pytest.mark.parametrize(
@@ -598,6 +809,33 @@ def test_injected_observer_flows_through_judge_and_overall(
     by_stage = {item["stage"]: item for item in receipt["stage_verdicts"]}
     assert by_stage[stage]["verdict"] == expected
     assert by_stage[stage]["verdict"] != "go"
+
+
+def test_s5_build_system_side_effect_keeps_overall_no_go_with_write_absence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    stages = _good_stages()
+    same_target = "/home/tester/s5-build-write"
+    stages["S5"]["build"]["file_write"] = {
+        **_paired(inside_state="invalid", inside_blocked=False),
+        "sentinel_category": "file_write",
+        "inside_payload_detail": "ENOENT",
+        "outside_path": same_target,
+        "inside_path": same_target,
+        "inside_side_effect_observed": False,
+    }
+    stages["S5"]["build"]["system_command"] = {
+        **_paired(inside_state="reached", inside_blocked=False),
+        "sentinel_category": "system_command",
+        "inside_side_effect_observed": True,
+    }
+    rc, receipt = _run_injected(monkeypatch, tmp_path, stages)
+    by_stage = {item["stage"]: item for item in receipt["stage_verdicts"]}
+    assert rc == 3
+    assert by_stage["S5"]["verdict"] == "no-go"
+    assert "S5_BUILD_FILE_WRITE_CONTAINED_BY_ABSENCE" in by_stage["S5"]["reason_codes"]
+    assert "S5_BUILD_SYSTEM_COMMAND_SIDE_EFFECT_OBSERVED" in by_stage["S5"]["reason_codes"]
+    assert receipt["overall_verdict"]["verdict"] == "no-go"
 
 
 @pytest.mark.parametrize("category", EXPECTED_S3_CATEGORIES)
