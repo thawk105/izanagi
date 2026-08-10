@@ -16,9 +16,16 @@ title: L2 節 admission の 3 条件規範を記録した — 初適用の 3 項
   記録したのは admission 規範 {{D:l2-admission}} だけで、コード・テスト・入口・reference の
   変更はゼロ。Codex 実装子は起動していない。**変異 matrix は実装差分ゼロのため免除した。**
   **受入全走は免除しなかった** — 実 repo を読む検査 (`check_docs`、spool 形式、meta-test) が
-  差分の対象だからである。lease `acquired` の直後、behind 0 の tip `55f837ab` で 1 走し、
-  **rc=0 / 7,973 passed / 20 skipped / 503.30 秒**。記録前の親検査は `check_docs` rc=0、
-  `spool_fold --dry-run` rc=0、全史 provenance 監査 rc=0。
+  差分の対象だからである。**受入は計 2 走した。** 1 走目は lease `acquired` 直後、behind 0 の
+  tip `55f837ab` で **rc=0 / 7,973 passed / 20 skipped / 503.30 秒**。その後 local main が
+  5 commit 進み (台帳の rotation と fold、runbook、s8c 系の実装差分)、land の guard が
+  `behind=5` で停止して lease を release した。merge commit で取り込み直し、2 走目を
+  tip `975e9b3e` で **rc=0 / 7,982 passed / 20 skipped / 441.72 秒**。
+  取り込み後に `base:` digest を再計算したが両 ID とも不変だった (取り込んだ wave は
+  どちらの項も触っていない)。親検査は各走の前に `check_docs` rc=0、`spool_fold --dry-run` rc=0、
+  全史 provenance 監査 rc=0。
+- **land tip は受入 tip より 1 commit 進んでいる。** 差分はこの worklog fragment への受入結果の
+  追記だけで、コード・テスト・reference・入口を含まない。受入を 3 走目に回さずこの差で land した。
 - **親 brief の誤り 3 件を撤回した (すべて子の指摘を親が一次資料で裏取り)。**
   (i) 「項目 1 (関門契約) は land 済み」は誤り。親が `DW-O23` の fold 契約をそれと読んだが、
   fold 契約は別 commit 由来で、entry 344 の関門は D254 だった。正確には
