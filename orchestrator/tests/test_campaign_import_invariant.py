@@ -10,7 +10,9 @@ import inspect
 import io
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import tokenize
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,6 +58,7 @@ _SHELL_MODULE_LITERAL_RE = re.compile(
     r"(?<![\w.])(campaign\.[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?![\w.])"
 )
 _RATIONALE_RE = re.compile(r"(?:D|F|T)-?\d+")
+_LEXICAL_SCOPES = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
 
 @dataclass(frozen=True, order=True)
@@ -243,27 +246,76 @@ def _static_string(node: ast.AST, names: dict[str, str]) -> str | None:
     return None
 
 
-def _static_names(tree: ast.AST) -> dict[str, str]:
-    names: dict[str, str] = {}
-    assignments = [node for node in ast.walk(tree) if isinstance(node, (ast.Assign, ast.AnnAssign))]
-    # source 順の通常代入と 1 段の forward reference を覆い、巨大 source でも線形に保つ。
-    for _ in range(2):
-        changed = False
-        for assignment in assignments:
-            value_node = assignment.value
-            if value_node is None:
-                continue
-            value = _static_string(value_node, names)
-            if value is None:
-                continue
-            targets = assignment.targets if isinstance(assignment, ast.Assign) else [assignment.target]
-            for target in targets:
-                if isinstance(target, ast.Name) and names.get(target.id) != value:
-                    names[target.id] = value
+def _static_name_contexts(tree: ast.AST) -> dict[int, dict[str, str]]:
+    """各 lexical scope で一意に静的な名前だけを node ごとに返す。"""
+    assert isinstance(tree, ast.Module)
+    node_scopes: dict[int, ast.AST] = {}
+    scope_parents: dict[int, ast.AST | None] = {id(tree): None}
+    scopes: list[ast.AST] = [tree]
+
+    def bind(node: ast.AST, scope: ast.AST) -> None:
+        node_scopes[id(node)] = scope
+        for child in ast.iter_child_nodes(node):
+            child_scope = scope
+            if isinstance(child, _LEXICAL_SCOPES):
+                child_scope = child
+                scope_parents[id(child)] = scope
+                scopes.append(child)
+            bind(child, child_scope)
+
+    bind(tree, tree)
+    assignments_by_scope: dict[int, dict[str, list[ast.AST]]] = {
+        id(scope): {} for scope in scopes
+    }
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)) or node.value is None:
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            if isinstance(target, ast.Name):
+                assignments_by_scope[id(node_scopes[id(node)])].setdefault(
+                    target.id, []
+                ).append(node.value)
+
+    names_by_scope: dict[int, dict[str, str]] = {}
+    for scope in scopes:
+        parent = scope_parents[id(scope)]
+        assignments = assignments_by_scope[id(scope)]
+        bound_names = set(assignments)
+        names = (
+            {
+                name: value
+                for name, value in names_by_scope[id(parent)].items()
+                if name not in bound_names
+            }
+            if parent is not None
+            else {}
+        )
+        unique_assignments = {
+            name: values[0] for name, values in assignments.items() if len(values) == 1
+        }
+        # 一意な代入だけを fixed point で解決する。重複・動的代入は親名も shadow する。
+        for _ in range(len(unique_assignments) + 1):
+            changed = False
+            for name, value_node in unique_assignments.items():
+                value = _static_string(value_node, names)
+                if value is not None and names.get(name) != value:
+                    names[name] = value
                     changed = True
-        if not changed:
-            break
-    return names
+            if not changed:
+                break
+        names_by_scope[id(scope)] = names
+
+    return {
+        node_id: names_by_scope[id(scope)] for node_id, scope in node_scopes.items()
+    }
+
+
+def _is_non_module_legacy_literal(value: str) -> bool:
+    """file/path 文脈として許容する legacy 風 literal の共通判定。"""
+    return value == _legacy_module("lock") or value.startswith(
+        _legacy_module("lock") + "."
+    )
 
 
 def _textual_legacy_hits(text: str, base_line: int = 1) -> list[tuple[int, str]]:
@@ -280,18 +332,39 @@ def _textual_legacy_hits(text: str, base_line: int = 1) -> list[tuple[int, str]]
 
 def _shell_legacy_hits(text: str) -> list[tuple[int, str]]:
     """shell 全体から campaign module literal を拾う。"""
-    hits = set(_textual_legacy_hits(text))
-    lines = text.splitlines()
-    for match in _SHELL_MODULE_LITERAL_RE.finditer(text):
-        line = 1 + text.count("\n", 0, match.start())
-        if line <= len(lines) and lines[line - 1].lstrip().startswith("#"):
+    def without_comment(line: str) -> str:
+        ending = line[len(line.rstrip("\r\n")) :]
+        body = line[: len(line) - len(ending)] if ending else line
+        quote: str | None = None
+        escaped = False
+        for index, character in enumerate(body):
+            if escaped:
+                escaped = False
+                continue
+            if character == "\\" and quote != "'":
+                escaped = True
+                continue
+            if character in {"'", '"'}:
+                if quote is None:
+                    quote = character
+                elif quote == character:
+                    quote = None
+                continue
+            if character == "#" and quote is None:
+                return body[:index] + " " * (len(body) - index) + ending
+        return line
+
+    uncommented = "".join(without_comment(line) for line in text.splitlines(keepends=True))
+    hits = set(_textual_legacy_hits(uncommented))
+    for match in _SHELL_MODULE_LITERAL_RE.finditer(uncommented):
+        module = match.group(1)
+        if _is_non_module_legacy_literal(module):
             continue
-        hits.add((line, match.group(1)))
-    return sorted(
-        (line, module)
-        for line, module in hits
-        if line > len(lines) or not lines[line - 1].lstrip().startswith("#")
-    )
+        if match.start() > 0 and uncommented[match.start() - 1] in {"/", "$"}:
+            continue
+        line = 1 + uncommented.count("\n", 0, match.start())
+        hits.add((line, module))
+    return sorted(hits)
 
 
 def scan_legacy_namespace(
@@ -324,8 +397,9 @@ def scan_legacy_namespace(
             if node.level == 0 and node.module is not None and _MODULE_PATH_RE.fullmatch(node.module):
                 found.add(_violation(path, node.lineno, LEGACY_RULE, node.module))
 
-    names = _static_names(tree)
+    name_contexts = _static_name_contexts(tree)
     for node in ast.walk(tree):
+        names = name_contexts[id(node)]
         if isinstance(node, ast.Subscript) and (
             isinstance(node.value, ast.Attribute)
             and node.value.attr == "modules"
@@ -369,8 +443,7 @@ def scan_legacy_namespace(
             if (
                 "." in value
                 and not (
-                    value == _legacy_module("lock")
-                    or value.startswith(_legacy_module("lock") + ".")
+                    _is_non_module_legacy_literal(value)
                 )
                 and _MODULE_PATH_RE.fullmatch(value)
             ):
@@ -473,8 +546,40 @@ def _has_main_guard(tree: ast.AST) -> bool:
     return False
 
 
+def _is_type_checking_guard(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Name)
+        and node.id == "TYPE_CHECKING"
+    ) or (
+        isinstance(node, ast.Attribute)
+        and node.attr == "TYPE_CHECKING"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "typing"
+    )
+
+
+def _runtime_relative_imports(tree: ast.AST) -> tuple[ast.ImportFrom, ...]:
+    """TYPE_CHECKING の真側を除く、実行されうる相対 import を返す。"""
+    found: list[ast.ImportFrom] = []
+
+    class Visitor(ast.NodeVisitor):
+        def visit_If(self, node: ast.If) -> None:
+            if _is_type_checking_guard(node.test):
+                for statement in node.orelse:
+                    self.visit(statement)
+                return
+            self.generic_visit(node)
+
+        def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+            if node.level > 0:
+                found.append(node)
+
+    Visitor().visit(tree)
+    return tuple(found)
+
+
 def _has_relative_import(tree: ast.AST) -> bool:
-    return any(isinstance(node, ast.ImportFrom) and node.level > 0 for node in ast.walk(tree))
+    return bool(_runtime_relative_imports(tree))
 
 
 def _direct_bootstrap_nodes(tree: ast.Module, source: str) -> list[ast.stmt]:
@@ -530,11 +635,7 @@ def scan_campaign_shape(
 
     if _has_main_guard(tree) and _has_relative_import(tree):
         bootstrap_nodes = _direct_bootstrap_nodes(tree, source)
-        relative_import_lines = [
-            node.lineno
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ImportFrom) and node.level > 0
-        ]
+        relative_import_lines = [node.lineno for node in _runtime_relative_imports(tree)]
         valid_bootstrap = (
             len(bootstrap_nodes) == 1
             and source.count(DIRECT_BOOTSTRAP) == 1
@@ -681,6 +782,117 @@ def repository_scan() -> RepositoryScan:
 def test_repository_scan_set_is_nonempty_and_contains_sentinels(repository_scan: RepositoryScan):
     assert repository_scan.operational_paths, "operational source の走査数が 0"
     assert SENTINELS <= repository_scan.operational_paths
+    assert any(path.endswith(".sh") for path in repository_scan.operational_paths)
+    assert any(
+        path.startswith("orchestrator/campaign/") and path.endswith(".py")
+        for path in repository_scan.operational_paths
+    )
+    assert any(_is_current_doc(Path(path)) for path in repository_scan.sources)
+
+    listed = repo_tree_util.list_tracked_and_untracked_files(REPOSITORY)
+    extensionless_executables = {
+        relative.as_posix()
+        for relative in listed
+        if (
+            not _excluded(relative)
+            and not relative.suffix
+            and (REPOSITORY / relative).is_file()
+            and os.access(REPOSITORY / relative, os.X_OK)
+            and (REPOSITORY / relative).read_bytes().startswith(b"#!")
+        )
+    }
+    if extensionless_executables:
+        assert extensionless_executables <= repository_scan.operational_paths
+
+
+def test_synthetic_repository_wires_every_rule_and_source_kind_end_to_end():
+    files = {
+        "src/legacy.py": f"import {_legacy_module('legacy_rule')}\n",
+        "scripts/check.sh": (
+            "python3 -c 'import importlib; "
+            f'importlib.import_module("{_legacy_module("shell_rule")}")\'\n'
+        ),
+        "scripts/check.bash": f"python3 -m {_legacy_module('bash_rule')}\n",
+        "scripts/check": (
+            f"#!/bin/sh\npython3 -m {_legacy_module('executable_rule')}\n"
+        ),
+        "orchestrator/campaign/path_probe.py": (
+            "from pathlib import Path\n"
+            "import sys\n"
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n"
+        ),
+        "orchestrator/campaign/bootstrap_probe.py": (
+            "from . import ident\n"
+            'if __name__ == "__main__":\n'
+            "    raise SystemExit(0)\n"
+        ),
+        "orchestrator/campaign/relative_probe.py": (
+            "from orchestrator.campaign import ident\n"
+        ),
+        "docs/guide.md": f"python3 -m {_legacy_module('docs_rule')}\n",
+    }
+    with tempfile.TemporaryDirectory(prefix="campaign-import-invariant-") as temporary:
+        root = Path(temporary)
+        for relative, source in files.items():
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(source, encoding="utf-8")
+        (root / "scripts/check").chmod(0o755)
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+
+        actual = scan_repository(root)
+
+    expected = (
+        _violation("docs/guide.md", 1, DOCS_RULE, _legacy_module("docs_rule")),
+        _violation(
+            "orchestrator/campaign/bootstrap_probe.py",
+            1,
+            BOOTSTRAP_RULE,
+            "direct CLI bootstrap is not one top-level statement before relative imports",
+        ),
+        _violation(
+            "orchestrator/campaign/path_probe.py",
+            3,
+            PATH_RULE,
+            "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))",
+        ),
+        _violation(
+            "orchestrator/campaign/relative_probe.py",
+            1,
+            RELATIVE_RULE,
+            "orchestrator.campaign",
+        ),
+        _violation(
+            "scripts/check", 2, LEGACY_RULE, _legacy_module("executable_rule")
+        ),
+        _violation("scripts/check.bash", 1, LEGACY_RULE, _legacy_module("bash_rule")),
+        _violation("scripts/check.sh", 1, LEGACY_RULE, _legacy_module("shell_rule")),
+        _violation("src/legacy.py", 1, LEGACY_RULE, _legacy_module("legacy_rule")),
+    )
+    assert actual.violations == tuple(sorted(expected))
+    assert {
+        "src/legacy.py",
+        "scripts/check.sh",
+        "scripts/check.bash",
+        "scripts/check",
+        "orchestrator/campaign/path_probe.py",
+        "orchestrator/campaign/bootstrap_probe.py",
+        "orchestrator/campaign/relative_probe.py",
+    } <= actual.operational_paths
+    assert "docs/guide.md" in actual.sources
 
 
 def test_real_repository_legacy_namespace_matches_exception_ledger(repository_scan: RepositoryScan):
@@ -892,9 +1104,58 @@ if __name__ == "__main__":
     assert scan_legacy_namespace("tools/control.py", canonical_source) == ()
     assert scan_legacy_namespace("tools/control.py", 'assert "campaign.lock と不一致" in message\n') == ()
     assert scan_legacy_namespace("tools/control.py", "from campaign_lock_test_support import build_v2_lock\n") == ()
+    shell_non_modules = '''LOCK_PATH="$TMPDIR/campaign.lock"
+echo ok  # campaign.layout is a historical name
+echo /campaign.layout $campaign.layout
+'''
+    assert scan_legacy_namespace("tools/control.sh", shell_non_modules) == ()
+    quoted_hash = (
+        f'''python3 -c 'print("#"); import_module("{_legacy_module("env_contract")}")'\n'''
+    )
+    assert [
+        item.matched_text
+        for item in scan_legacy_namespace("tools/control.sh", quoted_hash)
+    ] == [_legacy_module("env_contract")]
     assert scan_campaign_shape("orchestrator/campaign/control.py", direct_source) == ()
     assert scan_current_doc("docs/control.md", "python3 -m orchestrator.campaign.ident\n") == ()
     assert scan_campaign_relative_imports("orchestrator/campaign/control.py", relative_source) == ()
+
+
+def test_static_join_does_not_use_ambiguous_or_cross_scope_names():
+    unique = '''import importlib
+root = "campaign"
+importlib.import_module(".".join((root, "env_contract")))
+'''
+    reassigned = '''import importlib
+import os
+root = "campaign"
+root = os.environ["RUNTIME_PACKAGE"]
+importlib.import_module(".".join((root, "env_contract")))
+'''
+    cross_scope = '''import importlib
+import os
+root = "campaign"
+def load():
+    root = os.environ["RUNTIME_PACKAGE"]
+    return importlib.import_module(".".join((root, "env_contract")))
+'''
+    assert [
+        item.matched_text
+        for item in scan_legacy_namespace("tools/unique.py", unique)
+    ] == [_legacy_module("env_contract")]
+    assert scan_legacy_namespace("tools/reassigned.py", reassigned) == ()
+    assert scan_legacy_namespace("tools/cross_scope.py", cross_scope) == ()
+
+
+def test_type_checking_relative_import_does_not_require_bootstrap():
+    source = '''from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .model import CampaignConfig
+
+if __name__ == "__main__":
+    raise SystemExit(0)
+'''
+    assert scan_campaign_shape("orchestrator/campaign/type_only.py", source) == ()
 
 
 def test_exception_ledger_comparison_rejects_stale_entry():
