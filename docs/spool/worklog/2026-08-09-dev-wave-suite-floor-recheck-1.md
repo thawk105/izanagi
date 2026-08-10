@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-09
 wave: dev-wave-suite-floor-recheck
 seq: 1
-title: [T-201] 択 (a) を実装した — 履歴走査の copy 検出を blob OID へ置き換え受入下限を測り直した (コード + docs、branch worktree-dev-wave-suite-floor-recheck)
+title: [T-201] 択 (a) を実装し受入下限を半分にした — 履歴走査の copy 検出を blob OID へ置き換えた (コード + docs、受入 7845 passed / 20 skipped / 623.29 秒、critical path 2 node が 1295 → 77 秒、変異 7 本中 6 KILLED・1 等価、branch worktree-dev-wave-suite-floor-recheck)
 ---
 
 ## 本文
@@ -48,6 +48,23 @@ title: [T-201] 択 (a) を実装した — 履歴走査の copy 検出を blob O
   赤を返す状態にある。
 - 親の prompt でファイル path を相対的に書いた (「同 dir の X」) ため、段 2 の子が正しく
   fail-closed して 1 巡空振りした。**path は絶対で 1 行 1 ファイル書く**。
+- **効果は同一 allocation の paired 実測で確かめた** (request `898551.nqsv`)。[T-692] が critical path の
+  96% と実測した 2 node を BEFORE → AFTER → BEFORE で測り、**1278.49 / 77.01 / 1311.57 秒**、
+  BEFORE 2 本の相対差 2.55% (事前登録閾値 7% 未満)、**mean(BEFORE) − AFTER = 1218.02 秒 = 16.8 倍**。
+  全区間で競合プロセスなし、worktree は復元されている。逐語と生値は
+  `output/insights/2026-08-10_t201-history-scan-floor/`。
+- **先行 driver は複製 checkout で受入を走らせて失敗した** (request `898290.nqsv`、59 failed /
+  19 errors / 1431.86 秒)。実装差分とは無関係で、複製環境が本来の worktree の前提を満たさないためである。
+  wave の worktree 上で `git checkout --detach` して測る形へ作り直した。1 走ぶんを空費した。
+- **親の記録に 2 件の訂正がある。** (1) 段 4 で「受理集合が狭まる」と書いたのは誤りで、正しくは
+  **検出が狭まり受理が広がる** (ゲートが弱くなる方向) である。補正文書で訂正した。
+  (2) 親自身の `AI-Agent:` 行に `reasoning=high` と書いたが、セッションの reasoning 値は親から
+  観測できないため規約の共通則により `unknown` が正しい。既存 commit は rewrite せず、
+  以降の commit で `unknown` を使う。
+- **`spool_fold.py` の carry 解決に穴がある。** [T-201] の base 照合が解決した先は実本文ではなく
+  `- [T-201] 変わらず (前エントリ参照)` という**序数なしの旧形式 stub** だった。
+  `tools/spool_fold.py:1151` の `carry_re` はこの形式を stub と認識せず実体として扱う。
+  この項に限り「他 wave が先に書き換えていたら止まる」保護が実質的に効いていない。
 
 ## 次の一手差分
 
