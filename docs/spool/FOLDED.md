@@ -750,3 +750,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-10","content_sha256":"f2a9c497bb7dc89c0cbbeb7b711bf8a48e1982ff8132af483c8e019bc672eb98","seq":1,"wave":"dev-wave-t316-sandbox-measure"}
 - {"allocations":{"F:discharge-overrejection-unguarded":"F204","F:renameat2-einval-on-work":"F205"},"authored":"2026-08-10","content_sha256":"5d4452a11452080f1475d7d7afb5d2ec8dcb379af4e5582d0ae1502854e939f4","seq":1,"wave":"dev-wave-t316-sandbox-measure"}
 - {"allocations":{"F:stale-checker-range-audit":"F206"},"authored":"2026-08-10","content_sha256":"2b661a26ba5eeec0e532044ddf187e4d448df27b92db1978963b177592d97fd9","seq":2,"wave":"dev-wave-t316-sandbox-measure"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"eab9c1cc83665a8abcb65751259459967f7786e257579ff24c5c4e4135c8b53d","seq":43,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"30deb243250dc45ac236c9c6c8d1eccca4c104dccf68d4b13d80149dbd4e492f","seq":44,"wave":"rulings-20260806-a"}
