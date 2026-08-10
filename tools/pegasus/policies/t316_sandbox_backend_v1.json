@@ -1,0 +1,23 @@
+{
+  "schema_version": "t316-sandbox-backend-policy/v1",
+  "project": "SFC",
+  "queue": "gen_S",
+  "nodes": 1,
+  "walltime": "01:30:00",
+  "walltime_s": 5400,
+  "probe_deadline_s": 5100,
+  "finalize_reserve_s": 300,
+  "stage_budgets_s": {
+    "s1_s5_nominal_cap_s": 900,
+    "s6_minimum_remaining_s": 3000,
+    "s7_minimum_remaining_s": 300,
+    "ccbench_build_cap_s": 1200,
+    "performance_run_cap_s": 90
+  },
+  "performance_contract": {
+    "trace_enabled": false,
+    "threads": 48,
+    "comparison": "same-config same-binary sandbox/non-sandbox elapsed overhead ratio",
+    "absolute_throughput_claim_allowed": false
+  }
+}

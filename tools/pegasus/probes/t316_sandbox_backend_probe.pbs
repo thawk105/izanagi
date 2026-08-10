@@ -1,0 +1,63 @@
+#!/bin/bash
+#PBS -A SFC
+#PBS -q gen_S
+#PBS -b 1
+#PBS -l elapstim_req=01:30:00
+set -euo pipefail
+
+[[ -n ${PBS_JOBID:-} && -n ${PBS_O_WORKDIR:-} &&
+   -n ${IZANAGI_PEGASUS_THIRDPARTY_CACHE:-} &&
+   -n ${IZANAGI_T139_DEPENDENCY_SOURCE_ROOT:-} &&
+   -n ${HTTPS_PROXY:-} &&
+   -n ${SSH_AUTH_SOCK:-} &&
+   $PBS_JOBID =~ ^[A-Za-z0-9._:-]+$ &&
+   $PBS_O_WORKDIR == /* &&
+   $IZANAGI_PEGASUS_THIRDPARTY_CACHE == /* &&
+   $IZANAGI_T139_DEPENDENCY_SOURCE_ROOT == /* &&
+   $SSH_AUTH_SOCK == /* && $SSH_AUTH_SOCK != *[[:space:],]* &&
+   $HTTPS_PROXY =~ ^https?://[^[:space:],]+$ ]] || exit 2
+
+INTERPRETER=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  bash -c 'command -v python3.10') || exit 3
+INTERPRETER=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$INTERPRETER") || exit 3
+timeout --foreground --signal=TERM --kill-after=5 5s "$INTERPRETER" -I -B - <<'PY'
+import sys
+raise SystemExit(0 if sys.version_info[:2] == (3, 10) else 1)
+PY
+
+REPO=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$PBS_O_WORKDIR") || exit 3
+CACHE=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$IZANAGI_PEGASUS_THIRDPARTY_CACHE") || exit 3
+DEPENDENCIES=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$IZANAGI_T139_DEPENDENCY_SOURCE_ROOT") || exit 3
+[[ $REPO == "$PBS_O_WORKDIR" && -d $CACHE && ! -L $CACHE &&
+   -d $DEPENDENCIES && ! -L $DEPENDENCIES ]] || exit 3
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=$CACHE
+export IZANAGI_T139_DEPENDENCY_SOURCE_ROOT=$DEPENDENCIES
+
+SCRATCH_ROOT=${TMPDIR:-/scr}
+SCRATCH_ROOT=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$SCRATCH_ROOT") || exit 3
+[[ -d $SCRATCH_ROOT && ! -L $SCRATCH_ROOT ]] || exit 3
+
+SHIM=$(mktemp -d "$SCRATCH_ROOT/t316-python-shim.XXXXXX") || exit 3
+cleanup() {
+  local rc=$?
+  trap - EXIT TERM INT
+  rm -f -- "$SHIM/python3"
+  rmdir -- "$SHIM"
+  exit "$rc"
+}
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+ln -s -- "$INTERPRETER" "$SHIM/python3"
+export PATH="$SHIM:$(dirname "$INTERPRETER"):/usr/bin:/bin"
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+
+"$INTERPRETER" -I -B \
+  "$REPO/tools/pegasus/probes/t316_sandbox_backend_probe.py" \
+  --repo-root "$REPO" \
+  --scratch-root "$SCRATCH_ROOT"
