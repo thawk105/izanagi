@@ -1008,6 +1008,31 @@ def test_read_blob_at_rejects_trailing_cr_without_aliasing(tmp_path: Path) -> No
 
 
 @pytest.mark.parametrize(
+    "suffix",
+    [
+        pytest.param("\x00", id="trailing-nul"),
+        pytest.param("\x00not-the-contract-path", id="embedded-nul"),
+    ],
+)
+def test_read_blob_at_rejects_nul_alias(tmp_path: Path, suffix: str) -> None:
+    root = _init_repo(tmp_path)
+    prefix_path = "alias-target.txt"
+    prefix_blob = b"nul-prefix-blob\n"
+    _write(root, prefix_path, prefix_blob)
+    head = _commit(root, "NUL alias fixture")
+    candidate = prefix_path + suffix
+
+    _assert_tree_blob(root, head, prefix_path, prefix_blob)
+    assert candidate != prefix_path
+    assert candidate == candidate.strip()
+    assert _legacy_unframed_blob(root, head, candidate) == prefix_blob
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.read_blob_at(root, head, candidate)
+    assert caught.value.reason == "path-control-char"
+    assert str(caught.value) == "path-control-char"
+
+
+@pytest.mark.parametrize(
     "control",
     [
         # Git は LF で request を分け、直前の CR も終端として落とす。
@@ -1053,6 +1078,16 @@ def test_read_blob_at_rejects_standalone_embedded_cr_as_policy(
         M.read_blob_at(root, head, candidate)
     assert caught.value.reason == "path-control-char"
     assert str(caught.value) == "path-control-char"
+
+
+def test_read_blob_at_accepts_embedded_tab_path(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    candidate = "nested/tab\tpath.py"
+    payload = b"embedded-tab-path\n"
+    _write(root, candidate, payload)
+    head = _commit(root, "embedded TAB path")
+
+    assert M.read_blob_at(root, head, candidate) == payload
 
 
 def test_read_blob_at_uses_checked_text_without_str_subclass_format_hook(
