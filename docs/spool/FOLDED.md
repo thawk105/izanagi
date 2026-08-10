@@ -705,3 +705,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:loader-issuer-integration-pin":"[T-737]"},"authored":"2026-08-10","content_sha256":"c3a548f0374df5c9bb0bbab2c51a396d12ee0a35f5394964073c8e50997c3d7b","seq":1,"wave":"dev-wave-t673-residual"}
 - {"allocations":{"F:mutation-spec-field-contract-unwritten":"F198"},"authored":"2026-08-10","content_sha256":"19d7a44b628e1554ed2e04d20c1548e16123bb75776296dd1dd0e16a86839db3","seq":2,"wave":"dev-wave-t673-residual"}
+
+- {"allocations":{"T:dev-wave-waiter-pid-rule":"[T-738]"},"authored":"2026-08-10","content_sha256":"8760c421bdb160d883242aa54e9744f7d51b817bc648503dc0bb546d503e7a77","seq":1,"wave":"dev-wave-t139-addendum-b2"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"0d2deb65ee395bbaca60e6ad675a034b101058ff4d5456f06c719908b0517b59","seq":2,"wave":"dev-wave-t139-addendum-b2"}
