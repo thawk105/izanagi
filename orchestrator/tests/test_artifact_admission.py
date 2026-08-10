@@ -760,6 +760,25 @@ def test_existing_campaign_classification_exact_mapping() -> None:
 
 
 @pytest.mark.parametrize(
+    "campaign_path",
+    sorted(
+        lock_path.removesuffix("/campaign.lock")
+        for lock_path in EXPECTED_EVIDENCE_CAMPAIGN_LOCKS
+    ),
+    ids=lambda campaign_path: Path(campaign_path).name,
+)
+def test_existing_evidence_campaign_classification_exact_rejection(
+    campaign_path: str,
+) -> None:
+    with pytest.raises(A.ArtifactAdmissionError) as exc_info:
+        A.classify_campaign(ROOT / campaign_path)
+    assert type(exc_info.value) is A.ArtifactAdmissionError
+    assert str(exc_info.value) == (
+        "campaign requires a directory, campaign.lock, and WAL"
+    )
+
+
+@pytest.mark.parametrize(
     ("lock", "expected"),
     [
         pytest.param(
