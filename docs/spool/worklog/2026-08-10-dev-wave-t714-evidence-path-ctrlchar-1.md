@@ -42,6 +42,11 @@ title: 証拠 path の CR/LF を両防壁で fail-closed 拒否した — 同じ
   `DW-M08` へ 1 行入れようとしたが、`docs/dev-wave/**` は L1 も L1.5 も予算満杯で入らなかった。
   重複規則 1 文の削除で 67 bytes 空けても 23 bytes 足りず、**予算は上げない**方針どおり見送った。
   教訓は本エントリと insights に残す。空ける手当てを伴う別 wave で再訪する。
+- **記録後の影響テストで走行範囲依存の赤を見つけた。** `test_dev_wave_land.py` を 4 file subset
+  および単独で走らせると `test_exploration_external_root_keeps_wave_clean` が
+  `campaign env_tag は exact str でなければならない` で落ちる。同じ tree の受入全走は
+  0 failed であり、本 wave が変更した 2 module は当該テストの import 連鎖のどこからも
+  import されない (grep で実測)。実装差分へ帰属させず {{T:land-test-scope-dependent-red}} で起票する。
 - 逐語と台帳は `output/insights/2026-08-10_t714-evidence-path-ctrlchar/`。
 
 ## 次の一手差分
@@ -67,3 +72,12 @@ title: 証拠 path の CR/LF を両防壁で fail-closed 拒否した — 同じ
   (c) 現状維持。従属所見として、直接 `read_blob_at` を呼ぶ経路には `./` 系 alias が残るが
   契約経路は `_safe_path` が既に拒否する。詳細は
   `output/insights/2026-08-10_t714-evidence-path-ctrlchar/ruling-package.md`。
+
+- {{T:land-test-scope-dependent-red}} **P3・新規**: `test_dev_wave_land.py::test_exploration_external_root_keeps_wave_clean`
+  が走行範囲に依存して落ちる。受入全走 (tip `fc2eff20`) では 0 failed だが、同じ tree で
+  当該 file 単独および 4 file subset で走らせると
+  `TypeError: campaign env_tag は exact str でなければならない`
+  (`orchestrator/campaign/execution_guard.py` の exact 型検査) で赤になる。
+  exact 型検査と `campaign.*` / `orchestrator.campaign.*` の二重 import namespace が絡む
+  既知型の疑いが強い。全走が緑なので受入は通るが、**subset で走らせた開発者に偽の赤を見せる**。
+  再現手順は `python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_dev_wave_land.py -q`。
