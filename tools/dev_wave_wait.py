@@ -257,6 +257,7 @@ def _acceptance_parser() -> argparse.ArgumentParser:
     parser.add_argument("--wave", required=True)
     parser.add_argument("--lease-dir", type=Path)
     parser.add_argument("--merge-message-file", type=Path)
+    parser.add_argument("--owned-path", type=Path, action="append", default=[])
     parser.add_argument(
         "--poll-seconds",
         type=_poll_seconds,
@@ -478,6 +479,44 @@ def _behind_count(effects: _Effects, repo: Path, stage: str) -> int:
     if not value.isascii() or not value.isdecimal():
         raise _StageFailure(stage)
     return int(value, 10)
+
+
+def _normalized_repo_path_parts(value: str | Path, repo: Path) -> tuple[str, ...]:
+    path = Path(os.path.normpath(os.fspath(value)))
+    if path.is_absolute():
+        normalized_repo = Path(os.path.normpath(os.fspath(repo)))
+        try:
+            path = path.relative_to(normalized_repo)
+        except ValueError:
+            pass
+    return path.parts
+
+
+def _owned_path_overlap(
+    effects: _Effects,
+    repo: Path,
+    owned_paths: Sequence[Path],
+) -> bool:
+    result = _run_capture(
+        effects,
+        ("git", "diff", "--name-only", "HEAD...main"),
+        repo,
+        "owned-path-diff",
+    )
+    owned_parts = [
+        _normalized_repo_path_parts(path, repo) for path in owned_paths
+    ]
+    for changed_path in result.stdout.splitlines():
+        if not changed_path:
+            continue
+        changed_parts = _normalized_repo_path_parts(changed_path, repo)
+        if any(
+            changed_parts == owned
+            or changed_parts[: len(owned)] == owned
+            for owned in owned_parts
+        ):
+            return True
+    return False
 
 
 def _identity_preflight(effects: _Effects, repo: Path, wave: str) -> None:
@@ -753,6 +792,7 @@ def run_acceptance(
     repo: Path,
     effects: _Effects,
     lifecycle: _AcceptanceLifecycle | None = None,
+    owned_paths: Sequence[Path] = (),
 ) -> _Outcome:
     active_lifecycle = lifecycle or _AcceptanceLifecycle()
     primary = _Outcome(RC_FAIL_CLOSED, "internal")
@@ -763,6 +803,11 @@ def run_acceptance(
         _identity_preflight(effects, repo, wave)
         if merge_message_file is not None and not effects.is_file(merge_message_file):
             raise _StageFailure("merge-message-preflight", RC_USAGE)
+        if not owned_paths:
+            print(
+                "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
+                file=sys.stderr,
+            )
         acquired_at = _wait_until_acquired(
             effects,
             repo,
@@ -775,6 +820,8 @@ def run_acceptance(
         _main_sha(effects, repo, "postclaim-rev-parse")
         behind = _behind_count(effects, repo, "behind-count")
         if behind > 0:
+            if owned_paths and _owned_path_overlap(effects, repo, owned_paths):
+                raise _StageFailure("owned-path-overlap")
             if merge_message_file is None:
                 raise _StageFailure("merge-message")
             validated_message = _validated_message_copy(merge_message_file, effects)
@@ -962,6 +1009,7 @@ def main(
                     repo=active_repo,
                     effects=active_effects,
                     lifecycle=lifecycle,
+                    owned_paths=args.owned_path,
                 )
             except BaseException as exc:
                 if isinstance(exc, _SignalReceived):

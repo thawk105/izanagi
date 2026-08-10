@@ -236,6 +236,7 @@ def _run_acceptance(
     *,
     message: Path | None = None,
     max_wait: int = 7200,
+    owned_paths: tuple[Path, ...] = (),
 ) -> object:
     return DW.run_acceptance(
         wave=_WAVE,
@@ -246,6 +247,7 @@ def _run_acceptance(
         command=_COMMAND,
         repo=_REPO,
         effects=fake.effects,
+        owned_paths=owned_paths,
     )
 
 
@@ -257,12 +259,14 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         behind: list[int] | None = None,
         message: str = "merge\nAI-Agent: codex\n",
         head_shas: list[str] | None = None,
+        changed_paths: str = "",
     ) -> None:
         super().__init__()
         self.branch = branch
         self.behind = list([0] if behind is None else behind)
         self.message = message
         self.head_shas = list([] if head_shas is None else head_shas)
+        self.changed_paths = changed_paths
         self.claims = 0
         self.releases = 0
         self.submissions = 0
@@ -286,6 +290,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         if actual == ("git", "rev-list", "--count", "HEAD..main"):
             assert self.behind
             return DW._CommandResult(0, f"{self.behind.pop(0)}\n")
+        if actual == ("git", "diff", "--name-only", "HEAD...main"):
+            return DW._CommandResult(0, self.changed_paths)
         if actual in {
             ("git", "merge", "--no-ff", "--no-commit", "main"),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
@@ -720,6 +726,201 @@ def test_merge_required_without_message_file_releases_before_submission() -> Non
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("owned_path", "changed_path"),
+    [
+        (Path("./docs/x.md"), "docs/x.md"),
+        (Path("docs"), "docs/sub/x.md"),
+    ],
+    ids=("normalized-exact", "directory-child"),
+)
+def test_owned_path_overlap_blocks_before_merge_and_releases(
+    owned_path: Path,
+    changed_path: str,
+) -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    fake.is_file_queue.append((_MESSAGE, True))
+    _acquired(fake)
+    fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "1\n"),
+    )
+    fake.expect_run(
+        ("git", "diff", "--name-only", "HEAD...main"),
+        DW._CommandResult(0, changed_path + "\n"),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(
+        fake,
+        message=_MESSAGE,
+        owned_paths=(owned_path,),
+    )
+
+    assert outcome.rc == 70
+    assert outcome.stage == "owned-path-overlap"
+    assert fake.events == [
+        *_PREFLIGHT_EVENTS,
+        ("is_file", _MESSAGE),
+        ("monotonic",),
+        ("run", ("git", "rev-parse", "main"), _REPO, True),
+        ("monotonic",),
+        ("run", _helper("claim", _SHA_A), _REPO, True),
+        ("run", ("git", "rev-parse", "main"), _REPO, True),
+        (
+            "run",
+            ("git", "rev-list", "--count", "HEAD..main"),
+            _REPO,
+            True,
+        ),
+        (
+            "run",
+            ("git", "diff", "--name-only", "HEAD...main"),
+            _REPO,
+            True,
+        ),
+        ("run", _helper("release"), _REPO, True),
+    ]
+    assert not any(
+        event[0] == "run" and event[1][:2] == ("git", "merge")
+        for event in fake.events
+    )
+    assert not any(
+        event[0] == "run" and event[1] == _COMMAND for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_owned_path_diff_nonzero_fails_closed_and_releases() -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    fake.is_file_queue.append((_MESSAGE, True))
+    _acquired(fake)
+    fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "1\n"),
+    )
+    fake.expect_run(
+        ("git", "diff", "--name-only", "HEAD...main"),
+        DW._CommandResult(9),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(
+        fake,
+        message=_MESSAGE,
+        owned_paths=(Path("docs/x.md"),),
+    )
+
+    assert outcome.rc == 70
+    assert outcome.stage == "owned-path-diff"
+    assert outcome.source_rc == 9
+    assert fake.events == [
+        *_PREFLIGHT_EVENTS,
+        ("is_file", _MESSAGE),
+        ("monotonic",),
+        ("run", ("git", "rev-parse", "main"), _REPO, True),
+        ("monotonic",),
+        ("run", _helper("claim", _SHA_A), _REPO, True),
+        ("run", ("git", "rev-parse", "main"), _REPO, True),
+        (
+            "run",
+            ("git", "rev-list", "--count", "HEAD..main"),
+            _REPO,
+            True,
+        ),
+        (
+            "run",
+            ("git", "diff", "--name-only", "HEAD...main"),
+            _REPO,
+            True,
+        ),
+        ("run", _helper("release"), _REPO, True),
+    ]
+    fake.assert_drained()
+
+
+def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
+        changed_paths="docs/xy.md\n",
+    )
+
+    outcome = _run_acceptance(
+        fake,
+        message=_MESSAGE,
+        owned_paths=(Path("docs/x.md"),),
+    )
+
+    assert outcome.rc == 0
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    selected_calls = [
+        event[1]
+        for event in fake.events
+        if event[0] == "run"
+        and event[1]
+        in {
+            ("git", "diff", "--name-only", "HEAD...main"),
+            ("git", "merge", "--no-ff", "--no-commit", "main"),
+            ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+            ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _COMMAND,
+        }
+    ]
+    assert selected_calls == [
+        ("git", "diff", "--name-only", "HEAD...main"),
+        ("git", "merge", "--no-ff", "--no-commit", "main"),
+        ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+        ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+        _COMMAND,
+    ]
+
+
+def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 0
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert not any(
+        event[0] == "run"
+        and event[1] == ("git", "diff", "--name-only", "HEAD...main")
+        for event in fake.events
+    )
+    selected_calls = [
+        event[1]
+        for event in fake.events
+        if event[0] == "run"
+        and event[1]
+        in {
+            ("git", "merge", "--no-ff", "--no-commit", "main"),
+            ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+            ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _COMMAND,
+        }
+    ]
+    assert selected_calls == [
+        ("git", "merge", "--no-ff", "--no-commit", "main"),
+        ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+        ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+        _COMMAND,
+    ]
+    warning = (
+        "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します"
+    )
+    assert capsys.readouterr().err.splitlines().count(warning) == 1
 
 
 def test_missing_message_preflight_does_not_release_foreign_lease() -> None:
@@ -1262,11 +1463,34 @@ def test_acceptance_cli_contract(case: str) -> None:
         assert command == "acceptance"
         assert args.poll_seconds == 30
         assert args.max_wait_seconds == 7200
+        assert args.owned_path == []
         assert child == ["harmless"]
         return
     with pytest.raises(DW._StageFailure) as raised:
         DW._parse_cli(argv)
     assert raised.value.outcome.rc == 2
+
+
+def test_acceptance_owned_path_is_repeatable() -> None:
+    command, args, child = DW._parse_cli(
+        [
+            "acceptance",
+            "--wave",
+            _WAVE,
+            "--lease-dir",
+            str(_LEASE),
+            "--owned-path",
+            "./docs/x.md",
+            "--owned-path",
+            "tools",
+            "--",
+            "harmless",
+        ]
+    )
+
+    assert command == "acceptance"
+    assert args.owned_path == [Path("docs/x.md"), Path("tools")]
+    assert child == ["harmless"]
 
 
 @pytest.mark.parametrize(
