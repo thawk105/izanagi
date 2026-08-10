@@ -9,15 +9,20 @@
   "finalize_reserve_s": 300,
   "stage_budgets_s": {
     "s1_s5_nominal_cap_s": 900,
-    "s6_minimum_remaining_s": 3000,
-    "s7_minimum_remaining_s": 300,
+    "s6_minimum_remaining_s": 3600,
+    "s7_minimum_remaining_s": 600,
     "ccbench_build_cap_s": 1200,
-    "performance_run_cap_s": 90
+    "performance_run_cap_s": 30
   },
   "performance_contract": {
     "trace_enabled": false,
     "threads": 48,
-    "comparison": "same-config same-binary sandbox/non-sandbox elapsed overhead ratio",
-    "absolute_throughput_claim_allowed": false
+    "comparison": "same-config same-binary alternating sandbox/non-sandbox wall-elapsed overhead ratio",
+    "warmup_cap_s": 30,
+    "repetitions_per_side": 6,
+    "max_load_per_cpu": 1.0,
+    "absolute_throughput_claim_allowed": false,
+    "tps_claim_allowed": false,
+    "floor_recalibration_decision_allowed": false
   }
 }

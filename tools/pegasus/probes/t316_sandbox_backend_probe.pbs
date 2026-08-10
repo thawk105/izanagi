@@ -5,17 +5,17 @@
 #PBS -l elapstim_req=01:30:00
 set -euo pipefail
 
-[[ -n ${PBS_JOBID:-} && -n ${PBS_O_WORKDIR:-} &&
+[[ -n ${PBS_JOBID:-} && -n ${PBS_O_WORKDIR:-} && -n ${PBS_NODEFILE:-} &&
    -n ${IZANAGI_PEGASUS_THIRDPARTY_CACHE:-} &&
    -n ${IZANAGI_T139_DEPENDENCY_SOURCE_ROOT:-} &&
-   -n ${HTTPS_PROXY:-} &&
-   -n ${SSH_AUTH_SOCK:-} &&
+   -n ${IZANAGI_T316_EXPECTED_COMMIT:-} &&
+   -n ${IZANAGI_T316_EXPECTED_WORKTREE_ROOT:-} &&
    $PBS_JOBID =~ ^[A-Za-z0-9._:-]+$ &&
-   $PBS_O_WORKDIR == /* &&
+   $IZANAGI_T316_EXPECTED_COMMIT =~ ^[0-9a-f]{40}$ &&
+   $PBS_O_WORKDIR == /* && $PBS_NODEFILE == /* &&
    $IZANAGI_PEGASUS_THIRDPARTY_CACHE == /* &&
    $IZANAGI_T139_DEPENDENCY_SOURCE_ROOT == /* &&
-   $SSH_AUTH_SOCK == /* && $SSH_AUTH_SOCK != *[[:space:],]* &&
-   $HTTPS_PROXY =~ ^https?://[^[:space:],]+$ ]] || exit 2
+   $IZANAGI_T316_EXPECTED_WORKTREE_ROOT == /* ]] || exit 2
 
 INTERPRETER=$(timeout --foreground --signal=TERM --kill-after=5 5s \
   bash -c 'command -v python3.10') || exit 3
@@ -28,14 +28,56 @@ PY
 
 REPO=$(timeout --foreground --signal=TERM --kill-after=5 5s \
   realpath -e -- "$PBS_O_WORKDIR") || exit 3
+EXPECTED_ROOT=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$IZANAGI_T316_EXPECTED_WORKTREE_ROOT") || exit 3
 CACHE=$(timeout --foreground --signal=TERM --kill-after=5 5s \
   realpath -e -- "$IZANAGI_PEGASUS_THIRDPARTY_CACHE") || exit 3
 DEPENDENCIES=$(timeout --foreground --signal=TERM --kill-after=5 5s \
   realpath -e -- "$IZANAGI_T139_DEPENDENCY_SOURCE_ROOT") || exit 3
-[[ $REPO == "$PBS_O_WORKDIR" && -d $CACHE && ! -L $CACHE &&
-   -d $DEPENDENCIES && ! -L $DEPENDENCIES ]] || exit 3
-export IZANAGI_PEGASUS_THIRDPARTY_CACHE=$CACHE
-export IZANAGI_T139_DEPENDENCY_SOURCE_ROOT=$DEPENDENCIES
+NODEFILE=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  realpath -e -- "$PBS_NODEFILE") || exit 3
+[[ $REPO == "$EXPECTED_ROOT" && -d $CACHE && ! -L $CACHE &&
+   -d $DEPENDENCIES && ! -L $DEPENDENCIES && -f $NODEFILE && -s $NODEFILE ]] || exit 3
+
+HOST=$(hostname)
+HOST_SHORT=${HOST%%.*}
+[[ ! $HOST_SHORT =~ ^pegasus[0-9]+$ ]] || exit 5
+awk 'NF {sub(/\..*/, "", $1); print $1}' "$NODEFILE" | grep -Fx -- "$HOST_SHORT" >/dev/null || exit 5
+
+OBSERVED_HEAD=$(timeout --foreground --signal=TERM --kill-after=5 10s \
+  git --no-replace-objects -C "$REPO" rev-parse --verify 'HEAD^{commit}') || exit 3
+[[ $OBSERVED_HEAD == "$IZANAGI_T316_EXPECTED_COMMIT" ]] || exit 3
+REPLACE_REFS=$(timeout --foreground --signal=TERM --kill-after=5 5s \
+  git --no-replace-objects -C "$REPO" for-each-ref --format='%(refname)' refs/replace/) || exit 3
+[[ -z $REPLACE_REFS ]] || exit 3
+
+BOUND_PATHS=(
+  tools/pegasus/probes/t316_sandbox_backend_probe.py
+  tools/pegasus/probes/t316_sandbox_backend_probe.pbs
+  tools/pegasus/policies/t316_sandbox_backend_v1.json
+  tools/pegasus/policy.json
+)
+DIRTY=$(timeout --foreground --signal=TERM --kill-after=5 10s \
+  git --no-replace-objects -C "$REPO" status --porcelain --untracked-files=all -- \
+  "${BOUND_PATHS[@]}") || exit 3
+[[ -z $DIRTY ]] || exit 3
+
+RUNTIME_PBS=$(timeout --foreground --signal=TERM --kill-after=5 5s realpath -e -- "$0") || exit 3
+RUNTIME_PBS_SHA=$(timeout --foreground --signal=TERM --kill-after=5 10s sha256sum "$RUNTIME_PBS") || exit 3
+RUNTIME_PBS_SHA=${RUNTIME_PBS_SHA%% *}
+for relative in "${BOUND_PATHS[@]}"; do
+  LIVE_SHA=$(timeout --foreground --signal=TERM --kill-after=5 10s sha256sum "$REPO/$relative") || exit 3
+  LIVE_SHA=${LIVE_SHA%% *}
+  COMMITTED_SHA=$(timeout --foreground --signal=TERM --kill-after=5 10s \
+    git --no-replace-objects -C "$REPO" cat-file blob "$OBSERVED_HEAD:$relative" | sha256sum) || exit 3
+  COMMITTED_SHA=${COMMITTED_SHA%% *}
+  [[ $LIVE_SHA == "$COMMITTED_SHA" ]] || exit 3
+done
+PBS_RELATIVE=tools/pegasus/probes/t316_sandbox_backend_probe.pbs
+COMMITTED_PBS_SHA=$(timeout --foreground --signal=TERM --kill-after=5 10s \
+  git --no-replace-objects -C "$REPO" cat-file blob "$OBSERVED_HEAD:$PBS_RELATIVE" | sha256sum) || exit 3
+COMMITTED_PBS_SHA=${COMMITTED_PBS_SHA%% *}
+[[ $RUNTIME_PBS_SHA == "$COMMITTED_PBS_SHA" ]] || exit 3
 
 SCRATCH_ROOT=${TMPDIR:-/scr}
 SCRATCH_ROOT=$(timeout --foreground --signal=TERM --kill-after=5 5s \
@@ -55,7 +97,13 @@ trap 'exit 143' TERM
 trap 'exit 130' INT
 ln -s -- "$INTERPRETER" "$SHIM/python3"
 export PATH="$SHIM:$(dirname "$INTERPRETER"):/usr/bin:/bin"
-unset PYTHONPATH PYTHONHOME PYTHONSTARTUP
+export IZANAGI_PEGASUS_THIRDPARTY_CACHE=$CACHE
+export IZANAGI_T139_DEPENDENCY_SOURCE_ROOT=$DEPENDENCIES
+export IZANAGI_T316_EXPECTED_COMMIT
+export IZANAGI_T316_EXPECTED_WORKTREE_ROOT=$EXPECTED_ROOT
+export IZANAGI_T316_RUNTIME_PBS=$RUNTIME_PBS
+export PBS_NODEFILE=$NODEFILE
+unset SSH_AUTH_SOCK PYTHONPATH PYTHONHOME PYTHONSTARTUP
 
 "$INTERPRETER" -I -B \
   "$REPO/tools/pegasus/probes/t316_sandbox_backend_probe.py" \
