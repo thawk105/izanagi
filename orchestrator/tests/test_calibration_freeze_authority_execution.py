@@ -74,6 +74,55 @@ def test_builder_registry_is_bijective() -> None:
     assert set(BUILDERS) == required
 
 
+def test_execution_evidence_matches_fixture_declarations() -> None:
+    cases = {
+        case["fixture_id"]: case
+        for case in _executable_cases()
+    }
+    summary = run_all_executable()
+    assert set(summary["invocations"]) == set(cases)
+    for fixture_id, recorded_cases in summary["invocations"].items():
+        fixture = cases[fixture_id]
+        assert set(recorded_cases) == {"positive_control", "negative_case"}
+        for which, evidence in recorded_cases.items():
+            declared = fixture[which]
+            assert set(evidence) == {
+                "arguments_sha256",
+                "builder",
+                "case_id",
+                "decision",
+                "entrypoint",
+                "outcome_reason",
+            }
+            assert evidence["builder"] == declared["builder"]
+            assert evidence["case_id"] == declared["case_id"]
+            assert evidence["decision"] == declared["expected_decision"]
+            assert evidence["entrypoint"] == fixture["entrypoint"].replace(":", ".")
+            assert evidence["arguments_sha256"] == declared["case_id"].rsplit(
+                "-sha256-", 1,
+            )[1]
+
+
+def test_negative_cases_reach_expected_production_gate() -> None:
+    expected_reasons = {
+        "activation-head-consistency": "activation head serial 不一致",
+        "environment-floor-contract-consistency": (
+            "protocol.contract_sha256 と resolver が返した env 契約が不一致"
+        ),
+        "freeze-history-immutability": "history-mutated",
+        "orphan-generation-no-authority": "result-mismatch:generation_number",
+        "unapproved-generation-no-authority": "pointer-approval",
+    }
+    summary = run_all_executable()
+    observed = {
+        fixture_id: records["negative_case"]["outcome_reason"]
+        for fixture_id, records in summary["invocations"].items()
+    }
+    assert set(observed) == set(expected_reasons)
+    for fixture_id, expected_reason in expected_reasons.items():
+        assert expected_reason in observed[fixture_id]
+
+
 def _run() -> int:
     tests = [
         value for name, value in sorted(globals().items())
