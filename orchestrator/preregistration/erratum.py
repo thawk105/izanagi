@@ -12,13 +12,31 @@ from dataclasses import dataclass
 import hashlib
 import json
 import re
-from typing import Callable, NoReturn
+from typing import Callable, Literal, NoReturn, TypeAlias, cast
 
 from .blobref import BlobRef, read_pinned_blob
 
 
 _LOWER_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _OLD_RANGE = "`a01`〜`a12`"
+_S7_OLD_TEXT = "事前 simulation で較正する"
+_S7_NEW_TEXT_SHA256 = (
+    "92fd71754c81b45b6cc01fb14600bfdc140af8e464c50484b45e1bb8caaa01a4"
+)
+
+RegisteredErratumId: TypeAlias = Literal[
+    "t139-core-s15-exactkey-v1",
+    "t139-core-s7-stresscheck-v1",
+]
+ApprovedErratumId: TypeAlias = Literal["t139-core-s15-exactkey-v1"]
+DraftErratumId: TypeAlias = Literal["t139-core-s7-stresscheck-v1"]
+
+APPROVED_ERRATA: frozenset[ApprovedErratumId] = frozenset(
+    {"t139-core-s15-exactkey-v1"}
+)
+DRAFT_ERRATA: frozenset[DraftErratumId] = frozenset(
+    {"t139-core-s7-stresscheck-v1"}
+)
 
 
 class ErratumError(Exception):
@@ -30,7 +48,7 @@ class ErratumParseError(ErratumError):
 
 
 class OperationCountError(ErratumError):
-    """operations の要素数が 2 ではない。"""
+    """operations の要素数が erratum 固有の件数ではない。"""
 
 
 class UnknownErratumError(ErratumError):
@@ -46,11 +64,23 @@ class OldDigestMismatchError(ErratumError):
 
 
 class OccurrenceCountError(ErratumError):
-    """対象 core の a01〜a12 出現が exact 2 operation と一致しない。"""
+    """対象語句の出現が erratum 固有の operation と一致しない。"""
 
 
 class OperationDeltaError(ErratumError):
     """operation の差分が a12 から a13 への 1 token 置換ではない。"""
+
+
+class LineCountMismatchError(ErratumError):
+    """operation の old_text と new_text が同じ 1 行ではない。"""
+
+
+class ReplacementTextMismatchError(ErratumError):
+    """operation の new_text が erratum 固有の承認予定 bytes と一致しない。"""
+
+
+class ErratumRegistryError(ErratumError):
+    """validator registry と承認・draft 集合の状態が整合しない。"""
 
 
 class LocatorOverlapError(ErratumError):
@@ -79,7 +109,7 @@ class ErratumOperation:
 
 @dataclass(frozen=True)
 class ErratumDocument:
-    erratum_id: str
+    erratum_id: RegisteredErratumId
     operations: tuple[ErratumOperation, ...]
 
 
@@ -269,12 +299,16 @@ def _validate_delta(operation: ErratumOperation) -> None:
         raise OperationDeltaError("new_text の差分は a12 から a13 への 1 token だけでなければならない")
 
 
+def _registered_erratum_id(value: str) -> RegisteredErratumId:
+    if value not in _ERRATUM_VALIDATORS:
+        raise UnknownErratumError(f"未知の erratum_id を拒否: {value}")
+    return cast(RegisteredErratumId, value)
+
+
 def parse_erratum(blob: bytes) -> ErratumDocument:
     """Erratum ID と §3 の ``operations`` 直下 sequence を構造化する。"""
 
-    erratum_id = _metadata_erratum_id(blob)
-    if erratum_id not in _ERRATUM_VALIDATORS:
-        raise UnknownErratumError(f"未知の erratum_id を拒否: {erratum_id}")
+    erratum_id = _registered_erratum_id(_metadata_erratum_id(blob))
     yaml_text = _section_three_yaml(blob)
     operation_lines = _operations_sequence_lines(yaml_text)
     starts = [
@@ -334,31 +368,110 @@ def _validate_t139_core_s15_exactkey_v1(
         )
 
     for operation in document.operations:
-        line_number = operation.locator.line_number_at_target_commit
-        if line_number > len(core_lines):
-            raise OldDigestMismatchError("locator の対象行が core に存在しない")
-        target_line = core_lines[line_number - 1]
-        actual = hashlib.sha256(target_line).hexdigest()
-        if actual != operation.old_sha256:
-            raise OldDigestMismatchError(
-                f"locator 対象行の SHA-256 が不一致: line={line_number}"
-            )
-        try:
-            old_bytes = operation.old_text.encode("utf-8", errors="strict")
-            operation.new_text.encode("utf-8", errors="strict")
-        except UnicodeEncodeError as exc:
-            raise ErratumParseError("operation text を UTF-8 bytes にできない") from exc
-        if old_bytes != target_line:
-            raise OldDigestMismatchError(
-                f"old_text が locator の対象行 bytes と一致しない: line={line_number}"
-            )
+        _validate_operation_binding(core_lines, operation)
+
+
+def _validate_operation_binding(
+    core_lines: list[bytes], operation: ErratumOperation
+) -> None:
+    line_number = operation.locator.line_number_at_target_commit
+    if line_number > len(core_lines):
+        raise OldDigestMismatchError("locator の対象行が core に存在しない")
+    target_line = core_lines[line_number - 1]
+    actual = hashlib.sha256(target_line).hexdigest()
+    if actual != operation.old_sha256:
+        raise OldDigestMismatchError(
+            f"locator 対象行の SHA-256 が不一致: line={line_number}"
+        )
+    try:
+        old_bytes = operation.old_text.encode("utf-8", errors="strict")
+        operation.new_text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ErratumParseError("operation text を UTF-8 bytes にできない") from exc
+    if old_bytes != target_line:
+        raise OldDigestMismatchError(
+            f"old_text が locator の対象行 bytes と一致しない: line={line_number}"
+        )
+
+
+def _validate_t139_core_s7_stresscheck_v1(
+    core_lines: list[bytes], document: ErratumDocument
+) -> None:
+    if len(document.operations) != 1:
+        raise OperationCountError(
+            f"operations の要素数は 1 必須: actual={len(document.operations)}"
+        )
+    operation = document.operations[0]
+    token = _S7_OLD_TEXT.encode("utf-8")
+    occurrence_lines: list[int] = []
+    for line_number, line in enumerate(core_lines, start=1):
+        occurrence_lines.extend([line_number] * line.count(token))
+    operation_line = operation.locator.line_number_at_target_commit
+    if len(occurrence_lines) != 1:
+        raise OccurrenceCountError(
+            "core 全体の対象語句出現は exact 1 件でなければならない"
+        )
+    if occurrence_lines[0] != operation_line:
+        raise OccurrenceCountError(
+            "core 全体の対象語句出現行は operation の対象行と一致しなければならない"
+        )
+
+    # s15 と共有しない s7 固有の行束縛。M2 が s7 の防壁だけを変異できるようにする。
+    if operation_line > len(core_lines):
+        raise OldDigestMismatchError("locator の対象行が core に存在しない")
+    target_line = core_lines[operation_line - 1]
+    actual = hashlib.sha256(target_line).hexdigest()
+    if actual != operation.old_sha256:
+        raise OldDigestMismatchError(
+            f"locator 対象行の SHA-256 が不一致: line={operation_line}"
+        )
+    try:
+        old_bytes = operation.old_text.encode("utf-8", errors="strict")
+        new_bytes = operation.new_text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ErratumParseError("operation text を UTF-8 bytes にできない") from exc
+    if old_bytes != target_line:
+        raise OldDigestMismatchError(
+            f"old_text が locator の対象行 bytes と一致しない: line={operation_line}"
+        )
+
+    old_lines = operation.old_text.splitlines(keepends=True)
+    new_lines = operation.new_text.splitlines(keepends=True)
+    if len(old_lines) != 1 or len(new_lines) != 1:
+        raise LineCountMismatchError(
+            "old_text と new_text は同じ 1 行でなければならない"
+        )
+    if hashlib.sha256(new_bytes).hexdigest() != _S7_NEW_TEXT_SHA256:
+        raise ReplacementTextMismatchError(
+            "new_text が t139-core-s7-stresscheck-v1 の承認予定 bytes と一致しない"
+        )
 
 
 _ERRATUM_VALIDATORS: dict[
-    str, Callable[[list[bytes], ErratumDocument], None]
+    RegisteredErratumId, Callable[[list[bytes], ErratumDocument], None]
 ] = {
     "t139-core-s15-exactkey-v1": _validate_t139_core_s15_exactkey_v1,
+    "t139-core-s7-stresscheck-v1": _validate_t139_core_s7_stresscheck_v1,
 }
+
+
+def _validate_erratum_registry() -> None:
+    approved = frozenset(APPROVED_ERRATA)
+    draft = frozenset(DRAFT_ERRATA)
+    registered = frozenset(_ERRATUM_VALIDATORS)
+    if not approved.isdisjoint(draft):
+        raise ErratumRegistryError("approved と draft の erratum_id が重複している")
+    if approved | draft != registered:
+        raise ErratumRegistryError(
+            "registered erratum_id は approved または draft に一意に分類しなければならない"
+        )
+
+
+def approved_erratum_ids() -> frozenset[ApprovedErratumId]:
+    """明示的に承認済みの ID だけを返す。validator 登録だけでは承認しない。"""
+
+    _validate_erratum_registry()
+    return APPROVED_ERRATA
 
 
 def compose_core(
@@ -380,12 +493,7 @@ def compose_core(
     )
     operations = tuple(operation for document in documents for operation in document.operations)
     for document in documents:
-        validator = _ERRATUM_VALIDATORS.get(document.erratum_id)
-        if validator is None:
-            raise UnknownErratumError(
-                f"未知の erratum_id を拒否: {document.erratum_id}"
-            )
-        validator(core_lines, document)
+        _ERRATUM_VALIDATORS[document.erratum_id](core_lines, document)
     _validate_non_overlapping(operations)
 
     composed_lines = list(core_lines)
