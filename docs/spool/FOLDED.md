@@ -734,3 +734,15 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:codex-child-oom-under-shared-user-cap":"F202"},"authored":"2026-08-10","content_sha256":"809a17a45a301ef1250e8528d8d09d759195db1f59ae7afcdd62253a1d861718","seq":1,"wave":"dev-wave-t675-pin-semantic-gap"}
 
 - {"allocations":{"T:s8b-floor-toolchain-binding":"[T-747]","T:s8b-legacy-verify-cli-supersede":"[T-749]","T:s8b-restart-order-vs-generation":"[T-748]","T:s8b-v2-producer-and-manifest-wiring":"[T-750]"},"authored":"2026-08-10","content_sha256":"4815518b3203f106a018dcd12e109954f7dad774170fafded2193af25c6e3261","seq":1,"wave":"dev-wave-t8b-reopen-inspection"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"ef6aa8e3d0bfa277d1b4ffd41e65078779237887f435f627dfc6a12db2248a70","seq":39,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"3b60930af22d7ef5f32818ed5bd5eb17ef7b9dc7db86b2f80f32f9c09d52460d","seq":40,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"3b0f46e7a810f14b9403f9bba09635a3121bc6b489f5533ea471c377b509e1d0","seq":41,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-10","content_sha256":"77a8469ebcaa1a5a006e9413a7e024ef70f4ce503eccd0d84802dd88f5fe45f8","seq":42,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:mutation-expected-nodes-two-pass":"[T-753]","T:ruleops-epoch-evidence-checkpoint":"[T-751]","T:ruleops-history-boundary-race":"[T-752]","T:wave-startup-detect-duplicate-job":"[T-754]"},"authored":"2026-08-10","content_sha256":"f2053d9359a7f8de8c5777e288e1cf8485af4fc747207b72c2429fcbfca25a1c","seq":1,"wave":"dev-wave-t726-pickaxe-epoch"}
+- {"allocations":{"D:ruleops-pickaxe-epoch-window":"D274"},"authored":"2026-08-10","content_sha256":"935ebf7065fedad6211535f85cda884fda0d2f824e0e1433dd78c9def9444f9b","seq":2,"wave":"dev-wave-t726-pickaxe-epoch"}
+- {"allocations":{"F:duplicate-dev-wave-job":"F203"},"authored":"2026-08-10","content_sha256":"57ccc9651b1b612d2846096843b13ba8a1b726e4b1c77b3af7fc70724d44204a","seq":3,"wave":"dev-wave-t726-pickaxe-epoch"}
+
+- {"allocations":{"T:ccbench-anatomy-corrections":"[T-758]","T:dev-wave-waiter-liveness-note":"[T-757]","T:s1-design-choice-ruling":"[T-755]","T:trace-completeness-v2":"[T-756]"},"authored":"2026-08-10","content_sha256":"124315288f708e92c2eade023fd860de3c24359c27a3bdeea355486272b7b017","seq":1,"wave":"dev-wave-s1-design-choice"}
