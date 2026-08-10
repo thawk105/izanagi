@@ -1693,6 +1693,34 @@ def test_spool_guard_valid_pending_fragment_is_clean():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_spool_guard_reports_failure_supersede_issue():
+    """supersede の validate issue を check_docs main の spool finding へ伝播する。"""
+
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            "docs/spool/failures/2026-08-10-wave-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: failures\n"
+            "authored: 2026-08-10\n"
+            "wave: wave\n"
+            "seq: 1\n"
+            "---\n"
+            "## supersede 追記\n\n"
+            "- F1 **supersede: 2026-13-45** — invalid calendar date\n",
+        )
+        result = _assert_violation(
+            root,
+            "spool failure-supersede-shape",
+            "supersede 追記 item の shape が不正",
+        )
+        assert "Traceback" not in result.stdout + result.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_spool_guard_unresolved_reference_propagates_to_main():
     """未解決 spool 参照は main() の rc=1 へ伝播する。"""
 
