@@ -204,6 +204,30 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
 テストの後半だけが依存物を要する場合 (前半で実検証が完了している場合) は
 skip でなく return で打ち切る (その旨コメントを付ける)。
 
+### 条件付き未実走 — 依存物不在ではない skip
+
+上記と**区別すべき第 2 の分類**がある。前提が repo 内で満たせるにもかかわらず、テスト側が
+窓を開けていないために skip する node である。「外部依存物の不在」と同じ枠で数えると、
+census を読む側が「外部依存だから仕方ない」と誤読する ([T-770] R2)。
+
+現行の該当は **4 node** で、いずれも理由は「template patch 未適用」である。
+
+- `test_campaign.py::test_source_digest_parse_options_defaults`
+- `test_campaign.py::test_source_digest_fixed_variant_distinct`
+- `test_campaign.py::test_source_digest_failsclosed_on_missing_define`
+- `test_hooks.py::test_real_submodule_payload_edit`
+
+patch は repo 内 (`patches/silo-backoff-fixed.patch`) にあり、現行 pin に対して
+`git apply --check` が rc=0 で当たる。適用機構 (`campaign/patchharness.py` の `applied()`)
+は campaign 本番経路が使っているものであり、直列化も `conftest.py` の
+`REAL_REPO_SERIAL_NODES` で済んでいる。**開けない技術的理由は無い。**
+
+開けていないのは費用対効果の裁定による ([T-770] R1 = (b))。受入全走という共有の関門へ
+実 submodule の変異を 4 箇所増やす一方、実効回収は 4 node 中 2 node に留まる
+(`test_source_digest_fixed_variant_distinct` は `_require_g13()` 相当のガードを足しても
+`g++-13` 不在で skip のままとなる)。隔離 checkout で開ける案は別 wave として起票済み
+([T-770] R1 (c))。
+
 ## fixtures
 
 判定既知の手製極小トレースは `fixtures/README.md` 参照。

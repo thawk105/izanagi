@@ -47,16 +47,56 @@
 拒否を返す。再開を塞いでいるのは腐りではなく、**未実装の段** (§3) と、**未解決の toolchain 前提**
 (§3 の W-2) である。
 
+### 1.3 再測 (2026-08-11、main `f4db7036`、wave `dev-wave-t8b-restart-residue`)
+
+| 対象 | 判定 | 実測 |
+|---|---|---|
+| P1 ccbench gitlink | 一致 | `d706650cdb31e442bef45b9b4216951d4fb40969` |
+| P2 凍結成果物 manifest | 緑 | `2 passed, 0 failed, 0 skipped` / rc=0 |
+| P3 oracle gate-check | 設計どおり | rc=2、拒否は `floor-null` と `budget-null` の 2 件 exact。`holdout-freeze-verify:` の混入なし |
+| 床値 driver source の凍結 pin | 無し | `FROZEN_MANIFEST` 23 件に `.py` は 0 件。`floor_protocol.json` が pin するのは `contract_sha256` / `ccbench_pin` / `freeze` の 3 つのみ |
+| ↑ ただし commit pin は在る | 有り | `submit_floor.sh` の submission receipt が `source_commit` を pin し、実行時に imported module bytes を照合する (`floor_campaign.sh:524`、`certified_writer_preflight.py:85`)。「pin が無い」を運用前提にすると availability failure になる |
+| 床値 producer の既存出力 | 不在 | `output/calibration/` 自体が存在しない (どの mode でも未実走) |
+
+**P3 は §1 の表の値と同一である** (peer wave の `s8c_preregistration` NUL 検査追加を
+取り込んだ後に再測しても変わらない)。
+
 ### 1.2 新たに判明した前提の欠落 — Pegasus に固定要求の compiler が無い
 
 床値 driver は CCBench のビルドで `cc="gcc-13"`, `cxx="g++-13"` を**固定で渡す**
 (`s8b_floor_campaign` の build 呼び出し)。`buildcache` はこれを `shutil.which` で解決し、
 PATH に無ければ `toolchain cxx が PATH に存在しない: 'g++-13' (fails-closed)` で倒れる。
 
-一方 Pegasus には `g++-13` がログインノードにも計算ノードにも無い (計算ノードは `g++-12`、
-ログインノードは 11.4.0 を実測)。Pegasus 用の較正証明 (`certify_calibration.sh`) と floor job
-script の依存ビルド段は、いずれも `command -v gcc` / `command -v g++` で**system の既定 compiler**
-を解決して記録する設計であり、driver 側の固定要求とかみ合っていない。
+一方 Pegasus には `g++-13` がログインノードにも計算ノードにも無い。Pegasus 用の較正証明
+(`certify_calibration.sh`) と floor job script の依存ビルド段は、いずれも
+`command -v gcc` / `command -v g++` で**system の既定 compiler** を解決して記録する設計であり、
+driver 側の固定要求とかみ合っていない。
+
+**既定 compiler の実測 (2026-08-11 に登録済み calibration から採取)。**
+「計算ノードは `g++-12`」は既定ではなく `g++-12` パッケージの存在を指す。
+**登録済みの 2 世代の calibration は、いずれも計算ノード上で既定 compiler を
+gcc 11.4.0 として記録している。**
+
+- 第 1 世代 `calibration-753f535a8d024727.json`: `assigned_host_qstat=bnode011`、
+  `pbs_jobid=0:867876.nqsv`、`compiler_path=/usr/bin/x86_64-linux-gnu-gcc-11`、
+  `compiler_version` 先頭行 `gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0`
+- 第 2 世代 `calibration-94a4b79fa31bba3c.json`: `bnode048` / `0:892707.nqsv` / 同じ値
+- ログインノード実測: `/usr/bin/gcc` → 11.4.0。`/usr/bin` に `gcc-9/11/12`・`g++-9/11/12` が
+  同居し、`gcc-13` / `g++-13` は無い
+
+**これは 2 ノードの観測であって `gen_S` 全ノードの現在値ではない。** PBS 要求にも
+vnode / toolchain の制約は無いため、異機種ノードに当たる可能性は残る。
+現在値は投入時に実測して確定する。
+
+**version 文字列の形が 2 系統ある (2026-08-11 実測)。** `gcc` は argv0 を先頭 token に出す。
+
+- calibration と job script は `command -v gcc` を叩くので `gcc (Ubuntu …) 11.4.0` になる
+- `buildcache._tool_version` は `os.path.realpath` 後の実体を叩くので
+  `x86_64-linux-gnu-gcc-11 (Ubuntu …) 11.4.0` になる
+
+**同一 compiler でも両者は逐語一致しない。** 両者を突き合わせる検査を書くなら、
+`silo_ladder_rung1.tool_version_body()` と同型の argv0 token 除去が必須である
+(逐語一致にすると正規の run が恒常的に赤になる)。realpath 同士は完全一致する。
 
 **この不整合は今まで表に出ていない。** official guard が build より手前で rc=2 を返すため、
 実機の floor job (873225) はビルドへ到達せずに終わっていた。**W-1 で guard を解禁した直後に、
@@ -119,13 +159,34 @@ P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先
   段階 4 = CLI rc 翻訳。2026-07-28 (36) で 3 項とも推奨採用済み
 - **これが無いと:** `tools/pegasus/floor_campaign.sh` は `--mode official` を渡すため、
   投入しても計算ノードで rc=2 に倒れる。**投入する意味が無い**
+- **塞いでいるのは guard 1 つではない (2026-08-11 実測)。** 次の 3 点が独立に効いている。
+  1. `s8b_floor_campaign._assert_official_permitted` (`:207-217`) が `official` を無条件拒否する
+  2. `assemble_result` (`:2453`) は `eligible_for_refreeze=True` を `mode == "official"` に
+     限定する。**したがって pilot mode で測った床値は、そもそも再凍結に使えない**
+  3. `tools/pegasus/floor_campaign.sh` (`:962`) は `--mode official` を固定で渡し、
+     pilot 投入の経路を持たない
+- **「投入できない」ではなく「完遂できない」である。** `submit_floor.sh` に mode の分岐は無く、
+  `--dry-run` を付けなければ `qsub` は実行され scheduler は job を受理する。
+  倒れるのは計算ノード上であり、**キュー資源は消費されうる。**
+  完遂できないのは再凍結適格な artifact である
 - **成果物への影響:** 床値が採れないので freeze v2 の floor/budget は null のままとなり、
   oracle gate は永久に 2 件拒否を返し続ける (certified 選択の結果が 1 件も出ない)
 
-### W-2. 床値実測 (Pegasus 単独) — **toolchain の裁定 (R-4) が先に要る**
+### W-2. 床値実測 (Pegasus 単独) — **塞いでいるのは R-4 ではなく W-1 である**
 
-- §1.2 のとおり、driver が固定要求する `g++-13` は Pegasus に無い。**R-4 の裁定なしに投入しても
-  ビルド段で fail-closed に倒れる。** W-1 と W-2 の間に処置を挟む
+- **R-4 は 2026-08-11 に (B) で裁定済み** ([T-747]、worklog 403)。しかしその実装単位
+  ([T-783]) も 2026-08-11 の wave `dev-wave-t8b-restart-residue` で **blocker 4 件により
+  再裁定へ戻った** (`output/insights/2026-08-11_t8b-restart-residue/package.md`)。
+  **順序は次のとおりで、W-2 の手前に 2 つ未了段がある。**
+  1. R-4 (B) の toolchain 束縛検査 — **未了** (再裁定待ち)
+  2. W-1 (official 解禁) — **未了** ([T-781] が「択保留・調査先行」)
+  3. W-2 投入 — 1 と 2 の両方が済んでから
+- **toolchain 束縛を先に入れずに W-1 だけ開けてはならない。** 床値 driver の `gcc-13`/`g++-13`
+  固定要求は、Pegasus では現に効いている fail-closed 障壁である。
+  compiler 解決を site 依存へ寄せる変更 ([T-783]) を束縛検査なしで入れると、
+  **認可されていない compiler で床値を測れるようにするだけ**の変更になる
+  (§1.2 の「既定 compiler へ黙って倒すのは選択肢にしない」に反する)。両者は不可分である
+- §1.2 のとおり、driver が固定要求する `g++-13` は Pegasus に無い
 - W-1・R-4 完了後に `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認し、
   明示実行する。投入インタフェースは同 script が正本で、`qsub -v VAR=value <script>` 形を
   自分で発明しない (runbook §8)
@@ -182,7 +243,17 @@ protocol と封印を作り直すかは、8b 側では決められない順序�
 
 ## 5. 裁定へ返す項目
 
-本 wave は本番コードを編集していない。修理・設計択一は実装せず、次を裁定へ返す。
+**裁定の状態 (2026-08-11 時点)。** 検分 wave が返した 4 件のその後は次のとおり。
+
+| 項 | 状態 |
+|---|---|
+| R-1 (順序の択一) | **決着。** [T-748] で第 1 世代のうちに実測する方針を維持 |
+| R-2 (verify CLI の罠) | **決着 = (a)。** [T-749] として実装済み (worklog 402) |
+| R-3 (W-3 + W-4 の分割) | **未裁定。** [T-750] として再裁定待ち。統合 wave の段 3 が producer identity と budget authority の 2 点を新たに出した |
+| R-4 (toolchain 前提) | **裁定 = (B)** ([T-747])。ただし実装単位 [T-783] は blocker 4 件で再裁定へ戻った (§3 W-2) |
+
+以下は検分 wave 時点の記述である。本 wave は本番コードを編集していない。
+修理・設計択一は実装せず、次を裁定へ返す。
 
 - **R-1 (順序の択一、上記 §4):** 8b 床値実測を pegasus 第 1 世代のうちに走らせるか、
   [T-657] の世代交代を先に通すか
