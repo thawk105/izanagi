@@ -72,6 +72,11 @@ title: [T-139] producer の vertical slice は通せず、承認 payload と参�
   ({{F:lease-json-matched-as-plaintext}}) と、実装子が親の役割分担文書を自分への指示と読んで
   0 行で終わった件 ({{F:codex-child-reads-parent-protocol-as-own}})。
   後者は `rc=0` かつ出力検査も通っており、`git status` の照合だけが検出した。
+- **段 8 の自己改善は予算で止まった。** 2 件の候補 (実装子へ立場を固定する 1 行と、
+  親が編集 0 件を `git status` で照合する 1 行) はいずれも段 5 の worker 契約節が行き先だが、
+  直前に land した読量 gate が同層を凍結しており**余白はゼロ**だった
+  (追記後 10,044 bytes > 予算 9,566 bytes)。契約に従い予算値を上げず、変更を revert して裁定へ返す。
+  事象と恒久対応そのものは失敗台帳側に残してある。
 
 ## 次の一手差分
 
@@ -92,6 +97,9 @@ title: [T-139] producer の vertical slice は通せず、承認 payload と参�
   誰がいつ起草するか。それまで pilot を機械的に止めるか /
   (Q-C) `a13` の原子予約台帳の canonicality をどこに置くか (固定 Git ref は clone 間の
   二重予約を防げないと敵対検証が示した) /
+  (Q-E) 段 8 候補 2 件を worker 契約節へ入れるか — 実装子へ立場を固定する 1 行と、
+  親が編集 0 件を `git status` で照合する 1 行。同層の読量予算に余白がなく、
+  予算を上げる変更は独立審査対象なので実装せず返す /
   (Q-D) 残りを 2 波に割るか 3 波に割るか。親の推奨は
   「本 wave (承認 payload) → Q-A〜Q-C の裁定後に manifest + 受領証層 + 投入・測定層を同一 land」。
   受領証層だけを先に land する分割は、実 producer 正例を持たないまま受理仕様だけを凍結するため採らない。
