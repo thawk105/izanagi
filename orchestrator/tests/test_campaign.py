@@ -15,7 +15,7 @@ import contextlib
 import errno
 import fcntl
 import hashlib
-import importlib
+import importlib.util
 import inspect
 import io
 import json
@@ -39,7 +39,6 @@ except ModuleNotFoundError as exc:
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
-sys.path.insert(0, _ORCH)
 
 from orchestrator.campaign import (buildcache, campaign_lock, genome, ident, pin, pipeline,  # noqa: E402
                       site_policy, source_digest, trigger_gate_binding, wal)
@@ -52,7 +51,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     build_run_context,
     derive_build_admission,
 )
-from campaign import layout as layout_module                     # noqa: E402
+from orchestrator.campaign import layout as layout_module                    # noqa: E402
 from orchestrator.campaign.layout import (CampaignLayout,                     # noqa: E402
                              ExplorationCampaignLayout,
                              campaign_layout, ensure_exploration_namespace,
@@ -6024,12 +6023,20 @@ def test_exploration_output_root_pin_is_shared_and_locked_across_aliases():
     sentinel = object()
     env_name = layout_module._EXPLORATION_OUTPUT_ROOT_ENV
     saved_env = os.environ.get(env_name, sentinel)
-    saved_sys_path = sys.path[:]
+    spec = importlib.util.spec_from_file_location(
+        "orchestrator.campaign._layout_alias_probe", layout_module.__file__,
+    )
+    assert spec is not None and spec.loader is not None
+    alternate = importlib.util.module_from_spec(spec)
+    saved_alias = sys.modules.get(spec.name, sentinel)
+    sys.modules[spec.name] = alternate
     try:
-        sys.path.insert(0, os.path.dirname(_ORCH))
-        alternate = importlib.import_module("orchestrator.campaign.layout")
+        spec.loader.exec_module(alternate)
     finally:
-        sys.path[:] = saved_sys_path
+        if saved_alias is sentinel:
+            sys.modules.pop(spec.name, None)
+        else:
+            sys.modules[spec.name] = saved_alias
     first = _tmpdir("izanagi_alias_pin_first_")
     second = _tmpdir("izanagi_alias_pin_second_")
     layout_module._reset_exploration_output_root_pin_for_tests()
