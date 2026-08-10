@@ -71,6 +71,14 @@
   `primary-source-includes-failures-ledger` を新設して閉じた。`DW-S01` への統合は
   **実測で予算超過** (L1 unique footprint 10656 bytes > 予算 10625 bytes、31 bytes 超過) となり、
   意味等価な縮約先が無いため段 8 の候補としてユーザーへ返す。
+
+- **再発: 2026-08-11** — F173 の恒久対応が「機械化は `docs/dev-wave/**` の byte 予算に阻まれて
+  おり、段 8 の改善候補として残す」と書いていたが、**この機械化の実装面は
+  `tools/check_docs.py` (Python) にあり `TextLimit` の byte 予算の対象外**である。阻害要因を
+  実在確認なしに断定した誤記で、2026-07-28 の追記が顕在化させた「機構の実在状態を転写する」型の
+  再発にあたる。本 wave が同じ機械化を production 9 行で実装して反証した。
+  検出は段 3 の敵対レビュー 2 本のうち 1 本が独立に一次資料へ当たったことによる。
+  古くなった記述そのものは F173 の supersede 追記で明示する。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -4438,6 +4446,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   を明示的なレンズとして入れる。本件はそれで捕まった (`s6re.md` の所見 2)。
 - 併記: whole-file SHA-256 pin は bytes しか守らないため、**安全文を削って 3 箇所を同時に再 pin
   すれば検査は通る**。この構造的な穴は本 wave の scope 外として裁定へ返した。
+- **supersede: 2026-08-11** — 恒久対応の「機械化は `docs/dev-wave/**` の byte 予算に阻まれており」は誤り。実装面は `tools/check_docs.py` にあり byte 予算の対象外で、住所 (address edge) の構造 lint として実装済み (D278)。ただし塞いだのは cleanup-branches command の F26 edge 1 件だけで、pin が bytes しか守らない構造そのものは変わらない。
 
 ### F174. 未 commit の子成果が乗った tree で probe を `git checkout --` 復元し、実装を消した [手順漏れ]
 
