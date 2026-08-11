@@ -63,6 +63,34 @@ supersede する決定 ID が `("D292",)` ちょうどであることを固定�
 読んでいること自体が D305 と食い違う。期待値へ D305 を足すだけの対症療法では、
 次に D291 を参照する決定が入るたびに再発する。
 
+**ユーザー裁定 (2026-08-12、逐語「既存の赤は免除リストに入れて」) により、既知赤 waiver W2 を
+新設して land した。** W1 (F96/F101) は `[T-407]` の land で失効済みで、直近の専用 wave
+(archive 395) が「赤いまま免除されているテストは 1 件も無い」ことを確定していたため、
+本 W2 が現時点で唯一の既知赤 waiver である。**F101 の恒久対応 (赤を観測したら停止判断の前に
+worklog を赤 node 名で検索して成立済み waiver を確認する) を親は当初実施しておらず、
+ユーザー指摘で是正した。F101 の同型再発である。**
+
+### 既知赤 waiver W2 (本エントリが条件と失効の正本)
+
+- **対象 node は次の 2 件ちょうど。** これ以外の赤には一切適用しない。
+  - `orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials`
+  - `orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed`
+- **原因の釘付け**: 両 node は live な `docs/decisions.md` を読み、D291 を supersede する決定 ID が
+  `("D292",)` **ちょうど**であることを literal で固定している。2026-08-12 に D305 が land され
+  実際は `("D292", "D305")` になったため落ちる。**production の受理挙動は変わっていない。**
+- **適用の毎回検査 (すべて満たすときだけ適用)**:
+  1. 受入全走の赤が**上記 2 node ちょうど**であること。**他の赤が 1 件でもあれば適用せず停止する。**
+  2. 失敗理由が `assert ('D292', 'D305') == ('D292',)` 系の**期待値集合の差**であること。
+     他の理由 (import error、timeout、production の拒否挙動変化) なら適用しない。
+  3. 自 wave の差分が `orchestrator/tests/test_t793_report.py` と `docs/decisions.md` を
+     **触っていない**こと。触るなら自分の責任なので適用しない。
+- **失効**: 上記 2 node の期待値が是正された時点で**自動失効**する。失効後に本 waiver を
+  引いてはならない。
+- **並行セッション**: 同じ 4 条件を各セッションが自分で検査したうえでのみ適用してよい。
+  検査結果 (赤 node 名の集合と失敗理由) を worklog へ併記する (F101 の再発検知)。
+- **是正の担い手**: `test_t793_report.py` は T-139/公表層 wave の所有。凍結境界により
+  本 wave は直さない。推奨は上記のとおり「scan 対象を凍結 bytes へ固定する」。
+
 **セッション異常。** `dev_wave_wait.py producer` を背景 task で回すと、producer 生存中に
 待ち手だけが空出力で終了する事象が 5 度起きた。**実体を伴わない完了通知も多数観測した** —
 ledger が 4/12 のときに 5/12、7/12 のときに 8〜11、さらに単独再走では
