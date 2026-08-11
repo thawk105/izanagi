@@ -885,3 +885,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acceptance-partition-invariance":"[T-826]","T:acceptance-slow-tests":"[T-827]"},"authored":"2026-08-11","content_sha256":"bb1633270592ba73e9b2d4cebeb8b3657c686c55564e97c81d4e8293a34b968e","seq":65,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"5d581974f7f629a0a03ebbd7c0f2cfce0b8ba01199d9078bbb476472fc31a989","seq":66,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-hash-pin-detection-gap":"[T-829]","T:check-docs-fence-scanner-column":"[T-830]","T:upper-cancellation-record":"[T-828]"},"authored":"2026-08-11","content_sha256":"fccbb75f5264a075062422ca4306aab4ce62b9e899638178f06c3bba5f80d10d","seq":1,"wave":"dev-wave-t657-stage0-fold"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"913c11c384e8b7e6e270abdf63838c53f50fcf4294e7475a2df3663849047073","seq":2,"wave":"dev-wave-t657-stage0-fold"}
