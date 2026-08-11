@@ -242,7 +242,8 @@ def _broken_binding_manifest(tmp_path: Path):
     broken_path.write_text(
         json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
     )
-    return freeze_path, broken_path
+    approved = driver_fixtures._APPROVED_BY_PATH[manifest_path.resolve()]
+    return freeze_path, broken_path, approved
 
 
 def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
@@ -253,7 +254,7 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
     積まれる。fake prepare/evaluate は一度も呼ばれず、output_root・budget・marker_root
     のいずれも生成されない (書き込みゼロ)。
     """
-    freeze_path, broken_path = _broken_binding_manifest(tmp_path)
+    freeze_path, broken_path, approved = _broken_binding_manifest(tmp_path)
     prepare_fn = driver_fixtures._prepare_factory()
     prepare_fn.calls.clear()
     evaluate_fn = driver_fixtures._fake_evaluate_factory()
@@ -264,7 +265,16 @@ def test_run_block_broken_binding_manifest_refuses_and_writes_nothing(tmp_path):
     # [T-057] 対象は binding schema 不一致の fail-closed 挙動。実 repo receipt の解決は
     # incidental (1 回 22.4 秒) なので process 内 memo と共有する。
     # [T-117] 同様に active 世代解決 (1 回 4.4 秒) も incidental なので memo する。
-    with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
+    with pytest.MonkeyPatch.context() as patcher, \
+            receipt_memo.patch_driver_resolver(), \
+            ratified_memo.patch_ratified_loader():
+        patcher.setattr(
+            driver.s8b_oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+        )
+        patcher.setattr(
+            driver.s8b_oracle_spec, "load_approved_spec",
+            lambda _root: approved.reviewed_spec,
+        )
         result = driver.run_block(
             manifest_path=broken_path, block_id="b0", freeze_path=freeze_path,
             root=ROOT, output_root=output_root, budget_path=budget_path,
@@ -294,11 +304,20 @@ def test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal(tmp_p
     構造化 refusal ("manifest-verify: ...") として refusals に積み allowed=False を
     返すことを固定する (run_block の refused 判定の根)。
     """
-    freeze_path, broken_path = _broken_binding_manifest(tmp_path)
+    freeze_path, broken_path, approved = _broken_binding_manifest(tmp_path)
 
     # [T-057] 同上。gate 単体経路でも receipt 解決は incidental。
     # [T-117] active 世代解決も同様 (対象は manifest-verify refusal の積み上げ)。
-    with receipt_memo.patch_driver_resolver(), ratified_memo.patch_ratified_loader():
+    with pytest.MonkeyPatch.context() as patcher, \
+            receipt_memo.patch_driver_resolver(), \
+            ratified_memo.patch_ratified_loader():
+        patcher.setattr(
+            driver.s8b_oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+        )
+        patcher.setattr(
+            driver.s8b_oracle_spec, "load_approved_spec",
+            lambda _root: approved.reviewed_spec,
+        )
         decision = driver.gate_check(
             freeze_path=freeze_path, manifest_path=broken_path, root=ROOT,
         )

@@ -38,6 +38,7 @@ ROOT = _ORCHESTRATOR.parent
 
 from . import env_attestation, env_contract, model  # noqa: E402
 from . import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
+from . import s8b_oracle_spec  # noqa: E402
 from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
 from . import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from . import s8b_experiment_numbers as _experiment_numbers  # noqa: E402
@@ -1618,9 +1619,11 @@ def build_observations(
                 "VerifiedManifest document canonical hash が sha256 と不一致"
             )
         manifest_sha = manifest.sha256
+        spec_sha = document["spec_sha256"]
     else:
         document = manifest
         manifest_kind = "legacy"
+        spec_sha = None
     try:
         receipt_resolution = _t080.inspect_receipt_history(root=Path(repo_root))
     except _t080.MigrationError as exc:
@@ -1715,7 +1718,7 @@ def build_observations(
         "holdout_id": item["holdout_id"],
         "configuration_id": item["configuration_id"],
     } for item in schedule]
-    return _artifacts.OfficialObservations({
+    result = _artifacts.OfficialObservations({
         "schema_version": SCHEMA_VERSION,
         "manifest_kind": manifest_kind,
         "manifest_sha256": manifest_sha,
@@ -1725,6 +1728,9 @@ def build_observations(
         "manifest_issues": [dict(issue) for issue in manifest_issues],
         _T080_KEY: t080_report_observation,
     })
+    if spec_sha is not None:
+        result["spec_sha256"] = spec_sha
+    return result
 
 
 def _write_create_only(path: Path, value: Mapping) -> None:
@@ -1754,11 +1760,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             reverified = s8b_ratified_freeze.reverify_published_freeze(
                 ratified, root,
             )
+            approved = s8b_oracle_spec.load_approved_spec(root)
             manifest = s8b_oracle_manifest.verify_manifest(
                 args.manifest,
                 root=root,
                 freeze_document=reverified.ratified.document,
                 freeze_sha256=reverified.ratified.sha256,
+                approved_spec=approved,
             )
         observations = build_observations(
             manifest=manifest, output_root=args.output_root, repo_root=root,
@@ -1766,6 +1774,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         _write_create_only(args.out, observations)
     except (OSError, json.JSONDecodeError, _artifacts.OracleArtifactTypeError,
             s8b_ratified_freeze.RatifiedFreezeError,
+            s8b_oracle_spec.ReviewedSpecError,
             s8b_oracle_manifest.ManifestError, _freeze_io.FreezeIOError,
             ReportError, TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)

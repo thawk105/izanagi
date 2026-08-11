@@ -48,9 +48,12 @@ _GIT_ENV_KEYS = frozenset(
 )
 _HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
 _SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+_HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
 _CLAIM_STATES = frozenset(
-    {"acquired", "held", "queued", "stale-held", "unavailable"}
+    {"acquired", "held-self", "held", "queued", "stale-held", "unavailable"}
 )
+_ACCEPTED_CLAIM_STATES = frozenset({"acquired", "held-self"})
+_POLLING_CLAIM_STATES = frozenset({"held", "queued"})
 _RELEASED_STATES = frozenset({"released", "free", "not-owner"})
 
 
@@ -89,10 +92,11 @@ class _Effects:
 
 
 class _LeaseOwnership(Enum):
-    # claim 中の所有権は NONE / UNKNOWN / ACQUIRED。RETAINED は成功確定後の終端。
+    # HELD_SELF は merge abort 権限だけを持ち、lease release 権限は持たない。
     NONE = "none"
     UNKNOWN = "unknown"
     ACQUIRED = "acquired"
+    HELD_SELF = "held-self"
     RETAINED = "retained"
 
 
@@ -594,13 +598,37 @@ def _claim_once(
     state = parsed.get("state")
     if not isinstance(state, str) or state not in _CLAIM_STATES:
         raise _StageFailure("claim-state")
+    holder_self = parsed.get("holder_self") is True
+    source = parsed.get("source")
+    self_renew_failed = (
+        state == "unavailable"
+        and holder_self
+        and isinstance(source, dict)
+        and source.get("reason") == "self-renew-failed"
+    )
     if lifecycle is not None:
-        lifecycle.ownership = (
-            _LeaseOwnership.ACQUIRED
-            if state == "acquired"
-            else _LeaseOwnership.NONE
-        )
-        # held/queued の待ち札は 300 秒で失効するため、他 holder を release しない。
+        if state == "acquired":
+            lifecycle.ownership = _LeaseOwnership.ACQUIRED
+        elif state == "held-self" or self_renew_failed or holder_self:
+            lifecycle.ownership = _LeaseOwnership.HELD_SELF
+        else:
+            lifecycle.ownership = _LeaseOwnership.NONE
+            # held/queued の待ち札は 300 秒で失効するため、他 holder を release しない。
+    if self_renew_failed:
+        raise _StageFailure("claim-self-renew-failed")
+    if state == "held-self":
+        holder = parsed.get("holder")
+        age_seconds = parsed.get("age_seconds")
+        if not (
+            holder_self
+            and isinstance(holder, str)
+            and _HOLDER_RE.fullmatch(holder) is not None
+            and type(age_seconds) is int
+            and source == {"status": "ok", "reason": None}
+        ):
+            raise _StageFailure("claim-self-unverified")
+    elif state != "acquired" and holder_self:
+        raise _StageFailure("claim-self-unverified")
     return state
 
 
@@ -618,10 +646,10 @@ def _wait_until_acquired(
         sha = _main_sha(effects, repo, "preclaim-rev-parse")
         claim_started_at = effects.monotonic()
         state = _claim_once(effects, repo, lease_dir, wave, sha, lifecycle)
-        if state == "acquired":
+        if state in _ACCEPTED_CLAIM_STATES:
             lifecycle.acquired_at = claim_started_at
             return claim_started_at
-        if state not in {"held", "queued"}:
+        if state not in _POLLING_CLAIM_STATES:
             raise _StageFailure("claim-state")
         if effects.monotonic() - started + poll_seconds > max_wait_seconds:
             raise _StageFailure("claim-timeout")
@@ -725,6 +753,7 @@ def _cleanup_after_claim(
     wave: str,
     *,
     merge_pending: bool,
+    release_lease: bool,
 ) -> _Outcome | None:
     cleanup_failure: _Outcome | None = None
     previous_mask: set[signal.Signals] | None = None
@@ -739,12 +768,13 @@ def _cleanup_after_claim(
             abort_outcome = _abort_pending_merge(effects, repo)
             if abort_outcome.rc != RC_OK:
                 cleanup_failure = abort_outcome
-        release_outcome = _release_once(effects, repo, lease_dir, wave)
-        if release_outcome.rc != RC_OK:
-            if cleanup_failure is not None:
-                _print_outcome(release_outcome)
-            else:
-                cleanup_failure = release_outcome
+        if release_lease:
+            release_outcome = _release_once(effects, repo, lease_dir, wave)
+            if release_outcome.rc != RC_OK:
+                if cleanup_failure is not None:
+                    _print_outcome(release_outcome)
+                else:
+                    cleanup_failure = release_outcome
     finally:
         if previous_mask is not None:
             try:
@@ -765,8 +795,10 @@ def _cleanup_lifecycle(
     if lifecycle.ownership not in {
         _LeaseOwnership.UNKNOWN,
         _LeaseOwnership.ACQUIRED,
+        _LeaseOwnership.HELD_SELF,
     }:
         return lifecycle.cleanup_failure
+    ownership = lifecycle.ownership
     merge_pending = lifecycle.merge_pending
     # cleanup 権限を実処理より先に消費し、signal/finally の再入を no-op にする。
     lifecycle.ownership = _LeaseOwnership.NONE
@@ -777,7 +809,17 @@ def _cleanup_lifecycle(
         lease_dir,
         wave,
         merge_pending=merge_pending,
+        release_lease=ownership in {
+            _LeaseOwnership.UNKNOWN,
+            _LeaseOwnership.ACQUIRED,
+        },
     )
+    if ownership is _LeaseOwnership.HELD_SELF:
+        print(
+            "acceptance: held-self lease retained; "
+            "this invocation has no release authority",
+            file=sys.stderr,
+        )
     return lifecycle.cleanup_failure
 
 

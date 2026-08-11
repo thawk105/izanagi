@@ -309,9 +309,11 @@ def _open_lease(directory_fd: int, *, exclusive: bool) -> _Lease:
     )
     fd = os.open(_LEASE_NAME, flags, dir_fd=directory_fd)
     try:
+        initial_metadata = os.fstat(fd)
+        _validate_owned_regular(initial_metadata)
+        _flock_bounded(fd, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
         metadata = os.fstat(fd)
         _validate_owned_regular(metadata)
-        _flock_bounded(fd, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
         try:
             holder, main_sha = _parse_lease(_read_fd(fd, _MAX_LEASE_BYTES))
         except (UnicodeError, ValueError, RecursionError):
@@ -379,13 +381,21 @@ def _open_ticket(
         raise
 
 
-def _lease_result(state: str, lease: _Lease, self_holder: str | None) -> dict[str, object]:
+def _lease_result(
+    state: str,
+    lease: _Lease,
+    self_holder: str | None,
+    *,
+    age_seconds: int | None = None,
+    unavailable_reason: str | None = None,
+) -> dict[str, object]:
     return _result(
         state,
         lease.holder,
         self_holder,
         lease.main_sha,
-        lease.age_seconds,
+        age_seconds=lease.age_seconds if age_seconds is None else age_seconds,
+        unavailable_reason=unavailable_reason,
     )
 
 
@@ -722,6 +732,33 @@ def claim(lease_dir: Path, wave: str, main_sha: str, ttl: int) -> dict[str, obje
                 if not lease.stale:
                     if lease.holder == self_holder:
                         _drop_ticket_best_effort(directory_fd, self_holder)
+                        try:
+                            renewed_ns = time.time_ns()
+                            os.utime(lease.fd, ns=(renewed_ns, renewed_ns))
+                            refreshed_metadata = os.fstat(lease.fd)
+                            _validate_owned_regular(refreshed_metadata)
+                            if not _same_entry(
+                                directory_fd, _LEASE_NAME, refreshed_metadata
+                            ):
+                                raise FileNotFoundError(
+                                    errno.ENOENT, "renewed lease changed"
+                                )
+                            age_seconds, stale = _mtime_state(refreshed_metadata)
+                            if stale:
+                                raise ValueError("renewed lease is stale")
+                        except Exception:
+                            return _lease_result(
+                                "unavailable",
+                                lease,
+                                self_holder,
+                                unavailable_reason="self-renew-failed",
+                            )
+                        return _lease_result(
+                            "held-self",
+                            lease,
+                            self_holder,
+                            age_seconds=age_seconds,
+                        )
                     return _lease_result("held", lease, self_holder)
                 last_stale = lease
                 if not _same_entry(directory_fd, _LEASE_NAME, lease.metadata):

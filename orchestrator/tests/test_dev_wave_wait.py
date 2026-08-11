@@ -143,13 +143,18 @@ class _FakeEffects:
         assert self.monotonic_queue == []
 
 
-def _helper(action: str, sha: str | None = None) -> tuple[str, ...]:
+def _helper(
+    action: str,
+    sha: str | None = None,
+    *,
+    lease_dir: Path = _LEASE,
+) -> tuple[str, ...]:
     argv = (
         sys.executable,
         str(_REPO / "tools" / "wave_land_window.py"),
         action,
         "--lease-dir",
-        str(_LEASE),
+        str(lease_dir),
         "--wave",
         _WAVE,
     )
@@ -188,8 +193,54 @@ def _claim(fake: _FakeEffects, sha: str, payload: str) -> None:
     fake.expect_run(_helper("claim", sha), DW._CommandResult(0, payload))
 
 
+def _acquired_payload(*, main_sha: str = _SHA_A) -> str:
+    return json.dumps(
+        {
+            "state": "acquired",
+            "holder": "0123456789ab",
+            "holder_self": True,
+            "main_sha": main_sha,
+            "age_seconds": 0,
+            "source": {"status": "ok", "reason": None},
+        }
+    )
+
+
 def _acquired(fake: _FakeEffects, sha: str = _SHA_A) -> None:
-    _claim(fake, sha, json.dumps({"state": "acquired"}))
+    _claim(fake, sha, _acquired_payload(main_sha=sha))
+
+
+def _held_self_payload(**overrides: object) -> str:
+    payload: dict[str, object] = {
+        "state": "held-self",
+        "holder": "0123456789ab",
+        "holder_self": True,
+        "main_sha": _SHA_A,
+        "age_seconds": 0,
+        "source": {"status": "ok", "reason": None},
+    }
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+def _lease_marker(tmp_path: Path) -> tuple[Path, Path, tuple[int, bytes]]:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    lease_path = lease_dir / "acceptance.lease"
+    lease_path.write_text(
+        json.dumps(
+            {
+                "holder": "0123456789ab",
+                "main_sha": _SHA_A,
+                "ttl": 2400,
+            }
+        )
+        + "\n",
+        encoding="ascii",
+    )
+    os.utime(lease_path, ns=(1_900_000_000_000_000_000,) * 2)
+    before = (lease_path.stat().st_mtime_ns, lease_path.read_bytes())
+    return lease_dir, lease_path, before
 
 
 def _release(fake: _FakeEffects, result: object = None) -> None:
@@ -237,10 +288,11 @@ def _run_acceptance(
     message: Path | None = None,
     max_wait: int = 7200,
     owned_paths: tuple[Path, ...] = (),
+    lease_dir: Path = _LEASE,
 ) -> object:
     return DW.run_acceptance(
         wave=_WAVE,
-        lease_dir=_LEASE,
+        lease_dir=lease_dir,
         merge_message_file=message,
         poll_seconds=30,
         max_wait_seconds=max_wait,
@@ -260,6 +312,12 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         message: str = "merge\nAI-Agent: codex\n",
         head_shas: list[str] | None = None,
         changed_paths: str = "",
+        claim_payload: str | None = None,
+        command_result: object = None,
+        postclaim_rc: int = 0,
+        merge_result: object = None,
+        lease_dir: Path = _LEASE,
+        remove_lease_on_release: bool = False,
     ) -> None:
         super().__init__()
         self.branch = branch
@@ -267,9 +325,22 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self.message = message
         self.head_shas = list([] if head_shas is None else head_shas)
         self.changed_paths = changed_paths
+        self.claim_payload = (
+            _acquired_payload() if claim_payload is None else claim_payload
+        )
+        self.command_result = (
+            DW._CommandResult(0) if command_result is None else command_result
+        )
+        self.postclaim_rc = postclaim_rc
+        self.merge_result = (
+            DW._CommandResult(0) if merge_result is None else merge_result
+        )
+        self.lease_dir = lease_dir
+        self.remove_lease_on_release = remove_lease_on_release
         self.claims = 0
         self.releases = 0
         self.submissions = 0
+        self.main_reads = 0
 
     def run(self, argv: object, cwd: Path, capture: bool) -> object:
         actual = tuple(argv)
@@ -283,17 +354,21 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         if actual == ("git", "status", "--porcelain", "--untracked-files=no"):
             return DW._CommandResult(0, "")
         if actual == ("git", "rev-parse", "main"):
+            self.main_reads += 1
+            if self.main_reads == 2 and self.postclaim_rc != 0:
+                return DW._CommandResult(self.postclaim_rc)
             return DW._CommandResult(0, _SHA_A + "\n")
-        if actual == _helper("claim", _SHA_A):
+        if actual == _helper("claim", _SHA_A, lease_dir=self.lease_dir):
             self.claims += 1
-            return DW._CommandResult(0, '{"state":"acquired"}')
+            return DW._CommandResult(0, self.claim_payload)
         if actual == ("git", "rev-list", "--count", "HEAD..main"):
             assert self.behind
             return DW._CommandResult(0, f"{self.behind.pop(0)}\n")
         if actual == ("git", "diff", "--name-only", "HEAD...main"):
             return DW._CommandResult(0, self.changed_paths)
+        if actual == ("git", "merge", "--no-ff", "--no-commit", "main"):
+            return self.merge_result
         if actual in {
-            ("git", "merge", "--no-ff", "--no-commit", "main"),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
         }:
@@ -305,10 +380,19 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             return DW._CommandResult(0, self.message)
         if actual == _COMMAND:
             self.submissions += 1
-            return DW._CommandResult(0)
-        if actual == _helper("release"):
+            if isinstance(self.command_result, BaseException):
+                raise self.command_result
+            return self.command_result
+        if actual == _helper("release", lease_dir=self.lease_dir):
             self.releases += 1
+            lease_path = self.lease_dir / "acceptance.lease"
+            if self.remove_lease_on_release and lease_path.exists():
+                lease_path.unlink()
             return DW._CommandResult(0, _RELEASE_JSON)
+        if actual == ("git", "merge", "--abort"):
+            return DW._CommandResult(0)
+        if actual == ("git", "rev-parse", "-q", "--verify", "MERGE_HEAD"):
+            return DW._CommandResult(1)
         raise AssertionError(f"unexpected run: {actual}")
 
     def is_file(self, path: Path) -> bool:
@@ -554,7 +638,7 @@ def test_producer_file_visibility_grace_is_bounded() -> None:
     "state", ["held", "queued", "stale-held", "unavailable"],
     ids=("held", "queued", "stale-held", "unavailable"),
 )
-def test_acceptance_non_acquired_state_never_runs_command(state: str) -> None:
+def test_acceptance_non_accepted_state_never_runs_command(state: str) -> None:
     fake = _FakeEffects()
     _preflight(fake)
     _claim(fake, _SHA_A, json.dumps({"state": state}))
@@ -573,6 +657,191 @@ def test_acceptance_non_acquired_state_never_runs_command(state: str) -> None:
     if state in {"held", "queued"}:
         expected.append(("monotonic",))
     assert fake.events == expected
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("age_seconds", [0, 7], ids=("zero-age", "observed-age"))
+def test_acceptance_held_self_runs_command_without_polling(age_seconds: int) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=_held_self_payload(age_seconds=age_seconds),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 0
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+
+
+def test_acceptance_real_acquired_payload_runs_command_and_releases_on_failure(
+) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=_acquired_payload(),
+        command_result=DW._CommandResult(23),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 23
+    assert outcome.stage == "acceptance-command"
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 1)
+    assert fake.events.count(("sleep", 30)) == 0
+
+
+def test_claim_once_real_acquired_payload_grants_acquired_ownership() -> None:
+    fake = _FakeEffects()
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(0, _acquired_payload()),
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    state = DW._claim_once(
+        fake.effects,
+        _REPO,
+        _LEASE,
+        _WAVE,
+        _SHA_A,
+        lifecycle,
+    )
+
+    assert state == "acquired"
+    assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+    fake.assert_drained()
+
+
+def test_acceptance_legacy_self_held_fails_closed_without_polling() -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _claim(
+        fake,
+        _SHA_A,
+        json.dumps(
+            {
+                "state": "held",
+                "holder": "0123456789ab",
+                "holder_self": True,
+                "age_seconds": 1,
+                "source": {"status": "ok", "reason": None},
+            }
+        ),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "claim-self-unverified"
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(event[0] == "run" and event[1] == _COMMAND for event in fake.events)
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"holder_self": False},
+        {"age_seconds": "0"},
+        {"source": {"status": "unavailable", "reason": "lease-unavailable"}},
+        {"holder": "not-a-holder"},
+        {"source": {"status": "ok", "reason": None, "extra": "rejected"}},
+        {"source": {"status": "ok"}},
+        {"age_seconds": True},
+        {"holder": "ABCDEF012345"},
+    ],
+    ids=(
+        "holder-false",
+        "age-non-int",
+        "source-unavailable",
+        "holder-non-hex",
+        "source-extra-key",
+        "source-missing-key",
+        "age-bool",
+        "holder-uppercase-hex",
+    ),
+)
+def test_acceptance_invalid_held_self_fails_closed(
+    overrides: dict[str, object],
+) -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _claim(fake, _SHA_A, _held_self_payload(**overrides))
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "claim-self-unverified"
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(event[0] == "run" and event[1] == _COMMAND for event in fake.events)
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_public_main_self_renew_failure_reports_reason_without_poll_or_release(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _claim(
+        fake,
+        _SHA_A,
+        json.dumps(
+            {
+                "state": "unavailable",
+                "holder": "0123456789ab",
+                "holder_self": True,
+                "main_sha": _SHA_A,
+                "age_seconds": 17,
+                "source": {
+                    "status": "unavailable",
+                    "reason": "self-renew-failed",
+                },
+            }
+        ),
+    )
+
+    rc = DW.main(
+        [
+            "acceptance",
+            "--wave",
+            _WAVE,
+            "--lease-dir",
+            str(_LEASE),
+            "--",
+            *_COMMAND,
+        ],
+        effects=fake.effects,
+        repo=_REPO,
+    )
+    captured = capsys.readouterr()
+
+    assert rc == 70
+    assert captured.out == ""
+    assert captured.err.splitlines().count(
+        "acceptance: held-self lease retained; "
+        "this invocation has no release authority"
+    ) == 1
+    assert captured.err.splitlines().count(
+        "error: stage=claim-self-renew-failed rc=70"
+    ) == 1
+    assert fake.events.count(("sleep", 30)) == 0
+    assert not any(event[0] == "run" and event[1] == _COMMAND for event in fake.events)
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
     fake.assert_drained()
 
 
@@ -670,7 +939,7 @@ def test_held_and_queued_refresh_main_before_every_claim() -> None:
     fake.monotonic_queue[:] = [0.0, 0.0, 30.0]
     _claim(fake, _SHA_A, '{"state":"held"}')
     _claim(fake, _SHA_B, '{"state":"queued"}')
-    _claim(fake, _SHA_C, '{"state":"acquired"}')
+    _claim(fake, _SHA_C, _acquired_payload(main_sha=_SHA_C))
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_C + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
@@ -1009,7 +1278,9 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
         fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_A + "\n"))
         fake.expect_run(
             _helper("claim", _SHA_A),
-            DW._CommandResult(9) if stage == "claim" else DW._CommandResult(0, '{"state":"acquired"}'),
+            DW._CommandResult(9)
+            if stage == "claim"
+            else DW._CommandResult(0, _acquired_payload()),
         )
     if stage not in {"preclaim-rev-parse", "claim"}:
         fake.expect_run(
@@ -1180,6 +1451,95 @@ def test_merge_failure_aborts_before_release() -> None:
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
+
+
+def test_held_self_merge_failure_aborts_without_releasing_lease() -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[1],
+        claim_payload=_held_self_payload(),
+        merge_result=DW._CommandResult(1),
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "merge"
+    assert fake.releases == 0
+    assert fake.submissions == 0
+    assert fake.events.count(("sleep", 30)) == 0
+    assert (
+        "run",
+        ("git", "merge", "--abort"),
+        _REPO,
+        True,
+    ) in fake.events
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+
+
+def test_held_self_acceptance_red_retains_real_lease_without_polling(
+    tmp_path: Path,
+) -> None:
+    lease_dir, lease_path, before = _lease_marker(tmp_path)
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=_held_self_payload(),
+        command_result=DW._CommandResult(23),
+        lease_dir=lease_dir,
+        remove_lease_on_release=True,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome.rc == 23
+    assert outcome.stage == "acceptance-command"
+    assert fake.releases == 0
+    assert fake.events.count(("sleep", 30)) == 0
+    assert (lease_path.stat().st_mtime_ns, lease_path.read_bytes()) == before
+
+
+def test_held_self_postclaim_failure_retains_real_lease_without_polling(
+    tmp_path: Path,
+) -> None:
+    lease_dir, lease_path, before = _lease_marker(tmp_path)
+    fake = _RoutingAcceptanceEffects(
+        claim_payload=_held_self_payload(),
+        postclaim_rc=9,
+        lease_dir=lease_dir,
+        remove_lease_on_release=True,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "postclaim-rev-parse"
+    assert outcome.source_rc == 9
+    assert fake.submissions == 0
+    assert fake.releases == 0
+    assert fake.events.count(("sleep", 30)) == 0
+    assert (lease_path.stat().st_mtime_ns, lease_path.read_bytes()) == before
+
+
+def test_held_self_signal_retains_real_lease_without_polling(tmp_path: Path) -> None:
+    lease_dir, lease_path, before = _lease_marker(tmp_path)
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=_held_self_payload(),
+        command_result=DW._SignalReceived(signal.SIGTERM),
+        lease_dir=lease_dir,
+        remove_lease_on_release=True,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome.rc == 143
+    assert outcome.stage == "signal-15"
+    assert fake.submissions == 1
+    assert fake.releases == 0
+    assert fake.events.count(("sleep", 30)) == 0
+    assert (lease_path.stat().st_mtime_ns, lease_path.read_bytes()) == before
 
 
 def test_acceptance_command_red_is_propagated_after_release() -> None:
@@ -1644,10 +2004,22 @@ def test_signal_path_releases_and_normalizes_rc() -> None:
     fake.assert_drained()
 
 
-def test_cleanup_consumes_ownership_before_release_and_is_idempotent() -> None:
+@pytest.mark.parametrize(
+    ("ownership", "release_count"),
+    [
+        (DW._LeaseOwnership.ACQUIRED, 1),
+        (DW._LeaseOwnership.HELD_SELF, 0),
+    ],
+    ids=("acquired", "held-self"),
+)
+def test_cleanup_consumes_ownership_before_release_and_is_idempotent(
+    ownership: DW._LeaseOwnership,
+    release_count: int,
+) -> None:
     fake = _FakeEffects()
-    _release(fake)
-    lifecycle = DW._AcceptanceLifecycle(ownership=DW._LeaseOwnership.ACQUIRED)
+    if release_count:
+        _release(fake)
+    lifecycle = DW._AcceptanceLifecycle(ownership=ownership)
 
     first = DW._cleanup_lifecycle(lifecycle, fake.effects, _REPO, _LEASE, _WAVE)
     second = DW._cleanup_lifecycle(lifecycle, fake.effects, _REPO, _LEASE, _WAVE)
@@ -1655,7 +2027,13 @@ def test_cleanup_consumes_ownership_before_release_and_is_idempotent() -> None:
     assert first is None
     assert second is None
     assert lifecycle.ownership is DW._LeaseOwnership.NONE
-    fake.assert_drained([("run", _helper("release"), _REPO, True)])
+    assert sum(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    ) == release_count
+    fake.assert_drained(
+        [("run", _helper("release"), _REPO, True)] if release_count else []
+    )
 
 
 def test_signal_after_core_success_uses_restored_real_handler(
@@ -1782,7 +2160,12 @@ def test_second_signal_is_deferred_until_cleanup_completes(
     monkeypatch.setattr(DW.signal, "pthread_sigmask", signal_mask)
 
     outcome = DW._cleanup_after_claim(
-        fake.effects, _REPO, _LEASE, _WAVE, merge_pending=False,
+        fake.effects,
+        _REPO,
+        _LEASE,
+        _WAVE,
+        merge_pending=False,
+        release_lease=True,
     )
 
     assert outcome is None
@@ -1886,6 +2269,95 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     )
     assert released.returncode == 0
     assert json.loads(released.stdout)["state"] == "released"
+
+
+def test_default_wiring_second_acceptance_reuses_self_held_lease(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    lease_dir = tmp_path / "lease"
+    repo.mkdir()
+    lease_dir.mkdir()
+    (repo / "tools").mkdir()
+    helper = repo / "tools" / "wave_land_window.py"
+    shutil.copy2(_LEASE_HELPER, helper)
+    git_env = {
+        **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=git_env,
+        ).stdout.strip()
+
+    git("init", "-b", "main")
+    (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
+    git("add", "tracked.txt")
+    git("commit", "-m", "base")
+    git("checkout", "-b", "worktree-deadlock")
+    main_sha = git("rev-parse", "main")
+    claim = subprocess.run(
+        [
+            sys.executable,
+            str(helper),
+            "claim",
+            "--lease-dir",
+            str(lease_dir),
+            "--wave",
+            "deadlock",
+            "--main-sha",
+            main_sha,
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=git_env,
+    )
+    assert claim.returncode == 0, claim.stderr
+    assert json.loads(claim.stdout)["state"] == "acquired"
+    lease_path = lease_dir / "acceptance.lease"
+    before_payload = lease_path.read_bytes()
+    before_mtime = lease_path.stat().st_mtime_ns - 10_000_000_000
+    os.utime(lease_path, ns=(before_mtime, before_mtime))
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_TOOL),
+            "acceptance",
+            "--wave",
+            "deadlock",
+            "--lease-dir",
+            str(lease_dir),
+            "--max-wait-seconds",
+            "1",
+            "--",
+            sys.executable,
+            "-c",
+            "print('SECOND-ACCEPTANCE-SENTINEL')",
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=git_env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "SECOND-ACCEPTANCE-SENTINEL" in result.stdout
+    assert "claim-timeout" not in result.stderr
+    assert lease_path.read_bytes() == before_payload
+    assert lease_path.stat().st_mtime_ns > before_mtime
 
 
 def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
