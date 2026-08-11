@@ -43,6 +43,32 @@ _S09_ACCEPTANCE_ORDER_LITERAL = (
     "全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して "
     "`DW-O23` を行う。"
 )
+_SYNTHETIC_STAGE6_WAITER_ITEM = (
+    "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
+    "   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、\n"
+    "   `acquired` / `held-self` のときだけ投入する。\n"
+)
+_SYNTHETIC_STAGE9_WAITER_ITEM = (
+    "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。\n"
+    "   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、\n"
+    "   land 成功時だけ `message` を照合済み peer へ 1 度送る。\n"
+)
+_SYNTHETIC_DEV_WAVE_STATE_MACHINE = (
+    "## 9 段状態機械\n\n"
+    "5. **実装 (codex 並列):** 所有を分離して実装する。\n"
+    + _SYNTHETIC_STAGE6_WAITER_ITEM
+    + "7. **記録 (親):** 記録する。\n"
+    + _SYNTHETIC_STAGE9_WAITER_ITEM
+    + "\n"
+)
+_SYNTHETIC_DW_C00_WAITER_LINE = (
+    "待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。"
+    "生産者を止める\n"
+)
+_SYNTHETIC_DW_O01_WAITER_LINE = (
+    "待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が "
+    "`echo $$` で書く。\n"
+)
 
 _SYNTHETIC_DEV_WAVE_COMMAND_START_SECTION = """## 入力と開始
 
@@ -611,6 +637,7 @@ disable-model-invocation: true
 コード・テスト・実行可能資材（以下「実装面」）は軽量版でも
 Codex `role=author` が書き、親は実装面を直接編集せず統合する。
 
+{_SYNTHETIC_DEV_WAVE_STATE_MACHINE}
 ## 段 dispatch
 
 {check_docs.DEV_WAVE_STAGE_DISPATCH_LEGEND}
@@ -640,6 +667,7 @@ docs/skill-self-improvement.md
     _write(root, ".claude/commands/dev-wave.md", dev_wave)
     _write(root, "tools/dev_wave_land.py", "# synthetic land helper\n")
     _write(root, "tools/dev_wave_codex.py", "# synthetic Codex dispatcher\n")
+    _write(root, "tools/dev_wave_wait.py", "# synthetic canonical waiter\n")
     _write(root, ".claude/commands/cleanup-branches.md", cleanup)
     _write(root, ".claude/commands/rulings.md", rulings)
     codex_skill = """---
@@ -712,10 +740,14 @@ description: synthetic Codex rulings skill
             if rel == "docs/dev-wave/operations.md" and section == "DW-O01":
                 body += (
                     "\n\n"
+                    + _SYNTHETIC_DW_O01_WAITER_LINE.rstrip("\n")
+                    + "\n\n"
                     + check_docs.DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL
                     + "\n\n"
                     + check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL
                 )
+            if rel == "docs/dev-wave/core.md" and section == "DW-C00":
+                body += "\n\n" + _SYNTHETIC_DW_C00_WAITER_LINE.rstrip("\n")
             if rel == "docs/dev-wave/core.md" and section == "DW-S09":
                 body += (
                     "\n\n"
@@ -5068,6 +5100,101 @@ def _mutate_command_guard(root: str, case: str) -> None:
         )
         assert _read(root, rel).count(current) == 1
         _write(root, rel, _read(root, rel).replace(current, blockquoted, 1))
+    elif case == "stage6-relocated":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        stage6_lines = _SYNTHETIC_STAGE6_WAITER_ITEM.splitlines(keepends=True)
+        relocated = (
+            stage6_lines[1]
+            + stage6_lines[2]
+            + stage6_lines[0]
+        )
+        assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, relocated, 1),
+        )
+    elif case == "stage9-deleted":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        stage9_heading = _SYNTHETIC_STAGE9_WAITER_ITEM.splitlines(keepends=True)[0]
+        assert text.count(_SYNTHETIC_STAGE9_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE9_WAITER_ITEM, stage9_heading, 1),
+        )
+    elif case == "dw-c00-fenced":
+        rel = "docs/dev-wave/core.md"
+        text = _read(root, rel)
+        fenced = "```text\n" + _SYNTHETIC_DW_C00_WAITER_LINE + "```\n"
+        assert text.count(_SYNTHETIC_DW_C00_WAITER_LINE) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_DW_C00_WAITER_LINE, fenced, 1),
+        )
+    elif case == "dw-o01-wrong-pid-source":
+        rel = "docs/dev-wave/operations.md"
+        text = _read(root, rel)
+        assert text.count(_SYNTHETIC_DW_O01_WAITER_LINE) == 1
+        _write(
+            root,
+            rel,
+            text.replace("`--pid-file`", "`--pid`", 1),
+        )
+    elif case == "target-symlinked":
+        path = os.path.join(root, "tools", "dev_wave_wait.py")
+        os.remove(path)
+        os.symlink("dev_wave_land.py", path)
+    elif case == "decoy-optional":
+        rel = ".claude/commands/dev-wave.md"
+        _insert_before_unique_marker(
+            root,
+            rel,
+            "## 段 dispatch",
+            "参考例であり急ぐ場合は手動投入してよい。\n\n",
+        )
+    elif case == "decoy-negated":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        negated = (
+            "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
+            "   受入直前でも `tools/dev_wave_wait.py acceptance` は使わない。\n"
+        )
+        assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, negated, 1),
+        )
+    elif case == "decoy-blockquoted":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        stage6_lines = _SYNTHETIC_STAGE6_WAITER_ITEM.splitlines(keepends=True)
+        blockquoted = stage6_lines[0] + "".join(
+            "> " + line for line in stage6_lines[1:]
+        )
+        assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, blockquoted, 1),
+        )
+    elif case == "pre-wave-form":
+        rel = ".claude/commands/dev-wave.md"
+        text = _read(root, rel)
+        pre_wave = (
+            "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
+            "   受入直前に runbook の受入 lease を `claim` し、`acquired` のときだけ投入する。\n"
+        )
+        assert text.count(_SYNTHETIC_STAGE6_WAITER_ITEM) == 1
+        _write(
+            root,
+            rel,
+            text.replace(_SYNTHETIC_STAGE6_WAITER_ITEM, pre_wave, 1),
+        )
     elif case == "reference_section_deleted":
         rel = "docs/dev-wave/mutation.md"
         _write(root, rel, _read(root, rel).replace(
@@ -5509,6 +5636,15 @@ _COMMAND_GUARD_CASES = [
     "disable_value_changed",
     "command_startup_wave_pre_form",
     "command_startup_routing_blockquoted",
+    "stage6-relocated",
+    "stage9-deleted",
+    "dw-c00-fenced",
+    "dw-o01-wrong-pid-source",
+    "target-symlinked",
+    "decoy-optional",
+    "decoy-negated",
+    "decoy-blockquoted",
+    "pre-wave-form",
     "reference_section_deleted",
     "reference_section_duplicated",
     "stage2_operations_deleted",
@@ -5588,6 +5724,15 @@ _COMMAND_GUARD_NEEDLES = {
     "disable_value_changed": "disable-model-invocation は 'true' 必須",
     "command_startup_wave_pre_form": "可視 H2 節 '入力と開始' の節全体",
     "command_startup_routing_blockquoted": "可視 H2 節 '入力と開始' の節全体",
+    "stage6-relocated": "9 段状態機械の項 6 に waiter consumer",
+    "stage9-deleted": "9 段状態機械の項 9 に waiter consumer",
+    "dw-c00-fenced": "DW-C00 に waiter consumer normative line",
+    "dw-o01-wrong-pid-source": "DW-O01 に waiter consumer normative line",
+    "target-symlinked": "canonical target が symlink でない regular file",
+    "decoy-optional": "normative line と同じ節に義務を打ち消す語がある",
+    "decoy-negated": "9 段状態機械の項 6 に waiter consumer",
+    "decoy-blockquoted": "9 段状態機械の項 6 に waiter consumer",
+    "pre-wave-form": "9 段状態機械の項 6 に waiter consumer",
     "reference_section_deleted": "H2 見出し DW-M05 が 0 件",
     "reference_section_duplicated": "H2 見出し DW-M05 が 2 件",
     "stage2_operations_deleted": "段 dispatch '段 2 preflight' の U edge が契約と不一致",
@@ -5665,6 +5810,19 @@ _COMMAND_GUARD_EXPECTED_COUNTS.update({
 })
 
 
+def test_dev_wave_waiter_consumer_pins_accept_current_docs_contract():
+    """現行 docs の4 consumer と canonical target が正例になる。"""
+
+    findings: list[str] = []
+    check_docs._check_dev_wave_waiter_consumer_pins(
+        (check_docs.REPO / ".claude/commands/dev-wave.md").read_text(),
+        (check_docs.REPO / "docs/dev-wave/core.md").read_text(),
+        (check_docs.REPO / "docs/dev-wave/operations.md").read_text(),
+        findings,
+    )
+    assert findings == []
+
+
 def test_command_guard_case_registration_is_complete():
     """条件 24/25 と新節 pin の case 実在、guard 登録表の key 一致を固定する。"""
 
@@ -5681,6 +5839,15 @@ def test_command_guard_case_registration_is_complete():
         "codex_startup_wave_pre_form",
         "codex_startup_routing_moved",
         "self_l2_admission_wave_pre_form",
+        "stage6-relocated",
+        "stage9-deleted",
+        "dw-c00-fenced",
+        "dw-o01-wrong-pid-source",
+        "target-symlinked",
+        "decoy-optional",
+        "decoy-negated",
+        "decoy-blockquoted",
+        "pre-wave-form",
     } <= case_keys
     assert (
         case_keys
@@ -5695,6 +5862,7 @@ def test_command_guard_case_registration_is_complete():
         "test_normative_exact_section_pins_reject_raw_html_inside_pinned_sections",
         "test_dev_wave_operation_order_rejects_titleless_reorder_and_missing_target",
         "test_normative_exact_section_pins_accept_real_repo",
+        "test_dev_wave_waiter_consumer_pins_accept_current_docs_contract",
     ):
         assert source.count(f"def {test_name}(") == 1
 

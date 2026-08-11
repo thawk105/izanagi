@@ -24,6 +24,7 @@ sys.path.insert(0, str(ORCH.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
+import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
     env_contract,
@@ -34,6 +35,7 @@ from orchestrator.campaign import (  # noqa: E402
     s8b_outcome_stage_contract as outcome_stage_contract,
     s8b_oracle_judge as judge,
     s8b_oracle_manifest as oracle_manifest,
+    s8b_oracle_spec as oracle_spec,
     s8b_oracle_report as report,
     wal,
 )
@@ -72,6 +74,7 @@ _ENV_CONSISTENCY_ISSUE = (
 _MANIFEST_ENV_ISSUE = (
     "oracle session record.env_tag が manifest.run_contract.env_tag と不一致"
 )
+_SPEC_FIXTURES: dict[str, spec_fixture.ReviewedSpecFixture] = {}
 
 
 @pytest.fixture(autouse=True)
@@ -198,34 +201,45 @@ def _manifest(tmp_path: Path, *, campaign_id: str = "oracle-b0", n: int = 1) -> 
         holdout_ids=holdout_ids, configuration_ids=CONFIGURATIONS,
     )
     contract = env_contract.lookup("linux-baremetal")
+    run_contract = {
+        "ccbench_pin": "pin", "env_tag": contract.env_tag,
+        "clocks": contract.clocks_per_us,
+        "reps": 5, "extime": 5, "verify": "legacy+s2",
+        "screening": "off", "bench_max_rounds": 1,
+        "contract_sha256": contract.contract_sha256,
+    }
+    bindings = [
+        _binding(holdout_id, configuration_id)
+        for holdout_id in holdout_ids
+        for configuration_id in CONFIGURATIONS
+    ]
+    generators = {
+        "materializer": _source("orchestrator/campaign/s1_direct_comparison.py"),
+        "report": _source("orchestrator/campaign/s8b_oracle_report.py"),
+        "judge": _source("orchestrator/campaign/s8b_oracle_judge.py"),
+        "outcome_stage_contract": _source(
+            "orchestrator/campaign/s8b_outcome_stage_contract.py"
+        ),
+        "artifacts": _source("orchestrator/campaign/s8b_oracle_artifacts.py"),
+    }
+    approved = spec_fixture.make_reviewed_spec(
+        root=ROOT, n=n, master_seed="report-fixture",
+        block_sizes={"b0": n}, holdout_ids=holdout_ids,
+        configuration_ids=CONFIGURATIONS, run_contract=run_contract,
+        campaign_ids={"b0": campaign_id}, binding_identity=bindings,
+        allowed_excluded_reasons=["machine-fault"],
+        generator_versions=generators,
+    )
+    _SPEC_FIXTURES[approved.sha256] = approved
     return oracle_manifest.build_manifest(
         freeze_path=freeze_path,
+        spec_sha256=approved.sha256,
         schedule=schedule,
-        run_contract={
-            "ccbench_pin": "pin", "env_tag": contract.env_tag,
-            "clocks": contract.clocks_per_us,
-            "reps": 5, "extime": 5, "verify": "legacy+s2",
-            "screening": "off", "bench_max_rounds": 1,
-            "contract_sha256": contract.contract_sha256,
-        },
-        binding_identity=[
-            _binding(holdout_id, configuration_id)
-            for holdout_id in holdout_ids
-            for configuration_id in CONFIGURATIONS
-        ],
+        run_contract=run_contract,
+        binding_identity=bindings,
         campaign_ids={"b0": campaign_id},
         allowed_excluded_reasons=["machine-fault"],
-        generator_versions={
-            "materializer": _source("orchestrator/campaign/s1_direct_comparison.py"),
-            "report": _source("orchestrator/campaign/s8b_oracle_report.py"),
-            "judge": _source("orchestrator/campaign/s8b_oracle_judge.py"),
-            "outcome_stage_contract": _source(
-                "orchestrator/campaign/s8b_outcome_stage_contract.py"
-            ),
-            "artifacts": _source(
-                "orchestrator/campaign/s8b_oracle_artifacts.py"
-            ),
-        },
+        generator_versions=generators,
     )
 
 
@@ -242,12 +256,16 @@ def _verify_for_report(
     )
     freeze_path, _ = _freeze(tmp_path)
     verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
-    return oracle_manifest.verify_manifest(
-        manifest_path,
-        root=ROOT,
-        freeze_document=verified_freeze.document,
-        freeze_sha256=verified_freeze.sha256,
-    )
+    approved = _SPEC_FIXTURES[manifest["spec_sha256"]]
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        return oracle_manifest.verify_manifest(
+            manifest_path,
+            root=ROOT,
+            freeze_document=verified_freeze.document,
+            freeze_sha256=verified_freeze.sha256,
+            approved_spec=approved.reviewed_spec,
+        )
 
 
 def _schema_less_legacy(manifest: Mapping) -> artifacts.LegacyManifest:
@@ -260,7 +278,9 @@ def _schema_less_legacy(manifest: Mapping) -> artifacts.LegacyManifest:
 
 def _ratified_cli_manifest(
         tmp_path: Path,
-) -> tuple[Path, Path, artifacts.OfficialManifest]:
+) -> tuple[
+    Path, Path, artifacts.OfficialManifest, spec_fixture.ReviewedSpecFixture,
+]:
     def fill_execution_snapshot(generation):
         v2_fixture.fill(
             generation, total_bench_s=1000.0, per_holdout_bench_s=1000.0,
@@ -294,33 +314,73 @@ def _ratified_cli_manifest(
         }
         for role, relative_path in GENERATOR_SOURCES.items()
     }
+    run_contract = {
+        "ccbench_pin": "pin",
+        "env_tag": contract.env_tag,
+        "clocks": contract.clocks_per_us,
+        "reps": 5,
+        "extime": 5,
+        "verify": "legacy+s2",
+        "screening": "off",
+        "bench_max_rounds": 1,
+        "contract_sha256": contract.contract_sha256,
+    }
+    bindings = [
+        _binding(holdout_id, configuration_id)
+        for holdout_id in holdout_ids
+        for configuration_id in CONFIGURATIONS
+    ]
+    approved = spec_fixture.make_reviewed_spec(
+        root=root, n=1, master_seed="report-cli-fixture",
+        block_sizes={"b0": 1}, holdout_ids=holdout_ids,
+        configuration_ids=CONFIGURATIONS, run_contract=run_contract,
+        campaign_ids={"b0": "oracle-cli-b0"}, binding_identity=bindings,
+        allowed_excluded_reasons=["machine-fault"],
+        generator_versions=generator_versions,
+    )
+    spec_fixture.install_reviewed_spec(root, approved)
     with mock.patch.object(oracle_manifest, "ROOT", root):
         document = oracle_manifest.build_manifest(
             freeze_path=freeze_path,
+            spec_sha256=approved.sha256,
             schedule=schedule,
-            run_contract={
-                "ccbench_pin": "pin",
-                "env_tag": contract.env_tag,
-                "clocks": contract.clocks_per_us,
-                "reps": 5,
-                "extime": 5,
-                "verify": "legacy+s2",
-                "screening": "off",
-                "bench_max_rounds": 1,
-                "contract_sha256": contract.contract_sha256,
-            },
-            binding_identity=[
-                _binding(holdout_id, configuration_id)
-                for holdout_id in holdout_ids
-                for configuration_id in CONFIGURATIONS
-            ],
+            run_contract=run_contract,
+            binding_identity=bindings,
             campaign_ids={"b0": "oracle-cli-b0"},
             allowed_excluded_reasons=["machine-fault"],
             generator_versions=generator_versions,
         )
     manifest_path = tmp_path / "ratified-cli-manifest.json"
     oracle_manifest.write_manifest(manifest_path, document)
-    return root, manifest_path, document
+    return root, manifest_path, document, approved
+
+
+def _judge(observations, *, manifest_sha256=None, spec_sha256=None):
+    schedule_projection = judge.ManifestScheduleProjection(
+        n_per_cell=observations.get("n_per_cell", 1),
+        expected_cells=frozenset(
+            (
+                entry["schedule_index"],
+                entry["holdout_id"],
+                entry["configuration_id"],
+            )
+            for entry in observations.get("expected_cells", [])
+            if isinstance(entry, Mapping)
+            and set(entry) == judge._EXPECTED_CELL_KEYS
+        ),
+    )
+    return judge.judge_oracle(
+        observations,
+        schedule_projection=schedule_projection,
+        verified_manifest_sha256=(
+            observations.get("manifest_sha256")
+            if manifest_sha256 is None else manifest_sha256
+        ),
+        approved_spec_sha256=(
+            observations.get("spec_sha256")
+            if spec_sha256 is None else spec_sha256
+        ),
+    )
 
 
 def _session(layout, event: str, payload: dict) -> None:
@@ -690,6 +750,28 @@ def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):
     assert type(verified) is oracle_manifest.VerifiedManifest
     assert observations["manifest_kind"] == "official"
     assert observations["manifest_sha256"] == verified.sha256
+    assert observations["spec_sha256"] == verified.document["spec_sha256"]
+
+
+def test_legacy_manifest_cannot_launder_spec_sha256_into_observations_or_judge(
+        tmp_path):
+    official = _manifest(tmp_path)
+    assert isinstance(official["spec_sha256"], str)
+    legacy = _schema_less_legacy(official)
+
+    observations = report.build_observations(
+        manifest=legacy, output_root=tmp_path,
+    )
+    assert observations["manifest_kind"] == "legacy"
+    assert "spec_sha256" not in observations
+
+    verdict = _judge(
+        observations,
+        manifest_sha256=observations["manifest_sha256"],
+        spec_sha256=official["spec_sha256"],
+    )
+    assert verdict["status"] == "indeterminate"
+    assert any(reason["code"] == "spec-sha256" for reason in verdict["reasons"])
 
 
 def test_build_observations_rejects_unverified_official_manifest(tmp_path):
@@ -1219,7 +1301,7 @@ def test_report_session_issuer_alias_and_identity_use_model_authority(
 
 
 def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
-    root, manifest_path, _document = _ratified_cli_manifest(tmp_path)
+    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output = tmp_path / "official-cli-observations.json"
     real_reverify = report.s8b_ratified_freeze.reverify_published_freeze
     real_verify = oracle_manifest.verify_manifest
@@ -1231,7 +1313,7 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
         return reverified
 
     def verify_recording_wrapper(
-            path, *, root, freeze_document, freeze_sha256):
+            path, *, root, freeze_document, freeze_sha256, approved_spec):
         recorded["freeze_document"] = freeze_document
         recorded["freeze_sha256"] = freeze_sha256
         return real_verify(
@@ -1239,9 +1321,12 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
             root=root,
             freeze_document=freeze_document,
             freeze_sha256=freeze_sha256,
+            approved_spec=approved_spec,
         )
 
     with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+    ), mock.patch.object(
             report.s8b_ratified_freeze,
             "reverify_published_freeze",
             side_effect=reverify_recording_wrapper,
@@ -1269,7 +1354,7 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
 
 def test_cli_verify_failure_returns_two_without_output(tmp_path):
-    root, _manifest_path, document = _ratified_cli_manifest(tmp_path)
+    root, _manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
     damaged = copy.deepcopy(document)
     damaged["manifest_id"] = "damaged-manifest-id"
     manifest_path = tmp_path / "damaged-ratified-cli-manifest.json"
@@ -1278,16 +1363,97 @@ def test_cli_verify_failure_returns_two_without_output(tmp_path):
     )
     output = tmp_path / "must-not-exist.json"
 
-    rc = report.main([
-        "report",
-        "--manifest", str(manifest_path),
-        "--output-root", str(root / "report-output"),
-        "--out", str(output),
-        "--repo-root", str(root),
-    ])
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        rc = report.main([
+            "report",
+            "--manifest", str(manifest_path),
+            "--output-root", str(root / "report-output"),
+            "--out", str(output),
+            "--repo-root", str(root),
+        ])
 
     assert rc == 2
     assert not output.exists()
+
+
+def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output(
+        tmp_path):
+    root, manifest_path, _document, approved_a = _ratified_cli_manifest(tmp_path)
+    positive_output = tmp_path / "positive-observations.json"
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved_a.sha256):
+        positive_rc = report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(root / "report-output"),
+            "--out", str(positive_output), "--repo-root", str(root),
+        ])
+    assert positive_rc == 0
+    positive = json.loads(positive_output.read_text(encoding="utf-8"))
+    assert positive["spec_sha256"] == approved_a.sha256
+
+    parameters = approved_a.document["schedule_parameters"]
+    approved_b = spec_fixture.make_reviewed_spec(
+        root=root,
+        n=parameters["n"],
+        master_seed="report-cli-other-spec",
+        block_sizes=parameters["block_sizes"],
+        holdout_ids=parameters["holdout_ids"],
+        configuration_ids=parameters["configuration_ids"],
+        run_contract=approved_a.document["run_contract"],
+        campaign_ids=approved_a.document["campaign_ids"],
+        binding_identity=approved_a.document["binding_identity"],
+        allowed_excluded_reasons=approved_a.document["allowed_excluded_reasons"],
+        generator_versions=approved_a.document["generator_versions"],
+    )
+    spec_fixture.install_reviewed_spec(root, approved_b)
+    negative_output = tmp_path / "must-not-exist-other-spec.json"
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved_b.sha256):
+        negative_rc = report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(root / "report-output"),
+            "--out", str(negative_output), "--repo-root", str(root),
+        ])
+    assert negative_rc == 2
+    assert not negative_output.exists()
+
+
+def test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(
+        tmp_path):
+    root, manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
+    observations_path = tmp_path / "judge-input-observations.json"
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        assert report.main([
+            "report", "--manifest", str(manifest_path),
+            "--output-root", str(root / "report-output"),
+            "--out", str(observations_path), "--repo-root", str(root),
+        ]) == 0
+        verdict_path = tmp_path / "official-verdict.json"
+        assert judge.main([
+            "judge", "--input", str(observations_path),
+            "--manifest", str(manifest_path), "--out", str(verdict_path),
+            "--repo-root", str(root),
+        ]) == 0
+    assert verdict_path.exists()
+
+    legacy_document = copy.deepcopy(document)
+    legacy_document.pop("schema_version")
+    legacy_path = tmp_path / "legacy-manifest.json"
+    legacy_path.write_text(
+        json.dumps(legacy_document, ensure_ascii=False), encoding="utf-8",
+    )
+    forbidden_verdict = tmp_path / "legacy-must-not-exist-verdict.json"
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        rc = judge.main([
+            "judge", "--input", str(observations_path),
+            "--manifest", str(legacy_path), "--out", str(forbidden_verdict),
+            "--repo-root", str(root),
+        ])
+    assert rc == 2
+    assert not forbidden_verdict.exists()
 
 
 def test_cli_legacy_skips_freeze_resolution(tmp_path):
@@ -1756,6 +1922,9 @@ def test_other_abort_reason_contracts_are_closed_literal_sets():
         "trace-run-nonzero-exit",
         "trace-empty",
         "trace-no-abort-counts",
+        "trace-no-commit-witness",
+        "trace-batch-commits-unattributed",
+        "trace-witness-unsupported-workload",
         "trace-parse-error",
         "verify-competing-tenant",
     })
@@ -1832,6 +2001,18 @@ def test_terminal_outcomes_reject_invalid_abort_reason_without_crashing(
         pytest.param(
             "verify-inconclusive", "trace-no-abort-counts",
             id="verify-inconclusive-trace-no-abort-counts",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-no-commit-witness",
+            id="verify-inconclusive-trace-no-commit-witness",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-batch-commits-unattributed",
+            id="verify-inconclusive-trace-batch-commits-unattributed",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-witness-unsupported-workload",
+            id="verify-inconclusive-trace-witness-unsupported-workload",
         ),
         pytest.param(
             "verify-inconclusive", "trace-parse-error",
@@ -1934,7 +2115,7 @@ def test_verify_inconclusive_wal_stays_observable_and_judges_indeterminate(tmp_p
         manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
     )
     row = observations["rows"][0]
-    verdict = judge.judge_oracle(observations)
+    verdict = _judge(observations)
 
     assert row["status"] == "completed"
     assert row["outcome"] == "verify-inconclusive"
@@ -1963,7 +2144,7 @@ def test_binary_mismatch_wal_stays_observable_and_judges_indeterminate(tmp_path)
 
     observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
     row = observations["rows"][0]
-    verdict = judge.judge_oracle(observations)
+    verdict = _judge(observations)
 
     assert row["status"] == "completed"
     assert row["outcome"] == "binary-mismatch"
@@ -2806,7 +2987,7 @@ def test_trial_window_with_phantom_schedule_index_is_protocol_violation(
     assert all(row["status"] == "protocol_violation"
                for row in observations["rows"])
     assert "schedule 外" in observations["rows"][0]["reason"]
-    assert judge.judge_oracle(observations)["status"] == "indeterminate"
+    assert _judge(observations)["status"] == "indeterminate"
 
 
 def test_allowed_excluded_reason_row_stays_reported_and_judges_unknown(tmp_path):
@@ -2823,7 +3004,7 @@ def test_allowed_excluded_reason_row_stays_reported_and_judges_unknown(tmp_path)
 
     observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
     row = observations["rows"][0]
-    verdict = judge.judge_oracle(observations)
+    verdict = _judge(observations)
 
     assert row["status"] == "completed"
     assert row["outcome"] == "timeout"
@@ -2904,7 +3085,7 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
         _trial(layout, item, "committed")
     _finish_campaign(layout, manifest, fill_missing=False)
     observations = report.build_observations(manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path)
-    assert judge.judge_oracle(observations)["status"] == "determinate"
+    assert _judge(observations)["status"] == "determinate"
     holdouts = {entry["holdout_id"] for entry in observations["expected_cells"]}
     removed = next(iter(holdouts))
     observations["rows"] = [
@@ -2912,7 +3093,7 @@ def test_expected_cells_keep_deleted_holdout_indeterminate(tmp_path):
     ]
 
     assert removed in {entry["holdout_id"] for entry in observations["expected_cells"]}
-    assert judge.judge_oracle(observations)["status"] == "indeterminate"
+    assert _judge(observations)["status"] == "indeterminate"
 
 
 @pytest.mark.parametrize(
@@ -3458,7 +3639,7 @@ def test_only_ghost_campaign_is_visible_without_synthetic_row(tmp_path):
             "block_id='ghost-block', campaign_id='oracle-ghost'"
         ),
     }]
-    assert judge.judge_oracle(observations)["status"] == "indeterminate"
+    assert _judge(observations)["status"] == "indeterminate"
 
 
 def test_ghost_campaign_extends_existing_manifest_issues(tmp_path):
@@ -3667,7 +3848,7 @@ def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
         manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path, repo_root=repo_root,
     )
     assert baseline["t080_freeze_migration_observation"] == envelope
-    assert judge.judge_oracle(baseline)["status"] == "determinate"
+    assert _judge(baseline)["status"] == "determinate"
 
     lines = Path(layout.wal_file).read_text(encoding="utf-8").splitlines()
     rewritten = []
@@ -3690,7 +3871,7 @@ def test_post_r_missing_key_is_single_reason_and_makes_judge_indeterminate(
         ) == 1
         for row in damaged["rows"]
     )
-    assert judge.judge_oracle(damaged)["status"] == "indeterminate"
+    assert _judge(damaged)["status"] == "indeterminate"
 
 
 def test_historical_receipt_derivation_failure_invalidates_all_campaign_rows_g2(

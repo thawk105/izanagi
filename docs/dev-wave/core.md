@@ -14,8 +14,8 @@ L0=入口、L1=常時段の U 節、L1.5=クラス依存段の U 節、L2=C 節�
 省略不可で、親は直接編集しない。docs-only は子ゼロでよい。実測は省かず、全 9 段は
 ユーザー明示時に使う。
 
-待ち手は 1 条件 1 本とし、通知ごとに作り直さず状態を読む。生産者を止めるときは待ち手も落とし、
-生産者の死も待ち条件に含める。
+待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。生産者を止める
+ときは待ち手も落とし、生産者の死も待ち条件に含める。
 
 ## DW-STOP — fail-closed 停止条件
 
@@ -76,7 +76,7 @@ scope 外の real 所見は実装せず、設計択一・所見・推奨案を�
 実装前の変異事前登録は `DW-M01` に従う。
 gate の禁止は署名で書き、通る正例を 1 つ添える。
 
-免除は実装差分ゼロの「実装しない」裁定の変異 matrix だけ。受入全走は免除せず、実 repo を読む
+免除は「実装しない」裁定済みかつ実装差分ゼロの wave の変異 matrix だけ。受入全走は免除せず、実 repo を読む
 テストがあれば段 7 の記録前に実走し、結果を worklog へ書く。
 
 承認済み裁定を止めてよいのは裁定時点で未見の新事実がある場合だけとし、根拠の事実が裁定文・
@@ -95,7 +95,7 @@ canonical 台帳への追記・採番・ローテーションは段 9 の land �
 erratum とする（D88）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
 復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
 docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
-欄を作らず、未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
+欄を作らず未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
 hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界は `CLAUDE.md` と
 `docs/ai-provenance.md` を正本とする。
 
@@ -117,8 +117,8 @@ hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界�
 `/dev-wave <次タスク>` を起動する。command 内から `/clear` を実行しない（D69）。
 
 無人継続は外部 supervisor が wave ごとに新しい `claude -p` を起動し、組み込み `/loop` は
-使わない。supervisor は `max-waves`、金額/トークン予算、wall-clock deadline を
-必須とし、無限ループにしない。次タスクなし、ユーザー裁定待ち、テスト/check/変異の赤、
+使わない。supervisor は `max-waves`、金額/トークン予算、wall-clock deadline を必須とし
+無限ループにしない。次タスクなし、ユーザー裁定待ち、テスト/check/変異の赤、
 未許可 dirty/diverged main、取り込み不能、想定外 commit、process の非 0 終了・timeout、
 task-run/handoff 不整合で fail-closed 停止する。自然言語の完了だけで継続せず、Git HEAD、
 cleanliness、検査結果、task-run 終了状態を照合する。

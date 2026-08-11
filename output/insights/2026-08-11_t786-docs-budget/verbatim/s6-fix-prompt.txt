@@ -1,0 +1,63 @@
+# 段 6 fix — 新設検査の cascade を止める ([T-786] / [T-773])
+
+あなたは izanagi の dev-wave 段 6 の fix worker (Codex `role=author`) である。
+`sandbox=workspace-write`。**コードとテストだけを編集する。docs は編集しない。commit もしない。**
+段 5 の実装子契約 (`DW-S05-A` / `DW-S05-B` / `DW-S05-C`) を全文継承する。
+
+## 現状
+
+直前の段 5 で `tools/check_docs.py` に `_check_dev_wave_waiter_consumer_pins` が追加され、
+`orchestrator/tests/test_check_docs.py` に positive 1 + negative 9 が追加された。
+作業ツリーに未 commit で存在する。親が実走した結果は **2 failed / 406 passed** である。
+
+## 直す対象 (親が実測した赤 2 件)
+
+いずれも「**新設検査が、既に構造が壊れている節でも追加で発火し、既存テストの厳密な件数期待を
+崩している**」という同一原因である。
+
+1. `orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_rejects_duplicate_dw_o01_section`
+   - `DW-O01` を重複させた fixture で、期待は既存 2 findings。
+   - 実際は `docs/dev-wave/operations.md: DW-O01 に waiter consumer normative line が
+     可視 top-level exact 1 件でない` が**余分に**出て 3 件になる。
+2. `orchestrator/tests/test_check_docs.py::test_dev_wave_layer_slicing_ignores_fenced_heading[malformed-heading]`
+   - `## DW-C00 — synthetic` を `## DW-C00—` に壊した fixture で、期待は違反ちょうど 1 件。
+   - 実際は `docs/dev-wave/core.md: DW-C00 に waiter consumer normative line が
+     可視 top-level exact 1 件でない` が余分に出て 2 件になる。
+
+## 直し方 (方針は親が裁定済み)
+
+**production 側を直す。**新設検査は、対象節が**構造的に健全なときだけ**走らせる
+(可視 H2 が一意で、byte slice と 1:1 であるとき)。節の構造が既に壊れている入力は、
+既存の H2 一意性検査・slice 1:1 検査・`DW-O01` cardinality 検査が既に赤にしているので、
+新設検査が重ねて報告する必要はない。`tools/check_docs.py` には同型の先例がある —
+`_check_dev_wave_layer_budget` は `_dev_wave_visible_inventory_is_exact()` が真のときだけ走る。
+同じ規律に揃えること。
+
+## 禁止事項 (守らないと差し戻す)
+
+- **上記 2 つの既存テストの期待値を変更しない。**反転・緩和・skip・削除・件数の書き換えを禁じる。
+  これらは tracked な既存テストであり、赤なのは新設検査側が誤っているためである。
+- **新設検査を fail-open にして辻褄を合わせない。**「構造健全なときだけ走る」であって
+  「エラー時は黙って通す」ではない。段 5 が追加した negative 9 件は**全て赤のままでなければならない**
+  (これらは構造が健全なまま義務だけを壊す入力なので、guard を入れても発火し続けるはずである)。
+- 予算定数 (`DEV_WAVE_L1_BYTES_MAX` / `DEV_WAVE_L1_5_BYTES_MAX` /
+  `DEV_WAVE_L2_SECTION_BYTES_MAX` / `COMMAND_LIMITS`) を変更しない。
+- `REQUIRED_REFERENCE_SECTIONS` / `STAGE_UNCONDITIONAL_DISPATCH_CONTRACT` /
+  `CONDITION_DISPATCH_CONTRACT` を変更しない。
+- docs (`docs/**`、`.claude/commands/**`) を編集しない。commit しない。
+
+段 5 が追加した**未 commit のテスト**は編集対象に含めてよい。ただし編集してよいのは
+「guard 追加に伴い fixture の前提を揃える」場合に限り、negative 9 件の期待 (赤であること) は
+1 件も緩めてはならない。
+
+## 検査
+
+`python3 tools/check_docs.py` と `python3 tools/check_codex_agents.py` は実走して rc を報告せよ。
+pytest は計算ノード投入の認証が通らない可能性がある。走らなければ「実装済み・未実走」と書き、
+緑を主張しないこと。テスト実測は親が行う。
+
+## 出力
+
+Markdown、`## 総括` 必須。総括には (a) 入れた guard の位置と条件、
+(b) negative 9 件が依然として赤である根拠 (guard の条件を通過することをコードで示す)、
+(c) 実走した検査と rc、(d) 触ったファイルと行、を書く。

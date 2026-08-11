@@ -1,0 +1,325 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                        return _lease_result(\n                            \"held-self\",\n                            lease,\n                            self_holder,\n                            age_seconds=age_seconds,\n                        )\n",
+          "new": "                        return _lease_result(\"held\", lease, self_holder)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_second_acceptance_reuses_self_held_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_age_comes_from_refreshed_real_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_holds_exclusive_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renews_mtime_and_returns_held_self"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "_ACCEPTED_CLAIM_STATES = frozenset({\"acquired\", \"held-self\"})\n",
+          "new": "_ACCEPTED_CLAIM_STATES = frozenset({\"acquired\"})\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_runs_command_without_polling[observed-age]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_runs_command_without_polling[zero-age]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_second_acceptance_reuses_self_held_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_acceptance_red_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_merge_failure_aborts_without_releasing_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_postclaim_failure_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_signal_retains_real_lease_without_polling"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                            os.utime(lease.fd, ns=(renewed_ns, renewed_ns))\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_second_acceptance_reuses_self_held_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_age_comes_from_refreshed_real_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_detects_path_replacement_after_utime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_refuses_stale_refreshed_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[utime]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_holds_exclusive_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renews_mtime_and_returns_held_self"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                            if not _same_entry(\n                                directory_fd, _LEASE_NAME, refreshed_metadata\n                            ):\n                                raise FileNotFoundError(\n                                    errno.ENOENT, \"renewed lease changed\"\n                                )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[same-entry]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_detects_path_replacement_after_utime"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                            renewed_ns = time.time_ns()\n                            os.utime(lease.fd, ns=(renewed_ns, renewed_ns))\n                            refreshed_metadata = os.fstat(lease.fd)\n                            _validate_owned_regular(refreshed_metadata)\n                            if not _same_entry(\n                                directory_fd, _LEASE_NAME, refreshed_metadata\n                            ):\n                                raise FileNotFoundError(\n                                    errno.ENOENT, \"renewed lease changed\"\n                                )\n",
+          "new": "                            if not _same_entry(\n                                directory_fd, _LEASE_NAME, lease.metadata\n                            ):\n                                raise FileNotFoundError(\n                                    errno.ENOENT, \"renewed lease changed\"\n                                )\n                            renewed_ns = time.time_ns()\n                            os.utime(lease.fd, ns=(renewed_ns, renewed_ns))\n                            refreshed_metadata = os.fstat(lease.fd)\n                            _validate_owned_regular(refreshed_metadata)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_detects_path_replacement_after_utime"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                        except Exception:\n                            return _lease_result(\n                                \"unavailable\",\n                                lease,\n                                self_holder,\n                                unavailable_reason=\"self-renew-failed\",\n                            )\n",
+          "new": "                        except Exception:\n                            age_seconds = lease.age_seconds\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[utime]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[post-fstat]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[owner-check]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[same-entry]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_detects_path_replacement_after_utime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_refuses_stale_refreshed_mtime"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        release_lease=ownership in {\n            _LeaseOwnership.UNKNOWN,\n            _LeaseOwnership.ACQUIRED,\n        },\n",
+          "new": "        release_lease=ownership in {\n            _LeaseOwnership.UNKNOWN,\n            _LeaseOwnership.ACQUIRED,\n            _LeaseOwnership.HELD_SELF,\n        },\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[age-bool]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[age-non-int]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[holder-false]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[holder-non-hex]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[holder-uppercase-hex]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[source-extra-key]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[source-missing-key]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_invalid_held_self_fails_closed[source-unavailable]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_legacy_self_held_fails_closed_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_cleanup_consumes_ownership_before_release_and_is_idempotent[held-self]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_acceptance_red_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_merge_failure_aborts_without_releasing_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_postclaim_failure_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_signal_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_self_renew_failure_reports_reason_without_poll_or_release"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        elif state == \"held-self\" or self_renew_failed or holder_self:\n            lifecycle.ownership = _LeaseOwnership.HELD_SELF\n",
+          "new": "        elif state == \"held-self\" or self_renew_failed or holder_self:\n            lifecycle.ownership = _LeaseOwnership.NONE\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_merge_failure_aborts_without_releasing_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_self_renew_failure_reports_reason_without_poll_or_release"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    elif state != \"acquired\" and holder_self:\n        raise _StageFailure(\"claim-self-unverified\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_legacy_self_held_fails_closed_without_polling"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "        initial_metadata = os.fstat(fd)\n        _validate_owned_regular(initial_metadata)\n        _flock_bounded(fd, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)\n        metadata = os.fstat(fd)\n        _validate_owned_regular(metadata)\n",
+          "new": "        metadata = os.fstat(fd)\n        _validate_owned_regular(metadata)\n        _flock_bounded(fd, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_open_lease_uses_locked_fd_metadata_after_path_replacement",
+        "orchestrator/tests/test_wave_land_window.py::test_open_lease_uses_post_flock_metadata_for_stale_decision",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[owner-check]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[post-fstat]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "        _flock_bounded(fd, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)\n        metadata = os.fstat(fd)\n        _validate_owned_regular(metadata)\n",
+          "new": "        _flock_bounded(fd, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)\n        metadata = os.stat(_LEASE_NAME, dir_fd=directory_fd, follow_symlinks=False)\n        _validate_owned_regular(metadata)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_open_lease_uses_locked_fd_metadata_after_path_replacement",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[post-fstat]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                            age_seconds, stale = _mtime_state(refreshed_metadata)\n                            if stale:\n                                raise ValueError(\"renewed lease is stale\")\n",
+          "new": "                            age_seconds = 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_age_comes_from_refreshed_real_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_refuses_stale_refreshed_mtime"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                state_value = \"stale\" if lease.stale else \"held\"\n",
+          "new": "                if lease.holder == self_holder:\n                    _renewed_ns = time.time_ns()\n                    os.utime(lease.fd, ns=(_renewed_ns, _renewed_ns))\n                    os.utime(\n                        lease.fd,\n                        ns=(lease.metadata.st_mtime_ns, lease.metadata.st_mtime_ns),\n                    )\n                state_value = \"stale\" if lease.stale else \"held\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_self_status_does_not_renew_or_rewrite_lease"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                        except Exception:\n                            return _lease_result(\n                                \"unavailable\",\n                                lease,\n                                self_holder,\n                                unavailable_reason=\"self-renew-failed\",\n                            )\n",
+          "new": "                        except FileNotFoundError:\n                            return _lease_result(\n                                \"unavailable\",\n                                lease,\n                                self_holder,\n                                unavailable_reason=\"self-renew-failed\",\n                            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[utime]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[post-fstat]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[owner-check]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_refuses_stale_refreshed_mtime"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    elif state != \"acquired\" and holder_self:\n",
+          "new": "    elif holder_self:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_command_red_is_propagated_after_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_real_acquired_payload_runs_command_and_releases_on_failure",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acquired_reloads_main_before_behind_check",
+        "orchestrator/tests/test_dev_wave_wait.py::test_claim_once_real_acquired_payload_grants_acquired_ownership",
+        "orchestrator/tests/test_dev_wave_wait.py::test_committed_message_without_ai_agent_never_runs_acceptance",
+        "orchestrator/tests/test_dev_wave_wait.py::test_created_commit_identity_change_blocks_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_with_real_git_and_lease_helper",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_and_queued_refresh_main_before_every_claim",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_abort_nonzero_is_cleanup_failure",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_failure_aborts_before_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_message_requires_nonempty_ai_agent_trailer",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_required_without_message_file_releases_before_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_sequence_and_postcheck_are_exact",
+        "orchestrator/tests/test_dev_wave_wait.py::test_missing_owned_path_skips_diff_warns_and_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[behind-count]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-dry-run]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-head-postcheck]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-message-postcheck]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-rev-parse]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[postcheck]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[postclaim-rev-parse]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_diff_nonzero_fails_closed_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_overlap_blocks_before_merge_and_releases[directory-child]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_overlap_blocks_before_merge_and_releases[normalized-exact]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_prefix_is_not_overlap_and_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_positive_postmerge_behind_count_blocks_only_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_releases_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_failure_overrides_primary_result",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[malformed-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[nonzero]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

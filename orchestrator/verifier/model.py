@@ -139,15 +139,26 @@ class Integrity:
     lock_coverage_violations: int = 0  # X 行の件数 (writePhase で lock 被覆が破れた write。D38)
     write_intent_violations: int = 0  # I 行の件数 (write_set_ と API write intent の被覆破れ。T-152)
     permutation_violations: int = 0  # P 行の件数 (validationPhase の sort が要素を欠落/複製。D41)
+    expected_commits: Optional[int] = None  # trace 外 counter の期待 commit 数
+    observed_commits: Optional[int] = None  # dedup 後の trace committed txn 数
     notes: List[str] = field(default_factory=list)
 
     def clean(self) -> bool:
+        commit_witness_clean = (
+            (self.expected_commits is None and self.observed_commits is None)
+            or (
+                self.expected_commits is not None
+                and self.observed_commits is not None
+                and self.observed_commits == self.expected_commits
+            )
+        )
         return (self.orphan_reads == 0 and self.version_dups == 0
                 and self.dup_txids == 0 and self.genesis_commits == 0
                 and self.missing_txids == 0 and self.write_version_mismatch == 0
                 and self.malformed_keys == 0 and self.lock_coverage_violations == 0
                 and self.write_intent_violations == 0
-                and self.permutation_violations == 0)
+                and self.permutation_violations == 0
+                and commit_witness_clean)
 
 
 @dataclass

@@ -853,3 +853,67 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:dw-g05-partial-land-direction":"[T-814]"},"authored":"2026-08-11","content_sha256":"fff7468637ec006f8fa60070ee43fa6ff37347993540d75cfa0c2dac9e839dc6","seq":1,"wave":"dev-wave-t8b-restart-residue"}
 - {"allocations":{"D:toolchain-binding-and-unlock-are-inseparable":"D293"},"authored":"2026-08-11","content_sha256":"75d8fcb7520c3f6ea6538594b2a062648321fdaebe7252450347c81e92d03632","seq":2,"wave":"dev-wave-t8b-restart-residue"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"2c45ec232c70d8d9128ed44f2e5951a914da3fa555d89a47587bfb022fdb4587","seq":3,"wave":"dev-wave-t8b-restart-residue"}
+
+- {"allocations":{"T:codex-hook-trust-and-surfaces":"[T-815]"},"authored":"2026-08-11","content_sha256":"aef5a6d3d75c9ea00022309d94ed225c0629cbd963f6d37f993e880a03fcd26b","seq":1,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"F:codex-cannot-write-own-config-dir":"F218","F:codex-web-search-evidence":"F217"},"authored":"2026-08-11","content_sha256":"7383a5629385491e85f8ffaa7c788e968daa0838dce1409c6278d4f6117c6de4","seq":2,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"D:codex-hook-wiring":"D294"},"authored":"2026-08-11","content_sha256":"d774c81d3b51bba6f9af3b8cc8380120c0baa042fdf8a78c69dff53919f54aee","seq":3,"wave":"dev-wave-codex-hook-parity"}
+
+- {"allocations":{"T:coverage-driver-commit-witness":"[T-818]","T:legacy-commit-witness-backfill":"[T-817]","T:mutation-runner-drift-scope":"[T-819]","T:trace-v2-cpp-pin-approval":"[T-816]"},"authored":"2026-08-11","content_sha256":"e30f995f366ab92b2bedf98721c07b14c6bdb002c523e55194a06ebe41d352e5","seq":1,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{"D:trace-completeness-external-counter":"D295"},"authored":"2026-08-11","content_sha256":"79e0e707c9ad68a29c7c909cb565ba82ca4f14e1b2c1365e459aaec2d7f0b4b8","seq":2,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"3f38e164e1ee941a436381d7b5b2afda8937aa7281d3bbc2dd5fb7b90dd4a8fe","seq":3,"wave":"dev-wave-t756-trace-v2"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"ee206a3df76e7065c4f7644566926b3a1b5ce0c35226cfa148bcde7b22c83b75","seq":59,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1cd80e29a266aa38eff605e47246eacee5a402f1d8042f70cbea2345fc639f5b","seq":60,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:exec-module-systemexit":"[T-820]","T:fold-provenance-durable-artifact":"[T-821]"},"authored":"2026-08-11","content_sha256":"93819a427c1945eefad7fc32483206b6c9f65e19f67c5f6af817d4f7bfe97dce","seq":1,"wave":"dev-wave-t798-t799-fold-window"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c87e779726dfdb561588c2d19fd64b533623e300e12d9ddc3b88056f15346635","seq":61,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"123f0da1ff21e5068a27ee37d1926c135332f381287bb4f8000262b7fe643a19","seq":62,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:pegasus-job-env-pitfalls":"[T-823]","T:s8c-acceptance-layer3-gap":"[T-822]"},"authored":"2026-08-11","content_sha256":"7986c64599905e8b3c800631134395858e9de7b774056897f2e0952b5af5707f","seq":1,"wave":"dev-wave-t809-8c-fanout"}
+
+- {"allocations":{"T:control-byte-scan-tool":"[T-825]","T:waiter-runtime-receipt":"[T-824]"},"authored":"2026-08-11","content_sha256":"3d5fca18b25bdfeee05b24b576f39877ac16d47ef8fb8cef69908d69024f9b03","seq":1,"wave":"dev-wave-t786-docs-budget"}
+- {"allocations":{"F:reflow-breaks-line-anchored-pins":"F219"},"authored":"2026-08-11","content_sha256":"ee83bbdd6c61aafcdb3cf2785fcf37f2f92a28efb09eae8ed12167225bce3151","seq":2,"wave":"dev-wave-t786-docs-budget"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"414af363582fee40a92b69399a7267178859e8a5f735cd6ea9243cb1c0da8bb1","seq":63,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"b5b69013f1eed280068c41821534a8a86683a8c78c02fd7984239fc369a0e68b","seq":64,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"2963c3efa0a227159cb490d6dd0146202b97cfdd16970da0e2e880128ca16a3f","seq":1,"wave":"dev-wave-t813-shard-eval"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"45bc12a3a0d6df2ba1dffb70f84252b1663568c47f5d0596888bf278cb066586","seq":2,"wave":"dev-wave-t813-shard-eval"}
+
+- {"allocations":{"T:acceptance-partition-invariance":"[T-826]","T:acceptance-slow-tests":"[T-827]"},"authored":"2026-08-11","content_sha256":"bb1633270592ba73e9b2d4cebeb8b3657c686c55564e97c81d4e8293a34b968e","seq":65,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"5d581974f7f629a0a03ebbd7c0f2cfce0b8ba01199d9078bbb476472fc31a989","seq":66,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-hash-pin-detection-gap":"[T-829]","T:check-docs-fence-scanner-column":"[T-830]","T:upper-cancellation-record":"[T-828]"},"authored":"2026-08-11","content_sha256":"fccbb75f5264a075062422ca4306aab4ce62b9e899638178f06c3bba5f80d10d","seq":1,"wave":"dev-wave-t657-stage0-fold"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"913c11c384e8b7e6e270abdf63838c53f50fcf4294e7475a2df3663849047073","seq":2,"wave":"dev-wave-t657-stage0-fold"}
+
+- {"allocations":{"T:living-docs-node-variance":"[T-832]","T:node-variance-impl":"[T-831]"},"authored":"2026-08-11","content_sha256":"82b2d4808cdd19011ee6020eb3c681bf81b3edf625d30b025438f9848eeef278","seq":1,"wave":"dev-wave-t810-node-variance"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1e4961a9efd8c407d119a5eda8e4782b65bb8a18f24f02a6b15ee54e50fe3af8","seq":2,"wave":"dev-wave-t810-node-variance"}
+
+- {"allocations":{"T:trace-stdout-same-run-nonce":"[T-833]","T:verifier-epoch-consumer-inventory":"[T-834]"},"authored":"2026-08-11","content_sha256":"792f16d045c58399826983f9a0e8ab0d745ce0993973e0da7ff25e6c7b143e19","seq":1,"wave":"dev-wave-t817-verifier-epoch"}
+
+- {"allocations":{"T:acceptance-record-order-contract":"[T-836]","T:runbook-request-id-pre-submission":"[T-835]"},"authored":"2026-08-11","content_sha256":"52a3fcac30251da88bb83c2b7ffbfa15ce145fb705bd37e9bcd4d78729ba9fa7","seq":1,"wave":"dev-wave-t809-fanout-conditions"}
+
+- {"allocations":{"T:trace-v2-commit-topology":"[T-837]","T:trace-v2-emitter-verifier-wiring":"[T-839]","T:trace-v2-step4-protocol-gate":"[T-838]"},"authored":"2026-08-11","content_sha256":"5a525b968b7e70e218d7f8f4cc40135df690593e9e12fe3551c6a96ee80c0174","seq":1,"wave":"dev-wave-t756-fn2-trace-v2"}
+- {"allocations":{"D:trace-v2-in-editable-surface":"D296","D:trace0-preprocess-identity-gate":"D297"},"authored":"2026-08-11","content_sha256":"0d200faaa0ee8e505acb3b2b6c4610e9009e5f7b35e8d22b984675683d129344","seq":2,"wave":"dev-wave-t756-fn2-trace-v2"}
+- {"allocations":{"F:mutation-digest-truncation-hides-expected-nodes":"F220","F:plan-child-asserts-absent-toolchain":"F221"},"authored":"2026-08-11","content_sha256":"f1e65a487615b66b4fd91cb3fb1833f8fcb21de1350fe7694bc54221cdb33834","seq":3,"wave":"dev-wave-t756-fn2-trace-v2"}
+
+- {"allocations":{"T:backoff-value-truncation":"[T-843]","T:codex-roles-import-path":"[T-846]","T:dw-o01-artifact-root":"[T-845]","T:launcher-termination-flake":"[T-844]","T:t316-coder-derived-bypass":"[T-840]","T:t316-forbidden-identifiers-vacuous":"[T-842]","T:t316-gate-receipt-binding":"[T-841]"},"authored":"2026-08-11","content_sha256":"7ca3e99bcac4deb11f36c4cb6bb5c9a317a981416ec8129190403d7fb4cbe824","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
+- {"allocations":{"D:coder-hole-effect-gate":"D298"},"authored":"2026-08-11","content_sha256":"9158576e97999a58a820cc471d2cdd945684b5bc74b561f8003b796f496a58ba","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
+
+- {"allocations":{"T:lease-invocation-fencing":"[T-847]"},"authored":"2026-08-11","content_sha256":"356fa6945e58659d9256e87cfca875b9b3f1e667e07046d7274027b62a3e2a13","seq":1,"wave":"dev-wave-t812-lease-self-renew"}
+- {"allocations":{"D:lease-self-renew-scope":"D299"},"authored":"2026-08-11","content_sha256":"a0c36ccda61dfc9bf4533fef5942af3f249be8b97135c7d34164421f54df0bd7","seq":2,"wave":"dev-wave-t812-lease-self-renew"}
+- {"allocations":{"F:codex-observation-cap-kills-lens":"F222"},"authored":"2026-08-11","content_sha256":"a99440b888f83091d86242da5789c4ea185d793d45bd53ab9176884bfa1e34f2","seq":3,"wave":"dev-wave-t812-lease-self-renew"}
+
+- {"allocations":{"T:fanout-exact-n-run":"[T-851]","T:fanout-tamper-evidence":"[T-849]","T:fanout-uncovered-gates":"[T-850]","T:legacy-mutation-reservation":"[T-852]","T:mutation-timeout-semantics":"[T-848]"},"authored":"2026-08-11","content_sha256":"cd27f34c01b4c1fd3c1b8c2589f0872dbb06df29c9d2b813043afe66a212caf5","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
+- {"allocations":{"D:mutation-fanout-contract":"D300"},"authored":"2026-08-11","content_sha256":"3f22b793ac1a96ebbf6d902409b6fcaf1b37e0e825700a62fe8ba72ead2fc068","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
+
+- {"allocations":{"T:dw-s04-docs-only-carveout":"[T-854]","T:dw-s04-scope-of-impl-diff":"[T-853]","T:normalize-non-nfc-test-literals":"[T-855]"},"authored":"2026-08-11","content_sha256":"2beaee1b2bb4cd2ad95cce3f879603619195430b663402d6d298da636d011325","seq":1,"wave":"dev-wave-t765-exemption-wording"}
+- {"allocations":{"D:dw-s04-conjunction":"D301"},"authored":"2026-08-11","content_sha256":"4405f6195f259b0b23625a903b84fa2f66a4c85ccd1475945567bd9e0d32a111","seq":2,"wave":"dev-wave-t765-exemption-wording"}
+- {"allocations":{"F:non-nfc-line-invalidates-codex-run":"F223"},"authored":"2026-08-11","content_sha256":"a5a0ada3c70e918e8304291eafd950b95d2555aa1cbdef26321c9f51e48b749c","seq":3,"wave":"dev-wave-t765-exemption-wording"}
+
+- {"allocations":{"T:legacy-observations-retirement":"[T-857]","T:official-sink-audit":"[T-858]","T:oracle-verdict-sealing":"[T-856]"},"authored":"2026-08-11","content_sha256":"d76dc0000bba21639f1657de49d8a3de18bd6c92d64249c951cd3469b837d845","seq":1,"wave":"dev-wave-t804-spec-sha256"}
+- {"allocations":{"D:judge-reverifies-not-compares-pin":"D304","D:mutation-expected-nodes-from-collection":"D303","D:spec-binding-by-rederivation":"D302"},"authored":"2026-08-11","content_sha256":"09064ff67cebc90d8d9060eca7a6abb21503c067178aff31659984e58e2f6e3f","seq":2,"wave":"dev-wave-t804-spec-sha256"}
+- {"allocations":{"F:codex-cannot-perform-merge":"F225","F:mutation-node-id-nonascii":"F224","F:source-hash-pin-drags-mutations":"F226"},"authored":"2026-08-11","content_sha256":"c1b6eeedba5261bec9b1c65ca69af4f6bb6d699219d3fc0abd2544833db0b5ba","seq":3,"wave":"dev-wave-t804-spec-sha256"}

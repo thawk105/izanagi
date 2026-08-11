@@ -36,6 +36,7 @@ from . import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from . import campaign_claim as _campaign_claim  # noqa: E402
 from . import s8b_freeze_io as _freeze_io  # noqa: E402
 from . import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
+from . import s8b_oracle_spec  # noqa: E402
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation as _env_attestation  # noqa: E402
 from . import execution_guard  # noqa: E402
@@ -313,6 +314,9 @@ def _resolve_recorded_path(path_text: str, *, root: Path) -> Path:
 
 def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
                      t080_resolution: "_t080_migration.ReceiptResolution",
+                     approved_spec,
+                     manifest_verification_error: Optional[BaseException],
+                     standalone_manifest_verification: bool,
                      verified: Optional["_freeze_io.VerifiedFreeze"] = None,
                      verified_manifest: Optional["VerifiedManifest"] = None,
                      launch_validated: Optional[
@@ -330,10 +334,9 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
     再読込せず、その単一 object の document/sha256 だけを使う (A3-6: verify-use
     間差替えの遮断)。与えない場合は自身で ``load_verified_freeze`` を一度呼ぶ。
 
-    ``verified_manifest`` (``verify_manifest`` の戻り値) を与えた場合は manifest を
-    再検証・再読込せず、その単一 object だけを使う (C2-9: gate と run_block が同一
-    manifest object を共有)。与えない場合 (単体 gate CLI 経路) は自身で
-    ``verify_manifest`` を一度呼ぶ。
+    run-block から ``verified_manifest`` を与えた場合は manifest を再検証・再読込せず、
+    その単一 object だけを使う (C2-9)。公開 gate の注入経路だけは token exact type、
+    manifest 実 bytes の canonical hash、approved spec hash を再束縛する。
 
     ``ratified`` (``load_ratified_freeze`` の戻り値) は v2 経路 (floor/budget が両方
     null でない freeze) の承認束縛検証結果。**与えられた freeze の bytes sha256 が
@@ -442,17 +445,57 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
             refusals.append(
                 "manifest-verify: freeze が読めず manifest を検証できない"
             )
-        elif verified_manifest is None:
+        elif standalone_manifest_verification and verified_manifest is None:
             # 単体 gate 経路: freeze byte hash 照合は verify_manifest 内で担保される
             # (freeze_document/freeze_sha256 必須)。C2-9 の共有経路では run_block が
             # 検証済み object を渡すためこの枝には入らない。
             try:
+                approved = s8b_oracle_spec.load_approved_spec(root)
                 verify_manifest(
                     manifest_path, root=root,
                     freeze_document=freeze, freeze_sha256=freeze_sha,
+                    approved_spec=approved,
                 )
             except Exception as exc:
                 refusals.append(f"manifest-verify: {type(exc).__name__}: {exc}")
+        elif standalone_manifest_verification:
+            try:
+                approved = s8b_oracle_spec.load_approved_spec(root)
+                if type(verified_manifest) is not VerifiedManifest:
+                    raise OracleDriverError(
+                        "verified_manifest が VerifiedManifest exact type でない"
+                    )
+                actual = _oracle_manifest._load_json_object(manifest_path)
+                if (verified_manifest.sha256
+                        != _oracle_manifest._canonical_sha256(actual)
+                        or verified_manifest.sha256
+                        != _oracle_manifest._canonical_sha256(
+                            verified_manifest.document
+                        )):
+                    raise OracleDriverError(
+                        "verified_manifest.sha256 が manifest 実 bytes/document と不一致"
+                    )
+                if verified_manifest.document.get("spec_sha256") != approved.sha256:
+                    raise OracleDriverError(
+                        "verified_manifest.spec_sha256 が approved spec と不一致"
+                    )
+            except Exception as exc:
+                refusals.append(f"manifest-verify: {type(exc).__name__}: {exc}")
+        elif verified_manifest is None:
+            exc = manifest_verification_error
+            if exc is None:
+                refusals.append("manifest-verify: 検証済み manifest object がない")
+            else:
+                refusals.append(
+                    f"manifest-verify: {type(exc).__name__}: {exc}"
+                )
+        elif (type(verified_manifest) is not VerifiedManifest
+              or type(approved_spec) is not s8b_oracle_spec.ReviewedSpec
+              or verified_manifest.document.get("spec_sha256")
+              != approved_spec.sha256):
+            refusals.append(
+                "manifest-verify: run flow の manifest/spec snapshot 束縛が不正"
+            )
 
     return _make_gate_decision(t080_resolution, refusals=refusals)
 
@@ -485,6 +528,8 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
             return _gate_check_core(
                 freeze_path=freeze_path, manifest_path=manifest_path, root=root,
                 t080_resolution=t080_resolution,
+                approved_spec=None, manifest_verification_error=None,
+                standalone_manifest_verification=True,
                 verified_manifest=verified_manifest, ratified=ratified,
             )
 
@@ -496,6 +541,8 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         return _gate_check_core(
             freeze_path=freeze_path, manifest_path=manifest_path, root=root,
             t080_resolution=t080_resolution,
+            approved_spec=None, manifest_verification_error=None,
+            standalone_manifest_verification=True,
             verified=loaded, verified_manifest=verified_manifest,
             ratified=ratified,
         )
@@ -508,6 +555,8 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
             return _gate_check_core(
                 freeze_path=freeze_path, manifest_path=manifest_path, root=root,
                 t080_resolution=t080_resolution,
+                approved_spec=None, manifest_verification_error=None,
+                standalone_manifest_verification=True,
                 verified=loaded, verified_manifest=verified_manifest,
                 ratified_error=f"[{exc.reason}] {exc}",
             )
@@ -515,6 +564,8 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
             return _gate_check_core(
                 freeze_path=freeze_path, manifest_path=manifest_path, root=root,
                 t080_resolution=t080_resolution,
+                approved_spec=None, manifest_verification_error=None,
+                standalone_manifest_verification=True,
                 verified=loaded, verified_manifest=verified_manifest,
                 ratified_error=f"{type(exc).__name__}: {exc}",
             )
@@ -535,6 +586,8 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
     return _gate_check_core(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
         t080_resolution=t080_resolution,
+        approved_spec=None, manifest_verification_error=None,
+        standalone_manifest_verification=True,
         verified=loaded, verified_manifest=verified_manifest,
         launch_validated=validated,
     )
@@ -544,6 +597,8 @@ def _gate_check_validated(
         *, freeze_path=None, manifest_path=None, root,
         t080_resolution: "_t080_migration.ReceiptResolution",
         launch_validated: "s8b_ratified_freeze.LaunchValidatedFreeze",
+        approved_spec,
+        manifest_verification_error: Optional[BaseException],
         verified_manifest: Optional["VerifiedManifest"] = None) -> GateDecision:
     """run-block 専用 gate。呼出側が得た同一 validated object を再検証しない。"""
     if type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze:
@@ -556,6 +611,9 @@ def _gate_check_validated(
     return _gate_check_core(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
         t080_resolution=t080_resolution,
+        approved_spec=approved_spec,
+        manifest_verification_error=manifest_verification_error,
+        standalone_manifest_verification=False,
         launch_validated=launch_validated,
         verified_manifest=verified_manifest,
     )
@@ -1120,19 +1178,26 @@ def run_block(
     # VerifiedManifest object を共有する (再読込・再検証しない)。verify 失敗時は
     # verified_manifest=None で gate へ渡し、gate が同一 refusal を集約する。
     verified_manifest: Optional[VerifiedManifest] = None
+    approved_spec = None
+    manifest_verification_error: Optional[BaseException] = None
     try:
+        approved_spec = s8b_oracle_spec.load_approved_spec(root)
         verified_manifest = verify_manifest(
             Path(manifest_path), root=root,
             freeze_document=freeze_document,
             freeze_sha256=validated.ratified.sha256,
+            approved_spec=approved_spec,
         )
-    except Exception:
+    except Exception as exc:
+        manifest_verification_error = exc
         verified_manifest = None
 
     decision = _gate_check_validated(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
         t080_resolution=t080_resolution,
-        launch_validated=validated, verified_manifest=verified_manifest,
+        launch_validated=validated, approved_spec=approved_spec,
+        manifest_verification_error=manifest_verification_error,
+        verified_manifest=verified_manifest,
     )
     if not decision.allowed:
         return {"status": "refused", **asdict(decision)}
