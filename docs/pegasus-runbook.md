@@ -1059,11 +1059,21 @@ floor / oracle の集約は expected cell 集合との完全一致を要求す�
   (iv) 同時 dispatch 負荷とログインノードの admission、(v) `mutation_worktree.py` の
   container 名が固定 (`.izanagi-mutation-worktree`) なので **`--scratch-root` を N 個に分ける**必要。
   **いずれも未実測である。**着手は起票済みタスクで行う。
-- **8c trial は workload 単位で逐次に回す** (`p3_autonomous_workload_trial.py` の
-  `for workload in selected:`)。workload ごとの campaign root は分離できる構造だが、
-  現行呼出しは `journal`・`active_providers`・`build_context`・`max_wall_s` を共有するため、
-  **そのまま別 job へ割るのは未承認である。**分けるには run root・provider / journal・
-  receipt・wall 予算の分離と、部分成功・再投入の定義が要る。候補として記録するに留める。
+- **8c trial の workload fan-out は「探索 pilot を `--workloads` 単数で N 起動する」形だけを許す**
+  ([T-809] 2026-08-11 ユーザー裁定)。`p3_autonomous_workload_trial.py` の
+  `for workload in selected:` を割る実装はしない — 足りないのは起動側ではなく**検証側**であり、
+  N 本を 1 成果物として束ねる verifier が存在しない。
+  **満たすべき全条件は `docs/phase3-s8c-autonomous-trial-runbook.md` §5 が正本である。**
+  N 起動自体は今日そのまま動く (fixture + `--no-build` の 3 process 同時が衝突ゼロで完走)。
+  **ただし測ったのは supervisor 配線だけで、本番の律速 (role 呼び・build・verify・bench) への
+  利得は測っていない。この比を fan-out の利得として主張しない。**
+- **build を伴う 8c fan-out は許さない** (同上の裁定)。同一ノードでは他 process の compiler が
+  bench を汚し (`bench_lock` は bench だけを排除し、`competing_bench_pids` は compiler を見ない)、
+  別ノードでは上記の交絡と run 内 build cache 再利用の喪失が乗る。
+  **正式系列 6 trial を 6 node へ散らしてよいという意味ではない** — 処置と node が一対一に
+  対応する配置は完全交絡なので採らない (上の「ノード間の性能差」を参照)。現 manifest は
+  `{trial_id, arm, holdout, campaign_id}` しか持たず node 因子が無い。配置は正式系列の
+  着手時に prereg 側で再評価する。
 - **既に job 内で並列化済みのものを候補に数えない。** 履歴監査 (`check_ai_provenance.py`) は
   commit 単位の thread pool を持ち、pytest は worker 並列、build は `-j` を持つ。
   これらは job 間 fan-out の対象ではない。
