@@ -2930,6 +2930,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave はこの 3 点で書き換えて rc=0・25758 bytes を得た。
 - 再発検知: consult / review 子が rc=1 かつ出力 0 bytes のとき、events 末尾の `turn.failed` を
   読んで flag か上限かを切り分ける (上限なら `stop_reason`、flag なら message が入る)。
+
+- **再発: 2026-08-11** — 焦点再レビュー 3 巡目の初回が
+  `This content was flagged for possible cybersecurity risk` で rc=1・出力 0 bytes になった
+  (31 model call・486 秒を空費)。冒頭に防御目的は書いていたが、点検項目に
+  「この 1 行を足せば通る形の decoy を 1 つでも構成できたら blocker として挙げよ」という
+  攻撃者視点の指示が残っていた。**防御的 framing は冒頭だけでなく点検項目の動詞にも要る** —
+  「構成せよ」でなく「取りこぼしている条件があれば指摘せよ」と書き、
+  検査対象が自チームのコードであることを明示して再投入したら成功した。
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -3685,6 +3693,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 赤が `output/pegasus-dispatch/` や `output/task-runs/` の差分だけを指しているなら、
   実装差分へ帰属する前に単独再走で再現性を実測する (`DW-O18`)。本件は単独再走で消えた。
 
+
+- **再発: 2026-08-11** — 受入全走が 1 本も無い場面で同型を踏んだ。[T-813] の評価 probe で、
+  同じ worktree から 5 本の dispatch (全 file 1 job + 4 分割) を同時投入したところ、
+  `test_s8b_floor_campaign.py` の `_real_output_snapshot()` 系が 8 件赤になった。
+  差分の実体は**互いの** `output/pegasus-dispatch/<nonce>/result.json` である。
+  control arm (単独走の baseline) 側でも同じ 8 件が出たため、**比較の基準まで汚染された**。
+  既存の恒久対応は「受入全走の最中に投入しない」と書いてあり、受入を含まない probe 同士の
+  同時投入を止めなかった。**規律の射程は「同じ作業木から dispatch を伴う走行を 2 本以上
+  同時に投入しない」である** (受入の有無を条件にしない)。
+  memory `no-concurrent-dispatch-during-acceptance` を同じ射程へ広げた。
+  なお `dispatch_compute.dispatch()` には repo 外へ receipt を逃がす `output_root` seam があり、
+  `run_tests._default_dispatch` が渡していないだけである — 並走が要る測定ではこの seam を使う。
 ### F137. 衛生上の所見を閉じる fix が、元の所見より重い破壊経路を新設した [権限逸脱]
 
 - 事象: 段 6 レビューが「publish の一時ファイルが書込み失敗時に `registered/` へ残る」を
@@ -5412,6 +5432,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: receipt の `evidence_status` が invalid のとき、stdout イベントに `web_search` が
   含まれるかを見る。含まれていれば本 F。
 
+
+- **再発: 2026-08-11** — 焦点再レビュー 1 巡目が web 検索を 4 回使い、
+  `codex_exit_code=0` / 出力 8479 bytes / `## 総括` ありにもかかわらず
+  `evidence_status=invalid` / `accepted=false` で不採用になった (20 model call・475 秒)。
+  **F217 の恒久対応「子 prompt に web 検索禁止を明記する」がどの dispatch 節にも配線されて
+  おらず、書き手の記憶に依存していた。** `DW-O05` (read-only codex) へ明記を義務として足そうと
+  したが、`docs/dev-wave/**` の L1.5 予算 (9566 bytes) に余地が無く、最小の 1 行 (約 90 bytes)
+  でも `check_docs` が赤になった。**予算は上げず本文編集を見送り**、候補として worklog へ
+  記録した。恒久対応は現時点で memory と本エントリだけが担っており、**機械強制されていない**。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
