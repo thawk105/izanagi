@@ -2829,6 +2829,74 @@ def test_p03_empty_spool_is_noop(tmp_path: Path) -> None:
     assert plan.status == "noop" and result.status == "noop" and not plan.targets
 
 
+def test_noop_plan_reports_observed_worklog_bytes_with_or_without_canonical_ledgers(
+    tmp_path: Path,
+) -> None:
+    present_root = tmp_path / "present"
+    present_root.mkdir()
+    present_repo = _repo(present_root)
+    worklog_bytes = (present_repo / "docs/worklog.md").read_bytes()
+    present_plan = spool_fold.plan_fold(present_repo)
+
+    absent_root = tmp_path / "absent"
+    absent_root.mkdir()
+    absent_repo = _repo(absent_root)
+    for rel in (
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/phase3.md",
+    ):
+        (absent_repo / rel).unlink()
+    absent_plan = spool_fold.plan_fold(absent_repo)
+
+    assert present_plan.status == absent_plan.status == "noop"
+    assert present_plan.projected_worklog_bytes == len(worklog_bytes)
+    assert absent_plan.projected_worklog_bytes == 0
+
+
+def test_noop_plan_does_not_require_canonical_ledgers_or_write_state(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    origin = _land_origin(repo)
+    for rel in (
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/phase3.md",
+    ):
+        (repo / rel).unlink()
+
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02", origin=origin)
+    result = spool_fold.apply_fold(repo, plan)
+
+    assert plan.status == "noop" and result.status == "noop"
+    assert plan.origin == origin
+    assert plan.input_closure_sha256 == "" and plan.transaction_id == ""
+    assert plan.phase == "applied" and plan.projected_worklog_bytes == 0
+    state_path = spool_fold._state_path(repo)
+    assert not state_path.exists() and not state_path.is_symlink()
+    _transaction_raises(
+        "transaction state の transaction_id が不正",
+        spool_fold._state_plan,
+        spool_fold._plan_state(plan),
+    )
+
+
+def test_non_noop_plan_still_requires_canonical_ledgers(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    (repo / "docs/worklog.md").unlink()
+
+    exc = _raises(
+        "canonical",
+        spool_fold.plan_fold,
+        repo,
+        fold_date="2026-08-02",
+        origin=_land_origin(repo),
+    )
+    assert exc.issues[0].path == "docs/worklog.md"
+
+
 def test_p04_below_threshold_does_not_rotate(tmp_path: Path) -> None:
     """P04: projected worklog が閾値未満なら archive を作らない。"""
 

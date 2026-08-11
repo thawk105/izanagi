@@ -7,6 +7,7 @@ pytest と ``python3 orchestrator/tests/test_dev_wave_land.py`` の両方で走�
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import fcntl
 import hashlib
 import importlib.util
@@ -1884,6 +1885,17 @@ def _fake_pending_fragment(
     return relative, path, content
 
 
+@dataclasses.dataclass(frozen=True)
+class _FakeFoldOrigin:
+    kind: str
+    base: str
+    tested_tip: str
+    wave_ref: str
+    rollback_ref: str
+    trusted_main_cutoff: str
+    audited_digest: str
+
+
 class _FakeFoldPlan:
     status = "planned"
 
@@ -1893,10 +1905,28 @@ class _FakeFoldPlan:
         *,
         targets: tuple[object, ...] = (),
         fragments: tuple[object, ...] = (),
+        origin: _FakeFoldOrigin | None = None,
+        phase: str = "applied",
+        transaction_id: str | None = None,
     ):
         self.gc_paths = (gc_path,)
         self.targets = targets
         self.fragments = fragments
+        self.origin = origin
+        self.phase = phase
+        self.transaction_id = transaction_id or hashlib.sha256(
+            (gc_path + "\0" + phase).encode("utf-8")
+        ).hexdigest()
+
+    def with_phase(self, phase: str) -> "_FakeFoldPlan":
+        return _FakeFoldPlan(
+            self.gc_paths[0],
+            targets=self.targets,
+            fragments=self.fragments,
+            origin=self.origin,
+            phase=phase,
+            transaction_id=self.transaction_id,
+        )
 
 
 class _FakeFoldFragment:
@@ -1911,22 +1941,77 @@ class _FakeFoldTarget:
 
 
 class _FakeFoldModule:
-    def __init__(self, plan, apply, *, active=False):
+    FoldOrigin = _FakeFoldOrigin
+
+    def __init__(self, plan, apply, *, active=False, fail_finalize=False):
         self._plan = plan
         self._apply = apply
         self._active = active
+        self._fail_finalize = fail_finalize
+        self.events: list[str] = []
+
+    @staticmethod
+    def audited_commit_digest(commits) -> str:
+        return hashlib.sha256(
+            b"".join(commit.encode("ascii") + b"\n" for commit in commits)
+        ).hexdigest()
+
+    def _bind_default_active_origin(self, repo: Path) -> None:
+        if self._plan.origin is not None:
+            return
+        wave = Path.cwd()
+        tested_tip = _git(wave, "rev-parse", "HEAD")
+        wave_ref = _git(wave, "symbolic-ref", "HEAD")
+        self._plan.origin = self.FoldOrigin(
+            kind="land",
+            base=tested_tip,
+            tested_tip=tested_tip,
+            wave_ref=wave_ref,
+            rollback_ref=tested_tip,
+            trusted_main_cutoff=tested_tip,
+            audited_digest=self.audited_commit_digest(()),
+        )
 
     def load_active_plan(self, repo: Path):
         assert repo.is_dir()
+        if self._active:
+            self._bind_default_active_origin(repo)
         return self._plan if self._active else None
 
-    def validate_spool_layout(self, repo: Path):
+    def validate_spool_tree(
+        self,
+        repo: Path,
+        *,
+        expected_transaction_id: str | None = None,
+    ):
         assert repo.is_dir()
+        assert expected_transaction_id == self._plan.transaction_id
+        assert all((repo / target.path).is_file() for target in self._plan.targets)
+        assert all(not (repo / relative).exists() for relative in self._plan.gc_paths)
         return []
 
-    def plan_fold(self, repo: Path, *, fold_date: str):
+    def plan_fold(self, repo: Path, *, fold_date: str, origin: _FakeFoldOrigin):
         assert repo.is_dir()
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", fold_date)
+        observed_tip = _git(repo, "rev-parse", "HEAD")
+        observed_ref = _git(repo, "symbolic-ref", "HEAD")
+        observed_audited = tuple(
+            line for line in _git(
+                repo,
+                "rev-list",
+                "--reverse",
+                f"{origin.trusted_main_cutoff}..{observed_tip}",
+            ).splitlines()
+            if line
+        )
+        assert origin.tested_tip == observed_tip
+        assert origin.wave_ref == observed_ref
+        assert _git(repo, "cat-file", "-t", origin.base) == "commit"
+        assert _git(repo, "cat-file", "-t", origin.rollback_ref) == "commit"
+        assert _git(repo, "cat-file", "-t", origin.trusted_main_cutoff) == "commit"
+        assert origin.audited_digest == self.audited_commit_digest(observed_audited)
+        self._plan.origin = origin
+        self.events.append("plan")
         return self._plan
 
     def _state_path(self, repo: Path) -> Path:
@@ -1934,7 +2019,39 @@ class _FakeFoldModule:
 
     def apply_fold(self, repo: Path, plan) -> None:
         assert plan is self._plan
+        self.events.append("apply")
         self._apply(repo, plan)
+
+    def _assert_fold_identity(self, repo: Path, plan, fold_commit: str) -> None:
+        assert _git(repo, "rev-parse", "HEAD") == fold_commit
+        assert _git(repo, "rev-parse", f"{fold_commit}^") == plan.origin.tested_tip
+        assert _git(repo, "show", "-s", "--format=%an <%ae>", fold_commit) == (
+            LAND.FOLD_AUTHOR_IDENTITY
+        )
+        assert _git(repo, "show", "-s", "--format=%B", fold_commit) == (
+            LAND._FOLD_MESSAGE.rstrip("\n")
+        )
+
+    def verify_fold_commit_identity(self, repo: Path, plan, *, fold_commit: str) -> None:
+        self.events.append("verify")
+        self._assert_fold_identity(repo, plan, fold_commit)
+
+    def mark_fold_committed(self, repo: Path, plan, *, fold_commit: str):
+        self.events.append("mark")
+        assert plan.phase == "applied"
+        self._assert_fold_identity(repo, plan, fold_commit)
+        self._plan = plan.with_phase("committed")
+        return self._plan
+
+    def finalize_fold(self, repo: Path, plan, *, fold_commit: str) -> None:
+        self.events.append("finalize")
+        assert plan.phase == "committed"
+        self._assert_fold_identity(repo, plan, fold_commit)
+        if self._fail_finalize:
+            raise RuntimeError("synthetic finalize failure")
+
+
+_ROLLBACK_TRANSACTION_ID = "a" * 64
 
 
 @contextlib.contextmanager
@@ -1953,31 +2070,22 @@ def _rollback_fold_fixture():
         _git(repo.main, "merge", "--ff-only", tip)
 
         fold = LAND._load_spool_fold()
-        after = b"# receipts\n- synthetic rollback plan\n"
-        target = fold._target(repo.main, "docs/spool/FOLDED.md", after)
-        plan = fold.FoldPlan(
-            "planned",
-            "2000-01-01",
-            fold._plan_transaction_id("2000-01-01", (), (target,)),
-            (),
-            (target,),
-            (),
-            (),
-            len(after),
+        plan = _FakeFoldPlan(
+            "docs/spool/worklog/synthetic.md",
+            transaction_id=_ROLLBACK_TRANSACTION_ID,
         )
         state_path = fold._state_path(repo.main)
         state_bytes = (
             json.dumps(
-                fold._plan_state(plan),
+                {"transaction_id": plan.transaction_id},
                 ensure_ascii=False,
                 separators=(",", ":"),
                 sort_keys=True,
             ).encode("utf-8")
             + b"\n"
         )
-        fold._atomic_write(state_path, state_bytes)
+        state_path.write_bytes(state_bytes)
         assert state_path.read_bytes() == state_bytes
-        assert fold.load_active_plan(repo.main) == plan
         yield (
             repo,
             wave,
@@ -2001,6 +2109,7 @@ def _call_rollback_fold(
     index_tree: str,
     snapshots,
     state_path: Path,
+    expected_transaction_id: str = _ROLLBACK_TRANSACTION_ID,
 ) -> list[str]:
     with _cwd(wave):
         repository = LAND._verify_repository(repo.request(wave, tip=expected_tip))
@@ -2012,6 +2121,7 @@ def _call_rollback_fold(
                 index_tree=index_tree,
                 snapshots=snapshots,
                 state_path=state_path,
+                expected_transaction_id=expected_transaction_id,
             )
         finally:
             repository.close()
@@ -2044,7 +2154,7 @@ def _assert_valid_state_preserved(
     state_bytes: bytes,
 ) -> None:
     assert state_path.read_bytes() == state_bytes
-    assert fold.load_active_plan(repo.main) == plan
+    assert json.loads(state_bytes)["transaction_id"] == plan.transaction_id
 
 
 def _land_main_fold_for_resync(repo: _Repo, winner: Path) -> str:
@@ -2154,7 +2264,7 @@ def test_candidate_fold_plan_failure_happens_before_ff() -> None:
     """F-2: candidate tree の plan が赤なら main を 1 commit も進めない。"""
 
     class FailingPlanModule(_FakeFoldModule):
-        def plan_fold(self, repo: Path, *, fold_date: str):
+        def plan_fold(self, repo: Path, *, fold_date: str, origin):
             raise RuntimeError("synthetic plan failure")
 
     with _repo() as repo:
@@ -2211,6 +2321,7 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
         )
         wrapper = _wrapper(repo.root)
         record = repo.root / "fold-git-calls.jsonl"
+        request = repo.request(wave, tip=tip)
         with (
             _patched_land_attr("_load_spool_fold", lambda: module),
             _patched_land_attr("_preflight_fold_message", lambda *_args: None),
@@ -2220,7 +2331,7 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
                 "DEV_WAVE_RECORD": str(record),
             }),
         ):
-            result = _land(repo.request(wave, tip=tip))
+            result = _land(request)
 
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
         assert lock_observed
@@ -2246,6 +2357,158 @@ def test_fold_is_called_under_land_lock_and_committed_with_message_file() -> Non
             "commit", "--no-gpg-sign", "-F",
         ]
         assert "-m" not in commit_args and "--no-edit" not in commit_args
+        observed_origin = module._plan.origin
+        assert observed_origin is not None
+        independently_audited = repo.audited(repo.base, tip, wave)
+        assert observed_origin == _FakeFoldOrigin(
+            kind="land",
+            base=repo.base,
+            tested_tip=_git(wave, "rev-parse", "HEAD"),
+            wave_ref=_git(wave, "symbolic-ref", "HEAD"),
+            rollback_ref=repo.base,
+            trusted_main_cutoff=repo.base,
+            audited_digest=module.audited_commit_digest(independently_audited),
+        )
+        assert independently_audited == request.audited_commits
+        assert module.events == ["plan", "apply", "mark", "finalize"]
+
+
+def test_fold_lifecycle_orders_mark_postconditions_declared_and_finalize() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            folded = repo_path / "docs/spool/FOLDED.md"
+            folded.write_text("# receipts\n- ordered\n", encoding="utf-8")
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+        )
+        events = module.events
+        original_git = LAND._git
+        original_main_dirt = LAND._verify_main_no_tracked_dirt
+        original_declared = LAND.verify_declared_fold_commit
+
+        def observed_git(repo_path: Path, *args: str, **kwargs):
+            if args and args[0] == "commit":
+                events.append("commit")
+            return original_git(repo_path, *args, **kwargs)
+
+        def observed_main_dirt(repository) -> None:
+            original_main_dirt(repository)
+            if _git(repository.main, "rev-parse", "HEAD") != tip:
+                events.append("postcondition")
+
+        def observed_declared(*args, **kwargs):
+            if kwargs.get("fold_commit_sha") is not None:
+                events.append("declared")
+            return original_declared(*args, **kwargs)
+
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+            _patched_land_attr("_git", observed_git),
+            _patched_land_attr("_verify_main_no_tracked_dirt", observed_main_dirt),
+            _patched_land_attr("verify_declared_fold_commit", observed_declared),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert events == [
+            "plan",
+            "apply",
+            "commit",
+            "mark",
+            "postcondition",
+            "declared",
+            "finalize",
+        ]
+
+
+def test_finalize_failure_keeps_verified_fold_commit_and_never_rolls_back() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            (repo_path / "docs/spool/FOLDED.md").write_text(
+                "# receipts\n- finalize-failure\n",
+                encoding="utf-8",
+            )
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+            fail_finalize=True,
+        )
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+            _patched_land_attr(
+                "_rollback_fold",
+                lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    AssertionError("finalize failure must not roll back")
+                ),
+            ),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_FINALIZE_FAILED,
+            "fold-finalize-failed",
+        ), result
+        assert "synthetic finalize failure" in result.reason
+        assert result.main_after == _git(repo.main, "rev-parse", "HEAD")
+        assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
+        assert module.events[-2:] == ["mark", "finalize"]
+
+
+def test_generated_docs_declares_exact_active_transaction() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        plan = _FakeFoldPlan("docs/spool/worklog/synthetic.md")
+        with _cwd(wave):
+            repository = LAND._verify_repository(repo.request(wave))
+        observed: list[list[str]] = []
+        original_run = LAND.subprocess.run
+
+        def capture(argv, **_kwargs):
+            observed.append(argv)
+            return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+        try:
+            LAND.subprocess.run = capture
+            LAND._validate_generated_docs(repository, plan)
+        finally:
+            LAND.subprocess.run = original_run
+            repository.close()
+
+        assert observed == [[
+            sys.executable,
+            str(repo.main / "tools" / "check_docs.py"),
+            "--expect-active-transaction",
+            plan.transaction_id,
+        ]]
 
 
 def test_land_folds_rotation_inside_lock() -> None:
@@ -2281,6 +2544,9 @@ def test_land_folds_rotation_inside_lock() -> None:
             ),
             "docs/archive/README.md": "# archive\n\n## 現在の収容物\n",
             "tools/check_docs.py": f"WORKLOG_ROTATE_BYTES = {rotate_limit}\n",
+            "tools/spool_fold.py": (ROOT / "tools/spool_fold.py").read_text(
+                encoding="utf-8"
+            ),
         }
         for relative, content in canonical.items():
             path = wave / relative
@@ -2315,8 +2581,12 @@ def test_land_folds_rotation_inside_lock() -> None:
             def __getattr__(self, name: str):
                 return getattr(real_fold, name)
 
-            def plan_fold(self, repo_path: Path, *, fold_date: str):
-                plan = real_fold.plan_fold(repo_path, fold_date=fold_date)
+            def plan_fold(self, repo_path: Path, *, fold_date: str, origin):
+                plan = real_fold.plan_fold(
+                    repo_path,
+                    fold_date=fold_date,
+                    origin=origin,
+                )
                 assert plan.rotation_path is not None, plan
                 self.rotation_path = plan.rotation_path
                 return plan
@@ -2395,6 +2665,9 @@ def test_land_folds_failure_supersede_inside_lock() -> None:
             ),
             "docs/archive/README.md": "# archive\n\n## 現在の収容物\n",
             "tools/check_docs.py": "WORKLOG_ROTATE_BYTES = 100000\n",
+            "tools/spool_fold.py": (ROOT / "tools/spool_fold.py").read_text(
+                encoding="utf-8"
+            ),
         }
         for relative, content in canonical.items():
             path = wave / relative
@@ -2742,16 +3015,23 @@ def test_rollback_fold_removes_state_after_every_restore_point_succeeds() -> Non
         ) = fixture
         restore_path.write_bytes(b"rollback-after\n")
         restore_path.chmod(0o600)
+        fsynced_directories: list[Path] = []
+        original_fsync_directory = LAND._fsync_directory
 
-        failures = _call_rollback_fold(
-            repo,
-            wave,
-            rollback_ref=repo.base,
-            expected_tip=tip,
-            index_tree=index_tree,
-            snapshots=snapshots,
-            state_path=state_path,
-        )
+        def observed_fsync_directory(path: Path) -> None:
+            fsynced_directories.append(path)
+            original_fsync_directory(path)
+
+        with _patched_land_attr("_fsync_directory", observed_fsync_directory):
+            failures = _call_rollback_fold(
+                repo,
+                wave,
+                rollback_ref=repo.base,
+                expected_tip=tip,
+                index_tree=index_tree,
+                snapshots=snapshots,
+                state_path=state_path,
+            )
 
         assert failures == []
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
@@ -2762,7 +3042,34 @@ def test_rollback_fold_removes_state_after_every_restore_point_succeeds() -> Non
         assert stat.S_IMODE(restore_path.stat().st_mode) == 0o640
         assert not state_path.exists()
         assert not state_path.is_symlink()
+        assert fsynced_directories == [state_path.parent]
         assert fold.load_active_plan(repo.main) is None
+
+
+def test_rollback_fold_preserves_state_with_different_transaction_id() -> None:
+    with _rollback_fold_fixture() as fixture:
+        (
+            repo, wave, tip, index_tree, _restore_path, snapshots,
+            fold, plan, state_path, state_bytes,
+        ) = fixture
+
+        failures = _call_rollback_fold(
+            repo,
+            wave,
+            rollback_ref=repo.base,
+            expected_tip=tip,
+            index_tree=index_tree,
+            snapshots=snapshots,
+            state_path=state_path,
+            expected_transaction_id="b" * 64,
+        )
+
+        assert failures == [
+            "fold transaction state transaction_id does not match "
+            "the rollback plan; state preserved"
+        ]
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        _assert_valid_state_preserved(fold, repo, plan, state_path, state_bytes)
 
 
 def test_rollback_fold_reports_symlink_state_after_prior_failure() -> None:
@@ -2850,7 +3157,10 @@ def _fold_main_locked_with_failed_ref_rollback(
     expected = ["update-ref", "refs/heads/main", repo.base, tip]
     wrapper, env = _exact_git_failure(repo, expected)
     module = _FakeFoldModule(
-        _FakeFoldPlan("docs/spool/worklog/synthetic.md"),
+        _FakeFoldPlan(
+            "docs/spool/worklog/synthetic.md",
+            transaction_id=_ROLLBACK_TRANSACTION_ID,
+        ),
         lambda *_args: (_ for _ in ()).throw(RuntimeError("synthetic apply failure")),
     )
     successful_land = LAND.LandResult(
@@ -2996,7 +3306,7 @@ def test_failed_cas_rollback_has_distinct_rc_and_status() -> None:
 
 
 def test_active_transaction_resumes_before_main_dirty_gate() -> None:
-    """F-6: partial canonical dirt があっても stored plan を通常 land から完遂する。"""
+    """F-6: complete shape の stored plan を通常 land から形 A として完遂する。"""
 
     with _repo() as repo:
         wave = repo.waves["one"]
@@ -3008,11 +3318,12 @@ def test_active_transaction_resumes_before_main_dirty_gate() -> None:
         tip = _git(wave, "rev-parse", "HEAD")
         _git(repo.main, "merge", "--ff-only", tip)
         receipt_rel = "docs/spool/FOLDED.md"
-        (repo.main / receipt_rel).write_text("partial canonical\n", encoding="utf-8")
+        (repo.main / receipt_rel).write_text("# receipts\n- resumed\n", encoding="utf-8")
+        (repo.main / relative).unlink()
 
         def resume(repo_path: Path, _plan) -> None:
             (repo_path / receipt_rel).write_text("# receipts\n- resumed\n", encoding="utf-8")
-            (repo_path / relative).unlink()
+            assert not (repo_path / relative).exists()
 
         plan = _FakeFoldPlan(
             relative,
@@ -3029,6 +3340,54 @@ def test_active_transaction_resumes_before_main_dirty_gate() -> None:
         assert result.main_after != tip
         assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
         assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
+def test_shape_a_rollback_uses_stored_rollback_ref_tree() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+        request = repo.request(wave, tip=tip)
+        _git(repo.main, "merge", "--ff-only", tip)
+        (repo.main / "docs/spool/FOLDED.md").write_text(
+            "# receipts\n- shape-a-complete\n",
+            encoding="utf-8",
+        )
+        (repo.main / relative).unlink()
+        origin = _FakeFoldOrigin(
+            kind="land",
+            base=repo.base,
+            tested_tip=tip,
+            wave_ref=_git(wave, "symbolic-ref", "HEAD"),
+            rollback_ref=repo.base,
+            trusted_main_cutoff=repo.base,
+            audited_digest=_FakeFoldModule.audited_commit_digest(
+                repo.audited(repo.base, tip, wave)
+            ),
+        )
+        plan = _FakeFoldPlan(
+            relative,
+            targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            origin=origin,
+        )
+        module = _FakeFoldModule(
+            plan,
+            lambda *_args: (_ for _ in ()).throw(
+                RuntimeError("synthetic recovery apply failure")
+            ),
+            active=True,
+        )
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_FOLD_FAILED, "fold-failed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert _git(repo.main, "write-tree") == _git(repo.main, "rev-parse", f"{repo.base}^{{tree}}")
+        assert not (repo.main / relative).exists()
 
 
 def test_active_transaction_recovery_completes_with_provenance_red() -> None:
@@ -3061,15 +3420,16 @@ def test_active_transaction_recovery_completes_with_provenance_red() -> None:
             _git(repo.main, "merge", "--ff-only", tip)
             receipt_rel = "docs/spool/FOLDED.md"
             (repo.main / receipt_rel).write_text(
-                "partial canonical\n", encoding="utf-8"
+                f"# receipts\n- resumed-{mode}-provenance\n", encoding="utf-8"
             )
+            (repo.main / relative).unlink()
 
             def resume(repo_path: Path, _plan) -> None:
                 (repo_path / receipt_rel).write_text(
                     f"# receipts\n- resumed-{mode}-provenance\n",
                     encoding="utf-8",
                 )
-                (repo_path / relative).unlink()
+                assert not (repo_path / relative).exists()
 
             plan = _FakeFoldPlan(
                 relative,
@@ -3108,6 +3468,152 @@ def test_active_transaction_recovery_completes_with_provenance_red() -> None:
             assert result.main_after != tip
             assert _git(repo.main, "rev-parse", f"{result.main_after}^") == tip
             assert _git(repo.main, "status", "--porcelain=v1") == ""
+
+
+def test_shape_b_finalizes_without_reapply_recommit_or_provenance_audit() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            (repo_path / "docs/spool/FOLDED.md").write_text(
+                "# receipts\n- shape-b\n",
+                encoding="utf-8",
+            )
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+        )
+        request = repo.request(wave, tip=tip)
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            first = _land(request)
+        assert (first.rc, first.status) == (LAND.RC_OK, "landed"), first
+        fold_commit = first.main_after
+        assert fold_commit is not None
+        commit_count = _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD")
+
+        module._plan = module._plan.with_phase("applied")
+        module._active = True
+        module._apply = lambda *_args: (_ for _ in ()).throw(
+            AssertionError("shape B must not reapply")
+        )
+        module.events.clear()
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr(
+                "_audit_provenance_history",
+                lambda *_args: (_ for _ in ()).throw(
+                    AssertionError("shape B must not run provenance audit")
+                ),
+            ),
+        ):
+            recovered = _land(request)
+
+        assert (recovered.rc, recovered.status) == (LAND.RC_OK, "landed"), recovered
+        assert recovered.main_after == fold_commit
+        assert _git(repo.main, "rev-parse", "HEAD") == fold_commit
+        assert _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD") == commit_count
+        assert module.events == ["verify", "mark", "finalize"]
+
+
+def test_shape_b_rejects_fold_commit_whose_parent_is_not_tested_tip() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative, _fragment, _content = _fake_pending_fragment(repo, wave)
+        tip = _git(wave, "rev-parse", "HEAD")
+
+        def apply(repo_path: Path, _plan) -> None:
+            (repo_path / relative).unlink()
+            (repo_path / "docs/spool/FOLDED.md").write_text(
+                "# receipts\n- parent-check\n",
+                encoding="utf-8",
+            )
+
+        module = _FakeFoldModule(
+            _FakeFoldPlan(
+                relative,
+                targets=(_FakeFoldTarget("docs/spool/FOLDED.md"),),
+            ),
+            apply,
+        )
+        request = repo.request(wave, tip=tip)
+        with (
+            _patched_land_attr("_load_spool_fold", lambda: module),
+            _patched_land_attr("_preflight_fold_message", lambda *_args: None),
+        ):
+            first = _land(request)
+        assert (first.rc, first.status) == (LAND.RC_OK, "landed"), first
+
+        (repo.main / "unexpected.txt").write_text("wrong parent\n", encoding="utf-8")
+        _git(repo.main, "add", "unexpected.txt")
+        _git(repo.main, "commit", "-qm", "advance beyond fold commit")
+        advanced = _git(repo.main, "rev-parse", "HEAD")
+        module._plan = module._plan.with_phase("applied")
+        module._active = True
+        module.events.clear()
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            recovered = _land(request)
+
+        assert (recovered.rc, recovered.status) == (
+            LAND.RC_FOLD_RECOVERY_FAILED,
+            "fold-recovery-failed",
+        ), recovered
+        assert _git(repo.main, "rev-parse", "HEAD") == advanced
+        assert module.events == ["verify"]
+
+
+def test_standalone_origin_state_is_not_auto_recovered() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        _git(repo.main, "merge", "--ff-only", tip)
+        plan = _FakeFoldPlan(
+            "docs/spool/worklog/synthetic.md",
+            origin=_FakeFoldOrigin(
+                kind="standalone",
+                base=tip,
+                tested_tip=tip,
+                wave_ref="refs/heads/main",
+                rollback_ref=tip,
+                trusted_main_cutoff=tip,
+                audited_digest=_FakeFoldModule.audited_commit_digest(()),
+            ),
+        )
+        module = _FakeFoldModule(
+            plan,
+            lambda *_args: (_ for _ in ()).throw(
+                AssertionError("standalone state must not be applied")
+            ),
+            active=True,
+        )
+        with _patched_land_attr("_load_spool_fold", lambda: module):
+            result = _land(repo.request(wave, tip=tip))
+
+        state_path = module._state_path(repo.main).absolute()
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_RECOVERY_FAILED,
+            "fold-recovery-failed",
+        ), result
+        assert str(state_path) in result.reason
+        assert "lock-aware finalize command は未実装" in result.reason
+        assert module.events == []
 
 
 def test_not_landed_is_distinct_from_postcondition_failure() -> None:

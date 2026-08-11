@@ -2232,6 +2232,13 @@ def plan_fold(
         fold_date = _current_fold_date()
     if not isinstance(fold_date, str) or not _valid_date(fold_date):
         raise SpoolValidationError([Issue("fold_date", 1, "fold-date", "fold_date は実在する ISO date が必要")])
+    if not fragments:
+        worklog_path = repo / "docs/worklog.md"
+        projected_worklog_bytes = len(worklog_path.read_bytes()) if worklog_path.is_file() else 0
+        return FoldPlan(
+            "noop", fold_date, "", origin, "", "applied",
+            (), (), (), (), projected_worklog_bytes, None,
+        )
     worklog_raw = _read_required(repo, "docs/worklog.md")
     decisions_raw = _read_required(repo, "docs/decisions.md")
     failures_raw = _read_required(repo, "docs/failures.md")
@@ -2272,12 +2279,6 @@ def plan_fold(
         **{fragment.path: fragment.content_sha for fragment in fragments},
     }
     input_closure_sha256 = _closure_digest(closure_files, limit)
-    if not fragments:
-        return FoldPlan(
-            "noop", fold_date, "", origin, input_closure_sha256, "applied",
-            (), (), (), (), len(worklog_raw), None,
-        )
-
     records = _receipt_records(receipt)
     seen_content: set[object] = set()
     seen_identity: set[tuple[str, str, str]] = set()
