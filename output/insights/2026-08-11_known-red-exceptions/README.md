@@ -82,6 +82,11 @@ template patch を一時適用して 4 node の実挙動を測ろうとしたが
 4 件の前提は repo 内で満たせるため、外部依存物の不在ではなく**条件付き未実走**に分類する。
 
 **実測値 (件数・rc・request ID・変異結果) は 1 つも変えていない。** 訂正したのは分類語と、
-それに基づく本文 1 文だけである。分類の正本は `orchestrator/tests/README.md` の
-「条件付き未実走 — 依存物不在ではない skip」節。R1 (c) の隔離 checkout 境界テスト wave は
-別途起票する。
+それに基づく本文 1 文だけである。
+
+分類の正本は `orchestrator/tests/README.md` の
+「条件付き未実走 (repo 内で満たせるが開けていない)」節であり、同節と
+`skiputil.skip_conditional_unrun()` / `test_skip_classification.py` による機械固定は
+並行 wave `dev-wave-t770-conditional-unrun` が実装・land した ([T-770] 完了、変異 4/4 KILLED)。
+本 erratum はその land が触れなかった census 側だけを揃えるものである。
+4 node を実際に走らせる経路 (R1 (c) の隔離 checkout を含む) は [T-790] が持つ。

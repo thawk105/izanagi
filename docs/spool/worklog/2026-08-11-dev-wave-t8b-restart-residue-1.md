@@ -54,10 +54,20 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   submission receipt の `source_commit` と実行時 imported module bytes 照合という
   submission→execution の commit pin は在る。(iv) M-3「計算ノードの既定は 11.4.0」は
   登録済み 2 世代 (bnode011 / bnode048) の観測であって `gen_S` 全ノードの現在値ではない
-- **[T-770] を実施した。** R1 = (b) `orchestrator/tests/README.md` へ
-  「条件付き未実走 — 依存物不在ではない skip」節を新設し、census の分類語を訂正 + erratum。
+- **[T-770] は並行 wave に先を越され、本 wave の分は census 側だけに縮んだ。**
+  本 wave も R1 (b) + R2 (a) を `orchestrator/tests/README.md` へ実装していたが、
+  受入 3 走目の merge 段 (rc=70) で `dev-wave-t770-conditional-unrun` の land
+  (main `04e99891`) と衝突して発覚した。**相手の実装は上位互換**である —
+  `skiputil.skip_conditional_unrun()` と `test_skip_classification.py` で分類の結線を
+  機械固定し、変異 4/4 KILLED で裏取りしている。**本 wave 側の同 file 変更は全面取り下げ、
+  main の版をそのまま採った。** 相手が触れなかった census
+  (`output/insights/2026-08-11_known-red-exceptions/README.md`) の分類語訂正と erratum だけを残す。
   **census の実測値 (件数・rc・request ID・変異結果) は 1 つも変えていない。**
-  R2 = (a) 分類語を改めた。R1 (c) は下記「新規」へ起票
+  R1 (c) 相当は相手の [T-790] が持つため、本 wave の起票予定は取り下げた
+- **先を越された機序は「同じ裁定を 2 つの wave が独立に拾った」ことである。**
+  [T-770] は worklog 403 で裁定済み・着手可の状態にあり、本 wave は 8b 再開残余の一部として、
+  相手は専用 wave として、それぞれ起票した。着手前の main 確認 (`0c336b8e` 時点) では
+  相手の branch は存在せず、稼働 worktree 一覧にも無かった
 - **旧裁定の導線を塞いだ。** `output/insights/2026-08-11_t8b-restart-integration/package.md` の
   R-4 節へ superseded 表示を追記した。レンズ B が「実装子が同 package を読むと
   [T-747] (a) の contract field 追加を選び、別 contract hash を生む」と指摘したため
@@ -102,13 +112,6 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
 
 ## 次の一手差分
 
-### 完了
-
-- [T-770] known-red 4 node の分類を「条件付き未実走」へ正した。R1 (b) と R2 (a) を実施し、
-  R1 (c) は別 wave として起票した。
-  remaining: none
-  base: 2266a959f36335b6c707052311e0300ae7509be115465ba0c5ba56f6d34b7fbc
-
 ### 更新
 
 - [T-747] **P1・裁定 (B) は維持だが実装単位が再裁定へ戻った (B 系)**: 束縛層を contract の外へ置く
@@ -132,11 +135,6 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
 
 ### 新規
 
-- {{T:t770-isolated-checkout-boundary-tests}} **P2・新規 ([T-770] R1 (c) の裁定による起票)**:
-  template patch 未適用で条件付き未実走になっている 4 node を、受入全走の実 submodule を
-  触らずに検査する。`tools/mutation_worktree.py` と同型の使い捨て checkout へ patch を当てる案が
-  裁定済みの方向。実効回収は 2 node で、残り 2 node は `g++-13` 不在のため
-  [T-747] の解消状況に依存する。
 - {{T:dw-g05-partial-land-direction}} **P3・新規 (段 8 発、ユーザー裁定待ち)**:
   `DW-G05` (成果物影響) は「実装しない・放置した場合」しか問わないため、
   **scope を単位へ割って片方だけ land した場合**に受理集合がどちらへ動くかが問われない。

@@ -178,6 +178,9 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
 不在検知**に限定し (実ファイルの存在・`shutil.which("g++-13")`)、依存物が揃った
 環境では従来どおり実検査が走る (検査は弱めない)。
 
+**この分類は外部依存物の不在だけを数える。** 前提が repo 内に揃っているのに走らない skip は
+別分類であり、下の「条件付き未実走」へ数える。census を作るときに混ぜてはならない。
+
 - **実 Silo サンプル** (`output/runs/silo-sample`, 184k txn / 66MB):
   `test_verifier.test_real_silo_serializable` (規律2 の緑の地面) が使う。
   `.gitignore` の `output/runs/` 包括無視で git 追跡外のため fresh clone には無い。
@@ -204,29 +207,38 @@ gnuplot / 実 Silo サンプル / submodule / C++ toolchain (g++-13) が無い�
 テストの後半だけが依存物を要する場合 (前半で実検証が完了している場合) は
 skip でなく return で打ち切る (その旨コメントを付ける)。
 
-### 条件付き未実走 — 依存物不在ではない skip
+## 条件付き未実走 (repo 内で満たせるが開けていない)
 
-上記と**区別すべき第 2 の分類**がある。前提が repo 内で満たせるにもかかわらず、テスト側が
-窓を開けていないために skip する node である。「外部依存物の不在」と同じ枠で数えると、
-census を読む側が「外部依存だから仕方ない」と誤読する ([T-770] R2)。
+**依存物不在とは別分類。** 前提が repo 内に揃っているのに、受入 suite ではその窓を開けない
+ために走らない skip をここへ数える。`skiputil.skip()` ではなく
+`skiputil.skip_conditional_unrun()` を使い、理由文の先頭へ分類語を出す。分類の結線は
+`test_skip_classification.py` が機械で固定する。
 
-現行の該当は **4 node** で、いずれも理由は「template patch 未適用」である。
+現在この分類に属するのは template patch (`patches/silo-backoff-fixed.patch`) 未適用の
+次の 4 node だけである。
 
-- `test_campaign.py::test_source_digest_parse_options_defaults`
-- `test_campaign.py::test_source_digest_fixed_variant_distinct`
-- `test_campaign.py::test_source_digest_failsclosed_on_missing_define`
-- `test_hooks.py::test_real_submodule_payload_edit`
+- `orchestrator/tests/test_campaign.py::test_source_digest_parse_options_defaults`
+- `orchestrator/tests/test_campaign.py::test_source_digest_fixed_variant_distinct`
+- `orchestrator/tests/test_campaign.py::test_source_digest_failsclosed_on_missing_define`
+- `orchestrator/tests/test_hooks.py::test_real_submodule_payload_edit`
 
-patch は repo 内 (`patches/silo-backoff-fixed.patch`) にあり、現行 pin に対して
-`git apply --check` が rc=0 で当たる。適用機構 (`campaign/patchharness.py` の `applied()`)
-は campaign 本番経路が使っているものであり、直列化も `conftest.py` の
-`REAL_REPO_SERIAL_NODES` で済んでいる。**開けない技術的理由は無い。**
+**外部依存物の不在ではない。** patch は repo 内にあり、現行 pin に対して `git apply --check` が
+rc=0 で当たる。適用は `orchestrator/campaign/patchharness.py` の `applied()`
+(pinned-clean assert + tree lock + apply + finally revert + clean assert) が行い、campaign
+本番経路が実際に使っている機構である。4 node は `conftest.py` の `REAL_REPO_SERIAL_NODES` へ
+登録済みで xdist の `real-repo` group で直列化されるため、並列との衝突も無い。
 
-開けていないのは費用対効果の裁定による ([T-770] R1 = (b))。受入全走という共有の関門へ
-実 submodule の変異を 4 箇所増やす一方、実効回収は 4 node 中 2 node に留まる
-(`test_source_digest_fixed_variant_distinct` は `_require_g13()` 相当のガードを足しても
-`g++-13` 不在で skip のままとなる)。隔離 checkout で開ける案は別 wave として起票済み
-([T-770] R1 (c))。
+**それでも受入 suite では窓を開けない (ユーザー裁定)。** 開けても実効回収は 4 node 中 2 node に
+留まる — `test_source_digest_fixed_variant_distinct` は `_require_g13()` 相当のガードを持たない
+まま `source_digest.src_token` を呼ぶため、pinned compiler が無い環境では skip でなく未捕捉
+RuntimeError = 赤になる。回収 2 node と引き換えに、受入全走という共有の関門へ実 submodule を
+変異させる箇所が 4 増える。費用対効果が pinned compiler の在庫に依存するので、在庫が入るまでは
+開けない。隔離 checkout でこの境界を測る経路は別タスクとして起票してある。
+
+**塞がないままの成果物影響。** source digest の alias 防止・未定義 macro の fail-closed・
+hook 編集面の実 template 結線は、標準の受入全走では**恒久的に未検査**である。誤った variant
+identity や certified 選択を許しうる面なので、census を読むときに「外部依存だから仕方ない」と
+数えてはならない。
 
 ## fixtures
 

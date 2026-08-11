@@ -194,10 +194,16 @@ budget authority) が未裁定のままであり、freeze v2 再凍結と oracle
 
 | 対象 | 内容 |
 |---|---|
-| `orchestrator/tests/README.md` | 「条件付き未実走 — 依存物不在ではない skip」節を新設 ([T-770] R2 = (a)) |
-| `output/insights/2026-08-11_known-red-exceptions/README.md` | 表の分類語を訂正し erratum を追記 ([T-770] R1 = (b))。**実測値は 1 つも変えていない** |
+| `output/insights/2026-08-11_known-red-exceptions/README.md` | 表の分類語を訂正し erratum を追記 ([T-770] R1 = (b) の census 側)。**実測値は 1 つも変えていない** |
 | `output/insights/2026-08-11_t8b-restart-integration/package.md` | R-4 節へ superseded 表示。旧裁定 (a) を実装根拠にしないための導線 |
-| `docs/phase3-8b-restart-runbook.md` | §1.3 再測、§1.2 の既定 compiler と version 形式 2 系統、§3 W-1 の 3 点、§3 W-2 の順序、§5 の裁定状態 |
+| `docs/phase3-8b-restart-runbook.md` | §1.3 再測、§1.2 の既定 compiler と version 形式 2 系統、§3 W-1 の 3 点、§3 W-2 の順序、§5 の裁定状態、並走ガードへ検査系 dispatch の 1 段落 (段 8) |
+
+**[T-770] の tests README 側は並行 wave `dev-wave-t770-conditional-unrun` に先を越された。**
+本 wave も同じ裁定 (R1 (b) + R2 (a)) を実装していたが、受入 3 走目の merge 段 (rc=70) で
+相手の land (main `04e99891`) と衝突して発覚した。相手は
+`skiputil.skip_conditional_unrun()` と `test_skip_classification.py` で分類の結線を機械固定し、
+変異 4/4 KILLED で裏取りしている上位互換の実装であり、**本 wave 側の同 file 変更は全面取り下げて
+main の版を採った。** 相手が触れなかった census 側だけを本 wave が揃える。
 
 ## 6. 親 brief の訂正 (レンズが正した親の主張)
 
