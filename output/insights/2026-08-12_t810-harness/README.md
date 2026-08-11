@@ -49,6 +49,22 @@ M1 は **wave 前の実コードに実在する形** (`git ls-files --others --e
 M16 は正例で SURVIVED。過剰拒否が無いことの証拠であり、実際 fix 1 巡目では
 この正例が過剰拒否 (validator 自身の `index.lock` churn) を捕まえた。
 
+## 受入全走の実測値
+
+| 走 | request | 秒 | 結果 | 備考 |
+|---|---|---:|---|---|
+| 1 走目 | `905180.nqsv` | 583 | **6 failed / 9201 passed / 20 skipped** | 4 件は本 wave の所有外波及、2 件は main 由来 |
+| 2 走目 | — | 560 | **2 failed / 9205 passed / 20 skipped** | **残るのは main 由来の 2 件だけ** |
+
+焦点走 (本 wave の 3 file) は **82 passed / rc=0**。
+
+**land は本 wave の成果物ではなく main 側の赤で塞がれている。**
+`orchestrator/tests/test_t793_report.py` の 2 件が、`docs/decisions.md` の `D305` に対して
+期待値 `("D292",)` を literal 固定しているために落ちる。両ファイルを変更したのは
+main の祖先 commit (`427da17c` / `c820722a`) だけで、本 wave の 8 commit は触れていない。
+公表層 (T-793 / D291) の fail-closed な報告 gate であるため、
+**本 wave は文脈なしに直さず起票して止めた。**
+
 ## この package が主張しないこと
 
 - **§9.1 の充足。**(a) N-job barrier 系、(b) PBS wrapper、(c) runner policy、

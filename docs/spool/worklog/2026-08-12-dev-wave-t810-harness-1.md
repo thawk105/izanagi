@@ -93,6 +93,25 @@ title: T-810 の測定装置を作り始めた — 実測は §9 の 2 段承認
   dispatch できず、テストのある実装 wave では「実装済み・未実走」が既定の完了形になる。
   prompt に先回りして書くと子が緑を偽装せず素直に申告する (実際に 5 子すべてで機能した)。
 
+- **受入全走を 2 走し、land は main 側の赤で塞がれていることを実測で確定した。**
+  1 走目 (request `905180.nqsv`、583 秒) は **6 failed / 9201 passed / 20 skipped**。
+  うち 4 件は本 wave の追加が所有外 consumer へ波及したもので、いずれも機械的な同期漏れだった
+  (policy registry の literal 期待値、admission registry と runbook §7.0 投影表、
+  新規テストの自走 harness、`orchestrator/campaign/` の相対 sibling import 不変条件)。
+  **子は 3 回とも「所有外への波及可能性」を報告書に列挙しており、うち registry の literal 固定は
+  事前に名指しされていた。**親が焦点走だけで進めず先に全走を回していれば 1 巡減らせた。
+  2 走目 (560 秒) は **2 failed / 9205 passed / 20 skipped** で、
+  **残る 2 件は `orchestrator/tests/test_t793_report.py` の main 由来の赤だけ**である。
+- **main 由来の赤の帰属を実測で確定した。**`docs/decisions.md` に `D305` が入ったのに
+  T-793 の公表承認レポートの期待値が `("D292",)` を literal で固定しており、
+  supersession scan が `("D292", "D305")` を返して不一致になる。
+  両ファイルを変更したのは main の祖先 commit (`427da17c` と `c820722a`) だけで、
+  **本 wave の 8 commit はいずれにも触れていない** (`git log <range> -- <path>` で実測)。
+  **親はこれを直さなかった** — T-793 が所有する公表層の fail-closed な報告 gate であり、
+  正しい直し方が「期待値へ D305 を足す」なのか「scan の範囲を狭める」なのかは
+  その wave の文脈なしに判断できないため。{{T:t793-d305-supersession-expectation}} として起票する。
+  **この赤が解けるまで、本 wave に限らずどの wave も land できない。**
+
 ## 次の一手差分
 
 ### 更新
@@ -121,6 +140,13 @@ title: T-810 の測定装置を作り始めた — 実測は §9 の 2 段承認
   artifact と receipt を一緒に差し替えるだけで凍結全体が恒真化する。
   署名方式と trust root の置き場所を決める。現状は
   `/limitations/approval_receipt_trust_root_absent` で機械可読に宣言してある。
+- {{T:t793-d305-supersession-expectation}} **P1・新規 ([T-810] 受入全走で実測)**:
+  `orchestrator/tests/test_t793_report.py` の 2 件が **main 単独で赤**である。
+  `docs/decisions.md` に `D305` が入ったのに期待値が `("D292",)` を literal で固定しており、
+  supersession scan の `("D292", "D305")` と不一致になる。
+  変更したのは main の祖先 commit (`427da17c` / `c820722a`) だけで、[T-810] wave は無関係。
+  **この赤が解けるまでどの wave も land できない。**期待値へ D305 を足すのか、
+  scan の範囲を狭めるのかは公表層 (T-793 / D291) の文脈で決める。
 - {{T:run-tests-overall-grace}} **P3・新規 ([T-810] セッション事象)**:
   `tools/run_tests.py` の `_default_dispatch` が `dispatch_compute.dispatch(...)` を
   grace 引数なしで呼ぶため `--overall-grace` を渡せず、既定 300 秒に固定される。
