@@ -895,3 +895,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:trace-stdout-same-run-nonce":"[T-833]","T:verifier-epoch-consumer-inventory":"[T-834]"},"authored":"2026-08-11","content_sha256":"792f16d045c58399826983f9a0e8ab0d745ce0993973e0da7ff25e6c7b143e19","seq":1,"wave":"dev-wave-t817-verifier-epoch"}
 
 - {"allocations":{"T:acceptance-record-order-contract":"[T-836]","T:runbook-request-id-pre-submission":"[T-835]"},"authored":"2026-08-11","content_sha256":"52a3fcac30251da88bb83c2b7ffbfa15ce145fb705bd37e9bcd4d78729ba9fa7","seq":1,"wave":"dev-wave-t809-fanout-conditions"}
+
+- {"allocations":{"T:trace-v2-commit-topology":"[T-837]","T:trace-v2-emitter-verifier-wiring":"[T-839]","T:trace-v2-step4-protocol-gate":"[T-838]"},"authored":"2026-08-11","content_sha256":"5a525b968b7e70e218d7f8f4cc40135df690593e9e12fe3551c6a96ee80c0174","seq":1,"wave":"dev-wave-t756-fn2-trace-v2"}
+- {"allocations":{"D:trace-v2-in-editable-surface":"D296","D:trace0-preprocess-identity-gate":"D297"},"authored":"2026-08-11","content_sha256":"0d200faaa0ee8e505acb3b2b6c4610e9009e5f7b35e8d22b984675683d129344","seq":2,"wave":"dev-wave-t756-fn2-trace-v2"}
+- {"allocations":{"F:mutation-digest-truncation-hides-expected-nodes":"F220","F:plan-child-asserts-absent-toolchain":"F221"},"authored":"2026-08-11","content_sha256":"f1e65a487615b66b4fd91cb3fb1833f8fcb21de1350fe7694bc54221cdb33834","seq":3,"wave":"dev-wave-t756-fn2-trace-v2"}
