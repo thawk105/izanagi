@@ -829,3 +829,16 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:budget-authorization-proof-chain":"[T-805]","T:dev-wave-launch-procedure-gaps":"[T-806]","T:legacy-writer-path-containment":"[T-807]","T:manifest-spec-propagation":"[T-804]","T:oracle-spec-trust-root":"[T-803]"},"authored":"2026-08-11","content_sha256":"7f5a3178022576be563e4ec0d2da5b0cc86f05d3d3c0d5f3b8dc47f1979770e9","seq":1,"wave":"dev-wave-t750-freeze-v2-manifest"}
 - {"allocations":{"D:manifest-choke-point-cell-product":"D288","D:pinned-literal-human-approval":"D287"},"authored":"2026-08-11","content_sha256":"5f9d88e3a00e9858f75e594524d031898e23214e0aad30e74507a8cfe401e8bc","seq":2,"wave":"dev-wave-t750-freeze-v2-manifest"}
+
+- {"allocations":{"T:mutation-fanout":"[T-808]","T:node-variance-protocol":"[T-810]","T:s8c-workload-fanout":"[T-809]"},"authored":"2026-08-11","content_sha256":"aa82b007952ae2f4f79a6c72e0a716ffda74a95b06c68bf9d823caf4163d147b","seq":1,"wave":"dev-wave-parallel-dispatch"}
+- {"allocations":{"D:compute-job-fanout":"D289"},"authored":"2026-08-11","content_sha256":"6f3ce4f86046fcf3f0bcfc1ad9eca3a9e74c437c4a9f3dbd798e1372c89aa8d6","seq":2,"wave":"dev-wave-parallel-dispatch"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"4e831598e3abba12fdd1a17e97cf31071d86e28f00b9750586027410509ed0ac","seq":53,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c695efbaaf906fe771e35b22cf57e7b2749ae4faa234bff788ec5e687e9e5126","seq":54,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dw-o01-lane-scope":"[T-811]"},"authored":"2026-08-11","content_sha256":"678fa8a38f4f114f15630f21bb0ceea90c0cc0252e33af1789eb6f9af9d8387a","seq":1,"wave":"dev-wave-t787-freeze-crlf"}
+- {"allocations":{"D:freeze-crlf-single-call-scope":"D290"},"authored":"2026-08-11","content_sha256":"97a5d0186477a85eb090935b3292cf1673eb806e8811165fe518f02bfe92000f","seq":2,"wave":"dev-wave-t787-freeze-crlf"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1f140c9a36ce8484b0400d47584594884537697a32acf6aa2719a03964c4827d","seq":1,"wave":"dev-wave-t139-pubcore-approve"}
+- {"allocations":{"D:t139-publication-core-approval":"D291"},"authored":"2026-08-11","content_sha256":"ae26ddcb0f8dd681346f2e40993ee570bf4c09d658d31fadc8ba08c57717947c","seq":1,"wave":"dev-wave-t139-pubcore-approve"}
