@@ -54,10 +54,14 @@ title: 凍結発行・検証層へ証拠 path の CR/LF 検査を広げた — �
   (実装後 349 passed、fix 後 365 passed、いずれも rc=0)。
 - **セッション事象:** 段 6 のレビュー 2 本を `--lane` 付きで投入して rc=2 で起動前に弾かれた
   (`--lane` は `--stage consult` 専用)。成果物ゼロで再投入して回復した。
+  段 8 で `DW-O01` へ 1 句足そうとしたが、L1.5 予算を 30 bytes 超過し
+  (9596 > 9566)、同節の構造 lint (dispatcher route 行の exact 1 件) にも当たったため revert した。
+  [T-788] と同型なので棚卸し wave へ送る ({{T:dw-o01-lane-scope}})。
 
 ## 次の一手差分
 
 ### 完了
+
 
 - [T-787] 凍結発行・履歴検証の層へ CR/LF 検査を広げる裁定 (a) を実装した。単一 choke point
   (`evidence_contract_sha256`) で NUL を即時・CR/LF を保留付きで拒否し、契約の全 path 位置
@@ -66,3 +70,17 @@ title: 凍結発行・検証層へ証拠 path の CR/LF 検査を広げた — �
   設計は {{D:freeze-crlf-single-call-scope}}。変異 14/14 KILLED (受理集合 kill 8 + 診断感度 pin 6)。
   remaining: none
   base: cebd3a8738c2c283ee531a9589e88dfacbe9534a765a4c3f8bc82621b0e0dac0
+
+### 新規
+
+
+- {{T:dw-o01-lane-scope}} **P3・新規 (段 8 自己改善候補、予算超過で起票)**: `DW-O01` は
+  `--lane` が `--stage consult` (段 3) 専用であることを書いていない。本 wave では段 6 の
+  レビュー 2 本を lane 付きで投入し、2 本とも起動前に rc=2 で弾かれた (成果物ゼロ、再投入で回復)。
+  恒久対応の案 = `DW-O01` の argv 行へ「lane は段 3 だけ」1 句を足す。**実際に足したところ
+  `docs/dev-wave/**` の L1.5 予算を 30 bytes 超過し (9596 > 9566)、同節の構造 lint
+  (可視 top-level の dispatcher route 行は exact 1 件) にも当たった**ため revert した。
+  予算値の変更は自己改善の範囲外なので起票する。**[T-788] と同型なので [T-786] の docs 予算
+  棚卸し wave へ同梱して個別採否を返す。**選択肢 = (a) 同節の既存文を縮約して枠を作る /
+  (b) 予算を独立審査にかける / (c) 実施しない。成果物影響 = 未実施なら同じ空振りが再発しうるが、
+  受理集合・台帳の値は変わらない。
