@@ -56,6 +56,19 @@ title: T-657 段 0 の R1/R2/R3 を設計正本へ畳み込み機械束縛した
 - **段 0 の status は `incomplete` のまま維持した** (R2 = (b) の正直な表示)。他者手番 gate 2 件
   (`FREEZE-CONFORMANCE-LITERAL` / `FREEZE-AX-TOPOLOGY`) の owner・status、fixture 10 件、
   row 10 件、裁定 profile 12 件も不変。`required_gates` は 8 → 13 件、blocking gate は 3 → 5 件。
+- **`DW-O16` の「fix は 3 巡を上限」に対する実績**: 焦点再レビューはちょうど 3 巡で、3 巡目は
+  **blocker 0** で閉じた。fix は 5 巡だが、4 巡目は親が変異の帰属を検算して見つけた検出漏れ、
+  5 巡目は 3 巡目レビューの must-fix (回帰防壁の補強) であり、いずれも blocker 由来ではない。
+- **段 8 の自己改善は本文編集を見送った。** 候補 3 件はいずれも実測に基づくが、
+  `docs/dev-wave/**` の L1.5 予算 (9566 bytes) に**余地が無く、最小の 1 行 (約 90 bytes) でも
+  `check_docs` が赤になった**。予算引き上げは提案せず、機械 pin された行 (DW-O01 の model 権威行)
+  の縮約も検査が正しく拒否した。候補は次のとおりで、予算を空ける wave の後に再提案する。
+  (i) `DW-O05` へ「read-only 子の prompt に web 検索禁止を明記」を義務化する (F217 の恒久対応が
+  どの dispatch 節にも配線されておらず、本 wave で実際に取りこぼして焦点レビュー 1 巡を空費した)。
+  (ii) `DW-O02` へ「子へ渡す path は subdirectory 直下の短い形にする」を足す (launcher が掘る
+  hash 名の入れ子 path を渡して fix 子が必読不能で fail-closed 停止し、1 巡を空費した)。
+  (iii) `DW-S06-B` へ「規格判定の fix は報告された 1 例だけを塞ぐ形を禁じ、規格条件をまとめて
+  判定させる」を足す (本 wave で 3 巡連続、直前の fix が別の 1 例を残した)。
 
 ## 次の一手差分
 
