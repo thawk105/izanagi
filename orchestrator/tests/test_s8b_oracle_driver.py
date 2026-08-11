@@ -435,6 +435,18 @@ def _copy_t080_migration_basis_file(root: Path, relative: str, basis: str) -> No
 
 
 _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
+_T080_E2E_OPT_IN_ENV = "IZANAGI_T080_E2E"
+
+
+def _t080_stub_free_e2e_should_skip() -> bool:
+    """T-080 stub-free E2E は明示 opt-in (`=1`) のときだけ実行する。"""
+    return os.environ.get(_T080_E2E_OPT_IN_ENV) != "1"
+
+
+_T080_STUB_FREE_E2E_OPT_IN = pytest.mark.skipif(
+    _t080_stub_free_e2e_should_skip(),
+    reason="set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests",
+)
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:
@@ -569,6 +581,20 @@ def _t080_stub_free_e2e_repo(
     root = tmp_path / base_root.name
     shutil.copytree(base_root, root, symlinks=True)
     return root, root / migration.RECEIPT_REL, copy.deepcopy(document)
+
+
+def test_t080_stub_free_e2e_opt_in_gate_b5(monkeypatch):
+    """既定 skip と明示 opt-in の両向きを固定する。"""
+    assert _T080_STUB_FREE_E2E_OPT_IN.mark.args == (
+        _t080_stub_free_e2e_should_skip(),
+    )
+    assert _T080_STUB_FREE_E2E_OPT_IN.mark.kwargs["reason"] == (
+        "set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests"
+    )
+    monkeypatch.delenv(_T080_E2E_OPT_IN_ENV, raising=False)
+    assert _t080_stub_free_e2e_should_skip() is True
+    monkeypatch.setenv(_T080_E2E_OPT_IN_ENV, "1")
+    assert _t080_stub_free_e2e_should_skip() is False
 
 
 def _build_t080_stub_free_e2e_repo(
@@ -914,6 +940,7 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
         _copy_git_visible_output(root, tmp_path / "missing-tracked-output")
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     root, _receipt_path, document = _t080_stub_free_e2e_repo(
         tmp_path, distinct_basis_blob=True,
@@ -987,6 +1014,7 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     )
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -1037,6 +1065,7 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
     assert result.t080_freeze_migration_observation is None
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5(tmp_path):
     root, _receipt_path, receipt = _t080_stub_free_e2e_repo(tmp_path)
     known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
@@ -1156,6 +1185,7 @@ def test_t080_static_adapter_rejects_noncanonical_known_predicate_as_schema():
     })
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -1190,6 +1220,7 @@ def test_t080_full_valid_history_defects_have_one_baseline_reason_f28(
     assert result.t080_freeze_migration_observation is None
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(tmp_path):
     root, receipt_path, _document = _t080_stub_free_e2e_repo(tmp_path)
     receipt_path.unlink()
@@ -2955,6 +2986,7 @@ def test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7(tmp_pa
     )
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
     root, _receipt_path, _document = _t080_stub_free_e2e_repo(
         tmp_path, issue_receipt=False,
