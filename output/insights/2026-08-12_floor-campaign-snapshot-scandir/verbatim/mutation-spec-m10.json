@@ -1,0 +1,34 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90.0,
+  "timeout_seconds": 2400.0,
+  "hang_timeout_seconds": 600.0,
+  "mutations": [
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "def _real_output_snapshot(output: Path = ROOT / \"output\") -> tuple:\n    \"\"\"統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。",
+          "new": "def _real_output_snapshot(output: Path = ROOT) -> tuple:\n    \"\"\"統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_build_failure_leaves_durable_launch_start",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_fresh_issues_certificate_and_binds_wall_ledger",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_certificate_time_not_bound_to_run_id",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_tampered_certificate",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_validates_certificate_and_completes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_scan_rejection_has_zero_filesystem_side_effects",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_path_has_no_launch_certificate_changes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_resume_rejects_launch_certificate_contamination[campaign-key]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_resume_rejects_launch_certificate_contamination[launch-start]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
