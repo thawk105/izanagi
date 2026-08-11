@@ -34,6 +34,7 @@ from orchestrator.campaign import env_contract as EC  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign as FLOOR  # noqa: E402
 from orchestrator.campaign import s8b_floor_contract as FC  # noqa: E402
 from orchestrator.campaign import s8b_holdout_freeze as HF  # noqa: E402
+from orchestrator.campaign import s8b_oracle_manifest as ORACLE_MANIFEST  # noqa: E402
 from orchestrator.campaign import s8b_prediction_runner as PR  # noqa: E402
 from orchestrator.campaign.durable_root import DurableRootPolicy  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
@@ -1313,6 +1314,43 @@ def test_missing_approval_no_active(tmp_path):
     with pytest.raises(M.RatifiedFreezeError) as ei:
         M.resolve_active_generation(root)
     assert ei.value.reason == "no-active"
+
+
+def test_manifest_cli_maps_only_no_active_and_creates_no_output(
+        tmp_path, monkeypatch, capsys):
+    root = _base_repo(tmp_path)
+    monkeypatch.setattr(ORACLE_MANIFEST, "ROOT", root)
+    output = (
+        f"{ORACLE_MANIFEST.MANIFEST_CANDIDATE_DIR}/manifest.json"
+    )
+
+    assert ORACLE_MANIFEST.main([
+        "build-approved", "--output", output,
+    ]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "refused: no-active-ratified-freeze\n"
+    assert not (root / ORACLE_MANIFEST.MANIFEST_CANDIDATE_DIR).exists()
+
+
+def test_manifest_cli_does_not_round_namespace_dirty_to_no_active(
+        tmp_path, monkeypatch, capsys):
+    root = _base_repo(tmp_path)
+    _write(root, f"{M.FREEZE_DIR}/untracked.json", b"{}")
+    monkeypatch.setattr(ORACLE_MANIFEST, "ROOT", root)
+    output = (
+        f"{ORACLE_MANIFEST.MANIFEST_CANDIDATE_DIR}/manifest.json"
+    )
+
+    assert ORACLE_MANIFEST.main([
+        "build-approved", "--output", output,
+    ]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "refused: namespace-dirty\n"
+    assert not (root / ORACLE_MANIFEST.MANIFEST_CANDIDATE_DIR).exists()
 
 
 def test_pointer_references_absent_approval(tmp_path):
