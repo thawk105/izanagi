@@ -108,7 +108,14 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   **予算超過で起票へ回した**。追記 258 bytes に対し `docs/dev-wave/**` の L1 unique footprint は
   予算 10625 bytes に対し余白がほぼゼロで、追記すると 10883 bytes になる。
   「予算のために安全義務を削除・弱化しない」に従い撤回し、下記「新規」へ起票する
-- **ユーザー手番**: 裁定 5 件 (S-1〜S-4 は [T-783] へ、[T-750] は据え置き)。push は行わない
+- **本 wave の裁定要求 S-1〜S-4 は、受入 4 走目の走行中に全問推奨どおり裁定された**
+  (2026-08-11 /rulings 第 5 回、worklog 412)。rulings 側が「台帳の [T-783] 実体は残余 wave の
+  未 land の旧文のままなので本 fragment では更新しない — 残余 wave land 後の記録で台帳へ反映する」
+  と明記したため、**台帳への反映は本エントリが担う**。結論は変わらない — 束縛検査は
+  W-1 の実装 wave が持ち、本 wave では実装しない
+- **ユーザー手番**: 残るのは [T-750] (未裁定のまま据え置き) と、W-1 = [T-781] の Q1〜Q4
+  (第 5 回の索引が main 取り込み前の worklog から作られたため落ちた、と rulings が自己申告済み)。
+  push は行わない
 
 ## 次の一手差分
 
@@ -124,13 +131,16 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   `assemble_result` が再凍結適格から除外するため代替にならない。投入 script も official 固定。
   第 1 世代で実測する方針自体は変わらない。
   base: 923e6902ba7062b0baa20971c6809d873b1f62c0cbd47a089269510ea58daee2
-- [T-783] **P1・ユーザー裁定待ち (S-1〜S-4) (B 系)**: 単独実装は不可 —
-  compiler 解決の site 依存化は toolchain 束縛検査と不可分である
-  ({{D:toolchain-binding-and-unlock-are-inseparable}})。裁定が要るのは
-  S-1 束縛の scope (floor 限定 / 全 producer / 共通 helper で floor + silo ladder。**推奨 = 共通 helper**)、
-  S-2 authority の強度 (現行 calibration の範囲 / 新 calibration 世代 / 独立 receipt。**推奨 = 現行範囲を先に出し穴を明記**)、
-  S-3 attempt 実測値の配線 (shell の `$ATTEMPT_DIR` を driver へ渡す / `job-result.json` へ足す / 二者照合へ後退。**推奨 = shell の値を渡す**)、
-  S-4 発火経路が無いまま実装するか (設計メモ / 先に実装 / W-1 の wave に含める。**推奨 = W-1 の wave に含める**)。
+- [T-783] **P1・S-1〜S-4 が裁定済み (2026-08-11 /rulings 第 5 回、全問推奨) → 実装は W-1 の
+  wave が持つ (B 系)**: 単独実装は不可で、compiler 解決の site 依存化は toolchain 束縛検査と
+  不可分である ({{D:toolchain-binding-and-unlock-are-inseparable}})。裁定は
+  **S-1 = 共通 pure helper を作り floor と silo ladder の 2 者を先に寄せる /
+  S-2 = 現行 calibration の範囲で作り、cmake path と cxx version が非束縛であることを明示受諾し
+  手順書と成果物へ穴を明記する / S-3 = shell の `$ATTEMPT_DIR` の値を driver へ渡して三者照合にする /
+  S-4 = 束縛検査は W-1 の実装 wave に含める**。よって本項は単独では起票せず、
+  W-1 ([T-781] の Q1〜Q4 裁定後) の wave の必須要件として持ち込む。
+  一次控えは `rulings-inbox/2026-08-04-rulings-session-5rulings.md` §84、
+  材料は `output/insights/2026-08-11_t8b-restart-residue/package.md`。
   base: a193805da2f295faa9ae225b24e55ae58d3cabd32984f022d48923d4bb1d447c
 
 ### 新規

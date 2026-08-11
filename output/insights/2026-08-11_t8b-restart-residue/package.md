@@ -138,6 +138,14 @@ env contract を使うが、`build_v2` は toolchain を cache identity に入�
 
 ## 4. 裁定へ返す項目
 
+> **裁定結果 (2026-08-11 /rulings 第 5 回、worklog 412、発話「推奨通りで」)。**
+> **S-1〜S-4 は全問、下記の親推奨どおり裁定された** —
+> S-1 = 共通 helper / S-2 = 現行較正の範囲 + 穴明記 /
+> S-3 = shell の `$ATTEMPT_DIR` 値を driver へ渡す / S-4 = W-1 の wave に含める。
+> 一次控えは `rulings-inbox/2026-08-04-rulings-session-5rulings.md` §84。
+> **S-5 ([T-750]) は本束に含まれず未裁定のまま。**
+> 以下は裁定時点の提示内容であり、記録として残す。
+
 ### S-1. toolchain 束縛の scope をどこまで広げるか
 
 - **(a) floor だけに置く。** B-3 を明示受諾する (他 producer は無防備のまま)。最小。
