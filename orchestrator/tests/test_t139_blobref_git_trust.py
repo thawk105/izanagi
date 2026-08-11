@@ -140,6 +140,13 @@ def test_missing_fixed_git_path_has_identifiable_resolution_error(
         blobref.read_pinned_blob(root, ref)
 
 
+def test_fixed_git_executable_resolves_to_absolute_path() -> None:
+    executable = blobref._resolve_git_executable()
+
+    assert Path(executable).is_absolute()
+    assert Path(executable) == blobref._GIT_EXECUTABLE
+
+
 def test_external_alternate_object_store_is_rejected(
     git_blob_fixture, tmp_path: Path
 ) -> None:
@@ -155,6 +162,73 @@ def test_external_alternate_object_store_is_rejected(
 
     with pytest.raises(blobref.BlobResolutionError, match="alternates"):
         blobref.read_pinned_blob(target, ref)
+
+
+def test_http_alternate_object_store_is_rejected(git_blob_fixture) -> None:
+    root, _data, _commit, ref = git_blob_fixture
+    marker = root / ".git" / "objects" / "info" / "http-alternates"
+    marker.write_text("https://example.invalid/git-objects/\n", encoding="utf-8")
+
+    with pytest.raises(blobref.BlobResolutionError, match="alternates"):
+        blobref.read_pinned_blob(root, ref)
+
+
+@pytest.mark.parametrize("subsection", ["foo bar", "foo\tbar"], ids=["space", "tab"])
+def test_remote_promisor_false_with_whitespace_subsection_is_accepted(
+    git_blob_fixture, subsection: str
+) -> None:
+    root, data, _commit, ref = git_blob_fixture
+    _git(root, "config", f"remote.{subsection}.promisor", "false")
+
+    assert blobref.read_pinned_blob(root, ref) == data
+
+
+@pytest.mark.parametrize("subsection", ["foo bar", "foo\tbar"], ids=["space", "tab"])
+def test_remote_promisor_true_with_whitespace_subsection_is_rejected(
+    git_blob_fixture, subsection: str
+) -> None:
+    root, _data, _commit, ref = git_blob_fixture
+    _git(root, "config", f"remote.{subsection}.promisor", "true")
+
+    with pytest.raises(
+        blobref.BlobResolutionError, match="promisor remote を持つ repository"
+    ):
+        blobref.read_pinned_blob(root, ref)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["yes", "on", "1", None],
+    ids=["yes", "on", "one", "bare"],
+)
+def test_remote_promisor_true_boolean_alias_is_rejected(
+    git_blob_fixture, value: str | None
+) -> None:
+    root, _data, _commit, ref = git_blob_fixture
+    if value is None:
+        with (root / ".git" / "config").open("a", encoding="utf-8") as config:
+            config.write('[remote "boolean bare"]\n\tpromisor\n')
+    else:
+        _git(root, "config", "remote.boolean-true.promisor", value)
+
+    with pytest.raises(
+        blobref.BlobResolutionError, match="promisor remote を持つ repository"
+    ):
+        blobref.read_pinned_blob(root, ref)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["no", "off", "0", ""],
+    ids=["no", "off", "zero", "empty"],
+)
+def test_remote_promisor_false_boolean_alias_is_accepted(
+    git_blob_fixture, value: str
+) -> None:
+    root, data, _commit, ref = git_blob_fixture
+    _git(root, "config", "remote.boolean-false.promisor", value)
+
+    assert blobref.read_pinned_blob(root, ref) == data
 
 
 def test_promisor_remote_is_rejected(git_blob_fixture) -> None:

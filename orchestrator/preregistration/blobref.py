@@ -27,6 +27,7 @@ _GIT_ENV_ALLOW = frozenset(
         "TMPDIR",
     }
 )
+# 運用環境への固定束縛であり、この path を持たない環境では本 module の受理集合は空になる。
 _GIT_EXECUTABLE = Path("/usr/bin/git")
 _GIT_HARDEN = (
     "--no-pager",
@@ -177,6 +178,7 @@ def _git_env() -> dict[str, str]:
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_LITERAL_PATHSPECS": "1",
+            # promisor 拒否の補助として、検査中の lazy fetch を禁じる。
             "GIT_NO_LAZY_FETCH": "1",
             "GIT_NO_REPLACE_OBJECTS": "1",
             "GIT_OPTIONAL_LOCKS": "0",
@@ -345,6 +347,7 @@ def _require_no_alternates_or_promisor(root: Path, env: dict[str, str]) -> None:
         env,
         [
             "config",
+            "-z",
             "--includes",
             "--type=bool",
             "--get-regexp",
@@ -355,12 +358,19 @@ def _require_no_alternates_or_promisor(root: Path, env: dict[str, str]) -> None:
         return
     if promisors.returncode != 0:
         raise BlobResolutionError("promisor remote 設定を検査できない")
-    promisor_lines = promisors.stdout.splitlines()
-    if not promisor_lines:
+    promisor_records = promisors.stdout.split(b"\0")
+    if promisor_records[-1:] != [b""]:
         raise BlobResolutionError("promisor remote 設定の解決結果が不正である")
-    for line in promisor_lines:
-        fields = line.split(maxsplit=1)
-        if len(fields) != 2 or fields[1] not in {b"true", b"false"}:
+    promisor_records.pop()
+    if not promisor_records or any(not record for record in promisor_records):
+        raise BlobResolutionError("promisor remote 設定の解決結果が不正である")
+    for record in promisor_records:
+        fields = record.split(b"\n")
+        if (
+            len(fields) != 2
+            or not fields[0]
+            or fields[1] not in {b"true", b"false"}
+        ):
             raise BlobResolutionError("promisor remote 設定の解決結果が不正である")
         if fields[1] == b"true":
             raise BlobResolutionError("promisor remote を持つ repository は受理しない")
