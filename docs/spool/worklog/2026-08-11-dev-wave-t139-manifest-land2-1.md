@@ -59,8 +59,21 @@ title: land 2 の基礎層を作った — erratum v2 対応・digest 迂回封�
   `spool_fold.py --dry-run` が `invalid` だった。同 fragment の `更新` 節は land 1 前の状態を
   書いており本 fragment に置き換わるため、構造として重複する `更新` 節を外した (本文は残した)。
   **後続 session と最終 session は、自分の `base:` も carry 解決後に再算出すること。**
+- **段 8 の改善候補 1 件は `docs/dev-wave/**` の L1.5 予算に入らないため編集せず返した。**
+  是正案を入れると L1.5 が **9667 bytes / 予算 9566 bytes = 101 bytes 超過**する
+  (`DW-O01` 単節は 933 / 1000 bytes で通る)。予算値を上げる変更は自己改善に含めない規律であり、
+  dev-wave 系への外出しは D94 で却下済みなので、編集を戻して `check_docs` 違反なしへ復帰させた。
+  land 1 が S9 (a) で起票した **[T-789] (docs 予算の独立審査)** の 4 件目の実例として RP-5 で返す。
+- **受入全走 rc=0 — 8629 passed / 20 skipped / 563.80 秒** (request `902565.nqsv`、
+  tested tip = `5c68285e` = 待ち手が lease 内で main `67760fdb` を取り込んだ木)。
+  **lease の取得に 90 分以上を要した** (他 wave が保持、`--poll-seconds 30`)。待ち手は
+  `--max-wait-seconds 5400` で先に上限へ達したが producer は生存継続しており、待ち手だけを
+  張り直して完走させた。本 session は land しないため、受入成功後に親が `release` した。
+- **段 8 の記録追記は受入 tip より後の commit である** (受入は `5c68285e` で走り、本追記は
+  その後に置いた)。本 session は land しないため tip 束縛の問題は起きないが、
+  **最終 session は記録 commit を含む最終 tip で受入を走らせること**。
 - 逐語 = `output/insights/2026-08-11_t139-manifest-land2/`。
-  ユーザー裁定パッケージ (RP-1〜RP-4) は同 directory の `package.md`。
+  ユーザー裁定パッケージ (RP-1〜RP-5) は同 directory の `package.md`。
 
 ## 次の一手差分
 
@@ -83,8 +96,8 @@ title: land 2 の基礎層を作った — erratum v2 対応・digest 迂回封�
   「root 所有必須」は環境ごと拒否する。親推奨 = `operational_boundary` の解釈として明文化し
   安価な部分集合だけ実装) / (RP-3) raw snapshot consumer の閉包時期 (親推奨 = RP-1 と同 session) /
   (RP-4) 公表 core `b03` と pilot の解除条件 (親推奨 = 3 文書の凍結承認 + fold を条件とし、
-  §S7 #7 は [T-793] へ委譲)。
+  §S7 #7 は [T-793] へ委譲) / (RP-5) 段 8 改善候補 1 件の予算超過 (親推奨 = [T-789] へ追加)。
   **pilot 投入は依然不可** — 公表 core 段階 2 は land 済み (main `d6f2c836`) だが 3 文書とも
   `authority: none` で未発効であり、凍結承認はユーザー手番として返されている。
   逐語 = `output/insights/2026-08-11_t139-manifest-land2/`
-  base: e345ae22475ca6421ead84cdea285081fb650b06ed4b87b0340014d3562f8fa7
+  base: dc79c0260f916db7b1cfdb9781792494e33c5a6678dcf995e576edfc7ecacb51
