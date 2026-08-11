@@ -901,6 +901,176 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   -- python3 tools/run_tests.py --force-dispatch <対象テスト> -q -rf
 ```
 
+### 7.5 独立ジョブは並行投入する (2026-08-11 ユーザー裁定)
+
+**§5 の「並列」も §7 の「最大並列で回す」も、すべて job の内側 (OpenMP / MPI / pytest `-n` /
+build `-j`) の話である。本節は job どうし、すなわち複数の request を同時に走らせてよいかを扱う。**
+
+> **規範 (2026-08-11 ユーザー裁定)。** 計算ノードへ投げられる仕事が互いに独立なら、
+> **既定で並行投入する。** 順番待ちを 1 本ずつ払う直列は、下の「並行にしない面」に当たるときだけ
+> 選ぶ。**「同じ protocol を別の workload / 別のパラメータで回す」は fan-out してよい典型である。**
+
+gen_S に紐づく job server は 149 で、node 仕様は全台同構成である (§1)。`Submit Number Limit` と
+`Submit User Number Limit` はどちらも UNLIMITED (group は 200)、logical host は
+`CPU Number` Min=Max=Std=48 で node の CPU を使い切る (`qstat -Qf gen_S` 2026-08-11 実測)。
+**並行化が増やすのは総ノード時間ではなくその使い方の密度である** — 増えるのは job ごとの
+prologue (module・build・probe) の重複分だけで、混雑時は超過分が待つ。唯一の按分は
+「1 本あたりの正味の仕事が prologue を十分上回るか」で、下回るなら束ねる
+(floor job の見積では prologue ≈ 900 秒。§7.4 直上の job script 参照)。
+**未確認:** 大量投入が fair-share でどう扱われるか (自分の後続 request の優先度が下がるか) は
+測っていない。「直列より遅くなることはない」とまでは言わない。
+
+#### 「独立」の判定 — 次の 3 つを満たすことを言う
+
+1. **共有して奪い合うものが無い。** 入力・出力 path・作業木・lock・journal・予約・
+   process 観測対象のいずれも共有しない。
+2. **protocol が順序・単一テナント・同一 campaign 内比較を要求していない。**
+3. **固定費が見合う。** 1 本の正味の仕事が job ごとの prologue (module・build・probe) を上回る。
+   下回るなら束ねる (floor job の見積では prologue ≈ 900 秒。§7.4 直上の job script 参照)。
+   両方とも未計測なら、1 回測ってから決める。
+
+**いずれかが不明なら不明と書き、fan-out の根拠にしない。**逆に、**protocol 由来の禁止は
+「技術的に不可能」ではなく「現行 protocol では禁止」と書き分ける** — 前者は諦めるしかないが、
+後者は protocol 側の裁定で解ける。
+
+#### 並行にしない面 (これだけ)
+
+1. **protocol が直列 schedule を定めている計測。** `s8b_floor_campaign` は 12 セルを
+   「protocol が定める schedule どおり直列・単一テナントで」測り、floor を単一 campaign 内の
+   session dispersion と定義する。**これは手続き上の束縛であって、ノード間差の大きさを根拠に
+   していない。**変えたければ protocol 側の裁定を先に取る。実装の都合で崩さない。
+2. **受入全走の隣。** 全走中に、同じ作業木の `output/`・git index・tracked / untracked 集合を
+   変える dispatch・監査・編集を走らせない。**正本は F136** — 並走させた provenance 監査が
+   書いた receipt そのもので `output/` の副作用スナップショット検査が 9 件赤になり、
+   単独再走では消えた。別に F57 (全走時の subprocess wall-clock flake) の族もあるが、
+   **こちらは full 単独でも再発しており根本原因は未確定である。**F57 型の赤を並走のせいと
+   決めつけて緑扱いしない。
+3. **read / write 集合を共有する job どうし。** 判定は出力ファイル名ではなく**共有する
+   read / write 集合全体**で行う。作業木と git index、campaign lock と `runs/wal.jsonl`、
+   build-cache claim、campaign claim、freeze / selector の namespace、receipt / registry、
+   そして **`output/` の親 directory を走査する consumer** のいずれかを共有する job は、
+   producer と consumer の双方が並行 writer を明示的に受理していない限り並べない。
+   **job 専用の nonce path を切っても、親 directory を検査する consumer がいれば独立ではない。**
+4. **同じ作業木を書き換える走行の同時実行。** 変異 harness は木を in-place で書き換えるので、
+   並行させるなら**変異ごとに別の使い捨て作業木**が要る (`tools/mutation_worktree.py`)。
+   同じ木に 2 本入れてはならない。
+
+#### ノード間の性能差は未測定である — これを禁止の根拠にしない
+
+**CC ベンチをノードを変えて測った実測は本 repo に存在しない。**「仕様が同じだから性能も同じ」も
+「別ノードだからズレる」も、どちらも測っていない。手元にある唯一のノード間比較は pytest 全走の
+wall-clock (bnode002 116.25 秒 / bnode009 200.72 秒 / bnode010 214.34 秒、[T-057] 2026-07-31) だが、
+**これはプロセス生成とファイル I/O が支配する作業であり、CC の throughput 計測の代理値にならない。**
+登録済み calibration も bnode011 単独の記録 (CV 1.17%) しか持たず、ノード間の分散を答えない。
+
+したがって**ノード間差の大きさを理由に fan-out を禁止しない。**
+
+**ただし、差の大小とは別に交絡の問題がある。**処置 (workload / パラメータ / 構成) と node が
+一対一に対応する配置は、**差がどれだけ小さくても処置差と node 差を推定上分離できない。**
+`hostname` の記録は provenance にはなるが補正量にはならない (`s8b_floor_campaign` の
+`host_provenance` が既に記録している。それでも分離はできない)。したがって:
+
+- **job の内側で比較が閉じている fan-out は無条件でよい** — 各 job が自分の中で
+  stock と variant を対にして測る形など。node は共通因子として相殺される。
+- **性能値を job どうしで比較する fan-out は、protocol が投入前に node を block /
+  randomization の因子として定義し、各処置の node 内対照または node 間反復と推定量と
+  集約手順を固定している場合だけ許す。**一処置一ノードの割付けは完全交絡なので採らない。
+  条件を満たせない比較は、同一 job・同一 node で protocol の schedule を保つ。
+
+差の大きさそのものを知りたければ、同一 binary・同一 workload を N ノードへ同時投入して
+分散を測ればよい。これは既存 protocol の通常運用ではなく**新しい測定 protocol**であり、
+目的・N・割付け・推定量・成果物へ流入させないことを事前に固定してから実施する。
+
+#### 計測面は「臨界区間」と「準備」を分ける
+
+計測の臨界区間 — probe → bench → post-probe → journal、および CV / floor / oracle の判定 —
+は現行 protocol のまま維持する。**計測値を生成しない準備** (build、binary store、spec 検査など) は、
+read / write 集合を分離できるなら fan-out の候補として扱ってよい。
+
+#### fan-out が変えてよいのは投入時刻だけである (絶対規律 4)
+
+**並行にしたからといって実験集合を増やさない。** workload・パラメータ・構成・レコード数・
+thread 数・反復数・session 数・retry 枠は、凍結 protocol または calibrator の決定と exact に
+一致させる。**「空きノードがある」「並行なら wall-clock が安い」は本数を足す理由にならない。**
+floor / oracle の集約は expected cell 集合との完全一致を要求するので、余分なセルは受理されない。
+追加の実験が要るなら、目的・N・割付け・推定量・成果物へ流入させないことを別 protocol で
+事前に固定する。
+
+#### 並行投入するときの手順
+
+**本節は運用規範であり、汎用の並行投入 gate も N-job 完了 verifier も存在しない。**
+太字の要件を機械強制済みと読まない。下の照合を機械が代わりにやってくれる consumer が無い場合、
+それは人手確認であり、機械保証として報告しない。
+
+- 投入の作法は 1 本のときと同じ (§8 のチェックリスト、`-o` / `-e` を repo 外へ、
+  sanctioned な submit 形の逐語再利用)。
+- **投入前に期待集合を書き出す。** 期待する job の集合、各 request ID、入力 hash、
+  出力 namespace、期待成果物を先に記録する。完了時は全 request の terminal state・rc・
+  receipt・成果物 hash が exact に揃ったことを照合する。
+  **先に終わった成功 job だけで集計しない** — 欠落セル・欠落変異を含む ledger を
+  完成扱いにすると参照集合が変わる。
+- **request ごとに投入先と出力を一意化する。** submission directory と nonce を request 単位で
+  分け、どの request がどの receipt・stdout・stderr に対応するかを 1 つの group manifest へ書く。
+  `tools/pegasus/dispatch_compute.py` は **1 invocation = 1 request** で、N 本まとめて投げる
+  CLI 面も group で待つ CLI 面も持たない。N 本並べるのは呼び手の責任である。
+- **rc と request の対応を失わない。** 各 invocation を背景化したら PID を控え、
+  request 単位で rc・`request_id`・scheduler state・receipt を回収する。
+  パイプ・`xargs`・shell の一括 `wait` で rc を潰さない (F37 と同型)。
+- **待ち手は 1 条件 1 本にまとめる。** N 本を投げたら「N 個そろう」ことを 1 本の待ち手で待つ。
+  job ごとに待ち手を立てない。`tools/dev_wave_wait.py` は producer / 受入 lease 用であり、
+  **scheduler request N 本を待つ CLI ではない。**代用に書き換えない。
+- **単独性確認は各 job が自分に割り当てられたノード上で行う。** gen_S の logical host は
+  `CPU Number` Min=Max=Std=48 で node の CPU を使い切るため、自分の request どうしが同じ node の
+  CPU を分け合う構成にはならない (`qstat -Qf gen_S` 実測)。ただし `Exclusive submit = OFF` は
+  変わらないので、**割当てを専有の保証と読まない** (§1)。
+  なお計測の競合 probe (`composite_competing_probe`) は `pgrep` で**自ノードだけ**を見るので、
+  **別ノードで走る自分の job は互いの probe に映らない** — この点で fan-out は同居より安全である。
+- **1 本の失敗を全体の成功で塗り潰さない。** 失敗は infra 失敗 / 子 command 失敗 / timeout /
+  成果物欠落に分類し、元 request の receipt を終端として保存する。**再投入は新しい nonce と
+  新しい request で行い、元の request ID を控えておく。**成功した request を巻き添えで
+  再実行しない。部分成功を「揃った」と報告しない。
+- **`qdel` は自分の receipt に載っている request ID にだけ打つ。** 打つ前に `qstat -f <ID>` で
+  request ID・job name・所有者・state を照合し、**QUE / HLD だけを対象にする。**
+  RUN・所有者不明・receipt 不一致・`qstat` に見えない場合は打たず、ID と状態を handoff へ残す
+  (並行 session の走行を潰した実害がある)。
+- 投入本数の上限は queue 側にほぼ無い (`Submit Number Limit` と `Submit User Number Limit` は
+  UNLIMITED、group は 200。2026-08-11 実測)。混雑時は超過分が待つ。
+
+#### 現状 — まだ直列で、規約が追いついていない箇所
+
+- **変異本走は「1 変異 = 1 qsub」を逐次に払う。** T-243 台帳 42 execution run の paired 差は
+  9161.6 秒 (2.545 時間) で、D130 決定 (2) はこれを**順番待ち除去による削減量の上限側の目安**と
+  位置付けている。**9161.6 秒の全量を順番待ちとして分離実測したものではなく、41 変異規模の
+  束ね・fan-out はどちらも未実測である。**D130 / D131 が比べたのは「逐次 dispatch」と
+  「1 job へ束ねて job 内直列」の 2 択で、**N 本同時投入は選択肢に入っていない。**
+  束ねが消すのは順番待ちだけで内側の合計時間は不変だが、fan-out は内側も縮む。
+
+  **D130 / D131 の未充足前提を fan-out の前提と読み違えない。** あれらは
+  **harness 自体を計算ノードの 1 ジョブへ束ねる**経路に対する条件である。現行の
+  `--runner-mode dispatch` は **harness がログインノードに居て**各変異の pytest だけを
+  計算ノードへ投げる形 (§7.4 の呼出し) なので、N 本の fan-out も harness はログインに並ぶ。
+  したがって cross-node `flock` (D130 条件 2) は掛からない — lock は
+  `sha256(str(repo))` を鍵とする node-local `/tmp` のファイルで、作業木が別なら鍵も別である。
+  walltime kill で `finally` 復元が飛ぶ懸念 (同条件 3) も、harness が計算ノードに載る前提の話である。
+
+  **fan-out に本当に残っているのは実装・設計であって裁定ではない。** 未解決は
+  (i) spec の分割と期待 node 集合の分割整合、(ii) N 本の ledger の併合と
+  「registered == recorded」の担保、(iii) request・attempt・ledger 行の対応付け、
+  (iv) 同時 dispatch 負荷とログインノードの admission、(v) `mutation_worktree.py` の
+  container 名が固定 (`.izanagi-mutation-worktree`) なので **`--scratch-root` を N 個に分ける**必要。
+  **いずれも未実測である。**着手は起票済みタスクで行う。
+- **8c trial は workload 単位で逐次に回す** (`p3_autonomous_workload_trial.py` の
+  `for workload in selected:`)。workload ごとの campaign root は分離できる構造だが、
+  現行呼出しは `journal`・`active_providers`・`build_context`・`max_wall_s` を共有するため、
+  **そのまま別 job へ割るのは未承認である。**分けるには run root・provider / journal・
+  receipt・wall 予算の分離と、部分成功・再投入の定義が要る。候補として記録するに留める。
+- **既に job 内で並列化済みのものを候補に数えない。** 履歴監査 (`check_ai_provenance.py`) は
+  commit 単位の thread pool を持ち、pytest は worker 並列、build は `-j` を持つ。
+  これらは job 間 fan-out の対象ではない。
+- **過去の並列化 survey の射程に注意する。** worklog (191) の survey は依頼文自体が
+  「コア数を使い切る並列化」= job 内並列で、job 間 fan-out を探索軸に含めていない。
+  **「並列化は調査済み」と読まない。**
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した
@@ -915,6 +1085,7 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   一度だけ設定し実行中に変更しない。未設定のまま worktree 内で materialize しようとすると
   `ensure()` が fail-fast で拒否する)
 - `pegasusinfo` で混雑状況を確認した
+- **独立に投げられる job を 1 本ずつ直列で払っていない。** 並行投入してよいかの判定は §7.5
 - wall time と node 数 (`-b`) が処理に適切である
 - OpenMP threads は 48 以下である
 - hybrid 実行は node あたり `MPI processes × OMP_NUM_THREADS <= 48` である
@@ -947,8 +1118,14 @@ python3 tools/mutation_harness.py --repo <worktree> --spec <spec> \
   適合する `PBS_JOBID`・committed policy と exact 一致する lowercase proxy 2 key・TLS trust
   override 不在・従量経路 env 不在・policy surface 健全のすべてが揃わなければ fail-closed で拒否する。
   flag 省略時は従来どおり proxy を落とす。**MITM を防いだとは主張しない** (D122 決定 (7) の残余)。
-  build / bench の計測は `_site_admits_measurement` が Pegasus を拒否したままであり ([T-277])、
-  この拒否が生きている間は role 出力が build / run へ到達しない
+  **(2026-08-11 訂正) 本項にはかつて「build / bench の計測は `_site_admits_measurement` が
+  Pegasus を拒否したままであり ([T-277])、この拒否が生きている間は role 出力が build / run へ
+  到達しない」とあったが、逆である。**引用している [T-277] / D122 の commit `6a51426c`
+  「計測パスの受理集合・env 契約・build identity・attestation を開く」が、まさにその拒否を開いた。
+  現行の `orchestrator/campaign/p3_s4_loop_trigger_gating.py::_site_admits_measurement` は
+  `{OTHER, PEGASUS_COMPUTE}` を受理し、拒否するのは `PEGASUS_LOGIN` / `PEGASUS_SUSPECT` /
+  未知値だけである (`orchestrator/tests/test_p3_s4_loop_trigger_gating.py::test_site_admission_matrix`
+  が exact に固定している)。**計算ノードでの計測は site gate では止まっていない。**
 - `/scr` に置くデータの退避処理がある
 - `check_quota` と `rbudgetcheck` で容量・ポイント残高を確認した
 - **投入する `qsub` の呼出し形を sanctioned な submit script と突き合わせた。** 使い捨ての job script でも
