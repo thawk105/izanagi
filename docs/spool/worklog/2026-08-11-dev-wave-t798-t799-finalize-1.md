@@ -51,6 +51,11 @@ title: fold transaction を単一 finalize protocol にし観測値で束縛し�
   (ii) `git commit` と phase 書換えの間の残余窓。(iii) 前 wave の「壊れる pin は 1 本」は
   「削除を pin する数」としては正しいが、state 残存で**連続 fold を行うテスト約 10 本**が
   別理由で赤になる。
+- **変異 matrix は 8/8 KILLED (baseline PASSED、MISMATCH 0・SURVIVED 0)。**
+  wave 前の実コードの形へ戻す変異を 4 件含み、いずれも殺された。
+  **M06 は初回 probe で SURVIVED した (erratum)** — 狙った `_complete_shape` の GC 残存検査は
+  そこへ到達する時点で GC が完了しており他層に mask される。実効 gate である `_discover` の
+  active 受理条件へ再照準して KILLED になり、両層同時変異でも同じ node が殺すことを確認した。
 - **codex 子は pytest を 1 度も走らせられなかった** (`qstat -Q preflight rc=1` / sandbox が
   予約台帳更新と socket を拒否)。実測はすべて親が行い、子の報告は一貫して
   「実装済み・未実走」で受け取った。

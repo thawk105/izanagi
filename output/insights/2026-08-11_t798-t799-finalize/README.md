@@ -53,3 +53,21 @@
    `apply_fold` が forged noop plan を素通しするようになっており、段 6 レンズ A が検出した。
 4. **単一 finalize protocol の終端はまだ閉じていない。** finalize の unlink 後に死ぬと
    結果を冪等に再取得できない。ただし段 1 実測により **wave 前も同一の残骸**であり回帰ではない。
+
+## 変異 matrix (段 6)
+
+`mutation-spec.json` / `mutation-ledger.json`。固定 commit `39212bd0` の使い捨て worktree、
+runner は `run_tests.py --force-dispatch` の焦点 4 ファイル走。**baseline PASSED、
+8/8 KILLED、MISMATCH 0・SURVIVED 0。**
+
+- **wave 前の実コードの形へ戻す変異を 4 件含む** — M01 (`apply_fold` 末尾へ `state_path.unlink()`
+  を復活)、M04 (`except BaseException` を `except Exception` へ)、M05 (receipt を 5-field へ)、
+  M07 (commit の diff 集合比較を撤去)。いずれも殺された。
+- **M06 は初回 probe で SURVIVED した (erratum)。** 狙った `_complete_shape` の GC 残存検査は、
+  そこへ到達する時点で GC が完了しているため他層に mask される。**実効 gate である
+  `_discover` の active 受理条件へ再照準**して KILLED になり、両層同時変異 (M06B) も
+  同じ node が殺すことを確認した。`_complete_shape` 側は冗長 gate として単独変異の証拠から外す。
+- 期待 node は probe 2 本の実測から導いた完全集合で、runner argv は probe と本走で同一である。
+- baseline を緑にするため `test_exploration_external_root_keeps_wave_clean` を deselect した。
+  この node は **wave 前の commit `276ab6cc` でも同じ argv で同じように落ちる**ことを実測済みで、
+  本 wave の差分に起因しない (`mutation-ledger-prewave2.json`、job dir に保存)。
