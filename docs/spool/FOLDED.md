@@ -805,3 +805,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:t139-record-items-and-second-erratum-approval":"D282"},"authored":"2026-08-11","content_sha256":"5b3921bae872533a97528b69d420fc96e42f831366d8eaf5405bdf3973d7e055","seq":1,"wave":"dev-wave-t139-manifest-land1"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"28285996a3e64824f8cab679c0b34212b54e3691058d968213fd14be85ae4920","seq":49,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:conditional-unrun-boundary-run":"[T-790]","T:records-vs-acceptance-ordering":"[T-791]","T:reflux-sys-path-hidden-coupling":"[T-792]"},"authored":"2026-08-11","content_sha256":"33edcce0419a9eecf64ec66167b75af339ef6c90cd5be11e80abbd2747d84c75","seq":1,"wave":"dev-wave-t770-conditional-unrun"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1ed693c8ce36ac5b148f0f0e7288d0449c5669581af2fa29624e5eb6e8ed0b81","seq":1,"wave":"dev-wave-t781-spool-feasibility"}
+
+- {"allocations":{"T:t139-publication-layer-impl":"[T-793]"},"authored":"2026-08-11","content_sha256":"352b124f6132baf451d47d8cad297b6331772e462517243989d2f9780dae280c","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
+- {"allocations":{"D:t139-addendum-b-no-primary-ledger-reference":"D284","D:t139-publication-downstream-exception":"D283"},"authored":"2026-08-11","content_sha256":"974f5bf8f70b5195859155a6f226470919257e21e6a1ee64c6622c9bc25c74a5","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
+- {"allocations":{"F:diff-count-instrument-contaminated-claim":"F214"},"authored":"2026-08-11","content_sha256":"ddaf7ae112a3c4b46d3f8bcca81d1bd0e7fc798126b63718badebe3cf9f98e06","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
