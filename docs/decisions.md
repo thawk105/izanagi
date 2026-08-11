@@ -13600,3 +13600,115 @@ wave の自己申告・manifest の宣言・実装 wave の完了報告・handof
   止める文が canonical に存在しない。
 - 解除条件を D291 側へ今書き込む — 上記の先行凍結。再開時の手番削減という利得は、
   条件を緩める圧力という損失に見合わない。
+
+## D293. 床値 compiler の site 依存化は toolchain 束縛検査と同じ commit でしか入れない (2026-08-11)
+
+**決定:** 床値 campaign の compiler 解決を `buildcache.DEFAULT_CC/DEFAULT_CXX` の固定要求から
+`buildcache.compilers_for_current_site()` へ寄せる変更は、**calibration 由来の toolchain 束縛検査が
+同時に入る場合にだけ** land してよい。片方だけの land を禁じる。
+同じ理由で、official mode の解禁 (床値 campaign の無条件拒否の撤去) も、束縛検査が
+既に入っているか同じ wave で入る場合にだけ行う。
+
+**理由:**
+
+- 固定要求は事故ではなく**現に効いている fail-closed 障壁**である。Pegasus には `g++-13` が
+  無いため、`buildcache._tool_version` が
+  `toolchain cxx が PATH に存在しない: 'g++-13' (fails-closed)` で倒れる。
+- site 依存化だけを入れると Pegasus compute で system compiler (実測 gcc 11.4.0) が解決され、
+  build が通るようになる。束縛検査が無ければ、これは
+  **「認可されていない compiler で床値を測れるようにする」だけの変更**である。
+  再開手順書 §1.2 が「既定 compiler へ黙って倒すのは選択肢にしない」と定めた当のものになる。
+- 床値は freeze v2 の `floor` / `budget` を埋め、oracle gate の受理判定を動かす。
+  どの compiler で測ったかが契約に紐付かないまま値が入ると、certified 選択の判定境界が
+  提示できない根拠に依存する。compiler 差は backoff 級の差を容易に上回る
+  (`buildcache` 自身の記述)。
+- 束縛と解禁は同じ受理集合の表裏である。別 wave に割ると
+  「解禁したが束縛が入っていない」窓が構造的に開き、その窓は解禁の瞬間に
+  認可外 compiler の床値が通る形で顕在化する。
+
+**却下した選択肢:**
+
+- **site 依存化だけを先に land する** — 障壁を外して代わりを置かない。単調に悪化する。
+- **束縛検査だけを先に land する** — 発火経路が無い (`DW-G04`)。official は拒否され、
+  投入 script に pilot 経路が無く、pilot 実測は再凍結適格から除外されるため、
+  本番で一度も走らないコードが増える。
+- **固定要求のまま `g++-13` を Pegasus へ用意する** — 用意経路は root 権限か
+  コンテナに限られ、計測条件を変える点は同じで、変更が計測機の外に出る。
+
+## D294. Codex へ PreToolUse を配線し、発火は実測 gate で確かめる (2026-08-11)
+
+**決定:** `.codex/hooks.json` の PreToolUse に `^apply_patch$` と `^Bash$` を配線する。判定核は
+Claude と同じ `guard_write` / `guard_bash` を使い、Codex 専用の判定を二重実装しない。
+`apply_patch` の path 抽出だけを `guard_write` に足し、相対 path は payload の `cwd` から絶対化する。
+`delete` と `move` の元は lexical 判定も併用する。抽出は拒否を増やすためだけに使い、
+抽出できたことを許可の根拠にしない。
+
+Codex は hook が exit 2 のときだけ止まり、hook command 自体の失敗は素通しになるため、guard を
+直接呼ばず `hooks/codex_guard.sh` (`0`/`2` 以外をすべて `2` へ写す) を経由し、bootstrap も
+解決できなければ `exit 2` とする。
+
+信頼登録の無い hook は無警告で無視されるため、**配線の存在を防護の証拠に数えない**。
+`tools/check_codex_hooks.py` が使い捨て領域で allowed control と protected control を両方測り、
+`apply_patch` と `Bash` の双方が発火しなければ非 0 とする。認証・枠・timeout・tool 未試行も非 0 で、
+`skip` で緑にしない。trust bypass は argv に入れない。
+
+本配線が閉じたのは `apply_patch` 経由と、Claude と同じ既知限界つきの Bash 経由だけである。
+MCP / apps / plugins / 子の書込み面、script 経由・変数展開・persistent shell、
+`output/s8b-freeze` への Bash 直接書き込みは開いたままであり、Claude と同等の防護になったとは記さない。
+本決定は D55 / D56 の native role 再開条件を一切緩めない。
+
+**理由:**
+- Codex 単独運用では sandbox の外で manager を動かさないと受入全走を投入できない (計算ノードへの
+  投入も上限付き実行も sandbox 内からは失敗することを実測)。その状態では hook だけが機械防壁になる。
+- 判定核を共有すれば受理集合が 1 か所で決まり、Claude と Codex の drift が構造的に起きない。
+- 「配線した」ことと「発火する」ことは別であり、後者を測らない検査は恒真になる (規律 6)。
+
+**却下した選択肢:**
+- Codex 専用の guard を新設する — 判定核が二重になり受理集合が分岐する。
+- 配線の存在と JSON 妥当性だけを検査する — 信頼未登録でも緑になり、守っていないのに緑を作る。
+- 発火検査を受入全走へ自動登録する — 受入は計算ノードで走り、そこは直接の外部通信ができず
+  Codex CLI の到達性も未実測である。前提が立たないまま必須化すると受入が理由なく赤になる。
+- `--dangerously-bypass-hook-trust` を gate に使う — 信頼が無いまま緑になり、gate の意味が消える。
+
+## D295. trace 完全性は trace 外 counter で裏取りし、witness は API では省略可・pipeline 境界では必須にする (2026-08-11)
+
+**決定:** trace の committed txn 数を、trace 自身ではなく **CCBench が stdout へ出す
+`commit_counts_`** と突き合わせる。verifier は `verify_trace_dir(..., *, expected_commits=None)` で
+witness を受け、`Integrity` の一致条件を `clean()` の**純粋な連言**として持つ。witness を渡さない
+呼び出しでは判定・出力・text が現行と完全に同一で、**受理集合は 1 mm も緩まない**。
+production 経路 (`pipeline.evaluate`、S2 calibration、ladder 証拠) では witness を必須にする。
+
+**理由:**
+- 欠番検査は `expected = max(txid)+1` で数えるため、txid 最大側の trx が丸ごと消えると欠番 0 と
+  数えられ、cycle の相手が消えて certified になる。trace の内部情報だけでは原理的に閉じない。
+- witness を trace の外から取るので、**欠落位置に依らず** thread の trace file 丸ごとの欠落も捕える。
+  当初案の「txn 終端マーカー」は末尾切りしか捕えない。
+- silo/YCSB では `include/ycsb.hh` が commit 成功後に counter を 1 回だけ増やし、silo の `commit()` は
+  validation 成功時に必ず `writePhase()` を呼んでその冒頭で C 行を 1 回だけ出す。早期 return が無い。
+- **witness は failure-independent ではない。** trace と counter は同じ実行体から出るので、両方が
+  同時に落ちる common-mode failure と個数を保存する破損は検出しない。文書は「独立 witness」ではなく
+  「trace 外 counter による個数の裏取り」と書き、非検出限界を明記する。
+
+**前提の機械 pin:** 「commit 後に無条件で counter を増やす」のは YCSB workload だけである。
+TPCC / BoMB 系は counter 増分の**前**に `quit` を見て return するため、C 行数と counter が乖離し
+正しい trace が赤になる。したがって witness 検査を通す run は trace binary が YCSB であることを
+**allowlist 形**で確認し、非対応 workload は fail-closed で拒否する (denylist にしない)。
+`batch_commit_counts_` は加算せず、非 0 は帰属不能として拒否する。
+
+**却下した選択肢:**
+- **共有の bench stdout parser を witness の権威にする** — 同一 label の重複行を last-wins で潰すため、
+  壊れた stdout が静かに別の値になる。正しさ witness には「該当行がちょうど 1 行」を要求する専用の
+  厳格 parser を置く。計測層の parser は他 consumer がいるので変更しない。
+- **witness を必須引数にして API 全体で強制する** — 凍結証拠が `result_to_dict` の witness なし出力を
+  bytes で pin しているため不可能。optional にしたうえで production 側の有限個の呼び出し元で必須化し、
+  「直接 API と CLI の省略呼び出しには旧挙動が残る」と正直に書く。
+- **verifier の出力 schema に構造化 witness を足す** — 凍結 ladder evidence が
+  `orchestrator/verifier/report.py` の現行 bytes 一致を要求する (`driver` と `policy` だけが歴史 drift
+  許容という非対称契約) ため、同 file は編集できない。構造化した witness 値は pipeline の WAL payload に
+  載せ、verifier 側は既存 key (`integrity.clean` と `integrity.notes`) で表現する。
+- **trace 形式そのものを v2 化する (C 行に R/W 件数 + 終端マーカー)** — trx 尾部欠落の偽陰性を閉じる
+  唯一の道だが submodule の gitlink 前進を伴い、承認定数の追認禁止と push の人間手番に当たる。
+  裁定パッケージで返し、本決定の射程外とする。
+
+**位置づけ:** 実装済みの設計判断の記録。絶対規律の変更ではない — 規律 2 に対しては拒否側だけを
+増やし、規律 3 に対しては不一致の期待値・観測値・差を構造化して次手へ渡す。

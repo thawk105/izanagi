@@ -6,8 +6,10 @@ pytest でも、素の `python orchestrator/tests/test_verifier.py` でも走る
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+from dataclasses import replace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -598,32 +600,49 @@ def test_unknown_tag_still_parse_error_after_a():
         shutil.rmtree(d, ignore_errors=True)
 
 
-# ---- 既知偽陰性の characterization (現状の挙動を明示ロックする) ----
+# ---- 既知偽陰性の characterization ----
 #
-# 以下 2 テストは「現状 certified になってしまう」ことを assert する。**これは仕様の
-# 保証ではなく既知の限界の可視化** (規律3: 偽陰性の存在を台帳と機械テストの両方に残す)。
-# 恒久対応は trace 形式拡張 (C 行に R/W 件数・終端マーカー) = izanagi-trace ブランチ
-# 変更が必要で S1 移植と同時に行う (worklog 2026-07-02 [MED] 台帳)。
-# **このテストが FAIL したら**: 検出力が向上した合図。assert を反転して赤 (indeterminate)
-# を期待する形に書き換え、S1 送り台帳の該当項を閉じること (自動では反転しない)。
+# witness を渡す live 経路では FN-1 を分離する。一方、witness を省略できる optional
+# API は後方互換のため旧挙動を維持し、FN-1 が残ることを意図的に固定する。
+# FN-2 (C 行は残るが trx 尾部の R/W が消える) は submodule 権限外のまま残す。
 
 def test_characterization_tail_txid_gap_is_false_green():
-    """末尾欠番 (max txid 以降の trx 欠落、例: 全ファイル尾部切り) は検出されない。
-    欠番検査は expected = max(txid)+1 で数えるため、write-skew (r1) の txid 1 側を
-    丸ごと落とすと欠番ゼロ扱い → cycle 相手が消えて certified serializable。"""
+    """witness を渡さない optional API では FN-1 が残る (意図した後方互換)。"""
     import shutil
     d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
                    "W 0 0000000000000002 U 1 1\n")   # r1 から txid 1 を尾部切り
     try:
         res = verify_trace_dir(d)
         assert res.integrity.missing_txids == 0      # 末尾欠番は欠番に数えられない
-        assert res.certified, "偽陰性が塞がれた? → 本テストを反転し S1 台帳を閉じよ"
+        assert res.certified, "witness 無し optional API の互換挙動が変わった"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness():
+    """末尾欠番 (max txid 以降の trx 欠落) を trace 外 witness で拒否する。
+
+    欠番検査は expected = max(txid)+1 で数えるため、write-skew (r1) の txid 1 側を
+    丸ごと落としても missing_txids は 0 のまま。commit witness だけが FN-1 を分離する。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\n")   # r1 から txid 1 を尾部切り
+    try:
+        res = verify_trace_dir(d, expected_commits=2)
+        assert res.integrity.missing_txids == 0      # 末尾欠番は欠番に数えられない
+        assert res.serializable
+        assert res.verdict == "indeterminate"
+        assert not res.certified
+        assert res.integrity.expected_commits == 2
+        assert res.integrity.observed_commits == 1
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
 
 def test_characterization_txn_tail_loss_is_false_green():
-    """trx 尾部欠落 (C 行だけ残り R/W 行が消失) は検出されない。現 trace 形式は C 行に
+    """FN-1 は witness で分離済みだが、FN-2 は submodule 権限外で残る。
+
+    trx 尾部欠落 (C 行だけ残り R/W 行が消失) は検出されない。現 trace 形式は C 行に
     R/W 件数を持たないため、R/W ゼロの trx と切り詰められた trx を区別できない —
     write-skew (r1) の txid 1 の R/W を落とすと辺が消えて certified serializable。"""
     import shutil
@@ -636,6 +655,232 @@ def test_characterization_txn_tail_loss_is_false_green():
         assert res.certified, "偽陰性が塞がれた? → 本テストを反転し S1 台帳を閉じよ"
     finally:
         shutil.rmtree(d, ignore_errors=True)
+
+
+def _complete_two_file_trace() -> str:
+    return _tmp_trace(
+        "C 0 0 1 1\nW 0 aa U 1 1\n",
+        "C 1 1 1 2\nW 1 bb U 1 2\n",
+    )
+
+
+def test_commit_count_witness_detects_removed_trace_file():
+    import shutil
+    d = _complete_two_file_trace()
+    try:
+        os.unlink(os.path.join(d, "trace_1.log"))
+        res = verify_trace_dir(d, expected_commits=2)
+        assert res.integrity.missing_txids == 0
+        assert res.serializable
+        assert not res.integrity.clean()
+        assert not res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_commit_count_witness_accepts_complete_trace():
+    import shutil
+    d = _complete_two_file_trace()
+    try:
+        res = verify_trace_dir(d, expected_commits=2)
+        assert res.integrity.clean()
+        assert res.certified
+        assert res.verdict == "serializable"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_commit_count_witness_result_is_structured():
+    import shutil
+    d = _complete_two_file_trace()
+    try:
+        os.unlink(os.path.join(d, "trace_1.log"))
+        res = verify_trace_dir(d, expected_commits=2)
+        payload = result_to_dict(res)
+        expected_note = (
+            "commit witness mismatch: expected=2 observed=1 delta=-1"
+        )
+        assert [
+            note for note in payload["integrity"]["notes"]
+            if "expected=2 observed=1 delta=-1" in note
+        ] == [expected_note]
+        assert payload["integrity"]["clean"] is False
+        assert payload["certified"] is False
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_commit_witness_partial_state_is_unclean_without_report_schema_change():
+    from orchestrator.verifier.model import Integrity, VerifyResult
+    res = VerifyResult(
+        trace_dir="partial", serializable=True, n_txns=1,
+        integrity=Integrity(expected_commits=1),
+    )
+    payload = result_to_dict(res)
+    assert "commit_witness" not in payload["integrity"]
+    assert payload["integrity"]["clean"] is False
+    assert payload["certified"] is False
+    assert "integrity UNCLEAN" in render_text(res)
+
+
+def test_result_to_dict_commit_witness_changes_notes_without_new_keys():
+    trace_dir = os.path.join(FIX, "g1_serial")
+    baseline = result_to_dict(verify_trace_dir(trace_dir))
+    witnessed = result_to_dict(verify_trace_dir(trace_dir, expected_commits=3))
+
+    assert witnessed.keys() == baseline.keys()
+    assert witnessed["stats"].keys() == baseline["stats"].keys()
+    assert witnessed["integrity"].keys() == baseline["integrity"].keys()
+    assert "commit_witness" not in witnessed["integrity"]
+
+    expected_note = "commit witness mismatch: expected=3 observed=2 delta=-1"
+    assert baseline["integrity"]["notes"] == []
+    assert witnessed["integrity"]["notes"] == [expected_note]
+    assert witnessed["integrity"]["clean"] is False
+    assert witnessed["certified"] is False
+
+    # witness 生値以外に変わるのは、notes から導かれるゲート出力だけ。
+    assert {
+        key: value for key, value in witnessed.items()
+        if key not in {"verdict", "certified", "integrity"}
+    } == {
+        key: value for key, value in baseline.items()
+        if key not in {"verdict", "certified", "integrity"}
+    }
+    assert {
+        key: value for key, value in witnessed["integrity"].items()
+        if key not in {"clean", "notes"}
+    } == {
+        key: value for key, value in baseline["integrity"].items()
+        if key not in {"clean", "notes"}
+    }
+
+
+def test_result_to_dict_without_commit_witness_matches_frozen_json_bytes():
+    result = replace(
+        verify_trace_dir(os.path.join(FIX, "g1_serial")),
+        trace_dir="/fixture/g1_serial",
+    )
+    actual = json.dumps(
+        result_to_dict(result), indent=2, ensure_ascii=False,
+    ).encode("utf-8")
+    expected = """{
+  "trace_dir": "/fixture/g1_serial",
+  "verdict": "serializable",
+  "certified": true,
+  "serializable": true,
+  "stats": {
+    "txns": 2,
+    "reads": 1,
+    "writes": 1,
+    "keys": 1,
+    "edges": 1,
+    "abort_reasons": {}
+  },
+  "integrity": {
+    "clean": true,
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0,
+    "notes": []
+  },
+  "anomaly_count": 0,
+  "total_cycles": 0,
+  "anomalies": []
+}""".encode("utf-8")
+    assert actual == expected
+
+
+def test_matching_commit_witness_does_not_mask_existing_integrity_failure():
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1\nW 0 aa U 1 1\n",
+        "C 2 1 1 2\nW 2 bb U 1 2\n",
+    )
+    try:
+        res = verify_trace_dir(d, expected_commits=2)
+        assert res.integrity.observed_commits == 2
+        assert res.integrity.missing_txids == 1
+        assert not res.integrity.clean()
+        assert not res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_cli_expected_commits_accepts_single_trace_dir():
+    import contextlib
+    import io
+    from orchestrator.verifier import cli
+    with contextlib.redirect_stdout(io.StringIO()):
+        assert cli.main([
+            os.path.join(FIX, "g1_serial"), "--expected-commits", "2", "--quiet",
+        ]) == 0
+
+
+def test_cli_expected_commits_mismatch_is_indeterminate_json():
+    import contextlib
+    import io
+    from orchestrator.verifier import cli
+    stdout = io.StringIO()
+    with contextlib.redirect_stdout(stdout):
+        rc = cli.main([
+            os.path.join(FIX, "g1_serial"),
+            "--expected-commits", "3", "--json",
+        ])
+    payload = json.loads(stdout.getvalue())
+    result = payload["results"][0]
+    assert rc == 3
+    assert result["certified"] is False
+    assert result["verdict"] == "indeterminate"
+    assert result["integrity"]["notes"] == [
+        "commit witness mismatch: expected=3 observed=2 delta=-1"
+    ]
+
+
+def test_cli_expected_commits_rejects_multiple_trace_dirs():
+    import contextlib
+    import io
+    from orchestrator.verifier import cli
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            cli.main([
+                os.path.join(FIX, "g1_serial"), os.path.join(FIX, "g2_rmw_chain"),
+                "--expected-commits", "2",
+            ])
+        assert False, "複数 trace_dir と witness の併用を拒否すべき"
+    except SystemExit as exc:
+        assert exc.code != 0
+
+
+def test_cli_expected_commits_rejects_negative_integer():
+    import contextlib
+    import io
+    from orchestrator.verifier import cli
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            cli.main([os.path.join(FIX, "g1_serial"), "--expected-commits", "-1"])
+        assert False, "負数 witness を拒否すべき"
+    except SystemExit as exc:
+        assert exc.code != 0
+
+
+def test_cli_expected_commits_rejects_non_integer():
+    import contextlib
+    import io
+    from orchestrator.verifier import cli
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            cli.main([os.path.join(FIX, "g1_serial"), "--expected-commits", "two"])
+        assert False, "非整数 witness を拒否すべき"
+    except SystemExit as exc:
+        assert exc.code != 0
 
 
 def test_nonascii_wrapped_as_parse_error():

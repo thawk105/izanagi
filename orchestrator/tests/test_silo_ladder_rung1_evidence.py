@@ -34,6 +34,7 @@ from orchestrator.campaign.silo_ladder_rung1 import (  # noqa: E402
     REPORT_MACRO,
     RUNG_MACRO,
     _configure_argv,
+    _validate_correctness_commit_witness,
     compile_commands_for_sources,
     runtime_modules_binding,
     third_party_policy,
@@ -1189,6 +1190,20 @@ def _assert_raw_correctness(
         trace=1,
     )
     return _correctness_passes(correctness)
+
+
+def test_silo_ladder_rung1_commit_witness_matches_committed_raw_data():
+    _, evidence = _load_json_bytes(EVIDENCE)
+    raw_root = ROOT / evidence["raw_bundle"]["root"] / "correctness"
+    verifier = json.loads(
+        (raw_root / "verifier.json").read_text(encoding="utf-8"),
+        object_pairs_hook=_no_duplicate_object,
+    )
+    _validate_correctness_commit_witness(
+        verifier,
+        (raw_root / "run.stdout").read_text(encoding="utf-8"),
+    )
+    assert verifier["results"][0]["stats"]["txns"] == 480595
 
 
 def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():

@@ -1756,6 +1756,9 @@ def test_other_abort_reason_contracts_are_closed_literal_sets():
         "trace-run-nonzero-exit",
         "trace-empty",
         "trace-no-abort-counts",
+        "trace-no-commit-witness",
+        "trace-batch-commits-unattributed",
+        "trace-witness-unsupported-workload",
         "trace-parse-error",
         "verify-competing-tenant",
     })
@@ -1832,6 +1835,18 @@ def test_terminal_outcomes_reject_invalid_abort_reason_without_crashing(
         pytest.param(
             "verify-inconclusive", "trace-no-abort-counts",
             id="verify-inconclusive-trace-no-abort-counts",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-no-commit-witness",
+            id="verify-inconclusive-trace-no-commit-witness",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-batch-commits-unattributed",
+            id="verify-inconclusive-trace-batch-commits-unattributed",
+        ),
+        pytest.param(
+            "verify-inconclusive", "trace-witness-unsupported-workload",
+            id="verify-inconclusive-trace-witness-unsupported-workload",
         ),
         pytest.param(
             "verify-inconclusive", "trace-parse-error",
