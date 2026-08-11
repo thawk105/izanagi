@@ -22,8 +22,17 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   `assemble_result` (`:2453`) が `eligible_for_refreeze=True` を official 限定にするため
   **pilot 実測は再凍結に使えない**。(iii) `tools/pegasus/floor_campaign.sh:962` は
   `--mode official` 固定で pilot 経路を持たない。**(ii)(iii) は裁定文にも worklog にも
-  記録が無かった。** W-1 = [T-781] は「択保留・調査先行」で実装不可、
-  W-3 / W-4 = [T-750] は未裁定のままであり、freeze v2 と oracle も着手できない
+  記録が無かった。** 段 1 brief 時点 (base main `0c336b8e`、worklog 末尾 404) では
+  W-1 = [T-781] が「択保留・調査先行」で実装不可、W-3 / W-4 = [T-750] は未裁定だった
+- **走行中に main 側で前提 3 件が動いた (取り込み後の main から採取)。**
+  (i) [T-750] は **405** で裁定 (2 点とも (a))、**417** で並行 wave が W-3 / W-4 を実装・land した。
+  ただし承認権威は module 内 pinned literal が `None` = 未承認で fail-closed のため、
+  **oracle 実走 (W-5) は依然開かない**。(ii) [T-781] は **413** で Q1〜Q4 全問 (a) となり、
+  **official は空集合のまま維持・A 系列の後まで保留**が確定した。
+  S-4 の裁定と合わせると**束縛検査の着手は A 系列の後**になる。
+  (iii) [T-770] は並行 wave が先に land した (下記)。
+  **本 wave の結論は変わらない** — W-2 は W-1 が空集合維持である限り開かず、
+  返した 4 blocker と設計制約は実装先が W-1 の wave へ移っただけで有効である
 - **段 4 で scope A (toolchain 束縛) を「実装しない」と裁定した。** 決め手は段 4 で気づいた
   非対称性で、段 2 プランも段 3 の 2 レンズも指摘していない — **[T-783] 単独は
   fail-closed 障壁を緩めるだけである**。床値 build の `gcc-13`/`g++-13` 固定要求は

@@ -14,7 +14,10 @@ base main `0c336b8e` → 取り込み後 `f4db7036`。**本番コードを 1 行
 **依頼は「床値実測 → freeze v2 再凍結 → oracle 実走の再開」だったが、3 段とも実行できない。**
 実行できたのは docs の訂正だけである。理由は次の 2 層。
 
-| 段 | 塞いでいるもの | 状態 |
+**下表は本 wave の段 1 brief 時点 (2026-08-11、base main `0c336b8e`、worklog 末尾 404) の事実である。**
+本 wave の走行中に main 側で動いた分は §8 にまとめた。**§8 を読まずに下表を現状として引かないこと。**
+
+| 段 | 塞いでいるもの | brief 時点の状態 |
 |---|---|---|
 | 床値実測 (W-2) | W-1 (official 解禁) = [T-781] | **裁定で「択保留・調査先行」。実装不可** |
 | freeze v2 再凍結 (W-3) | [T-750] | **未裁定** (worklog 403 / 404 が明記) |
@@ -245,6 +248,25 @@ main の版を採った。** 相手が触れなかった census 側だけを本 
    **T-139 の pilot / 本走 job は一度も queue に無かった**。見えたのは第 3 波の受入全走と
    本 wave 自身の検査 dispatch だけである
 3. **裁定帯域は A 優先** — 本パッケージ (B 系) は A 系の後ろに並べる
+
+---
+
+## 8. 本 wave の走行中に main 側で動いた分 (2026-08-11)
+
+本 wave は base main `0c336b8e` (worklog 末尾 404) で brief を書き、land までに 5 回 main を
+取り込んだ。その間に **§0 の表が前提にした 3 件がいずれも動いた。**
+以下は取り込み後の main から採った事実である。
+
+| 件 | 動き |
+|---|---|
+| **[T-750] (W-3 / W-4)** | worklog **405** で裁定 2 点 (ともに (a))、**417** で並行 wave `dev-wave-t750-freeze-v2-manifest` が実装・land。freeze v2 の g1 candidate producer と `generate-v2-candidate` CLI、新 module `s8b_oracle_spec.py` と `build-approved` CLI が入り、`verify_manifest` へ cell-product 検査が加わった (受理集合の縮小のみ)。**承認権威は両者とも module 内 pinned literal で現在 `None` = 未承認のため fail-closed** |
+| **[T-781] (W-1)** | worklog **413** で Q1〜Q4 が全問 (a)。**official は空集合のまま維持し、A 系列の後まで保留**。§4 S-4 の裁定 (束縛検査は W-1 の wave に含める) と合わせると、**束縛検査の着手は A 系列の後になる** |
+| **[T-770]** | 並行 wave `dev-wave-t770-conditional-unrun` が R1 (b) + R2 (a) を先に land (§5 参照) |
+
+**§0 の表の結論は変わらない。** W-3 / W-4 は実装されたが oracle 実走 (W-5) は
+承認権威が未承認 (`None`) のため依然 fail-closed であり、W-2 (床値実測) は W-1 が
+空集合維持である以上開かない。**本 wave が返した 4 blocker と §3 の設計制約も、
+実装先が W-1 の wave へ移っただけで内容は有効である。**
 
 **親の見落としを 1 件記録する。** 当初「投入ゼロの wave」と書いたが、
 `tools/check_ai_provenance.py` は login では完走せず計算ノードへ自動 dispatch する。
