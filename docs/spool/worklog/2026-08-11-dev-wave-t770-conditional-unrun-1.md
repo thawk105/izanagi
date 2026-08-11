@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-11
 wave: dev-wave-t770-conditional-unrun
 seq: 1
-title: template patch 未適用の 4 skip を「条件付き未実走」へ別分類した — 裁定 R1 (b) + R2 (a) を実装、変異 4/4 KILLED (コード + docs、branch worktree-dev-wave-t770-conditional-unrun)
+title: template patch 未適用の 4 skip を「条件付き未実走」へ別分類した — 裁定 R1 (b) + R2 (a) を実装、変異 4/4 KILLED (コード + docs、受入 8487 passed / 20 skipped / 498.68 秒 / rc=0、branch worktree-dev-wave-t770-conditional-unrun)
 ---
 
 ## 本文
@@ -42,6 +42,17 @@ title: template patch 未適用の 4 skip を「条件付き未実走」へ別�
   明示している。訂正は living 正本と本エントリで行った。
 - **wave 中に local main を 1 回取り込んだ** (`f4db7036`、10 commit)。incoming が触った
   `orchestrator/tests/` の path は本 wave の編集面と重ならず、automatic merge で競合ゼロだった。
+- **受入は 2 走した。採用値は land 対象 tip の親 `2f680772` の 2 走目 =
+  `rc=0 / 8,487 passed / 20 skipped / 498.68 秒`。** どちらも緑で、赤は 1 件も出ていない。
+  **skip 件数は 20 のままで、本 wave が skip を増やしても減らしてもいない** (分類だけを変えた
+  という不変条件の実測確認)。
+  - 1 走目は tip `d256c501` で **rc=0 / 8,487 passed / 20 skipped / 564.30 秒**。
+  - 1 走目の走行中 (9 分 24 秒) に local main が 5 commit 進み、land の ff-only が成立しなく
+    なったため 2 走目を走らせた。runbook §7.3 が「待ち手が閉じない残余 race」と明記している
+    もので、lease は 1 走目から通して保持しており待ち行列へ戻ってはいない。
+  - 親検査は各走の前に `check_docs` rc=0、`spool_fold --dry-run` rc=0、全史 provenance 監査 rc=0。
+  **land tip は受入 tip より 1 commit 進む。** 差分はこの fragment と insight README への
+  受入結果の追記だけで、コード・テスト・reference・入口を含まない。
 - 逐語と変異台帳は `output/insights/2026-08-11_t770-conditional-unrun/`。
 
 ## 次の一手差分
@@ -65,6 +76,17 @@ title: template patch 未適用の 4 skip を「条件付き未実走」へ別�
   hook 編集面の実 template 結線が受入全走で恒久未検査であること。
   正本 = `orchestrator/tests/README.md` の「条件付き未実走」節と
   `output/insights/2026-08-11_known-red-exceptions/package.md` の R1。
+- {{T:records-vs-acceptance-ordering}} **P2・新規・ユーザー裁定待ち (段 8 の自己改善候補)**:
+  「記録 commit と受入全走の順序」が `docs/dev-wave/` のどの leaf 節にも無い。`DW-S07` は
+  placeholder と値なし前方参照を禁じ、`tools/dev_wave_land.py` は `wave HEAD == tested_tip`
+  を要求する (不一致は `RC_AUDIT = 23`)。この 2 つを同時に満たすには「land tip は受入 tip より
+  1 commit 進み、差分は受入結果の追記だけ」という解が要るが、正本はエントリ 406 の本文だけで、
+  本 wave の親はそれを過去エントリから辿り直した。**ただしこれは「未検査のまま land してよい
+  差分の範囲」を定める規則であり、`DW-S08` の「正しさ防壁の変更は実装せず裁定パッケージへ
+  送る」に該当するため本 wave では実装していない。** 選択肢 = (a) `DW-S07` へ 1〜2 行で
+  明文化する (差分をコード・テスト・reference・入口を含まない受入結果の追記に限る旨を含む) /
+  (b) `DW-O23` 側へ land の受理条件として書く / (c) 現状維持でエントリ 406 を正本のままにする。
+  推奨 = (a) — 発火は段 7 であり、読む義務が生じるのも段 7 だから。
 - {{T:reflux-sys-path-hidden-coupling}} **P3・新規**:
   `orchestrator/tests/test_real_repo_serialization.py` の 2 node が `from tests import ...` を使い、
   `orchestrator/` を `sys.path` へ載せているのが `test_reflux_ir.py:122` の module import 副作用
