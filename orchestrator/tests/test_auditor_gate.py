@@ -16,8 +16,10 @@ _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
+                                   apply_mandatory_deny_only_veto,
                                    assert_digest_matches, auditor_reject_result,
                                    compute_diff_digest, parse_auditor_dict)
+from orchestrator.campaign.diff_quarantine import DiffQuarantineResult              # noqa: E402
 from orchestrator.critic.digest import DIFF_QUARANTINE_REASON                        # noqa: E402
 
 
@@ -34,6 +36,73 @@ def test_assert_digest_matches_raises_on_mismatch():
         raise AssertionError("digest 不一致を素通しした")
     except AuditorGateFailure as e:
         assert "digest" in str(e)
+
+
+def test_mandatory_deny_only_veto_acceptance_set_never_exceeds_machine_gate():
+    working_diff = "actual working diff\n"
+    digest = compute_diff_digest(working_diff)
+    auditors = (
+        AuditorVerdict(verdict="pass", diff_digest=digest),
+        AuditorVerdict(
+            verdict="reject", diff_digest=digest,
+            violations=[{"type": 1}],
+        ),
+        AuditorVerdict(
+            verdict="uncertain", diff_digest=digest,
+            uncertainty="closed inputs are insufficient",
+        ),
+    )
+    machine_results = (
+        DiffQuarantineResult(passed=True),
+        DiffQuarantineResult(passed=False, reason="machine reject"),
+    )
+
+    for machine_result in machine_results:
+        for auditor in auditors:
+            combined = apply_mandatory_deny_only_veto(
+                machine_result,
+                auditor,
+                working_diff,
+                diff_region="r",
+                template_diff_id="m",
+            )
+            assert not combined.passed or machine_result.passed
+            if not machine_result.passed:
+                assert combined is machine_result
+            elif auditor.verdict == "pass":
+                assert combined is machine_result
+            else:
+                assert not combined.passed
+
+
+def test_mandatory_veto_revalidates_mutated_auditor_scalars_and_entries_at_sink():
+    working_diff = "actual working diff\n"
+    digest = compute_diff_digest(working_diff)
+    machine_pass = DiffQuarantineResult(passed=True)
+    mutated = []
+
+    contradictory = AuditorVerdict(
+        verdict="reject", diff_digest=digest, violations=[{"type": 1}],
+    )
+    contradictory.verdict = "pass"
+    mutated.append(contradictory)
+
+    invalid_entry = AuditorVerdict(verdict="pass", diff_digest=digest)
+    invalid_entry.nits.append({"type": "not-a-nit"})
+    mutated.append(invalid_entry)
+
+    for auditor in mutated:
+        try:
+            apply_mandatory_deny_only_veto(
+                machine_pass,
+                auditor,
+                working_diff,
+                diff_region="r",
+                template_diff_id="m",
+            )
+            raise AssertionError("事後変異した auditor verdict を素通しした")
+        except AuditorGateFailure:
+            pass
 
 
 def test_auditor_reject_result_carries_axis_identity_from_arguments():

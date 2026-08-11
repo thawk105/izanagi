@@ -885,3 +885,20 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acceptance-partition-invariance":"[T-826]","T:acceptance-slow-tests":"[T-827]"},"authored":"2026-08-11","content_sha256":"bb1633270592ba73e9b2d4cebeb8b3657c686c55564e97c81d4e8293a34b968e","seq":65,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"5d581974f7f629a0a03ebbd7c0f2cfce0b8ba01199d9078bbb476472fc31a989","seq":66,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-hash-pin-detection-gap":"[T-829]","T:check-docs-fence-scanner-column":"[T-830]","T:upper-cancellation-record":"[T-828]"},"authored":"2026-08-11","content_sha256":"fccbb75f5264a075062422ca4306aab4ce62b9e899638178f06c3bba5f80d10d","seq":1,"wave":"dev-wave-t657-stage0-fold"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"913c11c384e8b7e6e270abdf63838c53f50fcf4294e7475a2df3663849047073","seq":2,"wave":"dev-wave-t657-stage0-fold"}
+
+- {"allocations":{"T:living-docs-node-variance":"[T-832]","T:node-variance-impl":"[T-831]"},"authored":"2026-08-11","content_sha256":"82b2d4808cdd19011ee6020eb3c681bf81b3edf625d30b025438f9848eeef278","seq":1,"wave":"dev-wave-t810-node-variance"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1e4961a9efd8c407d119a5eda8e4782b65bb8a18f24f02a6b15ee54e50fe3af8","seq":2,"wave":"dev-wave-t810-node-variance"}
+
+- {"allocations":{"T:trace-stdout-same-run-nonce":"[T-833]","T:verifier-epoch-consumer-inventory":"[T-834]"},"authored":"2026-08-11","content_sha256":"792f16d045c58399826983f9a0e8ab0d745ce0993973e0da7ff25e6c7b143e19","seq":1,"wave":"dev-wave-t817-verifier-epoch"}
+
+- {"allocations":{"T:acceptance-record-order-contract":"[T-836]","T:runbook-request-id-pre-submission":"[T-835]"},"authored":"2026-08-11","content_sha256":"52a3fcac30251da88bb83c2b7ffbfa15ce145fb705bd37e9bcd4d78729ba9fa7","seq":1,"wave":"dev-wave-t809-fanout-conditions"}
+
+- {"allocations":{"T:trace-v2-commit-topology":"[T-837]","T:trace-v2-emitter-verifier-wiring":"[T-839]","T:trace-v2-step4-protocol-gate":"[T-838]"},"authored":"2026-08-11","content_sha256":"5a525b968b7e70e218d7f8f4cc40135df690593e9e12fe3551c6a96ee80c0174","seq":1,"wave":"dev-wave-t756-fn2-trace-v2"}
+- {"allocations":{"D:trace-v2-in-editable-surface":"D296","D:trace0-preprocess-identity-gate":"D297"},"authored":"2026-08-11","content_sha256":"0d200faaa0ee8e505acb3b2b6c4610e9009e5f7b35e8d22b984675683d129344","seq":2,"wave":"dev-wave-t756-fn2-trace-v2"}
+- {"allocations":{"F:mutation-digest-truncation-hides-expected-nodes":"F220","F:plan-child-asserts-absent-toolchain":"F221"},"authored":"2026-08-11","content_sha256":"f1e65a487615b66b4fd91cb3fb1833f8fcb21de1350fe7694bc54221cdb33834","seq":3,"wave":"dev-wave-t756-fn2-trace-v2"}
+
+- {"allocations":{"T:backoff-value-truncation":"[T-843]","T:codex-roles-import-path":"[T-846]","T:dw-o01-artifact-root":"[T-845]","T:launcher-termination-flake":"[T-844]","T:t316-coder-derived-bypass":"[T-840]","T:t316-forbidden-identifiers-vacuous":"[T-842]","T:t316-gate-receipt-binding":"[T-841]"},"authored":"2026-08-11","content_sha256":"7ca3e99bcac4deb11f36c4cb6bb5c9a317a981416ec8129190403d7fb4cbe824","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
+- {"allocations":{"D:coder-hole-effect-gate":"D298"},"authored":"2026-08-11","content_sha256":"9158576e97999a58a820cc471d2cdd945684b5bc74b561f8003b796f496a58ba","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}

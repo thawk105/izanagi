@@ -1,0 +1,35 @@
+=== clone head ===
+=== gflags static install ===
+gflags configure rc=0
+gflags build rc=0
+=== glog static install ===
+glog configure rc=0
+glog build rc=0
+=== ccbench configure (TRACE=1) ===
+configure rc=0
+=== build ycsb_silo.exe ===
+build rc=0
+binary: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t756-fn2-trace-v2/emitter-probe2/build/cc/silo/ycsb_silo.exe
+=== run (short) ===
+run rc=0
+=== trace files ===
+=== first lines of one trace ===
+=== framing check ===
+FRAMING-FILES: 4
+FRAMING-TXNS: 244971
+FRAMING-V1-C-LINES: 0
+FRAMING-PROBLEMS: 0
+FRAMING-RESULT: pass
+framing rc=0
+C 1 0 1 1 5 3
+R 1 0000000000000005 1 0
+R 1 0000000000000024 1 0
+R 1 000000000000003d 1 0
+R 1 000000000000000f 1 0
+R 1 0000000000000008 1 0
+W 1 0000000000000008 U 1 1
+W 1 0000000000000024 U 1 1
+W 1 000000000000003d U 1 1
+E 1
+C 5 0 1 2 4 4
+R 5 0000000000000000 1 0
