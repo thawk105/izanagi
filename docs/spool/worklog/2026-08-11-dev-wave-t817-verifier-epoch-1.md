@@ -52,10 +52,12 @@ closure 8 path の blob SHA-256 を記録しており、その中に witness gat
 M5 「凍結 producer は走らせない」は誤りで検証テストが実 repo で再構築する / N1 の除外単位は
 verify 記録 571 ではなく committed attempt 459。**両レンズとも NO-GO、refuted 所見はゼロ。**
 
-**受入全走は実施しない。** 実装差分ゼロの docs のみで、追加・変更した tracked file は
-`output/insights/2026-08-11_t817-verifier-epoch/**` と本 fragment だけである。repo を実読するテストの
-対象コードを 1 行も変えていないため、受入で新たに発火する node が存在しない
-(`git diff --stat` で確認、`.py` の差分ゼロ)。`python3 tools/check_docs.py` は実走して緑を確認した。
+**受入全走を実施した (DW-S04 の「受入全走は免除せず」に従い、静的な免除論で済ませなかった)。**
+1 走目は受入 lease を 7200 秒取得できず `claim-timeout` rc=70 (保持者が 3 回交代する競合)。
+待ち上限を 21600 秒へ延ばした 2 走目で取得し、待ち手が local main を取り込んだうえで実走した。
+結果は **8832 passed / 20 skipped / 0 failed** (565.77 秒、計算ノード dispatch、request 903942)。
+`python3 tools/check_docs.py` と全史 provenance 監査も緑。実装差分はゼロで、変更した tracked file は
+`output/insights/2026-08-11_t817-verifier-epoch/**` と本 fragment だけである。
 
 **段 8 の自己改善は予算に阻まれて実装しなかった。** 実測した候補 = codex 子の job-id は prompt 内容
 由来なので、親の誤りで入力を欠いた無効走を投入し直すとき、出力ファイル名だけ変えても同じ job-id に
