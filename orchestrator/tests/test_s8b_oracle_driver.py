@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import real_repo_ratified_memo as ratified_memo  # noqa: E402
 import real_repo_receipt_memo as receipt_memo  # noqa: E402
+import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from orchestrator.campaign import env_contract as ec  # noqa: E402
@@ -47,6 +48,7 @@ from orchestrator.campaign import model, pipeline, s8b_budget, s8b_oracle_driver
 from orchestrator.campaign import s8b_freeze_io  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_oracle_manifest as manifest_module  # noqa: E402
+from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.campaign import s8b_oracle_report as report_module  # noqa: E402
 from orchestrator.campaign import s8b_holdout_freeze  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
@@ -81,6 +83,27 @@ _NO_ACTIVE_REFUSAL = (
     "freeze-ratify: [no-active] [no-active] live active pointer が無い "
     "(v2 未発効)"
 )
+_APPROVED_BY_PATH: dict[Path, spec_fixture.ReviewedSpecFixture] = {}
+_ACTIVE_APPROVED: spec_fixture.ReviewedSpecFixture | None = None
+
+
+@pytest.fixture(autouse=True)
+def _approved_spec_loader(monkeypatch):
+    """driver test の直前に組み立てた explicit spec snapshot を production へ渡す。"""
+    global _ACTIVE_APPROVED
+    _ACTIVE_APPROVED = None
+
+    def load_approved_spec(_root):
+        if _ACTIVE_APPROVED is None:
+            raise oracle_spec.ReviewedSpecError("no-approved-spec")
+        monkeypatch.setattr(
+            oracle_spec, "APPROVED_SPEC_SHA256", _ACTIVE_APPROVED.sha256,
+        )
+        return _ACTIVE_APPROVED.reviewed_spec
+
+    monkeypatch.setattr(
+        driver.s8b_oracle_spec, "load_approved_spec", load_approved_spec,
+    )
 
 _T080_SOURCE_GOLDEN = (
     ("known_axes", "/entries/balanced/ident_all/sources/3/sha256", "3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1"),
@@ -1426,9 +1449,9 @@ def _prepare_factory(
     return fake_prepare
 
 
-def _schedule() -> dict:
+def _schedule(*, master_seed="driver-fixture") -> dict:
     return manifest_module.build_schedule(
-        n=1, master_seed="driver-fixture", block_sizes={"b0": 1},
+        n=1, master_seed=master_seed, block_sizes={"b0": 1},
         holdout_ids=_holdout_ids(), configuration_ids=CONFIGURATIONS,
     )
 
@@ -1440,9 +1463,11 @@ def _source(path: str, *, root=ROOT) -> dict:
 
 def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
                     *, source_root=ROOT, generator_paths=None,
-                    contract=None) -> tuple[Path, dict]:
+                    contract=None, master_seed="driver-fixture",
+                    activate_approved=True, name="oracle_manifest.json",
+                    campaign_id="s8b-oracle-fixture-b0") -> tuple[Path, dict]:
     freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
-    schedule = _schedule()
+    schedule = _schedule(master_seed=master_seed)
     bindings = []
     for holdout_id in _holdout_ids():
         for configuration_id in CONFIGURATIONS:
@@ -1459,27 +1484,54 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
     if generator_paths is None:
         generator_paths = GENERATOR_SOURCES
     contract = contract or ec.lookup(V2_ENV_TAG)
+    run_contract = {
+        "ccbench_pin": "fixture-pin", "env_tag": contract.env_tag,
+        "clocks": contract.clocks_per_us, "reps": 5, "extime": 5,
+        "verify": "legacy+s2", "screening": "off",
+        "bench_max_rounds": 1,
+        "contract_sha256": contract.contract_sha256,
+    }
+    generators = {
+        role: _source(generator_paths[role], root=source_root)
+        for role in GENERATOR_SOURCES
+    }
+    approved = spec_fixture.make_reviewed_spec(
+        root=source_root, n=1, master_seed=master_seed,
+        block_sizes={"b0": 1}, holdout_ids=_holdout_ids(),
+        configuration_ids=CONFIGURATIONS, run_contract=run_contract,
+        campaign_ids={"b0": campaign_id},
+        binding_identity=bindings,
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=generators,
+    )
+    global _ACTIVE_APPROVED
+    if activate_approved:
+        _ACTIVE_APPROVED = approved
     document = manifest_module.build_manifest(
         freeze_path=freeze_path,
+        spec_sha256=approved.sha256,
         schedule=schedule,
-        run_contract={
-            "ccbench_pin": "fixture-pin", "env_tag": contract.env_tag,
-            "clocks": contract.clocks_per_us, "reps": 5, "extime": 5,
-            "verify": "legacy+s2", "screening": "off",
-            "bench_max_rounds": 1,
-            "contract_sha256": contract.contract_sha256,
-        },
+        run_contract=run_contract,
         binding_identity=bindings,
-        campaign_ids={"b0": "s8b-oracle-fixture-b0"},
+        campaign_ids={"b0": campaign_id},
         allowed_excluded_reasons=["machine-failure"],
-        generator_versions={
-            role: _source(generator_paths[role], root=source_root)
-            for role in GENERATOR_SOURCES
-        },
+        generator_versions=generators,
     )
-    path = tmp_path / "oracle_manifest.json"
+    path = tmp_path / name
     manifest_module.write_manifest(path, document)
+    _APPROVED_BY_PATH[path.resolve()] = approved
     return path, document
+
+
+def _verify_manifest(path, *, root, freeze_document, freeze_sha256):
+    approved = _APPROVED_BY_PATH[Path(path).resolve()]
+    with mock.patch.object(
+            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+        return manifest_module.verify_manifest(
+            path, root=root, freeze_document=freeze_document,
+            freeze_sha256=freeze_sha256,
+            approved_spec=approved.reviewed_spec,
+        )
 
 
 def _fake_evaluate_factory(*, bench_wall_s: float = 0.25):
@@ -1611,6 +1663,9 @@ def test_gate_check_core_rejects_reverified_freeze_token(tmp_path):
         freeze_path=freeze_path,
         root=tmp_path,
         t080_resolution=resolution,
+        approved_spec=None,
+        manifest_verification_error=None,
+        standalone_manifest_verification=False,
         launch_validated=historical,
     )
 
@@ -1717,6 +1772,161 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
         )
 
 
+def _run_with_real_manifest_gate(
+        *, root, freeze_path, manifest_path, output_root, budget_path,
+        marker_root, prepare_fn, evaluate_fn):
+    validated = _fake_launch_validated(freeze_path)
+    with mock.patch.object(
+            driver, "_resolve_t080_receipt",
+            return_value=_never_issued_resolution()), mock.patch.object(
+            driver.s8b_ratified_freeze, "load_ratified_freeze",
+            return_value=validated.ratified), mock.patch.object(
+            driver.s8b_ratified_freeze, "launch_validate",
+            return_value=validated), mock.patch.object(
+            driver.s1_known_axes_freeze, "verify", return_value=None), mock.patch.object(
+            driver, "_prepare_v2_execution", side_effect=_canned_plan):
+        return driver.run_block(
+            manifest_path=manifest_path, block_id="b0",
+            freeze_path=freeze_path, root=root,
+            output_root=output_root, budget_path=budget_path,
+            marker_root=marker_root,
+            prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
+        )
+
+
+def test_spec_matching_gate_and_run_reach_execution_but_other_spec_refuses_without_outputs(
+        tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    positive_prepare = _prepare_factory()
+    positive_manifest, _ = _write_manifest(
+        tmp_path, freeze_path, positive_prepare, name="manifest-a.json",
+    )
+    approved_a = _ACTIVE_APPROVED
+    positive_prepare.calls.clear()
+    positive_eval = _fake_evaluate_factory()
+    validated = _fake_launch_validated(freeze_path)
+    with mock.patch.object(
+            driver, "_resolve_t080_receipt",
+            return_value=_never_issued_resolution()), mock.patch.object(
+            driver.s8b_ratified_freeze, "load_ratified_freeze",
+            return_value=validated.ratified), mock.patch.object(
+            driver.s8b_ratified_freeze, "launch_validate",
+            return_value=validated), mock.patch.object(
+            driver.s1_known_axes_freeze, "verify", return_value=None):
+        allowed = driver.gate_check(
+            freeze_path=freeze_path, manifest_path=positive_manifest, root=ROOT,
+        )
+    assert allowed.allowed, allowed.refusals
+
+    positive = _run_with_real_manifest_gate(
+        root=ROOT, freeze_path=freeze_path, manifest_path=positive_manifest,
+        output_root=tmp_path / "positive-out",
+        budget_path=tmp_path / "positive-budget.json",
+        marker_root=tmp_path / "positive-markers",
+        prepare_fn=positive_prepare, evaluate_fn=positive_eval,
+    )
+    assert positive["status"] == "completed", positive
+    assert positive_prepare.calls and positive_eval.calls
+
+    negative_prepare = _prepare_factory()
+    negative_manifest, _ = _write_manifest(
+        tmp_path, freeze_path, negative_prepare,
+        master_seed="driver-fixture-other-spec", activate_approved=False,
+        name="manifest-b.json",
+    )
+    assert _ACTIVE_APPROVED is approved_a
+    negative_prepare.calls.clear()
+    negative_eval = _fake_evaluate_factory()
+    negative_out = tmp_path / "negative-out"
+    negative_budget = tmp_path / "negative-budget.json"
+    negative_markers = tmp_path / "negative-markers"
+    refused = _run_with_real_manifest_gate(
+        root=ROOT, freeze_path=freeze_path, manifest_path=negative_manifest,
+        output_root=negative_out, budget_path=negative_budget,
+        marker_root=negative_markers,
+        prepare_fn=negative_prepare, evaluate_fn=negative_eval,
+    )
+    assert refused["status"] == "refused"
+    assert not refused["allowed"]
+    assert len(refused["refusals"]) == 1
+    assert refused["refusals"][0].startswith("manifest-verify:")
+    assert negative_prepare.calls == []
+    assert negative_eval.calls == []
+    assert not negative_out.exists()
+    assert not negative_budget.exists()
+    assert not negative_markers.exists()
+
+
+@pytest.mark.parametrize(
+    ("axis", "message"),
+    [
+        ("exact-type", "VerifiedManifest exact type"),
+        ("file-hash", "実 bytes/document と不一致"),
+        ("document-hash", "実 bytes/document と不一致"),
+        ("spec-hash", "approved spec と不一致"),
+    ],
+)
+def test_gate_check_rebinds_each_injected_verified_manifest_axis(
+        tmp_path, axis, message):
+    global _ACTIVE_APPROVED
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare = _prepare_factory()
+    manifest_path, _ = _write_manifest(
+        tmp_path, freeze_path, prepare, name="injection-a.json",
+    )
+    approved_a = _ACTIVE_APPROVED
+    verified = _verify_manifest(
+        manifest_path, root=ROOT,
+        freeze_document=json.loads(freeze_path.read_text(encoding="utf-8")),
+        freeze_sha256=hashlib.sha256(freeze_path.read_bytes()).hexdigest(),
+    )
+    validated = _fake_launch_validated(freeze_path)
+
+    def gate(candidate):
+        return driver.gate_check(
+            freeze_path=freeze_path, manifest_path=manifest_path, root=ROOT,
+            verified_manifest=candidate,
+        )
+
+    with mock.patch.object(
+            driver, "_resolve_t080_receipt",
+            return_value=_never_issued_resolution()), mock.patch.object(
+            driver.s8b_ratified_freeze, "load_ratified_freeze",
+            return_value=validated.ratified), mock.patch.object(
+            driver.s8b_ratified_freeze, "launch_validate",
+            return_value=validated), mock.patch.object(
+            driver.s1_known_axes_freeze, "verify", return_value=None):
+        accepted = gate(verified)
+        assert accepted.allowed, accepted.refusals
+
+        candidate = verified
+        if axis == "exact-type":
+            candidate = mock.Mock(
+                document=verified.document, sha256=verified.sha256,
+            )
+        elif axis == "file-hash":
+            changed = json.loads(manifest_path.read_text(encoding="utf-8"))
+            changed["manifest_id"] = "changed-file-manifest-id"
+            manifest_path.write_text(
+                json.dumps(changed, ensure_ascii=False), encoding="utf-8",
+            )
+        elif axis == "document-hash":
+            verified.document["manifest_id"] = "changed-token-document-id"
+        elif axis == "spec-hash":
+            _write_manifest(
+                tmp_path, freeze_path, _prepare_factory(),
+                master_seed="injection-other-spec",
+                name="injection-other-authority.json",
+            )
+            assert _ACTIVE_APPROVED is not approved_a
+
+        decision = gate(candidate)
+
+    assert not decision.allowed
+    assert len(decision.refusals) == 1
+    assert message in decision.refusals[0]
+
+
 def _run_required_preflight(
         tmp_path: Path, *, activate_authority, receipt_issuer=None, verified_override=None,
         environ: dict[str, str] | None = None):
@@ -1731,7 +1941,7 @@ def _run_required_preflight(
         tmp_path, freeze_path, prepare_fn, contract=contract,
     )
     verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
-    verified_manifest = manifest_module.verify_manifest(
+    verified_manifest = _verify_manifest(
         manifest_path,
         root=ROOT,
         freeze_document=verified_freeze.document,
@@ -1816,7 +2026,7 @@ def _required_run_fixture(tmp_path: Path, activate_authority):
     prepare_fn.calls.clear()
     validated = _fake_launch_validated(freeze_path, env_tag=contract.env_tag)
     verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
-    verified_manifest = manifest_module.verify_manifest(
+    verified_manifest = _verify_manifest(
         manifest_path,
         root=ROOT,
         freeze_document=verified_freeze.document,
@@ -2355,6 +2565,7 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
     freeze_path = _synthetic_freeze(tmp_path)
     prepare_fn = _prepare_factory()
     manifest_path, document = _write_manifest(tmp_path, freeze_path, prepare_fn)
+    approved = _APPROVED_BY_PATH[manifest_path.resolve()]
     receipt_root = tmp_path / "receipt-free-repo"
     receipt_root.mkdir()
     _run_git(receipt_root, "init", "-q", "--object-format=sha1")
@@ -2381,7 +2592,9 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
         from orchestrator.campaign import env_contract, execution_guard
         from orchestrator.campaign.durable_root import DurableRootPolicy
         from orchestrator.campaign import s8b_oracle_driver as driver
-        from orchestrator.campaign import s8b_oracle_manifest, s8b_ratified_freeze
+        from orchestrator.campaign import (
+            s8b_oracle_manifest, s8b_oracle_spec, s8b_ratified_freeze,
+        )
 
         freeze_path = Path({str(freeze_path)!r})
         raw = freeze_path.read_bytes()
@@ -2395,10 +2608,19 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
             ratified=ratified, activation_head=ratified.activation_head,
             search_digest="d" * 64, symlink_gitlink_inventory=(),
             floor_artifact=floor, binaries_by_cell={{}})
+        spec_raw = {approved.raw_bytes!r}
+        spec_document = json.loads(spec_raw)
+        validated_spec, spec_schedule = s8b_oracle_spec.validate_reviewed_spec(
+            spec_document, root=Path({str(ROOT)!r}))
+        approved_spec = s8b_oracle_spec.ReviewedSpec(
+            document=validated_spec, raw_bytes=spec_raw,
+            sha256={approved.sha256!r}, schedule=spec_schedule)
+        s8b_oracle_spec.APPROVED_SPEC_SHA256 = approved_spec.sha256
         verified_manifest = s8b_oracle_manifest.verify_manifest(
             Path({str(manifest_path)!r}), root=Path({str(ROOT)!r}),
             freeze_document=json.loads(raw),
-            freeze_sha256=hashlib.sha256(raw).hexdigest())
+            freeze_sha256=hashlib.sha256(raw).hexdigest(),
+            approved_spec=approved_spec)
         base = env_contract.lookup("linux-baremetal")
         required = dataclasses.replace(
             base, attestation_mode="required",
@@ -2423,6 +2645,8 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
                                       "launch_validate", return_value=validated), \
                     mock.patch.object(driver, "verify_manifest",
                                       return_value=verified_manifest), \
+                    mock.patch.object(driver.s8b_oracle_spec, "load_approved_spec",
+                                      return_value=approved_spec), \
                     mock.patch.object(driver, "_prepare_v2_execution",
                                       return_value=plan), \
                     mock.patch.object(driver, "_ensure_campaign",
@@ -3111,6 +3335,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
     freeze_path = _synthetic_freeze(tmp_path)
     manifest_prepare = _prepare_factory()
     manifest_path, _ = _write_manifest(tmp_path, freeze_path, manifest_prepare)
+    approved = _APPROVED_BY_PATH[manifest_path.resolve()]
     output_root = tmp_path / "cli-out"
     budget_path = tmp_path / "cli-budget.json"
 
@@ -3125,6 +3350,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         from orchestrator.campaign import s8b_oracle_driver as driver
         from orchestrator.campaign import env_contract as ec
         from orchestrator.campaign import execution_guard
+        from orchestrator.campaign import s8b_oracle_spec
         from orchestrator.campaign import s8b_ratified_freeze
         from orchestrator.campaign.model import Genome
         from orchestrator.campaign.s1_direct_comparison import PreparedCell
@@ -3170,6 +3396,17 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
             "never-issued", (), None, "c" * 40,
         )
 
+        spec_raw = {approved.raw_bytes!r}
+        spec_document = json.loads(spec_raw)
+        validated_spec, spec_schedule = s8b_oracle_spec.validate_reviewed_spec(
+            spec_document, root=Path({str(ROOT)!r}),
+        )
+        approved_spec = s8b_oracle_spec.ReviewedSpec(
+            document=validated_spec, raw_bytes=spec_raw,
+            sha256={approved.sha256!r}, schedule=spec_schedule,
+        )
+        s8b_oracle_spec.APPROVED_SPEC_SHA256 = approved_spec.sha256
+
         driver.DEFAULT_BUDGET_PATH = {str(budget_path)!r}
         with mock.patch.object(
                 driver, "_gate_check_validated",
@@ -3180,6 +3417,8 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
                                "load_ratified_freeze", return_value=ratified), \\
              mock.patch.object(driver.s8b_ratified_freeze,
                                "launch_validate", return_value=validated), \\
+             mock.patch.object(driver.s8b_oracle_spec,
+                               "load_approved_spec", return_value=approved_spec), \\
              mock.patch.object(driver, "_prepare_v2_execution", fake_plan), \\
              mock.patch.object(driver, "prepare_cell", fake_prepare):
             rc = driver.main([
@@ -3294,6 +3533,7 @@ def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
     def recording_gate(*, freeze_path, manifest_path, root, t080_resolution=None,
                        verified=None,
                        verified_manifest=None, launch_validated=None,
+                       approved_spec=None, manifest_verification_error=None,
                        ratified=None, ratified_error=None):
         captured["launch_validated"] = launch_validated
         captured["verified_manifest"] = verified_manifest
@@ -3376,8 +3616,10 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
     def recording_gate(*, freeze_path, manifest_path, root, t080_resolution=None,
                        verified=None,
                        verified_manifest=None, launch_validated=None,
+                       approved_spec=None, manifest_verification_error=None,
                        ratified=None, ratified_error=None):
         captured["gate_manifest"] = verified_manifest
+        captured["approved_spec"] = approved_spec
         return driver.GateDecision(True, [], None)
 
     # [T-057] 対象は manifest verify / read 回数。receipt 解決は incidental なので memo する。
@@ -3407,6 +3649,7 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
     # gate へ渡った VerifiedManifest は verify_manifest が返したまさに同一 object。
     assert isinstance(captured["verified_manifest"], manifest_module.VerifiedManifest)
     assert captured["gate_manifest"] is captured["verified_manifest"]
+    assert captured["approved_spec"] is _ACTIVE_APPROVED.reviewed_spec
 
 
 def test_v6_freeze_swap_after_verify_is_not_observed(tmp_path):
@@ -4036,7 +4279,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     launch_validated = s8b_ratified_freeze.launch_validate(
         s8b_ratified_freeze.load_ratified_freeze(root), root,
     )
-    loaded_manifest = manifest_module.verify_manifest(
+    loaded_manifest = _verify_manifest(
         manifest_path,
         root=root,
         freeze_document=launch_validated.ratified.document,
@@ -4391,15 +4634,35 @@ def test_v2_store_hash_mismatch_is_refused(tmp_path):
 
 def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     """run_contract.contract_sha256 が env 契約 lookup 結果と不一致なら refusal。"""
+    global _ACTIVE_APPROVED
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
     out_root = root / "output"
     manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
+    original_approved = _APPROVED_BY_PATH[manifest_path.resolve()]
     # env_tag は維持し、manifest 内部だけ整合する別 contract_sha256 へ再封する。
     document = json.loads(manifest_path.read_text(encoding="utf-8"))
     original_sha256 = document["run_contract"]["contract_sha256"]
     document["run_contract"]["contract_sha256"] = (
         ("0" if original_sha256[0] != "0" else "1") + original_sha256[1:]
     )
+    parameters = original_approved.document["schedule_parameters"]
+    changed_approved = spec_fixture.make_reviewed_spec(
+        root=root,
+        n=parameters["n"],
+        master_seed=parameters["master_seed"],
+        block_sizes=parameters["block_sizes"],
+        holdout_ids=parameters["holdout_ids"],
+        configuration_ids=parameters["configuration_ids"],
+        run_contract=document["run_contract"],
+        campaign_ids=original_approved.document["campaign_ids"],
+        binding_identity=original_approved.document["binding_identity"],
+        allowed_excluded_reasons=(
+            original_approved.document["allowed_excluded_reasons"]
+        ),
+        generator_versions=original_approved.document["generator_versions"],
+    )
+    _ACTIVE_APPROVED = changed_approved
+    document["spec_sha256"] = changed_approved.sha256
     document["campaign_config_preimages"] = (
         manifest_module._campaign_config_preimages(
             schedule=document["schedule"],
@@ -4412,6 +4675,7 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     bad_manifest = tmp_path / "bad_manifest.json"
     bad_manifest.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n",
                             encoding="utf-8")
+    _APPROVED_BY_PATH[bad_manifest.resolve()] = changed_approved
 
     result = _run_v2(root, freeze_path, bad_manifest, _prepare_factory(),
                      _fake_evaluate_factory(), out_root=out_root, tmp_path=tmp_path)
