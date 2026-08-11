@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-11
 wave: dev-wave-t786-docs-budget
 seq: 1
-title: docs 予算棚卸し wave — 上限を上げずに 8 件を入庫し 6 件を審査結果として返した (コード + docs、変異 6/6 KILLED、受入は本 fragment 時点で未実施、branch worktree-dev-wave-t786-docs-budget)
+title: docs 予算棚卸し wave — 上限を上げずに 8 件を入庫し 6 件を審査結果として返した (コード + docs、受入 8715 passed / 20 skipped / 558.18 秒 / rc=0、変異 6/6 KILLED、branch worktree-dev-wave-t786-docs-budget)
 ---
 
 ## 本文
@@ -45,6 +45,8 @@ title: docs 予算棚卸し wave — 上限を上げずに 8 件を入庫し 6 �
   harness の matrix は production を壊す 6 件へ組み直した。**6/6 KILLED、MISMATCH 0、SURVIVED 0。**
   特に M5 (打消し語検査を殺す) が `decoy-optional` に殺されたことが、新設検査が
   「literal がそこにあるか」だけを見る恒真な検査でないことの実証である。
+- 受入全走は **8715 passed / 20 skipped / 558.18 秒 / rc=0** (受入 lease 内、計算ノード dispatch)。
+  記録 commit を含む tip で走らせ、走行前に main を取り込んで base digest を取り直した。
 - 逐語・変異台帳・審査結果 package は
   `output/insights/2026-08-11_t786-docs-budget/` に凍結した。
 
