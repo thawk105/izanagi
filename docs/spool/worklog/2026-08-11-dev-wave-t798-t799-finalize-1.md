@@ -62,6 +62,32 @@ title: fold transaction を単一 finalize protocol にし観測値で束縛し�
 - **セッション事象**: 段 2 の初回投入は `--artifact-root` の親 directory 不在で rc=2 (起動前の
   argv エラー、成果物ゼロ) だった。directory を作り新しい artifact 名で再投入した。
 
+- **受入全走で main 由来の赤 2 件を観測し、ユーザー裁定で既知赤 waiver W2 を新設した。**
+  対象は `orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials`
+  と `orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed` の
+  **2 node のみ**である。原因は本 wave の差分ではなく、main の `docs/decisions.md` にある
+  **D305 が D291 を 6 箇所参照している**ことで、[T-793] の scanner
+  (「D291 より後の decision が D291 を参照したら fail-closed」) が `D292` と `D305` の
+  両方を返す一方、テストは `["D292"]` だけを期待している。
+  **本 wave は `docs/decisions.md` を 1 byte も変えていない** (差分で確認)。
+  テストは main の `c820722a` で land し、その後の fold commit `427da17c` (main の tip) が
+  D305 を追加して壊した。
+- **W2 の適用条件 (毎回検査する)。** (1) 赤が上記 2 node **だけ**であること
+  (他の赤が 1 件でもあれば適用せず停止)、(2) 自 wave の差分が `docs/decisions.md` を
+  変更していないこと、(3) canonical の D305 が D291 を参照していることを実際に確認すること。
+  **並行セッションも同じ 3 条件でだけ適用してよい。**
+  失効: [T-793] の scanner 仕様かテスト期待値のどちらが正かが裁定され、その修正が land した時点。
+- **W2 の失効見込み — 修正は既に存在する。** 並行 wave [T-827] から共有があり、
+  `worktree-dev-wave-t827-slow-tests` の commit `292151a5` が
+  `orchestrator/tests/test_t793_report.py` だけを直している (production は正しいので不変)。
+  向こうの裁定は「`status == "possible_supersession"` は exact 維持、`"D292" in decision_ids` を
+  必須にし、**完全一致は要求せず**昇順・重複なしという構造的性質を検査する」であり、
+  D292 を落とす変異で両 node が KILLED になることを確認済みとのこと。
+  **本 wave は cherry-pick しない** — 向こうが land 準備中で、同じ commit を二重に持つと
+  land 時に衝突するため。向こうの land 後に main を取り込めば W2 は自動的に失効する。
+  なお `git diff --stat main -- orchestrator/publication/ docs/decisions.md` が空であることを
+  本 wave でも実測し、入力が main と byte 同一であることを確認した。
+
 ## 次の一手差分
 
 ### 更新
