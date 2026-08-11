@@ -821,3 +821,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:cfab-design-row-extraction-declared-form-only":"[T-797]","T:cfab-revocation-record-schema":"[T-795]","T:cfab-stage0-completion-unreachable":"[T-794]","T:cfab-stage6-completion-predicate":"[T-796]"},"authored":"2026-08-11","content_sha256":"ceee57ea924a61366a0a9cf49a23dc85803ae25aaaf81bbb31e3768d0a267566","seq":1,"wave":"dev-wave-t657-stage0-rulings"}
 - {"allocations":{"F:design-literal-hidden-in-html-comment":"F215","F:mutation-spec-renumbered-after-preregistration":"F216"},"authored":"2026-08-11","content_sha256":"e0c7ccd1aee1e877779e1bbaa415d9816720db1061f5403152b7cc8c2a292b02","seq":2,"wave":"dev-wave-t657-stage0-rulings"}
 - {"allocations":{"D:design-literal-binding-rejects-html-comments":"D285","D:dev-wave-waiter-pid-and-codex-coldstart":"D286"},"authored":"2026-08-11","content_sha256":"5df2a09f5ffc1ceb3d42c4f3610bb0591b1a2b0fb7c2fc066aabe51a4834b4a6","seq":3,"wave":"dev-wave-t657-stage0-rulings"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c17acce403a0391868c30845df177d186f171814bbe3aa86282e710169c3c2b3","seq":52,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dryrun-git-admin-no-write":"[T-802]","T:fold-finalize-protocol":"[T-798]","T:fold-state-head-binding":"[T-799]","T:rollback-lifecycle-details":"[T-801]","T:rollback-state-inspection":"[T-800]"},"authored":"2026-08-11","content_sha256":"2eeeaec13db4463c9d5202a17ffcffa7ee0e3de03fb2f704e58fc354d0bdff92","seq":1,"wave":"dev-wave-t766-t768-resume-diff"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"694f8616196d584bb23ccda37c289c0d368b0776d68f9604b55357bcda032434","seq":2,"wave":"dev-wave-t766-t768-resume-diff"}
+
+- {"allocations":{"T:budget-authorization-proof-chain":"[T-805]","T:dev-wave-launch-procedure-gaps":"[T-806]","T:legacy-writer-path-containment":"[T-807]","T:manifest-spec-propagation":"[T-804]","T:oracle-spec-trust-root":"[T-803]"},"authored":"2026-08-11","content_sha256":"7f5a3178022576be563e4ec0d2da5b0cc86f05d3d3c0d5f3b8dc47f1979770e9","seq":1,"wave":"dev-wave-t750-freeze-v2-manifest"}
+- {"allocations":{"D:manifest-choke-point-cell-product":"D288","D:pinned-literal-human-approval":"D287"},"authored":"2026-08-11","content_sha256":"5f9d88e3a00e9858f75e594524d031898e23214e0aad30e74507a8cfe401e8bc","seq":2,"wave":"dev-wave-t750-freeze-v2-manifest"}

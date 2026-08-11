@@ -5257,6 +5257,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   予算残 0 bytes のため reference へ統合できない)。
 - 再発検知: dry-run の `status` が `planned` 以外なら受入を投入しない。stale carry は
   `SpoolValidationError` として必ず露出する。
+- **supersede: 2026-08-11** — 恒久対応の dry-run は [T-768] 実装後 `python3 tools/spool_fold.py --dry-run --show-diff` とする。stale carry の露出は変わらず、加えて台帳へ挿入される bytes と削除される fragment を land 前に byte で確認できる。手順の正本は `docs/spool/README.md`。
 
 ### F213. /rulings の収集 grep が見出し変種を落とし裁定待ち 3 件が索引から漏れた [手順漏れ]
 
