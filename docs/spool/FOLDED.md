@@ -871,3 +871,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"123f0da1ff21e5068a27ee37d1926c135332f381287bb4f8000262b7fe643a19","seq":62,"wave":"rulings-20260806-a"}
 
 - {"allocations":{"T:pegasus-job-env-pitfalls":"[T-823]","T:s8c-acceptance-layer3-gap":"[T-822]"},"authored":"2026-08-11","content_sha256":"7986c64599905e8b3c800631134395858e9de7b774056897f2e0952b5af5707f","seq":1,"wave":"dev-wave-t809-8c-fanout"}
+
+- {"allocations":{"T:control-byte-scan-tool":"[T-825]","T:waiter-runtime-receipt":"[T-824]"},"authored":"2026-08-11","content_sha256":"3d5fca18b25bdfeee05b24b576f39877ac16d47ef8fb8cef69908d69024f9b03","seq":1,"wave":"dev-wave-t786-docs-budget"}
+- {"allocations":{"F:reflow-breaks-line-anchored-pins":"F219"},"authored":"2026-08-11","content_sha256":"ee83bbdd6c61aafcdb3cf2785fcf37f2f92a28efb09eae8ed12167225bce3151","seq":2,"wave":"dev-wave-t786-docs-budget"}
