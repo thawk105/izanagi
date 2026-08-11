@@ -147,13 +147,6 @@ def main(argv: list[str] | None = None) -> int:
                 invocation_nonce=invocation_nonce,
                 phase="pre",
             )
-            write_baseline_create_only(
-                baseline_path,
-                result.baseline,
-                invocation_nonce,
-                lineage=result.lineage,
-                pre_witness_sha256=witness_digest,
-            )
         created = write_pass_witness_create_only(
             witness_path,
             result=result,
@@ -174,6 +167,14 @@ def main(argv: list[str] | None = None) -> int:
                 approved_git_identity=identity,
                 writable_root=writable_root,
             )
+            if args.mode == "pre":
+                write_baseline_create_only(
+                    baseline_path,
+                    result.baseline,
+                    invocation_nonce,
+                    lineage=result.lineage,
+                    pre_witness_sha256=witness_digest,
+                )
         except BaseException:
             discard_current_pass_witness(
                 witness_path, created_identity=created

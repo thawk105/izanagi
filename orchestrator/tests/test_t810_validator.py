@@ -134,6 +134,26 @@ def _json_bytes(value: object) -> bytes:
     return (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
 
 
+# measurement fixture (throughput = 1000 + 100*slot + round) を §5.1 の式と
+# 凍結 F 分位点へ直接代入して得た値。validator/estimator の出力は参照しない。
+_FIXTURE_ESTIMATES = {
+    "valid": {
+        "tau_hat": "0.2524732261666034",
+        "tau_L": "0.18597998716204198",
+        "tau_U": "0.38669380925623775",
+        "slope_gate_fired": True,
+        "conclusion_code": "underdetermined_model_violation",
+    },
+    "terminal_reduced": {
+        "tau_hat": "0.2402918582043398",
+        "tau_L": "0.17494012518712057",
+        "tau_U": "0.37665862270265976",
+        "slope_gate_fired": True,
+        "conclusion_code": "underdetermined_model_violation",
+    },
+}
+
+
 def _attempt_tree(
     root: Path,
     prereg: VerifiedT810Preregistration,
@@ -155,7 +175,7 @@ def _attempt_tree(
     if state == "valid":
         started = completed = set(all_ids)
     elif state == "terminal_reduced":
-        started = completed = set(all_ids[:-1])
+        started, completed = set(all_ids), set(all_ids[:-1])
     elif state == "incomplete_after_start":
         started, completed = {all_ids[0]}, set()
     else:
@@ -165,7 +185,7 @@ def _attempt_tree(
     slots: list[dict] = []
     node_hashes: dict[str, str] = {}
     measurement_hashes: dict[str, str] = {}
-    for slot_id in reached:
+    for slot_index, slot_id in enumerate(reached):
         slot = root / slot_id
         slot.mkdir()
         for name in artifacts["slots"]["always_files"]:
@@ -174,7 +194,10 @@ def _attempt_tree(
         if slot_id in started:
             measurement_count = rounds if slot_id in completed else 1
             measurement_raw = b"".join(
-                _json_bytes({"round_id": round_id, "throughput": 1000 + round_id})
+                _json_bytes({
+                    "round_id": round_id,
+                    "throughput": 1000 + 100 * slot_index + round_id,
+                })
                 for round_id in range(1, measurement_count + 1)
             )
             (slot / artifacts["slots"]["conditional_measurements_file"]).write_bytes(
@@ -183,6 +206,7 @@ def _attempt_tree(
             measurement_digest = hashlib.sha256(measurement_raw).hexdigest()
             measurement_hashes[slot_id] = measurement_digest
         is_completed = slot_id in completed
+        execution_count = rounds if is_completed else int(state == "terminal_reduced")
         value = {
             "attempt_nonce": attempt_nonce,
             "complete": True,
@@ -193,7 +217,7 @@ def _attempt_tree(
                 "executable_realpath": str(executable.resolve()),
                 "executable_sha256": executable_digest,
                 "round_id": round_id,
-            } for round_id in range(1, rounds + 1)] if is_completed else [],
+            } for round_id in range(1, execution_count + 1)],
             "measurements_sha256": measurement_digest,
             "slot_id": slot_id,
         }
@@ -207,7 +231,7 @@ def _attempt_tree(
         estimate_raw = _json_bytes({
             "attempt_nonce": attempt_nonce,
             "input_measurements_sha256": measurement_hashes,
-            "tau_hat": "0.001",
+            **_FIXTURE_ESTIMATES[state],
         })
         (root / artifacts["root"]["conditional_estimate_file"]).write_bytes(estimate_raw)
         estimate_sha256 = hashlib.sha256(estimate_raw).hexdigest()
@@ -769,7 +793,7 @@ def test_duplicate_round_id_and_zero_records_are_rejected(tmp_path: Path):
     assert "EXECUTION_RECORDS_EMPTY" in {finding.code for finding in findings}
 
 
-def test_non_completed_slot_execution_and_receipt_file_substitution_are_rejected(
+def test_terminal_reduced_preserves_dropped_execution_and_rejects_receipt_substitution(
     tmp_path: Path,
 ):
     result, repo, prereg, receipt, executable, digest = _positive(
@@ -777,16 +801,13 @@ def test_non_completed_slot_execution_and_receipt_file_substitution_are_rejected
     )
     assert result.ok
     dropped = receipt["slots"][-1]
-    dropped["executions"] = [{
-        "argv": list(canonical_benchmark_argv(prereg, str(executable.resolve()))),
-        "executable_realpath": str(executable.resolve()),
-        "executable_sha256": digest,
-        "round_id": 1,
-    }]
+    assert len(dropped["executions"]) == 1
     findings = __import__(
         "orchestrator.campaign.t810_validator", fromlist=["_verify_executable_and_argv"]
     )._verify_executable_and_argv(prereg, executable, digest, receipt["slots"])
-    assert "NON_COMPLETED_SLOT_HAS_EXECUTIONS" in {finding.code for finding in findings}
+    assert "NON_COMPLETED_SLOT_HAS_EXECUTIONS" not in {
+        finding.code for finding in findings
+    }
 
     receipt_path = (
         tmp_path / "writable" / "attempt" / "slot-12" / "node-receipt.jsonl"
@@ -822,14 +843,75 @@ def test_non_completed_slot_execution_and_receipt_file_substitution_are_rejected
         mountinfo_text=_mountinfo(),
     )
     forged = validate_t810(**common)
-    assert not forged.ok
-    assert "NON_COMPLETED_SLOT_HAS_EXECUTIONS" in {
-        finding.code for finding in forged.findings
+    assert forged.ok and forged.terminal_state == "terminal_reduced"
+
+    dropped["executions"] = []
+    dropped_raw = _json_bytes(dropped)
+    receipt_path.write_bytes(dropped_raw)
+    receipt["coordinator"]["node_receipt_sha256"]["slot-12"] = hashlib.sha256(
+        dropped_raw
+    ).hexdigest()
+    coordinator_raw = _json_bytes(receipt["coordinator"])
+    (tmp_path / "writable" / "attempt" / "coordinator-receipt.jsonl").write_bytes(
+        coordinator_raw
+    )
+    receipt["coordinator_receipt_sha256"] = hashlib.sha256(coordinator_raw).hexdigest()
+    missing_execution = validate_t810(**common)
+    assert not missing_execution.ok
+    assert "DROPPED_SLOT_EXECUTIONS_EMPTY" in {
+        finding.code for finding in missing_execution.findings
     }
 
     receipt_path.write_text("{}\n", encoding="utf-8")
     with pytest.raises(T810ValidationError, match="node receipt chain"):
         validate_t810(**common)
+
+
+def test_terminal_reduced_requires_preserved_dropped_measurement(tmp_path: Path):
+    _, repo, prereg, receipt, executable, digest = _positive(
+        tmp_path, claimed="terminal_reduced"
+    )
+    attempt = tmp_path / "writable" / "attempt"
+    dropped = receipt["slots"][-1]
+    (attempt / "slot-12" / "measurements.jsonl").unlink()
+    dropped["measurements_sha256"] = None
+    dropped_raw = _json_bytes(dropped)
+    (attempt / "slot-12" / "node-receipt.jsonl").write_bytes(dropped_raw)
+    receipt["coordinator"]["node_receipt_sha256"]["slot-12"] = hashlib.sha256(
+        dropped_raw
+    ).hexdigest()
+    estimate_path = attempt / "estimate.json"
+    estimate = json.loads(estimate_path.read_text(encoding="utf-8"))
+    del estimate["input_measurements_sha256"]["slot-12"]
+    estimate_raw = _json_bytes(estimate)
+    estimate_path.write_bytes(estimate_raw)
+    receipt["coordinator"]["estimate_sha256"] = hashlib.sha256(estimate_raw).hexdigest()
+    coordinator_raw = _json_bytes(receipt["coordinator"])
+    (attempt / "coordinator-receipt.jsonl").write_bytes(coordinator_raw)
+    receipt["coordinator_receipt_sha256"] = hashlib.sha256(coordinator_raw).hexdigest()
+
+    identity = resolve_git_identity(repo.resolve())
+    manifest = tmp_path / "manifest.json"
+    result = validate_t810(
+        preregistration=prereg,
+        repo_root=repo.resolve(),
+        approved_git_identity=identity,
+        approved_git_identity_sha256=git_identity_digest(identity),
+        writable_root=(tmp_path / "writable").resolve(),
+        manifest_path=manifest,
+        manifest_root=tmp_path / "frozen",
+        expected_manifest_sha256=hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        executable=executable,
+        expected_executable_sha256=digest,
+        attempt_root=attempt,
+        attempt_receipt=receipt,
+        attempt_nonce="attempt-1",
+        pre_invocation_nonce="invocation-1",
+        claimed_state="terminal_reduced",
+        mountinfo_text=_mountinfo(),
+    )
+    assert not result.ok
+    assert "ATTEMPT_LAYOUT_MISMATCH" in {finding.code for finding in result.findings}
 
 
 def test_estimate_input_set_is_bound_to_actual_measurement_hashes(tmp_path: Path):
@@ -860,6 +942,53 @@ def test_estimate_input_set_is_bound_to_actual_measurement_hashes(tmp_path: Path
             executable=executable,
             expected_executable_sha256=digest,
             attempt_root=tmp_path / "writable" / "attempt",
+            attempt_receipt=receipt,
+            attempt_nonce="attempt-1",
+            pre_invocation_nonce="invocation-1",
+            claimed_state="valid",
+            mountinfo_text=_mountinfo(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "forged"),
+    [
+        ("tau_hat", "0.0"),
+        ("tau_L", "0.0"),
+        ("tau_U", "0.0"),
+        ("slope_gate_fired", False),
+        ("conclusion_code", "underdetermined"),
+    ],
+)
+def test_estimate_values_must_match_recalculation(
+    tmp_path: Path, field: str, forged: object
+):
+    _, repo, prereg, receipt, executable, digest = _positive(tmp_path)
+    attempt = tmp_path / "writable" / "attempt"
+    estimate_path = attempt / "estimate.json"
+    estimate = json.loads(estimate_path.read_text(encoding="utf-8"))
+    estimate[field] = forged
+    estimate_raw = _json_bytes(estimate)
+    estimate_path.write_bytes(estimate_raw)
+    receipt["coordinator"]["estimate_sha256"] = hashlib.sha256(estimate_raw).hexdigest()
+    coordinator_raw = _json_bytes(receipt["coordinator"])
+    (attempt / "coordinator-receipt.jsonl").write_bytes(coordinator_raw)
+    receipt["coordinator_receipt_sha256"] = hashlib.sha256(coordinator_raw).hexdigest()
+    identity = resolve_git_identity(repo.resolve())
+    manifest = tmp_path / "manifest.json"
+    with pytest.raises(T810ValidationError, match="estimate value"):
+        validate_t810(
+            preregistration=prereg,
+            repo_root=repo.resolve(),
+            approved_git_identity=identity,
+            approved_git_identity_sha256=git_identity_digest(identity),
+            writable_root=(tmp_path / "writable").resolve(),
+            manifest_path=manifest,
+            manifest_root=tmp_path / "frozen",
+            expected_manifest_sha256=hashlib.sha256(manifest.read_bytes()).hexdigest(),
+            executable=executable,
+            expected_executable_sha256=digest,
+            attempt_root=attempt,
             attempt_receipt=receipt,
             attempt_nonce="attempt-1",
             pre_invocation_nonce="invocation-1",
@@ -952,7 +1081,7 @@ def test_m15_cli_existing_witness_fast_path_cannot_return_zero(tmp_path: Path):
     assert validator_cli_main(successful_post_argv) == 0
     assert validator_cli_main(argv) == 2
 
-    # pre witness finalize が失敗して baseline だけ残っても post lineage には使えない。
+    # pre witness publish が失敗した invocation は baseline を一切 publish しない。
     failed_baseline = proofs / "failed-baseline.json"
     stale_witness = proofs / "stale-pre-pass.json"
     stale_witness.write_text("{}\n", encoding="utf-8")
@@ -960,7 +1089,7 @@ def test_m15_cli_existing_witness_fast_path_cannot_return_zero(tmp_path: Path):
     failed_pre_argv[failed_pre_argv.index(str(baseline))] = str(failed_baseline)
     failed_pre_argv[failed_pre_argv.index(str(witness))] = str(stale_witness)
     assert validator_cli_main(failed_pre_argv) == 2
-    assert failed_baseline.exists()
+    assert not failed_baseline.exists()
     post_witness = proofs / "post-pass.json"
     post_argv = [
         "post",

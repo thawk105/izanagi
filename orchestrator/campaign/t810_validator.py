@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import stat
 import subprocess
@@ -19,6 +20,10 @@ from orchestrator.campaign.durable_root import (
     DurableRootError,
     DurableRootPolicy,
     resolve_policy_root,
+)
+from orchestrator.campaign.t810_estimator_v1 import (
+    T810EstimatorError,
+    evaluate_t810,
 )
 from orchestrator.campaign.t810_preregistration import (
     VerifiedT810Preregistration,
@@ -812,7 +817,7 @@ def classify_terminal_state(
     if post_validation_passed and release and reached == all_slots:
         if started == completed == all_slots:
             return "valid"
-        if started == completed and len(completed) == expected_slots - 1:
+        if started == all_slots and len(completed) == expected_slots - 1:
             return "terminal_reduced"
     if started:
         return "incomplete_after_start"
@@ -907,6 +912,7 @@ def load_attempt_receipt_chain(
     measurements_name = artifacts["slots"]["conditional_measurements_file"]
     slots: list[Mapping[str, Any]] = []
     measurement_hashes: dict[str, str] = {}
+    measurement_bytes: dict[str, bytes] = {}
     rounds = int(preregistration.projection["design"]["selected"]["round_count"])
     slot_keys = {
         "attempt_nonce",
@@ -951,6 +957,7 @@ def load_attempt_receipt_chain(
             if claimed_measurement_hash != actual_measurement_hash:
                 raise T810ValidationError(f"measurements hash mismatch for {slot_id}")
             measurement_hashes[slot_id] = actual_measurement_hash
+            measurement_bytes[slot_id] = measurement_raw
         slots.append(slot)
 
     estimate_path = Path(root) / artifacts["root"]["conditional_estimate_file"]
@@ -964,6 +971,64 @@ def load_attempt_receipt_chain(
             or estimate.get("input_measurements_sha256") != measurement_hashes
         ):
             raise T810ValidationError("estimate input receipt chain mismatch")
+        estimate_state = classify_terminal_state(
+            {"coordinator": coordinator, "slots": slots},
+            expected_slots=len(expected_ids),
+            claimed_state="",
+            post_validation_passed=True,
+        )
+        if estimate_state in {"valid", "terminal_reduced"}:
+            matrix: list[tuple[float, ...]] = []
+            for slot in sorted(slots, key=lambda item: str(item["slot_id"])):
+                if slot.get("completed") is not True:
+                    continue
+                slot_id = str(slot["slot_id"])
+                if slot_id not in measurement_bytes:
+                    raise T810ValidationError(
+                        f"completed slot {slot_id} has no measurements"
+                    )
+                values_by_round: dict[int, float] = {}
+                for index, line in enumerate(measurement_bytes[slot_id].splitlines(), 1):
+                    value = _parse_json_no_duplicates(
+                        line, f"measurements {slot_id} line {index}"
+                    )
+                    throughput = value.get("throughput")
+                    try:
+                        numeric_throughput = float(throughput)
+                    except (TypeError, ValueError, OverflowError):
+                        numeric_throughput = math.nan
+                    if type(throughput) not in {int, float} or (
+                        not math.isfinite(numeric_throughput)
+                        or numeric_throughput <= 0.0
+                    ):
+                        raise T810ValidationError(
+                            f"measurements {slot_id} has invalid throughput"
+                        )
+                    values_by_round[int(value["round_id"])] = math.log(
+                        numeric_throughput
+                    )
+                matrix.append(
+                    tuple(values_by_round[round_id] for round_id in range(1, rounds + 1))
+                )
+            try:
+                evaluated = evaluate_t810(matrix, terminal_state=estimate_state)
+            except T810EstimatorError as exc:
+                raise T810ValidationError(
+                    "estimate inputs do not satisfy frozen estimator"
+                ) from exc
+            expected_estimate = {
+                "tau_hat": repr(evaluated.tau_hat),
+                "tau_L": repr(evaluated.tau_l),
+                "tau_U": repr(evaluated.tau_u),
+                "slope_gate_fired": evaluated.slope_gate_fired,
+                "conclusion_code": evaluated.conclusion_code,
+            }
+            if any(
+                type(estimate.get(key)) is not type(expected)
+                or estimate.get(key) != expected
+                for key, expected in expected_estimate.items()
+            ):
+                raise T810ValidationError("estimate value does not match frozen estimator")
     elif estimate_sha256 is not None:
         raise T810ValidationError("estimate receipt hash exists without estimate")
 
@@ -1013,8 +1078,15 @@ def _verify_executable_and_argv(
             continue
         if slot.get("completed") is True and len(executions) != rounds:
             findings.append(Finding("EXECUTION_CARDINALITY_MISMATCH", str(slot.get("slot_id"))))
-        if slot.get("completed") is not True and len(executions) != 0:
-            findings.append(Finding("NON_COMPLETED_SLOT_HAS_EXECUTIONS", str(slot.get("slot_id"))))
+        if slot.get("completed") is not True:
+            if require_execution_records and len(executions) == 0:
+                findings.append(
+                    Finding("DROPPED_SLOT_EXECUTIONS_EMPTY", str(slot.get("slot_id")))
+                )
+            elif not require_execution_records and len(executions) != 0:
+                findings.append(
+                    Finding("NON_COMPLETED_SLOT_HAS_EXECUTIONS", str(slot.get("slot_id")))
+                )
         round_ids: set[int] = set()
         for execution in executions:
             total_records += 1
@@ -1070,7 +1142,14 @@ def expected_attempt_layout(
     elif measurement_rule == "started-slots-exact":
         measurement_slots = set(started_slots)
     elif measurement_rule == "completed-12-plus-preserved-dropped":
-        measurement_slots = set(completed_slots)
+        if (
+            not set(completed_slots).issubset(all_slots)
+            or len(completed_slots) != count - 1
+        ):
+            raise T810ValidationError(
+                "terminal_reduced requires exactly twelve completed slots"
+            )
+        measurement_slots = all_slots
     elif measurement_rule == "all-13-times-10":
         measurement_slots = all_slots
     else:
