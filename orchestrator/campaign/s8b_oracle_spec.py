@@ -6,6 +6,7 @@ import copy
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Mapping, Optional
 
 from . import s8b_oracle_artifacts as _artifacts
@@ -56,6 +57,31 @@ class ReviewedSpec:
     raw_bytes: bytes
     sha256: str
     schedule: Mapping
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "document", _deep_freeze(self.document))
+        object.__setattr__(self, "schedule", _deep_freeze(self.schedule))
+
+
+def _deep_freeze(value):
+    """JSON tree を dict→mapping proxy、list→tuple で再帰凍結する。"""
+    if isinstance(value, Mapping):
+        return MappingProxyType({
+            key: _deep_freeze(item) for key, item in value.items()
+        })
+    if isinstance(value, (list, tuple)):
+        return tuple(_deep_freeze(item) for item in value)
+    return value
+
+
+def _mutable_json_tree(value):
+    if isinstance(value, Mapping):
+        return {
+            key: _mutable_json_tree(item) for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_mutable_json_tree(item) for item in value]
+    return value
 
 
 def _sha256(raw: bytes) -> str:
@@ -172,6 +198,61 @@ def _load_approved_spec_bytes(root: Path) -> tuple[bytes, str]:
             "approved-spec-hash-mismatch", "reviewed spec bytes が approval pin と不一致",
         )
     return raw, approved_sha
+
+
+def validate_approved_spec_snapshot(value, *, root=ROOT) -> ReviewedSpec:
+    """承認時に捕捉済みの単一 ``ReviewedSpec`` snapshot を再束縛する。
+
+    fixed path は再読込しない。canonical module の exact type、approval pin、raw
+    bytes、document、再生成 schedule の同一 snapshot 性だけを再照合する。
+    generator source の実 byte 検査を含む全 schema 検証は loader が一度だけ担う。
+    """
+    if type(value) is not ReviewedSpec:
+        raise ReviewedSpecError(
+            "invalid-reviewed-spec", "ReviewedSpec exact type が必要",
+        )
+    if APPROVED_SPEC_SHA256 is None:
+        raise ReviewedSpecError("no-approved-spec")
+    approved_sha = _lower_sha256(
+        APPROVED_SPEC_SHA256, field="APPROVED_SPEC_SHA256",
+    )
+    if value.sha256 != approved_sha or _sha256(value.raw_bytes) != approved_sha:
+        raise ReviewedSpecError(
+            "approved-spec-hash-mismatch",
+            "ReviewedSpec snapshot が approval pin と不一致",
+        )
+    try:
+        parsed = _artifacts.strict_load_json_object(value.raw_bytes)
+    except _artifacts.OracleArtifactTypeError as exc:
+        raise ReviewedSpecError("invalid-reviewed-spec", str(exc)) from exc
+    if _canonical_bytes(parsed) != value.raw_bytes:
+        raise ReviewedSpecError(
+            "invalid-reviewed-spec", "reviewed spec が strict canonical bytes でない",
+        )
+    if parsed != _mutable_json_tree(value.document):
+        raise ReviewedSpecError(
+            "invalid-reviewed-spec", "ReviewedSpec.document が raw bytes と不一致",
+        )
+    parameters = parsed.get("schedule_parameters")
+    if not isinstance(parameters, Mapping) or set(parameters) != _SCHEDULE_PARAMETER_KEYS:
+        raise ReviewedSpecError(
+            "invalid-reviewed-spec", "schedule_parameters key 集合が不一致",
+        )
+    try:
+        schedule = _manifest.build_schedule(
+            n=parameters.get("n"),
+            master_seed=parameters.get("master_seed"),
+            block_sizes=parameters.get("block_sizes"),
+            holdout_ids=parameters.get("holdout_ids"),
+            configuration_ids=parameters.get("configuration_ids"),
+        )
+    except _manifest.ManifestError as exc:
+        raise ReviewedSpecError("invalid-reviewed-spec", str(exc)) from exc
+    if schedule != _mutable_json_tree(value.schedule):
+        raise ReviewedSpecError(
+            "invalid-reviewed-spec", "ReviewedSpec.schedule が再生成値と不一致",
+        )
+    return value
 
 
 def load_approved_spec(root=ROOT) -> ReviewedSpec:

@@ -86,6 +86,7 @@ class Preflight:
     checkout: Path
     spec: Path
     out: Path
+    attempt: Path | None
     receipt: Path
     evidence: Path
     lock_path: Path
@@ -304,7 +305,8 @@ def _validate_artifact_locations(
     out_arg: Path,
     registered: Sequence[Path],
     container: Path,
-) -> tuple[Path, Path, Path, Path, Path]:
+    attempt_arg: Path | None = None,
+) -> tuple[Path, Path, Path | None, Path, Path, Path]:
     if spec_arg.is_symlink():
         raise MutationWorktreeError("--spec に symlink を指定してはならない")
     try:
@@ -314,16 +316,21 @@ def _validate_artifact_locations(
     if not spec.is_file():
         raise MutationWorktreeError("--spec は通常 file でなければならない")
     out = _absolute_output_path(out_arg)
+    if attempt_arg is not None and attempt_arg.is_symlink():
+        raise MutationWorktreeError("--attempt-out に symlink を指定してはならない")
+    attempt = attempt_arg.resolve(strict=False) if attempt_arg is not None else None
     receipt = Path(f"{out}.wrapper-receipt.json")
     evidence = Path(f"{out}.dispatch-evidence")
     lock_path = _lock_path_for_out(out)
-    candidates = (
+    candidates = [
         ("--spec", spec),
         ("--out", out),
         ("wrapper receipt", receipt),
         ("dispatch evidence", evidence),
         ("wrapper lock", lock_path),
-    )
+    ]
+    if attempt is not None:
+        candidates.append(("--attempt-out", attempt))
     forbidden = (*registered, container)
     for label, candidate in candidates:
         if any(_path_within(candidate, root) for root in forbidden):
@@ -331,9 +338,10 @@ def _validate_artifact_locations(
                 f"{label} は registered/generated worktree の外でなければならない"
             )
     derived = {receipt, evidence, lock_path}
-    if spec == out or spec in derived:
-        raise MutationWorktreeError("--spec/--out と wrapper 派生 artifact が衝突する")
-    return spec, out, receipt, evidence, lock_path
+    explicit = {spec, out} | ({attempt} if attempt is not None else set())
+    if len(explicit) != 2 + int(attempt is not None) or explicit & derived:
+        raise MutationWorktreeError("spec/out/attempt と wrapper 派生 artifact が衝突する")
+    return spec, out, attempt, receipt, evidence, lock_path
 
 
 def _primary_and_source_roots(
@@ -389,10 +397,11 @@ def _preflight(
     scratch = _validate_scratch(args.scratch_root, registered)
     container = scratch / CONTAINER_NAME
     checkout = container / CHECKOUT_NAME
-    spec, validated_out, receipt, evidence, derived_lock_path = (
+    spec, validated_out, attempt, receipt, evidence, derived_lock_path = (
         _validate_artifact_locations(
             spec_arg=args.spec,
             out_arg=args.out,
+            attempt_arg=args.attempt_out,
             registered=registered,
             container=container,
         )
@@ -416,6 +425,7 @@ def _preflight(
         checkout=checkout,
         spec=spec,
         out=out,
+        attempt=attempt,
         receipt=receipt,
         evidence=evidence,
         lock_path=lock_path,
@@ -664,6 +674,15 @@ def _harness_argv(preflight: Preflight, args: argparse.Namespace) -> list[str]:
         argv.append("--detached")
     if args.plan_only:
         argv.append("--plan-only")
+    if preflight.attempt is not None:
+        argv.extend(
+            [
+                "--attempt-out",
+                str(preflight.attempt),
+                "--wrapper-attempt",
+                str(args.wrapper_attempt),
+            ]
+        )
     argv.extend(["--", *args.command])
     return argv
 
@@ -990,6 +1009,15 @@ def _wrapper_resume_command(preflight: Preflight, args: argparse.Namespace) -> s
         command.append("--detached")
     if args.plan_only:
         command.append("--plan-only")
+    if preflight.attempt is not None:
+        command.extend(
+            [
+                "--attempt-out",
+                str(preflight.attempt),
+                "--wrapper-attempt",
+                str(args.wrapper_attempt + 1),
+            ]
+        )
     command.extend(["--", *args.command])
     return shlex.join(command)
 
@@ -1015,6 +1043,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--spec", required=True, type=Path)
     parser.add_argument("--expected-spec-sha256", required=True)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--attempt-out", type=Path)
+    parser.add_argument("--wrapper-attempt", type=int)
     parser.add_argument("--runner-mode", required=True, choices=("local", "dispatch"))
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--detached", action="store_true")
@@ -1030,6 +1060,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     args: argparse.Namespace | None = None
     try:
         args = _parser().parse_args(argv)
+        if (args.attempt_out is None) is not (args.wrapper_attempt is None):
+            raise MutationWorktreeError(
+                "--attempt-out と --wrapper-attempt は同時指定が必要"
+            )
+        if args.wrapper_attempt is not None and args.wrapper_attempt < 1:
+            raise MutationWorktreeError("--wrapper-attempt は 1 以上でなければならない")
+        if args.attempt_out is not None and args.runner_mode != "dispatch":
+            raise MutationWorktreeError(
+                "attempt sidecar は --runner-mode dispatch でのみ使用できる"
+            )
         command = list(args.command)
         if command and command[0] == "--":
             command.pop(0)

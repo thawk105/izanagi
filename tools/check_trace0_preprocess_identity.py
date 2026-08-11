@@ -1,0 +1,460 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を検査する。"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath
+from typing import Any, Sequence
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from orchestrator.campaign.genome import SILO_SPACE  # noqa: E402
+from orchestrator.campaign.source_digest import (  # noqa: E402
+    _INCLUDE_RE,
+    _assert_conditional_macros_covered,
+    _context_overlays,
+    _cpp_normalize,
+    _git_show,
+    _head_defines,
+    _include_lines,
+)
+
+
+GUARANTEE = (
+    "選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、"
+    "および include 活性の同一性"
+)
+SCHEMA = "izanagi-trace0-preprocess-identity/v1"
+_FULL_OID_RE = re.compile(r"[0-9a-f]{40}\Z")
+_SOURCE_SUFFIXES = frozenset({".c", ".cc", ".cpp", ".cxx"})
+_HEADER_SUFFIXES = frozenset({
+    ".h", ".h++", ".hh", ".hp", ".hpp", ".hxx", ".inl", ".ipp", ".tcc",
+})
+_MARKER_PREFIX = "IZANAGI_TRACE0_INCLUDE_MARKER_"
+
+
+class CheckError(RuntimeError):
+    """選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない。"""
+
+
+class _ArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        super().error(f"{GUARANTEE}を確認できない: {message}")
+
+
+def _full_oid(value: str) -> str:
+    if not _FULL_OID_RE.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            f"{GUARANTEE}の検査には 40 桁 lowercase hex commit OID が必要"
+        )
+    return value
+
+
+def _run_git(repo: Path, args: Sequence[str], *, binary: bool = False) -> str | bytes:
+    command = ["git", "-C", os.fspath(repo), *args]
+    try:
+        result = subprocess.run(command, capture_output=True, text=not binary)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CheckError(f"git を起動できない ({exc})") from exc
+    if result.returncode != 0:
+        stderr = result.stderr if isinstance(result.stderr, str) else result.stderr.decode(
+            "utf-8", errors="replace"
+        )
+        raise CheckError(
+            f"git {' '.join(args)} が失敗 (rc={result.returncode}): {stderr.strip()[-500:]}"
+        )
+    return result.stdout
+
+
+def _resolve_commit(repo: Path, requested: str) -> str:
+    output = _run_git(repo, ["rev-parse", "--verify", f"{requested}^{{commit}}"])
+    assert isinstance(output, str)
+    resolved = output.strip()
+    if not _FULL_OID_RE.fullmatch(resolved):
+        raise CheckError(f"commit 解決結果が 40 桁 lowercase hex でない: {resolved!r}")
+    return resolved
+
+
+def _is_ancestor(repo: Path, old_oid: str, new_oid: str) -> bool:
+    command = ["git", "-C", os.fspath(repo), "merge-base", "--is-ancestor", old_oid, new_oid]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CheckError(f"祖先関係を照合できない ({exc})") from exc
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    raise CheckError(
+        f"祖先関係の照合が失敗 (rc={result.returncode}): {result.stderr.strip()[-500:]}"
+    )
+
+
+def _decode_path(raw: bytes) -> str:
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise CheckError("diff path が UTF-8 でなく JSON evidence に表現できない") from exc
+
+
+def _raw_diff(repo: Path, old_oid: str, new_oid: str) -> list[dict[str, object]]:
+    output = _run_git(
+        repo,
+        ["diff-tree", "--raw", "-r", "-z", "--no-renames", old_oid, new_oid],
+        binary=True,
+    )
+    assert isinstance(output, bytes)
+    fields = output.split(b"\0")
+    if fields and fields[-1] == b"":
+        fields.pop()
+
+    entries: list[dict[str, object]] = []
+    index = 0
+    while index < len(fields):
+        header = fields[index]
+        index += 1
+        if not header.startswith(b":"):
+            raise CheckError(f"git raw diff header が未対応形: {header[:120]!r}")
+        parts = header[1:].split()
+        if len(parts) != 5:
+            raise CheckError(f"git raw diff header の field 数が未対応: {header[:120]!r}")
+        old_mode_b, new_mode_b, old_blob_b, new_blob_b, status_b = parts
+        try:
+            old_mode = old_mode_b.decode("ascii")
+            new_mode = new_mode_b.decode("ascii")
+            old_blob = old_blob_b.decode("ascii")
+            new_blob = new_blob_b.decode("ascii")
+            status = status_b.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise CheckError("git raw diff metadata が ASCII でない") from exc
+        path_count = 2 if status.startswith(("R", "C")) else 1
+        if index + path_count > len(fields):
+            raise CheckError("git raw diff の path field が欠落")
+        paths = [_decode_path(value) for value in fields[index:index + path_count]]
+        index += path_count
+        entry: dict[str, object] = {
+            "status": status,
+            "path": paths[-1],
+            "old_mode": old_mode,
+            "new_mode": new_mode,
+            "old_blob": old_blob,
+            "new_blob": new_blob,
+        }
+        if len(paths) == 2:
+            entry["old_path"] = paths[0]
+        entries.append(entry)
+    return entries
+
+
+def _validate_diff(entries: list[dict[str, object]]) -> None:
+    if not entries:
+        raise CheckError("差分が空で対象 0 件")
+    for entry in entries:
+        status = entry["status"]
+        path = entry["path"]
+        if status != "M":
+            raise CheckError(f"未対応の diff status {status!r}: {path!r} (A/D/R/C は拒否)")
+        old_mode = entry["old_mode"]
+        new_mode = entry["new_mode"]
+        if old_mode != new_mode:
+            raise CheckError(f"mode/type change は未対応: {path!r} ({old_mode} -> {new_mode})")
+        if not isinstance(old_mode, str) or not old_mode.startswith("100"):
+            raise CheckError(f"regular file でない C/C++ path は未対応: {path!r} mode={old_mode}")
+        suffix = PurePosixPath(path).suffix.lower() if isinstance(path, str) else ""
+        if suffix in _HEADER_SUFFIXES:
+            raise CheckError(
+                "header の変更は consumer TU での解析が必要であり、この checker の保証範囲外なので "
+                f"fail-closed で拒否する: {path!r}"
+            )
+        if not isinstance(path, str) or suffix not in _SOURCE_SUFFIXES:
+            raise CheckError(f"C/C++ regular source/header 以外の変更は未対応: {path!r}")
+
+
+def _validate_expected_paths(
+    entries: list[dict[str, object]], expect_paths: Sequence[str] | None
+) -> list[str] | None:
+    if expect_paths is None:
+        return None
+    expected = list(expect_paths)
+    if not expected:
+        raise CheckError("--expect-paths が指定されたが期待 path 集合が空")
+    if len(expected) != len(set(expected)):
+        raise CheckError(f"--expect-paths に重複 path がある: {expected!r}")
+    actual = [entry["path"] for entry in entries]
+    if any(not isinstance(path, str) for path in actual):
+        raise CheckError("diff path 集合を文字列として確定できない")
+    if len(actual) != len(set(actual)):
+        raise CheckError(f"diff path 集合に重複がある未対応形: {actual!r}")
+    if set(actual) != set(expected):
+        raise CheckError(
+            "diff path 集合が --expect-paths と厳密一致しない: "
+            f"expected={sorted(expected)!r} actual={sorted(actual)!r}"
+        )
+    return sorted(expected)
+
+
+def _compiler_identity(requested: str) -> tuple[str, str]:
+    found = shutil.which(requested)
+    if found is None:
+        raise CheckError(f"compiler が存在しない、または実行不能: {requested!r}")
+    compiler = os.path.realpath(found)
+    try:
+        result = subprocess.run([compiler, "--version"], capture_output=True, text=True)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CheckError(f"compiler version を取得できない ({compiler}: {exc})") from exc
+    lines = (result.stdout or result.stderr).splitlines()
+    if result.returncode != 0 or not lines or not lines[0].strip():
+        raise CheckError(
+            f"compiler version を取得できない ({compiler}, rc={result.returncode})"
+        )
+    return compiler, lines[0].strip()
+
+
+def _sha256(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _independent_sha256_pair(old_value: bytes, new_value: bytes) -> tuple[str, str]:
+    """旧側と新側を別々の digest 演算として evidence 化する。"""
+    return _sha256(old_value), _sha256(new_value)
+
+
+def _context_tag(overlay: dict[str, str]) -> str:
+    return ",".join(f"{key}={value}" for key, value in sorted(overlay.items())) or "base"
+
+
+def _mark_includes(source_text: str) -> tuple[str, list[str]]:
+    include_count = len(_INCLUDE_RE.findall(source_text))
+    markers = [f"{_MARKER_PREFIX}{index:08d}" for index in range(include_count)]
+    for marker in markers:
+        if re.search(rf"\b{re.escape(marker)}\b", source_text):
+            raise CheckError(f"include marker 識別子が source と衝突する未対応形: {marker}")
+    marker_iter = iter(markers)
+    body = _INCLUDE_RE.sub(lambda _match: next(marker_iter), source_text)
+    preamble = "".join(f"#undef {marker}\n#define {marker} {marker}\n" for marker in markers)
+    return preamble + body, markers
+
+
+def _active_markers(normalized: str, markers: list[str]) -> list[str]:
+    if not markers:
+        return []
+    alternatives = "|".join(re.escape(marker) for marker in markers)
+    pattern = re.compile(rf"(?m)^[ \t]*({alternatives})[ \t]*$")
+    return [match.group(1) for match in pattern.finditer(normalized)]
+
+
+def _compare_file(
+    repo: Path,
+    old_oid: str,
+    new_oid: str,
+    path: str,
+    compiler: str,
+    genomes: Sequence[Any],
+    overlays: Sequence[dict[str, str]],
+    expected_context_count: int,
+) -> dict[str, object]:
+    old_source = _git_show(os.fspath(repo), old_oid, path)
+    new_source = _git_show(os.fspath(repo), new_oid, path)
+    old_includes = _include_lines(old_source)
+    new_includes = _include_lines(new_source)
+    if old_includes != new_includes:
+        raise CheckError(f"include 行文字列（順序込み）が不一致: {path}")
+
+    marked_old, old_markers = _mark_includes(old_source)
+    marked_new, new_markers = _mark_includes(new_source)
+    if old_markers != new_markers:
+        raise CheckError(f"include marker 列を構成できない未対応形: {path}")
+
+    contexts: list[dict[str, object]] = []
+    for genome in genomes:
+        old_defines = dict(_head_defines(os.fspath(repo), genome, old_oid))
+        new_defines = dict(_head_defines(os.fspath(repo), genome, new_oid))
+        old_defines["TRACE"] = "0"
+        new_defines["TRACE"] = "0"
+        _assert_conditional_macros_covered(old_source, old_defines, compiler, path)
+        _assert_conditional_macros_covered(new_source, new_defines, compiler, path)
+
+        for overlay in overlays:
+            old_context_defines = dict(old_defines, **overlay)
+            new_context_defines = dict(new_defines, **overlay)
+            # TRACE は genome 由来 defines と context overlay の双方より後に固定する。
+            old_context_defines["TRACE"] = "0"
+            new_context_defines["TRACE"] = "0"
+            tag = _context_tag(overlay)
+            old_normalized = _cpp_normalize(old_source, old_context_defines, compiler).encode("utf-8")
+            new_normalized = _cpp_normalize(new_source, new_context_defines, compiler).encode("utf-8")
+            if old_normalized != new_normalized:
+                raise CheckError(
+                    f"TRACE=0 正規化 preprocess 出力が不一致: path={path!r} "
+                    f"genome={genome.canonical()!r} context={tag!r}"
+                )
+
+            old_marked_output = _cpp_normalize(
+                marked_old, old_context_defines, compiler
+            )
+            new_marked_output = _cpp_normalize(
+                marked_new, new_context_defines, compiler
+            )
+            old_active = _active_markers(old_marked_output, old_markers)
+            new_active = _active_markers(new_marked_output, new_markers)
+            if old_active != new_active:
+                raise CheckError(
+                    f"include 活性（順序込み）が不一致: path={path!r} "
+                    f"genome={genome.canonical()!r} context={tag!r}"
+                )
+
+            old_normalized_digest, new_normalized_digest = _independent_sha256_pair(
+                old_normalized, new_normalized
+            )
+            old_activity_bytes = "\0".join(old_active).encode("ascii")
+            new_activity_bytes = "\0".join(new_active).encode("ascii")
+            old_activity_digest, new_activity_digest = _independent_sha256_pair(
+                old_activity_bytes, new_activity_bytes
+            )
+            contexts.append({
+                "genome": genome.canonical(),
+                "context": tag,
+                "overlay": dict(sorted(overlay.items())),
+                "defines": {
+                    "old": dict(sorted(old_context_defines.items())),
+                    "new": dict(sorted(new_context_defines.items())),
+                },
+                "normalized_preprocess": {
+                    "old_sha256": old_normalized_digest,
+                    "new_sha256": new_normalized_digest,
+                    "identical": True,
+                },
+                "include_activity": {
+                    "active_markers": old_active,
+                    "old_sha256": old_activity_digest,
+                    "new_sha256": new_activity_digest,
+                    "identical": True,
+                },
+            })
+
+    if len(contexts) != expected_context_count:
+        raise CheckError(
+            "context 比較件数が列挙元から導出した期待数と一致しない: "
+            f"path={path!r} expected={expected_context_count} actual={len(contexts)}"
+        )
+
+    return {
+        "path": path,
+        "include_line_count": len(old_markers),
+        "include_lines_sha256": _sha256(old_includes.encode("utf-8")),
+        "contexts": contexts,
+        "result": "match",
+    }
+
+
+def check(
+    repo: Path,
+    old: str,
+    new: str,
+    cxx: str,
+    expect_paths: Sequence[str] | None = None,
+) -> dict[str, object]:
+    """選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性の evidence を返す。"""
+    repo = Path(os.path.realpath(repo))
+    if not repo.is_dir():
+        raise CheckError(f"--repo が directory でない: {repo}")
+    old_oid = _resolve_commit(repo, old)
+    new_oid = _resolve_commit(repo, new)
+    ancestor = _is_ancestor(repo, old_oid, new_oid)
+    if not ancestor:
+        raise CheckError(f"old commit は new commit の祖先でない: {old_oid} !<= {new_oid}")
+    diff = _raw_diff(repo, old_oid, new_oid)
+    _validate_diff(diff)
+    validated_expect_paths = _validate_expected_paths(diff, expect_paths)
+    compiler, compiler_version = _compiler_identity(cxx)
+
+    genomes = tuple(SILO_SPACE.enumerate())
+    overlays = tuple(_context_overlays())
+    expected_context_count = len(genomes) * len(overlays)
+    if expected_context_count == 0:
+        raise CheckError(
+            "context 列挙が空で比較 0 件になるため fail-closed で拒否する: "
+            f"genomes={len(genomes)} overlays={len(overlays)}"
+        )
+
+    files: list[dict[str, object]] = []
+    for entry in diff:
+        path = entry["path"]
+        if not isinstance(path, str):
+            raise CheckError("検証済み diff path が文字列でない未対応形")
+        files.append(
+            _compare_file(
+                repo,
+                old_oid,
+                new_oid,
+                path,
+                compiler,
+                genomes,
+                overlays,
+                expected_context_count,
+            )
+        )
+    if not files:
+        raise CheckError("比較対象が 0 件")
+    return {
+        "schema": SCHEMA,
+        "guarantee": GUARANTEE,
+        "result": "pass",
+        "repo": os.fspath(repo),
+        "old_oid": old_oid,
+        "new_oid": new_oid,
+        "old_is_ancestor_of_new": ancestor,
+        "expected_paths": validated_expect_paths,
+        "diff": diff,
+        "compiler": {"path": compiler, "version": compiler_version},
+        "context_matrix": {
+            "genome_count": len(genomes),
+            "overlay_count": len(overlays),
+            "expected_context_count_per_file": expected_context_count,
+        },
+        "files": files,
+    }
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = _ArgumentParser(description=f"{GUARANTEE}を fail-closed に検査する。")
+    parser.add_argument("--repo", required=True, type=Path, help="submodule の git worktree path")
+    parser.add_argument("--old", required=True, type=_full_oid, help="旧 commit の 40 桁 lowercase hex OID")
+    parser.add_argument("--new", required=True, type=_full_oid, help="新 commit の 40 桁 lowercase hex OID")
+    parser.add_argument("--cxx", required=True, help="preprocess に使う compiler（既定値なし）")
+    parser.add_argument(
+        "--expect-paths",
+        nargs="+",
+        metavar="PATH",
+        help=(
+            "任意の期待 diff path 集合。指定時は順不同で厳密一致が必須で、重複・過不足を "
+            "fail-closed で拒否する"
+        ),
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        report = check(args.repo, args.old, args.new, args.cxx, args.expect_paths)
+    except Exception as exc:  # noqa: BLE001 - CLI boundary is deliberately fail-closed
+        print(f"error: {GUARANTEE}を確認できない: {exc}", file=sys.stderr)
+        return 1
+    json.dump(report, sys.stdout, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -8,6 +8,7 @@ import json
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -23,6 +24,7 @@ from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E40
 from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as ratified_freeze  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
+import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 
 
 FREEZE_PATH = _ROOT / "output/s8b-freeze/holdout_freeze.json"
@@ -57,7 +59,7 @@ PIN_GATE_SCHEDULE_SHA256 = (
     "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
 )
 PIN_GATE_SPEC_SHA256 = (
-    "3831715700b0498c16df97a02d5ea358b37722eab28db68add4bdc1375d5b888"
+    "a64bce7df9181f4b25dcd825d752e1f6c93b7559ff5203ca514eafae70ef7540"
 )
 # production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
 # sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。
@@ -80,13 +82,13 @@ PIN_GATE_SPEC_RAW = (
     b'"artifacts":{"path":"orchestrator/campaign/s8b_oracle_artifacts.py",'
     b'"sha256":"b29f3dd6d989044a39f568f9e3621d93a66101b038e9a1913c3500c5e522f614"},'
     b'"judge":{"path":"orchestrator/campaign/s8b_oracle_judge.py",'
-    b'"sha256":"b56fa6f49c4f0e49ca3659c4c83a953f8673a4880d405606fbbd77031d3d69fc"},'
+    b'"sha256":"6e90a77532e7ea68c14c2076268e38783180c6c142d23ed9ae7d09466201a0b2"},'
     b'"materializer":{"path":"orchestrator/campaign/s1_direct_comparison.py",'
     b'"sha256":"a18209eb4501fd8c549cfda2e0427503a3811ddb79566f79af0327bce03632e8"},'
     b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'
     b'"sha256":"f8a0bb2237dcaf3c643a78c04ca6b8cea2a8f83e3d306d85c781716b165c73af"},'
     b'"report":{"path":"orchestrator/campaign/s8b_oracle_report.py",'
-    b'"sha256":"4e6ce6ac43ff61d945e8949d5c2d3f659555747fcfecb9a73e8470fe8ab0759d"}},'
+    b'"sha256":"cc28c86074aead3747eadcaaf1a09a2eaf4bdaae0ca72cca4a9d4f32bfd5acbf"}},'
     b'"run_contract":{"bench_max_rounds":1,"ccbench_pin":"pin","clocks":1800,'
     b'"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
     b'"env_tag":"test-env","extime":5,"reps":5,"screening":"off","verify":"legacy+s2"},'
@@ -96,6 +98,8 @@ PIN_GATE_SPEC_RAW = (
     b'"schedule_sha256":"105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2",'
     b'"schema_version":"s8b-oracle-reviewed-spec/v1"}'
 )
+
+_APPROVED_BY_MANIFEST_ID = {}
 
 
 # 注意: holdout の workload 三軸はテストへ静止させない。
@@ -159,21 +163,46 @@ def _build_manifest(freeze_path, *, schedule=None, generator_root=_ROOT):
         for holdout_id in _holdout_ids()
         for configuration_id in CONFIGURATION_IDS
     ]
-    return manifest.build_manifest(
-        freeze_path=freeze_path,
-        schedule=schedule,
-        run_contract={
-            "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
-            "reps": 5, "extime": 5, "verify": "legacy+s2",
-            "screening": "off", "bench_max_rounds": 1,
-            "contract_sha256": "0" * 64,
+    run_contract = {
+        "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
+        "reps": 5, "extime": 5, "verify": "legacy+s2",
+        "screening": "off", "bench_max_rounds": 1,
+        "contract_sha256": "0" * 64,
+    }
+    campaign_ids = {
+        block["block_id"]: f"campaign-{block['block_id']}"
+        for block in schedule["blocks"]
+    }
+    parameters = {
+        "n": schedule["n"],
+        "master_seed": schedule["master_seed"],
+        "block_sizes": {
+            block["block_id"]: block["size"] for block in schedule["blocks"]
         },
+        "holdout_ids": _holdout_ids(),
+        "configuration_ids": CONFIGURATION_IDS,
+    }
+    approved = spec_fixture.make_reviewed_spec(
+        root=generator_root,
+        **parameters,
+        run_contract=run_contract,
+        campaign_ids=campaign_ids,
         binding_identity=bindings,
-        campaign_ids={block["block_id"]: f"campaign-{block['block_id']}"
-                      for block in schedule["blocks"]},
         allowed_excluded_reasons=["machine-failure"],
         generator_versions=_generator_versions(root=generator_root),
     )
+    built = manifest.build_manifest(
+        freeze_path=freeze_path,
+        spec_sha256=approved.sha256,
+        schedule=schedule,
+        run_contract=run_contract,
+        binding_identity=bindings,
+        campaign_ids=campaign_ids,
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=_generator_versions(root=generator_root),
+    )
+    _APPROVED_BY_MANIFEST_ID[built["manifest_id"]] = approved.reviewed_spec
+    return built
 
 
 def _freeze_copy(tmp_path):
@@ -188,10 +217,9 @@ def _freeze_copy(tmp_path):
 def _install_reviewed_spec_sources(root: Path) -> None:
     freeze = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
     paths = [freeze["known_axes_freeze"]["path"], *GENERATOR_SOURCES.values()]
-    for relative in paths:
-        destination = root / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes((_ROOT / relative).read_bytes())
+    spec_fixture.install_reviewed_spec_sources(
+        root, source_root=_ROOT, relative_paths=paths,
+    )
 
 
 def _reviewed_spec_document(root: Path, *, configuration_ids=None) -> dict:
@@ -203,50 +231,34 @@ def _reviewed_spec_document(root: Path, *, configuration_ids=None) -> dict:
     else:  # 独立 literal のない schedule をテスト内で自己再計算しない。
         raise AssertionError(f"unregistered reviewed schedule: {configurations!r}")
     holdout_ids = ("rr20", "rr80")
-    return {
-        "allowed_excluded_reasons": ["machine-failure"],
-        "binding_identity": [
-            _binding(holdout_id, configuration_id)
-            for holdout_id in holdout_ids
-            for configuration_id in configurations
-        ],
-        "campaign_ids": {"b0": "campaign-b0"},
-        "generator_versions": _generator_versions(root=root),
-        "run_contract": {
+    fixture = spec_fixture.make_reviewed_spec(
+        root=root,
+        n=1,
+        master_seed="approved-seed-v1",
+        block_sizes={"b0": 1},
+        holdout_ids=holdout_ids,
+        configuration_ids=configurations,
+        run_contract={
             "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
             "reps": 5, "extime": 5, "verify": "legacy+s2",
             "screening": "off", "bench_max_rounds": 1,
             "contract_sha256": "0" * 64,
         },
-        "schedule_parameters": {
-            "block_sizes": {"b0": 1},
-            "configuration_ids": list(configurations),
-            "holdout_ids": list(holdout_ids),
-            "master_seed": "approved-seed-v1",
-            "n": 1,
-        },
-        "schedule_sha256": schedule_hash,
-        "schema_version": oracle_spec.SCHEMA_VERSION,
-    }
-
-
-def _independent_spec_bytes(document: dict) -> bytes:
-    """production ``_canonical_bytes`` と独立した test-side serializer。"""
-    return json.dumps(
-        document,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
+        campaign_ids={"b0": "campaign-b0"},
+        binding_identity=[
+            _binding(holdout_id, configuration_id)
+            for holdout_id in holdout_ids
+            for configuration_id in configurations
+        ],
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=_generator_versions(root=root),
+    )
+    assert fixture.document["schedule_sha256"] == schedule_hash
+    return fixture.document
 
 
 def _install_reviewed_spec(root: Path, document: dict) -> bytes:
-    raw = _independent_spec_bytes(document)
-    path = root / oracle_spec.SPEC_REL
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(raw)
-    return raw
+    return spec_fixture.install_reviewed_spec_document(root, document)
 
 
 def _install_pin_gate_spec(root: Path) -> dict:
@@ -287,9 +299,19 @@ def _verify(path, freeze_path):
     freeze_bytes = Path(freeze_path).read_bytes()
     freeze_doc = json.loads(freeze_bytes.decode("utf-8"))
     freeze_sha = hashlib.sha256(freeze_bytes).hexdigest()
-    return manifest.verify_manifest(
-        path, root=_ROOT, freeze_document=freeze_doc, freeze_sha256=freeze_sha,
-    )
+    document = json.loads(Path(path).read_text(encoding="utf-8"))
+    approved = _APPROVED_BY_MANIFEST_ID.get(document.get("manifest_id"))
+    if approved is None:
+        approved = next(iter(_APPROVED_BY_MANIFEST_ID.values()), object())
+    pin = getattr(approved, "sha256", "0" * 64)
+    with mock.patch.object(oracle_spec, "APPROVED_SPEC_SHA256", pin):
+        return manifest.verify_manifest(
+            path,
+            root=_ROOT,
+            freeze_document=freeze_doc,
+            freeze_sha256=freeze_sha,
+            approved_spec=approved,
+        )
 
 
 def test_current_freeze_is_rejected_as_non_executable_manifest():
@@ -372,6 +394,7 @@ def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(
     )
     document = manifest.build_manifest(
         freeze_path=freeze_path,
+        spec_sha256="a" * 64,
         schedule=schedule,
         run_contract={
             "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
@@ -416,6 +439,7 @@ def test_missing_holdout_build_stays_accepted_but_verify_rejects(tmp_path):
     )
     document = manifest.build_manifest(
         freeze_path=freeze_path,
+        spec_sha256="a" * 64,
         schedule=schedule,
         run_contract={
             "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
@@ -517,6 +541,7 @@ def test_binding_identity_requires_complete_unique_schedule_cell_product(tmp_pat
     with pytest.raises(manifest.ManifestError, match="binding_identity|binding identity"):
         manifest.build_manifest(
             freeze_path=freeze_path,
+            spec_sha256="a" * 64,
             schedule=schedule,
             run_contract={
                 "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
@@ -552,6 +577,7 @@ def _assert_generator_versions_rejected(
     with pytest.raises(manifest.ManifestError, match=message):
         manifest.build_manifest(
             freeze_path=freeze_path,
+            spec_sha256="a" * 64,
             schedule=document["schedule"],
             run_contract=document["run_contract"],
             binding_identity=document["binding_identity"],
@@ -601,6 +627,7 @@ def test_legacy_three_key_generator_authority_is_rejected_directly_at_build(
             )):
         manifest.build_manifest(
             freeze_path=freeze_path,
+            spec_sha256="a" * 64,
             schedule=schedule,
             run_contract={
                 "ccbench_pin": "pin",
@@ -734,6 +761,7 @@ def test_verify_rehashes_each_canonical_generator_in_supplied_root(
             root=root_b,
             freeze_document=json.loads(freeze_bytes.decode("utf-8")),
             freeze_sha256=hashlib.sha256(freeze_bytes).hexdigest(),
+            approved_spec=object(),
         )
 
 
@@ -993,10 +1021,58 @@ def test_reviewed_spec_exact_schema_and_independent_schedule_hash_literal(
 
     approved = oracle_spec.load_approved_spec(root)
 
-    assert approved.document == document
+    assert json.loads(approved.raw_bytes.decode("utf-8")) == document
     assert approved.raw_bytes == raw
     assert approved.schedule["n"] == 1
-    assert manifest.schedule_sha256(approved.schedule) == APPROVED_SCHEDULE_SHA256
+    assert manifest.schedule_sha256(
+        oracle_spec._mutable_json_tree(approved.schedule)
+    ) == APPROVED_SCHEDULE_SHA256
+
+
+def test_reviewed_spec_document_and_schedule_are_recursive_immutable(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(root)
+    raw = _install_reviewed_spec(root, document)
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", hashlib.sha256(raw).hexdigest(),
+    )
+    approved = oracle_spec.load_approved_spec(root)
+
+    document["campaign_ids"]["b0"] = "changed-after-load"
+    with pytest.raises(TypeError):
+        approved.document["campaign_ids"]["b0"] = "mutated"
+    with pytest.raises(TypeError):
+        approved.schedule["rows"][0]["holdout_id"] = "mutated"
+    assert approved.document["campaign_ids"]["b0"] == "campaign-b0"
+    assert approved.schedule["rows"][0]["holdout_id"] in {"rr20", "rr80"}
+
+
+def test_approved_snapshot_requires_canonical_reviewed_spec_exact_type(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(root)
+    raw = _install_reviewed_spec(root, document)
+    sha256 = hashlib.sha256(raw).hexdigest()
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", sha256)
+    canonical = oracle_spec.load_approved_spec(root)
+
+    class ReviewedSpecSubclass(oracle_spec.ReviewedSpec):
+        pass
+
+    subclass = ReviewedSpecSubclass(
+        document=canonical.document,
+        raw_bytes=canonical.raw_bytes,
+        sha256=canonical.sha256,
+        schedule=canonical.schedule,
+    )
+    with pytest.raises(
+            oracle_spec.ReviewedSpecError, match="ReviewedSpec exact type"):
+        oracle_spec.validate_approved_spec_snapshot(subclass, root=root)
 
 
 def test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal(
@@ -1011,14 +1087,16 @@ def test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal(
 
     approved = oracle_spec.load_approved_spec(root)
 
-    assert approved.document == document
+    assert json.loads(approved.raw_bytes.decode("utf-8")) == document
     assert approved.raw_bytes == PIN_GATE_SPEC_RAW
     assert approved.sha256 == PIN_GATE_SPEC_SHA256
     assert hashlib.sha256(PIN_GATE_SPEC_RAW).hexdigest() == PIN_GATE_SPEC_SHA256
     assert b"machine-failure-\xe6\x97\xa5\xe6\x9c\xac" in PIN_GATE_SPEC_RAW
     assert PIN_GATE_SPEC_RAW.startswith(b'{"allowed_excluded_reasons":')
     assert not PIN_GATE_SPEC_RAW.endswith(b"\n")
-    assert manifest.schedule_sha256(approved.schedule) == PIN_GATE_SCHEDULE_SHA256
+    assert manifest.schedule_sha256(
+        oracle_spec._mutable_json_tree(approved.schedule)
+    ) == PIN_GATE_SCHEDULE_SHA256
 
 
 def test_reviewed_spec_none_pin_is_always_no_approved_spec(tmp_path, monkeypatch):
@@ -1245,6 +1323,7 @@ def test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate(
         root=root,
         freeze_document=active.document,
         freeze_sha256=active.sha256,
+        approved_spec=oracle_spec.load_approved_spec(root),
     )
     assert verified.document == built
 
@@ -1274,6 +1353,245 @@ def test_build_approved_rejects_uniform_configuration_subset_before_output(
     assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
 
 
+def _install_projection_root(root: Path, *, alter_report=False) -> Path:
+    root.mkdir()
+    freeze = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
+    configurations = {"backoff_fixed_best", "stock_common"}
+    for holdout in freeze["holdouts"].values():
+        entries = holdout["variant_binding"]["entries"]
+        holdout["variant_binding"]["entries"] = {
+            key: value for key, value in entries.items()
+            if key in configurations
+        }
+    v2_fixture.fill(freeze)
+    freeze_path = root / "output/s8b-freeze/holdout_freeze.json"
+    freeze_path.parent.mkdir(parents=True)
+    freeze_path.write_text(json.dumps(freeze, ensure_ascii=False), encoding="utf-8")
+    _install_reviewed_spec_sources(root)
+    if alter_report:
+        report_path = root / GENERATOR_SOURCES["report"]
+        report_path.write_bytes(report_path.read_bytes() + b"\n# projection-b\n")
+    return freeze_path
+
+
+def _projection_inputs(root: Path) -> dict:
+    holdout_ids = ("rr20", "rr80")
+    configuration_ids = ("backoff_fixed_best", "stock_common")
+    return {
+        "root": root,
+        "n": 1,
+        "master_seed": "projection-seed-a",
+        "block_sizes": {"b0": 1},
+        "holdout_ids": holdout_ids,
+        "configuration_ids": configuration_ids,
+        "run_contract": _run_contract(),
+        "campaign_ids": {"b0": "campaign-b0"},
+        "binding_identity": [
+            _binding(holdout_id, configuration_id)
+            for holdout_id in holdout_ids
+            for configuration_id in configuration_ids
+        ],
+        "allowed_excluded_reasons": ["machine-failure"],
+        "generator_versions": _generator_versions(root=root),
+    }
+
+
+def _build_projection_manifest(
+        *, freeze_path: Path, spec_sha256: str,
+        schedule: dict, run_contract: dict, campaign_ids: dict,
+        binding_identity: list, allowed_excluded_reasons: list,
+        generator_versions: dict):
+    return manifest.build_manifest(
+        freeze_path=freeze_path,
+        spec_sha256=spec_sha256,
+        schedule=schedule,
+        run_contract=run_contract,
+        binding_identity=binding_identity,
+        campaign_ids=campaign_ids,
+        allowed_excluded_reasons=allowed_excluded_reasons,
+        generator_versions=generator_versions,
+    )
+
+
+def _verify_projection_manifest(
+        *, root: Path, freeze_path: Path, document,
+        approved: oracle_spec.ReviewedSpec, monkeypatch):
+    path = root / f"projection-manifest-{document['manifest_id']}.json"
+    manifest.write_manifest(path, document)
+    raw = freeze_path.read_bytes()
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256,
+    )
+    return manifest.verify_manifest(
+        path,
+        root=root,
+        freeze_document=json.loads(raw.decode("utf-8")),
+        freeze_sha256=hashlib.sha256(raw).hexdigest(),
+        approved_spec=approved,
+    )
+
+
+def test_verify_manifest_accepts_exact_approved_spec_projection(
+        tmp_path, monkeypatch):
+    root = tmp_path / "spec-a-root"
+    freeze_path = _install_projection_root(root)
+    inputs = _projection_inputs(root)
+    approved = spec_fixture.make_reviewed_spec(**inputs)
+    schedule = manifest.build_schedule(
+        n=1,
+        master_seed="projection-seed-a",
+        block_sizes={"b0": 1},
+        holdout_ids=("rr20", "rr80"),
+        configuration_ids=("backoff_fixed_best", "stock_common"),
+    )
+    monkeypatch.setattr(manifest, "ROOT", root)
+    document = _build_projection_manifest(
+        freeze_path=freeze_path,
+        spec_sha256=approved.sha256,
+        schedule=schedule,
+        run_contract=_run_contract(),
+        campaign_ids={"b0": "campaign-b0"},
+        binding_identity=[
+            _binding(holdout_id, configuration_id)
+            for holdout_id in ("rr20", "rr80")
+            for configuration_id in ("backoff_fixed_best", "stock_common")
+        ],
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=_generator_versions(root=root),
+    )
+
+    verified = _verify_projection_manifest(
+        root=root,
+        freeze_path=freeze_path,
+        document=document,
+        approved=approved.reviewed_spec,
+        monkeypatch=monkeypatch,
+    )
+
+    assert verified.document == document
+
+
+@pytest.mark.parametrize(
+    ("projection", "message"),
+    [
+        ("schedule", "schedule が approved spec"),
+        ("campaign_ids", "campaign_ids が approved spec"),
+        ("run_contract", "run_contract が approved spec"),
+        ("binding_identity", "binding_identity が approved spec"),
+        (
+            "allowed_excluded_reasons",
+            "allowed_excluded_reasons が approved spec",
+        ),
+        ("generator_versions", "generator_versions が approved spec"),
+        ("spec_sha256", "spec_sha256 が approved spec"),
+        ("spec_sha256_format", "spec_sha256 が SHA-256"),
+    ],
+)
+def test_verify_manifest_rejects_one_spec_divergent_projection(
+        tmp_path, monkeypatch, projection, message):
+    root_a = tmp_path / "spec-a-root"
+    root_b = tmp_path / "manifest-b-root"
+    freeze_a = _install_projection_root(root_a)
+    freeze_b = _install_projection_root(root_b, alter_report=True)
+    spec_a_inputs = _projection_inputs(root_a)
+    spec_a = spec_fixture.make_reviewed_spec(**spec_a_inputs)
+
+    baseline = _build_projection_manifest(
+        freeze_path=freeze_a,
+        spec_sha256=spec_a.sha256,
+        schedule=copy.deepcopy(spec_a.schedule),
+        run_contract=copy.deepcopy(spec_a.document["run_contract"]),
+        campaign_ids=copy.deepcopy(spec_a.document["campaign_ids"]),
+        binding_identity=copy.deepcopy(spec_a.document["binding_identity"]),
+        allowed_excluded_reasons=copy.deepcopy(
+            spec_a.document["allowed_excluded_reasons"]
+        ),
+        generator_versions=copy.deepcopy(
+            spec_a.document["generator_versions"]
+        ),
+    )
+    baseline_verified = _verify_projection_manifest(
+        root=root_a,
+        freeze_path=freeze_a,
+        document=baseline,
+        approved=spec_a.reviewed_spec,
+        monkeypatch=monkeypatch,
+    )
+    assert baseline_verified.document == baseline
+
+    schedule_b = manifest.build_schedule(
+        n=1,
+        master_seed="projection-seed-a",
+        block_sizes={"b0": 1},
+        holdout_ids=("rr20", "rr80"),
+        configuration_ids=("backoff_fixed_best", "stock_common"),
+    )
+    run_contract_b = _run_contract()
+    campaign_ids_b = {"b0": "campaign-b0"}
+    bindings_b = [
+        _binding(holdout_id, configuration_id)
+        for holdout_id in ("rr20", "rr80")
+        for configuration_id in ("backoff_fixed_best", "stock_common")
+    ]
+    reasons_b = ["machine-failure"]
+    selected_root = root_a
+    selected_freeze = freeze_a
+    generators_b = _generator_versions(root=root_a)
+    recorded_spec_sha = spec_a.sha256
+
+    if projection == "schedule":
+        schedule_b = manifest.build_schedule(
+            n=2,
+            master_seed="projection-seed-b",
+            block_sizes={"b0": 2},
+            holdout_ids=("rr20", "rr80"),
+            configuration_ids=("backoff_fixed_best", "stock_common"),
+        )
+    elif projection == "campaign_ids":
+        campaign_ids_b = {"b0": "campaign-other"}
+    elif projection == "run_contract":
+        run_contract_b["env_tag"] = "other-env"
+    elif projection == "binding_identity":
+        bindings_b.reverse()
+    elif projection == "allowed_excluded_reasons":
+        reasons_b = ["operator-abort"]
+    elif projection == "generator_versions":
+        selected_root = root_b
+        selected_freeze = freeze_b
+        generators_b = _generator_versions(root=root_b)
+    elif projection == "spec_sha256":
+        spec_b_inputs = copy.deepcopy(spec_a_inputs)
+        spec_b_inputs["allowed_excluded_reasons"] = ["operator-abort"]
+        spec_b = spec_fixture.make_reviewed_spec(**spec_b_inputs)
+        recorded_spec_sha = spec_b.sha256
+
+    monkeypatch.setattr(manifest, "ROOT", selected_root)
+    manifest_b = _build_projection_manifest(
+        freeze_path=selected_freeze,
+        spec_sha256=recorded_spec_sha,
+        schedule=schedule_b,
+        run_contract=run_contract_b,
+        campaign_ids=campaign_ids_b,
+        binding_identity=bindings_b,
+        allowed_excluded_reasons=reasons_b,
+        generator_versions=generators_b,
+    )
+    if projection == "spec_sha256_format":
+        manifest_b["spec_sha256"] = "not-a-sha256"
+        without_id = dict(manifest_b)
+        without_id.pop("manifest_id")
+        manifest_b["manifest_id"] = manifest._manifest_id(without_id)
+
+    with pytest.raises(manifest.ManifestError, match=message):
+        _verify_projection_manifest(
+            root=selected_root,
+            freeze_path=selected_freeze,
+            document=manifest_b,
+            approved=spec_a.reviewed_spec,
+            monkeypatch=monkeypatch,
+        )
+
+
 # ---------------------------------------------------------------------------
 # M5: bench_max_rounds == 1 完全一致 pin
 # ---------------------------------------------------------------------------
@@ -1291,6 +1609,30 @@ def test_run_contract_accepts_bench_max_rounds_one():
     validated = manifest._validate_run_contract(source)  # 例外なし
     assert validated["bench_max_rounds"] == 1
     assert validated is not source
+
+
+def test_generic_builder_still_accepts_run_contract_extra_key(tmp_path):
+    """D288: generic builder の部分集合受理と余剰 key 保存を維持する。"""
+    freeze_path = _freeze_copy(tmp_path)
+    schedule = _schedule(n=1)
+    run_contract = _run_contract()
+    run_contract["future_extension"] = {"enabled": True}
+    document = manifest.build_manifest(
+        freeze_path=freeze_path,
+        spec_sha256="a" * 64,
+        schedule=schedule,
+        run_contract=run_contract,
+        binding_identity=[
+            _binding(holdout_id, configuration_id)
+            for holdout_id in _holdout_ids()
+            for configuration_id in CONFIGURATION_IDS
+        ],
+        campaign_ids={"b0": "campaign-b0"},
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=_generator_versions(),
+    )
+
+    assert document["run_contract"]["future_extension"] == {"enabled": True}
 
 
 def test_run_contract_rejects_bench_max_rounds_two():
@@ -1319,5 +1661,9 @@ def test_verify_manifest_requires_freeze_document(tmp_path):
     manifest.write_manifest(path, document)
     with pytest.raises(manifest.ManifestError, match="freeze_document"):
         manifest.verify_manifest(
-            path, root=_ROOT, freeze_document=None, freeze_sha256=None,
+            path,
+            root=_ROOT,
+            freeze_document=None,
+            freeze_sha256=None,
+            approved_spec=object(),
         )

@@ -4,7 +4,9 @@
 D41 条件 4 の機械化 (D43): auditor の verdict を「宣言止まり」(照合なしの verdict 参照 =
 fail-open) にせず、auditor が審査した working_diff の sha256 (`diff_digest`) を proposal
 JSON の必須フィールドにして、driver が `quarantine()` の実際に生成する working_diff の
-digest と機械照合する。不一致は `AuditorGateFailure` で即停止 (fails-closed)。
+digest と機械照合する。不一致は `AuditorGateFailure` で即停止 (fails-closed)。この digest は
+attribution/provenance 専用であり、auditor は **mandatory deny-only veto; affirmative
+security credit なし**である。
 
 本モジュールは sort 軸 driver (`p3_s4_loop_sort.py`, D43) で新設された機構から**軸非依存の
 部品だけ**を抽出したもの (段 8a E 段設計レビュー 2026-07-12 must-fix: `_quarantine_and_audit`
@@ -107,15 +109,36 @@ def _validate_auditor_scalars(
         )
 
 
+def _validate_auditor_consistency(
+    verdict: str, violations: List[Dict], uncertainty: str,
+) -> None:
+    if verdict == "pass" and violations:
+        raise AuditorGateFailure(
+            "auditor.verdict='pass' なのに correctness violations が非空 — 正しさ違反を "
+            "pass にできない (規律2)"
+        )
+    if verdict == "reject" and not violations:
+        raise AuditorGateFailure(
+            "auditor.verdict='reject' なのに correctness violations が空 — reject の根拠を "
+            "構造化して返す必要がある (規律3)"
+        )
+    if verdict == "uncertain" and (violations or not uncertainty.strip()):
+        raise AuditorGateFailure(
+            "auditor.verdict='uncertain' は violations が空かつ uncertainty が非空であることが "
+            "必須 — correctness 違反は reject、根拠なし uncertain は fails-closed (規律2/3)"
+        )
+
+
 @dataclass
 class AuditorVerdict:
     """auditor (subagent_type='auditor') の構造化出力 (D41 条件4 の機械 gate)。
 
-    `diff_digest`: auditor が審査した working_diff (`--preview-diff` が生成したもの) の
-    sha256 hexdigest。driver はこれを実際に `quarantine()` が生成する working_diff の
-    digest と突合する — 「この iteration のこの diff を実際に見た判定か」を機械確認する
-    (敵対レビュー 2026-07-10、backoff の `assert_value_literal_consistent` と同型の
-    自己矛盾検出)。"""
+    **mandatory deny-only veto; affirmative security credit なし**。`diff_digest` は
+    attribution/provenance 専用であり、auditor が審査した working_diff
+    (`--preview-diff` が生成したもの) の sha256 hexdigest。driver はこれを実際に
+    `quarantine()` が生成する working_diff の digest と突合する — 「この iteration の
+    この diff を実際に見た判定か」を機械確認する (敵対レビュー 2026-07-10、backoff の
+    `assert_value_literal_consistent` と同型の自己矛盾検出)。"""
     verdict: str                      # pass | reject | uncertain
     diff_digest: str
     violations: List[Dict] = field(default_factory=list)
@@ -162,6 +185,50 @@ def assert_digest_matches(auditor: AuditorVerdict, working_diff: str) -> str:
             "auditor が審査した diff と実際に build/検疫される diff が "
             f"食い違う (規律6、宣言でなく機械照合、敵対レビュー 2026-07-10)")
     return actual
+
+
+def apply_mandatory_deny_only_veto(
+    machine_result: DiffQuarantineResult,
+    auditor: AuditorVerdict,
+    working_diff: str,
+    *,
+    diff_region: str,
+    template_diff_id: str,
+) -> DiffQuarantineResult:
+    """Apply a mandatory deny-only veto; affirmative security credit なし.
+
+    Machine reject is returned unchanged.  On machine pass, ``diff_digest`` is
+    checked for attribution/provenance only and every mutable auditor field is
+    revalidated at this sink.  Auditor pass returns the original machine-pass
+    object; reject/uncertain can only narrow that result.
+    """
+    if not machine_result.passed:
+        return machine_result
+
+    _validate_auditor_scalars(
+        auditor.verdict, auditor.diff_digest, auditor.uncertainty,
+    )
+    _validate_auditor_entries(
+        auditor.violations, auditor.nits, auditor.proposed_tests,
+    )
+    assert_digest_matches(auditor, working_diff)
+    _validate_auditor_consistency(
+        auditor.verdict, auditor.violations, auditor.uncertainty,
+    )
+
+    if auditor.verdict == "pass":
+        return machine_result
+    subtype = (
+        "auditor-uncertain"
+        if auditor.verdict == "uncertain"
+        else "auditor-violation"
+    )
+    return auditor_reject_result(
+        subtype,
+        auditor,
+        diff_region=diff_region,
+        template_diff_id=template_diff_id,
+    )
 
 
 def auditor_reject_result(subtype: str, auditor: AuditorVerdict, *,
@@ -224,18 +291,7 @@ def parse_auditor_dict(a: Dict) -> AuditorVerdict:
     )
 
     violations = typed_lists["violations"]
-    if verdict == "pass" and violations:
-        raise AuditorGateFailure(
-            "auditor.verdict='pass' なのに correctness violations が非空 — 正しさ違反を "
-            "pass にできない (規律2)")
-    if verdict == "reject" and not violations:
-        raise AuditorGateFailure(
-            "auditor.verdict='reject' なのに correctness violations が空 — reject の根拠を "
-            "構造化して返す必要がある (規律3)")
-    if verdict == "uncertain" and (violations or not uncertainty.strip()):
-        raise AuditorGateFailure(
-            "auditor.verdict='uncertain' は violations が空かつ uncertainty が非空であることが "
-            "必須 — correctness 違反は reject、根拠なし uncertain は fails-closed (規律2/3)")
+    _validate_auditor_consistency(verdict, violations, uncertainty)
 
     return AuditorVerdict(
         verdict=verdict, diff_digest=digest,
