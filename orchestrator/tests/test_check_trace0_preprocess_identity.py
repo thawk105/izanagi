@@ -312,6 +312,37 @@ def test_empty_context_enumeration_is_rejected_fail_closed(
         checker.check(pair.repo, pair.old, pair.new, _cxx())
 
 
+def test_context_count_mismatch_is_rejected_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pair = _modified_pair(tmp_path, _TRACE_ONLY_NEW_SOURCE)
+    checker = _load_checker_module()
+    compare_file = checker._compare_file
+
+    def compare_with_one_fewer_genome(
+        repo, old_oid, new_oid, path, compiler, genomes, overlays, expected_context_count
+    ):
+        assert expected_context_count > 0
+        assert len(genomes) > 1
+        return compare_file(
+            repo,
+            old_oid,
+            new_oid,
+            path,
+            compiler,
+            genomes[:-1],
+            overlays,
+            expected_context_count,
+        )
+
+    monkeypatch.setattr(checker, "_compare_file", compare_with_one_fewer_genome)
+    with pytest.raises(
+        checker.CheckError,
+        match="context 比較件数が列挙元から導出した期待数と一致しない",
+    ):
+        checker.check(pair.repo, pair.old, pair.new, _cxx())
+
+
 def test_old_and_new_digests_are_computed_by_independent_calls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
