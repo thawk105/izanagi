@@ -71,17 +71,26 @@ def fixed_decisions_bytes() -> bytes:
     return read_pinned_blob(REPOSITORY_ROOT, approval.D282_DECISIONS_REF)
 
 
-def _mutate_once(document: bytes, old: str, new: str) -> bytes:
-    text = document.decode("utf-8")
-    assert text.count(old) == 1, old
-    return text.replace(old, new, 1).encode("utf-8")
-
-
 def _target_fence(document: bytes) -> str:
     text = document.decode("utf-8")
     start = text.index("```text\ndecision_kind = t139-preregistration-approval-supersession/v1")
     end = text.index("\n```", start) + len("\n```")
     return text[start:end]
+
+
+def _mutate_once(document: bytes, old: str, new: str) -> bytes:
+    text = document.decode("utf-8")
+    fence = _target_fence(document)
+    assert text.count(fence) == 1, "target fence"
+    assert fence.count(old) == 1, old
+    mutated_fence = fence.replace(old, new, 1)
+    return text.replace(fence, mutated_fence, 1).encode("utf-8")
+
+
+def _mutate_document_once(document: bytes, old: str, new: str) -> bytes:
+    text = document.decode("utf-8")
+    assert text.count(old) == 1, old
+    return text.replace(old, new, 1).encode("utf-8")
 
 
 def _assert_rejected(document: bytes) -> None:
@@ -155,19 +164,23 @@ def test_not_approved_root_has_no_invented_commit(fixed_decisions_bytes: bytes) 
 def test_missing_d282_heading_is_rejected_without_unicode_normalization(
     fixed_decisions_bytes: bytes,
 ) -> None:
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, "## D282.", "## D２８２."))
+    _assert_rejected(
+        _mutate_document_once(fixed_decisions_bytes, "## D282.", "## D２８２.")
+    )
 
 
 def test_duplicate_d282_heading_is_rejected(fixed_decisions_bytes: bytes) -> None:
     heading = "## D282. T-139 の再発行"
     _assert_rejected(
-        _mutate_once(fixed_decisions_bytes, heading, "## D282. duplicate\n\n" + heading)
+        _mutate_document_once(
+            fixed_decisions_bytes, heading, "## D282. duplicate\n\n" + heading
+        )
     )
 
 
 def test_missing_target_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
     _assert_rejected(
-        _mutate_once(
+        _mutate_document_once(
             fixed_decisions_bytes, "```text\ndecision_kind", "```yaml\ndecision_kind"
         )
     )
@@ -175,7 +188,9 @@ def test_missing_target_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
 
 def test_duplicate_target_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
     fence = _target_fence(fixed_decisions_bytes)
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, fence, fence + "\n\n" + fence))
+    _assert_rejected(
+        _mutate_document_once(fixed_decisions_bytes, fence, fence + "\n\n" + fence)
+    )
 
 
 def test_nested_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
@@ -189,7 +204,9 @@ def test_mismatched_fence_delimiter_length_is_rejected(
     fixed_decisions_bytes: bytes,
 ) -> None:
     fence = _target_fence(fixed_decisions_bytes)
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, fence, fence[:-3] + "````"))
+    _assert_rejected(
+        _mutate_document_once(fixed_decisions_bytes, fence, fence[:-3] + "````")
+    )
 
 
 def test_unknown_top_level_key_is_rejected(fixed_decisions_bytes: bytes) -> None:

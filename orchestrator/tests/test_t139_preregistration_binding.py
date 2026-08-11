@@ -335,10 +335,17 @@ def test_unknown_erratum_id_fails_closed(monkeypatch: pytest.MonkeyPatch):
         )
 
 
+def _s7_operations_yaml_bounds(text: str) -> tuple[int, int]:
+    opening = "```yaml\noperations:\n"
+    assert text.count(opening) == 1, opening
+    yaml_start = text.index(opening) + len("```yaml\n")
+    yaml_end = text.index("```\n", yaml_start)
+    return yaml_start, yaml_end
+
+
 def _s7_yaml_parts(blob: bytes) -> tuple[str, str, str, str]:
     text = blob.decode()
-    yaml_start = text.index("```yaml\n") + len("```yaml\n")
-    yaml_end = text.index("```\n", yaml_start)
+    yaml_start, yaml_end = _s7_operations_yaml_bounds(text)
     yaml_text = text[yaml_start:yaml_end]
     first = yaml_text.index("  - index: 1\n")
     second = yaml_text.index("  - index: 2\n")
@@ -353,8 +360,7 @@ def _s7_yaml_parts(blob: bytes) -> tuple[str, str, str, str]:
 
 def _replace_s7_yaml(blob: bytes, yaml_text: str) -> bytes:
     text = blob.decode()
-    yaml_start = text.index("```yaml\n") + len("```yaml\n")
-    yaml_end = text.index("```\n", yaml_start)
+    yaml_start, yaml_end = _s7_operations_yaml_bounds(text)
     return (text[:yaml_start] + yaml_text + text[yaml_end:]).encode()
 
 
