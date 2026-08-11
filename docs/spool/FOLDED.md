@@ -857,3 +857,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:codex-hook-trust-and-surfaces":"[T-815]"},"authored":"2026-08-11","content_sha256":"aef5a6d3d75c9ea00022309d94ed225c0629cbd963f6d37f993e880a03fcd26b","seq":1,"wave":"dev-wave-codex-hook-parity"}
 - {"allocations":{"F:codex-cannot-write-own-config-dir":"F218","F:codex-web-search-evidence":"F217"},"authored":"2026-08-11","content_sha256":"7383a5629385491e85f8ffaa7c788e968daa0838dce1409c6278d4f6117c6de4","seq":2,"wave":"dev-wave-codex-hook-parity"}
 - {"allocations":{"D:codex-hook-wiring":"D294"},"authored":"2026-08-11","content_sha256":"d774c81d3b51bba6f9af3b8cc8380120c0baa042fdf8a78c69dff53919f54aee","seq":3,"wave":"dev-wave-codex-hook-parity"}
+
+- {"allocations":{"T:coverage-driver-commit-witness":"[T-818]","T:legacy-commit-witness-backfill":"[T-817]","T:mutation-runner-drift-scope":"[T-819]","T:trace-v2-cpp-pin-approval":"[T-816]"},"authored":"2026-08-11","content_sha256":"e30f995f366ab92b2bedf98721c07b14c6bdb002c523e55194a06ebe41d352e5","seq":1,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{"D:trace-completeness-external-counter":"D295"},"authored":"2026-08-11","content_sha256":"79e0e707c9ad68a29c7c909cb565ba82ca4f14e1b2c1365e459aaec2d7f0b4b8","seq":2,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"3f38e164e1ee941a436381d7b5b2afda8937aa7281d3bbc2dd5fb7b90dd4a8fe","seq":3,"wave":"dev-wave-t756-trace-v2"}
