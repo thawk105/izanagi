@@ -1680,7 +1680,11 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
         argv0_sha256=correctness_tools["readelf"]["sha256"],
         target_sha256=correctness_build["binary_sha256"],
     )
-    (correctness / "run.stdout").write_text("", encoding="utf-8")
+    (correctness / "run.stdout").write_text(
+        "commit_counts_:\t4\nbatch_commit_counts_:\t0\n"
+        "throughput[tps]:\t4\n",
+        encoding="utf-8",
+    )
     (correctness / "run.stderr").write_text("", encoding="utf-8")
     write_command(
         correctness / "run.command.json",
@@ -1843,6 +1847,30 @@ def test_raw_bundle_major_predicates_are_recomputed_from_files(tmp_path):
     )
     failures = driver.validate_raw_bundle(document, raw)
     assert [item.reason_code for item in failures] == ["raw_bundle"]
+
+
+def test_raw_bundle_correctness_commit_witness_mismatch_rejects(tmp_path):
+    document = _evidence(_fixture("p_plus_2.json"))
+    raw = tmp_path / "raw"
+    _materialize_raw_bundle(raw, document)
+    stdout_path = raw / "correctness/run.stdout"
+    stdout_path.write_text(
+        stdout_path.read_text(encoding="utf-8").replace(
+            "commit_counts_:\t4", "commit_counts_:\t5",
+        ),
+        encoding="utf-8",
+    )
+    command_path = raw / "correctness/run.command.json"
+    command = json.loads(command_path.read_text(encoding="utf-8"))
+    command["stdout_sha256"] = driver.sha256_file(stdout_path)
+    command_path.write_text(json.dumps(command), encoding="utf-8")
+    (raw / "raw-manifest.json").unlink()
+    driver.write_raw_manifest(raw)
+    document["raw_bundle"]["paths"] = driver.validate_raw_manifest(raw)
+
+    failures = driver.validate_raw_bundle(document, raw)
+    assert [item.reason_code for item in failures] == ["raw_bundle"]
+    assert "commit witness differs from verifier txns" in failures[0].detail
 
 
 def test_raw_bundle_recomputes_write_intent_violations(tmp_path):
