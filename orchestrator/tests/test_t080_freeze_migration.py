@@ -717,6 +717,127 @@ def test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4()
     assert captured and "-m" in captured[0] and "-r" in captured[0]
 
 
+def test_batched_descendant_mode_change_is_rejected_positive_control():
+    """mode/kind/OID batch が same-blob の mode 変化を見落とさない。"""
+    temp, root = _repo_with_schema_valid_receipt()
+    try:
+        path = root / migration.RECEIPT_REL
+        path.chmod(0o755)
+        _commit_all(root, "change receipt mode after issue")
+        result = migration.inspect_receipt_history(root=root)
+        assert result.state == "issued-but-missing"
+        assert any("receipt.history_mutated" in refusal for refusal in result.refusals)
+    finally:
+        temp.cleanup()
+
+
+def test_batched_descendant_exact_copy_is_rejected_positive_control():
+    """batch raw diff が receipt blob の別 path exact copy (S3) を見落とさない。"""
+    temp, root = _repo_with_schema_valid_receipt()
+    try:
+        source = root / migration.RECEIPT_REL
+        (root / "receipt-copy.json").write_bytes(source.read_bytes())
+        _commit_all(root, "copy receipt bytes after issue")
+        result = migration.inspect_receipt_history(root=root)
+        assert result.state == "issued-but-missing"
+        assert any("receipt.history_mutated" in refusal for refusal in result.refusals)
+    finally:
+        temp.cleanup()
+
+
+def test_batched_descendant_output_count_mismatch_fails_closed_positive_control():
+    """tree/diff どちらの batch 応答欠落も receipt.git_error に倒す。"""
+    for batch_kind in ("tree", "diff"):
+        temp, root = _repo_with_schema_valid_receipt()
+        original = migration._git
+        try:
+            (root / "unrelated.txt").write_text("unchanged receipt\n", encoding="utf-8")
+            _commit_all(root, "unrelated descendant")
+
+            def truncate_batch(args, repo_root, *, stdin=None):
+                out = original(args, repo_root, stdin=stdin)
+                if batch_kind == "tree" and list(args) == ["cat-file", "--batch"]:
+                    return b""
+                if batch_kind == "diff" and args[:2] == ["diff-tree", "--stdin"]:
+                    return b""
+                return out
+
+            migration._git = truncate_batch
+            _expect_reason(
+                lambda: migration.inspect_receipt_history(root=root),
+                "receipt.git_error",
+            )
+        finally:
+            migration._git = original
+            temp.cleanup()
+
+
+def test_batched_descendant_unchanged_history_is_accepted_positive_control():
+    """過剰拒否なら receipt.history_mutated が残るため、正当履歴でその不在を固定する。"""
+    temp, root = _repo_with_schema_valid_receipt()
+    try:
+        (root / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+        _commit_all(root, "unrelated descendant")
+        result = migration.inspect_receipt_history(root=root)
+        assert migration._format_refusal(
+            migration.RECEIPT_PREFIX, "receipt.history_mutated",
+        ) not in result.refusals
+    finally:
+        temp.cleanup()
+
+
+def test_inspect_receipt_history_uses_one_call_per_descendant_batch():
+    """総数は付随的な Git 呼出でばらつくため、種別ごとの一致で不変条件を固定する。"""
+    temp, root = _repo_with_schema_valid_receipt()
+    original = migration._git
+    try:
+        def add_descendants(start, stop):
+            for number in range(start, stop):
+                (root / f"unrelated-{number}.txt").write_text(
+                    f"unrelated {number}\n", encoding="utf-8",
+                )
+                _commit_all(root, f"unrelated descendant {number}")
+
+        def measure_calls():
+            calls = []
+
+            def record_git(args, repo_root, *, stdin=None):
+                if list(args) == ["cat-file", "--batch"]:
+                    call = "tree-batch"
+                elif args[:2] == ["diff-tree", "--stdin"]:
+                    call = "diff-batch"
+                elif args[:2] == ["ls-tree", "-z"]:
+                    call = "ls-tree"
+                else:
+                    call = args[0]
+                calls.append(call)
+                return original(args, repo_root, stdin=stdin)
+
+            migration._git = record_git
+            try:
+                result = migration.inspect_receipt_history(root=root)
+                assert migration._format_refusal(
+                    migration.RECEIPT_PREFIX, "receipt.history_mutated",
+                ) not in result.refusals
+                return calls
+            finally:
+                migration._git = original
+
+        small_descendants = 3
+        large_descendants = 7
+        add_descendants(0, small_descendants)
+        small_calls = measure_calls()
+        add_descendants(small_descendants, large_descendants)
+        large_calls = measure_calls()
+
+        for call in ("tree-batch", "diff-batch", "ls-tree"):
+            assert small_calls.count(call) == large_calls.count(call)
+        assert large_calls.count("ls-tree") < large_descendants
+    finally:
+        migration._git = original
+        temp.cleanup()
+
+
 def test_issued_but_missing_continues_independent_checks_and_observation_is_null_f4():
     temp, root = _repo_with_schema_valid_receipt()
     original = _patch_full_gate_to_pass()
@@ -1258,9 +1379,14 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
             actual = migration._history_touches_path(
                 commit, target, root, duplicate_oid=exact_copy_oid,
             )
+            batched = migration._batched_history_touches_path(
+                (commit,), target, root, duplicate_oid=exact_copy_oid,
+            )
         else:
             actual = migration._history_touches_path(commit, target, root)
+            batched = migration._batched_history_touches_path((commit,), target, root)
         assert actual is expected, (number, label, actual, expected)
+        assert batched is expected, (number, label, batched, expected)
 
     near_copy_contents = "".join(
         f"stable line {number:03d}: exact-copy boundary\n" for number in range(100)
@@ -1283,18 +1409,30 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     assert migration._history_touches_path(
         near_copy_commit, target, near_copy_root, duplicate_oid=near_copy_oid,
     ) is False, "case 12b: changed near-copy must not match the target blob OID"
+    assert migration._batched_history_touches_path(
+        (near_copy_commit,), target, near_copy_root, duplicate_oid=near_copy_oid,
+    ) is False, "case 12b batch: changed near-copy must not match the target blob OID"
 
     assert migration._history_touches_path(
         exact_copy_commit, target, exact_copy_root, duplicate_oid=None,
     ) is False, "exact copy must remain undetected when duplicate_oid is omitted"
+    assert migration._batched_history_touches_path(
+        (exact_copy_commit,), target, exact_copy_root, duplicate_oid=None,
+    ) is False, "batch exact copy must remain undetected when duplicate_oid is omitted"
 
     # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。
     assert migration._history_touches_path(
         modified_commit, target, modified_root, duplicate_oid=modified_oid,
     ) is True
+    assert migration._batched_history_touches_path(
+        (modified_commit,), target, modified_root, duplicate_oid=modified_oid,
+    ) is True
     # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。
     assert migration._history_touches_path(
         added_commit, target, added_root, duplicate_oid=added_oid,
+    ) is False
+    assert migration._batched_history_touches_path(
+        (added_commit,), target, added_root, duplicate_oid=added_oid,
     ) is False
 
     aggregate_root, _ = repo_with_files("aggregate", {target: "before\n"})
@@ -1314,6 +1452,12 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     assert migration._any_history_touches_path(
         frozenset((error_commit, false_commit, true_commit)), target, aggregate_root,
     ) is True
+    _expect_reason(
+        lambda: migration._batched_history_touches_path(
+            frozenset((error_commit, false_commit, true_commit)), target, aggregate_root,
+        ),
+        "receipt.git_error",
+    )
     _expect_reason(
         lambda: migration._any_history_touches_path(
             frozenset((false_commit, error_commit)), target, aggregate_root,
