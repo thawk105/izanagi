@@ -2479,40 +2479,149 @@ def test_rotation_preserves_d70_archive_current_boundary(tmp_path: Path) -> None
     assert _target(plan, plan.rotation_path).after_bytes == before[first_entry_start:second_entry_start]
 
 
+def _cli_snapshot(repo: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(repo).as_posix(): path.read_bytes()
+        for path in sorted(repo.rglob("*"))
+        if path.is_file() and ".git" not in path.parts
+    }
+
+
+def _install_cli(repo: Path) -> None:
+    shutil.copy2(ROOT / "tools/spool_fold.py", repo / "tools/spool_fold.py")
+
+
+def _run_cli(repo: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        [sys.executable, str(repo / "tools/spool_fold.py"), *args],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
 def test_cli_dry_run_emits_json_without_writes(tmp_path: Path) -> None:
     """CLI --dry-run: 計画 JSON だけを出し、canonical/fragment/state を変更しない。"""
 
     repo = _repo(tmp_path)
     _fragment(repo, "worklog", _worklog_body(repo))
-    shutil.copy2(ROOT / "tools/spool_fold.py", repo / "tools/spool_fold.py")
-    before = {
-        path.relative_to(repo).as_posix(): path.read_bytes()
-        for path in sorted(repo.rglob("*"))
-        if path.is_file() and ".git" not in path.parts
+    _install_cli(repo)
+    before = _cli_snapshot(repo)
+    completed = _run_cli(repo, "--dry-run", "--fold-date", "2026-08-02")
+    assert completed.returncode == 0
+    payload = json.loads(completed.stdout)
+    after = _cli_snapshot(repo)
+    assert payload["status"] == "planned" and payload["targets"]
+    assert payload["fold_date"] == "2026-08-02"
+    assert completed.stderr == b""
+    assert set(payload) == {
+        "allocations",
+        "fold_date",
+        "fragments",
+        "gc_paths",
+        "projected_worklog_bytes",
+        "rotation_path",
+        "status",
+        "targets",
+        "transaction_id",
     }
-    completed = subprocess.run(
-        [
-            sys.executable,
-            str(repo / "tools/spool_fold.py"),
-            "--dry-run",
-            "--fold-date",
-            "2026-08-02",
-        ],
+    assert all(
+        set(target) == {"after_sha256", "before_exists", "before_sha256", "path"}
+        for target in payload["targets"]
+    )
+    assert before == after
+    assert not spool_fold._state_path(repo).exists()
+
+
+def test_cli_dry_run_show_diff_keeps_stdout_byte_identical(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _install_cli(repo)
+    plain = _run_cli(repo, "--dry-run", "--fold-date", "2026-08-02")
+    shown = _run_cli(repo, "--dry-run", "--show-diff", "--fold-date", "2026-08-02")
+    assert plain.returncode == shown.returncode == 0
+    assert plain.stderr == b""
+    assert shown.stderr
+    assert shown.stdout == plain.stdout
+
+
+def test_cli_dry_run_show_diff_matches_target_after_bytes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _install_cli(repo)
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    completed = _run_cli(repo, "--dry-run", "--show-diff", "--fold-date", "2026-08-02")
+    assert completed.returncode == 0
+    subprocess.run(
+        ["git", "-C", str(repo), "apply", "-"],
         check=True,
-        text=True,
+        input=completed.stderr,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    payload = json.loads(completed.stdout)
-    after = {
-        path.relative_to(repo).as_posix(): path.read_bytes()
-        for path in sorted(repo.rglob("*"))
-        if path.is_file() and ".git" not in path.parts
-    }
-    assert payload["status"] == "planned" and payload["targets"]
-    assert payload["fold_date"] == "2026-08-02"
-    assert before == after
+    for target in plan.targets:
+        assert (repo / target.path).read_bytes() == target.after_bytes
+
+
+def test_cli_dry_run_show_diff_emits_gc_deletion_diff(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    fragment = _fragment(repo, "worklog", _worklog_body(repo))
+    _install_cli(repo)
+    completed = _run_cli(repo, "--dry-run", "--show-diff", "--fold-date", "2026-08-02")
+    assert completed.returncode == 0
+    rel = fragment.relative_to(repo).as_posix().encode("utf-8")
+    assert b"--- a/" + rel + b"\n" in completed.stderr
+    assert b"+++ /dev/null\n" in completed.stderr
+
+
+def test_cli_dry_run_show_diff_noop_emits_no_stderr(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _install_cli(repo)
+    plain = _run_cli(repo, "--dry-run", "--fold-date", "2026-08-02")
+    shown = _run_cli(repo, "--dry-run", "--show-diff", "--fold-date", "2026-08-02")
+    assert plain.returncode == shown.returncode == 0
+    assert shown.stderr == b""
+    assert shown.stdout == plain.stdout
+    payload = json.loads(shown.stdout)
+    assert payload["status"] == "noop" and payload["targets"] == []
+
+
+def test_cli_show_diff_requires_dry_run_without_writes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    fragment = _fragment(repo, "worklog", _worklog_body(repo))
+    _install_cli(repo)
+    before = _cli_snapshot(repo)
+    canonical_before = (repo / "docs/worklog.md").read_bytes()
+    fragment_before = fragment.read_bytes()
+    completed = _run_cli(repo, "--show-diff", "--fold-date", "2026-08-02")
+    assert completed.returncode == 2
+    assert completed.stdout == b""
+    assert b"--show-diff requires --dry-run" in completed.stderr
+    assert _cli_snapshot(repo) == before
+    assert (repo / "docs/worklog.md").read_bytes() == canonical_before
+    assert fragment.read_bytes() == fragment_before
     assert not spool_fold._state_path(repo).exists()
+
+
+def test_cli_dry_run_show_diff_leaves_git_status_unchanged(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _install_cli(repo)
+    before = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain"],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    completed = _run_cli(repo, "--dry-run", "--show-diff", "--fold-date", "2026-08-02")
+    after = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain"],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    assert completed.returncode == 0
+    assert after == before
 
 
 def test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes(tmp_path: Path) -> None:

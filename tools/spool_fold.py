@@ -12,6 +12,7 @@ import argparse
 import base64
 import dataclasses
 import datetime as _datetime
+import difflib
 import hashlib
 import importlib.util
 import json
@@ -2359,9 +2360,84 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
     return FoldResult(status, plan.transaction_id, tuple(written), tuple(resumed), tuple(removed))
 
 
+def _diff_lines(before: bytes, after: bytes, *, fromfile: bytes, tofile: bytes) -> Iterable[bytes]:
+    diff = difflib.diff_bytes(
+        difflib.unified_diff,
+        before.splitlines(keepends=True),
+        after.splitlines(keepends=True),
+        fromfile=fromfile,
+        tofile=tofile,
+    )
+    for index, line in enumerate(diff):
+        is_payload = index >= 2 and line[:1] in {b" ", b"+", b"-"}
+        if is_payload and not line.endswith(b"\n"):
+            yield line + b"\n"
+            yield b"\\ No newline at end of file\n"
+        else:
+            yield line
+
+
+def _iter_plan_diff(repo: Path, plan: FoldPlan) -> Iterable[bytes]:
+    """全 before を先に照合し、plan の byte-oriented unified diff を返す。"""
+
+    target_before: dict[str, bytes] = {}
+    for target in plan.targets:
+        path = repo / target.path
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise TransactionError(f"{target.path}: diff 対象が symlink/非 regular")
+        exists = path.exists()
+        before = path.read_bytes() if exists else b""
+        if exists != target.before_exists or _sha256(before) != target.before_sha256:
+            raise TransactionError(f"{target.path}: diff before が plan と不一致")
+        if _sha256(target.after_bytes) != target.after_sha256:
+            raise TransactionError(f"{target.path}: diff after が plan と不一致")
+        target_before[target.path] = before
+
+    receipts = {fragment.path: fragment for fragment in plan.fragments}
+    gc_before: dict[str, bytes] = {}
+    for rel in sorted(plan.gc_paths):
+        path = repo / rel
+        if path.is_symlink() or not path.is_file():
+            raise TransactionError(f"{rel}: diff GC target が存在しないか regular file でない")
+        receipt = receipts.get(rel)
+        before = path.read_bytes()
+        if receipt is None or _sha256(before) != receipt.content_sha256:
+            raise TransactionError(f"{rel}: diff GC target content が plan と不一致")
+        gc_before[rel] = before
+
+    for target in plan.targets:
+        path = target.path.encode("utf-8")
+        yield (
+            f"# before_sha256={target.before_sha256} after_sha256={target.after_sha256}\n"
+        ).encode("ascii")
+        yield from _diff_lines(
+            target_before[target.path],
+            target.after_bytes,
+            fromfile=b"a/" + path if target.before_exists else b"/dev/null",
+            tofile=b"b/" + path,
+        )
+
+    empty_sha = _sha256(b"")
+    for rel in sorted(plan.gc_paths):
+        before = gc_before[rel]
+        path = rel.encode("utf-8")
+        yield f"# before_sha256={_sha256(before)} after_sha256={empty_sha}\n".encode("ascii")
+        yield from _diff_lines(
+            before,
+            b"",
+            fromfile=b"a/" + path,
+            tofile=b"/dev/null",
+        )
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="spool fragment を canonical 台帳へ fold する")
     parser.add_argument("--dry-run", action="store_true", help="計画 JSON のみを出力し、変更しない")
+    parser.add_argument(
+        "--show-diff",
+        action="store_true",
+        help="dry-run の unified diff を stderr へ出す（人間向け表示であり JSON channel ではない）",
+    )
     parser.add_argument(
         "--fold-date",
         help="canonical に使う ISO date。dry-run と apply で同じ値を渡せば同じ plan になる",
@@ -2370,7 +2446,10 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if args.show_diff and not args.dry_run:
+        parser.error("--show-diff requires --dry-run")
     repo = Path(__file__).resolve().parents[1]
     try:
         state_path = _state_path(repo)
@@ -2379,6 +2458,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             plan = plan_fold(repo, fold_date=args.fold_date)
         if args.dry_run:
+            if args.show_diff:
+                for chunk in _iter_plan_diff(repo, plan):
+                    sys.stderr.buffer.write(chunk)
             print(json.dumps(plan.as_dict(), ensure_ascii=False, separators=(",", ":"), sort_keys=True))
             return 0
         result = apply_fold(repo, plan)

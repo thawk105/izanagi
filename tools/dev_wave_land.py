@@ -1785,7 +1785,7 @@ def _rollback_fold(
             metadata = state_path.lstat()
             if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
                 failures.append("fold transaction state is symlink/non-regular")
-            else:
+            elif not failures:
                 state_path.unlink()
     except (OSError, RuntimeError, _Reject) as exc:
         failures.append(f"fold rollback raised {type(exc).__name__}: {exc}")
@@ -1978,6 +1978,12 @@ def _fold_main_locked(
         reason = f"fold failed: {type(exc).__name__}: {exc}"
         if rollback_failures:
             reason += "; rollback incomplete: " + "; ".join(rollback_failures)
+            try:
+                state_path.lstat()
+            except OSError:
+                pass
+            else:
+                reason += f"; resume journal preserved at {state_path}"
         return LandResult(
             RC_FOLD_ROLLBACK_FAILED if rollback_failures else RC_FOLD_FAILED,
             "fold-rollback-failed" if rollback_failures else "fold-failed",
