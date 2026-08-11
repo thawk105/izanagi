@@ -917,3 +917,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:legacy-observations-retirement":"[T-857]","T:official-sink-audit":"[T-858]","T:oracle-verdict-sealing":"[T-856]"},"authored":"2026-08-11","content_sha256":"d76dc0000bba21639f1657de49d8a3de18bd6c92d64249c951cd3469b837d845","seq":1,"wave":"dev-wave-t804-spec-sha256"}
 - {"allocations":{"D:judge-reverifies-not-compares-pin":"D304","D:mutation-expected-nodes-from-collection":"D303","D:spec-binding-by-rederivation":"D302"},"authored":"2026-08-11","content_sha256":"09064ff67cebc90d8d9060eca7a6abb21503c067178aff31659984e58e2f6e3f","seq":2,"wave":"dev-wave-t804-spec-sha256"}
 - {"allocations":{"F:codex-cannot-perform-merge":"F225","F:mutation-node-id-nonascii":"F224","F:source-hash-pin-drags-mutations":"F226"},"authored":"2026-08-11","content_sha256":"c1b6eeedba5261bec9b1c65ca69af4f6bb6d699219d3fc0abd2544833db0b5ba","seq":3,"wave":"dev-wave-t804-spec-sha256"}
+
+- {"allocations":{"T:guided-wal-status":"[T-860]","T:legacy-campaign-admission":"[T-861]","T:trace-run-binding-nonce":"[T-859]"},"authored":"2026-08-12","content_sha256":"09c418ea7494001689080b281ffd8dda70f779c4a5bf673ca5b2692f9e6c1b04","seq":67,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-12","content_sha256":"3aa920a826f01eae565de32ec2fea6ceae44259e202391d0fa7f4d2dc63d2926","seq":68,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:approval-decision-machine-schema":"[T-864]","T:pubcore-s81-root-erratum":"[T-863]","T:publication-reservation-writer":"[T-862]","T:spool-fold-real-fixture-closure":"[T-865]"},"authored":"2026-08-11","content_sha256":"48fbcee3be71e60b6d74af53dd078f314e331ab25c6e81e49bcf109a30a94286","seq":1,"wave":"dev-wave-t793-pubcore-impl"}
+- {"allocations":{"D:marker-gate-scope":"D306","D:publication-trust-root":"D305"},"authored":"2026-08-11","content_sha256":"c4197ce0df367252d7da90299b0c92a611553de4a4923d9eca3fc60b7bcf2805","seq":1,"wave":"dev-wave-t793-pubcore-impl"}
+- {"allocations":{"F:test-assumes-empty-spool":"F228","F:tools-to-orchestrator-gate-import":"F227"},"authored":"2026-08-11","content_sha256":"b78f5294bdf81f6e6d9a28244b0e0869fcdceaab4b45220ca3fd9a5a38de39d2","seq":1,"wave":"dev-wave-t793-pubcore-impl"}
