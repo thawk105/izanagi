@@ -19,6 +19,9 @@ VERIFY_INCONCLUSIVE_ABORT_REASONS: frozenset[str] = frozenset({
     "trace-run-nonzero-exit",
     "trace-empty",
     "trace-no-abort-counts",
+    "trace-no-commit-witness",
+    "trace-batch-commits-unattributed",
+    "trace-witness-unsupported-workload",
     "trace-parse-error",
     "verify-competing-tenant",
 })
