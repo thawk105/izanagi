@@ -71,7 +71,9 @@ wave 中:
 python3 tools/check_docs.py
 # check_docs は base digest の不一致を検出しない (実測)。dry-run で確かめる。
 # --dry-run は計画 JSON を出すだけで台帳を変えない = fold ではない。
-python3 tools/spool_fold.py --dry-run
+# --show-diff を併せて渡すと、台帳へ挿入される bytes と削除される fragment を
+# stderr の unified diff で land 前に目視できる (stdout の JSON は byte 単位で不変)。
+python3 tools/spool_fold.py --dry-run --show-diff
 git add -- docs/spool
 ```
 

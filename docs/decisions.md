@@ -13004,3 +13004,196 @@ alpha_reservation:
   正しく、実装 pin も依存している。失効させるのは `record_items` role の 1 項でよい。
 - 旧 record-items を無条件に非承認と書く — D262 の歴史的記録と矛盾する。
 - manifest だけを trust root にする — 偽 manifest が自己整合する経路が残る。
+
+## D283. 公表 study の下流解析へ roadmap 限定例外を適用する (2026-08-11)
+
+**決定:** roadmap の限定例外を、公表手続きの新 core が定める下流解析へも適用する。
+**これは roadmap 条文からの導出ではなく、ユーザーによる明示的な適用裁定である**
+(2026-08-11、公表 core の裁定 C-3 (a))。roadmap は改訂しない。
+
+適用対象は、source study の validator が確定した cluster level の代表値だけを入力とし、
+新しい測定を 1 件も要求せず、paired 設計の例外を再行使しない解析に限る。
+
+**継承する条件 (適用の前提。1 つでも欠ければ結論は「判定不能」とする)。**
+roadmap 条文が列挙する条件をすべて引き継ぐ。下流解析は新しい測定を行わないため、
+測定の実施に関する条件は「その条件を満たした測定の結果だけを入力にしてよい」と読み替える。
+
+- **発効条件.** 本適用裁定を canonical 台帳へ fold した land 以後にのみ効力を持つ。
+  fold 前の中間状態では発効しない。
+- **事前登録 (source study 側の条件。roadmap 条文がそのまま効く).**
+  入力にしてよいのは、推論の構造を固定した source core 事前登録と、数値パラメータを確定する
+  追補 A が最初の pilot より前に commit され、結果の記録がそれぞれの commit・path・blob digest を
+  参照し、当該 commit が測定 checkout の祖先である測定の結果だけである。
+  **source core の canonical path は producer が選べず、その bytes は roadmap の限定例外を
+  発効させた fold commit 時点のものと同一でなければならない。**
+  本走の結果を入力にするなら、さらに本走用の追補 B が揃っていること。
+  この事前登録は core と追補の組で完結し、core 単独では完結しない。
+- **事前登録 (下流解析側の条件。本適用裁定が課す条件).**
+  下流解析の推論構造を固定した core と、数値パラメータを確定する追補が、
+  source study の最初の pilot より前に commit・承認・fold されていること。
+  結果の記録はそれぞれの commit・path・blob digest を参照する。
+  こちらも core 単独では完結せず、core と追補の組で完結する。
+- **cluster level 推論.** 入力は 1 割当てを 1 cluster とする代表値だけとし、
+  推定量・検定・区間は cluster 間の標本平均と標本共分散だけから構成する。
+  cluster 内の反復・block・個々の測定値を独立標本や追加の自由度として数えない。
+- **順序均衡と結果後の選別禁止.** 入力にしてよいのは、各適格 cluster が 3 arm の全 6 順列を
+  ちょうど 1 回ずつ含み、arm 位置と直前 arm の組が厳密に均衡し、workload の block 順が
+  cluster 間で差 1 以内に均衡した測定だけである。
+  **block の実行順は事前 seed で許容集合から選ばれ、runtime 乱数を使っていないこと。**
+  **結果を見た後の cluster 選別・順序変更をしない。**
+- **観測者効果の分離 (絶対規律 1 は不変).** 入力にしてよいのは trace-disabled ビルドで揃えた
+  性能測定だけである。correctness 検証は trace-enabled の別ビルド・別 run の結果を使い、
+  同一割当ての中で性能測定と混ぜない。
+- **fail-closed.** pairing・順序均衡・cluster の受領証のいずれかが成立しなければ「判定不能」とし、
+  unpaired 推定へも通常の campaign compare へも自動 fallback しない。
+  correctness anomaly は候補の終端 reject とし、性能測定の開始後の失敗を予備割当てで置き換えない。
+- **権威.** 適格性は producer の自己申告では決まらず、保存した生の受領証から独立 validator が
+  再計算した結果だけを権威とする。
+- **流用禁止の境界.** 本適用は within-run / between-run の区別、`BETWEEN_RUN_CV` の値、
+  品質ゲート、floor 丸めを一切変更しない。paired cluster の反復や cluster 内 contrast を
+  通常の campaign compare の独立 run 列へ流用しない。
+
+**機械執行は無い。**上の条件は文書上の契約であり、投入 script・producer・受領証 schema・
+validator・消費側のいずれにも配線されていない。**本裁定を根拠に「機械的に阻止されている」と
+記録してはならない。**配線は producer 実装 wave の責務である。
+
+**理由:**
+
+- roadmap の限定例外は特定の study に条件つきで限定されており、
+  「新しい測定をしないから自動的に含まれる」とは条文からは言えない。
+  段 3 の敵対レンズが条文を読んで独立にこれを指摘した。
+- しかし適用を否定すると、公表表を「事前登録どおりの解析」として受理できなくなる。
+  例外の趣旨は測定設計の一般化を防ぐことにあり、既に検証済みの代表値を事前登録済みの
+  手続きで読むことはその趣旨に反しない。
+- 明示裁定として記録すれば、roadmap の条文を広げずに範囲を閉じたまま適用できる。
+  条文を広げると他の study へ波及するが、明示裁定なら波及しない。
+
+**却下した選択肢:**
+
+- roadmap を改訂して公表 study を条文へ明記する — 戦略層の改訂手続きを要し、
+  例外の外延が条文の側で広がる。適用範囲を閉じたまま済ませるほうが安全である。
+- 抵触と判断する — 公表表を事前登録済みの解析として受理できなくなり、
+  材料レポートの公表表が例外条件下の成果物として成立しなくなる。
+- 「導出できる」として記録する — 条文から一意には導けないため、
+  後の読み手が導出を再現できず、根拠が失われる。
+
+## D284. 追補 B に primary 台帳への参照を置かない (2026-08-11)
+
+**決定:** source study の追補 B は、primary 系列の累積台帳への参照を持たない。
+個別公表系列の受理条件に primary 側の予約 entry を含めない。この不採用は終端であり、
+将来の producer 実装 wave が primary digest 参照を「未確定仕様」として復活させてはならない。
+
+**混同への注意:** これは追補 B の裁定パッケージが立てた「`b03` に primary 台帳への参照を置くか」
+という問い (第 5 問) の不採用終端である。**別に存在する「追補 B の第 5 案」**
+(現 study を維持したまま erratum で公表手続きを固定する案) の不採用終端とは**別の裁定**であり、
+一方を他方の根拠にしてはならない。
+
+**理由:**
+
+- primary 系列と個別公表系列は別々の累積台帳を持つと裁定済みであり、
+  公表側の受理条件に primary の予約を混ぜると 2 系列の spending が連動する。
+- 追補 B が primary 側の予約契約へ要件を足すことは、primary 側の追補が固定した契約の変更に当たる。
+- 段 3 の敵対レンズが、再発行時にこの不採用終端が明示的に引き継がれていないことを指摘した。
+  記録しておかないと、台帳間の参照を足す変更が「未裁定だから検討可能」として復活しうる。
+
+**却下した選択肢:**
+
+- 公表側の受理条件に primary の予約 entry を必須参照として置く — 上記のとおり
+  別台帳の裁定に反し、2 系列の受理集合が結合する。
+- 記録せず暗黙に扱う — 再発行のたびに同じ論点が蒸し返される。
+
+## D285. 設計文書と検査値を束縛する gate は、comment を除去せず存在を拒否する (2026-08-11)
+
+**決定:** 設計正本から literal を抽出して検査側の値と exact 照合する gate は、対象文書に
+HTML comment (`<!--` / `-->`) が 1 つでもあれば fail-closed で拒否する。comment を除去して
+可視部分だけを読む実装にしない。
+
+**理由:**
+
+- 除去は「どこまでが comment か」を Markdown の文脈なしに決めることになり、その判定自体が
+  攻撃面になる。実際に、code fence 内の開始と fence 外の終了が対になって**可視の差分行ごと
+  消える**構成が成立し、除去を入れる前には拒否されていた文書が受理された。
+- 存在の拒否なら判定が 1 つの述語に閉じ、隠し場所が無くなる。抽出器を増やしても攻撃面は増えない。
+- 設計正本に comment を置けない制約は実質的な損失にならない。書きたい注記は本文に書けばよく、
+  「読者に見えない正本」は正本の定義に反する。
+
+**却下した選択肢:**
+
+- comment 除去 + 未閉鎖 comment の拒否 — 上記の code fence 経路で破れた。
+- Markdown parser の導入 — 検査のために parser の正しさを新しい信頼境界として抱えることになる。
+- 抽出器ごとに個別対処 — 抽出器が増えるたびに同じ穴を作り直す。
+
+## D286. 背景 job の待ち手は detach 後の実体 pid を使い、codex の cold start 失敗は新 artifact 名で再投入する (2026-08-11)
+
+**決定:** `nohup setsid` で detach した子の完了待ちでは、`$!` を producer pid として使わない。
+起動後に `ps` で実体 (`dev_wave_codex.py --wave <slug>`) の pid を引き、それを死亡判定に使う。
+codex 子が `evidence_status=missing` / `stdout_bytes=0` / 短い `wall_clock_s` で not_accepted に
+なった場合は、認証や prompt でなく起動遅延を疑い、**既存 `.done` を消さず新しい artifact 名**で
+1 度だけ再投入する。
+
+**理由:**
+
+- `nohup setsid bash -c '...' &` の `$!` は中継 process の pid であり、setsid が新しい session を
+  作った直後に消える。pid 死判定の待ち手は、実体が稼働中でも即座に「producer 死」と誤報する。
+  本 wave で実測した (実体は 1 分以上稼働していた)。
+- codex の launcher は既定 5 秒の evidence grace 内に起動イベントが出ないと SIGTERM で止める。
+  本 wave の初回はこれで `wall_clock_s=8.59` の not_accepted になり、直後の手動 probe は
+  同 model・同 effort で 4.88 秒完走した。差は binary の page cache の温度だけで、
+  prompt にも認証にも帰属しない。
+
+**却下した選択肢:**
+
+- `pgrep -f <pattern>` で待つ — 待ち手自身の argv に pattern が載って自己マッチする既知事故。
+- grace を延ばす caller flag を足す — 起動導線は caller 指定不可の設計であり、
+  独立 2 例目が出るまで族一般化しない。
+- 同じ artifact 名で再投入する — 既存 attempt artifact と衝突し、launcher が fail-closed で止まる。
+
+## D287. 人間承認は pinned literal で表し、Git trailer を認可根拠にしない (2026-08-11)
+
+**決定:** 「人間が承認した」ことを機械が読む必要がある箇所では、承認対象の bytes hash を
+**production module 内の pinned literal** として置く。未承認のあいだ定数は `None` とし、
+その状態ではあらゆる入力を fail-closed で拒否する。approval を発行する CLI・API・
+`--approver` 引数・既定補完は作らない。Git の commit message・trailer
+(非 merge commit や逐語 `AI-Agent: none` を含む) を承認の根拠にしてはならない。
+
+**理由:**
+- D86(8) は「認可の実体はユーザーの明示指示であり、submission artifact はその指示が実行された
+  記録にとどまる。artifact の存在を認可の証明として扱ってはならない」と定めている。
+  AI は自分で commit を作れるため、trailer を根拠にすると承認が恒真化する。
+- pinned literal なら、AI が承認者になるには**人間がコード diff をレビューして定数を置く**しかない。
+  これは v1 freeze の bytes 定数や env contract の reviewed golden と同じ既存パターンであり、
+  新しい trust root を発明しない。
+- `None` 既定により、承認前は機構全体が動かない。証拠が無い状態で先に進む経路が構造的に無い。
+
+**却下した選択肢:**
+- **Git trailer による承認** — 上記のとおり恒真化する。段 3 の敵対レンズが独立に指摘した。
+- **approval record JSON の存在をもって承認とみなす** — 同じ主体が record も対象も書けるため、
+  自己整合な偽物と本物を区別できない。
+- **人間だけが保持する鍵による署名** — 方向としては正しいが、repo に鍵管理の trust root が無く、
+  新設は D86 の再裁定を要する。恒久形の裁定はユーザーへ返す。
+
+## D288. 実行経路の gate は CLI でなく共有 verifier に置く (2026-08-11)
+
+**決定:** 成果物の受理集合を狭める gate は、新設した CLI ではなく**実行経路が必ず通る共有
+verifier** へ置く。oracle manifest では `verify_manifest` に cell-product 検査を置き、
+schedule の holdout 集合が active freeze の holdout 集合と exact 一致すること、および
+cell 集合が「全 holdout × 各 holdout の構成集合」の積と exact 一致することを要求する。
+生成側の generic builder の受理集合は変えない。
+
+**理由:**
+- driver の `run-block` は任意の manifest path を受け取り共有 verifier へ通すだけであり、
+  新設 CLI を経由しない経路が実在する。CLI 側にだけ gate を置くと**誰も通らない gate**になる。
+- judge には部分的な product 検査があるが、holdout 間で構成集合が食い違う場合しか捕えない。
+  全 holdout で一様に間引いた schedule は素通りし、judge が唯一の候補を最良と判定する。
+  これは certified 選択の直接改変である。
+- 検査を verify 側に置くと方向は受理集合の縮小のみになり、生成側 API の互換を壊さない。
+
+**却下した選択肢:**
+- **CLI にだけ置く** — 上記のとおり迂回される。
+- **generic builder に置く** — 既存 programmatic caller の受理集合を狭め、互換を壊す。
+- **judge の部分検査に任せる** — 一様な間引きを捕えない。
+
+**併せて記録する失敗型:** 期待 cell 積を「与えられた schedule 自身」から導くと、
+gate は**入力が名乗った範囲の中でしか完全性を要求しない**。積の定義域は必ず
+authority 側 (この場合は freeze) から取る。本 wave の初版はこの形で、
+holdout を丸ごと落とした manifest を受理していた。

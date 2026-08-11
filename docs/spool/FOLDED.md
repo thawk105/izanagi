@@ -807,3 +807,25 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"28285996a3e64824f8cab679c0b34212b54e3691058d968213fd14be85ae4920","seq":49,"wave":"rulings-20260806-a"}
 
 - {"allocations":{"T:conditional-unrun-boundary-run":"[T-790]","T:records-vs-acceptance-ordering":"[T-791]","T:reflux-sys-path-hidden-coupling":"[T-792]"},"authored":"2026-08-11","content_sha256":"33edcce0419a9eecf64ec66167b75af339ef6c90cd5be11e80abbd2747d84c75","seq":1,"wave":"dev-wave-t770-conditional-unrun"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1ed693c8ce36ac5b148f0f0e7288d0449c5669581af2fa29624e5eb6e8ed0b81","seq":1,"wave":"dev-wave-t781-spool-feasibility"}
+
+- {"allocations":{"T:t139-publication-layer-impl":"[T-793]"},"authored":"2026-08-11","content_sha256":"352b124f6132baf451d47d8cad297b6331772e462517243989d2f9780dae280c","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
+- {"allocations":{"D:t139-addendum-b-no-primary-ledger-reference":"D284","D:t139-publication-downstream-exception":"D283"},"authored":"2026-08-11","content_sha256":"974f5bf8f70b5195859155a6f226470919257e21e6a1ee64c6622c9bc25c74a5","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
+- {"allocations":{"F:diff-count-instrument-contaminated-claim":"F214"},"authored":"2026-08-11","content_sha256":"ddaf7ae112a3c4b46d3f8bcca81d1bd0e7fc798126b63718badebe3cf9f98e06","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"5d25712797501f1362162a7562125daec88c4c3e76c4f494f017312c0b476d1c","seq":50,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"40e3400bcabea7e7b971ce8dc1b37843a62d541fcf5177f241559f4724ea8067","seq":51,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-design-row-extraction-declared-form-only":"[T-797]","T:cfab-revocation-record-schema":"[T-795]","T:cfab-stage0-completion-unreachable":"[T-794]","T:cfab-stage6-completion-predicate":"[T-796]"},"authored":"2026-08-11","content_sha256":"ceee57ea924a61366a0a9cf49a23dc85803ae25aaaf81bbb31e3768d0a267566","seq":1,"wave":"dev-wave-t657-stage0-rulings"}
+- {"allocations":{"F:design-literal-hidden-in-html-comment":"F215","F:mutation-spec-renumbered-after-preregistration":"F216"},"authored":"2026-08-11","content_sha256":"e0c7ccd1aee1e877779e1bbaa415d9816720db1061f5403152b7cc8c2a292b02","seq":2,"wave":"dev-wave-t657-stage0-rulings"}
+- {"allocations":{"D:design-literal-binding-rejects-html-comments":"D285","D:dev-wave-waiter-pid-and-codex-coldstart":"D286"},"authored":"2026-08-11","content_sha256":"5df2a09f5ffc1ceb3d42c4f3610bb0591b1a2b0fb7c2fc066aabe51a4834b4a6","seq":3,"wave":"dev-wave-t657-stage0-rulings"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c17acce403a0391868c30845df177d186f171814bbe3aa86282e710169c3c2b3","seq":52,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dryrun-git-admin-no-write":"[T-802]","T:fold-finalize-protocol":"[T-798]","T:fold-state-head-binding":"[T-799]","T:rollback-lifecycle-details":"[T-801]","T:rollback-state-inspection":"[T-800]"},"authored":"2026-08-11","content_sha256":"2eeeaec13db4463c9d5202a17ffcffa7ee0e3de03fb2f704e58fc354d0bdff92","seq":1,"wave":"dev-wave-t766-t768-resume-diff"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"694f8616196d584bb23ccda37c289c0d368b0776d68f9604b55357bcda032434","seq":2,"wave":"dev-wave-t766-t768-resume-diff"}
+
+- {"allocations":{"T:budget-authorization-proof-chain":"[T-805]","T:dev-wave-launch-procedure-gaps":"[T-806]","T:legacy-writer-path-containment":"[T-807]","T:manifest-spec-propagation":"[T-804]","T:oracle-spec-trust-root":"[T-803]"},"authored":"2026-08-11","content_sha256":"7f5a3178022576be563e4ec0d2da5b0cc86f05d3d3c0d5f3b8dc47f1979770e9","seq":1,"wave":"dev-wave-t750-freeze-v2-manifest"}
+- {"allocations":{"D:manifest-choke-point-cell-product":"D288","D:pinned-literal-human-approval":"D287"},"authored":"2026-08-11","content_sha256":"5f9d88e3a00e9858f75e594524d031898e23214e0aad30e74507a8cfe401e8bc","seq":2,"wave":"dev-wave-t750-freeze-v2-manifest"}
