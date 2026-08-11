@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
 import re
 import sys
 import tempfile
+import textwrap
 import time
 import unittest.mock
 
@@ -28,7 +30,12 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import ident, p3_s4_loop as L                        # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT_LOOP                  # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER_LOOP     # noqa: E402
-from orchestrator.campaign import source_digest, trigger_gate_binding, wal      # noqa: E402
+from orchestrator.campaign import (                                            # noqa: E402
+    site_policy,
+    source_digest,
+    trigger_gate_binding,
+    wal,
+)
 from orchestrator.campaign.build_admission import (                             # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -99,6 +106,15 @@ _OUTER_WHITESPACE = (
     ("form-feed", "\x0c"),
     ("nbsp", "\u00a0"),
     ("ideographic-space", "\u3000"),
+)
+_HOST_EFFECT_INJECTIONS = (
+    'std::system("ignored");',
+    'execl("ignored", "ignored", nullptr);',
+    'std::ofstream stream("ignored");',
+    'while(true){}',
+    'while (1.0) {}',
+    'for (; 0.5f ;) {}',
+    "while ('x') {}",
 )
 
 
@@ -178,6 +194,87 @@ def test_quarantine_write_occurs_only_after_structural_validation():
     )
     assert accepted.passed
     assert open(path, encoding="utf-8").read() == edited
+
+
+def test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write():
+    """Synthetic template seam contract; current-pin backoff 実路 E2E ではない。"""
+    for implementation in _HOST_EFFECT_INJECTIONS:
+        d = _mk_template_dir()
+        path = os.path.join(d, _SRC_REL)
+        before = Path(path).read_bytes()
+
+        dry, *_ = L.quarantine(
+            d, implementation, source_rel=_SRC_REL, write=False,
+        )
+        assert not dry.passed
+        assert dry.subtype is DiffRejectSubtype.HOST_EFFECT
+        assert Path(path).read_bytes() == before
+
+        writing, *_ = L.quarantine(
+            d, implementation, source_rel=_SRC_REL, write=True,
+        )
+        assert not writing.passed
+        assert writing.digest["subtype"] == "host-effect"
+        assert Path(path).read_bytes() == before
+
+
+def test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes():
+    d = _mk_template_dir()
+    path = os.path.join(d, _SRC_REL)
+    from orchestrator.campaign.diff_quarantine import parse_template_file
+    original_marker = parse_template_file(path, L.MARKER_ID)
+    assert original_marker is not None
+    original_lines = Path(path).read_text(encoding="utf-8").split("\n")
+    original_hole_line = original_lines[original_marker.hole_first - 1]
+    harness_indent = original_hole_line[
+        :len(original_hole_line) - len(original_hole_line.lstrip())
+    ]
+    implementation = (
+        "double now_backoff = 23.0;\n"
+        "  now_backoff *= 2.0;\n"
+        "\n"
+        "\tif (now_backoff > 100.0) now_backoff = 100.0;"
+    )
+    real_scan = L.coder_effect_gate.scan_host_effects
+    real_render = L.render_hole
+
+    with unittest.mock.patch.object(
+        L.coder_effect_gate, "scan_host_effects", wraps=real_scan,
+    ) as scan, unittest.mock.patch.object(
+        L, "render_hole", wraps=real_render,
+    ) as render:
+        structural, *_ = L.quarantine(
+            d,
+            "#define STRUCTURAL_REJECT 1\ndouble now_backoff = 23.0;",
+            source_rel=_SRC_REL,
+            write=True,
+        )
+        assert not structural.passed
+        assert scan.call_count == 0
+
+        accepted, _base, edited, _diff = L.quarantine(
+            d, implementation, source_rel=_SRC_REL, write=True,
+        )
+
+    assert accepted.passed
+    scan.assert_called_once_with(implementation)
+    assert render.call_args_list[-1].args[2] == implementation
+    written = Path(path).read_bytes()
+    assert written == edited.encode("utf-8")
+
+    materialized_marker = parse_template_file(path, L.MARKER_ID)
+    assert materialized_marker is not None
+    materialized_lines = Path(path).read_text(encoding="utf-8").split("\n")
+    extracted = []
+    for line_number in range(
+        materialized_marker.hole_first, materialized_marker.hole_last + 1,
+    ):
+        line = materialized_lines[line_number - 1]
+        if line:
+            assert line.startswith(harness_indent)
+            line = line[len(harness_indent):]
+        extracted.append(line)
+    assert "\n".join(extracted).encode("utf-8") == scan.call_args.args[0].encode("utf-8")
 
 
 def test_quarantine_rejects_marker_forgery_in_hole():
@@ -710,6 +807,217 @@ def test_value_literal_consistency_fails_closed_when_value_absent():
                             implementation="double now_backoff = compute_it();"))
         raise AssertionError("value 不在の自由式が AttributionMismatch を送出しなかった")
     except L.AttributionMismatch:
+        pass
+
+
+def test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections():
+    """自由記述 bytes だけが対象。宣言済み genome scalar BACKOFF_FIXED は帰属 field で対象外。"""
+    sentinels = (
+        "913579.125",
+        "824680.25",
+        "SENTINEL_IMPLEMENTATION_b73e",
+    )
+    exception_projections = []
+    mismatch = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=float(sentinels[0]),
+        implementation=f"double now_backoff = {sentinels[1]};",
+    )
+    unextractable = L.CoderProposal(
+        axis=L.MARKER_ID,
+        value=float(sentinels[0]),
+        implementation=(
+            "double now_backoff = compute_"
+            f"{sentinels[2]}();"
+        ),
+    )
+    for coder in (mismatch, unextractable):
+        try:
+            L.assert_value_literal_consistent(coder)
+            raise AssertionError("帰属不一致を素通しした")
+        except L.AttributionMismatch as error:
+            exception_projections.append(repr(error))
+
+    implementation = (
+        f"double now_backoff = {sentinels[1]}; "
+        f'std::system("{sentinels[2]}");'
+    )
+    d = _mk_template_dir()
+    result, *_ = L.quarantine(
+        d, implementation, source_rel=_SRC_REL, write=False,
+    )
+    assert result.subtype is DiffRejectSubtype.HOST_EFFECT
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_host_effect_redact_")
+    ).ensure()
+    L.record_diff_reject(layout, _G, implementation, result)
+    wal_projection = json.dumps(
+        [record.payload for record in wal.read_records(layout)],
+        ensure_ascii=False,
+    )
+    loaded = load_diff_rejections(_critic_view(layout))
+    critic_projection = render_rejections(
+        [], [], {}, None, diff_rejections=loaded,
+        identity_projection=IdentityProjection.RAW,
+    )
+    all_projections = "".join(exception_projections) + wal_projection + critic_projection
+    for sentinel in sentinels:
+        assert sentinel not in all_projections
+    assert "policy_rule_id=host-effect.process-shell.v1" in critic_projection
+    assert "policy_category=process-shell" in critic_projection
+    assert "finding_count=1" in critic_projection
+    assert "有限 lexical policy が報告した identifier / loop 形を除く" in critic_projection
+    assert "通過は計算のみを意味せず、host 安全性を証明しない" in critic_projection
+    assert "hole を計算のみの実装へ縮小する" not in critic_projection
+
+
+def test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct():
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_host_effect_categories_")
+    ).ensure()
+    for implementation in ("read(); read();", "connect();"):
+        result, *_ = L.quarantine(
+            _mk_template_dir(), implementation, source_rel=_SRC_REL, write=False,
+        )
+        assert result.subtype is DiffRejectSubtype.HOST_EFFECT
+        L.record_diff_reject(layout, _G, implementation, result)
+
+    loaded = load_diff_rejections(_critic_view(layout))
+    assert [(item.rule_id, item.category, item.finding_count) for item in loaded] == [
+        ("host-effect.file-stdio.v1", "file-stdio", 2),
+        ("host-effect.network.v1", "network", 1),
+    ]
+    rendered = render_rejections(
+        [], [], {}, None, diff_rejections=loaded,
+        identity_projection=IdentityProjection.RAW,
+    )
+    assert "policy_category=file-stdio" in rendered
+    assert "policy_category=network" in rendered
+    assert "read();" not in rendered and "connect();" not in rendered
+
+
+def test_host_effect_loader_drops_non_allowlisted_rule_and_category_text():
+    sentinel = "SENTINEL_UNTRUSTED_POLICY_LABEL_19ad"
+    result, *_ = L.quarantine(
+        _mk_template_dir(), "read();", source_rel=_SRC_REL, write=False,
+    )
+    assert result.digest is not None
+    result.digest["rule_id"] = sentinel
+    result.digest["category"] = sentinel
+    layout = CampaignLayout(
+        root=tempfile.mkdtemp(prefix="izanagi_host_effect_allowlist_")
+    ).ensure()
+    L.record_diff_reject(layout, _G, "read();", result)
+    loaded = load_diff_rejections(_critic_view(layout))
+    assert len(loaded) == 1
+    assert loaded[0].rule_id == loaded[0].category == ""
+    rendered = render_rejections(
+        [], [], {}, None, diff_rejections=loaded,
+        identity_projection=IdentityProjection.RAW,
+    )
+    assert sentinel not in rendered
+
+
+def test_both_auditor_drivers_route_combination_through_mandatory_veto():
+    for driver in (SORT_LOOP, TRIGGER_LOOP):
+        tree = ast.parse(
+            textwrap.dedent(inspect.getsource(driver._quarantine_and_audit))
+        )
+        calls = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        assert "apply_mandatory_deny_only_veto" in calls
+
+
+def test_both_real_auditor_drivers_reject_post_generation_contradiction():
+    """M8 behavioral kill: old ``verdict != 'pass'`` branches return None and allow build."""
+    sort_planner = L.PlannerProposal(
+        axis=SORT_LOOP.MARKER_ID,
+        direction="explore_both",
+        magnitude="small",
+    )
+    sort_sub = _mk_template_dir(source_rel=SORT_LOOP.SOURCE_REL)
+    sort_path = Path(sort_sub, SORT_LOOP.SOURCE_REL)
+    sort_path.write_text(
+        sort_path.read_text(encoding="utf-8").replace(
+            L.MARKER_ID, SORT_LOOP.MARKER_ID,
+        ),
+        encoding="utf-8",
+    )
+    sort_impl = "int harmless = 1;"
+    machine, _base, _edited, sort_diff = L.quarantine(
+        sort_sub, sort_impl, marker_id=SORT_LOOP.MARKER_ID,
+        source_rel=SORT_LOOP.SOURCE_REL, write=False,
+    )
+    assert machine.passed
+    sort_auditor = SORT_LOOP.AuditorVerdict(
+        verdict="reject",
+        diff_digest=SORT_LOOP.compute_diff_digest(sort_diff),
+        violations=[{"type": 1}],
+    )
+    sort_auditor.verdict = "pass"
+    try:
+        SORT_LOOP._quarantine_and_audit(
+            sort_sub,
+            SORT_LOOP.CoderProposalSort(
+                axis=SORT_LOOP.MARKER_ID, implementation=sort_impl,
+            ),
+            sort_auditor, _G,
+            CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_sort_m8_")).ensure(),
+            L.LoopState(start_ts=time.monotonic()), sort_planner, write=False,
+        )
+        raise AssertionError("sort driver が事後矛盾 auditor を build 可として返した")
+    except SORT_LOOP.AuditorGateFailure:
+        pass
+
+    trigger_sub = _mk_template_dir(source_rel=TRIGGER_LOOP.SOURCE_REL)
+    trigger_path = Path(trigger_sub, TRIGGER_LOOP.SOURCE_REL)
+    trigger_path.write_text(
+        trigger_path.read_text(encoding="utf-8").replace(
+            L.MARKER_ID, TRIGGER_LOOP.MARKER_ID,
+        ),
+        encoding="utf-8",
+    )
+    wire = "00000"
+    predicate = emit_predicate(TriggerGateIR(0))
+    machine, _base, _edited, trigger_diff = L.quarantine(
+        trigger_sub, predicate, marker_id=TRIGGER_LOOP.MARKER_ID,
+        source_rel=TRIGGER_LOOP.SOURCE_REL, write=False,
+    )
+    assert machine.passed
+    trigger_auditor = TRIGGER_LOOP.AuditorVerdict(
+        verdict="reject",
+        diff_digest=TRIGGER_LOOP.compute_diff_digest(trigger_diff),
+        violations=[{"type": 1}],
+    )
+    trigger_auditor.verdict = "pass"
+    binding = trigger_gate_binding.TriggerGateBinding(
+        mask=0,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(0),
+        nonce="a" * 64,
+        source=None,
+    )
+    trigger_planner = L.PlannerProposal(
+        axis=TRIGGER_LOOP.MARKER_ID,
+        direction="explore_both",
+        magnitude="small",
+    )
+    try:
+        TRIGGER_LOOP._quarantine_and_audit(
+            trigger_sub,
+            TRIGGER_LOOP.CoderProposalTriggerGating(
+                axis=TRIGGER_LOOP.MARKER_ID, wire=wire,
+            ),
+            trigger_auditor, _G,
+            CampaignLayout(root=tempfile.mkdtemp(prefix="izanagi_trigger_m8_")).ensure(),
+            L.LoopState(start_ts=time.monotonic()), trigger_planner, write=False,
+            contract=TRIGGER_LOOP._admit_env_contract(site_policy.OTHER),
+            binding=binding,
+        )
+        raise AssertionError("trigger driver が事後矛盾 auditor を build 可として返した")
+    except TRIGGER_LOOP.AuditorGateFailure:
         pass
 
 

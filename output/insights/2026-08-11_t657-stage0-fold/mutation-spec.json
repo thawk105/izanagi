@@ -1,0 +1,166 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_fence_is_not_closed_by_different_marker",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_fenced_decoy_is_not_authoritative",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_invalid_backtick_info_decoy_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_long_fence_is_not_closed_by_shorter_marker",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_revocation_table_only_in_long_backtick_fence_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_revocation_table_only_in_tilde_fence_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_row_only_in_long_backtick_fence_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_row_only_in_tilde_fence_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_tab_indented_fence_decoy_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_unclosed_fence_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "        fence_match = _match_fence_line(fence_line)",
+          "new": "        fence_match = None"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_fenced_decoy_is_not_authoritative",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_revocation_constraint_relaxation_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "    if design_revocation_schema != _UPPER_REVOCATION_SCHEMA:",
+          "new": "    if {k for k, _c in design_revocation_schema} != {k for k, _c in _UPPER_REVOCATION_SCHEMA}:"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_contradictory_control_suffix_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "        or stage6_control != _EXPECTED_STAGE6_STRUCTURAL_CONTROL",
+          "new": "        or False"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_live_tip_relaxation_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "        stage6_predicates != _EXPECTED_STAGE6_STRUCTURAL_PREDICATES",
+          "new": "        False"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_required_gate_reorder_with_refreshed_manifest_hash_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "        == _EXPECTED_REQUIRED_GATES_ENTRIES_SHA256",
+          "new": "        == expected_gates_sha"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_policy_gate_id_drift_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "    if stage6_policy_gates != [stage6_policy_gate]:",
+          "new": "    if False:"
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_adjudicated_revocation_cannot_regress_to_unresolved",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_adjudicated_rollback_cannot_regress_to_unresolved",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_adjudicated_ruling_and_gate_projection_is_exact",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_adjudicated_u_a1_cannot_regress_to_unresolved",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_adjudicated_xf_position_cannot_regress_to_unresolved",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_case_and_manifest_hash_tamper_together_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_case_file_bytes_tamper_with_manifest_unchanged_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_current_repository_is_rejected_as_stage0_incomplete",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_declared_design_row_removed_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_deferred_seal_ruling_cannot_be_resolved",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_longer_fence_closer_is_accepted",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_revocation_record_schema_matches_validator",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_row_removed_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_contradictory_control_suffix_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_execution_boundary_tail_drift_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_live_tip_relaxation_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_policy_gate_id_drift_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_row_only_in_long_backtick_fence_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage6_row_only_in_tilde_fence_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_stage_scope_matches_fixture_assignment_gate_id",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_tilde_fence_info_may_contain_backtick",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_executable_binding_without_positive_control_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_false_pending_count_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_manifest_entry_without_case_file_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_manifest_raw_sha256_literal_tamper_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_manifest_status_cannot_claim_complete_while_gates_remain",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_not_applicable_outside_applicability_rule_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_orphan_case_file_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_pending_binding_with_positive_control_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_placeholder_string_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_real_repository_contract_is_consistent_but_incomplete",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_rejected_post_activation_lease_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_resolved_ruling_without_design_selection_enum_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_ruling_profile_order_drift_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_s2_profile_without_not_applicable_guarantee_is_rejected",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_stage0_remains_incomplete_after_r1_r2_r3_projection",
+        "orchestrator/tests/test_calibration_freeze_authority_contract.py::test_unknown_case_key_is_rejected"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/calibration_freeze_authority_contract.py",
+          "old": "    return tuple(rows)",
+          "new": "    return ()"
+        }
+      ]
+    }
+  ]
+}
