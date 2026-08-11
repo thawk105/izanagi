@@ -1,0 +1,82 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/publication/ledger.py",
+     "old": "PUBLICATION_LEDGER_KIND = \"individual_publication\"",
+     "new": "PUBLICATION_LEDGER_KIND = \"exploratory\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t793_publication_ledger.py::test_kind_outside_closed_publication_set_is_rejected",
+    "orchestrator/tests/test_t793_publication_ledger.py::test_one_canonical_publication_entry_is_structurally_readable",
+    "orchestrator/tests/test_t793_publication_ledger.py::test_publication_identity_literals_and_schema_are_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/publication/approval_guard.py",
+     "old": "UNRESOLVED_APPROVAL_MARKERS = (\n    b\"__UNRESOLVED_APPROVAL_FOLD_COMMIT__\",\n    b\"__UNRESOLVED__\",\n)",
+     "new": "UNRESOLVED_APPROVAL_MARKERS = ()"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover[fold-commit]",
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover[generic]",
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_by_main_resume_path",
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_when_plan_is_passed_directly_to_apply_fold"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/publication/addendum_p_envelope.py",
+     "old": "ADDENDUM_P_EXACT_FIELDS = frozenset({\"p01\", \"p02\", \"p03\"})",
+     "new": "ADDENDUM_P_EXACT_FIELDS = frozenset({\"p01\", \"p02\"})"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t793_addendum_p_envelope.py::test_addendum_p_exact_key_gate_rejects_missing_p03",
+    "orchestrator/tests/test_t793_addendum_p_envelope.py::test_p3_exact_p01_p02_p03_envelope_is_accepted"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/publication/report.py",
+     "old": "        if \"D291\" in section:",
+     "new": "        if False:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed",
+    "orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials",
+    "orchestrator/tests/test_t793_report.py::test_fenced_later_reference_is_also_fail_closed",
+    "orchestrator/tests/test_t793_report.py::test_later_explicit_supersession_stops_current_approval_assertion",
+    "orchestrator/tests/test_t793_report.py::test_later_reference_is_possible_supersession_even_when_negated"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
