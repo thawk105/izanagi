@@ -888,3 +888,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:cfab-hash-pin-detection-gap":"[T-829]","T:check-docs-fence-scanner-column":"[T-830]","T:upper-cancellation-record":"[T-828]"},"authored":"2026-08-11","content_sha256":"fccbb75f5264a075062422ca4306aab4ce62b9e899638178f06c3bba5f80d10d","seq":1,"wave":"dev-wave-t657-stage0-fold"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"913c11c384e8b7e6e270abdf63838c53f50fcf4294e7475a2df3663849047073","seq":2,"wave":"dev-wave-t657-stage0-fold"}
+
+- {"allocations":{"T:living-docs-node-variance":"[T-832]","T:node-variance-impl":"[T-831]"},"authored":"2026-08-11","content_sha256":"82b2d4808cdd19011ee6020eb3c681bf81b3edf625d30b025438f9848eeef278","seq":1,"wave":"dev-wave-t810-node-variance"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1e4961a9efd8c407d119a5eda8e4782b65bb8a18f24f02a6b15ee54e50fe3af8","seq":2,"wave":"dev-wave-t810-node-variance"}
