@@ -18,8 +18,13 @@ import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
 _TOOLS = _REPO / "tools"
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
 if str(_TOOLS) not in sys.path:
     sys.path.insert(0, str(_TOOLS))
+
+from orchestrator.campaign import login_headroom  # noqa: E402
+
 _TOOL = _TOOLS / "mutation_fanout.py"
 _SPEC = importlib.util.spec_from_file_location("mutation_fanout_under_test", _TOOL)
 assert _SPEC is not None and _SPEC.loader is not None
@@ -169,7 +174,7 @@ def _binding(
     ]
     peak = 20_000_000
     certified = peak + MF.CERTIFICATION_MIN_MARGIN_BYTES
-    memory_max = 14 * 1024**3
+    memory_max = login_headroom.CEILING_BYTES
     identity = {
         "repo_path": "tools/mutation_fanout.py",
         "path": str(_TOOL.resolve()),

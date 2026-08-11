@@ -813,3 +813,12 @@ def test_merge_derives_global_result_from_records_and_cross_checks_rc(tmp_path: 
 def test_parent_id_bijection_rejects_missing_duplicate_and_unknown(shard_ids: list[str]) -> None:
     with pytest.raises(MF.FanoutContractError, match="直和"):
         MF._require_id_bijection(["M1", "M2", "M3", "M4"], shard_ids)
+
+
+def _run() -> int:
+    """新規 test file を repository の plain-runner 契約へ含める。"""
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
