@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import signal
 import subprocess
 import sys
@@ -41,9 +42,11 @@ from mutation_fanout_contract import (
 )
 
 
-ADMISSION_SCHEMA = "izanagi-dev-wave-mutation-fanout-admission/v1"
+ADMISSION_SCHEMA = "izanagi-dev-wave-mutation-fanout-admission/v2"
+MEASUREMENT_SCHEMA = "izanagi-dev-wave-mutation-fanout-memory-sample/v1"
 DRIVER_SCHEMA = "izanagi-dev-wave-mutation-fanout-driver/v1"
 CANCELLATION_SCHEMA = "izanagi-dev-wave-mutation-fanout-cancellation/v1"
+ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts/v1"
 CONTAINER_NAME = ".izanagi-mutation-worktree"
 CHECKOUT_NAME = "repo"
 MIN_CERTIFICATION_REPETITIONS = 3
@@ -53,6 +56,12 @@ LAUNCHER_FAILURE_RC = 125
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _COMMIT_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _REQUEST_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+_JOB_NAME_RE = re.compile(r"izdw-[A-Za-z0-9._-]+\Z")
+_CGROUP_ROOT = Path("/sys/fs/cgroup")
+_PROC_SELF_CGROUP = Path("/proc/self/cgroup")
+_BOUNDED_SCOPE_UNIT_ENV = "IZANAGI_MUTATION_FANOUT_SCOPE_UNIT"
+_BOUNDED_SCOPE_CAP_ENV = "IZANAGI_MUTATION_FANOUT_SCOPE_CAP"
+_BOUNDED_SCOPE_UNIT_PREFIX = "izanagi-mutation-fanout-"
 
 _ADMISSION_FIELDS = {
     "schema",
@@ -61,13 +70,71 @@ _ADMISSION_FIELDS = {
     "parent_spec_sha256",
     "assignment_sha256",
     "shard_count",
-    "runner_argv",
+    "outer_argv_sha256",
     "input_bytes",
     "input_count",
     "memory_max_bytes",
-    "repetitions",
-    "memory_current_peak_bytes",
+    "producer_identity",
+    "sampler_identity",
+    "measurement_logs",
     "certified_peak_bytes",
+}
+_TOOL_IDENTITY_FIELDS = {"repo_path", "path", "sha256", "head_blob_sha256"}
+_MEASUREMENT_REF_FIELDS = {"path", "sha256"}
+_MEASUREMENT_FIELDS = {
+    "schema",
+    "repetition",
+    "commit",
+    "cgroup_path",
+    "memory_max_bytes",
+    "outer_argv",
+    "input_bytes",
+    "input_count",
+    "samples",
+    "child_returncodes",
+}
+_MEASUREMENT_SAMPLE_FIELDS = {"monotonic_ns", "memory_current_bytes"}
+_GROUP_FIELDS = {"schema", "parent_spec_sha256", "assignment_sha256", "shards"}
+_GROUP_SHARD_FIELDS = {
+    "index",
+    "shard_id",
+    "spec_path",
+    "ledger_path",
+    "wrapper_receipt_path",
+    "attempt_path",
+    "wrapper_attempt_ordinal",
+    "wrapper_rc",
+    "expected_paths",
+}
+_ATTEMPT_ROOT_FIELDS = {
+    "schema",
+    "repo_head",
+    "spec_sha256",
+    "runner_sha256",
+    "tool_sha256",
+    "expected_initial_requests",
+    "attempts",
+}
+_ATTEMPT_FIELDS = {
+    "run_attempt_ordinal",
+    "wrapper_attempt_ordinal",
+    "phase",
+    "mutation_id",
+    "state",
+    "started_at",
+    "finished_at",
+    "rc",
+    "timed_out",
+    "artifact_error",
+    "console_sha256",
+    "request",
+}
+_ATTEMPT_REQUEST_FIELDS = {
+    "request_id",
+    "submission_dir",
+    "receipt_path",
+    "job_stdout_path",
+    "outcome_rc",
 }
 
 
@@ -212,6 +279,64 @@ def _resolved_commit(source: Path, commit: str) -> str:
     return value
 
 
+def _fixed_head_tool_identity(
+    source: Path,
+    commit: str,
+    *,
+    repo_path: str,
+    executed_path: Path,
+) -> dict[str, str]:
+    """実行 bytes を指定 commit の blob へ束縛する。"""
+
+    blob = subprocess.run(
+        ["git", "--no-optional-locks", "-C", str(source), "show", f"{commit}:{repo_path}"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if blob.returncode != 0:
+        raise FanoutDriverError(
+            f"固定 HEAD blob を取得できない: {repo_path}: "
+            f"{blob.stderr.decode('utf-8', 'replace').strip()}"
+        )
+    if executed_path.is_symlink():
+        raise FanoutDriverError(f"実行 tool が symlink: {executed_path}")
+    try:
+        payload = executed_path.read_bytes()
+    except OSError as exc:
+        raise FanoutDriverError(f"実行 tool を読めない: {executed_path}: {exc}") from exc
+    executed_sha256 = _sha256(payload)
+    head_sha256 = _sha256(blob.stdout)
+    if executed_sha256 != head_sha256:
+        raise FanoutDriverError(
+            f"実行 tool が固定 HEAD blob と不一致: {repo_path}"
+        )
+    return {
+        "repo_path": repo_path,
+        "path": str(executed_path.resolve()),
+        "sha256": executed_sha256,
+        "head_blob_sha256": head_sha256,
+    }
+
+
+def _execution_identities(source: Path, commit: str) -> dict[str, dict[str, str]]:
+    return {
+        "driver": _fixed_head_tool_identity(
+            source,
+            commit,
+            repo_path="tools/mutation_fanout.py",
+            executed_path=Path(__file__),
+        ),
+        "wrapper": _fixed_head_tool_identity(
+            source,
+            commit,
+            repo_path="tools/mutation_worktree.py",
+            executed_path=source / "tools" / "mutation_worktree.py",
+        ),
+    }
+
+
 def _worktree_snapshot(source: Path) -> tuple[tuple[str, ...], str]:
     result = _git(source, "worktree", "list", "--porcelain")
     if result.returncode != 0:
@@ -273,6 +398,26 @@ def _input_binding(
     return sum(len(payload) for payload in shard_payloads), mutation_count
 
 
+def _attest_measurement_cgroup(path: Path, peak: int, memory_max: int) -> bool:
+    """生存中の専用 scope から kernel 値を再読し、log の自己申告化を防ぐ。"""
+
+    try:
+        resolved = path.resolve(strict=True)
+        resolved.relative_to(_CGROUP_ROOT.resolve(strict=True))
+        memory_peak = (resolved / "memory.peak").read_text(encoding="ascii").strip()
+        observed_max = (resolved / "memory.max").read_text(encoding="ascii").strip()
+        events = (resolved / "cgroup.events").read_text(encoding="ascii").splitlines()
+    except (OSError, UnicodeError, ValueError):
+        return False
+    populated = [line.split() for line in events if line.startswith("populated ")]
+    return (
+        memory_peak.isdecimal()
+        and int(memory_peak, 10) == peak
+        and observed_max == str(memory_max)
+        and populated == [["populated", "1"]]
+    )
+
+
 def validate_admission_receipt(
     value: Any,
     *,
@@ -280,12 +425,14 @@ def validate_admission_receipt(
     parent_spec_sha256: str,
     assignment_sha256: str,
     shard_count: int,
-    runner_argv: Sequence[str],
+    outer_argv: Sequence[Sequence[str]],
     input_bytes: int,
     input_count: int,
     memory_max_bytes: int,
+    producer_identity: Mapping[str, str],
+    cgroup_attestation: Callable[[Path, int, int], bool] = _attest_measurement_cgroup,
 ) -> int:
-    """exact-N cgroup peak receipt を現在の投入 binding と照合する。"""
+    """固定 HEAD producer の exact-N cgroup sample log を投入へ束縛する。"""
 
     receipt = _exact_object(value, _ADMISSION_FIELDS, "admission receipt")
     if receipt["schema"] != ADMISSION_SCHEMA:
@@ -299,12 +446,19 @@ def validate_admission_receipt(
         raise FanoutDriverError("admission receipt.measured_at が ISO-8601 でない") from exc
     if parsed_date.tzinfo is None:
         raise FanoutDriverError("admission receipt.measured_at に timezone がない")
+    expected_outer_argv = [list(command) for command in outer_argv]
+    if len(expected_outer_argv) != shard_count or any(
+        not command or any(not isinstance(arg, str) for arg in command)
+        for command in expected_outer_argv
+    ):
+        raise FanoutDriverError("測定対象 outer argv が exact-N command 集合でない")
+    outer_argv_sha256 = _sha256(canonical_json_bytes(expected_outer_argv))
     exact = {
         "commit": commit,
         "parent_spec_sha256": parent_spec_sha256,
         "assignment_sha256": assignment_sha256,
         "shard_count": shard_count,
-        "runner_argv": list(runner_argv),
+        "outer_argv_sha256": outer_argv_sha256,
         "input_bytes": input_bytes,
         "input_count": input_count,
         "memory_max_bytes": memory_max_bytes,
@@ -312,18 +466,94 @@ def validate_admission_receipt(
     for key, expected in exact.items():
         if receipt[key] != expected:
             raise FanoutDriverError(f"admission receipt.{key} が現在の投入 binding と不一致")
-    repetitions = _strict_positive_int(receipt["repetitions"], "admission repetitions")
-    peaks = receipt["memory_current_peak_bytes"]
-    if (
-        not isinstance(peaks, list)
-        or len(peaks) != repetitions
-        or repetitions < MIN_CERTIFICATION_REPETITIONS
-    ):
-        raise FanoutDriverError("admission receipt は memory.current の3反復以上を要する")
-    measured_peaks = [
-        _strict_positive_int(item, f"memory_current_peak_bytes[{index}]")
-        for index, item in enumerate(peaks)
-    ]
+    expected_identity = _exact_object(
+        dict(producer_identity), _TOOL_IDENTITY_FIELDS, "expected producer identity"
+    )
+    for field in ("producer_identity", "sampler_identity"):
+        identity = _exact_object(receipt[field], _TOOL_IDENTITY_FIELDS, field)
+        if identity != expected_identity:
+            raise FanoutDriverError(f"admission receipt.{field} が固定 HEAD producer と不一致")
+
+    references = receipt["measurement_logs"]
+    if not isinstance(references, list) or len(references) < MIN_CERTIFICATION_REPETITIONS:
+        raise FanoutDriverError("admission receipt は独立した memory.current log を3反復以上要する")
+    measured_peaks: list[int] = []
+    cgroups: set[str] = set()
+    log_paths: set[str] = set()
+    for index, raw_reference in enumerate(references, 1):
+        reference = _exact_object(
+            raw_reference, _MEASUREMENT_REF_FIELDS, f"measurement_logs[{index - 1}]"
+        )
+        raw_path = reference["path"]
+        if not isinstance(raw_path, str) or not raw_path:
+            raise FanoutDriverError(f"measurement_logs[{index - 1}].path が不正")
+        log_path = Path(raw_path)
+        if log_path.is_symlink():
+            raise FanoutDriverError("memory.current log が symlink")
+        try:
+            resolved_log = log_path.resolve(strict=True)
+            log_bytes = resolved_log.read_bytes()
+            log = json.loads(log_bytes)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise FanoutDriverError(f"memory.current log を検証できない: {exc}") from exc
+        if not resolved_log.is_file() or str(resolved_log) in log_paths:
+            raise FanoutDriverError("memory.current log path が通常 file でないか重複")
+        log_paths.add(str(resolved_log))
+        if reference["sha256"] != _sha256(log_bytes):
+            raise FanoutDriverError("memory.current log hash が実 bytes と不一致")
+        measurement = _exact_object(log, _MEASUREMENT_FIELDS, f"measurement log {index}")
+        exact_log = {
+            "schema": MEASUREMENT_SCHEMA,
+            "repetition": index,
+            "commit": commit,
+            "memory_max_bytes": memory_max_bytes,
+            "outer_argv": expected_outer_argv,
+            "input_bytes": input_bytes,
+            "input_count": input_count,
+        }
+        for key, expected in exact_log.items():
+            if measurement[key] != expected:
+                raise FanoutDriverError(f"measurement log {index}.{key} が投入と不一致")
+        cgroup_path = measurement["cgroup_path"]
+        if (
+            not isinstance(cgroup_path, str)
+            or not Path(cgroup_path).is_absolute()
+            or not Path(cgroup_path).name.endswith(".scope")
+            or cgroup_path in cgroups
+        ):
+            raise FanoutDriverError("measurement log の専用 cgroup path が不正または重複")
+        cgroups.add(cgroup_path)
+        returncodes = measurement["child_returncodes"]
+        if (
+            not isinstance(returncodes, list)
+            or len(returncodes) != shard_count
+            or any(isinstance(rc, bool) or rc not in {0, 1} for rc in returncodes)
+        ):
+            raise FanoutDriverError("measurement log の exact-N child returncode が非 terminal")
+        samples = measurement["samples"]
+        if not isinstance(samples, list) or not samples:
+            raise FanoutDriverError("measurement log に memory.current sample がない")
+        previous_ns = -1
+        values: list[int] = []
+        for sample_index, raw_sample in enumerate(samples):
+            sample = _exact_object(
+                raw_sample,
+                _MEASUREMENT_SAMPLE_FIELDS,
+                f"measurement log {index}.samples[{sample_index}]",
+            )
+            monotonic_ns = _strict_positive_int(sample["monotonic_ns"], "monotonic_ns")
+            if monotonic_ns <= previous_ns:
+                raise FanoutDriverError("memory.current sample の時刻が単調増加でない")
+            previous_ns = monotonic_ns
+            values.append(
+                _strict_positive_int(sample["memory_current_bytes"], "memory.current")
+            )
+        measured_peak = max(values)
+        if not cgroup_attestation(Path(cgroup_path), measured_peak, memory_max_bytes):
+            raise FanoutDriverError(
+                "measurement log の peak/cgroup を kernel 側で再証明できない"
+            )
+        measured_peaks.append(measured_peak)
     observed_peak = max(measured_peaks)
     margin = max((observed_peak + 3) // 4, CERTIFICATION_MIN_MARGIN_BYTES)
     certified = _strict_positive_int(
@@ -593,28 +823,115 @@ def _launcher_main(args: argparse.Namespace) -> int:
     return LAUNCHER_FAILURE_RC
 
 
-def _parse_attempt_claims(group: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _group_authority_sha256(group: Mapping[str, Any]) -> str:
+    document = _exact_object(dict(group), _GROUP_FIELDS, "group authority")
+    if document["schema"] != GROUP_SCHEMA:
+        raise FanoutDriverError("group authority schema が未知")
+    for field in ("parent_spec_sha256", "assignment_sha256"):
+        if not isinstance(document[field], str) or _SHA256_RE.fullmatch(document[field]) is None:
+            raise FanoutDriverError(f"group authority.{field} が SHA-256 でない")
+    shards = document["shards"]
+    if not isinstance(shards, list) or not shards:
+        raise FanoutDriverError("group authority shards が非空 list でない")
+    stable_shards = []
+    for index, raw_shard in enumerate(shards):
+        shard = _exact_object(raw_shard, _GROUP_SHARD_FIELDS, f"group shard {index}")
+        if shard["index"] != index or shard["shard_id"] != f"shard-{index:03d}":
+            raise FanoutDriverError("group authority shard index/id が不正")
+        stable_shards.append({**shard, "wrapper_rc": None})
+    stable = {**document, "shards": stable_shards}
+    return _sha256(canonical_json_bytes(stable))
+
+
+def _parse_attempt_claims(
+    group: Mapping[str, Any],
+    *,
+    assignment: Mapping[str, Any] | None = None,
+    expected_commit: str | None = None,
+) -> list[dict[str, Any]]:
     claims: list[dict[str, Any]] = []
+    assignment_by_id = {
+        shard["shard_id"]: shard
+        for shard in assignment.get("shards", [])
+        if isinstance(shard, dict) and isinstance(shard.get("shard_id"), str)
+    } if isinstance(assignment, Mapping) else {}
     for shard in group.get("shards", []):
+        shard_id = shard.get("shard_id") if isinstance(shard, Mapping) else None
+        base = {
+            "shard_id": shard_id,
+            "wrapper_receipt_path": shard.get("wrapper_receipt_path")
+            if isinstance(shard, Mapping)
+            else None,
+        }
         attempt_path = Path(str(shard.get("attempt_path", "")))
         try:
-            sidecar = json.loads(attempt_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            sidecar, sidecar_bytes = _read_json(attempt_path, "attempt sidecar")
+        except FanoutDriverError as exc:
+            claims.append({**base, "authority_valid": False, "reason": f"attempt-unreadable: {exc}"})
             continue
-        attempts = sidecar.get("attempts") if isinstance(sidecar, dict) else None
+        try:
+            _exact_object(sidecar, _ATTEMPT_ROOT_FIELDS, "attempt sidecar")
+            if sidecar["schema"] != ATTEMPT_SCHEMA:
+                raise FanoutDriverError("attempt sidecar schema が未知")
+            if expected_commit is not None and sidecar["repo_head"] != expected_commit:
+                raise FanoutDriverError("attempt sidecar repo_head が group authority と不一致")
+            assignment_shard = assignment_by_id.get(shard_id)
+            if assignment_shard is not None:
+                if sidecar["spec_sha256"] != assignment_shard.get("shard_spec_sha256"):
+                    raise FanoutDriverError("attempt sidecar spec hash が assignment と不一致")
+                expected_count = len(assignment_shard.get("mutation_ids", [])) + 2
+                if sidecar["expected_initial_requests"] != expected_count:
+                    raise FanoutDriverError("attempt sidecar expected request 数が assignment と不一致")
+            for field in ("repo_head", "spec_sha256", "runner_sha256", "tool_sha256"):
+                if not isinstance(sidecar[field], str) or (
+                    field != "repo_head" and _SHA256_RE.fullmatch(sidecar[field]) is None
+                ):
+                    raise FanoutDriverError(f"attempt sidecar {field} が不正")
+        except FanoutDriverError as exc:
+            claims.append({**base, "authority_valid": False, "reason": f"attempt-authority-invalid: {exc}"})
+            continue
+        attempts = sidecar["attempts"]
         if not isinstance(attempts, list):
+            claims.append({**base, "authority_valid": False, "reason": "attempts-not-list"})
             continue
-        for attempt in attempts:
-            request = attempt.get("request") if isinstance(attempt, dict) else None
-            if not isinstance(request, dict):
+        for attempt_index, attempt in enumerate(attempts, 1):
+            try:
+                attempt = _exact_object(attempt, _ATTEMPT_FIELDS, "attempt entry")
+                if attempt["run_attempt_ordinal"] != attempt_index:
+                    raise FanoutDriverError("attempt ordinal が連続でない")
+                if attempt["wrapper_attempt_ordinal"] != shard.get("wrapper_attempt_ordinal"):
+                    raise FanoutDriverError("attempt wrapper ordinal が group と不一致")
+                if attempt["phase"] not in {"collection", "baseline", "mutation"}:
+                    raise FanoutDriverError("attempt phase が未知")
+                if attempt["state"] not in {"started", "finished"}:
+                    raise FanoutDriverError("attempt state が未知")
+            except FanoutDriverError as exc:
+                claims.append({**base, "authority_valid": False, "reason": f"attempt-entry-invalid: {exc}"})
+                continue
+            claim = {
+                **base,
+                "run_attempt_ordinal": attempt.get("run_attempt_ordinal"),
+                "phase": attempt.get("phase"),
+                "mutation_id": attempt.get("mutation_id"),
+                "timed_out": attempt.get("timed_out"),
+                "attempt_sidecar_sha256": _sha256(sidecar_bytes),
+                "authority_valid": True,
+            }
+            request = attempt.get("request")
+            if request is None:
+                claims.append({**claim, "reason": "request-unresolved"})
+                continue
+            try:
+                request = _exact_object(request, _ATTEMPT_REQUEST_FIELDS, "attempt request")
+            except FanoutDriverError as exc:
+                claims.append({**claim, "authority_valid": False, "reason": f"request-invalid: {exc}"})
                 continue
             claims.append(
                 {
-                    "shard_id": shard.get("shard_id"),
-                    "run_attempt_ordinal": attempt.get("run_attempt_ordinal"),
+                    **claim,
                     "request_id": request.get("request_id"),
+                    "submission_dir": request.get("submission_dir"),
                     "receipt_path": request.get("receipt_path"),
-                    "wrapper_receipt_path": shard.get("wrapper_receipt_path"),
                 }
             )
     return claims
@@ -646,6 +963,126 @@ def _effective_receipt_path(claim: Mapping[str, Any]) -> Path:
     return effective
 
 
+def _append_orphan_evidence_claims(
+    group: Mapping[str, Any], claims: list[dict[str, Any]]
+) -> None:
+    claimed_receipts: set[str] = set()
+    for claim in claims:
+        try:
+            claimed_receipts.add(str(_effective_receipt_path(claim)))
+        except FanoutDriverError:
+            pass
+    seen_paths: set[str] = set()
+    for shard in group.get("shards", []):
+        if not isinstance(shard, Mapping):
+            continue
+        wrapper_raw = shard.get("wrapper_receipt_path")
+        roots: list[Path] = []
+        if isinstance(wrapper_raw, str):
+            try:
+                wrapper, _ = _read_json(Path(wrapper_raw), "wrapper receipt")
+                evidence = wrapper.get("dispatch_evidence")
+                relocated_raw = (
+                    evidence.get("relocated_path") if isinstance(evidence, dict) else None
+                )
+                if isinstance(relocated_raw, str):
+                    roots.append(Path(relocated_raw))
+            except FanoutDriverError:
+                pass
+        expected_paths = shard.get("expected_paths")
+        runner_path = (
+            expected_paths.get("runner_entrypoint_path")
+            if isinstance(expected_paths, Mapping)
+            else None
+        )
+        if isinstance(runner_path, str):
+            roots.append(Path(runner_path).parent.parent / "output" / "pegasus-dispatch")
+
+        seen_roots: set[str] = set()
+        for raw_root in roots:
+            try:
+                if raw_root.is_symlink():
+                    continue
+                evidence_root = raw_root.resolve(strict=True)
+                root_text = str(evidence_root)
+                if root_text in seen_roots or not evidence_root.is_dir():
+                    continue
+                seen_roots.add(root_text)
+                entries = list(evidence_root.iterdir())
+            except OSError:
+                continue
+            receipt_paths: list[Path] = []
+            submission_dirs: list[Path] = []
+            for entry in entries:
+                if entry.is_symlink():
+                    continue
+                if entry.is_dir():
+                    submission_dirs.append(entry)
+                    receipt = entry / "receipt.json"
+                    if receipt.is_file() and not receipt.is_symlink():
+                        receipt_paths.append(receipt)
+                elif entry.is_file() and entry.name.startswith("receipt-fallback-"):
+                    receipt_paths.append(entry)
+            receipt_submissions: set[str] = set()
+            receipt_directory_paths = {
+                str(path.parent.resolve(strict=True))
+                for path in receipt_paths
+                if path.name == "receipt.json"
+            }
+            for receipt_path in receipt_paths:
+                try:
+                    resolved = receipt_path.resolve(strict=True)
+                    value, _ = _read_json(resolved, "orphan dispatch receipt")
+                except FanoutDriverError as exc:
+                    raw_text = str(receipt_path)
+                    if raw_text not in seen_paths:
+                        seen_paths.add(raw_text)
+                        claims.append(
+                            {
+                                "shard_id": shard.get("shard_id"),
+                                "receipt_path": raw_text,
+                                "wrapper_receipt_path": wrapper_raw,
+                                "authority_valid": False,
+                                "reason": f"orphan-receipt-unreadable: {exc}",
+                            }
+                        )
+                    continue
+                resolved_text = str(resolved)
+                if resolved_text in claimed_receipts or resolved_text in seen_paths:
+                    continue
+                seen_paths.add(resolved_text)
+                submission_dir = value.get("submission_dir")
+                if isinstance(submission_dir, str):
+                    receipt_submissions.add(submission_dir)
+                claims.append(
+                    {
+                        "shard_id": shard.get("shard_id"),
+                        "request_id": value.get("request_id"),
+                        "submission_dir": submission_dir,
+                        "receipt_path": resolved_text,
+                        "wrapper_receipt_path": wrapper_raw,
+                        "authority_valid": False,
+                        "reason": "orphan-evidence-receipt",
+                    }
+                )
+            for submission in submission_dirs:
+                resolved_submission = str(submission.resolve(strict=True))
+                if (
+                    resolved_submission in receipt_submissions
+                    or resolved_submission in receipt_directory_paths
+                ):
+                    continue
+                claims.append(
+                    {
+                        "shard_id": shard.get("shard_id"),
+                        "submission_dir": resolved_submission,
+                        "wrapper_receipt_path": wrapper_raw,
+                        "authority_valid": False,
+                        "reason": "orphan-submission-without-receipt",
+                    }
+                )
+
+
 def _scheduler_run(command: Sequence[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         list(command),
@@ -659,10 +1096,13 @@ def _scheduler_run(command: Sequence[str], *, cwd: Path) -> subprocess.Completed
     )
 
 
-def _qstat_identity(output: str, request_id: str) -> tuple[str | None, str | None]:
+def _qstat_identity(
+    output: str, request_id: str
+) -> tuple[str | None, str | None, str | None]:
     job_id: str | None = None
     owner: str | None = None
     state: str | None = None
+    job_name: str | None = None
     for line in output.splitlines():
         stripped = line.strip()
         if stripped.startswith("Job Id:"):
@@ -672,9 +1112,11 @@ def _qstat_identity(output: str, request_id: str) -> tuple[str | None, str | Non
         elif stripped.startswith("job_state ="):
             raw_state = stripped.partition("=")[2].strip()
             state = {"Q": "QUE", "H": "HLD", "R": "RUN"}.get(raw_state, raw_state)
+        elif stripped.startswith("Job_Name ="):
+            job_name = stripped.partition("=")[2].strip()
     if job_id != request_id:
-        return None, None
-    return state, owner
+        return None, None, None
+    return state, owner, job_name
 
 
 def inspect_or_cancel_owned_requests(
@@ -682,25 +1124,54 @@ def inspect_or_cancel_owned_requests(
     *,
     cwd: Path,
     cancel: bool,
+    expected_group_authority: str | None = None,
+    assignment: Mapping[str, Any] | None = None,
+    expected_commit: str | None = None,
     expected_owner: str | None = None,
     run_command: Callable[..., subprocess.CompletedProcess[str]] = _scheduler_run,
 ) -> list[dict[str, Any]]:
-    """receipt と fresh qstat の双方が束縛した QUE/HLD だけを取消す。"""
+    """group/receipt/job name/fresh qstat が束縛した QUE/HLD だけを取消す。"""
 
     owner = getpass.getuser() if expected_owner is None else expected_owner
-    claims = _parse_attempt_claims(group)
+    try:
+        observed_group_authority = _group_authority_sha256(group)
+    except FanoutDriverError as exc:
+        return [
+            {
+                "qstat_attempted": False,
+                "qdel_attempted": False,
+                "reason": f"group-authority-invalid: {exc}",
+            }
+        ]
+    group_authorized = (
+        isinstance(expected_group_authority, str)
+        and _SHA256_RE.fullmatch(expected_group_authority) is not None
+        and expected_group_authority == observed_group_authority
+    )
+    claims = _parse_attempt_claims(
+        group, assignment=assignment, expected_commit=expected_commit
+    )
+    _append_orphan_evidence_claims(group, claims)
     counts = Counter(claim.get("request_id") for claim in claims)
     actions: list[dict[str, Any]] = []
     for claim in claims:
         request_id = claim.get("request_id")
         action = dict(claim)
-        action.update({"qstat_attempted": False, "qdel_attempted": False})
+        action.update(
+            {
+                "qstat_attempted": False,
+                "qdel_attempted": False,
+                "scheduler_state": "unknown",
+                "observed_owner": None,
+                "observed_job_name": None,
+            }
+        )
         if (
             not isinstance(request_id, str)
             or _REQUEST_ID_RE.fullmatch(request_id) is None
             or counts[request_id] != 1
         ):
-            action["reason"] = "request-id-missing-malformed-or-ambiguous"
+            action["reason"] = action.get("reason") or "request-id-missing-malformed-or-ambiguous"
             actions.append(action)
             continue
         try:
@@ -714,6 +1185,27 @@ def inspect_or_cancel_owned_requests(
             action["reason"] = "receipt-request-id-mismatch"
             actions.append(action)
             continue
+        if receipt.get("schema_version") != "pegasus-dispatch-receipt/v2":
+            action["reason"] = "receipt-schema-mismatch"
+            actions.append(action)
+            continue
+        receipt_request = receipt.get("request")
+        job_name = receipt_request.get("job_name") if isinstance(receipt_request, dict) else None
+        submission_dir = receipt.get("submission_dir")
+        if not isinstance(job_name, str) or _JOB_NAME_RE.fullmatch(job_name) is None:
+            action["reason"] = "receipt-job-name-missing-or-malformed"
+            actions.append(action)
+            continue
+        if not isinstance(submission_dir, str) or job_name != f"izdw-{Path(submission_dir).name[:10]}":
+            action["reason"] = "receipt-job-name-submission-mismatch"
+            actions.append(action)
+            continue
+        claimed_submission = claim.get("submission_dir")
+        if isinstance(claimed_submission, str) and claimed_submission != submission_dir:
+            action["reason"] = "receipt-submission-dir-mismatch"
+            actions.append(action)
+            continue
+        action["expected_job_name"] = job_name
         action["receipt_path_effective"] = str(receipt_path)
         try:
             qstat = run_command(["qstat", "-f", request_id], cwd=cwd)
@@ -738,14 +1230,30 @@ def inspect_or_cancel_owned_requests(
             action["reason"] = "request-not-visible"
             actions.append(action)
             continue
-        state, observed_owner = _qstat_identity(qstat.stdout or "", request_id)
-        action.update({"scheduler_state": state, "observed_owner": observed_owner})
+        state, observed_owner, observed_job_name = _qstat_identity(
+            qstat.stdout or "", request_id
+        )
+        action.update(
+            {
+                "scheduler_state": state or "unknown",
+                "observed_owner": observed_owner,
+                "observed_job_name": observed_job_name,
+            }
+        )
+        if observed_job_name is None or observed_job_name != job_name:
+            action["reason"] = "job-name-unknown-or-mismatch"
+            actions.append(action)
+            continue
         if state not in {"QUE", "HLD"}:
             action["reason"] = "state-not-cancellable"
             actions.append(action)
             continue
         if observed_owner is None or observed_owner != owner:
             action["reason"] = "owner-unknown-or-mismatch"
+            actions.append(action)
+            continue
+        if not group_authorized or claim.get("authority_valid") is not True:
+            action["reason"] = "group-or-attempt-authority-unproven"
             actions.append(action)
             continue
         if not cancel:
@@ -787,6 +1295,94 @@ def _headroom_observation() -> Any:
     return login_headroom.login_headroom()
 
 
+def _parse_unified_cgroup(text: str) -> str:
+    matches = []
+    for line in text.splitlines():
+        fields = line.split(":", 2)
+        if len(fields) == 3 and fields[:2] == ["0", ""]:
+            matches.append(fields[2])
+    if len(matches) != 1:
+        raise ValueError("unified cgroup entry が一意でない")
+    value = matches[0]
+    parts = value.removeprefix("/").split("/")
+    if not value.startswith("/") or any(part in {"", ".", ".."} for part in parts):
+        raise ValueError("unified cgroup path が正規化されていない")
+    return value
+
+
+def _bounded_scope_cgroup(cap: int) -> Path | None:
+    unit = os.environ.get(_BOUNDED_SCOPE_UNIT_ENV)
+    raw_cap = os.environ.get(_BOUNDED_SCOPE_CAP_ENV)
+    if unit is None or raw_cap is None or not raw_cap.isascii() or not raw_cap.isdecimal():
+        return None
+    if int(raw_cap, 10) != cap or re.fullmatch(
+        rf"{re.escape(_BOUNDED_SCOPE_UNIT_PREFIX)}[1-9][0-9]*-[0-9a-f]{{16}}\.scope",
+        unit,
+    ) is None:
+        return None
+    try:
+        unified = _parse_unified_cgroup(_PROC_SELF_CGROUP.read_text(encoding="utf-8"))
+        cgroup = _CGROUP_ROOT / unified.removeprefix("/")
+        if cgroup.name != unit:
+            return None
+        oom_group = cgroup / "memory.oom.group"
+        oom_group.write_text("1\n", encoding="utf-8")
+        properties = {
+            "memory.max": str(cap),
+            "memory.swap.max": "0",
+            "memory.oom.group": "1",
+        }
+        for name, expected in properties.items():
+            if (cgroup / name).read_text(encoding="utf-8").strip() != expected:
+                return None
+    except (OSError, UnicodeError, ValueError):
+        return None
+    return cgroup
+
+
+def _new_scope_unit() -> str:
+    return f"{_BOUNDED_SCOPE_UNIT_PREFIX}{os.getpid()}-{secrets.token_hex(8)}.scope"
+
+
+def _scope_command(argv: Sequence[str], cap: int, unit: str) -> list[str]:
+    return [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "-q",
+        f"--unit={unit}",
+        "-p",
+        "MemoryAccounting=yes",
+        "-p",
+        f"MemoryMax={cap}",
+        "-p",
+        "MemorySwapMax=0",
+        "--",
+        sys.executable,
+        str(Path(__file__).resolve()),
+        *argv,
+    ]
+
+
+def _run_in_bounded_scope(
+    argv: Sequence[str],
+    cap: int,
+    *,
+    run_command: Callable[..., subprocess.CompletedProcess[Any]] = subprocess.run,
+) -> int:
+    unit = _new_scope_unit()
+    environment = os.environ.copy()
+    environment[_BOUNDED_SCOPE_UNIT_ENV] = unit
+    environment[_BOUNDED_SCOPE_CAP_ENV] = str(cap)
+    result = run_command(
+        _scope_command(argv, cap, unit),
+        stdin=subprocess.DEVNULL,
+        env=environment,
+        check=False,
+    )
+    return _mapped_returncode(result.returncode)
+
+
 def _preserved_containers(group: Mapping[str, Any]) -> list[dict[str, Any]]:
     preserved: list[dict[str, Any]] = []
     for shard in group["shards"]:
@@ -821,6 +1417,8 @@ def run_fanout(
     snapshot: Callable[[Path], tuple[tuple[str, ...], str]] = _worktree_snapshot,
     merger: Callable[..., dict[str, Any]] = merge_group,
     scheduler_run: Callable[..., subprocess.CompletedProcess[str]] = _scheduler_run,
+    scope_attestation: Callable[[int], Path | None] | None = None,
+    measurement_attestation: Callable[[Path, int, int], bool] = _attest_measurement_cgroup,
 ) -> int:
     """fresh group を計画し、exact-N admission 下で一度だけ投入する。"""
 
@@ -835,6 +1433,7 @@ def run_fanout(
     if config.poll_interval_s <= 0 or config.barrier_timeout_s <= 0:
         raise FanoutDriverError("poll/barrier timeout は正でなければならない")
     commit = _resolved_commit(source, config.commit)
+    identities = _execution_identities(source, commit)
     parent_bytes = config.parent_spec.read_bytes()
     assignment, shard_payloads = derive_split(
         parent_bytes,
@@ -863,6 +1462,19 @@ def run_fanout(
     }
     group_path = root / "group.json"
     _write_json_create_only(group_path, group, "initial group manifest")
+    group_authority_sha256 = _group_authority_sha256(group)
+    outer_argv = [
+        _wrapper_argv(
+            config,
+            commit=commit,
+            assignment_shard=assignment_shard,
+            group_shard=group_shard,
+        )
+        for assignment_shard, group_shard in zip(
+            assignment["shards"], group["shards"], strict=True
+        )
+    ]
+    outer_argv_sha256 = _sha256(canonical_json_bytes(outer_argv))
     expected_invocations = _expected_invocations(assignment)
     expected_invocation_count = input_count + 2 * config.shard_count
     if len(expected_invocations) != expected_invocation_count:
@@ -877,15 +1489,19 @@ def run_fanout(
         "assignment_path": str((root / "assignment.json").resolve()),
         "assignment_sha256": assignment_sha256,
         "group_manifest_path": str(group_path),
+        "group_authority_sha256": group_authority_sha256,
         "shard_count": config.shard_count,
         "expected_invocation_count": expected_invocation_count,
         "expected_invocations": expected_invocations,
         "runner_argv": list(config.runner_argv),
+        "outer_argv_sha256": outer_argv_sha256,
+        "execution_identities": identities,
         "input_bytes": input_bytes,
         "admission_receipt_path": str(admission_path),
         "admission_receipt_sha256": None,
         "certified_peak_bytes": None,
         "admission": {"decision": "unknown", "reason": None},
+        "bounded_scope_cgroup": None,
         "initial_worktree_registry": list(initial_roots),
         "initial_worktree_porcelain": initial_porcelain,
         "final_worktree_registry": None,
@@ -929,10 +1545,12 @@ def run_fanout(
             parent_spec_sha256=config.expected_parent_sha256,
             assignment_sha256=assignment_sha256,
             shard_count=config.shard_count,
-            runner_argv=config.runner_argv,
+            outer_argv=outer_argv,
             input_bytes=input_bytes,
             input_count=input_count,
             memory_max_bytes=observed.memory_max_bytes,
+            producer_identity=identities["driver"],
+            cgroup_attestation=measurement_attestation,
         )
         report["admission_receipt_sha256"] = _sha256(receipt_bytes)
         report["certified_peak_bytes"] = certified_peak
@@ -945,7 +1563,12 @@ def run_fanout(
     parent_starttime = _process_starttime(os.getpid())
     if parent_starttime is None:
         return stop("driver PID starttime を取得できない")
-    with reserve_factory(certified_peak, scope_cgroup=observed.cgroup_path) as decision:
+    attestor = _bounded_scope_cgroup if scope_attestation is None else scope_attestation
+    bounded_cgroup = attestor(certified_peak)
+    if bounded_cgroup is None:
+        return stop("全 child を束ねる bounded cgroup scope を kernel 側で証明できない")
+    report["bounded_scope_cgroup"] = str(bounded_cgroup)
+    with reserve_factory(certified_peak, scope_cgroup=bounded_cgroup) as decision:
         admission_value = getattr(decision[0], "value", decision[0])
         report["admission"] = {"decision": str(admission_value), "reason": decision[1]}
         if admission_value != "local":
@@ -961,12 +1584,7 @@ def run_fanout(
                     runtime = root / "runtime" / assignment_shard["shard_id"]
                     log_path = Path(report["shards"][index]["log_path"])
                     log_stream = log_path.open("xb")
-                    wrapper = _wrapper_argv(
-                        config,
-                        commit=commit,
-                        assignment_shard=assignment_shard,
-                        group_shard=group_shard,
-                    )
+                    wrapper = outer_argv[index]
                     launcher = [
                         sys.executable,
                         str(Path(__file__).resolve()),
@@ -1094,6 +1712,9 @@ def run_fanout(
             group,
             cwd=source,
             cancel=latch.signum is not None,
+            expected_group_authority=group_authority_sha256,
+            assignment=assignment,
+            expected_commit=commit,
             run_command=scheduler_run,
         )
         report["state"] = "stopped"
@@ -1124,6 +1745,9 @@ def run_fanout(
             group,
             cwd=source,
             cancel=False,
+            expected_group_authority=group_authority_sha256,
+            assignment=assignment,
+            expected_commit=commit,
             run_command=scheduler_run,
         )
     else:
@@ -1149,18 +1773,34 @@ def cancel_group(
     *,
     output_path: Path,
     cwd: Path,
+    expected_group_authority: str,
+    assignment_path: Path,
+    expected_commit: str,
     expected_owner: str | None = None,
     run_command: Callable[..., subprocess.CompletedProcess[str]] = _scheduler_run,
 ) -> dict[str, Any]:
     group, _ = _read_json(group_manifest, "group manifest")
+    assignment, _ = _read_json(assignment_path, "assignment")
+    if _sha256(canonical_json_bytes(assignment)) != group.get("assignment_sha256"):
+        raise FanoutDriverError("assignment bytes が group authority hash と不一致")
     actions = inspect_or_cancel_owned_requests(
         group,
         cwd=cwd,
         cancel=True,
+        expected_group_authority=expected_group_authority,
+        assignment=assignment,
+        expected_commit=expected_commit,
         expected_owner=expected_owner,
         run_command=run_command,
     )
-    result = {"schema": CANCELLATION_SCHEMA, "group_manifest": str(group_manifest), "actions": actions}
+    result = {
+        "schema": CANCELLATION_SCHEMA,
+        "group_manifest": str(group_manifest),
+        "group_authority_sha256": expected_group_authority,
+        "assignment_path": str(assignment_path),
+        "expected_commit": expected_commit,
+        "actions": actions,
+    }
     _write_json_create_only(output_path, result, "cancellation receipt")
     return result
 
@@ -1181,6 +1821,9 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("command", nargs=argparse.REMAINDER)
     cancel = subparsers.add_parser("cancel")
     cancel.add_argument("--group-manifest", required=True, type=Path)
+    cancel.add_argument("--expected-group-authority", required=True)
+    cancel.add_argument("--assignment", required=True, type=Path)
+    cancel.add_argument("--expected-commit", required=True)
     cancel.add_argument("--out", required=True, type=Path)
     cancel.add_argument("--cwd", required=True, type=Path)
     launcher = subparsers.add_parser("_launch")
@@ -1193,12 +1836,24 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    args = _parser().parse_args(raw_argv)
     if args.operation == "_launch":
         return _launcher_main(args)
     if args.operation == "cancel":
-        cancel_group(args.group_manifest, output_path=args.out, cwd=args.cwd.resolve(strict=True))
+        cancel_group(
+            args.group_manifest,
+            output_path=args.out,
+            cwd=args.cwd.resolve(strict=True),
+            expected_group_authority=args.expected_group_authority,
+            assignment_path=args.assignment,
+            expected_commit=args.expected_commit,
+        )
         return 0
+    if os.environ.get(_BOUNDED_SCOPE_UNIT_ENV) is None:
+        receipt, _ = _read_json(args.admission_receipt, "admission receipt")
+        cap = _strict_positive_int(receipt.get("certified_peak_bytes"), "certified_peak_bytes")
+        return _run_in_bounded_scope(raw_argv, cap)
     command = list(args.command)
     if command and command[0] == "--":
         command.pop(0)

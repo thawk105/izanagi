@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -40,7 +41,17 @@ def _artifact(
     relocated_stdout = relocated_root / stdout.relative_to(original_root)
     relocated_receipt.parent.mkdir(parents=True, exist_ok=True)
     relocated_receipt.write_text(
-        json.dumps({"request_id": request_id, "outcome": {"rc": rc}}) + "\n",
+        json.dumps(
+            {
+                "request_id": request_id,
+                "submission_dir": str(submission),
+                "outcome": {"rc": rc},
+            }
+        ) + "\n",
+        encoding="utf-8",
+    )
+    (relocated_receipt.parent / "request.json").write_text(
+        json.dumps({"schema_version": "fixture", "args": []}) + "\n",
         encoding="utf-8",
     )
     relocated_stdout.write_text(output, encoding="utf-8")
@@ -109,6 +120,7 @@ def _write_json(path: Path, value: Any) -> None:
 
 
 def _build_group(tmp_path: Path) -> dict[str, Any]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     parent_path = tmp_path / "parent.json"
     parent = _parent_bytes()
     parent_path.write_bytes(parent)
@@ -384,23 +396,52 @@ def _build_group(tmp_path: Path) -> dict[str, Any]:
         "wrappers": wrappers,
         "attempts": attempts_paths,
         "out": tmp_path / "merge-index.json",
+        "fixed_identity": {
+            "path": str(_TOOL),
+            "repo_path": "tools/mutation_fanout_contract.py",
+            "sha256": "5" * 64,
+            "head_blob_sha256": "5" * 64,
+            "repo_head": repo_head,
+            "repo_tree": "2" * 40,
+            "source_repo": str(_REPO),
+            "fixed_blobs": {
+                "contract": "5" * 64,
+                "wrapper": wrapper_sha,
+                "runner": "e" * 64,
+                "dispatch": "1" * 64,
+                "harness": "3" * 64,
+            },
+        },
     }
 
 
 def _merge(paths: dict[str, Any]) -> dict[str, Any]:
-    return MF.merge_group(
-        paths["parent"],
-        expected_parent_sha256=paths["parent_sha"],
-        assignment_path=paths["assignment"],
-        group_manifest_path=paths["group"],
-        output_path=paths["out"],
-    )
+    original = MF._fixed_head_identity
+    MF._fixed_head_identity = lambda _head: paths["fixed_identity"]
+    try:
+        return MF.merge_group(
+            paths["parent"],
+            expected_parent_sha256=paths["parent_sha"],
+            assignment_path=paths["assignment"],
+            group_manifest_path=paths["group"],
+            output_path=paths["out"],
+        )
+    finally:
+        MF._fixed_head_identity = original
 
 
 def _mutate_json(path: Path, update: Callable[[dict[str, Any]], None]) -> None:
     value = json.loads(path.read_text(encoding="utf-8"))
     update(value)
     _write_json(path, value)
+
+
+def _relocated_path(wrapper_path: Path, original_path: str) -> Path:
+    wrapper = json.loads(wrapper_path.read_text(encoding="utf-8"))
+    evidence = wrapper["dispatch_evidence"]
+    return Path(evidence["relocated_path"]) / Path(original_path).relative_to(
+        evidence["original_path"]
+    )
 
 
 def test_serializer_and_split_are_deterministic_and_preserve_parent_values() -> None:
@@ -481,6 +522,9 @@ def test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths(
     assert index["registered"] == index["recorded"] == 4
     assert index["matches_expectation"] is True
     assert index["result_rc"] == 0
+    assert index["merger_identity"] == paths["fixed_identity"]
+    assert index["execution_envelope"]["parent_spec_sha256"] == paths["parent_sha"]
+    assert index["execution_id"] == MF._compact_sha256(index["execution_envelope"])
     assert len(index["requests"]) == 8
     assert all("ledger" not in shard for shard in index["shards"])
     saved = json.loads(paths["out"].read_text(encoding="utf-8"))
@@ -503,11 +547,6 @@ def test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths(
             "registered != recorded",
         ),
         (
-            "ledgers",
-            lambda value: value["procedure"]["collection"]["collected_nodes"].append("extra::node"),
-            "collected_nodes",
-        ),
-        (
             "wrappers",
             lambda value: value.__setitem__("terminal_ledger", False),
             "terminal_ledger",
@@ -522,11 +561,6 @@ def test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths(
                 value["summary"].__setitem__("matching", value["summary"]["matching"] - 1),
             ),
             "TIMEOUT record",
-        ),
-        (
-            "ledgers",
-            lambda value: value["runner_identity"].__setitem__("new_identity", "unknown"),
-            "unknown=.*new_identity",
         ),
         (
             "ledgers",
@@ -555,6 +589,177 @@ def test_merge_rejects_each_fail_closed_condition(
     assert not paths["out"].exists()
 
 
+def test_collected_nodes_gate_has_a_single_cross_shard_reason(tmp_path: Path) -> None:
+    paths = _build_group(tmp_path)
+    ledger_path = paths["ledgers"][1]
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    collection = ledger["procedure"]["collection"]
+    collection["collected_nodes"].append("extra.py::test_node")
+    collection["artifact"]["stdout"] += "extra.py::test_node\n"
+    collection["artifact"]["stdout_sha256"] = _sha(
+        collection["artifact"]["stdout"].encode()
+    )
+    collection_sha = MF._compact_sha256(collection)
+    ledger["baseline"]["collection_sha256"] = collection_sha
+    for record in ledger["mutations"]:
+        record["collection_sha256"] = collection_sha
+    _write_json(ledger_path, ledger)
+    _relocated_path(
+        paths["wrappers"][1], collection["artifact"]["job_stdout_path"]
+    ).write_text(collection["artifact"]["stdout"], encoding="utf-8")
+
+    with pytest.raises(MF.FanoutContractError, match="collected_nodes"):
+        _merge(paths)
+
+
+def test_unknown_identity_field_gate_has_a_single_exact_key_reason(tmp_path: Path) -> None:
+    paths = _build_group(tmp_path)
+    for ledger_path, attempt_path in zip(paths["ledgers"], paths["attempts"], strict=True):
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ledger["runner_identity"]["new_identity"] = "same-unknown-value"
+        runner_sha = MF._compact_sha256(ledger["runner_identity"])
+        ledger["runner_sha256"] = runner_sha
+        ledger["procedure"]["collection"]["runner_sha256"] = runner_sha
+        ledger["baseline"]["runner_sha256"] = runner_sha
+        for record in ledger["mutations"]:
+            record["runner_sha256"] = runner_sha
+        _write_json(ledger_path, ledger)
+        attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
+        attempt["runner_sha256"] = runner_sha
+        _write_json(attempt_path, attempt)
+
+    with pytest.raises(MF.FanoutContractError, match="unknown=.*new_identity"):
+        _merge(paths)
+
+
+def test_merge_rederives_terminal_status_from_rc_nodes_stdout_and_receipt(
+    tmp_path: Path,
+) -> None:
+    paths = _build_group(tmp_path)
+    ledger_path = paths["ledgers"][1]
+    attempt_path = paths["attempts"][1]
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    record = ledger["mutations"][0]
+    record.update({"rc": 0, "failed_nodes": [], "timed_out": False, "artifact_error": None})
+    record["artifact"]["stdout"] = ""
+    record["artifact"]["stdout_sha256"] = _sha(b"")
+    record["test_output_sha256"] = _sha(b"")
+    _write_json(ledger_path, ledger)
+    _relocated_path(paths["wrappers"][1], record["artifact"]["job_stdout_path"]).write_text(
+        "", encoding="utf-8"
+    )
+    attempts = json.loads(attempt_path.read_text(encoding="utf-8"))
+    attempt = next(
+        item for item in attempts["attempts"]
+        if item["phase"] == "mutation" and item["mutation_id"] == record["id"]
+    )
+    attempt["rc"] = 0
+    attempt["request"]["outcome_rc"] = 0
+    _write_json(attempt_path, attempts)
+    receipt_path = _relocated_path(paths["wrappers"][1], attempt["request"]["receipt_path"])
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["outcome"]["rc"] = 0
+    _write_json(receipt_path, receipt)
+
+    with pytest.raises(MF.FanoutContractError, match="status が rc/node/artifact evidence"):
+        _merge(paths)
+
+
+def test_merge_rejects_receipt_body_mismatch_and_orphan_evidence(tmp_path: Path) -> None:
+    paths = _build_group(tmp_path)
+    attempts = json.loads(paths["attempts"][1].read_text(encoding="utf-8"))
+    request = attempts["attempts"][0]["request"]
+    receipt_path = _relocated_path(paths["wrappers"][1], request["receipt_path"])
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["request_id"] = "another.server"
+    _write_json(receipt_path, receipt)
+    with pytest.raises(MF.FanoutContractError, match="receipt request_id"):
+        _merge(paths)
+    receipt["request_id"] = request["request_id"]
+    receipt["outcome"]["rc"] = 16
+    _write_json(receipt_path, receipt)
+    with pytest.raises(MF.FanoutContractError, match="receipt outcome.rc"):
+        _merge(paths)
+
+    paths = _build_group(tmp_path / "orphan")
+    wrapper = json.loads(paths["wrappers"][1].read_text(encoding="utf-8"))
+    orphan = Path(wrapper["dispatch_evidence"]["relocated_path"]) / "orphan-submission"
+    orphan.mkdir()
+    _write_json(orphan / "request.json", {"schema_version": "fixture"})
+    _write_json(orphan / "receipt.json", {"request_id": "orphan.server"})
+    with pytest.raises(MF.FanoutContractError, match="inventory"):
+        _merge(paths)
+
+
+def test_merge_rejects_old_shards_replayed_under_new_parent_authority(
+    tmp_path: Path,
+) -> None:
+    old = _build_group(tmp_path / "old")
+    new_root = tmp_path / "new"
+    new_root.mkdir()
+    parent_document = json.loads(old["parent"].read_text(encoding="utf-8"))
+    parent_bytes = json.dumps(parent_document, indent=4).encode() + b"\n"
+    parent_path = new_root / "parent.json"
+    parent_path.write_bytes(parent_bytes)
+    parent_sha = _sha(parent_bytes)
+    assignment, shard_payloads = MF.derive_split(
+        parent_bytes, expected_parent_sha256=parent_sha, shard_count=2
+    )
+    assignment_path = new_root / "assignment.json"
+    assignment_path.write_bytes(MF.canonical_json_bytes(assignment))
+    for entry, payload in zip(assignment["shards"], shard_payloads, strict=True):
+        path = new_root / entry["relative_spec_path"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+    group = json.loads(old["group"].read_text(encoding="utf-8"))
+    group["parent_spec_sha256"] = parent_sha
+    group["assignment_sha256"] = _sha(assignment_path.read_bytes())
+    group_path = new_root / "group.json"
+    _write_json(group_path, group)
+    replay = {
+        **old,
+        "parent": parent_path,
+        "parent_sha": parent_sha,
+        "assignment": assignment_path,
+        "group": group_path,
+        "out": new_root / "merge-index.json",
+    }
+
+    with pytest.raises(MF.FanoutContractError, match="replay 拒否"):
+        _merge(replay)
+
+
+def test_fixed_head_identity_accepts_matching_and_rejects_dirty_merger_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_head = "b" * 40
+    current = _TOOL.read_bytes()
+    dirty = False
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[Any]:
+        args = argv[1:]
+        text = kwargs.get("text", False)
+        if args == ["rev-parse", "HEAD"]:
+            stdout: Any = expected_head + "\n" if text else (expected_head + "\n").encode()
+        elif args == ["rev-parse", f"{expected_head}^{{tree}}"]:
+            stdout = "2" * 40 + "\n" if text else ("2" * 40 + "\n").encode()
+        elif args == ["show", f"{expected_head}:tools/mutation_fanout_contract.py"]:
+            stdout = b"different merger bytes\n" if dirty else current
+        elif args[0] == "show":
+            stdout = current
+        else:
+            raise AssertionError(args)
+        stderr: Any = "" if text else b""
+        return subprocess.CompletedProcess(argv, 0, stdout, stderr)
+
+    monkeypatch.setattr(MF.subprocess, "run", fake_run)
+    identity = MF._fixed_head_identity(expected_head)
+    assert identity["sha256"] == _sha(current)
+    dirty = True
+    with pytest.raises(MF.FanoutContractError, match="実行中 merger"):
+        MF._fixed_head_identity(expected_head)
+
+
 def test_merge_compares_paths_to_manifest_not_pairwise_difference(tmp_path: Path) -> None:
     paths = _build_group(tmp_path)
     group = json.loads(paths["group"].read_text(encoding="utf-8"))
@@ -569,12 +774,33 @@ def test_merge_derives_global_result_from_records_and_cross_checks_rc(tmp_path: 
     paths = _build_group(tmp_path)
     ledger_path = paths["ledgers"][0]
     ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-    ledger["mutations"][0]["status"] = "SURVIVED"
-    ledger["mutations"][0]["matches_expectation"] = False
+    record = ledger["mutations"][0]
+    record["status"] = "SURVIVED"
+    record["matches_expectation"] = False
+    record["rc"] = 0
+    record["failed_nodes"] = []
+    record["artifact"]["stdout"] = ""
+    record["artifact"]["stdout_sha256"] = _sha(b"")
+    record["test_output_sha256"] = _sha(b"")
     ledger["summary"]["KILLED"] -= 1
     ledger["summary"]["SURVIVED"] += 1
     ledger["summary"]["matching"] -= 1
     _write_json(ledger_path, ledger)
+    _relocated_path(paths["wrappers"][0], record["artifact"]["job_stdout_path"]).write_text(
+        "", encoding="utf-8"
+    )
+    attempts = json.loads(paths["attempts"][0].read_text(encoding="utf-8"))
+    attempt = next(
+        item for item in attempts["attempts"]
+        if item["phase"] == "mutation" and item["mutation_id"] == record["id"]
+    )
+    attempt["rc"] = 0
+    attempt["request"]["outcome_rc"] = 0
+    _write_json(paths["attempts"][0], attempts)
+    receipt_path = _relocated_path(paths["wrappers"][0], attempt["request"]["receipt_path"])
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["outcome"]["rc"] = 0
+    _write_json(receipt_path, receipt)
 
     with pytest.raises(MF.FanoutContractError, match="rc と ledger matches_expectation"):
         _merge(paths)

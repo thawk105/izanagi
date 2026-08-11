@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
@@ -26,7 +27,18 @@ SERIALIZER = "json.dumps(ensure_ascii=False,sort_keys=True,indent=2)+LF"
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
-_MERGEABLE_STATUSES = frozenset({"KILLED", "SURVIVED", "MISMATCH"})
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+# TIMEOUT は直前の専用 gate だけで拒否する。ここでも除外すると、その gate の
+# 単独変異がこの汎用 terminal gate に mask される。
+_MERGEABLE_STATUSES = frozenset({"KILLED", "SURVIVED", "MISMATCH", "TIMEOUT"})
+
+_FIXED_HEAD_PATHS = {
+    "contract": "tools/mutation_fanout_contract.py",
+    "wrapper": "tools/mutation_worktree.py",
+    "runner": "tools/run_tests.py",
+    "dispatch": "tools/pegasus/dispatch_compute.py",
+    "harness": "tools/mutation_harness.py",
+}
 
 _SPEC_FIELDS = {
     "schema", "estimated_run_seconds", "timeout_seconds",
@@ -198,6 +210,63 @@ def _read_file(path: Path, label: str) -> bytes:
         raise FanoutContractError(f"{label} を読めない: {exc}") from exc
 
 
+def _git_output(repo: Path, *args: str, text: bool = False) -> bytes | str:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+            text=text,
+        )
+    except OSError as exc:
+        raise FanoutContractError(f"固定 HEAD identity 用 git を起動できない: {exc}") from exc
+    if result.returncode != 0:
+        stderr = result.stderr if text else result.stderr.decode("utf-8", "replace")
+        raise FanoutContractError(
+            f"固定 HEAD identity を取得できない: git {' '.join(args)}: {stderr.strip()}"
+        )
+    return result.stdout
+
+
+def _fixed_head_identity(expected_head: str) -> dict[str, Any]:
+    """実行中 merger と関連 verifier bytes を同じ固定 HEAD へ束縛する。"""
+
+    if not isinstance(expected_head, str) or re.fullmatch(
+        r"(?:[0-9a-f]{40}|[0-9a-f]{64})", expected_head
+    ) is None:
+        raise FanoutContractError("固定 HEAD identity の commit が full object ID でない")
+    executed_path = Path(__file__).resolve()
+    source_repo = executed_path.parents[1]
+    current_head = str(_git_output(source_repo, "rev-parse", "HEAD", text=True)).strip()
+    if current_head != expected_head:
+        raise FanoutContractError(
+            f"merger の HEAD が shard 固定 HEAD と不一致: "
+            f"expected={expected_head}, actual={current_head}"
+        )
+    tree = str(
+        _git_output(source_repo, "rev-parse", f"{expected_head}^{{tree}}", text=True)
+    ).strip()
+    blobs: dict[str, str] = {}
+    for name, repo_path in _FIXED_HEAD_PATHS.items():
+        payload = _git_output(source_repo, "show", f"{expected_head}:{repo_path}")
+        assert isinstance(payload, bytes)
+        blobs[name] = _bytes_sha256(payload)
+    executed_sha256 = _bytes_sha256(_read_file(executed_path, "実行中 merger"))
+    if executed_sha256 != blobs["contract"]:
+        raise FanoutContractError("実行中 merger が固定 HEAD blob と不一致")
+    return {
+        "path": str(executed_path),
+        "repo_path": _FIXED_HEAD_PATHS["contract"],
+        "sha256": executed_sha256,
+        "head_blob_sha256": blobs["contract"],
+        "repo_head": expected_head,
+        "repo_tree": tree,
+        "source_repo": str(source_repo),
+        "fixed_blobs": blobs,
+    }
+
+
 def _relocated_evidence_path(recorded: str, evidence: dict[str, Any], label: str) -> Path:
     recorded_path = Path(recorded)
     original = Path(_path_string(evidence["original_path"], f"{label}.original_path"))
@@ -207,6 +276,169 @@ def _relocated_evidence_path(recorded: str, evidence: dict[str, Any], label: str
     except ValueError as exc:
         raise FanoutContractError(f"{label} が dispatch evidence original path 外") from exc
     return relocated / relative
+
+
+def _normalize_node(node: str, repo: Path, label: str) -> str:
+    value = node.strip().replace("\\", "/")
+    repo_prefix = repo.as_posix().rstrip("/") + "/"
+    if value.startswith(repo_prefix):
+        value = value[len(repo_prefix):]
+    while value.startswith("./"):
+        value = value[2:]
+    path_text, separator, test_text = value.partition("::")
+    if not separator or not path_text or not test_text:
+        raise FanoutContractError(f"{label} が <path>::<name> 形式でない")
+    path = PurePosixPath(path_text)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise FanoutContractError(f"{label} の path が安全な相対 path でない")
+    return f"{path.as_posix()}::{test_text.strip()}"
+
+
+def _failed_nodes(stdout: str, repo: Path, label: str) -> list[str]:
+    found: list[str] = []
+    for raw_line in stdout.splitlines():
+        line = _ANSI_RE.sub("", raw_line).lstrip()
+        while line.startswith("|"):
+            line = line[1:].lstrip()
+        if not line.startswith("FAILED "):
+            continue
+        remainder = line[len("FAILED "):]
+        node, separator, _detail = remainder.partition(" - ")
+        if not separator:
+            node = remainder
+        if not node.strip():
+            continue
+        normalized = _normalize_node(node, repo, label)
+        if normalized not in found:
+            found.append(normalized)
+    return found
+
+
+def _collected_nodes(stdout: str, repo: Path, label: str) -> list[str]:
+    found: list[str] = []
+    for raw_line in stdout.splitlines():
+        line = _ANSI_RE.sub("", raw_line).lstrip()
+        while line.startswith("|"):
+            line = line[1:].lstrip()
+        line = line.strip()
+        if "::" not in line or line.startswith("FAILED "):
+            continue
+        try:
+            normalized = _normalize_node(line, repo, label)
+        except FanoutContractError:
+            continue
+        if normalized not in found:
+            found.append(normalized)
+    return found
+
+
+def _observed_status(
+    record: dict[str, Any], *, repo: Path, expected_nodes: Sequence[str], label: str
+) -> tuple[str, list[str]]:
+    stdout = record["artifact"]["stdout"]
+    failed = _failed_nodes(stdout, repo, f"{label} failed node")
+    if record["timed_out"]:
+        return "TIMEOUT", failed
+    rc = record["rc"]
+    if rc is None or record["artifact_error"] is not None or rc not in {0, 1}:
+        return "PARSE_ERROR", failed
+    if rc != 0 and not failed:
+        return "PARSE_ERROR", failed
+    if rc == 0:
+        return ("SURVIVED" if not failed else "MISMATCH"), failed
+    expected = {
+        _normalize_node(node, repo, f"{label} expected node") for node in expected_nodes
+    }
+    return ("KILLED" if set(failed) == expected else "MISMATCH"), failed
+
+
+def _read_receipt(
+    request: dict[str, Any], evidence: dict[str, Any], label: str
+) -> tuple[Path, bytes, dict[str, Any]]:
+    receipt_path = _relocated_evidence_path(
+        request["receipt_path"], evidence, f"{label} receipt"
+    )
+    receipt_bytes = _read_file(receipt_path, f"{label} receipt")
+    receipt = _json_document(receipt_bytes, f"{label} receipt")
+    if not isinstance(receipt, dict):
+        raise FanoutContractError(f"{label} receipt root が object でない")
+    if receipt.get("request_id") != request["request_id"]:
+        raise FanoutContractError(f"{label} receipt request_id が sidecar と不一致")
+    if receipt.get("submission_dir") != request["submission_dir"]:
+        raise FanoutContractError(f"{label} receipt submission_dir が sidecar と不一致")
+    outcome = receipt.get("outcome")
+    receipt_rc = outcome.get("rc") if isinstance(outcome, dict) else None
+    if (
+        isinstance(receipt_rc, bool)
+        or not isinstance(receipt_rc, int)
+        or receipt_rc != request["outcome_rc"]
+    ):
+        raise FanoutContractError(f"{label} receipt outcome.rc が sidecar と不一致")
+    return receipt_path, receipt_bytes, receipt
+
+
+def _validate_evidence_inventory(
+    attempts: Sequence[dict[str, Any]], evidence: dict[str, Any], label: str
+) -> None:
+    original = Path(_path_string(evidence["original_path"], f"{label}.original_path"))
+    relocated = Path(_path_string(evidence["relocated_path"], f"{label}.relocated_path"))
+    expected_directories: set[Path] = set()
+    allowed_root_files: set[Path] = set()
+    for attempt in attempts:
+        request = attempt["request"]
+        submission = Path(request["submission_dir"])
+        try:
+            relative = submission.relative_to(original)
+        except ValueError as exc:
+            raise FanoutContractError(f"{label} submission_dir が evidence root 外") from exc
+        if len(relative.parts) != 1:
+            raise FanoutContractError(f"{label} submission_dir が evidence root の直下でない")
+        relocated_submission = relocated / relative
+        if relocated_submission in expected_directories:
+            raise FanoutContractError(f"{label} submission_dir が attempt 間で重複")
+        expected_directories.add(relocated_submission)
+        receipt = _relocated_evidence_path(
+            request["receipt_path"], evidence, f"{label} receipt inventory"
+        )
+        if receipt.parent == relocated:
+            allowed_root_files.add(receipt)
+
+    try:
+        entries = list(relocated.iterdir())
+    except OSError as exc:
+        raise FanoutContractError(f"{label} relocated evidence を列挙できない: {exc}") from exc
+    actual_directories = {path for path in entries if path.is_dir() and not path.is_symlink()}
+    unexpected_entries = {
+        path for path in entries
+        if path not in actual_directories and path not in allowed_root_files
+    }
+    if actual_directories != expected_directories or unexpected_entries:
+        raise FanoutContractError(
+            f"{label} evidence inventory が request 完全集合と不一致"
+        )
+    for submission in expected_directories:
+        receipt_candidates = {
+            path for path in submission.iterdir()
+            if path.is_file() and not path.is_symlink() and path.name.startswith("receipt")
+        }
+        request_candidates = {
+            path for path in submission.iterdir()
+            if path.is_file() and not path.is_symlink() and "request" in path.name
+        }
+        claimed_receipts = {
+            _relocated_evidence_path(
+                attempt["request"]["receipt_path"], evidence, f"{label} receipt inventory"
+            )
+            for attempt in attempts
+            if _relocated_evidence_path(
+                attempt["request"]["submission_dir"], evidence,
+                f"{label} submission inventory",
+            ) == submission
+        }
+        if receipt_candidates != (claimed_receipts & receipt_candidates):
+            raise FanoutContractError(f"{label} に orphan receipt がある")
+        if request_candidates != {submission / "request.json"}:
+            raise FanoutContractError(f"{label} request.json inventory が一意でない")
 
 
 def _json_document(payload: bytes, label: str) -> Any:
@@ -594,6 +826,7 @@ def _validate_ledger(
             raise FanoutContractError(f"{shard_id} runner_identity.{key} が manifest path と不一致")
     if tool["path"] != expected_paths["tool_path"]:
         raise FanoutContractError(f"{shard_id} tool_identity.path が manifest path と不一致")
+    checkout = Path(expected_paths["tool_path"]).parents[1]
     if ledger["runner_sha256"] != _compact_sha256(runner):
         raise FanoutContractError(f"{shard_id} runner_sha256 が identity と不一致")
     if ledger["tool_sha256"] != _compact_sha256(tool):
@@ -655,18 +888,34 @@ def _validate_ledger(
         not isinstance(item, str) for item in collection["collected_nodes"]
     ):
         raise FanoutContractError(f"{shard_id} collected_nodes が文字列 list でない")
+    _validate_artifact(collection["artifact"], f"{shard_id} collection artifact")
+    observed_collection = _collected_nodes(
+        collection["artifact"]["stdout"], checkout, f"{shard_id} collection"
+    )
+    if collection["collected_nodes"] != observed_collection:
+        raise FanoutContractError(
+            f"{shard_id} collected_nodes が collection stdout からの再導出と不一致"
+        )
     expected_nodes = {
         node for mutation in shard_spec["mutations"] for node in mutation["expected_nodes"]
     }
     if not expected_nodes <= set(collection["collected_nodes"]):
         raise FanoutContractError(f"{shard_id} collection に expected node がない")
-    _validate_artifact(collection["artifact"], f"{shard_id} collection artifact")
 
     baseline = _exact(ledger["baseline"], _BASELINE_FIELDS, f"{shard_id} baseline")
     _validate_run_record_types(baseline, f"{shard_id} baseline")
     _validate_artifact(baseline["artifact"], f"{shard_id} baseline artifact")
     if baseline["status"] != "PASSED" or baseline["rc"] != 0 or baseline["failed_nodes"] != []:
         raise FanoutContractError(f"{shard_id} baseline が PASSED/0/[] でない")
+    if baseline["timed_out"] or baseline["artifact_error"] is not None:
+        raise FanoutContractError(f"{shard_id} baseline terminal 意味論が不一致")
+    baseline_failed = _failed_nodes(
+        baseline["artifact"]["stdout"], checkout, f"{shard_id} baseline"
+    )
+    if baseline_failed != baseline["failed_nodes"]:
+        raise FanoutContractError(
+            f"{shard_id} baseline failed_nodes が stdout からの再導出と不一致"
+        )
     collection_sha256 = _compact_sha256(collection)
     baseline_links = {
         "repo_head": ledger["repo_head"],
@@ -718,6 +967,16 @@ def _validate_ledger(
         if status not in _MERGEABLE_STATUSES:
             raise FanoutContractError(f"{shard_id} mutation status が merge terminal でない")
         _validate_artifact(record["artifact"], f"{shard_id} mutations[{index}].artifact")
+        observed_status, observed_failed = _observed_status(
+            record,
+            repo=checkout,
+            expected_nodes=record["expected_nodes"],
+            label=f"{shard_id} {mutation_id}",
+        )
+        if record["failed_nodes"] != observed_failed or status != observed_status:
+            raise FanoutContractError(
+                f"{shard_id} {mutation_id} status が rc/node/artifact evidence と不一致"
+            )
         record_links = {
             "anchor_counts": mutation_registration["anchor_counts"],
             "injection_diff_sha256": mutation_registration["injection_diff_sha256"],
@@ -737,6 +996,12 @@ def _validate_ledger(
         matches = record["matches_expectation"]
         if not isinstance(matches, bool) or matches is not (status == record["expected_status"]):
             raise FanoutContractError(f"{shard_id} {mutation_id}.matches_expectation が不一致")
+        expected_tail = (
+            record["artifact"]["stdout"].splitlines()[-80:]
+            if status in {"MISMATCH", "PARSE_ERROR"} else []
+        )
+        if record["test_output_tail"] != expected_tail:
+            raise FanoutContractError(f"{shard_id} {mutation_id} output tail が不一致")
         record_ids.append(mutation_id)
         status_counts[status] += 1
         matching += int(matches)
@@ -755,6 +1020,20 @@ def _validate_ledger(
             f"{shard_id} history artifact",
             allow_incomplete_dispatch=True,
         )
+        if history_record["artifact"]["receipt_path"] is not None:
+            observed_status, observed_failed = _observed_status(
+                history_record,
+                repo=checkout,
+                expected_nodes=history_record["expected_nodes"],
+                label=f"{shard_id} history {history_record['id']}",
+            )
+            if (
+                observed_status != "PARSE_ERROR"
+                or history_record["failed_nodes"] != observed_failed
+            ):
+                raise FanoutContractError(
+                    f"{shard_id} history status が rc/node/artifact evidence と不一致"
+                )
     recomputed = {
         "registered": len(mutation_ids),
         "recorded": len(records),
@@ -769,6 +1048,84 @@ def _validate_ledger(
     if summary != recomputed:
         raise FanoutContractError(f"{shard_id} summary が record 再集計と不一致")
     return ledger, mutation_ids, all_matching
+
+
+def _validate_group_layout(
+    *,
+    group_manifest_path: Path,
+    assignment_path: Path,
+    output_path: Path,
+    group_shards: Sequence[dict[str, Any]],
+    assignment_shards: Sequence[dict[str, Any]],
+) -> Path:
+    """fresh group root 外の古い成果物を replay 元に使わせない。"""
+
+    group_path = group_manifest_path.resolve()
+    root = group_path.parent
+    if group_path != root / "group.json":
+        raise FanoutContractError("group manifest が group root の canonical path でない")
+    if assignment_path.resolve() != root / "assignment.json":
+        raise FanoutContractError("assignment が group root の canonical path でない")
+    if output_path.resolve() != root / "merge-index.json":
+        raise FanoutContractError("merge index が group root の canonical path でない")
+    for group_shard, assignment_shard in zip(group_shards, assignment_shards, strict=True):
+        shard_id = assignment_shard["shard_id"]
+        expected_spec = root / assignment_shard["relative_spec_path"]
+        actual_spec = Path(
+            _path_string(group_shard["spec_path"], f"{shard_id} spec_path")
+        ).resolve()
+        if actual_spec != expected_spec:
+            raise FanoutContractError(
+                f"{shard_id} spec_path が fresh group layout と不一致 (replay 拒否)"
+            )
+        for key in ("ledger_path", "wrapper_receipt_path", "attempt_path"):
+            path = Path(_path_string(group_shard[key], f"{shard_id} {key}")).resolve()
+            try:
+                path.relative_to(root)
+            except ValueError as exc:
+                raise FanoutContractError(
+                    f"{shard_id} {key} が fresh group root 外 (replay 拒否)"
+                ) from exc
+        expected_paths = group_shard["expected_paths"]
+        for key in _EXPECTED_PATH_FIELDS:
+            path = Path(_path_string(expected_paths[key], f"{shard_id} {key}")).resolve()
+            try:
+                path.relative_to(root)
+            except ValueError as exc:
+                raise FanoutContractError(
+                    f"{shard_id} expected_paths.{key} が fresh group root 外"
+                ) from exc
+    return root
+
+
+def _validate_ledger_fixed_head(
+    ledger: dict[str, Any], identity: dict[str, Any], shard_id: str
+) -> None:
+    if ledger["repo_head"] != identity["repo_head"]:
+        raise FanoutContractError(f"{shard_id} ledger が merger 固定 HEAD と不一致")
+    runner = ledger["runner_identity"]
+    tool = ledger["tool_identity"]
+    blobs = identity["fixed_blobs"]
+    expected = {
+        "runner.repo_path": (runner["repo_path"], _FIXED_HEAD_PATHS["runner"]),
+        "runner.entrypoint_sha256": (runner["entrypoint_sha256"], blobs["runner"]),
+        "runner.head_blob_sha256": (runner["head_blob_sha256"], blobs["runner"]),
+        "runner.dispatch_entrypoint_sha256": (
+            runner["dispatch_entrypoint_sha256"], blobs["dispatch"]
+        ),
+        "runner.dispatch_head_blob_sha256": (
+            runner["dispatch_head_blob_sha256"], blobs["dispatch"]
+        ),
+        "runner.repo_tree": (runner["repo_tree"], identity["repo_tree"]),
+        "tool.repo_path": (tool["repo_path"], _FIXED_HEAD_PATHS["harness"]),
+        "tool.sha256": (tool["sha256"], blobs["harness"]),
+        "tool.head_blob_sha256": (tool["head_blob_sha256"], blobs["harness"]),
+    }
+    mismatches = [label for label, (actual, wanted) in expected.items() if actual != wanted]
+    if mismatches:
+        raise FanoutContractError(
+            f"{shard_id} verifier identity が固定 HEAD blob と不一致: {mismatches}"
+        )
 
 
 def merge_group(
@@ -811,6 +1168,22 @@ def merge_group(
     group_shards = group["shards"]
     if not isinstance(group_shards, list) or len(group_shards) != shard_count:
         raise FanoutContractError("group manifest shard 数が assignment と不一致")
+    validated_group_shards = [
+        _exact(raw, _GROUP_SHARD_FIELDS, f"group.shards[{index}]")
+        for index, raw in enumerate(group_shards)
+    ]
+    for index, shard in enumerate(validated_group_shards):
+        _exact(
+            shard["expected_paths"], _EXPECTED_PATH_FIELDS,
+            f"group.shards[{index}].expected_paths",
+        )
+    group_root = _validate_group_layout(
+        group_manifest_path=group_manifest_path,
+        assignment_path=assignment_path,
+        output_path=output_path,
+        group_shards=validated_group_shards,
+        assignment_shards=assignment["shards"],
+    )
 
     parent = _validate_spec_document(_json_document(parent_bytes, "parent spec"), "parent spec")
     parent_ids = [mutation["id"] for mutation in parent["mutations"]]
@@ -828,11 +1201,12 @@ def merge_group(
     total_recorded = 0
     total_history = 0
     global_matching = True
+    merger_identity: dict[str, Any] | None = None
 
     for index, (raw_group_shard, assignment_shard, expected_spec_bytes) in enumerate(
-        zip(group_shards, assignment["shards"], shard_payloads, strict=True)
+        zip(validated_group_shards, assignment["shards"], shard_payloads, strict=True)
     ):
-        shard = _exact(raw_group_shard, _GROUP_SHARD_FIELDS, f"group.shards[{index}]")
+        shard = raw_group_shard
         if (
             _strict_int(shard["index"], "group shard index") != index
             or shard["shard_id"] != assignment_shard["shard_id"]
@@ -865,6 +1239,9 @@ def merge_group(
             shard_spec_sha256=spec_sha256,
             expected_paths=expected_paths,
         )
+        if merger_identity is None:
+            merger_identity = _fixed_head_identity(ledger["repo_head"])
+        _validate_ledger_fixed_head(ledger, merger_identity, shard["shard_id"])
 
         wrapper_path = Path(_path_string(
             shard["wrapper_receipt_path"], "group shard wrapper_receipt_path"
@@ -882,9 +1259,30 @@ def merge_group(
         if wrapper["schema"] != WRAPPER_SCHEMA:
             raise FanoutContractError(f"{shard['shard_id']} wrapper schema が未知")
         _sha256(wrapper["wrapper_sha256"], f"{shard['shard_id']} wrapper_sha256")
+        if wrapper["wrapper_sha256"] != merger_identity["fixed_blobs"]["wrapper"]:
+            raise FanoutContractError(
+                f"{shard['shard_id']} wrapper が固定 HEAD blob と不一致"
+            )
         for key in ("scratch_root", "container_path", "lock_path"):
             if wrapper[key] != expected_paths[key]:
                 raise FanoutContractError(f"{shard['shard_id']} wrapper {key} が manifest path と不一致")
+        expected_evidence_original = (
+            Path(expected_paths["tool_path"]).parents[1] / "output" / "pegasus-dispatch"
+        )
+        expected_evidence_relocated = Path(f"{ledger_path}.dispatch-evidence")
+        if (
+            Path(evidence["original_path"]) != expected_evidence_original
+            or Path(evidence["relocated_path"]) != expected_evidence_relocated
+        ):
+            raise FanoutContractError(
+                f"{shard['shard_id']} dispatch evidence path が execution envelope と不一致"
+            )
+        if not isinstance(evidence["rehydrated"], bool) or not isinstance(
+            evidence["relocated"], bool
+        ):
+            raise FanoutContractError(
+                f"{shard['shard_id']} dispatch evidence state が bool でない"
+            )
         if wrapper["resolved_commit"] != ledger["repo_head"]:
             raise FanoutContractError(f"{shard['shard_id']} wrapper commit が ledger と不一致")
         wrapper_rc = shard["wrapper_rc"]
@@ -930,16 +1328,44 @@ def merge_group(
             ("baseline", None): ledger["baseline"],
         }
         ledger_rows.update({("mutation", row["id"]): row for row in ledger["mutations"]})
+        receipt_evidence: dict[str, tuple[Path, bytes, dict[str, Any]]] = {}
         for key, row in ledger_rows.items():
             attempt = latest[key]
             artifact = row["artifact"]
             request = attempt["request"]
             if attempt["rc"] != row["rc"]:
                 raise FanoutContractError(f"{shard['shard_id']} attempt rc と ledger 行が不一致")
+            if attempt["timed_out"] != row.get("timed_out", False):
+                raise FanoutContractError(
+                    f"{shard['shard_id']} attempt timed_out と ledger 行が不一致"
+                )
+            if attempt["artifact_error"] != row.get("artifact_error"):
+                raise FanoutContractError(
+                    f"{shard['shard_id']} attempt artifact_error と ledger 行が不一致"
+                )
             if request["receipt_path"] != artifact["receipt_path"]:
                 raise FanoutContractError(f"{shard['shard_id']} request receipt と ledger 行が不一致")
             if request["job_stdout_path"] != artifact["job_stdout_path"]:
                 raise FanoutContractError(f"{shard['shard_id']} request stdout と ledger 行が不一致")
+            submission_dir = Path(request["submission_dir"])
+            stdout_path = Path(request["job_stdout_path"])
+            if stdout_path.parent != submission_dir:
+                raise FanoutContractError(
+                    f"{shard['shard_id']} job_stdout_path が submission_dir 直下でない"
+                )
+            receipt_path_recorded = Path(request["receipt_path"])
+            original_evidence = Path(evidence["original_path"])
+            if receipt_path_recorded.parent != submission_dir and not (
+                receipt_path_recorded.parent == original_evidence
+                and receipt_path_recorded.name.startswith("receipt-fallback-")
+                and receipt_path_recorded.suffix == ".json"
+            ):
+                raise FanoutContractError(
+                    f"{shard['shard_id']} receipt_path が submission/fallback と不一致"
+                )
+            receipt_evidence[request["request_id"]] = _read_receipt(
+                request, evidence, f"{shard['shard_id']} request {request['request_id']}"
+            )
             relocated_stdout = _read_file(
                 _relocated_evidence_path(
                     request["job_stdout_path"], evidence,
@@ -957,6 +1383,11 @@ def merge_group(
             if request_id in request_ids:
                 raise FanoutContractError("request ID が shard 間または attempt 間で重複")
             request_ids.add(request_id)
+            if request_id not in receipt_evidence:
+                receipt_evidence[request_id] = _read_receipt(
+                    request, evidence, f"{shard['shard_id']} request {request_id}"
+                )
+            receipt_path, receipt_bytes, _receipt = receipt_evidence[request_id]
             request_index.append(
                 {
                     "request_id": request_id,
@@ -965,14 +1396,13 @@ def merge_group(
                     "phase": attempt["phase"],
                     "mutation_id": attempt["mutation_id"],
                     "receipt_path": request["receipt_path"],
-                    "receipt_sha256": _bytes_sha256(_read_file(
-                        _relocated_evidence_path(
-                            request["receipt_path"], evidence, f"request {request_id} receipt"
-                        ),
-                        f"request {request_id} receipt",
-                    )),
+                    "receipt_path_effective": str(receipt_path),
+                    "receipt_sha256": _bytes_sha256(receipt_bytes),
                 }
             )
+        _validate_evidence_inventory(
+            attempts, evidence, f"{shard['shard_id']} dispatch evidence"
+        )
 
         runner_content = {
             key: value for key, value in ledger["runner_identity"].items()
@@ -1043,6 +1473,20 @@ def merge_group(
     if len(request_ids) != len(parent_ids) + 2 * shard_count + total_history:
         raise FanoutContractError("request 総数が変異数 + 2N (+ resume history) と不一致")
 
+    execution_envelope = {
+        "group_root": str(group_root),
+        "parent_spec_sha256": expected_parent_sha256,
+        "assignment_sha256": assignment_sha256,
+        "shards": [
+            {
+                "index": shard["index"],
+                "shard_id": shard["shard_id"],
+                "shard_spec_sha256": shard["shard_spec_sha256"],
+            }
+            for shard in assignment["shards"]
+        ],
+    }
+
     index_document = {
         "schema": MERGE_SCHEMA,
         "parent_spec_path": str(parent_spec_path.resolve()),
@@ -1052,11 +1496,14 @@ def merge_group(
         "assignment_sha256": assignment_sha256,
         "group_manifest_path": str(group_manifest_path.resolve()),
         "group_manifest_sha256": _bytes_sha256(group_bytes),
+        "execution_id": _compact_sha256(execution_envelope),
+        "execution_envelope": execution_envelope,
         "shard_count": shard_count,
         "registered": len(parent_ids),
         "recorded": total_recorded,
         "matches_expectation": global_matching,
         "result_rc": 0 if global_matching else 1,
+        "merger_identity": merger_identity,
         "shards": shard_index_entries,
         "mutations": mutation_index,
         "requests": request_index,
