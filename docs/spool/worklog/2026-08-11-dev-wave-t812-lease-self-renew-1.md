@@ -43,6 +43,11 @@ title: [T-812] 受入 lease の自己保持 deadlock を閉じた — claim が 
   を縮約し、同時に **入口の待ち手 consumer 逐語行を `tools/check_docs.py` で exact pin** する検査を
   新設していた。受理集合を `{acquired, held-self}` へ広げると pin が赤くなるので、**検査を緩めず
   逐語だけを追随**させた (実装面のため Codex author が別 commit)。
+- **受入窓の飽和を実測した。** 段 9 の受入投入で正本待ち手が **7200 秒 (既定上限) 待って
+  `claim-timeout rc=70`** になり、**1 度も受入を投入できなかった**。待機中に holder は 4 回交代し
+  (main は `034d7590` → `3f8a12cf` → `d0e912d6` → `b2a95ed6` と前進)、待ち札は 8〜11 枚で推移した。
+  待ち行列長 × 1 走 20 分前後という構造であり、**裁定 425 が (d3') シャーディングと (f) land train
+  を用意した「飽和」がここで観測された**。本 wave は上限を延ばして再投入した。
 - 段 8 の dev-wave 改善候補 1 件: codex 子の `--max-cli-reported-tokens` 既定 1,000,000 は
   読み込みの多い consult を**完了直前に SIGTERM して出力 0 byte にする** (実測 1,017,768、17 分空費)。
   同一 prompt での再投入は job_id が同じで receipt 上書き拒否 rc=2 になるため、prompt を変えて
