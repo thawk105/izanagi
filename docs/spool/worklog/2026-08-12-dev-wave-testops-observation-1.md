@@ -36,6 +36,24 @@ tracked file の git 履歴を改竄検出の外部 anchor にしており、rep
 安全に閉じるとプランの 142 行見積りが成立せず、D220 が過大として不採用にした水準へ近づくため、
 規模自体が D205 の判断を要する。
 
+**受入全走は赤で、原因は main 側にある。** lease 内で local main (`427da17c`) を取り込んだ tip で
+実走し、**2 failed / 9123 passed / 20 skipped (586.57 秒)**。落ちたのは
+`orchestrator/tests/test_t793_report.py` の 2 node で、いずれも `docs/decisions.md` を読んで
+D291 の supersession 参照を数え、期待値 `("D292",)` に対し実際が `("D292", "D305")` になる、というもの。
+本 wave の差分は `docs/spool/` と `output/insights/` の追加だけで `docs/decisions.md` を 1 byte も
+触っておらず、取り込み後の `docs/decisions.md` は main と byte 一致する
+(`git diff main -- docs/decisions.md` が空)。D305 を入れたのは main の fold commit `427da17c` である。
+単独再走でも同じ 2 件が決定的に落ちる (2 failed / 7 passed) のでフレークではない。
+したがって**この赤は本 wave に帰属せず、main 自体が赤である** — 他の全 wave の受入も同じ場所で落ちる。
+`DW-STOP` に従い land せずに停止した。
+
+機序: `orchestrator/publication/report.py:75-80` の `_scan_d291_supersession` は「後続 decision に
+`D291` が一度でも現れたら現在も承認済みとは断言しない」という意図的な fail-closed 設計であり、
+production 側は仕様どおりに動いている。D305 は D291 payload の trust root を論じるので当然 D291 に
+言及する。壊れているのは追記型台帳に対して完全一致を焼き付けたテスト側の期待値で、D291 に言及する
+decision が増えるたびに再発する。**修正方針の択一 (pin を毎回更新するか、性質の表明に変えるか) は
+正しさゲートの厳しさに触れるため、本 wave では触らず所有 wave とユーザーへ返す。**
+
 設計判断は {{D:testops-observation-frozen-pilot}}。
 
 ## 次の一手差分
@@ -50,3 +68,14 @@ tracked file の git 履歴を改竄検出の外部 anchor にしており、rep
   `output/insights/2026-08-12_testops-observation/verbatim/s4-ruling.md` §3。
   裁定が (再開する) なら、同 insights が凍結した blocker 9 件と must-fix 11 件を閉じる plan v2 から
   実装 wave を起こす。
+
+- {{T:d291-supersession-pin-breaks-main}} **P0・main が赤**: `docs/decisions.md` へ D291 に言及する
+  decision が増えるたびに `orchestrator/tests/test_t793_report.py` の 2 node が落ちる。
+  2026-08-12 の main `427da17c` で発火し、受入全走が 2 failed / 9123 passed になる。
+  **全 wave の受入が同じ場所で落ちるため優先度は最上位**。production
+  (`orchestrator/publication/report.py:75-80` の `_scan_d291_supersession`) は「後続 decision に
+  D291 が一度でも現れたら承認済みと断言しない」fail-closed 設計であり仕様どおりに動いている。
+  壊れているのは追記型台帳に完全一致を焼き付けたテスト側の期待値。修正は
+  (i) 新しい decision が入るたびに pin を更新する、(ii) 完全一致をやめて性質
+  (`status == possible_supersession` かつ D292 を含む) の表明にする、の択一で、
+  (ii) は検査の厳しさを下げる方向なので裁定を要する。所有は t793 系の wave。
