@@ -781,7 +781,7 @@ def load_t810_preregistration(
         projection=_freeze(parsed),
         _loader_token=_VERIFIED_CONSTRUCTION_TOKEN,
     )
-    from orchestrator.campaign.t810_estimator_v1 import (  # delayed to avoid a cycle
+    from .t810_estimator_v1 import (  # delayed to avoid a cycle
         T810EstimatorError,
         assert_estimator_conformance,
     )

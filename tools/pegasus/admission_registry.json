@@ -204,6 +204,12 @@
       "reason": "PBS T141 profiling job body",
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
+    },
+    "tools/pegasus/validate_t810.py": {
+      "class": "unknown",
+      "reason": "input caps and capped-input measurement are incomplete",
+      "primary_gate": "hook deny pending admission evidence",
+      "evidence": "unmeasured; unbounded input surfaces remain"
     }
   }
 }

@@ -366,3 +366,7 @@ def test_estimator_does_not_duplicate_validator_terminal_fsm():
     }
     assert "classify_terminal_state" not in public_names
     assert "TerminalEvidence" not in public_names
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

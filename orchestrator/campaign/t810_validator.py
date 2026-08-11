@@ -15,17 +15,17 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
-from orchestrator.campaign.durable_root import (
+from .durable_root import (
     ApprovedRoot,
     DurableRootError,
     DurableRootPolicy,
     resolve_policy_root,
 )
-from orchestrator.campaign.t810_estimator_v1 import (
+from .t810_estimator_v1 import (
     T810EstimatorError,
     evaluate_t810,
 )
-from orchestrator.campaign.t810_preregistration import (
+from .t810_preregistration import (
     VerifiedT810Preregistration,
 )
 

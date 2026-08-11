@@ -363,3 +363,7 @@ def test_canonical_round_trip_is_exact():
     raw = PREREG_PATH.read_bytes()
     parsed = json.loads(raw)
     assert _canonical_bytes(parsed) == raw
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
