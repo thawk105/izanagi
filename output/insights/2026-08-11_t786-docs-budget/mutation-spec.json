@@ -1,0 +1,107 @@
+{
+ "estimated_run_seconds": 90,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[decoy-blockquoted]",
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[decoy-negated]",
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[pre-wave-form]",
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage6-relocated]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1-drop-stage6",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "",
+     "old": "            if not stage6_ok:\n                findings.append(DEV_WAVE_STAGE6_WAITER_CONSUMER_FINDING)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[stage9-deleted]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2-drop-stage9",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "",
+     "old": "            if not stage9_ok:\n                findings.append(DEV_WAVE_STAGE9_WAITER_CONSUMER_FINDING)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dw-c00-fenced]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3-drop-c00",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "            disclaimer_sections.append(dw_c00)\n",
+     "old": "            if dw_c00_count != 1:\n                findings.append(DEV_WAVE_DW_C00_WAITER_CONSUMER_FINDING)\n            else:\n                disclaimer_sections.append(dw_c00)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[dw-o01-wrong-pid-source]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4-drop-o01",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "            disclaimer_sections.append(dw_o01)\n",
+     "old": "            if dw_o01_count != 1:\n                findings.append(DEV_WAVE_DW_O01_WAITER_CONSUMER_FINDING)\n            else:\n                disclaimer_sections.append(dw_o01)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[decoy-optional]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5-drop-disclaimer",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "        pass\n",
+     "old": "        findings.append(DEV_WAVE_WAITER_DISCLAIMER_FINDING)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls[target-symlinked]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M6-drop-target",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "new": "        pass\n",
+     "old": "        findings.append(DEV_WAVE_WAITER_TARGET_FINDING)\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 600
+}

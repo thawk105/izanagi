@@ -248,6 +248,38 @@ proposal / raw / envelope / build 成果物の bytes、層3 の任意実行) は
   「schema を object 配列へ明確化した」の射程はここまでである
 - `--provider fixture` は `--no-build` 併用時だけ受理する。fixture auditor は入力を監査せず
   無条件 `pass` を返すため、実計測経路に載せない ([T-207] で fail-closed 化)
+- **workload 単位の fan-out は「1 process 1 workload の探索 pilot を N 起動する」形だけを許す**
+  ([T-809] 2026-08-11 ユーザー裁定)。本体 loop (`for workload in selected:`) を割る実装はしない。
+  割ってよいのは次を**すべて**満たすときに限る。(1) `--no-build` かつ
+  `--allow-unregistered-exploratory` で、holdout 束縛 workload を含まない。(2) 1 process 1 workload、
+  一意な `--trial-id` と、互いに異なる resolved run root。(3) 出力は **repo 外かつ git 配下でない**
+  job 専用 base へ置く。推奨経路は `IZANAGI_EXPLORATION_OUTPUT_ROOT` に job 専用 base を設定して
+  `--run-root` を省略することで、**git 祖先を機械的に拒否するのはこの経路だけである**
+  (`dev-wave-jobs/` は自身の `.git` を持つので base に使えない)。**`--run-root` を明示すると
+  この admission は走らない** — 明示経路が repo 外・非 git であることは人手確認である。
+  (4) 投入前に N slot と各 slot の trial_id・workload・run root・submission nonce を固定し、
+  投入直後に scheduler が返した request ID と receipt を対応する slot へ束縛して group manifest を
+  完成させる (**request ID は投入結果なので事前には書けない**)。(5) 集計前に全 N slot の
+  terminal state・rc と、report / journal の存在または欠落を照合する。存在する artifact は hash も
+  照合する。**欠落を含む group は incomplete のまま保存し、先に終わった成功分だけで集計しない。**
+  (6) N 本を「旧 1 trial と同値な 1 成果物」と呼ばない — 性能主張・正式主張・同値性主張へ
+  流入させない。**これは人手確認であって機械保証ではない** (汎用の N-job verifier は存在しない)。
+  割っても各 process 内の検査はそのまま働くが、**group 単位の保証は無い** — workload coverage は
+  singleton report ごとの prefix / 欠落理由の検査へ縮み、wall 予算は 1 個の共有予算から N 個の
+  独立予算になり、`CrossRoleSessionTracker` の session 相異検査は process 間を覆わない
+  (report 間の valid `child_id` 比較では代替できない。parse 失敗 attempt の session id は
+  valid provenance に現れない)。**exploratory 起動には `lifecycle-start-once` 自体が適用されない。**
+  job 間の並行投入規範と build 付き fan-out の禁止は `docs/pegasus-runbook.md` §7.5 が正本
+- **再投入の定義は経路で違う** (同上の裁定)。**exploratory** は新しい `--trial-id` と
+  新しい `--run-root` で行う。既存 checkpoint を持つ同一 trial/config の build 再走は campaign
+  freshness gate で拒否されるが、**state 生成前の crash と並行 race は覆わない**ので、
+  新 ID・新 run root は機械保証ではなく必須の運用規範である。
+  **registered は同一 trial_id では不可**である (`lifecycle-start-once`)。manifest は
+  exact 6 trial で、受入は manifest hash との一致を要求するので、clean な再実験には
+  **新しい exact-six manifest と新しい 6 ID**、すなわち再凍結とユーザー裁定が要る。
+  **ただしそれは「やってよい」ではない** — 8b の裁定は crash 後の再走を認めず実験全体を
+  判定不能とする。失敗系列を残したまま成功するまで新系列を作れば repeat-until-success になる。
+  どの経路でも旧 request と新 request の対応を残す
 
 次の正式系列は H1 rr80 / H2 rr20 × descriptor on/off/swapped、同一 generation budget、
 同一 correctness gate、固定 stop、全 attempt 報告である。A/B/C live はその前の operational
