@@ -106,7 +106,7 @@ title: toolchain 束縛を receipt 側へ実装し、環境・世代をまたぐ
   (i) S-3 (a) の attempt 脚 ({{D:toolchain-binding-scope-narrowed}} の 1)、
   (ii) 成果物 (manifest / result) への binding report 追記 (同 2)。
   S-2 の「手順書へ穴を明記」は `docs/phase3-8b-restart-runbook.md` §5 R-4 で果たした。
-  base: a193805da2f295faa9ae225b24e55ae58d3cabd32984f022d48923d4bb1d447c
+  base: 081d7352d28322f0a4a26c58831208d330dc7de7a7e10935d602a4a356355f58
 - [T-747] **P1・(B) の toolchain 束縛を実装済み。混用不可を機械検査で固定した (B 系)**:
   `contract.calibration_ref` の calibration の `acquisition_receipt` を derived authority とし、
   床値 build の前に fail-closed で照合する。**`acquisition_receipt` を持たない契約
@@ -114,7 +114,7 @@ title: toolchain 束縛を receipt 側へ実装し、環境・世代をまたぐ
   環境・世代をまたぐ床値の混用は build 前に止まる。env contract に field を足していないので
   `contract_sha256` は不変で、発効記録・floor protocol・selector 予測封印の 3 pin は生きている。
   残る非束縛量 (cxx version / cmake path / module_list / bytes hash) は手順書 §5 R-4 に明記した。
-  base: 08015aa92bc508f76bb7869510c7d073c03a61ba69335ad69c94e04eb06a0fbf
+  base: 688ef3e9a64b90a7a82a7ba04e34bdd9ad9751f1a8e4505f67be146246abea73
 - [T-748] **P1・W-2 (床値実測) は投入不可を実測で確定。W-1 の再裁定待ちで停止 (B 系)**:
   [T-747] (B) の束縛検査は実装済みだが、W-2 は次の 3 点が独立に塞いでおり投入できない。
   (1) `_assert_official_permitted` (`s8b_floor_campaign.py:207-217`) が official を無条件拒否、
@@ -122,7 +122,7 @@ title: toolchain 束縛を receipt 側へ実装し、環境・世代をまたぐ
   再凍結に使えない、(3) `tools/pegasus/floor_campaign.sh:962` は `--mode official` 固定で
   pilot 経路が無い。W-1 = [T-781] は worklog 413 で「official は空集合のまま維持・保留終端」と
   裁定済みであり、**第 1 世代で実測する方針は維持したまま W-1 の再裁定を待つ**。
-  base: 923e6902ba7062b0baa20971c6809d873b1f62c0cbd47a089269510ea58daee2
+  base: cf5f37142111572e2267dd9c31f192a0e26704bbdd173f666294897fad325614
 
 ### 新規
 
