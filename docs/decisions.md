@@ -14189,3 +14189,76 @@ registered calibration に対する toolchain 束縛検査 (新しい障壁を�
 - 解禁を先に land し束縛を後続 wave へ回す — 窓が開く期間が生まれる。
 - 束縛を先に land し解禁を後続 wave へ回す — 安全側だが、束縛が一度も発火しないまま
   land され、検出力を実測できない。
+
+## D309. dispatch の既定 walltime を 60 分へ上げ、値そのものは pin しない (2026-08-12)
+
+**決定:** `tools/pegasus/dispatch_compute.py` の `DEFAULT_WALLTIME` を `00:40:00` から
+`01:00:00` へ上げる。D244 と同じく `tools/run_tests.py` へ walltime を渡す経路は作らず、
+受入全走の分割もしない。**「60 分」という値を pin するテストは新設しない。**
+既存の下限 pin (既定値が受入全走の実測最大所要 1809 秒の 1.25 倍以上) と、
+qsub 伝播の期待値を定数から導く形は、いずれもそのまま据え置く
+(不等式であり 40 分でも 60 分でも成立するため、期待値の書換えは発生しない)。
+
+**再訪条件:** receipt 解決の短縮が実効となったら 40 分へ戻す。値を pin しないのは、
+この戻しを機械的な障害なしに行えるようにするためである。
+
+**理由:**
+
+- **切られると 1 走が全損する。** receipt 解決の負荷は履歴成長に比例して伸び続けており
+  (裁定時の実測で対象が 10 日で 5.13 倍)、確保上限を超えた時点で受入全走はまるごと失われる。
+  失われるのは時間だけでなく、その wave の受入結果そのものである。
+- **消費を縮める施策ではない。** `elapstim_req` は確保上限であって消費ポイントの決定項ではない。
+  D105 の据え置き理由と D244 の論法をそのまま継ぐ — 本決定は短縮ではなく確保上限の引き上げである。
+- **D258 の却下と矛盾しない。** D258 が「`DEFAULT_WALLTIME` の単独引き上げ」を却下したのは
+  **受入 wall を短縮する手段としての却下**である。本決定の目的は短縮ではなく切断の回避であり、
+  目的が異なる。短縮側の施策は別途 receipt 解決の短縮が担う。
+
+**却下した選択肢:**
+
+- **60 分を pin するテストを足す** — 再訪条件で戻すことが裁定に含まれている以上、
+  値の pin は将来の戻しを機械的に阻害するだけで、守る不変条件が無い。
+- **`run_tests.py` へ walltime を渡す経路を作る** — D244 が既に不採用としており、
+  呼び出し側の分岐を増やすだけで既定値の問題は解けない。
+
+## D310. evidence bytes の解決を content-addressed resolver に閉じ、発行者権威の受領証を作らない (2026-08-12)
+
+**決定:** 8c formal consumer が evidence bytes を取得する経路は **content-addressed resolver**
+とする。`result-evidence/v1` record の `evidence.ordered_wal_ref` /
+`execution_provenance_ref` は exact `{path, sha256}` であり、consumer は
+**`path` で取得した bytes の sha256 を再計算し、record の `sha256` と一致しないものを
+resolver 段で拒否する**。一致した bytes だけを `docs/phase3-8c-wiring-design.md` §4.1 の
+条件 1・7 と §4.2 の双射判定へ渡す。
+
+**ledger の分界は変えない。** ledger は `EvidenceDigest` を dereference しないままとする。
+解決を行うのは formal consumer だけであり、ledger 単体の構造検査が「物理実行した」を
+意味しないという名乗りの上限も変わらない。
+
+**この決定が保証しないこと。** content-addressed 解決が保証するのは
+「取得した bytes は record が claim した bytes である」だけである。
+その bytes が物理実行に対応することは保証しない — それは同設計 §4.2 の
+`build_attempt_id` 相異・WAL 区間非重複・WAL trigger binding 一致という双射条件が担う。
+resolver を「物理実行の証明」と名乗ってはならない。
+
+**理由:**
+
+- **新しい信頼点を増やさない。** 発行者権威に裏打ちされた evidence receipt 方式は、
+  「その受領証を発行できるのは誰か」という trust root を新設する。repo にはその鍵管理の
+  trust root が無く、新設そのものが別の設計裁定を要する。D287 が署名方式を退けて
+  pinned literal を人間承認の恒久形にしたのと同じ方向 —
+  既存の hash 照合で足りる場所に署名・発行者権威を持ち込まない。
+- **権威は既に台帳の束縛が担っている。** origin binding capability と ledger の commitment 束縛が
+  「どの authority blob のどの origin か」を固定しており、受領証はその上に二重の権威を積むだけで、
+  新しい事実を 1 つも足さない。
+- **record schema を変えずに済む。** `{path, sha256}` は既に exact field であり、resolver 契約は
+  その field の**使い方**を決めるだけで、bytes も key 集合も動かさない。
+  受領証方式は record へ発行者・署名・有効期限の field 追加を要求する。
+
+**却下した選択肢:**
+
+- **authority-backed evidence receipt** — 発行者権威という信頼点を新設する。上記の理由 1・3 に反する。
+- **決めずに設計メモへ留める** — §4.1 の条件 1 は「raw digest が ledger の値と一致する」を
+  要求するが、bytes をどう取得するかが未定のままでは条件 1 自体が検査不能であり、
+  結線の実装 wave が起票できない。
+- **取得後の再計算を課さない (path 参照だけで足りるとする)** — path は可変であり、取得時点の
+  bytes が record 作成時と同一である保証が無い。再計算を落とすと content-addressed を
+  名乗るだけで実体は path 参照になる。
