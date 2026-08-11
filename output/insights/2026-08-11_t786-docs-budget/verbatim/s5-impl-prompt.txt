@@ -1,0 +1,95 @@
+# 段 5 実装 — 待ち手正本の consumer 束縛検査 ([T-786] / [T-773])
+
+あなたは izanagi の dev-wave 段 5 の実装 worker (Codex `role=author`) である。
+`sandbox=workspace-write`。**コードとテストだけを編集する。docs は編集しない。commit もしない。**
+docs 側の変更は親が既に land 済みなので、あなたはそれを前提に検査を書く。
+
+## 先に読むもの (読めなければ即停止し、その旨を報告して終わる)
+
+1. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t786-docs-budget/adjudication.md` — 段 4 裁定。全文。
+2. `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t786-docs-budget/consult-a.md` の A-2 と
+   `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t786-docs-budget/consult-b.md` の所見 1・4・9。
+   **この検査が恒真になる具体的な抜け道が書いてある。設計の中心はここを塞ぐことである。**
+3. `tools/check_docs.py` の `_check_dev_wave_model_pins` (3779 行付近) と
+   `_check_command_docs_guard` (3919 行付近)、`_check_exact_visible_h2_section` (1086 行付近)。
+   既存の可視 H2 抽出・literal pin の作法をそのまま踏襲する。
+4. `orchestrator/tests/test_check_docs.py` の `_build_min_repo` / `_write_command_guard_docs` /
+   `_COMMAND_GUARD_CASES` / `_mutate_command_guard` 周辺。fixture 登録の作法を踏襲する。
+5. 対象 docs の現行逐語 — `.claude/commands/dev-wave.md` の `## 9 段状態機械` の項 6 と 9、
+   `docs/dev-wave/core.md` の `DW-C00`、`docs/dev-wave/operations.md` の `DW-O01`。
+
+## 実装するもの
+
+`tools/check_docs.py` に `_check_dev_wave_waiter_consumer_pins` を新設し、
+`_check_command_docs_guard` から呼ぶ (既存の呼び出し順・findings 蓄積の作法に合わせる)。
+
+### 検査契約 (段 4 で確定済み。勝手に緩めない)
+
+**literal が「どこかに 1 件ある」だけでは通してはならない。**段 3 の両レンズが独立に、
+「参照名として置くだけで実行しない」と書けば通る恒真性を指摘した (F170 と同型)。
+したがって次の 4 つを **normative line の全文一致**で pin する。行は可視 top-level に
+exact 1 件だけ存在すること。
+
+| consumer | pin する行 (現行逐語をそのまま定数化する) |
+|---|---|
+| command 段 6 | `   受入直前に runbook の受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、` を含む項 6 の全文 |
+| command 段 9 | `   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、` を含む項 9 の全文 |
+| `DW-C00` | `待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。` |
+| `DW-O01` | `待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。` |
+
+**逐語は必ず現行ファイルから読み取って定数化せよ。**この prompt の表は要約なので、
+実ファイルと 1 byte でも違えば実ファイルを正とする。
+
+さらに次を検査する。
+
+- `tools/dev_wave_wait.py` が symlink でない regular file として実在すること。
+- 上記 4 行が fence (```) 内・HTML comment 内・blockquote (`> `) 化されていないこと
+  (既存の可視テキスト抽出器を使う。自前で書き直さない)。
+
+### 恒真性を殺す negative test (必須)
+
+`orchestrator/tests/test_check_docs.py` に positive 1 本と negative を最低 8 本足す。
+**うち 3 本は decoy** — literal を残したまま義務を壊す形で、これが赤にならなければ検査は無価値である。
+
+| id | 変異 | 期待 |
+|---|---|---|
+| stage6-relocated | 段 6 の normative line を段 5 へ移す | 赤 |
+| stage9-deleted | 段 9 の normative line を削除 | 赤 |
+| dw-c00-fenced | `DW-C00` の normative line を fence 内へ移す | 赤 |
+| dw-o01-wrong-pid-source | `DW-O01` の `--pid-file` を `--pid` へ置換 | 赤 |
+| target-symlinked | `tools/dev_wave_wait.py` を symlink 化 | 赤 |
+| decoy-optional | normative line を残したまま同節へ「参考例であり急ぐ場合は手動投入してよい」を足す | 赤 |
+| decoy-negated | 段 6 の normative line を否定形 (「…は使わない」) へ書き換える | 赤 |
+| decoy-blockquoted | 段 6 の normative line を `> ` で blockquote 化する | 赤 |
+| pre-wave-form | 段 6 を wave 前の逐語 (waiter literal なし、lease の `claim`/`acquired` だけ) へ戻す | 赤 |
+
+`decoy-optional` は「normative line は exact 1 件あるが、同じ節に無効化する文が併記される」形である。
+これを赤にするには、行の存在だけでなく**同節に義務を打ち消す語 (参考例・任意・手動投入・してよい 等) が
+無いこと**まで見る必要がある。設計はあなたに任せるが、恒真にならない形にすること。
+どうしても `decoy-optional` を機械的に殺せないなら、**殺せない事実と理由を報告に明記せよ**
+(嘘の緑より遥かに価値がある)。
+
+### fixture の同期 (取り零すと変異が別理由で赤くなる)
+
+`_build_min_repo` の synthetic command に `## 9 段状態機械` の項 6/9 が現状ないので足す。
+synthetic な `DW-C00` / `DW-O01` body と `tools/dev_wave_wait.py` fixture も足す。
+`_COMMAND_GUARD_NEEDLES`・expected count・登録 meta-test も同時に更新する。
+**synthetic fixture の逐語を production 定数から生成しない** (共謀すると検査が恒真になる)。手書きで固定する。
+
+## 守ること
+
+- 予算定数 (`DEV_WAVE_L1_BYTES_MAX` / `DEV_WAVE_L1_5_BYTES_MAX` /
+  `DEV_WAVE_L2_SECTION_BYTES_MAX` / `COMMAND_LIMITS`) を変更しない。
+- `REQUIRED_REFERENCE_SECTIONS` / `STAGE_UNCONDITIONAL_DISPATCH_CONTRACT` /
+  `CONDITION_DISPATCH_CONTRACT` の集合・分類・edge を変更しない。
+- 既存テストの期待値を変更しない。反転・緩和・skip・削除を禁じる。赤なら実装側が誤り。
+  期待値が誤りと判断したら実装を変えず報告して止める。
+- 指示にない受理集合の拡大・縮小をしない。
+- 緑を主張するなら走らせた nodeid と範囲を併記する。実走できなければ「実装済み・未実走」と書く。
+- テストを新設する単位は、親の名指しを網羅と見なさず制約 meta-test を自ら洗い出して走らせる。
+
+## 出力
+
+Markdown、`## 総括` 必須。総括には (a) 追加した検査の署名と通る正例、
+(b) 9 変異のうち機械的に殺せたものと殺せなかったもの、(c) 実走した nodeid と結果、
+(d) 取り零した可能性のある pin、を書く。

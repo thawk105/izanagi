@@ -853,3 +853,31 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:dw-g05-partial-land-direction":"[T-814]"},"authored":"2026-08-11","content_sha256":"fff7468637ec006f8fa60070ee43fa6ff37347993540d75cfa0c2dac9e839dc6","seq":1,"wave":"dev-wave-t8b-restart-residue"}
 - {"allocations":{"D:toolchain-binding-and-unlock-are-inseparable":"D293"},"authored":"2026-08-11","content_sha256":"75d8fcb7520c3f6ea6538594b2a062648321fdaebe7252450347c81e92d03632","seq":2,"wave":"dev-wave-t8b-restart-residue"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"2c45ec232c70d8d9128ed44f2e5951a914da3fa555d89a47587bfb022fdb4587","seq":3,"wave":"dev-wave-t8b-restart-residue"}
+
+- {"allocations":{"T:codex-hook-trust-and-surfaces":"[T-815]"},"authored":"2026-08-11","content_sha256":"aef5a6d3d75c9ea00022309d94ed225c0629cbd963f6d37f993e880a03fcd26b","seq":1,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"F:codex-cannot-write-own-config-dir":"F218","F:codex-web-search-evidence":"F217"},"authored":"2026-08-11","content_sha256":"7383a5629385491e85f8ffaa7c788e968daa0838dce1409c6278d4f6117c6de4","seq":2,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"D:codex-hook-wiring":"D294"},"authored":"2026-08-11","content_sha256":"d774c81d3b51bba6f9af3b8cc8380120c0baa042fdf8a78c69dff53919f54aee","seq":3,"wave":"dev-wave-codex-hook-parity"}
+
+- {"allocations":{"T:coverage-driver-commit-witness":"[T-818]","T:legacy-commit-witness-backfill":"[T-817]","T:mutation-runner-drift-scope":"[T-819]","T:trace-v2-cpp-pin-approval":"[T-816]"},"authored":"2026-08-11","content_sha256":"e30f995f366ab92b2bedf98721c07b14c6bdb002c523e55194a06ebe41d352e5","seq":1,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{"D:trace-completeness-external-counter":"D295"},"authored":"2026-08-11","content_sha256":"79e0e707c9ad68a29c7c909cb565ba82ca4f14e1b2c1365e459aaec2d7f0b4b8","seq":2,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"3f38e164e1ee941a436381d7b5b2afda8937aa7281d3bbc2dd5fb7b90dd4a8fe","seq":3,"wave":"dev-wave-t756-trace-v2"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"ee206a3df76e7065c4f7644566926b3a1b5ce0c35226cfa148bcde7b22c83b75","seq":59,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1cd80e29a266aa38eff605e47246eacee5a402f1d8042f70cbea2345fc639f5b","seq":60,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:exec-module-systemexit":"[T-820]","T:fold-provenance-durable-artifact":"[T-821]"},"authored":"2026-08-11","content_sha256":"93819a427c1945eefad7fc32483206b6c9f65e19f67c5f6af817d4f7bfe97dce","seq":1,"wave":"dev-wave-t798-t799-fold-window"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c87e779726dfdb561588c2d19fd64b533623e300e12d9ddc3b88056f15346635","seq":61,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"123f0da1ff21e5068a27ee37d1926c135332f381287bb4f8000262b7fe643a19","seq":62,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:pegasus-job-env-pitfalls":"[T-823]","T:s8c-acceptance-layer3-gap":"[T-822]"},"authored":"2026-08-11","content_sha256":"7986c64599905e8b3c800631134395858e9de7b774056897f2e0952b5af5707f","seq":1,"wave":"dev-wave-t809-8c-fanout"}
+
+- {"allocations":{"T:control-byte-scan-tool":"[T-825]","T:waiter-runtime-receipt":"[T-824]"},"authored":"2026-08-11","content_sha256":"3d5fca18b25bdfeee05b24b576f39877ac16d47ef8fb8cef69908d69024f9b03","seq":1,"wave":"dev-wave-t786-docs-budget"}
+- {"allocations":{"F:reflow-breaks-line-anchored-pins":"F219"},"authored":"2026-08-11","content_sha256":"ee83bbdd6c61aafcdb3cf2785fcf37f2f92a28efb09eae8ed12167225bce3151","seq":2,"wave":"dev-wave-t786-docs-budget"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"414af363582fee40a92b69399a7267178859e8a5f735cd6ea9243cb1c0da8bb1","seq":63,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"b5b69013f1eed280068c41821534a8a86683a8c78c02fd7984239fc369a0e68b","seq":64,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"2963c3efa0a227159cb490d6dd0146202b97cfdd16970da0e2e880128ca16a3f","seq":1,"wave":"dev-wave-t813-shard-eval"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"45bc12a3a0d6df2ba1dffb70f84252b1663568c47f5d0596888bf278cb066586","seq":2,"wave":"dev-wave-t813-shard-eval"}
