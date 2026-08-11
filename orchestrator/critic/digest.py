@@ -119,7 +119,15 @@ class Rejection:
 LIVENESS_REASONS = frozenset([
     "trace-timeout", "trace-empty", "trace-run-nonzero-exit",
     "trace-no-abort-counts", "trace-parse-error",
+    "trace-no-commit-witness", "trace-batch-commits-unattributed",
+    "trace-witness-unsupported-workload",
 ])
+
+_COMMIT_WITNESS_LIVENESS_REASONS = frozenset({
+    "trace-no-commit-witness",
+    "trace-batch-commits-unattributed",
+    "trace-witness-unsupported-workload",
+})
 
 
 def _normalize_reason(reason: str) -> str:
@@ -306,11 +314,16 @@ def load_liveness_rejections(
             g = genome_of.get(r.variant, "")
             extra = {k: val for k, val in r.payload.items()
                      if k not in ("reason", "workload")}
+            workload = r.payload.get("workload") or {}
+            if reason in _COMMIT_WITNESS_LIVENESS_REASONS:
+                # witness の破れは counter 値と workload 前提を一緒に読めなければ
+                # 次手へ帰属できない。既存の専用 field に加え extra にも残す。
+                extra["workload"] = workload
             out.append(LivenessRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
                 reason=reason, extra=extra,
                 variant=r.variant, src_token=srctok_of.get(r.variant, ""),
-                workload=r.payload.get("workload") or {}))
+                workload=workload))
     return out, dict(other)
 
 
@@ -556,6 +569,12 @@ _LIVENESS_HINTS = {
                              "(計器・出力口を壊した疑い)",
     "trace-parse-error": "trace 計器の破れ — trace が読めない形に壊れた "
                          "(trace 口を壊した疑い)",
+    "trace-no-commit-witness": "trace 外 commit counter が欠落・重複・不正、または "
+                               "trace_dir の run 帰属を確定できない",
+    "trace-batch-commits-unattributed": "batch commit が非 0 — trace C 行との対応を "
+                                        "証明できず帰属不能",
+    "trace-witness-unsupported-workload": "commit 後 counter 加算契約を証明済みでない "
+                                          "workload — YCSB allowlist 外",
 }
 
 
@@ -602,6 +621,8 @@ def render_rejections(rejections: List[Rejection],
         if rj.workload:
             L.append(f"  workload: {rj.workload}")
         if rj.verdict == "non-serializable":
+            if (rj.integrity or {}).get("clean") is False:
+                L.append("  integrity.clean=False (cycle と trace 不完全性が共存)")
             # cycle 型: witness (max_report 切り詰め) と全数 (total_cycles) を併記 —
             # witness 数を全数と誤読させない (verifier core の切り詰め規約)。
             total = rj.total_cycles if rj.total_cycles is not None else "?"

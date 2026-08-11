@@ -34,6 +34,21 @@ LEGACY_NUL_CONTRACT_SHA256 = (
     "5203daa58be7cc33303ded109851d9ab9feabc34177a5aa0afef8488ccb6ba7b"
 )
 LEGACY_NUL_CONTRACT_POINTER = "/conditions/0/consumer_requirement/path"
+LEGACY_CRLF_CONTRACTS = (
+    (
+        "cr",
+        b'{"conditions":[{"consumer_requirement":{"path":'
+        b'"orchestrator/campaign/trial_registry.py\\ralias"}}]}',
+        "ee1a7db8c672524d752d1177439f373f83e4d2d6ec6b630300d2301f8c0afbec",
+    ),
+    (
+        "lf",
+        b'{"conditions":[{"consumer_requirement":{"path":'
+        b'"orchestrator/campaign/trial_registry.py\\nalias"}}]}',
+        "416e6b6b7c968eb1536c058f1ffd35b0d3a4b3c46b8bffb229eb75181958e85b",
+    ),
+)
+LEGACY_CRLF_CONTRACT_POINTER = "/conditions/0/consumer_requirement/path"
 
 FIELD_NAMES = (
     "累積ベンチ実時間の総上限と arm ごと・holdout ごとの上限",
@@ -142,14 +157,28 @@ def _contract_path_cases() -> tuple[tuple[str, tuple[str | int, ...]], ...]:
 EVIDENCE_CONTRACT_PATH_CASES = _contract_path_cases()
 
 
-def _contract_with_selector_suffix(
-    selectors: tuple[str | int, ...], suffix: str
+def _independent_evidence_contract_sha256(raw: bytes) -> str:
+    """production hash helper を使わず evidence contract の hash を求める。"""
+    value = json.loads(raw)
+    canonical = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(M._DOMAIN_EVIDENCE + canonical).hexdigest()
+
+
+def _contract_with_selector_suffixes(
+    *changes: tuple[tuple[str | int, ...], str],
 ) -> bytes:
     value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
-    target = value
-    for selector in selectors[:-1]:
-        target = target[selector]
-    target[selectors[-1]] += suffix
+    for selectors, suffix in changes:
+        target = value
+        for selector in selectors[:-1]:
+            target = target[selector]
+        target[selectors[-1]] += suffix
     return json.dumps(value, ensure_ascii=False).encode("utf-8")
 
 
@@ -173,7 +202,9 @@ def _contract_with_path_suffix(*, owner: str, suffix: str) -> tuple[bytes, str]:
     return json.dumps(value, ensure_ascii=False).encode("utf-8"), pointer
 
 
-def _contract_with_interior_path_nul(*, owner: str) -> tuple[bytes, str, str]:
+def _contract_with_interior_path_control(
+    *, owner: str, control: str
+) -> tuple[bytes, str, str]:
     value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
     condition_index = len(value["conditions"]) - 1
     row = value["conditions"][condition_index]
@@ -191,7 +222,9 @@ def _contract_with_interior_path_nul(*, owner: str) -> tuple[bytes, str, str]:
         raise AssertionError(owner)
     original = target["path"]
     insertion_index = len(original) // 2
-    target["path"] = f"{original[:insertion_index]}\x00{original[insertion_index:]}"
+    target["path"] = (
+        f"{original[:insertion_index]}{control}{original[insertion_index:]}"
+    )
     return (
         json.dumps(value, ensure_ascii=False).encode("utf-8"),
         pointer,
@@ -249,6 +282,34 @@ def _install_legacy_nul_bound_g1(root: Path) -> str:
     )
     _write(root, M.generation_path(1), record_raw)
     return _commit(root, "install legacy NUL-bound g1")
+
+
+def _install_legacy_crlf_bound_g1(
+    root: Path,
+    *,
+    raw: bytes,
+    legacy_sha256: str,
+) -> str:
+    """T-787 より前の hash literal に束縛した CR/LF 契約 g1 を導入する。"""
+    assert b"\\r" in raw or b"\\n" in raw
+    assert b"\r" not in raw and b"\n" not in raw
+    assert _independent_evidence_contract_sha256(raw) == legacy_sha256
+    _write(root, M.EVIDENCE_CONTRACT_PATH, raw)
+    contract = M.parse_preregistration_markdown(
+        (root / M.SOURCE_PATH).read_bytes()
+    )
+    record_raw = M._canonical_bytes(
+        M._record_document(
+            1,
+            None,
+            contract,
+            legacy_sha256,
+            "pre-T-787 CR/LF fixture",
+            None,
+        )
+    )
+    _write(root, M.generation_path(1), record_raw)
+    return _commit(root, "install legacy CR/LF-bound g1")
 
 
 def _install_revision(
@@ -560,7 +621,7 @@ def test_evidence_contract_hash_rejects_nul_at_every_consumed_path(
     pointer: str,
     selectors: tuple[str | int, ...],
 ) -> None:
-    raw = _contract_with_selector_suffix(selectors, "\x00alias")
+    raw = _contract_with_selector_suffixes((selectors, "\x00alias"))
     assert b"\\u0000" in raw
     assert b"\x00" not in raw
 
@@ -572,11 +633,37 @@ def test_evidence_contract_hash_rejects_nul_at_every_consumed_path(
     assert "\x00" not in str(caught.value)
 
 
+@pytest.mark.parametrize(
+    ("pointer", "selectors", "control"),
+    [
+        pytest.param(pointer, selectors, control, id=f"{pointer}-{name}")
+        for pointer, selectors in EVIDENCE_CONTRACT_PATH_CASES
+        for name, control in (("cr", "\r"), ("lf", "\n"))
+    ],
+)
+def test_evidence_contract_hash_rejects_crlf_at_every_consumed_path(
+    pointer: str,
+    selectors: tuple[str | int, ...],
+    control: str,
+) -> None:
+    raw = _contract_with_selector_suffixes((selectors, f"{control}alias"))
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+    assert control not in str(caught.value)
+
+
 @pytest.mark.parametrize("owner", ["required", "consumer"])
 def test_evidence_contract_hash_rejects_nul_at_interior_position(
     owner: str,
 ) -> None:
-    raw, pointer, path = _contract_with_interior_path_nul(owner=owner)
+    raw, pointer, path = _contract_with_interior_path_control(
+        owner=owner,
+        control="\x00",
+    )
     nul_index = path.index("\x00")
     assert not path.endswith("\x00")
     assert path[nul_index + 1 :]
@@ -591,52 +678,353 @@ def test_evidence_contract_hash_rejects_nul_at_interior_position(
     assert "\x00" not in str(caught.value)
 
 
+@pytest.mark.parametrize("owner", ["required", "consumer"])
 @pytest.mark.parametrize(
-    ("owner", "control", "expected_sha256"),
+    "control",
+    [pytest.param("\r", id="cr"), pytest.param("\n", id="lf")],
+)
+def test_evidence_contract_hash_rejects_crlf_at_interior_position(
+    owner: str,
+    control: str,
+) -> None:
+    raw, pointer, path = _contract_with_interior_path_control(
+        owner=owner,
+        control=control,
+    )
+    control_index = path.index(control)
+    assert control_index > 0
+    assert path[control_index + 1 :]
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+    assert control not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("owner", "control"),
+    [
+        pytest.param("required", "\r", id="required-cr"),
+        pytest.param("required", "\n", id="required-lf"),
+        pytest.param("consumer", "\r", id="consumer-cr"),
+        pytest.param("consumer", "\n", id="consumer-lf"),
+    ],
+)
+def test_evidence_contract_hash_rejects_crlf_path_controls(
+    owner: str,
+    control: str,
+) -> None:
+    raw, pointer = _contract_with_path_suffix(owner=owner, suffix=control)
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+    assert control not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("control", "expected_sha256"),
     [
         pytest.param(
-            "required",
+            "\x00",
+            "77cd405fcc67ebd51416d4329edee3a2ecd9ed8ef0be71855d94c32486915735",
+            id="nul",
+        ),
+        pytest.param(
             "\r",
-            "a53554ac79ea305eb33fe4beb5ab632210412ffc8a0e3cb0b0b162031c1a934f",
-            id="required-cr",
+            "43776aacfa0793d7d8e20fdfa45d7d97e8ef49a9d26de0179e7d7b4b2c7a8e50",
+            id="cr",
         ),
         pytest.param(
-            "required",
             "\n",
-            "d63d61cf3ac869c4cbeec55bb0653388ad714f8f1d82b4bc8b598b3edb83741e",
-            id="required-lf",
-        ),
-        pytest.param(
-            "consumer",
-            "\r",
-            "838af0062396626023fcc499335ba4cdd0ba48493848d24cb2070858541e5a88",
-            id="consumer-cr",
-        ),
-        pytest.param(
-            "consumer",
-            "\n",
-            "bc15be4f3f187774fabe62c3b163c462864fa2efbc22590613597e05d5f6457f",
-            id="consumer-lf",
+            "8218499e58e1643e3c0488c49c7f81e718a37fc7165b2280543ae0585089da8e",
+            id="lf",
         ),
     ],
 )
-def test_evidence_contract_hash_accepts_non_nul_path_controls(
-    owner: str,
+def test_evidence_contract_hash_accepts_non_path_controls(
     control: str,
     expected_sha256: str,
 ) -> None:
-    raw, _ = _contract_with_path_suffix(owner=owner, suffix=control)
-    # 変更前に標準ライブラリだけで求めた literal へ固定し、過剰拒否と hash drift を同時に検出する。
+    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
+    value["conditions"][0]["static_only_note"] += f"{control}data"
+    raw = json.dumps(value, ensure_ascii=False).encode("utf-8")
+    # literal は標準ライブラリの canonical JSON + domain prefix から独立計算した。
+    assert _independent_evidence_contract_sha256(raw) == expected_sha256
     assert M.evidence_contract_sha256(raw) == expected_sha256
 
 
-def test_evidence_contract_hash_accepts_non_path_nul() -> None:
-    value = json.loads(EVIDENCE_CONTRACT_FILE.read_bytes())
-    value["conditions"][0]["static_only_note"] += "\x00data"
+@pytest.mark.parametrize(
+    ("value", "expected_sha256"),
+    [
+        pytest.param(
+            {"path": "x\talias"},
+            "ab8123ecb208946eccd77468dbc0a721215255dc6b644e9f530285aefb69b25a",
+            id="path-tab",
+        ),
+        pytest.param(
+            {"path": "x\balias"},
+            "b52b6c89067c1c706d774dbc2ae5b4c2bb3d2dab15661dce600f6ea9c44defb1",
+            id="path-bs",
+        ),
+        pytest.param(
+            {"path": "x\falias"},
+            "77d9bb63f22c3ecee608a6c99cd1b72b49caea7c1c2adce14d8503a737892e21",
+            id="path-ff",
+        ),
+        pytest.param(
+            {"path": "x\u0001alias"},
+            "2113ff26058c8bbfa2c04920e33b65d0a329b010694002e321a94059d3e562c1",
+            id="path-u0001",
+        ),
+        pytest.param(
+            {"path": "x\u000balias"},
+            "e27ced393e0b9ef4d95104c99d57afa293467c99e8b5cf825cc2e19080a7609b",
+            id="path-vt",
+        ),
+        pytest.param(
+            {"path": "x\u0085alias"},
+            "70498a1fc93e1c8bca1e9fb3704c66092c73116c46ec41fbbbb4e19bd1ef7c9c",
+            id="path-u0085",
+        ),
+        pytest.param(
+            {"path": "x\u2028alias"},
+            "9f1f6439805f51329f74c0f8ffc286203a3778e46db78e93193336c920805864",
+            id="path-u2028",
+        ),
+        pytest.param(
+            {"path": "x\u2029alias"},
+            "e71bf3d33b9c48d250e90e7840b31fd132887b732ed986034bad2decdf8d5ee8",
+            id="path-u2029",
+        ),
+        pytest.param(
+            {"path": r"x\ralias"},
+            "e9315e0a6a2f4124200d1fb98fe2f9197b8aaf8ac6f8223d48a7fd85a8296cee",
+            id="path-literal-backslash-r",
+        ),
+        pytest.param(
+            {"path": r"x\nalias"},
+            "7a7901d7d26013eb7eae440b3718df6a4087acfa58bc233a25a7a3e9f8d8c178",
+            id="path-literal-backslash-n",
+        ),
+        pytest.param(
+            {"path": {"nested": "x\ralias"}},
+            "0ad0978c428b8983ea777c5248f9e8656f457f4c41753e4807d23cf98d0038a9",
+            id="non-string-path-dict",
+        ),
+        pytest.param(
+            {"path": ["x\ralias"]},
+            "d8d37e8203411029fbb08100ffc31cd78486e42cffcdd0f1ab1d3ab5223a35ff",
+            id="non-string-path-list",
+        ),
+        pytest.param(
+            {"path": 1},
+            "c972129fb103a6986ba9634df52125dcd99d707d4615dabd36ad11c568988556",
+            id="non-string-path-number",
+        ),
+        pytest.param(
+            {"not_path": "x\ralias"},
+            "acb12029d7838803747975637cd51436da06fbfa9f14e5726d810240fa0322c7",
+            id="non-exact-key",
+        ),
+    ],
+)
+def test_evidence_contract_hash_accepts_values_outside_forbidden_boundary(
+    value: object,
+    expected_sha256: str,
+) -> None:
     raw = json.dumps(value, ensure_ascii=False).encode("utf-8")
-    # exact hash は NUL 検査を全 string へ広げる過剰拒否と canonicalization drift を殺す。
-    assert M.evidence_contract_sha256(raw) == (
-        "77cd405fcc67ebd51416d4329edee3a2ecd9ed8ef0be71855d94c32486915735"
+    # literal は production helper を使わず標準ライブラリだけで独立計算した。
+    assert _independent_evidence_contract_sha256(raw) == expected_sha256
+    assert M.evidence_contract_sha256(raw) == expected_sha256
+
+
+@pytest.mark.parametrize(
+    ("raw", "pointer"),
+    [
+        pytest.param(
+            b'{"path":[{"path":"x\\ralias"}]}',
+            "/path/0/path",
+            id="list-under-non-string-path",
+        ),
+        pytest.param(
+            b'{"path":{"x":[{"path":"x\\nalias"}]}}',
+            "/path/x/0/path",
+            id="deep-dict-under-non-string-path",
+        ),
+    ],
+)
+def test_evidence_contract_hash_rejects_inner_path_under_non_string_path(
+    raw: bytes,
+    pointer: str,
+) -> None:
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+    assert "\r" not in str(caught.value)
+    assert "\n" not in str(caught.value)
+
+
+def test_evidence_contract_hash_preserves_first_nul_pointer_in_document_order() -> None:
+    raw = b'{"z":{"path":"x\\u0000alias"},"a":{"path":"y\\u0000alias"}}'
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == "[evidence-contract-path-nul] '/z/path'"
+
+
+@pytest.mark.parametrize(
+    "control_escape",
+    [pytest.param(b"\\r", id="cr"), pytest.param(b"\\n", id="lf")],
+)
+def test_evidence_contract_hash_preserves_first_crlf_pointer_in_document_order(
+    control_escape: bytes,
+) -> None:
+    raw = (
+        b'{"z":{"path":"x'
+        + control_escape
+        + b'alias"},"a":{"path":"y'
+        + control_escape
+        + b'alias"}}'
+    )
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == "[evidence-contract-path-crlf] '/z/path'"
+
+
+@pytest.mark.parametrize(
+    ("first_escape", "later_escape"),
+    [
+        pytest.param(b"\\n", b"\\r", id="lf-before-cr"),
+        pytest.param(b"\\r", b"\\n", id="cr-before-lf"),
+    ],
+)
+def test_evidence_contract_hash_preserves_first_mixed_crlf_pointer_in_document_order(
+    first_escape: bytes,
+    later_escape: bytes,
+) -> None:
+    raw = (
+        b'{"z":{"path":"x'
+        + first_escape
+        + b'alias"},"a":{"path":"y'
+        + later_escape
+        + b'alias"}}'
+    )
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == "[evidence-contract-path-crlf] '/z/path'"
+
+
+@pytest.mark.parametrize(
+    "control",
+    [pytest.param("\r", id="cr"), pytest.param("\n", id="lf")],
+)
+def test_evidence_contract_hash_preserves_nul_precedence_in_same_path(
+    control: str,
+) -> None:
+    raw = json.dumps(
+        {"path": f"x{control}alias\x00later"},
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == "[evidence-contract-path-nul] '/path'"
+    assert control not in str(caught.value)
+    assert "\x00" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "control",
+    [pytest.param("\r", id="cr"), pytest.param("\n", id="lf")],
+)
+def test_evidence_contract_hash_preserves_later_nul_over_earlier_crlf(
+    control: str,
+) -> None:
+    first_pointer, first_selectors = EVIDENCE_CONTRACT_PATH_CASES[0]
+    last_pointer, last_selectors = EVIDENCE_CONTRACT_PATH_CASES[-1]
+    assert first_pointer == "/conditions/0/required_evidence/0/path"
+    assert last_pointer == "/conditions/11/consumer_requirement/path"
+    raw = _contract_with_selector_suffixes(
+        (first_selectors, f"{control}alias"),
+        (last_selectors, "\x00alias"),
+    )
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-nul"
+    assert str(caught.value) == f"[evidence-contract-path-nul] {last_pointer!r}"
+    assert control not in str(caught.value)
+    assert "\x00" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "control_escape",
+    [pytest.param(b"\\r", id="cr"), pytest.param(b"\\n", id="lf")],
+)
+def test_evidence_contract_hash_rejects_root_string_path(
+    control_escape: bytes,
+) -> None:
+    raw = b'{"path":"x' + control_escape + b'alias"}'
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == "[evidence-contract-path-crlf] '/path'"
+
+
+@pytest.mark.parametrize(
+    "control_escape",
+    [pytest.param(b"\\r", id="cr"), pytest.param(b"\\n", id="lf")],
+)
+def test_evidence_contract_hash_rejects_root_list_path(
+    control_escape: bytes,
+) -> None:
+    raw = b'[{"path":"x' + control_escape + b'alias"}]'
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == "[evidence-contract-path-crlf] '/0/path'"
+
+
+@pytest.mark.parametrize(
+    "control_escape",
+    [pytest.param(b"\\r", id="cr"), pytest.param(b"\\n", id="lf")],
+)
+def test_evidence_contract_hash_rejects_deep_alternating_dict_list_path(
+    control_escape: bytes,
+) -> None:
+    raw = (
+        b'{"a":[{"b":[{"c":[{"d":[{"e":[{"path":"x'
+        + control_escape
+        + b'alias"}]}]}]}]}]}'
+    )
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == (
+        "[evidence-contract-path-crlf] '/a/0/b/0/c/0/d/0/e/0/path'"
     )
 
 
@@ -671,11 +1059,62 @@ def test_evidence_contract_hash_rejects_nul_in_malformed_shape_path(
     assert "\x00" not in str(caught.value)
 
 
+@pytest.mark.parametrize(
+    ("template", "pointer"),
+    [
+        pytest.param(
+            b'{"conditions":{"path":"x{control}alias"}}',
+            "/conditions/path",
+            id="conditions-dict",
+        ),
+        pytest.param(
+            b'{"conditions":[{"required_evidence":[[{"path":"x{control}alias"}]]}]}',
+            "/conditions/0/required_evidence/0/0/path",
+            id="non-dict-required-evidence-wrapper",
+        ),
+        pytest.param(
+            b'{"metadata":{"path":"x{control}alias"}}',
+            "/metadata/path",
+            id="unknown-metadata-path",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "control_escape",
+    [pytest.param(b"\\r", id="cr"), pytest.param(b"\\n", id="lf")],
+)
+def test_evidence_contract_hash_rejects_crlf_in_malformed_shape_path(
+    template: bytes,
+    pointer: str,
+    control_escape: bytes,
+) -> None:
+    raw = template.replace(b"{control}", control_escape)
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+
+
 def test_evidence_contract_hash_preserves_canonicalization_reason_before_nul() -> None:
     raw = (
         b'{"conditions":[{"required_evidence":'
         b'[{"path":"x\\u0000\\ud800"}]}]}'
     )
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.evidence_contract_sha256(raw)
+    assert caught.value.reason == "evidence-contract-json"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(b'{"path":"x\\r\\ud800"}', id="cr"),
+        pytest.param(b'{"path":"x\\n\\ud800"}', id="lf"),
+    ],
+)
+def test_evidence_contract_hash_preserves_canonicalization_reason_before_crlf(
+    raw: bytes,
+) -> None:
     with pytest.raises(M.PreregistrationError) as caught:
         M.evidence_contract_sha256(raw)
     assert caught.value.reason == "evidence-contract-json"
@@ -807,6 +1246,97 @@ def test_activation_report_marks_legacy_nul_bound_freeze_invalid(
 
     assert report.condition_freeze_valid is False
     assert report.freeze_reason_code == "evidence-contract-path-nul"
+    assert report.freeze_generation is None
+    assert report.protected_sha256 is None
+    assert report.effective is False
+
+
+@pytest.mark.parametrize(
+    ("raw", "legacy_sha256"),
+    [
+        pytest.param(raw, legacy_sha256, id=name)
+        for name, raw, legacy_sha256 in LEGACY_CRLF_CONTRACTS
+    ],
+)
+def test_validate_condition_freeze_at_rejects_legacy_frozen_crlf_path_contract(
+    tmp_path: Path,
+    raw: bytes,
+    legacy_sha256: str,
+) -> None:
+    root = _init_repo(tmp_path)
+    head = _install_legacy_crlf_bound_g1(
+        root,
+        raw=raw,
+        legacy_sha256=legacy_sha256,
+    )
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.validate_condition_freeze_at(root, head)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == (
+        f"[evidence-contract-path-crlf] {LEGACY_CRLF_CONTRACT_POINTER!r}"
+    )
+    assert "\r" not in str(caught.value)
+    assert "\n" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("raw", "legacy_sha256"),
+    [
+        pytest.param(raw, legacy_sha256, id=name)
+        for name, raw, legacy_sha256 in LEGACY_CRLF_CONTRACTS
+    ],
+)
+def test_validate_condition_freeze_at_rejects_legacy_crlf_ancestor_under_clean_revision(
+    tmp_path: Path,
+    raw: bytes,
+    legacy_sha256: str,
+) -> None:
+    root = _init_repo(tmp_path)
+    _install_legacy_crlf_bound_g1(
+        root,
+        raw=raw,
+        legacy_sha256=legacy_sha256,
+    )
+    g1_raw = (root / M.generation_path(1)).read_bytes()
+    _write(root, M.EVIDENCE_CONTRACT_PATH, b'{"predicates":[]}')
+    head, _ = _install_revision(root, g1_raw, word="clean g2")
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.validate_condition_freeze_at(root, head)
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == (
+        f"[evidence-contract-path-crlf] {LEGACY_CRLF_CONTRACT_POINTER!r}"
+    )
+    assert "\r" not in str(caught.value)
+    assert "\n" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("raw", "legacy_sha256"),
+    [
+        pytest.param(raw, legacy_sha256, id=name)
+        for name, raw, legacy_sha256 in LEGACY_CRLF_CONTRACTS
+    ],
+)
+def test_activation_report_marks_legacy_crlf_bound_freeze_invalid(
+    tmp_path: Path,
+    raw: bytes,
+    legacy_sha256: str,
+) -> None:
+    root = _init_repo(tmp_path)
+    head = _install_legacy_crlf_bound_g1(
+        root,
+        raw=raw,
+        legacy_sha256=legacy_sha256,
+    )
+
+    report = M.activation_report_at(root, head)
+
+    assert report.condition_freeze_valid is False
+    assert report.freeze_reason_code == "evidence-contract-path-crlf"
     assert report.freeze_generation is None
     assert report.protected_sha256 is None
     assert report.effective is False
@@ -1308,6 +1838,64 @@ def test_prepare_revision_rejects_nul_path_contract_with_existing_freeze(
     assert caught.value.reason == "evidence-contract-path-nul"
     assert str(caught.value) == f"[evidence-contract-path-nul] {pointer!r}"
     assert "\x00" not in str(caught.value)
+    assert not destination.exists()
+
+
+@pytest.mark.parametrize(
+    "control",
+    [pytest.param("\r", id="cr"), pytest.param("\n", id="lf")],
+)
+def test_prepare_revision_rejects_crlf_path_contract_before_create(
+    tmp_path: Path,
+    control: str,
+) -> None:
+    root = _init_repo(tmp_path)
+    evidence_raw, pointer = _contract_with_path_suffix(
+        owner="required",
+        suffix=f"{control}alias",
+    )
+    _write(root, M.EVIDENCE_CONTRACT_PATH, evidence_raw)
+    destination = root / M.generation_path(1)
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.prepare_revision(
+            root,
+            revision_reason="must reject CR/LF path contract",
+        )
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+    assert control not in str(caught.value)
+    assert not destination.exists()
+
+
+@pytest.mark.parametrize(
+    "control",
+    [pytest.param("\r", id="cr"), pytest.param("\n", id="lf")],
+)
+def test_prepare_revision_rejects_crlf_path_contract_with_existing_freeze(
+    tmp_path: Path,
+    control: str,
+) -> None:
+    root = _init_repo(tmp_path)
+    _install_g1(root)
+    evidence_raw, pointer = _contract_with_path_suffix(
+        owner="consumer",
+        suffix=f"{control}alias",
+    )
+    _write(root, M.EVIDENCE_CONTRACT_PATH, evidence_raw)
+    destination = root / M.generation_path(2)
+
+    with pytest.raises(M.PreregistrationError) as caught:
+        M.prepare_revision(
+            root,
+            ruling_reference="D327",
+            revision_reason="must reject CR/LF path contract",
+        )
+
+    assert caught.value.reason == "evidence-contract-path-crlf"
+    assert str(caught.value) == f"[evidence-contract-path-crlf] {pointer!r}"
+    assert control not in str(caught.value)
     assert not destination.exists()
 
 

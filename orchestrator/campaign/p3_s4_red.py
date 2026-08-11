@@ -103,8 +103,8 @@ def _perf() -> PerfConfig:
 def _fixture_run_trace(binary, trace_dir, flags, clocks_per_us, timeout_s=None,
                        numactl=None):
     """_run_trace の fixture 差し替え (赤 2 専用)。バイナリは実行せず r1_write_skew
-    (G2 赤、C 行 2) を trace_dir へコピーする。rc=0・aborts=1 を返し、trace-empty /
-    trace-no-abort-counts の手前 reject を踏まずに実 verifier へ渡す。"""
+    (G2 赤、C 行 2) を trace_dir へコピーする。rc=0・aborts=1・C 行数と一致する
+    commit witness・batch=0 を返し、手前 reject を踏まずに実 verifier へ渡す。"""
     src = os.path.join(_repo_root(), FIXTURE_TRACE_DIR)
     n = 0
     for fn in sorted(os.listdir(src)):
@@ -114,7 +114,13 @@ def _fixture_run_trace(binary, trace_dir, flags, clocks_per_us, timeout_s=None,
         shutil.copy(os.path.join(src, fn), dst)
         with open(dst) as f:
             n += sum(1 for line in f if line.startswith("C "))
-    return n, 0, 1
+    return pipeline._TraceRunResult(
+        trace_c_lines=n,
+        returncode=0,
+        abort_counts=1,
+        commit_count_witness=n,
+        batch_commit_count_witness=0,
+    )
 
 
 def _synthetic_integrity_rejection() -> Rejection:

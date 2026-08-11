@@ -836,3 +836,28 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"4e831598e3abba12fdd1a17e97cf31071d86e28f00b9750586027410509ed0ac","seq":53,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"c695efbaaf906fe771e35b22cf57e7b2749ae4faa234bff788ec5e687e9e5126","seq":54,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dw-o01-lane-scope":"[T-811]"},"authored":"2026-08-11","content_sha256":"678fa8a38f4f114f15630f21bb0ceea90c0cc0252e33af1789eb6f9af9d8387a","seq":1,"wave":"dev-wave-t787-freeze-crlf"}
+- {"allocations":{"D:freeze-crlf-single-call-scope":"D290"},"authored":"2026-08-11","content_sha256":"97a5d0186477a85eb090935b3292cf1673eb806e8811165fe518f02bfe92000f","seq":2,"wave":"dev-wave-t787-freeze-crlf"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1f140c9a36ce8484b0400d47584594884537697a32acf6aa2719a03964c4827d","seq":1,"wave":"dev-wave-t139-pubcore-approve"}
+- {"allocations":{"D:t139-publication-core-approval":"D291"},"authored":"2026-08-11","content_sha256":"ae26ddcb0f8dd681346f2e40993ee570bf4c09d658d31fadc8ba08c57717947c","seq":1,"wave":"dev-wave-t139-pubcore-approve"}
+
+- {"allocations":{"D:submission-deny-release-authority":"D292"},"authored":"2026-08-11","content_sha256":"c71d0ddfbdd909d4f472aa18868cb4cef497d435fd27a151bbecda86c3be049b","seq":55,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"7e4ef68b1dd9bbd1f817174c76bb909a49672e7a4eb5f7c7a0ca62e8a7575f20","seq":56,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:acceptance-lease-self-renew":"[T-812]"},"authored":"2026-08-11","content_sha256":"a47dc500a29c45571726f0ce04fcf9a93f416c7a1294931dd6701927304a0fb7","seq":57,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:acceptance-shard-eval":"[T-813]"},"authored":"2026-08-11","content_sha256":"33b41b060e4bd763b47582e4f8f414818e1efe62b0b7321349dcaf98939a65e7","seq":58,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dw-g05-partial-land-direction":"[T-814]"},"authored":"2026-08-11","content_sha256":"fff7468637ec006f8fa60070ee43fa6ff37347993540d75cfa0c2dac9e839dc6","seq":1,"wave":"dev-wave-t8b-restart-residue"}
+- {"allocations":{"D:toolchain-binding-and-unlock-are-inseparable":"D293"},"authored":"2026-08-11","content_sha256":"75d8fcb7520c3f6ea6538594b2a062648321fdaebe7252450347c81e92d03632","seq":2,"wave":"dev-wave-t8b-restart-residue"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"2c45ec232c70d8d9128ed44f2e5951a914da3fa555d89a47587bfb022fdb4587","seq":3,"wave":"dev-wave-t8b-restart-residue"}
+
+- {"allocations":{"T:codex-hook-trust-and-surfaces":"[T-815]"},"authored":"2026-08-11","content_sha256":"aef5a6d3d75c9ea00022309d94ed225c0629cbd963f6d37f993e880a03fcd26b","seq":1,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"F:codex-cannot-write-own-config-dir":"F218","F:codex-web-search-evidence":"F217"},"authored":"2026-08-11","content_sha256":"7383a5629385491e85f8ffaa7c788e968daa0838dce1409c6278d4f6117c6de4","seq":2,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"D:codex-hook-wiring":"D294"},"authored":"2026-08-11","content_sha256":"d774c81d3b51bba6f9af3b8cc8380120c0baa042fdf8a78c69dff53919f54aee","seq":3,"wave":"dev-wave-codex-hook-parity"}
+
+- {"allocations":{"T:coverage-driver-commit-witness":"[T-818]","T:legacy-commit-witness-backfill":"[T-817]","T:mutation-runner-drift-scope":"[T-819]","T:trace-v2-cpp-pin-approval":"[T-816]"},"authored":"2026-08-11","content_sha256":"e30f995f366ab92b2bedf98721c07b14c6bdb002c523e55194a06ebe41d352e5","seq":1,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{"D:trace-completeness-external-counter":"D295"},"authored":"2026-08-11","content_sha256":"79e0e707c9ad68a29c7c909cb565ba82ca4f14e1b2c1365e459aaec2d7f0b4b8","seq":2,"wave":"dev-wave-t756-trace-v2"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"3f38e164e1ee941a436381d7b5b2afda8937aa7281d3bbc2dd5fb7b90dd4a8fe","seq":3,"wave":"dev-wave-t756-trace-v2"}

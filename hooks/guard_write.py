@@ -46,9 +46,9 @@ def _repo_root() -> str:
 def _protected_artifact(rp: str, camp_roots: tuple[str, ...]) -> str:
     """proof-chain 成果物なら理由ラベル、そうでなければ空文字。
 
-    camp_roots は official / exploration の閉じた二要素集合。rp も各 root も realpath
-    済みなので、output/ が別ボリュームへの symlink でも両端が揃う (2026-07-04
-    敵対検証 write-bypass の fail-open)。"""
+    camp_roots は official / exploration の閉じた二要素集合。rp と各 root は同じ
+    resolution mode に揃えるため、realpath 判定でも lexical entry 判定でも片側だけが
+    symlink 解決されて照合を外すことがない。"""
     for camp_root in camp_roots:
         camp = camp_root + os.sep
         if rp.startswith(camp):
@@ -63,25 +63,49 @@ def _protected_artifact(rp: str, camp_roots: tuple[str, ...]) -> str:
     return ""
 
 
-def decide(tool_name: str, tool_input: dict, repo_root: str = "") -> tuple:
-    """(allow: bool, reason: str)。reason は拒否時のみ。"""
-    # root も realpath で解決する: rp は realpath 済みなので、root が未解決 (output/ や
-    # external/ccbench が別ボリュームへの symlink 等) だと startswith 照合が外れ fail-open に
-    # なる (2026-07-04 敵対検証 write-bypass)。両端を realpath で揃える。
-    root = os.path.realpath(repo_root or _repo_root())
-    # NotebookEdit の実書込先は notebook_path。file_path を先に見ると、良性 file_path decoy で
-    # 管轄外と誤判定し notebook_path 側 (ccbench/WAL) への書込を通す (2026-07-04 敵対検証)。
-    if tool_name == "NotebookEdit":
-        path = tool_input.get("notebook_path") or tool_input.get("file_path") or ""
-    else:
-        path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
-    if not path:
-        return True, ""                     # パス無し = ツール側が失敗する。管轄外
-    lexical_path = os.path.abspath(
-        path if os.path.isabs(path) else os.path.join(root, path))
-    rp = os.path.realpath(lexical_path)
+_APPLY_PATCH_DIRECTIVES = (
+    ("add", "*** Add File: "),
+    ("update", "*** Update File: "),
+    ("delete", "*** Delete File: "),
+    ("move_to", "*** Move to: "),
+)
 
-    # 比較基盤も realpath で解決 (output/ や external/ccbench 自身が symlink でも rp と揃える)。
+
+def parse_apply_patch(command: str) -> list[tuple[str, str]]:
+    """Codex apply_patch の exact directive を最後まで抽出する。
+
+    block の妥当性は許可根拠にしない。壊れた block や orphan Move to があっても
+    後続を含む全行を走査し、見つかった候補は拒否を増やすためだけに使う。
+    """
+    operations = []
+    for line in command.splitlines():
+        for kind, prefix in _APPLY_PATCH_DIRECTIVES:
+            if line.startswith(prefix):
+                operations.append((kind, line[len(prefix):]))
+                break
+    return operations
+
+
+def classify_path(
+    abs_path: str,
+    root: str,
+    *,
+    resolve_final: bool = True,
+) -> tuple[bool, str]:
+    """絶対 path を既存の artifact / namespace / freeze / ccbench 核で判定する。
+
+    ``resolve_final=False`` は Delete / Move 元の directory entry 用。祖先 directory
+    だけ realpath 化し、unlink/rename が操作する最終要素そのものは解決しない。
+    """
+    root = os.path.realpath(root)
+    lexical_path = os.path.abspath(abs_path)
+    if resolve_final:
+        rp = os.path.realpath(lexical_path)
+    else:
+        rp = os.path.join(
+            os.path.realpath(os.path.dirname(lexical_path)),
+            os.path.basename(lexical_path),
+        )
     camp_roots = (
         os.path.realpath(os.path.join(root, "output", "campaigns")),
         os.path.realpath(os.path.join(root, "output", "exploration", "campaigns")),
@@ -92,7 +116,8 @@ def decide(tool_name: str, tool_input: dict, repo_root: str = "") -> tuple:
             f"{label} への直接書き込みは拒否 (規律2)。COMMIT/fitness を書く唯一の"
             "経路は pipeline.evaluate()。verifier を迂回した成果物の更新は不可")
 
-    exploration_root = os.path.realpath(os.path.join(root, "output", "exploration"))
+    exploration_root = os.path.realpath(
+        os.path.join(root, "output", "exploration"))
     lexical_exploration_root = os.path.abspath(
         os.path.join(root, "output", "exploration"))
     if (os.path.basename(lexical_path) == "namespace.json"
@@ -118,8 +143,6 @@ def decide(tool_name: str, tool_input: dict, repo_root: str = "") -> tuple:
     sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
     if rp == sub or rp.startswith(sub + os.sep):
         rel = os.path.relpath(rp, sub)
-        if tool_name == "NotebookEdit":
-            return False, "external/ccbench への NotebookEdit は編集面外 (D24)"
         if rel not in EVOLVE_BLOCK_SOURCES:
             return False, (
                 f"external/ccbench の編集面は EVOLVE-BLOCK ソース {EVOLVE_BLOCK_SOURCES} "
@@ -133,18 +156,99 @@ def decide(tool_name: str, tool_input: dict, repo_root: str = "") -> tuple:
     return True, ""                          # 管轄外 (通常の開発作業)
 
 
+def _decide_apply_patch(
+    tool_input: dict,
+    root: str,
+    cwd: str,
+) -> tuple[bool, str]:
+    operations = parse_apply_patch(tool_input.get("command") or "")
+    cwd_valid = bool(cwd) and os.path.isabs(cwd) and os.path.isdir(cwd)
+    denials = []
+
+    for index, (kind, raw_path) in enumerate(operations):
+        if not os.path.isabs(raw_path) and not cwd_valid:
+            denials.append(
+                f"{raw_path!r}: 相対 path の基準となる payload cwd が空・非絶対・不在")
+            continue
+
+        lexical_path = os.path.abspath(
+            raw_path if os.path.isabs(raw_path) else os.path.join(cwd, raw_path))
+        reasons = []
+        allow, reason = classify_path(lexical_path, root)
+        if not allow:
+            reasons.append(reason)
+
+        is_move_source = (
+            kind == "update"
+            and index + 1 < len(operations)
+            and operations[index + 1][0] == "move_to"
+        )
+        if kind == "delete" or is_move_source:
+            lexical_allow, lexical_reason = classify_path(
+                lexical_path, root, resolve_final=False)
+            if not lexical_allow and lexical_reason not in reasons:
+                reasons.append(lexical_reason)
+
+        if reasons:
+            denials.append(f"{raw_path!r}: {' / '.join(reasons)}")
+
+    if denials:
+        return False, "apply_patch の拒否対象: " + "; ".join(denials)
+    # path を抽出できたこと自体は許可根拠ではない。候補から拒否が増えなかった場合にのみ、
+    # wave 前と同じ管轄外扱いへ戻す。
+    return True, ""
+
+
+def decide(
+    tool_name: str,
+    tool_input: dict,
+    repo_root: str = "",
+    cwd: str = "",
+) -> tuple:
+    """(allow: bool, reason: str)。reason は拒否時のみ。"""
+    # root も realpath で解決する: rp は realpath 済みなので、root が未解決 (output/ や
+    # external/ccbench が別ボリュームへの symlink 等) だと startswith 照合が外れ fail-open に
+    # なる (2026-07-04 敵対検証 write-bypass)。両端を realpath で揃える。
+    root = os.path.realpath(repo_root or _repo_root())
+    if tool_name == "apply_patch":
+        return _decide_apply_patch(tool_input, root, cwd)
+
+    # NotebookEdit の実書込先は notebook_path。file_path を先に見ると、良性 file_path decoy で
+    # 管轄外と誤判定し notebook_path 側 (ccbench/WAL) への書込を通す (2026-07-04 敵対検証)。
+    if tool_name == "NotebookEdit":
+        path = tool_input.get("notebook_path") or tool_input.get("file_path") or ""
+    else:
+        path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    if not path:
+        return True, ""                     # パス無し = ツール側が失敗する。管轄外
+    lexical_path = os.path.abspath(
+        path if os.path.isabs(path) else os.path.join(root, path))
+    allow, reason = classify_path(lexical_path, root)
+    if tool_name == "NotebookEdit":
+        rp = os.path.realpath(lexical_path)
+        sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
+        if (rp == sub or rp.startswith(sub + os.sep)) and (
+                allow or reason.startswith("external/ccbench の編集面")):
+            return False, "external/ccbench への NotebookEdit は編集面外 (D24)"
+    return allow, reason
+
+
 def main() -> int:
     raw = sys.stdin.read()                 # 例外時の fails-closed 判定に使うため一度で読む
+    tool_name = ""
     try:
         payload = json.loads(raw)
         tool_name = payload.get("tool_name", "")
         tool_input = payload.get("tool_input") or {}
-        allow, reason = decide(tool_name, tool_input)
+        allow, reason = decide(tool_name, tool_input, cwd=payload.get("cwd") or "")
     except Exception as e:  # noqa: BLE001 — hook 自身の不具合で全書き込みを止めない。
         # ただし入力に管轄トークンが見えるときだけは fails-closed に倒す。
-        if any(t in raw for t in ("external/ccbench", "wal.jsonl", "campaign.lock",
-                                  "build-variants", "output/s8b-freeze",
-                                  "output/exploration/", "namespace.json")):
+        protected_tokens = ("external/ccbench", "wal.jsonl", "campaign.lock",
+                            "build-variants", "output/s8b-freeze",
+                            "output/exploration/", "namespace.json")
+        if tool_name == "apply_patch":
+            protected_tokens += ("output/campaigns/", "/runs/", "runs/")
+        if any(t in raw for t in protected_tokens):
             print(f"guard_write hook 内部エラー ({type(e).__name__}: {e}) — 管轄パスを"
                   "含むため fails-closed で拒否", file=sys.stderr)
             return 2
