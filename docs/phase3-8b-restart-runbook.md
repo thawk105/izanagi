@@ -196,6 +196,49 @@ protocol と封印を作り直すかは、8b 側では決められない順序�
   (c) driver の固定要求を env 依存の解決へ変える。**いずれも計測条件を変えるため、
   既存 `linux-baremetal` の値との混用可否も同時に決める必要がある**
 
+### R-4 の決着 (2026-08-11 実装済み)
+
+床値 build の compiler 解決を site 依存へ寄せ、**同じ land で** registered calibration の
+`acquisition_receipt` を derived toolchain authority とする束縛検査を build 前に置いた。
+env contract には field を足していないので `contract_sha256` は不変であり、
+発効記録・floor protocol・selector 予測封印の 3 pin は生きている。
+
+**混用不可の機械的な固定** — `contract.calibration_ref` の calibration に
+`acquisition_receipt` が無い契約では、**receipt 不在で fail-closed に拒否**する。
+`linux-baremetal` の calibration は legacy でこの field を持たないため、
+**linux-baremetal の較正で床値 build を行う経路は build 前に止まる**。
+`output/s8b-freeze/floor_protocol.json` の `env_tag` は `pegasus` であり、
+linux-baremetal を指す凍結 protocol は存在しないので production 影響は無い。
+
+**束縛する量** (calibration receipt が authority)。
+
+- `acquisition_receipt.toolchain.compiler_path` = build argv の `-DCMAKE_C_COMPILER` = 実測 cc realpath
+- build argv の `-DCMAKE_CXX_COMPILER` = 実測 cxx realpath
+- `acquisition_receipt.toolchain.compiler_version` の本体 = 実測 cc version の本体 (**全文比較**)
+- `acquisition_receipt.toolchain.cmake_version` の本体 = 実測 cmake version の本体 (**全文比較**)
+- 実測 cxx version の本体 = 実測 cc version の本体 (live 側の内部整合)
+
+「本体」は先頭 token (起動名) を除いた残り全部である。同一 compiler でも `gcc` と
+`x86_64-linux-gnu-gcc-11` で先頭 token が変わるため、逐語一致にすると恒真な赤になる。
+
+**束縛していない量 (既知の穴。認可の根拠に使ってはならない)。**
+
+- `cxx_version` — receipt に存在しない。live 側の内部整合で部分的にしか塞がっていない
+- `cmake_realpath` — receipt に存在しない。version だけを束縛している
+- `module_list` — receipt には存在する (`intelpython/2022.3.1`) が、実行時の module 環境を
+  観測する経路が無いため**束縛していない**
+- 実行ファイルの bytes hash — receipt に存在しない。同一 path・同一 version 表示で
+  実体が差し替わった場合は検出できない
+
+これらを authority に加えるには calibration の再発行が要る。
+**後続の certified 判定で、上記 4 つを「検査済み」と見なしてはならない。**
+
+**初回の実 run で gate が拒否する可能性がある。** 計算ノード側の `gcc` / `g++` の realpath と
+version は未確認である (login node と bnode005 の probe で確認できているのは
+`gcc-13` / `g++-13` の不在と cmake 3.25.0 だけである)。拒否が出た場合、それは
+**正しい fail-closed であって bug ではない** — 実 toolchain が登録済み較正と異なるという
+意味なので、較正の再取得か toolchain の是正で解く。**gate を緩めて通してはならない。**
+
 ---
 
 ## 6. この手順書の更新契約
