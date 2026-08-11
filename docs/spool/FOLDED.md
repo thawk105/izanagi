@@ -832,3 +832,18 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:mutation-fanout":"[T-808]","T:node-variance-protocol":"[T-810]","T:s8c-workload-fanout":"[T-809]"},"authored":"2026-08-11","content_sha256":"aa82b007952ae2f4f79a6c72e0a716ffda74a95b06c68bf9d823caf4163d147b","seq":1,"wave":"dev-wave-parallel-dispatch"}
 - {"allocations":{"D:compute-job-fanout":"D289"},"authored":"2026-08-11","content_sha256":"6f3ce4f86046fcf3f0bcfc1ad9eca3a9e74c437c4a9f3dbd798e1372c89aa8d6","seq":2,"wave":"dev-wave-parallel-dispatch"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"4e831598e3abba12fdd1a17e97cf31071d86e28f00b9750586027410509ed0ac","seq":53,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c695efbaaf906fe771e35b22cf57e7b2749ae4faa234bff788ec5e687e9e5126","seq":54,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dw-o01-lane-scope":"[T-811]"},"authored":"2026-08-11","content_sha256":"678fa8a38f4f114f15630f21bb0ceea90c0cc0252e33af1789eb6f9af9d8387a","seq":1,"wave":"dev-wave-t787-freeze-crlf"}
+- {"allocations":{"D:freeze-crlf-single-call-scope":"D290"},"authored":"2026-08-11","content_sha256":"97a5d0186477a85eb090935b3292cf1673eb806e8811165fe518f02bfe92000f","seq":2,"wave":"dev-wave-t787-freeze-crlf"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1f140c9a36ce8484b0400d47584594884537697a32acf6aa2719a03964c4827d","seq":1,"wave":"dev-wave-t139-pubcore-approve"}
+- {"allocations":{"D:t139-publication-core-approval":"D291"},"authored":"2026-08-11","content_sha256":"ae26ddcb0f8dd681346f2e40993ee570bf4c09d658d31fadc8ba08c57717947c","seq":1,"wave":"dev-wave-t139-pubcore-approve"}
+
+- {"allocations":{"D:submission-deny-release-authority":"D292"},"authored":"2026-08-11","content_sha256":"c71d0ddfbdd909d4f472aa18868cb4cef497d435fd27a151bbecda86c3be049b","seq":55,"wave":"rulings-20260806-a"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"7e4ef68b1dd9bbd1f817174c76bb909a49672e7a4eb5f7c7a0ca62e8a7575f20","seq":56,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:acceptance-lease-self-renew":"[T-812]"},"authored":"2026-08-11","content_sha256":"a47dc500a29c45571726f0ce04fcf9a93f416c7a1294931dd6701927304a0fb7","seq":57,"wave":"rulings-20260806-a"}

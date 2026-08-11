@@ -1,0 +1,35 @@
+# 段 2 プラン起草 — [T-787] 凍結層で CR/LF path を fail-closed 拒否
+
+あなたは izanagi dev-wave の read-only プラン起草役である。まず次の親 brief を全文読むこと。
+読めなければ何も起草せず「brief が読めない」とだけ報告して即停止する。
+
+- 親 brief: `/work/1/SFC/tanab/dev-wave-jobs/t787-freeze-crlf/brief.md`
+
+## 依頼
+
+brief の scope・不変条件・provisional 裁定 (P1)〜(P3) を前提に、file:line 粒度の実装プランを
+起草する。対象 repo は cwd (worktree)。読むべき正本:
+
+- `orchestrator/campaign/s8c_preregistration.py` — `_assert_no_nul_in_contract_paths`
+  (L344 付近) と `evidence_contract_sha256` (L363 付近)。
+- `orchestrator/tests/test_s8c_preregistration_core.py` — NUL 検査のテスト群 (L549 以降、
+  helper L142〜、`test_evidence_contract_hash_accepts_non_nul_path_controls` L594 付近)。
+- `docs/decisions.md` の D281 (設計の正本)。
+- 発効層の対応物: `orchestrator/campaign/s8c_preregistration_evidence.py` `_safe_path` (L180 付近)。
+
+## プランに必ず含めるもの
+
+1. choke point 関数の具体的な diff 案 (検査条件、理由語、pointer 報告、検査順)。
+2. テスト変更の全列挙: 反転するテスト (4 param の受理固定)、新設するテスト
+   (38 位置 parametrize の CR/LF 適用形、中間位置、NUL 併存の優先順位、非 path field の
+   CR/LF 受理、現行契約 hash 不変、過剰拒否の正例)。既存 helper の再利用可否を file:line で示す。
+3. brief の (P1)(P2)(P3) への賛否と代案 (根拠つき。反対は歓迎する)。
+4. 変異 matrix の候補 (どの変異がどのテスト node で死ぬかの見立て。
+   wave 前の実コードの形 = NUL-only 検査への revert を必ず含める)。
+5. 実装子への所有分割案 (本 wave は実装子 1 本を想定)。
+
+## 制約
+
+- sandbox は read-only。pytest の実走は不要で、静的検査だけでよい。実走は親が行う。
+- 受理集合・理由語の不変条件は brief の記載が正本。緩める提案はしない。
+- 出力の最後に `## 総括` 見出しで要点を 10 行以内にまとめる。
