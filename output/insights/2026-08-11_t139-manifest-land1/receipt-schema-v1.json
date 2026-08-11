@@ -1,0 +1,1326 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "hex40": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "repoPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\u0000\\r\\n])(?!.*\/$).+$"
+    },
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/definitions/repoPath"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/definitions/hex64"}
+      }
+    },
+    "blobRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "commit", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/definitions/repoPath"},
+        "commit": {"$ref": "#/definitions/hex40"},
+        "sha256": {"$ref": "#/definitions/hex64"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_commit", "ccbench_pin", "base_tree_sha", "patch_path", "patch_sha256"],
+      "properties": {
+        "repo_commit": {"$ref": "#/definitions/hex40"},
+        "ccbench_pin": {"$ref": "#/definitions/hex40"},
+        "base_tree_sha": {"$ref": "#/definitions/hex40"},
+        "patch_path": {"type": ["string", "null"]},
+        "patch_sha256": {
+          "anyOf": [
+            {"$ref": "#/definitions/hex64"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "performanceCmakeCache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace", "add_analysis"],
+      "properties": {
+        "trace": {"type": "integer", "enum": [0]},
+        "add_analysis": {"type": "integer", "enum": [0]}
+      }
+    },
+    "correctnessCmakeCache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace", "add_analysis"],
+      "properties": {
+        "trace": {"type": "integer", "enum": [1]},
+        "add_analysis": {"type": "integer", "enum": [1]}
+      }
+    },
+    "translationUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normalized_argv", "sha256"],
+      "properties": {
+        "normalized_argv": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "sha256": {"$ref": "#/definitions/hex64"}
+      }
+    },
+    "translationUnits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "patternProperties": {
+        "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\u0000\\r\\n])(?!.*\/$).+$": {
+          "$ref": "#/definitions/translationUnit"
+        }
+      }
+    },
+    "performanceCompileStock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "mode_macro",
+        "configure_argv",
+        "translation_units",
+        "identity_sha256",
+        "trace_enabled",
+        "analysis_enabled",
+        "cmake_cache",
+        "compile_commands"
+      ],
+      "properties": {
+        "source": {
+          "allOf": [
+            {"$ref": "#/definitions/source"},
+            {
+              "properties": {
+                "patch_path": {"type": "null"},
+                "patch_sha256": {"type": "null"}
+              },
+              "required": ["patch_path", "patch_sha256"]
+            }
+          ]
+        },
+        "mode_macro": {"type": "null"},
+        "configure_argv": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "translation_units": {"$ref": "#/definitions/translationUnits"},
+        "identity_sha256": {"$ref": "#/definitions/hex64"},
+        "trace_enabled": {"const": false},
+        "analysis_enabled": {"const": false},
+        "cmake_cache": {"$ref": "#/definitions/performanceCmakeCache"},
+        "compile_commands": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "performanceCompileMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "mode_macro",
+        "configure_argv",
+        "translation_units",
+        "identity_sha256",
+        "trace_enabled",
+        "analysis_enabled",
+        "cmake_cache",
+        "compile_commands"
+      ],
+      "properties": {
+        "source": {
+          "allOf": [
+            {"$ref": "#/definitions/source"},
+            {
+              "properties": {
+                "patch_path": {"type": "string"},
+                "patch_sha256": {"$ref": "#/definitions/hex64"}
+              },
+              "required": ["patch_path", "patch_sha256"]
+            }
+          ]
+        },
+        "mode_macro": {"type": "string"},
+        "configure_argv": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "translation_units": {"$ref": "#/definitions/translationUnits"},
+        "identity_sha256": {"$ref": "#/definitions/hex64"},
+        "trace_enabled": {"const": false},
+        "analysis_enabled": {"const": false},
+        "cmake_cache": {"$ref": "#/definitions/performanceCmakeCache"},
+        "compile_commands": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "immutableArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_path", "size", "sha256"],
+      "properties": {
+        "artifact_path": {"$ref": "#/definitions/repoPath"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/definitions/hex64"}
+      }
+    },
+    "dynamicDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["soname", "resolved_path", "sha256"],
+      "properties": {
+        "soname": {"type": "string"},
+        "resolved_path": {"type": "string"},
+        "sha256": {"$ref": "#/definitions/hex64"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compiler_path",
+        "compiler_version",
+        "compiler_sha256",
+        "link_argv",
+        "dynamic_deps",
+        "elf_interpreter"
+      ],
+      "properties": {
+        "compiler_path": {"type": "string"},
+        "compiler_version": {"type": "string"},
+        "compiler_sha256": {"$ref": "#/definitions/hex64"},
+        "link_argv": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "dynamic_deps": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/dynamicDependency"}
+        },
+        "elf_interpreter": {"type": "string"}
+      }
+    },
+    "stockArm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compile", "binary", "built_outside_allocation", "toolchain"],
+      "properties": {
+        "compile": {"$ref": "#/definitions/performanceCompileStock"},
+        "binary": {"$ref": "#/definitions/fileRecord"},
+        "built_outside_allocation": {"$ref": "#/definitions/immutableArtifact"},
+        "toolchain": {"$ref": "#/definitions/toolchain"}
+      }
+    },
+    "modeArm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compile", "binary", "built_outside_allocation", "toolchain"],
+      "properties": {
+        "compile": {"$ref": "#/definitions/performanceCompileMode"},
+        "binary": {"$ref": "#/definitions/fileRecord"},
+        "built_outside_allocation": {"$ref": "#/definitions/immutableArtifact"},
+        "toolchain": {"$ref": "#/definitions/toolchain"}
+      }
+    },
+    "erratum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["erratum_id", "path", "commit", "sha256", "approval_fold_commit"],
+      "properties": {
+        "erratum_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+        },
+        "path": {"$ref": "#/definitions/repoPath"},
+        "commit": {"$ref": "#/definitions/hex40"},
+        "sha256": {"$ref": "#/definitions/hex64"},
+        "approval_fold_commit": {"$ref": "#/definitions/hex40"}
+      }
+    },
+    "preregistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core",
+        "addendum_a",
+        "addendum_b",
+        "fold_commit",
+        "errata",
+        "approval_manifest",
+        "receipt_schema",
+        "composed_core_sha256"
+      ],
+      "properties": {
+        "core": {"$ref": "#/definitions/blobRef"},
+        "addendum_a": {"$ref": "#/definitions/blobRef"},
+        "addendum_b": {
+          "anyOf": [
+            {"$ref": "#/definitions/blobRef"},
+            {"type": "null"}
+          ]
+        },
+        "fold_commit": {"$ref": "#/definitions/hex40"},
+        "errata": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/definitions/erratum"}
+        },
+        "approval_manifest": {"$ref": "#/definitions/blobRef"},
+        "receipt_schema": {"$ref": "#/definitions/blobRef"},
+        "composed_core_sha256": {"$ref": "#/definitions/hex64"}
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "profile_kind", "schema_version", "raw"],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 1},
+        "profile_kind": {"enum": ["expected", "observed"]},
+        "schema_version": {"type": "string"},
+        "raw": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["env_tag", "attestation_mode", "attestations"],
+      "properties": {
+        "env_tag": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+        },
+        "attestation_mode": {"const": "required"},
+        "attestations": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"$ref": "#/definitions/attestation"},
+          "contains": {
+            "properties": {"profile_kind": {"const": "expected"}},
+            "required": ["profile_kind"]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "properties": {"profile_kind": {"const": "observed"}},
+                "required": ["profile_kind"]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "measurementCheckout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_head", "ccbench_head"],
+      "properties": {
+        "repository_head": {"$ref": "#/definitions/hex40"},
+        "ccbench_head": {"$ref": "#/definitions/hex40"}
+      }
+    },
+    "dependencyPin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "commit"],
+      "properties": {
+        "name": {"enum": ["gflags", "glog", "masstree", "mimalloc", "googletest"]},
+        "commit": {"$ref": "#/definitions/hex40"}
+      }
+    },
+    "arms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stock", "mode1", "modeX"],
+      "properties": {
+        "stock": {"$ref": "#/definitions/stockArm"},
+        "mode1": {"$ref": "#/definitions/modeArm"},
+        "modeX": {"$ref": "#/definitions/modeArm"}
+      }
+    },
+    "exclusivity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "raw"],
+      "properties": {
+        "method": {"enum": ["node_local_process_scan", "scheduler_accounting"]},
+        "raw": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "phaseCap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "cap_s", "sub_cap_s_or_null"],
+      "properties": {
+        "phase": {"type": "string"},
+        "cap_s": {"type": "integer"},
+        "sub_cap_s_or_null": {"type": ["integer", "null"]}
+      }
+    },
+    "phaseEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "event", "monotonic_ns"],
+      "properties": {
+        "phase": {"type": "string"},
+        "event": {"enum": ["enter", "leave", "term_signal"]},
+        "monotonic_ns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "binaryRehash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["point", "arm", "sha256", "monotonic_ns"],
+      "properties": {
+        "point": {"enum": ["after_staging", "before_first_run", "after_last_run"]},
+        "arm": {"enum": ["stock", "mode1", "modeX"]},
+        "sha256": {"$ref": "#/definitions/hex64"},
+        "monotonic_ns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "allocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allocation_id",
+        "allocation_role",
+        "cluster_slot_or_null",
+        "scheduler_request_id",
+        "path_choice",
+        "path_choice_intent",
+        "node",
+        "requested_walltime_s",
+        "internal_deadline_s",
+        "started_at_monotonic_ns",
+        "ended_at_monotonic_ns",
+        "accounting_trace",
+        "exclusivity",
+        "phase_caps",
+        "phase_events",
+        "binary_rehash"
+      ],
+      "properties": {
+        "allocation_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$"
+        },
+        "allocation_role": {"enum": ["performance_cluster", "verification"]},
+        "cluster_slot_or_null": {"type": ["integer", "null"]},
+        "scheduler_request_id": {"type": "string"},
+        "path_choice": {"enum": ["primary_build_outside", "fallback_build_inside"]},
+        "path_choice_intent": {"$ref": "#/definitions/fileRecord"},
+        "node": {"type": "string"},
+        "requested_walltime_s": {"type": "integer", "minimum": 1},
+        "internal_deadline_s": {"type": "integer", "minimum": 1},
+        "started_at_monotonic_ns": {"type": "integer", "minimum": 0},
+        "ended_at_monotonic_ns": {"type": "integer", "minimum": 0},
+        "accounting_trace": {"$ref": "#/definitions/fileRecord"},
+        "exclusivity": {"$ref": "#/definitions/exclusivity"},
+        "phase_caps": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/phaseCap"}
+        },
+        "phase_events": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/phaseEvent"}
+        },
+        "binary_rehash": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {"$ref": "#/definitions/binaryRehash"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"allocation_role": {"const": "performance_cluster"}},
+            "required": ["allocation_role"]
+          },
+          "then": {
+            "properties": {
+              "cluster_slot_or_null": {"type": "integer", "minimum": 1, "maximum": 13}
+            },
+            "required": ["cluster_slot_or_null"]
+          },
+          "else": {
+            "properties": {"cluster_slot_or_null": {"type": "null"}},
+            "required": ["cluster_slot_or_null"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"allocation_role": {"const": "performance_cluster"}},
+            "required": ["allocation_role"]
+          },
+          "then": {
+            "properties": {
+              "phase_caps": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseCap"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["preflight", "observation", "decision", "marker", "run", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              },
+              "phase_events": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseEvent"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["preflight", "observation", "decision", "marker", "run", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["phase_caps", "phase_events"]
+          },
+          "else": {
+            "properties": {
+              "phase_caps": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseCap"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["staging", "build", "build_post", "correctness_run", "evidence", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              },
+              "phase_events": {
+                "items": {
+                  "allOf": [
+                    {"$ref": "#/definitions/phaseEvent"},
+                    {
+                      "properties": {
+                        "phase": {"enum": ["staging", "build", "build_post", "correctness_run", "evidence", "teardown"]}
+                      },
+                      "required": ["phase"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["phase_caps", "phase_events"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"allocation_role": {"const": "verification"}},
+            "required": ["allocation_role"]
+          },
+          "then": {
+            "properties": {"requested_walltime_s": {"const": 3600}},
+            "required": ["requested_walltime_s"]
+          },
+          "else": {
+            "if": {
+              "properties": {"path_choice": {"const": "primary_build_outside"}},
+              "required": ["path_choice"]
+            },
+            "then": {
+              "properties": {"requested_walltime_s": {"const": 3600}},
+              "required": ["requested_walltime_s"]
+            },
+            "else": {
+              "properties": {"requested_walltime_s": {"const": 5400}},
+              "required": ["requested_walltime_s"]
+            }
+          }
+        }
+      ]
+    },
+    "effectiveFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clocks_per_us",
+        "epoch_time",
+        "extime",
+        "thread_num",
+        "ycsb_max_ope",
+        "ycsb_rmw",
+        "ycsb_rratio",
+        "ycsb_tuple_num",
+        "ycsb_zipf_skew"
+      ],
+      "properties": {
+        "clocks_per_us": {"type": "number"},
+        "epoch_time": {"type": "number"},
+        "extime": {"type": "number"},
+        "thread_num": {"type": "integer"},
+        "ycsb_max_ope": {"type": "integer"},
+        "ycsb_rmw": {"type": "integer"},
+        "ycsb_rratio": {"type": "integer"},
+        "ycsb_tuple_num": {"type": "integer"},
+        "ycsb_zipf_skew": {"type": "number"}
+      }
+    },
+    "optParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ADD_ANALYSIS",
+        "BACK_OFF",
+        "KEY_SIZE",
+        "MASSTREE_USE",
+        "NO_WAIT_LOCKING_IN_VALIDATION",
+        "PARTITION_TABLE",
+        "PROCEDURE_SORT",
+        "SLEEP_READ_PHASE",
+        "VAL_SIZE",
+        "WAL"
+      ],
+      "properties": {
+        "ADD_ANALYSIS": {"type": "integer"},
+        "BACK_OFF": {"type": "integer"},
+        "KEY_SIZE": {"type": "integer"},
+        "MASSTREE_USE": {"type": "integer"},
+        "NO_WAIT_LOCKING_IN_VALIDATION": {"type": "integer"},
+        "PARTITION_TABLE": {"type": "integer"},
+        "PROCEDURE_SORT": {"type": "integer"},
+        "SLEEP_READ_PHASE": {"type": "integer"},
+        "VAL_SIZE": {"type": "integer"},
+        "WAL": {"type": "integer"}
+      }
+    },
+    "workloadPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver_argv", "effective_flags", "opt_parameters"],
+      "properties": {
+        "driver_argv": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "effective_flags": {"$ref": "#/definitions/effectiveFlags"},
+        "opt_parameters": {"$ref": "#/definitions/optParameters"}
+      }
+    },
+    "workloads": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["W1", "W2"],
+      "properties": {
+        "W1": {"$ref": "#/definitions/workloadPlan"},
+        "W2": {"$ref": "#/definitions/workloadPlan"}
+      }
+    },
+    "clusterSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cluster_slot", "workload", "block_index", "permutation"],
+      "properties": {
+        "cluster_slot": {"type": "integer", "minimum": 1, "maximum": 13},
+        "workload": {"enum": ["W1", "W2"]},
+        "block_index": {"type": "integer", "minimum": 1, "maximum": 6},
+        "permutation": {"enum": ["SDX", "SXD", "DSX", "DXS", "XSD", "XDS"]}
+      }
+    },
+    "plannedWait": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "required_s"],
+      "properties": {
+        "kind": {"enum": ["none", "arm_gap", "block_gap", "workload_switch"]},
+        "required_s": {"type": "integer", "enum": [0, 30, 60]}
+      }
+    },
+    "plannedRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "cluster_slot",
+        "workload",
+        "block_index",
+        "permutation",
+        "planned_ordinal",
+        "position",
+        "predecessor_arm",
+        "arm",
+        "preceding_wait"
+      ],
+      "properties": {
+        "run_id": {"type": "string"},
+        "cluster_slot": {"type": "integer", "minimum": 1, "maximum": 13},
+        "workload": {"enum": ["W1", "W2"]},
+        "block_index": {"type": "integer", "minimum": 1, "maximum": 6},
+        "permutation": {"enum": ["SDX", "SXD", "DSX", "DXS", "XSD", "XDS"]},
+        "planned_ordinal": {"type": "integer", "minimum": 1},
+        "position": {"type": "integer", "minimum": 1, "maximum": 3},
+        "predecessor_arm": {"enum": ["START", "stock", "mode1", "modeX"]},
+        "arm": {"enum": ["stock", "mode1", "modeX"]},
+        "preceding_wait": {"$ref": "#/definitions/plannedWait"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"predecessor_arm": {"const": "START"}},
+            "required": ["predecessor_arm"]
+          },
+          "then": {
+            "properties": {"position": {"const": 1}},
+            "required": ["position"]
+          }
+        }
+      ]
+    },
+    "plannedExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workloads",
+        "schedule_seed",
+        "schedule_algorithm",
+        "schedule_table",
+        "schedule_sha256",
+        "consumed_cluster_slots",
+        "cluster_slots",
+        "runs"
+      ],
+      "properties": {
+        "workloads": {"$ref": "#/definitions/workloads"},
+        "schedule_seed": {"$ref": "#/definitions/hex64"},
+        "schedule_algorithm": {"const": "t139-a09-v1"},
+        "schedule_table": {"$ref": "#/definitions/fileRecord"},
+        "schedule_sha256": {"$ref": "#/definitions/hex64"},
+        "consumed_cluster_slots": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 1, "maximum": 13}
+        },
+        "cluster_slots": {
+          "type": "array",
+          "minItems": 156,
+          "maxItems": 156,
+          "items": {"$ref": "#/definitions/clusterSlot"}
+        },
+        "runs": {
+          "type": "array",
+          "minItems": 36,
+          "items": {"$ref": "#/definitions/plannedRun"}
+        }
+      }
+    },
+    "actualWait": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "required_s", "monotonic_start_ns", "monotonic_end_ns"],
+      "properties": {
+        "kind": {"enum": ["none", "arm_gap", "block_gap", "workload_switch"]},
+        "required_s": {"type": "integer", "enum": [0, 30, 60]},
+        "monotonic_start_ns": {"type": "integer", "minimum": 0},
+        "monotonic_end_ns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "execWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "inode", "size", "sha256", "monotonic_ns"],
+      "properties": {
+        "path": {"type": "string"},
+        "inode": {"type": "integer", "minimum": 0},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/definitions/hex64"},
+        "monotonic_ns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "actualRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "attempt_id",
+        "allocation_id",
+        "cluster_slot",
+        "workload",
+        "block_index",
+        "permutation",
+        "actual_ordinal",
+        "position",
+        "predecessor_arm",
+        "arm",
+        "preceding_wait",
+        "started_at_monotonic_ns",
+        "ended_at_monotonic_ns",
+        "binary_sha256",
+        "exec_witness",
+        "argv_sha256",
+        "argv_raw",
+        "run_log"
+      ],
+      "properties": {
+        "run_id": {"type": "string"},
+        "attempt_id": {"type": "string"},
+        "allocation_id": {"type": "string"},
+        "cluster_slot": {"type": "integer", "minimum": 1, "maximum": 13},
+        "workload": {"enum": ["W1", "W2"]},
+        "block_index": {"type": "integer", "minimum": 1, "maximum": 6},
+        "permutation": {"enum": ["SDX", "SXD", "DSX", "DXS", "XSD", "XDS"]},
+        "actual_ordinal": {"type": "integer", "minimum": 1},
+        "position": {"type": "integer", "minimum": 1, "maximum": 3},
+        "predecessor_arm": {"enum": ["START", "stock", "mode1", "modeX"]},
+        "arm": {"enum": ["stock", "mode1", "modeX"]},
+        "preceding_wait": {"$ref": "#/definitions/actualWait"},
+        "started_at_monotonic_ns": {"type": "integer", "minimum": 0},
+        "ended_at_monotonic_ns": {"type": "integer", "minimum": 0},
+        "binary_sha256": {"$ref": "#/definitions/hex64"},
+        "exec_witness": {"$ref": "#/definitions/execWitness"},
+        "argv_sha256": {"$ref": "#/definitions/hex64"},
+        "argv_raw": {"$ref": "#/definitions/fileRecord"},
+        "run_log": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "correctnessCompile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_sha256",
+        "argv",
+        "trace_enabled",
+        "analysis_enabled",
+        "cmake_cache",
+        "compile_commands"
+      ],
+      "properties": {
+        "identity_sha256": {"$ref": "#/definitions/hex64"},
+        "argv": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "trace_enabled": {"const": true},
+        "analysis_enabled": {"const": true},
+        "cmake_cache": {"$ref": "#/definitions/correctnessCmakeCache"},
+        "compile_commands": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "correctnessBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "compile", "binary"],
+      "properties": {
+        "source": {"$ref": "#/definitions/source"},
+        "compile": {"$ref": "#/definitions/correctnessCompile"},
+        "binary": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "runScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allocation_id", "run_ordinal"],
+      "properties": {
+        "allocation_id": {"type": "string"},
+        "run_ordinal": {"type": "integer", "minimum": 1}
+      }
+    },
+    "correctnessEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "arm", "workload", "build", "run_scope", "outputs"],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 1},
+        "arm": {"enum": ["stock", "mode1", "modeX"]},
+        "workload": {"enum": ["W1", "W2"]},
+        "build": {"$ref": "#/definitions/correctnessBuild"},
+        "run_scope": {"$ref": "#/definitions/runScope"},
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/fileRecord"}
+        }
+      }
+    },
+    "liveness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinal",
+        "allocation_id",
+        "probe",
+        "arm_or_null",
+        "workload_or_null",
+        "monotonic_ns",
+        "raw"
+      ],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 1},
+        "allocation_id": {"type": "string"},
+        "probe": {"enum": ["liveness_run", "allocation_alive", "driver_heartbeat", "filesystem_writable"]},
+        "arm_or_null": {
+          "type": ["string", "null"],
+          "enum": ["stock", "mode1", "modeX", null]
+        },
+        "workload_or_null": {
+          "type": ["string", "null"],
+          "enum": ["W1", "W2", null]
+        },
+        "monotonic_ns": {"type": "integer", "minimum": 0},
+        "raw": {"$ref": "#/definitions/fileRecord"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"probe": {"const": "liveness_run"}},
+            "required": ["probe"]
+          },
+          "then": {
+            "properties": {
+              "arm_or_null": {"enum": ["stock", "mode1", "modeX"]},
+              "workload_or_null": {"enum": ["W1", "W2"]}
+            },
+            "required": ["arm_or_null", "workload_or_null"]
+          },
+          "else": {
+            "properties": {
+              "arm_or_null": {"type": "null"},
+              "workload_or_null": {"type": "null"}
+            },
+            "required": ["arm_or_null", "workload_or_null"]
+          }
+        }
+      ]
+    },
+    "fixedInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_sha256", "B_or_null", "seed_or_null"],
+      "properties": {
+        "input_sha256": {"$ref": "#/definitions/hex64"},
+        "B_or_null": {"type": ["integer", "null"]},
+        "seed_or_null": {
+          "anyOf": [
+            {"$ref": "#/definitions/hex64"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "ledgerEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ledger_path", "family_root", "ordinal", "reservation_entry_sha256", "reservation_commit"],
+      "properties": {
+        "ledger_path": {"$ref": "#/definitions/repoPath"},
+        "family_root": {"$ref": "#/definitions/hex40"},
+        "ordinal": {"type": "integer", "minimum": 1},
+        "reservation_entry_sha256": {"$ref": "#/definitions/hex64"},
+        "reservation_commit": {"$ref": "#/definitions/hex40"}
+      }
+    },
+    "admissionTelemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "kind", "receipt", "fixed_inputs", "ledger_evidence"],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 1},
+        "kind": {"enum": ["j_derivation", "q_derivation", "stress_check_simulation", "alpha_reservation"]},
+        "receipt": {"$ref": "#/definitions/fileRecord"},
+        "fixed_inputs": {"$ref": "#/definitions/fixedInputs"},
+        "ledger_evidence": {
+          "anyOf": [
+            {"$ref": "#/definitions/ledgerEvidence"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"kind": {"const": "stress_check_simulation"}},
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "fixed_inputs": {
+                "properties": {
+                  "B_or_null": {"type": "integer"},
+                  "seed_or_null": {"$ref": "#/definitions/hex64"}
+                },
+                "required": ["B_or_null", "seed_or_null"]
+              }
+            },
+            "required": ["fixed_inputs"]
+          },
+          "else": {
+            "properties": {
+              "fixed_inputs": {
+                "properties": {
+                  "B_or_null": {"type": "null"},
+                  "seed_or_null": {"type": "null"}
+                },
+                "required": ["B_or_null", "seed_or_null"]
+              }
+            },
+            "required": ["fixed_inputs"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"kind": {"const": "alpha_reservation"}},
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {"ledger_evidence": {"$ref": "#/definitions/ledgerEvidence"}},
+            "required": ["ledger_evidence"]
+          },
+          "else": {
+            "properties": {"ledger_evidence": {"type": "null"}},
+            "required": ["ledger_evidence"]
+          }
+        }
+      ]
+    },
+    "qsubResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["returncode", "raw"],
+      "properties": {
+        "returncode": {"type": "integer"},
+        "raw": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "performanceStartedMarker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "size", "sha256", "created_at_monotonic_ns"],
+      "properties": {
+        "path": {"$ref": "#/definitions/repoPath"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/definitions/hex64"},
+        "created_at_monotonic_ns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "failureEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "pointer"],
+      "properties": {
+        "kind": {"enum": ["a03_environment", "scheduler", "driver", "collector", "correctness"]},
+        "pointer": {"$ref": "#/definitions/fileRecord"}
+      }
+    },
+    "environmentObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinal",
+        "scope",
+        "run_id_or_null",
+        "stat_before_raw",
+        "stat_after_raw",
+        "stat_before",
+        "stat_after",
+        "monotonic_start_ns",
+        "monotonic_end_ns",
+        "load1_diagnostic",
+        "malformed_reason"
+      ],
+      "properties": {
+        "ordinal": {"type": "integer", "minimum": 1},
+        "scope": {"enum": ["preflight", "pre_run"]},
+        "run_id_or_null": {"type": ["string", "null"]},
+        "stat_before_raw": {"$ref": "#/definitions/fileRecord"},
+        "stat_after_raw": {"$ref": "#/definitions/fileRecord"},
+        "stat_before": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {"type": "integer"}
+        },
+        "stat_after": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {"type": "integer"}
+        },
+        "monotonic_start_ns": {"type": "integer", "minimum": 0},
+        "monotonic_end_ns": {"type": "integer", "minimum": 0},
+        "load1_diagnostic": {"type": "number"},
+        "malformed_reason": {
+          "type": ["string", "null"],
+          "enum": ["short_columns", "negative_delta", "nonpositive_total", "window_out_of_range", null]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"scope": {"const": "preflight"}},
+            "required": ["scope"]
+          },
+          "then": {
+            "properties": {"run_id_or_null": {"type": "null"}},
+            "required": ["run_id_or_null"]
+          },
+          "else": {
+            "properties": {"run_id_or_null": {"type": "string"}},
+            "required": ["run_id_or_null"]
+          }
+        }
+      ]
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_id",
+        "cluster_slot_or_null",
+        "reason_code",
+        "replaces_attempt_id",
+        "parent_attempt_id",
+        "allocation_id",
+        "submitted_at_monotonic_ns",
+        "intent_ref",
+        "qsub_result",
+        "performance_started_marker",
+        "environment_observations",
+        "failure_evidence"
+      ],
+      "properties": {
+        "attempt_id": {"type": "string"},
+        "cluster_slot_or_null": {
+          "anyOf": [
+            {"type": "integer", "minimum": 1, "maximum": 13},
+            {"type": "null"}
+          ]
+        },
+        "reason_code": {"enum": ["pre_performance_infra_failure", "post_performance_failure", "correctness_anomaly", "completed"]},
+        "replaces_attempt_id": {"type": ["string", "null"]},
+        "parent_attempt_id": {"type": ["string", "null"]},
+        "allocation_id": {"type": ["string", "null"]},
+        "submitted_at_monotonic_ns": {"type": "integer", "minimum": 0},
+        "intent_ref": {"$ref": "#/definitions/fileRecord"},
+        "qsub_result": {"$ref": "#/definitions/qsubResult"},
+        "performance_started_marker": {
+          "anyOf": [
+            {"$ref": "#/definitions/performanceStartedMarker"},
+            {"type": "null"}
+          ]
+        },
+        "environment_observations": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/environmentObservation"}
+        },
+        "failure_evidence": {
+          "anyOf": [
+            {"$ref": "#/definitions/failureEvidence"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"reason_code": {"const": "completed"}},
+            "required": ["reason_code"]
+          },
+          "then": {
+            "properties": {
+              "allocation_id": {"type": "string"},
+              "failure_evidence": {"type": "null"}
+            },
+            "required": ["allocation_id", "failure_evidence"],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {"cluster_slot_or_null": {"type": "integer"}},
+                  "required": ["cluster_slot_or_null"]
+                },
+                "then": {
+                  "properties": {
+                    "performance_started_marker": {"$ref": "#/definitions/performanceStartedMarker"}
+                  },
+                  "required": ["performance_started_marker"]
+                },
+                "else": {
+                  "properties": {"performance_started_marker": {"type": "null"}},
+                  "required": ["performance_started_marker"]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {"reason_code": {"const": "pre_performance_infra_failure"}},
+            "required": ["reason_code"]
+          },
+          "then": {
+            "properties": {
+              "performance_started_marker": {"type": "null"},
+              "failure_evidence": {"$ref": "#/definitions/failureEvidence"}
+            },
+            "required": ["performance_started_marker", "failure_evidence"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"reason_code": {"const": "post_performance_failure"}},
+            "required": ["reason_code"]
+          },
+          "then": {
+            "properties": {"failure_evidence": {"$ref": "#/definitions/failureEvidence"}},
+            "required": ["failure_evidence"]
+          }
+        },
+        {
+          "if": {
+            "properties": {"reason_code": {"const": "correctness_anomaly"}},
+            "required": ["reason_code"]
+          },
+          "then": {
+            "properties": {
+              "replaces_attempt_id": {"type": "null"},
+              "failure_evidence": {
+                "allOf": [
+                  {"$ref": "#/definitions/failureEvidence"},
+                  {
+                    "properties": {"kind": {"const": "correctness"}},
+                    "required": ["kind"]
+                  }
+                ]
+              }
+            },
+            "required": ["replaces_attempt_id", "failure_evidence"]
+          }
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "study_id",
+    "declared_use_class",
+    "study_stage",
+    "series_id",
+    "parent_series_id",
+    "preregistration",
+    "environment",
+    "measurement_checkout",
+    "dependency_pins",
+    "arms",
+    "allocations",
+    "planned_execution",
+    "actual_runs",
+    "correctness_evidence",
+    "liveness",
+    "admission_telemetry",
+    "attempts"
+  ],
+  "properties": {
+    "schema_version": {"const": "t139-receipt/v1"},
+    "study_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "declared_use_class": {"enum": ["official", "exploration", "qualification", "dry"]},
+    "study_stage": {"enum": ["pilot", "main_run"]},
+    "series_id": {"$ref": "#/definitions/hex64"},
+    "parent_series_id": {
+      "anyOf": [
+        {"$ref": "#/definitions/hex64"},
+        {"type": "null"}
+      ]
+    },
+    "preregistration": {"$ref": "#/definitions/preregistration"},
+    "environment": {"$ref": "#/definitions/environment"},
+    "measurement_checkout": {"$ref": "#/definitions/measurementCheckout"},
+    "dependency_pins": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/definitions/dependencyPin"},
+      "allOf": [
+        {"contains": {"properties": {"name": {"const": "gflags"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "glog"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "masstree"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "mimalloc"}}, "required": ["name"]}},
+        {"contains": {"properties": {"name": {"const": "googletest"}}, "required": ["name"]}}
+      ]
+    },
+    "arms": {"$ref": "#/definitions/arms"},
+    "allocations": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/allocation"}
+    },
+    "planned_execution": {"$ref": "#/definitions/plannedExecution"},
+    "actual_runs": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/actualRun"}
+    },
+    "correctness_evidence": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 6,
+      "items": {"$ref": "#/definitions/correctnessEvidence"}
+    },
+    "liveness": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/liveness"}
+    },
+    "admission_telemetry": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/admissionTelemetry"}
+    },
+    "attempts": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/attempt"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"study_stage": {"const": "pilot"}},
+        "required": ["study_stage"]
+      },
+      "then": {
+        "properties": {
+          "planned_execution": {
+            "allOf": [
+              {"$ref": "#/definitions/plannedExecution"},
+              {
+                "properties": {
+                  "consumed_cluster_slots": {"const": [1, 2, 3, 4, 5, 6, 7, 8]}
+                },
+                "required": ["consumed_cluster_slots"]
+              }
+            ]
+          }
+        },
+        "required": ["planned_execution"]
+      }
+    }
+  ]
+}
