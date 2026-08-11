@@ -73,9 +73,6 @@ _STAGE6_STRUCTURAL_CLAUSE_RE = re.compile(
     r"\((i|ii|iii|iv|v)\) (.+?。)"
     r"(?= \((?:i|ii|iii|iv|v)\)| 以上 5 条件)"
 )
-_FENCE_OPEN_RE = re.compile(
-    r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$"
-)
 _STAGE6_POLICY_RE = re.compile(
     r"^段 5 の S / B 裁定後まで `(?P<gate_id>CFAB-[A-Z0-9-]+)` "
     r"\(owner = `(?P<owner>[a-z0-9-]+)`, "
@@ -348,6 +345,59 @@ def _expect_sha256(value: Any, *, label: str) -> str:
     return text
 
 
+def _match_fence_line(
+    line: str,
+    *,
+    opening: tuple[str, int] | None = None,
+) -> tuple[str, int, bool, bool] | None:
+    """CommonMark fence opener または ``opening`` に対応する closer を返す。
+
+    opener は indent 3 column 以下、同種 marker 3 個以上、backtick marker
+    では backtick を含まない info string を要求する。closer は同じ indent
+    上限、同種かつ opener 以上の marker 長、後続が空白だけであることを要求する。
+    第 4 要素は、旧文字数判定だけが fence と誤認した invalid indent を示す。
+    """
+
+    offset = 0
+    indent_columns = 0
+    for character in line:
+        if character == " ":
+            indent_columns += 1
+        elif character == "\t":
+            indent_columns += 4 - (indent_columns % 4)
+        else:
+            break
+        offset += 1
+
+    content = line[offset:]
+    if opening is None:
+        if not content or content[0] not in {"`", "~"}:
+            return None
+        marker_char = content[0]
+        marker_len = len(content) - len(content.lstrip(marker_char))
+        if marker_len < 3:
+            return None
+        invalid_indent = indent_columns >= 4
+        if invalid_indent and offset > 3:
+            return None
+        info = content[marker_len:]
+        return (
+            marker_char,
+            marker_len,
+            marker_char == "`" and "`" in info,
+            invalid_indent,
+        )
+
+    marker_char, opening_len = opening
+    marker_len = len(content) - len(content.lstrip(marker_char))
+    if marker_len < opening_len or content[marker_len:].strip(" \t"):
+        return None
+    invalid_indent = indent_columns >= 4
+    if invalid_indent and offset > 3:
+        return None
+    return marker_char, marker_len, False, invalid_indent
+
+
 def _read_design(path: Path) -> str:
     try:
         text = path.read_text(encoding="utf-8")
@@ -357,33 +407,40 @@ def _read_design(path: Path) -> str:
         raise ContractError("design document must not contain HTML comments")
     visible_lines: list[str] = []
     invalid_backtick_info_lines: list[int] = []
+    invalid_fence_indent_lines: list[int] = []
     fence: tuple[str, int] | None = None
     for lineno, line in enumerate(text.splitlines(keepends=True), 1):
         fence_line = line.rstrip("\r\n")
         if fence is not None:
-            marker_char, marker_len = fence
-            stripped = fence_line.lstrip(" \t")
-            indent = len(fence_line) - len(stripped)
-            if indent <= 3 and re.fullmatch(
-                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
-            ):
+            closer_match = _match_fence_line(fence_line, opening=fence)
+            if closer_match is not None and closer_match[3]:
+                invalid_fence_indent_lines.append(lineno)
+            elif closer_match is not None:
                 fence = None
             continue
-        fence_match = _FENCE_OPEN_RE.fullmatch(fence_line)
+        fence_match = _match_fence_line(fence_line)
         if fence_match is not None:
-            marker = fence_match.group("marker")
-            info = fence_match.group("info")
-            if marker[0] == "`" and "`" in info:
+            marker_char, marker_len, invalid_backtick_info, invalid_indent = fence_match
+            if invalid_indent:
+                invalid_fence_indent_lines.append(lineno)
+                visible_lines.append(line)
+                continue
+            if invalid_backtick_info:
                 invalid_backtick_info_lines.append(lineno)
                 visible_lines.append(line)
                 continue
-            fence = (marker[0], len(marker))
+            fence = (marker_char, marker_len)
             continue
         visible_lines.append(line)
     if invalid_backtick_info_lines:
         raise ContractError(
             "design document has an invalid backtick fence info string: "
             f"lines={invalid_backtick_info_lines}"
+        )
+    if invalid_fence_indent_lines:
+        raise ContractError(
+            "design document has a fence marker with invalid indentation: "
+            f"lines={invalid_fence_indent_lines}"
         )
     if fence is not None:
         raise ContractError("design document has an unclosed fenced code block")
