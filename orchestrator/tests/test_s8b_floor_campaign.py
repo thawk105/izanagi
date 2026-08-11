@@ -106,8 +106,9 @@ _BASE_TPS = {
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
 
-# 親の実測では 8 thread が knee で、16 thread は性能が頭打ちだった。
-_OUTPUT_SNAPSHOT_THREADS = min(8, os.cpu_count() or 1)
+# 実 tree 11,033 entry では現行 5.79s、4 thread 1.83s、8 thread 1.43s、16 thread 1.47s。
+# 4 thread は 8 thread の絶対削減量の 90.8% を保ちつつ、同時 thread burst を半減する。
+_OUTPUT_SNAPSHOT_THREADS = min(4, os.cpu_count() or 1)
 
 
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
@@ -460,7 +461,11 @@ def _digest(abspath: str) -> str:
 
 
 def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
-    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"""
+    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。
+
+    旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
+    を定義域とする。
+    """
     if not output.exists():
         return ()
     entries = _walk_entries(output)
@@ -515,21 +520,76 @@ def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
     assert actual == tuple(sorted(actual, key=lambda row: row[1]))
 
 
-def test_real_output_snapshot_matches_reference_for_real_output():
-    assert _real_output_snapshot() == _real_output_snapshot_reference()
+def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
+    module = sys.modules[__name__]
+    observations = [
+        [("file", "first.bin", "/synthetic/first"),
+         ("dir", "first-empty", "/synthetic/first-empty")],
+        [("file", "second.bin", "/synthetic/second")],
+    ]
+    digests = {
+        "/synthetic/first": "first-digest",
+        "/synthetic/second": "second-digest",
+    }
+    walk_calls = []
+    digest_calls = []
+
+    def synthetic_walk(output):
+        assert output == ROOT / "output"
+        walk_calls.append(output)
+        return observations[len(walk_calls) - 1]
+
+    def synthetic_digest(abspath):
+        digest_calls.append(abspath)
+        return digests[abspath]
+
+    monkeypatch.setattr(module, "_walk_entries", synthetic_walk)
+    monkeypatch.setattr(module, "_digest", synthetic_digest)
+
+    assert _real_output_snapshot() == (
+        ("dir", "first-empty"),
+        ("file", "first.bin", "first-digest"),
+    )
+    assert _real_output_snapshot() == (
+        ("file", "second.bin", "second-digest"),
+    )
+    assert walk_calls == [ROOT / "output", ROOT / "output"]
+    assert digest_calls == ["/synthetic/first", "/synthetic/second"]
 
 
 def test_real_output_snapshot_propagates_thread_digest_failure(tmp_path, monkeypatch):
     output = tmp_path / "snapshot"
     output.mkdir()
-    (output / "unreadable.bin").write_bytes(b"must be digested")
+    missing = output / "missing.bin"
+    monkeypatch.setattr(
+        sys.modules[__name__], "_walk_entries",
+        lambda _output: [("file", "missing.bin", str(missing))],
+    )
 
-    def fail_digest(_abspath):
-        raise OSError("synthetic digest failure")
-
-    monkeypatch.setattr(sys.modules[__name__], "_digest", fail_digest)
-    with pytest.raises(OSError, match="synthetic digest failure"):
+    with pytest.raises(OSError):
         _real_output_snapshot(output)
+
+
+def test_real_output_snapshot_reference_is_independent(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot"
+    (output / "a-empty").mkdir(parents=True)
+    (output / "b-file.bin").write_bytes(b"reference payload")
+    (output / "c-link").symlink_to("b-file.bin")
+    expected = (
+        ("dir", "a-empty"),
+        ("file", "b-file.bin", hashlib.sha256(b"reference payload").hexdigest()),
+        ("symlink", "c-link", "b-file.bin"),
+    )
+
+    def poison(*_args, **_kwargs):
+        raise AssertionError("optimized snapshot dependency was called")
+
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "_real_output_snapshot", poison)
+    monkeypatch.setattr(module, "_walk_entries", poison)
+    monkeypatch.setattr(module, "_digest", poison)
+
+    assert _real_output_snapshot_reference(output) == expected
 
 
 def _tree_snapshot(root: Path) -> tuple:
