@@ -67,12 +67,48 @@
     "randomized_dimension": "submission-order-only",
     "scheduler_assigns_nodes": true,
     "submission_order": {
+      "canonical_encoding": "utf8-json-array-no-whitespace",
+      "canonical_permutation": "[\"slot-02\",\"slot-00\",\"slot-07\",\"slot-11\",\"slot-05\",\"slot-09\",\"slot-04\",\"slot-03\",\"slot-12\",\"slot-10\",\"slot-01\",\"slot-06\",\"slot-08\"]",
+      "expected_permutation": [
+        "slot-02",
+        "slot-00",
+        "slot-07",
+        "slot-11",
+        "slot-05",
+        "slot-09",
+        "slot-04",
+        "slot-03",
+        "slot-12",
+        "slot-10",
+        "slot-01",
+        "slot-06",
+        "slot-08"
+      ],
       "freeze_before_submission": true,
+      "permutation_generation": "Generator(PCG64(seed)).permutation(slot_domain)",
+      "prng": "PCG64",
       "receipt_fields": [
         "seed",
         "permutation"
       ],
-      "seed_source": "approved-attempt-manifest"
+      "seed": 810,
+      "seed_source": "approved-attempt-manifest",
+      "slot_domain": [
+        "slot-00",
+        "slot-01",
+        "slot-02",
+        "slot-03",
+        "slot-04",
+        "slot-05",
+        "slot-06",
+        "slot-07",
+        "slot-08",
+        "slot-09",
+        "slot-10",
+        "slot-11",
+        "slot-12"
+      ],
+      "version": "NumPy-2.2.6"
     },
     "treatment_to_node_assignment_exists": false
   },
@@ -365,6 +401,17 @@
   },
   "estimator": {
     "alpha_use_count": 1,
+    "f_quantile_backend": "frozen_binary64_hex_v1",
+    "f_quantiles_binary64_hex": {
+      "nu1=11,nu2=99": {
+        "p_005": "0x1.a0c1a840d05a8p-2",
+        "p_095": "0x1.e2fdb254a20a4p+0"
+      },
+      "nu1=12,nu2=108": {
+        "p_005": "0x1.b48318ba0bb12p-2",
+        "p_095": "0x1.d7c74477a51acp+0"
+      }
+    },
     "lower_variance": "max(0,(MS_A/F_quantile(0.95,nu1,nu2)-MS_E)/R)",
     "model": "node-random-effect-round-fixed-effect",
     "node_df": "N-1",
@@ -442,10 +489,8 @@
         "tau_hat": "0"
       },
       "generation": {
-        "kind": "constant-zero-grid",
-        "node_step": "0",
-        "round_step": "0",
-        "slope_step": "0"
+        "kind": "negative-variance-grid",
+        "quadratic_residual_amplitude": "0.001"
       },
       "id": "upper_truncated_to_zero",
       "terminal_state": "valid"
@@ -501,7 +546,7 @@
         "slope_step": "0.001"
       },
       "id": "slope_gate_fires",
-      "terminal_state": "valid"
+      "terminal_state": "terminal_reduced"
     },
     {
       "expected": {
@@ -522,7 +567,15 @@
     }
   ],
   "limitations": {
-    "execution_mediation_incomplete": true
+    "approval_receipt_trust_root_absent": true,
+    "execution_mediation_incomplete": true,
+    "unfrozen_procedures": [
+      "build_argv",
+      "qsub_argv",
+      "raw_throughput_to_log_matrix",
+      "secondary_quantities",
+      "downstream_decision_consumer"
+    ]
   },
   "lineage": {
     "attempt_schema": [
@@ -551,6 +604,15 @@
       "validation_no_wait": true,
       "wal_enabled": false
     },
+    "canonical_benchmark_argv": [
+      "-thread_num=48",
+      "-ycsb_tuple_num=1000000",
+      "-extime=3",
+      "-clocks_per_us=2100",
+      "-ycsb_rratio=50",
+      "-ycsb_zipf_skew=0.9",
+      "-ycsb_rmw=0"
+    ],
     "ccbench_commit": "d706650cdb31e442bef45b9b4216951d4fb40969",
     "clocks_per_us": 2100,
     "compiler": {
@@ -640,6 +702,47 @@
     "run_authorized": false,
     "source": "docs/pegasus-node-variance-protocol.md"
   },
+  "scalar_golden_vectors": [
+    {
+      "expected": {
+        "conclusion_code": "underdetermined"
+      },
+      "id": "upper_exact_scalar_equality",
+      "input": {
+        "slope_gate_fired": false,
+        "tau_l_binary64_hex": "0x0.0p+0",
+        "tau_star_binary64_hex": "0x1.89374bc6a7efap-8",
+        "tau_u_binary64_hex": "0x1.89374bc6a7efap-8",
+        "terminal_state": "valid"
+      },
+      "operation": "conclusion_code"
+    },
+    {
+      "expected": {
+        "conclusion_code": "underdetermined"
+      },
+      "id": "lower_exact_scalar_equality",
+      "input": {
+        "slope_gate_fired": false,
+        "tau_l_binary64_hex": "0x1.89374bc6a7efap-8",
+        "tau_star_binary64_hex": "0x1.89374bc6a7efap-8",
+        "tau_u_binary64_hex": "0x1.47ae147ae147bp-6",
+        "terminal_state": "valid"
+      },
+      "operation": "conclusion_code"
+    },
+    {
+      "expected": {
+        "slope_gate_fired": false
+      },
+      "id": "slope_exact_scalar_equality",
+      "input": {
+        "s_beta_binary64_hex": "0x1.0000000000000p+1",
+        "v_beta_binary64_hex": "0x1.0000000000000p+0"
+      },
+      "operation": "slope_gate_fires"
+    }
+  ],
   "schema_version": "pegasus-t810-preregistration/v1",
   "terminal": {
     "boundaries": {

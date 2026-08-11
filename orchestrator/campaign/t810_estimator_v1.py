@@ -6,8 +6,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp, isfinite, lgamma, log, sqrt
-from typing import Sequence
+from decimal import Decimal
+from math import isfinite, sqrt
+from typing import Any, Mapping, Sequence
 
 
 ESTIMATOR_VERSION_ID = "node_random_round_fixed_f_interval_v1"
@@ -15,17 +16,15 @@ SELECTED_NODE_COUNT = 13
 REDUCED_NODE_COUNT = 12
 ROUND_COUNT = 10
 TAU_STAR = 0.006
-
-
-try:  # pragma: no cover - この repository の標準環境には SciPy がない。
-    from scipy.stats import f as _scipy_f
-except ImportError:  # pragma: no cover - backend 定数を通して下の分岐を検査する。
-    _scipy_f = None
-
-
-F_QUANTILE_BACKEND = (
-    "scipy.stats.f.ppf" if _scipy_f is not None else "regularized_beta_bisection_v1"
-)
+# 導出 provenance。runtime は下記 hex lookup だけを使う。
+F_QUANTILE_BACKEND = "regularized_beta_bisection_v1"
+F_QUANTILE_RUNTIME = "frozen_binary64_hex_v1"
+F_QUANTILES_BINARY64_HEX = {
+    (12, 108, "0.05"): "0x1.b48318ba0bb12p-2",
+    (12, 108, "0.95"): "0x1.d7c74477a51acp+0",
+    (11, 99, "0.05"): "0x1.a0c1a840d05a8p-2",
+    (11, 99, "0.95"): "0x1.e2fdb254a20a4p+0",
+}
 
 
 class T810EstimatorError(ValueError):
@@ -53,41 +52,6 @@ class T810Estimate:
     v_beta: float
     slope_gate_fired: bool
     conclusion_code: str
-
-
-@dataclass(frozen=True)
-class TerminalEvidence:
-    """§5.4 の順序付き FSM に必要な集約済み evidence。
-
-    receipt からこの evidence を作る join は validator の責務であり、claimed state は
-    意図的に入力へ持たない。
-    """
-
-    pre_release_invalid: bool = False
-    post_release_pre_measurement_invalid: bool = False
-    incomplete_after_start: bool = False
-    completed_node_count: int = 0
-    complete_round_counts: tuple[int, ...] = ()
-
-
-def classify_terminal_state(evidence: TerminalEvidence) -> str:
-    """§5.4 の上から最初に一致する終端状態を返す。"""
-
-    if evidence.pre_release_invalid:
-        return "pre_release_invalid"
-    if evidence.post_release_pre_measurement_invalid:
-        return "post_release_pre_measurement_invalid"
-    if evidence.incomplete_after_start:
-        return "incomplete_after_start"
-    if evidence.completed_node_count == REDUCED_NODE_COUNT:
-        if evidence.complete_round_counts == (ROUND_COUNT,) * REDUCED_NODE_COUNT:
-            return "terminal_reduced"
-        return "incomplete_after_start"
-    if evidence.completed_node_count == SELECTED_NODE_COUNT:
-        if evidence.complete_round_counts == (ROUND_COUNT,) * SELECTED_NODE_COUNT:
-            return "valid"
-        return "incomplete_after_start"
-    return "incomplete_after_start"
 
 
 def effective_node_count(terminal_state: str) -> int:
@@ -125,99 +89,27 @@ def conclusion_code(
     return "underdetermined"
 
 
-def _beta_continued_fraction(a: float, b: float, x: float) -> float:
-    """正則化不完全 beta 用の Lentz continued fraction。"""
-
-    max_iterations = 400
-    epsilon = 3.0e-14
-    tiny = 1.0e-300
-    qab = a + b
-    qap = a + 1.0
-    qam = a - 1.0
-    c = 1.0
-    d = 1.0 - qab * x / qap
-    if abs(d) < tiny:
-        d = tiny
-    d = 1.0 / d
-    result = d
-    for iteration in range(1, max_iterations + 1):
-        even = 2 * iteration
-        coefficient = iteration * (b - iteration) * x / (
-            (qam + even) * (a + even)
-        )
-        d = 1.0 + coefficient * d
-        if abs(d) < tiny:
-            d = tiny
-        c = 1.0 + coefficient / c
-        if abs(c) < tiny:
-            c = tiny
-        d = 1.0 / d
-        result *= d * c
-
-        coefficient = -(a + iteration) * (qab + iteration) * x / (
-            (a + even) * (qap + even)
-        )
-        d = 1.0 + coefficient * d
-        if abs(d) < tiny:
-            d = tiny
-        c = 1.0 + coefficient / c
-        if abs(c) < tiny:
-            c = tiny
-        d = 1.0 / d
-        delta = d * c
-        result *= delta
-        if abs(delta - 1.0) <= epsilon:
-            return result
-    raise T810EstimatorError("incomplete beta continued fraction did not converge")
-
-
-def _regularized_beta(x: float, a: float, b: float) -> float:
-    if x <= 0.0:
-        return 0.0
-    if x >= 1.0:
-        return 1.0
-    front = exp(
-        lgamma(a + b) - lgamma(a) - lgamma(b) + a * log(x) + b * log(1.0 - x)
-    )
-    if x < (a + 1.0) / (a + b + 2.0):
-        return front * _beta_continued_fraction(a, b, x) / a
-    return 1.0 - front * _beta_continued_fraction(b, a, 1.0 - x) / b
-
-
-def _f_cdf(value: float, numerator_df: int, denominator_df: int) -> float:
-    if value <= 0.0:
-        return 0.0
-    transformed = numerator_df * value / (
-        numerator_df * value + denominator_df
-    )
-    return _regularized_beta(
-        transformed, numerator_df / 2.0, denominator_df / 2.0
-    )
-
-
 def f_quantile(probability: float, numerator_df: int, denominator_df: int) -> float:
-    """F 分布の分位点。SciPy があれば ppf、なければ固定 bisection を使う。"""
+    """事前登録した 2 自由度組・2 分位点の binary64 定数を返す。"""
 
     if not 0.0 < probability < 1.0:
         raise T810EstimatorError("F probability must be strictly between zero and one")
     if numerator_df <= 0 or denominator_df <= 0:
         raise T810EstimatorError("F degrees of freedom must be positive")
-    if _scipy_f is not None:  # pragma: no cover - SciPy 環境でのみ通る。
-        return float(_scipy_f.ppf(probability, numerator_df, denominator_df))
-
-    lower = 0.0
-    upper = 1.0
-    while _f_cdf(upper, numerator_df, denominator_df) < probability:
-        upper *= 2.0
-        if not isfinite(upper):
-            raise T810EstimatorError("could not bracket F quantile")
-    for _ in range(180):
-        middle = (lower + upper) / 2.0
-        if _f_cdf(middle, numerator_df, denominator_df) < probability:
-            lower = middle
-        else:
-            upper = middle
-    return (lower + upper) / 2.0
+    if probability == 0.05:
+        probability_key = "0.05"
+    elif probability == 0.95:
+        probability_key = "0.95"
+    else:
+        raise T810EstimatorError("the requested F probability is not frozen")
+    key = (numerator_df, denominator_df, probability_key)
+    try:
+        frozen_hex = F_QUANTILES_BINARY64_HEX[key]
+    except KeyError as exc:
+        raise T810EstimatorError(
+            "F quantile is not frozen for the requested probability and degrees of freedom"
+        ) from exc
+    return float.fromhex(frozen_hex)
 
 
 def _validated_matrix(
@@ -329,3 +221,136 @@ def evaluate_t810(
         slope_gate_fired=gate,
         conclusion_code=code,
     )
+
+
+def _matrix_from_golden_vector(
+    vector: Mapping[str, Any],
+) -> tuple[tuple[float, ...], ...]:
+    terminal_state = str(vector["terminal_state"])
+    node_count = effective_node_count(terminal_state)
+    generation = vector["generation"]
+    kind = generation["kind"]
+    centered_rounds = tuple(index - 4.5 for index in range(ROUND_COUNT))
+    centered_nodes = tuple(
+        index - (node_count - 1) / 2.0 for index in range(node_count)
+    )
+    if kind in {"centered-linear-grid", "constant-zero-grid"}:
+        node_step = float(Decimal(generation["node_step"]))
+        round_step = float(Decimal(generation["round_step"]))
+        slope_step = float(Decimal(generation["slope_step"]))
+        return tuple(
+            tuple(
+                node_step * centered_node
+                + (round_step + slope_step * centered_node) * centered_round
+                for centered_round in centered_rounds
+            )
+            for centered_node in centered_nodes
+        )
+    if kind == "negative-variance-grid":
+        amplitude = float(Decimal(generation["quadratic_residual_amplitude"]))
+        mean_square = sum(value * value for value in centered_rounds) / ROUND_COUNT
+        residual_shape = tuple(value * value - mean_square for value in centered_rounds)
+        return tuple(
+            tuple(amplitude * centered_node * residual for residual in residual_shape)
+            for centered_node in centered_nodes
+        )
+    if kind == "slope-gate-equality-grid":
+        residual_amplitude = float(
+            Decimal(generation["quadratic_residual_amplitude"])
+        )
+        node_step = float(Decimal(generation["node_intercept_step"]))
+        sxx = sum(value * value for value in centered_rounds)
+        mean_square = sxx / ROUND_COUNT
+        residual_shape = tuple(value * value - mean_square for value in centered_rounds)
+        residual_ss = residual_amplitude**2 * sum(
+            value * value for value in residual_shape
+        )
+        se_squared = residual_ss / (ROUND_COUNT - 2) / sxx
+        node_sample_variance = node_count * (node_count + 1) / 12
+        beta_step = sqrt(2 * se_squared / node_sample_variance)
+        return tuple(
+            tuple(
+                node_step * centered_node
+                + beta_step * centered_node * centered_rounds[round_index]
+                + residual_amplitude * residual_shape[round_index]
+                for round_index in range(ROUND_COUNT)
+            )
+            for centered_node in centered_nodes
+        )
+    raise T810EstimatorError(f"unknown frozen golden generator: {kind!r}")
+
+
+def _require_frozen_float(actual: float, expected: str, field: str) -> None:
+    frozen = float(Decimal(expected))
+    if actual.hex() != frozen.hex():
+        raise T810EstimatorError(
+            f"estimator conformance failed for {field}: "
+            f"{actual.hex()} != {frozen.hex()}"
+        )
+
+
+def assert_estimator_conformance(preregistration: Any) -> None:
+    """artifact の全 matrix / exact-scalar golden を現実装で再生する。"""
+
+    projection = preregistration.projection
+    if projection["estimator"]["f_quantile_backend"] != F_QUANTILE_RUNTIME:
+        raise T810EstimatorError("frozen F runtime does not match the estimator")
+    artifact_f = projection["estimator"]["f_quantiles_binary64_hex"]
+    implemented_f = {
+        "nu1=11,nu2=99": {
+            "p_005": F_QUANTILES_BINARY64_HEX[(11, 99, "0.05")],
+            "p_095": F_QUANTILES_BINARY64_HEX[(11, 99, "0.95")],
+        },
+        "nu1=12,nu2=108": {
+            "p_005": F_QUANTILES_BINARY64_HEX[(12, 108, "0.05")],
+            "p_095": F_QUANTILES_BINARY64_HEX[(12, 108, "0.95")],
+        },
+    }
+    if artifact_f != implemented_f:
+        raise T810EstimatorError("frozen F constants do not match the estimator")
+
+    for vector in projection["golden_vectors"]:
+        result = evaluate_t810(
+            _matrix_from_golden_vector(vector),
+            terminal_state=vector["terminal_state"],
+        )
+        expected = vector["expected"]
+        _require_frozen_float(result.tau_hat, expected["tau_hat"], vector["id"])
+        _require_frozen_float(result.tau_l, expected["tau_L"], vector["id"])
+        _require_frozen_float(result.tau_u, expected["tau_U"], vector["id"])
+        if result.slope_gate_fired is not expected["slope_gate_fired"]:
+            raise T810EstimatorError(
+                f"estimator conformance failed for {vector['id']} slope gate"
+            )
+        if result.conclusion_code != expected["conclusion_code"]:
+            raise T810EstimatorError(
+                f"estimator conformance failed for {vector['id']} conclusion"
+            )
+
+    for vector in projection["scalar_golden_vectors"]:
+        inputs = vector["input"]
+        if vector["operation"] == "conclusion_code":
+            actual = conclusion_code(
+                terminal_state=inputs["terminal_state"],
+                slope_gate_fired=inputs["slope_gate_fired"],
+                tau_l=float.fromhex(inputs["tau_l_binary64_hex"]),
+                tau_u=float.fromhex(inputs["tau_u_binary64_hex"]),
+                tau_star=float.fromhex(inputs["tau_star_binary64_hex"]),
+            )
+            if actual != vector["expected"]["conclusion_code"]:
+                raise T810EstimatorError(
+                    f"estimator conformance failed for {vector['id']} conclusion"
+                )
+        elif vector["operation"] == "slope_gate_fires":
+            actual = slope_gate_fires(
+                float.fromhex(inputs["s_beta_binary64_hex"]),
+                float.fromhex(inputs["v_beta_binary64_hex"]),
+            )
+            if actual is not vector["expected"]["slope_gate_fired"]:
+                raise T810EstimatorError(
+                    f"estimator conformance failed for {vector['id']} slope gate"
+                )
+        else:  # schema validation should make this unreachable; keep fail-closed.
+            raise T810EstimatorError(
+                f"unknown scalar golden operation: {vector['operation']!r}"
+            )

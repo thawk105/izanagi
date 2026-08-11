@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+from math import isfinite
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -38,11 +40,30 @@ class ApprovalReceipt:
     schema_version: str
 
 
-@dataclass(frozen=True)
+_VERIFIED_CONSTRUCTION_TOKEN = object()
+
+
+@dataclass(frozen=True, init=False)
 class VerifiedT810Preregistration:
     sha256: str
     approval_id: str
     projection: Mapping[str, Any]
+
+    def __init__(
+        self,
+        sha256: str,
+        approval_id: str,
+        projection: Mapping[str, Any],
+        *,
+        _loader_token: object | None = None,
+    ) -> None:
+        if _loader_token is not _VERIFIED_CONSTRUCTION_TOKEN:
+            raise T810PreregistrationError(
+                "VerifiedT810Preregistration can only be constructed by the loader"
+            )
+        object.__setattr__(self, "sha256", sha256)
+        object.__setattr__(self, "approval_id", approval_id)
+        object.__setattr__(self, "projection", projection)
 
     @property
     def run_authorized(self) -> bool:
@@ -177,20 +198,209 @@ def _expect(value: Mapping[str, Any], key: str, expected: Any, path: str) -> Non
         raise T810PreregistrationError(f"{path}/{key} does not match the frozen literal")
 
 
-def _walk_no_hidden_design(value: Any, path: str = "") -> None:
-    if isinstance(value, dict):
-        for key, child in value.items():
-            lowered = key.lower()
-            if "candidate" in lowered or "design_option" in lowered:
+def _validate_exact_literal(value: Any, expected: Any, path: str) -> None:
+    """object/list の全枝を exact schema と exact literal で閉じる。"""
+
+    if type(value) is not type(expected):
+        raise T810PreregistrationError(f"{path} has the wrong frozen type")
+    if isinstance(expected, dict):
+        if set(value) != set(expected):
+            raise T810PreregistrationError(f"{path} has an unknown or missing field")
+        for key, expected_child in expected.items():
+            _validate_exact_literal(value[key], expected_child, f"{path}/{key}")
+        return
+    if isinstance(expected, list):
+        if len(value) != len(expected):
+            raise T810PreregistrationError(f"{path} has the wrong frozen length")
+        for index, (child, expected_child) in enumerate(zip(value, expected)):
+            _validate_exact_literal(child, expected_child, f"{path}/{index}")
+        return
+    if value != expected:
+        raise T810PreregistrationError(f"{path} does not match the frozen literal")
+
+
+def _validate_binary64_hex(value: Any, path: str) -> None:
+    if not isinstance(value, str):
+        raise T810PreregistrationError(f"{path} must be a binary64 hex string")
+    try:
+        parsed = float.fromhex(value)
+    except ValueError as exc:
+        raise T810PreregistrationError(f"{path} is not binary64 hex") from exc
+    if not isfinite(parsed) or parsed.hex() != value:
+        raise T810PreregistrationError(f"{path} is not canonical binary64 hex")
+
+
+def _validate_decimal_string(value: Any, path: str) -> None:
+    if not isinstance(value, str):
+        raise T810PreregistrationError(f"{path} must be a decimal string")
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation as exc:
+        raise T810PreregistrationError(f"{path} is not a decimal string") from exc
+    if not parsed.is_finite():
+        raise T810PreregistrationError(f"{path} must be finite")
+
+
+def _validate_golden_vectors(value: Any) -> None:
+    if not isinstance(value, list):
+        raise T810PreregistrationError("/golden_vectors must be an array")
+    expected_states = {
+        "selected_n13_normal": "valid",
+        "reduced_n12_normal": "terminal_reduced",
+        "upper_truncated_to_zero": "valid",
+        "upper_equality_boundary": "valid",
+        "lower_equality_boundary": "valid",
+        "slope_gate_fires": "terminal_reduced",
+        "slope_gate_strict_boundary": "valid",
+    }
+    expected_kinds = {
+        "selected_n13_normal": "centered-linear-grid",
+        "reduced_n12_normal": "centered-linear-grid",
+        "upper_truncated_to_zero": "negative-variance-grid",
+        "upper_equality_boundary": "centered-linear-grid",
+        "lower_equality_boundary": "centered-linear-grid",
+        "slope_gate_fires": "centered-linear-grid",
+        "slope_gate_strict_boundary": "slope-gate-equality-grid",
+    }
+    ids = [vector.get("id") if isinstance(vector, dict) else None for vector in value]
+    if len(ids) != len(expected_states) or set(ids) != set(expected_states):
+        raise T810PreregistrationError("golden vector IDs are not the frozen closed set")
+    expected_extras = {
+        "upper_equality_boundary": {"boundary"},
+        "lower_equality_boundary": {"boundary"},
+        "slope_gate_strict_boundary": {"slope_relation"},
+    }
+    for index, vector_value in enumerate(value):
+        path = f"/golden_vectors/{index}"
+        vector = _exact_keys(
+            vector_value, {"expected", "generation", "id", "terminal_state"}, path
+        )
+        vector_id = vector["id"]
+        _expect(vector, "terminal_state", expected_states[vector_id], path)
+        generation = vector["generation"]
+        if not isinstance(generation, dict) or not isinstance(generation.get("kind"), str):
+            raise T810PreregistrationError(f"{path}/generation is malformed")
+        kind = generation["kind"]
+        if kind != expected_kinds[vector_id]:
+            raise T810PreregistrationError(
+                f"{path}/generation kind does not match the frozen vector ID"
+            )
+        if kind in {"centered-linear-grid", "constant-zero-grid"}:
+            generation_keys = {"kind", "node_step", "round_step", "slope_step"}
+        elif kind == "negative-variance-grid":
+            generation_keys = {"kind", "quadratic_residual_amplitude"}
+        elif kind == "slope-gate-equality-grid":
+            generation_keys = {
+                "kind",
+                "node_intercept_step",
+                "quadratic_residual_amplitude",
+            }
+        else:
+            raise T810PreregistrationError(f"{path}/generation kind is not frozen")
+        _exact_keys(generation, generation_keys, f"{path}/generation")
+        if any(not isinstance(item, str) for item in generation.values()):
+            raise T810PreregistrationError(f"{path}/generation fields must be strings")
+        for key in generation_keys - {"kind"}:
+            _validate_decimal_string(generation[key], f"{path}/generation/{key}")
+
+        expected = vector["expected"]
+        expected_keys = {
+            "conclusion_code",
+            "slope_gate_fired",
+            "tau_L",
+            "tau_U",
+            "tau_hat",
+        } | expected_extras.get(vector_id, set())
+        _exact_keys(expected, expected_keys, f"{path}/expected")
+        if type(expected["slope_gate_fired"]) is not bool:
+            raise T810PreregistrationError(
+                f"{path}/expected/slope_gate_fired must be boolean"
+            )
+        for key in expected_keys - {"slope_gate_fired"}:
+            if not isinstance(expected[key], str):
+                raise T810PreregistrationError(f"{path}/expected/{key} must be a string")
+        for key in {"tau_L", "tau_U", "tau_hat"}:
+            _validate_decimal_string(expected[key], f"{path}/expected/{key}")
+
+
+def _validate_scalar_golden_vectors(value: Any) -> None:
+    if not isinstance(value, list):
+        raise T810PreregistrationError("/scalar_golden_vectors must be an array")
+    expected_operations = {
+        "upper_exact_scalar_equality": "conclusion_code",
+        "lower_exact_scalar_equality": "conclusion_code",
+        "slope_exact_scalar_equality": "slope_gate_fires",
+    }
+    ids = [vector.get("id") if isinstance(vector, dict) else None for vector in value]
+    if len(ids) != len(expected_operations) or set(ids) != set(expected_operations):
+        raise T810PreregistrationError(
+            "scalar golden vector IDs are not the frozen closed set"
+        )
+    for index, vector_value in enumerate(value):
+        path = f"/scalar_golden_vectors/{index}"
+        vector = _exact_keys(
+            vector_value, {"expected", "id", "input", "operation"}, path
+        )
+        vector_id = vector["id"]
+        operation = expected_operations[vector_id]
+        _expect(vector, "operation", operation, path)
+        if operation == "conclusion_code":
+            inputs = _exact_keys(
+                vector["input"],
+                {
+                    "slope_gate_fired",
+                    "tau_l_binary64_hex",
+                    "tau_star_binary64_hex",
+                    "tau_u_binary64_hex",
+                    "terminal_state",
+                },
+                f"{path}/input",
+            )
+            if type(inputs["slope_gate_fired"]) is not bool:
                 raise T810PreregistrationError(
-                    f"hidden candidate design field is forbidden at {path}/{key}"
+                    f"{path}/input/slope_gate_fired must be boolean"
                 )
-            _walk_no_hidden_design(child, f"{path}/{key}")
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            _walk_no_hidden_design(child, f"{path}/{index}")
-    elif isinstance(value, float):
-        raise T810PreregistrationError(f"float is forbidden at {path}")
+            _expect(inputs, "terminal_state", "valid", f"{path}/input")
+            for key in (
+                "tau_l_binary64_hex",
+                "tau_star_binary64_hex",
+                "tau_u_binary64_hex",
+            ):
+                _validate_binary64_hex(inputs[key], f"{path}/input/{key}")
+            if vector_id == "upper_exact_scalar_equality" and (
+                inputs["tau_u_binary64_hex"] != inputs["tau_star_binary64_hex"]
+            ):
+                raise T810PreregistrationError(
+                    f"{path}/input does not encode exact tau_U equality"
+                )
+            if vector_id == "lower_exact_scalar_equality" and (
+                inputs["tau_l_binary64_hex"] != inputs["tau_star_binary64_hex"]
+            ):
+                raise T810PreregistrationError(
+                    f"{path}/input does not encode exact tau_L equality"
+                )
+            expected = _exact_keys(
+                vector["expected"], {"conclusion_code"}, f"{path}/expected"
+            )
+            _expect(expected, "conclusion_code", "underdetermined", f"{path}/expected")
+        else:
+            inputs = _exact_keys(
+                vector["input"],
+                {"s_beta_binary64_hex", "v_beta_binary64_hex"},
+                f"{path}/input",
+            )
+            for key in inputs:
+                _validate_binary64_hex(inputs[key], f"{path}/input/{key}")
+            if float.fromhex(inputs["s_beta_binary64_hex"]) != (
+                2.0 * float.fromhex(inputs["v_beta_binary64_hex"])
+            ):
+                raise T810PreregistrationError(
+                    f"{path}/input does not encode exact slope equality"
+                )
+            expected = _exact_keys(
+                vector["expected"], {"slope_gate_fired"}, f"{path}/expected"
+            )
+            _expect(expected, "slope_gate_fired", False, f"{path}/expected")
 
 
 def _validate_schema(root: dict[str, Any]) -> None:
@@ -213,6 +423,7 @@ def _validate_schema(root: dict[str, Any]) -> None:
             "measurement",
             "preflight",
             "protocol",
+            "scalar_golden_vectors",
             "schema_version",
             "terminal",
         },
@@ -230,9 +441,72 @@ def _validate_schema(root: dict[str, Any]) -> None:
     _expect(authorization, "stage1_satisfied", False, "/authorization")
     _expect(authorization, "missing_components", ["a", "b", "c", "d2", "f", "g"], "/authorization")
     limitations = _exact_keys(
-        root["limitations"], {"execution_mediation_incomplete"}, "/limitations"
+        root["limitations"],
+        {
+            "approval_receipt_trust_root_absent",
+            "execution_mediation_incomplete",
+            "unfrozen_procedures",
+        },
+        "/limitations",
+    )
+    _expect(
+        limitations,
+        "approval_receipt_trust_root_absent",
+        True,
+        "/limitations",
     )
     _expect(limitations, "execution_mediation_incomplete", True, "/limitations")
+    _expect(
+        limitations,
+        "unfrozen_procedures",
+        [
+            "build_argv",
+            "qsub_argv",
+            "raw_throughput_to_log_matrix",
+            "secondary_quantities",
+            "downstream_decision_consumer",
+        ],
+        "/limitations",
+    )
+
+    assignment = root["assignment"]
+    expected_assignment = {
+        "randomized_dimension": "submission-order-only",
+        "scheduler_assigns_nodes": True,
+        "submission_order": {
+            "canonical_encoding": "utf8-json-array-no-whitespace",
+            "canonical_permutation": (
+                '["slot-02","slot-00","slot-07","slot-11","slot-05",'
+                '"slot-09","slot-04","slot-03","slot-12","slot-10",'
+                '"slot-01","slot-06","slot-08"]'
+            ),
+            "expected_permutation": [
+                "slot-02",
+                "slot-00",
+                "slot-07",
+                "slot-11",
+                "slot-05",
+                "slot-09",
+                "slot-04",
+                "slot-03",
+                "slot-12",
+                "slot-10",
+                "slot-01",
+                "slot-06",
+                "slot-08",
+            ],
+            "freeze_before_submission": True,
+            "permutation_generation": "Generator(PCG64(seed)).permutation(slot_domain)",
+            "prng": "PCG64",
+            "receipt_fields": ["seed", "permutation"],
+            "seed": 810,
+            "seed_source": "approved-attempt-manifest",
+            "slot_domain": [f"slot-{index:02d}" for index in range(13)],
+            "version": "NumPy-2.2.6",
+        },
+        "treatment_to_node_assignment_exists": False,
+    }
+    _validate_exact_literal(assignment, expected_assignment, "/assignment")
 
     design = _exact_keys(
         root["design"],
@@ -251,6 +525,63 @@ def _validate_schema(root: dict[str, Any]) -> None:
         },
         "/design",
     )
+    expected_design = {
+        "alpha": "0.05",
+        "alpha_sidedness": "one-sided",
+        "assurance": {"minimum": "0.80"},
+        "assurance_reproduction": {
+            "bit_generator": "PCG64",
+            "draw_order": ["MS_A", "MS_E"],
+            "draws": 400000,
+            "failure_action": "fail-closed",
+            "failure_code": "reference_not_reproduced",
+            "generator": "Generator",
+            "independent_check": {
+                "draws": 10000000,
+                "dropout": "0.8077",
+                "selected": "0.8463",
+            },
+            "ms_a_draw": "chisquare(N-1,draws)/(N-1)*sigma_e^2",
+            "ms_e_draw": (
+                "chisquare((N-1)*(R-1),draws)/((N-1)*(R-1))*sigma_e^2"
+            ),
+            "numpy_version": "2.2.6",
+            "pass_predicate": "tau_U < tau_star",
+            "reported_dropout": "0.8080",
+            "reported_selected": "0.8462",
+            "seed": 810,
+            "sigma_e": "0.012479",
+            "update_values_on_mismatch": False,
+            "wins": {"dropout": 323211, "selected": 338491},
+        },
+        "dropout_assurance": {
+            "minimum": "0.80",
+            "node_count_expression": "N-1",
+        },
+        "effective_states": {
+            "terminal_reduced": {
+                "effective_node_count": 12,
+                "nu1": 11,
+                "nu2": 99,
+            },
+            "valid": {"effective_node_count": 13, "nu1": 12, "nu2": 108},
+        },
+        "objective": "minimize-N-times-R",
+        "repetition_precision": {
+            "formula": "1/sqrt(2*(R-1))",
+            "minimum_round_count": 10,
+            "strict_upper_bound": "0.25",
+        },
+        "selected": {
+            "node_count": 13,
+            "round_count": 10,
+            "total_measurements": 130,
+            "unique_minimum": True,
+        },
+        "tau_star": "0.006",
+        "tau_star_origin": "human-value-judgment-rounded-conservatively",
+    }
+    _validate_exact_literal(design, expected_design, "/design")
     selected = _exact_keys(
         design["selected"],
         {"node_count", "round_count", "total_measurements", "unique_minimum"},
@@ -311,10 +642,35 @@ def _validate_schema(root: dict[str, Any]) -> None:
     )
     if len(measurement["environment"]["contract_sha256"]) != 64:
         raise T810PreregistrationError("environment contract digest must have length 64")
+    _expect(
+        measurement,
+        "canonical_benchmark_argv",
+        [
+            "-thread_num=48",
+            "-ycsb_tuple_num=1000000",
+            "-extime=3",
+            "-clocks_per_us=2100",
+            "-ycsb_rratio=50",
+            "-ycsb_zipf_skew=0.9",
+            "-ycsb_rmw=0",
+        ],
+        "/measurement",
+    )
 
     estimator = root["estimator"]
     expected_estimator = {
         "alpha_use_count": 1,
+        "f_quantile_backend": "frozen_binary64_hex_v1",
+        "f_quantiles_binary64_hex": {
+            "nu1=11,nu2=99": {
+                "p_005": "0x1.a0c1a840d05a8p-2",
+                "p_095": "0x1.e2fdb254a20a4p+0",
+            },
+            "nu1=12,nu2=108": {
+                "p_005": "0x1.b48318ba0bb12p-2",
+                "p_095": "0x1.d7c74477a51acp+0",
+            },
+        },
         "lower_variance": "max(0,(MS_A/F_quantile(0.95,nu1,nu2)-MS_E)/R)",
         "model": "node-random-effect-round-fixed-effect",
         "node_df": "N-1",
@@ -387,9 +743,8 @@ def _validate_schema(root: dict[str, Any]) -> None:
     if terminal.get("evaluation") != "ordered-first-match":
         raise T810PreregistrationError("terminal evaluation order drifted")
 
-    if not isinstance(root["golden_vectors"], list) or len(root["golden_vectors"]) < 7:
-        raise T810PreregistrationError("golden vector closure is incomplete")
-    _walk_no_hidden_design(root)
+    _validate_golden_vectors(root["golden_vectors"])
+    _validate_scalar_golden_vectors(root["scalar_golden_vectors"])
 
 
 def _freeze(value: Any) -> Any:
@@ -420,11 +775,24 @@ def load_t810_preregistration(
     if raw != canonical:
         raise T810PreregistrationError("artifact bytes are not canonical JSON")
     _validate_schema(parsed)
-    return VerifiedT810Preregistration(
+    verified = VerifiedT810Preregistration(
         sha256=actual_digest,
         approval_id=receipt.approval_id,
         projection=_freeze(parsed),
+        _loader_token=_VERIFIED_CONSTRUCTION_TOKEN,
     )
+    from orchestrator.campaign.t810_estimator_v1 import (  # delayed to avoid a cycle
+        T810EstimatorError,
+        assert_estimator_conformance,
+    )
+
+    try:
+        assert_estimator_conformance(verified)
+    except T810EstimatorError as exc:
+        raise T810PreregistrationError(
+            "estimator does not conform to the frozen golden vectors"
+        ) from exc
+    return verified
 
 
 def request_t810_launch(preregistration: VerifiedT810Preregistration) -> None:

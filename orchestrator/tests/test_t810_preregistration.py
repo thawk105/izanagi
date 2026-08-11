@@ -22,6 +22,7 @@ from orchestrator.campaign.t810_preregistration import (  # noqa: E402
     ApprovalReceipt,
     T810NotAuthorizedError,
     T810PreregistrationError,
+    VerifiedT810Preregistration,
     _canonical_bytes,
     _verify_approval_digest,
     load_t810_preregistration,
@@ -30,7 +31,7 @@ from orchestrator.campaign.t810_preregistration import (  # noqa: E402
 
 
 # 第 1 段の人間 receipt を模した固定 fixture。artifact から実行時に導出しない。
-FIXTURE_ARTIFACT_SHA256 = "70bd216784c8645b93e3c60edf8d37f27426743d1a159cc5903f809788e7b9be"
+FIXTURE_ARTIFACT_SHA256 = "3052af20993481730a826ce08ee26289948f29836d43afb2d7c743cfdd12e404"
 FIXTURE_RECEIPT = ApprovalReceipt(
     artifact_sha256=FIXTURE_ARTIFACT_SHA256,
     approval_id="fixture-stage1-review-t810-v1",
@@ -153,6 +154,30 @@ def test_hidden_candidate_and_unknown_nested_field_are_rejected(tmp_path: Path):
         load_t810_preregistration(path, approval_receipt=_receipt_for(raw))
 
 
+def test_recursive_design_schema_rejects_nested_alternative_before_conformance(
+    tmp_path: Path,
+):
+    payload = json.loads(PREREG_PATH.read_text())
+    payload["design"]["assurance"]["alternatives"] = [{"N": 12, "R": 12}]
+    raw = _canonical_payload(payload)
+    path = tmp_path / "nested-alternative.json"
+    path.write_bytes(raw)
+    with pytest.raises(
+        T810PreregistrationError,
+        match=r"/design/assurance has an unknown or missing field",
+    ):
+        load_t810_preregistration(path, approval_receipt=_receipt_for(raw))
+
+
+def test_verified_preregistration_cannot_be_constructed_outside_loader():
+    with pytest.raises(T810PreregistrationError, match="only be constructed by the loader"):
+        VerifiedT810Preregistration(
+            sha256="0" * 64,
+            approval_id="bypass",
+            projection={"protocol": {"run_authorized": False}},
+        )
+
+
 def test_selected_design_has_no_runtime_candidate_table_and_state_df_are_derived():
     prereg = _load()
     design = prereg.projection["design"]
@@ -184,6 +209,14 @@ def test_preregistration_contains_adjudicated_upper_closure():
         "stage1_satisfied": False,
     }
     assert root["limitations"]["execution_mediation_incomplete"] is True
+    assert root["limitations"]["approval_receipt_trust_root_absent"] is True
+    assert root["limitations"]["unfrozen_procedures"] == (
+        "build_argv",
+        "qsub_argv",
+        "raw_throughput_to_log_matrix",
+        "secondary_quantities",
+        "downstream_decision_consumer",
+    )
     assert root["assignment"]["submission_order"]["receipt_fields"] == (
         "seed",
         "permutation",
@@ -225,6 +258,69 @@ def test_preregistration_contains_adjudicated_upper_closure():
     }
     assert root["artifacts"]["presence_matrix"]["terminal_reduced"]["estimate"] == "required"
     assert root["artifacts"]["presence_matrix"]["valid"]["measurements"] == "all-13-times-10"
+
+
+def test_benchmark_argv_and_submission_permutation_procedure_are_exact():
+    root = _load().projection
+    assert root["measurement"]["canonical_benchmark_argv"] == (
+        "-thread_num=48",
+        "-ycsb_tuple_num=1000000",
+        "-extime=3",
+        "-clocks_per_us=2100",
+        "-ycsb_rratio=50",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rmw=0",
+    )
+    submission = root["assignment"]["submission_order"]
+    assert submission == {
+        "canonical_encoding": "utf8-json-array-no-whitespace",
+        "canonical_permutation": (
+            '["slot-02","slot-00","slot-07","slot-11","slot-05",'
+            '"slot-09","slot-04","slot-03","slot-12","slot-10",'
+            '"slot-01","slot-06","slot-08"]'
+        ),
+        "expected_permutation": (
+            "slot-02",
+            "slot-00",
+            "slot-07",
+            "slot-11",
+            "slot-05",
+            "slot-09",
+            "slot-04",
+            "slot-03",
+            "slot-12",
+            "slot-10",
+            "slot-01",
+            "slot-06",
+            "slot-08",
+        ),
+        "freeze_before_submission": True,
+        "permutation_generation": "Generator(PCG64(seed)).permutation(slot_domain)",
+        "prng": "PCG64",
+        "receipt_fields": ("seed", "permutation"),
+        "seed": 810,
+        "seed_source": "approved-attempt-manifest",
+        "slot_domain": tuple(f"slot-{index:02d}" for index in range(13)),
+        "version": "NumPy-2.2.6",
+    }
+
+
+def test_loader_rejects_golden_schema_drift_and_replays_live_conformance(tmp_path: Path):
+    payload = json.loads(PREREG_PATH.read_text())
+    del payload["golden_vectors"][0]["expected"]["tau_U"]
+    raw = _canonical_payload(payload)
+    path = tmp_path / "missing-golden-field.json"
+    path.write_bytes(raw)
+    with pytest.raises(T810PreregistrationError, match="unknown or missing field"):
+        load_t810_preregistration(path, approval_receipt=_receipt_for(raw))
+
+    payload = json.loads(PREREG_PATH.read_text())
+    payload["golden_vectors"][0]["expected"]["conclusion_code"] = "underdetermined"
+    raw = _canonical_payload(payload)
+    path = tmp_path / "semantic-golden-drift.json"
+    path.write_bytes(raw)
+    with pytest.raises(T810PreregistrationError, match="does not conform"):
+        load_t810_preregistration(path, approval_receipt=_receipt_for(raw))
 
 
 def test_projection_is_deeply_immutable_including_every_nested_sequence():

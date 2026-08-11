@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import ast
+import json
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -18,12 +19,13 @@ if str(REPO_ROOT) not in sys.path:
 from orchestrator.campaign.t810_estimator_v1 import (  # noqa: E402
     ESTIMATOR_VERSION_ID,
     F_QUANTILE_BACKEND,
+    F_QUANTILE_RUNTIME,
+    F_QUANTILES_BINARY64_HEX,
     REDUCED_NODE_COUNT,
     ROUND_COUNT,
     SELECTED_NODE_COUNT,
     TAU_STAR,
-    TerminalEvidence,
-    classify_terminal_state,
+    assert_estimator_conformance,
     conclusion_code,
     evaluate_t810,
     f_quantile,
@@ -36,7 +38,7 @@ from orchestrator.campaign.t810_preregistration import (  # noqa: E402
 )
 
 
-FIXTURE_ARTIFACT_SHA256 = "70bd216784c8645b93e3c60edf8d37f27426743d1a159cc5903f809788e7b9be"
+FIXTURE_ARTIFACT_SHA256 = "3052af20993481730a826ce08ee26289948f29836d43afb2d7c743cfdd12e404"
 FIXTURE_RECEIPT = {
     "artifact_sha256": FIXTURE_ARTIFACT_SHA256,
     "approval_id": "fixture-stage1-review-t810-v1",
@@ -101,6 +103,16 @@ def _matrix_from_vector(vector):
             node_count, float(Decimal(generation["quadratic_residual_amplitude"]))
         )
         return matrix
+    if generation["kind"] == "negative-variance-grid":
+        centered_nodes = [node - (node_count - 1) / 2 for node in range(node_count)]
+        centered_rounds = [round_ - 4.5 for round_ in range(10)]
+        mean_square = sum(value**2 for value in centered_rounds) / 10
+        residual_shape = [value**2 - mean_square for value in centered_rounds]
+        amplitude = float(Decimal(generation["quadratic_residual_amplitude"]))
+        return [
+            [amplitude * node * residual for residual in residual_shape]
+            for node in centered_nodes
+        ]
     raise AssertionError(f"unknown frozen generator: {generation['kind']}")
 
 
@@ -137,9 +149,14 @@ def _independent_mean_squares(vector):
 def _independent_interval(ms_a: float, ms_e: float, node_count: int):
     nu1 = node_count - 1
     nu2 = (node_count - 1) * 9
+    frozen = json.loads(PREREG_PATH.read_text())["estimator"][
+        "f_quantiles_binary64_hex"
+    ][f"nu1={nu1},nu2={nu2}"]
+    f_005 = float.fromhex(frozen["p_005"])
+    f_095 = float.fromhex(frozen["p_095"])
     tau_hat = math.sqrt(max(0.0, (ms_a - ms_e) / 10))
-    tau_l = math.sqrt(max(0.0, (ms_a / f_quantile(0.95, nu1, nu2) - ms_e) / 10))
-    tau_u = math.sqrt(max(0.0, (ms_a / f_quantile(0.05, nu1, nu2) - ms_e) / 10))
+    tau_l = math.sqrt(max(0.0, (ms_a / f_095 - ms_e) / 10))
+    tau_u = math.sqrt(max(0.0, (ms_a / f_005 - ms_e) / 10))
     return tau_hat, tau_l, tau_u
 
 
@@ -152,6 +169,27 @@ def test_f_quantile_backend_and_reference_values_are_frozen():
     assert f_quantile(0.95, 12, 108) == pytest.approx(1.8428843299962905, abs=2e-13)
     assert f_quantile(0.05, 11, 99) == pytest.approx(0.4069887437400106, abs=2e-13)
     assert f_quantile(0.95, 11, 99) == pytest.approx(1.8866836029647311, abs=2e-13)
+
+
+def test_f_quantiles_use_exact_artifact_binary64_constants_without_runtime_backend():
+    artifact_constants = json.loads(PREREG_PATH.read_text())["estimator"]
+    assert F_QUANTILE_RUNTIME == "frozen_binary64_hex_v1"
+    assert artifact_constants["f_quantile_backend"] == F_QUANTILE_RUNTIME
+    expected = {
+        (11, 99, "0.05"): "0x1.a0c1a840d05a8p-2",
+        (11, 99, "0.95"): "0x1.e2fdb254a20a4p+0",
+        (12, 108, "0.05"): "0x1.b48318ba0bb12p-2",
+        (12, 108, "0.95"): "0x1.d7c74477a51acp+0",
+    }
+    assert F_QUANTILES_BINARY64_HEX == expected
+    for (nu1, nu2, probability), frozen_hex in expected.items():
+        assert f_quantile(float(probability), nu1, nu2).hex() == frozen_hex
+        artifact_key = f"nu1={nu1},nu2={nu2}"
+        probability_key = "p_005" if probability == "0.05" else "p_095"
+        assert (
+            artifact_constants["f_quantiles_binary64_hex"][artifact_key][probability_key]
+            == frozen_hex
+        )
 
 
 def test_artifact_literals_and_reference_module_dispatch_are_identical():
@@ -206,6 +244,9 @@ def test_all_artifact_golden_vectors_match_independently_reconstructed_formula()
         "slope_gate_fires",
         "slope_gate_strict_boundary",
     }
+    assert_estimator_conformance(
+        load_t810_preregistration(PREREG_PATH, approval_receipt=FIXTURE_RECEIPT)
+    )
 
 
 def test_interval_uses_low_f_for_upper_high_f_for_lower_and_divides_by_rounds():
@@ -221,8 +262,13 @@ def test_interval_uses_low_f_for_upper_high_f_for_lower_and_divides_by_rounds():
 
 
 def test_interval_truncates_negative_variances_to_zero():
-    result = evaluate_t810([[0.0] * 10 for _ in range(13)], terminal_state="valid")
-    assert result.ms_a <= result.ms_e
+    vector = next(
+        item
+        for item in _artifact()["golden_vectors"]
+        if item["id"] == "upper_truncated_to_zero"
+    )
+    result = evaluate_t810(_matrix_from_vector(vector), terminal_state="valid")
+    assert result.ms_a < result.ms_e
     assert (result.tau_hat, result.tau_l, result.tau_u) == (0.0, 0.0, 0.0)
     assert result.slope_gate_fired is False
 
@@ -247,6 +293,20 @@ def test_reduced_state_uses_n12_degrees_of_freedom_not_selected_n13():
     assert abs(result.tau_u - wrong_n13) > 1e-4
 
 
+def test_reduced_golden_vector_exercises_live_slope_gate():
+    vector = next(
+        item
+        for item in _artifact()["golden_vectors"]
+        if item["id"] == "slope_gate_fires"
+    )
+    assert vector["terminal_state"] == "terminal_reduced"
+    result = evaluate_t810(
+        _matrix_from_vector(vector), terminal_state="terminal_reduced"
+    )
+    assert result.slope_gate_fired is True
+    assert result.conclusion_code == "underdetermined_model_violation"
+
+
 def test_decision_equalities_fall_to_row_five():
     assert conclusion_code(
         terminal_state="valid",
@@ -260,6 +320,25 @@ def test_decision_equalities_fall_to_row_five():
         tau_l=TAU_STAR,
         tau_u=0.02,
     ) == "underdetermined"
+
+
+def test_artifact_exact_scalar_boundaries_replay_strict_inequalities():
+    vectors = {item["id"]: item for item in _artifact()["scalar_golden_vectors"]}
+    for vector_id in ("upper_exact_scalar_equality", "lower_exact_scalar_equality"):
+        vector = vectors[vector_id]
+        inputs = vector["input"]
+        assert conclusion_code(
+            terminal_state=inputs["terminal_state"],
+            slope_gate_fired=inputs["slope_gate_fired"],
+            tau_l=float.fromhex(inputs["tau_l_binary64_hex"]),
+            tau_u=float.fromhex(inputs["tau_u_binary64_hex"]),
+            tau_star=float.fromhex(inputs["tau_star_binary64_hex"]),
+        ) == "underdetermined"
+    slope = vectors["slope_exact_scalar_equality"]
+    assert slope_gate_fires(
+        float.fromhex(slope["input"]["s_beta_binary64_hex"]),
+        float.fromhex(slope["input"]["v_beta_binary64_hex"]),
+    ) is False
 
 
 def test_decision_is_ordered_first_match_with_gate_before_interval():
@@ -277,29 +356,13 @@ def test_decision_is_ordered_first_match_with_gate_before_interval():
     ) == "incomplete_after_start"
 
 
-def test_terminal_fsm_is_closed_and_ordered():
-    all_failures = TerminalEvidence(
-        pre_release_invalid=True,
-        post_release_pre_measurement_invalid=True,
-        incomplete_after_start=True,
-        completed_node_count=13,
-        complete_round_counts=(10,) * 13,
-    )
-    assert classify_terminal_state(all_failures) == "pre_release_invalid"
-    assert classify_terminal_state(
-        TerminalEvidence(
-            post_release_pre_measurement_invalid=True,
-            incomplete_after_start=True,
-            completed_node_count=13,
-            complete_round_counts=(10,) * 13,
-        )
-    ) == "post_release_pre_measurement_invalid"
-    assert classify_terminal_state(
-        TerminalEvidence(completed_node_count=12, complete_round_counts=(10,) * 12)
-    ) == "terminal_reduced"
-    assert classify_terminal_state(
-        TerminalEvidence(completed_node_count=13, complete_round_counts=(10,) * 13)
-    ) == "valid"
-    assert classify_terminal_state(
-        TerminalEvidence(completed_node_count=12, complete_round_counts=(10,) * 11 + (9,))
-    ) == "incomplete_after_start"
+def test_estimator_does_not_duplicate_validator_terminal_fsm():
+    source = (ORCHESTRATOR / "campaign/t810_estimator_v1.py").read_text()
+    tree = ast.parse(source)
+    public_names = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef))
+    }
+    assert "classify_terminal_state" not in public_names
+    assert "TerminalEvidence" not in public_names
