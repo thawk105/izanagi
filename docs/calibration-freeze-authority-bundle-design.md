@@ -20,9 +20,9 @@ R3 = 段 6 の完了 predicate を構造部分と policy 依存部分へ分割�
 (§10 の段 6 行)。selection literal と正本節は §12.1。
 
 **決まっていないこと:** §12 が正本である。他者の手番の gate が 2 件
-(conformance 期待出力 literal / 下位 A・X commit topology の不適合)、
-段 6 の policy 依存 predicate が 1 件 (`CFAB-STAGE6-POLICY-PREDICATE`。S と B の裁定後に書く)。
-**ユーザー裁定待ちは 0 件である** (§12.3)。
+(conformance 期待出力 literal / 下位実装と下位 exact 正本の schema 不適合)、
+段 6 の policy 依存 predicate が 1 件 (`CFAB-STAGE6-POLICY-PREDICATE`。S と B の裁定後に書く)、
+**ユーザー裁定待ちが 1 件** (§12.3 R4 = 上位 cancellation record の扱い)。
 先送り確定の S (封印と保証境界) と B (副作用境界) は本書では決めない。
 
 **段 0 は `incomplete` である。** 完了か否かは §10.2 の機械算出だけを正本とする。
@@ -469,11 +469,23 @@ digest は A と一致し、`approval_raw_sha256` は A の raw bytes および 
 | `scope` | 逐語 `bundle-only` |
 | `reason` | 非空 string |
 
-**この 7 key と各制約は、下位 exact 正本 `docs/freeze-permanent-design-s2.md` §S2-1.10 への
-conformance である** (R1 裁定 = 下位と同じ形を 1 層上へ写す)。上位語彙への写像は
-`approval_sha256` → `approval_raw_sha256` の 1 件だけで、他の 6 key は逐語で一致する。
-key を独自に増減すると、§12.4 の `FREEZE-AX-TOPOLOGY` と同型の**下位正本への不適合を上位に
-新設する**ことになる。
+**この 7 key の形と下記 4 意味規則は、下位 exact 正本 `docs/freeze-permanent-design-s2.md`
+§S2-1.10 の写しである** (R1 裁定 = 下位と同じ形を 1 層上へ写す)。key 名の対応は
+`approval_sha256` → `approval_raw_sha256` の 1 件だけが異なり、他の 6 key 名は一致する。
+key を独自に増減すると、§12.4 の gate と同型の**下位正本への不適合を上位に新設する**ことになる。
+
+**ただし field の表現は、下位の逐語ではなく上位層自身の慣習に従う。** これは意図した層差である。
+
+- `revoked_at` は **exact int の UTC 秒**である。下位 §S2-1.1 は UTC を文字列
+  `YYYY-MM-DDTHH:MM:SSZ` と定めるが、**上位の承認 A は既に `approved_at` を exact int の
+  UTC 秒として持っており**、失効だけ文字列にすると上位層の中で表現が割れる。
+  ユーザー裁定 R1 (a) も「時刻は UTC 秒 int」を明示的に選んでいる。
+- `revoked_by` の制約 (NFC、trim 済み、1〜128 code point) は、上位の承認 A が `approver` へ
+  課している制約と同一である。
+- `reason` の非空制約は上位の追加である (下位は `reason` の中身を制約しない)。
+
+**したがって「下位への conformance」は形状と意味規則についての主張であり、
+record bytes が下位と交換可能であるという主張ではない。**
 
 意味規則 (§S2-1.10 の 4 規則を上位語彙へ写す)。
 
@@ -817,7 +829,7 @@ row ID = `CFAB-11.2-01`。
 
 ## 12. 裁定の状態
 
-### 12.1 確定済み (ユーザー裁定 2026-08-10 = worklog 376、2026-08-11 = 同 403)
+### 12.1 確定済み (ユーザー裁定 2026-08-10 = worklog 376、2026-08-11 = 同 403 と 415)
 
 規則の本文は正本節にだけ置く。本表は索引と `selection` literal だけを持つ。
 
@@ -845,31 +857,56 @@ row ID = `CFAB-11.2-01`。
 
 ### 12.3 残るユーザー裁定 (親が決めない)
 
-**本節時点で残るユーザー裁定は 0 件である。**
-
 2026-08-11 の裁定 (worklog 403) で U-A1・Q3 の残部・§8/§10 矛盾が閉じ、同 415 の裁定で
 その実施 wave が残した R1 / R2 / R3 も閉じた。3 件は §12.1 へ移し、規則本文はそれぞれ
-§7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) へ畳み込んだ。
+§7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) へ畳み込んだ。**その実施 wave が次の 1 件を新たに残した。**
 
-**「残る裁定が 0 件」は「段 0 が完了できる」を意味しない。** 次の 4 件が引き続き段 0 を block する。
+- **R4. 上位 cancellation record の扱い。** 下位 §S2-1.11 は fork cancellation を
+  `active-cancellations/<pointer_sha256>.json`・exact 6 fields で定めている。上位 pointer X も
+  fork しうるため対応する record が要るが、R1 が裁定したのは**失効 record** であり
+  cancellation は範囲外だった。候補は
+  (a) 下位 §S2-1.11 と同型を 1 層上へ写す /
+  (b) 上位では cancellation を持たず、fork の回復も補償世代 (Q3 (i)) だけで行うと明示禁止する /
+  (c) 先送り確定項目として §12.2 へ移し、S / B と同じ扱いにする。
+  **親の推奨は (a)。** Q3 (i) の補償世代は「祖先へ戻さず前進する」規則であって、
+  **同一世代内で 2 本目の X が置かれた fork の敗者を無効化する手段ではない** — (b) では
+  fork 敗者が解決不能のまま残り、§7.2 の「live tip を一意に解決する」義務と衝突する。
+  また下位が既に同じ問題を fork cancellation で解いており、上位だけ別解にする理由が無い。
+  (c) は「決めなくても段 0 が閉じない」点で (a) と同じ効果を持つが、cancellation は
+  封印 S・副作用境界 B に依存しないため先送り箱へ入れる理由が無い。
+  gate = `CFAB-R4-CANCELLATION-RECORD` (owner = `user`, status = `unresolved`)。
 
-- §12.2 の先送り確定 `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` (R2 = (b) により、段 0 の完了は
-  この 2 件の裁定を待つ)。
-- 段 6 の policy 依存 predicate `CFAB-STAGE6-POLICY-PREDICATE` (S と B の裁定後に書く)。
-- §12.4 の他者手番 gate 2 件。
-- fixture assignment gate `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` (段 1 以降の手番)。
+**段 0 が完了しない理由は 3 つの軸に分かれる。** §10.2 の機械算出はこれらを別々に数える。
 
-**R1 の実施で残った未確定が 1 件ある。** 下位 §S2-1.11 の fork cancellation に対応する上位
-cancellation record は、置き場も粒度も未確定である (§7.5)。これは失効 record とは別の record 種別
-であり、R1 の裁定範囲外だった。**先回りして schema を固定しない。**
+| 軸 | 現在値 | 内訳 |
+|---|---|---|
+| fixture manifest の `pending` | 5 | 実行可能な入力をまだ構築していない行 (段 1 以降の手番) |
+| applicable な `unresolved` 裁定 | 2 | §12.2 の先送り確定 `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` (R2 = (b) により段 0 の完了はこの 2 件の裁定を待つ) |
+| blocking な `required_gates` | 5 | `CFAB-R4-CANCELLATION-RECORD` / `CFAB-STAGE6-POLICY-PREDICATE` / `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` / `FREEZE-AX-TOPOLOGY` / `FREEZE-CONFORMANCE-LITERAL` |
+
+**この 3 軸は互いに素ではあるが、同じ項目を数えない。** S と B は 2 本目にだけ現れ、
+blocking gate には現れない。3 本のどれか 1 つを解消しても段 0 は閉じない。
 
 ### 12.4 他者の手番の gate (ユーザー裁定ではない)
 
 - **conformance 期待出力 literal。** 決定権者は `docs/freeze-permanent-design-s2.md` §S2-11.2 が
   「W-a 開始時の親。外部参照実装で導出後レビュー」と明記。
-- **下位 A・X の commit topology 不適合。** expected = 別 commit (同書 §S2-1.14)、
-  observed = 同一 commit 要求 (`orchestrator/campaign/s8b_ratified_freeze.py` の pairing 検証)、
+- **下位実装と下位 exact 正本の不適合 (gate ID = `FREEZE-AX-TOPOLOGY`)。**
+  **この gate の射程は commit topology 単独ではない。** 名前は最初に見つかった不適合に由来するが、
+  実体は下位実装 `orchestrator/campaign/s8b_ratified_freeze.py` と凍結済み下位正本
+  `docs/freeze-permanent-design-s2.md` の**schema 全般の差**である (本 wave 時点の実測)。
+  - commit topology: expected = A と X は別 commit (§S2-1.14)、observed = 同一 commit 要求
+    (pairing 検証)。
+  - approval: expected = exact 8 fields (§S2-1.8)、observed = 4 key。
+  - pointer: expected = exact 7 fields (§S2-1.9)、observed = 5 key。
+  - revocation: expected = exact 7 fields・対象は `bundle_digest` (§S2-1.10)、
+    observed = 4 key・対象は `generation_sha256`。
+  - cancellation: expected = exact 6 fields (§S2-1.11)、observed = 4 key。
+
   status = nonconforming。下位 family の実装 wave が正本へ合わせる。
+  **topology 1 件だけを直して本 gate を resolved にしてはならない** — 現行 parser は
+  凍結正本どおりの bytes を依然拒否し、上位 A が参照する「下位検証器が承認済みと判定した束」の
+  受理集合が旧 parser schema に支配されたままになる (段 6 レビューが構成した)。
 
 ---
 

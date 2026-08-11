@@ -73,6 +73,7 @@ _STAGE6_STRUCTURAL_CLAUSE_RE = re.compile(
     r"\((i|ii|iii|iv|v)\) (.+?。)"
     r"(?= \((?:i|ii|iii|iv|v)\)| 以上 5 条件)"
 )
+_FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,}).*$")
 _STAGE6_POLICY_RE = re.compile(
     r"^段 5 の S / B 裁定後まで `(?P<gate_id>CFAB-[A-Z0-9-]+)` "
     r"\(owner = `(?P<owner>[a-z0-9-]+)`, "
@@ -168,6 +169,12 @@ _EXPECTED_STAGE6_STRUCTURAL_CONTROL = (
     "以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、"
     "各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。"
 )
+_EXPECTED_STAGE6_EXECUTION_BOUNDARY = (
+    "**本行が固定するのは predicate であって実行ではない** — "
+    "実 entrypoint と fixture の対応付けは "
+    "`CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番であり、"
+    "それが `pending` である限り段 0 は完了しない。"
+)
 
 # These literals were calculated once from the checked-in case-file bytes.  They
 # are deliberately independent of manifest.v1.json so that changing a case and
@@ -207,6 +214,7 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("CFAB-R1-REVOCATION-RECORD", "user", "resolved"),
     ("CFAB-R2-STAGE0-COMPLETION", "user", "resolved"),
     ("CFAB-R3-STAGE6-PREDICATE", "user", "resolved"),
+    ("CFAB-R4-CANCELLATION-RECORD", "user", "unresolved"),
     ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
     ("CFAB-STAGE6-POLICY-PREDICATE", "user", "unresolved"),
     (
@@ -219,7 +227,7 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("FREEZE-U-A1", "user", "resolved"),
 })
 _EXPECTED_REQUIRED_GATES_ENTRIES_SHA256 = (
-    "26aa463b024e9f64e87401ca3dcebd508efe146ed28c166557a6a4447811b948"
+    "167d5c2e9fc365fc7945ddad7549b147be3f288e26a1182bd410712eb81cffd2"
 )
 
 
@@ -346,18 +354,25 @@ def _read_design(path: Path) -> str:
     if "<!--" in text or "-->" in text:
         raise ContractError("design document must not contain HTML comments")
     visible_lines: list[str] = []
-    inside_fence = False
+    fence: tuple[str, int] | None = None
     for line in text.splitlines(keepends=True):
         fence_line = line.rstrip("\r\n")
-        if not inside_fence and re.fullmatch(r"\s*```[^`]*", fence_line):
-            inside_fence = True
+        if fence is not None:
+            marker_char, marker_len = fence
+            stripped = fence_line.lstrip(" \t")
+            indent = len(fence_line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
             continue
-        if inside_fence:
-            if re.fullmatch(r"\s*```\s*", fence_line):
-                inside_fence = False
+        fence_match = _FENCE_OPEN_RE.fullmatch(fence_line)
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
             continue
         visible_lines.append(line)
-    if inside_fence:
+    if fence is not None:
         raise ContractError("design document has an unclosed fenced code block")
     return "".join(visible_lines)
 
@@ -460,7 +475,7 @@ def _extract_design_revocation_schema(path: Path) -> tuple[tuple[str, str], ...]
 
 def _extract_stage6_contract(
     path: Path,
-) -> tuple[tuple[str, ...], str, tuple[str, str, str]]:
+) -> tuple[tuple[str, ...], str, str, tuple[str, str, str]]:
     text = _read_design(path)
     start_marker = "## 10. 段階分割と完了判定"
     start = text.find(start_marker)
@@ -493,12 +508,14 @@ def _extract_stage6_contract(
     if not structural_text.startswith(clauses_text + " "):
         raise ContractError("design §10 stage 6 predicate ordering drifted")
     remainder = structural_text[len(clauses_text) + 1:]
-    control_end = remainder.find("。")
-    if control_end < 0:
-        raise ContractError("design §10 stage 6 control sentence is missing")
-    control = remainder[:control_end + 1]
-    if len(remainder) == control_end + 1 or not remainder[control_end + 1:].startswith(" "):
-        raise ContractError("design §10 stage 6 execution boundary is missing")
+    boundary_marker = "**本行が固定するのは predicate であって実行ではない**"
+    boundary_parts = remainder.split(" " + boundary_marker)
+    if len(boundary_parts) != 2:
+        raise ContractError(
+            "design §10 stage 6 execution boundary is missing or duplicated"
+        )
+    control, boundary_tail = boundary_parts
+    execution_boundary = boundary_marker + boundary_tail
 
     policy_match = _STAGE6_POLICY_RE.fullmatch(policy_text)
     if policy_match is None:
@@ -506,6 +523,7 @@ def _extract_stage6_contract(
     return (
         tuple(match.group(2) for match in clause_matches),
         control,
+        execution_boundary,
         (
             policy_match.group("gate_id"),
             policy_match.group("owner"),
@@ -931,12 +949,16 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
     profile = _load_ruling_profile(fixture_root, design_doc)
     cases = _load_fixture_cases(fixture_root)
     design_row_ids = _extract_design_row_ids(design_doc)
-    stage6_predicates, stage6_control, stage6_policy_gate = (
-        _extract_stage6_contract(design_doc)
-    )
+    (
+        stage6_predicates,
+        stage6_control,
+        stage6_execution_boundary,
+        stage6_policy_gate,
+    ) = _extract_stage6_contract(design_doc)
     if (
         stage6_predicates != _EXPECTED_STAGE6_STRUCTURAL_PREDICATES
         or stage6_control != _EXPECTED_STAGE6_STRUCTURAL_CONTROL
+        or stage6_execution_boundary != _EXPECTED_STAGE6_EXECUTION_BOUNDARY
     ):
         raise ContractError("design §10 stage 6 structural predicates drifted")
     stage6_policy_gates = [

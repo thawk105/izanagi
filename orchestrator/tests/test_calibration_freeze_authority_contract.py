@@ -177,7 +177,7 @@ def test_current_repository_is_rejected_as_stage0_incomplete() -> None:
     except contract.ContractError as exc:
         assert str(exc) == (
             "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=4"
+            "applicable_unresolved=2, blocking_gates=5"
         )
     else:
         raise AssertionError("the incomplete repository was accepted as stage 0 complete")
@@ -215,6 +215,7 @@ def test_adjudicated_ruling_and_gate_projection_is_exact() -> None:
         ("CFAB-R1-REVOCATION-RECORD", "user", "resolved"),
         ("CFAB-R2-STAGE0-COMPLETION", "user", "resolved"),
         ("CFAB-R3-STAGE6-PREDICATE", "user", "resolved"),
+        ("CFAB-R4-CANCELLATION-RECORD", "user", "unresolved"),
         ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
         ("CFAB-STAGE6-POLICY-PREDICATE", "user", "unresolved"),
         (
@@ -249,12 +250,13 @@ def test_design_revocation_record_schema_matches_validator() -> None:
 
 
 def test_design_stage6_structural_contract_matches_validator() -> None:
-    predicates, control, policy_gate = contract._extract_stage6_contract(
-        contract.DESIGN_DOC
+    predicates, control, execution_boundary, policy_gate = (
+        contract._extract_stage6_contract(contract.DESIGN_DOC)
     )
 
     assert predicates == contract._EXPECTED_STAGE6_STRUCTURAL_PREDICATES
     assert control == contract._EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    assert execution_boundary == contract._EXPECTED_STAGE6_EXECUTION_BOUNDARY
     assert policy_gate == (
         "CFAB-STAGE6-POLICY-PREDICATE",
         "user",
@@ -276,6 +278,7 @@ def test_stage0_remains_incomplete_after_r1_r2_r3_projection() -> None:
         for gate in manifest["required_gates"]["entries"]
         if gate["status"] in blocking_statuses
     ) == (
+        "CFAB-R4-CANCELLATION-RECORD",
         "CFAB-STAGE6-POLICY-PREDICATE",
         "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
         "FREEZE-AX-TOPOLOGY",
@@ -287,7 +290,7 @@ def test_stage0_remains_incomplete_after_r1_r2_r3_projection() -> None:
     except contract.ContractError as exc:
         assert str(exc) == (
             "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=4"
+            "applicable_unresolved=2, blocking_gates=5"
         )
     else:
         raise AssertionError("the R1/R2/R3 projection completed stage 0 early")
@@ -641,6 +644,25 @@ def test_r1_revocation_record_required_gate_removed_is_rejected(
     )
 
 
+def test_r4_cancellation_record_required_gate_removed_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        entries = document["required_gates"]["entries"]
+        entries.remove(_gate_by_id(document, "CFAB-R4-CANCELLATION-RECORD"))
+        document["required_gates"]["count"] = len(entries)
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
+    )
+
+
 def test_stage6_policy_gate_cannot_be_resolved_early(tmp_path: Path) -> None:
     fixture_root, design_doc = _synthetic_repository(tmp_path)
 
@@ -819,6 +841,95 @@ def test_design_fenced_decoy_is_not_authoritative(tmp_path: Path) -> None:
     )
 
 
+def _revocation_table(text: str) -> str:
+    prefix = (
+        contract._UPPER_REVOCATION_TABLE_MARKER
+        + "\n\n"
+        + contract._UPPER_REVOCATION_TABLE_HEADER
+    )
+    assert text.count(prefix) == 1
+    start = text.index(prefix)
+    end = text.index("\n\n", start + len(prefix))
+    return text[start:end]
+
+
+def _move_revocation_table_into_fence(
+    design_doc: Path,
+    *,
+    fence: str,
+) -> None:
+    text = design_doc.read_text(encoding="utf-8")
+    table = _revocation_table(text)
+    assert text.count(table) == 1
+    design_doc.write_text(
+        text.replace(table, f"{fence}text\n{table}\n{fence}", 1),
+        encoding="utf-8",
+    )
+
+
+def _move_stage6_row_into_fence(design_doc: Path, *, fence: str) -> None:
+    text = design_doc.read_text(encoding="utf-8")
+    rows = [
+        line
+        for line in text.splitlines(keepends=True)
+        if line.startswith("| 6 | 発効 X |")
+    ]
+    assert len(rows) == 1
+    row = rows[0]
+    design_doc.write_text(
+        text.replace(row, f"{fence}text\n{row}{fence}\n", 1),
+        encoding="utf-8",
+    )
+
+
+def test_design_revocation_table_only_in_tilde_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_revocation_table_into_fence(design_doc, fence="~~~")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation table is missing or duplicated",
+    )
+
+
+def test_design_revocation_table_only_in_long_backtick_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_revocation_table_into_fence(design_doc, fence="````")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation table is missing or duplicated",
+    )
+
+
+def test_design_stage6_row_only_in_tilde_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_stage6_row_into_fence(design_doc, fence="~~~")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 row is missing or duplicated",
+    )
+
+
+def test_design_stage6_row_only_in_long_backtick_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_stage6_row_into_fence(design_doc, fence="````")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 row is missing or duplicated",
+    )
+
+
 def test_design_unclosed_fence_is_rejected(tmp_path: Path) -> None:
     fixture_root, design_doc = _synthetic_repository(tmp_path)
     text = design_doc.read_text(encoding="utf-8")
@@ -828,6 +939,43 @@ def test_design_unclosed_fence_is_rejected(tmp_path: Path) -> None:
         design_doc,
         "design document has an unclosed fenced code block",
     )
+
+
+def test_design_long_fence_is_not_closed_by_shorter_marker(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(text + "\n````text\nhidden\n```\n", encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_fence_is_not_closed_by_different_marker(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(text + "\n~~~text\nhidden\n```\n", encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_longer_fence_closer_is_accepted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n````text\nnon-authoritative decoy\n`````\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
 
 
 def test_design_revocation_constraint_relaxation_is_rejected(
@@ -869,6 +1017,25 @@ def test_design_stage6_live_tip_relaxation_is_rejected(tmp_path: Path) -> None:
     text = design_doc.read_text(encoding="utf-8")
     target = "それ以外は**その時点の live tip X** の raw sha256 と一致する"
     replacement = "それ以外は**既存 X** の raw sha256 と一致する"
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 structural predicates drifted",
+    )
+
+
+def test_design_stage6_contradictory_control_suffix_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = contract._EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    replacement = (
+        target
+        + " ただし陰性変異は実行不要であり、reject-all でもよい。"
+    )
     assert text.count(target) == 1
     design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
     _assert_rejected(
