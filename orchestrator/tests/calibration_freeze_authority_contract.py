@@ -55,6 +55,31 @@ _RULING_TABLE_ROW_RE = re.compile(
     re.MULTILINE,
 )
 _SELECTION_LITERAL_RE = re.compile(r"`([^`]+)`")
+_UPPER_REVOCATION_TABLE_MARKER = (
+    "**失効 record R** — `revocations/<bundle_digest>.json`、"
+    "束当たり 0/1 件、top-level exact 7 key。"
+)
+_UPPER_REVOCATION_TABLE_HEADER = "| key | 型・制約 |\n|---|---|\n"
+_UPPER_REVOCATION_TABLE_ROW_RE = re.compile(
+    r"^\|\s*`([a-z][a-z0-9_]*)`\s*\|\s*(.*?)\s*\|$"
+)
+_STAGE6_TABLE_ROW_RE = re.compile(
+    r"^\|\s*6\s*\|\s*発効 X\s*\|\s*(.*?)\s*\|\s*$",
+    re.MULTILINE,
+)
+_STAGE6_STRUCTURAL_MARKER = "**構造部分 (段 0 で固定):** "
+_STAGE6_POLICY_MARKER = "**policy 依存部分:** "
+_STAGE6_STRUCTURAL_CLAUSE_RE = re.compile(
+    r"\((i|ii|iii|iv|v)\) (.+?。)"
+    r"(?= \((?:i|ii|iii|iv|v)\)| 以上 5 条件)"
+)
+_STAGE6_POLICY_RE = re.compile(
+    r"^段 5 の S / B 裁定後まで `(?P<gate_id>CFAB-[A-Z0-9-]+)` "
+    r"\(owner = `(?P<owner>[a-z0-9-]+)`, "
+    r"status = `(?P<status>[a-z-]+)`\) として残し、"
+    r"段 6 の完了には構造部分と policy 依存部分の双方を要求する。"
+    r"段 5 の除外は段 6 へ及ばない$"
+)
 _STAGE_SCOPE_DECLARATION_RE = re.compile(
     r"^\*\*この fixture 閉包が対象とする段は、段 ([0-9]+)〜([0-9]+) と"
     r"段 ([0-9]+)〜([0-9]+) である",
@@ -104,6 +129,46 @@ _EXPECTED_RULING_STATES: Mapping[str, tuple[str, str | None]] = MappingProxyType
     "FREEZE-U-A1": ("resolved", "activation-window"),
 })
 
+_UPPER_REVOCATION_SCHEMA = (
+    (
+        "schema_version",
+        "逐語 `calibration-freeze-authority-revocation/v1`",
+    ),
+    (
+        "bundle_digest",
+        "64 lower-hex。file 名の stem と一致し、§7.3 の再計算値と一致",
+    ),
+    (
+        "approval_raw_sha256",
+        "64 lower-hex。対象束の A の raw bytes の sha256 および "
+        "`approvals/<raw sha256>.json` の file 名 stem と一致",
+    ),
+    ("revoked_by", "NFC、trim 済み、1〜128 code point"),
+    ("revoked_at", "exact int の UTC 秒。`bool` を int として受理しない"),
+    ("scope", "逐語 `bundle-only`"),
+    ("reason", "非空 string"),
+)
+_EXPECTED_STAGE6_STRUCTURAL_PREDICATES = (
+    "X は `active/<raw sha256>.json` に置く top-level exact 5 key "
+    "(`schema_version` / `authority_bundle_generation` / "
+    "`parent_active_pointer_raw_sha256` / `bundle_digest` / "
+    "`approval_raw_sha256`) の record で、file 名の stem は X の raw bytes の "
+    "sha256 と一致する。",
+    "`parent_active_pointer_raw_sha256` は genesis のときだけ `null`、"
+    "それ以外は**その時点の live tip X** の raw sha256 と一致する "
+    "(祖先の非 tip X を parent にした列を拒否する)。",
+    "`authority_bundle_generation` は A の同 field と一致し、非 genesis では "
+    "parent X の値より真に大きい (§5.1 の世代単調増加)。",
+    "`bundle_digest` は A の `bundle_digest` と一致し、§7.3 の再計算値と一致する。",
+    "`approval_raw_sha256` は A の raw bytes の sha256 と "
+    "`approvals/<raw sha256>.json` の file 名 stem の双方に一致し、参照先 A は"
+    "下位 family 検証器と §5.1 の topology 検査を通った承認済み A に限る。",
+)
+_EXPECTED_STAGE6_STRUCTURAL_CONTROL = (
+    "以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、"
+    "各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。"
+)
+
 # These literals were calculated once from the checked-in case-file bytes.  They
 # are deliberately independent of manifest.v1.json so that changing a case and
 # refreshing the manifest cannot move the fixture pin.
@@ -139,7 +204,11 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("CFAB-Q3-REVOCATION", "user", "resolved"),
     ("CFAB-Q3-ROLLBACK", "user", "resolved"),
     ("CFAB-Q3-XF-POSITION", "user", "resolved"),
+    ("CFAB-R1-REVOCATION-RECORD", "user", "resolved"),
+    ("CFAB-R2-STAGE0-COMPLETION", "user", "resolved"),
+    ("CFAB-R3-STAGE6-PREDICATE", "user", "resolved"),
     ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
+    ("CFAB-STAGE6-POLICY-PREDICATE", "user", "unresolved"),
     (
         "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
         "stage1-and-later",
@@ -150,7 +219,7 @@ _EXPECTED_REQUIRED_GATES = frozenset({
     ("FREEZE-U-A1", "user", "resolved"),
 })
 _EXPECTED_REQUIRED_GATES_ENTRIES_SHA256 = (
-    "93cfe2b396d4831800537967d67628c7bca38b8b7595c4ffedaccb5e88211e41"
+    "26aa463b024e9f64e87401ca3dcebd508efe146ed28c166557a6a4447811b948"
 )
 
 
@@ -276,7 +345,21 @@ def _read_design(path: Path) -> str:
         raise ContractError(f"design document cannot be read: {path}") from exc
     if "<!--" in text or "-->" in text:
         raise ContractError("design document must not contain HTML comments")
-    return text
+    visible_lines: list[str] = []
+    inside_fence = False
+    for line in text.splitlines(keepends=True):
+        fence_line = line.rstrip("\r\n")
+        if not inside_fence and re.fullmatch(r"\s*```[^`]*", fence_line):
+            inside_fence = True
+            continue
+        if inside_fence:
+            if re.fullmatch(r"\s*```\s*", fence_line):
+                inside_fence = False
+            continue
+        visible_lines.append(line)
+    if inside_fence:
+        raise ContractError("design document has an unclosed fenced code block")
+    return "".join(visible_lines)
 
 
 def _extract_design_row_ids(path: Path) -> tuple[str, ...]:
@@ -336,6 +419,99 @@ def _extract_design_selection_enums(path: Path) -> dict[str, frozenset[str]]:
         for ruling_id, selection_cell in rows
         if _SELECTION_LITERAL_RE.search(selection_cell) is not None
     }
+
+
+def _extract_design_revocation_schema(path: Path) -> tuple[tuple[str, str], ...]:
+    text = _read_design(path)
+    start_marker = "### 7.5 上位層の namespace と record schema"
+    start = text.find(start_marker)
+    if start < 0 or text.find(start_marker, start + 1) >= 0:
+        raise ContractError("design §7.5 heading is missing or duplicated")
+    end = text.find("\n---", start)
+    if end < 0:
+        raise ContractError("design §7.5 terminator is missing")
+    section = text[start:end]
+    table_prefix = (
+        _UPPER_REVOCATION_TABLE_MARKER
+        + "\n\n"
+        + _UPPER_REVOCATION_TABLE_HEADER
+    )
+    table_start = section.find(table_prefix)
+    if table_start < 0 or section.find(table_prefix, table_start + 1) >= 0:
+        raise ContractError("design §7.5 revocation table is missing or duplicated")
+    body_start = table_start + len(table_prefix)
+    body_end = section.find("\n\n", body_start)
+    if body_end < 0:
+        raise ContractError("design §7.5 revocation table terminator is missing")
+    body_lines = section[body_start:body_end].splitlines()
+    rows: list[tuple[str, str]] = []
+    for line in body_lines:
+        match = _UPPER_REVOCATION_TABLE_ROW_RE.fullmatch(line)
+        if match is None:
+            raise ContractError("design §7.5 revocation table has a malformed row")
+        rows.append((match.group(1), match.group(2)))
+    if not rows:
+        raise ContractError("design §7.5 revocation table is empty")
+    keys = [key for key, _constraint in rows]
+    if len(keys) != len(set(keys)):
+        raise ContractError("design §7.5 revocation table has duplicate keys")
+    return tuple(rows)
+
+
+def _extract_stage6_contract(
+    path: Path,
+) -> tuple[tuple[str, ...], str, tuple[str, str, str]]:
+    text = _read_design(path)
+    start_marker = "## 10. 段階分割と完了判定"
+    start = text.find(start_marker)
+    if start < 0 or text.find(start_marker, start + 1) >= 0:
+        raise ContractError("design §10 heading is missing or duplicated")
+    end = text.find("\n## ", start + len(start_marker))
+    if end < 0:
+        raise ContractError("design §10 terminator is missing")
+    matches = _STAGE6_TABLE_ROW_RE.findall(text[start:end])
+    if len(matches) != 1:
+        raise ContractError("design §10 stage 6 row is missing or duplicated")
+
+    row = matches[0]
+    prefix = "**段 5 の後にしか置けない。** " + _STAGE6_STRUCTURAL_MARKER
+    if not row.startswith(prefix):
+        raise ContractError("design §10 stage 6 structural marker drifted")
+    body = row[len(prefix):]
+    policy_parts = body.split(" " + _STAGE6_POLICY_MARKER)
+    if len(policy_parts) != 2:
+        raise ContractError("design §10 stage 6 policy marker is missing or duplicated")
+    structural_text, policy_text = policy_parts
+
+    clause_matches = tuple(_STAGE6_STRUCTURAL_CLAUSE_RE.finditer(structural_text))
+    labels = tuple(match.group(1) for match in clause_matches)
+    if labels != ("i", "ii", "iii", "iv", "v"):
+        raise ContractError("design §10 stage 6 predicate labels drifted")
+    clauses_text = " ".join(
+        f"({match.group(1)}) {match.group(2)}" for match in clause_matches
+    )
+    if not structural_text.startswith(clauses_text + " "):
+        raise ContractError("design §10 stage 6 predicate ordering drifted")
+    remainder = structural_text[len(clauses_text) + 1:]
+    control_end = remainder.find("。")
+    if control_end < 0:
+        raise ContractError("design §10 stage 6 control sentence is missing")
+    control = remainder[:control_end + 1]
+    if len(remainder) == control_end + 1 or not remainder[control_end + 1:].startswith(" "):
+        raise ContractError("design §10 stage 6 execution boundary is missing")
+
+    policy_match = _STAGE6_POLICY_RE.fullmatch(policy_text)
+    if policy_match is None:
+        raise ContractError("design §10 stage 6 policy contract drifted")
+    return (
+        tuple(match.group(2) for match in clause_matches),
+        control,
+        (
+            policy_match.group("gate_id"),
+            policy_match.group("owner"),
+            policy_match.group("status"),
+        ),
+    )
 
 
 def _fixture_assignment_gate_id_from_design(path: Path) -> str:
@@ -532,6 +708,11 @@ def _validate_ruling_profile(document: dict[str, Any], *, design_doc: Path) -> N
     if design_selection_enums != _SELECTION_ENUMS:
         raise ContractError(
             "design §8.1 selection column does not exactly match selection enums"
+        )
+    design_revocation_schema = _extract_design_revocation_schema(design_doc)
+    if design_revocation_schema != _UPPER_REVOCATION_SCHEMA:
+        raise ContractError(
+            "design §7.5 revocation record schema does not exactly match validator schema"
         )
     actual_ids: list[str] = []
     by_id: dict[str, dict[str, Any]] = {}
@@ -750,6 +931,23 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
     profile = _load_ruling_profile(fixture_root, design_doc)
     cases = _load_fixture_cases(fixture_root)
     design_row_ids = _extract_design_row_ids(design_doc)
+    stage6_predicates, stage6_control, stage6_policy_gate = (
+        _extract_stage6_contract(design_doc)
+    )
+    if (
+        stage6_predicates != _EXPECTED_STAGE6_STRUCTURAL_PREDICATES
+        or stage6_control != _EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    ):
+        raise ContractError("design §10 stage 6 structural predicates drifted")
+    stage6_policy_gates = [
+        (entry["gate_id"], entry["owner"], entry["status"])
+        for entry in manifest["required_gates"]["entries"]
+        if entry["gate_id"].startswith("CFAB-STAGE6-POLICY-")
+    ]
+    if stage6_policy_gates != [stage6_policy_gate]:
+        raise ContractError(
+            "design §10 stage 6 policy gate does not exactly match required_gates"
+        )
     expected_assignment_gate_id = _fixture_assignment_gate_id_from_design(design_doc)
     assignment_gate_ids = [
         entry["gate_id"]
