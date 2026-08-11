@@ -15,6 +15,7 @@ import os
 import sys
 import tempfile
 import time
+from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -64,6 +65,15 @@ _CLEAN_IMPL = ("    sort(write_set_.begin(), write_set_.end(),\n"
               "         [](const auto& a, const auto& b) { return a.key_ < b.key_; });")
 _NON_SWO_IMPL = ("    sort(write_set_.begin(), write_set_.end(),\n"
                  "         [](const auto& a, const auto& b) { return &a != &b; });")
+_HOST_EFFECT_INJECTIONS = (
+    'std::system("ignored");',
+    'execl("ignored", "ignored", nullptr);',
+    'std::ofstream stream("ignored");',
+    'while(true){}',
+    'while (1.0) {}',
+    'for (; 0.5f ;) {}',
+    "while ('x') {}",
+)
 
 
 def _mk_template_dir() -> str:
@@ -127,6 +137,88 @@ def test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches():
     gate = S._quarantine_and_audit(d, coder, auditor, _G, _tmp_layout("pass"), state,
                                    _planner(), write=False)
     assert gate is None
+
+
+def test_sort_seam_rejects_measured_host_effects_and_never_writes_source():
+    for implementation in _HOST_EFFECT_INJECTIONS:
+        d = _mk_template_dir()
+        path = os.path.join(d, _SRC_REL)
+        before = open(path, "rb").read()
+
+        dry, *_ = L.quarantine(
+            d, implementation, marker_id=S.MARKER_ID,
+            source_rel=_SRC_REL, write=False,
+        )
+        assert not dry.passed
+        assert dry.subtype is DiffRejectSubtype.HOST_EFFECT
+        assert open(path, "rb").read() == before
+
+        writing, *_ = L.quarantine(
+            d, implementation, marker_id=S.MARKER_ID,
+            source_rel=_SRC_REL, write=True,
+        )
+        assert not writing.passed
+        assert writing.digest["subtype"] == "host-effect"
+        assert open(path, "rb").read() == before
+
+
+def test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects():
+    for index, implementation in enumerate(_HOST_EFFECT_INJECTIONS):
+        d = _mk_template_dir()
+        machine, _base, _edited, working_diff = L.quarantine(
+            d, implementation, marker_id=S.MARKER_ID,
+            source_rel=_SRC_REL, write=False,
+        )
+        assert machine.subtype is DiffRejectSubtype.HOST_EFFECT
+        auditor = S.AuditorVerdict(
+            verdict="pass", diff_digest=S.compute_diff_digest(working_diff),
+        )
+        coder = S.CoderProposalSort(
+            axis=S.MARKER_ID, implementation=implementation,
+        )
+        state = L.LoopState(start_ts=time.monotonic())
+        layout = _tmp_layout(f"hostecho{index}")
+
+        gate = S._quarantine_and_audit(
+            d, coder, auditor, _G, layout, state, _planner(), write=True,
+        )
+
+        assert gate is not None and gate["outcome"] == "rejected"
+        assert gate["digest"]["subtype"] == "host-effect"
+        assert state.whiteboard[-1].result == "rejected"
+        loaded = load_diff_rejections(_critic_view(layout))
+        assert len(loaded) == 1 and loaded[0].subtype == "host-effect"
+
+
+def test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring():
+    original = S.apply_mandatory_deny_only_veto
+    cases = (
+        S.AuditorVerdict(
+            verdict="reject", diff_digest="placeholder",
+            violations=[{"type": 14}],
+        ),
+        S.AuditorVerdict(
+            verdict="uncertain", diff_digest="placeholder",
+            uncertainty="closed schema では判断材料が不足",
+        ),
+    )
+    for index, auditor in enumerate(cases):
+        d = _mk_template_dir()
+        auditor.diff_digest = _digest_for(d)
+        coder = S.CoderProposalSort(
+            axis=S.MARKER_ID, implementation=_CLEAN_IMPL,
+        )
+        state = L.LoopState(start_ts=time.monotonic())
+        with mock.patch.object(
+            S, "apply_mandatory_deny_only_veto", wraps=original,
+        ) as combined:
+            gate = S._quarantine_and_audit(
+                d, coder, auditor, _G, _tmp_layout(f"denyonly{index}"),
+                state, _planner(), write=False,
+            )
+        assert gate is not None and gate["outcome"] == "rejected"
+        assert combined.call_count == 1
+        assert combined.call_args.args[0].passed
 
 
 def test_quarantine_and_audit_rejects_hole_escape_before_auditor_gate():

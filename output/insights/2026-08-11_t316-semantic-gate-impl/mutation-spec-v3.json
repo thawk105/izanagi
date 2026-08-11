@@ -1,0 +1,247 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 40,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "            \"system\", \"popen\", \"pclose\", \"fork\", \"vfork\", \"clone\", \"clone3\",",
+          "new": "            \"popen\", \"pclose\", \"fork\", \"vfork\", \"clone\", \"clone3\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_benign_candidate_local_directive_is_left_to_structural_gate",
+        "orchestrator/tests/test_coder_effect_gate.py::test_finding_projection_has_only_disclosure_free_fields_and_total_count",
+        "orchestrator/tests/test_coder_effect_gate.py::test_measured_four_injections_are_rejected[std::system(\"ignored\");-process-shell]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_spacing_aliases_and_resolver_calls_are_rejected[auto run = &std :: system;]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_spacing_aliases_and_resolver_calls_are_rejected[auto run = std::sys///ntem;]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_spacing_aliases_and_resolver_calls_are_rejected[auto run = std::system;]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_spacing_aliases_and_resolver_calls_are_rejected[std :: system(\"ignored\");]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_seam_rejects_measured_host_effects_and_never_writes_source",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "            \"ifstream\", \"ofstream\", \"fstream\", \"filebuf\", \"basic_ifstream\",",
+          "new": "            \"ifstream\", \"fstream\", \"filebuf\", \"basic_ifstream\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_measured_four_injections_are_rejected[std::ofstream stream(\"ignored\");-file-stdio]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_seam_rejects_measured_host_effects_and_never_writes_source",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "            \"socket\", \"socketpair\", \"connect\", \"bind\", \"listen\", \"accept\",",
+          "new": "            \"socket\", \"socketpair\", \"bind\", \"listen\", \"accept\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_each_deny_table_category_has_a_mutation_killing_probe[network]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "            \"freopen\", \"fdopen\", \"tmpfile\", \"open\", \"openat\", \"creat\", \"read\",",
+          "new": "            \"freopen\", \"fdopen\", \"tmpfile\", \"open\", \"openat\", \"creat\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_each_deny_table_category_has_a_mutation_killing_probe[file-stdio]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_finding_projection_has_only_disclosure_free_fields_and_total_count",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "            or _is_nonzero_floating_literal(token.text)",
+          "new": "            or False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[for (; 0.5f ;) {}]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[while (.25L) {}]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[while (0x1p-2) {}]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[while (1.0) {}]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_seam_rejects_measured_host_effects_and_never_writes_source",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "        token.kind == \"char\" and _is_nonzero_character_literal(token.text)",
+          "new": "        token.kind == \"char\" and False"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[while ('x') {}]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[while (L'//n') {}]",
+        "orchestrator/tests/test_coder_effect_gate.py::test_explicit_unconditional_loop_headers_are_rejected[while (u'x') {}]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_seam_rejects_measured_host_effects_and_never_writes_source",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        findings = coder_effect_gate.scan_host_effects(implementation)",
+          "new": "        findings = ()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_loader_drops_non_allowlisted_rule_and_category_text",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_seam_rejects_measured_host_effects_and_never_writes_source",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop_sort.py",
+          "old": "    combined = apply_mandatory_deny_only_veto(\n        res,\n        auditor,\n        working_diff,\n        diff_region=SOURCE_REL,\n        template_diff_id=MARKER_ID,\n    )",
+          "new": "    combined = apply_mandatory_deny_only_veto(\n        res,\n        auditor,\n        working_diff,\n        diff_region=SOURCE_REL,\n        template_diff_id=MARKER_ID,\n    )\n    combined = res"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/diff_quarantine.py",
+          "old": "    HOST_EFFECT = \"host-effect\"",
+          "new": "    HOST_EFFECT = \"host-effect-v2\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_synthetic_template_seam_rejects_measured_host_effects_without_write",
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_host_effect_critic_keeps_allowlisted_rule_category_and_count_distinct",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_sort_seam_rejects_measured_host_effects_and_never_writes_source",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_valid_auditor_pass_digest_echo_cannot_reverse_host_effect_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        findings = coder_effect_gate.scan_host_effects(implementation)",
+          "new": "        findings = coder_effect_gate.scan_host_effects(edited_text)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_effect_scanner_runs_only_after_structure_and_sees_exact_written_hole_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    fixed_message = (\n        \"帰属汚染: coder value と hole literal の一致を機械確認できない \"\n        \"(規律6/D39 決定7)\"\n    )",
+          "new": "    fixed_message = (\n        f\"帰属汚染: {coder.implementation!r} の literal 一致を機械確認できない \"\n        \"(規律6/D39 決定7)\"\n    )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/coder_effect_gate.py",
+          "old": "        (\"syscall\", \"dlopen\", \"dlsym\", \"dlvsym\", \"asm\", \"__asm\", \"__asm__\"),",
+          "new": "        (\"syscall\", \"dlopen\", \"dlsym\", \"dlvsym\", \"asm\", \"__asm\", \"__asm__\", \"sort\"),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_coder_effect_gate.py::test_all_current_s6_sort_candidates_and_nosort_pass",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_raises_on_digest_mismatch",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_reject",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_quarantine_and_audit_rejects_auditor_verdict_uncertain_with_distinct_subtype",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_real_sort_driver_reject_and_uncertain_use_mandatory_veto_factoring",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_render_rejections_uses_auditor_hint_for_auditor_subtypes",
+        "orchestrator/tests/test_p3_s4_loop_sort.py::test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

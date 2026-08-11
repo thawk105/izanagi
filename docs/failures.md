@@ -5458,6 +5458,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   したが、`docs/dev-wave/**` の L1.5 予算 (9566 bytes) に余地が無く、最小の 1 行 (約 90 bytes)
   でも `check_docs` が赤になった。**予算は上げず本文編集を見送り**、候補として worklog へ
   記録した。恒久対応は現時点で memory と本エントリだけが担っており、**機械強制されていない**。
+- **supersede: 2026-08-11** — `evidence_status=invalid` の原因は web 検索の重複キーだけではない。同症状で原因が非 NFC 行の例を F223 に記録した。invalid を見たら両方を判定する。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -5492,3 +5493,80 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_check_docs.py::test_command_docs_guard_positive_controls`
   の `command_startup_routing_blockquoted` と、本 wave が追加した
   `stage6-relocated` / `decoy-blockquoted` が、同種の行境界変更を positive control として固定する。
+
+### F220. 失敗 node が多い変異は期待 node の完全集合を記録できない [手順漏れ] [テスト代表性]
+
+- 事象: 変異事前登録のため `git diff-tree --raw` から `-r` を落とす変異の期待 node を実測で
+  導出したところ、26 件が失敗したのに失敗 digest は 12 件しか出力しなかった
+  (`IZANAGI_FAILURE_DIGEST_ACCOUNT failures=26 failed=26 selected=12 omitted_failures=14`、
+  `budget_bytes=49152`)。harness は失敗 node 集合の完全一致でしか KILLED を数えないため、
+  この変異はどう登録しても MISMATCH にしかならない。
+- 根本原因: 失敗 digest の byte 予算による切り詰めと、harness の「期待 node 完全一致」判定が
+  噛み合っていない。切り詰めが起きたことは digest 自身が申告するが、変異の登録側はそれを
+  見る義務を負っていなかった。
+- 恒久対応: `docs/dev-wave/mutation.md` `DW-M08` の「期待 node と記録 node を突き合わせ前に
+  同じ形式へ正規化する」義務に、切り詰め時の扱いを含める運用とする。**本 wave では
+  `docs/dev-wave/**` の L1.5 byte 予算に空きが無く追記できなかった** (`check_docs` が
+  `9791 > 9566` で拒否)。予算を空けるには L2 節の削除が要り、それはユーザー裁定に限られるため、
+  記述の追加は裁定待ちとして本エントリをポインタにする。実務上の回避は
+  「失敗 node が多い変異は narrow な gate へ再照準し、広い変異は実測値だけを証拠として残す」。
+- 再発検知: 変異台帳の `failed_nodes` 件数と、job stdout の
+  `IZANAGI_FAILURE_DIGEST_ACCOUNT` の `omitted_failures` が非 0 でないかの照合。
+
+### F221. 段 2 プランが存在しない toolchain を実走条件に据えた [手順漏れ]
+
+- 事象: 段 2 の codex プランが「実走は admission build と同じ `g++-13` を要求し、無ければ
+  成功扱いしない」と書いたが、この環境に `g++-13` は login / compute とも存在しない
+  (`docs/pegasus-runbook.md` §7 が明記、既存 real-build control もそのため skip する)。
+  そのまま実装していれば規律 1 の実走証拠が 0 件になっていた。
+- 根本原因: `docs/dev-wave/core.md` `DW-S01` は「別 program を起動する成果物では build・
+  環境変数・外部 command と注入 seam の実在を棚卸しする」義務を**親にだけ**課しており、
+  段 2 のプラン子には課していない。子は runbook を読めば分かる事実を確認しないまま条件に据えた。
+- 恒久対応: `docs/dev-wave/workers.md` `DW-S02` へ「実走条件に据える外部 command・toolchain は
+  実在を確認させる」を追記する。**本 wave では docs 予算不足で追記できず** (上記と同じ理由)、
+  裁定待ち。実務上は親が段 1 brief で実測した toolchain 一覧をプラン子の prompt へ渡す。
+- 再発検知: 段 3 の敵対レンズが実在しない前提を blocker として拾う (本件は sol / luna の
+  2 レンズが独立に検出した。段 3 を省く軽量版では検出されない)。
+
+### F222. codex 子の観測トークン上限が完了直前の子を SIGTERM し、出力 0 byte にする [コンテキスト浪費] [手順漏れ]
+
+- 事象: 段 3 の敵対レンズ 1 本 (`consult`, `reasoning=max`, read-only) が 17 分走った末に
+  `codex_exit_code=-15` で終了し、`output_bytes=0`、成果物ファイルは未作成。receipt の
+  `limit_trigger=max_cli_reported_tokens`、実測 `cli_reported=1,017,768` に対し
+  `--max-cli-reported-tokens` の既定は 1,000,000。**1.8% の超過でレンズ 1 本が丸ごと失われた。**
+  待ち手は `.done` と成果物の不一致を検出して `stage=producer-files rc=70` で正しく止まった
+  (待ち手側の欠陥ではない)。
+- 事象 (二次): 同じ prompt ファイルのまま再投入すると `NG: 既存の完全な receipt は上書きできない`
+  で rc=2 になる。`job_id` は prompt 内容の digest を含むため、**prompt を変えない限り再投入
+  できない**。log は 1 行だけで、原因は receipt を開くまで分からない。
+- 根本原因: `--max-cli-reported-tokens` は「非権威の運用既定」として `--help` に書かれているが、
+  読み込み量の多い段 (大きなソース + 大きなテストファイルを跨ぐレビュー・相談) では既定が
+  実消費に足りない。上限超過は**打ち切りではなく破棄**であり、部分出力も保存されない。
+  起動側に「読む量に応じて上限を見積もる」手順が無かった。
+- 恒久対応: 起動 script (`run_*.sh`) の argv に `--max-cli-reported-tokens` を明示する運用へ変更し、
+  本 wave では 3,000,000 で 4 本すべて完走した。**reference 節 (`DW-O01`) への規則追記は
+  `docs/dev-wave/**` の L1.5 予算に余白 0 のため入らず、予算の扱いを裁定パッケージへ返した**
+  (`output/insights/2026-08-11_t812-lease-self-renew/package.md` の Q7)。
+- 再発検知: receipt の `attempts[].limit_trigger` が非 null かつ `output_bytes=0` の組合せ。
+  待ち手の `stage=producer-files` はこの型の症状として現れる (原因は receipt を見るまで確定しない)。
+
+### F223. repo 内のたった 2 行の非 NFC 文字が、それを読んだ Codex 子の成果物を丸ごと捨てさせる [恒真ゲート] [手順漏れ]
+
+- 事象: 段 3 の敵対レンズ 1 本が `codex_exit_code=0`、`validator_rc=0`、rollout 健全
+  (`session_meta=1` / `turn_context=1` / model・effort・cwd 一致)、成果物 10,488 bytes 完全
+  (`check_codex_output.py` rc=0) でありながら、receipt が `evidence_status=invalid` /
+  `accepted=false` / `launcher_rc=1` になり `-o` の成果物が書かれなかった。784 秒・入力 237 万 token。
+- 根本原因: `tools/codex_worker_launch.py` の stdout 解析は **JSONL が Unicode NFC であることを要求**する。
+  子が `grep` で読んだ行に分解済みの「プ」(U+30D5 + U+309A) が含まれており、
+  `item.completed` (command_execution) の event 行が非 NFC になって `stdout_invalid` が立った。
+  出典は **repo の tracked file 全体でわずか 2 行** —
+  `orchestrator/tests/test_check_docs.py:4442` と `:4465` の `プレースホルダ`。
+  この 2 行を出力に含めた子は、内容や品質と無関係に必ず不採用になる。
+  症状は F217 と同じだが原因は別で、F217 の再発検知手順 (web 検索イベントの重複キー) では検出できない。
+- 恒久対応: 当該 2 行を NFC へ正規化する ([T-855]、実装面のため Codex author が必要)。
+  併せて非 NFC 行を拒否する repo 全体の機械検査を `tools/check_docs.py` へ入れるかを同タスクで裁定する
+  (入れれば混入時点で赤になり、子を走らせてから捨てる無駄が構造的に消える)。
+- 再発検知: `evidence_status=invalid` を見たら、`attempt-*.events.jsonl` の各行へ
+  `unicodedata.normalize("NFC", line) != line` を当てて非 NFC 行を特定する。
+  該当があれば本 F、`web_search` の重複キーなら F217。
+  repo 側は `git ls-files` の全 tracked file に同じ判定を当てれば 2 秒で棚卸しできる。

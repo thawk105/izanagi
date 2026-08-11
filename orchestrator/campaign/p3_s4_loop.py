@@ -54,7 +54,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
-from . import env_contract, ident, trigger_gate_binding, wal  # noqa: E402
+from . import coder_effect_gate, env_contract, ident, trigger_gate_binding, wal  # noqa: E402
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_coder_build_authority_argument,
@@ -62,6 +62,7 @@ from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,
 from .artifact_admission import (AdmittedCampaign,        # noqa: E402
                                          require_admitted_campaign)
 from .diff_quarantine import (DiffQuarantine,              # noqa: E402
+                                      DiffRejectSubtype,
                                       DiffQuarantineResult,
                                       parse_template_file)
 from .layout import (CampaignLayout,                       # noqa: E402
@@ -200,7 +201,9 @@ def quarantine(sub: str, implementation: str,
       1. backoff.hh (骨格入り) を base_text として読む
       2. parse_template_file で marker を取り source_rel を差し替える (basename 推定を上書き)
       3. hole を implementation で置換 → edited_text (write=True でファイルに書く)
-      4. working_diff = make_working_diff(base, edited)、head_text=base で validate
+      4. working_diff = make_working_diff(base, edited)、head_text=base で structural validate
+      5. structural pass の場合だけ、元の hole implementation そのものを有限 lexical
+         coder-effect gate へ渡す
 
     Returns: (DiffQuarantineResult, base_text, edited_text, working_diff)。
     passed=False なら呼び出し元は build に進めず reject を WAL/critic へ (規律2 hard gate)。
@@ -236,6 +239,36 @@ def quarantine(sub: str, implementation: str,
     edited_text = render_hole(base_text, marker, implementation)
     working_diff = make_working_diff(base_text, edited_text, source_rel)
     res = DiffQuarantine(marker, working_diff, head_text=base_text).validate()
+    if res.passed:
+        findings = coder_effect_gate.scan_host_effects(implementation)
+        if findings:
+            first = findings[0]
+            reason = "coder hole が有限 lexical host-effect policy に抵触"
+            evidence = (
+                f"finding_count={len(findings)} first_rule_id={first.rule_id} "
+                f"first_category={first.category} "
+                f"first_token_ordinal={first.token_ordinal} "
+                f"first_line_number={first.line_number} "
+                f"first_byte_length={first.byte_length}"
+            )
+            digest = {
+                "rejection_type": "diff-quarantine",
+                "subtype": DiffRejectSubtype.HOST_EFFECT.value,
+                "reason": reason,
+                "diff_region": source_rel,
+                "template_diff_id": marker_id,
+                "evidence": evidence,
+                "rule_id": first.rule_id,
+                "category": first.category,
+                "finding_count": first.finding_count,
+            }
+            res = DiffQuarantineResult(
+                passed=False,
+                subtype=DiffRejectSubtype.HOST_EFFECT,
+                reason=reason,
+                digest=digest,
+                violations=[digest],
+            )
     if write:
         if res.passed:
             with open(path, "w", encoding="utf-8") as f:
@@ -784,23 +817,30 @@ def assert_value_literal_consistent(coder: CoderProposal) -> None:
     別 literal binary の性能になり **帰属が汚染される** (どの値が効いたかの還流信号が自己矛盾)。
     D39 決定7 はこれを「整合規約」と呼ぶが規約は謳うだけでは発火しない — harness が機械照合する。
 
+    ``genome`` の宣言済み scalar ``BACKOFF_FIXED`` は候補の設計上の帰属 field であり、
+    自由記述 bytes の非反射対象外である。これを opaque 化すると campaign identity と
+    fitness 帰属が壊れるため、本検査は value ↔ literal の一致を保ったまま明示値を使う。
+
     判定: implementation の `now_backoff = <lit>` 代入 literal が value と数値一致すること。
     代入 literal を抽出できない (自由式) 場合は fails-closed で value が implementation に数値
     として現れることを要求する (段 4 の編集面は backoff literal のみ、D39 決定1)。"""
+    fixed_message = (
+        "帰属汚染: coder value と hole literal の一致を機械確認できない "
+        "(規律6/D39 決定7)"
+    )
+    try:
+        coder_value = float(coder.value)
+    except (TypeError, ValueError, OverflowError):
+        raise AttributionMismatch(fixed_message) from None
+
     m = _NOW_BACKOFF_RE.search(coder.implementation)
     if m is not None:
-        if float(m.group(1)) != float(coder.value):
-            raise AttributionMismatch(
-                f"帰属汚染: coder.value={coder.value} だが implementation の now_backoff "
-                f"literal={m.group(1)} — genome{{BACKOFF_FIXED={int(coder.value)}}} に別 literal "
-                f"binary の結果が紐付く (規律6/D39 決定7)")
+        if float(m.group(1)) != coder_value:
+            raise AttributionMismatch(fixed_message)
         return
     lits = {float(x) for x in _NUM_RE.findall(coder.implementation)}
-    if float(coder.value) not in lits:
-        raise AttributionMismatch(
-            f"帰属汚染: coder.value={coder.value} が implementation に数値として現れない "
-            f"({coder.implementation!r}) — value と走る literal の一致を機械確認できない "
-            f"(規律6/D39 決定7)")
+    if coder_value not in lits:
+        raise AttributionMismatch(fixed_message)
 
 
 # ==== 1 iteration の機械 E2E (fixture proposal で実走) ========================

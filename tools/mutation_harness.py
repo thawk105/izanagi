@@ -28,6 +28,7 @@ from typing import Any
 
 SPEC_SCHEMA = "izanagi-dev-wave-mutation-spec/v1"
 LEDGER_SCHEMA = "izanagi-dev-wave-mutation/v4"
+ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts/v1"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RECEIPT_LINE_RE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (.+) へ保存しました \(child rc=(-?\d+)\)$"
@@ -100,6 +101,25 @@ MUTATION_RECORD_FIELDS = frozenset(
         "collection_sha256",
     }
 )
+ATTEMPT_FIELDS = frozenset(
+    {
+        "run_attempt_ordinal",
+        "wrapper_attempt_ordinal",
+        "phase",
+        "mutation_id",
+        "state",
+        "started_at",
+        "finished_at",
+        "rc",
+        "timed_out",
+        "artifact_error",
+        "console_sha256",
+        "request",
+    }
+)
+ATTEMPT_REQUEST_FIELDS = frozenset(
+    {"request_id", "submission_dir", "receipt_path", "job_stdout_path", "outcome_rc"}
+)
 
 
 class HarnessError(RuntimeError):
@@ -137,6 +157,59 @@ class MutationSpec:
     estimated_run_seconds: float
     timeout_seconds: float
     hang_timeout_seconds: float
+
+
+@dataclasses.dataclass
+class AttemptRecorder:
+    """invocation と scheduler request を atomic sidecar へ保存する。"""
+
+    path: Path
+    wrapper_attempt_ordinal: int
+    document: dict[str, Any]
+
+    def started(self, *, phase: str, mutation_id: str | None) -> int:
+        ordinal = len(self.document["attempts"]) + 1
+        self.document["attempts"].append(
+            {
+                "run_attempt_ordinal": ordinal,
+                "wrapper_attempt_ordinal": self.wrapper_attempt_ordinal,
+                "phase": phase,
+                "mutation_id": mutation_id,
+                "state": "started",
+                "started_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "finished_at": None,
+                "rc": None,
+                "timed_out": False,
+                "artifact_error": None,
+                "console_sha256": None,
+                "request": None,
+            }
+        )
+        _write_json_atomic(self.path, self.document)
+        return ordinal
+
+    def finished(self, ordinal: int, result: dict[str, Any]) -> None:
+        attempts = self.document["attempts"]
+        if ordinal < 1 or ordinal > len(attempts):
+            raise HarnessError("attempt ordinal が sidecar 範囲外")
+        entry = attempts[ordinal - 1]
+        if entry["run_attempt_ordinal"] != ordinal or entry["state"] != "started":
+            raise HarnessError("attempt の started→finished 遷移が不正")
+        output = result.get("output", "")
+        if not isinstance(output, str):
+            raise HarnessError("attempt console output が文字列でない")
+        entry.update(
+            {
+                "state": "finished",
+                "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "rc": result.get("rc"),
+                "timed_out": result.get("timed_out", False),
+                "artifact_error": result.get("artifact_error"),
+                "console_sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
+                "request": result.get("request"),
+            }
+        )
+        _write_json_atomic(self.path, self.document)
 
 
 def _require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
@@ -583,7 +656,7 @@ def _assert_tracked_test_arguments(repo: Path, head: str, args: Sequence[str]) -
 
 
 def _assert_runtime_artifacts_outside_repo(
-    repo: Path, *, spec_path: Path, out: Path
+    repo: Path, *, spec_path: Path, out: Path, attempt_out: Path | None = None
 ) -> None:
     temp_root = Path(tempfile.gettempdir()).resolve()
     lock_path = _lock_path_for(repo).resolve()
@@ -594,12 +667,97 @@ def _assert_runtime_artifacts_outside_repo(
         "temporary root": temp_root,
         "lock": lock_path,
     }
+    if attempt_out is not None:
+        candidates["--attempt-out"] = attempt_out
+        if attempt_out == out:
+            raise HarnessError("--attempt-out と --out は異なる path でなければならない")
     inside = [label for label, path in candidates.items() if _path_within(path, repo)]
     if inside:
         raise HarnessError(
             "runtime artifact は試験対象 checkout 外でなければならない: "
             + ", ".join(sorted(inside))
         )
+
+
+def _new_attempt_recorder(
+    path: Path,
+    *,
+    resume: bool,
+    wrapper_attempt_ordinal: int,
+    head: str,
+    spec: MutationSpec,
+    spec_sha256: str,
+    runner_sha256: str,
+    tool_sha256: str,
+) -> AttemptRecorder:
+    expected = {
+        "schema": ATTEMPT_SCHEMA,
+        "repo_head": head,
+        "spec_sha256": spec_sha256,
+        "runner_sha256": runner_sha256,
+        "tool_sha256": tool_sha256,
+        "expected_initial_requests": len(spec.mutations) + 2,
+    }
+    if resume:
+        try:
+            if path.is_symlink() or not path.is_file():
+                raise HarnessError(
+                    "--resume + --attempt-out には既存の symlink でない通常 file が必要"
+                )
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except HarnessError:
+            raise
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise HarnessError(f"attempt sidecar を読めない: {exc}") from exc
+        if not isinstance(document, dict):
+            raise HarnessError("attempt sidecar root が object でない")
+        _require_exact_keys(document, {*expected, "attempts"}, "attempt sidecar")
+        for key, value in expected.items():
+            if document[key] != value:
+                raise HarnessError(f"attempt sidecar の {key} が現行 run と不一致")
+        attempts = document["attempts"]
+        if not isinstance(attempts, list):
+            raise HarnessError("attempt sidecar attempts が list でない")
+        for index, attempt in enumerate(attempts):
+            if not isinstance(attempt, dict):
+                raise HarnessError(f"attempt sidecar attempts[{index}] が object でない")
+            _require_exact_keys(attempt, set(ATTEMPT_FIELDS), f"attempts[{index}]")
+            if attempt["run_attempt_ordinal"] != index + 1:
+                raise HarnessError("attempt sidecar ordinal が連続でない")
+            if (
+                isinstance(attempt["wrapper_attempt_ordinal"], bool)
+                or not isinstance(attempt["wrapper_attempt_ordinal"], int)
+                or attempt["wrapper_attempt_ordinal"] < 1
+            ):
+                raise HarnessError("attempt sidecar wrapper ordinal が不正")
+            if attempt.get("state") != "finished":
+                raise HarnessError(
+                    f"attempt sidecar attempts[{index}] が finished でない; resume 不能"
+                )
+            if attempt["phase"] not in {"collection", "baseline", "mutation"}:
+                raise HarnessError("attempt sidecar phase が未知")
+            if (attempt["phase"] == "mutation") is not isinstance(
+                attempt["mutation_id"], str
+            ):
+                raise HarnessError("attempt sidecar phase/mutation_id が不整合")
+            if not isinstance(attempt["timed_out"], bool):
+                raise HarnessError("attempt sidecar timed_out が bool でない")
+            request = attempt["request"]
+            if request is not None:
+                if not isinstance(request, dict):
+                    raise HarnessError("attempt sidecar request が object/null でない")
+                _require_exact_keys(
+                    request, set(ATTEMPT_REQUEST_FIELDS), f"attempts[{index}].request"
+                )
+    else:
+        if path.exists() or path.is_symlink():
+            raise HarnessError("fresh --attempt-out が既に存在する")
+        document = {**expected, "attempts": []}
+    return AttemptRecorder(
+        path=path,
+        wrapper_attempt_ordinal=wrapper_attempt_ordinal,
+        document=document,
+    )
 
 
 def _assert_head(repo: Path, expected_head: str) -> None:
@@ -952,6 +1110,7 @@ def _collect_expected_nodes(
     spec_sha256: str,
     runner_sha256: str,
     tool_sha256: str,
+    attempt_recorder: AttemptRecorder | None = None,
 ) -> dict[str, Any]:
     _assert_only_expected_dirt(repo, head, ())
     result = _run_tests(
@@ -959,6 +1118,8 @@ def _collect_expected_nodes(
         _collection_command(repo, command, runner_mode),
         timeout_s=spec.timeout_seconds,
         runner_mode=runner_mode,
+        attempt_recorder=attempt_recorder,
+        attempt_phase="collection" if attempt_recorder is not None else None,
     )
     output = result.get("job_stdout", "")
     collected = _collected_nodes(output, repo)
@@ -1092,7 +1253,76 @@ def _read_dispatch_stdout(console_output: str, repo: Path, rc: int) -> dict[str,
         "receipt_path": str(receipt_path),
         "job_stdout_path": str(stdout_path),
         "job_stdout": job_stdout,
+        "request": {
+            "request_id": request_id,
+            "submission_dir": str(submission_dir),
+            "receipt_path": str(receipt_path),
+            "job_stdout_path": str(stdout_path),
+            "outcome_rc": receipt_rc,
+        },
     }
+
+
+def _dispatch_submission_inventory(repo: Path) -> set[Path]:
+    root = (repo / "output" / "pegasus-dispatch").resolve()
+    if not root.exists():
+        return set()
+    if root.is_symlink() or not root.is_dir():
+        raise HarnessError("dispatch evidence root が通常 directory でない")
+    try:
+        return {
+            entry.resolve(strict=True)
+            for entry in root.iterdir()
+            if entry.is_dir() and not entry.is_symlink()
+        }
+    except OSError as exc:
+        raise HarnessError(f"dispatch submission inventory を取得できない: {exc}") from exc
+
+
+def _recover_dispatch_request(
+    repo: Path, before: set[Path]
+) -> dict[str, Any] | None:
+    """final receipt 行が無い TIMEOUT でも新規 request identity を回収する。"""
+
+    root = (repo / "output" / "pegasus-dispatch").resolve()
+    after = _dispatch_submission_inventory(repo)
+    created = sorted(after - before)
+    if len(created) != 1:
+        return None
+    submission = created[0]
+    candidates = [submission / "receipt.json"]
+    try:
+        candidates.extend(
+            path for path in root.glob("receipt-fallback-*.json")
+            if path.is_file() and not path.is_symlink()
+        )
+    except OSError:
+        return None
+    for candidate in candidates:
+        try:
+            if candidate.is_symlink() or not candidate.is_file():
+                continue
+            receipt = json.loads(candidate.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(receipt, dict) or receipt.get("submission_dir") != str(submission):
+            continue
+        request_id = receipt.get("request_id")
+        if not isinstance(request_id, str) or not request_id:
+            continue
+        outcome = receipt.get("outcome")
+        outcome_rc = outcome.get("rc") if isinstance(outcome, dict) else None
+        logs = receipt.get("scheduler_logs")
+        stdout_record = logs.get("stdout") if isinstance(logs, dict) else None
+        stdout_path = stdout_record.get("path") if isinstance(stdout_record, dict) else None
+        return {
+            "request_id": request_id,
+            "submission_dir": str(submission),
+            "receipt_path": str(candidate.resolve()),
+            "job_stdout_path": stdout_path if isinstance(stdout_path, str) else None,
+            "outcome_rc": outcome_rc if isinstance(outcome_rc, int) else None,
+        }
+    return None
 
 
 def _stop_process(process: subprocess.Popen[str]) -> None:
@@ -1114,7 +1344,14 @@ def _stop_process(process: subprocess.Popen[str]) -> None:
 
 
 def _run_tests(
-    repo: Path, command: Sequence[str], *, timeout_s: float, runner_mode: str
+    repo: Path,
+    command: Sequence[str],
+    *,
+    timeout_s: float,
+    runner_mode: str,
+    attempt_recorder: AttemptRecorder | None = None,
+    attempt_phase: str | None = None,
+    mutation_id: str | None = None,
 ) -> dict[str, Any]:
     started = time.monotonic()
     runner_env = os.environ.copy()
@@ -1128,6 +1365,20 @@ def _run_tests(
     ):
         runner_env.pop(key, None)
     runner_env["PYTHONDONTWRITEBYTECODE"] = "1"
+    attempt_ordinal: int | None = None
+    if attempt_recorder is not None:
+        if attempt_phase not in {"collection", "baseline", "mutation"}:
+            raise HarnessError("attempt recorder には phase が必要")
+        if (attempt_phase == "mutation") is not (mutation_id is not None):
+            raise HarnessError("attempt phase と mutation_id の対応が不正")
+        attempt_ordinal = attempt_recorder.started(
+            phase=attempt_phase, mutation_id=mutation_id
+        )
+    dispatch_before = (
+        _dispatch_submission_inventory(repo)
+        if attempt_recorder is not None and runner_mode == "dispatch"
+        else set()
+    )
     try:
         process = subprocess.Popen(
             list(command),
@@ -1140,13 +1391,16 @@ def _run_tests(
             start_new_session=True,
         )
     except OSError as exc:
-        return {
+        result = {
             "rc": None,
             "timed_out": False,
             "output": f"{type(exc).__name__}: {exc}",
             "artifact_error": f"test runner を起動できない: {exc}",
             "duration_s": round(time.monotonic() - started, 3),
         }
+        if attempt_recorder is not None and attempt_ordinal is not None:
+            attempt_recorder.finished(attempt_ordinal, result)
+        return result
     try:
         try:
             output, _stderr = process.communicate(timeout=timeout_s)
@@ -1165,10 +1419,13 @@ def _run_tests(
         if timed_out:
             result["artifact_error"] = None
             result["job_stdout"] = output or ""
+            result["request"] = _recover_dispatch_request(repo, dispatch_before)
         elif runner_mode == "dispatch":
             result.update(_read_dispatch_stdout(output or "", repo, int(rc)))
         else:
             result.update({"artifact_error": None, "job_stdout": output or ""})
+        if attempt_recorder is not None and attempt_ordinal is not None:
+            attempt_recorder.finished(attempt_ordinal, result)
         return result
     finally:
         _stop_process(process)
@@ -1205,10 +1462,16 @@ def _baseline(
     runner_sha256: str,
     tool_sha256: str,
     collection_sha256: str,
+    attempt_recorder: AttemptRecorder | None = None,
 ) -> dict[str, Any]:
     _assert_only_expected_dirt(repo, head, ())
     result = _run_tests(
-        repo, command, timeout_s=spec.timeout_seconds, runner_mode=runner_mode
+        repo,
+        command,
+        timeout_s=spec.timeout_seconds,
+        runner_mode=runner_mode,
+        attempt_recorder=attempt_recorder,
+        attempt_phase="baseline" if attempt_recorder is not None else None,
     )
     output = result.get("job_stdout", "")
     try:
@@ -1262,6 +1525,7 @@ def _apply_mutation(
     runner_sha256: str,
     tool_sha256: str,
     collection_sha256: str,
+    attempt_recorder: AttemptRecorder | None = None,
 ) -> dict[str, Any]:
     _assert_head(repo, head)
     _verify_originals(repo, originals)
@@ -1287,7 +1551,15 @@ def _apply_mutation(
         timeout_s = (
             spec.hang_timeout_seconds if mutation.hang_risk else spec.timeout_seconds
         )
-        result = _run_tests(repo, command, timeout_s=timeout_s, runner_mode=runner_mode)
+        result = _run_tests(
+            repo,
+            command,
+            timeout_s=timeout_s,
+            runner_mode=runner_mode,
+            attempt_recorder=attempt_recorder,
+            attempt_phase="mutation" if attempt_recorder is not None else None,
+            mutation_id=mutation.id if attempt_recorder is not None else None,
+        )
         output = result.get("job_stdout", "")
         try:
             failed = _failed_nodes(output, repo)
@@ -1787,7 +2059,7 @@ def _load_resume_ledger(
     return ledger
 
 
-def _write_ledger(path: Path, ledger: dict[str, Any]) -> None:
+def _write_json_atomic(path: Path, document: dict[str, Any]) -> None:
     path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(
@@ -1796,7 +2068,7 @@ def _write_ledger(path: Path, ledger: dict[str, Any]) -> None:
     temporary = Path(temporary_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            json.dump(ledger, stream, ensure_ascii=False, indent=2, sort_keys=True)
+            json.dump(document, stream, ensure_ascii=False, indent=2, sort_keys=True)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
@@ -1809,6 +2081,10 @@ def _write_ledger(path: Path, ledger: dict[str, Any]) -> None:
     finally:
         if temporary.exists():
             temporary.unlink()
+
+
+def _write_ledger(path: Path, ledger: dict[str, Any]) -> None:
+    _write_json_atomic(path, ledger)
 
 
 def _lock_path_for(repo: Path) -> Path:
@@ -1860,6 +2136,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--spec", required=True, type=Path)
     parser.add_argument("--expected-spec-sha256", required=True)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--attempt-out", type=Path)
+    parser.add_argument("--wrapper-attempt", type=int)
     parser.add_argument("--runner-mode", required=True, choices=("local", "dispatch"))
     parser.add_argument("--resume", action="store_true")
     parser.add_argument(
@@ -1880,6 +2158,14 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if (args.attempt_out is None) is not (args.wrapper_attempt is None):
+        raise HarnessError("--attempt-out と --wrapper-attempt は同時指定が必要")
+    if args.wrapper_attempt is not None and (
+        isinstance(args.wrapper_attempt, bool) or args.wrapper_attempt < 1
+    ):
+        raise HarnessError("--wrapper-attempt は 1 以上の int でなければならない")
+    if args.attempt_out is not None and args.runner_mode != "dispatch":
+        raise HarnessError("attempt sidecar は --runner-mode dispatch でのみ使用できる")
     command = list(args.command)
     if command and command[0] == "--":
         command.pop(0)
@@ -1899,13 +2185,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise HarnessError("--spec に symlink を指定してはならない")
     if args.out.is_symlink():
         raise HarnessError("--out に symlink を指定してはならない")
+    if args.attempt_out is not None and args.attempt_out.is_symlink():
+        raise HarnessError("--attempt-out に symlink を指定してはならない")
     try:
         repo = args.repo.resolve(strict=True)
     except OSError as exc:
         raise HarnessError(f"--repo を解決できない: {exc}") from exc
     out = args.out.resolve()
     spec_path = args.spec.resolve()
-    _assert_runtime_artifacts_outside_repo(repo, spec_path=spec_path, out=out)
+    attempt_out = args.attempt_out.resolve() if args.attempt_out is not None else None
+    _assert_runtime_artifacts_outside_repo(
+        repo, spec_path=spec_path, out=out, attempt_out=attempt_out
+    )
     spec, spec_sha256 = _load_spec(spec_path)
     expected_spec_sha256 = _require_sha256(
         args.expected_spec_sha256, "--expected-spec-sha256"
@@ -1925,6 +2216,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         runner_sha256 = _runner_sha256(runner_identity)
         tool_identity = _tool_identity(repo, head)
         tool_sha256 = _json_sha256(tool_identity)
+        attempt_recorder = (
+            _new_attempt_recorder(
+                attempt_out,
+                resume=args.resume,
+                wrapper_attempt_ordinal=args.wrapper_attempt,
+                head=head,
+                spec=spec,
+                spec_sha256=spec_sha256,
+                runner_sha256=runner_sha256,
+                tool_sha256=tool_sha256,
+            )
+            if attempt_out is not None and not args.plan_only
+            else None
+        )
         if args.resume:
             if out.is_symlink() or not out.is_file():
                 raise HarnessError("--resume には既存の symlink でない通常 --out file が必要")
@@ -1975,6 +2280,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 spec_sha256=spec_sha256,
                 runner_sha256=runner_sha256,
                 tool_sha256=tool_sha256,
+                attempt_recorder=attempt_recorder,
             )
             _validate_collection_record(
                 collection,
@@ -2021,6 +2327,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     runner_sha256=runner_sha256,
                     tool_sha256=tool_sha256,
                     collection_sha256=collection_sha256,
+                    attempt_recorder=attempt_recorder,
                 )
                 _validate_baseline_record(
                     baseline,
@@ -2059,6 +2366,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     runner_sha256=runner_sha256,
                     tool_sha256=tool_sha256,
                     collection_sha256=collection_sha256,
+                    attempt_recorder=attempt_recorder,
                 )
                 _validate_mutation_record(
                     record,
