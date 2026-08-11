@@ -24,13 +24,18 @@ roadmap 条文が列挙する条件をすべて引き継ぐ。下流解析は新
 - **事前登録.** 下流解析の推論構造を固定した core と、数値パラメータを確定する追補が、
   source study の最初の pilot より前に commit され、結果の記録がそれぞれの
   commit・path・blob digest を参照し、当該 commit が測定 checkout の祖先であること。
-  core の canonical path は producer が選べない。core 単独では完結せず、core と追補の組で完結する。
+  core の canonical path は producer が選べず、**その bytes は本適用裁定を発効させた fold commit
+  時点のものと同一でなければならない。**core 単独では完結せず、core と追補の組で完結する。
+  **入力にしてよいのは、source study 側でも core・追補 A に加えて本走用の追補 B が
+  揃った測定の結果だけである** (source core が本走に追補 A と追補 B の両方を要求するため)。
 - **cluster level 推論.** 入力は 1 割当てを 1 cluster とする代表値だけとし、
   推定量・検定・区間は cluster 間の標本平均と標本共分散だけから構成する。
   cluster 内の反復・block・個々の測定値を独立標本や追加の自由度として数えない。
 - **順序均衡と結果後の選別禁止.** 入力にしてよいのは、各適格 cluster が 3 arm の全 6 順列を
   ちょうど 1 回ずつ含み、arm 位置と直前 arm の組が厳密に均衡し、workload の block 順が
-  cluster 間で差 1 以内に均衡した測定だけである。**結果を見た後の cluster 選別・順序変更をしない。**
+  cluster 間で差 1 以内に均衡した測定だけである。
+  **block の実行順は事前 seed で許容集合から選ばれ、runtime 乱数を使っていないこと。**
+  **結果を見た後の cluster 選別・順序変更をしない。**
 - **観測者効果の分離 (絶対規律 1 は不変).** 入力にしてよいのは trace-disabled ビルドで揃えた
   性能測定だけである。correctness 検証は trace-enabled の別ビルド・別 run の結果を使い、
   同一割当ての中で性能測定と混ぜない。
