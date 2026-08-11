@@ -909,3 +909,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:fanout-exact-n-run":"[T-851]","T:fanout-tamper-evidence":"[T-849]","T:fanout-uncovered-gates":"[T-850]","T:legacy-mutation-reservation":"[T-852]","T:mutation-timeout-semantics":"[T-848]"},"authored":"2026-08-11","content_sha256":"cd27f34c01b4c1fd3c1b8c2589f0872dbb06df29c9d2b813043afe66a212caf5","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
 - {"allocations":{"D:mutation-fanout-contract":"D300"},"authored":"2026-08-11","content_sha256":"3f22b793ac1a96ebbf6d902409b6fcaf1b37e0e825700a62fe8ba72ead2fc068","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
+
+- {"allocations":{"T:dw-s04-docs-only-carveout":"[T-854]","T:dw-s04-scope-of-impl-diff":"[T-853]","T:normalize-non-nfc-test-literals":"[T-855]"},"authored":"2026-08-11","content_sha256":"2beaee1b2bb4cd2ad95cce3f879603619195430b663402d6d298da636d011325","seq":1,"wave":"dev-wave-t765-exemption-wording"}
+- {"allocations":{"D:dw-s04-conjunction":"D301"},"authored":"2026-08-11","content_sha256":"4405f6195f259b0b23625a903b84fa2f66a4c85ccd1475945567bd9e0d32a111","seq":2,"wave":"dev-wave-t765-exemption-wording"}
+- {"allocations":{"F:non-nfc-line-invalidates-codex-run":"F223"},"authored":"2026-08-11","content_sha256":"a5a0ada3c70e918e8304291eafd950b95d2555aa1cbdef26321c9f51e48b749c","seq":3,"wave":"dev-wave-t765-exemption-wording"}
