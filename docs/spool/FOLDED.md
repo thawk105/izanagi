@@ -876,3 +876,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:reflow-breaks-line-anchored-pins":"F219"},"authored":"2026-08-11","content_sha256":"ee83bbdd6c61aafcdb3cf2785fcf37f2f92a28efb09eae8ed12167225bce3151","seq":2,"wave":"dev-wave-t786-docs-budget"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"414af363582fee40a92b69399a7267178859e8a5f735cd6ea9243cb1c0da8bb1","seq":63,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"b5b69013f1eed280068c41821534a8a86683a8c78c02fd7984239fc369a0e68b","seq":64,"wave":"rulings-20260806-a"}
