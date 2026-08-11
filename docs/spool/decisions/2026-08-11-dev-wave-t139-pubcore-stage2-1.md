@@ -21,13 +21,19 @@ roadmap 条文が列挙する条件をすべて引き継ぐ。下流解析は新
 
 - **発効条件.** 本適用裁定を canonical 台帳へ fold した land 以後にのみ効力を持つ。
   fold 前の中間状態では発効しない。
-- **事前登録.** 下流解析の推論構造を固定した core と、数値パラメータを確定する追補が、
-  source study の最初の pilot より前に commit され、結果の記録がそれぞれの
-  commit・path・blob digest を参照し、当該 commit が測定 checkout の祖先であること。
-  core の canonical path は producer が選べず、**その bytes は本適用裁定を発効させた fold commit
-  時点のものと同一でなければならない。**core 単独では完結せず、core と追補の組で完結する。
-  **入力にしてよいのは、source study 側でも core・追補 A に加えて本走用の追補 B が
-  揃った測定の結果だけである** (source core が本走に追補 A と追補 B の両方を要求するため)。
+- **事前登録 (source study 側の条件。roadmap 条文がそのまま効く).**
+  入力にしてよいのは、推論の構造を固定した source core 事前登録と、数値パラメータを確定する
+  追補 A が最初の pilot より前に commit され、結果の記録がそれぞれの commit・path・blob digest を
+  参照し、当該 commit が測定 checkout の祖先である測定の結果だけである。
+  **source core の canonical path は producer が選べず、その bytes は roadmap の限定例外を
+  発効させた fold commit 時点のものと同一でなければならない。**
+  本走の結果を入力にするなら、さらに本走用の追補 B が揃っていること。
+  この事前登録は core と追補の組で完結し、core 単独では完結しない。
+- **事前登録 (下流解析側の条件。本適用裁定が課す条件).**
+  下流解析の推論構造を固定した core と、数値パラメータを確定する追補が、
+  source study の最初の pilot より前に commit・承認・fold されていること。
+  結果の記録はそれぞれの commit・path・blob digest を参照する。
+  こちらも core 単独では完結せず、core と追補の組で完結する。
 - **cluster level 推論.** 入力は 1 割当てを 1 cluster とする代表値だけとし、
   推定量・検定・区間は cluster 間の標本平均と標本共分散だけから構成する。
   cluster 内の反復・block・個々の測定値を独立標本や追加の自由度として数えない。
