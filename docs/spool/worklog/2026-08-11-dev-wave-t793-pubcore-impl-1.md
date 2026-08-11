@@ -59,6 +59,17 @@ title: 公表層の機械執行を D291 payload・台帳識別束縛・marker ga
   全経路結線が実証された。M1 の再照準では、期待した 9 node のうち 6 件が
   **entry を定数から組み立てるため定数変更に追随し、この定数に対して非感受**であることが判明した。
   実際に落ちるのは literal を pin する 2 node と閉集合 gate の 1 node である。
+- **受入全走が production の実バグを 1 件捕まえた (9015 passed / 2 failed)。**
+  公表台帳の履歴 gate `_ledger_history_tip()` が `len(blob) <= len(previous)` と書き、
+  **各版が厳密に長くなること**を要求していた。append-only が要求するのは「前の版が prefix で
+  あること」だけで、内容が変わらない版は正当である。`git log --full-history` は merge commit も
+  返すため、受入直前に local main を `--no-ff` で取り込むと **0 byte → 0 byte** の遷移で必ず落ちた。
+  **記録 fragment を持つあらゆる wave が main を取り込んだ瞬間に踏む。**
+  焦点走は merge 前だったため露見せず、段 6 のレビュー 2 本と変異 4 件も素通りした。
+  緩めたのは「同一 bytes の版を受理する」1 点だけで、delete/recreate と prefix でない版
+  (truncate・書き換え) の拒否は維持した。
+- **受入 lease の待ち手が 1 度 claim-timeout (rc=70) で返った。** 既定の待ち上限 7200 秒では
+  順番が来ず、21600 秒へ延ばして取得した。**これは赤ではなく「順番が来なかった」である。**
 - **変異の baseline が 1 度だけ偽の赤を出した。**
   `test_codex_worker_launch.py::test_check_receipt_rejects_unknown_and_duplicate_fields` が
   FAILED になったが、単独再走は rc=0 で再現せず、本 wave の差分から到達できない file であるため
