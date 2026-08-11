@@ -885,3 +885,13 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:acceptance-partition-invariance":"[T-826]","T:acceptance-slow-tests":"[T-827]"},"authored":"2026-08-11","content_sha256":"bb1633270592ba73e9b2d4cebeb8b3657c686c55564e97c81d4e8293a34b968e","seq":65,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"5d581974f7f629a0a03ebbd7c0f2cfce0b8ba01199d9078bbb476472fc31a989","seq":66,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-hash-pin-detection-gap":"[T-829]","T:check-docs-fence-scanner-column":"[T-830]","T:upper-cancellation-record":"[T-828]"},"authored":"2026-08-11","content_sha256":"fccbb75f5264a075062422ca4306aab4ce62b9e899638178f06c3bba5f80d10d","seq":1,"wave":"dev-wave-t657-stage0-fold"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"913c11c384e8b7e6e270abdf63838c53f50fcf4294e7475a2df3663849047073","seq":2,"wave":"dev-wave-t657-stage0-fold"}
+
+- {"allocations":{"T:living-docs-node-variance":"[T-832]","T:node-variance-impl":"[T-831]"},"authored":"2026-08-11","content_sha256":"82b2d4808cdd19011ee6020eb3c681bf81b3edf625d30b025438f9848eeef278","seq":1,"wave":"dev-wave-t810-node-variance"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1e4961a9efd8c407d119a5eda8e4782b65bb8a18f24f02a6b15ee54e50fe3af8","seq":2,"wave":"dev-wave-t810-node-variance"}
+
+- {"allocations":{"T:trace-stdout-same-run-nonce":"[T-833]","T:verifier-epoch-consumer-inventory":"[T-834]"},"authored":"2026-08-11","content_sha256":"792f16d045c58399826983f9a0e8ab0d745ce0993973e0da7ff25e6c7b143e19","seq":1,"wave":"dev-wave-t817-verifier-epoch"}
+
+- {"allocations":{"T:acceptance-record-order-contract":"[T-836]","T:runbook-request-id-pre-submission":"[T-835]"},"authored":"2026-08-11","content_sha256":"52a3fcac30251da88bb83c2b7ffbfa15ce145fb705bd37e9bcd4d78729ba9fa7","seq":1,"wave":"dev-wave-t809-fanout-conditions"}
