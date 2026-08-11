@@ -1048,6 +1048,148 @@ def test_design_longer_fence_closer_is_accepted(tmp_path: Path) -> None:
     assert result["status"] == "incomplete"
 
 
+def test_design_tab_indented_fence_closer_is_rejected(tmp_path: Path) -> None:
+    """正当な opener に対する closer 側の invalid indent だけを拒否する。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n\t```\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "fence marker with invalid indentation",
+    )
+
+
+def test_design_three_space_indented_fence_closer_is_accepted(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n   ```\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_fence_closer_with_non_whitespace_suffix_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n```spoof\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_fence_closer_without_suffix_is_accepted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n```\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_space_tab_indented_fence_opener_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """1 space 後の tab は次の tab stop、つまり column 4 まで進む。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n \t```text\nnon-authoritative decoy\n```\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "fence marker with invalid indentation",
+    )
+
+
+def test_design_three_space_indented_fence_opener_is_accepted(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n   ```text\nnon-authoritative decoy\n```\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_crlf_unclosed_fence_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_bytes()
+    design_doc.write_bytes(
+        text + b"\r\n```text\r\nnon-authoritative decoy\r\n"
+    )
+    assert b"\r\n```text\r\n" in design_doc.read_bytes()
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_crlf_fence_is_accepted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_bytes()
+    design_doc.write_bytes(
+        text + b"\r\n```text\r\nnon-authoritative decoy\r\n```\r\n"
+    )
+    assert b"\r\n```text\r\n" in design_doc.read_bytes()
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_short_fence_closer_with_trailing_spaces_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n````text\nnon-authoritative decoy\n```" + "   " + "\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_fence_closer_with_trailing_spaces_is_accepted(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n````text\nnon-authoritative decoy\n````" + "   " + "\n",
+        encoding="utf-8",
+    )
+    assert b"````   \n" in design_doc.read_bytes()
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
 def test_design_revocation_constraint_relaxation_is_rejected(
     tmp_path: Path,
 ) -> None:
