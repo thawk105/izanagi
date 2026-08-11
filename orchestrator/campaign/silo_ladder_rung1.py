@@ -38,8 +38,15 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 _IMPORT_ROOT = Path(__file__).resolve().parents[2]
 _ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[1]
 
-from . import env_attestation, env_contract, execution_guard, patchharness
+from . import (
+    env_attestation,
+    env_contract,
+    execution_guard,
+    patchharness,
+    toolchain_binding,
+)
 from . import silo_ladder_rung1_contract as patch_contract
+from .toolchain_binding import tool_version_body
 
 
 SCHEMA_VERSION = "silo_ladder_rung1/v1"
@@ -449,18 +456,6 @@ def _tool_identity(name: str, executable: str | None = None) -> dict[str, Any]:
         "version": (result.stdout + result.stderr).strip(),
         "sha256": sha256_file(real),
     }
-
-
-def tool_version_body(version: str) -> str:
-    """起動名である第 1 token を除き、tool version 本体を返す。"""
-    normalized = version.strip()
-    for index, character in enumerate(normalized):
-        if character.isspace():
-            body = normalized[index:]
-            if body.strip():
-                return body
-            break
-    raise ValueError("tool version must contain an argv0 token and body")
 
 
 def capture_tool_identities() -> list[dict[str, Any]]:
@@ -3551,13 +3546,8 @@ def validate_current_bindings(
         registered_build = calibration_document["acquisition_receipt"][
             "ccbench"
         ]["build_argv"]
-        registered_c = next(
-            token.split("=", 1)[1] for token in registered_build
-            if token.startswith("-DCMAKE_C_COMPILER=")
-        )
-        registered_cxx = next(
-            token.split("=", 1)[1] for token in registered_build
-            if token.startswith("-DCMAKE_CXX_COMPILER=")
+        registered_c, registered_cxx = (
+            toolchain_binding.extract_silo_compiler_paths(registered_build)
         )
         registered_dependency_pins = {
             name: next(
@@ -3571,20 +3561,20 @@ def validate_current_bindings(
         tools = {
             item["name"]: item for item in document["provenance"]["tools"]
         }
-        if (
-            registered_dependency_pins != dependency_pins
-            or tools["gcc"]["realpath"] != registered_c
-            or tools["g++"]["realpath"] != registered_cxx
-            or tools["gcc"]["realpath"]
-            != calibration_document["acquisition_receipt"]["toolchain"][
-                "compiler_path"
-            ]
-            or tool_version_body(tools["gcc"]["version"])
-            != tool_version_body(
-                calibration_document["acquisition_receipt"]["toolchain"][
-                    "compiler_version"
-                ]
-            )
+        if not toolchain_binding.silo_toolchain_matches(
+            registered_dependency_pins=registered_dependency_pins,
+            dependency_pins=dependency_pins,
+            registered_cc_realpath=registered_c,
+            registered_cxx_realpath=registered_cxx,
+            receipt_cc_realpath=calibration_document[
+                "acquisition_receipt"
+            ]["toolchain"]["compiler_path"],
+            receipt_cc_version=calibration_document[
+                "acquisition_receipt"
+            ]["toolchain"]["compiler_version"],
+            observed_cc_realpath=tools["gcc"]["realpath"],
+            observed_cxx_realpath=tools["g++"]["realpath"],
+            observed_cc_version=tools["gcc"]["version"],
         ):
             raise DriverError("gap toolchain differs from registered calibration")
         build_by_id = {
