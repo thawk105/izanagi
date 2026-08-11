@@ -287,6 +287,51 @@ DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL = (
     "で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus "
     "が docs 権威から導出。caller 指定は不可。"
 )
+DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
+    "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。",
+    "   受入直前に runbook の受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、",
+    "   `acquired` のときだけ投入する。",
+)
+DEV_WAVE_STAGE9_WAITER_CONSUMER_LINES = (
+    "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。",
+    "   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、",
+    "   land 成功時だけ `message` を照合済み peer へ 1 度送る。",
+)
+DEV_WAVE_DW_C00_WAITER_CONSUMER_LITERAL = (
+    "待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。"
+)
+DEV_WAVE_DW_O01_WAITER_CONSUMER_LITERAL = (
+    "待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が "
+    "`echo $$` で書く。"
+)
+DEV_WAVE_WAITER_DISCLAIMER_RE = re.compile(
+    r"参考例|任意|手動投入|してよい|使わない|実行しない|"
+    r"必須(?:では|で)ない|省略(?:可|してよい)"
+)
+DEV_WAVE_WAITER_TARGET = "tools/dev_wave_wait.py"
+DEV_WAVE_STAGE6_WAITER_CONSUMER_FINDING = (
+    ".claude/commands/dev-wave.md: 9 段状態機械の項 6 に waiter consumer "
+    "normative line が可視 top-level exact 1 件でない"
+)
+DEV_WAVE_STAGE9_WAITER_CONSUMER_FINDING = (
+    ".claude/commands/dev-wave.md: 9 段状態機械の項 9 に waiter consumer "
+    "normative line が可視 top-level exact 1 件でない"
+)
+DEV_WAVE_DW_C00_WAITER_CONSUMER_FINDING = (
+    "docs/dev-wave/core.md: DW-C00 に waiter consumer normative line が "
+    "可視 top-level exact 1 件でない"
+)
+DEV_WAVE_DW_O01_WAITER_CONSUMER_FINDING = (
+    "docs/dev-wave/operations.md: DW-O01 に waiter consumer normative line が "
+    "可視 top-level exact 1 件でない"
+)
+DEV_WAVE_WAITER_DISCLAIMER_FINDING = (
+    "dev-wave waiter consumer: normative line と同じ節に義務を打ち消す語がある"
+)
+DEV_WAVE_WAITER_TARGET_FINDING = (
+    "tools/dev_wave_wait.py: waiter consumer の canonical target が symlink でない "
+    "regular file として実在しない"
+)
 DEV_WAVE_MODEL_SLUG_RE = re.compile(
     r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
     r"(?![A-Za-z0-9._-])"
@@ -3853,6 +3898,123 @@ def _check_dev_wave_model_pins(
             )
 
 
+def _check_dev_wave_waiter_consumer_pins(
+    dev_wave_text: str | None,
+    core_text: str | None,
+    operations_text: str | None,
+    findings: list[str],
+) -> None:
+    """canonical waiter の docs consumer と実 target を可視正本へ束縛する。"""
+
+    target = REPO / DEV_WAVE_WAITER_TARGET
+    try:
+        target_mode = target.lstat().st_mode
+    except OSError:
+        target_mode = None
+    if target_mode is None or not stat.S_ISREG(target_mode):
+        findings.append(DEV_WAVE_WAITER_TARGET_FINDING)
+
+    def sequence_count(section: str, expected: tuple[str, ...]) -> int:
+        lines = section.splitlines()
+        width = len(expected)
+        return sum(
+            tuple(lines[index:index + width]) == expected
+            for index in range(len(lines) - width + 1)
+        )
+
+    def one_reference_section(text: str, section_id: str) -> str | None:
+        _, byte_slices, visible = _visible_reference_slices(text)
+        sections = _reference_id_sections(visible, section_id)
+        return (
+            sections[0]
+            if len(sections) == 1 and len(byte_slices.get(section_id, [])) == 1
+            else None
+        )
+
+    def one_named_section(text: str, heading: str, slice_key: str) -> str | None:
+        _, byte_slices, visible = _visible_reference_slices(text)
+        sections = _markdown_sections(visible, heading)
+        return (
+            sections[0]
+            if len(sections) == 1 and len(byte_slices.get(slice_key, [])) == 1
+            else None
+        )
+
+    def normative_sentence_count(section: str, expected: str) -> int:
+        count = 0
+        try:
+            lines = visible_top_level_lines(section)
+        except AuthorityError:
+            return 0
+        for visible, _, _ in lines:
+            count += sum(
+                sentence + "。" == expected
+                for sentence in visible.split("。")[:-1]
+            )
+        return count
+
+    disclaimer_sections: list[str] = []
+    if dev_wave_text is not None:
+        state_machine = one_named_section(
+            dev_wave_text, "9 段状態機械", "9"
+        )
+        if state_machine is not None:
+            stage6_ok = (
+                sequence_count(
+                    state_machine, DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES
+                ) == 1
+            )
+            stage9_ok = (
+                sequence_count(
+                    state_machine, DEV_WAVE_STAGE9_WAITER_CONSUMER_LINES
+                ) == 1
+            )
+            if not stage6_ok:
+                findings.append(DEV_WAVE_STAGE6_WAITER_CONSUMER_FINDING)
+            if not stage9_ok:
+                findings.append(DEV_WAVE_STAGE9_WAITER_CONSUMER_FINDING)
+            if stage6_ok and stage9_ok:
+                disclaimer_sections.append(state_machine)
+
+    if core_text is not None:
+        dw_c00 = one_reference_section(core_text, "DW-C00")
+        if dw_c00 is not None:
+            dw_c00_count = normative_sentence_count(
+                dw_c00, DEV_WAVE_DW_C00_WAITER_CONSUMER_LITERAL
+            )
+            if dw_c00_count != 1:
+                findings.append(DEV_WAVE_DW_C00_WAITER_CONSUMER_FINDING)
+            else:
+                disclaimer_sections.append(dw_c00)
+
+    if operations_text is not None:
+        dw_o01 = one_reference_section(operations_text, "DW-O01")
+        if dw_o01 is not None:
+            dw_o01_count = 0
+            try:
+                dw_o01_count = len(
+                    visible_top_level_matches(
+                        dw_o01,
+                        re.compile(
+                            re.escape(DEV_WAVE_DW_O01_WAITER_CONSUMER_LITERAL)
+                        ),
+                        label="DW-O01 waiter consumer",
+                    )
+                )
+            except AuthorityError:
+                dw_o01_count = 0
+            if dw_o01_count != 1:
+                findings.append(DEV_WAVE_DW_O01_WAITER_CONSUMER_FINDING)
+            else:
+                disclaimer_sections.append(dw_o01)
+
+    if any(
+        DEV_WAVE_WAITER_DISCLAIMER_RE.search(section) is not None
+        for section in disclaimer_sections
+    ):
+        findings.append(DEV_WAVE_WAITER_DISCLAIMER_FINDING)
+
+
 def _check_dev_wave_reasoning_effort_pins(
     workers_text: str,
     findings: list[str],
@@ -4078,6 +4240,12 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
     _check_dev_wave_model_pins(
         dev_wave_text,
         workers_text,
+        operations_text,
+        findings,
+    )
+    _check_dev_wave_waiter_consumer_pins(
+        dev_wave_text,
+        decoded.get(_CORE),
         operations_text,
         findings,
     )
