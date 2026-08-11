@@ -17,6 +17,7 @@ manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台
 from __future__ import annotations
 
 import ast
+import concurrent.futures as cf
 import contextlib
 import dataclasses
 import datetime as dt
@@ -104,6 +105,9 @@ _BASE_TPS = {
 }
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+
+# 親の実測では 8 thread が knee で、16 thread は性能が頭打ちだった。
+_OUTPUT_SNAPSHOT_THREADS = min(8, os.cpu_count() or 1)
 
 
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
@@ -429,9 +433,55 @@ def _read_journal_lines(journal_path: Path) -> list:
            .splitlines() if line.strip()]
 
 
-def _real_output_snapshot() -> tuple:
+def _walk_entries(output: Path) -> list[tuple]:
+    """``rglob`` と同じ entry 集合を symlink 非追跡で列挙する。"""
+    entries = []
+    stack = [str(output)]
+    base = str(output)
+    while stack:
+        current = stack.pop()
+        with os.scandir(current) as iterator:
+            items = list(iterator)
+        for entry in items:
+            rel = os.path.relpath(entry.path, base).replace(os.sep, "/")
+            if entry.is_symlink():
+                entries.append(("symlink", rel, entry.path))
+            elif entry.is_dir(follow_symlinks=False):
+                entries.append(("dir", rel, entry.path))
+                stack.append(entry.path)
+            elif entry.is_file(follow_symlinks=False):
+                entries.append(("file", rel, entry.path))
+    return entries
+
+
+def _digest(abspath: str) -> str:
+    with open(abspath, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+
+def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
     """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"""
-    output = ROOT / "output"
+    if not output.exists():
+        return ()
+    entries = _walk_entries(output)
+    files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
+    with cf.ThreadPoolExecutor(max_workers=_OUTPUT_SNAPSHOT_THREADS) as pool:
+        digests = list(pool.map(lambda item: _digest(item[1]), files))
+    digest_by_rel = dict(zip((rel for rel, _ in files), digests))
+    snapshot = []
+    for kind, rel, abspath in entries:
+        if kind == "symlink":
+            snapshot.append(("symlink", rel, Path(abspath).readlink().as_posix()))
+        elif kind == "file":
+            snapshot.append(("file", rel, digest_by_rel[rel]))
+        else:
+            snapshot.append(("dir", rel))
+    snapshot.sort(key=lambda row: row[1])
+    return tuple(snapshot)
+
+
+def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
+    """並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
     snapshot = []
@@ -444,6 +494,42 @@ def _real_output_snapshot() -> tuple:
         elif path.is_dir():
             snapshot.append(("dir", rel))
     return tuple(snapshot)
+
+
+def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
+    output = tmp_path / "snapshot"
+    (output / "empty-dir").mkdir(parents=True)
+    (output / "nested" / "deep" / "level-3").mkdir(parents=True)
+    (output / "same-size-a").mkdir()
+    (output / "same-size-b").mkdir()
+    (output / "regular.txt").write_bytes(b"regular contents")
+    (output / "empty.bin").write_bytes(b"")
+    (output / "same-size-a" / "same.bin").write_bytes(b"ABCD")
+    (output / "same-size-b" / "same.bin").write_bytes(b"WXYZ")
+    (output / "nested" / "deep" / "level-3" / "leaf.bin").write_bytes(b"leaf")
+    (output / "file-link").symlink_to("regular.txt")
+    (output / "dir-link").symlink_to("nested", target_is_directory=True)
+
+    actual = _real_output_snapshot(output)
+    assert actual == _real_output_snapshot_reference(output)
+    assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_matches_reference_for_real_output():
+    assert _real_output_snapshot() == _real_output_snapshot_reference()
+
+
+def test_real_output_snapshot_propagates_thread_digest_failure(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot"
+    output.mkdir()
+    (output / "unreadable.bin").write_bytes(b"must be digested")
+
+    def fail_digest(_abspath):
+        raise OSError("synthetic digest failure")
+
+    monkeypatch.setattr(sys.modules[__name__], "_digest", fail_digest)
+    with pytest.raises(OSError, match="synthetic digest failure"):
+        _real_output_snapshot(output)
 
 
 def _tree_snapshot(root: Path) -> tuple:
