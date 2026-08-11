@@ -1,0 +1,67 @@
+=== P1 identity ===
+bnode042
+PBS_JOBID=0:901499.nqsv
+dollar0=/var/opt/nec/nqsv/jsv/jobfile/0.901499.10/user_script
+-r-xr-xr-x 1 root root 2031 Aug 11 07:18 /var/opt/nec/nqsv/jsv/jobfile/0.901499.10/user_script
+f60d3ce8510b894264ab3b3753b2c804a6fbfaae6511956b164e1f4360ff7b2c  /var/opt/nec/nqsv/jsv/jobfile/0.901499.10/user_script
+=== P2 command availability on exec node ===
+/opt/nec/nqsv/bin/qcat
+/opt/nec/nqsv/bin/qstat
+=== P3 qcat -i on own request ===
+qcat_rc=0
+2032 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out/own_script.bytes
+   0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out/own_script.err
+2032 total
+ca29a61e371952351a607fc2ee3a83e5f7164368cbfd07d790a61040720c98d8  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out/own_script.bytes
+=== P4 scheduler env ===
+ENVIRONMENT=BATCH
+NQSII_CR_Share=1
+NQSII_CR_UNIT_Share=
+NQSV_CR_Share=1
+NQSV_CR_UNIT_Share=
+PBS_JOBID=0:901499.nqsv
+PBS_JOBNAME=izt781probe
+PBS_JSVNO=0042
+PBS_NODEFILE=/var/opt/nec/nqsv/jsv/jobfile/0.901499.10/nodelist
+PBS_O_HOME=/home/SFC/tanab
+PBS_O_HOST=pegasus02
+PBS_O_LANG=ja_JP.UTF-8
+PBS_O_LOGNAME=tanab
+PBS_O_PATH=/home/SFC/tanab/.local/bin:/home/SFC/tanab/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/local/bin:/system/tool/bin:/opt/nec/nqsv/bin
+PBS_O_SHELL=/bin/bash
+PBS_O_WORKDIR=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe
+=== P5 spool directory readability ===
+drwxr-xr-x 3 root root 18 Nov 10  2022 /var/opt/nec
+drwxr-xr-x 3 root root 17 Nov 10  2022 /var/opt/nec/nqsv
+drwxr-xr-x 5 root root 60 Nov 11  2022 /var/spool
+drwx------ 3 tanab SFC 116 Aug 11 07:23 /var/opt/nec/nqsv/jsv/jobfile/0.901499.10
+total 16
+drwx------ 3 tanab SFC   116 Aug 11 07:23 .
+drwxr-xr-x 3 root  root   25 Aug 11 07:18 ..
+-rw-rw-rw- 1 root  root    3 Aug 11 07:18 JSVID
+-rw-rw-rw- 1 root  root    9 Aug 11 07:23 nodelist
+-r--r--r-- 1 root  root   54 Aug 11 07:23 script_path
+-rw-rw-rw- 1 tanab SFC     0 Aug 11 07:23 stderr
+-rw-rw-rw- 1 tanab SFC     0 Aug 11 07:23 stdout
+drwx------ 2 tanab SFC     6 Aug 11 07:18 stgfile
+-r-xr-xr-x 1 root  root 2031 Aug 11 07:18 user_script
+=== P6 qcat -i on ANOTHER of my requests (sibling readability) ===
+RequestID       ReqName  UserName Queue     Pri STT S   Memory      CPU   Elapse R H M Jobs
+--------------- -------- -------- -------- ---- --- - -------- -------- -------- - - - ----
+901498.nqsv     izdw-634 tanab    gen_S       0 RUN -   12.43G  2444.52      361 N Y Y    1 
+901499.nqsv     izt781pr tanab    gen_S       0 RUN -    0.00B     0.00        0 N Y Y    1 
+other_rc=0
+1173 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out/other_script.bytes
+   0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out/other_script.err
+1173 total
+=== P7 qstat -f from exec node ===
+qstat_rc=1
+54 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out/own_qstat_f.txt
+=== P8 process ancestry visibility ===
+    PID    PPID USER     COMMAND
+2190660 2190462 tanab    /opt/nec/nqsv/sbin/nqs_shpd -h nqsv -n 42
+2190661 2190660 tanab    -bash
+2190680 2190661 tanab    /bin/bash /var/opt/nec/nqsv/jsv/jobfile/0.901499.10/user_script
+2190708 2190680 tanab    ps -o pid,ppid,user,args -u tanab
+2190709 2190680 tanab    head -20
+=== DONE ===
