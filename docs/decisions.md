@@ -13101,3 +13101,208 @@ validator・消費側のいずれにも配線されていない。**本裁定を
 - 公表側の受理条件に primary の予約 entry を必須参照として置く — 上記のとおり
   別台帳の裁定に反し、2 系列の受理集合が結合する。
 - 記録せず暗黙に扱う — 再発行のたびに同じ論点が蒸し返される。
+
+## D285. 設計文書と検査値を束縛する gate は、comment を除去せず存在を拒否する (2026-08-11)
+
+**決定:** 設計正本から literal を抽出して検査側の値と exact 照合する gate は、対象文書に
+HTML comment (`<!--` / `-->`) が 1 つでもあれば fail-closed で拒否する。comment を除去して
+可視部分だけを読む実装にしない。
+
+**理由:**
+
+- 除去は「どこまでが comment か」を Markdown の文脈なしに決めることになり、その判定自体が
+  攻撃面になる。実際に、code fence 内の開始と fence 外の終了が対になって**可視の差分行ごと
+  消える**構成が成立し、除去を入れる前には拒否されていた文書が受理された。
+- 存在の拒否なら判定が 1 つの述語に閉じ、隠し場所が無くなる。抽出器を増やしても攻撃面は増えない。
+- 設計正本に comment を置けない制約は実質的な損失にならない。書きたい注記は本文に書けばよく、
+  「読者に見えない正本」は正本の定義に反する。
+
+**却下した選択肢:**
+
+- comment 除去 + 未閉鎖 comment の拒否 — 上記の code fence 経路で破れた。
+- Markdown parser の導入 — 検査のために parser の正しさを新しい信頼境界として抱えることになる。
+- 抽出器ごとに個別対処 — 抽出器が増えるたびに同じ穴を作り直す。
+
+## D286. 背景 job の待ち手は detach 後の実体 pid を使い、codex の cold start 失敗は新 artifact 名で再投入する (2026-08-11)
+
+**決定:** `nohup setsid` で detach した子の完了待ちでは、`$!` を producer pid として使わない。
+起動後に `ps` で実体 (`dev_wave_codex.py --wave <slug>`) の pid を引き、それを死亡判定に使う。
+codex 子が `evidence_status=missing` / `stdout_bytes=0` / 短い `wall_clock_s` で not_accepted に
+なった場合は、認証や prompt でなく起動遅延を疑い、**既存 `.done` を消さず新しい artifact 名**で
+1 度だけ再投入する。
+
+**理由:**
+
+- `nohup setsid bash -c '...' &` の `$!` は中継 process の pid であり、setsid が新しい session を
+  作った直後に消える。pid 死判定の待ち手は、実体が稼働中でも即座に「producer 死」と誤報する。
+  本 wave で実測した (実体は 1 分以上稼働していた)。
+- codex の launcher は既定 5 秒の evidence grace 内に起動イベントが出ないと SIGTERM で止める。
+  本 wave の初回はこれで `wall_clock_s=8.59` の not_accepted になり、直後の手動 probe は
+  同 model・同 effort で 4.88 秒完走した。差は binary の page cache の温度だけで、
+  prompt にも認証にも帰属しない。
+
+**却下した選択肢:**
+
+- `pgrep -f <pattern>` で待つ — 待ち手自身の argv に pattern が載って自己マッチする既知事故。
+- grace を延ばす caller flag を足す — 起動導線は caller 指定不可の設計であり、
+  独立 2 例目が出るまで族一般化しない。
+- 同じ artifact 名で再投入する — 既存 attempt artifact と衝突し、launcher が fail-closed で止まる。
+
+## D287. 人間承認は pinned literal で表し、Git trailer を認可根拠にしない (2026-08-11)
+
+**決定:** 「人間が承認した」ことを機械が読む必要がある箇所では、承認対象の bytes hash を
+**production module 内の pinned literal** として置く。未承認のあいだ定数は `None` とし、
+その状態ではあらゆる入力を fail-closed で拒否する。approval を発行する CLI・API・
+`--approver` 引数・既定補完は作らない。Git の commit message・trailer
+(非 merge commit や逐語 `AI-Agent: none` を含む) を承認の根拠にしてはならない。
+
+**理由:**
+- D86(8) は「認可の実体はユーザーの明示指示であり、submission artifact はその指示が実行された
+  記録にとどまる。artifact の存在を認可の証明として扱ってはならない」と定めている。
+  AI は自分で commit を作れるため、trailer を根拠にすると承認が恒真化する。
+- pinned literal なら、AI が承認者になるには**人間がコード diff をレビューして定数を置く**しかない。
+  これは v1 freeze の bytes 定数や env contract の reviewed golden と同じ既存パターンであり、
+  新しい trust root を発明しない。
+- `None` 既定により、承認前は機構全体が動かない。証拠が無い状態で先に進む経路が構造的に無い。
+
+**却下した選択肢:**
+- **Git trailer による承認** — 上記のとおり恒真化する。段 3 の敵対レンズが独立に指摘した。
+- **approval record JSON の存在をもって承認とみなす** — 同じ主体が record も対象も書けるため、
+  自己整合な偽物と本物を区別できない。
+- **人間だけが保持する鍵による署名** — 方向としては正しいが、repo に鍵管理の trust root が無く、
+  新設は D86 の再裁定を要する。恒久形の裁定はユーザーへ返す。
+
+## D288. 実行経路の gate は CLI でなく共有 verifier に置く (2026-08-11)
+
+**決定:** 成果物の受理集合を狭める gate は、新設した CLI ではなく**実行経路が必ず通る共有
+verifier** へ置く。oracle manifest では `verify_manifest` に cell-product 検査を置き、
+schedule の holdout 集合が active freeze の holdout 集合と exact 一致すること、および
+cell 集合が「全 holdout × 各 holdout の構成集合」の積と exact 一致することを要求する。
+生成側の generic builder の受理集合は変えない。
+
+**理由:**
+- driver の `run-block` は任意の manifest path を受け取り共有 verifier へ通すだけであり、
+  新設 CLI を経由しない経路が実在する。CLI 側にだけ gate を置くと**誰も通らない gate**になる。
+- judge には部分的な product 検査があるが、holdout 間で構成集合が食い違う場合しか捕えない。
+  全 holdout で一様に間引いた schedule は素通りし、judge が唯一の候補を最良と判定する。
+  これは certified 選択の直接改変である。
+- 検査を verify 側に置くと方向は受理集合の縮小のみになり、生成側 API の互換を壊さない。
+
+**却下した選択肢:**
+- **CLI にだけ置く** — 上記のとおり迂回される。
+- **generic builder に置く** — 既存 programmatic caller の受理集合を狭め、互換を壊す。
+- **judge の部分検査に任せる** — 一様な間引きを捕えない。
+
+**併せて記録する失敗型:** 期待 cell 積を「与えられた schedule 自身」から導くと、
+gate は**入力が名乗った範囲の中でしか完全性を要求しない**。積の定義域は必ず
+authority 側 (この場合は freeze) から取る。本 wave の初版はこの形で、
+holdout を丸ごと落とした manifest を受理していた。
+
+## D289. 独立な計算ノード job は既定で並行投入し、直列は具体的な理由があるときだけにする (2026-08-11)
+
+**背景:** runbook が持っていた「並列」の記述はすべて job の内側 (OpenMP / MPI / pytest の worker 数 /
+build の `-j`) についてで、**job どうしを同時に走らせてよいかの規範が 1 行も無かった**。
+その空白のまま、変異本走は「1 変異 = 1 qsub」を逐次に払い続けている。
+
+**決定 (1): 独立なら既定で並行投入する。** 直列を選ぶのは次の 4 つに当たるときだけとする。
+(i) protocol が直列 schedule を定めている計測、(ii) 受入全走の隣、
+(iii) create-only の出力 path を共有する job どうし、(iv) 同じ作業木を書き換える走行の同時実行。
+**この 4 つはいずれも具体的な機序を持つ。**「念のため直列」は理由として認めない。
+
+**決定 (2): ノード間性能差の「大きさ」を fan-out 禁止の根拠にしない。ただし交絡は別問題として扱う。**
+本 repo に CC ベンチのノード間比較は存在しない。存在するのは pytest 全走 wall-clock のノード間比較
+(2026-07-31、bnode002 116.25 秒 / bnode009 200.72 秒 / bnode010 214.34 秒) だけで、**これは
+プロセス生成とファイル I/O が支配する作業であり CC の throughput の代理値にならない。**
+登録済み calibration も bnode011 単独の記録しか持たない。**未測定量を根拠に保守側へ倒すことを禁じる。**
+
+一方で、**差の大小とは独立に、処置と node が一対一に対応する配置は処置差と node 差を推定上
+分離できない。**`hostname` の記録は provenance にはなるが補正量にはならない。したがって
+job の内側で比較が閉じている fan-out は無条件で許し、性能値を job どうしで比較する fan-out は
+protocol が node を block / randomization 因子として定義し推定量と集約手順を固定した場合だけ許す。
+**これは実測主張ではなく識別可能性からの演繹であり、ノード間差が小さくても成立する。**
+
+**決定 (3): 変異本走の並行 fan-out は「第 3 の選択肢」として起票する。未実装であって禁止ではない。**
+D130 / D131 が比較したのは「逐次 dispatch」と「1 job へ束ねて job 内直列」の 2 択であり、
+**N 本同時投入は選択肢に入っていない。**束ねが消すのは順番待ちだけで内側の合計時間は不変だが、
+fan-out は内側も縮む。
+
+**D130 / D131 の未充足前提を fan-out の前提と読み違えない。**あれらは **harness 自体を
+計算ノードの 1 ジョブへ束ねる**経路への条件である。現行 `--runner-mode dispatch` は harness が
+ログインノードに居て各変異の pytest だけを計算ノードへ投げる形なので、fan-out でも harness は
+ログインに並ぶ。lock は `sha256(str(repo))` を鍵とする node-local `/tmp` のファイルであり、
+作業木が別なら鍵も別なので、cross-node `flock` の懸念 (D130 条件 2) も walltime kill で
+`finally` 復元が飛ぶ懸念 (同条件 3) も掛からない。
+
+残るのは実装・設計であって裁定ではない — spec の分割と期待 node 集合の分割整合、N 本の ledger の
+併合と「registered == recorded」の担保、request・attempt・ledger 行の対応付け、同時 dispatch 負荷と
+ログイン admission、`mutation_worktree.py` の container 名が固定であるための `--scratch-root` 分離。
+**いずれも未実測である。**なお D130 の 9161.6 秒は削減量の上限側の目安であって、
+順番待ちとして分離実測された値ではない。
+
+**決定 (4): runbook §8 の site gate 記述は誤記であり訂正した (erratum)。**
+「build / bench の計測は `_site_admits_measurement` が Pegasus を拒否したまま」と書かれていたが、
+引用先の commit `6a51426c` は**その拒否を開いた** commit である。現行実装は
+`{OTHER, PEGASUS_COMPUTE}` を受理し、拒否するのは login / suspect / 未知値だけで、
+`test_site_admission_matrix` が exact に固定している。**計算ノードでの計測は site gate では
+止まっていない。**
+
+**理由:**
+- 依頼はユーザーの直接指示である。同一 protocol を別 workload・別パラメータで回す試行を
+  1 本ずつ順番待ちさせるのは、ノードが 149 台あり submit 本数の上限が実質無い環境では
+  wall-clock を無駄にしているだけである。
+- 決定 (2) は wave 中のユーザー指摘で親の初稿を撤回したものである。初稿は上記 pytest の値を
+  CC ベンチへ外挿して計測面の fan-out を既定禁止にしていた。**測っていない量を根拠にした保守は、
+  効率を落とすだけで正しさを増やさない。**
+
+**決定 (5): 並行にしたことを実験集合を増やす理由にしない (絶対規律 4)。** workload・パラメータ・
+構成・レコード数・thread 数・反復数・session 数・retry 枠は凍結 protocol または calibrator の決定と
+exact に一致させる。「空きノードがある」「並行なら wall-clock が安い」は本数を足す理由にならない。
+**fan-out が変えてよいのは投入時刻だけである。**
+
+**却下した選択肢:**
+- **「結論がノード identity に依存するか」を単独の判定量にする** — 初稿の案。ノード間差が
+  未測定である以上、運用者に測っていない量の推測を強いる。独立性の 3 条件 (共有物なし /
+  protocol が順序を要求しない / 固定費が見合う) と、交絡についての別建ての規定へ分けた。
+- **計測面は既定で現状維持とする** — 同じ理由で却下。protocol が直列を定めている面と、
+  計測の臨界区間だけを残し、計測値を生成しない準備は fan-out 候補として開けた。
+- **受入全走の隣の禁止を「output/ を触る job」へ狭める** — 敵対レビューの提案だが採らない。
+  F136 と F57 の切り分けは明確にしたうえで、禁止の広さは維持する。全走 1 回の空費は高く、
+  広く守る側のコストは低い。
+- **並行投入本数の上限を規範として定める** — 根拠になる実測が無い。queue 側の上限は実質無く、
+  fair-share の効き方は未測定であると書くに留めた。
+- **共有状態の禁止を create-only の同名 path に限る** — 初稿の案。`output/` の親 directory を
+  走査する consumer、campaign lock、WAL、build claim が抜ける。read / write 集合全体での判定へ広げた。
+
+## D290. 凍結層の CR/LF 拒否は NUL を保留付きで優先し、NUL 優先の射程は単一 hash 呼出し内に限る (2026-08-11)
+
+**決定:** evidence contract の hash 関数 (`evidence_contract_sha256`) の既存走査へ CR (U+000D) /
+LF (U+000A) の検査を足す。走査対象・検査位置・detail は D281 のまま (key が exact `path` かつ値が
+`str`、canonical 化に成功した後・hash を返す前、detail は `repr(JSON pointer)` だけ)。
+理由語は新語 `evidence-contract-path-crlf` とし、NUL の `evidence-contract-path-nul` は変えない。
+
+**NUL は見つけ次第 raise し、CR/LF は文書順で最初の pointer だけ保留して走査完了後に raise する。**
+両方を含む契約でも、NUL がある限り従来の理由語と従来の pointer を返す。
+
+**NUL 優先が成り立つ射程は単一 `evidence_contract_sha256(raw)` 呼出し内に限る。**履歴検証は
+祖先順に各 commit の契約を hash するので、祖先が CR/LF 契約・後続が NUL 契約という履歴では、
+祖先の CR/LF が理由語を決める。すなわち**履歴では「祖先順で最初に禁止制御文字を含む契約」が
+理由語を決める**。この挙動をテストで固定する。
+
+**理由:**
+- CR/LF をその場で raise すると、文書順で後ろに NUL がある契約の理由語と pointer が変わる。
+  実測では、前方に CR・後方に NUL を置いた契約を変更前の実装が
+  `evidence-contract-path-nul` と後方 NUL の pointer で拒否していた。保留にすればこれが不変になる。
+- 履歴全体で NUL を優先するには全祖先を 2 周する必要があり、単一 choke point・単一走査・
+  early-return という D281 の設計を壊す。得られるのは診断語の優先順位だけで、釣り合わない。
+- 射程を限定しても**受理集合は 1 bit も変わらない**。CR/LF 契約を含む履歴も NUL 契約を含む履歴も、
+  変更の前後を問わず拒否される。変わるのは診断語と pointer だけである。
+- 該当する履歴は現に存在しない。HEAD 祖先の distinct な契約 blob は 1 個で、その 38 個の
+  `path` に CR / LF / NUL は 0 件である。
+- 統一語 (`…-control-char`) への改名は、NUL 側の既存診断契約と D281 の参照を壊すので採らない。
+
+**却下した選択肢:**
+- 履歴・発行 transaction 全体で NUL を優先する二段検査 — 上記のとおり設計を壊し、受理集合は変わらない。
+- CR/LF を発見時に即 raise — NUL 入り契約の診断契約が変わる。
+- 契約読込 (`load_contract_bytes`) の流用 — schema 違反まで拒否するので受理集合が変わる (D281 で既出)。
+- 制御文字一般 (全 C0) への拡大 — 承認された裁定は CR/LF に限られ、TAB 等を拒否すると
+  有効な契約が凍結台帳から落ちる。過剰拒否を検出する正例を変異で登録して塞いだ。
