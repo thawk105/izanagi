@@ -81,8 +81,14 @@ title: ノード間性能差の測定 protocol を設計だけ確定した — �
   `docs/pegasus-runbook.md` を実 repo から読むテストが 4 file 実在する
   (`grep -rln pegasus-runbook orchestrator/tests/` = `test_calibrator_certify.py`,
   `test_check_ai_provenance.py`, `test_check_docs.py`, `test_schema_v2.py`)。
-  `docs/README.md` も `test_check_docs.py` が読む。**結果値は本エントリに含まれない** —
-  land は wave HEAD と tested tip の厳密一致を要求するため。値は wave の報告が持つ。
+  `docs/README.md` も `test_check_docs.py` が読む。
+  **1 走目 (bnode010、request `903811.nqsv`、543 秒) は赤 1 件で終わった** —
+  `test_codex_worker_launch.py::test_check_receipt_rejects_unknown_and_duplicate_fields` の
+  終了検証述語 2 本の不成立で、**F57 の再発である** (本 fragment seq 2 に追記した)。
+  同 node の単独再走は 1 passed / 3.27 秒 / rc=0 で再現せず、本 wave の差分は docs のみで
+  同 test file へ到達しえないため `DW-O18` により帰属しない。**この記録を含む tip で受入を投げ直した。**
+  **2 走目の結果値は本エントリに含まれない** — land は wave HEAD と tested tip の厳密一致を
+  要求するため。値は wave の報告が持つ。
 
 - **エージェント工数:** codex 子 6 本成功 + 2 本失敗 (段 2 起草 1、段 3 敵対 2 (うち B は 3 投で 1 成功)、
   段 6 レビュー 2、段 6 焦点 2)。段 5 実装子は docs-only のため不使用。
