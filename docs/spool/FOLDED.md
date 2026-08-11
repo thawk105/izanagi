@@ -906,3 +906,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:lease-invocation-fencing":"[T-847]"},"authored":"2026-08-11","content_sha256":"356fa6945e58659d9256e87cfca875b9b3f1e667e07046d7274027b62a3e2a13","seq":1,"wave":"dev-wave-t812-lease-self-renew"}
 - {"allocations":{"D:lease-self-renew-scope":"D299"},"authored":"2026-08-11","content_sha256":"a0c36ccda61dfc9bf4533fef5942af3f249be8b97135c7d34164421f54df0bd7","seq":2,"wave":"dev-wave-t812-lease-self-renew"}
 - {"allocations":{"F:codex-observation-cap-kills-lens":"F222"},"authored":"2026-08-11","content_sha256":"a99440b888f83091d86242da5789c4ea185d793d45bd53ab9176884bfa1e34f2","seq":3,"wave":"dev-wave-t812-lease-self-renew"}
+
+- {"allocations":{"T:fanout-exact-n-run":"[T-851]","T:fanout-tamper-evidence":"[T-849]","T:fanout-uncovered-gates":"[T-850]","T:legacy-mutation-reservation":"[T-852]","T:mutation-timeout-semantics":"[T-848]"},"authored":"2026-08-11","content_sha256":"cd27f34c01b4c1fd3c1b8c2589f0872dbb06df29c9d2b813043afe66a212caf5","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
+- {"allocations":{"D:mutation-fanout-contract":"D300"},"authored":"2026-08-11","content_sha256":"3f22b793ac1a96ebbf6d902409b6fcaf1b37e0e825700a62fe8ba72ead2fc068","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
