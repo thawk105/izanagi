@@ -149,6 +149,16 @@ def _write_tool(path: Path, first_line: str) -> None:
     path.chmod(0o755)
 
 
+def _write_multiline_tool(path: Path, lines: tuple[str, ...]) -> None:
+    arguments = " ".join(json.dumps(line) for line in lines)
+    path.write_text(
+        "#!/bin/sh\n"
+        f"printf '%s\\n' {arguments}\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
 def _install_toolchain(tmp_path: Path, monkeypatch, *, cxx_version: str = "cxx version A") -> Path:
     bindir = tmp_path / "tools"
     bindir.mkdir(exist_ok=True)
@@ -157,6 +167,29 @@ def _install_toolchain(tmp_path: Path, monkeypatch, *, cxx_version: str = "cxx v
     _write_tool(bindir / "cmake", "cmake version A")
     monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
     return bindir
+
+
+def _expected_toolchain_manifest(bindir: Path) -> dict[str, object]:
+    return {
+        "cc": {
+            "requested": "test-cc",
+            "realpath": str((bindir / "test-cc").resolve()),
+            "version_first_line": "cc version A",
+            "version": "cc version A",
+        },
+        "cxx": {
+            "requested": "test-cxx",
+            "realpath": str((bindir / "test-cxx").resolve()),
+            "version_first_line": "cxx version A",
+            "version": "cxx version A",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": str((bindir / "cmake").resolve()),
+            "version_first_line": "cmake version A",
+            "version": "cmake version A",
+        },
+    }
 
 
 def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-binary") -> None:
@@ -192,7 +225,8 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
-           dependency_prefix: str = "", site: str | None = None):
+           dependency_prefix: str = "", site: str | None = None,
+           expected_toolchain_manifest=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     context, evidence, admission = _admission_bundle(
@@ -216,6 +250,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["dependency_prefix"] = dependency_prefix
     if site is not None:
         kwargs["site"] = site
+    if expected_toolchain_manifest is not None:
+        kwargs["expected_toolchain_manifest"] = expected_toolchain_manifest
     return buildcache.build_v2(
         genome,
         **kwargs,
@@ -364,6 +400,57 @@ def test_v2_toolchain_version_change_is_cache_miss(tmp_path, monkeypatch):
     second = _build(tmp_path, _contract(1))
     assert not second.cached
     assert first.build_dir != second.build_dir
+
+
+def test_v2_expected_toolchain_manifest_exact_match_is_accepted(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(
+        tmp_path, _contract(1),
+        expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+    )
+    assert not result.cached
+
+
+def test_v2_expected_toolchain_manifest_mismatch_refuses_before_cache_claim(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected = _expected_toolchain_manifest(bindir)
+    expected["cc"] = dict(expected["cc"], version_first_line="cc version stale")
+    with pytest.raises(buildcache.BuildCacheError, match="caller の事前観測"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=expected,
+        )
+    assert not (tmp_path / "cache").exists()
+
+
+def test_v2_expected_toolchain_version_lower_line_drift_refuses_before_cache_claim(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _write_multiline_tool(
+        bindir / "test-cc", ("cc version A", "Copyright stable"),
+    )
+    expected = _expected_toolchain_manifest(bindir)
+    expected["cc"] = dict(
+        expected["cc"], version="cc version A\nCopyright stable",
+    )
+    _write_multiline_tool(
+        bindir / "test-cc", ("cc version A", "Copyright changed"),
+    )
+    observed = subprocess.run(
+        [bindir / "test-cc", "--version"], capture_output=True, text=True, check=True,
+    )
+    assert (observed.stdout + observed.stderr).strip() == "cc version A\nCopyright changed"
+    with pytest.raises(buildcache.BuildCacheError, match="version 全文"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=expected,
+        )
+    assert not (tmp_path / "cache").exists()
 
 
 def test_m7_v2_actual_site_change_is_cache_miss(tmp_path, monkeypatch):
@@ -755,6 +842,10 @@ def test_v2_manifest_records_complete_identity(tmp_path, monkeypatch):
     }
     assert len(manifest["preimage"]["toolchain_manifest_sha256"]) == 64
     assert manifest["toolchain"]["cxx"]["version_first_line"] == "cxx version A"
+    assert all(
+        set(entry) == {"requested", "realpath", "version_first_line"}
+        for entry in manifest["toolchain"].values()
+    )
     assert manifest["binary"]["sha256"] == hashlib.sha256(b"manifest-payload").hexdigest()
 
 

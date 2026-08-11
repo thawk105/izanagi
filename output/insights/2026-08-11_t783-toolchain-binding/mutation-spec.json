@@ -1,0 +1,238 @@
+{
+  "estimated_run_seconds": 150,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_predicate_rejects_each_independent_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_live_cc_realpath_projection_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M01",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "            bool(receipt_cc_realpath) and bool(registered_cc)\n",
+          "old": "            receipt_cc_realpath == registered_cc == live_cc_realpath\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_predicate_rejects_each_independent_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M02",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "            and bool(registered_cxx)\n",
+          "old": "            and registered_cxx == live_cxx_realpath\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_predicate_rejects_each_independent_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_drift_only_below_version_first_line"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M03",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "            and tool_version_body(receipt_cc_version).splitlines()[0]  # type: ignore[arg-type]\n            == tool_version_body(live_cc_version).splitlines()[0]\n",
+          "old": "            and tool_version_body(receipt_cc_version)  # type: ignore[arg-type]\n            == tool_version_body(live_cc_version)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_predicate_rejects_each_independent_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_live_cmake_version_projection_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M04",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "            and bool(receipt_cmake_version)\n",
+          "old": "            and tool_version_body(receipt_cmake_version)  # type: ignore[arg-type]\n            == tool_version_body(live_cmake_version)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_predicate_rejects_each_independent_mismatch",
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_live_cxx_version_projection_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M05",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "            and bool(live_cxx_version)\n",
+          "old": "            and tool_version_body(live_cxx_version)\n            == tool_version_body(live_cc_version)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_and_silo_extraction_keep_distinct_acceptance_sets",
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_missing_or_duplicate_compiler_definition[build_argv1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M06",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "    if len(definitions) < 1:\n",
+          "old": "    if len(definitions) != 1:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M07",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    expected_toolchain_manifest = None\n",
+          "old": "    expected_toolchain_manifest = _bind_current_toolchain(\n        verified_calibration, cc=cc, cxx=cxx,\n    )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M08",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "    cc, cxx = buildcache.DEFAULT_CC, buildcache.DEFAULT_CXX\n",
+          "old": "    cc, cxx = buildcache.compilers_for_current_site()\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_expected_toolchain_manifest_mismatch_refuses_before_cache_claim"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M09",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "        if False:\n            raise BuildCacheError(\n                \"v2 toolchain manifest が caller の事前観測と不一致\"\n            )\n",
+          "old": "        if toolchain != expected_identity:\n            raise BuildCacheError(\n                \"v2 toolchain manifest が caller の事前観測と不一致\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_silo_predicate_rejects_registered_dependency_pin_mismatch",
+        "orchestrator/tests/test_toolchain_binding.py::test_silo_predicate_matches_legacy_five_condition_truth_table"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "        False\n",
+          "old": "        registered_dependency_pins != dependency_pins\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_silo_predicate_matches_legacy_five_condition_truth_table"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M11",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "        or observed_cc_version != receipt_cc_version\n",
+          "old": "        or tool_version_body(observed_cc_version)\n        != tool_version_body(receipt_cc_version)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_live_cc_realpath_projection_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M13",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "            live_cc_realpath=receipt_toolchain[\"compiler_path\"],\n",
+          "old": "            live_cc_realpath=observed[\"cc\"].realpath,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::TestFloorToolchainBinding::test_binding_rejects_live_cxx_version_projection_drift"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M14",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "            live_cxx_version=observed[\"cc\"].version,\n",
+          "old": "            live_cxx_version=observed[\"cxx\"].version,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_v2_expected_toolchain_version_lower_line_drift_refuses_before_cache_claim"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M15",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "        if False:\n            raise BuildCacheError(\n                \"v2 toolchain version 全文が caller の事前観測と不一致\"\n            )\n",
+          "old": "        if observed_versions != expected_versions:\n            raise BuildCacheError(\n                \"v2 toolchain version 全文が caller の事前観測と不一致\"\n            )\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1200
+}
