@@ -4998,6 +4998,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    build_cached=False,
                    commit_witness=_MATCH_TRACE_WITNESS, batch_witness=0,
                    unsupported_workload=False, preexisting_trace=False,
+                   unavailable_trace_dir=False,
                    measurement_site=site_policy.PEGASUS_COMPUTE):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
@@ -5149,6 +5150,10 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                 )
             if preexisting_trace:
                 raise pipeline._TraceDirNotEmpty(["trace_0.log"])
+            if unavailable_trace_dir:
+                raise pipeline._TraceDirUnavailable(
+                    "/fixture/missing-traces", "missing"
+                )
             if trace_content is not None:
                 with open(os.path.join(trace_dir, "trace_0.log"),
                           "w", encoding="ascii") as stream:
@@ -6147,6 +6152,35 @@ def test_pipeline_unsupported_workload_rejects_with_structured_wal():
     assert payload["workload"] == {"tag": "legacy"}
 
 
+def test_pipeline_unavailable_trace_dir_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, unavailable_trace_dir=True)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-no-commit-witness"
+    assert payload["commit_witness"] == {
+        "commit_counts": None,
+        "batch_commit_counts": None,
+    }
+    assert payload["trace_dir"] == "/fixture/missing-traces"
+    assert payload["trace_dir_error"] == "missing"
+    assert payload["workload"] == {"tag": "legacy"}
+
+
+def test_pipeline_preexisting_trace_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, preexisting_trace=True)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-no-commit-witness"
+    assert payload["commit_witness"] == {
+        "commit_counts": None,
+        "batch_commit_counts": None,
+    }
+    assert payload["preexisting_trace_files"] == ["trace_0.log"]
+    assert payload["workload"] == {"tag": "legacy"}
+
+
 def test_pipeline_tail_loss_witness_reaches_verifier():
     lay = _tmp_layout()
     trace = "C 0 0 1 1\nW 0 aa U 1 1\n"
@@ -6260,12 +6294,63 @@ def test_run_trace_rejects_preexisting_trace_files_before_subprocess():
     tdir = _tmpdir("izanagi_runtrace_stale_")
     with open(os.path.join(tdir, "trace_0.log"), "w", encoding="ascii") as stream:
         stream.write("C 0 0 1 1\n")
-    try:
-        pipeline._run_trace("/not/executed/ycsb_silo.exe", tdir, {}, 1800)
-        assert False, "残骸 trace を拒否すべき"
-    except pipeline._TraceDirNotEmpty as exc:
-        assert exc.paths == ("trace_0.log",)
+    calls = []
+
+    def subprocess_spy(*args, **kwargs):
+        calls.append((args, kwargs))
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout=("abort_counts_: 0\ncommit_counts_: 1\n"
+                    "batch_commit_counts_: 0\n"),
+        )
+
+    caught = None
+    with unittest_mock.patch.object(
+            pipeline.subprocess, "run", subprocess_spy):
+        try:
+            pipeline._run_trace(
+                "/not/executed/ycsb_silo.exe", tdir, {}, 1800
+            )
+        except pipeline._TraceDirNotEmpty as exc:
+            caught = exc
+    assert caught is not None, "残骸 trace を拒否すべき"
+    assert caught.paths == ("trace_0.log",)
+    assert calls == []
     assert not os.path.exists(os.path.join(tdir, "log"))
+
+
+def test_run_trace_rejects_missing_trace_dir_before_subprocess():
+    root = _tmpdir("izanagi_runtrace_missing_root_")
+    missing = os.path.join(root, "missing")
+    calls = []
+    with unittest_mock.patch.object(
+            pipeline.subprocess, "run", lambda *a, **k: calls.append((a, k))):
+        try:
+            pipeline._run_trace("/not/executed/ycsb_silo.exe", missing, {}, 1800)
+            assert False, "不在 trace_dir を拒否すべき"
+        except pipeline._TraceDirUnavailable as exc:
+            assert exc.path == missing
+            assert exc.reason == "missing"
+    assert calls == []
+
+
+def test_run_trace_rejects_nondirectory_trace_dir_before_subprocess():
+    root = _tmpdir("izanagi_runtrace_file_root_")
+    not_directory = os.path.join(root, "trace-file")
+    with open(not_directory, "w", encoding="ascii") as stream:
+        stream.write("not a directory\n")
+    calls = []
+    with unittest_mock.patch.object(
+            pipeline.subprocess, "run", lambda *a, **k: calls.append((a, k))):
+        try:
+            pipeline._run_trace(
+                "/not/executed/ycsb_silo.exe", not_directory, {}, 1800
+            )
+            assert False, "directory でない trace_dir を拒否すべき"
+        except pipeline._TraceDirUnavailable as exc:
+            assert exc.path == not_directory
+            assert exc.reason == "not-directory"
+    assert calls == []
 
 
 def test_pipeline_no_bench_commits_without_fitness():

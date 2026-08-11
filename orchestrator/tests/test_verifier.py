@@ -6,8 +6,10 @@ pytest でも、素の `python orchestrator/tests/test_verifier.py` でも走る
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+from dataclasses import replace
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -600,8 +602,22 @@ def test_unknown_tag_still_parse_error_after_a():
 
 # ---- 既知偽陰性の characterization ----
 #
-# FN-1 (末尾 txn 丸ごとの欠落) は trace 外 commit witness で分離する。
+# witness を渡す live 経路では FN-1 を分離する。一方、witness を省略できる optional
+# API は後方互換のため旧挙動を維持し、FN-1 が残ることを意図的に固定する。
 # FN-2 (C 行は残るが trx 尾部の R/W が消える) は submodule 権限外のまま残す。
+
+def test_characterization_tail_txid_gap_is_false_green():
+    """witness を渡さない optional API では FN-1 が残る (意図した後方互換)。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\n")   # r1 から txid 1 を尾部切り
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.missing_txids == 0      # 末尾欠番は欠番に数えられない
+        assert res.certified, "witness 無し optional API の互換挙動が変わった"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
 
 def test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness():
     """末尾欠番 (max txid 以降の trx 欠落) を trace 外 witness で拒否する。
@@ -740,6 +756,48 @@ def test_result_to_dict_commit_witness_changes_notes_without_new_keys():
     }
 
 
+def test_result_to_dict_without_commit_witness_matches_frozen_json_bytes():
+    result = replace(
+        verify_trace_dir(os.path.join(FIX, "g1_serial")),
+        trace_dir="/fixture/g1_serial",
+    )
+    actual = json.dumps(
+        result_to_dict(result), indent=2, ensure_ascii=False,
+    ).encode("utf-8")
+    expected = """{
+  "trace_dir": "/fixture/g1_serial",
+  "verdict": "serializable",
+  "certified": true,
+  "serializable": true,
+  "stats": {
+    "txns": 2,
+    "reads": 1,
+    "writes": 1,
+    "keys": 1,
+    "edges": 1,
+    "abort_reasons": {}
+  },
+  "integrity": {
+    "clean": true,
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0,
+    "notes": []
+  },
+  "anomaly_count": 0,
+  "total_cycles": 0,
+  "anomalies": []
+}""".encode("utf-8")
+    assert actual == expected
+
+
 def test_matching_commit_witness_does_not_mask_existing_integrity_failure():
     import shutil
     d = _tmp_trace(
@@ -764,6 +822,26 @@ def test_cli_expected_commits_accepts_single_trace_dir():
         assert cli.main([
             os.path.join(FIX, "g1_serial"), "--expected-commits", "2", "--quiet",
         ]) == 0
+
+
+def test_cli_expected_commits_mismatch_is_indeterminate_json():
+    import contextlib
+    import io
+    from orchestrator.verifier import cli
+    stdout = io.StringIO()
+    with contextlib.redirect_stdout(stdout):
+        rc = cli.main([
+            os.path.join(FIX, "g1_serial"),
+            "--expected-commits", "3", "--json",
+        ])
+    payload = json.loads(stdout.getvalue())
+    result = payload["results"][0]
+    assert rc == 3
+    assert result["certified"] is False
+    assert result["verdict"] == "indeterminate"
+    assert result["integrity"]["notes"] == [
+        "commit witness mismatch: expected=3 observed=2 delta=-1"
+    ]
 
 
 def test_cli_expected_commits_rejects_multiple_trace_dirs():

@@ -274,6 +274,13 @@ class _TraceDirNotEmpty(ValueError):
         super().__init__("trace_dir に既存 trace_*.log がある")
 
 
+class _TraceDirUnavailable(ValueError):
+    def __init__(self, path: str, reason: str):
+        self.path = path
+        self.reason = reason
+        super().__init__(f"trace_dir を検査できない ({reason}): {path}")
+
+
 class _TraceWitnessUnsupportedWorkload(ValueError):
     def __init__(self, binary: str):
         self.workload = os.path.basename(binary)
@@ -313,10 +320,17 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
     落としたまま緑を出さない)。numactl (D36 決定4-4): S2 相当の全規模 run はメモリ配置を
     bench と揃える (既定 legacy はメモリ配置に鈍感な小規模ゆえ None のまま)。"""
     _require_measurement_site("campaign trace 実行")
-    existing_traces = sorted(
-        fn for fn in os.listdir(trace_dir)
-        if fn.startswith("trace_") and fn.endswith(".log")
-    )
+    if not os.path.exists(trace_dir):
+        raise _TraceDirUnavailable(trace_dir, "missing")
+    if not os.path.isdir(trace_dir):
+        raise _TraceDirUnavailable(trace_dir, "not-directory")
+    try:
+        existing_traces = sorted(
+            fn for fn in os.listdir(trace_dir)
+            if fn.startswith("trace_") and fn.endswith(".log")
+        )
+    except OSError as e:
+        raise _TraceDirUnavailable(trace_dir, type(e).__name__) from e
     if existing_traces:
         raise _TraceDirNotEmpty(existing_traces)
     if not os.path.basename(binary).startswith("ycsb_"):
@@ -931,6 +945,21 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                             "batch_commit_counts": None,
                         },
                         "preexisting_trace_files": list(e.paths),
+                    },
+                    workload_tag=tag,
+                )
+            except _TraceDirUnavailable as e:
+                return _abort(
+                    "trace-no-commit-witness",
+                    f"trace_dir を検査できない ({e.reason}, {tag}) → "
+                    "witness を帰属できず reject",
+                    {
+                        "commit_witness": {
+                            "commit_counts": None,
+                            "batch_commit_counts": None,
+                        },
+                        "trace_dir": e.path,
+                        "trace_dir_error": e.reason,
                     },
                     workload_tag=tag,
                 )
