@@ -79,25 +79,35 @@ title: land 2 の基礎層を作った — erratum v2 対応・digest 迂回封�
 
 ### 更新
 
-- [T-139] **P1・land 2 の基礎層まで完了 (foundation-only)。次はユーザー裁定 RP-1〜RP-4 待ち**:
-  branch `worktree-dev-wave-t139-manifest-w2` に erratum v2 対応 (2 operation、erratum_id 別
-  exact-key grammar、合成経路の承認 membership 検査)、`BlobRef` の digest 比較迂回封鎖、
-  D282 承認 payload の parser (`approval_payload.py`、機械可読の拒否理由つき) が入った。
-  **焦点 3 file 86 passed / 0 failed、変異 9/9 KILLED (期待 node 完全一致)。land していない。**
-  `resolve_effective_preregistration` / `PreregBinding` / 承認 manifest 実体 / 受領証 writer /
-  固定 semantic validator / conformance vectors / `a13` consumer / submit 系 / certified 側
-  consumer / pilot 投入は**未実装**で、D264 の非 export も維持している。
-  **承認 manifest は conformance vectors の digest を pin する義務があるため、manifest 実体は
-  semantic validator と同じ session でなければ承認契約を満たせない** (本 wave が確定した順序制約)。
-  裁定 4 問 = (RP-1) resolver を呼ぶ側をどの session で作るか (親推奨 = manifest + resolver +
-  受領証 writer + semantic validator + vectors を 1 session にまとめる。D234 署名を変えないこと、
-  `alpha_reservation` を manifest へ再掲しないことを同束で問う) /
-  (RP-2) Git・resolver の trust root policy (**本環境の `/usr/bin/git` は owner nobody** のため
-  「root 所有必須」は環境ごと拒否する。親推奨 = `operational_boundary` の解釈として明文化し
-  安価な部分集合だけ実装) / (RP-3) raw snapshot consumer の閉包時期 (親推奨 = RP-1 と同 session) /
-  (RP-4) 公表 core `b03` と pilot の解除条件 (親推奨 = 3 文書の凍結承認 + fold を条件とし、
-  §S7 #7 は [T-793] へ委譲) / (RP-5) 段 8 改善候補 1 件の予算超過 (親推奨 = [T-789] へ追加)。
-  **pilot 投入は依然不可** — 公表 core 段階 2 は land 済み (main `d6f2c836`) だが 3 文書とも
-  `authority: none` で未発効であり、凍結承認はユーザー手番として返されている。
-  逐語 = `output/insights/2026-08-11_t139-manifest-land2/`
+- [T-139] **P1・land 2 は session 1〜2 完了 (foundation-only)。次はユーザー裁定 Q1〜Q4 待ち**:
+  branch `worktree-dev-wave-t139-manifest-w2` に、session 1 の erratum v2 対応 (2 operation、
+  erratum_id 別 exact-key grammar、合成経路の承認 membership 検査)、`BlobRef` の digest 比較
+  迂回封鎖、D282 承認 payload の parser (`approval_payload.py`) と、session 2 の
+  **Git trust root 部分集合** (確定裁定 RP-2 (a): `PATH` 非継承・固定絶対 path 起動・
+  commit-graph / fsmonitor / pager 無効・alternates / promisor / partial clone 拒否) が入った。
+  **session 2 の実測: 焦点 4 file 110 passed、変異 8/8 一致 (MISMATCH 0)。land していない。**
+  **ユーザー裁定 RP-1 (a) が求めた 7 件 (承認 manifest 実体 / `resolve_effective_preregistration` /
+  `PreregBinding` / 受領証 writer / 固定 semantic validator / conformance vectors /
+  raw snapshot API) は、段 2 と段 3 の 2 レンズが独立に NO-GO とし、親が段 4 で
+  「本 session では実装しない」と裁定した。** 理由は 3 つ —
+  (i) 承認済み文書だけでは受理述語が一意に決まらない箇所が 4 件ある
+  (§6.3 の `CMakeCache.txt` raw pointer 不在、§4.13 の intent 母集合不在、
+  §6.1 の peer receipt 同定契約不在、§6.8 の transcript byte grammar 不在)。
+  `record-items-v2.md` と `receipt-schema-v1.json` は D282 で exact bytes 承認済みで変更できない。
+  (ii) **D291 の land で承認根が `F_r` と `F_p` の 2 本になり manifest 表現が未裁定になった**
+  (`addendum_b` の承認は D291 側にしか無い)。
+  (iii) **D292 により、RP-4 (a) の条件が揃っても別の canonical decision なしには pilot は開かない。**
+  D292 が定めたのは解除権限と手続きだけで、解除条件の中身は定めていない。
+  なお **RP-4 (a) の「3 文書の凍結承認」は成立していない** — D291 が承認したのは 2 role ちょうどで、
+  追補 P の blob は明示的に未承認である。
+  `a13` consumer / submit 系 / PBS preflight / driver / collector / correctness 還流 /
+  certified 側 consumer / pilot 投入は**未実装**で、D264 の非 export も維持している。
+  **`orchestrator/preregistration/` を呼ぶ非 test caller は repo 全体で 0 件**であり、
+  本 session が動かしたのは基盤層の受理集合であって production の受理集合ではない。
+  裁定 4 問 = (Q1) 入力欠落 4 件をどう閉じるか (親推奨 = 1 本の canonical decision) /
+  (Q2) manifest 表現 (親推奨 = role 別 namespaced projection) /
+  (Q3) RP-4 (a) の解禁条件をどう記録するか (親推奨 = 条件候補として保持し別 decision で解除) /
+  (Q4) 次 session の編成 (親推奨 = Q1・Q2 確定後に RP-1 (a) を再実行)。
+  逐語 = `output/insights/2026-08-11_t139-manifest-land2/` と
+  `output/insights/2026-08-11_t139-manifest-land2-s2/`
   base: dc79c0260f916db7b1cfdb9781792494e33c5a6678dcf995e576edfc7ecacb51
