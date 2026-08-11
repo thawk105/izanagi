@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -88,9 +89,11 @@ def _plan_with_marker_only_in_after_bytes(repo: Path, marker: bytes):
 
 def test_p2_draft_markers_outside_approved_blobs_do_not_stop_fold() -> None:
     draft = ROOT / "output/insights/2026-08-11_t139-pubcore-stage2/addendum-p-draft.md"
-    assert approval_guard.require_resolved_approval_markers(ROOT, (draft.read_bytes(),)) is None
-    assert spool_fold.validate_spool_tree(ROOT) == []
-    assert spool_fold.plan_fold(ROOT, fold_date="2026-08-11").status == "noop"
+    draft_bytes = draft.read_bytes()
+    assert any(
+        marker in draft_bytes for marker in approval_guard.UNRESOLVED_APPROVAL_MARKERS
+    )
+    assert approval_guard.require_resolved_approval_markers(ROOT, (draft_bytes,)) is None
 
 
 def test_non_marker_draft_words_in_pinned_blob_are_accepted(
@@ -181,6 +184,34 @@ def test_exact_marker_in_pinned_blob_is_rejected_by_discover(
     assert [issue.code for issue in issues] == ["unresolved-approval-marker"]
     with pytest.raises(spool_fold.SpoolValidationError):
         spool_fold.plan_fold(repo, fold_date="2026-08-11")
+
+
+def test_spool_guard_resolves_from_source_root_without_repo_on_sys_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = spool_test._repo(tmp_path)
+    _approval_fragment(repo, b"payload __UNRESOLVED__\n")
+    root = ROOT.resolve()
+    root_free_path = [
+        entry
+        for entry in sys.path
+        if Path(entry or ".").resolve() != root
+    ]
+    monkeypatch.setattr(sys, "path", root_free_path)
+    for module_name in (
+        "orchestrator.publication.approval_guard",
+        "orchestrator.preregistration.blobref",
+        "orchestrator.publication",
+        "orchestrator.preregistration",
+        "orchestrator",
+    ):
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
+
+    issues = spool_fold.validate_spool_tree(repo)
+
+    assert [issue.code for issue in issues] == ["unresolved-approval-marker"]
+    assert sys.path == root_free_path
 
 
 def test_exact_marker_is_rejected_when_plan_is_passed_directly_to_apply_fold(

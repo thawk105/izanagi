@@ -80,6 +80,7 @@ FRAGMENT_FILE_RE = re.compile(
     r"(?P<authored>\d{4}-\d{2}-\d{2})-(?P<wave>[a-z0-9]+(?:-[a-z0-9]+)*)-"
     r"(?P<seq>[1-9][0-9]*)\.md"
 )
+_IMPORT_ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclasses.dataclass(frozen=True, order=True)
@@ -1060,10 +1061,15 @@ def _approval_guard_issue(
     if not any(b"approved_blobs:" in payload for payload in payloads):
         return None
     try:
-        from orchestrator.publication.approval_guard import (
-            ApprovalGuardError,
-            require_resolved_approval_markers,
-        )
+        previous_sys_path = sys.path[:]
+        try:
+            sys.path.insert(0, str(_IMPORT_ROOT))
+            from orchestrator.publication.approval_guard import (
+                ApprovalGuardError,
+                require_resolved_approval_markers,
+            )
+        finally:
+            sys.path[:] = previous_sys_path
     except ImportError as exc:
         return "approval-guard-unavailable", f"approval guard を import できない: {exc}"
     try:
