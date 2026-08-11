@@ -268,6 +268,7 @@ def _runtime_module_paths(repo: Path) -> list[Path]:
     paths = [
         repo / "orchestrator/campaign/__init__.py",
         repo / "orchestrator/campaign/silo_ladder_rung1_contract.py",
+        repo / "orchestrator/campaign/toolchain_binding.py",
         repo / "orchestrator/campaign/env_contract.py",
         repo / "orchestrator/campaign/env_contract_activation.py",
         *sorted(activation_records.glob("*.json")),

@@ -1070,6 +1070,7 @@ class _ObservedFloorTool:
             "requested": self.requested,
             "realpath": self.realpath,
             "version_first_line": self.version_first_line,
+            "version": self.version,
         }
 
 

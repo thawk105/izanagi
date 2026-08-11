@@ -135,6 +135,33 @@ def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
     )
 
 
+def _fixture_toolchain_binding(verified_calibration, *, cc, cxx):
+    """登録 receipt と一致済みの gate 結果を模す process-safe fake。"""
+    assert isinstance(
+        verified_calibration, s8b_floor_campaign.env_attestation.VerifiedCalibration,
+    )
+    return {
+        "cc": {
+            "requested": cc,
+            "realpath": f"/fixture/toolchain/{cc}",
+            "version_first_line": "fixture cc version",
+            "version": "fixture cc version\nfixture cc detail",
+        },
+        "cxx": {
+            "requested": cxx,
+            "realpath": f"/fixture/toolchain/{cxx}",
+            "version_first_line": "fixture cxx version",
+            "version": "fixture cxx version\nfixture cxx detail",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": "/fixture/toolchain/cmake",
+            "version_first_line": "cmake version fixture",
+            "version": "cmake version fixture\nfixture cmake detail",
+        },
+    }
+
+
 @pytest.fixture(autouse=True)
 def _bind_current_toolchain_for_existing_campaign_tests(monkeypatch, request):
     """既存 campaign fixture を、登録 receipt と一致済みの private gate 結果へ束縛する。"""
@@ -142,30 +169,8 @@ def _bind_current_toolchain_for_existing_campaign_tests(monkeypatch, request):
             and request.node.cls.__name__ == "TestFloorToolchainBinding"):
         return
 
-    def faithful_binding(verified_calibration, *, cc, cxx):
-        assert isinstance(
-            verified_calibration, s8b_floor_campaign.env_attestation.VerifiedCalibration,
-        )
-        return {
-            "cc": {
-                "requested": cc,
-                "realpath": f"/fixture/toolchain/{cc}",
-                "version_first_line": "fixture cc version",
-            },
-            "cxx": {
-                "requested": cxx,
-                "realpath": f"/fixture/toolchain/{cxx}",
-                "version_first_line": "fixture cxx version",
-            },
-            "cmake": {
-                "requested": "cmake",
-                "realpath": "/fixture/toolchain/cmake",
-                "version_first_line": "cmake version fixture",
-            },
-        }
-
     monkeypatch.setattr(
-        s8b_floor_campaign, "_bind_current_toolchain", faithful_binding,
+        s8b_floor_campaign, "_bind_current_toolchain", _fixture_toolchain_binding,
     )
 
 
@@ -788,8 +793,24 @@ class TestFloorToolchainBinding:
             ("site-cc", "cc"), ("site-cxx", "cxx"), ("cmake", "cmake"),
         ]
         assert manifest == {
-            role: observation.manifest_entry()
-            for role, observation in observations.items()
+            "cc": {
+                "requested": "site-cc",
+                "realpath": "/tool/cc",
+                "version_first_line": "live-cc Vendor 1.0",
+                "version": "live-cc Vendor 1.0\nCopyright stable",
+            },
+            "cxx": {
+                "requested": "site-cxx",
+                "realpath": "/tool/cxx",
+                "version_first_line": "live-cxx Vendor 1.0",
+                "version": "live-cxx Vendor 1.0\nCopyright stable",
+            },
+            "cmake": {
+                "requested": "cmake",
+                "realpath": "/tool/cmake",
+                "version_first_line": "live-cmake version 3.25.0",
+                "version": "live-cmake version 3.25.0\nCopyright stable",
+            },
         }
 
     def test_binding_rejects_drift_only_below_version_first_line(
@@ -810,6 +831,62 @@ class TestFloorToolchainBinding:
                 match="registered calibration receipt と不一致"):
             s8b_floor_campaign._bind_current_toolchain(
                 verified, cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cc_realpath_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cc"] = dataclasses.replace(
+            observations["cc"], realpath="/other/cc",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cxx_version_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cxx"] = dataclasses.replace(
+            observations["cxx"],
+            version="live-cxx Vendor 2.0\nCopyright stable",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cmake_version_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cmake"] = dataclasses.replace(
+            observations["cmake"],
+            version="live-cmake version 3.25.0\nCopyright changed",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
             )
 
     @pytest.mark.parametrize("build_argv", [
@@ -1031,6 +1108,10 @@ def _deterministic_official_artifacts(base: Path) -> dict:
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
             mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+            mock.patch.object(
+                s8b_floor_campaign, "_bind_current_toolchain",
+                _fixture_toolchain_binding,
+            ), \
             mock.patch.object(
                 s8b_floor_campaign.source_digest, "resolve_evidence",
                 _fixture_source_evidence,

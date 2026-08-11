@@ -930,6 +930,7 @@ def test_runtime_binding_covers_all_execution_semantics_modules():
     expected = {
         "orchestrator/campaign/__init__.py",
         "orchestrator/campaign/silo_ladder_rung1_contract.py",
+        "orchestrator/campaign/toolchain_binding.py",
         "orchestrator/campaign/env_contract.py",
         "orchestrator/campaign/env_contract_activation.py",
         *{
