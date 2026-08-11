@@ -40,6 +40,15 @@ title: [T-657] 段 0 残余 3 束の裁定を実施した — 失効 schema と�
 - 本 wave は帳簿 (裁定 profile・gate 表・設計正本) を裁定へ整合させたもので、
   **selection literal を読む resolver は存在しない。policy を実装したのではない。**
   production (`orchestrator/campaign/**`、`tools/**`) と case file 10 件の bytes は不変。
+- **受入 1 走目で [T-772] と同族のフレークが再発した (別 node、独立 2 例目)。**
+  `test_launcher_failure_diagnostic_reports_validator_rejection` が
+  `failed_predicates=["validator_rc"]` を期待したのに
+  `["validator_rc","process_group_residual","termination_verified"]` を得た
+  (8498 passed / 20 skipped / 1 failed / 539.55 秒 / rc=1)。本 wave の差分は
+  `tools/codex_worker_launch.py` にも `orchestrator/tests/test_codex_worker_launch.py` にも
+  1 行も到達しない (`git diff --name-only` で 0 件を実測)。**単独再走 2 本 (当該 node 単独 / 同
+  test file 全 97 件) はいずれも緑**で再現しなかったため、実装差分へ帰属しない。
+  [T-772] の「終了観測の予算が負荷依存で外れる」という帰属を、別 node で独立に裏づける 2 例目である。
 - 段 8 の改善候補は {{D:dev-wave-waiter-pid-and-codex-coldstart}} を参照。
 
 ## 次の一手差分
@@ -60,6 +69,10 @@ title: [T-657] 段 0 残余 3 束の裁定を実施した — 失効 schema と�
   1 件も変更しておらず、落ちた 2 test も終了予算 `0.05` も base に既存だった。変わったのは
   同 test file の `_run_launcher_subprocess(` 呼び出しが 10 → 21 に増えたことで、xdist 並列下の
   launcher subprocess spawn が倍増し、負荷依存の既存 flake が発火しやすくなった。
+  **独立 2 例目 (2026-08-11、本 wave の受入 1 走目)**: 別 node
+  `test_launcher_failure_diagnostic_reports_validator_rejection` が同じ 2 述語
+  (`process_group_residual` / `termination_verified`) の余剰で落ち、単独再走 2 本では再現しなかった。
+  帰属先は同じ「終了観測の時間予算が負荷依存」であり、落ちる node は固定でない。
   base: 566300a227ba18c97003653802a045918ea211a6c9f03b957317cf20bab5b72f
 
 ### 新規
