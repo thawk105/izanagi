@@ -39,6 +39,9 @@
 - `agent-architecture.md` — サブエージェント構成・製品別 adapter・権限・規律の正本
 - `orchestrator-design.md` — orchestrator の ACID/WAL/排他、環境タグ
 - `pegasus-runbook.md` — Pegasus の qlogin / PBS バッチ / module / 並列実行 / ストレージ運用手順
+- `pegasus-node-variance-protocol.md` — ノード間性能差を測る新規 protocol の事前登録 ([T-810])。
+  投入は同文書の 2 段階の承認 (第 1 段 = builder と生死確認、第 2 段 = 本走) を経たときだけ
+  許される。land は承認ではない
 - `ccbench-anatomy.md` — CCBench 構造調査
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
 - `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類

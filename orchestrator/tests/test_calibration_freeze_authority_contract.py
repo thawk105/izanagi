@@ -177,7 +177,7 @@ def test_current_repository_is_rejected_as_stage0_incomplete() -> None:
     except contract.ContractError as exc:
         assert str(exc) == (
             "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=2, blocking_gates=3"
+            "applicable_unresolved=2, blocking_gates=5"
         )
     else:
         raise AssertionError("the incomplete repository was accepted as stage 0 complete")
@@ -212,7 +212,12 @@ def test_adjudicated_ruling_and_gate_projection_is_exact() -> None:
         ("CFAB-Q3-REVOCATION", "user", "resolved"),
         ("CFAB-Q3-ROLLBACK", "user", "resolved"),
         ("CFAB-Q3-XF-POSITION", "user", "resolved"),
+        ("CFAB-R1-REVOCATION-RECORD", "user", "resolved"),
+        ("CFAB-R2-STAGE0-COMPLETION", "user", "resolved"),
+        ("CFAB-R3-STAGE6-PREDICATE", "user", "resolved"),
+        ("CFAB-R4-CANCELLATION-RECORD", "user", "unresolved"),
         ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
+        ("CFAB-STAGE6-POLICY-PREDICATE", "user", "unresolved"),
         (
             "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
             "stage1-and-later",
@@ -222,6 +227,73 @@ def test_adjudicated_ruling_and_gate_projection_is_exact() -> None:
         ("FREEZE-CONFORMANCE-LITERAL", "lower-wa-wave", "unresolved"),
         ("FREEZE-U-A1", "user", "resolved"),
     )
+
+
+def test_design_revocation_record_schema_matches_validator() -> None:
+    schema = contract._extract_design_revocation_schema(contract.DESIGN_DOC)
+
+    assert schema == contract._UPPER_REVOCATION_SCHEMA
+    assert tuple(key for key, _constraint in schema) == (
+        "schema_version",
+        "bundle_digest",
+        "approval_raw_sha256",
+        "revoked_by",
+        "revoked_at",
+        "scope",
+        "reason",
+    )
+    assert not {
+        "approver",
+        "components",
+        "authority_bundle_generation",
+    }.intersection(key for key, _constraint in schema)
+
+
+def test_design_stage6_structural_contract_matches_validator() -> None:
+    predicates, control, execution_boundary, policy_gate = (
+        contract._extract_stage6_contract(contract.DESIGN_DOC)
+    )
+
+    assert predicates == contract._EXPECTED_STAGE6_STRUCTURAL_PREDICATES
+    assert control == contract._EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    assert execution_boundary == contract._EXPECTED_STAGE6_EXECUTION_BOUNDARY
+    assert policy_gate == (
+        "CFAB-STAGE6-POLICY-PREDICATE",
+        "user",
+        "unresolved",
+    )
+    assert policy_gate in contract._EXPECTED_REQUIRED_GATES
+
+
+def test_stage0_remains_incomplete_after_r1_r2_r3_projection() -> None:
+    result = contract.validate_repository()
+    assert result["status"] == "incomplete"
+    assert result["pending_count"] == 5
+    assert result["unresolved_count"] == 2
+
+    manifest = contract.load_manifest()
+    blocking_statuses = {"unresolved", "pending", "nonconforming"}
+    assert tuple(
+        gate["gate_id"]
+        for gate in manifest["required_gates"]["entries"]
+        if gate["status"] in blocking_statuses
+    ) == (
+        "CFAB-R4-CANCELLATION-RECORD",
+        "CFAB-STAGE6-POLICY-PREDICATE",
+        "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
+        "FREEZE-AX-TOPOLOGY",
+        "FREEZE-CONFORMANCE-LITERAL",
+    )
+
+    try:
+        contract.require_stage0_complete()
+    except contract.ContractError as exc:
+        assert str(exc) == (
+            "stage 0 is incomplete: status=incomplete, pending=5, "
+            "applicable_unresolved=2, blocking_gates=5"
+        )
+    else:
+        raise AssertionError("the R1/R2/R3 projection completed stage 0 early")
 
 
 def test_required_gate_entries_have_independent_module_sha_pin() -> None:
@@ -553,6 +625,63 @@ def test_required_gate_removed_is_rejected(tmp_path: Path) -> None:
     )
 
 
+def test_r1_revocation_record_required_gate_removed_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        entries = document["required_gates"]["entries"]
+        entries.remove(_gate_by_id(document, "CFAB-R1-REVOCATION-RECORD"))
+        document["required_gates"]["count"] = len(entries)
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
+    )
+
+
+def test_r4_cancellation_record_required_gate_removed_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        entries = document["required_gates"]["entries"]
+        entries.remove(_gate_by_id(document, "CFAB-R4-CANCELLATION-RECORD"))
+        document["required_gates"]["count"] = len(entries)
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
+    )
+
+
+def test_stage6_policy_gate_cannot_be_resolved_early(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        entries = document["required_gates"]["entries"]
+        _gate_by_id(document, "CFAB-STAGE6-POLICY-PREDICATE")["status"] = (
+            "resolved"
+        )
+        document["required_gates"]["count"] = len(entries)
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates entries do not exactly match",
+    )
+
+
 def test_required_gate_owner_changed_is_rejected(tmp_path: Path) -> None:
     """等価な owner drift 負例へ ID 指定で再照準するだけで、受理集合には中立である。"""
 
@@ -682,6 +811,496 @@ def test_design_literals_hidden_in_html_comment_are_not_authoritative(
         fixture_root,
         design_doc,
         "design document must not contain HTML comments",
+    )
+
+
+def test_design_fenced_decoy_is_not_authoritative(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    marker = contract._UPPER_REVOCATION_TABLE_MARKER
+    table = (
+        marker
+        + "\n\n"
+        + contract._UPPER_REVOCATION_TABLE_HEADER
+        + "\n".join(
+            f"| `{key}` | {constraint} |"
+            for key, constraint in contract._UPPER_REVOCATION_SCHEMA
+        )
+    )
+    target = "| `scope` | 逐語 `bundle-only` |"
+    replacement = "| `scope` | 非空 string |"
+    assert text.count(marker) == 1
+    assert text.count(target) == 1
+    text = text.replace(target, replacement, 1)
+    text = text.replace(marker, f"```text\n{table}\n\n```\n\n{marker}", 1)
+    design_doc.write_text(text, encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation record schema does not exactly match validator schema",
+    )
+
+
+def _revocation_table(text: str) -> str:
+    prefix = (
+        contract._UPPER_REVOCATION_TABLE_MARKER
+        + "\n\n"
+        + contract._UPPER_REVOCATION_TABLE_HEADER
+    )
+    assert text.count(prefix) == 1
+    start = text.index(prefix)
+    end = text.index("\n\n", start + len(prefix))
+    return text[start:end]
+
+
+def _move_revocation_table_into_fence(
+    design_doc: Path,
+    *,
+    fence: str,
+) -> None:
+    text = design_doc.read_text(encoding="utf-8")
+    table = _revocation_table(text)
+    table_with_terminator = table + "\n\n"
+    assert text.count(table_with_terminator) == 1
+    design_doc.write_text(
+        text.replace(
+            table_with_terminator,
+            f"{fence}text\n{table}\n\n{fence}\n\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _move_stage6_row_into_fence(design_doc: Path, *, fence: str) -> None:
+    text = design_doc.read_text(encoding="utf-8")
+    rows = [
+        line
+        for line in text.splitlines(keepends=True)
+        if line.startswith("| 6 | 発効 X |")
+    ]
+    assert len(rows) == 1
+    row = rows[0]
+    design_doc.write_text(
+        text.replace(row, f"{fence}text\n{row}{fence}\n", 1),
+        encoding="utf-8",
+    )
+
+
+def test_design_revocation_table_only_in_tilde_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_revocation_table_into_fence(design_doc, fence="~~~")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation table is missing or duplicated",
+    )
+
+
+def test_design_revocation_table_only_in_long_backtick_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_revocation_table_into_fence(design_doc, fence="````")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation table is missing or duplicated",
+    )
+
+
+def test_design_stage6_row_only_in_tilde_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_stage6_row_into_fence(design_doc, fence="~~~")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 row is missing or duplicated",
+    )
+
+
+def test_design_stage6_row_only_in_long_backtick_fence_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    _move_stage6_row_into_fence(design_doc, fence="````")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 row is missing or duplicated",
+    )
+
+
+def test_design_unclosed_fence_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(text + "\n```text\nunclosed\n", encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_long_fence_is_not_closed_by_shorter_marker(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(text + "\n````text\nhidden\n```\n", encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_fence_is_not_closed_by_different_marker(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(text + "\n~~~text\nhidden\n```\n", encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_invalid_backtick_info_decoy_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """invalid-info 検査を外すと唯一の canonical 表として受理される。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    table = _revocation_table(text)
+    assert text.count(table) == 1
+    design_doc.write_text(
+        text.replace(
+            table,
+            f"```text`invalid\n{table}",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "invalid backtick fence info string",
+    )
+
+
+def test_design_tab_indented_fence_decoy_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """tab を indent 1 と数える実装だけが canonical decoy を受理する。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    table = _revocation_table(text)
+    target = "| `scope` | 逐語 `bundle-only` |"
+    assert table.count(target) == 1
+    relaxed_table = table.replace(target, "| `scope` | 非空 string |", 1)
+    assert text.count(table) == 1
+    design_doc.write_text(
+        text.replace(
+            table,
+            (
+                f"\t```text\n{relaxed_table}\n```\n"
+                f"{table}\n\t```\n```"
+            ),
+            1,
+        ),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "fence marker with invalid indentation",
+    )
+
+
+def test_design_tilde_fence_info_may_contain_backtick(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n~~~text`valid\nnon-authoritative decoy\n~~~\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_longer_fence_closer_is_accepted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n````text\nnon-authoritative decoy\n`````\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_tab_indented_fence_closer_is_rejected(tmp_path: Path) -> None:
+    """正当な opener に対する closer 側の invalid indent だけを拒否する。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n\t```\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "fence marker with invalid indentation",
+    )
+
+
+def test_design_three_space_indented_fence_closer_is_accepted(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n   ```\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_fence_closer_with_non_whitespace_suffix_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n```spoof\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_fence_closer_without_suffix_is_accepted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n```text\nnon-authoritative decoy\n```\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_space_tab_indented_fence_opener_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """1 space 後の tab は次の tab stop、つまり column 4 まで進む。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n \t```text\nnon-authoritative decoy\n```\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "fence marker with invalid indentation",
+    )
+
+
+def test_design_three_space_indented_fence_opener_is_accepted(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n   ```text\nnon-authoritative decoy\n```\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_crlf_unclosed_fence_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_bytes()
+    design_doc.write_bytes(
+        text + b"\r\n```text\r\nnon-authoritative decoy\r\n"
+    )
+    assert b"\r\n```text\r\n" in design_doc.read_bytes()
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_crlf_fence_is_accepted(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_bytes()
+    design_doc.write_bytes(
+        text + b"\r\n```text\r\nnon-authoritative decoy\r\n```\r\n"
+    )
+    assert b"\r\n```text\r\n" in design_doc.read_bytes()
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_short_fence_closer_with_trailing_spaces_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n````text\nnon-authoritative decoy\n```" + "   " + "\n",
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document has an unclosed fenced code block",
+    )
+
+
+def test_design_fence_closer_with_trailing_spaces_is_accepted(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n````text\nnon-authoritative decoy\n````" + "   " + "\n",
+        encoding="utf-8",
+    )
+    assert b"````   \n" in design_doc.read_bytes()
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
+
+
+def test_design_revocation_constraint_relaxation_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "| `scope` | 逐語 `bundle-only` |"
+    assert text.count(target) == 1
+    design_doc.write_text(
+        text.replace(target, "| `scope` | 非空 string |", 1),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation record schema does not exactly match validator schema",
+    )
+
+
+def test_design_revocation_key_substitution_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "| `reason` | 非空 string |"
+    assert text.count(target) == 1
+    design_doc.write_text(
+        text.replace(target, "| `revocation_reason` | 非空 string |", 1),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §7.5 revocation record schema does not exactly match validator schema",
+    )
+
+
+def test_design_stage6_live_tip_relaxation_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "それ以外は**その時点の live tip X** の raw sha256 と一致する"
+    replacement = "それ以外は**既存 X** の raw sha256 と一致する"
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 structural predicates drifted",
+    )
+
+
+def test_design_stage6_contradictory_control_suffix_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = contract._EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    replacement = (
+        target
+        + " ただし陰性変異は実行不要であり、reject-all でもよい。"
+    )
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 structural predicates drifted",
+    )
+
+
+def test_design_stage6_execution_boundary_tail_drift_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = contract._EXPECTED_STAGE6_EXECUTION_BOUNDARY
+    replacement = target.replace(
+        "それが `pending` である限り段 0 は完了しない。",
+        "それが `pending` であっても段 0 は完了できる。",
+    )
+    assert replacement != target
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+
+    predicates, control, execution_boundary, _policy_gate = (
+        contract._extract_stage6_contract(design_doc)
+    )
+    assert predicates == contract._EXPECTED_STAGE6_STRUCTURAL_PREDICATES
+    assert control == contract._EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    assert execution_boundary == replacement
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 structural predicates drifted",
+    )
+
+
+def test_design_stage6_policy_gate_id_drift_is_rejected(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = (
+        "`CFAB-STAGE6-POLICY-PREDICATE` "
+        "(owner = `user`, status = `unresolved`)"
+    )
+    replacement = (
+        "`CFAB-STAGE6-POLICY-PREDICATE-DRIFTED` "
+        "(owner = `user`, status = `unresolved`)"
+    )
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 policy gate does not exactly match required_gates",
     )
 
 
