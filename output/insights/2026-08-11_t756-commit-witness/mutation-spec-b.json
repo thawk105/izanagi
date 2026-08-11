@@ -1,0 +1,122 @@
+{
+  "estimated_run_seconds": 120,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_commit_witness_parser_rejects_duplicate_stdout"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M06-parser-accepts-duplicate",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "    if len(values) < 1 or re.fullmatch(r\"[0-9]+\", values[-1]) is None:\n",
+          "old": "    if len(values) != 1 or re.fullmatch(r\"[0-9]+\", values[0]) is None:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_commit_witness_parser_rejects_duplicate_stdout",
+        "orchestrator/tests/test_campaign.py::test_commit_witness_parser_rejects_missing_stdout",
+        "orchestrator/tests/test_campaign.py::test_commit_witness_parser_rejects_negative_stdout",
+        "orchestrator/tests/test_campaign.py::test_commit_witness_parser_rejects_noninteger_stdout"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M07-missing-witness-becomes-zero",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "        _parse_witness_counter(stdout, \"commit_counts_\") or 0,\n",
+          "old": "        _parse_witness_counter(stdout, \"commit_counts_\"),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_run_trace_rejects_non_ycsb_binary_before_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M10-workload-allowlist-vacuous",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "    if False:\n",
+          "old": "    if not os.path.basename(binary).startswith(\"ycsb_\"):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_run_trace_rejects_preexisting_trace_files_before_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M11-preexisting-trace-guard-off",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "    if False:\n",
+          "old": "    if existing_traces:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_pipeline_nonzero_batch_commits_rejects_with_structured_wal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M08-batch-guard-off",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "            if False:\n",
+          "old": "            if trace_result.batch_commit_count_witness != 0:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_pipeline_matching_commit_witness_commits_and_records_verify_payload",
+        "orchestrator/tests/test_campaign.py::test_pipeline_tail_loss_witness_reaches_verifier"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M09-pipeline-drops-witness-kwarg",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "",
+          "old": "                    expected_commits=trace_result.commit_count_witness,\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "id": "M15-drift-control-comment-only",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "new": "# trace run の timeout。S2 verify 構成の gate2 run timeout と同値に揃えてある (drift control)\n",
+          "old": "# trace run の timeout。S2 verify 構成の gate2 run timeout (120s) と同値に揃えてある\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

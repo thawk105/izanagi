@@ -4985,6 +4985,9 @@ def _red_vr():
                         n_writes=2, n_keys=2, n_edges=2)
 
 
+_MATCH_TRACE_WITNESS = object()
+
+
 @contextlib.contextmanager
 def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    aborts=7, abort_rate=0.03, build_raises=False,
@@ -4993,6 +4996,9 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
                    bench_rounds=None, round_binding="unique",
                    trace_content=None, site_compilers=None, source_raises=False,
                    build_cached=False,
+                   commit_witness=_MATCH_TRACE_WITNESS, batch_witness=0,
+                   unsupported_workload=False, preexisting_trace=False,
+                   unavailable_trace_dir=False,
                    measurement_site=site_policy.PEGASUS_COMPUTE):
     """pipeline の外部依存をダミー化。trace の rc/commit 数・bench の throughput・
     build 失敗を引数で操作し、evaluate の分岐 (特に規律2 の abort) を検査する。
@@ -5010,6 +5016,7 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
             self.source_resolve_calls = []
             self.lock_enters = 0
             self.competition_probes = 0
+            self.verify_witnesses = []
 
     class ScriptedPoint:
         """ScalePoint 同様、値等価だが identity は別にできる round fixture。"""
@@ -5137,17 +5144,45 @@ def _mock_pipeline(certified=True, median=12345.0, cv=0.01, rc=0, ncommit=100,
         def fake_trace(_binary, trace_dir, *_args, **_kwargs):
             bench_calls.trace.append(1)
             bench_calls.events.append("verify")
+            if unsupported_workload:
+                raise pipeline._TraceWitnessUnsupportedWorkload(
+                    "/fixture/tpcc_silo.exe"
+                )
+            if preexisting_trace:
+                raise pipeline._TraceDirNotEmpty(["trace_0.log"])
+            if unavailable_trace_dir:
+                raise pipeline._TraceDirUnavailable(
+                    "/fixture/missing-traces", "missing"
+                )
             if trace_content is not None:
                 with open(os.path.join(trace_dir, "trace_0.log"),
                           "w", encoding="ascii") as stream:
                     stream.write(trace_content)
-            return ncommit, rc, aborts
+            witness = (
+                ncommit if commit_witness is _MATCH_TRACE_WITNESS
+                else commit_witness
+            )
+            return pipeline._TraceRunResult(
+                trace_c_lines=ncommit,
+                returncode=rc,
+                abort_counts=aborts,
+                commit_count_witness=witness,
+                batch_commit_count_witness=batch_witness,
+            )
         patch("_run_trace", fake_trace)
     # 実 VerifyResult を返す (result_to_dict が S4 で abort payload を作るので duck-type 不可)。
     if trace_content is None:
-        patch("verify_trace_dir", lambda tdir: _green_vr() if certified else _red_vr())
+        def fake_verify(tdir, *, expected_commits=None):
+            bench_calls.verify_witnesses.append(expected_commits)
+            return _green_vr() if certified else _red_vr()
+        patch("verify_trace_dir", fake_verify)
     else:
-        patch("verify_trace_dir", real_verify_trace_dir)
+        def wrapped_real_verify(tdir, *, expected_commits=None):
+            bench_calls.verify_witnesses.append(expected_commits)
+            return real_verify_trace_dir(
+                tdir, expected_commits=expected_commits,
+            )
+        patch("verify_trace_dir", wrapped_real_verify)
     def fake_remeasure(measure_fn, settle_fn=None, **k):
         # scripted round を全て通し、実装と同じく CV が厳密に低い最初の点を採る。
         points = [measure_fn() for _ in round_specs]
@@ -5985,7 +6020,7 @@ def test_pipeline_write_intent_violation_aborts_without_commit():
     assert i_rows == ["I 0 aa write-set-entry-without-intent"]  # DW-M03: 単一理由
 
     lay = _tmp_layout()
-    r, calls = _eval(lay, trace_content=trace_content)
+    r, calls = _eval(lay, trace_content=trace_content, ncommit=1)
 
     assert r.aborted and not r.certified
     assert r.verdict == "indeterminate"
@@ -6064,25 +6099,282 @@ def test_pipeline_missing_abort_counts_rejects():
     assert st.last_terminal.payload.get("reason") == "trace-no-abort-counts"
 
 
+def test_pipeline_missing_commit_witness_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, commit_witness=None)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-no-commit-witness"
+    assert payload["commit_witness"] == {
+        "commit_counts": None,
+        "batch_commit_counts": 0,
+    }
+    assert payload["workload"] == {"tag": "legacy"}
+    assert STAGE_VERIFY_DONE not in wal.replay(lay)[r.variant].stages_seen
+
+
+def test_pipeline_missing_batch_commit_witness_rejects():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, batch_witness=None)
+    assert r.aborted and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-no-commit-witness"
+    assert payload["commit_witness"] == {
+        "commit_counts": 100,
+        "batch_commit_counts": None,
+    }
+
+
+def test_pipeline_nonzero_batch_commits_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, batch_witness=1)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-batch-commits-unattributed"
+    assert payload["commit_witness"] == {
+        "commit_counts": 100,
+        "batch_commit_counts": 1,
+    }
+    assert payload["workload"] == {"tag": "legacy"}
+
+
+def test_pipeline_unsupported_workload_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, unsupported_workload=True)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-witness-unsupported-workload"
+    assert payload["commit_witness"] == {
+        "commit_counts": None,
+        "batch_commit_counts": None,
+    }
+    assert payload["binary_workload"] == "tpcc_silo.exe"
+    assert payload["workload"] == {"tag": "legacy"}
+
+
+def test_pipeline_unavailable_trace_dir_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, unavailable_trace_dir=True)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-no-commit-witness"
+    assert payload["commit_witness"] == {
+        "commit_counts": None,
+        "batch_commit_counts": None,
+    }
+    assert payload["trace_dir"] == "/fixture/missing-traces"
+    assert payload["trace_dir_error"] == "missing"
+    assert payload["workload"] == {"tag": "legacy"}
+
+
+def test_pipeline_preexisting_trace_rejects_with_structured_wal():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False, preexisting_trace=True)
+    assert r.aborted and not r.certified and calls.verify_witnesses == []
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "trace-no-commit-witness"
+    assert payload["commit_witness"] == {
+        "commit_counts": None,
+        "batch_commit_counts": None,
+    }
+    assert payload["preexisting_trace_files"] == ["trace_0.log"]
+    assert payload["workload"] == {"tag": "legacy"}
+
+
+def test_pipeline_tail_loss_witness_reaches_verifier():
+    lay = _tmp_layout()
+    trace = "C 0 0 1 1\nW 0 aa U 1 1\n"
+    r, calls = _eval(
+        lay, do_bench=False, trace_content=trace,
+        ncommit=1, commit_witness=2,
+    )
+    assert r.aborted and not r.certified
+    assert calls.verify_witnesses == [2]
+    payload = wal.replay(lay)[r.variant].last_terminal.payload
+    assert payload["reason"] == "indeterminate"
+    expected_note = "commit witness mismatch: expected=2 observed=1 delta=-1"
+    assert payload["verify"]["integrity"]["notes"] == [expected_note]
+    assert payload["verify"]["integrity"]["clean"] is False
+    assert payload["verify"]["certified"] is False
+    verify_records = [
+        record for record in wal.read_records(lay)
+        if record.stage == STAGE_VERIFY_DONE
+    ]
+    assert len(verify_records) == 1
+    assert verify_records[0].payload["commit_witness"] == {
+        "commit_counts": 2,
+        "batch_commit_counts": 0,
+    }
+    assert STAGE_COMMIT not in wal.replay(lay)[r.variant].stages_seen
+
+
+def test_pipeline_matching_commit_witness_commits_and_records_verify_payload():
+    lay = _tmp_layout()
+    r, calls = _eval(lay, do_bench=False)
+    assert r.certified and not r.aborted
+    assert calls.verify_witnesses == [100]
+    records = list(wal.read_records(lay))
+    verify = [record for record in records if record.stage == STAGE_VERIFY_DONE]
+    assert len(verify) == 1
+    assert verify[0].payload["commit_witness"] == {
+        "commit_counts": 100,
+        "batch_commit_counts": 0,
+    }
+    assert any(record.stage == STAGE_COMMIT for record in records)
+
+
 def test_run_trace_parses_abort_from_stdout():
     """回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して
-    第 3 返り値で返す。_parse_abort_counts 単体と pipeline 層 (_run_trace ごとモック) の
+    型付き結果の属性で返す。_parse_abort_counts 単体と pipeline 層 (_run_trace ごとモック) の
     テストだけでは、この結線を消しても (旧配線 = stdout を捨てる) 全緑のまま
     (2026-07-03 敵対検証 medium: テスト正直さ)。"""
     sdir = _tmpdir("izanagi_runtrace_bin_")
-    fake = os.path.join(sdir, "fake_ccbench.sh")
+    fake = os.path.join(sdir, "ycsb_fake_ccbench.sh")
     with open(fake, "w", encoding="utf-8") as f:
         f.write("#!/bin/sh\nprintf 'abort_counts_:\\t42\\n'\n")
     os.chmod(fake, 0o755)
-    n, rc, aborts = pipeline._run_trace(fake, _tmpdir("izanagi_runtrace_t1_"),
-                                        {"w": "1"}, 1800)
-    assert (n, rc, aborts) == (0, 0, 42)
-    fake2 = os.path.join(sdir, "fake_noabort.sh")
+    result = pipeline._run_trace(
+        fake, _tmpdir("izanagi_runtrace_t1_"), {"w": "1"}, 1800,
+    )
+    assert (result.trace_c_lines, result.returncode, result.abort_counts) == (0, 0, 42)
+    fake2 = os.path.join(sdir, "ycsb_fake_noabort.sh")
     with open(fake2, "w", encoding="utf-8") as f:
         f.write("#!/bin/sh\nprintf 'commit_counts_:\\t9\\n'\n")
     os.chmod(fake2, 0o755)
-    _, _, aborts = pipeline._run_trace(fake2, _tmpdir("izanagi_runtrace_t2_"), {}, 1800)
-    assert aborts is None                    # 集計行なし → None (呼び手が fails-closed)
+    result2 = pipeline._run_trace(
+        fake2, _tmpdir("izanagi_runtrace_t2_"), {}, 1800,
+    )
+    assert result2.abort_counts is None      # 集計行なし → None (呼び手が fails-closed)
+
+
+def test_run_trace_parses_commit_witness_from_stdout():
+    """回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して
+    型付き結果の属性で返し、commit/batch witness も同じ stdout から束ねる。
+    _parse_abort_counts 単体と pipeline 層 (_run_trace ごとモック) の
+    テストだけでは、この結線を消しても (旧配線 = stdout を捨てる) 全緑のまま
+    (2026-07-03 敵対検証 medium: テスト正直さ)。"""
+    sdir = _tmpdir("izanagi_runtrace_bin_")
+    fake = os.path.join(sdir, "ycsb_fake_ccbench.sh")
+    with open(fake, "w", encoding="utf-8") as f:
+        f.write(
+            "#!/bin/sh\nprintf 'abort_counts_:\\t42\\n"
+            "commit_counts_:\\t9\\nbatch_commit_counts_:\\t0\\n'\n"
+        )
+    os.chmod(fake, 0o755)
+    result = pipeline._run_trace(
+        fake, _tmpdir("izanagi_runtrace_t1_"), {"w": "1"}, 1800,
+    )
+    assert result.trace_c_lines == 0
+    assert result.returncode == 0
+    assert result.abort_counts == 42
+    assert result.commit_count_witness == 9
+    assert result.batch_commit_count_witness == 0
+    fake2 = os.path.join(sdir, "ycsb_fake_noabort.sh")
+    with open(fake2, "w", encoding="utf-8") as f:
+        f.write(
+            "#!/bin/sh\nprintf 'commit_counts_:\\t9\\n"
+            "batch_commit_counts_:\\t0\\n'\n"
+        )
+    os.chmod(fake2, 0o755)
+    result2 = pipeline._run_trace(
+        fake2, _tmpdir("izanagi_runtrace_t2_"), {}, 1800,
+    )
+    assert result2.abort_counts is None       # 集計行なし → None (呼び手が fails-closed)
+
+
+def test_commit_witness_parser_rejects_duplicate_stdout():
+    assert pipeline._parse_commit_witness(
+        "commit_counts_: 1\ncommit_counts_: 1\nbatch_commit_counts_: 0\n"
+    ) == (None, 0)
+
+
+def test_commit_witness_parser_rejects_missing_stdout():
+    assert pipeline._parse_commit_witness("batch_commit_counts_: 0\n") == (None, 0)
+
+
+def test_commit_witness_parser_rejects_negative_stdout():
+    assert pipeline._parse_commit_witness(
+        "commit_counts_: -1\nbatch_commit_counts_: 0\n"
+    ) == (None, 0)
+
+
+def test_commit_witness_parser_rejects_noninteger_stdout():
+    assert pipeline._parse_commit_witness(
+        "commit_counts_: nope\nbatch_commit_counts_: 0\n"
+    ) == (None, 0)
+
+
+def test_run_trace_rejects_non_ycsb_binary_before_subprocess():
+    tdir = _tmpdir("izanagi_runtrace_tpcc_")
+    try:
+        pipeline._run_trace("/not/executed/tpcc_silo.exe", tdir, {}, 1800)
+        assert False, "YCSB allowlist 外を拒否すべき"
+    except pipeline._TraceWitnessUnsupportedWorkload as exc:
+        assert exc.workload == "tpcc_silo.exe"
+    assert not os.path.exists(os.path.join(tdir, "log"))
+
+
+def test_run_trace_rejects_preexisting_trace_files_before_subprocess():
+    tdir = _tmpdir("izanagi_runtrace_stale_")
+    with open(os.path.join(tdir, "trace_0.log"), "w", encoding="ascii") as stream:
+        stream.write("C 0 0 1 1\n")
+    calls = []
+
+    def subprocess_spy(*args, **kwargs):
+        calls.append((args, kwargs))
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout=("abort_counts_: 0\ncommit_counts_: 1\n"
+                    "batch_commit_counts_: 0\n"),
+        )
+
+    caught = None
+    with unittest_mock.patch.object(
+            pipeline.subprocess, "run", subprocess_spy):
+        try:
+            pipeline._run_trace(
+                "/not/executed/ycsb_silo.exe", tdir, {}, 1800
+            )
+        except pipeline._TraceDirNotEmpty as exc:
+            caught = exc
+    assert caught is not None, "残骸 trace を拒否すべき"
+    assert caught.paths == ("trace_0.log",)
+    assert calls == []
+    assert not os.path.exists(os.path.join(tdir, "log"))
+
+
+def test_run_trace_rejects_missing_trace_dir_before_subprocess():
+    root = _tmpdir("izanagi_runtrace_missing_root_")
+    missing = os.path.join(root, "missing")
+    calls = []
+    with unittest_mock.patch.object(
+            pipeline.subprocess, "run", lambda *a, **k: calls.append((a, k))):
+        try:
+            pipeline._run_trace("/not/executed/ycsb_silo.exe", missing, {}, 1800)
+            assert False, "不在 trace_dir を拒否すべき"
+        except pipeline._TraceDirUnavailable as exc:
+            assert exc.path == missing
+            assert exc.reason == "missing"
+    assert calls == []
+
+
+def test_run_trace_rejects_nondirectory_trace_dir_before_subprocess():
+    root = _tmpdir("izanagi_runtrace_file_root_")
+    not_directory = os.path.join(root, "trace-file")
+    with open(not_directory, "w", encoding="ascii") as stream:
+        stream.write("not a directory\n")
+    calls = []
+    with unittest_mock.patch.object(
+            pipeline.subprocess, "run", lambda *a, **k: calls.append((a, k))):
+        try:
+            pipeline._run_trace(
+                "/not/executed/ycsb_silo.exe", not_directory, {}, 1800
+            )
+            assert False, "directory でない trace_dir を拒否すべき"
+        except pipeline._TraceDirUnavailable as exc:
+            assert exc.path == not_directory
+            assert exc.reason == "not-directory"
+    assert calls == []
 
 
 def test_pipeline_no_bench_commits_without_fitness():
@@ -6536,14 +6828,21 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         idx_trace["i"] += 1
         calls["trace"].append({"flags": dict(flags), "numactl": numactl})
         ncommit, rc, aborts, _ = pass_results[i]
-        return ncommit, rc, aborts
+        return pipeline._TraceRunResult(
+            trace_c_lines=ncommit,
+            returncode=rc,
+            abort_counts=aborts,
+            commit_count_witness=ncommit,
+            batch_commit_count_witness=0,
+        )
 
     idx_verify = {"i": 0}
 
-    def fake_verify(tdir):
+    def fake_verify(tdir, *, expected_commits=None):
         i = idx_verify["i"]
         idx_verify["i"] += 1
-        _, _, _, certified = pass_results[i]
+        ncommit, _, _, certified = pass_results[i]
+        assert expected_commits == ncommit
         return _green_vr() if certified else _red_vr()
 
     def fake_build(genome, commit, trace, src_token=None, ccbench_dir="", cache_root="",

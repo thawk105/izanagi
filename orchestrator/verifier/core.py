@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """検証のトップレベル: trace ディレクトリ -> VerifyResult。
 
-verifier の入力は **trace のみ**。性能数値 (throughput 等) をここに渡さない
+verifier の入力は **trace と optional な trace 外 commit counter のみ**。
+性能数値 (throughput 等) をここに渡さない
 (roadmap §3.4-4 anti-fabrication isolation = 入力側隔離。捏造経路をデータレベル
 で断つ。書き込み権限を持たない出力側隔離と対になる)。
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Dict, Optional
 
 from .dsg import DSG
@@ -14,10 +16,27 @@ from .model import VerifyResult
 from .parse import parse_trace_dir
 
 
-def verify_trace_dir(trace_dir: str, max_report: Optional[int] = 20) -> VerifyResult:
+def verify_trace_dir(
+        trace_dir: str, max_report: Optional[int] = 20, *,
+        expected_commits: Optional[int] = None,
+) -> VerifyResult:
     """1 run (= 1 trace ディレクトリ) を検証する。"""
     txns, issues = parse_trace_dir(trace_dir)
     dsg = DSG(txns)
+    if expected_commits is not None:
+        # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
+        # expected/observed を持つ新しい Integrity へ一度で差し替える。
+        observed_commits = len(txns)
+        dsg.integrity = replace(
+            dsg.integrity,
+            expected_commits=expected_commits,
+            observed_commits=observed_commits,
+        )
+        if observed_commits != expected_commits:
+            dsg.integrity.notes.append(
+                "commit witness mismatch: "
+                f"expected={expected_commits} observed={observed_commits} "
+                f"delta={observed_commits - expected_commits}")
     dsg.integrity.dup_txids = len(issues.dup_txids)
     if issues.dup_txids:
         sample = ", ".join(str(x) for x in issues.dup_txids[:5])
