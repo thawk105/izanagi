@@ -110,7 +110,19 @@ title: T-810 の測定装置を作り始めた — 実測は §9 の 2 段承認
   **親はこれを直さなかった** — T-793 が所有する公表層の fail-closed な報告 gate であり、
   正しい直し方が「期待値へ D305 を足す」なのか「scan の範囲を狭める」なのかは
   その wave の文脈なしに判断できないため。{{T:t793-d305-supersession-expectation}} として起票する。
-  **この赤が解けるまで、本 wave に限らずどの wave も land できない。**
+
+- **ユーザー裁定 (2026-08-12、発話「免除入れて」) により、この 2 件を受入の免除として land した。**
+  免除の証拠は次の 3 点で、いずれも実測である (memory の「証拠なしの免除をしない」に従う)。
+  (i) **赤の nodeid は 2 件のみ**で、`orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed`
+  と `::test_deny_only_report_contains_authority_and_both_submission_denials`。
+  (ii) **帰属**: `git log 23c8e7c4..HEAD -- docs/decisions.md` が返すのは `427da17c` のみ、
+  `-- orchestrator/tests/test_t793_report.py` が返すのは `c820722a` のみで、**どちらも main の祖先**
+  (`git merge-base --is-ancestor` で確認)。本 wave の 8 commit はいずれにも触れていない。
+  (iii) **単調性**: 本 branch は main へ ff-only で載る差分であり、
+  **land しても main の赤は 1 件も増えない** (受入 2 走目 = 2 failed / 9205 passed、
+  1 走目 = 6 failed / 9201 passed から本 wave 由来の 4 件が消えた形)。
+  すなわちこの免除は失敗を隠しておらず、テストも防壁も弱めていない。
+  **恒久化しない** — {{T:t793-d305-supersession-expectation}} が閉じるまでの限定免除である。
 
 ## 次の一手差分
 
@@ -145,8 +157,10 @@ title: T-810 の測定装置を作り始めた — 実測は §9 の 2 段承認
   `docs/decisions.md` に `D305` が入ったのに期待値が `("D292",)` を literal で固定しており、
   supersession scan の `("D292", "D305")` と不一致になる。
   変更したのは main の祖先 commit (`427da17c` / `c820722a`) だけで、[T-810] wave は無関係。
-  **この赤が解けるまでどの wave も land できない。**期待値へ D305 を足すのか、
+  [T-810] は 2026-08-12 のユーザー裁定「免除入れて」で限定免除して land したが、
+  **赤は main に残ったままである。**期待値へ D305 を足すのか、
   scan の範囲を狭めるのかは公表層 (T-793 / D291) の文脈で決める。
+  閉じるまで後続 wave も同じ限定免除を要する。
 - {{T:run-tests-overall-grace}} **P3・新規 ([T-810] セッション事象)**:
   `tools/run_tests.py` の `_default_dispatch` が `dispatch_compute.dispatch(...)` を
   grace 引数なしで呼ぶため `--overall-grace` を渡せず、既定 300 秒に固定される。
