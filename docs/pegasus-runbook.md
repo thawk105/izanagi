@@ -792,6 +792,10 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
 - 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (進行不可。lease 未取得、
   Git 失敗、再検査で先行が残る、自己保持なのに進めない 等)、`74` = cleanup (merge abort /
   release) の完了を確認できない、それ以外の非 0 = 受入 command の rc。
+- **`--max-wait-seconds` の既定は 7,200 秒で、混雑時はこれを使い切って `claim-timeout` の rc=70 で
+  返る** (2026-08-11 実測: 7,200 秒待って取得できず、解放は直後だった)。並行 wave が多い時間帯は
+  明示的に延ばす。rc=70 で戻ったら lease 状態を見て、free ならそのまま取り直す — 窓は数分で
+  他 wave に取られる。
 
 script が担う判定は次のとおりで、**同じ内容を別 shell loop として書き直さない**。
 
