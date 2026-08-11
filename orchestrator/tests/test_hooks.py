@@ -669,6 +669,49 @@ def test_apply_patch_delete_and_move_source_check_lexical_symlink_entry():
         shutil.rmtree(root)
 
 
+def _mk_apply_patch_ancestor_alias_fixture(root):
+    safe = os.path.join(root, "docs", "safe.txt")
+    protected_dir = os.path.join(root, "output", "campaigns", "c", "runs")
+    os.makedirs(os.path.dirname(safe), exist_ok=True)
+    os.makedirs(protected_dir, exist_ok=True)
+    with open(safe, "w", encoding="utf-8") as f:
+        f.write("safe\n")
+    os.symlink("..", os.path.join(root, "docs", "repo-alias"))
+    os.symlink("../../../../docs/safe.txt", os.path.join(protected_dir, "ref"))
+
+
+def test_apply_patch_delete_resolves_ancestors_but_not_final_symlink():
+    root = _mk_fixture_repo()
+    try:
+        _mk_apply_patch_ancestor_alias_fixture(root)
+        command = """*** Begin Patch
+*** Delete File: docs/repo-alias/output/campaigns/c/runs/ref
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert not ok, f"祖先 alias 経由の protected entry Delete が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_move_source_resolves_ancestors_but_not_final_symlink():
+    root = _mk_fixture_repo()
+    try:
+        _mk_apply_patch_ancestor_alias_fixture(root)
+        command = """*** Begin Patch
+*** Update File: docs/repo-alias/output/campaigns/c/runs/ref
+*** Move to: docs/moved-ref
+@@
+-safe
++moved
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert not ok, f"祖先 alias 経由の protected entry Move 元が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
 # ---------- guard_write: designated ソースは内容非検査 (方針 A, D30/D33) ----------
 # 旧 EVOLVE-BLOCK 領域検査 (payload/skeleton のテキスト検査) は方針 A で hook から
 # 削除された。#ifdef TRACE 混入・生指令・#include 追加・偽 cache hit の担保は、

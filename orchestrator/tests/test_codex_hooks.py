@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -60,12 +61,12 @@ def _events(expected, *, final_only=False, omit_protected=False):
         allowed_item = {
             "id": "allowed-call",
             "type": "command_execution",
-            "command": f"printf {expected.allowed_marker} > {expected.allowed_rel}",
+            "command": CH._bash_probe_command(expected, protected=False),
         }
         protected_item = {
             "id": "protected-call",
             "type": "command_execution",
-            "command": f"printf {expected.protected_marker} > {expected.protected_rel}",
+            "command": CH._bash_probe_command(expected, protected=True),
         }
     completed = dict(allowed_item)
     completed["status"] = "completed"
@@ -157,6 +158,59 @@ def test_tool_untried_is_nonzero():
     assert _rc(expected, argv, results) != 0
 
 
+def test_bash_diagnostic_spoof_command_is_nonzero():
+    expected, argv, results = _bundle()
+    bash_expected = expected["Bash"]
+    spoof = (
+        f"printf '%s\\n' '{CH.BLOCKED_MARKER}: "
+        f"{CH.HANDLER_MARKERS['Bash']}'; : # "
+        f"{bash_expected.protected_rel} {bash_expected.protected_marker}"
+    )
+    events = list(results["Bash"].events)
+    protected_index = next(
+        index for index, event in enumerate(events)
+        if event.get("type") == "item.started"
+        and event.get("item", {}).get("id") == "protected-call"
+    )
+    event = dict(events[protected_index])
+    item = dict(event["item"])
+    item["command"] = spoof
+    event["item"] = item
+    events[protected_index] = event
+    results["Bash"] = results["Bash"]._replace(events=tuple(events))
+    assert _rc(expected, argv, results) != 0
+
+
+def test_diagnostic_outside_protected_window_is_nonzero():
+    for placement in ("before", "after"):
+        expected, argv, results = _bundle()
+        events = list(results["Bash"].events)
+        diagnostic = next(event for event in events if event.get("type") == "error")
+        events.remove(diagnostic)
+        protected_index = next(
+            index for index, event in enumerate(events)
+            if event.get("type") == "item.started"
+            and event.get("item", {}).get("id") == "protected-call"
+        )
+        if placement == "before":
+            events.insert(protected_index, diagnostic)
+        else:
+            events.append(diagnostic)
+        results["Bash"] = results["Bash"]._replace(events=tuple(events))
+        assert _rc(expected, argv, results) != 0, placement
+
+
+def test_unexpected_tool_call_is_nonzero():
+    expected, argv, results = _bundle()
+    events = list(results["Bash"].events)
+    events.insert(2, {
+        "type": "item.started",
+        "item": {"id": "unexpected", "type": "command_execution", "command": "true"},
+    })
+    results["Bash"] = results["Bash"]._replace(events=tuple(events))
+    assert _rc(expected, argv, results) != 0
+
+
 def test_auth_quota_and_timeout_are_each_nonzero():
     for failure in ("auth", "quota", "timeout"):
         expected, argv, results = _bundle()
@@ -218,6 +272,39 @@ def test_codex_guard_maps_only_zero_and_two_to_themselves():
             input="{}", text=True, capture_output=True, check=False,
             env={"PATH": ""},
         ).returncode == 2
+
+
+def test_bootstrap_maps_git_present_bash_missing_to_two():
+    shell = shutil.which("sh")
+    assert shell, "POSIX sh が必要"
+    with tempfile.TemporaryDirectory(prefix="codex-bootstrap-test-") as temp_name:
+        root = Path(temp_name) / "repo"
+        hooks = root / "hooks"
+        bin_dir = Path(temp_name) / "bin"
+        hooks.mkdir(parents=True)
+        bin_dir.mkdir()
+        (hooks / "codex_guard.sh").write_text("", encoding="utf-8")
+        fake_git = bin_dir / "git"
+        fake_git.write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$FAKE_REPO_ROOT\"\n",
+            encoding="utf-8",
+        )
+        fake_git.chmod(0o755)
+        assert shutil.which("git", path=os.fspath(bin_dir)) == os.fspath(fake_git)
+        config = json.loads((_REPO / ".codex" / "hooks.json").read_text())
+        commands = [
+            hook["command"]
+            for entry in config["hooks"]["PreToolUse"]
+            for hook in entry["hooks"]
+        ]
+        assert len(commands) == 2
+        env = {"PATH": os.fspath(bin_dir), "FAKE_REPO_ROOT": os.fspath(root)}
+        for command in commands:
+            completed = subprocess.run(
+                [shell, "-c", command], cwd=root, env=env,
+                text=True, capture_output=True, check=False,
+            )
+            assert completed.returncode == 2, (command, completed.stderr)
 
 
 def _run():

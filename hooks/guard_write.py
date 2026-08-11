@@ -94,35 +94,30 @@ def classify_path(
 ) -> tuple[bool, str]:
     """絶対 path を既存の artifact / namespace / freeze / ccbench 核で判定する。
 
-    ``resolve_final=False`` は Delete / Move 元の lexical directory entry 用。
-    判定条件は共通のまま、対象と比較基盤の双方を lexical に揃える。
+    ``resolve_final=False`` は Delete / Move 元の directory entry 用。祖先 directory
+    だけ realpath 化し、unlink/rename が操作する最終要素そのものは解決しない。
     """
     root = os.path.realpath(root)
     lexical_path = os.path.abspath(abs_path)
     if resolve_final:
         rp = os.path.realpath(lexical_path)
-        camp_roots = (
-            os.path.realpath(os.path.join(root, "output", "campaigns")),
-            os.path.realpath(os.path.join(root, "output", "exploration", "campaigns")),
-        )
     else:
-        rp = lexical_path
-        camp_roots = (
-            os.path.abspath(os.path.join(root, "output", "campaigns")),
-            os.path.abspath(os.path.join(root, "output", "exploration", "campaigns")),
+        rp = os.path.join(
+            os.path.realpath(os.path.dirname(lexical_path)),
+            os.path.basename(lexical_path),
         )
+    camp_roots = (
+        os.path.realpath(os.path.join(root, "output", "campaigns")),
+        os.path.realpath(os.path.join(root, "output", "exploration", "campaigns")),
+    )
     label = _protected_artifact(rp, camp_roots)
     if label:
         return False, (
             f"{label} への直接書き込みは拒否 (規律2)。COMMIT/fitness を書く唯一の"
             "経路は pipeline.evaluate()。verifier を迂回した成果物の更新は不可")
 
-    if resolve_final:
-        exploration_root = os.path.realpath(
-            os.path.join(root, "output", "exploration"))
-    else:
-        exploration_root = os.path.abspath(
-            os.path.join(root, "output", "exploration"))
+    exploration_root = os.path.realpath(
+        os.path.join(root, "output", "exploration"))
     lexical_exploration_root = os.path.abspath(
         os.path.join(root, "output", "exploration"))
     if (os.path.basename(lexical_path) == "namespace.json"
@@ -138,20 +133,14 @@ def classify_path(
     # ない** — approval/active/revocation の真正性は s8b_ratified_freeze の Git 内容による
     # 規約 attestation (AI-Agent: none 逐語 + 導入 commit topology) が担い、hook を層に
     # 数えない。AI が `none` commit を作れる以上ここは人間性の機械証明にならない。
-    if resolve_final:
-        freeze_root = os.path.realpath(os.path.join(root, "output", "s8b-freeze"))
-    else:
-        freeze_root = os.path.abspath(os.path.join(root, "output", "s8b-freeze"))
+    freeze_root = os.path.realpath(os.path.join(root, "output", "s8b-freeze"))
     if rp == freeze_root or rp.startswith(freeze_root + os.sep):
         return False, (
             "output/s8b-freeze/ 配下への直接書き込みは拒否 (F6a 誤操作抑止)。approval/"
             "active pointer/revocation/世代 file の発効は人間 commit + s8b_ratified_freeze "
             "検証を経る (これは認証防壁ではなく誤操作抑止)")
 
-    if resolve_final:
-        sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
-    else:
-        sub = os.path.abspath(os.path.join(root, "external", "ccbench"))
+    sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
     if rp == sub or rp.startswith(sub + os.sep):
         rel = os.path.relpath(rp, sub)
         if rel not in EVOLVE_BLOCK_SOURCES:
