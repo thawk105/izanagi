@@ -90,14 +90,27 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   (受入 lease 取得後に local main を取り込んだ tip `ba73d199` で実走)。
   `check_docs` 違反なし、`spool_fold --dry-run` = planned、provenance 全史監査 rc=0 (2388 件、
   新規違反なし)。**skip 件数 20 は変更前と同一**で、本 wave は skip を増やしていない
-- **受入 2 走目で F57 が再発した。** docs 2 commit だけを積んだ tip `73c8ba95` の全走で
-  `test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape` が 1 件落ちた
-  (**1 failed / 8482 passed / 20 skipped / 538.44 秒**、
-  `failed_predicates=["process_group_residual","termination_verified"]`、
-  `loadavg=(12.92, 3.66, 1.90)`)。同 file の単独再走は **97 passed / 6.27 秒 / rc=0** で再現しない。
-  本 wave の差分は docs のみで launcher 実装にも同 test file にも到達しえず、
-  `DW-O18` により帰属しない。**同一 wave で docs 2 commit しか違わない 2 tip の全走が
-  緑 → 赤と割れた対照は F57 では初出**で、台帳へ再発として記録した
+- **受入全走を 4 本実測し、緑 2 / F57 フレーク赤 2 だった。** 並行 wave の land が続いたため
+  main 取り込みのたびに走らせ直している。すべて同一 branch・docs のみの差分である。
+
+  | 走 | tip | 結果 |
+  |---|---|---|
+  | 1 | `ba73d199` | **8483 passed / 20 skipped / 547.73 秒 / rc=0** |
+  | 2 | `73c8ba95` | 1 failed / 8482 passed / 20 skipped / 538.44 秒 (F57) |
+  | 4 | `8c19148d` | **8487 passed / 20 skipped / 543.27 秒 / rc=0** |
+  | 6 | `73fe73bc` | 1 failed / 8573 passed / 20 skipped / 555.67 秒 (F57) |
+
+  (3 走目は並行 wave の land との merge 衝突で rc=70、5 走目は lease 待機中に打ち切った)
+- **F57 の再発が本 wave だけで 2 件出た。** 2 走目は
+  `test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape`
+  (`failed_predicates=["process_group_residual","termination_verified"]`、
+  `loadavg=(12.92, 3.66, 1.90)`、単独再走 **97 passed / 6.27 秒 / rc=0**)、
+  6 走目は
+  `test_campaign.py::test_pipeline_stale_screening_falls_back_to_verify_first_and_records_trace`
+  (単独再走 **1 passed / 2.40 秒 / rc=0**)。**どちらも再現しない。**
+  本 wave の差分は docs のみで launcher 実装にも両 test file にも到達しえず、
+  `DW-O18` により帰属しない。**同一 wave で docs しか違わない tip 群の全走が緑 → 赤と
+  割れた対照、および 1 wave 内で 2 件出た対照は、いずれも F57 では初出**で台帳へ記録した
 - **並走ガード 3 条件を遵守した。** 本 wave は**計測系のキュー投入を 1 件も行っていない**
   (床値投入が不可のため)。投入したのは検査系の dispatch だけで、
   provenance 監査 (request `901529.nqsv`、Elapse 17 秒) と受入全走である。
