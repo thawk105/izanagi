@@ -19,9 +19,17 @@ seq: 1
 - 根本原因: レビューの所見「説明が事実と違う」に対し、親が**新しい測り方を検証せずに**
   即座に数値を書いた。所見を閉じる修正それ自体が新しい未検証の主張を生んだ。
   `grep -c "^+"` は unified diff の header 行と本文行を区別しない。
+- **同根の第 2 例 (同一 wave 内)**: 並行 session の land 通知が伝えた main の SHA
+  (`39d76098`) を merge commit の message へ**書き写した**が、`git merge` が実際に取り込んだ
+  第 2 親は `62ddcc93` だった (通知から merge までの間に main がさらに進んでいた)。
+  merge の内容自体は正しい (main は wave branch の祖先) が、**message の SHA が実際と違う。**
+  段 9 の main 再確認で `git rev-parse <merge>^2` を測って発見した。
+  履歴は書き換えず erratum として記録する。
+  **根本は 1 例目と同じ — 書く値を自分で測らず、外部由来の値を書き写した。**
 - 検出できた理由: 焦点再レビューに「親が新たに書いた数値主張を自分で測って検証せよ」と
   明示的に指示していた。指示が無ければ偽の値のまま凍結承認へ出ていた。
 - 恒久対応: **差分の行数は `git diff --numstat` を権威とし、`diff | grep -c` で数えない。**
+  **merge の親 SHA は peer 通知でなく `git rev-parse <merge>^2` を権威とする。**
   加えて、文書が主張する数値と実測を機械照合する検査を wave 側に置く
   (本 wave は repo 外に `verify_claims.py` を置き、numstat 一致・slice の byte 一致・
   自己参照の不在を毎回照合した)。

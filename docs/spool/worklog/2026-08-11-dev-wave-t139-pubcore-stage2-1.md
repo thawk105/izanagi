@@ -100,6 +100,13 @@ title: 公表 core 段階 2 に着手した ([T-139]) — C-1・C-3・C-5 を実
   走査しない。将来の再帰的検査に備えた先行処置である。原文 sha256 と復元法は
   `output/insights/2026-08-11_t139-pubcore-stage2/verbatim/README.md` に記録した。
 
+- **merge commit の message に書いた main の SHA が実際と違う (erratum。履歴は書き換えない)。**
+  merge commit `8524b5b3` の message は「Merge local main (`39d76098`)」と書くが、
+  **実際の第 2 親は `62ddcc93`** である。並行 session の land 通知が伝えた SHA を書き写した後、
+  merge を実行するまでの間に main がさらに進んでいた。**merge の内容自体は正しく**、
+  main は wave branch の祖先である (段 9 の再確認で `git rev-parse <merge>^2` を測って発見した)。
+  同根の失敗として {{F:diff-count-instrument-contaminated-claim}} に第 2 例として記録した。
+
 - **セッション事象:** 待ち手へ `nohup setsid` の親 pid を渡し、偽の producer 死 (rc=70) を
   1 回受けた。3 点照合 (成果物・`.done`・pid) で気づき、run script 自身に `echo $$` で
   pid を書かせる形へ直した。以後の段では再発していない。
