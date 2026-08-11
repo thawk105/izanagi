@@ -204,6 +204,19 @@ def test_floor_predicate_rejects_each_independent_mismatch():
     assert not binding.floor_toolchain_matches(**build_mismatch)
 
 
+def test_floor_predicate_rejects_receipt_body_drift_with_live_versions_aligned():
+    arguments = _matching_floor_arguments()
+    live_cc_version = "live-cc (Vendor) 1.0\nCopyright changed"
+    live_cxx_version = "live-cxx (Vendor) 1.0\nCopyright changed"
+    arguments["live_cc_version"] = live_cc_version
+    arguments["live_cxx_version"] = live_cxx_version
+
+    assert binding.tool_version_body(live_cc_version) == (
+        binding.tool_version_body(live_cxx_version)
+    )
+    assert not binding.floor_toolchain_matches(**arguments)
+
+
 def _run() -> int:
     tests = [
         value
