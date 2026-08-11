@@ -29,15 +29,23 @@ job の内側で比較が閉じている fan-out は無条件で許し、性能�
 protocol が node を block / randomization 因子として定義し推定量と集約手順を固定した場合だけ許す。
 **これは実測主張ではなく識別可能性からの演繹であり、ノード間差が小さくても成立する。**
 
-**決定 (3): 変異本走の並行 fan-out は現時点では禁止し、「第 3 の選択肢」として起票だけする。**
+**決定 (3): 変異本走の並行 fan-out は「第 3 の選択肢」として起票する。未実装であって禁止ではない。**
 D130 / D131 が比較したのは「逐次 dispatch」と「1 job へ束ねて job 内直列」の 2 択であり、
 **N 本同時投入は選択肢に入っていない。**束ねが消すのは順番待ちだけで内側の合計時間は不変だが、
-fan-out は内側も縮む。**ただし変異ごとの別作業木は必要条件の 1 つにすぎない** — D130 決定 (3) の
-4 条件と D131 の共通前提 6 件が閉じ、各 request・attempt・ledger 行を exact に対応付ける
-sanctioned transport が受理されるまでは逐次 dispatch を使う。bnode を跨ぐと `flock` の
-「同一 repo で同時 1 本」が保証されず、silent fail-open なら二重注入で verdict と復元後 bytes が
-非決定になる。**なお D130 の 9161.6 秒は削減量の上限側の目安であって、順番待ちとして
-分離実測された値ではない。**
+fan-out は内側も縮む。
+
+**D130 / D131 の未充足前提を fan-out の前提と読み違えない。**あれらは **harness 自体を
+計算ノードの 1 ジョブへ束ねる**経路への条件である。現行 `--runner-mode dispatch` は harness が
+ログインノードに居て各変異の pytest だけを計算ノードへ投げる形なので、fan-out でも harness は
+ログインに並ぶ。lock は `sha256(str(repo))` を鍵とする node-local `/tmp` のファイルであり、
+作業木が別なら鍵も別なので、cross-node `flock` の懸念 (D130 条件 2) も walltime kill で
+`finally` 復元が飛ぶ懸念 (同条件 3) も掛からない。
+
+残るのは実装・設計であって裁定ではない — spec の分割と期待 node 集合の分割整合、N 本の ledger の
+併合と「registered == recorded」の担保、request・attempt・ledger 行の対応付け、同時 dispatch 負荷と
+ログイン admission、`mutation_worktree.py` の container 名が固定であるための `--scratch-root` 分離。
+**いずれも未実測である。**なお D130 の 9161.6 秒は削減量の上限側の目安であって、
+順番待ちとして分離実測された値ではない。
 
 **決定 (4): runbook §8 の site gate 記述は誤記であり訂正した (erratum)。**
 「build / bench の計測は `_site_admits_measurement` が Pegasus を拒否したまま」と書かれていたが、

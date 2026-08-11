@@ -50,11 +50,30 @@ title: 計算ノード job の並行投入規範を新設した — 親の初稿
   候補として §7.5 と {{T:s8c-workload-fanout}} へ記録した。履歴監査・pytest・build は
   job 内で並列化済みなので候補から除外した。
 
-- **refute した所見が 2 件。** (i) レンズ B の「probe が `pgrep` でシステム全体を見るので
+- **refute した所見が 3 件。** (i) レンズ B の「probe が `pgrep` でシステム全体を見るので
   並行 job 自体が結論を変える」— `pgrep` は自ノードしか見えず、gen_S は 1 request が node の
   CPU 48 を使い切るので自分の request どうしは同居しない。**fan-out はむしろ同居より安全**で
   ある旨を §7.5 へ書いた。(ii) レンズ B の「受入全走の隣の禁止を `output/` を触る job へ狭めよ」—
   採らない。全走 1 回の空費は高く、広く守る側のコストは低い。
+  (iii) **レンズ A の blocker 2 (変異 fan-out は D130 の 4 条件と D131 の共通前提 6 件が
+  閉じるまで禁止) を撤回した。**
+
+- **親が子の所見を鵜呑みにして誤った禁止を書き、ユーザーの問い (「rulings で裁定可能か」) を
+  きっかけに自分で撤回した。** レンズ A の blocker 2 をそのまま採用して §7.5 と決定本文へ
+  「fan-out は現時点では禁止」と書いたが、**D130 / D131 の条件群は「harness 自体を計算ノードの
+  1 ジョブへ束ねる」経路への条件**であり、fan-out には掛からない。現行
+  `--runner-mode dispatch` は harness がログインノードに居て各変異の pytest だけを投げる形
+  (§7.4 の呼出しがそれ) なので、fan-out でも harness はログインに並ぶ。lock は
+  `_lock_path_for` が `sha256(str(repo))` を鍵にする node-local `/tmp` のファイルで
+  (`tools/mutation_harness.py:1814-1816`)、作業木が別なら鍵も別である。
+  **効果が最大の項目に誤った恒久禁止を置きかけた** — 子の所見も一次資料で裏取りする
+  (F1 と同型)。正しい状態は「未実装・要設計」であり、残件は spec 分割・ledger 併合・
+  期待 node の分割整合・同時 dispatch 負荷・`mutation_worktree.py` の container 固定名による
+  `--scratch-root` 分離の 5 点で、いずれも未実測である。
+
+- **セッション事象:** この撤回の前に受入全走を 1 度投入したが、lease 待ち行列 (先行 7 枚) の
+  段階で `holder_self: false` を確認して producer を落とした (待ち手は rc=70 で fail-closed)。
+  **lease は未取得**なので他 wave へ影響していない。訂正後の tip で投げ直した。
 
 - **副産物: runbook の誤記を 1 件訂正した。** §8 が「build / bench の計測は
   `_site_admits_measurement` が Pegasus を拒否したままであり ([T-277])」と書いていたが**逆**で、
@@ -85,11 +104,16 @@ title: 計算ノード job の並行投入規範を新設した — 親の初稿
 
 ### 新規
 
-- {{T:mutation-fanout}} **P2・新規**: 変異本走の N-job fan-out を「第 3 の選択肢」として
-  評価する。D130 / D131 は「逐次 dispatch」と「1 job へ束ねて job 内直列」の 2 択しか比べておらず、
-  **N 本同時投入は選択肢に入っていない**。束ねは順番待ちしか消さないが fan-out は内側も縮む。
-  **着手条件** = D130 決定 (3) の 4 条件と D131 の共通前提 6 件が閉じ、各 request・attempt・
-  ledger 行を exact に対応付ける sanctioned transport が受理されること。それまでは逐次を使う。
+- {{T:mutation-fanout}} **P1・新規**: 変異本走の N-job fan-out を「第 3 の選択肢」として
+  設計・実装する。D130 / D131 は「逐次 dispatch」と「1 job へ束ねて job 内直列」の 2 択しか
+  比べておらず、**N 本同時投入は選択肢に入っていない**。束ねは順番待ちしか消さないが
+  fan-out は内側も縮む。**D130 / D131 の未充足前提は着手条件ではない** — あれらは harness を
+  計算ノードへ束ねる経路への条件で、harness がログインに並ぶ fan-out には掛からない
+  (lock は作業木 path 由来の node-local 鍵)。**残件は設計 5 点** = spec の分割と期待 node の
+  分割整合 / N 本の ledger 併合と `registered == recorded` の担保 / request・attempt・ledger 行の
+  対応付け / 同時 dispatch 負荷とログイン admission / `mutation_worktree.py` の container 固定名
+  (`.izanagi-mutation-worktree`) による `--scratch-root` の N 分離。いずれも未実測。
+  **実装面のため Codex author 必須。**
 
 - {{T:s8c-workload-fanout}} **P2・新規**: 8c trial の workload 単位 fan-out を評価する。
   `p3_autonomous_workload_trial.py` の `for workload in selected:` は逐次で、campaign root は

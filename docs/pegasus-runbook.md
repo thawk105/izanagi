@@ -951,14 +951,9 @@ prologue (module・build・probe) の重複分だけで、混雑時は超過分�
    そして **`output/` の親 directory を走査する consumer** のいずれかを共有する job は、
    producer と consumer の双方が並行 writer を明示的に受理していない限り並べない。
    **job 専用の nonce path を切っても、親 directory を検査する consumer がいれば独立ではない。**
-4. **変異本走の N-job fan-out (現時点では禁止)。** 変異 harness は木を in-place で書き換えるので
-   変異ごとに別作業木が要るが (`tools/mutation_worktree.py`)、**別作業木は必要条件の 1 つに
-   すぎない。**D130 決定 (3) の 4 条件と D131 の共通前提 6 件 (lock 移行、永続 receipt、
-   canonical 全走 argv、clean child env、子 rc の意味、`total_deadline`) が閉じ、
-   各 request・attempt・ledger 行を exact に対応付ける sanctioned transport が受理されるまでは、
-   **現行の逐次 dispatch を使う。**`flock` は node-local `/tmp` なので bnode を跨ぐと
-   「同一 repo で同時 1 本」が保証されず、**silent fail-open なら二重注入で verdict と
-   復元後 bytes が非決定になる** (D130 決定 (3) 条件 2)。
+4. **同じ作業木を書き換える走行の同時実行。** 変異 harness は木を in-place で書き換えるので、
+   並行させるなら**変異ごとに別の使い捨て作業木**が要る (`tools/mutation_worktree.py`)。
+   同じ木に 2 本入れてはならない。
 
 #### ノード間の性能差は未測定である — これを禁止の根拠にしない
 
@@ -1049,7 +1044,21 @@ floor / oracle の集約は expected cell 集合との完全一致を要求す�
   束ね・fan-out はどちらも未実測である。**D130 / D131 が比べたのは「逐次 dispatch」と
   「1 job へ束ねて job 内直列」の 2 択で、**N 本同時投入は選択肢に入っていない。**
   束ねが消すのは順番待ちだけで内側の合計時間は不変だが、fan-out は内側も縮む。
-  現時点の可否は上の「並行にしない面」4 に従う (禁止)。起票済み。
+
+  **D130 / D131 の未充足前提を fan-out の前提と読み違えない。** あれらは
+  **harness 自体を計算ノードの 1 ジョブへ束ねる**経路に対する条件である。現行の
+  `--runner-mode dispatch` は **harness がログインノードに居て**各変異の pytest だけを
+  計算ノードへ投げる形 (§7.4 の呼出し) なので、N 本の fan-out も harness はログインに並ぶ。
+  したがって cross-node `flock` (D130 条件 2) は掛からない — lock は
+  `sha256(str(repo))` を鍵とする node-local `/tmp` のファイルで、作業木が別なら鍵も別である。
+  walltime kill で `finally` 復元が飛ぶ懸念 (同条件 3) も、harness が計算ノードに載る前提の話である。
+
+  **fan-out に本当に残っているのは実装・設計であって裁定ではない。** 未解決は
+  (i) spec の分割と期待 node 集合の分割整合、(ii) N 本の ledger の併合と
+  「registered == recorded」の担保、(iii) request・attempt・ledger 行の対応付け、
+  (iv) 同時 dispatch 負荷とログインノードの admission、(v) `mutation_worktree.py` の
+  container 名が固定 (`.izanagi-mutation-worktree`) なので **`--scratch-root` を N 個に分ける**必要。
+  **いずれも未実測である。**着手は起票済みタスクで行う。
 - **8c trial は workload 単位で逐次に回す** (`p3_autonomous_workload_trial.py` の
   `for workload in selected:`)。workload ごとの campaign root は分離できる構造だが、
   現行呼出しは `journal`・`active_providers`・`build_context`・`max_wall_s` を共有するため、
