@@ -21,7 +21,22 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import s8b_holdout_freeze as M  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
+import s8b_v2_freeze_fixture as V2FIX  # noqa: E402
 import t080_fixture_roots as FIXTURE_ROOTS  # noqa: E402
+
+
+_V2_CANONICAL_PROBE_DOCUMENT = {
+    "z_scientific": 1e2,
+    "m_label": "測定",
+    "a_budget": {"as_int": 100, "as_float": 100.0},
+}
+_V2_WRITER_RAW_LITERAL = (
+    b'{"a_budget":{"as_float":100.0,"as_int":100},'
+    b'"m_label":"\xe6\xb8\xac\xe5\xae\x9a","z_scientific":100.0}\n'
+)
+_V2_WRITER_SHA256_LITERAL = (
+    "da5d41c6a6146af354a91ebcc640e4e2785155a2e7c1911e3a54e97ce61e790f"
+)
 
 
 def _axis_value(holdout_name: str, axis: str) -> str:
@@ -747,3 +762,377 @@ def test_source_guard_has_no_static_concrete_axis_encoding():
         for value in axis_values:
             for encoding in M.concrete_axis_encodings(axis, value):
                 assert all(encoding not in source for source in sources)
+
+
+def test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", None)
+
+    with pytest.raises(M.FreezeError, match="^budget-approval-not-ratified$"):
+        M.build_v2_g1_candidate(
+            floor_result_path="missing-result.json",
+            budget_path="missing-budget.json",
+            root=tmp_path,
+        )
+    assert M.main([
+        "generate-v2-candidate",
+        "--floor-result", "missing-result.json",
+        "--budget", "missing-budget.json",
+    ]) == 1
+
+
+def test_v1_apis_import_and_execute_when_v2_dependencies_fail_to_import(
+        tmp_path):
+    root, files, _fixture_head = _synthetic_freeze_root(tmp_path)
+    _git(root, "init", "-q")
+    _git(root, "config", "user.name", "fixture")
+    _git(root, "config", "user.email", "fixture@example.invalid")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "v1 import boundary fixture")
+    head = _git(root, "rev-parse", "HEAD")
+    output = root / M.FREEZE_REL
+    script = r'''
+import importlib.abc
+import pathlib
+import sys
+
+blocked = {
+    "orchestrator.campaign.env_contract",
+    "orchestrator.campaign.s8b_floor_contract",
+    "orchestrator.campaign.s8b_floor_stats",
+    "orchestrator.campaign.s8b_launch_cert",
+}
+
+class BlockV2Dependencies(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname in blocked:
+            raise ImportError(f"blocked v2 dependency: {fullname}")
+        return None
+
+sys.meta_path.insert(0, BlockV2Dependencies())
+from orchestrator.campaign import s8b_holdout_freeze as module
+
+root = pathlib.Path(sys.argv[1])
+source = sys.argv[2]
+head = sys.argv[3]
+output = pathlib.Path(sys.argv[4])
+report = module.search_repository(root, files=[source])
+assert report["positive_control"]["hit_count"] == 1
+generated = module.generate(
+    confirmed_by="reviewer",
+    confirmed_at="2026-08-11T00:00:00Z",
+    output_path=output,
+    root=root,
+    files=[source],
+    frozen_at_head=head,
+)
+assert module.verify(
+    output, root=root, files=[source], current_head=head,
+) == generated
+assert module.verify_cli_with_t080_receipt(output, root=root) == generated
+assert blocked.isdisjoint(sys.modules)
+'''
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(root), files[0], head, str(output)],
+        cwd=Path(M.ROOT), text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"],
+        root=root,
+    )
+
+    assert frozenset(document) == M.V2_TOP_LEVEL_KEYS
+    assert document["schema_version"] == M.V2_SCHEMA_VERSION
+    assert document["generation_number"] == 1
+    assert document["supersedes_sha256"] == T080.HOLDOUT_RAW_SHA256
+    assert document["frozen_at_head"] == fixture["head"]
+    assert document["generator"]["path"] == M.SCRIPT_REL
+    assert document["known_axes_freeze"] == json.loads(
+        (root / M.FREEZE_REL).read_bytes(),
+    )["known_axes_freeze"]
+    v1 = json.loads((root / M.FREEZE_REL).read_bytes())
+    changed_v1_fields = {
+        "schema_version", "frozen_at_head", "design_source", "generator", "floor",
+        "budget", "refreeze_note",
+    }
+    assert all(
+        document[field] == v1[field]
+        for field in M.TOP_LEVEL_KEYS - changed_v1_fields
+    )
+    assert document["budget"] == fixture["budget"]
+    assert document["floor"]["by_holdout"]
+    closure = {
+        entry["canonical_path"]: entry["sha256"]
+        for entry in document["measurement_closure"]
+    }
+    assert set(fixture["closure_paths"]) <= set(closure)
+    assert all(
+        closure[rel] == hashlib.sha256((root / rel).read_bytes()).hexdigest()
+        for rel in fixture["closure_paths"]
+    )
+
+    generated = M.generate_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"],
+        root=root,
+    )
+    output = root / M.V2_CANDIDATE_REL
+    assert output.read_bytes() == V2FIX.canonical_bytes(generated)
+    assert generated == document
+    with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
+        M.generate_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+def test_v2_candidate_budget_approval_compares_canonical_numeric_bytes(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    changed = copy.deepcopy(fixture["budget"])
+    changed["total_bench_s"] = float(changed["total_bench_s"])
+    (root / fixture["budget_rel"]).write_bytes(V2FIX.canonical_bytes(changed))
+
+    with pytest.raises(
+            M.FreezeError, match="budget-approval-budget-canonical-mismatch"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+@pytest.mark.parametrize("field", ["total_bench_s", "per_holdout_bench_s"])
+def test_v2_candidate_rejects_negative_zero_budget_field(
+        tmp_path, monkeypatch, field):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    changed = copy.deepcopy(fixture["budget"])
+    if field == "total_bench_s":
+        changed[field] = -0.0
+        reason = r"budget\.total_bench_s が有限非負数でない"
+    else:
+        holdout_id = sorted(changed[field])[0]
+        changed[field][holdout_id] = -0.0
+        reason = rf"budget\.per_holdout_bench_s\.{holdout_id} が有限非負数でない"
+    (root / fixture["budget_rel"]).write_bytes(V2FIX.canonical_bytes(changed))
+
+    with pytest.raises(M.FreezeError, match=reason):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+def test_v2_candidate_none_pin_rejects_valid_inputs_without_output(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", None)
+
+    with pytest.raises(M.FreezeError, match="^budget-approval-not-ratified$"):
+        M.generate_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+    assert not (root / M.V2_CANDIDATE_REL).exists()
+
+
+def test_v2_candidate_rejects_floor_not_eligible_for_refreeze(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    result["eligible_for_refreeze"] = False
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+
+    with pytest.raises(M.FreezeError, match="eligible_for_refreeze が true でない"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+def test_v2_candidate_rejects_closure_hit_absent_from_captured_head(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    untracked = root / "untracked-holdout.txt"
+    untracked.write_bytes(V2FIX._holdout_hit_text(M, "rr80"))
+
+    with pytest.raises(M.FreezeError, match="captured HEAD の blob として存在しない"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+def test_v2_candidate_rejects_dirty_closure_without_pinned_diagnostic(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(
+        M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"],
+    )
+    rel = fixture["closure_paths"][0]
+    changed = (root / rel).read_bytes() + b"worktree-drift\n"
+    (root / rel).write_bytes(changed)
+
+    with pytest.raises(
+            M.FreezeError,
+            match=r"measurement_closure path が captured HEAD と worktree で不一致"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"],
+            root=root,
+        )
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        "output/s8b-freeze/holdout_freeze.v2.g1.json",
+        "../outside.json",
+        "/tmp/outside.json",
+        "output//s8b-freeze-candidates/holdout_freeze.v2.g1.json",
+        "output/s8b-freeze-candidates/../holdout_freeze.v2.g1.json",
+    ],
+)
+def test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path(tmp_path, output):
+    root = tmp_path / "repo"
+    root.mkdir()
+
+    with pytest.raises(M.FreezeError):
+        M._write_v2_candidate_create_only(root, output, b"{}")
+    assert not (tmp_path / "outside.json").exists()
+
+
+def test_v2_candidate_writer_creates_fixed_root_and_preserves_literal_bytes(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+
+    assert M._canonical_bytes(_V2_CANONICAL_PROBE_DOCUMENT) == (
+        _V2_WRITER_RAW_LITERAL[:-1]
+    )
+    assert hashlib.sha256(_V2_WRITER_RAW_LITERAL).hexdigest() == (
+        _V2_WRITER_SHA256_LITERAL
+    )
+    assert _V2_WRITER_RAW_LITERAL.endswith(b"\n")
+    M._write_v2_candidate_create_only(
+        root, M.V2_CANDIDATE_REL, _V2_WRITER_RAW_LITERAL,
+    )
+
+    output = root / M.V2_CANDIDATE_REL
+    assert output.read_bytes() == _V2_WRITER_RAW_LITERAL
+    assert hashlib.sha256(output.read_bytes()).hexdigest() == (
+        _V2_WRITER_SHA256_LITERAL
+    )
+
+
+def test_v2_candidate_output_gate_rejects_symlink_parent(tmp_path):
+    root = tmp_path / "repo"
+    outside = tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    (root / "output").mkdir()
+    (root / "output" / "s8b-freeze-candidates").symlink_to(outside)
+
+    with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
+        M._write_v2_candidate_create_only(
+            root, M.V2_CANDIDATE_REL, _V2_WRITER_RAW_LITERAL,
+        )
+    assert list(outside.iterdir()) == []
+
+
+def test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite(
+        tmp_path):
+    root = tmp_path / "repo"
+    leaf = root / M.V2_CANDIDATE_REL
+    leaf.parent.mkdir(parents=True)
+    leaf.write_bytes(b"existing")
+
+    with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
+        M._write_v2_candidate_create_only(
+            root, M.V2_CANDIDATE_REL, b"replacement",
+        )
+    assert leaf.read_bytes() == b"existing"
+
+
+def test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf(tmp_path):
+    root = tmp_path / "repo"
+    outside = tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    (root / "output").mkdir()
+    (root / "output" / "s8b-freeze-candidates").symlink_to(outside)
+
+    with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
+        M._write_v2_candidate_create_only(root, M.V2_CANDIDATE_REL, b"{}")
+    assert list(outside.iterdir()) == []
+
+    (root / "output" / "s8b-freeze-candidates").unlink()
+    parent = root / "output" / "s8b-freeze-candidates"
+    parent.mkdir()
+    leaf = root / M.V2_CANDIDATE_REL
+    leaf.write_bytes(b"existing")
+    with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
+        M._write_v2_candidate_create_only(root, M.V2_CANDIDATE_REL, b"replacement")
+    assert leaf.read_bytes() == b"existing"
+
+    leaf.unlink()
+    outside_leaf = outside / "existing"
+    outside_leaf.write_bytes(b"outside")
+    leaf.symlink_to(outside_leaf)
+    with pytest.raises(M.FreezeError, match="安全に新規作成できない"):
+        M._write_v2_candidate_create_only(root, M.V2_CANDIDATE_REL, b"replacement")
+    assert outside_leaf.read_bytes() == b"outside"
+
+
+def test_v2_candidate_cli_surface_has_no_approval_or_root_arguments():
+    parser = M._parser()
+    accepted = parser.parse_args([
+        "generate-v2-candidate",
+        "--floor-result", "result.json",
+        "--budget", "budget.json",
+    ])
+    assert accepted.output == M.V2_CANDIDATE_REL
+    for forbidden in ("--approver", "--approved-at", "--budget-approval", "--root"):
+        with pytest.raises(SystemExit) as caught:
+            parser.parse_args([
+                "generate-v2-candidate",
+                "--floor-result", "result.json",
+                "--budget", "budget.json",
+                forbidden, "value",
+            ])
+        assert caught.value.code == 2

@@ -1,0 +1,46 @@
+# 段 3 敵対相談 レンズ B — テストの検出力と整合・実効性
+
+これは izanagi の**防御的**な設計レビューである。目的は、正しさ防壁を狭める変更に付ける
+テストが、実際にその防壁の破れを捕まえる検出力を持つかを事前に確かめることである。
+あなたはプランと親 brief を**守る側に回らず**、欠陥を探す側に立つ。見つけた欠陥は修正の材料になる。
+
+まず次の 2 つを全文読む。読めなければ何もせず「入力が読めない」とだけ報告して即停止する。
+
+- 親 brief: `/work/1/SFC/tanab/dev-wave-jobs/t787-freeze-crlf/brief.md`
+- 段 2 プラン: `/work/1/SFC/tanab/dev-wave-jobs/t787-freeze-crlf/stage2-plan.md`
+
+## このレンズの担当
+
+**テストの検出力、既存資産との整合、変異の帰属。**
+
+必ず検討する攻撃面:
+
+1. **生き残る弱実装**: プランのテスト集合をすべて通しながら、不変条件を破る実装を書けるか。
+   具体的に構成せよ。過去の同型 wave ([T-739]) では「NUL をすべて末尾に付けたテストだけだったので
+   `endswith` 実装が生き残る」という穴が実際にあった。同型の穴 (CR だけ検査して LF を落とす、
+   最初の 1 件で止まる、path 判定を `in` や `endswith` にする、走査を dict の第 1 階層に限る等) を
+   すべて列挙し、どのテストが不足かを file:line で言え。
+2. **変異の帰属不成立**: プランの変異候補それぞれについて、期待 kill node が実際にその変異でだけ
+   落ちるか。別の原因で落ちる (帰属が成立しない)、あるいは前段の gate に先取りされて後段の
+   診断が置き換わる (変異が SURVIVED に見える) 系列を探せ。wave 前の実コードの形
+   (NUL-only 検査) への revert 変異が登録されているかを確認し、無ければ blocker にせよ。
+3. **既存テストとの衝突**: `orchestrator/tests/test_s8c_preregistration_core.py` の
+   `test_evidence_contract_hash_accepts_non_nul_path_controls` (CR/LF 受理を exact hash で固定、
+   4 param) は本 wave で反転する。他に CR/LF path を暗黙に受理側で使っているテスト・fixture・
+   golden・凍結成果物が repo 全体に無いかを検索して列挙せよ (`orchestrator/tests/` 以外も見る)。
+   1 件でも見落とせば受入全走が赤になる。
+4. **helper の再利用可否**: 既存 helper (`_contract_with_selector_suffix`、
+   `_contract_with_path_suffix`、`_contract_with_interior_path_nul`、
+   `EVIDENCE_CONTRACT_PATH_CASES`) を CR/LF へ流用するとき、NUL 前提が埋まっていないか
+   (assert の `b"\\u0000" in raw` 等) を file:line で確認せよ。
+5. **親 brief 自身への攻撃**: brief の (P1) 新語導入、(P2) 関数改名、(P3) テスト形は、
+   より少ない変更・より高い検出力の代案で置き換えられるか。置き換えるべきなら根拠を示せ。
+
+## 制約
+
+- sandbox は read-only。pytest の実走は不要で、静的検査でよい。実走は親が行う。
+- テストを弱める方向、期待値を実装に合わせる方向の提案はしない。
+- 各所見に「これを直さないと成果物 (凍結台帳・proof chain・certified 選択) のどの値・受理集合・
+  参照がどう変わるか」を 1 行で付ける。書けない所見は nit と自己申告せよ。
+- 結論は GO / NO-GO のいずれかを明示する。
+- 出力の最後に `## 総括` 見出しで要点を 10 行以内にまとめる。
