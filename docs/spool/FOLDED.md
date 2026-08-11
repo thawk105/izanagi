@@ -934,3 +934,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dw-artifact-root-subdir-precreate":"[T-877]","T:mutation-node-xdist-group-suffix":"[T-876]","T:test-s8b-approved-tests-import":"[T-878]"},"authored":"2026-08-12","content_sha256":"ffa04a93d973c0900608764226e1425fea16a77e1abfd26477515c02c714f346","seq":1,"wave":"dev-wave-t717-t485-t792"}
 - {"allocations":{"D:evidence-content-addressed-resolver":"D310","D:walltime-sixty-minutes":"D309"},"authored":"2026-08-12","content_sha256":"e63316ff6ce67c80fd8adb5e4323726673c72544d1ba98b9b34771c7f7cddf75","seq":2,"wave":"dev-wave-t717-t485-t792"}
+
+- {"allocations":{"T:verifier-negative-txid-false-green":"[T-879]"},"authored":"2026-08-12","content_sha256":"7c0f470313474beb00edede9ed935527e719a4512d61ecb3ed18d41233e77d3e","seq":1,"wave":"dev-wave-t816-step4"}
