@@ -918,13 +918,18 @@ def _write_approved_manifest(
             root_path, os.O_RDONLY | directory | cloexec | nofollow,
         )
         opened_dirs.append(current_fd)
-        for part in parts[:-1]:
+        candidate_prefix_size = len(PurePosixPath(MANIFEST_CANDIDATE_DIR).parts)
+        for index, part in enumerate(parts[:-1]):
             try:
                 next_fd = os.open(
                     part, os.O_RDONLY | directory | cloexec | nofollow,
                     dir_fd=current_fd,
                 )
             except FileNotFoundError:
+                # CLI が作成してよい directory は fixed candidate root だけ。
+                # その配下の caller 指定 subdirectory は既存かつ nofollow の場合のみ辿る。
+                if index >= candidate_prefix_size:
+                    raise
                 os.mkdir(part, mode=0o755, dir_fd=current_fd)
                 next_fd = os.open(
                     part, os.O_RDONLY | directory | cloexec | nofollow,
@@ -1030,9 +1035,13 @@ def verify_manifest(
         raise ManifestError("schedule_sha256 が再計算値と不一致")
     actual_cells = _schedule_cells(document["schedule"])
     schedule_holdouts = {holdout_id for holdout_id, _ in actual_cells}
+    frozen_holdouts = freeze.get("holdouts")
+    if (not isinstance(frozen_holdouts, Mapping)
+            or schedule_holdouts != set(frozen_holdouts)):
+        raise ManifestError("schedule holdout 集合が freeze.holdouts と完全一致しない")
     expected_cells = {
         (holdout_id, configuration_id)
-        for holdout_id in schedule_holdouts
+        for holdout_id in frozen_holdouts
         for configuration_id in _holdout_configuration_ids(freeze, holdout_id)
     }
     if actual_cells != expected_cells:
@@ -1052,9 +1061,7 @@ def verify_manifest(
             "floor": freeze.get("floor"), "budget": freeze.get("budget"),
     }):
         raise ManifestError("floor/budget snapshot hash が不一致")
-    expected_holdout_ids = sorted({
-        row["holdout_id"] for row in document["schedule"]["rows"]
-    })
+    expected_holdout_ids = sorted(frozen_holdouts)
     _validate_execution_snapshot(freeze, holdout_ids=expected_holdout_ids)
     run_contract = _validate_run_contract(document.get("run_contract"))
     _validate_binding_identity(

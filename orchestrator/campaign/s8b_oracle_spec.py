@@ -153,14 +153,14 @@ def validate_reviewed_spec(document: Mapping, *, root=ROOT) -> tuple[dict, dict]
     return copy.deepcopy(dict(document)), copy.deepcopy(schedule)
 
 
-def load_approved_spec(root=ROOT) -> ReviewedSpec:
-    """pinned literal と一致する fixed-path spec を一度だけ捕捉して検証する。"""
+def _load_approved_spec_bytes(root: Path) -> tuple[bytes, str]:
+    """唯一の approval gate で pin と fixed-path bytes を束縛する。"""
     if APPROVED_SPEC_SHA256 is None:
         raise ReviewedSpecError("no-approved-spec")
     approved_sha = _lower_sha256(
         APPROVED_SPEC_SHA256, field="APPROVED_SPEC_SHA256",
     )
-    path = Path(root) / SPEC_REL
+    path = root / SPEC_REL
     try:
         raw = path.read_bytes()
     except OSError as exc:
@@ -171,6 +171,12 @@ def load_approved_spec(root=ROOT) -> ReviewedSpec:
         raise ReviewedSpecError(
             "approved-spec-hash-mismatch", "reviewed spec bytes が approval pin と不一致",
         )
+    return raw, approved_sha
+
+
+def load_approved_spec(root=ROOT) -> ReviewedSpec:
+    """pinned literal と一致する fixed-path spec を一度だけ捕捉して検証する。"""
+    raw, approved_sha = _load_approved_spec_bytes(Path(root))
     try:
         document = _artifacts.strict_load_json_object(raw)
     except _artifacts.OracleArtifactTypeError as exc:

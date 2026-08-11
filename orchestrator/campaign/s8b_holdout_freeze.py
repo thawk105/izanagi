@@ -33,10 +33,6 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from . import t080_freeze_migration  # noqa: E402
-from . import env_contract  # noqa: E402
-from . import s8b_floor_contract  # noqa: E402
-from . import s8b_floor_stats  # noqa: E402
-from .s8b_launch_cert import LaunchCertError, parse_official_run_path  # noqa: E402
 
 SCRIPT_REL = "orchestrator/campaign/s8b_holdout_freeze.py"
 FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
@@ -1127,7 +1123,11 @@ def _validate_budget(budget: Mapping, *, holdout_ids: Sequence[str], label: str)
         raise FreezeError(f"{label}.oracle_shared が true でない")
     total = budget.get("total_bench_s")
     if (isinstance(total, bool) or not isinstance(total, (int, float))
-            or (isinstance(total, float) and not math.isfinite(total)) or total < 0):
+            or (isinstance(total, float) and (
+                not math.isfinite(total)
+                or (total == 0.0 and math.copysign(1.0, total) < 0)
+            ))
+            or total < 0):
         raise FreezeError(f"{label}.total_bench_s が有限非負数でない")
     per_holdout = budget.get("per_holdout_bench_s")
     if (not isinstance(per_holdout, Mapping)
@@ -1135,24 +1135,35 @@ def _validate_budget(budget: Mapping, *, holdout_ids: Sequence[str], label: str)
         raise FreezeError(f"{label}.per_holdout_bench_s の holdout 集合が不一致")
     for holdout_id, value in per_holdout.items():
         if (isinstance(value, bool) or not isinstance(value, (int, float))
-                or (isinstance(value, float) and not math.isfinite(value)) or value < 0):
+                or (isinstance(value, float) and (
+                    not math.isfinite(value)
+                    or (value == 0.0 and math.copysign(1.0, value) < 0)
+                ))
+                or value < 0):
             raise FreezeError(
                 f"{label}.per_holdout_bench_s.{holdout_id} が有限非負数でない"
             )
     return copy.deepcopy(dict(budget))
 
 
-def _load_budget_approval(root: Path, *, holdout_ids: Sequence[str]) -> Tuple[Dict, str]:
-    if BUDGET_APPROVAL_SHA256 is None:
+def _budget_approval_authority() -> str:
+    approval_sha256 = BUDGET_APPROVAL_SHA256
+    if approval_sha256 is None:
         raise FreezeError("budget-approval-not-ratified")
-    if (not isinstance(BUDGET_APPROVAL_SHA256, str)
-            or not re.fullmatch(r"[0-9a-f]{64}", BUDGET_APPROVAL_SHA256)):
+    if (not isinstance(approval_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", approval_sha256)):
         raise FreezeError("budget-approval-pin-invalid")
+    return approval_sha256
+
+
+def _load_budget_approval(
+    root: Path, *, holdout_ids: Sequence[str], approval_sha256: str,
+) -> Tuple[Dict, str]:
     raw = _capture_regular_nofollow(
         root / BUDGET_APPROVAL_REL, label="budget approval",
     )
     actual_sha256 = _sha256_bytes(raw)
-    if actual_sha256 != BUDGET_APPROVAL_SHA256:
+    if actual_sha256 != approval_sha256:
         raise FreezeError("budget-approval-sha256-mismatch")
     approval = _strict_load_object_bytes(raw, "budget approval")
     if frozenset(approval) != BUDGET_APPROVAL_KEYS:
@@ -1189,6 +1200,13 @@ def _load_repo_object(root: Path, raw_path, *, label: str) -> Tuple[str, bytes, 
 def _validate_floor_inputs(
     *, root: Path, floor_result_path, v1: Mapping,
 ) -> Tuple[str, bytes, Dict, bytes, Dict, Dict]:
+    # v1 API の import・実行境界を v2 専用依存の import-time validation や
+    # process-wide callback 登録から分離する。
+    from . import env_contract
+    from . import s8b_floor_contract
+    from . import s8b_floor_stats
+    from .s8b_launch_cert import LaunchCertError, parse_official_run_path
+
     protocol_raw = _capture_regular_nofollow(
         root / FLOOR_PROTOCOL_REL, label="floor protocol",
     )
@@ -1310,11 +1328,15 @@ def _measurement_closure(
     closure = []
     for raw_path in sorted(hits - dedicated):
         rel = _canonical_relative_path(raw_path, label="measurement_closure path")
-        _blob_at_head(head, rel, root, label="measurement_closure path")
-        raw = _capture_regular_nofollow(
+        head_raw = _blob_at_head(head, rel, root, label="measurement_closure path")
+        worktree_raw = _capture_regular_nofollow(
             root / rel, label=f"measurement_closure:{rel}",
         )
-        closure.append({"canonical_path": rel, "sha256": _sha256_bytes(raw)})
+        if worktree_raw != head_raw:
+            raise FreezeError(
+                f"measurement_closure path が captured HEAD と worktree で不一致: {rel}"
+            )
+        closure.append({"canonical_path": rel, "sha256": _sha256_bytes(head_raw)})
     return closure
 
 
@@ -1335,8 +1357,7 @@ def build_v2_g1_candidate(
     *, floor_result_path, budget_path, root: Path = ROOT,
 ) -> Dict:
     """固定 v1・official floor・承認 budget から未発効 g1 candidate を構築する。"""
-    if BUDGET_APPROVAL_SHA256 is None:
-        raise FreezeError("budget-approval-not-ratified")
+    approval_pin = _budget_approval_authority()
     root = Path(root).absolute()
     head = _run_git(["rev-parse", "HEAD"], root)
     if not re.fullmatch(r"[0-9a-f]{40}", head):
@@ -1354,7 +1375,7 @@ def build_v2_g1_candidate(
         raise FreezeError("canonical v1 freeze の holdout 集合が不一致")
 
     approval, approval_sha256 = _load_budget_approval(
-        root, holdout_ids=sorted(holdouts),
+        root, holdout_ids=sorted(holdouts), approval_sha256=approval_pin,
     )
     _budget_rel, _budget_raw, budget_document = _load_repo_object(
         root, budget_path, label="budget",
@@ -1419,8 +1440,6 @@ def _validate_v2_candidate_output(root: Path, output) -> str:
     rel = _canonical_relative_path(output, label="v2 candidate output")
     if rel != V2_CANDIDATE_REL:
         raise FreezeError("v2 candidate output が固定 candidate path と不一致")
-    if rel.startswith("output/s8b-freeze/"):
-        raise FreezeError("v2 candidate output が canonical freeze namespace 配下")
     try:
         root_stat = Path(root).lstat()
     except OSError as exc:
@@ -1454,7 +1473,15 @@ def _write_v2_candidate_create_only(root: Path, output, raw: bytes) -> None:
             raise FreezeError("repo root が検査時と同一 directory でない")
         parent_fd = root_fd
         for component in rel.split("/")[:-1]:
-            next_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+            try:
+                next_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(component, 0o700, dir_fd=parent_fd)
+                except FileExistsError:
+                    # 同時作成された entry も下の nofollow open で再検証する。
+                    pass
+                next_fd = os.open(component, directory_flags, dir_fd=parent_fd)
             descriptors.append(next_fd)
             parent_fd = next_fd
         flags = (

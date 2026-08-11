@@ -295,7 +295,6 @@ def candidate_repository(tmp_path: Path, module) -> dict:
 
     _git(root, "add", "-A")
     _git(root, "commit", "-qm", "synthetic v2 candidate inputs")
-    (root / module.V2_CANDIDATE_REL).parent.mkdir(parents=True)
     return {
         "root": root,
         "head": _git(root, "rev-parse", "HEAD"),
