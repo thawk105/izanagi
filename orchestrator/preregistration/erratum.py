@@ -100,6 +100,10 @@ class UnknownErratumError(ErratumError):
     """erratum_id に対応する fail-closed validator が登録されていない。"""
 
 
+class UnapprovedErratumError(ErratumError):
+    """登録済みだが承認されていない erratum を合成しようとした。"""
+
+
 class EmptyErratumSetError(ErratumError):
     """合成対象の erratum 集合が空である。"""
 
@@ -170,10 +174,16 @@ class ComposedCore:
 
         if not isinstance(expected, str) or _LOWER_SHA256_RE.fullmatch(expected) is None:
             raise ComposedDigestMismatchError("期待 digest は 64 桁 lowercase hex でなければならない")
-        if self.composed_sha256 != expected:
+        normalized = str.__str__(expected)
+        if (
+            type(normalized) is not str
+            or _LOWER_SHA256_RE.fullmatch(normalized) is None
+        ):
+            raise ComposedDigestMismatchError("期待 digest は 64 桁 lowercase hex でなければならない")
+        if bytes.fromhex(self.composed_sha256) != bytes.fromhex(normalized):
             raise ComposedDigestMismatchError(
                 "合成後 core の SHA-256 が期待値と一致しない: "
-                f"expected_prefix={expected[:12]}"
+                f"expected_prefix={normalized[:12]}"
             )
 
 
@@ -673,6 +683,11 @@ def compose_core(
     documents = tuple(
         parse_erratum(read_pinned_blob(repository_root, ref)) for ref in references
     )
+    for document in documents:
+        if document.erratum_id not in APPROVED_ERRATA:
+            raise UnapprovedErratumError(
+                f"未承認の erratum_id は合成できない: {document.erratum_id}"
+            )
     operations = tuple(operation for document in documents for operation in document.operations)
     for document in documents:
         _ERRATUM_VALIDATORS[document.erratum_id](core_lines, document)

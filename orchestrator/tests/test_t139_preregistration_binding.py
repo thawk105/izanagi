@@ -33,6 +33,7 @@ from orchestrator.preregistration.erratum import (
     OperationCountError,
     OperationDeltaError,
     ReplacementTextMismatchError,
+    UnapprovedErratumError,
     UnknownErratumError,
     approved_erratum_ids,
     compose_core,
@@ -302,6 +303,26 @@ def test_erratum_composed_digest_must_match(monkeypatch: pytest.MonkeyPatch):
     assert actual_digest not in str(raised.value)
 
 
+def test_composed_digest_rejects_str_subclass_comparison_bypass(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class AlwaysEqualDigest(str):
+        def __eq__(self, other: object) -> bool:
+            return True
+
+        def __ne__(self, other: object) -> bool:
+            return False
+
+    core, _ = _synthetic_core()
+    with pytest.raises(ComposedDigestMismatchError):
+        _compose_synthetic(
+            monkeypatch,
+            core,
+            _synthetic_erratum(core),
+            expected_composed_sha256=AlwaysEqualDigest("0" * 64),
+        )
+
+
 def test_erratum_empty_reference_set_is_rejected(monkeypatch: pytest.MonkeyPatch):
     core, _ = _synthetic_core()
     monkeypatch.setattr(
@@ -478,6 +499,23 @@ def test_s7_erratum_rejects_second_old_digest_change(
         _compose_s7_variant(monkeypatch, mutated)
 
 
+def test_s7_erratum_rejects_old_text_bytes_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    blob = read_pinned_blob(REPOSITORY_ROOT, S7_ERRATUM_REF)
+    core = read_pinned_blob(REPOSITORY_ROOT, CORE_REF)
+    old_line = core.splitlines(keepends=True)[220]
+    mutated_line = old_line.replace("較正".encode(), "校正".encode(), 1)
+    assert mutated_line != old_line
+    old_block = _block_scalar("old_text", old_line).encode()
+    mutated_block = _block_scalar("old_text", mutated_line).encode()
+    assert blob.count(old_block) == 1
+    mutated = blob.replace(old_block, mutated_block, 1)
+
+    with pytest.raises(OldDigestMismatchError):
+        _compose_s7_variant(monkeypatch, mutated)
+
+
 def test_s7_erratum_rejects_first_new_digest_change(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -569,6 +607,24 @@ def test_registry_classification_is_checked_before_composition(
             erratum_refs=(),
             expected_composed_sha256="0" * 64,
         )
+
+
+def test_compose_core_rejects_registered_draft_erratum(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        erratum_module,
+        "APPROVED_ERRATA",
+        frozenset({"t139-core-s7-stresscheck-v1"}),
+    )
+    monkeypatch.setattr(
+        erratum_module,
+        "DRAFT_ERRATA",
+        frozenset({"t139-core-s15-exactkey-v1"}),
+    )
+    core, _ = _synthetic_core()
+    with pytest.raises(UnapprovedErratumError):
+        _compose_synthetic(monkeypatch, core, _synthetic_erratum(core))
 
 
 def test_both_errata_are_approved_and_draft_registry_is_empty():

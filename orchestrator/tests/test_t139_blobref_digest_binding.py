@@ -98,6 +98,35 @@ def test_path_subclass_is_normalized_and_cannot_hide_noncanonical_path(
         )
 
 
+def test_post_init_sha256_subclass_reinjection_is_rejected(git_blob_fixture):
+    root, blob, commit = git_blob_fixture
+    ref = BlobRef("regular.txt", commit, hashlib.sha256(blob).hexdigest())
+    object.__setattr__(
+        ref, "sha256", _EqualitySpoofingStr(hashlib.sha256(blob).hexdigest())
+    )
+
+    with pytest.raises(InvalidBlobRefError, match=r"ref\.sha256"):
+        read_pinned_blob(root, ref)
+
+
+def test_post_init_commit_subclass_reinjection_is_rejected(git_blob_fixture):
+    root, blob, commit = git_blob_fixture
+    ref = BlobRef("regular.txt", commit, hashlib.sha256(blob).hexdigest())
+    object.__setattr__(ref, "commit", _EqualitySpoofingStr(commit))
+
+    with pytest.raises(InvalidBlobRefError, match=r"ref\.commit"):
+        read_pinned_blob(root, ref)
+
+
+def test_post_init_path_subclass_reinjection_is_rejected(git_blob_fixture):
+    root, blob, commit = git_blob_fixture
+    ref = BlobRef("regular.txt", commit, hashlib.sha256(blob).hexdigest())
+    object.__setattr__(ref, "path", _EqualitySpoofingStr("regular.txt"))
+
+    with pytest.raises(InvalidBlobRefError, match=r"ref\.path"):
+        read_pinned_blob(root, ref)
+
+
 def test_plain_str_positive_reference_remains_accepted(git_blob_fixture):
     root, blob, commit = git_blob_fixture
     ref = BlobRef(

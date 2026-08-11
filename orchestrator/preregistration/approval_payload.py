@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 import os
 from pathlib import PurePosixPath
 import re
@@ -66,14 +67,46 @@ _ALPHA_KEYS = frozenset(
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _D282_HEADING_RE = re.compile(r"## D282(?:\..*)?\Z")
-_LEVEL_TWO_HEADING_RE = re.compile(r"## ([^#].*)\Z")
+_LEVEL_TWO_HEADING_RE = re.compile(r" {0,3}## ([^#].*)\Z")
 _FENCE_RE = re.compile(r"^( {0,3})(`{3,})(.*)$")
 _TOP_ASSIGNMENT_RE = re.compile(r"([a-z0-9_]+)\s*=\s*(.*)\Z")
 _TOP_BLOCK_RE = re.compile(r"([a-z0-9_]+):\Z")
 
 
+class ApprovalPayloadRejectionReason(str, Enum):
+    """Machine-readable identity of the guard that rejected a payload."""
+
+    INVALID_STRUCTURE = "invalid_structure"
+    NON_UTF8_DOCUMENT = "non_utf8_document"
+    D282_HEADING_COUNT = "d282_heading_count"
+    FENCE_STRUCTURE = "fence_structure"
+    TARGET_FENCE_COUNT = "target_fence_count"
+    TARGET_FENCE_SECTION = "target_fence_section"
+    TOP_LEVEL_UNKNOWN_KEY = "top_level_unknown_key"
+    TOP_LEVEL_DUPLICATE_KEY = "top_level_duplicate_key"
+    TOP_LEVEL_EXACT_KEYS = "top_level_exact_keys"
+    ERRATUM_APPLICATION_ORDER = "erratum_application_order"
+    EXCLUDED_ROOT_EXACT_KEYS = "excluded_root_exact_keys"
+    ALPHA_RESERVATION_EXACT_KEYS = "alpha_reservation_exact_keys"
+    ALPHA_RESERVATION_COMMIT = "alpha_reservation_commit"
+    APPROVED_BLOB_ROLE_COUNT = "approved_blob_role_count"
+    APPROVED_BLOB_ROLE_SET = "approved_blob_role_set"
+    APPROVED_BLOB_DUPLICATE_ROLE = "approved_blob_duplicate_role"
+
+
 class ApprovalPayloadError(Exception):
     """D282 の承認 payload を一意かつ厳密に解釈できない。"""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: ApprovalPayloadRejectionReason = (
+            ApprovalPayloadRejectionReason.INVALID_STRUCTURE
+        ),
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
 
 
 class ApprovalPayloadDecodeError(ApprovalPayloadError):
@@ -146,7 +179,10 @@ def _parse_approval_payload(document: bytes) -> ApprovalPayload:
     try:
         text = document.decode("utf-8", errors="strict")
     except UnicodeDecodeError as exc:
-        raise ApprovalPayloadDecodeError("docs/decisions.md が UTF-8 ではない") from exc
+        raise ApprovalPayloadDecodeError(
+            "docs/decisions.md が UTF-8 ではない",
+            reason=ApprovalPayloadRejectionReason.NON_UTF8_DOCUMENT,
+        ) from exc
 
     payload_text = _extract_d282_fence(text)
     return _parse_payload_text(payload_text)
@@ -166,7 +202,8 @@ def _extract_d282_fence(document: str) -> str:
                 suffix = fence_match.group(3)
                 if suffix.strip() or len(delimiter) != open_fence.delimiter_length:
                     raise ApprovalPayloadStructureError(
-                        f"fence の入れ子または delimiter 長不整合: line {line_number}"
+                        f"fence の入れ子または delimiter 長不整合: line {line_number}",
+                        reason=ApprovalPayloadRejectionReason.FENCE_STRUCTURE,
                     )
                 content = open_fence.content
                 if (
@@ -205,16 +242,21 @@ def _extract_d282_fence(document: str) -> str:
         raise ApprovalPayloadStructureError("閉じていない backtick fence がある")
     if headings != 1:
         raise ApprovalPayloadStructureError(
-            f"見出し ## D282 は exact 1 件でなければならない: {headings} 件"
+            f"見出し ## D282 は exact 1 件でなければならない: {headings} 件",
+            reason=ApprovalPayloadRejectionReason.D282_HEADING_COUNT,
         )
     if len(candidates) != 1:
         raise ApprovalPayloadStructureError(
             "対象 decision_kind の text fence は exact 1 件でなければならない: "
-            f"{len(candidates)} 件"
+            f"{len(candidates)} 件",
+            reason=ApprovalPayloadRejectionReason.TARGET_FENCE_COUNT,
         )
     in_d282, payload = candidates[0]
     if not in_d282:
-        raise ApprovalPayloadStructureError("対象 fence が D282 節に属していない")
+        raise ApprovalPayloadStructureError(
+            "対象 fence が D282 節に属していない",
+            reason=ApprovalPayloadRejectionReason.TARGET_FENCE_SECTION,
+        )
     return payload
 
 
@@ -276,7 +318,12 @@ def _parse_payload_text(payload: str) -> ApprovalPayload:
             raw[key] = value
             index += 1
 
-    _require_exact_keys(raw, _TOP_LEVEL_KEYS, "top-level")
+    _require_exact_keys(
+        raw,
+        _TOP_LEVEL_KEYS,
+        "top-level",
+        reason=ApprovalPayloadRejectionReason.TOP_LEVEL_EXACT_KEYS,
+    )
     if raw["decision_kind"] != DECISION_KIND:
         raise ApprovalPayloadStructureError("decision_kind が承認値と一致しない")
 
@@ -289,7 +336,10 @@ def _parse_payload_text(payload: str) -> ApprovalPayload:
     approved = _parse_approved_blobs(raw["approved_blobs"])
     order = _parse_bracket_list(raw["erratum_application_order"])
     if order != APPROVED_ERRATUM_ORDER:
-        raise ApprovalPayloadStructureError("erratum_application_order が承認順序と一致しない")
+        raise ApprovalPayloadStructureError(
+            "erratum_application_order が承認順序と一致しない",
+            reason=ApprovalPayloadRejectionReason.ERRATUM_APPLICATION_ORDER,
+        )
     composed_sha256 = _require_hex(raw["composed_sha256"], _SHA256_RE, "composed_sha256")
 
     excluded_fields = _parse_fields(
@@ -297,6 +347,7 @@ def _parse_payload_text(payload: str) -> ApprovalPayload:
         2,
         _EXCLUDED_ROOT_KEYS,
         "not_approved_as_record_items_root",
+        exact_keys_reason=ApprovalPayloadRejectionReason.EXCLUDED_ROOT_EXACT_KEYS,
     )
     excluded = ExcludedRecordItemsRoot(
         path=_require_repo_relative_path(excluded_fields["path"], "excluded root path"),
@@ -306,7 +357,15 @@ def _parse_payload_text(payload: str) -> ApprovalPayload:
 
     operational_boundary = _require_nonempty(raw["operational_boundary"], "operational_boundary")
     alpha = _make_alpha_descriptor(
-        _parse_fields(raw["alpha_reservation"], 2, _ALPHA_KEYS, "alpha_reservation")
+        _parse_fields(
+            raw["alpha_reservation"],
+            2,
+            _ALPHA_KEYS,
+            "alpha_reservation",
+            exact_keys_reason=(
+                ApprovalPayloadRejectionReason.ALPHA_RESERVATION_EXACT_KEYS
+            ),
+        )
     )
     return ApprovalPayload(
         decision_kind=DECISION_KIND,
@@ -324,19 +383,32 @@ def _parse_payload_text(payload: str) -> ApprovalPayload:
 
 def _claim_key(raw: dict[str, object], key: str) -> None:
     if key not in _TOP_LEVEL_KEYS:
-        raise ApprovalPayloadStructureError(f"未知 top-level key: {key}")
+        raise ApprovalPayloadStructureError(
+            f"未知 top-level key: {key}",
+            reason=ApprovalPayloadRejectionReason.TOP_LEVEL_UNKNOWN_KEY,
+        )
     if key in raw:
-        raise ApprovalPayloadStructureError(f"重複 top-level key: {key}")
+        raise ApprovalPayloadStructureError(
+            f"重複 top-level key: {key}",
+            reason=ApprovalPayloadRejectionReason.TOP_LEVEL_DUPLICATE_KEY,
+        )
 
 
 def _require_exact_keys(
-    values: Mapping[str, object], expected: frozenset[str], label: str
+    values: Mapping[str, object],
+    expected: frozenset[str],
+    label: str,
+    *,
+    reason: ApprovalPayloadRejectionReason = (
+        ApprovalPayloadRejectionReason.INVALID_STRUCTURE
+    ),
 ) -> None:
     actual = set(values)
     if actual != expected:
         raise ApprovalPayloadStructureError(
             f"{label} key 集合が不一致: missing={sorted(expected - actual)}, "
-            f"unknown={sorted(actual - expected)}"
+            f"unknown={sorted(actual - expected)}",
+            reason=reason,
         )
 
 
@@ -357,6 +429,10 @@ def _parse_fields(
     indent: int,
     expected: frozenset[str],
     label: str,
+    *,
+    exact_keys_reason: ApprovalPayloadRejectionReason = (
+        ApprovalPayloadRejectionReason.INVALID_STRUCTURE
+    ),
 ) -> dict[str, str]:
     block = _require_block(value, label)
     assignment = re.compile(rf" {{{indent}}}([a-z0-9_]+)\s*=\s*(.*)\Z")
@@ -375,7 +451,7 @@ def _parse_fields(
         if current is None or leading <= indent or not line.strip():
             raise ApprovalPayloadStructureError(f"{label} の field 行が不正: {line!r}")
         fields[current].append(line.strip())
-    _require_exact_keys(fields, expected, label)
+    _require_exact_keys(fields, expected, label, reason=exact_keys_reason)
     joined = {key: "\n".join(parts) for key, parts in fields.items()}
     for key, item in joined.items():
         _require_nonempty(item, f"{label}.{key}")
@@ -394,7 +470,10 @@ def _parse_approved_blobs(value: object) -> dict[str, BlobRef]:
             )
         role = role_match.group(1)
         if role in approved:
-            raise ApprovalPayloadStructureError(f"approved_blobs の role が重複: {role}")
+            raise ApprovalPayloadStructureError(
+                f"approved_blobs の role が重複: {role}",
+                reason=ApprovalPayloadRejectionReason.APPROVED_BLOB_DUPLICATE_ROLE,
+            )
         index += 1
         role_lines: list[str] = []
         while index < len(block) and not re.fullmatch(r"  [a-z0-9_]+", block[index]):
@@ -405,14 +484,16 @@ def _parse_approved_blobs(value: object) -> dict[str, BlobRef]:
 
     if len(approved) != 6:
         raise ApprovalPayloadStructureError(
-            f"approved_blobs は exact 6 role でなければならない: {len(approved)} 件"
+            f"approved_blobs は exact 6 role でなければならない: {len(approved)} 件",
+            reason=ApprovalPayloadRejectionReason.APPROVED_BLOB_ROLE_COUNT,
         )
     roles = set(approved)
     if roles != APPROVED_BLOB_ROLES:
         raise ApprovalPayloadStructureError(
             "approved_blobs role 集合が不一致: "
             f"missing={sorted(APPROVED_BLOB_ROLES - roles)}, "
-            f"unknown={sorted(roles - APPROVED_BLOB_ROLES)}"
+            f"unknown={sorted(roles - APPROVED_BLOB_ROLES)}",
+            reason=ApprovalPayloadRejectionReason.APPROVED_BLOB_ROLE_SET,
         )
     return approved
 
@@ -437,7 +518,10 @@ def _make_alpha_descriptor(fields: Mapping[str, str]) -> AlphaReservationDescrip
         raise ApprovalPayloadStructureError("entry_canonical_bytes は単一行でなければならない")
     reservation_commit = fields["reservation_commit"]
     if not reservation_commit.startswith("pin しない。"):
-        raise ApprovalPayloadStructureError("reservation_commit は pin しない descriptor でなければならない")
+        raise ApprovalPayloadStructureError(
+            "reservation_commit は pin しない descriptor でなければならない",
+            reason=ApprovalPayloadRejectionReason.ALPHA_RESERVATION_COMMIT,
+        )
     return AlphaReservationDescriptor(
         ledger_path=_require_repo_relative_path(fields["ledger_path"], "alpha ledger_path"),
         family_root=_require_hex(fields["family_root"], _COMMIT_RE, "alpha family_root"),

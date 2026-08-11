@@ -93,9 +93,14 @@ def _mutate_document_once(document: bytes, old: str, new: str) -> bytes:
     return text.replace(old, new, 1).encode("utf-8")
 
 
-def _assert_rejected(document: bytes) -> None:
-    with pytest.raises(approval.ApprovalPayloadError):
+def _assert_rejected(
+    document: bytes,
+    reason: approval.ApprovalPayloadRejectionReason | None = None,
+) -> None:
+    with pytest.raises(approval.ApprovalPayloadError) as exc_info:
         approval._parse_approval_payload(document)
+    if reason is not None:
+        assert exc_info.value.reason is reason
 
 
 def test_real_fr_payload_has_exact_approved_values() -> None:
@@ -165,7 +170,8 @@ def test_missing_d282_heading_is_rejected_without_unicode_normalization(
     fixed_decisions_bytes: bytes,
 ) -> None:
     _assert_rejected(
-        _mutate_document_once(fixed_decisions_bytes, "## D282.", "## D２８２.")
+        _mutate_document_once(fixed_decisions_bytes, "## D282.", "## D２８２."),
+        approval.ApprovalPayloadRejectionReason.D282_HEADING_COUNT,
     )
 
 
@@ -174,7 +180,17 @@ def test_duplicate_d282_heading_is_rejected(fixed_decisions_bytes: bytes) -> Non
     _assert_rejected(
         _mutate_document_once(
             fixed_decisions_bytes, heading, "## D282. duplicate\n\n" + heading
-        )
+        ),
+        approval.ApprovalPayloadRejectionReason.D282_HEADING_COUNT,
+    )
+
+
+def test_indented_d282_heading_does_not_expand_the_acceptance_set(
+    fixed_decisions_bytes: bytes,
+) -> None:
+    _assert_rejected(
+        _mutate_document_once(fixed_decisions_bytes, "## D282.", " ## D282."),
+        approval.ApprovalPayloadRejectionReason.D282_HEADING_COUNT,
     )
 
 
@@ -182,21 +198,24 @@ def test_missing_target_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
     _assert_rejected(
         _mutate_document_once(
             fixed_decisions_bytes, "```text\ndecision_kind", "```yaml\ndecision_kind"
-        )
+        ),
+        approval.ApprovalPayloadRejectionReason.TARGET_FENCE_COUNT,
     )
 
 
 def test_duplicate_target_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
     fence = _target_fence(fixed_decisions_bytes)
     _assert_rejected(
-        _mutate_document_once(fixed_decisions_bytes, fence, fence + "\n\n" + fence)
+        _mutate_document_once(fixed_decisions_bytes, fence, fence + "\n\n" + fence),
+        approval.ApprovalPayloadRejectionReason.TARGET_FENCE_COUNT,
     )
 
 
 def test_nested_fence_is_rejected(fixed_decisions_bytes: bytes) -> None:
     marker = "decision_kind = t139-preregistration-approval-supersession/v1\n"
     _assert_rejected(
-        _mutate_once(fixed_decisions_bytes, marker, marker + "```text\nnested\n```\n")
+        _mutate_once(fixed_decisions_bytes, marker, marker + "```text\nnested\n```\n"),
+        approval.ApprovalPayloadRejectionReason.FENCE_STRUCTURE,
     )
 
 
@@ -205,14 +224,34 @@ def test_mismatched_fence_delimiter_length_is_rejected(
 ) -> None:
     fence = _target_fence(fixed_decisions_bytes)
     _assert_rejected(
-        _mutate_document_once(fixed_decisions_bytes, fence, fence[:-3] + "````")
+        _mutate_document_once(fixed_decisions_bytes, fence, fence[:-3] + "````"),
+        approval.ApprovalPayloadRejectionReason.FENCE_STRUCTURE,
     )
+
+
+def test_indented_level_two_heading_ends_d282_section(
+    fixed_decisions_bytes: bytes,
+) -> None:
+    fence = _target_fence(fixed_decisions_bytes)
+    non_candidate = fence.replace("```text", "```yaml", 1)
+    for indentation in (" ", "  ", "   "):
+        document = (
+            "## D282. canonical\n"
+            + non_candidate
+            + f"\n\n{indentation}## D999. attacker section\n"
+            + fence
+        ).encode("utf-8")
+        _assert_rejected(
+            document,
+            approval.ApprovalPayloadRejectionReason.TARGET_FENCE_SECTION,
+        )
 
 
 def test_unknown_top_level_key_is_rejected(fixed_decisions_bytes: bytes) -> None:
     marker = "\nforward_supersedes:\n"
     _assert_rejected(
-        _mutate_once(fixed_decisions_bytes, marker, "\nunknown_key = value\n" + marker)
+        _mutate_once(fixed_decisions_bytes, marker, "\nunknown_key = value\n" + marker),
+        approval.ApprovalPayloadRejectionReason.TOP_LEVEL_UNKNOWN_KEY,
     )
 
 
@@ -221,7 +260,10 @@ def test_missing_top_level_key_is_rejected(fixed_decisions_bytes: bytes) -> None
         "composed_sha256           = "
         "e0b0caeaca9300acffbb5cd6b81db7b6fb7fa8f9eeab81219affb4e2f94a8e0c\n"
     )
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, line, ""))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, line, ""),
+        approval.ApprovalPayloadRejectionReason.TOP_LEVEL_EXACT_KEYS,
+    )
 
 
 def test_duplicate_top_level_key_is_rejected(fixed_decisions_bytes: bytes) -> None:
@@ -229,7 +271,10 @@ def test_duplicate_top_level_key_is_rejected(fixed_decisions_bytes: bytes) -> No
         "composed_sha256           = "
         "e0b0caeaca9300acffbb5cd6b81db7b6fb7fa8f9eeab81219affb4e2f94a8e0c"
     )
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, line, line + "\n" + line))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, line, line + "\n" + line),
+        approval.ApprovalPayloadRejectionReason.TOP_LEVEL_DUPLICATE_KEY,
+    )
 
 
 def test_approved_blob_role_count_not_six_is_rejected(
@@ -241,15 +286,24 @@ def test_approved_blob_role_count_not_six_is_rejected(
         "    commit = 622bd786191d40bda388596fa2adbf119ee84c9a\n"
         "    sha256 = f7db96ce8ecb12359fedf56baea24939c629d4d16a1ec167c183425ea198cfec\n"
     )
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, block, ""))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, block, ""),
+        approval.ApprovalPayloadRejectionReason.APPROVED_BLOB_ROLE_COUNT,
+    )
 
 
 def test_unknown_approved_blob_role_is_rejected(fixed_decisions_bytes: bytes) -> None:
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, "  addendum_a\n", "  unknown_role\n"))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, "  addendum_a\n", "  unknown_role\n"),
+        approval.ApprovalPayloadRejectionReason.APPROVED_BLOB_ROLE_SET,
+    )
 
 
 def test_duplicate_approved_blob_role_is_rejected(fixed_decisions_bytes: bytes) -> None:
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, "  derivation_map\n", "  addendum_a\n"))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, "  derivation_map\n", "  addendum_a\n"),
+        approval.ApprovalPayloadRejectionReason.APPROVED_BLOB_DUPLICATE_ROLE,
+    )
 
 
 def test_triplet_commit_must_be_40_lowercase_hex(fixed_decisions_bytes: bytes) -> None:
@@ -277,20 +331,27 @@ def test_erratum_application_order_must_match_approval(
 ) -> None:
     old = "[t139-core-s15-exactkey-v1, t139-core-s7-stresscheck-v1]"
     new = "[t139-core-s7-stresscheck-v1, t139-core-s15-exactkey-v1]"
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, old, new))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, old, new),
+        approval.ApprovalPayloadRejectionReason.ERRATUM_APPLICATION_ORDER,
+    )
 
 
 def test_not_approved_root_commit_key_is_rejected(fixed_decisions_bytes: bytes) -> None:
     marker = "not_approved_as_record_items_root:\n"
     _assert_rejected(
-        _mutate_once(fixed_decisions_bytes, marker, marker + "  commit = " + "0" * 40 + "\n")
+        _mutate_once(fixed_decisions_bytes, marker, marker + "  commit = " + "0" * 40 + "\n"),
+        approval.ApprovalPayloadRejectionReason.EXCLUDED_ROOT_EXACT_KEYS,
     )
 
 
 def test_alpha_reservation_missing_descriptor_key_is_rejected(
     fixed_decisions_bytes: bytes,
 ) -> None:
-    _assert_rejected(_mutate_once(fixed_decisions_bytes, "  ordinal                  = 1\n", ""))
+    _assert_rejected(
+        _mutate_once(fixed_decisions_bytes, "  ordinal                  = 1\n", ""),
+        approval.ApprovalPayloadRejectionReason.ALPHA_RESERVATION_EXACT_KEYS,
+    )
 
 
 def test_alpha_reservation_commit_must_remain_unpinned(
@@ -300,12 +361,16 @@ def test_alpha_reservation_commit_must_remain_unpinned(
     _assert_rejected(
         _mutate_once(
             fixed_decisions_bytes, old, "reservation_commit       = 0" + "0" * 39
-        )
+        ),
+        approval.ApprovalPayloadRejectionReason.ALPHA_RESERVATION_COMMIT,
     )
 
 
 def test_non_utf8_document_is_rejected(fixed_decisions_bytes: bytes) -> None:
-    _assert_rejected(fixed_decisions_bytes + b"\xff")
+    _assert_rejected(
+        fixed_decisions_bytes + b"\xff",
+        approval.ApprovalPayloadRejectionReason.NON_UTF8_DOCUMENT,
+    )
 
 
 def test_module_import_has_no_git_side_effect() -> None:

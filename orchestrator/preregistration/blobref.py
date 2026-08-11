@@ -108,6 +108,17 @@ def read_pinned_blob(repository_root: str | os.PathLike[str], ref: BlobRef) -> b
 
     if not isinstance(ref, BlobRef):
         raise InvalidBlobRefError("ref は BlobRef でなければならない")
+    path, commit, sha256 = ref.path, ref.commit, ref.sha256
+    for field_name, value in (
+        ("path", path),
+        ("commit", commit),
+        ("sha256", sha256),
+    ):
+        if type(value) is not str:
+            raise InvalidBlobRefError(
+                f"ref.{field_name} は組み込み str でなければならない"
+            )
+    ref = BlobRef(path=path, commit=commit, sha256=sha256)
     try:
         root = Path(repository_root).resolve(strict=True)
     except OSError as exc:
