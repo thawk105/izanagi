@@ -2118,6 +2118,9 @@ def test_apply_rejects_each_state_transaction_id_payload_field_mutation(
         state["targets"][0][field] = value
 
     cases = (
+        ("fold_date", lambda state: state.__setitem__(
+            "fold_date", "2000-01-02" if state["fold_date"] == "2000-01-01" else "2000-01-01",
+        )),
         ("gc_paths", mutate_gc_paths),
         ("fragment.path", lambda state: mutate_fragment(
             state, "path", "docs/spool/worklog/2099-01-01-other-1.md",
