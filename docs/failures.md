@@ -1171,6 +1171,18 @@
   23,991/24,000 で収まった。3 回目をもって「未定」を閉じる
 - 記録: worklog 2026-07-27 (24) (初発)、(25) (再発・型として登録)、(26) (3 回目・恒久対応)
 
+
+- **再発: 2026-08-11、4 回目。恒久対応が degrade 経路で効かなかった。**
+  新設した `test_s8b_oracle_manifest_contract.py` が自走 harness も allowlist 記載も持たず、
+  受入全走を赤 1 件にした (8858 passed / 1 failed)。
+  3 回目の恒久対応は `DW-S05-C` を「テストを新設・改名する単位は、それを制約する meta-test も
+  走らせる」へ広げたもので、**親は実装子 prompt にこの逐語を入れていた**。
+  しかし Pegasus では **codex 実装子は計算ノードへ dispatch できず pytest を一切走らせられない**
+  (`qstat -Q` preflight が失敗する)。実装子は規律どおり「実装済み・未実走」と正直に報告し、
+  実測義務は親へ移る。ところが親の焦点走行の集合は wave の対象 module から組んだため、
+  `test_plain_runner_coverage.py` のような**横断メタ検査が入っていなかった**。
+  → 型は「meta-test の義務が子から親へ移る degrade 経路で、義務の宛先が手順に書かれていない」。
+  **新設・改名したテストファイルがある wave では、親の焦点走行の集合に横断メタ検査を必ず入れる。**
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -5458,6 +5470,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   したが、`docs/dev-wave/**` の L1.5 予算 (9566 bytes) に余地が無く、最小の 1 行 (約 90 bytes)
   でも `check_docs` が赤になった。**予算は上げず本文編集を見送り**、候補として worklog へ
   記録した。恒久対応は現時点で memory と本エントリだけが担っており、**機械強制されていない**。
+- **supersede: 2026-08-11** — `evidence_status=invalid` の原因は web 検索の重複キーだけではない。同症状で原因が非 NFC 行の例を F223 に記録した。invalid を見たら両方を判定する。
 ### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
 
 - 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
@@ -5548,3 +5561,109 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`output/insights/2026-08-11_t812-lease-self-renew/package.md` の Q7)。
 - 再発検知: receipt の `attempts[].limit_trigger` が非 null かつ `output_bytes=0` の組合せ。
   待ち手の `stage=producer-files` はこの型の症状として現れる (原因は receipt を見るまで確定しない)。
+
+### F223. repo 内のたった 2 行の非 NFC 文字が、それを読んだ Codex 子の成果物を丸ごと捨てさせる [恒真ゲート] [手順漏れ]
+
+- 事象: 段 3 の敵対レンズ 1 本が `codex_exit_code=0`、`validator_rc=0`、rollout 健全
+  (`session_meta=1` / `turn_context=1` / model・effort・cwd 一致)、成果物 10,488 bytes 完全
+  (`check_codex_output.py` rc=0) でありながら、receipt が `evidence_status=invalid` /
+  `accepted=false` / `launcher_rc=1` になり `-o` の成果物が書かれなかった。784 秒・入力 237 万 token。
+- 根本原因: `tools/codex_worker_launch.py` の stdout 解析は **JSONL が Unicode NFC であることを要求**する。
+  子が `grep` で読んだ行に分解済みの「プ」(U+30D5 + U+309A) が含まれており、
+  `item.completed` (command_execution) の event 行が非 NFC になって `stdout_invalid` が立った。
+  出典は **repo の tracked file 全体でわずか 2 行** —
+  `orchestrator/tests/test_check_docs.py:4442` と `:4465` の `プレースホルダ`。
+  この 2 行を出力に含めた子は、内容や品質と無関係に必ず不採用になる。
+  症状は F217 と同じだが原因は別で、F217 の再発検知手順 (web 検索イベントの重複キー) では検出できない。
+- 恒久対応: 当該 2 行を NFC へ正規化する ([T-855]、実装面のため Codex author が必要)。
+  併せて非 NFC 行を拒否する repo 全体の機械検査を `tools/check_docs.py` へ入れるかを同タスクで裁定する
+  (入れれば混入時点で赤になり、子を走らせてから捨てる無駄が構造的に消える)。
+- 再発検知: `evidence_status=invalid` を見たら、`attempt-*.events.jsonl` の各行へ
+  `unicodedata.normalize("NFC", line) != line` を当てて非 NFC 行を特定する。
+  該当があれば本 F、`web_search` の重複キーなら F217。
+  repo 側は `git ls-files` の全 tracked file に同じ判定を当てれば 2 秒で棚卸しできる。
+
+### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
+
+- 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
+  「期待 node が pytest collection に実在しない」検査が 8 件を報告した。
+- 根本原因: 親が `@pytest.mark.parametrize` の第 2 引数に日本語メッセージを置いたテストの
+  node ID を、**ソース逐語のまま**期待 node へ書いた。pytest は parametrize ID の非 ASCII を
+  `unicode_escape` するため、実 ID は `[schedule-schedule が approved spec]` の形になる。
+- 恒久対応: 期待 node は必ず `--collect-only` の実出力から採る。fold 前に「全期待 node が
+  collection に実在する」ことを機械確認する (D303)。
+- 再発検知: 期待 node の実在検査は harness が既に持つ (今回それが発火した)。
+  親側では spec 生成 script に collection 突き合わせを組み込んだ。
+- 併記する実測: **dispatch 経由の `--collect-only` は stdout が切り詰められる**
+  (421 件収集のうち 38 件しか出力されない)。node 一覧の採取はローカル collect で行う。
+
+### F225. 実装面が両親と異なる merge を Codex author に実行させられない [手順漏れ]
+
+- 事象: main が本 wave 所有のテスト 2 本を変更しており、merge 結果が両親のどちらとも異なる
+  実装面ファイルになった。DW-O17 はこの形に Codex `role=author` を要求するが、
+  **Codex 子は merge を実行できない** (`fatal: update_ref failed for ref 'ORIG_HEAD':
+  ... Read-only file system`)。sandbox が `.git` を読み取り専用にするのは実装子が commit
+  できないようにする設計上の防壁であり、迂回してはならない。
+- 併発: **merge を staged のまま子を投入すると dispatcher が rc=2 で拒否する**
+  (「working tree が authority commit と異なる」)。merge が `docs/dev-wave/` を更新するため、
+  未 commit の merge 中は authority 検査を通らない。子を投入する前に tree を clean にする必要がある。
+- 根本原因: 「Codex が実装面の著作を持つ」を「Codex が merge command を実行する」と読むと
+  構造的に実現不能である。著作の実体は**結合後のファイル内容**であって git 操作ではない。
+- 恒久対応: **順序を入れ替える。** Codex 子が main 側の変更を先に wave branch のファイルへ
+  取り込む (通常の実装 commit として著作を持つ)。その後の merge では当該ファイルが親と
+  同一になり、checker の combined path (全 parent と異なる path) から外れる。
+- 再発検知: land 前に `git diff --name-only <merge-base> main` と本 wave の変更 path の交差を
+  取り、実装面が交差したらこの手順へ入る。交差が無ければ通常の merge でよい。
+
+### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
+
+- 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
+  意図した node に加え、無関係に見える golden テスト 2 件が必ず赤くなった。
+- 根本原因: `PIN_GATE_SPEC_RAW` は `generator_versions` として `judge` / `report` / `artifacts` の
+  **source SHA-256 を埋め込む**。この 3 ファイルへのどんな変異も source hash を変えるため、
+  golden 照合が必ず巻き込まれる。変異ごとの単一帰属は成立しているが、期待 node 集合は
+  「意図した node + pin 2 件」になる。
+- 恒久対応: source hash を pin する族のファイルを変異させる登録では、期待 node に pin テストを
+  常に含める。事前登録時に「この変異は source hash を変えるか」を 1 行で判定する。
+- 再発検知: 本 wave の変異台帳 (`output/insights/2026-08-11_t804-spec-sha256/mutation-ledger.json`)
+  が実測記録として残る。
+- 併記する実測: 過剰拒否 (over-rejection) を検出する positive control 変異は、意図した正例 1 件では
+  なく verify を通す**全テスト**を赤にする (今回 213 件)。期待 node を 1 件で登録すると必ず
+  MISMATCH になるため、positive control では期待の立て方を変える。
+
+### F227. `tools/` の検査から `orchestrator` package の gate を素の名前で import し、fail-closed が恒久的な赤になった [手順漏れ] [恒真ゲート]
+
+- 事象: `tools/spool_fold.py` へ新設 gate を結線し `from orchestrator.publication.approval_guard import ...`
+  と書いた。段 5・段 6 のレビュー 2 本と変異 4 件をすべて通過したが、記録段で
+  `python3 tools/check_docs.py` が rc=1 になり
+  `spool approval-guard-unavailable: approval guard を import できない: No module named 'orchestrator'`
+  を出し続けた。**land できない状態だった。**
+- 根本原因: script として起動された `tools/check_docs.py` / `tools/spool_fold.py` の `sys.path[0]` は
+  **`tools/` であって repo root ではない**。子は repo root を cwd にして手で確認したため気づかず、
+  gate 自体は fail-closed で正しく設計されていたので、**「検査できない」が「常に赤」へ化けた**。
+  gate の正しさではなく到達性の欠陥であり、gate の負例テストでは決して落ちない。
+- 恒久対応: `tools/spool_fold.py` は自分が既に知る source repo root を import 中だけ `sys.path` へ
+  挿入し `finally` で完全復元する。回帰は
+  `orchestrator/tests/test_t793_approval_guard.py::test_spool_guard_resolves_from_source_root_without_repo_on_sys_path`
+  が repo root を `sys.path` と module cache から外した状態で gate の解決と発火を検査する。
+- 再発検知: 同型は「`tools/` 配下の検査が `orchestrator` / 他 top-level package を新たに import する」
+  ときに起きる。**gate を結線した wave は fix 後に `python3 tools/check_docs.py` を実際に走らせ、
+  rc を直接見る** (要約行や子の自己申告で代替しない)。同型は本 repo に既存で、
+  `tools/check_docs.py` が `dev_waves` を import する一方
+  `orchestrator/tests/test_spool_fold.py:2943` の `_copy_real_canonical_family` が
+  `tools/dev_waves/` を複製しないため、焦点走で 4 node が落ちる。
+
+### F228. 正例テストが実 repo の `docs/spool/` が空であることを前提にし、記録を持つ wave が必ず落ちた [テスト代表性] [手順漏れ]
+
+- 事象: marker gate の正例 `test_p2_draft_markers_outside_approved_blobs_do_not_stop_fold` が
+  実 repo root に対し `plan_fold(ROOT).status == "noop"` と書いていた。本 wave が自分の
+  worklog / decisions fragment を `docs/spool/` へ置いた瞬間に `planned` となり落ちた。
+- 根本原因: 検査したい性質は「草案が未確定 marker を持っていても gate が fold を止めない」で
+  あって、fold が no-op であることではない。**可変な repo 状態を正例の前提に焼き込んだ。**
+  記録段まで spool が空だったため、実装段・レビュー段では発火しなかった。
+- 恒久対応: 正例を「実 draft bytes に exact marker が存在すること」と
+  「その bytes を `require_resolved_approval_markers()` が受理すること」の検査へ置き換えた
+  (`orchestrator/tests/test_t793_approval_guard.py` の P2)。fold の状態には依存しない。
+- 再発検知: 同型は「実 repo root を渡す正例が、その時点の可変ディレクトリの中身に依存する assert を
+  持つ」ときに起きる。`docs/spool/`・`output/registry/`・`docs/handoff/` のように wave が書き込む
+  path を実 root で参照する正例は、**記録 fragment を置いた後に必ず 1 度走らせる。**

@@ -13959,3 +13959,186 @@ identity 欄へ複写する・同一 root 内で親 hash だけ差し替える�
 - **N の上限を固定値で規範化する** — 空きは他 wave の稼働で変動する。実測で動的に決める。
 - **shell 背景化 + `.done` で N 本を回す** — rc の取りこぼし・`pgrep -f` の自己マッチ・
   孤児 process の 3 事故面を持ち込む。in-process の単一 driver ループにした。
+
+## D301. DW-S04 の変異免除は「実装しない」裁定と実装差分ゼロの連言とする (2026-08-12)
+
+**決定:** `DW-S04` の免除条項を
+`免除は「実装しない」裁定済みかつ実装差分ゼロの wave の変異 matrix だけ。` とする。
+免除は **2 条件の連言**であり、実装差分ゼロだけでは免除しない。D237 の見出し
+「実装差分ゼロの wave で免除するのは変異 matrix だけとする」は**十分条件の宣言ではない** —
+D237 本文自身が「実装差分ゼロ」を必要条件として束縛したと書いている。
+本決定は D237 を遡及改変せず、前向きに読みを確定する。免除対象が変異 matrix だけであること、
+受入全走を免除しないことは D237 から変えない。
+
+**理由:**
+- 旧文は連体助詞 `の` が head noun を明示せず連鎖し、実装差分ゼロ単独でも免除と読めた。
+  読みの分岐は既に実害になっていた — 条項の導入 wave 自身が docs を書き換えながら
+  「実装差分ゼロ」を理由に変異 matrix を免除しており、文面の逐語と運用実績が乖離していた。
+- 検証義務の免除拡大は規律 2 の面である。曖昧なまま放置すると、docs 契約を実際に書き換える wave が
+  変異による裏取りなしで受理集合へ入る経路が開いたままになる。
+- 連言演算子は `かつ` で書く。中黒は本文書群で連言にも選択にも使われており
+  (`範囲・言語・起動手順` は連言、`指定 reference が不在・読めない` は選択)、免除条件の連結には使えない。
+  連用形 (`と裁定され`) は省略主語が当該 wave に固定されず、`で` は原因理由読みが余計な因果条件を作る。
+- 機械 gate が無い wave でも免除しない。実効 gate へ再照準した変異 (docs 予算検査など) は構成でき、
+  「変異対象のコードが無い」は免除理由にならない。
+
+**却下した選択肢:**
+- 免除を「実装差分ゼロの wave」一般へ広げる — 免除の意味範囲を実際に拡大する。ユーザー裁定で不採用。
+- 現行文のまま曖昧さを残す — 解釈往復の再発源であり、ユーザー裁定で不採用。
+- `実装面差分ゼロ` へ言い換える — 射程は正確になるが、`実装面` の定義は入口の凍結境界にあり
+  `docs/dev-wave/core.md` 単体からは到達できない。新しい曖昧さと引き換えになるため本決定では採らず、
+  独立の裁定へ分離した。
+- D237 と導入 wave の記録を遡及改変する — 当時の契約と実行を示す歴史記録の改竄になる。
+
+## D302. approved spec への束縛は hash 記録でなく内容再導出で行う (2026-08-12)
+
+**決定:** manifest schema へ `spec_sha256` を持たせるだけでは受理集合を 1 bit も狭めない。
+`verify_manifest` は required keyword `approved_spec` (default なし) を取り、
+schedule / campaign_ids / run_contract / binding_identity / allowed_excluded_reasons を
+**approved spec から再導出して完全一致比較**する。`spec_sha256` は「どの spec に対して
+照合したか」を名指しする識別子であって、それ単体は権威ではない。
+`generator_versions` の比較は defense-in-depth であり、新規の受理集合縮小としては主張しない
+(両側で canonical path と実 byte hash が既に強制されているため)。
+
+**理由:**
+- 記録した hash を pin と比べるだけの形は、迂回者が正しい値を書けば通る。pin は公開定数なので
+  秘密ではない。これは謳うだけで発火しない恒真な保証である。
+- 攻撃 witness は「正しい spec hash を記録しつつ、別の有効な schedule / campaign / run contract を
+  持ち、self-hash と manifest ID も再計算済みの manifest」である。hash 記録だけの実装ではこれが
+  通り、内容再導出では落ちる。
+- freeze と同じ TOCTOU 契約に揃える — 検証済み単一 object を caller が渡し、被検証側は disk を
+  再読しない。`ReviewedSpec` は再帰 immutable 化し、snapshot 再束縛 helper が raw bytes から
+  document と schedule を作り直して照合する (属性を差し替えた偽 snapshot を権威にしない)。
+
+**却下した選択肢:**
+- **manifest へ `spec_sha256` を掲載し pin と比較するだけ** — 上記のとおり恒真。
+- **共有 run_contract validator を exact key 化して余剰 key を閉じる** — D288 が
+  「生成側 generic builder の受理集合は変えない」と決定済みで、既存 programmatic caller の
+  互換を壊す。余剰 key の自由は verifier 内の spec 完全一致比較だけで閉じる。
+- **schema version を上げる** — durable 発行 0 件を機械確認したうえで据え置く。同族の先例に従う。
+  durable 発行後にこの決定を変えるなら再発行が要る。
+
+## D303. 変異の期待 node は collection の実出力から採る (2026-08-12)
+
+**決定:** 変異 spec の `expected_nodes` は、テストソースの逐語から手で組み立てず、
+`--collect-only` の実出力から採取する。spec を生成する側で「全期待 node が collection に
+実在する」ことを機械確認してから harness へ渡す。node 一覧の採取は**ローカル collect** で行う。
+
+**理由:**
+- `@pytest.mark.parametrize` の ID は pytest が正規化する。非 ASCII は `unicode_escape` されるため、
+  ソースに書いた文字列と実 node ID は一致しない。ソース逐語から組み立てた期待 node は
+  collection に実在せず、harness が起動前に fail-closed で止まる (実測)。
+- **計算ノードへ dispatch した `--collect-only` は stdout が切り詰められる。**
+  実測では 421 件収集のうち 38 件しか出力されず、一覧の採取源にならない。
+  collection は import と収集だけで計測を伴わないため、ローカル実行で足りる。
+
+**却下した選択肢:**
+- **正規化規則を実装側で再現して期待 node を計算する** — pytest の内部規則に依存し、
+  版が変われば黙って腐る。実出力を採るほうが安い。
+- **期待 node を空にして KILLED を主張する** — harness が KILLED 期待に非空を要求しており、
+  そもそも検出力の主張が空になる。
+
+## D304. 判定層は公開 pin との比較でなく manifest の実再検証を行う (2026-08-12)
+
+**決定:** oracle 判定層は、観測ファイルが自己申告する値を判定に使わない。CLI が
+`verify_manifest` を実際に呼び、**検証済み manifest の schedule から試行数と cell 集合を
+再導出した immutable 射影**を判定関数へ required keyword で渡す。判定関数は観測ファイル側の
+`n_per_cell` / `expected_cells` / `manifest_sha256` / `spec_sha256` を、その射影および
+検証済み実値と照合し、食い違えば判定不能へ倒す。判定関数自体は I/O を持たない純関数のまま
+とし、module global を参照しない。
+
+**理由:**
+- 「観測ファイルの `spec_sha256` が module の承認 pin と一致するか」だけを見る形は、
+  迂回者が正しい公開値を転記すれば満たせる。判定領域 (holdout 集合・構成集合・試行数) が
+  観測ファイル側から決まる限り、勝者・中央値・floor 超過判定を自由に動かせる。
+- module 定数を判定関数の中で参照すると、同じ入力の判定が module の状態で変わる。
+  required keyword にすると渡し忘れが即座に型エラーになり、伝播の欠落が機械的に止まる。
+- 副次効果として、schema を持たない旧形 manifest からの経路が閉じる。旧形は検証できないため
+  certified 結論へ到達しない。判定層は従来この差を一切見ていなかった。
+
+**却下した選択肢:**
+- **観測ファイルを WAL から再構築して照合する** — レポート層の責務を判定層へ二重化する。
+- **判定関数が承認 pin の module 定数を直接参照する** — 純関数性を壊し、かつ恒真。
+- **観測ファイルに封印 token 境界を新設する** — レポート層と判定層の間の改竄防御まで広げる案で、
+  権威の設計判断を伴う。本決定は「manifest 由来の値で判定領域を固定する」までに限定する。
+
+## D305. D291 payload の trust root は `F_p` の実 bytes に固定し、caller が payload を注入する公開経路を作らない (2026-08-12)
+
+**決定:** 公表層の承認 resolver と report は、**必ず `F_p` (`b13b7ea840ad51199f40b3a534c9d1cdb422af2e`)
+の `docs/decisions.md` を毎回読んで payload を導出する。** 次の 4 つを禁じる。
+
+1. **caller が構築した payload object を権威として受理する公開 API。**
+   `require_d291_projection_exact()` / `approval_report_to_dict()` は
+   payload / report object ではなく repository root だけを受け取る。
+   payload・resolution・report の型は公開名から外す。
+2. **`F_p` を差し替えられる公開引数。** `fold_commit` を override できる公開経路を持たない。
+   任意 bytes を受け取る parser は private に限定し、テストからのみ使う。
+3. **単一 role だけを解決する公開 API。** payload 全体を `exact_closure`
+   (top-level key ちょうど 14、`approved_blobs` の role ちょうど 2、三つ組一致、
+   `document_relations` 節全体の一致、`value_projection` 9 行) で検証してから、
+   role → 状態の写像を一括で返す。
+4. **D291 節の終端を `## D292` という literal で決めること。**
+   終端は「次の可視 `## ` 見出し **または EOF**」とする。
+
+**理由:**
+
+- **`F_p` に D292 は存在しない。** `git show b13b7ea8:docs/decisions.md` は D291 を最後の見出しとして
+  13579 行で EOF になる。`## D292` を終端 literal にすると、**trust root そのものを読めない**。
+  現在の checkout には D292 があるため、この誤りは現行 HEAD を読む限り露見しない。
+- **caller 注入は trust root を無効化する。** 偽 payload を構築すれば `F_p` を一度も読まずに
+  任意の値を承認済みにできる。D291 自身が「resolver は manifest を信用する前に `F_p` の
+  `docs/decisions.md` から本 payload を読め」と要求しており、caller 注入はこれを迂回する。
+- **単一 role API は `exact_closure` を迂回する。** D291 の閉包は「role 集合**ちょうど**」を要求する。
+  単一 triple を渡して承認を返す口があると、`publication_core` を欠落させた manifest が
+  `source_addendum_b` だけの照合で通る。
+- **`document_relations` は節全体が照合対象**であり、散文の `note` 行も含む。
+  役割名だけの一致にすると、三つ組と値を保ったまま `depends_on` / `satisfies` /
+  `pins_source_study_one_way` を差し替えた manifest が通る。
+
+**却下した選択肢:**
+
+- **payload 引数を残しつつ型で守る** — dataclass は外部から構築できる。型検査は出自を証明しない。
+- **`F_p` を設定 file や環境変数で与える** — 呼び手が trust root を選べる時点で trust root ではない。
+- **`document_relations` を field 単位で照合する** — D291 が「括弧内に挙がっていない field も
+  照合対象である」と明記しており、列挙は必ず取りこぼす。
+
+## D306. 未確定 marker gate は fold の 3 経路すべてで「書かれる bytes」を検査し、保証範囲を `approved_blobs:` 形式に限定して記録する (2026-08-12)
+
+**決定:**
+
+1. **検査対象は fragment ではなく、実際に canonical へ書かれる `after_bytes` である。**
+   `_discover()` / `apply_fold()` / CLI resume の 3 経路すべてで同じ検査を通す。
+2. **拒否するのは exact 2 語** (`__UNRESOLVED_APPROVAL_FOLD_COMMIT__` と `__UNRESOLVED__`) が
+   **承認 payload の pin する blob に含まれる場合だけ**とする。
+   一般の「未確定」語や、草案として insights に置かれているだけの文書は拒否しない。
+3. **`approved_blobs:` 節の構文破壊・重複は専用 code で拒否する** (握り潰さない)。
+4. **形の正しい三つ組の解決失敗は拒否せず、診断だけ残す。**
+5. **保証範囲を `approved_blobs:` 形式で三つ組を宣言する fragment に限定して記録する。**
+   散文で承認を述べる fragment は検査対象が空集合になり素通りする。
+   **「全承認に効く」とは書かない。**
+
+**理由:**
+
+- **`_discover()` だけでは覆えない。** `tools/spool_fold.py` の CLI は active state があるとき
+  `_state_plan(_load_state(...))` を直接読み、`plan_fold()` も `_discover()` も通らない。
+  `apply_fold()` も plan を直接受け取る。gate 導入前に作られた state を resume すると、
+  marker 入りの `after_bytes` がそのまま適用される。
+- **fragment を検査しても書かれる bytes は守れない。** hash が合う fragment が 1 つでもあれば
+  それだけを見る実装では、marker の無い正規 fragment の receipt と、marker 入り blob を承認する
+  `after_bytes` を組み合わせた plan が通る。
+- **握り潰しは fail-open である。** 壊れた / 重複した triple を黙って捨てると、
+  marker 入り blob を正しく pin する role に同じ `sha256` 行をもう一度足すだけで検査集合が空になる。
+- **解決失敗まで拒否すると受理集合が縮む。** 形は正しいが commit が repo に無い三つ組は、
+  そもそも何も pin していない別問題であり marker gate の責務ではない。従来は通っていた。
+  「構文が壊れている」と「形は正しいが解決できない」を別 code で区別する。
+- **全面禁止にできない。** `output/insights/2026-08-11_t139-pubcore-stage2/addendum-p-draft.md` は
+  草案として marker を正当に持つ。marker の存在だけで赤にすると land 済み文書で即座に赤になる。
+- **保証範囲を書かないと過大に読まれる。** 「marker gate があるから承認は安全」という読みは
+  散文形式の承認宣言に対して成立しない。
+
+**却下した選択肢:**
+
+- **`check_docs.py` 側だけに置く** — `plan_fold()` を直接呼ぶ経路と resume 経路を覆えない。
+- **marker を含む文書を repo 全体で禁じる** — 正当な草案が land 済みであり即座に赤になる。
+- **解決できない pin を一律拒否する** — marker と無関係な既存 fragment の fold を止め、
+  受理集合を縮める。本 wave が足してよいのは新しい deny だけである。
