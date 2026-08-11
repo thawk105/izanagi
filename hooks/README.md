@@ -12,10 +12,30 @@
 「明白な直接書き込みを止める最小の第二防壁」に絞り、identity の正直さ (偽 cache hit / `#ifdef`) と
 観測者効果の分離 (TRACE 混入) は**一次防壁 (source_digest)** に委譲した。
 
-**Codex には未配線 (D54〜D56、F16/F17)。** Codex の `apply_patch` hook は `tool_input.command` に patch 全文を渡し、
-Claude の Write/Edit の `file_path` 形とは異なる。既存 `guard_write` を設定だけ複製すると path 欠落を
-管轄外として通すため、Codex adapter と parity test ができるまでは `.codex/hooks.json` を置かない。
-これは新しい論理 hook の追加ではなく、既存 2 判定核の将来 adapter として扱う。
+**Codex へ配線済 ([T-790]、codex-cli 0.146.0 で実測)。** かつては「Codex には配線できない」としていたが、
+これは現行 Codex では成り立たない。`.codex/hooks.json` の PreToolUse に `^apply_patch$` と `^Bash$` を
+配線し、判定核は Claude と同じ `guard_write` / `guard_bash` を使う。payload は Claude 同型で、
+shell は `tool_name: "Bash"` に正規化されるため `guard_bash` は無改造で効く。`apply_patch` だけは
+`tool_input.command` に patch 全文を渡し `file_path` を持たないため、`guard_write` に専用の
+directive 抽出を置き、相対 path は payload の `cwd` から絶対化する (Codex は repo の subdirectory を
+cwd にできる)。`delete` と `move` の元は symlink entry を消すので lexical 判定も併せて行う。
+
+**Codex は hook が exit 2 のときだけ止まる。** hook command 自体の失敗 (script 不在、`python3` や
+`bash` の不在、例外) は `PreToolUse Failed` と表示されるだけで**素通しになる**。そのため
+`.codex/hooks.json` は guard を直接呼ばず、`0` と `2` 以外をすべて `2` へ写す `hooks/codex_guard.sh` を
+経由し、bootstrap 自体も解決できなければ `exit 2` とする。
+
+**配線しただけでは守られない。** 信頼登録の無い hook は無警告で無視される。承認はユーザーが対話 Codex で
+行う。発火しているかは `python3 tools/check_codex_hooks.py` で実測する — 設定の存在や JSON 妥当性では
+緑にせず、allowed control と protected control を両方測り、`apply_patch` と `Bash` の双方が発火しなければ
+非 0 とする。認証・枠・timeout・tool 未試行も非 0 で、`skip` で緑にしない。
+計算ノードは直接の外部通信ができず Codex CLI の到達性も未実測のため、この gate は**ログインノードの
+手動 gate** とし、受入全走へは自動登録しない。
+
+**閉じた面と開いたままの面を混同しない。** 本配線が閉じたのは Codex の `apply_patch` 経由の直接書き込みと、
+Claude と同じ既知限界つきの Bash 経由である。**MCP / apps / plugins / `SubagentStart` の子の書込み面、
+script file 経由・変数展開・`python3 -c`・persistent shell、および `output/s8b-freeze` への Bash 直接書き込みは
+依然として開いている。** 「Codex の proof chain 防護が Claude と同等になった」とは言えない。
 
 ただし hook adapter が完成しても、それだけでは dormant な Codex profile の再開条件を満たさない。
 local file write の拒否は、親から継承される MCP / apps・connectors / skills / plugins の外部 read・write

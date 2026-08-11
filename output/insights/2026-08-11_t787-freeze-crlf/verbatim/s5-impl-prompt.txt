@@ -1,0 +1,104 @@
+# 段 5 実装 — [T-787] 凍結層で CR/LF path を fail-closed 拒否する
+
+あなたは izanagi dev-wave の実装子 (Codex role=author) である。まず次の 3 つを全文読む。
+読めなければ何も編集せず「入力が読めない」とだけ報告して即停止する。
+
+- 親 brief: `/work/1/SFC/tanab/dev-wave-jobs/t787-freeze-crlf/brief.md`
+- 段 2 プラン: `/work/1/SFC/tanab/dev-wave-jobs/t787-freeze-crlf/stage2-plan.md`
+- **段 4 裁定 (最終権威)**: `/work/1/SFC/tanab/dev-wave-jobs/t787-freeze-crlf/stage4-adjudication.md`
+
+プランと裁定が食い違う場合は**裁定が優先**する。
+
+## 所有範囲 (これ以外を編集してはならない)
+
+- `orchestrator/campaign/s8c_preregistration.py` — 検査関数 (L344 付近) とその呼出し (L370 付近) のみ。
+- `orchestrator/tests/test_s8c_preregistration_core.py` — helper (L121–199) とテスト (L548–698 付近)。
+
+**触らないもの**: `orchestrator/campaign/s8c_preregistration_evidence.py` (発効層)、契約 JSON、
+`docs/` 配下、`output/` 配下 (特に `output/insights/2026-08-11_t739-freeze-nul/` は歴史資料で
+1 byte も変えない)、commit 操作。docs 編集と commit は親が行う。
+
+## 実装内容
+
+段 4 裁定の C 節に従う。
+
+1. `_assert_no_nul_in_contract_paths` を `_assert_no_forbidden_control_chars_in_contract_paths` へ
+   改名し、同一の明示 stack 走査 1 回のまま CR (U+000D) / LF (U+000A) 検査を足す。
+2. **NUL は見つけ次第 raise** (`evidence-contract-path-nul`、pointer も従来どおり)。
+   **CR/LF は文書順で最初の pointer だけ保留**し、走査完了後に NUL が 1 件も無かった場合だけ
+   `evidence-contract-path-crlf` で raise する。この順序が要件である
+   (即 raise すると、文書順で後ろにある NUL 入力の診断契約が壊れる — 親が実測済み)。
+3. 走査対象は key が exact `path` かつ値が `str` のものだけ。`path` 以外の field、非 str の値、
+   CR/LF/NUL 以外の制御文字 (VT、U+0085、U+2028、U+2029 等) は**拒否しない**。
+4. 検査位置は canonical 化に成功した後・hash を返す前 (現状のまま動かさない)。
+5. detail は `repr(pointer)` だけ。生の path も制御文字も載せない。
+6. 契約 schema の検証はしない。
+
+## テスト (段 4 裁定 B 節の F1〜F7 を全件満たすこと)
+
+既存の `test_evidence_contract_hash_accepts_non_nul_path_controls` (4 param、CR/LF 受理を
+exact hash で固定) は**拒否側へ反転**する。これは wave 前の受理を直接反転する node なので残す。
+
+新設・拡張するもの:
+
+- 38 path 位置 × CR/LF の全数 parametrize (`control + "alias"` を付け、末尾一致だけを見る
+  実装を殺す)。既存 `EVIDENCE_CONTRACT_PATH_CASES` を再利用する。
+- 中間位置の CR/LF (`_contract_with_interior_path_nul` を `control` 引数で一般化し、
+  既存 NUL テストも `control="\x00"` で呼び直す)。
+- **F1**: 非 str の外側 `path` が内側 path を遮蔽しないこと。`{"path":[{"path":"x\ralias"}]}` と
+  深い変種 `{"path":{"x":[{"path":"x\nalias"}]}}` を拒否側で固定。
+- **F2**: 文書順の pointer 固定。canonical key 順と文書順が逆転する fixture
+  (`{"z":{"path":…},"a":{"path":…}}`) を使い、複数 NUL・複数 CR/LF のそれぞれで
+  **文書順で最初**の pointer を exact に要求する。
+- **F2 (優先順位)**: NUL と CR/LF の併存。(i) 同一 node に両方、(ii) 文書順で前に CR/LF・
+  後ろに NUL、の両方で `evidence-contract-path-nul` と**後方 NUL の pointer**を要求する。
+  (ii) は現行実装での実測値が
+  `[evidence-contract-path-nul] '/conditions/11/consumer_requirement/path'` である
+  (第 1 条件の required_evidence[0] に CR、最終条件の consumer_requirement に NUL を足した場合)。
+- **F3**: 過剰拒否の正例。exact `path` の中に U+000B (VT)、U+0085、U+2028、U+2029 を置いたもの、
+  および**文字どおりの 2 文字** `\r` `\n` (backslash + r / backslash + n) を置いたものを、
+  exact hash で**受理**側に固定する。
+- **F4**: activation report の反転を legacy 束縛 g1 で固定する。既存の
+  `_install_legacy_nul_bound_g1` (L232 付近) と同型の `_install_legacy_crlf_bound_g1` を作り、
+  **wave 前の hash literal に正しく束縛した** CR/LF 契約 g1 を導入する。契約だけ差し替えて
+  hash を不一致にすると `record-protected-mismatch` が残り、受理反転の証明にならない。
+  `validate_condition_freeze_at` が `evidence-contract-path-crlf` で倒れること、
+  `activation_report_at` の `condition_freeze_valid=False`、
+  `freeze_reason_code="evidence-contract-path-crlf"`、`freeze_generation is None`、
+  `protected_sha256 is None`、`effective is False` を固定する。
+- **F5**: root 直下の exact `path` (`{"path":"x\ralias"}` と LF 版) を拒否側で固定。
+  深さ条件で狭める実装を殺す。
+- **F6**: `path` の値が **dict** の正例 (`{"path":{"nested":"x\ralias"}}`) を exact hash で受理固定。
+  list と number の正例も置く。
+- **F7**: canonicalization 優先の固定。CR/LF と unpaired surrogate を併せ持つ入力は
+  `evidence-contract-json` になること。fixture は必ず **escaped raw bytes** で作る
+  (例: `b'{"path":"x\\r\\ud800"}'`)。生の CR/LF byte を JSON string へ入れると strict JSON が
+  先に `bad-json` を返し、検査位置の証明にならない。
+- malformed shape (`conditions` を dict にする等、既存 NUL の 3 shape) の CR/LF 版。
+- 既存の `test_current_evidence_contract_hash_is_frozen` と
+  `test_existing_g1_record_pins_are_unchanged` は**変更しない** (現行契約 hash
+  `c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471` と g1 の
+  `protected_sha256` は不変であることが要件)。
+- `test_contract_path_inventory_has_expected_count` の 38 は維持する。
+
+### 期待 hash の求め方 (重要)
+
+受理側テストの exact hash は、**production の検査関数を呼んで得た値を貼らない**。
+標準ライブラリだけで独立に計算する (`_canonical_bytes` 相当の
+`json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",",":"), allow_nan=False)`
+を utf-8 encode し、module の domain 定数を前置して sha256)。派生関数から期待値を取ると
+比較が恒真になり、その派生関数の変異を検出できない。
+
+既存 helper の `assert b"\\u0000" in raw` は NUL 専用である。CR/LF テストへコピーしない。
+
+## 制約 (違反は差し戻し)
+
+- テストを甘くして緑にしない。期待値を実装に合わせない。
+- 指示にない受理集合の拡大・縮小をしない。
+- 期待値へ working tree の hash 等の揮発値を焼き込まない。
+- 緑を主張するなら走らせた nodeid と範囲を併記する。**この sandbox では pytest が起動できない
+  可能性が高い** (Pegasus の dispatch preflight で止まる)。起動できなければ
+  「実装済み・未実走」と正直に書く。実走は親が行う。テストを弱める迂回はしない。
+- 完了報告に、所有外の caller・共有 fixture・consumer test への波及可能性を静的に列挙する。
+- 現行の受理・拒否挙動を報告に明記してから、変更後の受理・拒否挙動を書く。
+- 出力の最後に `## 総括` 見出しで要点を 10 行以内にまとめる。
