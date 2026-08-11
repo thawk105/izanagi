@@ -56,6 +56,10 @@ title: [T-316] 意味 gate を実装した — 主張を「測定済み 4 種の
   wave 名 dir の**親**を渡す必要があり、かつ tool は `<root>/<wave>/<job-id>` を自分で作らない。
   知らずに投入すると codex は起動せず rc=2 の `.done` だけが残り、`DW-O01` の「既存 `.done` は
   再利用せず再投入を止める」規律により名前を捨てることになる。段 8 の改善候補とした。
+- **受入全走は 8562 passed / 20 skipped / 557.26 秒 / rc=0** (計算ノード、request `902242.nqsv`、
+  受入 lease 取得後に main を取り込んだ tip `31ea06c8`)。**焦点走で赤だった
+  `test_checkpoint_direction_and_magnitude_domains_match_role_policy` は全走では緑**であり、
+  差分外・実行経路依存という帰属が裏付けられた。本記録を足した最終 tip でも同じ受入を再走した。
 - **変異 runner の範囲は既知赤 1 node を deselect して baseline を緑にした。**
   `test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy` は
   `from codex_roles import policy` を使い、`orchestrator/` が `sys.path` に入る実行でしか解決
