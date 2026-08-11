@@ -29,6 +29,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from orchestrator.campaign import pipeline, wal                    # noqa: E402
 from orchestrator.campaign.artifact_admission import (             # noqa: E402
     AdmittedCampaign, require_admitted_campaign)
+from orchestrator.campaign.coder_effect_gate import (              # noqa: E402
+    MAX_HOLE_TOKENS,
+    RULE_CATEGORY_ALLOWLIST,
+)
 from orchestrator.campaign.layout import CampaignLayout            # noqa: E402
 from orchestrator.campaign.model import (                          # noqa: E402
     STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START, STAGE_COMMIT,
@@ -119,7 +123,15 @@ class Rejection:
 LIVENESS_REASONS = frozenset([
     "trace-timeout", "trace-empty", "trace-run-nonzero-exit",
     "trace-no-abort-counts", "trace-parse-error",
+    "trace-no-commit-witness", "trace-batch-commits-unattributed",
+    "trace-witness-unsupported-workload",
 ])
+
+_COMMIT_WITNESS_LIVENESS_REASONS = frozenset({
+    "trace-no-commit-witness",
+    "trace-batch-commits-unattributed",
+    "trace-witness-unsupported-workload",
+})
 
 
 def _normalize_reason(reason: str) -> str:
@@ -184,6 +196,9 @@ class DiffQuarantineRejection:
     reason: str
     diff_region: str = ""
     evidence: str = ""
+    rule_id: str = ""
+    category: str = ""
+    finding_count: int = 0
     template_diff_id: str = ""
     variant: str = ""
     src_token: str = ""
@@ -306,11 +321,16 @@ def load_liveness_rejections(
             g = genome_of.get(r.variant, "")
             extra = {k: val for k, val in r.payload.items()
                      if k not in ("reason", "workload")}
+            workload = r.payload.get("workload") or {}
+            if reason in _COMMIT_WITNESS_LIVENESS_REASONS:
+                # witness の破れは counter 値と workload 前提を一緒に読めなければ
+                # 次手へ帰属できない。既存の専用 field に加え extra にも残す。
+                extra["workload"] = workload
             out.append(LivenessRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
                 reason=reason, extra=extra,
                 variant=r.variant, src_token=srctok_of.get(r.variant, ""),
-                workload=r.payload.get("workload") or {}))
+                workload=workload))
     return out, dict(other)
 
 
@@ -364,12 +384,29 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
                 continue
             dq = r.payload.get("diff_quarantine") or {}
             g = genome_of.get(r.variant, r.payload.get("genome", ""))
+            rule_id = dq.get("rule_id", "")
+            category = dq.get("category", "")
+            finding_count = dq.get("finding_count", 0)
+            if (
+                dq.get("subtype") != "host-effect"
+                or RULE_CATEGORY_ALLOWLIST.get(rule_id) != category
+            ):
+                rule_id = ""
+                category = ""
+            if (
+                type(finding_count) is not int
+                or not 1 <= finding_count <= MAX_HOLE_TOKENS
+            ):
+                finding_count = 0
             out.append(DiffQuarantineRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
                 subtype=dq.get("subtype", ""),
                 reason=dq.get("reason", ""),
                 diff_region=dq.get("diff_region", ""),
                 evidence=dq.get("evidence", ""),
+                rule_id=rule_id,
+                category=category,
+                finding_count=finding_count,
                 template_diff_id=dq.get("template_diff_id", ""),
                 variant=r.variant, src_token=srctok_of.get(r.variant, "")))
     return out
@@ -556,6 +593,12 @@ _LIVENESS_HINTS = {
                              "(計器・出力口を壊した疑い)",
     "trace-parse-error": "trace 計器の破れ — trace が読めない形に壊れた "
                          "(trace 口を壊した疑い)",
+    "trace-no-commit-witness": "trace 外 commit counter が欠落・重複・不正、または "
+                               "trace_dir の run 帰属を確定できない",
+    "trace-batch-commits-unattributed": "batch commit が非 0 — trace C 行との対応を "
+                                        "証明できず帰属不能",
+    "trace-witness-unsupported-workload": "commit 後 counter 加算契約を証明済みでない "
+                                          "workload — YCSB allowlist 外",
 }
 
 
@@ -602,6 +645,8 @@ def render_rejections(rejections: List[Rejection],
         if rj.workload:
             L.append(f"  workload: {rj.workload}")
         if rj.verdict == "non-serializable":
+            if (rj.integrity or {}).get("clean") is False:
+                L.append("  integrity.clean=False (cycle と trace 不完全性が共存)")
             # cycle 型: witness (max_report 切り詰め) と全数 (total_cycles) を併記 —
             # witness 数を全数と誤読させない (verifier core の切り詰め規約)。
             total = rj.total_cycles if rj.total_cycles is not None else "?"
@@ -686,9 +731,18 @@ def render_rejections(rejections: List[Rejection],
                  + (f" src_token={projected_src_token}" if projected_src_token else ""))
         L.append(f"  marker={dq.template_diff_id or '?'} / region={dq.diff_region or '?'}")
         L.append(f"  理由: {dq.reason or '(理由なし)'}")
-        if dq.evidence:
+        if dq.evidence and (dq.subtype or "") != "host-effect":
             L.append(f"  証拠: {dq.evidence}")
-        if (dq.subtype or "").startswith("auditor-"):
+        if (dq.subtype or "") == "host-effect":
+            if dq.rule_id:
+                L.append(f"  policy_rule_id={dq.rule_id}")
+            if dq.category:
+                L.append(f"  policy_category={dq.category}")
+            if dq.finding_count:
+                L.append(f"  finding_count={dq.finding_count}")
+            L.append("  修正: 有限 lexical policy が報告した identifier / loop 形を除く。"
+                     "通過は計算のみを意味せず、host 安全性を証明しない。")
+        elif (dq.subtype or "").startswith("auditor-"):
             # 段5 sort-strategy の auditor gate reject (敵対レビュー 2026-07-10、
             # p3_s4_loop_sort._auditor_reject_result が同じ diff-quarantine 経路に相乗り)。
             # フレーム/hole 逸脱でなく auditor の意味論判定 (SWO/fairness/marker 領域外

@@ -6,23 +6,25 @@
 ## DW-O01 — codex subprocess 起動
 
 `tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 6 の review / focus が docs 権威から導出。caller 指定は不可。
-`bash -c '<cmd>; echo $? > <log>.done'` で包み、背景 job は `nohup setsid` で detach。
-prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再投入を止め、完了は `.done` と exit code だけで判定。
-grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
+背景 job は `nohup setsid bash -c '<cmd>; echo $? > <log>.done'` で detach する。
+prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再投入を止める。
+待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
+完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
 採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
 `<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
 
 ## DW-O02 — job artifact
 
-prompt、log、patch はすべて wave 専用 subdirectory に置き、
-job tmp 直下や過去 wave の同名 artifact と共有しない。専用場所を確保できなければ作成を止める。
-親 brief と前段の子成果物は同 subdirectory のファイルへ置き、prompt へ全文複製せず絶対パスで読ませる。
-その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と数えない。
+prompt、log、patch はすべて wave 専用 subdirectory に置き、job tmp 直下や過去 wave の同名
+artifact と共有しない。専用場所を確保できなければ作成を止める。
+親 brief と前段の子成果物は同 subdirectory のファイルへ置き、prompt へ全文複製せず絶対パスで
+読ませる。その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と
+数えない。
 
 ## DW-O03 — 防護パスを含む prompt
 
-WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む prompt は、
-Bash heredoc や不透明な command substitution で作らず、Write ツールで作る。guard を迂回しない。
+WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む prompt は
+Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
 
 ## DW-O04 — 防護パスを含む commit message
 
@@ -31,7 +33,7 @@ heredoc と command substitution を併用してはならない。
 
 ## DW-O05 — read-only codex
 
-書込可能 tmp がないため pytest 緑を要求せず、静的検査でよいと明記する。
+書込可能 tmp がないため pytest 緑を要求せず静的検査でよいと明記する。
 テスト実測は親が行い、子の非実走を緑と記録しない。
 
 ## DW-O06 — submodule 系 real-repo test
@@ -49,7 +51,7 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 着手前に `grep -rn "<成果物パス>" --include=*.py` を使い、
 bytes を pin する台帳・test・trust root を全列挙する。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
-review ledger も対象に含める。path 検索が見つけるのは path を key にする
+review ledger、全 field から同一性 hash を導く dataclass・schema も対象に含める。path 検索が見つけるのは path を key にする
 pin だけである。review ledger のように role 名を key に張る pin は key 側でも検索し、
 path の hit 0 件を pin なしと結論しない（F30）。
 durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
@@ -74,7 +76,7 @@ worklog には裁定予定を写さず、実際に実行した手順を書く。
 
 ## DW-O13 — gate 入力の実在
 
-設計を書く前に入力が実成果物のどの field に存在するかを確認し、同名識別子を二義化しない（D75）。
+設計前に入力が実成果物のどの field に存在するか確認し、同名識別子を二義化しない（D75）。
 
 ## DW-O14 — no-touch と monkeypatch
 
@@ -99,6 +101,7 @@ trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage fi
 ## DW-O18 — 親のテスト cwd
 
 cwd を必ず repo root にする。nested subprocess の import path による偽赤を、差分の回帰として扱わない。
+file 選択走は `from tests import` の import path を確立してから走らせる (未確立の赤は偽赤)。
 差分が到達しえないファイルで出た赤は、単独再走で再現性を実測してから扱う。
 再現しなければ実装差分へ帰属せず、フレークとして新規所見に起票する。
 測定値は測った checkout を併記する（F41）。並行 wave が自分の編集 file を所有すると判明している
@@ -129,7 +132,7 @@ worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.p
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、監査commit列を渡す。
 協調wave lock内で再照合し、tipへのff-onlyだけ行う。ff-only成功後は**同じlockを保持したまま**
 `docs/spool/`のfragmentをfoldし、T/D/Fの採番・canonical3台帳への追記・worklogローテーションを
-一度だけ行う。foldが赤なら`landed`を返さない。fragment0件のfoldはno-opで、既存挙動を変えない。
+一度だけ行う。foldが赤なら`landed`を返さない。fragment0件のfoldはno-op。
 **wave側でfoldしてはならない**（lock外のfoldは直列化されず、採番衝突とfold commit破棄を招く）。tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
 docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
 

@@ -13600,3 +13600,247 @@ wave の自己申告・manifest の宣言・実装 wave の完了報告・handof
   止める文が canonical に存在しない。
 - 解除条件を D291 側へ今書き込む — 上記の先行凍結。再開時の手番削減という利得は、
   条件を緩める圧力という損失に見合わない。
+
+## D293. 床値 compiler の site 依存化は toolchain 束縛検査と同じ commit でしか入れない (2026-08-11)
+
+**決定:** 床値 campaign の compiler 解決を `buildcache.DEFAULT_CC/DEFAULT_CXX` の固定要求から
+`buildcache.compilers_for_current_site()` へ寄せる変更は、**calibration 由来の toolchain 束縛検査が
+同時に入る場合にだけ** land してよい。片方だけの land を禁じる。
+同じ理由で、official mode の解禁 (床値 campaign の無条件拒否の撤去) も、束縛検査が
+既に入っているか同じ wave で入る場合にだけ行う。
+
+**理由:**
+
+- 固定要求は事故ではなく**現に効いている fail-closed 障壁**である。Pegasus には `g++-13` が
+  無いため、`buildcache._tool_version` が
+  `toolchain cxx が PATH に存在しない: 'g++-13' (fails-closed)` で倒れる。
+- site 依存化だけを入れると Pegasus compute で system compiler (実測 gcc 11.4.0) が解決され、
+  build が通るようになる。束縛検査が無ければ、これは
+  **「認可されていない compiler で床値を測れるようにする」だけの変更**である。
+  再開手順書 §1.2 が「既定 compiler へ黙って倒すのは選択肢にしない」と定めた当のものになる。
+- 床値は freeze v2 の `floor` / `budget` を埋め、oracle gate の受理判定を動かす。
+  どの compiler で測ったかが契約に紐付かないまま値が入ると、certified 選択の判定境界が
+  提示できない根拠に依存する。compiler 差は backoff 級の差を容易に上回る
+  (`buildcache` 自身の記述)。
+- 束縛と解禁は同じ受理集合の表裏である。別 wave に割ると
+  「解禁したが束縛が入っていない」窓が構造的に開き、その窓は解禁の瞬間に
+  認可外 compiler の床値が通る形で顕在化する。
+
+**却下した選択肢:**
+
+- **site 依存化だけを先に land する** — 障壁を外して代わりを置かない。単調に悪化する。
+- **束縛検査だけを先に land する** — 発火経路が無い (`DW-G04`)。official は拒否され、
+  投入 script に pilot 経路が無く、pilot 実測は再凍結適格から除外されるため、
+  本番で一度も走らないコードが増える。
+- **固定要求のまま `g++-13` を Pegasus へ用意する** — 用意経路は root 権限か
+  コンテナに限られ、計測条件を変える点は同じで、変更が計測機の外に出る。
+
+## D294. Codex へ PreToolUse を配線し、発火は実測 gate で確かめる (2026-08-11)
+
+**決定:** `.codex/hooks.json` の PreToolUse に `^apply_patch$` と `^Bash$` を配線する。判定核は
+Claude と同じ `guard_write` / `guard_bash` を使い、Codex 専用の判定を二重実装しない。
+`apply_patch` の path 抽出だけを `guard_write` に足し、相対 path は payload の `cwd` から絶対化する。
+`delete` と `move` の元は lexical 判定も併用する。抽出は拒否を増やすためだけに使い、
+抽出できたことを許可の根拠にしない。
+
+Codex は hook が exit 2 のときだけ止まり、hook command 自体の失敗は素通しになるため、guard を
+直接呼ばず `hooks/codex_guard.sh` (`0`/`2` 以外をすべて `2` へ写す) を経由し、bootstrap も
+解決できなければ `exit 2` とする。
+
+信頼登録の無い hook は無警告で無視されるため、**配線の存在を防護の証拠に数えない**。
+`tools/check_codex_hooks.py` が使い捨て領域で allowed control と protected control を両方測り、
+`apply_patch` と `Bash` の双方が発火しなければ非 0 とする。認証・枠・timeout・tool 未試行も非 0 で、
+`skip` で緑にしない。trust bypass は argv に入れない。
+
+本配線が閉じたのは `apply_patch` 経由と、Claude と同じ既知限界つきの Bash 経由だけである。
+MCP / apps / plugins / 子の書込み面、script 経由・変数展開・persistent shell、
+`output/s8b-freeze` への Bash 直接書き込みは開いたままであり、Claude と同等の防護になったとは記さない。
+本決定は D55 / D56 の native role 再開条件を一切緩めない。
+
+**理由:**
+- Codex 単独運用では sandbox の外で manager を動かさないと受入全走を投入できない (計算ノードへの
+  投入も上限付き実行も sandbox 内からは失敗することを実測)。その状態では hook だけが機械防壁になる。
+- 判定核を共有すれば受理集合が 1 か所で決まり、Claude と Codex の drift が構造的に起きない。
+- 「配線した」ことと「発火する」ことは別であり、後者を測らない検査は恒真になる (規律 6)。
+
+**却下した選択肢:**
+- Codex 専用の guard を新設する — 判定核が二重になり受理集合が分岐する。
+- 配線の存在と JSON 妥当性だけを検査する — 信頼未登録でも緑になり、守っていないのに緑を作る。
+- 発火検査を受入全走へ自動登録する — 受入は計算ノードで走り、そこは直接の外部通信ができず
+  Codex CLI の到達性も未実測である。前提が立たないまま必須化すると受入が理由なく赤になる。
+- `--dangerously-bypass-hook-trust` を gate に使う — 信頼が無いまま緑になり、gate の意味が消える。
+
+## D295. trace 完全性は trace 外 counter で裏取りし、witness は API では省略可・pipeline 境界では必須にする (2026-08-11)
+
+**決定:** trace の committed txn 数を、trace 自身ではなく **CCBench が stdout へ出す
+`commit_counts_`** と突き合わせる。verifier は `verify_trace_dir(..., *, expected_commits=None)` で
+witness を受け、`Integrity` の一致条件を `clean()` の**純粋な連言**として持つ。witness を渡さない
+呼び出しでは判定・出力・text が現行と完全に同一で、**受理集合は 1 mm も緩まない**。
+production 経路 (`pipeline.evaluate`、S2 calibration、ladder 証拠) では witness を必須にする。
+
+**理由:**
+- 欠番検査は `expected = max(txid)+1` で数えるため、txid 最大側の trx が丸ごと消えると欠番 0 と
+  数えられ、cycle の相手が消えて certified になる。trace の内部情報だけでは原理的に閉じない。
+- witness を trace の外から取るので、**欠落位置に依らず** thread の trace file 丸ごとの欠落も捕える。
+  当初案の「txn 終端マーカー」は末尾切りしか捕えない。
+- silo/YCSB では `include/ycsb.hh` が commit 成功後に counter を 1 回だけ増やし、silo の `commit()` は
+  validation 成功時に必ず `writePhase()` を呼んでその冒頭で C 行を 1 回だけ出す。早期 return が無い。
+- **witness は failure-independent ではない。** trace と counter は同じ実行体から出るので、両方が
+  同時に落ちる common-mode failure と個数を保存する破損は検出しない。文書は「独立 witness」ではなく
+  「trace 外 counter による個数の裏取り」と書き、非検出限界を明記する。
+
+**前提の機械 pin:** 「commit 後に無条件で counter を増やす」のは YCSB workload だけである。
+TPCC / BoMB 系は counter 増分の**前**に `quit` を見て return するため、C 行数と counter が乖離し
+正しい trace が赤になる。したがって witness 検査を通す run は trace binary が YCSB であることを
+**allowlist 形**で確認し、非対応 workload は fail-closed で拒否する (denylist にしない)。
+`batch_commit_counts_` は加算せず、非 0 は帰属不能として拒否する。
+
+**却下した選択肢:**
+- **共有の bench stdout parser を witness の権威にする** — 同一 label の重複行を last-wins で潰すため、
+  壊れた stdout が静かに別の値になる。正しさ witness には「該当行がちょうど 1 行」を要求する専用の
+  厳格 parser を置く。計測層の parser は他 consumer がいるので変更しない。
+- **witness を必須引数にして API 全体で強制する** — 凍結証拠が `result_to_dict` の witness なし出力を
+  bytes で pin しているため不可能。optional にしたうえで production 側の有限個の呼び出し元で必須化し、
+  「直接 API と CLI の省略呼び出しには旧挙動が残る」と正直に書く。
+- **verifier の出力 schema に構造化 witness を足す** — 凍結 ladder evidence が
+  `orchestrator/verifier/report.py` の現行 bytes 一致を要求する (`driver` と `policy` だけが歴史 drift
+  許容という非対称契約) ため、同 file は編集できない。構造化した witness 値は pipeline の WAL payload に
+  載せ、verifier 側は既存 key (`integrity.clean` と `integrity.notes`) で表現する。
+- **trace 形式そのものを v2 化する (C 行に R/W 件数 + 終端マーカー)** — trx 尾部欠落の偽陰性を閉じる
+  唯一の道だが submodule の gitlink 前進を伴い、承認定数の追認禁止と push の人間手番に当たる。
+  裁定パッケージで返し、本決定の射程外とする。
+
+**位置づけ:** 実装済みの設計判断の記録。絶対規律の変更ではない — 規律 2 に対しては拒否側だけを
+増やし、規律 3 に対しては不一致の期待値・観測値・差を構造化して次手へ渡す。
+
+## D296. trace 形式 v2 は編集面内 (silo の transaction.cc) で完結させ、共有 helper を二重権威にしない (2026-08-11)
+
+**決定:** committed txn の記録形式を v2 (C 行に read/write 件数、txn 終端に `E <txid>`) へ上げる
+変更は、`external/ccbench/cc/silo/transaction.cc` の中だけで行う。`include/trace.hh` は変更しない。
+その際、**helper `izanagi_trace::emit_commit` の呼び出しは残置せず置換する**。helper 自体は SI が
+使い続けるので削除しない。終端マーカーは entry / retention の lock 被覆検査 (X 行) をすべて
+出し切った後 (`clear_shadow()` の直後) に置く。
+
+**理由:**
+- `hooks/guard_write.py` の `EVOLVE_BLOCK_SOURCES` が CCBench の編集面を `include/backoff.hh` と
+  `cc/silo/transaction.cc` に限定している。D41 で同じ壁に対する scratch copy + `git apply` の迂回が
+  「hook のブロック回避」として却下され、transaction.cc 内で既存 `stream()` を直接呼ぶ設計へ
+  変更した先例がある。同じ扱いを継承する。
+- **helper を残したまま v2 行を追加すると、同一 txn に v1 と v2 の C が 2 本出る。** parser は
+  同一 txid の 2 度目の C を `dup_txids` に積み、当該 variant の判定を indeterminate に倒す。
+  C tag の schema 権威を 1 つに保つには置換しかない。
+- 終端マーカーを R/W ループ直後に置くと、その後の X 行が末尾切断されても「完結」と誤認する。
+  X をすべて出し切った後に置けば、write loop 途中の停止も終端欠落として捕まる。
+
+**却下した選択肢:**
+- **trace.hh の `emit_commit` を v2 化する** — 編集面外で hook が機械拒否する。迂回は D41 が却下済み。
+- **版行 (`V 2`) をファイル先頭に置く** — thread ごとの stream 初期化点は trace.hh にあり編集面外。
+  C 行の token 数 (5 か 7) で判別すれば版行は要らず、末尾切断で終端が失われても先頭の C だけで判別できる。
+- **SI (`cc/si/transaction.cc`) も同時に v2 化する** — 編集面外。SI が v1 のまま残るため、
+  後続の「v1 拒否」を protocol 無差別に適用してはならない (裁定へ返す)。
+
+**この決定が閉じないもの (正直に):** 件数は R/W 行と同じコンテナから取るため**独立 witness ではない**。
+write set から要素が消えれば件数も W 行も同時に減り、v2 では検出できない。そこは write-intent shadow
+(独立 witness、別 pin として承認済み・未統合) の領分である。X 行の中間欠落、内容の置換、
+実行の完了 (W 行は実データ更新より前に出る) も閉じない。
+
+## D297. pin 前進時の規律 1 は「TRACE=0 正規化 preprocess 出力 + include 活性」の同一性で検査し、翻訳単位の同一性を名乗らない (2026-08-11)
+
+**決定:** CCBench の pin を前進させるとき、旧 pin と新 pin の間で **TRACE=0 の正規化 preprocess 出力**と
+**include 活性**が一致することを、独立の checker (`tools/check_trace0_preprocess_identity.py`) で
+fail-closed に検査する。保証の名前は「翻訳単位の同一性」ではなく
+「選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性」
+とする。差分列挙は `git diff-tree --raw -r` で行い、header を含む差分は拒否する。
+
+**理由:**
+- 既存の `source_digest.assert_trace_diff_matches_head` は**同一 pin 内**の TRACE=1/TRACE=0 差を
+  比べる。pin 自体が動くと baseline も一緒に動くので、**新 pin の trace-hook 変更そのものは
+  検査されない**。pin 前進の場面ではこれが最後の防壁になる。
+- **include 行の文字列比較だけでは条件付き include の偽緑を塞げない。** 必須 include を新側だけ
+  `#if TRACE` の内側へ移すと、include 行集合は同一・include 除去後の preprocess 出力も同一なのに、
+  実 TRACE=0 ビルドでは header が入らず翻訳単位が変わる。preprocess の前に各 include 行を一意な
+  marker 識別子へ置換すれば、条件枝へ移した include は marker ごと消えて差分に現れる。
+- **header の変更は保証範囲外である。** `-E -P` は `#define` 行を出力に残さないので header 内の
+  マクロ定義変更が正規化出力から消え、header 単体の preprocess は consumer TU を代表しない。
+  受理するより fail-closed で拒否する方が正直である。
+- **比較 0 件の緑を作らない。** context 集合が空、または実際に積んだ件数が期待数と一致しない場合は
+  拒否する。前者だけを塞いだ実装は、後者を無効化する変異が生存することで露見した。
+- compiler builtin を保持したまま preprocess するため結果は compiler 依存である。したがって
+  **複数の compiler で走らせ、admission toolchain と同一であるとは主張しない**。
+
+**却下した選択肢:**
+- **`compute()` / `assert_trace_diff_matches_head` を流用する** — working tree と固定の編集面集合を
+  読むため 2 commit 比較に使えず、pin 前進の検査にならない。
+- **nm の名前ベース検査 (`_has_trace_symbols`) に寄せる** — strip や無名データ構造の漏れを
+  証明できない。実 perf build の補助防壁として残し、この checker には組み込まない。
+- **差分 path を 1 ファイルに固定した専用 checker にする** — どの path もスキップしないという
+  一般性の方が強い。呼び出し側が範囲を固定したい場合のために `--expect-paths` を任意引数で持たせる。
+
+## D298. [T-316] coder hole に有限 lexical な効果 gate を置く — 測定済み 4 種に対する受理集合の縮小であって、裁定 案 2 の build 段防壁ではない (2026-08-11)
+
+**背景 (実測).** 段 1 で sort 軸の実路 (`p3_s4_loop.quarantine`) に 1 行注入を通したところ、
+`std::system` / `execl` / `std::ofstream` / `while(true){}` の 4 種が `DiffQuarantine` を
+**4/4 通過**した。auditor が実 working_diff の digest を echo して `verdict="pass"` を返せば
+auditor gate も **4/4 通過**する。backoff 軸の `assert_value_literal_consistent` も、value と
+literal が一致していれば同居する任意文を 4/4 通す。この層に効果を見る検査は存在せず、既存の
+注入テストは前処理指令と include の**構造**検査 2 件だけだった。
+
+**決定 (1): 有限 lexical な効果 gate を `quarantine()` の単一 seam に置く。**
+新規 `orchestrator/campaign/coder_effect_gate.py` が C++ tokenizer を持ち、exact identifier token
+として 5 category (process-shell / file-stdio / network / sleep-block-thread / escape-hatch) を
+拒否し、明示的に無条件な loop header を拒否する。lexer が解釈できない入力と、byte / token 上限
+超過は固定 rule ID で fail-closed に倒す。`quarantine()` は structural quarantine が pass した
+ときだけ scanner を呼び、finding があれば `DiffRejectSubtype.HOST_EFFECT` へ変換してファイル
+書き込みへ到達させない。3 driver・2 sweep・direct comparison・extime calibration・autonomous
+preview の全 hole materialization がこの seam を通ることを実コードで確認した。
+
+**決定 (2): scanner が見るのは coder の hole 実装そのものであり、骨格を含む全文ではない。**
+`edited_text` を渡すと CCBench 固定部の `open` / `read` / `write` / `thread` / `syscall` により
+**恒真拒否**になる (段 3 レンズ A が `external/ccbench/include/fileio.hh` 等で実証)。
+spy test と、materialized source から marker の hole を再抽出して byte-exact に比較するテストで
+機械固定した。
+
+**決定 (3): これは裁定 案 2 の build 段防壁ではない。** ユーザー裁定 案 2 (worklog 403) が
+指定した別防壁は「source の DSL/IR 化」または「build 出力 copy-out の厳格化」の二択であり、
+有限 lexical な効果 denylist は**どちらでもない第 3 の形**である。段 3 の 2 レンズが独立に
+これを blocker と判定した。したがって本 gate は **測定済み 4 種に対する受理集合の縮小
+(defense-in-depth)** としてのみ主張し、host-security boundary とも意味論的に閉じているとも
+書かない。案 2 の build 防壁本体の択一は [T-316] の「次の一手」R-1 としてユーザー裁定へ返す。
+
+**決定 (4): auditor は既に deny-only であり、本 wave は新しい安全性を獲得していない。**
+段 3 レンズ A が実コードで示したとおり、変更前から machine reject は auditor より先に返り、
+machine pass のときだけ verdict が評価されていた。`apply_mandatory_deny_only_veto()` は
+その既存性質の factoring であり、加えて mutable dataclass の事後書き換えに備えて sink で
+scalars と entries を再検証する。docstring は R1 の指定どおり
+「mandatory deny-only veto; affirmative security credit なし」で固定し、**「advisory」と書かない**。
+`diff_digest` は attribution/provenance 専用である。
+
+**決定 (5): 非反射の対象は候補が自由記述した bytes に限る。**
+`implementation`、そこから抽出した literal、例外 message、診断文は投影に出さない。
+一方 `genome` の宣言済みスカラー `BACKOFF_FIXED` は**設計上の帰属フィールド**であり
+(D39 決定 7 で campaign identity と fitness 帰属がこの値に依存する)、非反射の対象外とする。
+opaque 化すると帰属が壊れる。**ただしこの帰属は整数値についてのみ健全である** — 段 6 の焦点
+再レビューが、非整数 `coder.value` (例 20.5) が整合検査を通る一方 genome は `int()` で 20 を
+記録することを見つけた。既存の欠陥であり本 wave では実装せず [T-843] へ送る。
+
+**決定 (6): 閉じていないことを docstring に列挙する。** 未収載 identifier (`close` / `fsync` 等)、
+`File(...)` のように constructor 内部が `open()` を呼ぶ型経由の間接効果、定数畳み込みを要する
+無退出 loop header、macro token-pasting、走査対象より前に取得した function pointer、
+deny table 外の compiler extension を残余として書く。`while (true) { break; }` を到達可能性
+解析なしに保守的拒否することも書く。**scope 外・未閉鎖の層**も同じ docstring に逐語で並べる:
+`p3_s4_red.py`、手動 patch + `--allow-coder-derived-build`、直接 `buildcache` caller、
+`s5_permutation_coverage` の直接 CMake build、shell materializer と任意 binary path、
+cache / WAL / COMMIT / freeze への gate 結果の非束縛、`forbidden_identifiers` の恒偽。
+
+**決定 (7): critic には候補由来 text を出さず、allowlist 済みの構造化理由を通す。**
+固定 `rule_id` / `category` / 件数を独立フィールドで WAL → loader → render へ渡し、
+`read()` と `connect()` が別の理由として還流するようにした (規律 3)。remediation 文言は
+「通過は計算のみを意味せず host 安全性を証明しない」と明記する。
+
+**研究状態への影響:** 受理集合は狭まる方向にだけ変わる。現行の正常候補
+(`s6_sort_sweep` の 15 件、`reflux_ir.emit_predicate` の全 32 wire、正常 backoff 形) は
+すべて通り続ける (親が偽陽性 0 件を実測、焦点再レビューが最大 379 bytes / 64 token と独立確認)。
+certified 選択の既存値、凍結 bytes、レポート数値、campaign identity、WAL golden は不変である。
+**certified の安全性は主張しない** — sort の reward hack (R2-b 独立 oracle 未実装)、
+cache / WAL / COMMIT / freeze への gate 結果の非束縛、`quarantine()` 外の materializer は
+いずれも未閉鎖のまま残る。
