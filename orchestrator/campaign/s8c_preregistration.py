@@ -341,23 +341,34 @@ def _strict_json(raw: bytes, *, what: str) -> Any:
         raise PreregistrationError("bad-json", f"{what}: {exc}") from exc
 
 
-def _assert_no_nul_in_contract_paths(value: Any) -> None:
-    """契約の ``path`` field に NUL があれば fail-closed で拒否する。
+def _assert_no_forbidden_control_chars_in_contract_paths(value: Any) -> None:
+    """契約の ``path`` field に NUL / CR / LF があれば拒否する。
 
-    走査対象は key が exact ``path`` かつ値が ``str`` のものだけである。NUL 以外の文字も、
-    ``path`` 以外の field の NUL も拒否しない。文書順で最初に見つけた 1 件で停止する。
+    走査対象は key が exact ``path`` かつ値が ``str`` のものだけである。
+    NUL は CR/LF より全域で優先し、既存の reason と最初の NUL pointer を維持する。
+    NUL / CR / LF 以外の文字と、``path`` 以外の field は拒否しない。
     """
+    first_crlf_pointer: Optional[str] = None
     pending: list[tuple[str, bool, Any]] = [("", False, value)]
     while pending:
         pointer, is_path, node = pending.pop()
-        if is_path and isinstance(node, str) and "\x00" in node:
-            raise PreregistrationError("evidence-contract-path-nul", repr(pointer))
+        if is_path and isinstance(node, str):
+            if "\x00" in node:
+                raise PreregistrationError(
+                    "evidence-contract-path-nul", repr(pointer)
+                )
+            if first_crlf_pointer is None and ("\r" in node or "\n" in node):
+                first_crlf_pointer = pointer
         if isinstance(node, dict):
             for key, child in reversed(list(node.items())):
                 pending.append((f"{pointer}/{key}", key == "path", child))
         elif isinstance(node, list):
             for index, child in reversed(list(enumerate(node))):
                 pending.append((f"{pointer}/{index}", False, child))
+    if first_crlf_pointer is not None:
+        raise PreregistrationError(
+            "evidence-contract-path-crlf", repr(first_crlf_pointer)
+        )
 
 
 def evidence_contract_sha256(raw: bytes) -> str:
@@ -367,7 +378,7 @@ def evidence_contract_sha256(raw: bytes) -> str:
         canonical = _canonical_bytes(value)
     except (TypeError, ValueError) as exc:
         raise PreregistrationError("evidence-contract-json", str(exc)) from exc
-    _assert_no_nul_in_contract_paths(value)
+    _assert_no_forbidden_control_chars_in_contract_paths(value)
     return _sha256(_DOMAIN_EVIDENCE + canonical)
 
 

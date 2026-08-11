@@ -1,0 +1,925 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/e25bc824d032e32103c35f4f6e1cc58b/izdw-e25bc824d0.o901587",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/e25bc824d032e32103c35f4f6e1cc58b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n........................................................................ [ 99%]\n.                                                                        [100%]\n======================== 145 passed in 69.60s (0:01:09) ========================\n",
+      "stdout_sha256": "ccc1c77691e99f938f7ec8398eba7631052617e19f6e595fb31ca5a0c806fca8"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+    "duration_s": 93.441,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "84b634a738f3d4332a9c0a617932a1262d3ef401032e537f3f524ba9fb4a372a",
+    "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+    "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+    "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+    "status": "PASSED",
+    "test_output_sha256": "ccc1c77691e99f938f7ec8398eba7631052617e19f6e595fb31ca5a0c806fca8",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+  },
+  "date": "2026-08-11T00:37:12.515797+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/52e625a4a4c819a6867fe0eafcb7330f/izdw-52e625a4a4.o901592",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/52e625a4a4c819a6867fe0eafcb7330f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n...........................................................F............ [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n___ test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects ___\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_subset_manifest_build_sta0')\n\n    def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(\n            tmp_path):\n        \"\"\"MU-1: generic builder は不変、実行 choke point だけが一様 subset を拒否。\"\"\"\n        freeze_path = _freeze_copy(tmp_path)\n        schedule = manifest.build_schedule(\n            n=1,\n            master_seed=\"subset-seed\",\n            block_sizes={\"b0\": 1},\n            holdout_ids=_holdout_ids(),\n            configuration_ids=(\"stock_common\",),\n        )\n        document = manifest.build_manifest(\n            freeze_path=freeze_path,\n            schedule=schedule,\n            run_contract={\n                \"ccbench_pin\": \"pin\", \"env_tag\": \"test-env\", \"clocks\": 1800,\n                \"reps\": 5, \"extime\": 5, \"verify\": \"legacy+s2\",\n                \"screening\": \"off\", \"bench_max_rounds\": 1,\n                \"contract_sha256\": \"0\" * 64,\n            },\n            binding_identity=[\n                _binding(holdout_id, \"stock_common\")\n                for holdout_id in _holdout_ids()\n            ],\n            campaign_ids={\"b0\": \"campaign-b0\"},\n            allowed_excluded_reasons=[\"machine-failure\"],\n            generator_versions=_generator_versions(),\n        )\n        path = tmp_path / \"subset-manifest.json\"\n        manifest.write_manifest(path, document)\n>       with pytest.raises(\n                manifest.ManifestError,\n                match=\"holdout-configuration product と完全一致しない\"):\nE               Failed: DID NOT RAISE ManifestError\n\norchestrator/tests/test_s8b_oracle_manifest.py:392: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects\n=================== 1 failed, 144 passed in 69.00s (0:01:08) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1706 retained_bytes=1706 omitted_bytes=0 rendered_excerpt_bytes=1856 sha256=3da10becacb19367ab1a42eb149f429c3418b37cf6f6e6c626cd2bd6b61aac01\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_subset_manifest_build_sta0')\n> \n>     def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(\n>             tmp_path):\n>         \"\"\"MU-1: generic builder \\u306f\\u4e0d\\u5909\\u3001\\u5b9f\\u884c choke point \\u3060\\u3051\\u304c\\u4e00\\u69d8 subset \\u3092\\u62d2\\u5426\\u3002\"\"\"\n>         freeze_path = _freeze_copy(tmp_path)\n>         schedule = manifest.build_schedule(\n>             n=1,\n>             master_seed=\"subset-seed\",\n>             block_sizes={\"b0\": 1},\n>             holdout_ids=_holdout_ids(),\n>             configuration_ids=(\"stock_common\",),\n>         )\n>         document = manifest.build_manifest(\n>             freeze_path=freeze_path,\n>             schedule=schedule,\n>             run_contract={\n>                 \"ccbench_pin\": \"pin\", \"env_tag\": \"test-env\", \"clocks\": 1800,\n>                 \"reps\": 5, \"extime\": 5, \"verify\": \"legacy+s2\",\n>                 \"screening\": \"off\", \"bench_max_rounds\": 1,\n>                 \"contract_sha256\": \"0\" * 64,\n>             },\n>             binding_identity=[\n>                 _binding(holdout_id, \"stock_common\")\n>                 for holdout_id in _holdout_ids()\n>             ],\n>             campaign_ids={\"b0\": \"campaign-b0\"},\n>             allowed_excluded_reasons=[\"machine-failure\"],\n>             generator_versions=_generator_versions(),\n>         )\n>         path = tmp_path / \"subset-manifest.json\"\n>         manifest.write_manifest(path, document)\n> >       with pytest.raises(\n>                 manifest.ManifestError,\n>                 match=\"holdout-configuration product \\u3068\\u5b8c\\u5168\\u4e00\\u81f4\\u3057\\u306a\\u3044\"):\n> E               Failed: DID NOT RAISE ManifestError\n> \n> orchestrator/tests/test_s8b_oracle_manifest.py:392: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1706 retained_bytes=1706 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2604 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "43596553d22945c45040f8f6ad7fd996e0899c5340c24c88142326e17828cfc5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 93.405,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects"
+      ],
+      "hang_risk": false,
+      "id": "MU-1",
+      "injection_diff_sha256": "b5b4c8e663dd1b798e4baa67b012c8887582118e64227c6379ebde27a48f21cb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5db095a07dce69703560bb4346477d94d91c3f91c8268c423754a03fdded39b6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "new": "    expected_cells = set(actual_cells)\n",
+          "old": "    expected_cells = {\n        (holdout_id, configuration_id)\n        for holdout_id in frozen_holdouts\n        for configuration_id in _holdout_configuration_ids(freeze, holdout_id)\n    }\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "KILLED",
+      "test_output_sha256": "43596553d22945c45040f8f6ad7fd996e0899c5340c24c88142326e17828cfc5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/f1e76cb6f77b6aa299f77def442ae50e/izdw-f1e76cb6f7.o901597",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/f1e76cb6f77b6aa299f77def442ae50e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n........................................................F............... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n_________ test_missing_holdout_build_stays_accepted_but_verify_rejects _________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_missing_holdout_build_sta0')\n\n    def test_missing_holdout_build_stays_accepted_but_verify_rejects(tmp_path):\n        \"\"\"F-1: generic builder は不変、choke point は freeze の全 holdout を要求。\"\"\"\n        freeze_path = _freeze_copy(tmp_path)\n        freeze = json.loads(freeze_path.read_text(encoding=\"utf-8\"))\n        retained, dropped = sorted(freeze[\"holdouts\"])\n        # generic builder の従来受理集合を保持したまま負例を組めるよう、execution\n        # snapshot だけを schedule subset と整合させ、authority の holdouts は全件残す。\n        del freeze[\"floor\"][\"by_holdout\"][dropped]\n        del freeze[\"budget\"][\"per_holdout_bench_s\"][dropped]\n        freeze_path.write_text(\n            json.dumps(freeze, ensure_ascii=False), encoding=\"utf-8\",\n        )\n        schedule = manifest.build_schedule(\n            n=1,\n            master_seed=\"missing-holdout-seed\",\n            block_sizes={\"b0\": 1},\n            holdout_ids=(retained,),\n            configuration_ids=CONFIGURATION_IDS,\n        )\n        document = manifest.build_manifest(\n            freeze_path=freeze_path,\n            schedule=schedule,\n            run_contract={\n                \"ccbench_pin\": \"pin\", \"env_tag\": \"test-env\", \"clocks\": 1800,\n                \"reps\": 5, \"extime\": 5, \"verify\": \"legacy+s2\",\n                \"screening\": \"off\", \"bench_max_rounds\": 1,\n                \"contract_sha256\": \"0\" * 64,\n            },\n            binding_identity=[\n                _binding(retained, configuration_id)\n                for configuration_id in CONFIGURATION_IDS\n            ],\n            campaign_ids={\"b0\": \"campaign-b0\"},\n            allowed_excluded_reasons=[\"machine-failure\"],\n            generator_versions=_generator_versions(),\n        )\n        assert type(document) is artifacts.OfficialManifest\n        path = tmp_path / \"missing-holdout-manifest.json\"\n        manifest.write_manifest(path, document)\n    \n>       with pytest.raises(\n                manifest.ManifestError,\n                match=r\"schedule holdout 集合が freeze\\.holdouts と完全一致しない\"):\nE               AssertionError: Regex pattern did not match.\nE                 Expected regex: 'schedule holdout 集合が freeze\\\\.holdouts と完全一致しない'\nE                 Actual message: 'schedule cell 集合が freeze の holdout-configuration product と完全一致しない'\n\norchestrator/tests/test_s8b_oracle_manifest.py:438: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects\n=================== 1 failed, 144 passed in 70.02s (0:01:10) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2587 retained_bytes=2587 omitted_bytes=0 rendered_excerpt_bytes=2953 sha256=3b36ac040d8b3254db8dd6b09a1d00bd5f7f5acb041983885e40307f63a5268f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_missing_holdout_build_sta0')\n> \n>     def test_missing_holdout_build_stays_accepted_but_verify_rejects(tmp_path):\n>         \"\"\"F-1: generic builder \\u306f\\u4e0d\\u5909\\u3001choke point \\u306f freeze \\u306e\\u5168 holdout \\u3092\\u8981\\u6c42\\u3002\"\"\"\n>         freeze_path = _freeze_copy(tmp_path)\n>         freeze = json.loads(freeze_path.read_text(encoding=\"utf-8\"))\n>         retained, dropped = sorted(freeze[\"holdouts\"])\n>         # generic builder \\u306e\\u5f93\\u6765\\u53d7\\u7406\\u96c6\\u5408\\u3092\\u4fdd\\u6301\\u3057\\u305f\\u307e\\u307e\\u8ca0\\u4f8b\\u3092\\u7d44\\u3081\\u308b\\u3088\\u3046\\u3001execution\n>         # snapshot \\u3060\\u3051\\u3092 schedule subset \\u3068\\u6574\\u5408\\u3055\\u305b\\u3001authority \\u306e holdouts \\u306f\\u5168\\u4ef6\\u6b8b\\u3059\\u3002\n>         del freeze[\"floor\"][\"by_holdout\"][dropped]\n>         del freeze[\"budget\"][\"per_holdout_bench_s\"][dropped]\n>         freeze_path.write_text(\n>             json.dumps(freeze, ensure_ascii=False), encoding=\"utf-8\",\n>         )\n>         schedule = manifest.build_schedule(\n>             n=1,\n>             master_seed=\"missing-holdout-seed\",\n>             block_sizes={\"b0\": 1},\n>             holdout_ids=(retained,),\n>             configuration_ids=CONFIGURATION_IDS,\n>         )\n>         document = manifest.build_manifest(\n>             freeze_path=freeze_path,\n>             schedule=schedule,\n>             run_contract={\n>                 \"ccbench_pin\": \"pin\", \"env_tag\": \"test-env\", \"clocks\": 1800,\n>                 \"reps\": 5, \"extime\": 5, \"verify\": \"legacy+s2\",\n>                 \"screening\": \"off\", \"bench_max_rounds\": 1,\n>                 \"contract_sha256\": \"0\" * 64,\n>             },\n>             binding_identity=[\n>                 _binding(retained, configuration_id)\n>                 for configuration_id in CONFIGURATION_IDS\n>             ],\n>             campaign_ids={\"b0\": \"campaign-b0\"},\n>             allowed_excluded_reasons=[\"machine-failure\"],\n>             generator_versions=_generator_versions(),\n>         )\n>         assert type(document) is artifacts.OfficialManifest\n>         path = tmp_path / \"missing-holdout-manifest.json\"\n>         manifest.write_manifest(path, document)\n>     \n> >       with pytest.raises(\n>                 manifest.ManifestError,\n>                 match=r\"schedule holdout \\u96c6\\u5408\\u304c freeze\\x5c.holdouts \\u3068\\u5b8c\\u5168\\u4e00\\u81f4\\u3057\\u306a\\u3044\"):\n> E               AssertionError: Regex pattern did not match.\n> E                 Expected regex: 'schedule holdout \\u96c6\\u5408\\u304c freeze\\x5c\\x5c.holdouts \\u3068\\u5b8c\\u5168\\u4e00\\u81f4\\u3057\\u306a\\u3044'\n> E                 Actual message: 'schedule cell \\u96c6\\u5408\\u304c freeze \\u306e holdout-configuration product \\u3068\\u5b8c\\u5168\\u4e00\\u81f4\\u3057\\u306a\\u3044'\n> \n> orchestrator/tests/test_s8b_oracle_manifest.py:438: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2587 retained_bytes=2587 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3689 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "62f4f1679cc400e0c2700886d054adc02d99f6eb9db72160dd27b393a31b3150"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 98.535,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects"
+      ],
+      "hang_risk": false,
+      "id": "MU-1B",
+      "injection_diff_sha256": "bf276c81559940c442e30d93c2478635d81290033c9312677b07e87cb6569d74",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3730949a751629e304ed10cb88f0a52b9ffe7d42de5a24324038ef2f28bd780c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "new": "    if (not isinstance(frozen_holdouts, Mapping)):\n",
+          "old": "    if (not isinstance(frozen_holdouts, Mapping)\n            or schedule_holdouts != set(frozen_holdouts)):\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "KILLED",
+      "test_output_sha256": "62f4f1679cc400e0c2700886d054adc02d99f6eb9db72160dd27b393a31b3150",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/13217120eed552122feee2441b623f12/izdw-13217120ee.o901604",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/13217120eed552122feee2441b623f12/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n..F..................................................................... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n_ test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json] _\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_v2_candidate_output_gate_0')\noutput = 'output/s8b-freeze/holdout_freeze.v2.g1.json'\n\n    @pytest.mark.parametrize(\n        \"output\",\n        [\n            \"output/s8b-freeze/holdout_freeze.v2.g1.json\",\n            \"../outside.json\",\n            \"/tmp/outside.json\",\n            \"output//s8b-freeze-candidates/holdout_freeze.v2.g1.json\",\n            \"output/s8b-freeze-candidates/../holdout_freeze.v2.g1.json\",\n        ],\n    )\n    def test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path(tmp_path, output):\n        root = tmp_path / \"repo\"\n        root.mkdir()\n    \n>       with pytest.raises(M.FreezeError):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_holdout_freeze.py:1036: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]\n=================== 1 failed, 144 passed in 69.49s (0:01:09) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]\" nodeid_bytes=153 nodeid_omitted_bytes=0 source_bytes=835 retained_bytes=835 omitted_bytes=0 rendered_excerpt_bytes=882 sha256=b36ed40b76c34e160fe509130ceef5b3c1fb05bb18d40b8f44fa6401b6ed7f22\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_v2_candidate_output_gate_0')\n> output = 'output/s8b-freeze/holdout_freeze.v2.g1.json'\n> \n>     @pytest.mark.parametrize(\n>         \"output\",\n>         [\n>             \"output/s8b-freeze/holdout_freeze.v2.g1.json\",\n>             \"../outside.json\",\n>             \"/tmp/outside.json\",\n>             \"output//s8b-freeze-candidates/holdout_freeze.v2.g1.json\",\n>             \"output/s8b-freeze-candidates/../holdout_freeze.v2.g1.json\",\n>         ],\n>     )\n>     def test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path(tmp_path, output):\n>         root = tmp_path / \"repo\"\n>         root.mkdir()\n>     \n> >       with pytest.raises(M.FreezeError):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:1036: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=835 retained_bytes=835 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1658 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2e57160e8db6f07cc6092fe86f7a2f95616a6a64e046f2f7f1d2262e2a1a712b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 93.448,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]"
+      ],
+      "hang_risk": false,
+      "id": "MU-2",
+      "injection_diff_sha256": "2f11ecc77aebf2d9adef6a9cf333b9f7a7730efad456a0ad965211fcd5090c6e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0e666af2f878ebf44da3abeefcf2ccd327882c839249a5d73a72a2c9efd2a29b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if False:\n        raise FreezeError(\"v2 candidate output が固定 candidate path と不一致\")\n",
+          "old": "    if rel != V2_CANDIDATE_REL:\n        raise FreezeError(\"v2 candidate output が固定 candidate path と不一致\")\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "KILLED",
+      "test_output_sha256": "2e57160e8db6f07cc6092fe86f7a2f95616a6a64e046f2f7f1d2262e2a1a712b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/5c5a2e227f23754ff696c6b3ddf7ef6b/izdw-5c5a2e227f.o901607",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/5c5a2e227f23754ff696c6b3ddf7ef6b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n...................F...................F...........................F.... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite _____\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_v2_candidate_output_gate_0')\n\n    def test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite(\n            tmp_path):\n        root = tmp_path / \"repo\"\n        leaf = root / M.V2_CANDIDATE_REL\n        leaf.parent.mkdir(parents=True)\n        leaf.write_bytes(b\"existing\")\n    \n>       with pytest.raises(M.FreezeError, match=\"安全に新規作成できない\"):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_holdout_freeze.py:1085: Failed\n____ test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf ____\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_v2_candidate_output_gate_0')\n\n    def test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf(tmp_path):\n        root = tmp_path / \"repo\"\n        outside = tmp_path / \"outside\"\n        root.mkdir()\n        outside.mkdir()\n        (root / \"output\").mkdir()\n        (root / \"output\" / \"s8b-freeze-candidates\").symlink_to(outside)\n    \n        with pytest.raises(M.FreezeError, match=\"安全に新規作成できない\"):\n            M._write_v2_candidate_create_only(root, M.V2_CANDIDATE_REL, b\"{}\")\n        assert list(outside.iterdir()) == []\n    \n        (root / \"output\" / \"s8b-freeze-candidates\").unlink()\n        parent = root / \"output\" / \"s8b-freeze-candidates\"\n        parent.mkdir()\n        leaf = root / M.V2_CANDIDATE_REL\n        leaf.write_bytes(b\"existing\")\n>       with pytest.raises(M.FreezeError, match=\"安全に新規作成できない\"):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_holdout_freeze.py:1109: Failed\n______________ test_v2_candidate_build_and_generate_synthetic_g1 _______________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_v2_candidate_build_and_ge0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146eeaa27580>\n\n    def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):\n        fixture = V2FIX.candidate_repository(tmp_path, M)\n        root = fixture[\"root\"]\n        monkeypatch.setattr(\n            M, \"BUDGET_APPROVAL_SHA256\", fixture[\"approval_sha256\"],\n        )\n    \n        document = M.build_v2_g1_candidate(\n            floor_result_path=fixture[\"result_rel\"],\n            budget_path=fixture[\"budget_rel\"],\n            root=root,\n        )\n    \n        assert frozenset(document) == M.V2_TOP_LEVEL_KEYS\n        assert document[\"schema_version\"] == M.V2_SCHEMA_VERSION\n        assert document[\"generation_number\"] == 1\n        assert document[\"supersedes_sha256\"] == T080.HOLDOUT_RAW_SHA256\n        assert document[\"frozen_at_head\"] == fixture[\"head\"]\n        assert document[\"generator\"][\"path\"] == M.SCRIPT_REL\n        assert document[\"known_axes_freeze\"] == json.loads(\n            (root / M.FREEZE_REL).read_bytes(),\n        )[\"known_axes_freeze\"]\n        v1 = json.loads((root / M.FREEZE_REL).read_bytes())\n        changed_v1_fields = {\n            \"schema_version\", \"frozen_at_head\", \"design_source\", \"generator\", \"floor\",\n            \"budget\", \"refreeze_note\",\n        }\n        assert all(\n            document[field] == v1[field]\n            for field in M.TOP_LEVEL_KEYS - changed_v1_fields\n        )\n        assert document[\"budget\"] == fixture[\"budget\"]\n        assert document[\"floor\"][\"by_holdout\"]\n        closure = {\n            entry[\"canonical_path\"]: entry[\"sha256\"]\n            for entry in document[\"measurement_closure\"]\n        }\n        assert set(fixture[\"closure_paths\"]) <= set(closure)\n        assert all(\n            closure[rel] == hashlib.sha256((root / rel).read_bytes()).hexdigest()\n            for rel in fixture[\"closure_paths\"]\n        )\n    \n        generated = M.generate_v2_g1_candidate(\n            floor_result_path=fixture[\"result_rel\"],\n            budget_path=fixture[\"budget_rel\"],\n            root=root,\n        )\n        output = root / M.V2_CANDIDATE_REL\n        assert output.read_bytes() == V2FIX.canonical_bytes(generated)\n        assert generated == document\n>       with pytest.raises(M.FreezeError, match=\"安全に新規作成できない\"):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_holdout_freeze.py:894: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_synthetic_g1\n=================== 3 failed, 142 passed in 69.23s (0:01:09) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_synthetic_g1\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2536 retained_bytes=2536 omitted_bytes=0 rendered_excerpt_bytes=2690 sha256=ace80d1b48a5c7b680eb8b52839ebce2292c6e14ee7154de1dbc2bcbcc3b08ad\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_v2_candidate_build_and_ge0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146eeaa27580>\n> \n>     def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):\n>         fixture = V2FIX.candidate_repository(tmp_path, M)\n>         root = fixture[\"root\"]\n>         monkeypatch.setattr(\n>             M, \"BUDGET_APPROVAL_SHA256\", fixture[\"approval_sha256\"],\n>         )\n>     \n>         document = M.build_v2_g1_candidate(\n>             floor_result_path=fixture[\"result_rel\"],\n>             budget_path=fixture[\"budget_rel\"],\n>             root=root,\n>         )\n>     \n>         assert frozenset(document) == M.V2_TOP_LEVEL_KEYS\n>         assert document[\"schema_version\"] == M.V2_SCHEMA_VERSION\n>         assert document[\"generation_number\"] == 1\n>         assert document[\"supersedes_sha256\"] == T080.HOLDOUT_RAW_SHA256\n>         assert document[\"frozen_at_head\"] == fixture[\"head\"]\n>         assert document[\"generator\"][\"path\"] == M.SCRIPT_REL\n>         assert document[\"known_axes_freeze\"] == json.loads(\n>             (root / M.FREEZE_REL).read_bytes(),\n>         )[\"known_axes_freeze\"]\n>         v1 = json.loads((root / M.FREEZE_REL).read_bytes())\n>         changed_v1_fields = {\n>             \"schema_version\", \"frozen_at_head\", \"design_source\", \"generator\", \"floor\",\n>             \"budget\", \"refreeze_note\",\n>         }\n>         assert all(\n>             document[field] == v1[field]\n>             for field in M.TOP_LEVEL_KEYS - changed_v1_fields\n>         )\n>         assert document[\"budget\"] == fixture[\"budget\"]\n>         assert document[\"floor\"][\"by_holdout\"]\n>         closure = {\n>             entry[\"canonical_path\"]: entry[\"sha256\"]\n>             for entry in document[\"measurement_closure\"]\n>         }\n>         assert set(fixture[\"closure_paths\"]) <= set(closure)\n>         assert all(\n>             closure[rel] == hashlib.sha256((root / rel).read_bytes()).hexdigest()\n>             for rel in fixture[\"closure_paths\"]\n>         )\n>     \n>         generated = M.generate_v2_g1_candidate(\n>             floor_result_path=fixture[\"result_rel\"],\n>             budget_path=fixture[\"budget_rel\"],\n>             root=root,\n>         )\n>         output = root / M.V2_CANDIDATE_REL\n>         assert output.read_bytes() == V2FIX.canonical_bytes(generated)\n>         assert generated == document\n> >       with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:894: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1086 retained_bytes=1086 omitted_bytes=0 rendered_excerpt_bytes=1203 sha256=730caa952d1f52f8110b8cc7b934c8bedd43740f6936fc0fa51b804f9387017d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_v2_candidate_output_gate_0')\n> \n>     def test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf(tmp_path):\n>         root = tmp_path / \"repo\"\n>         outside = tmp_path / \"outside\"\n>         root.mkdir()\n>         outside.mkdir()\n>         (root / \"output\").mkdir()\n>         (root / \"output\" / \"s8b-freeze-candidates\").symlink_to(outside)\n>     \n>         with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):\n>             M._write_v2_candidate_create_only(root, M.V2_CANDIDATE_REL, b\"{}\")\n>         assert list(outside.iterdir()) == []\n>     \n>         (root / \"output\" / \"s8b-freeze-candidates\").unlink()\n>         parent = root / \"output\" / \"s8b-freeze-candidates\"\n>         parent.mkdir()\n>         leaf = root / M.V2_CANDIDATE_REL\n>         leaf.write_bytes(b\"existing\")\n> >       with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:1109: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=590 retained_bytes=590 omitted_bytes=0 rendered_excerpt_bytes=654 sha256=ef86aeb8c4a82582d4f74bde54af45098b3defaf85413287d8af16506abf8e64\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_v2_candidate_output_gate_0')\n> \n>     def test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite(\n>             tmp_path):\n>         root = tmp_path / \"repo\"\n>         leaf = root / M.V2_CANDIDATE_REL\n>         leaf.parent.mkdir(parents=True)\n>         leaf.write_bytes(b\"existing\")\n>     \n> >       with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:1085: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4212 retained_bytes=4212 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6182 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7c4e90998f95188a74035e65ff08319f5c9dffb22dc02796cec5ed24df4000b9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 93.457,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_synthetic_g1"
+      ],
+      "hang_risk": false,
+      "id": "MU-3B",
+      "injection_diff_sha256": "c44a177248471623fd800d4797935d925fc0b688fee0e84c8258346cde914474",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "fc8b5a782e7e8490e721bbee261364b778a2b1b0349b5daa5d1290ee7a3e79e5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "            os.O_WRONLY | os.O_CREAT\n            | nofollow\n",
+          "old": "            os.O_WRONLY | os.O_CREAT | os.O_EXCL\n            | nofollow\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "MISMATCH",
+      "test_output_sha256": "7c4e90998f95188a74035e65ff08319f5c9dffb22dc02796cec5ed24df4000b9",
+      "test_output_tail": [
+        ">             \"schema_version\", \"frozen_at_head\", \"design_source\", \"generator\", \"floor\",",
+        ">             \"budget\", \"refreeze_note\",",
+        ">         }",
+        ">         assert all(",
+        ">             document[field] == v1[field]",
+        ">             for field in M.TOP_LEVEL_KEYS - changed_v1_fields",
+        ">         )",
+        ">         assert document[\"budget\"] == fixture[\"budget\"]",
+        ">         assert document[\"floor\"][\"by_holdout\"]",
+        ">         closure = {",
+        ">             entry[\"canonical_path\"]: entry[\"sha256\"]",
+        ">             for entry in document[\"measurement_closure\"]",
+        ">         }",
+        ">         assert set(fixture[\"closure_paths\"]) <= set(closure)",
+        ">         assert all(",
+        ">             closure[rel] == hashlib.sha256((root / rel).read_bytes()).hexdigest()",
+        ">             for rel in fixture[\"closure_paths\"]",
+        ">         )",
+        ">     ",
+        ">         generated = M.generate_v2_g1_candidate(",
+        ">             floor_result_path=fixture[\"result_rel\"],",
+        ">             budget_path=fixture[\"budget_rel\"],",
+        ">             root=root,",
+        ">         )",
+        ">         output = root / M.V2_CANDIDATE_REL",
+        ">         assert output.read_bytes() == V2FIX.canonical_bytes(generated)",
+        ">         assert generated == document",
+        "> >       with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):",
+        "> E       Failed: DID NOT RAISE FreezeError",
+        "> ",
+        "> orchestrator/tests/test_s8b_holdout_freeze.py:894: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1086 retained_bytes=1086 omitted_bytes=0 rendered_excerpt_bytes=1203 sha256=730caa952d1f52f8110b8cc7b934c8bedd43740f6936fc0fa51b804f9387017d",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw7] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_v2_candidate_output_gate_0')",
+        "> ",
+        ">     def test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf(tmp_path):",
+        ">         root = tmp_path / \"repo\"",
+        ">         outside = tmp_path / \"outside\"",
+        ">         root.mkdir()",
+        ">         outside.mkdir()",
+        ">         (root / \"output\").mkdir()",
+        ">         (root / \"output\" / \"s8b-freeze-candidates\").symlink_to(outside)",
+        ">     ",
+        ">         with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):",
+        ">             M._write_v2_candidate_create_only(root, M.V2_CANDIDATE_REL, b\"{}\")",
+        ">         assert list(outside.iterdir()) == []",
+        ">     ",
+        ">         (root / \"output\" / \"s8b-freeze-candidates\").unlink()",
+        ">         parent = root / \"output\" / \"s8b-freeze-candidates\"",
+        ">         parent.mkdir()",
+        ">         leaf = root / M.V2_CANDIDATE_REL",
+        ">         leaf.write_bytes(b\"existing\")",
+        "> >       with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):",
+        "> E       Failed: DID NOT RAISE FreezeError",
+        "> ",
+        "> orchestrator/tests/test_s8b_holdout_freeze.py:1109: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=590 retained_bytes=590 omitted_bytes=0 rendered_excerpt_bytes=654 sha256=ef86aeb8c4a82582d4f74bde54af45098b3defaf85413287d8af16506abf8e64",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw6] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_v2_candidate_output_gate_0')",
+        "> ",
+        ">     def test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite(",
+        ">             tmp_path):",
+        ">         root = tmp_path / \"repo\"",
+        ">         leaf = root / M.V2_CANDIDATE_REL",
+        ">         leaf.parent.mkdir(parents=True)",
+        ">         leaf.write_bytes(b\"existing\")",
+        ">     ",
+        "> >       with pytest.raises(M.FreezeError, match=\"\\u5b89\\u5168\\u306b\\u65b0\\u898f\\u4f5c\\u6210\\u3067\\u304d\\u306a\\u3044\"):",
+        "> E       Failed: DID NOT RAISE FreezeError",
+        "> ",
+        "> orchestrator/tests/test_s8b_holdout_freeze.py:1085: Failed",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4212 retained_bytes=4212 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6182 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/ecc6a59eff9d0dca1406144d82c752fa/izdw-ecc6a59eff.o901609",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/ecc6a59eff9d0dca1406144d82c752fa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n.................................................................F...... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n______ test_v2_candidate_budget_approval_compares_canonical_numeric_bytes ______\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_v2_candidate_budget_appro0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15125a6c59f0>\n\n    def test_v2_candidate_budget_approval_compares_canonical_numeric_bytes(\n            tmp_path, monkeypatch):\n        fixture = V2FIX.candidate_repository(tmp_path, M)\n        root = fixture[\"root\"]\n        monkeypatch.setattr(\n            M, \"BUDGET_APPROVAL_SHA256\", fixture[\"approval_sha256\"],\n        )\n        changed = copy.deepcopy(fixture[\"budget\"])\n        changed[\"total_bench_s\"] = float(changed[\"total_bench_s\"])\n        (root / fixture[\"budget_rel\"]).write_bytes(V2FIX.canonical_bytes(changed))\n    \n>       with pytest.raises(\n                M.FreezeError, match=\"budget-approval-budget-canonical-mismatch\"):\nE               Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_holdout_freeze.py:913: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes\n=================== 1 failed, 144 passed in 68.58s (0:01:08) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=953 retained_bytes=953 omitted_bytes=0 rendered_excerpt_bytes=996 sha256=005093ca50ae0a603530adffeb6c631c046a2452b74fc73660f83e32988aba8a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_v2_candidate_budget_appro0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15125a6c59f0>\n> \n>     def test_v2_candidate_budget_approval_compares_canonical_numeric_bytes(\n>             tmp_path, monkeypatch):\n>         fixture = V2FIX.candidate_repository(tmp_path, M)\n>         root = fixture[\"root\"]\n>         monkeypatch.setattr(\n>             M, \"BUDGET_APPROVAL_SHA256\", fixture[\"approval_sha256\"],\n>         )\n>         changed = copy.deepcopy(fixture[\"budget\"])\n>         changed[\"total_bench_s\"] = float(changed[\"total_bench_s\"])\n>         (root / fixture[\"budget_rel\"]).write_bytes(V2FIX.canonical_bytes(changed))\n>     \n> >       with pytest.raises(\n>                 M.FreezeError, match=\"budget-approval-budget-canonical-mismatch\"):\n> E               Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:913: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=953 retained_bytes=953 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1732 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f2e6e85d74fd7a7b0c77afae646f1d9474d8b29f0441b372252ac7d2be913fb7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 93.382,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes"
+      ],
+      "hang_risk": false,
+      "id": "MU-4",
+      "injection_diff_sha256": "d40ae498f10e66ff3c4a585f7414084d0b6b1f4a395a0f23c589557ca76890b2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "78a78b06fba2602a2ceb9e0cddcdbca551c169d92b027a9aa98e25add7ea96bb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if approval[\"budget\"] != budget:\n        raise FreezeError(\"budget-approval-budget-canonical-mismatch\")\n",
+          "old": "    if _canonical_bytes(approval[\"budget\"]) != _canonical_bytes(budget):\n        raise FreezeError(\"budget-approval-budget-canonical-mismatch\")\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "KILLED",
+      "test_output_sha256": "f2e6e85d74fd7a7b0c77afae646f1d9474d8b29f0441b372252ac7d2be913fb7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/a546e2e11233e7991cc414ff927099c5/izdw-a546e2e112.o901612",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/a546e2e11233e7991cc414ff927099c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n..F...........................................................F......... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n_ test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified __\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_v2_candidate_fails_closed0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f74fd37f0>\n\n    def test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified(\n            tmp_path, monkeypatch):\n        monkeypatch.setattr(M, \"BUDGET_APPROVAL_SHA256\", None)\n    \n>       with pytest.raises(M.FreezeError, match=\"^budget-approval-not-ratified$\"):\nE       AssertionError: \nE       - git rev-parse HEAD に失敗: fatal: not a git repository (or any of the parent directories): .git\nE       + budget-approval-not-ratified\n\norchestrator/tests/test_s8b_holdout_freeze.py:771: AssertionError\n________ test_v2_candidate_none_pin_rejects_valid_inputs_without_output ________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_v2_candidate_none_pin_rej0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f41a767820>\n\n    def test_v2_candidate_none_pin_rejects_valid_inputs_without_output(\n            tmp_path, monkeypatch):\n        fixture = V2FIX.candidate_repository(tmp_path, M)\n        root = fixture[\"root\"]\n        monkeypatch.setattr(M, \"BUDGET_APPROVAL_SHA256\", None)\n    \n>       with pytest.raises(M.FreezeError, match=\"^budget-approval-not-ratified$\"):\nE       AssertionError: \nE       - budget-approval-sha256-mismatch\nE       + budget-approval-not-ratified\n\norchestrator/tests/test_s8b_holdout_freeze.py:954: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output\n=================== 2 failed, 143 passed in 69.86s (0:01:09) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=739 retained_bytes=739 omitted_bytes=0 rendered_excerpt_bytes=774 sha256=9bce5156a137c6cc83ebd51889a4a6bc7be2044e5fb9db76852652bb0f62790a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw43/test_v2_candidate_none_pin_rej0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f41a767820>\n> \n>     def test_v2_candidate_none_pin_rejects_valid_inputs_without_output(\n>             tmp_path, monkeypatch):\n>         fixture = V2FIX.candidate_repository(tmp_path, M)\n>         root = fixture[\"root\"]\n>         monkeypatch.setattr(M, \"BUDGET_APPROVAL_SHA256\", None)\n>     \n> >       with pytest.raises(M.FreezeError, match=\"^budget-approval-not-ratified$\"):\n> E       AssertionError: \n> E       - budget-approval-sha256-mismatch\n> E       + budget-approval-not-ratified\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:954: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=730 retained_bytes=730 omitted_bytes=0 rendered_excerpt_bytes=770 sha256=863bc50e242fa2330d24016ea5acc826f4d6eca7b5868284b2ff9d4190cf79e6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw37/test_v2_candidate_fails_closed0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f74fd37f0>\n> \n>     def test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified(\n>             tmp_path, monkeypatch):\n>         monkeypatch.setattr(M, \"BUDGET_APPROVAL_SHA256\", None)\n>     \n> >       with pytest.raises(M.FreezeError, match=\"^budget-approval-not-ratified$\"):\n> E       AssertionError: \n> E       - git rev-parse HEAD \\u306b\\u5931\\u6557: fatal: not a git repository (or any of the parent directories): .git\n> E       + budget-approval-not-ratified\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:771: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1469 retained_bytes=1469 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2738 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8e3ea31c6c673fe3f6d6399e06458bcb845a5c23d988d8576bc9d2fd6305dda5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 93.415,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output"
+      ],
+      "hang_risk": false,
+      "id": "MU-5",
+      "injection_diff_sha256": "e1433ee178877357b1c4d7ebfa848164312c6cccdf0e4e41d63f6edf5e2e495f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7720866c62091410550cf09c5e33e99d8fe085ac7ea3e519c82ffb4761e3a83c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if approval_sha256 is None:\n        return \"0\" * 64\n",
+          "old": "    if approval_sha256 is None:\n        raise FreezeError(\"budget-approval-not-ratified\")\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "KILLED",
+      "test_output_sha256": "8e3ea31c6c673fe3f6d6399e06458bcb845a5c23d988d8576bc9d2fd6305dda5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/cf71c92cb6c79df136f4c7973de5e8e7/izdw-cf71c92cb6.o901617",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/cf71c92cb6c79df136f4c7973de5e8e7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n...............................................F.........F.............. [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n____________ test_reviewed_spec_none_pin_is_always_no_approved_spec ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_reviewed_spec_none_pin_is0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f8be22e30>\n\n    def test_reviewed_spec_none_pin_is_always_no_approved_spec(tmp_path, monkeypatch):\n        root = tmp_path / \"repo\"\n        path = root / oracle_spec.SPEC_REL\n        path.parent.mkdir(parents=True)\n        path.write_bytes(b\"not-json\")\n        monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)\n    \n        with pytest.raises(oracle_spec.ReviewedSpecError) as captured:\n            oracle_spec.load_approved_spec(root)\n    \n>       assert captured.value.reason == \"no-approved-spec\"\nE       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'\nE         \nE         - no-approved-spec\nE         + invalid-reviewed-spec\n\norchestrator/tests/test_s8b_oracle_manifest.py:1034: AssertionError\n__________ test_build_approved_active_without_pin_fails_before_output __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_build_approved_active_wit0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c49fddcdc0>\n\n    def test_build_approved_active_without_pin_fails_before_output(\n            tmp_path, monkeypatch):\n        root = tmp_path / \"repo\"\n        root.mkdir()\n        active = _synthetic_ratified_freeze()\n        monkeypatch.setattr(\n            ratified_freeze, \"load_ratified_freeze\", lambda candidate: active,\n        )\n        monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)\n        output = f\"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json\"\n    \n        with pytest.raises(manifest.ManifestCliError) as captured:\n            manifest.build_approved_manifest(output, root=root)\n    \n>       assert captured.value.reason == \"no-approved-spec\"\nE       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'\nE         \nE         - no-approved-spec\nE         + invalid-reviewed-spec\n\norchestrator/tests/test_s8b_oracle_manifest.py:1185: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec\nFAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output\n=================== 2 failed, 143 passed in 69.75s (0:01:09) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1097 retained_bytes=1097 omitted_bytes=0 rendered_excerpt_bytes=1150 sha256=9e7bce1a8bcd77074767b030789c477d538ddb79ed96f9c0327c73e370b1ab54\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_build_approved_active_wit0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c49fddcdc0>\n> \n>     def test_build_approved_active_without_pin_fails_before_output(\n>             tmp_path, monkeypatch):\n>         root = tmp_path / \"repo\"\n>         root.mkdir()\n>         active = _synthetic_ratified_freeze()\n>         monkeypatch.setattr(\n>             ratified_freeze, \"load_ratified_freeze\", lambda candidate: active,\n>         )\n>         monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)\n>         output = f\"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json\"\n>     \n>         with pytest.raises(manifest.ManifestCliError) as captured:\n>             manifest.build_approved_manifest(output, root=root)\n>     \n> >       assert captured.value.reason == \"no-approved-spec\"\n> E       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'\n> E         \n> E         - no-approved-spec\n> E         + invalid-reviewed-spec\n> \n> orchestrator/tests/test_s8b_oracle_manifest.py:1185: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=937 retained_bytes=937 omitted_bytes=0 rendered_excerpt_bytes=982 sha256=127d849136f31dd68972b55447b618aa3ff16d841e1f5009f5eaa65354c49433\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_reviewed_spec_none_pin_is0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f8be22e30>\n> \n>     def test_reviewed_spec_none_pin_is_always_no_approved_spec(tmp_path, monkeypatch):\n>         root = tmp_path / \"repo\"\n>         path = root / oracle_spec.SPEC_REL\n>         path.parent.mkdir(parents=True)\n>         path.write_bytes(b\"not-json\")\n>         monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)\n>     \n>         with pytest.raises(oracle_spec.ReviewedSpecError) as captured:\n>             oracle_spec.load_approved_spec(root)\n>     \n> >       assert captured.value.reason == \"no-approved-spec\"\n> E       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'\n> E         \n> E         - no-approved-spec\n> E         + invalid-reviewed-spec\n> \n> orchestrator/tests/test_s8b_oracle_manifest.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2034 retained_bytes=2034 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3306 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3ca7dec8fc1a5547abad2cddeffb523dcba8e369ee89fb078f8cfb7842283d15"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 98.482,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output"
+      ],
+      "hang_risk": false,
+      "id": "MU-6",
+      "injection_diff_sha256": "b62a8d050effd6ed15a1144c3b24cb099c7f9dd6d1a38519a9885cffae890b06",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "f2e8d5226a19e55dd3e9cf6d1a148e398baef19dda5cc1ef8475cdb4dfae733e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_spec.py",
+          "new": "    if APPROVED_SPEC_SHA256 is None:\n        pass\n",
+          "old": "    if APPROVED_SPEC_SHA256 is None:\n        raise ReviewedSpecError(\"no-approved-spec\")\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "MISMATCH",
+      "test_output_sha256": "3ca7dec8fc1a5547abad2cddeffb523dcba8e369ee89fb078f8cfb7842283d15",
+      "test_output_tail": [
+        "        root = tmp_path / \"repo\"",
+        "        root.mkdir()",
+        "        active = _synthetic_ratified_freeze()",
+        "        monkeypatch.setattr(",
+        "            ratified_freeze, \"load_ratified_freeze\", lambda candidate: active,",
+        "        )",
+        "        monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)",
+        "        output = f\"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json\"",
+        "    ",
+        "        with pytest.raises(manifest.ManifestCliError) as captured:",
+        "            manifest.build_approved_manifest(output, root=root)",
+        "    ",
+        ">       assert captured.value.reason == \"no-approved-spec\"",
+        "E       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'",
+        "E         ",
+        "E         - no-approved-spec",
+        "E         + invalid-reviewed-spec",
+        "",
+        "orchestrator/tests/test_s8b_oracle_manifest.py:1185: AssertionError",
+        "=========================== short test summary info ============================",
+        "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+        "FAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output",
+        "=================== 2 failed, 143 passed in 69.75s (0:01:09) ===================",
+        "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+        "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1097 retained_bytes=1097 omitted_bytes=0 rendered_excerpt_bytes=1150 sha256=9e7bce1a8bcd77074767b030789c477d538ddb79ed96f9c0327c73e370b1ab54",
+        "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+        "> [gw3] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_build_approved_active_wit0')",
+        "> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c49fddcdc0>",
+        "> ",
+        ">     def test_build_approved_active_without_pin_fails_before_output(",
+        ">             tmp_path, monkeypatch):",
+        ">         root = tmp_path / \"repo\"",
+        ">         root.mkdir()",
+        ">         active = _synthetic_ratified_freeze()",
+        ">         monkeypatch.setattr(",
+        ">             ratified_freeze, \"load_ratified_freeze\", lambda candidate: active,",
+        ">         )",
+        ">         monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)",
+        ">         output = f\"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json\"",
+        ">     ",
+        ">         with pytest.raises(manifest.ManifestCliError) as captured:",
+        ">             manifest.build_approved_manifest(output, root=root)",
+        ">     ",
+        "> >       assert captured.value.reason == \"no-approved-spec\"",
+        "> E       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'",
+        "> E         ",
+        "> E         - no-approved-spec",
+        "> E         + invalid-reviewed-spec",
+        "> ",
+        "> orchestrator/tests/test_s8b_oracle_manifest.py:1185: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=937 retained_bytes=937 omitted_bytes=0 rendered_excerpt_bytes=982 sha256=127d849136f31dd68972b55447b618aa3ff16d841e1f5009f5eaa65354c49433",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw2] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_reviewed_spec_none_pin_is0')",
+        "> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147f8be22e30>",
+        "> ",
+        ">     def test_reviewed_spec_none_pin_is_always_no_approved_spec(tmp_path, monkeypatch):",
+        ">         root = tmp_path / \"repo\"",
+        ">         path = root / oracle_spec.SPEC_REL",
+        ">         path.parent.mkdir(parents=True)",
+        ">         path.write_bytes(b\"not-json\")",
+        ">         monkeypatch.setattr(oracle_spec, \"APPROVED_SPEC_SHA256\", None)",
+        ">     ",
+        ">         with pytest.raises(oracle_spec.ReviewedSpecError) as captured:",
+        ">             oracle_spec.load_approved_spec(root)",
+        ">     ",
+        "> >       assert captured.value.reason == \"no-approved-spec\"",
+        "> E       AssertionError: assert 'invalid-reviewed-spec' == 'no-approved-spec'",
+        "> E         ",
+        "> E         - no-approved-spec",
+        "> E         + invalid-reviewed-spec",
+        "> ",
+        "> orchestrator/tests/test_s8b_oracle_manifest.py:1034: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2034 retained_bytes=2034 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3306 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/ae86cf49756cdfeb519ec302335af6c5/izdw-ae86cf4975.o901621",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/ae86cf49756cdfeb519ec302335af6c5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [145 items]\n\n........................................................................ [ 49%]\n.................................................................F...... [ 99%]\n.                                                                        [100%]\n=================================== FAILURES ===================================\n__________ test_v2_candidate_rejects_floor_not_eligible_for_refreeze ___________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_v2_candidate_rejects_floo0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154ff80bf850>\n\n    def test_v2_candidate_rejects_floor_not_eligible_for_refreeze(\n            tmp_path, monkeypatch):\n        fixture = V2FIX.candidate_repository(tmp_path, M)\n        root = fixture[\"root\"]\n        monkeypatch.setattr(\n            M, \"BUDGET_APPROVAL_SHA256\", fixture[\"approval_sha256\"],\n        )\n        result_path = root / fixture[\"result_rel\"]\n        result = json.loads(result_path.read_bytes())\n        result[\"eligible_for_refreeze\"] = False\n        result_path.write_bytes(V2FIX.canonical_bytes(result))\n    \n>       with pytest.raises(M.FreezeError, match=\"eligible_for_refreeze が true でない\"):\nE       Failed: DID NOT RAISE FreezeError\n\norchestrator/tests/test_s8b_holdout_freeze.py:975: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze\n=================== 1 failed, 144 passed in 68.03s (0:01:08) ===================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=933 retained_bytes=933 omitted_bytes=0 rendered_excerpt_bytes=988 sha256=70a57242dde2bb181e875dea3aa7b31d41c725f6c3239fa490f764eb57edc427\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_v2_candidate_rejects_floo0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154ff80bf850>\n> \n>     def test_v2_candidate_rejects_floor_not_eligible_for_refreeze(\n>             tmp_path, monkeypatch):\n>         fixture = V2FIX.candidate_repository(tmp_path, M)\n>         root = fixture[\"root\"]\n>         monkeypatch.setattr(\n>             M, \"BUDGET_APPROVAL_SHA256\", fixture[\"approval_sha256\"],\n>         )\n>         result_path = root / fixture[\"result_rel\"]\n>         result = json.loads(result_path.read_bytes())\n>         result[\"eligible_for_refreeze\"] = False\n>         result_path.write_bytes(V2FIX.canonical_bytes(result))\n>     \n> >       with pytest.raises(M.FreezeError, match=\"eligible_for_refreeze \\u304c true \\u3067\\u306a\\u3044\"):\n> E       Failed: DID NOT RAISE FreezeError\n> \n> orchestrator/tests/test_s8b_holdout_freeze.py:975: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=933 retained_bytes=933 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1715 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "43d5050c40661913d8197d087e58ff60d2b2ab2d0af688923e7acdd453eb336b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e7651db0814115613071b9eb7534ac54be4c1c9a10a4c099d29c7f8fbe71fa70",
+      "duration_s": 93.333,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze"
+      ],
+      "hang_risk": false,
+      "id": "MU-7",
+      "injection_diff_sha256": "e7a5bc28ccfdcbb035c4f42edb84aec3450b6f781113f9fcdc495b2d0e7b0738",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a3bff28936ba5719442dbfbf971e9016b7eeb2de9771de09a171086eb34e8081",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if False:\n        raise FreezeError(\"floor result.eligible_for_refreeze が true でない\")\n",
+          "old": "    if result.get(\"eligible_for_refreeze\") is not True:\n        raise FreezeError(\"floor result.eligible_for_refreeze が true でない\")\n"
+        }
+      ],
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "KILLED",
+      "test_output_sha256": "43d5050c40661913d8197d087e58ff60d2b2ab2d0af688923e7acdd453eb336b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/e951a140d33bdcb6d25d8d258bfd69eb/izdw-e951a140d3.o901585",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/output/pegasus-dispatch/e951a140d33bdcb6d25d8d258bfd69eb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_holdout_freeze.py::test_t080_positive_control_fixture_raw_bytes_match_test_pin\norchestrator/tests/test_s8b_holdout_freeze.py::test_t080_positive_control_test_pins_match_production_literals\norchestrator/tests/test_s8b_holdout_freeze.py::test_t080_positive_control_kills_predicate_only_rr51_mutant\norchestrator/tests/test_s8b_holdout_freeze.py::test_file_level_conjunction_requires_all_three_axes\norchestrator/tests/test_s8b_holdout_freeze.py::test_all_three_canonical_encodings_are_detected\norchestrator/tests/test_s8b_holdout_freeze.py::test_binary_and_non_utf8_files_are_skipped\norchestrator/tests/test_s8b_holdout_freeze.py::test_zero_positive_control_fails_closed\norchestrator/tests/test_s8b_holdout_freeze.py::test_holdout_hit_rejects_generate_and_search_reports_path\norchestrator/tests/test_s8b_holdout_freeze.py::test_binding_anchors_and_recursively_strips_measurements\norchestrator/tests/test_s8b_holdout_freeze.py::test_generate_refuses_overwrite_and_requires_confirmation\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_source_hash_and_binding_tamper\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_tolerates_per_axis_drift_and_rejects_snapshot_tamper\norchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_matching_bytes_is_not_scanned_but_is_enumerated\norchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_hash_mismatch_is_scanned_and_hits\norchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_unknown_non_hit_file_is_still_scanned\norchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_unknown_hit_file_is_detected\norchestrator/tests/test_s8b_holdout_freeze.py::test_similar_freeze_prefix_is_always_scanned[None]\norchestrator/tests/test_s8b_holdout_freeze.py::test_similar_freeze_prefix_is_always_scanned[exempt_exact1]\norchestrator/tests/test_s8b_holdout_freeze.py::test_exempt_none_preserves_v1_prefix_report_bytes\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_active_generation_worktree_drift\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_unratified_generation_documents\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_accepts_active_t080_receipt_exact_match\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_direct_cli_accepts_active_t080_receipt_exact_match\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_active_receipt_hash_mismatch_is_immediate_red\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_same_bytes_at_noncanonical_path_are_rejected\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_issued_receipt_failure_never_delegates_to_legacy_verify[invalid]\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_issued_receipt_failure_never_delegates_to_legacy_verify[issued-but-missing]\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_known_axes_fire_condition_mismatch_is_red\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_rejects_bytes_changed_while_receipt_is_verified\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_rejects_artifact_changed_while_adapter_runs[holdout]\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_rejects_artifact_changed_while_adapter_runs[known-axes]\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_never_issued_delegates_to_legacy_verify_and_keeps_drift_red\norchestrator/tests/test_s8b_holdout_freeze.py::test_read_regular_nofollow_rejects_symlink\norchestrator/tests/test_s8b_holdout_freeze.py::test_read_regular_nofollow_rejects_fifo_without_blocking\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_does_not_mask_unexpected_receipt_exception\norchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_does_not_mask_unexpected_adapter_exception\norchestrator/tests/test_s8b_holdout_freeze.py::test_source_guard_has_no_static_concrete_axis_encoding\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified\norchestrator/tests/test_s8b_holdout_freeze.py::test_v1_apis_import_and_execute_when_v2_dependencies_fail_to_import\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_synthetic_g1\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_negative_zero_budget_field[total_bench_s]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_negative_zero_budget_field[per_holdout_bench_s]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_closure_hit_absent_from_captured_head\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_dirty_closure_without_pinned_diagnostic\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[../outside.json]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[/tmp/outside.json]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output//s8b-freeze-candidates/holdout_freeze.v2.g1.json]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze-candidates/../holdout_freeze.v2.g1.json]\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_writer_creates_fixed_root_and_preserves_literal_bytes\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf\norchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_cli_surface_has_no_approval_or_root_arguments\norchestrator/tests/test_s8b_oracle_manifest.py::test_current_freeze_is_rejected_as_non_executable_manifest\norchestrator/tests/test_s8b_oracle_manifest.py::test_each_replicate_is_complete_product_and_each_cell_occurs_n_times\norchestrator/tests/test_s8b_oracle_manifest.py::test_same_seed_is_byte_identical_and_different_seed_changes_hash\norchestrator/tests/test_s8b_oracle_manifest.py::test_schedule_rows_and_manifest_holdout_references_do_not_copy_workload\norchestrator/tests/test_s8b_oracle_manifest.py::test_write_is_create_only_and_valid_manifest_verifies\norchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects\norchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects\norchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected\norchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash\norchestrator/tests/test_s8b_oracle_manifest.py::test_write_manifest_rejects_exploration_and_legacy_artifact_types\norchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[missing-key]\norchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[duplicate-cell]\norchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[wrong-cell]\norchestrator/tests/test_s8b_oracle_manifest.py::test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_exact_five_canonical_paths_and_hashes_verify\norchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[materializer]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[report]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[judge]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[outcome_stage_contract]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[artifacts]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[outcome_stage_contract-missing=\\\\['outcome_stage_contract'\\\\] extra=\\\\[\\\\]]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[artifacts-missing=\\\\['artifacts'\\\\] extra=\\\\[\\\\]]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_extra_key_is_rejected_at_build_and_verify\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_rehashes_each_canonical_generator_in_supplied_root\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[schedule-hash-schedule_sha256]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[campaign-empty-campaign ID]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[binding-schema-binding_identity entry schema]\norchestrator/tests/test_s8b_oracle_manifest.py::test_n_and_block_size_mismatch_is_rejected\norchestrator/tests/test_s8b_oracle_manifest.py::test_v1_two_block_manifest_is_rejected_at_build_and_verify\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_accepts_valid_per_pair_floor\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_oracle_shared_false\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_accepts_explicit_null_pair\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_null_pair_with_nonnull_scalar_alt\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_accepts_all_null_holdout\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_scalar_v1_floor\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_stock_key_in_pairs\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_missing_pair\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_extra_pair\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_scale_ref_null_with_finite_pair\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_scalar_alt_not_max\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_extra_top_level_floor_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_nonfinite_pair_value\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_top_level_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_nested_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_canonical_bytes_rejects_nan_value\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_nan_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_infinity_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_exact_schema_and_independent_schedule_hash_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_pin_mismatch_is_fail_closed\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[top]\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[schedule]\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[run-contract]\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_requires_canonical_bytes_without_trailing_lf\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule-path]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze-path]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-id]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-ids]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approval]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approver]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--root]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--n]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--master-seed]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--block-sizes]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--holdout-id]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--configuration-id]\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_outside_candidate_root\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_symlink_parent\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_is_exclusive_create\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_safely_creates_only_fixed_candidate_root\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_rejects_uniform_configuration_subset_before_output\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_accepts_bench_max_rounds_one\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_bench_max_rounds_two\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_extime_three\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_reps_999\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_requires_freeze_document\n\n145 tests collected in 0.24s\n",
+        "stdout_sha256": "d585aa914e647ee5955922eccb456c050babd1c4fbae8c8fd890a7a04e8f97da"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_t080_positive_control_fixture_raw_bytes_match_test_pin",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_t080_positive_control_test_pins_match_production_literals",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_t080_positive_control_kills_predicate_only_rr51_mutant",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_file_level_conjunction_requires_all_three_axes",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_all_three_canonical_encodings_are_detected",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_binary_and_non_utf8_files_are_skipped",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_zero_positive_control_fails_closed",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_holdout_hit_rejects_generate_and_search_reports_path",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_binding_anchors_and_recursively_strips_measurements",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_generate_refuses_overwrite_and_requires_confirmation",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_source_hash_and_binding_tamper",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_tolerates_per_axis_drift_and_rejects_snapshot_tamper",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_matching_bytes_is_not_scanned_but_is_enumerated",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_hash_mismatch_is_scanned_and_hits",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_unknown_non_hit_file_is_still_scanned",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_exact_exemption_unknown_hit_file_is_detected",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_similar_freeze_prefix_is_always_scanned[None]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_similar_freeze_prefix_is_always_scanned[exempt_exact1]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_exempt_none_preserves_v1_prefix_report_bytes",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_active_generation_worktree_drift",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_rejects_unratified_generation_documents",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_accepts_active_t080_receipt_exact_match",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_direct_cli_accepts_active_t080_receipt_exact_match",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_active_receipt_hash_mismatch_is_immediate_red",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_same_bytes_at_noncanonical_path_are_rejected",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_issued_receipt_failure_never_delegates_to_legacy_verify[invalid]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_issued_receipt_failure_never_delegates_to_legacy_verify[issued-but-missing]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_known_axes_fire_condition_mismatch_is_red",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_rejects_bytes_changed_while_receipt_is_verified",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_rejects_artifact_changed_while_adapter_runs[holdout]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_rejects_artifact_changed_while_adapter_runs[known-axes]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_never_issued_delegates_to_legacy_verify_and_keeps_drift_red",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_read_regular_nofollow_rejects_symlink",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_read_regular_nofollow_rejects_fifo_without_blocking",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_does_not_mask_unexpected_receipt_exception",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_verify_cli_does_not_mask_unexpected_adapter_exception",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_source_guard_has_no_static_concrete_axis_encoding",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v1_apis_import_and_execute_when_v2_dependencies_fail_to_import",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_synthetic_g1",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_negative_zero_budget_field[total_bench_s]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_negative_zero_budget_field[per_holdout_bench_s]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_closure_hit_absent_from_captured_head",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_dirty_closure_without_pinned_diagnostic",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[../outside.json]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[/tmp/outside.json]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output//s8b-freeze-candidates/holdout_freeze.v2.g1.json]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze-candidates/../holdout_freeze.v2.g1.json]",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_writer_creates_fixed_root_and_preserves_literal_bytes",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_cli_surface_has_no_approval_or_root_arguments",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_current_freeze_is_rejected_as_non_executable_manifest",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_each_replicate_is_complete_product_and_each_cell_occurs_n_times",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_same_seed_is_byte_identical_and_different_seed_changes_hash",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_schedule_rows_and_manifest_holdout_references_do_not_copy_workload",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_write_is_create_only_and_valid_manifest_verifies",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_write_manifest_rejects_exploration_and_legacy_artifact_types",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[missing-key]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[duplicate-cell]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[wrong-cell]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_exact_five_canonical_paths_and_hashes_verify",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[materializer]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[report]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[judge]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[outcome_stage_contract]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[artifacts]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[outcome_stage_contract-missing=//['outcome_stage_contract'//] extra=//[//]]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[artifacts-missing=//['artifacts'//] extra=//[//]]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_extra_key_is_rejected_at_build_and_verify",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_rehashes_each_canonical_generator_in_supplied_root",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[schedule-hash-schedule_sha256]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[campaign-empty-campaign ID]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[binding-schema-binding_identity entry schema]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_n_and_block_size_mismatch_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_v1_two_block_manifest_is_rejected_at_build_and_verify",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_accepts_valid_per_pair_floor",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_oracle_shared_false",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_accepts_explicit_null_pair",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_null_pair_with_nonnull_scalar_alt",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_accepts_all_null_holdout",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_scalar_v1_floor",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_stock_key_in_pairs",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_missing_pair",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_extra_pair",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_scale_ref_null_with_finite_pair",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_scalar_alt_not_max",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_extra_top_level_floor_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_nonfinite_pair_value",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_top_level_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_nested_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_canonical_bytes_rejects_nan_value",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_nan_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_infinity_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_exact_schema_and_independent_schedule_hash_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_pin_mismatch_is_fail_closed",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[top]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[schedule]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[run-contract]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_requires_canonical_bytes_without_trailing_lf",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule-path]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze-path]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-id]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-ids]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approval]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approver]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--root]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--n]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--master-seed]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--block-sizes]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--holdout-id]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--configuration-id]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_outside_candidate_root",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_symlink_parent",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_is_exclusive_create",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_safely_creates_only_fixed_candidate_root",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_rejects_uniform_configuration_subset_before_output",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_accepts_bench_max_rounds_one",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_bench_max_rounds_two",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_extime_three",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_reps_999",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_requires_freeze_document"
+      ],
+      "duration_s": 21.789,
+      "rc": 0,
+      "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+      "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+      "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+      "status": "PASSED",
+      "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MU-1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b5b4c8e663dd1b798e4baa67b012c8887582118e64227c6379ebde27a48f21cb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+            "new": "    expected_cells = set(actual_cells)\n",
+            "old": "    expected_cells = {\n        (holdout_id, configuration_id)\n        for holdout_id in frozen_holdouts\n        for configuration_id in _holdout_configuration_ids(freeze, holdout_id)\n    }\n"
+          }
+        ]
+      },
+      "MU-1B": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bf276c81559940c442e30d93c2478635d81290033c9312677b07e87cb6569d74",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+            "new": "    if (not isinstance(frozen_holdouts, Mapping)):\n",
+            "old": "    if (not isinstance(frozen_holdouts, Mapping)\n            or schedule_holdouts != set(frozen_holdouts)):\n"
+          }
+        ]
+      },
+      "MU-2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2f11ecc77aebf2d9adef6a9cf333b9f7a7730efad456a0ad965211fcd5090c6e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+            "new": "    if False:\n        raise FreezeError(\"v2 candidate output が固定 candidate path と不一致\")\n",
+            "old": "    if rel != V2_CANDIDATE_REL:\n        raise FreezeError(\"v2 candidate output が固定 candidate path と不一致\")\n"
+          }
+        ]
+      },
+      "MU-3B": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite",
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c44a177248471623fd800d4797935d925fc0b688fee0e84c8258346cde914474",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+            "new": "            os.O_WRONLY | os.O_CREAT\n            | nofollow\n",
+            "old": "            os.O_WRONLY | os.O_CREAT | os.O_EXCL\n            | nofollow\n"
+          }
+        ]
+      },
+      "MU-4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d40ae498f10e66ff3c4a585f7414084d0b6b1f4a395a0f23c589557ca76890b2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+            "new": "    if approval[\"budget\"] != budget:\n        raise FreezeError(\"budget-approval-budget-canonical-mismatch\")\n",
+            "old": "    if _canonical_bytes(approval[\"budget\"]) != _canonical_bytes(budget):\n        raise FreezeError(\"budget-approval-budget-canonical-mismatch\")\n"
+          }
+        ]
+      },
+      "MU-5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified",
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e1433ee178877357b1c4d7ebfa848164312c6cccdf0e4e41d63f6edf5e2e495f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+            "new": "    if approval_sha256 is None:\n        return \"0\" * 64\n",
+            "old": "    if approval_sha256 is None:\n        raise FreezeError(\"budget-approval-not-ratified\")\n"
+          }
+        ]
+      },
+      "MU-6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output",
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b62a8d050effd6ed15a1144c3b24cb099c7f9dd6d1a38519a9885cffae890b06",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_spec.py",
+            "new": "    if APPROVED_SPEC_SHA256 is None:\n        pass\n",
+            "old": "    if APPROVED_SPEC_SHA256 is None:\n        raise ReviewedSpecError(\"no-approved-spec\")\n"
+          }
+        ]
+      },
+      "MU-7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e7a5bc28ccfdcbb035c4f42edb84aec3450b6f781113f9fcdc495b2d0e7b0738",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+            "new": "    if False:\n        raise FreezeError(\"floor result.eligible_for_refreeze が true でない\")\n",
+            "old": "    if result.get(\"eligible_for_refreeze\") is not True:\n        raise FreezeError(\"floor result.eligible_for_refreeze が true でない\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "84b634a738f3d4332a9c0a617932a1262d3ef401032e537f3f524ba9fb4a372a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "--",
+      "orchestrator/tests/test_s8b_holdout_freeze.py",
+      "orchestrator/tests/test_s8b_oracle_manifest.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "90f598aa782243a06fd21e8b2c796eef5efb9fec",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "--",
+      "orchestrator/tests/test_s8b_holdout_freeze.py",
+      "orchestrator/tests/test_s8b_oracle_manifest.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7821f4a749f1a5fda2b3474aee58cd6f613e960b",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "3adc239b43a220d6efe5b8963eca5954d22e66c7bca2fe4718b840d9977c2e76",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "bd87674692b317d229a14309a80b34bc6d6f21dfb6a539d2734132fb24251fa5",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 2,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 6,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t750-freeze-v2-manifest/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "948f08b0340fc76044a976215a89c1c26a4b415116a5c3b5329ca4bec06018a8",
+  "updated_at": "2026-08-11T00:51:37.021415+00:00"
+}

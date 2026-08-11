@@ -1,0 +1,140 @@
+{
+  "estimated_run_seconds": 290,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "new": "    expected_cells = set(actual_cells)\n",
+          "old": "    expected_cells = {\n        (holdout_id, configuration_id)\n        for holdout_id in frozen_holdouts\n        for configuration_id in _holdout_configuration_ids(freeze, holdout_id)\n    }\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-1B",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "new": "    if (not isinstance(frozen_holdouts, Mapping)):\n",
+          "old": "    if (not isinstance(frozen_holdouts, Mapping)\n            or schedule_holdouts != set(frozen_holdouts)):\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_every_nonfixed_raw_path[output/s8b-freeze/holdout_freeze.v2.g1.json]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if False:\n        raise FreezeError(\"v2 candidate output が固定 candidate path と不一致\")\n",
+          "old": "    if rel != V2_CANDIDATE_REL:\n        raise FreezeError(\"v2 candidate output が固定 candidate path と不一致\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_existing_leaf_without_overwrite",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_output_gate_rejects_symlink_parent_and_existing_leaf"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-3B",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "            os.O_WRONLY | os.O_CREAT\n            | nofollow\n",
+          "old": "            os.O_WRONLY | os.O_CREAT | os.O_EXCL\n            | nofollow\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_budget_approval_compares_canonical_numeric_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if approval[\"budget\"] != budget:\n        raise FreezeError(\"budget-approval-budget-canonical-mismatch\")\n",
+          "old": "    if _canonical_bytes(approval[\"budget\"]) != _canonical_bytes(budget):\n        raise FreezeError(\"budget-approval-budget-canonical-mismatch\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_fails_closed_before_reading_inputs_when_budget_unratified",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_none_pin_rejects_valid_inputs_without_output"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if approval_sha256 is None:\n        return \"0\" * 64\n",
+          "old": "    if approval_sha256 is None:\n        raise FreezeError(\"budget-approval-not-ratified\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_spec.py",
+          "new": "    if APPROVED_SPEC_SHA256 is None:\n        pass\n",
+          "old": "    if APPROVED_SPEC_SHA256 is None:\n        raise ReviewedSpecError(\"no-approved-spec\")\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_floor_not_eligible_for_refreeze"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MU-7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "new": "    if False:\n        raise FreezeError(\"floor result.eligible_for_refreeze が true でない\")\n",
+          "old": "    if result.get(\"eligible_for_refreeze\") is not True:\n        raise FreezeError(\"floor result.eligible_for_refreeze が true でない\")\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900
+}

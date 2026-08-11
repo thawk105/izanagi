@@ -20,6 +20,8 @@ sys.path.insert(0, str(_HERE))
 
 from orchestrator.campaign import s8b_oracle_manifest as manifest  # noqa: E402
 from orchestrator.campaign import s8b_oracle_artifacts as artifacts  # noqa: E402
+from orchestrator.campaign import s8b_oracle_spec as oracle_spec  # noqa: E402
+from orchestrator.campaign import s8b_ratified_freeze as ratified_freeze  # noqa: E402
 import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 
 
@@ -41,6 +43,59 @@ GENERATOR_SOURCES = {
     ),
     "artifacts": "orchestrator/campaign/s8b_oracle_artifacts.py",
 }
+APPROVED_CONFIGURATION_IDS = (
+    "backoff_fixed_best", "ident_all", "p2_2_flag_opt",
+    "sort_best", "stock_common", "system_gate",
+)
+APPROVED_SCHEDULE_SHA256 = (
+    "3b10b6b1575d06ac1efc9738d83c6d0179320e4374e9d6da8ec17ed0373f8065"
+)
+SUBSET_SCHEDULE_SHA256 = (
+    "a5c4b580af849b74c232dbc46a86be80be74ab289add057dba1bbd1d3cd9aeda"
+)
+PIN_GATE_SCHEDULE_SHA256 = (
+    "105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2"
+)
+PIN_GATE_SPEC_SHA256 = (
+    "3831715700b0498c16df97a02d5ea358b37722eab28db68add4bdc1375d5b888"
+)
+# production serializer から独立した reviewed-spec golden。UTF-8 非 ASCII、
+# sort 済み key 順、compact separator、末尾 LF 無しを raw bytes として固定する。
+PIN_GATE_SPEC_RAW = (
+    b'{"allowed_excluded_reasons":["machine-failure-\xe6\x97\xa5\xe6\x9c\xac"],'
+    b'"binding_identity":['
+    b'{"binding_sha256":"33adacfaaaf0299659434759c667f0e30035f47e0e8f66aebb4956ad5b21fd8c",'
+    b'"configuration_id":"backoff_fixed_best","entry_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
+    b'"genome_canonical":"g","holdout_id":"rr20","src_token":"s","variant_id":"v"},'
+    b'{"binding_sha256":"33adacfaaaf0299659434759c667f0e30035f47e0e8f66aebb4956ad5b21fd8c",'
+    b'"configuration_id":"stock_common","entry_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
+    b'"genome_canonical":"g","holdout_id":"rr20","src_token":"s","variant_id":"v"},'
+    b'{"binding_sha256":"33adacfaaaf0299659434759c667f0e30035f47e0e8f66aebb4956ad5b21fd8c",'
+    b'"configuration_id":"backoff_fixed_best","entry_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
+    b'"genome_canonical":"g","holdout_id":"rr80","src_token":"s","variant_id":"v"},'
+    b'{"binding_sha256":"33adacfaaaf0299659434759c667f0e30035f47e0e8f66aebb4956ad5b21fd8c",'
+    b'"configuration_id":"stock_common","entry_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
+    b'"genome_canonical":"g","holdout_id":"rr80","src_token":"s","variant_id":"v"}],'
+    b'"campaign_ids":{"b0":"campaign-b0"},"generator_versions":{'
+    b'"artifacts":{"path":"orchestrator/campaign/s8b_oracle_artifacts.py",'
+    b'"sha256":"b29f3dd6d989044a39f568f9e3621d93a66101b038e9a1913c3500c5e522f614"},'
+    b'"judge":{"path":"orchestrator/campaign/s8b_oracle_judge.py",'
+    b'"sha256":"b56fa6f49c4f0e49ca3659c4c83a953f8673a4880d405606fbbd77031d3d69fc"},'
+    b'"materializer":{"path":"orchestrator/campaign/s1_direct_comparison.py",'
+    b'"sha256":"a18209eb4501fd8c549cfda2e0427503a3811ddb79566f79af0327bce03632e8"},'
+    b'"outcome_stage_contract":{"path":"orchestrator/campaign/s8b_outcome_stage_contract.py",'
+    b'"sha256":"f8a0bb2237dcaf3c643a78c04ca6b8cea2a8f83e3d306d85c781716b165c73af"},'
+    b'"report":{"path":"orchestrator/campaign/s8b_oracle_report.py",'
+    b'"sha256":"4e6ce6ac43ff61d945e8949d5c2d3f659555747fcfecb9a73e8470fe8ab0759d"}},'
+    b'"run_contract":{"bench_max_rounds":1,"ccbench_pin":"pin","clocks":1800,'
+    b'"contract_sha256":"0000000000000000000000000000000000000000000000000000000000000000",'
+    b'"env_tag":"test-env","extime":5,"reps":5,"screening":"off","verify":"legacy+s2"},'
+    b'"schedule_parameters":{"block_sizes":{"b0":1},'
+    b'"configuration_ids":["backoff_fixed_best","stock_common"],'
+    b'"holdout_ids":["rr20","rr80"],"master_seed":"pin-gate-seed-v1","n":1},'
+    b'"schedule_sha256":"105bf4cb713f309fec174035814b7ab70ac892a70a51d62f028c31f6310c68d2",'
+    b'"schema_version":"s8b-oracle-reviewed-spec/v1"}'
+)
 
 
 # 注意: holdout の workload 三軸はテストへ静止させない。
@@ -130,6 +185,101 @@ def _freeze_copy(tmp_path):
     return path
 
 
+def _install_reviewed_spec_sources(root: Path) -> None:
+    freeze = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
+    paths = [freeze["known_axes_freeze"]["path"], *GENERATOR_SOURCES.values()]
+    for relative in paths:
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((_ROOT / relative).read_bytes())
+
+
+def _reviewed_spec_document(root: Path, *, configuration_ids=None) -> dict:
+    configurations = tuple(configuration_ids or APPROVED_CONFIGURATION_IDS)
+    if configurations == APPROVED_CONFIGURATION_IDS:
+        schedule_hash = APPROVED_SCHEDULE_SHA256
+    elif configurations == ("stock_common",):
+        schedule_hash = SUBSET_SCHEDULE_SHA256
+    else:  # 独立 literal のない schedule をテスト内で自己再計算しない。
+        raise AssertionError(f"unregistered reviewed schedule: {configurations!r}")
+    holdout_ids = ("rr20", "rr80")
+    return {
+        "allowed_excluded_reasons": ["machine-failure"],
+        "binding_identity": [
+            _binding(holdout_id, configuration_id)
+            for holdout_id in holdout_ids
+            for configuration_id in configurations
+        ],
+        "campaign_ids": {"b0": "campaign-b0"},
+        "generator_versions": _generator_versions(root=root),
+        "run_contract": {
+            "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
+            "reps": 5, "extime": 5, "verify": "legacy+s2",
+            "screening": "off", "bench_max_rounds": 1,
+            "contract_sha256": "0" * 64,
+        },
+        "schedule_parameters": {
+            "block_sizes": {"b0": 1},
+            "configuration_ids": list(configurations),
+            "holdout_ids": list(holdout_ids),
+            "master_seed": "approved-seed-v1",
+            "n": 1,
+        },
+        "schedule_sha256": schedule_hash,
+        "schema_version": oracle_spec.SCHEMA_VERSION,
+    }
+
+
+def _independent_spec_bytes(document: dict) -> bytes:
+    """production ``_canonical_bytes`` と独立した test-side serializer。"""
+    return json.dumps(
+        document,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _install_reviewed_spec(root: Path, document: dict) -> bytes:
+    raw = _independent_spec_bytes(document)
+    path = root / oracle_spec.SPEC_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+    return raw
+
+
+def _install_pin_gate_spec(root: Path) -> dict:
+    document = json.loads(PIN_GATE_SPEC_RAW.decode("utf-8"))
+    path = root / oracle_spec.SPEC_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(PIN_GATE_SPEC_RAW)
+    return document
+
+
+def _synthetic_ratified_freeze(
+        *, configuration_ids=None) -> ratified_freeze.RatifiedFreeze:
+    if configuration_ids is None:
+        document = _v2_document()
+    else:
+        document = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
+        wanted = set(configuration_ids)
+        for holdout in document["holdouts"].values():
+            entries = holdout["variant_binding"]["entries"]
+            holdout["variant_binding"]["entries"] = {
+                key: value for key, value in entries.items() if key in wanted
+            }
+        v2_fixture.fill(document)
+    raw = manifest._canonical_bytes(document)
+    return ratified_freeze.RatifiedFreeze(
+        document=document,
+        sha256=hashlib.sha256(raw).hexdigest(),
+        generation_number=1,
+        activation_head="a" * 40,
+        generation_commit="b" * 40,
+    )
+
+
 def _verify(path, freeze_path):
     """verify_manifest の必須 freeze_document/freeze_sha256 を freeze ファイルから
     構成して渡す (C2-7 の明示引数必須化への追随)。freeze ファイルの現在 bytes を
@@ -207,6 +357,88 @@ def test_write_is_create_only_and_valid_manifest_verifies(tmp_path):
     assert verified.sha256 == _canonical_sha256(document)
     with pytest.raises(manifest.ManifestError, match="既に存在"):
         manifest.write_manifest(path, document)
+
+
+def test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects(
+        tmp_path):
+    """MU-1: generic builder は不変、実行 choke point だけが一様 subset を拒否。"""
+    freeze_path = _freeze_copy(tmp_path)
+    schedule = manifest.build_schedule(
+        n=1,
+        master_seed="subset-seed",
+        block_sizes={"b0": 1},
+        holdout_ids=_holdout_ids(),
+        configuration_ids=("stock_common",),
+    )
+    document = manifest.build_manifest(
+        freeze_path=freeze_path,
+        schedule=schedule,
+        run_contract={
+            "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
+            "reps": 5, "extime": 5, "verify": "legacy+s2",
+            "screening": "off", "bench_max_rounds": 1,
+            "contract_sha256": "0" * 64,
+        },
+        binding_identity=[
+            _binding(holdout_id, "stock_common")
+            for holdout_id in _holdout_ids()
+        ],
+        campaign_ids={"b0": "campaign-b0"},
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=_generator_versions(),
+    )
+    path = tmp_path / "subset-manifest.json"
+    manifest.write_manifest(path, document)
+    with pytest.raises(
+            manifest.ManifestError,
+            match="holdout-configuration product と完全一致しない"):
+        _verify(path, freeze_path)
+
+
+def test_missing_holdout_build_stays_accepted_but_verify_rejects(tmp_path):
+    """F-1: generic builder は不変、choke point は freeze の全 holdout を要求。"""
+    freeze_path = _freeze_copy(tmp_path)
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    retained, dropped = sorted(freeze["holdouts"])
+    # generic builder の従来受理集合を保持したまま負例を組めるよう、execution
+    # snapshot だけを schedule subset と整合させ、authority の holdouts は全件残す。
+    del freeze["floor"]["by_holdout"][dropped]
+    del freeze["budget"]["per_holdout_bench_s"][dropped]
+    freeze_path.write_text(
+        json.dumps(freeze, ensure_ascii=False), encoding="utf-8",
+    )
+    schedule = manifest.build_schedule(
+        n=1,
+        master_seed="missing-holdout-seed",
+        block_sizes={"b0": 1},
+        holdout_ids=(retained,),
+        configuration_ids=CONFIGURATION_IDS,
+    )
+    document = manifest.build_manifest(
+        freeze_path=freeze_path,
+        schedule=schedule,
+        run_contract={
+            "ccbench_pin": "pin", "env_tag": "test-env", "clocks": 1800,
+            "reps": 5, "extime": 5, "verify": "legacy+s2",
+            "screening": "off", "bench_max_rounds": 1,
+            "contract_sha256": "0" * 64,
+        },
+        binding_identity=[
+            _binding(retained, configuration_id)
+            for configuration_id in CONFIGURATION_IDS
+        ],
+        campaign_ids={"b0": "campaign-b0"},
+        allowed_excluded_reasons=["machine-failure"],
+        generator_versions=_generator_versions(),
+    )
+    assert type(document) is artifacts.OfficialManifest
+    path = tmp_path / "missing-holdout-manifest.json"
+    manifest.write_manifest(path, document)
+
+    with pytest.raises(
+            manifest.ManifestError,
+            match=r"schedule holdout 集合が freeze\.holdouts と完全一致しない"):
+        _verify(path, freeze_path)
 
 
 def test_verified_manifest_public_constructor_is_rejected(tmp_path):
@@ -743,6 +975,303 @@ def test_load_json_object_rejects_infinity_literal(tmp_path):
     path.write_text('{"x": Infinity}', encoding="utf-8")
     with pytest.raises(manifest.ManifestError, match="非数値定数"):
         manifest._load_json_object(path)
+
+
+# ---------------------------------------------------------------------------
+# reviewed spec approval pin / approved-manifest CLI
+# ---------------------------------------------------------------------------
+def test_reviewed_spec_exact_schema_and_independent_schedule_hash_literal(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(root)
+    raw = _install_reviewed_spec(root, document)
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", hashlib.sha256(raw).hexdigest(),
+    )
+
+    approved = oracle_spec.load_approved_spec(root)
+
+    assert approved.document == document
+    assert approved.raw_bytes == raw
+    assert approved.schedule["n"] == 1
+    assert manifest.schedule_sha256(approved.schedule) == APPROVED_SCHEDULE_SHA256
+
+
+def test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _install_pin_gate_spec(root)
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", PIN_GATE_SPEC_SHA256,
+    )
+
+    approved = oracle_spec.load_approved_spec(root)
+
+    assert approved.document == document
+    assert approved.raw_bytes == PIN_GATE_SPEC_RAW
+    assert approved.sha256 == PIN_GATE_SPEC_SHA256
+    assert hashlib.sha256(PIN_GATE_SPEC_RAW).hexdigest() == PIN_GATE_SPEC_SHA256
+    assert b"machine-failure-\xe6\x97\xa5\xe6\x9c\xac" in PIN_GATE_SPEC_RAW
+    assert PIN_GATE_SPEC_RAW.startswith(b'{"allowed_excluded_reasons":')
+    assert not PIN_GATE_SPEC_RAW.endswith(b"\n")
+    assert manifest.schedule_sha256(approved.schedule) == PIN_GATE_SCHEDULE_SHA256
+
+
+def test_reviewed_spec_none_pin_is_always_no_approved_spec(tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    path = root / oracle_spec.SPEC_REL
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"not-json")
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
+
+    with pytest.raises(oracle_spec.ReviewedSpecError) as captured:
+        oracle_spec.load_approved_spec(root)
+
+    assert captured.value.reason == "no-approved-spec"
+
+
+def test_reviewed_spec_pin_mismatch_is_fail_closed(tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(root)
+    _install_reviewed_spec(root, document)
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", "f" * 64)
+
+    with pytest.raises(oracle_spec.ReviewedSpecError) as captured:
+        oracle_spec.load_approved_spec(root)
+
+    assert captured.value.reason == "approved-spec-hash-mismatch"
+
+
+@pytest.mark.parametrize("layer", ["top", "schedule", "run-contract"])
+def test_reviewed_spec_key_sets_are_exact(tmp_path, layer):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(root)
+    if layer == "top":
+        document["unexpected"] = None
+    elif layer == "schedule":
+        document["schedule_parameters"]["unexpected"] = None
+    else:
+        document["run_contract"]["unexpected"] = None
+
+    with pytest.raises(oracle_spec.ReviewedSpecError) as captured:
+        oracle_spec.validate_reviewed_spec(document, root=root)
+
+    assert captured.value.reason == "invalid-reviewed-spec"
+
+
+def test_reviewed_spec_requires_canonical_bytes_without_trailing_lf(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    raw = PIN_GATE_SPEC_RAW + b"\n"
+    path = root / oracle_spec.SPEC_REL
+    path.parent.mkdir(parents=True)
+    path.write_bytes(raw)
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", hashlib.sha256(raw).hexdigest(),
+    )
+
+    with pytest.raises(oracle_spec.ReviewedSpecError) as captured:
+        oracle_spec.load_approved_spec(root)
+
+    assert captured.value.reason == "invalid-reviewed-spec"
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        "--schedule", "--schedule-path", "--freeze", "--freeze-path",
+        "--campaign-id", "--campaign-ids", "--spec", "--approval",
+        "--approver", "--root", "--n", "--master-seed", "--block-sizes",
+        "--holdout-id", "--configuration-id",
+    ],
+)
+def test_build_approved_parser_has_output_as_only_value_input(option):
+    with pytest.raises(SystemExit) as captured:
+        manifest._parser().parse_args([
+            "build-approved",
+            "--output", f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json",
+            option, "caller-value",
+        ])
+    assert captured.value.code == 2
+
+
+def test_approved_writer_rejects_outside_candidate_root(tmp_path):
+    document = artifacts.OfficialManifest({"schema_version": "fixture"})
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest._write_approved_manifest(
+            "outside/manifest.json", document, root=tmp_path,
+        )
+    assert captured.value.reason == "invalid-output-path"
+    assert not (tmp_path / "outside").exists()
+
+
+def test_approved_writer_rejects_symlink_parent(tmp_path):
+    document = artifacts.OfficialManifest({"schema_version": "fixture"})
+    output = tmp_path / "output"
+    output.mkdir()
+    target = tmp_path / "symlink-target"
+    target.mkdir()
+    (output / "s8b-oracle-manifest-candidates").symlink_to(
+        target, target_is_directory=True,
+    )
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest._write_approved_manifest(
+            f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json",
+            document,
+            root=tmp_path,
+        )
+    assert captured.value.reason == "invalid-output-path"
+    assert list(target.iterdir()) == []
+
+
+def test_approved_writer_is_exclusive_create(tmp_path):
+    document = artifacts.OfficialManifest({"schema_version": "fixture"})
+    path = tmp_path / manifest.MANIFEST_CANDIDATE_DIR / "manifest.json"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"existing")
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest._write_approved_manifest(
+            f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json",
+            document,
+            root=tmp_path,
+        )
+    assert captured.value.reason == "output-exists"
+    assert path.read_bytes() == b"existing"
+
+
+def test_approved_writer_safely_creates_only_fixed_candidate_root(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    document = artifacts.OfficialManifest({"schema_version": "fixture"})
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    manifest._write_approved_manifest(output, document, root=root)
+
+    path = root / output
+    assert path.is_file()
+    assert json.loads(path.read_text(encoding="utf-8")) == document
+    nested_output = f"{manifest.MANIFEST_CANDIDATE_DIR}/caller-dir/other.json"
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest._write_approved_manifest(nested_output, document, root=root)
+    assert captured.value.reason == "invalid-output-path"
+    assert not (root / manifest.MANIFEST_CANDIDATE_DIR / "caller-dir").exists()
+    assert not (root / "outside").exists()
+
+
+def test_build_approved_active_without_pin_fails_before_output(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    active = _synthetic_ratified_freeze()
+    monkeypatch.setattr(
+        ratified_freeze, "load_ratified_freeze", lambda candidate: active,
+    )
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest.build_approved_manifest(output, root=root)
+
+    assert captured.value.reason == "no-approved-spec"
+    assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
+
+
+def test_build_approved_valid_fixture_output_depends_only_on_spec_pin(
+        tmp_path, monkeypatch):
+    """MU-6: valid 入力で pin の一点だけが candidate 出力の有無を変える。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    _install_pin_gate_spec(root)
+    active = _synthetic_ratified_freeze(
+        configuration_ids=("backoff_fixed_best", "stock_common"),
+    )
+    monkeypatch.setattr(
+        ratified_freeze, "load_ratified_freeze", lambda candidate: active,
+    )
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/pin-behavior.json"
+
+    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
+    with pytest.raises(manifest.ManifestCliError):
+        manifest.build_approved_manifest(output, root=root)
+    assert not (root / output).exists()
+
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", PIN_GATE_SPEC_SHA256,
+    )
+    built = manifest.build_approved_manifest(output, root=root)
+
+    assert type(built) is artifacts.OfficialManifest
+    assert (root / output).is_file()
+
+
+def test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(root)
+    raw = _install_reviewed_spec(root, document)
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", hashlib.sha256(raw).hexdigest(),
+    )
+    active = _synthetic_ratified_freeze()
+    calls = []
+
+    def load_once(candidate):
+        calls.append(Path(candidate))
+        return active
+
+    monkeypatch.setattr(ratified_freeze, "load_ratified_freeze", load_once)
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    built = manifest.build_approved_manifest(output, root=root)
+
+    assert calls == [root]
+    output_path = root / output
+    assert output_path.is_file()
+    verified = manifest.verify_manifest(
+        output_path,
+        root=root,
+        freeze_document=active.document,
+        freeze_sha256=active.sha256,
+    )
+    assert verified.document == built
+
+
+def test_build_approved_rejects_uniform_configuration_subset_before_output(
+        tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    root.mkdir()
+    _install_reviewed_spec_sources(root)
+    document = _reviewed_spec_document(
+        root, configuration_ids=("stock_common",),
+    )
+    raw = _install_reviewed_spec(root, document)
+    monkeypatch.setattr(
+        oracle_spec, "APPROVED_SPEC_SHA256", hashlib.sha256(raw).hexdigest(),
+    )
+    active = _synthetic_ratified_freeze()
+    monkeypatch.setattr(
+        ratified_freeze, "load_ratified_freeze", lambda candidate: active,
+    )
+    output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
+
+    with pytest.raises(manifest.ManifestCliError) as captured:
+        manifest.build_approved_manifest(output, root=root)
+
+    assert captured.value.reason == "approved-spec-cell-product-mismatch"
+    assert not (root / manifest.MANIFEST_CANDIDATE_DIR).exists()
 
 
 # ---------------------------------------------------------------------------
