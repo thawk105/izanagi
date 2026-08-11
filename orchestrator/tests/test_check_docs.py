@@ -902,9 +902,9 @@ def _build_min_repo() -> str:
     _write(root, os.path.join("orchestrator", "campaign", "pin.py"),
            'CURRENT_PIN = "abc1234def5678"\n')
     _write(root, os.path.join("docs", "decisions.md"),
-           "## D1 placeholder decision\n\n本文。\n\n"
-           "## D254 placeholder decision\n\n本文。\n\n"
-           "## D271 placeholder decision\n\n本文。\n")
+           "## D1. placeholder decision\n\n本文。\n\n"
+           "## D254. placeholder decision\n\n本文。\n\n"
+           "## D271. placeholder decision\n\n本文。\n")
     _write(root, os.path.join("docs", "failures.md"),
            "# placeholder failures\n")
     _write(root, os.path.join("docs", "archive", "README.md"),
@@ -943,9 +943,13 @@ def _build_min_repo() -> str:
     return root
 
 
-def _run_check(root: str, *, timeout: float | None = None) -> subprocess.CompletedProcess:
+def _run_check(
+    root: str,
+    *args: str,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, os.path.join(root, "tools", "check_docs.py")],
+        [sys.executable, os.path.join(root, "tools", "check_docs.py"), *args],
         capture_output=True, text=True,
         timeout=timeout,
     )
@@ -1791,6 +1795,71 @@ def test_n20_spool_guard_rejects_active_transaction_in_git_repo():
         state_path = resolved if os.path.isabs(resolved) else os.path.join(root, resolved)
         _write_bytes(root, os.path.relpath(state_path, root), b"{}\n")
         _assert_violation(root, "spool transaction-active", "fold transaction が active")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_guard_accepts_only_explicit_exact_complete_active_transaction():
+    """M08: active state の宣言省略・ID 違いを拒否し exact ID だけ受理する。"""
+
+    root = _build_min_repo()
+    try:
+        subprocess.run(
+            ["git", "-C", root, "init", "-q"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "-C", root, "config", "user.name", "Fixture"], check=True,
+        )
+        subprocess.run(
+            ["git", "-C", root, "config", "user.email", "fixture@example.invalid"],
+            check=True,
+        )
+        subprocess.run(["git", "-C", root, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", root, "commit", "-qm", "base"], check=True)
+        _write(
+            root,
+            "docs/spool/decisions/2026-08-02-wave-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: decisions\n"
+            "authored: 2026-08-02\n"
+            "wave: wave\n"
+            "seq: 1\n"
+            "---\n"
+            "## {{D:active-transaction}}. active transaction fixture\n\nbody\n",
+        )
+        subprocess.run(["git", "-C", root, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", root, "commit", "-qm", "fragment"], check=True)
+
+        source = os.path.join(root, "tools", "spool_fold.py")
+        spec = importlib.util.spec_from_file_location("_active_spool_fixture", source)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+            plan = module.plan_fold(root, fold_date="2026-08-02")
+            module.apply_fold(root, plan)
+        finally:
+            sys.modules.pop(spec.name, None)
+
+        strict = _run_check(root)
+        wrong = _run_check(root, "--expect-active-transaction", "0" * 64)
+        exact = _run_check(
+            root,
+            "--expect-active-transaction",
+            plan.transaction_id,
+        )
+        assert strict.returncode == 1
+        assert "spool transaction-active" in strict.stdout
+        assert wrong.returncode == 1
+        assert "active transaction ID" in wrong.stdout
+        assert exact.returncode == 0, exact.stdout + exact.stderr
+        assert "違反なし" in exact.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -4592,7 +4661,6 @@ def test_safe_reader_dependency_failures_do_not_emit_derived_findings():
         assert "Traceback" not in res.stdout + res.stderr
     finally:
         shutil.rmtree(root, ignore_errors=True)
-
     # 通常経路では、実在しない D 参照の本来の finding が発火する。
     root = _build_min_repo()
     try:
@@ -4756,6 +4824,22 @@ def test_safe_reader_dependency_failures_do_not_emit_derived_findings():
         assert "archive entry の構造抽出失敗" in res.stdout, res.stdout
         assert "archive 族全体に依存する順序・境界遷移検査を停止" in res.stdout
         assert "次の一手 ID [T-778]" not in res.stdout, res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_decision_heading_requires_allocator_canonical_dot():
+    """check_docs と spool allocator が同じ dotted D 見出しだけを canonical とする。"""
+
+    root = _build_min_repo()
+    try:
+        decisions = _read(root, "docs/decisions.md")
+        _write(
+            root,
+            "docs/decisions.md",
+            decisions.replace("## D1. placeholder", "## D1 placeholder", 1),
+        )
+        _assert_violation(root, "canonical D 見出しは `## D1.` で始める")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

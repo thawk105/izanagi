@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """spool fragment を canonical 台帳へ決定的に畳む。
 
-公開面は ``validate_spool_tree``、``plan_fold``、``apply_fold`` の 3 つ。
+公開面は ``validate_spool_tree``、``plan_fold``、``apply_fold``、
+``mark_fold_committed``、``finalize_fold`` と commit identity gate。
 計画は canonical を一切書かず、適用は Git worktree 固有 admin path の state を
 先に永続化してから before/after hash に従って resume 可能に進める。
 """
@@ -44,6 +45,47 @@ SLUG_RE = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 WAVE_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 SEQ_RE = re.compile(r"[1-9][0-9]*")
 SHA_RE = re.compile(r"[0-9a-f]{64}")
+OID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
+REF_RE = re.compile(r"refs/heads/[A-Za-z0-9][A-Za-z0-9._/-]*")
+ROTATION_PATH_RE = re.compile(
+    r"docs/archive/worklog-phase3-[0-9]{4}-[1-9][0-9]*"
+    r"(?:-(?:[1-9][0-9]*|[0-9]{4}-[1-9][0-9]*))?\.md"
+)
+STATE_VERSION = 2
+STATE_PHASES = frozenset({"applied", "committed"})
+STATE_FIELDS = frozenset({
+    "version", "phase", "transaction_id", "origin",
+    "input_closure_sha256", "fold_date", "fragments", "gc_paths",
+    "projected_worklog_bytes", "rotation_path", "targets",
+})
+ORIGIN_FIELDS = frozenset({
+    "kind", "base", "tested_tip", "wave_ref", "rollback_ref",
+    "trusted_main_cutoff", "audited_digest",
+})
+FRAGMENT_STATE_FIELDS = frozenset({
+    "path", "authored", "wave", "seq", "content_sha256", "allocations",
+})
+TARGET_STATE_FIELDS = frozenset({
+    "path", "before_exists", "before_sha256", "after_sha256",
+    "after_bytes_b64",
+})
+LEGACY_RECEIPT_FIELDS = frozenset({
+    "allocations", "authored", "content_sha256", "seq", "wave",
+})
+RECEIPT_V2_FIELDS = frozenset({
+    "allocations", "authored", "base", "content_sha256", "seq",
+    "tested_tip", "wave", "wave_ref",
+})
+_CLOSURE_FIXED_PATHS = (
+    "docs/worklog.md",
+    "docs/decisions.md",
+    "docs/failures.md",
+    "docs/phase3.md",
+    "docs/archive/README.md",
+    RECEIPT_REL.as_posix(),
+    "tools/spool_fold.py",
+    "tools/check_docs.py",
+)
 WORKLOG_ENTRY_RE = re.compile(
     r"^## (?P<date>\d{4}-\d{2}-\d{2}) \((?P<ordinal>[1-9][0-9]*)\) — .+$",
     re.MULTILINE,
@@ -133,6 +175,17 @@ class TargetChange:
 
 
 @dataclasses.dataclass(frozen=True)
+class FoldOrigin:
+    kind: str
+    base: str
+    tested_tip: str
+    wave_ref: str
+    rollback_ref: str
+    trusted_main_cutoff: str
+    audited_digest: str
+
+
+@dataclasses.dataclass(frozen=True)
 class FragmentReceipt:
     path: str
     authored: str
@@ -147,6 +200,9 @@ class FoldPlan:
     status: str
     fold_date: str
     transaction_id: str
+    origin: FoldOrigin
+    input_closure_sha256: str
+    phase: str
     allocations: tuple[tuple[str, str], ...]
     targets: tuple[TargetChange, ...]
     fragments: tuple[FragmentReceipt, ...]
@@ -251,6 +307,139 @@ class _WorklogDelta:
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _git(repo: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        input=input_bytes,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return completed.stdout
+
+
+def _git_text(repo: Path, *args: str, input_bytes: bytes | None = None) -> str:
+    try:
+        return _git(repo, *args, input_bytes=input_bytes).decode("ascii", errors="strict").strip()
+    except UnicodeDecodeError as exc:
+        raise SpoolValidationError([
+            Issue(".git", 1, "origin", "Git observation が ASCII でない")
+        ]) from exc
+
+
+def audited_commit_digest(commits: Sequence[str]) -> str:
+    """順序付き audited commit 列の rev-list 互換 bytes を digest する。"""
+
+    values: list[str] = []
+    for commit in commits:
+        if type(commit) is not str or OID_RE.fullmatch(commit) is None:
+            raise ValueError("audited commit は exact Git OID でなければならない")
+        values.append(commit)
+    return _sha256(b"".join(value.encode("ascii") + b"\n" for value in values))
+
+
+def _audited_commits(repo: Path, origin: FoldOrigin) -> tuple[str, ...]:
+    raw = _git(
+        repo,
+        "rev-list",
+        "--reverse",
+        f"{origin.trusted_main_cutoff}..{origin.tested_tip}",
+    )
+    try:
+        commits = tuple(line for line in raw.decode("ascii", errors="strict").splitlines() if line)
+    except UnicodeDecodeError as exc:
+        raise SpoolValidationError([
+            Issue(".git", 1, "origin", "audited commit 列が ASCII でない")
+        ]) from exc
+    if any(OID_RE.fullmatch(commit) is None for commit in commits):
+        raise SpoolValidationError([
+            Issue(".git", 1, "origin", "audited commit 列の OID が不正")
+        ])
+    return commits
+
+
+def _origin_dict(origin: FoldOrigin) -> dict[str, str]:
+    return {
+        "kind": origin.kind,
+        "base": origin.base,
+        "tested_tip": origin.tested_tip,
+        "wave_ref": origin.wave_ref,
+        "rollback_ref": origin.rollback_ref,
+        "trusted_main_cutoff": origin.trusted_main_cutoff,
+        "audited_digest": origin.audited_digest,
+    }
+
+
+def _observe_origin(repo: Path, origin: FoldOrigin | None) -> FoldOrigin:
+    try:
+        head = _git_text(repo, "rev-parse", "--verify", "HEAD^{commit}")
+        wave_ref = _git_text(repo, "symbolic-ref", "--quiet", "HEAD")
+        ref_head = _git_text(repo, "rev-parse", "--verify", f"{wave_ref}^{{commit}}")
+    except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:
+        if isinstance(exc, SpoolValidationError):
+            raise
+        raise SpoolValidationError([
+            Issue(".git", 1, "origin", f"HEAD / symbolic HEAD を観測できない: {exc}")
+        ]) from exc
+    if OID_RE.fullmatch(head) is None or ref_head != head or REF_RE.fullmatch(wave_ref) is None:
+        raise SpoolValidationError([
+            Issue(".git", 1, "origin", "HEAD / symbolic HEAD / ref SHA が一致しない")
+        ])
+    if origin is None:
+        origin = FoldOrigin(
+            kind="standalone",
+            base=head,
+            tested_tip=head,
+            wave_ref=wave_ref,
+            rollback_ref=head,
+            trusted_main_cutoff=head,
+            audited_digest=audited_commit_digest(()),
+        )
+    if type(origin) is not FoldOrigin:
+        raise SpoolValidationError([
+            Issue("origin", 1, "origin", "origin は FoldOrigin exact object が必要")
+        ])
+    values = _origin_dict(origin)
+    if (
+        any(type(value) is not str for value in values.values())
+        or origin.kind not in {"land", "standalone"}
+        or OID_RE.fullmatch(origin.base) is None
+        or OID_RE.fullmatch(origin.tested_tip) is None
+        or OID_RE.fullmatch(origin.rollback_ref) is None
+        or OID_RE.fullmatch(origin.trusted_main_cutoff) is None
+        or REF_RE.fullmatch(origin.wave_ref) is None
+        or SHA_RE.fullmatch(origin.audited_digest) is None
+    ):
+        raise SpoolValidationError([
+            Issue("origin", 1, "origin", "FoldOrigin の値型/正規形が不正")
+        ])
+    if origin.tested_tip != head or origin.wave_ref != wave_ref or ref_head != origin.tested_tip:
+        raise SpoolValidationError([
+            Issue("origin", 1, "origin", "origin tested_tip / wave_ref が plan repo の観測値と不一致")
+        ])
+    try:
+        for label, value in (
+            ("base", origin.base),
+            ("rollback_ref", origin.rollback_ref),
+            ("trusted_main_cutoff", origin.trusted_main_cutoff),
+        ):
+            resolved = _git_text(repo, "rev-parse", "--verify", f"{value}^{{commit}}")
+            if resolved != value:
+                raise SpoolValidationError([
+                    Issue("origin", 1, "origin", f"origin {label} が exact commit でない")
+                ])
+        audited = _audited_commits(repo, origin)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise SpoolValidationError([
+            Issue("origin", 1, "origin", f"origin commit を照合できない: {exc}")
+        ]) from exc
+    if audited_commit_digest(audited) != origin.audited_digest:
+        raise SpoolValidationError([
+            Issue("origin", 1, "origin", "origin audited_digest が観測した commit 列と不一致")
+        ])
+    return origin
 
 
 def _line(text: str, offset: int) -> int:
@@ -933,7 +1122,12 @@ def _has_git_admin_marker(repo: Path) -> bool:
     return True
 
 
-def _discover(repo: Path, *, state_gate: bool) -> tuple[list[Fragment], list[Symbol], dict[str, _WorklogDelta], list[Issue]]:
+def _discover(
+    repo: Path,
+    *,
+    state_gate: bool,
+    expected_transaction_id: str | None = None,
+) -> tuple[list[Fragment], list[Symbol], dict[str, _WorklogDelta], list[Issue]]:
     repo = repo.resolve()
     spool = repo / "docs" / "spool"
     issues: list[Issue] = []
@@ -946,9 +1140,36 @@ def _discover(repo: Path, *, state_gate: bool) -> tuple[list[Fragment], list[Sym
         except (OSError, subprocess.SubprocessError) as exc:
             issues.append(Issue(".git", 1, "transaction-state", f"Git admin path を解決できない: {exc}"))
         else:
-            if state_path.exists():
-                issues.append(Issue(f"git-admin/{STATE_NAME}", 1, "transaction-active", "fold transaction が active — 引数なし CLI で resume が必要"))
-                return fragments, symbols, deltas, sorted(issues)
+            if state_path.exists() or state_path.is_symlink():
+                state_rel = f"git-admin/{STATE_NAME}"
+                if expected_transaction_id is None:
+                    issues.append(Issue(
+                        state_rel,
+                        1,
+                        "transaction-active",
+                        "fold transaction が active — "
+                        f"state={state_path.absolute()}; "
+                        "引数なし CLI で resume が必要。standalone の lock-aware finalize command は未実装",
+                    ))
+                    return fragments, symbols, deltas, sorted(issues)
+                try:
+                    if (
+                        type(expected_transaction_id) is not str
+                        or SHA_RE.fullmatch(expected_transaction_id) is None
+                    ):
+                        raise TransactionError("expected transaction ID が不正")
+                    active = _state_plan(_load_state(state_path))
+                    if active.transaction_id != expected_transaction_id:
+                        raise TransactionError("active transaction ID が明示 expected ID と不一致")
+                    target_states, gc_states = _validate_closure(repo, active)
+                    if (
+                        any(state != "after" for state in target_states.values())
+                        or any(state != "missing" for state in gc_states.values())
+                    ):
+                        raise TransactionError("active transaction が complete shape でない")
+                except (OSError, subprocess.SubprocessError, TransactionError) as exc:
+                    issues.append(Issue(state_rel, 1, "transaction-state", str(exc)))
+                    return fragments, symbols, deltas, sorted(issues)
     if not spool.exists() or spool.is_symlink() or not spool.is_dir():
         return fragments, symbols, deltas, [Issue("docs/spool", 1, "spool-layout", "docs/spool が実 directory として存在しない")]
     expected_root = {"README.md", "FOLDED.md", *LEDGERS}
@@ -1038,10 +1259,18 @@ def _discover(repo: Path, *, state_gate: bool) -> tuple[list[Fragment], list[Sym
     return fragments, symbols, deltas, sorted(set(issues))
 
 
-def validate_spool_tree(repo: str | os.PathLike[str] | Path) -> list[Issue]:
+def validate_spool_tree(
+    repo: str | os.PathLike[str] | Path,
+    *,
+    expected_transaction_id: str | None = None,
+) -> list[Issue]:
     """spool tree を read-only で検査し、決定的順序の Issue を返す。"""
 
-    _, _, _, issues = _discover(Path(repo), state_gate=True)
+    _, _, _, issues = _discover(
+        Path(repo),
+        state_gate=True,
+        expected_transaction_id=expected_transaction_id,
+    )
     return issues
 
 
@@ -1329,6 +1558,7 @@ def _format_task(number: int) -> str:
 
 def _receipt_records(text: str) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
+    v2_seen = False
     for line_number, line in enumerate(text.splitlines(), 1):
         if not line.startswith("- "):
             continue
@@ -1340,14 +1570,19 @@ def _receipt_records(text: str) -> list[dict[str, object]]:
             raise SpoolValidationError([Issue(RECEIPT_REL.as_posix(), line_number, "receipt", "FOLDED receipt JSON が不正")]) from exc
         if not isinstance(record, dict):
             raise SpoolValidationError([Issue(RECEIPT_REL.as_posix(), line_number, "receipt", "FOLDED receipt が object でない")])
-        required = {"allocations", "authored", "content_sha256", "seq", "wave"}
-        if set(record) != required:
+        fields = frozenset(record)
+        if fields == RECEIPT_V2_FIELDS:
+            v2_seen = True
+        elif fields != LEGACY_RECEIPT_FIELDS or v2_seen:
             raise SpoolValidationError([Issue(RECEIPT_REL.as_posix(), line_number, "receipt", "FOLDED receipt の field 集合が不正")])
         allocations = record["allocations"]
         authored = record["authored"]
         content_sha = record["content_sha256"]
         seq = record["seq"]
         wave = record["wave"]
+        base = record.get("base")
+        tested_tip = record.get("tested_tip")
+        wave_ref = record.get("wave_ref")
         if (
             not isinstance(authored, str)
             or not _valid_date(authored)
@@ -1358,6 +1593,17 @@ def _receipt_records(text: str) -> list[dict[str, object]]:
             or not isinstance(content_sha, str)
             or SHA_RE.fullmatch(content_sha) is None
             or not isinstance(allocations, dict)
+            or (
+                fields == RECEIPT_V2_FIELDS
+                and (
+                    type(base) is not str
+                    or OID_RE.fullmatch(base) is None
+                    or type(tested_tip) is not str
+                    or OID_RE.fullmatch(tested_tip) is None
+                    or type(wave_ref) is not str
+                    or REF_RE.fullmatch(wave_ref) is None
+                )
+            )
         ):
             raise SpoolValidationError([Issue(RECEIPT_REL.as_posix(), line_number, "receipt", "FOLDED receipt の値型/正規形が不正")])
         for key, value in allocations.items():
@@ -1819,7 +2065,7 @@ def _load_rotate_limit(repo: Path) -> int:
     try:
         spec.loader.exec_module(module)
         value = module.WORKLOG_ROTATE_BYTES
-    except Exception as exc:  # consumer と同じく import failure は fail-closed。
+    except BaseException as exc:  # SystemExit / KeyboardInterrupt も fail-closed。
         raise SpoolValidationError([Issue("tools/check_docs.py", 1, "rotate-limit", f"WORKLOG_ROTATE_BYTES を import できない: {exc}")]) from exc
     finally:
         sys.dont_write_bytecode = previous_dont_write_bytecode
@@ -1827,7 +2073,7 @@ def _load_rotate_limit(repo: Path) -> int:
             sys.modules.pop(name, None)
         else:
             sys.modules[name] = previous
-    if not isinstance(value, int) or value <= 0:
+    if type(value) is not int or value <= 0:
         raise SpoolValidationError([Issue("tools/check_docs.py", 1, "rotate-limit", "WORKLOG_ROTATE_BYTES が正の int でない")])
     return value
 
@@ -1916,15 +2162,51 @@ def _target(repo: Path, rel: str, after: bytes) -> TargetChange:
     return TargetChange(rel, _sha256(before), _sha256(after), before_exists, after)
 
 
+def _closure_digest(files: Mapping[str, str], worklog_rotate_bytes: int) -> str:
+    payload = {
+        "files": dict(sorted(files.items())),
+        "worklog_rotate_bytes": worklog_rotate_bytes,
+    }
+    return _sha256(json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+
+
 def _plan_transaction_id(
     fold_date: str,
-    fragments: Sequence[Fragment],
+    origin: FoldOrigin,
+    input_closure_sha256: str,
+    fragments: Sequence[FragmentReceipt],
+    gc_paths: Sequence[str],
+    projected_worklog_bytes: int,
+    rotation_path: str | None,
     targets: Sequence[TargetChange],
 ) -> str:
     payload = {
         "fold_date": fold_date,
-        "fragments": [(fragment.path, fragment.content_sha) for fragment in fragments],
-        "targets": [(target.path, target.before_sha256, target.after_sha256) for target in targets],
+        "origin": _origin_dict(origin),
+        "input_closure_sha256": input_closure_sha256,
+        "fragments": [
+            {
+                "path": fragment.path,
+                "authored": fragment.authored,
+                "wave": fragment.wave,
+                "seq": fragment.seq,
+                "content_sha256": fragment.content_sha256,
+                "allocations": [list(pair) for pair in fragment.allocations],
+            }
+            for fragment in fragments
+        ],
+        "gc_paths": list(gc_paths),
+        "projected_worklog_bytes": projected_worklog_bytes,
+        "rotation_path": rotation_path,
+        "targets": [
+            {
+                "path": target.path,
+                "before_exists": target.before_exists,
+                "before_sha256": target.before_sha256,
+                "after_sha256": target.after_sha256,
+            }
+            for target in targets
+        ],
     }
     return _sha256(json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8"))
 
@@ -1933,6 +2215,7 @@ def plan_fold(
     repo: str | os.PathLike[str] | Path,
     *,
     fold_date: str | None = None,
+    origin: FoldOrigin | None = None,
 ) -> FoldPlan:
     """副作用なしに FoldPlan を構築する。
 
@@ -1941,6 +2224,7 @@ def plan_fold(
     """
 
     repo = Path(repo).resolve()
+    origin = _observe_origin(repo, origin)
     fragments, symbols, deltas, issues = _discover(repo, state_gate=True)
     if issues:
         raise SpoolValidationError(issues)
@@ -1948,28 +2232,51 @@ def plan_fold(
         fold_date = _current_fold_date()
     if not isinstance(fold_date, str) or not _valid_date(fold_date):
         raise SpoolValidationError([Issue("fold_date", 1, "fold-date", "fold_date は実在する ISO date が必要")])
-    if not fragments:
-        return FoldPlan("noop", fold_date, "", (), (), (), (), len((repo / "docs/worklog.md").read_bytes()) if (repo / "docs/worklog.md").is_file() else 0)
-
     worklog_raw = _read_required(repo, "docs/worklog.md")
     decisions_raw = _read_required(repo, "docs/decisions.md")
     failures_raw = _read_required(repo, "docs/failures.md")
     phase_raw = _read_required(repo, "docs/phase3.md")
     archive_readme_raw = _read_required(repo, "docs/archive/README.md")
     receipt_raw = _read_required(repo, RECEIPT_REL.as_posix())
+    spool_fold_raw = _read_required(repo, "tools/spool_fold.py")
+    check_docs_raw = _read_required(repo, "tools/check_docs.py")
     worklog = _decode_canonical("docs/worklog.md", worklog_raw)
     decisions = _decode_canonical("docs/decisions.md", decisions_raw)
     failures = _decode_canonical("docs/failures.md", failures_raw)
     phase = _decode_canonical("docs/phase3.md", phase_raw)
     receipt = _decode_canonical(RECEIPT_REL.as_posix(), receipt_raw)
     archives: dict[str, str] = {}
+    archive_raws: dict[str, bytes] = {}
     archive_dir = repo / "docs/archive"
     if archive_dir.is_symlink() or not archive_dir.is_dir():
         raise SpoolValidationError([Issue("docs/archive", 1, "archive", "archive directory が不正")])
     for path in sorted(archive_dir.glob("worklog-*.md"), key=lambda item: item.name):
         if path.is_symlink() or not path.is_file():
             raise SpoolValidationError([Issue(path.relative_to(repo).as_posix(), 1, "archive", "archive worklog が regular file でない")])
-        archives[path.name] = _decode_canonical(path.relative_to(repo).as_posix(), path.read_bytes())
+        rel = path.relative_to(repo).as_posix()
+        raw = path.read_bytes()
+        archive_raws[rel] = raw
+        archives[path.name] = _decode_canonical(rel, raw)
+
+    limit = _load_rotate_limit(repo)
+    closure_files = {
+        "docs/worklog.md": _sha256(worklog_raw),
+        "docs/decisions.md": _sha256(decisions_raw),
+        "docs/failures.md": _sha256(failures_raw),
+        "docs/phase3.md": _sha256(phase_raw),
+        "docs/archive/README.md": _sha256(archive_readme_raw),
+        RECEIPT_REL.as_posix(): _sha256(receipt_raw),
+        "tools/spool_fold.py": _sha256(spool_fold_raw),
+        "tools/check_docs.py": _sha256(check_docs_raw),
+        **{rel: _sha256(raw) for rel, raw in archive_raws.items()},
+        **{fragment.path: fragment.content_sha for fragment in fragments},
+    }
+    input_closure_sha256 = _closure_digest(closure_files, limit)
+    if not fragments:
+        return FoldPlan(
+            "noop", fold_date, "", origin, input_closure_sha256, "applied",
+            (), (), (), (), len(worklog_raw), None,
+        )
 
     records = _receipt_records(receipt)
     seen_content: set[object] = set()
@@ -2097,15 +2404,18 @@ def plan_fold(
         record = {
             "allocations": dict(owned),
             "authored": fragment.authored,
+            "base": origin.base,
             "content_sha256": fragment.content_sha,
             "seq": fragment.seq,
+            "tested_tip": origin.tested_tip,
             "wave": fragment.wave,
+            "wave_ref": origin.wave_ref,
         }
         receipt_lines.append("- " + json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
         fragment_receipts.append(FragmentReceipt(fragment.path, fragment.authored, fragment.wave, fragment.seq, fragment.content_sha, owned))
+    fragment_receipts.sort(key=lambda fragment: fragment.path)
     rendered_receipt = _append_bytes(receipt_raw, "\n".join(receipt_lines))
 
-    limit = _load_rotate_limit(repo)
     rotation_path: str | None = None
     rotation_archive: bytes | None = None
     rendered_archive_readme = archive_readme_raw
@@ -2130,16 +2440,29 @@ def plan_fold(
         before = path.read_bytes() if path.exists() and path.is_file() and not path.is_symlink() else b""
         if before != changes[rel]:
             targets.append(_target(repo, rel, changes[rel]))
-    transaction_id = _plan_transaction_id(fold_date, fragments, targets)
+    gc_paths = tuple(fragment.path for fragment in fragment_receipts)
+    transaction_id = _plan_transaction_id(
+        fold_date,
+        origin,
+        input_closure_sha256,
+        fragment_receipts,
+        gc_paths,
+        len(rendered_worklog),
+        rotation_path,
+        targets,
+    )
     flat_allocations = tuple(sorted((f"{wave}/{namespace}:{slug}", value) for (wave, namespace, slug), value in allocations.items()))
     return FoldPlan(
         "planned",
         fold_date,
         transaction_id,
+        origin,
+        input_closure_sha256,
+        "applied",
         flat_allocations,
         tuple(targets),
         tuple(fragment_receipts),
-        tuple(fragment.path for fragment in fragments),
+        gc_paths,
         len(rendered_worklog),
         rotation_path,
     )
@@ -2167,8 +2490,23 @@ def _atomic_write(path: Path, data: bytes) -> None:
 
 def _plan_state(plan: FoldPlan) -> dict[str, object]:
     return {
+        "version": STATE_VERSION,
+        "phase": plan.phase,
+        "transaction_id": plan.transaction_id,
+        "origin": _origin_dict(plan.origin),
+        "input_closure_sha256": plan.input_closure_sha256,
         "fold_date": plan.fold_date,
-        "fragments": [dataclasses.asdict(fragment) for fragment in plan.fragments],
+        "fragments": [
+            {
+                "path": fragment.path,
+                "authored": fragment.authored,
+                "wave": fragment.wave,
+                "seq": fragment.seq,
+                "content_sha256": fragment.content_sha256,
+                "allocations": [list(pair) for pair in fragment.allocations],
+            }
+            for fragment in plan.fragments
+        ],
         "gc_paths": list(plan.gc_paths),
         "projected_worklog_bytes": plan.projected_worklog_bytes,
         "rotation_path": plan.rotation_path,
@@ -2182,54 +2520,241 @@ def _plan_state(plan: FoldPlan) -> dict[str, object]:
             }
             for target in plan.targets
         ],
-        "transaction_id": plan.transaction_id,
-        "version": 1,
     }
 
 
+def _safe_rel_path(value: object) -> bool:
+    if type(value) is not str or not value or "\\" in value or value.startswith("/"):
+        return False
+    return all(part not in {"", ".", ".."} for part in value.split("/"))
+
+
+def _fragment_rel_valid(value: object) -> bool:
+    if not _safe_rel_path(value) or type(value) is not str:
+        return False
+    parts = value.split("/")
+    return (
+        len(parts) == 4
+        and parts[:2] == ["docs", "spool"]
+        and parts[2] in LEDGERS
+        and FRAGMENT_FILE_RE.fullmatch(parts[3]) is not None
+    )
+
+
+def _target_rel_valid(value: object) -> bool:
+    if not _safe_rel_path(value) or type(value) is not str:
+        return False
+    return value in {
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/phase3.md",
+        "docs/spool/FOLDED.md",
+        "docs/archive/README.md",
+    } or ROTATION_PATH_RE.fullmatch(value) is not None
+
+
+def _origin_from_state(value: object) -> FoldOrigin:
+    if type(value) is not dict or frozenset(value) != ORIGIN_FIELDS:
+        raise TransactionError("transaction state origin field 集合が不正")
+    if any(type(item) is not str for item in value.values()):
+        raise TransactionError("transaction state origin の値型が不正")
+    origin = FoldOrigin(
+        value["kind"],
+        value["base"],
+        value["tested_tip"],
+        value["wave_ref"],
+        value["rollback_ref"],
+        value["trusted_main_cutoff"],
+        value["audited_digest"],
+    )
+    if (
+        origin.kind not in {"land", "standalone"}
+        or any(
+            OID_RE.fullmatch(oid) is None
+            for oid in (
+                origin.base,
+                origin.tested_tip,
+                origin.rollback_ref,
+                origin.trusted_main_cutoff,
+            )
+        )
+        or REF_RE.fullmatch(origin.wave_ref) is None
+        or SHA_RE.fullmatch(origin.audited_digest) is None
+    ):
+        raise TransactionError("transaction state origin の正規形が不正")
+    if origin.base != origin.rollback_ref:
+        raise TransactionError("transaction state origin base/rollback_ref が不一致")
+    if origin.kind == "standalone" and (
+        origin.base != origin.tested_tip
+        or origin.trusted_main_cutoff != origin.base
+        or origin.audited_digest != audited_commit_digest(())
+    ):
+        raise TransactionError("standalone origin の値が観測既定形でない")
+    return origin
+
+
 def _state_plan(state: Mapping[str, object]) -> FoldPlan:
-    try:
-        targets = tuple(
-            TargetChange(
-                str(item["path"]),
-                str(item["before_sha256"]),
-                str(item["after_sha256"]),
-                bool(item["before_exists"]),
-                base64.b64decode(str(item["after_bytes_b64"]), validate=True),
-            )
-            for item in state["targets"]  # type: ignore[index]
-        )
-        fragments = tuple(
-            FragmentReceipt(
-                str(item["path"]),
-                str(item["authored"]),
-                str(item["wave"]),
-                int(item["seq"]),
-                str(item["content_sha256"]),
-                tuple(tuple(pair) for pair in item["allocations"]),
-            )
-            for item in state["fragments"]  # type: ignore[index]
-        )
-        plan = FoldPlan(
-            "planned",
-            str(state["fold_date"]),
-            str(state["transaction_id"]),
-            (),
-            targets,
-            fragments,
-            tuple(str(path) for path in state["gc_paths"]),  # type: ignore[index]
-            int(state["projected_worklog_bytes"]),
-            None if state.get("rotation_path") is None else str(state["rotation_path"]),
-        )
-    except (KeyError, TypeError, ValueError, base64.binascii.Error) as exc:
-        raise TransactionError(f"transaction state schema が不正: {exc}") from exc
-    if not _valid_date(plan.fold_date):
-        raise TransactionError("transaction state の fold_date が不正")
-    if SHA_RE.fullmatch(plan.transaction_id) is None:
+    if type(state) is not dict or frozenset(state) != STATE_FIELDS:
+        raise TransactionError("transaction state top-level field 集合が不正")
+    if type(state["version"]) is not int or state["version"] != STATE_VERSION:
+        raise TransactionError("transaction state version/schema が不正")
+    phase = state["phase"]
+    transaction_id = state["transaction_id"]
+    input_closure_sha256 = state["input_closure_sha256"]
+    fold_date = state["fold_date"]
+    projected = state["projected_worklog_bytes"]
+    rotation_path = state["rotation_path"]
+    if type(phase) is not str or phase not in STATE_PHASES:
+        raise TransactionError("transaction state phase が不正")
+    if type(transaction_id) is not str or SHA_RE.fullmatch(transaction_id) is None:
         raise TransactionError("transaction state の transaction_id が不正")
-    for target in plan.targets:
-        if _sha256(target.after_bytes) != target.after_sha256:
-            raise TransactionError(f"state payload hash が不一致: {target.path}")
+    if type(input_closure_sha256) is not str or SHA_RE.fullmatch(input_closure_sha256) is None:
+        raise TransactionError("transaction state の input closure が不正")
+    if type(fold_date) is not str or not _valid_date(fold_date):
+        raise TransactionError("transaction state の fold_date が不正")
+    if type(projected) is not int or projected < 0:
+        raise TransactionError("transaction state の projected_worklog_bytes が不正")
+    if rotation_path is not None and (
+        type(rotation_path) is not str
+        or ROTATION_PATH_RE.fullmatch(rotation_path) is None
+    ):
+        raise TransactionError("transaction state の rotation_path が不正")
+    origin = _origin_from_state(state["origin"])
+
+    raw_targets = state["targets"]
+    if type(raw_targets) is not list:
+        raise TransactionError("transaction state targets が list でない")
+    targets_list: list[TargetChange] = []
+    for item in raw_targets:
+        if type(item) is not dict or frozenset(item) != TARGET_STATE_FIELDS:
+            raise TransactionError("transaction state target field 集合が不正")
+        if (
+            not _target_rel_valid(item["path"])
+            or type(item["before_exists"]) is not bool
+            or type(item["before_sha256"]) is not str
+            or SHA_RE.fullmatch(item["before_sha256"]) is None
+            or type(item["after_sha256"]) is not str
+            or SHA_RE.fullmatch(item["after_sha256"]) is None
+            or type(item["after_bytes_b64"]) is not str
+        ):
+            raise TransactionError("transaction state target の値型/正規形が不正")
+        try:
+            after_bytes = base64.b64decode(item["after_bytes_b64"], validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise TransactionError("transaction state target の base64 が不正") from exc
+        if _sha256(after_bytes) != item["after_sha256"]:
+            raise TransactionError(f"state payload hash が不一致: {item['path']}")
+        targets_list.append(TargetChange(
+            item["path"], item["before_sha256"], item["after_sha256"],
+            item["before_exists"], after_bytes,
+        ))
+    targets = tuple(targets_list)
+    if not targets:
+        raise TransactionError("transaction state targets が空")
+    target_paths = tuple(target.path for target in targets)
+    if target_paths != tuple(sorted(set(target_paths))):
+        raise TransactionError("transaction state target path の順序/一意性が不正")
+    worklog_targets = [target for target in targets if target.path == "docs/worklog.md"]
+    if worklog_targets and len(worklog_targets[0].after_bytes) != projected:
+        raise TransactionError("projected_worklog_bytes が worklog after bytes と不一致")
+    if rotation_path is not None and sum(target.path == rotation_path for target in targets) != 1:
+        raise TransactionError("rotation_path が target と一意対応しない")
+    if rotation_path is not None and next(
+        target.before_exists for target in targets if target.path == rotation_path
+    ):
+        raise TransactionError("rotation target の before_exists が false でない")
+    empty_sha = _sha256(b"")
+    if any(
+        not target.before_exists and target.before_sha256 != empty_sha
+        for target in targets
+    ):
+        raise TransactionError("nonexistent target の before_sha256 が空 bytes hash でない")
+
+    raw_fragments = state["fragments"]
+    if type(raw_fragments) is not list:
+        raise TransactionError("transaction state fragments が list でない")
+    fragments_list: list[FragmentReceipt] = []
+    for item in raw_fragments:
+        if type(item) is not dict or frozenset(item) != FRAGMENT_STATE_FIELDS:
+            raise TransactionError("transaction state fragment field 集合が不正")
+        allocations_raw = item["allocations"]
+        if type(allocations_raw) is not list:
+            raise TransactionError("transaction state allocations が list でない")
+        allocations: list[tuple[str, str]] = []
+        for pair in allocations_raw:
+            if (
+                type(pair) is not list
+                or len(pair) != 2
+                or any(type(value) is not str for value in pair)
+            ):
+                raise TransactionError("transaction state allocation pair が不正")
+            allocations.append((pair[0], pair[1]))
+        if tuple(allocations) != tuple(sorted(set(allocations))):
+            raise TransactionError("transaction state allocation の順序/一意性が不正")
+        for key, value in allocations:
+            namespace = key.split(":", 1)[0] if ":" in key else ""
+            if (
+                re.fullmatch(r"[TDF]:[a-z][a-z0-9]*(?:-[a-z0-9]+)*", key) is None
+                or (
+                    (namespace == "T" and TASK_RE.fullmatch(value) is None)
+                    or (namespace == "D" and re.fullmatch(r"D[1-9][0-9]*", value) is None)
+                    or (namespace == "F" and re.fullmatch(r"F[1-9][0-9]*", value) is None)
+                )
+            ):
+                raise TransactionError("transaction state allocation の値が不正")
+        fragment_name = FRAGMENT_FILE_RE.fullmatch(item["path"].rsplit("/", 1)[-1]) if type(item["path"]) is str else None
+        if (
+            not _fragment_rel_valid(item["path"])
+            or type(item["authored"]) is not str
+            or not _valid_date(item["authored"])
+            or type(item["wave"]) is not str
+            or WAVE_RE.fullmatch(item["wave"]) is None
+            or type(item["seq"]) is not int
+            or item["seq"] <= 0
+            or type(item["content_sha256"]) is not str
+            or SHA_RE.fullmatch(item["content_sha256"]) is None
+            or fragment_name is None
+            or fragment_name.group("authored") != item["authored"]
+            or fragment_name.group("wave") != item["wave"]
+            or int(fragment_name.group("seq")) != item["seq"]
+        ):
+            raise TransactionError("transaction state fragment の値型/正規形が不正")
+        fragments_list.append(FragmentReceipt(
+            item["path"], item["authored"], item["wave"], item["seq"],
+            item["content_sha256"], tuple(allocations),
+        ))
+    fragments = tuple(fragments_list)
+    if not fragments:
+        raise TransactionError("transaction state fragments が空")
+    fragment_paths = tuple(fragment.path for fragment in fragments)
+    if fragment_paths != tuple(sorted(set(fragment_paths))):
+        raise TransactionError("transaction state fragment path の順序/一意性が不正")
+
+    raw_gc_paths = state["gc_paths"]
+    if (
+        type(raw_gc_paths) is not list
+        or any(not _safe_rel_path(path) for path in raw_gc_paths)
+        or tuple(raw_gc_paths) != fragment_paths
+    ):
+        raise TransactionError("transaction state gc_paths が fragments と不一致")
+    plan = FoldPlan(
+        "planned", fold_date, transaction_id, origin,
+        input_closure_sha256, phase, (), targets, fragments,
+        tuple(raw_gc_paths), projected, rotation_path,
+    )
+    expected_id = _plan_transaction_id(
+        plan.fold_date,
+        plan.origin,
+        plan.input_closure_sha256,
+        plan.fragments,
+        plan.gc_paths,
+        plan.projected_worklog_bytes,
+        plan.rotation_path,
+        plan.targets,
+    )
+    if expected_id != plan.transaction_id:
+        raise TransactionError("transaction_id が payload と不一致")
     return plan
 
 
@@ -2237,12 +2762,123 @@ def _load_state(path: Path) -> dict[str, object]:
     if path.is_symlink() or not path.is_file():
         raise TransactionError("transaction state が regular file でない")
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8", errors="strict"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise TransactionError(f"transaction state を読めない: {exc}") from exc
-    if not isinstance(value, dict) or value.get("version") != 1:
+    if type(value) is not dict or frozenset(value) != STATE_FIELDS:
         raise TransactionError("transaction state version/schema が不正")
+    if type(value["version"]) is not int or value["version"] != STATE_VERSION:
+        raise TransactionError("transaction state version/schema が不正")
+    canonical = json.dumps(
+        value, ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8") + b"\n"
+    if raw != canonical:
+        raise TransactionError("transaction state JSON が正準形でない")
     return value
+
+
+def _transaction_shape(repo: Path, plan: FoldPlan) -> tuple[dict[str, str], dict[str, str]]:
+    target_states: dict[str, str] = {}
+    for target in plan.targets:
+        path = repo / target.path
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise TransactionError(f"{target.path}: symlink/非 regular の第三状態")
+        current_exists = path.exists() and path.is_file()
+        current = path.read_bytes() if current_exists else b""
+        current_sha = _sha256(current)
+        if current_exists and current_sha == target.after_sha256:
+            target_states[target.path] = "after"
+        elif current_sha == target.before_sha256 and current_exists == target.before_exists:
+            target_states[target.path] = "before"
+        else:
+            raise TransactionError(f"{target.path}: before/after 以外の第三状態")
+
+    gc_states: dict[str, str] = {}
+    receipt_by_path = {fragment.path: fragment for fragment in plan.fragments}
+    for rel in plan.gc_paths:
+        path = repo / rel
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise TransactionError(f"{rel}: GC target が symlink/非 regular")
+        if not path.exists():
+            gc_states[rel] = "missing"
+            continue
+        receipt = receipt_by_path[rel]
+        if _sha256(path.read_bytes()) != receipt.content_sha256:
+            raise TransactionError(f"{rel}: GC target content が transaction と不一致")
+        gc_states[rel] = "present"
+    if any(state == "missing" for state in gc_states.values()) and any(
+        state == "before" for state in target_states.values()
+    ):
+        raise TransactionError("canonical が before の段階で GC target が欠落した第三状態")
+    return target_states, gc_states
+
+
+def _current_closure_digest(
+    repo: Path,
+    plan: FoldPlan,
+    target_states: Mapping[str, str],
+    gc_states: Mapping[str, str],
+) -> str:
+    files: dict[str, str] = {}
+    targets = {target.path: target for target in plan.targets}
+    for rel in _CLOSURE_FIXED_PATHS:
+        target = targets.get(rel)
+        if target is not None:
+            files[rel] = target.before_sha256
+        else:
+            files[rel] = _sha256(_read_required(repo, rel))
+
+    archive_dir = repo / "docs/archive"
+    if archive_dir.is_symlink() or not archive_dir.is_dir():
+        raise TransactionError("archive directory が不正")
+    for path in sorted(archive_dir.glob("worklog-*.md"), key=lambda item: item.name):
+        rel = path.relative_to(repo).as_posix()
+        if rel == plan.rotation_path:
+            continue
+        if path.is_symlink() or not path.is_file():
+            raise TransactionError(f"{rel}: archive worklog が regular file でない")
+        files[rel] = _sha256(path.read_bytes())
+
+    expected_fragments = {fragment.path: fragment for fragment in plan.fragments}
+    all_targets_after = all(state == "after" for state in target_states.values())
+    for rel, fragment in expected_fragments.items():
+        state = gc_states[rel]
+        if state == "present":
+            files[rel] = fragment.content_sha256
+        elif all_targets_after:
+            files[rel] = fragment.content_sha256
+        else:
+            raise TransactionError("target が before のまま GC target が欠落した第三状態")
+    for ledger in LEDGERS:
+        directory = repo / "docs" / "spool" / ledger
+        if directory.is_symlink() or not directory.is_dir():
+            raise TransactionError(f"docs/spool/{ledger}: fragment directory が不正")
+        for path in sorted(directory.iterdir(), key=lambda item: item.name):
+            if path.name == "README.md":
+                continue
+            rel = path.relative_to(repo).as_posix()
+            if rel in expected_fragments:
+                continue
+            if path.is_symlink() or not path.is_file():
+                raise TransactionError(f"{rel}: 新 fragment が regular file でない")
+            files[rel] = _sha256(path.read_bytes())
+    try:
+        limit = _load_rotate_limit(repo)
+    except SpoolValidationError as exc:
+        raise TransactionError(str(exc)) from exc
+    return _closure_digest(files, limit)
+
+
+def _validate_closure(repo: Path, plan: FoldPlan) -> tuple[dict[str, str], dict[str, str]]:
+    target_states, gc_states = _transaction_shape(repo, plan)
+    try:
+        current = _current_closure_digest(repo, plan, target_states, gc_states)
+    except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:
+        raise TransactionError(f"plan 入力 closure を観測できない: {exc}") from exc
+    if current != plan.input_closure_sha256:
+        raise TransactionError("plan 入力 closure が変化")
+    return target_states, gc_states
 
 
 def load_active_plan(repo: str | os.PathLike[str] | Path) -> FoldPlan | None:
@@ -2252,15 +2888,20 @@ def load_active_plan(repo: str | os.PathLike[str] | Path) -> FoldPlan | None:
     state_path = _state_path(repo)
     if not state_path.exists() and not state_path.is_symlink():
         return None
-    return _state_plan(_load_state(state_path))
+    plan = _state_plan(_load_state(state_path))
+    _validate_closure(repo, plan)
+    return plan
 
 
-def _git_clean_preflight(repo: Path, plan: FoldPlan) -> None:
+def _git_clean_preflight(repo: Path, plan: FoldPlan, *, resume: bool = False) -> None:
     # gc_paths は plan が content hash まで束縛した入力 fragment であり、通常は
     # untracked のまま apply される。canonical の既存 target だけについて、plan
     # 構築後の index/worktree 変更を Git 面でも拒否する。fragment 自体の第三状態は
     # apply 本体の receipt content_sha256 照合が fail-closed に検出する。
-    paths = sorted(target.path for target in plan.targets if target.before_exists)
+    paths = sorted({
+        *(target.path for target in plan.targets if target.before_exists or resume),
+        *(plan.gc_paths if resume else ()),
+    })
     if not paths:
         return
     completed = subprocess.run(
@@ -2270,8 +2911,21 @@ def _git_clean_preflight(repo: Path, plan: FoldPlan) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    if completed.stdout:
+    if completed.stdout and not resume:
         raise TransactionError("actual fold 対象に未追跡または dirty path がある")
+    if resume:
+        for line in completed.stdout.splitlines():
+            if len(line) < 2 or (line[0] not in {" ", "?"}):
+                raise TransactionError("resume fold 対象に staged/不正な Git 状態がある")
+
+
+def _verify_apply_head(repo: Path, plan: FoldPlan) -> None:
+    try:
+        head = _git_text(repo, "rev-parse", "--verify", "HEAD^{commit}")
+    except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:
+        raise TransactionError(f"apply HEAD を観測できない: {exc}") from exc
+    if head != plan.origin.tested_tip:
+        raise TransactionError("apply HEAD が origin.tested_tip と不一致")
 
 
 def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResult:
@@ -2281,52 +2935,36 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
     if plan.status == "noop":
         return FoldResult("noop", "", (), (), ())
     state_path = _state_path(repo)
-    state_exists = state_path.exists()
+    state_exists = state_path.exists() or state_path.is_symlink()
     if state_exists:
         stored_plan = _state_plan(_load_state(state_path))
         if stored_plan.transaction_id != plan.transaction_id:
             raise TransactionError("active transaction と渡された plan の ID が不一致")
         plan = stored_plan
+        if plan.phase != "applied":
+            raise TransactionError("committed transaction を apply へ戻せない")
+        _verify_apply_head(repo, plan)
+        _validate_closure(repo, plan)
+        _git_clean_preflight(repo, plan, resume=True)
     else:
+        if plan.phase != "applied":
+            raise TransactionError("fresh plan の phase が applied でない")
+        expected_id = _plan_transaction_id(
+            plan.fold_date, plan.origin, plan.input_closure_sha256,
+            plan.fragments, plan.gc_paths, plan.projected_worklog_bytes,
+            plan.rotation_path, plan.targets,
+        )
+        if expected_id != plan.transaction_id:
+            raise TransactionError("渡された plan の transaction_id が payload と不一致")
+        _verify_apply_head(repo, plan)
+        _validate_closure(repo, plan)
         _git_clean_preflight(repo, plan)
         state_data = json.dumps(_plan_state(plan), ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8") + b"\n"
         _atomic_write(state_path, state_data)
 
     written: list[str] = []
     resumed: list[str] = []
-    target_states: dict[str, str] = {}
-    for target in plan.targets:
-        path = repo / target.path
-        if path.is_symlink() or (path.exists() and not path.is_file()):
-            raise TransactionError(f"{target.path}: symlink/非 regular の第三状態")
-        current_exists = path.exists() and not path.is_symlink() and path.is_file()
-        current = path.read_bytes() if current_exists else b""
-        current_sha = _sha256(current)
-        if current_exists and current_sha == target.after_sha256:
-            target_states[target.path] = "after"
-            continue
-        before_matches = current_sha == target.before_sha256 and current_exists == target.before_exists
-        if not before_matches:
-            raise TransactionError(f"{target.path}: before/after 以外の第三状態")
-        target_states[target.path] = "before"
-
-    gc_states: dict[str, str] = {}
-    receipt_by_path = {fragment.path: fragment for fragment in plan.fragments}
-    for rel in sorted(plan.gc_paths):
-        path = repo / rel
-        if path.is_symlink() or (path.exists() and not path.is_file()):
-            raise TransactionError(f"{rel}: GC target が symlink/非 regular")
-        if not path.exists():
-            gc_states[rel] = "missing"
-            continue
-        receipt = receipt_by_path.get(rel)
-        if receipt is None or _sha256(path.read_bytes()) != receipt.content_sha256:
-            raise TransactionError(f"{rel}: GC target content が transaction と不一致")
-        gc_states[rel] = "present"
-    if any(state == "missing" for state in gc_states.values()) and any(
-        state == "before" for state in target_states.values()
-    ):
-        raise TransactionError("canonical が before の段階で GC target が欠落した第三状態")
+    target_states, _gc_states = _transaction_shape(repo, plan)
 
     # 一つでも第三状態なら、別 target の before を先に書かない。全 target の状態を
     # 確定してから適用へ進むことで N16 を単一の fail-closed gate にする。
@@ -2354,14 +2992,200 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
             raise TransactionError(f"{rel}: GC target が regular file でない")
         path.unlink()
         removed.append(rel)
-    state_path.unlink()
-    directory_fd = os.open(state_path.parent, os.O_RDONLY)
-    try:
-        os.fsync(directory_fd)
-    finally:
-        os.close(directory_fd)
+    _fsync_directories({(repo / rel).parent for rel in plan.gc_paths})
     status = "resumed" if state_exists or resumed else "applied"
     return FoldResult(status, plan.transaction_id, tuple(written), tuple(resumed), tuple(removed))
+
+
+def _fsync_directories(paths: Iterable[Path]) -> None:
+    for path in sorted({item.resolve() for item in paths}, key=str):
+        directory_fd = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+
+
+def _complete_shape(repo: Path, plan: FoldPlan) -> None:
+    target_states, gc_states = _validate_closure(repo, plan)
+    if any(state != "after" for state in target_states.values()):
+        raise TransactionError("fold target が全 after でない")
+    if any(state != "missing" for state in gc_states.values()):
+        raise TransactionError("fold GC path が残存する")
+
+
+def _commit_diff_records(repo: Path, parent: str, commit: str) -> dict[str, tuple[str, str, str, str]]:
+    raw = _git(
+        repo, "diff-tree", "--no-commit-id", "--raw", "-r", "-z",
+        "--no-renames", parent, commit,
+    )
+    chunks = raw.split(b"\0")
+    if chunks and chunks[-1] == b"":
+        chunks.pop()
+    if len(chunks) % 2:
+        raise TransactionError("fold commit diff record が不正")
+    records: dict[str, tuple[str, str, str, str]] = {}
+    for index in range(0, len(chunks), 2):
+        metadata = chunks[index]
+        path_raw = chunks[index + 1]
+        if not metadata.startswith(b":"):
+            raise TransactionError("fold commit diff metadata が不正")
+        fields = metadata[1:].split(b" ")
+        if len(fields) != 5:
+            raise TransactionError("fold commit diff metadata field が不正")
+        old_mode, new_mode, _old_oid, new_oid, status = fields
+        try:
+            path = path_raw.decode("utf-8", errors="strict")
+            decoded = (
+                status.decode("ascii", errors="strict"),
+                old_mode.decode("ascii", errors="strict"),
+                new_mode.decode("ascii", errors="strict"),
+                new_oid.decode("ascii", errors="strict"),
+            )
+        except UnicodeDecodeError as exc:
+            raise TransactionError("fold commit diff encoding が不正") from exc
+        if path in records:
+            raise TransactionError("fold commit diff path が重複")
+        records[path] = decoded
+    return records
+
+
+def verify_fold_commit_identity(
+    repo: str | os.PathLike[str] | Path,
+    plan: FoldPlan,
+    *,
+    fold_commit: str,
+) -> None:
+    """state が宣言する exact fold commit identity を再利用可能に検査する。"""
+
+    repo = Path(repo).resolve()
+    if type(fold_commit) is not str or OID_RE.fullmatch(fold_commit) is None:
+        raise TransactionError("fold_commit が exact Git OID でない")
+    try:
+        resolved = _git_text(repo, "rev-parse", "--verify", f"{fold_commit}^{{commit}}")
+        raw_commit = _git(repo, "cat-file", "commit", fold_commit)
+    except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:
+        raise TransactionError(f"fold commit を観測できない: {exc}") from exc
+    if resolved != fold_commit:
+        raise TransactionError("fold_commit が exact commit として解決しない")
+    header, separator, message = raw_commit.partition(b"\n\n")
+    if not separator:
+        raise TransactionError("fold commit object の header/message 境界がない")
+    parents: list[str] = []
+    authors: list[bytes] = []
+    for line in header.splitlines():
+        key, space, value = line.partition(b" ")
+        if not space:
+            raise TransactionError("fold commit header が不正")
+        if key == b"parent":
+            try:
+                parents.append(value.decode("ascii", errors="strict"))
+            except UnicodeDecodeError as exc:
+                raise TransactionError("fold commit parent encoding が不正") from exc
+        elif key == b"author":
+            authors.append(value)
+    try:
+        from tools.dev_waves.git_state import (
+            FOLD_AUTHOR_IDENTITY,
+            FOLD_COMMIT_MESSAGE,
+            verify_declared_fold_commit,
+        )
+    except (ImportError, AttributeError) as exc:
+        raise TransactionError(f"declared fold verifier を import できない: {exc}") from exc
+    if parents != [plan.origin.tested_tip]:
+        raise TransactionError("fold commit の単一 parent が origin.tested_tip と不一致")
+    author_prefix = FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" "
+    if len(authors) != 1 or not authors[0].startswith(author_prefix):
+        raise TransactionError("fold commit author identity が不一致")
+    if message != FOLD_COMMIT_MESSAGE:
+        raise TransactionError("fold commit message bytes が不一致")
+
+    try:
+        actual = _commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+        expected_paths = {target.path for target in plan.targets} | set(plan.gc_paths)
+        if set(actual) != expected_paths:
+            raise TransactionError("fold commit diff path 集合が state と不一致")
+        for target in plan.targets:
+            status, old_mode, new_mode, new_oid = actual[target.path]
+            expected_status = "M" if target.before_exists else "A"
+            expected_old_mode = "100644" if target.before_exists else "000000"
+            expected_oid = _git_text(repo, "hash-object", "--stdin", input_bytes=target.after_bytes)
+            if (
+                status != expected_status
+                or old_mode != expected_old_mode
+                or new_mode != "100644"
+                or new_oid != expected_oid
+            ):
+                raise TransactionError(f"fold commit target record が不一致: {target.path}")
+        for rel in plan.gc_paths:
+            status, _old_mode, new_mode, _new_oid = actual[rel]
+            if status != "D" or new_mode != "000000":
+                raise TransactionError(f"fold commit GC record が不一致: {rel}")
+        audited = _audited_commits(repo, plan.origin)
+    except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:
+        raise TransactionError(f"fold commit diff/audit を観測できない: {exc}") from exc
+    if audited_commit_digest(audited) != plan.origin.audited_digest:
+        raise TransactionError("fold commit gate の audited closure が origin と不一致")
+    landed_commits = audited if audited else (plan.origin.tested_tip,)
+    try:
+        declared = verify_declared_fold_commit(
+            repo,
+            fold_commit_sha=fold_commit,
+            trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,
+            landed_main_sha=fold_commit,
+            landed_commits=landed_commits,
+            wave_tip=plan.origin.tested_tip,
+        )
+    except BaseException as exc:
+        raise TransactionError(f"declared fold verifier が失敗: {exc}") from exc
+    if not declared.ok:
+        raise TransactionError(f"declared fold verifier が拒否: {declared.detail}")
+
+
+def mark_fold_committed(
+    repo: str | os.PathLike[str] | Path,
+    plan: FoldPlan,
+    *,
+    fold_commit: str,
+) -> FoldPlan:
+    repo = Path(repo).resolve()
+    if plan.origin.kind != "land":
+        raise TransactionError("standalone transaction は mark/finalize できない")
+    state_path = _state_path(repo)
+    stored = _state_plan(_load_state(state_path))
+    if stored.transaction_id != plan.transaction_id or stored.phase != "applied":
+        raise TransactionError("mark_fold_committed の state ID/phase CAS が不一致")
+    if _git_text(repo, "rev-parse", "--verify", "HEAD^{commit}") != fold_commit:
+        raise TransactionError("mark_fold_committed の HEAD が fold_commit と不一致")
+    _complete_shape(repo, stored)
+    verify_fold_commit_identity(repo, stored, fold_commit=fold_commit)
+    committed = dataclasses.replace(stored, phase="committed")
+    data = json.dumps(
+        _plan_state(committed), ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8") + b"\n"
+    _atomic_write(state_path, data)
+    return committed
+
+
+def finalize_fold(
+    repo: str | os.PathLike[str] | Path,
+    plan: FoldPlan,
+    *,
+    fold_commit: str,
+) -> None:
+    repo = Path(repo).resolve()
+    if plan.origin.kind != "land":
+        raise TransactionError("standalone transaction は mark/finalize できない")
+    state_path = _state_path(repo)
+    stored = _state_plan(_load_state(state_path))
+    if stored.transaction_id != plan.transaction_id or stored.phase != "committed":
+        raise TransactionError("finalize_fold の state ID/phase が不一致")
+    if _git_text(repo, "rev-parse", "--verify", "HEAD^{commit}") != fold_commit:
+        raise TransactionError("finalize_fold の HEAD が fold_commit と不一致")
+    _complete_shape(repo, stored)
+    verify_fold_commit_identity(repo, stored, fold_commit=fold_commit)
+    state_path.unlink()
+    _fsync_directories({state_path.parent})
 
 
 def _lf_lines(data: bytes) -> list[bytes]:
