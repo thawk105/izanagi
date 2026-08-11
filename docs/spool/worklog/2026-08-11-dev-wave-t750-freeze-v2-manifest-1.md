@@ -97,6 +97,15 @@ title: T-750 統合実装 — freeze v2 producer と reviewed spec を pinned li
   世代承認を通りうる。** 構造化 field の追加は凍結契約 (transition table) の変更を伴うため
   親は実装しなかった。択 = (a) v2 schema へ `budget_authorization` を追加 /
   (b) 運用規律に委ね受理集合の広さを明示受諾 / (c) [T-657] の世代交代と合流
+- {{T:dev-wave-launch-procedure-gaps}} **P3・新規 (段 8 発、予算超過で撤回)**: 本 wave で実測した
+  dev-wave 手順の欠落 3 件を `DW-O01` / `DW-O02` へ 1 行ずつ統合しようとしたが、
+  `DW-O01` が 1077 bytes となり単節予算を超え、さらに dispatcher route 行の exact 1 件検査にも
+  抵触したため撤回した (L1.5 の unique footprint も 9926 > 9566 で超過)。
+  内容 = (i) `--stage review` / `focus` へ `--reasoning` を渡すと codex を起動せず rc=2、
+  (ii) `--artifact-root` の親 directory が無いと同じく起動せず rc=2、
+  (iii) 再投入で `.done` 名を使い回すと待ち手が前走の marker を掴んで偽完了を報告する
+  (待ち手は producer の pid で生死を見る)。**予算のために安全義務を削除・弱化する案は採らない。**
+  docs 予算棚卸し wave の package で入庫可否を判定するのが妥当
 - {{T:legacy-writer-path-containment}} **P2・新規 (ユーザー裁定待ち、B 系)**:
   `s8b_holdout_freeze.generate(output_path=...)` と `s8b_oracle_manifest.write_manifest(path, ...)` は
   任意 path を受理し続けるため、programmatic には canonical namespace へ到達でき、到達すると
