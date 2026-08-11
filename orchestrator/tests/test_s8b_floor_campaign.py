@@ -17,7 +17,6 @@ manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台
 from __future__ import annotations
 
 import ast
-import concurrent.futures as cf
 import contextlib
 import dataclasses
 import datetime as dt
@@ -105,11 +104,6 @@ _BASE_TPS = {
 }
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
-
-# 実 tree 11,033 entry では現行 5.79s、4 thread 1.83s、8 thread 1.43s、16 thread 1.47s。
-# 4 thread は 8 thread の絶対削減量の 90.8% を保ちつつ、同時 thread burst を半減する。
-_OUTPUT_SNAPSHOT_THREADS = min(4, os.cpu_count() or 1)
-
 
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
     del cxx
@@ -460,6 +454,8 @@ def _digest(abspath: str) -> str:
         return hashlib.sha256(handle.read()).hexdigest()
 
 
+# 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
+# critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
 def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
     """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。
 
@@ -470,9 +466,9 @@ def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
         return ()
     entries = _walk_entries(output)
     files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
-    with cf.ThreadPoolExecutor(max_workers=_OUTPUT_SNAPSHOT_THREADS) as pool:
-        digests = list(pool.map(lambda item: _digest(item[1]), files))
-    digest_by_rel = dict(zip((rel for rel, _ in files), digests))
+    digest_by_rel = {}
+    for rel, abspath in files:
+        digest_by_rel[rel] = _digest(abspath)
     snapshot = []
     for kind, rel, abspath in entries:
         if kind == "symlink":
@@ -557,7 +553,7 @@ def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
     assert digest_calls == ["/synthetic/first", "/synthetic/second"]
 
 
-def test_real_output_snapshot_propagates_thread_digest_failure(tmp_path, monkeypatch):
+def test_real_output_snapshot_propagates_digest_failure(tmp_path, monkeypatch):
     output = tmp_path / "snapshot"
     output.mkdir()
     missing = output / "missing.bin"
