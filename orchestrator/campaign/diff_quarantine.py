@@ -17,9 +17,10 @@ coder (LLM) が合成した #if 枝コードを orchestrator がテンプレフ�
   のみであり、C++ の意味 admission ではない。source_digest は実行する source の identity
   だけを束縛する。build_admission が既定拒否するのは caller が ``CODER_DERIVED`` と
   **自己分類した build request** であり、source bytes から provenance を検出してはいない。
-  sort/trigger driver の auditor verdict は pre-build の機械 gate として実際に build を止めるが、
-  C++ の意味保証・security credit については advisory control に留まる。この source 由来
-  capability と cache/replay class 束縛を欠くため、admission 層全体はまだ閉じていない。
+  structural quarantine 単体は C++ の意味 security を提供しない。後段では有限 lexical
+  coder-effect gate が受理集合を狭め、sort/trigger driver の auditor verdict は
+  **mandatory deny-only veto; affirmative security credit なし**として build を止める。
+  source 由来 capability と cache/replay class 束縛を欠くため、admission 層全体はまだ閉じていない。
 
 **1 呼び出しにつき caller が指定した単一マーカーを検査する。** 複数マーカーを一括して
 完全性検査する marker set completeness predicate / hunk-to-marker assignment は持たない
@@ -43,6 +44,7 @@ class DiffRejectSubtype(Enum):
     HOLE_ESCAPE = "hole-escape"          # hole 内に禁止指令・マーカー・delimiter/splice が混入
     OUTSIDE_REGION = "outside-region"    # EVOLVE-BLOCK 領域外 (別行・別ファイル) に変更あり
     MALFORMED = "malformed"              # diff がパース不能 / HEAD と行が不整合 (fail-closed)
+    HOST_EFFECT = "host-effect"          # structural pass 後の有限 lexical 効果 gate
 
 
 # hole 内で禁止する「行頭前処理指令」の検出。行頭 (先行空白許容) が `#`、または

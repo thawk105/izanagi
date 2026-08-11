@@ -80,6 +80,7 @@ FRAGMENT_FILE_RE = re.compile(
     r"(?P<authored>\d{4}-\d{2}-\d{2})-(?P<wave>[a-z0-9]+(?:-[a-z0-9]+)*)-"
     r"(?P<seq>[1-9][0-9]*)\.md"
 )
+_IMPORT_ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclasses.dataclass(frozen=True, order=True)
@@ -1035,7 +1036,78 @@ def _discover(repo: Path, *, state_gate: bool) -> tuple[list[Fragment], list[Sym
             brace = min((position for position in (masked.find("{{"), masked.find("}}")) if position >= 0), default=-1)
             if brace >= 0:
                 issues.append(Issue(fragment.path, line_number, "placeholder-malformed", f"{fragment.path}: malformed placeholder または置換残り"))
+    approval_issue = _approval_guard_issue(
+        repo,
+        (fragment.raw for fragment in fragments if fragment.ledger == "decisions"),
+    )
+    if approval_issue is not None:
+        code, message = approval_issue
+        issues.append(
+            Issue(
+                "docs/spool/decisions",
+                1,
+                code,
+                message,
+            )
+        )
     return fragments, symbols, deltas, sorted(set(issues))
+
+
+def _approval_guard_issue(
+    repo: Path,
+    decision_payloads: Iterable[bytes],
+) -> tuple[str, str] | None:
+    payloads = tuple(decision_payloads)
+    if not any(b"approved_blobs:" in payload for payload in payloads):
+        return None
+    try:
+        previous_sys_path = sys.path[:]
+        try:
+            sys.path.insert(0, str(_IMPORT_ROOT))
+            from orchestrator.publication.approval_guard import (
+                ApprovalGuardError,
+                require_resolved_approval_markers,
+            )
+        finally:
+            sys.path[:] = previous_sys_path
+    except ImportError as exc:
+        return "approval-guard-unavailable", f"approval guard を import できない: {exc}"
+    try:
+        require_resolved_approval_markers(repo, payloads)
+    except ApprovalGuardError as exc:
+        return exc.code, str(exc)
+    return None
+
+
+def _plan_decision_payloads(repo: Path, plan: FoldPlan) -> tuple[bytes, ...]:
+    payloads: list[bytes] = []
+    for fragment in plan.fragments:
+        if not fragment.path.startswith("docs/spool/decisions/"):
+            continue
+        parts = fragment.path.split("/")
+        if (
+            len(parts) != 4
+            or parts[:3] != ["docs", "spool", "decisions"]
+            or FRAGMENT_FILE_RE.fullmatch(parts[3]) is None
+        ):
+            continue
+        path = repo.joinpath(*parts)
+        if path.is_symlink() or not path.is_file():
+            continue
+        raw = path.read_bytes()
+        if _sha256(raw) != fragment.content_sha256:
+            continue
+        payloads.append(raw)
+    target = next(
+        (target for target in plan.targets if target.path == "docs/decisions.md"),
+        None,
+    )
+    if target is not None:
+        # fragment receipt は provenance の照合対象であって、実際に canonical へ
+        # 書く bytes の代替ではない。direct plan / durable state のどちらでも
+        # after_bytes 自体を必ず marker gate に通す。
+        payloads.append(target.after_bytes)
+    return tuple(payloads)
 
 
 def validate_spool_tree(repo: str | os.PathLike[str] | Path) -> list[Issue]:
@@ -2132,7 +2204,7 @@ def plan_fold(
             targets.append(_target(repo, rel, changes[rel]))
     transaction_id = _plan_transaction_id(fold_date, fragments, targets)
     flat_allocations = tuple(sorted((f"{wave}/{namespace}:{slug}", value) for (wave, namespace, slug), value in allocations.items()))
-    return FoldPlan(
+    plan = FoldPlan(
         "planned",
         fold_date,
         transaction_id,
@@ -2143,6 +2215,13 @@ def plan_fold(
         len(rendered_worklog),
         rotation_path,
     )
+    approval_issue = _approval_guard_issue(repo, _plan_decision_payloads(repo, plan))
+    if approval_issue is not None:
+        code, message = approval_issue
+        raise SpoolValidationError(
+            [Issue("docs/decisions.md", 1, code, message)]
+        )
+    return plan
 
 
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -2287,7 +2366,11 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
         if stored_plan.transaction_id != plan.transaction_id:
             raise TransactionError("active transaction と渡された plan の ID が不一致")
         plan = stored_plan
-    else:
+    approval_issue = _approval_guard_issue(repo, _plan_decision_payloads(repo, plan))
+    if approval_issue is not None:
+        code, message = approval_issue
+        raise TransactionError(f"[{code}] {message}")
+    if not state_exists:
         _git_clean_preflight(repo, plan)
         state_data = json.dumps(_plan_state(plan), ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8") + b"\n"
         _atomic_write(state_path, state_data)
