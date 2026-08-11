@@ -55,7 +55,10 @@ title: [T-316] 意味 gate を実装した — 主張を「測定済み 4 種の
 - **`tools/dev_wave_codex.py` の投入で artifact 名を 2 度捨てた。** `--artifact-root` には
   wave 名 dir の**親**を渡す必要があり、かつ tool は `<root>/<wave>/<job-id>` を自分で作らない。
   知らずに投入すると codex は起動せず rc=2 の `.done` だけが残り、`DW-O01` の「既存 `.done` は
-  再利用せず再投入を止める」規律により名前を捨てることになる。段 8 の改善候補とした。
+  再利用せず再投入を止める」規律により名前を捨てることになる。
+  **段 8 で統合を試みたが `docs/dev-wave/**` の L1.5 予算に余白が無く (実測 9566 / 9566 bytes)、
+  116 bytes の追記で超過した。** 予算を上げる変更は自己改善に含めない契約なので、変更を戻して
+  裁定へ返す ({{T:dw-o01-artifact-root}})。
 - **受入全走は 8562 passed / 20 skipped / 557.26 秒 / rc=0** (計算ノード、request `902242.nqsv`、
   受入 lease 取得後に main を取り込んだ tip `31ea06c8`)。**焦点走で赤だった
   `test_checkpoint_direction_and_magnitude_domains_match_role_policy` は全走では緑**であり、
@@ -101,6 +104,14 @@ title: [T-316] 意味 gate を実装した — 主張を「測定済み 4 種の
   `assert_value_literal_consistent` を通るが genome は `int()` で 20 を記録する。実行 binary と
   台帳 genome が別値になる帰属の穴。既存欠陥で本 wave の差分外。role policy は 1..1000 の
   `int|float` を許可している。
+- {{T:dw-o01-artifact-root}} **P3・段 8 自己改善 (要裁定)**: `DW-O01` は
+  `tools/dev_wave_codex.py` の `--artifact-root` が wave 名 dir の**親**を取ること、
+  および tool が組む `<root>/<wave>/<job-id>` を**呼び手が先に作る**必要があることを書いていない。
+  知らずに投入すると codex は起動せず rc=2 の `.done` だけが残り、`DW-O01` の
+  「既存 `.done` は再利用せず再投入を止める」規律により artifact 名を捨てることになる
+  (本 wave で 2 回発生)。**統合を試みたが `docs/dev-wave/**` の L1.5 予算が
+  9566 / 9566 bytes で余白ゼロ**のため 116 bytes の追記が超過し、変更を戻した。
+  予算を上げる変更は自己改善に含めない契約なので、独立審査 ([T-786] 系) と合わせて裁定へ返す。
 - {{T:codex-roles-import-path}} **P3・[T-316] 由来**:
   `test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy` は
   `from codex_roles import policy` を top-level で使い、`orchestrator/` が `sys.path` に入る
