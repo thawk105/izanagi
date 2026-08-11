@@ -1,0 +1,43 @@
+### 1. 所見ごとの対応表
+
+| レビュー | 所見 | 分類 | 対応 | 根拠 (file:line) |
+|---|---:|---|---|---|
+| R1 | 1 | BLOCKER | closed | CLI は実検証済み manifest から射影を生成する（[s8b_oracle_judge.py:373](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_judge.py:373), [同:383](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_judge.py:383)）。judge は manifest 由来 `n` とセル集合を用い、observations の `n`・`expected_cells`・rows を再束縛する（[同:201](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_judge.py:201), [同:249](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_judge.py:249), [同:280](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_judge.py:280)）。 |
+| R1 | 2 | MAJOR | closed | schema 負例は実 verifier を通る manifest を使用し、同一 fixture の正例で rc=0・出力生成を先に固定してから、入力 schema だけを壊して rc=2・出力なしを確認する（[test_s8b_oracle_judge.py:476](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:476), [同:490](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:490), [同:503](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:503)）。 |
+| R2 | 1 | BLOCKER | closed | R1-1 と同じ。さらに正しい hash を維持したまま、自己整合する別 `n`・rows・`expected_cells` へ変える負例が `n-per-cell-mismatch` と `expected-cells-mismatch` の双方を要求する（[test_s8b_oracle_judge.py:386](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:386), [同:399](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:399), [同:420](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:420)）。 |
+| R2 | 2 | BLOCKER | closed | pin raw と `PIN_GATE_SPEC_SHA256` は一致し、5 source hash も実 bytes と一致する（[test_s8b_oracle_manifest.py:61](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest.py:61), [同:82](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest.py:82)）。独立再計算結果も親の6項目と完全一致した。 |
+| R2 | 3 | MINOR | closed | matching token の正例後、exact type・file hash・document hash・spec hash を各単独で壊し、対象診断を含む唯一の refusal を要求する（[test_s8b_oracle_driver.py:1860](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:1860), [同:1899](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:1899), [同:1902](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:1902), [同:1925](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:1925)）。 |
+| R2 | 4 | nit | partial | consumer は今も file path の set へ縮約されるため、同一 file 内の callsite 追加は検出不能（[test_s8b_oracle_manifest_contract.py:43](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest_contract.py:43), [同:78](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest_contract.py:78)）。ただし限界は明記され、現 consumer 集合は一致している（[同:82](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest_contract.py:82)）。 |
+| R2 | 5 | nit | partial | 各 parameter 内で baseline verify は追加された（[test_s8b_oracle_manifest.py:1499](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest.py:1499), [同:1513](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest.py:1513)）。しかし負例は baseline object の deepcopy ではなく別途再構築される（[同:1568](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_manifest.py:1568)）。対象エラーを固定しており恒真リスクは小さい。 |
+| R2 | 6 | nit | partial | `config_for_block` は引き続き raw `Mapping` を受理する（[s8b_oracle_manifest.py:1144](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_manifest.py:1144)）。現唯一の production caller は `VerifiedManifest.document` を渡す（[s8b_oracle_driver.py:1224](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_driver.py:1224)）。 |
+
+### 2. fix 自体への攻撃
+
+新しい恒真は確認しなかった。
+
+- judge の schedule 負例は、同じ projection で正例が determinate になることを先に固定し、その後 observations 側だけを別 schedule 相当に変更している。hash は変更せず、変更後 observations 内の `n`・rows・`expected_cells` は相互整合するため、意図した manifest 射影不一致で落ちている。
+- rows 単独の欠落も既存テストで固定されており、observations の `expected_cells` だけを照合して rows 検査を省く退行は通らない（[test_s8b_oracle_judge.py:275](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_judge.py:275)）。
+- `schedule_projection` は required keyword・default なし（[s8b_oracle_judge.py:159](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_judge.py:159)）。production caller は CLI 1箇所だけで、そこで必ず `VerifiedManifest` から生成される。判定対象の holdout/configuration と `n` は projection 由来で、observations から漏れるのは本来の測定値・outcomeだけである。
+- `ManifestScheduleProjection` 自体は public に構築可能だが、production の直接 caller はなく、段4裁定の「CLIで再検証、coreへ immutable projectionを渡す」という信頼境界内である。
+- production の fail-open、例外握り潰し、approval default は追加されていない。`verify_manifest.approved_spec` も required のまま（[s8b_oracle_manifest.py:991](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_manifest.py:991)）、承認 pin 不在は `None` で fail-closed のまま（[s8b_oracle_spec.py:21](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/campaign/s8b_oracle_spec.py:21)）。
+- worktree diff 上、既存テストの期待値反転・緩和・削除・新規 skip/xfail はない。judge の既存 caller は required 引数へ機械追随しただけで、元の verdict assertions は維持されている。
+- binding driftguard は壊す前の manifest に対応する approved spec を保持し、壊すのは `src_token` 1箇所だけ。さらに binding schema 不一致の診断を明示確認するため、spec 不一致による偽緑ではない（[test_s8b_binding_driftguards.py:230](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_binding_driftguards.py:230), [同:268](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_binding_driftguards.py:268), [同:289](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_binding_driftguards.py:289)）。
+- contract SHA mismatch は、変更後 `run_contract` を含む approved spec を再構築し、manifest の spec hash・preimage・manifest IDも再封している。そのうえで env registry mismatch だけを期待しており、検査対象を骨抜きにしていない（[test_s8b_oracle_driver.py:4648](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:4648), [同:4664](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:4664), [同:4680](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:4680)）。
+- CLI rc=3 回帰も、対象 manifest と一致する spec bytes を subprocess 内で実検証・注入しており、後段の binding protocol violation が発火する構造を維持する（[test_s8b_oracle_driver.py:3399](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:3399), [同:3420](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:3420), [同:3435](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t804-spec-sha256/orchestrator/tests/test_s8b_oracle_driver.py:3435)）。
+- pin は独立再計算でも全6項目一致。親の検算との食い違いはない。
+
+### 3. 残存所見
+
+いずれも must-fix ではなく nit/backlog。
+
+- R2-4: 将来、既存 file 内・re-export・動的 access で loader-only sink が増えると pin が検知せず、report/verdict の受理集合が拡大し得る。現 consumer の取り残しはない。
+- R2-5: 将来、baseline と負例の独立再構築が drift すると投影比較の退行を誤検知・見逃し、manifest の受理集合を誤って広げる可能性がある。現負例は対象エラーまで固定済み。
+- R2-6: 将来 raw `Mapping` を渡す production caller が追加されると、未検証 campaign/run-contract が driver・台帳へ射影され得る。現 caller は検証済み object のみ。
+
+## 総括
+
+**GO。**
+
+R1/R2 の全 BLOCKER と MAJOR は root cause まで閉じている。残る3件は現成果物へ影響しない既知の nit/backlog であり、段6を止める根拠にはならない。
+
+pytest はこの再レビューでは実走していない。実測根拠は親提示の **467 passed / 0 failed / 1 skipped** のみで、こちらでは静的検査、pin 独立再計算、`git diff --check` を行った。

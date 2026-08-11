@@ -1,0 +1,190 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 450,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M0-prewave-form",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if document[\"schedule\"] != expected_schedule:\n        raise ManifestError(\"schedule が approved spec の再生成値と不一致\")\n    if campaigns != spec[\"campaign_ids\"]:\n        raise ManifestError(\"campaign_ids が approved spec と不一致\")\n    if run_contract != spec[\"run_contract\"]:\n        raise ManifestError(\"run_contract が approved spec と不一致\")\n    if binding_identity != spec[\"binding_identity\"]:\n        raise ManifestError(\"binding_identity が approved spec と不一致\")\n    if reasons != spec[\"allowed_excluded_reasons\"]:\n        raise ManifestError(\"allowed_excluded_reasons が approved spec と不一致\")\n    if generator_versions != spec[\"generator_versions\"]:\n        # 両側の canonical path/実 byte hash 検査後の defense-in-depth。\n        raise ManifestError(\"generator_versions が approved spec と不一致\")\n    recorded_spec_sha256 = _sha256_text(\n        document.get(\"spec_sha256\"), field=\"spec_sha256\",\n    )\n    if recorded_spec_sha256 != approved.sha256:\n        raise ManifestError(\"spec_sha256 が approved spec と不一致\")\n",
+          "new": "    _sha256_text(document.get(\"spec_sha256\"), field=\"spec_sha256\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[schedule-schedule \\u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[campaign_ids-campaign_ids \\u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[run_contract-run_contract \\u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[binding_identity-binding_identity \\u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[allowed_excluded_reasons-allowed_excluded_reasons \\u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[generator_versions-generator_versions \\u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[spec_sha256-spec_sha256 \\u304c approved spec]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-schedule-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if document[\"schedule\"] != expected_schedule:\n        raise ManifestError(\"schedule が approved spec の再生成値と不一致\")",
+          "new": "    if False:\n        raise ManifestError(\"schedule が approved spec の再生成値と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[schedule-schedule \\u304c approved spec]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-campaign-ids-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if campaigns != spec[\"campaign_ids\"]:\n        raise ManifestError(\"campaign_ids が approved spec と不一致\")",
+          "new": "    if False:\n        raise ManifestError(\"campaign_ids が approved spec と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[campaign_ids-campaign_ids \\u304c approved spec]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-run-contract-projection",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if run_contract != spec[\"run_contract\"]:\n        raise ManifestError(\"run_contract が approved spec と不一致\")",
+          "new": "    if False:\n        raise ManifestError(\"run_contract が approved spec と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[run_contract-run_contract \\u304c approved spec]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-spec-sha256-equality",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if recorded_spec_sha256 != approved.sha256:\n        raise ManifestError(\"spec_sha256 が approved spec と不一致\")",
+          "new": "    if False:\n        raise ManifestError(\"spec_sha256 が approved spec と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[spec_sha256-spec_sha256 \\u304c approved spec]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-seal-wrapper-default",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "        def verified(\n                path, *, root, freeze_document, freeze_sha256, approved_spec):",
+          "new": "        def verified(\n                path, *, root, freeze_document, freeze_sha256, approved_spec=None):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest_contract.py::test_verify_manifest_public_and_seal_wrapper_signatures_require_approved_spec"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-judge-expected-cells-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_judge.py",
+          "old": "    if observed_expected_counter != expected_counter:",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_judge.py::test_observations_schedule_body_must_match_verified_manifest_projection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-legacy-spec-laundering",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_report.py",
+          "old": "        manifest_kind = \"legacy\"\n        spec_sha = None",
+          "new": "        manifest_kind = \"legacy\"\n        spec_sha = document.get(\"spec_sha256\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_report.py::test_legacy_manifest_cannot_launder_spec_sha256_into_observations_or_judge"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-gate-injection-spec-rebind",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "                if verified_manifest.document.get(\"spec_sha256\") != approved.sha256:",
+          "new": "                if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[spec-hash-approved spec \\u3068\\u4e0d\\u4e00\\u81f4]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-over-rejection-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if document[\"schedule\"] != expected_schedule:\n        raise ManifestError(\"schedule が approved spec の再生成値と不一致\")",
+          "new": "    if document[\"schedule\"] is not expected_schedule:\n        raise ManifestError(\"schedule が approved spec の再生成値と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_accepts_exact_approved_spec_projection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-d288-acceptance-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if not isinstance(run_contract, Mapping) or not _RUN_CONTRACT_KEYS <= set(run_contract):",
+          "new": "    if not isinstance(run_contract, Mapping) or set(run_contract) != _RUN_CONTRACT_KEYS:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generic_builder_still_accepts_run_contract_extra_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -45,8 +45,8 @@ _S09_ACCEPTANCE_ORDER_LITERAL = (
 )
 _SYNTHETIC_STAGE6_WAITER_ITEM = (
     "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。\n"
-    "   受入直前に runbook の受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、\n"
-    "   `acquired` のときだけ投入する。\n"
+    "   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、\n"
+    "   `acquired` / `held-self` のときだけ投入する。\n"
 )
 _SYNTHETIC_STAGE9_WAITER_ITEM = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。\n"
