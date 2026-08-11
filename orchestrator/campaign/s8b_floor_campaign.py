@@ -57,6 +57,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import socket
 import subprocess
 import sys
@@ -81,6 +82,7 @@ from ..calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from . import buildcache, s8b_floor_stats, source_digest  # noqa: E402
+from . import toolchain_binding  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
     ReviewId,
@@ -1056,14 +1058,131 @@ def _prepared_binding(
         raise FloorCampaignError(str(exc)) from exc
 
 
+@dataclass(frozen=True)
+class _ObservedFloorTool:
+    requested: str
+    realpath: str
+    version_first_line: str
+    version: str
+
+    def manifest_entry(self) -> dict[str, str]:
+        return {
+            "requested": self.requested,
+            "realpath": self.realpath,
+            "version_first_line": self.version_first_line,
+        }
+
+
+def _observe_floor_tool(requested: str, role: str) -> _ObservedFloorTool:
+    """Floor gate 用に実体と ``--version`` 全文を一度に観測する。"""
+    try:
+        found = shutil.which(requested)
+    except (OSError, TypeError) as exc:
+        raise FloorCampaignError(
+            f"floor toolchain {role} の探索に失敗: {requested!r}: {exc}"
+        ) from exc
+    if not found:
+        raise FloorCampaignError(
+            f"floor toolchain {role} が PATH に存在しない: {requested!r}"
+        )
+    realpath = os.path.realpath(found)
+    if not os.path.isfile(realpath) or not os.access(realpath, os.X_OK):
+        raise FloorCampaignError(
+            f"floor toolchain {role} の実体が実行可能な通常ファイルでない: "
+            f"{realpath!r}"
+        )
+    try:
+        result = subprocess.run(
+            [realpath, "--version"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise FloorCampaignError(
+            f"floor toolchain {role} --version を実行できない: {realpath}: {exc}"
+        ) from exc
+    lines = result.stdout.splitlines()
+    version = (result.stdout + result.stderr).strip()
+    if (result.returncode != 0 or not lines or not lines[0].strip()
+            or not version):
+        raise FloorCampaignError(
+            f"floor toolchain {role} --version の取得に失敗 "
+            f"(rc={result.returncode}): {realpath}"
+        )
+    return _ObservedFloorTool(
+        requested=requested,
+        realpath=realpath,
+        version_first_line=lines[0],
+        version=version,
+    )
+
+
+def _bind_current_toolchain(
+        verified_calibration, *, cc: str, cxx: str,
+) -> dict[str, dict[str, str]]:
+    """Hash 検証済み calibration receipt と current toolchain を束縛する。"""
+    if not isinstance(verified_calibration, env_attestation.VerifiedCalibration):
+        raise FloorCampaignError(
+            "floor toolchain binding に VerifiedCalibration が渡されていない"
+        )
+    calibration = verified_calibration.calibration
+    if calibration is None:
+        if not toolchain_binding.floor_toolchain_matches(
+            receipt_toolchain=None,
+            receipt_build_argv=(),
+            live_cc_realpath="",
+            live_cxx_realpath="",
+            live_cc_version="",
+            live_cxx_version="",
+            live_cmake_version="",
+        ):
+            raise FloorCampaignError(
+                "floor toolchain binding に acquisition receipt がない"
+            )
+        raise FloorCampaignError(
+            "floor toolchain binding が receipt 不在を誤受理した"
+        )
+
+    receipt = calibration.acquisition_receipt
+    observed = {
+        "cc": _observe_floor_tool(cc, "cc"),
+        "cxx": _observe_floor_tool(cxx, "cxx"),
+        "cmake": _observe_floor_tool("cmake", "cmake"),
+    }
+    receipt_toolchain = {
+        "compiler_path": receipt.toolchain.compiler_path,
+        "compiler_version": receipt.toolchain.compiler_version,
+        "cmake_version": receipt.toolchain.cmake_version,
+    }
+    if not toolchain_binding.floor_toolchain_matches(
+            receipt_toolchain=receipt_toolchain,
+            receipt_build_argv=receipt.ccbench.build_argv,
+            live_cc_realpath=observed["cc"].realpath,
+            live_cxx_realpath=observed["cxx"].realpath,
+            live_cc_version=observed["cc"].version,
+            live_cxx_version=observed["cxx"].version,
+            live_cmake_version=observed["cmake"].version):
+        raise FloorCampaignError(
+            "floor toolchain が registered calibration receipt と不一致"
+        )
+    return {
+        role: observation.manifest_entry()
+        for role, observation in observed.items()
+    }
+
+
 def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
-                out_root: Path, prepare_fn, contract, build_fn=None) -> dict[str, dict]:
+                out_root: Path, prepare_fn, contract, verified_calibration,
+                build_fn=None) -> dict[str, dict]:
     """全セルを実体化し、runner/store 専用の absolute-path runtime view を返す。"""
     build_fn = build_fn or buildcache.build_v2
     # Human-reviewed admission では generator id は persistent receipt に入らない。API が要求する
     # run context の registered member として、S8b の直前 producer である S8a を選ぶ。
     build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     cache_root = str(out_root / "s8b-build-cache")
+    cc, cxx = buildcache.compilers_for_current_site()
+    expected_toolchain_manifest = _bind_current_toolchain(
+        verified_calibration, cc=cc, cxx=cxx,
+    )
     built: dict[str, dict] = {}
     for cell in cells:
         holdout_id = cell["holdout_id"]
@@ -1076,7 +1195,7 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 prepared.genome,
                 ccbench_pin,
                 ccbench_dir=prepared.ccbench_dir,
-                cxx=buildcache.DEFAULT_CXX,
+                cxx=cxx,
             )
             review = reviewed_source_capability(
                 review_id=ReviewId.S8B_FLOOR,
@@ -1092,9 +1211,10 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
                 source_evidence=evidence,
                 contract=contract, ccbench_commit=ccbench_pin,
                 trace=False, cache_root=cache_root, src_token=prepared.src_token,
-                cc=buildcache.DEFAULT_CC, cxx=buildcache.DEFAULT_CXX,
+                cc=cc, cxx=cxx,
                 ccbench_dir=prepared.ccbench_dir,
                 timeout_s=_FLOOR_BUILD_CAP_PER_CELL_S,
+                expected_toolchain_manifest=expected_toolchain_manifest,
             )
             if getattr(result, "contract_sha256", None) != contract.contract_sha256:
                 raise FloorCampaignError(
@@ -3065,6 +3185,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         runtime_built = build_cells(
             freeze, cells, ccbench_pin=protocol["ccbench_pin"],
             out_root=out_root, prepare_fn=prepare_fn, contract=contract,
+            verified_calibration=verified_calibration,
             build_fn=build_fn,
         )
         # content-addressed store (C3-7): 計測 bytes を env scope 永続領域へ複製し store_path を記録。
@@ -3119,6 +3240,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             runtime_built = build_cells(
                 freeze, cells, ccbench_pin=protocol["ccbench_pin"],
                 out_root=out_root, prepare_fn=prepare_fn, contract=contract,
+                verified_calibration=verified_calibration,
                 build_fn=build_fn,
             )
             store_root = Path(env_scope_dir(

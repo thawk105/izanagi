@@ -21,7 +21,7 @@ import socket
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from . import site_policy, source_digest
 from .build_admission import (
@@ -580,6 +580,7 @@ def build_v2(
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
+        expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -596,6 +597,8 @@ def build_v2(
     identity の site は注入値でなく実環境から独立に解決する。非空の
     ``dependency_prefix`` は configure argv へ明示し、subprocess 環境の同名変数を除く。
     空なら argv と環境継承を変えず、ambient 値の正準形だけを identity に束縛する。
+    ``expected_toolchain_manifest`` が指定された場合だけ、identity 算出前の再観測結果との
+    完全一致を要求する。既定 ``None`` は従来の受理集合と実行順を変えない。
     """
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -655,6 +658,11 @@ def build_v2(
     _verify_ccbench_commit(sub, ccbench_commit)
     source_digest.assert_worktree_within_allowlist(sub)
     toolchain = _toolchain_manifest(cc, cxx)
+    if (expected_toolchain_manifest is not None
+            and toolchain != expected_toolchain_manifest):
+        raise BuildCacheError(
+            "v2 toolchain manifest が caller の事前観測と不一致"
+        )
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         site=actual_site, dependency_prefix=effective_dependency_prefix,

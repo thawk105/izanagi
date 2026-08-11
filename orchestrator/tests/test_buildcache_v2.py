@@ -159,6 +159,26 @@ def _install_toolchain(tmp_path: Path, monkeypatch, *, cxx_version: str = "cxx v
     return bindir
 
 
+def _expected_toolchain_manifest(bindir: Path) -> dict[str, object]:
+    return {
+        "cc": {
+            "requested": "test-cc",
+            "realpath": str((bindir / "test-cc").resolve()),
+            "version_first_line": "cc version A",
+        },
+        "cxx": {
+            "requested": "test-cxx",
+            "realpath": str((bindir / "test-cxx").resolve()),
+            "version_first_line": "cxx version A",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": str((bindir / "cmake").resolve()),
+            "version_first_line": "cmake version A",
+        },
+    }
+
+
 def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-binary") -> None:
     monkeypatch.setattr(
         buildcache.site_policy, "current_site", lambda: buildcache.site_policy.OTHER,
@@ -192,7 +212,8 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
-           dependency_prefix: str = "", site: str | None = None):
+           dependency_prefix: str = "", site: str | None = None,
+           expected_toolchain_manifest=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     context, evidence, admission = _admission_bundle(
@@ -216,6 +237,8 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["dependency_prefix"] = dependency_prefix
     if site is not None:
         kwargs["site"] = site
+    if expected_toolchain_manifest is not None:
+        kwargs["expected_toolchain_manifest"] = expected_toolchain_manifest
     return buildcache.build_v2(
         genome,
         **kwargs,
@@ -364,6 +387,31 @@ def test_v2_toolchain_version_change_is_cache_miss(tmp_path, monkeypatch):
     second = _build(tmp_path, _contract(1))
     assert not second.cached
     assert first.build_dir != second.build_dir
+
+
+def test_v2_expected_toolchain_manifest_exact_match_is_accepted(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(
+        tmp_path, _contract(1),
+        expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+    )
+    assert not result.cached
+
+
+def test_v2_expected_toolchain_manifest_mismatch_refuses_before_cache_claim(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected = _expected_toolchain_manifest(bindir)
+    expected["cc"] = dict(expected["cc"], version_first_line="cc version stale")
+    with pytest.raises(buildcache.BuildCacheError, match="caller の事前観測"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=expected,
+        )
+    assert not (tmp_path / "cache").exists()
 
 
 def test_m7_v2_actual_site_change_is_cache_miss(tmp_path, monkeypatch):
