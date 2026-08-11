@@ -821,3 +821,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:cfab-design-row-extraction-declared-form-only":"[T-797]","T:cfab-revocation-record-schema":"[T-795]","T:cfab-stage0-completion-unreachable":"[T-794]","T:cfab-stage6-completion-predicate":"[T-796]"},"authored":"2026-08-11","content_sha256":"ceee57ea924a61366a0a9cf49a23dc85803ae25aaaf81bbb31e3768d0a267566","seq":1,"wave":"dev-wave-t657-stage0-rulings"}
 - {"allocations":{"F:design-literal-hidden-in-html-comment":"F215","F:mutation-spec-renumbered-after-preregistration":"F216"},"authored":"2026-08-11","content_sha256":"e0c7ccd1aee1e877779e1bbaa415d9816720db1061f5403152b7cc8c2a292b02","seq":2,"wave":"dev-wave-t657-stage0-rulings"}
 - {"allocations":{"D:design-literal-binding-rejects-html-comments":"D285","D:dev-wave-waiter-pid-and-codex-coldstart":"D286"},"authored":"2026-08-11","content_sha256":"5df2a09f5ffc1ceb3d42c4f3610bb0591b1a2b0fb7c2fc066aabe51a4834b4a6","seq":3,"wave":"dev-wave-t657-stage0-rulings"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"c17acce403a0391868c30845df177d186f171814bbe3aa86282e710169c3c2b3","seq":52,"wave":"rulings-20260806-a"}
