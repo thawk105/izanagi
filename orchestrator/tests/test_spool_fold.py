@@ -2997,6 +2997,74 @@ def _copy_real_canonical_family(tmp_path: Path) -> Path:
     return repo
 
 
+def _loaded_dev_waves_modules() -> dict[str, object]:
+    return {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "dev_waves" or name.startswith("dev_waves.")
+    }
+
+
+def _assert_dev_waves_modules_restored(expected: dict[str, object]) -> None:
+    actual = _loaded_dev_waves_modules()
+    assert actual.keys() == expected.keys()
+    for name, original_module in expected.items():
+        assert actual[name] is original_module
+
+
+def test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions(
+    tmp_path: Path,
+) -> None:
+    repo = _copy_real_canonical_family(tmp_path)
+    probe_name = "dev_waves._fixture_tools_imports_positive_control"
+    _write(
+        repo / "tools/dev_waves/_fixture_tools_imports_positive_control.py",
+        "FIXTURE_ONLY = True\n",
+    )
+
+    with _fixture_tools_imports(ROOT):
+        preloaded = importlib.import_module("dev_waves.launch_authority")
+        path_before = sys.path[:]
+        modules_before = _loaded_dev_waves_modules()
+        assert modules_before["dev_waves.launch_authority"] is preloaded
+        assert probe_name not in modules_before
+
+        with _fixture_tools_imports(repo):
+            fixture_module = importlib.import_module("dev_waves.launch_authority")
+            module_file = Path(fixture_module.__file__).resolve()
+            assert repo.resolve() in module_file.parents
+            assert module_file.relative_to(repo.resolve()) == Path(
+                "tools/dev_waves/launch_authority.py"
+            )
+            assert fixture_module is not preloaded
+            importlib.import_module(probe_name)
+            assert probe_name in sys.modules
+
+        assert sys.path == path_before
+        _assert_dev_waves_modules_restored(modules_before)
+        assert sys.modules["dev_waves.launch_authority"] is preloaded
+
+        marker = RuntimeError("fixture import context exception probe")
+        try:
+            with _fixture_tools_imports(repo):
+                fixture_module = importlib.import_module(
+                    "dev_waves.launch_authority"
+                )
+                module_file = Path(fixture_module.__file__).resolve()
+                assert repo.resolve() in module_file.parents
+                importlib.import_module(probe_name)
+                assert probe_name in sys.modules
+                raise marker
+        except RuntimeError as raised:
+            assert raised is marker
+        else:
+            raise AssertionError("_fixture_tools_imports が区間内の例外を握り潰した")
+
+        assert sys.path == path_before
+        _assert_dev_waves_modules_restored(modules_before)
+        assert sys.modules["dev_waves.launch_authority"] is preloaded
+
+
 def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path: Path) -> None:
     """N37: 実 canonical の archive を active-history 解決へ渡す経路を固定する。"""
 
