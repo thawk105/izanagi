@@ -100,7 +100,20 @@ worklog を赤 node 名で検索して成立済み waiver を確認する) を�
 - **並行セッション**: 同じ 4 条件を各セッションが自分で検査したうえでのみ適用してよい。
   検査結果 (赤 node 名の集合と失敗理由) を worklog へ併記する (F101 の再発検知)。
 - **是正の担い手**: `test_t793_report.py` は T-139/公表層 wave の所有。凍結境界により
-  本 wave は直さない。推奨は上記のとおり「scan 対象を凍結 bytes へ固定する」。
+  本 wave は直さない。**[T-827] に修正 commit `292151a5` が既にあり、land すれば W2 は自動失効する。**
+
+### W2 の適用検査の結果 (条件 4 の併記義務)
+
+記録込みの最終 tip で受入を走らせ直し、4 条件を実結果に当てた。**全条件成立につき適用した。**
+
+| 条件 | 実測 |
+|---|---|
+| 1. 赤が対象 2 node ちょうど | **成立**。`nodeid=` の全数は `test_actual_head_d292_reference_is_reported_fail_closed` と `test_deny_only_report_contains_authority_and_both_submission_denials` の 2 件のみ。**他の赤 0 件** |
+| 2. 失敗理由が期待値集合の差 | **成立**。`assert ('D292', 'D305') == ('D292',)` および `{'decision_ids': ['D292','D305']} != {'decision_ids': ['D292']}` |
+| 3. 自 wave が該当 file を触っていない | **成立**。`git diff --stat main HEAD -- orchestrator/tests/test_t793_report.py docs/decisions.md orchestrator/publication/` が**空** |
+| 4. 検査結果の併記 | 本表 |
+
+受入全走の総数 = **2 failed / 9209 passed / 20 skipped**。本 wave の対象 file は赤ゼロ。
 
 **セッション異常。** `dev_wave_wait.py producer` を背景 task で回すと、producer 生存中に
 待ち手だけが空出力で終了する事象が 5 度起きた。**実体を伴わない完了通知も多数観測した** —
