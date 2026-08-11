@@ -1115,6 +1115,33 @@ def test_design_stage6_contradictory_control_suffix_is_rejected(
     )
 
 
+def test_design_stage6_execution_boundary_tail_drift_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = contract._EXPECTED_STAGE6_EXECUTION_BOUNDARY
+    replacement = target.replace(
+        "それが `pending` である限り段 0 は完了しない。",
+        "それが `pending` であっても段 0 は完了できる。",
+    )
+    assert replacement != target
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+
+    predicates, control, execution_boundary, _policy_gate = (
+        contract._extract_stage6_contract(design_doc)
+    )
+    assert predicates == contract._EXPECTED_STAGE6_STRUCTURAL_PREDICATES
+    assert control == contract._EXPECTED_STAGE6_STRUCTURAL_CONTROL
+    assert execution_boundary == replacement
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage 6 structural predicates drifted",
+    )
+
+
 def test_design_stage6_policy_gate_id_drift_is_rejected(tmp_path: Path) -> None:
     fixture_root, design_doc = _synthetic_repository(tmp_path)
     text = design_doc.read_text(encoding="utf-8")
