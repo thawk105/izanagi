@@ -71,7 +71,7 @@ from orchestrator.campaign.pipeline import (EvalResult, PerfConfig,           # 
                                ScreeningConfig)
 from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate     # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence                # noqa: E402
-from skiputil import Skip, skip                                  # noqa: E402
+from skiputil import Skip, skip, skip_conditional_unrun          # noqa: E402
 from orchestrator.verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
 from certified_writer_fixtures import (                          # noqa: E402
@@ -6223,6 +6223,30 @@ def test_pipeline_matching_commit_witness_commits_and_records_verify_payload():
     assert any(record.stage == STAGE_COMMIT for record in records)
 
 
+def test_run_trace_parses_abort_from_stdout():
+    """回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して
+    型付き結果の属性で返す。_parse_abort_counts 単体と pipeline 層 (_run_trace ごとモック) の
+    テストだけでは、この結線を消しても (旧配線 = stdout を捨てる) 全緑のまま
+    (2026-07-03 敵対検証 medium: テスト正直さ)。"""
+    sdir = _tmpdir("izanagi_runtrace_bin_")
+    fake = os.path.join(sdir, "ycsb_fake_ccbench.sh")
+    with open(fake, "w", encoding="utf-8") as f:
+        f.write("#!/bin/sh\nprintf 'abort_counts_:\\t42\\n'\n")
+    os.chmod(fake, 0o755)
+    result = pipeline._run_trace(
+        fake, _tmpdir("izanagi_runtrace_t1_"), {"w": "1"}, 1800,
+    )
+    assert (result.trace_c_lines, result.returncode, result.abort_counts) == (0, 0, 42)
+    fake2 = os.path.join(sdir, "ycsb_fake_noabort.sh")
+    with open(fake2, "w", encoding="utf-8") as f:
+        f.write("#!/bin/sh\nprintf 'commit_counts_:\\t9\\n'\n")
+    os.chmod(fake2, 0o755)
+    result2 = pipeline._run_trace(
+        fake2, _tmpdir("izanagi_runtrace_t2_"), {}, 1800,
+    )
+    assert result2.abort_counts is None      # 集計行なし → None (呼び手が fails-closed)
+
+
 def test_run_trace_parses_commit_witness_from_stdout():
     """回帰 (結線検査): 実 _run_trace が ccbench stdout を _parse_abort_counts に通して
     型付き結果の属性で返し、commit/batch witness も同じ stdout から束ねる。
@@ -8608,7 +8632,7 @@ def test_source_digest_parse_options_defaults():
     with open(opts, encoding="utf-8") as f:
         d = source_digest.parse_options_defaults(f.read())
     if "BACKOFF_FIXED" not in d:
-        skip("template patch 未適用 (Options.cmake に BACKOFF_FIXED 既定なし) — 適用後のみ")
+        skip_conditional_unrun("template patch 未適用: Options.cmake に BACKOFF_FIXED 既定なし")
     assert d["BACKOFF_FIXED"] == "-1" and d["BACK_OFF"] == "1"
     assert "INSERT_READ_DELAY_MS" not in d        # 空値 ("") は除外
 
@@ -8633,9 +8657,9 @@ def test_source_digest_fixed_variant_distinct():
         skip("submodule 未 init — BACKOFF_FIXED digest 分離は実 working-tree が要る")
     wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), "include/backoff.hh"))
     if "#if BACKOFF_FIXED" not in wt:
-        # clean stock checkout (template patch 未適用) では BACKOFF_FIXED が参照されず
-        # digest が分離しない (assert が偽 fail する)。適用済み working-tree 前提を明示。
-        skip("template patch 未適用 (backoff.hh に #if BACKOFF_FIXED 無し) — digest 分離は適用後のみ")
+        # 受入 suite は共有 submodule に template patch の窓を開けないため、
+        # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。
+        skip_conditional_unrun("template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し")
     base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
             "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
     g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
@@ -8663,7 +8687,7 @@ def test_source_digest_failsclosed_on_missing_define():
     with open(hh, encoding="utf-8") as f:
         src = f.read()
     if "BACKOFF_FIXED" not in src:
-        skip("template patch 未適用 (backoff.hh に BACKOFF_FIXED 骨格なし) — 適用後のみ")
+        skip_conditional_unrun("template patch 未適用: backoff.hh に BACKOFF_FIXED 骨格なし")
     _require_g13()  # 供給漏れ停止と preprocess 起動不能を取り違えないため g++-13 不在は skip
     try:
         source_digest._cpp_normalize(src, {"BACKOFF_NOINLINE": "0"}, "g++-13")  # FIXED 欠落

@@ -1,0 +1,62 @@
+=== Q0 identity ===
+bnode046
+PBS_JOBID=0:901512.nqsv
+REQ=901512.nqsv
+dollar0=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/t781_probe2_body.sh
+=== Q1 JSV jobfile dir の特定 (PBS_JOBID から glob で導けるか) ===
+DIR=/var/opt/nec/nqsv/jsv/jobfile/0.901512.10
+drwx------ 3 tanab SFC 116 Aug 11 07:47 /var/opt/nec/nqsv/jsv/jobfile/0.901512.10
+total 16
+drwx------ 3 tanab SFC  116 Aug 11 07:47 .
+drwxr-xr-x 6 root  root  83 Aug 11 07:46 ..
+-rw-rw-rw- 1 root  root   3 Aug 11 07:46 JSVID
+-rw-rw-rw- 1 root  root   9 Aug 11 07:47 nodelist
+-r--r--r-- 1 root  root  54 Aug 11 07:47 script_path
+-rw-rw-rw- 1 tanab SFC    0 Aug 11 07:47 stderr
+-rw-rw-rw- 1 tanab SFC    0 Aug 11 07:47 stdout
+drwx------ 2 tanab SFC    6 Aug 11 07:46 stgfile
+-r-xr-xr-x 1 root  root 357 Aug 11 07:46 user_script
+/var/opt/nec/nqsv/jsv/jobfile/0.901512.10/user_script
+=== Q2 user_script の所有と bytes (読むだけ) ===
+-r-xr-xr-x 1 root root 357 Aug 11 07:46 /var/opt/nec/nqsv/jsv/jobfile/0.901512.10/user_script
+57e908968e5381026450446ad3eb6f1c2a8510f5ab68358e615c5864d9bf8a52  /var/opt/nec/nqsv/jsv/jobfile/0.901512.10/user_script
+=== Q3 dir への新規作成が owner 権限でできるか (自分が作った file だけ、非破壊) ===
+touch_rc=0
+-rw-r--r-- 1 tanab SFC 0 Aug 11 07:47 /var/opt/nec/nqsv/jsv/jobfile/0.901512.10/izanagi_write_probe
+cleanup_rc=0
+total 16
+drwx------ 3 tanab SFC  116 Aug 11 07:47 .
+drwxr-xr-x 6 root  root  83 Aug 11 07:46 ..
+-rw-rw-rw- 1 root  root   3 Aug 11 07:46 JSVID
+-rw-rw-rw- 1 root  root   9 Aug 11 07:47 nodelist
+-r--r--r-- 1 root  root  54 Aug 11 07:47 script_path
+-rw-rw-rw- 1 tanab SFC    0 Aug 11 07:47 stderr
+-rw-rw-rw- 1 tanab SFC    0 Aug 11 07:47 stdout
+drwx------ 2 tanab SFC    6 Aug 11 07:46 stgfile
+-r-xr-xr-x 1 root  root 357 Aug 11 07:46 user_script
+=== Q4 sticky bit の有無 (unlink 可否の判定材料) ===
+drwx------ tanab SFC /var/opt/nec/nqsv/jsv/jobfile/0.901512.10
+-r-xr-xr-x root root /var/opt/nec/nqsv/jsv/jobfile/0.901512.10/user_script
+=== Q5 計算ノードからの qcat (自 request) ===
+qcat_rc=0
+358 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out2/own.bytes
+  0 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out2/own.err
+358 total
+703ecbc97736e4c12c8dce9270b50e457c966ee6ec7b20342fdc622e6e2d40f9  /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t781-spool-feasibility/probe/out2/own.bytes
+=== Q6 計算ノードから qstat -f が失敗する理由 ===
+qstat_f_rc=0
+Request ID: 901512.nqsv
+    Request Name = izt781p2
+    User  Name = tanab
+    Group Name = SFC
+    User  ID   = 31609
+--- qstat plain ---
+qstat_plain_rc=0
+--------------- -------- -------- -------- ---- --- - -------- -------- -------- - - - ----
+901512.nqsv     izt781p2 tanab    gen_S       0 RUN -   20.32M     0.00        1 N Y Y    1 
+=== Q7 user attribute を job 内から読めるか (-U で置いた値) ===
+  User Attributes:
+    izanagi_source_commit = 0c336b8e1234567890abcdef0123456789abcdef
+
+grep_rc=0
+=== DONE ===

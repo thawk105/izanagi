@@ -28,7 +28,7 @@ _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import source_digest                               # noqa: E402
-from skiputil import skip                                        # noqa: E402
+from skiputil import skip, skip_conditional_unrun                # noqa: E402
 
 
 def _load_hook(name: str):
@@ -348,7 +348,7 @@ def test_real_submodule_payload_edit():
     with open(hh, encoding="utf-8") as f:
         text = f.read()
     if "EVOLVE-BLOCK-BEGIN" not in text:
-        skip("template patch 未適用 (marker 無し)。適用後に有効化される")
+        skip_conditional_unrun("template patch 未適用: backoff.hh に EVOLVE-BLOCK marker 無し")
     ok, why = GW.decide("Edit", {
         "file_path": hh,
         "old_string": "    double now_backoff = static_cast<double>(BACKOFF_FIXED);",
