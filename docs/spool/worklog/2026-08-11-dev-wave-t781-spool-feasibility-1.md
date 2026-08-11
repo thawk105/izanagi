@@ -42,7 +42,10 @@ title: [T-781] 案 A の実現可能性を実測した — spool bytes の独立
 - 実装差分ゼロの「実装しない」裁定のため変異 matrix は `DW-S04` により免除。
   **受入全走は免除していない** — `docs/worklog` / `docs/spool` / `output/insights` を読む実 repo
   テストが実在する (`test_check_docs.py` / `test_spool_fold.py` / `test_frozen_artifacts.py` /
-  `real_repo_ratified_memo.py` 等) ため、記録 commit 込みの最終 tip で実走した。
+  `real_repo_ratified_memo.py` 等) ため実走した。
+  **1 走目 (tip `51f5dd75`、本行の追記前) = 8487 passed / 20 skipped / 552.85 秒 / rc=0。**
+  land は wave HEAD と tested tip の完全一致を要求するため、本行を含む記録 commit の後に
+  最終 tip で 2 走目を実走する (本記録の時点では未実施であり、結果は land 後の報告に記す)。
 
 ## 次の一手差分
 
