@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 import difflib
 import hashlib
 import importlib.util
@@ -1556,7 +1558,8 @@ def test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact(tmp
     body = _supersede("実 canonical の空行なし境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
     expected = _splice_exact(before, ((boundary.start(), f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path) -> None:
@@ -1571,7 +1574,8 @@ def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path)
     body = _supersede("実 canonical の F196/F197 境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((196, body),)))
     expected = _splice_exact(before, ((boundary.start() - 1, f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) -> None:
@@ -1586,7 +1590,8 @@ def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) ->
     body = _supersede("実 canonical の EOF 境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((number, body),)))
     expected = _splice_exact(before, ((len(before), f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_n11_existing_canonical_bytes_are_only_appended_or_inserted(tmp_path: Path) -> None:
@@ -2940,6 +2945,27 @@ def _real_entry(ordinal: int) -> str:
     return matches[0]
 
 
+@contextmanager
+def _fixture_tools_imports(repo: Path) -> Iterator[None]:
+    original_path = sys.path[:]
+    original_modules = {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "dev_waves" or name.startswith("dev_waves.")
+    }
+    try:
+        for name in original_modules:
+            sys.modules.pop(name, None)
+        sys.path.insert(0, str(repo / "tools"))
+        yield
+    finally:
+        sys.path[:] = original_path
+        for name in tuple(sys.modules):
+            if name == "dev_waves" or name.startswith("dev_waves."):
+                sys.modules.pop(name, None)
+        sys.modules.update(original_modules)
+
+
 def _copy_real_canonical_family(tmp_path: Path) -> Path:
     checkout = Path(__file__).resolve().parents[2]
     repo = tmp_path / "real-canonical"
@@ -2958,6 +2984,11 @@ def _copy_real_canonical_family(tmp_path: Path) -> Path:
     )
     sources = [checkout / rel for rel in fixed_paths]
     sources.extend(sorted((checkout / "docs/archive").glob("worklog-*.md")))
+    sources.extend(
+        source
+        for source in sorted((checkout / "tools/dev_waves").rglob("*"))
+        if source.is_file() and "__pycache__" not in source.parts and source.suffix != ".pyc"
+    )
     for source in sources:
         destination = repo / source.relative_to(checkout)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -2989,7 +3020,8 @@ def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path
         title="実 canonical family smoke",
     )
 
-    plan = spool_fold.plan_fold(repo, fold_date=fold_date)
+    with _fixture_tools_imports(repo):
+        plan = spool_fold.plan_fold(repo, fold_date=fold_date)
 
     assert plan.status == "planned"
     assert len(plan.fragments) == 1
