@@ -299,6 +299,8 @@ def _wrapper_argv(
     plan_only: bool = False,
     resume: bool = False,
     out: Path | None = None,
+    attempt_out: Path | None = None,
+    wrapper_attempt: int = 1,
 ) -> list[str]:
     args = [
         "--source-repo",
@@ -314,6 +316,10 @@ def _wrapper_argv(
         "--runner-mode",
         runner_mode,
     ]
+    if attempt_out is not None:
+        args.extend(
+            ["--attempt-out", str(attempt_out), "--wrapper-attempt", str(wrapper_attempt)]
+        )
     if resume:
         args.append("--resume")
     if plan_only:
@@ -807,6 +813,45 @@ def test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observati
     assert receipt["dispatch_evidence"]["rehydrated"] is True
     assert receipt["dispatch_evidence"]["relocated"] is True
     assert receipt["shared_snapshot_matches"] is True
+
+
+@_limited
+def test_dispatch_attempt_sidecar_records_every_request_between_observation_points(
+    tmp_path: Path,
+) -> None:
+    fixture = _make_repository(
+        tmp_path,
+        harness_source=_HARNESS.read_text(encoding="utf-8"),
+        fake_dispatch=True,
+    )
+    attempts = fixture.artifacts / "attempts.json"
+
+    assert MW.main(
+        _wrapper_argv(
+            fixture,
+            runner_mode="dispatch",
+            attempt_out=attempts,
+            wrapper_attempt=1,
+        )
+    ) == 0
+
+    sidecar = json.loads(attempts.read_text(encoding="utf-8"))
+    assert sidecar["schema"] == "izanagi-dev-wave-mutation-attempts/v1"
+    assert sidecar["expected_initial_requests"] == 3
+    assert [entry["phase"] for entry in sidecar["attempts"]] == [
+        "collection",
+        "baseline",
+        "mutation",
+    ]
+    assert [entry["state"] for entry in sidecar["attempts"]] == [
+        "finished",
+        "finished",
+        "finished",
+    ]
+    request_ids = [entry["request"]["request_id"] for entry in sidecar["attempts"]]
+    assert len(request_ids) == len(set(request_ids)) == 3
+    assert sidecar["attempts"][2]["mutation_id"] == "MW-E2E"
+    assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
 
 
 if __name__ == "__main__":

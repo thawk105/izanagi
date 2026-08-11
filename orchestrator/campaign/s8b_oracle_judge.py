@@ -8,20 +8,55 @@ import statistics
 import sys
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from typing import Optional
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.campaign"
 
 _ORCHESTRATOR = Path(__file__).resolve().parent.parent
+ROOT = _ORCHESTRATOR.parent
 
 from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
+from . import s8b_oracle_manifest, s8b_oracle_spec  # noqa: E402
+from . import s8b_ratified_freeze  # noqa: E402
 
 INPUT_SCHEMA = _artifacts.OFFICIAL_OBSERVATIONS_SCHEMA
 OUTPUT_SCHEMA = _artifacts.OFFICIAL_VERDICT_SCHEMA
 _EXPECTED_CELL_KEYS = {"schedule_index", "holdout_id", "configuration_id"}
+
+
+@dataclass(frozen=True)
+class ManifestScheduleProjection:
+    """検証済み manifest schedule から一度だけ導出する immutable 射影。"""
+
+    n_per_cell: int
+    expected_cells: frozenset[tuple[int, str, str]]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "expected_cells", frozenset(self.expected_cells))
+
+
+def project_verified_manifest_schedule(
+        verified_manifest: s8b_oracle_manifest.VerifiedManifest,
+) -> ManifestScheduleProjection:
+    """検証済み schedule の判定用最小射影を I/O なしで固定する。"""
+    if type(verified_manifest) is not s8b_oracle_manifest.VerifiedManifest:
+        raise TypeError("VerifiedManifest exact type が必要")
+    schedule = verified_manifest.document["schedule"]
+    return ManifestScheduleProjection(
+        n_per_cell=schedule["n"],
+        expected_cells=frozenset(
+            (
+                row["schedule_index"],
+                row["holdout_id"],
+                row["configuration_id"],
+            )
+            for row in schedule["rows"]
+        ),
+    )
 
 
 def _is_int(value: object) -> bool:
@@ -123,6 +158,8 @@ def _cell(rows: Sequence[Mapping], n: int, duplicate_indices: set[int]) -> dict:
 
 def judge_oracle(
     observations: _artifacts.OfficialObservations,
+    *, schedule_projection: ManifestScheduleProjection,
+    verified_manifest_sha256, approved_spec_sha256,
 ) -> _artifacts.OfficialVerdict:
     """holdout ごとの oracle verdict を返す純関数。
 
@@ -133,17 +170,43 @@ def judge_oracle(
     if type(observations) is not _artifacts.OfficialObservations:
         raise _artifacts.OracleArtifactTypeError(
             "judge_oracle は OfficialObservations exact type のみ受理する")
+    if type(schedule_projection) is not ManifestScheduleProjection:
+        raise TypeError("schedule_projection は ManifestScheduleProjection exact type が必要")
     top_reasons: list[dict] = []
     if observations.get("schema_version") != INPUT_SCHEMA:
         top_reasons.append(_reason("schema-version", "observations schema_version が不一致"))
+    if observations.get("manifest_kind") != "official":
+        top_reasons.append(_reason(
+            "manifest-kind", "manifest_kind が official でない",
+        ))
     manifest_sha = observations.get("manifest_sha256")
-    if not isinstance(manifest_sha, str) or not manifest_sha:
-        top_reasons.append(_reason("manifest-sha256", "manifest_sha256 が非空文字列でない"))
+    if (not isinstance(verified_manifest_sha256, str)
+            or len(verified_manifest_sha256) != 64
+            or any(c not in "0123456789abcdef" for c in verified_manifest_sha256)
+            or manifest_sha != verified_manifest_sha256):
+        top_reasons.append(_reason(
+            "manifest-sha256",
+            "manifest_sha256 が検証済み manifest の実値と一致しない",
+        ))
         manifest_sha = None
-    n = observations.get("n_per_cell")
-    if not _is_int(n) or n < 1:
+    spec_sha = observations.get("spec_sha256")
+    if (not isinstance(approved_spec_sha256, str)
+            or len(approved_spec_sha256) != 64
+            or any(c not in "0123456789abcdef" for c in approved_spec_sha256)
+            or spec_sha != approved_spec_sha256):
+        top_reasons.append(_reason(
+            "spec-sha256",
+            "spec_sha256 が approved spec の実値と一致しない",
+        ))
+    observed_n = observations.get("n_per_cell")
+    n = schedule_projection.n_per_cell
+    if not _is_int(observed_n) or observed_n < 1:
         top_reasons.append(_reason("n-per-cell", "n_per_cell が 1 以上の整数でない"))
-        n = None
+    elif observed_n != n:
+        top_reasons.append(_reason(
+            "n-per-cell-mismatch",
+            "n_per_cell が検証済み manifest schedule と一致しない",
+        ))
     raw_rows = observations.get("rows")
     if (not isinstance(raw_rows, Sequence)
             or isinstance(raw_rows, (str, bytes, bytearray))):
@@ -155,7 +218,7 @@ def judge_oracle(
             top_reasons.append(_reason("row-type", "rows に object でない行がある"))
 
     raw_expected = observations.get("expected_cells")
-    expected_cells: list[tuple[int, str, str]] = []
+    observed_expected_cells: list[tuple[int, str, str]] = []
     if (not isinstance(raw_expected, Sequence)
             or isinstance(raw_expected, (str, bytes, bytearray)) or not raw_expected):
         top_reasons.append(_reason("expected-cells", "expected_cells が空でない array でない"))
@@ -174,22 +237,31 @@ def judge_oracle(
                 top_reasons.append(_reason(
                     "expected-cell-identity", "expected_cells entry identity が不正"))
                 continue
-            expected_cells.append((index, holdout_id, configuration_id))
+            observed_expected_cells.append((index, holdout_id, configuration_id))
 
-    expected_counter = Counter(expected_cells)
-    if any(count != 1 for count in expected_counter.values()):
+    observed_expected_counter = Counter(observed_expected_cells)
+    if any(count != 1 for count in observed_expected_counter.values()):
         top_reasons.append(_reason("expected-cell-duplicate", "expected_cells に重複がある"))
-    expected_indices = Counter(index for index, _, _ in expected_cells)
+    expected_indices = Counter(index for index, _, _ in observed_expected_cells)
     if any(count != 1 for count in expected_indices.values()):
         top_reasons.append(_reason(
             "expected-schedule-index", "expected_cells の schedule_index が一意でない"))
+    expected_cells = schedule_projection.expected_cells
+    expected_counter = Counter(expected_cells)
+    if observed_expected_counter != expected_counter:
+        top_reasons.append(_reason(
+            "expected-cells-mismatch",
+            "expected_cells が検証済み manifest schedule と一致しない",
+        ))
     expected_cell_counts = Counter(
         (holdout_id, configuration_id)
         for _, holdout_id, configuration_id in expected_cells
     )
-    if n is not None and any(count != n for count in expected_cell_counts.values()):
+    if any(count != n for count in expected_cell_counts.values()):
         top_reasons.append(_reason(
-            "expected-trial-count", "expected_cells の cell 件数が n_per_cell と不一致"))
+            "expected-trial-count",
+            "manifest schedule の cell 件数が n_per_cell と不一致",
+        ))
 
     holdout_ids = sorted({holdout_id for _, holdout_id, _ in expected_cells})
     configurations_by_holdout = {
@@ -226,9 +298,9 @@ def judge_oracle(
             cell_rows = [row for row in rows
                          if row.get("holdout_id") == holdout_id
                          and row.get("configuration_id") == configuration_id]
-            configurations[configuration_id] = (
-                _cell(cell_rows, n, duplicate_indices) if n is not None
-                else _unknown([_reason("n-per-cell", "n_per_cell が不正")]))
+            configurations[configuration_id] = _cell(
+                cell_rows, n, duplicate_indices,
+            )
         unknown = bool(top_reasons) or any(
             value["status"] == "unknown" for value in configurations.values())
         eligible = {key: value["median_of_medians"] for key, value in configurations.items()
@@ -280,16 +352,42 @@ def _parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     judge = sub.add_parser("judge", help="observations を oracle verdict にする")
     judge.add_argument("--input", type=Path, required=True)
+    judge.add_argument("--manifest", type=Path, required=True)
     judge.add_argument("--out", type=Path, required=True)
+    judge.add_argument("--repo-root", type=Path, default=ROOT)
     return parser
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        manifest = _artifacts.load_official_manifest(args.manifest)
+        if type(manifest) is not _artifacts.OfficialManifest:
+            raise _artifacts.OracleArtifactTypeError(
+                "judge は official manifest のみ検証できる"
+            )
+        root = Path(args.repo_root)
+        ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+        reverified = s8b_ratified_freeze.reverify_published_freeze(ratified, root)
+        approved = s8b_oracle_spec.load_approved_spec(root)
+        verified = s8b_oracle_manifest.verify_manifest(
+            args.manifest,
+            root=root,
+            freeze_document=reverified.ratified.document,
+            freeze_sha256=reverified.ratified.sha256,
+            approved_spec=approved,
+        )
         observations = _artifacts.load_official_observations(args.input)
-        _write_create_only(args.out, judge_oracle(observations))
+        _write_create_only(args.out, judge_oracle(
+            observations,
+            schedule_projection=project_verified_manifest_schedule(verified),
+            verified_manifest_sha256=verified.sha256,
+            approved_spec_sha256=approved.sha256,
+        ))
     except (OSError, json.JSONDecodeError, _artifacts.OracleArtifactTypeError,
+            s8b_ratified_freeze.RatifiedFreezeError,
+            s8b_oracle_manifest.ManifestError,
+            s8b_oracle_spec.ReviewedSpecError,
             TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

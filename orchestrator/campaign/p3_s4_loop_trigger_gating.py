@@ -10,7 +10,9 @@ sort 版との構造差 (新テンプレの形):
     軸定数ブロックが C 段成果物として先に在り、D 偵察器 (`s8a_trigger_sweep.py`) と
     本 driver の両方がそこから import する — sort 軸の歴史的経緯 (偵察器が E 段 driver を
     import) の逆転が完成する (D48 必須条件 5、axis-onboarding §1 脚注)。
-  - auditor 機械 gate の軸非依存部品は `orchestrator.campaign.auditor_gate` を使う (共有昇格)。
+  - auditor 機械 gate は **mandatory deny-only veto; affirmative security credit なし**。
+    `diff_digest` は attribution/provenance 専用で、軸非依存部品は
+    `orchestrator.campaign.auditor_gate` を使う (共有昇格)。
   - hole は骨格の述語代入 1 行 (`izanagi_gate_pass = <述語>;`、D49 決定 2)。coder 出力は
     `CoderProposalTriggerGating` の固定 5-bit wire (value なし)。
   - 構文契約 grep は受理 gate ではなく、凍結 emitter 出力の内部 drift assertion。
@@ -56,9 +58,9 @@ from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,
                                       add_coder_build_authority_argument,
                                       build_run_context)
 from .auditor_gate import (AuditorGateFailure,            # noqa: E402
-                                   AuditorVerdict, assert_digest_matches,
-                                   auditor_reject_result, parse_auditor_dict,
-                                   compute_diff_digest)
+                                   AuditorVerdict,
+                                   apply_mandatory_deny_only_veto,
+                                   parse_auditor_dict, compute_diff_digest)
 from .axis_trigger_gating import (_BASE, MARKER_ID, PIN,  # noqa: E402
                                           SOURCE_REL, SYNTAX_CONTRACT_FORBIDDEN,
                                           TEMPLATE_PATCH)
@@ -399,7 +401,9 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
                           contract: env_contract.ExecutionEnvironmentContract,
                           binding: TriggerGateBinding,
                           log=print) -> Optional[Dict]:
-    """wire を正準述語化 → diff 検疫 → auditor gate (digest 照合 + verdict)。
+    """wire 正準化 → diff 検疫 → mandatory deny-only veto; affirmative security credit なし。
+
+    ``diff_digest`` は attribution/provenance 専用。
     reject dict を返すか (build へ進まない)、None (通過)。
 
     **前提: 呼び出し元が既に `applied(TEMPLATE_PATCH)` 下にある。**"""
@@ -414,31 +418,25 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalTriggerGating,
         raise RuntimeError("trigger predicate と binding が不一致")
     res, _base, _edited, working_diff = L.quarantine(
         sub, predicate, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
-    if not res.passed:
+    combined = apply_mandatory_deny_only_veto(
+        res,
+        auditor,
+        working_diff,
+        diff_region=SOURCE_REL,
+        template_diff_id=MARKER_ID,
+    )
+    if not combined.passed:
         v = _record_diff_reject_admitted(
-            layout, genome, predicate, res, contract, binding,
+            layout, genome, predicate, combined, contract, binding,
         )
         L.project_whiteboard(state, planner, "rejected")
-        log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
+        if combined is res:
+            log(f"  diff 検疫 reject: {combined.subtype} — {combined.reason}")
+        else:
+            log(f"  auditor gate reject (verdict={auditor.verdict}): "
+                f"{len(auditor.violations)} violations")
         return {
-            "outcome": "rejected", "variant": v, "digest": res.digest,
-            "trigger_gate_binding_commitment": commitment(binding),
-        }
-
-    assert_digest_matches(auditor, working_diff)   # 不一致 → AuditorGateFailure (共有照合コア)
-
-    if auditor.verdict != "pass":
-        subtype = "auditor-uncertain" if auditor.verdict == "uncertain" else "auditor-violation"
-        ares = auditor_reject_result(subtype, auditor,
-                                     diff_region=SOURCE_REL, template_diff_id=MARKER_ID)
-        v = _record_diff_reject_admitted(
-            layout, genome, predicate, ares, contract, binding,
-        )
-        L.project_whiteboard(state, planner, "rejected")
-        log(f"  auditor gate reject (verdict={auditor.verdict}): "
-            f"{len(auditor.violations)} violations")
-        return {
-            "outcome": "rejected", "variant": v, "digest": ares.digest,
+            "outcome": "rejected", "variant": v, "digest": combined.digest,
             "trigger_gate_binding_commitment": commitment(binding),
         }
 
