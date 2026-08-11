@@ -73,7 +73,9 @@ _STAGE6_STRUCTURAL_CLAUSE_RE = re.compile(
     r"\((i|ii|iii|iv|v)\) (.+?。)"
     r"(?= \((?:i|ii|iii|iv|v)\)| 以上 5 条件)"
 )
-_FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,}).*$")
+_FENCE_OPEN_RE = re.compile(
+    r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,})(?P<info>.*)$"
+)
 _STAGE6_POLICY_RE = re.compile(
     r"^段 5 の S / B 裁定後まで `(?P<gate_id>CFAB-[A-Z0-9-]+)` "
     r"\(owner = `(?P<owner>[a-z0-9-]+)`, "
@@ -354,8 +356,9 @@ def _read_design(path: Path) -> str:
     if "<!--" in text or "-->" in text:
         raise ContractError("design document must not contain HTML comments")
     visible_lines: list[str] = []
+    invalid_backtick_info_lines: list[int] = []
     fence: tuple[str, int] | None = None
-    for line in text.splitlines(keepends=True):
+    for lineno, line in enumerate(text.splitlines(keepends=True), 1):
         fence_line = line.rstrip("\r\n")
         if fence is not None:
             marker_char, marker_len = fence
@@ -369,9 +372,19 @@ def _read_design(path: Path) -> str:
         fence_match = _FENCE_OPEN_RE.fullmatch(fence_line)
         if fence_match is not None:
             marker = fence_match.group("marker")
+            info = fence_match.group("info")
+            if marker[0] == "`" and "`" in info:
+                invalid_backtick_info_lines.append(lineno)
+                visible_lines.append(line)
+                continue
             fence = (marker[0], len(marker))
             continue
         visible_lines.append(line)
+    if invalid_backtick_info_lines:
+        raise ContractError(
+            "design document has an invalid backtick fence info string: "
+            f"lines={invalid_backtick_info_lines}"
+        )
     if fence is not None:
         raise ContractError("design document has an unclosed fenced code block")
     return "".join(visible_lines)

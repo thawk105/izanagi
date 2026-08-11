@@ -861,10 +861,11 @@ row ID = `CFAB-11.2-01`。
 その実施 wave が残した R1 / R2 / R3 も閉じた。3 件は §12.1 へ移し、規則本文はそれぞれ
 §7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) へ畳み込んだ。**その実施 wave が次の 1 件を新たに残した。**
 
-- **R4. 上位 cancellation record の扱い。** 下位 §S2-1.11 は fork cancellation を
+- **R4. 上位の fork 敗者をどう扱うか。** 下位 §S2-1.11 は fork cancellation を
   `active-cancellations/<pointer_sha256>.json`・exact 6 fields で定めている。上位 pointer X も
-  fork しうるため対応する record が要るが、R1 が裁定したのは**失効 record** であり
-  cancellation は範囲外だった。候補は
+  fork しうるため、**その敗者の扱いを決める必要がある**。R1 が裁定したのは**失効 record** で
+  あり、cancellation は範囲外だった。**上位が専用 record を持つべきかどうかを含めて未裁定である。**
+  候補は
   (a) 下位 §S2-1.11 と同型を 1 層上へ写す /
   (b) 上位では cancellation を持たず、fork の回復も補償世代 (Q3 (i)) だけで行うと明示禁止する /
   (c) 先送り確定項目として §12.2 へ移し、S / B と同じ扱いにする。

@@ -860,9 +860,14 @@ def _move_revocation_table_into_fence(
 ) -> None:
     text = design_doc.read_text(encoding="utf-8")
     table = _revocation_table(text)
-    assert text.count(table) == 1
+    table_with_terminator = table + "\n\n"
+    assert text.count(table_with_terminator) == 1
     design_doc.write_text(
-        text.replace(table, f"{fence}text\n{table}\n{fence}", 1),
+        text.replace(
+            table_with_terminator,
+            f"{fence}text\n{table}\n\n{fence}\n\n",
+            1,
+        ),
         encoding="utf-8",
     )
 
@@ -965,6 +970,42 @@ def test_design_fence_is_not_closed_by_different_marker(
         design_doc,
         "design document has an unclosed fenced code block",
     )
+
+
+def test_design_invalid_backtick_info_decoy_is_rejected(
+    tmp_path: Path,
+) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    table = _revocation_table(text)
+    target = "| `scope` | 逐語 `bundle-only` |"
+    assert table.count(target) == 1
+    relaxed_table = table.replace(target, "| `scope` | 非空 string |", 1)
+    assert text.count(table) == 1
+    design_doc.write_text(
+        text.replace(
+            table,
+            f"```text`invalid\n{relaxed_table}\n```\n\n{table}",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "invalid backtick fence info string",
+    )
+
+
+def test_design_tilde_fence_info_may_contain_backtick(tmp_path: Path) -> None:
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    design_doc.write_text(
+        text + "\n~~~text`valid\nnon-authoritative decoy\n~~~\n",
+        encoding="utf-8",
+    )
+    result = contract.validate_repository(fixture_root, design_doc)
+    assert result["status"] == "incomplete"
 
 
 def test_design_longer_fence_closer_is_accepted(tmp_path: Path) -> None:
