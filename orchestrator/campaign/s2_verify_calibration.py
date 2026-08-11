@@ -152,10 +152,11 @@ def _run_once(binary: str, flags: dict, extime: int, trace: bool):
     return out
 
 
-def _verifier_run(trace_dir: str):
+def _verifier_run(trace_dir: str, expected_commits: int):
     """verifier を別プロセスで実走し (時間/maxrss を計測)、構造化結果を返す。"""
     cmd = ["/usr/bin/time", "-v", sys.executable, "-m", "verifier",
-           trace_dir, "--json", "--quiet"]
+           trace_dir, "--json", "--quiet", "--expected-commits",
+           str(expected_commits)]
     t0 = time.monotonic()
     proc = subprocess.run(cmd, capture_output=True, text=True,
                           timeout=GATE2_VERIFIER_WALL_S,
@@ -201,7 +202,7 @@ def _measure_candidate(bin_trace: str, bin_perf: str, extime: int) -> dict:
         tdir = r.pop("_trace_dir")
         if i == 0:                       # verifier 実走は 1 rep 分 (規律4: 規模計測に反復不要)
             print("  verifier 実走中...")
-            verifier = _verifier_run(tdir)
+            verifier = _verifier_run(tdir, r["commits"])
             print(f"  verdict={verifier['verdict']} total_cycles={verifier['total_cycles']} "
                   f"wall={verifier['walltime_s']}s rss={verifier['maxrss_gb']}GB")
         shutil.rmtree(tdir, ignore_errors=True)
@@ -282,7 +283,7 @@ def _broken_build_and_verify(
             for name, (flags, extime) in workloads.items():
                 r = _run_once(binary, flags, extime, trace=True)
                 tdir = r.pop("_trace_dir")
-                v = _verifier_run(tdir)
+                v = _verifier_run(tdir, r["commits"])
                 shutil.rmtree(tdir, ignore_errors=True)
                 out["runs"][name] = {"run": r, "verifier": v}
                 print(f"  [{patch_name} @ {name}] verdict={v['verdict']} "

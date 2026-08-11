@@ -53,6 +53,33 @@ _COVERAGE_MODULES = (
 )
 
 
+def test_s2_verifier_run_passes_commit_witness_to_cli():
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({
+                "results": [{
+                    "verdict": "serializable",
+                    "certified": True,
+                    "total_cycles": 0,
+                    "stats": {"txns": 17, "edges": 0},
+                }],
+            }),
+            stderr="Maximum resident set size (kbytes): 1024\n",
+        )
+
+    with patch.object(s2_verify_calibration.subprocess, "run", fake_run):
+        result = s2_verify_calibration._verifier_run("/fixture/traces", 17)
+
+    assert result["certified"] is True
+    assert len(calls) == 1
+    cmd = calls[0][0]
+    assert cmd[-2:] == ["--expected-commits", "17"]
+
+
 def _call_coverage_configure(module, root: Path, site: str) -> None:
     if module is s2_verify_calibration:
         module._broken_build_and_verify(

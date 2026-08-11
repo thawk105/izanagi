@@ -1226,9 +1226,20 @@ def test_pipeline_bench_rounds_default_three_and_opt_in_one(tmp_path, monkeypatc
 
     monkeypatch.setattr(pipeline, "buildcache", types.SimpleNamespace(build=fake_build))
     monkeypatch.setattr(pipeline.source_digest, "resolve", lambda *a, **k: "stock")
-    monkeypatch.setattr(pipeline, "_run_trace", lambda *a, **k: (10, 0, 1))
-    monkeypatch.setattr(pipeline, "verify_trace_dir", lambda path: types.SimpleNamespace(
-        verdict="serializable", certified=True, anomalies=[]))
+    monkeypatch.setattr(
+        pipeline, "_run_trace", lambda *a, **k: pipeline._TraceRunResult(
+            trace_c_lines=10,
+            returncode=0,
+            abort_counts=1,
+            commit_count_witness=10,
+            batch_commit_count_witness=0,
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline, "verify_trace_dir",
+        lambda path, *, expected_commits=None: types.SimpleNamespace(
+            verdict="serializable", certified=True, anomalies=[]),
+    )
     monkeypatch.setattr(pipeline, "bench_lock", unlocked)
     monkeypatch.setattr(pipeline, "competing_bench_pids", lambda: [])
     monkeypatch.setattr(pipeline, "settle", lambda: {"settled": True})

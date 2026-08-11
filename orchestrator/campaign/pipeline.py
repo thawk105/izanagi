@@ -21,7 +21,7 @@ import subprocess
 import tempfile
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from ..calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
                                competing_bench_pids, measure_point, settle)
@@ -227,10 +227,57 @@ def _parse_abort_counts(stdout: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
+def _parse_witness_counter(stdout: str, label: str) -> Optional[int]:
+    """CCBench 集計 counter を一意な非負整数行からだけ読む。
+
+    `parse_bench_stdout` は重複 label を last-wins で潰すため、正しさ witness の
+    権威には使わない。`#` 前置行はコメントとして除外し、同一 label が 0 行または
+    2 行以上、値が十進非負整数でない場合はすべて None に倒す。
+    """
+    values: List[str] = []
+    for line in (stdout or "").splitlines():
+        if line.startswith("#"):
+            continue
+        key, separator, raw = line.partition(":")
+        if separator and key == label:
+            values.append(raw.strip())
+    if len(values) != 1 or re.fullmatch(r"[0-9]+", values[0]) is None:
+        return None
+    return int(values[0])
+
+
+def _parse_commit_witness(stdout: str) -> Tuple[Optional[int], Optional[int]]:
+    return (
+        _parse_witness_counter(stdout, "commit_counts_"),
+        _parse_witness_counter(stdout, "batch_commit_counts_"),
+    )
+
+
 # trace run の timeout。S2 verify 構成の gate2 run timeout (120s) と同値に揃えてある
 # (s2_verify_calibration.py)。abort payload (trace-timeout) にも記録する — 「どの上限で
 # 打ち切られたか」が無いと liveness-red の次手入力が空になる (規律3)。
 TRACE_TIMEOUT_S = 120.0
+
+
+class _TraceRunResult(NamedTuple):
+    """trace run と同じ stdout/trace_dir から得た正しさ入力。"""
+    trace_c_lines: int
+    returncode: int
+    abort_counts: Optional[int]
+    commit_count_witness: Optional[int]
+    batch_commit_count_witness: Optional[int]
+
+
+class _TraceDirNotEmpty(ValueError):
+    def __init__(self, paths: Sequence[str]):
+        self.paths = tuple(paths)
+        super().__init__("trace_dir に既存 trace_*.log がある")
+
+
+class _TraceWitnessUnsupportedWorkload(ValueError):
+    def __init__(self, binary: str):
+        self.workload = os.path.basename(binary)
+        super().__init__(f"commit witness 未対応 workload: {self.workload}")
 
 
 def _exc_summary(e: BaseException, limit: int = 1000) -> str:
@@ -256,16 +303,26 @@ def _require_measurement_site(what: str) -> str:
 
 def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
                clocks_per_us: int, timeout_s: float = TRACE_TIMEOUT_S,
-               numactl: Optional[Sequence[str]] = None):
+               numactl: Optional[Sequence[str]] = None) -> _TraceRunResult:
     """trace-enabled binary を回し IZANAGI_TRACE_DIR に trace を吐く。
 
-    返り値 `(ncommit, returncode, aborts)`。**呼び手は returncode を必ず検査する** —
+    返り値は `_TraceRunResult`。**呼び手は returncode を必ず検査する** —
     異常終了した run の部分トレースを certified にしないため (規律2)。aborts は stdout の
     `abort_counts_:` 集計 (完了条件「verify 中に合成枝 = abort-path が実行された証拠」の
     材料, phase3.md)。パース不能なら None — 呼び手が reject する (空振り認証の検査可能性を
     落としたまま緑を出さない)。numactl (D36 決定4-4): S2 相当の全規模 run はメモリ配置を
     bench と揃える (既定 legacy はメモリ配置に鈍感な小規模ゆえ None のまま)。"""
     _require_measurement_site("campaign trace 実行")
+    existing_traces = sorted(
+        fn for fn in os.listdir(trace_dir)
+        if fn.startswith("trace_") and fn.endswith(".log")
+    )
+    if existing_traces:
+        raise _TraceDirNotEmpty(existing_traces)
+    if not os.path.basename(binary).startswith("ycsb_"):
+        # commit 後に counter を無条件加算することを確認済みなのは YCSB だけ。
+        # TPCC/BoMB 等を denylist で列挙せず、証明済み workload を allowlist する。
+        raise _TraceWitnessUnsupportedWorkload(binary)
     args = (list(numactl) if numactl else []) + [binary] \
         + [f"-{k}={v}" for k, v in flags.items()] \
         + [f"-clocks_per_us={clocks_per_us}"]
@@ -282,7 +339,14 @@ def _run_trace(binary: str, trace_dir: str, flags: Dict[str, str],
             if fn.startswith("trace_") and fn.endswith(".log"):
                 with open(os.path.join(trace_dir, fn)) as f:
                     n += sum(1 for line in f if line.startswith("C "))
-    return n, proc.returncode, _parse_abort_counts(proc.stdout)
+    commit_witness, batch_witness = _parse_commit_witness(proc.stdout)
+    return _TraceRunResult(
+        trace_c_lines=n,
+        returncode=proc.returncode,
+        abort_counts=_parse_abort_counts(proc.stdout),
+        commit_count_witness=commit_witness,
+        batch_commit_count_witness=batch_witness,
+    )
 
 
 @dataclass(frozen=True)
@@ -850,11 +914,46 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         tdir = tempfile.mkdtemp(prefix=f"izanagi_eval_trace_{tag}_")
         try:
             try:
-                ncommit, rc, aborts = _run_trace(tr.binary, tdir, workload.flags,
-                                                 clocks_per_us, numactl=pass_numactl)
+                trace_result = _run_trace(
+                    tr.binary, tdir, workload.flags,
+                    clocks_per_us, numactl=pass_numactl,
+                )
             except subprocess.TimeoutExpired:
                 return _abort("trace-timeout", f"trace 取得タイムアウト ({tag}) → reject",
                               {"timeout_s": TRACE_TIMEOUT_S}, workload_tag=tag)
+            except _TraceDirNotEmpty as e:
+                return _abort(
+                    "trace-no-commit-witness",
+                    f"trace_dir に既存 trace がある ({tag}) → witness を帰属できず reject",
+                    {
+                        "commit_witness": {
+                            "commit_counts": None,
+                            "batch_commit_counts": None,
+                        },
+                        "preexisting_trace_files": list(e.paths),
+                    },
+                    workload_tag=tag,
+                )
+            except _TraceWitnessUnsupportedWorkload as e:
+                return _abort(
+                    "trace-witness-unsupported-workload",
+                    f"commit witness 未対応 workload ({e.workload}, {tag}) → reject",
+                    {
+                        "commit_witness": {
+                            "commit_counts": None,
+                            "batch_commit_counts": None,
+                        },
+                        "binary_workload": e.workload,
+                    },
+                    workload_tag=tag,
+                )
+            ncommit = trace_result.trace_c_lines
+            rc = trace_result.returncode
+            aborts = trace_result.abort_counts
+            commit_witness = {
+                "commit_counts": trace_result.commit_count_witness,
+                "batch_commit_counts": trace_result.batch_commit_count_witness,
+            }
             # 異常終了・空トレースは「正しさ未確定」。verifier に渡すと空 DSG が
             # serializable=True に化け false-green になる (規律2 違反) → 手前で reject。
             if rc != 0:
@@ -877,8 +976,26 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                               f"ccbench stdout に abort_counts_ 集計が無い ({tag}) → "
                               "空振り認証を検査できず reject", {"commits": ncommit},
                               workload_tag=tag)
+            if (trace_result.commit_count_witness is None
+                    or trace_result.batch_commit_count_witness is None):
+                return _abort(
+                    "trace-no-commit-witness",
+                    f"ccbench stdout の commit witness が欠落または不正 ({tag}) → reject",
+                    {"commits": ncommit, "commit_witness": commit_witness},
+                    workload_tag=tag,
+                )
+            if trace_result.batch_commit_count_witness != 0:
+                return _abort(
+                    "trace-batch-commits-unattributed",
+                    f"batch commit を trace C 行へ帰属できない ({tag}) → reject",
+                    {"commits": ncommit, "commit_witness": commit_witness},
+                    workload_tag=tag,
+                )
             try:
-                vr = verify_trace_dir(tdir)
+                vr = verify_trace_dir(
+                    tdir,
+                    expected_commits=trace_result.commit_count_witness,
+                )
             except ParseError as e:
                 return _abort("trace-parse-error", f"trace パース不能 ({tag}) → reject ({e})",
                               {"error": _exc_summary(e)}, workload_tag=tag)
@@ -886,6 +1003,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             verify_payload = {
                 "verdict": vr.verdict, "certified": vr.certified,
                 "commits": ncommit, "aborts": aborts,
+                "commit_witness": commit_witness,
                 "anomalies": len(vr.anomalies), "workload": {"tag": tag},
             }
             if qualification_policy is not None:
