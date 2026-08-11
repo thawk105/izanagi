@@ -22,7 +22,7 @@
     "orchestrator/tests/test_t793_publication_ledger.py::test_nonliteral_publication_family_root_is_rejected",
     "orchestrator/tests/test_t793_publication_ledger.py::test_primary_entry_space_is_rejected_before_publication_identity",
     "orchestrator/tests/test_t793_publication_ledger.py::test_duplicate_root_kind_ordinal_identity_is_rejected",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_entry_schema_is_publication_specific_and_ordinal_is_positive_int",
+    "orchestrator/tests/test_t793_publication_ledger.py::test_entry_schema_is_publication_specific_and_ordinal_is_positive_int[foreign-schema]",
     "orchestrator/tests/test_t793_publication_ledger.py::test_committed_delete_and_recreate_is_rejected"
    ],
    "expected_status": "KILLED",
@@ -39,7 +39,8 @@
     }
    ],
    "expected_nodes": [
-    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover",
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover[fold-commit]",
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover[generic]",
     "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_when_plan_is_passed_directly_to_apply_fold",
     "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_by_main_resume_path",
     "orchestrator/tests/test_t793_approval_guard.py::test_discover_plan_path_checks_the_rendered_decisions_after_bytes"
