@@ -2,17 +2,24 @@
 """8b oracle の決定論的 schedule と immutable manifest。"""
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import json
 import math
 import os
 import random
+import stat
+import sys
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 from typing import Dict, Mapping, Sequence
+
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
 
 from . import s8b_oracle_artifacts as _artifacts
 from . import s8b_experiment_numbers as _experiment_numbers
@@ -21,6 +28,8 @@ from . import s8b_experiment_numbers as _experiment_numbers
 _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
+
+MANIFEST_CANDIDATE_DIR = "output/s8b-oracle-manifest-candidates"
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_MANIFEST_SCHEMA
 # freeze の stock 構成名。freeze document 自体に「どれが stock か」の明示 field は
@@ -59,6 +68,14 @@ _BINDING_KEYS = {
 
 class ManifestError(RuntimeError):
     """schedule / manifest を検証できない場合の fail-closed 拒否。"""
+
+
+class ManifestCliError(ManifestError):
+    """approved-manifest CLI の構造化拒否。"""
+
+    def __init__(self, reason: str, detail: str = "") -> None:
+        self.reason = reason
+        super().__init__(f"[{reason}] {detail}" if detail else reason)
 
 
 def _verified_manifest_api():
@@ -690,19 +707,17 @@ def _manifest_id(document_without_id: Mapping) -> str:
     return "s8b-oracle-" + _canonical_sha256(document_without_id)[:16]
 
 
-def build_manifest(
-    *, freeze_path, schedule, run_contract, binding_identity, campaign_ids,
+def _build_manifest_from_snapshot(
+    *, freeze: Mapping, freeze_record: Mapping, freeze_source_path: Path,
+    schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, campaign_config_preimages=None,
+    root: Path,
 ) -> _artifacts.OfficialManifest:
-    """参照 hash と実走契約だけを持つ 8b oracle manifest を組み立てる。"""
-    freeze_path = Path(freeze_path)
-    freeze = _load_json_object(freeze_path)
-    freeze_record = _path_record(freeze_path)
-
+    """一度捕捉した freeze snapshot から manifest を組み立てる private core。"""
     known_axes_record = _source_record(
         freeze.get("known_axes_freeze"), field="known_axes_freeze",
     )
-    _find_recorded_source(known_axes_record, freeze_path=freeze_path)
+    _find_recorded_source(known_axes_record, freeze_path=freeze_source_path)
 
     _validate_schedule(schedule)
     schedule_copy = copy.deepcopy(dict(schedule))
@@ -763,10 +778,62 @@ def build_manifest(
         }),
         "holdout_references": holdout_references,
         "allowed_excluded_reasons": reasons,
-        "generator_versions": _validate_generators(generator_versions, root=ROOT),
+        "generator_versions": _validate_generators(generator_versions, root=root),
     }
     document["manifest_id"] = _manifest_id(document)
     return _artifacts.OfficialManifest(document)
+
+
+def build_manifest(
+    *, freeze_path, schedule, run_contract, binding_identity, campaign_ids,
+    allowed_excluded_reasons, generator_versions, campaign_config_preimages=None,
+) -> _artifacts.OfficialManifest:
+    """参照 hash と実走契約だけを持つ 8b oracle manifest を組み立てる。"""
+    freeze_path = Path(freeze_path)
+    freeze = _load_json_object(freeze_path)
+    freeze_record = _path_record(freeze_path)
+    return _build_manifest_from_snapshot(
+        freeze=freeze,
+        freeze_record=freeze_record,
+        freeze_source_path=freeze_path,
+        schedule=schedule,
+        run_contract=run_contract,
+        binding_identity=binding_identity,
+        campaign_ids=campaign_ids,
+        allowed_excluded_reasons=allowed_excluded_reasons,
+        generator_versions=generator_versions,
+        campaign_config_preimages=campaign_config_preimages,
+        root=ROOT,
+    )
+
+
+def build_manifest_from_ratified(
+    ratified, *, schedule, run_contract, binding_identity, campaign_ids,
+    allowed_excluded_reasons, generator_versions, root=ROOT,
+) -> _artifacts.OfficialManifest:
+    """loader が返した active snapshot を再読込せず manifest へ射影する。"""
+    from . import s8b_ratified_freeze
+
+    if type(ratified) is not s8b_ratified_freeze.RatifiedFreeze:
+        raise ManifestError("ratified freeze exact type が必要")
+    root = Path(root)
+    freeze_rel = (
+        "output/s8b-freeze/"
+        f"holdout_freeze.v2.g{ratified.generation_number}.json"
+    )
+    freeze_record = {"path": freeze_rel, "sha256": ratified.sha256}
+    return _build_manifest_from_snapshot(
+        freeze=_mutable_json_tree(ratified.document),
+        freeze_record=freeze_record,
+        freeze_source_path=root / freeze_rel,
+        schedule=schedule,
+        run_contract=run_contract,
+        binding_identity=binding_identity,
+        campaign_ids=campaign_ids,
+        allowed_excluded_reasons=allowed_excluded_reasons,
+        generator_versions=generator_versions,
+        root=root,
+    )
 
 
 def _atomic_create_json(path: Path, document: Mapping) -> None:
@@ -805,6 +872,109 @@ def write_manifest(path, manifest) -> None:
         raise _artifacts.OracleArtifactTypeError(
             "write_manifest は OfficialManifest exact type のみ受理する")
     _atomic_create_json(Path(path), manifest)
+
+
+def _candidate_output_parts(raw_output: str) -> tuple[str, ...]:
+    if not isinstance(raw_output, str) or not raw_output or "\x00" in raw_output:
+        raise ManifestCliError("invalid-output-path")
+    path = PurePosixPath(raw_output)
+    parts = path.parts
+    prefix = PurePosixPath(MANIFEST_CANDIDATE_DIR).parts
+    if (path.is_absolute() or path.as_posix() != raw_output
+            or len(parts) <= len(prefix) or parts[:len(prefix)] != prefix
+            or any(part in {"", ".", ".."} for part in parts)):
+        raise ManifestCliError("invalid-output-path")
+    return parts
+
+
+def _write_approved_manifest(
+    raw_output: str, document: Mapping, *, root=ROOT,
+) -> None:
+    """CLI candidate を dirfd traversal + nofollow + exclusive-create で書く。"""
+    if type(document) is not _artifacts.OfficialManifest:
+        raise ManifestCliError("invalid-manifest-type")
+    parts = _candidate_output_parts(raw_output)
+    try:
+        raw = (json.dumps(
+            document, ensure_ascii=False, indent=2, allow_nan=False,
+        ) + "\n").encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ManifestCliError("invalid-manifest-json", str(exc)) from exc
+
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    cloexec = getattr(os, "O_CLOEXEC", None)
+    if nofollow is None or directory is None or cloexec is None:
+        raise ManifestCliError("safe-open-unavailable")
+
+    opened_dirs: list[int] = []
+    leaf_fd = None
+    leaf_identity = None
+    current_fd = None
+    completed = False
+    try:
+        root_path = Path(root).resolve(strict=True)
+        current_fd = os.open(
+            root_path, os.O_RDONLY | directory | cloexec | nofollow,
+        )
+        opened_dirs.append(current_fd)
+        for part in parts[:-1]:
+            try:
+                next_fd = os.open(
+                    part, os.O_RDONLY | directory | cloexec | nofollow,
+                    dir_fd=current_fd,
+                )
+            except FileNotFoundError:
+                os.mkdir(part, mode=0o755, dir_fd=current_fd)
+                next_fd = os.open(
+                    part, os.O_RDONLY | directory | cloexec | nofollow,
+                    dir_fd=current_fd,
+                )
+            opened_dirs.append(next_fd)
+            current_fd = next_fd
+
+        try:
+            leaf_fd = os.open(
+                parts[-1],
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow | cloexec,
+                0o644,
+                dir_fd=current_fd,
+            )
+        except FileExistsError as exc:
+            raise ManifestCliError("output-exists") from exc
+        info = os.fstat(leaf_fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise ManifestCliError("invalid-output-leaf")
+        leaf_identity = (info.st_dev, info.st_ino)
+        view = memoryview(raw)
+        while view:
+            written = os.write(leaf_fd, view)
+            if written <= 0:
+                raise OSError("manifest write が進行しない")
+            view = view[written:]
+        os.fsync(leaf_fd)
+        os.fsync(current_fd)
+        completed = True
+    except ManifestCliError:
+        raise
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ManifestCliError("invalid-output-path", str(exc)) from exc
+    finally:
+        if leaf_fd is not None:
+            os.close(leaf_fd)
+        if leaf_identity is not None and current_fd is not None and not completed:
+            # 書込み失敗時だけ同一 inode の partial leaf を回収する。成功時は残す。
+            try:
+                info = os.stat(
+                    parts[-1], dir_fd=current_fd, follow_symlinks=False,
+                )
+                if ((info.st_dev, info.st_ino) == leaf_identity
+                        and stat.S_ISREG(info.st_mode)):
+                    os.unlink(parts[-1], dir_fd=current_fd)
+            except OSError:
+                pass
+        for directory_fd in reversed(opened_dirs):
+            os.close(directory_fd)
 
 
 @_seal_verified_manifest
@@ -858,6 +1028,18 @@ def verify_manifest(
     _validate_schedule(document.get("schedule"))
     if document.get("schedule_sha256") != schedule_sha256(document["schedule"]):
         raise ManifestError("schedule_sha256 が再計算値と不一致")
+    actual_cells = _schedule_cells(document["schedule"])
+    schedule_holdouts = {holdout_id for holdout_id, _ in actual_cells}
+    expected_cells = {
+        (holdout_id, configuration_id)
+        for holdout_id in schedule_holdouts
+        for configuration_id in _holdout_configuration_ids(freeze, holdout_id)
+    }
+    if actual_cells != expected_cells:
+        raise ManifestError(
+            "schedule cell 集合が freeze の holdout-configuration product と"
+            "完全一致しない"
+        )
     blocks = [block["block_id"] for block in document["schedule"]["blocks"]]
     campaigns = document.get("campaign_ids")
     if not isinstance(campaigns, dict) or set(campaigns) != set(blocks):
@@ -933,3 +1115,93 @@ def config_for_block(manifest, block_id) -> dict:
         "run_contract": copy.deepcopy(manifest.get("run_contract")),
         "schedule": rows,
     }
+
+
+def build_approved_manifest(raw_output: str, *, root=ROOT) -> _artifacts.OfficialManifest:
+    """active ratified freeze と pinned reviewed spec だけから candidate を作る。"""
+    from . import s8b_oracle_spec
+    from . import s8b_ratified_freeze
+
+    root = Path(root)
+    try:
+        ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+    except s8b_ratified_freeze.RatifiedFreezeError as exc:
+        reason = (
+            "no-active-ratified-freeze"
+            if exc.reason == "no-active" else exc.reason
+        )
+        raise ManifestCliError(reason, str(exc)) from exc
+
+    try:
+        approved = s8b_oracle_spec.load_approved_spec(root)
+    except s8b_oracle_spec.ReviewedSpecError as exc:
+        raise ManifestCliError(exc.reason, str(exc)) from exc
+
+    spec = approved.document
+    parameters = spec["schedule_parameters"]
+    freeze_holdouts = ratified.document.get("holdouts")
+    if not isinstance(freeze_holdouts, Mapping):
+        raise ManifestCliError("invalid-ratified-freeze", "holdouts が object でない")
+    holdout_ids = parameters["holdout_ids"]
+    configuration_ids = parameters["configuration_ids"]
+    if holdout_ids != sorted(freeze_holdouts):
+        raise ManifestCliError(
+            "approved-spec-cell-product-mismatch",
+            "spec holdout_ids が active freeze の全 holdout と一致しない",
+        )
+    if configuration_ids != sorted(configuration_ids):
+        raise ManifestCliError(
+            "approved-spec-cell-product-mismatch",
+            "spec configuration_ids が sort 済みでない",
+        )
+    for holdout_id in holdout_ids:
+        if set(configuration_ids) != _holdout_configuration_ids(
+                ratified.document, holdout_id):
+            raise ManifestCliError(
+                "approved-spec-cell-product-mismatch",
+                f"{holdout_id} の構成集合が spec と一致しない",
+            )
+
+    try:
+        result = build_manifest_from_ratified(
+            ratified,
+            schedule=approved.schedule,
+            run_contract=spec["run_contract"],
+            binding_identity=spec["binding_identity"],
+            campaign_ids=spec["campaign_ids"],
+            allowed_excluded_reasons=spec["allowed_excluded_reasons"],
+            generator_versions=spec["generator_versions"],
+            root=root,
+        )
+    except ManifestCliError:
+        raise
+    except ManifestError as exc:
+        raise ManifestCliError("approved-manifest-invalid", str(exc)) from exc
+    _write_approved_manifest(raw_output, result, root=root)
+    return result
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="approved 8b oracle manifest candidate を構築する",
+        allow_abbrev=False,
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    approved = subparsers.add_parser("build-approved", allow_abbrev=False)
+    approved.add_argument("--output", required=True)
+    return parser
+
+
+def main(argv=None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        if args.command == "build-approved":
+            build_approved_manifest(args.output, root=ROOT)
+    except ManifestCliError as exc:
+        print(f"refused: {exc.reason}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - direct CLI execution
+    raise SystemExit(main())

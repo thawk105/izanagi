@@ -4,14 +4,17 @@
 使い方:
   python3 orchestrator/campaign/s8b_holdout_freeze.py search
   python3 orchestrator/campaign/s8b_holdout_freeze.py generate --confirmed-by NAME --confirmed-at DATE
+  python3 orchestrator/campaign/s8b_holdout_freeze.py generate-v2-candidate --floor-result PATH --budget PATH
   python3 orchestrator/campaign/s8b_holdout_freeze.py verify
 """
 from __future__ import annotations
 
 import argparse
 import copy
+import datetime as dt
 import hashlib
 import json
+import math
 import os
 import re
 import stat
@@ -30,6 +33,10 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from . import t080_freeze_migration  # noqa: E402
+from . import env_contract  # noqa: E402
+from . import s8b_floor_contract  # noqa: E402
+from . import s8b_floor_stats  # noqa: E402
+from .s8b_launch_cert import LaunchCertError, parse_official_run_path  # noqa: E402
 
 SCRIPT_REL = "orchestrator/campaign/s8b_holdout_freeze.py"
 FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
@@ -37,6 +44,30 @@ FREEZE_PATH = ROOT / FREEZE_REL
 DESIGN_REL = "docs/phase3-8b-descriptor-design.md"
 KNOWN_AXES_REL = "output/s1-freeze/known_axes_freeze.json"
 EXCLUDED_PATHS = ("output/s8b-freeze/",)
+
+V2_SCHEMA_VERSION = "8b-holdout-freeze/v2"
+FLOOR_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
+V2_CANDIDATE_REL = "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+BUDGET_APPROVAL_REL = "output/s8b-freeze-budget-approvals/g1.json"
+BUDGET_APPROVAL_SCOPE = "s8b-holdout-freeze/v2:g1-budget"
+BUDGET_APPROVAL_SHA256: Optional[str] = None
+V2_ADDED_KEYS = frozenset({
+    "generation_number", "supersedes_sha256", "env_tag",
+    "floor_protocol", "floor_source", "measurement_closure",
+})
+FLOOR_RESULT_KEYS = frozenset({
+    "schema", "formula", "mode", "eligible_for_refreeze", "env_tag",
+    "ccbench_pin", "protocol_sha256", "freeze_sha256", "manifest_sha256",
+    "stock_configuration", "wired_min_rel_floor", "reps", "n_sessions",
+    "scale_adequacy_rel_tolerance", "holdouts", "configurations", "binaries",
+    "config", "sessions", "cells", "floors", "wall_ledger", "excluded",
+    "attempts",
+})
+BUDGET_KEYS = frozenset({
+    "total_bench_s", "per_holdout_bench_s", "oracle_shared",
+})
+BUDGET_APPROVAL_KEYS = frozenset({"approved_at", "approver", "budget", "scope"})
+V2_REFREEZE_NOTE_PREFIX = "floor/budget refreeze v2 g1; budget approval"
 
 RRATIO_KEY = "ycsb_" + "rratio"
 SKEW_KEY = "ycsb_" + "zipf_skew"
@@ -151,6 +182,109 @@ def _load_json(path: Path) -> Dict:
     return value
 
 
+def _strict_json_pairs(pairs):
+    value = {}
+    for key, child in pairs:
+        if key in value:
+            raise FreezeError(f"JSON に duplicate key: {key!r}")
+        value[key] = child
+    return value
+
+
+def _reject_json_constant(value: str):
+    raise FreezeError(f"JSON に非有限定数: {value}")
+
+
+def _assert_finite_json(value, *, label: str) -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise FreezeError(f"{label} に非有限数")
+    if isinstance(value, Mapping):
+        for child in value.values():
+            _assert_finite_json(child, label=label)
+    elif isinstance(value, list):
+        for child in value:
+            _assert_finite_json(child, label=label)
+
+
+def _strict_load_object_bytes(raw: bytes, label: str) -> Dict:
+    """UTF-8・duplicate key・非有限数を拒否して top-level object を読む。"""
+    try:
+        text = raw.decode("utf-8", "strict")
+        value = json.loads(
+            text,
+            object_pairs_hook=_strict_json_pairs,
+            parse_constant=_reject_json_constant,
+        )
+    except FreezeError:
+        raise
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise FreezeError(f"{label} を strict JSON として読めない: {exc}") from exc
+    if not isinstance(value, dict):
+        raise FreezeError(f"{label} の top-level が object でない")
+    _assert_finite_json(value, label=label)
+    return value
+
+
+def _canonical_bytes(value) -> bytes:
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise FreezeError(f"canonical JSON に変換できない: {exc}") from exc
+
+
+def _sha256_bytes(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _canonical_relative_path(raw, *, label: str) -> str:
+    try:
+        path = os.fspath(raw)
+    except TypeError as exc:
+        raise FreezeError(f"{label} が path でない") from exc
+    if not isinstance(path, str) or not path:
+        raise FreezeError(f"{label} が空でない raw POSIX relative path でない")
+    components = path.split("/")
+    if (path.startswith("/") or path.endswith("/") or "//" in path or "\\" in path
+            or "." in components or ".." in components
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in path)):
+        raise FreezeError(f"{label} の raw POSIX relative path が非正規: {path!r}")
+    return path
+
+
+def _capture_regular_nofollow(path: Path, *, label: str) -> bytes:
+    """symlink/FIFO を辿らず、open 前後で同一の regular file を一度捕捉する。"""
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise FreezeError("O_NOFOLLOW が利用できないため安全に capture できない")
+    flags = os.O_RDONLY | nofollow | getattr(os, "O_NONBLOCK", 0)
+    try:
+        before = path.lstat()
+        fd = os.open(path, flags)
+        try:
+            after = os.fstat(fd)
+            if (not stat.S_ISREG(before.st_mode) or not stat.S_ISREG(after.st_mode)
+                    or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)):
+                raise FreezeError(f"{label} が同一 regular file でない: {path}")
+            chunks = []
+            while True:
+                chunk = os.read(fd, 1024 * 1024)
+                if not chunk:
+                    return b"".join(chunks)
+                chunks.append(chunk)
+        finally:
+            os.close(fd)
+    except FreezeError:
+        raise
+    except OSError as exc:
+        raise FreezeError(f"{label} を nofollow で読めない: {path}: {exc}") from exc
+
+
 def _run_git(args: Sequence[str], cwd: Path) -> str:
     try:
         completed = subprocess.run(
@@ -163,6 +297,33 @@ def _run_git(args: Sequence[str], cwd: Path) -> str:
             f"git {' '.join(args)} に失敗: {str(detail).strip()}"
         ) from exc
     return completed.stdout.strip()
+
+
+def _run_git_bytes(args: Sequence[str], cwd: Path) -> bytes:
+    try:
+        completed = subprocess.run(
+            ["git", *args], cwd=cwd, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raw = getattr(exc, "stderr", b"") or str(exc).encode("utf-8", "replace")
+        detail = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+        raise FreezeError(f"git {' '.join(args)} に失敗: {detail.strip()}") from exc
+    return completed.stdout
+
+
+def _blob_at_head(head: str, path: str, root: Path, *, label: str) -> bytes:
+    """captured HEAD の path が blob の場合だけ raw bytes を返す。"""
+    spec = f"{head}:{path}"
+    try:
+        kind = _run_git(["cat-file", "-t", spec], root)
+        if kind != "blob":
+            raise FreezeError(f"{label} が captured HEAD の blob でない: {path}")
+        return _run_git_bytes(["cat-file", "blob", spec], root)
+    except FreezeError as exc:
+        if "captured HEAD の blob" in str(exc):
+            raise
+        raise FreezeError(f"{label} が captured HEAD の blob として存在しない: {path}") from exc
 
 
 def _run_git_z(args: Sequence[str], cwd: Path) -> Tuple[str, ...]:
@@ -612,6 +773,7 @@ TOP_LEVEL_KEYS = {
     "positive_control", "derangement", "confirmed_by", "confirmed_at", "floor",
     "budget", "refreeze_note", "scope_note", "binding_rule_note",
 }
+V2_TOP_LEVEL_KEYS = frozenset(TOP_LEVEL_KEYS) | V2_ADDED_KEYS
 
 # freeze v2 世代 schema の header/approval field (supersedes 連鎖・承認記録)。
 # 承認済み世代の機械判定は s8b_ratified_freeze.load_ratified_freeze の責務であり、v1
@@ -958,6 +1120,395 @@ def verify_cli_with_t080_receipt(path: Path = FREEZE_PATH, *, root: Path = ROOT)
     return dict(document)
 
 
+def _validate_budget(budget: Mapping, *, holdout_ids: Sequence[str], label: str) -> Dict:
+    if not isinstance(budget, Mapping) or frozenset(budget) != BUDGET_KEYS:
+        raise FreezeError(f"{label} の key 集合が不一致")
+    if budget.get("oracle_shared") is not True:
+        raise FreezeError(f"{label}.oracle_shared が true でない")
+    total = budget.get("total_bench_s")
+    if (isinstance(total, bool) or not isinstance(total, (int, float))
+            or (isinstance(total, float) and not math.isfinite(total)) or total < 0):
+        raise FreezeError(f"{label}.total_bench_s が有限非負数でない")
+    per_holdout = budget.get("per_holdout_bench_s")
+    if (not isinstance(per_holdout, Mapping)
+            or set(per_holdout) != set(holdout_ids)):
+        raise FreezeError(f"{label}.per_holdout_bench_s の holdout 集合が不一致")
+    for holdout_id, value in per_holdout.items():
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or (isinstance(value, float) and not math.isfinite(value)) or value < 0):
+            raise FreezeError(
+                f"{label}.per_holdout_bench_s.{holdout_id} が有限非負数でない"
+            )
+    return copy.deepcopy(dict(budget))
+
+
+def _load_budget_approval(root: Path, *, holdout_ids: Sequence[str]) -> Tuple[Dict, str]:
+    if BUDGET_APPROVAL_SHA256 is None:
+        raise FreezeError("budget-approval-not-ratified")
+    if (not isinstance(BUDGET_APPROVAL_SHA256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", BUDGET_APPROVAL_SHA256)):
+        raise FreezeError("budget-approval-pin-invalid")
+    raw = _capture_regular_nofollow(
+        root / BUDGET_APPROVAL_REL, label="budget approval",
+    )
+    actual_sha256 = _sha256_bytes(raw)
+    if actual_sha256 != BUDGET_APPROVAL_SHA256:
+        raise FreezeError("budget-approval-sha256-mismatch")
+    approval = _strict_load_object_bytes(raw, "budget approval")
+    if frozenset(approval) != BUDGET_APPROVAL_KEYS:
+        raise FreezeError("budget approval の key 集合が不一致")
+    if _canonical_bytes(approval) != raw:
+        raise FreezeError("budget approval raw bytes が canonical JSON でない")
+    if approval.get("scope") != BUDGET_APPROVAL_SCOPE:
+        raise FreezeError("budget approval.scope が固定値と不一致")
+    approver = approval.get("approver")
+    if not isinstance(approver, str) or not approver.strip():
+        raise FreezeError("budget approval.approver が空")
+    approved_at = approval.get("approved_at")
+    if not isinstance(approved_at, str):
+        raise FreezeError("budget approval.approved_at が UTC timestamp でない")
+    try:
+        parsed = dt.datetime.strptime(approved_at, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise FreezeError("budget approval.approved_at が UTC timestamp でない") from exc
+    if parsed.strftime("%Y-%m-%dT%H:%M:%SZ") != approved_at:
+        raise FreezeError("budget approval.approved_at が canonical UTC timestamp でない")
+    approval["budget"] = _validate_budget(
+        approval.get("budget"), holdout_ids=holdout_ids,
+        label="budget approval.budget",
+    )
+    return approval, actual_sha256
+
+
+def _load_repo_object(root: Path, raw_path, *, label: str) -> Tuple[str, bytes, Dict]:
+    rel = _canonical_relative_path(raw_path, label=label)
+    raw = _capture_regular_nofollow(root / rel, label=label)
+    return rel, raw, _strict_load_object_bytes(raw, label)
+
+
+def _validate_floor_inputs(
+    *, root: Path, floor_result_path, v1: Mapping,
+) -> Tuple[str, bytes, Dict, bytes, Dict, Dict]:
+    protocol_raw = _capture_regular_nofollow(
+        root / FLOOR_PROTOCOL_REL, label="floor protocol",
+    )
+    protocol_document = _strict_load_object_bytes(protocol_raw, "floor protocol")
+    try:
+        protocol = s8b_floor_contract.validate_protocol(
+            protocol_document,
+            contract_sha256_lookup=lambda env_tag: env_contract.lookup(
+                env_tag,
+            ).contract_sha256,
+        )
+        protocol_sha256 = s8b_floor_contract.canonical_protocol_sha256(protocol)
+    except (s8b_floor_contract.FloorContractError, env_contract.EnvContractError) as exc:
+        raise FreezeError(f"floor protocol が不正: {exc}") from exc
+    protocol_raw_sha256 = _sha256_bytes(protocol_raw)
+    if protocol_sha256 != protocol_raw_sha256:
+        raise FreezeError("floor protocol raw bytes が canonical protocol と一致しない")
+    if protocol.get("freeze") != {
+        "path": FREEZE_REL,
+        "sha256": t080_freeze_migration.HOLDOUT_RAW_SHA256,
+    }:
+        raise FreezeError("floor protocol.freeze が固定 v1 freeze と不一致")
+
+    result_rel, result_raw, result = _load_repo_object(
+        root, floor_result_path, label="floor result",
+    )
+    try:
+        path_info = parse_official_run_path(result_rel, expected_basename="result.json")
+    except LaunchCertError as exc:
+        raise FreezeError(f"floor result path が official result でない: {exc}") from exc
+    if frozenset(result) != FLOOR_RESULT_KEYS:
+        raise FreezeError("floor result の key 集合が不一致")
+    if result.get("schema") != s8b_floor_contract.RESULT_SCHEMA:
+        raise FreezeError("floor result.schema が s8b-floor-result/v2 でない")
+    if result.get("mode") != "official":
+        raise FreezeError("floor result.mode が official でない")
+    if result.get("eligible_for_refreeze") is not True:
+        raise FreezeError("floor result.eligible_for_refreeze が true でない")
+    if result.get("freeze_sha256") != t080_freeze_migration.HOLDOUT_RAW_SHA256:
+        raise FreezeError("floor result.freeze_sha256 が固定 v1 hash と不一致")
+    if result.get("protocol_sha256") != protocol_sha256:
+        raise FreezeError("floor result.protocol_sha256 が固定 protocol hash と不一致")
+    if (result.get("env_tag") != protocol["env_tag"]
+            or path_info["env_tag"] != protocol["env_tag"]):
+        raise FreezeError("floor result/protocol/path の env_tag が不一致")
+    if path_info["proto8"] != protocol_sha256[:8]:
+        raise FreezeError("floor result path の proto8 が protocol hash と不一致")
+    header_fields = (
+        "formula", "ccbench_pin", "stock_configuration", "wired_min_rel_floor",
+        "reps", "n_sessions", "scale_adequacy_rel_tolerance",
+    )
+    for field in header_fields:
+        if (result.get(field) != protocol.get(field)
+                or type(result.get(field)) is not type(protocol.get(field))):
+            raise FreezeError(f"floor result.{field} が protocol と不一致")
+
+    try:
+        expected_cells = s8b_floor_contract.derive_expected_cells(
+            v1, stock_configuration=protocol["stock_configuration"],
+        )
+    except s8b_floor_contract.FloorContractError as exc:
+        raise FreezeError(f"v1 holdout binding から expected cells を導出できない: {exc}") from exc
+    expected_holdouts = sorted(expected_cells)
+    expected_configurations = sorted({
+        configuration
+        for configurations in expected_cells.values()
+        for configuration in configurations
+    })
+    if result.get("holdouts") != expected_holdouts:
+        raise FreezeError("floor result.holdouts が v1 holdout 集合と不一致")
+    if result.get("configurations") != expected_configurations:
+        raise FreezeError("floor result.configurations が v1 configuration 集合と不一致")
+    expected_protocol = s8b_floor_contract.project_protocol_for_floor_artifact(protocol)
+    expected_protocol["expected_cells"] = expected_cells
+    problems = s8b_floor_stats.verify_floor_artifact(result, expected_protocol)
+    if problems:
+        raise FreezeError(f"floor result の統計検証に失敗: {'; '.join(problems)}")
+
+    floors = result.get("floors")
+    if not isinstance(floors, Mapping) or set(floors) != set(expected_holdouts):
+        raise FreezeError("floor result.floors の holdout 集合が不一致")
+    projected = {}
+    for holdout_id in expected_holdouts:
+        value = floors.get(holdout_id)
+        if (not isinstance(value, Mapping)
+                or set(value) != {"pairs", "scale_ref", "scalar_alt", "diagnostics"}):
+            raise FreezeError(f"floor result.floors.{holdout_id} の schema が不一致")
+        projected[holdout_id] = {
+            "pairs": copy.deepcopy(value["pairs"]),
+            "scale_ref": copy.deepcopy(value["scale_ref"]),
+            "scalar_alt": copy.deepcopy(value["scalar_alt"]),
+        }
+    return (
+        result_rel, result_raw, result, protocol_raw, protocol,
+        {"by_holdout": projected},
+    )
+
+
+def _measurement_closure(
+    *, root: Path, head: str, floor_result_rel: str,
+) -> list[Dict[str, str]]:
+    report = search_repository(root)
+    hits = set()
+    for holdout_id in HOLDOUTS:
+        result = report.get("holdouts", {}).get(holdout_id)
+        paths = result.get("conjunction_hits") if isinstance(result, Mapping) else None
+        if not isinstance(paths, list):
+            raise FreezeError(f"closure scan の {holdout_id}.conjunction_hits が list でない")
+        hits.update(paths)
+    run_dir = floor_result_rel.rsplit("/", 1)[0]
+    dedicated = {
+        FLOOR_PROTOCOL_REL,
+        V2_CANDIDATE_REL,
+        floor_result_rel,
+        f"{run_dir}/manifest.json",
+        f"{run_dir}/journal.jsonl",
+        f"{run_dir}/launch_certificate.json",
+    }
+    closure = []
+    for raw_path in sorted(hits - dedicated):
+        rel = _canonical_relative_path(raw_path, label="measurement_closure path")
+        _blob_at_head(head, rel, root, label="measurement_closure path")
+        raw = _capture_regular_nofollow(
+            root / rel, label=f"measurement_closure:{rel}",
+        )
+        closure.append({"canonical_path": rel, "sha256": _sha256_bytes(raw)})
+    return closure
+
+
+def _v1_source_record_at_head(
+    v1: Mapping, field: str, *, head: str, root: Path, fixed_path: Optional[str] = None,
+) -> Dict[str, str]:
+    record = v1.get(field)
+    if not isinstance(record, Mapping) or set(record) != {"path", "sha256"}:
+        raise FreezeError(f"v1 {field} schema が不正")
+    rel = _canonical_relative_path(record.get("path"), label=f"v1 {field}.path")
+    if fixed_path is not None and rel != fixed_path:
+        raise FreezeError(f"v1 {field}.path が固定 path と不一致")
+    raw = _blob_at_head(head, rel, root, label=f"v1 {field}")
+    return {"path": rel, "sha256": _sha256_bytes(raw)}
+
+
+def build_v2_g1_candidate(
+    *, floor_result_path, budget_path, root: Path = ROOT,
+) -> Dict:
+    """固定 v1・official floor・承認 budget から未発効 g1 candidate を構築する。"""
+    if BUDGET_APPROVAL_SHA256 is None:
+        raise FreezeError("budget-approval-not-ratified")
+    root = Path(root).absolute()
+    head = _run_git(["rev-parse", "HEAD"], root)
+    if not re.fullmatch(r"[0-9a-f]{40}", head):
+        raise FreezeError("captured HEAD が 40 桁 git SHA でない")
+
+    v1_raw = _capture_regular_nofollow(root / FREEZE_REL, label="canonical v1 freeze")
+    v1_sha256 = _sha256_bytes(v1_raw)
+    if v1_sha256 != t080_freeze_migration.HOLDOUT_RAW_SHA256:
+        raise FreezeError("canonical v1 freeze が T-080 固定 hash と不一致")
+    v1 = _strict_load_object_bytes(v1_raw, "canonical v1 freeze")
+    if set(v1) != TOP_LEVEL_KEYS:
+        raise FreezeError("canonical v1 freeze の top-level schema が不一致")
+    holdouts = v1.get("holdouts")
+    if not isinstance(holdouts, Mapping) or set(holdouts) != set(HOLDOUTS):
+        raise FreezeError("canonical v1 freeze の holdout 集合が不一致")
+
+    approval, approval_sha256 = _load_budget_approval(
+        root, holdout_ids=sorted(holdouts),
+    )
+    _budget_rel, _budget_raw, budget_document = _load_repo_object(
+        root, budget_path, label="budget",
+    )
+    budget = _validate_budget(
+        budget_document, holdout_ids=sorted(holdouts), label="budget",
+    )
+    if _canonical_bytes(approval["budget"]) != _canonical_bytes(budget):
+        raise FreezeError("budget-approval-budget-canonical-mismatch")
+
+    (
+        result_rel, result_raw, _result, protocol_raw, protocol, floor,
+    ) = _validate_floor_inputs(
+        root=root, floor_result_path=floor_result_path, v1=v1,
+    )
+    known_axes = _v1_source_record_at_head(
+        v1, "known_axes_freeze", head=head, root=root,
+    )
+    if known_axes != v1["known_axes_freeze"]:
+        raise FreezeError("v1 known_axes_freeze が captured HEAD blob と不一致")
+    generator = _v1_source_record_at_head(
+        v1, "generator", head=head, root=root, fixed_path=SCRIPT_REL,
+    )
+    design_source = _v1_source_record_at_head(
+        v1, "design_source", head=head, root=root,
+    )
+    closure = _measurement_closure(
+        root=root, head=head, floor_result_rel=result_rel,
+    )
+
+    document = copy.deepcopy(v1)
+    document.update({
+        "schema_version": V2_SCHEMA_VERSION,
+        "frozen_at_head": head,
+        "design_source": design_source,
+        "generator": generator,
+        "floor": floor,
+        "budget": budget,
+        "refreeze_note": (
+            f"{V2_REFREEZE_NOTE_PREFIX}: {BUDGET_APPROVAL_REL} "
+            f"sha256={approval_sha256}"
+        ),
+        "generation_number": 1,
+        "supersedes_sha256": v1_sha256,
+        "env_tag": protocol["env_tag"],
+        "floor_protocol": {
+            "path": FLOOR_PROTOCOL_REL,
+            "sha256": _sha256_bytes(protocol_raw),
+        },
+        "floor_source": {
+            "path": result_rel,
+            "sha256": _sha256_bytes(result_raw),
+        },
+        "measurement_closure": closure,
+    })
+    if frozenset(document) != V2_TOP_LEVEL_KEYS:
+        raise FreezeError("v2 g1 candidate の top-level schema が不一致")
+    return document
+
+
+def _validate_v2_candidate_output(root: Path, output) -> str:
+    rel = _canonical_relative_path(output, label="v2 candidate output")
+    if rel != V2_CANDIDATE_REL:
+        raise FreezeError("v2 candidate output が固定 candidate path と不一致")
+    if rel.startswith("output/s8b-freeze/"):
+        raise FreezeError("v2 candidate output が canonical freeze namespace 配下")
+    try:
+        root_stat = Path(root).lstat()
+    except OSError as exc:
+        raise FreezeError(f"repo root を検査できない: {root}: {exc}") from exc
+    if not stat.S_ISDIR(root_stat.st_mode) or stat.S_ISLNK(root_stat.st_mode):
+        raise FreezeError("repo root が既存 non-symlink directory でない")
+    return rel
+
+
+def _write_v2_candidate_create_only(root: Path, output, raw: bytes) -> None:
+    """root dirfd から no-follow で辿り、固定 leaf を create-only で書く。"""
+    root = Path(root).absolute()
+    rel = _validate_v2_candidate_output(root, output)
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    directory = getattr(os, "O_DIRECTORY", None)
+    if nofollow is None or directory is None:
+        raise FreezeError("O_NOFOLLOW/O_DIRECTORY が利用できないため安全に生成できない")
+    directory_flags = os.O_RDONLY | directory | nofollow
+    descriptors = []
+    created = False
+    parent_fd = None
+    leaf = rel.split("/")[-1]
+    try:
+        root_before = root.lstat()
+        root_fd = os.open(root, directory_flags)
+        descriptors.append(root_fd)
+        root_after = os.fstat(root_fd)
+        if ((root_before.st_dev, root_before.st_ino)
+                != (root_after.st_dev, root_after.st_ino)
+                or not stat.S_ISDIR(root_after.st_mode)):
+            raise FreezeError("repo root が検査時と同一 directory でない")
+        parent_fd = root_fd
+        for component in rel.split("/")[:-1]:
+            next_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+            descriptors.append(next_fd)
+            parent_fd = next_fd
+        flags = (
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            | nofollow
+        )
+        leaf_fd = os.open(leaf, flags, 0o600, dir_fd=parent_fd)
+        created = True
+        try:
+            if not stat.S_ISREG(os.fstat(leaf_fd).st_mode):
+                raise FreezeError("v2 candidate leaf が regular file でない")
+            offset = 0
+            while offset < len(raw):
+                written = os.write(leaf_fd, raw[offset:])
+                if written <= 0:
+                    raise FreezeError("v2 candidate write が進行しない")
+                offset += written
+            os.fsync(leaf_fd)
+        finally:
+            os.close(leaf_fd)
+    except FreezeError:
+        if created and parent_fd is not None:
+            try:
+                os.unlink(leaf, dir_fd=parent_fd)
+            except OSError:
+                pass
+        raise
+    except OSError as exc:
+        if created and parent_fd is not None:
+            try:
+                os.unlink(leaf, dir_fd=parent_fd)
+            except OSError:
+                pass
+        raise FreezeError(f"v2 candidate を安全に新規作成できない: {rel}: {exc}") from exc
+    finally:
+        for fd in reversed(descriptors):
+            os.close(fd)
+
+
+def generate_v2_g1_candidate(
+    *, floor_result_path, budget_path, output_path=V2_CANDIDATE_REL,
+    root: Path = ROOT,
+) -> Dict:
+    """全入力を検証・canonical 化した後、g1 candidate を最後に一度だけ作る。"""
+    _validate_v2_candidate_output(root, output_path)
+    document = build_v2_g1_candidate(
+        floor_result_path=floor_result_path,
+        budget_path=budget_path,
+        root=root,
+    )
+    _write_v2_candidate_create_only(root, output_path, _canonical_bytes(document))
+    return document
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="8b holdout freeze の検索・生成・照合")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -967,6 +1518,13 @@ def _parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--confirmed-by", required=True)
     generate_parser.add_argument("--confirmed-at", required=True)
     generate_parser.add_argument("--output", type=Path, default=FREEZE_PATH)
+
+    v2_parser = subparsers.add_parser(
+        "generate-v2-candidate", help="承認済み budget と official floor から g1 candidate を生成する",
+    )
+    v2_parser.add_argument("--floor-result", required=True)
+    v2_parser.add_argument("--budget", required=True)
+    v2_parser.add_argument("--output", default=V2_CANDIDATE_REL)
 
     verify_parser = subparsers.add_parser("verify", help="freeze を現物から再照合する")
     verify_parser.add_argument("path", nargs="?", type=Path, default=FREEZE_PATH)
@@ -987,9 +1545,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 output_path=args.output,
             )
             print(f"generated: {args.output}")
-        else:
+        elif args.command == "verify":
             verify_cli_with_t080_receipt(args.path)
             print(f"verified: {args.path}")
+        else:
+            generate_v2_g1_candidate(
+                floor_result_path=args.floor_result,
+                budget_path=args.budget,
+                output_path=args.output,
+            )
+            print(f"generated-v2-candidate: {args.output}")
     except FreezeError as exc:
         print(f"fails-closed: {exc}", file=sys.stderr)
         return 1
