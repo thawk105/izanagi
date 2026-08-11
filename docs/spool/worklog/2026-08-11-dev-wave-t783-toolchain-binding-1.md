@@ -86,6 +86,14 @@ title: toolchain 束縛を receipt 側へ実装し、環境・世代をまたぐ
   **どちらも `DW-O01` に明記されており読み落としは親の過失**だが、`DW-O01` は
   「prompt 非空を先に検査し」までしか事前検査を要求していない。
   同日に別 wave も同型で 2 本空費しており (memory に記録済み)、`DW-G03` の独立 2 例が成立する。
+  **段 8 で `DW-O01` へ 1 文統合を試みたが、`docs/dev-wave/**` の L1.5 unique footprint が
+  予算 9566 bytes に対し余白 0 で入らなかった** (最小形でも 9575 bytes)。
+  「予算のために安全義務を削除・弱化しない」に従い**撤回し、下記「新規」へ起票する**。
+- **pid の件は制度化しない。** `nohup setsid ... & echo $!` が返すのは producer でない
+  wrapper の pid で、本 wave の待ち手 1 本目がこれを監視して「producer 死亡」を誤報告した
+  (artifact + pgrep の 3 点照合で誤検知と判明)。**ただし独立事例は本 wave の 1 件だけ**なので、
+  `DW-G03` に従い制度化せず局所修復に留めた (launcher が自分の pid をファイルへ書き、
+  待ち手はそれを読む形へ本 wave 内で修正済み)。
 
 ## 次の一手差分
 
@@ -127,3 +135,11 @@ title: toolchain 束縛を receipt 側へ実装し、環境・世代をまたぐ
   cxx version / cmake path / module_list / bytes hash を authority へ加えるか (calibration 再発行)。
 - {{T:toolchain-binding-other-producers}} **P2・ユーザー裁定待ち (B 系)**:
   floor と silo ladder 以外の producer へ束縛を広げるか。
+- {{T:codex-launch-argv-preflight}} **P2・新規 (dev-wave 自己改善、予算超過で起票)**:
+  子の起動前に同一 argv を `--dry-run` で生成し rc=0 を確認する義務を `DW-O01` へ足す。
+  段別の引数契約違反 (`--lane` は consult 専用、`--reasoning` は review/focus で不可) は
+  起動して初めて判り、成果物ゼロで即死する。**同日に独立 2 wave が同型で計 4 本を空費**しており
+  `DW-G03` は成立している。段 8 で統合を試みたが `docs/dev-wave/**` の L1.5 unique footprint が
+  予算 9566 bytes に対し最小形でも 9575 bytes となり入らなかった。
+  **予算のために既存の安全義務を削るのは契約違反**なので、余白の作り方 (陳腐化した記述の削除か
+  機械検査への移管) と併せて裁定する。
