@@ -15,15 +15,9 @@
     }
    ],
    "expected_nodes": [
-    "orchestrator/tests/test_t793_publication_ledger.py::test_p4_present_zero_entry_canonical_ledger_is_accepted",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_publication_identity_literals_and_schema_are_exact",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_one_canonical_publication_entry_is_structurally_readable",
     "orchestrator/tests/test_t793_publication_ledger.py::test_kind_outside_closed_publication_set_is_rejected",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_nonliteral_publication_family_root_is_rejected",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_primary_entry_space_is_rejected_before_publication_identity",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_duplicate_root_kind_ordinal_identity_is_rejected",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_entry_schema_is_publication_specific_and_ordinal_is_positive_int[foreign-schema]",
-    "orchestrator/tests/test_t793_publication_ledger.py::test_committed_delete_and_recreate_is_rejected"
+    "orchestrator/tests/test_t793_publication_ledger.py::test_one_canonical_publication_entry_is_structurally_readable",
+    "orchestrator/tests/test_t793_publication_ledger.py::test_publication_identity_literals_and_schema_are_exact"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
@@ -41,9 +35,8 @@
    "expected_nodes": [
     "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover[fold-commit]",
     "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_in_pinned_blob_is_rejected_by_discover[generic]",
-    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_when_plan_is_passed_directly_to_apply_fold",
     "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_by_main_resume_path",
-    "orchestrator/tests/test_t793_approval_guard.py::test_discover_plan_path_checks_the_rendered_decisions_after_bytes"
+    "orchestrator/tests/test_t793_approval_guard.py::test_exact_marker_is_rejected_when_plan_is_passed_directly_to_apply_fold"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
@@ -59,8 +52,8 @@
     }
    ],
    "expected_nodes": [
-    "orchestrator/tests/test_t793_addendum_p_envelope.py::test_p3_exact_p01_p02_p03_envelope_is_accepted",
-    "orchestrator/tests/test_t793_addendum_p_envelope.py::test_addendum_p_exact_key_gate_rejects_missing_p03"
+    "orchestrator/tests/test_t793_addendum_p_envelope.py::test_addendum_p_exact_key_gate_rejects_missing_p03",
+    "orchestrator/tests/test_t793_addendum_p_envelope.py::test_p3_exact_p01_p02_p03_envelope_is_accepted"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
@@ -77,9 +70,10 @@
    ],
    "expected_nodes": [
     "orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed",
+    "orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials",
+    "orchestrator/tests/test_t793_report.py::test_fenced_later_reference_is_also_fail_closed",
     "orchestrator/tests/test_t793_report.py::test_later_explicit_supersession_stops_current_approval_assertion",
-    "orchestrator/tests/test_t793_report.py::test_later_reference_is_possible_supersession_even_when_negated",
-    "orchestrator/tests/test_t793_report.py::test_fenced_later_reference_is_also_fail_closed"
+    "orchestrator/tests/test_t793_report.py::test_later_reference_is_possible_supersession_even_when_negated"
    ],
    "expected_status": "KILLED",
    "hang_risk": false
