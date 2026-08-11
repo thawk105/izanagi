@@ -352,12 +352,10 @@ def _ledger_history_tip(
                 "publication ledger path was deleted in committed history",
             )
         _load_ledger_bytes(blob, label=f"publication ledger at {commit}")
-        if previous is not None and (
-            not blob.startswith(previous) or len(blob) <= len(previous)
-        ):
+        if previous is not None and not blob.startswith(previous):
             _fail(
                 "ledger-history",
-                "publication ledger history is not a strict prefix extension",
+                "publication ledger history is not a prefix extension",
             )
         previous = blob
     return previous

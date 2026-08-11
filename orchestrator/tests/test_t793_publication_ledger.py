@@ -256,6 +256,78 @@ def test_entry_key_set_is_exact(tmp_path: Path) -> None:
         _read(repo)
 
 
+def test_unchanged_ledger_bytes_across_merge_history_are_accepted(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+    root_commit = _git(repo, "rev-parse", "HEAD")
+    main_branch = _git(repo, "branch", "--show-current")
+
+    path = _ledger_path(repo)
+    path.write_bytes(b"")
+    _git(repo, "add", LEDGER_RELATIVE_PATH.as_posix())
+    _git(repo, "commit", "-q", "-m", "add empty publication ledger")
+    ledger_commit = _git(repo, "rev-parse", "HEAD")
+
+    _git(repo, "checkout", "-q", "-b", "without-ledger", root_commit)
+    side = repo / "side.txt"
+    side.write_text("side\n", encoding="utf-8")
+    _git(repo, "add", side.name)
+    _git(repo, "commit", "-q", "-m", "commit without publication ledger")
+
+    _git(repo, "checkout", "-q", main_branch)
+    _git(repo, "merge", "--no-ff", "-q", "without-ledger", "-m", "merge side")
+    merge_commit = _git(repo, "rev-parse", "HEAD")
+    history = _git(
+        repo,
+        "log",
+        "--format=%H",
+        "--reverse",
+        "--full-history",
+        "HEAD",
+        "--",
+        LEDGER_RELATIVE_PATH.as_posix(),
+    ).splitlines()
+
+    assert history == [ledger_commit, merge_commit]
+    assert [
+        _git(
+            repo,
+            "cat-file",
+            "blob",
+            f"{commit}:{LEDGER_RELATIVE_PATH.as_posix()}",
+        )
+        for commit in history
+    ] == ["", ""]
+    assert _read(repo).entries == ()
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (b"", _canonical_line(_entry(ordinal=2))),
+    ids=("truncate", "rewrite"),
+)
+def test_committed_non_prefix_ledger_history_is_rejected(
+    tmp_path: Path,
+    replacement: bytes,
+) -> None:
+    repo = _init_repo(tmp_path)
+    path = _ledger_path(repo)
+    path.write_bytes(_canonical_line(_entry()))
+    _git(repo, "add", LEDGER_RELATIVE_PATH.as_posix())
+    _git(repo, "commit", "-q", "-m", "add publication reservation")
+
+    path.write_bytes(replacement)
+    _git(repo, "add", LEDGER_RELATIVE_PATH.as_posix())
+    _git(repo, "commit", "-q", "-m", "replace publication ledger")
+
+    with pytest.raises(
+        L.PublicationLedgerError,
+        match=r"\[ledger-history\].*prefix extension",
+    ):
+        _read(repo)
+
+
 def test_committed_delete_and_recreate_is_rejected(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     path = _ledger_path(repo)
