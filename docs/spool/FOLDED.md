@@ -823,3 +823,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:design-literal-binding-rejects-html-comments":"D285","D:dev-wave-waiter-pid-and-codex-coldstart":"D286"},"authored":"2026-08-11","content_sha256":"5df2a09f5ffc1ceb3d42c4f3610bb0591b1a2b0fb7c2fc066aabe51a4834b4a6","seq":3,"wave":"dev-wave-t657-stage0-rulings"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"c17acce403a0391868c30845df177d186f171814bbe3aa86282e710169c3c2b3","seq":52,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dryrun-git-admin-no-write":"[T-802]","T:fold-finalize-protocol":"[T-798]","T:fold-state-head-binding":"[T-799]","T:rollback-lifecycle-details":"[T-801]","T:rollback-state-inspection":"[T-800]"},"authored":"2026-08-11","content_sha256":"2eeeaec13db4463c9d5202a17ffcffa7ee0e3de03fb2f704e58fc354d0bdff92","seq":1,"wave":"dev-wave-t766-t768-resume-diff"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"694f8616196d584bb23ccda37c289c0d368b0776d68f9604b55357bcda032434","seq":2,"wave":"dev-wave-t766-t768-resume-diff"}
