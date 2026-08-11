@@ -1171,6 +1171,18 @@
   23,991/24,000 で収まった。3 回目をもって「未定」を閉じる
 - 記録: worklog 2026-07-27 (24) (初発)、(25) (再発・型として登録)、(26) (3 回目・恒久対応)
 
+
+- **再発: 2026-08-11、4 回目。恒久対応が degrade 経路で効かなかった。**
+  新設した `test_s8b_oracle_manifest_contract.py` が自走 harness も allowlist 記載も持たず、
+  受入全走を赤 1 件にした (8858 passed / 1 failed)。
+  3 回目の恒久対応は `DW-S05-C` を「テストを新設・改名する単位は、それを制約する meta-test も
+  走らせる」へ広げたもので、**親は実装子 prompt にこの逐語を入れていた**。
+  しかし Pegasus では **codex 実装子は計算ノードへ dispatch できず pytest を一切走らせられない**
+  (`qstat -Q` preflight が失敗する)。実装子は規律どおり「実装済み・未実走」と正直に報告し、
+  実測義務は親へ移る。ところが親の焦点走行の集合は wave の対象 module から組んだため、
+  `test_plain_runner_coverage.py` のような**横断メタ検査が入っていなかった**。
+  → 型は「meta-test の義務が子から親へ移る degrade 経路で、義務の宛先が手順に書かれていない」。
+  **新設・改名したテストファイルがある wave では、親の焦点走行の集合に横断メタ検査を必ず入れる。**
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -5570,3 +5582,51 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `unicodedata.normalize("NFC", line) != line` を当てて非 NFC 行を特定する。
   該当があれば本 F、`web_search` の重複キーなら F217。
   repo 側は `git ls-files` の全 tracked file に同じ判定を当てれば 2 秒で棚卸しできる。
+
+### F224. 変異 spec の期待 node に日本語 parametrize ID を書いて harness が起動前停止 [手順漏れ]
+
+- 事象: 変異 matrix 11 件の初回投入が走行ゼロ・rc=2 で停止した。harness の
+  「期待 node が pytest collection に実在しない」検査が 8 件を報告した。
+- 根本原因: 親が `@pytest.mark.parametrize` の第 2 引数に日本語メッセージを置いたテストの
+  node ID を、**ソース逐語のまま**期待 node へ書いた。pytest は parametrize ID の非 ASCII を
+  `unicode_escape` するため、実 ID は `[schedule-schedule が approved spec]` の形になる。
+- 恒久対応: 期待 node は必ず `--collect-only` の実出力から採る。fold 前に「全期待 node が
+  collection に実在する」ことを機械確認する (D303)。
+- 再発検知: 期待 node の実在検査は harness が既に持つ (今回それが発火した)。
+  親側では spec 生成 script に collection 突き合わせを組み込んだ。
+- 併記する実測: **dispatch 経由の `--collect-only` は stdout が切り詰められる**
+  (421 件収集のうち 38 件しか出力されない)。node 一覧の採取はローカル collect で行う。
+
+### F225. 実装面が両親と異なる merge を Codex author に実行させられない [手順漏れ]
+
+- 事象: main が本 wave 所有のテスト 2 本を変更しており、merge 結果が両親のどちらとも異なる
+  実装面ファイルになった。DW-O17 はこの形に Codex `role=author` を要求するが、
+  **Codex 子は merge を実行できない** (`fatal: update_ref failed for ref 'ORIG_HEAD':
+  ... Read-only file system`)。sandbox が `.git` を読み取り専用にするのは実装子が commit
+  できないようにする設計上の防壁であり、迂回してはならない。
+- 併発: **merge を staged のまま子を投入すると dispatcher が rc=2 で拒否する**
+  (「working tree が authority commit と異なる」)。merge が `docs/dev-wave/` を更新するため、
+  未 commit の merge 中は authority 検査を通らない。子を投入する前に tree を clean にする必要がある。
+- 根本原因: 「Codex が実装面の著作を持つ」を「Codex が merge command を実行する」と読むと
+  構造的に実現不能である。著作の実体は**結合後のファイル内容**であって git 操作ではない。
+- 恒久対応: **順序を入れ替える。** Codex 子が main 側の変更を先に wave branch のファイルへ
+  取り込む (通常の実装 commit として著作を持つ)。その後の merge では当該ファイルが親と
+  同一になり、checker の combined path (全 parent と異なる path) から外れる。
+- 再発検知: land 前に `git diff --name-only <merge-base> main` と本 wave の変更 path の交差を
+  取り、実装面が交差したらこの手順へ入る。交差が無ければ通常の merge でよい。
+
+### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
+
+- 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
+  意図した node に加え、無関係に見える golden テスト 2 件が必ず赤くなった。
+- 根本原因: `PIN_GATE_SPEC_RAW` は `generator_versions` として `judge` / `report` / `artifacts` の
+  **source SHA-256 を埋め込む**。この 3 ファイルへのどんな変異も source hash を変えるため、
+  golden 照合が必ず巻き込まれる。変異ごとの単一帰属は成立しているが、期待 node 集合は
+  「意図した node + pin 2 件」になる。
+- 恒久対応: source hash を pin する族のファイルを変異させる登録では、期待 node に pin テストを
+  常に含める。事前登録時に「この変異は source hash を変えるか」を 1 行で判定する。
+- 再発検知: 本 wave の変異台帳 (`output/insights/2026-08-11_t804-spec-sha256/mutation-ledger.json`)
+  が実測記録として残る。
+- 併記する実測: 過剰拒否 (over-rejection) を検出する positive control 変異は、意図した正例 1 件では
+  なく verify を通す**全テスト**を赤にする (今回 213 件)。期待 node を 1 件で登録すると必ず
+  MISMATCH になるため、positive control では期待の立て方を変える。
