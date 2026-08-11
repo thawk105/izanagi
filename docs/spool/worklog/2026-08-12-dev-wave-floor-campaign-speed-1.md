@@ -57,11 +57,22 @@ supersede する決定 ID が `("D292",)` ちょうどであることを固定�
 最終変更は main 側の land fold、テストを追加した commit と D305 の fold はどちらも main の祖先、
 私の 4 commit は当該テストが読む file を 1 つも触っていない。**単独再走でも同じ 2 node が
 再現した (2 failed / 7 passed、rc=1) のでフレークではない。** 所有者は T-139/公表層 wave であり、
-凍結境界により親は他 wave 所有の実装面を直さない。**推奨は「scan 対象を live な
-`docs/decisions.md` でなく凍結 bytes へ固定する」** — D305 自身が
-「payload は `F_p` の実 bytes を毎回読んで導出する」と決めており、test が live 台帳を
-読んでいること自体が D305 と食い違う。期待値へ D305 を足すだけの対症療法では、
-次に D291 を参照する決定が入るたびに再発する。
+凍結境界により親は他 wave 所有の実装面を直さない。
+
+**親の推奨 (c)「scan 対象を凍結 bytes (`F_p`) へ固定する」は誤りだったので撤回する。**
+[T-827] セッションの反論を受けて実装を読み直し、こちらの誤りと確認した。
+`_scan_d291_supersession` (`orchestrator/publication/report.py:76`) は
+「後続 decision にある D291 参照を **fail-closed に列挙する**」番人で、
+`_SupersessionScan` の docstring も「**HEAD 上で** D291 より後ろにある canonical supersession の
+走査結果」と明記し、`_read_head_decisions` は名前どおり HEAD を読む。
+**`F_p` へ固定すると凍結後に追加された decision を構造的に一切見られなくなり、
+常に `none_found` を返す恒真ゲート (検出力ゼロの fail-open) になる。**
+親は目的が逆向きの 2 つを混同していた — payload の trust root (D305) は再現性のため過去に固定し、
+supersession の見張りは検出のため現在を見る必要がある。**テストが壊れたのは番人が正しく
+働いた結果**であり、直すべきは期待値の側だけである。**正しい解は「exact status は維持し、
+`"D292" in decision_ids` を必須にしつつ完全一致は要求せず、番号の昇順・重複なしという
+構造的性質を検査する」** ([T-827] の `292151a5` がこの形)。番人の検出力を落とさずに
+脆さだけを外すので、次に D291 を参照する決定が入っても再発しない。
 
 **ユーザー裁定 (2026-08-12、逐語「既存の赤は免除リストに入れて」) により、既知赤 waiver W2 を
 新設して land した。** W1 (F96/F101) は `[T-407]` の land で失効済みで、直近の専用 wave

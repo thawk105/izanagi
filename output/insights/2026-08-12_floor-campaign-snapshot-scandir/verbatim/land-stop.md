@@ -65,9 +65,37 @@ AssertionError: assert ('D292', 'D305') == ('D292',)
 
 `test_t793_report.py` は **T-139/公表層 wave の所有**。凍結境界により本 wave は直さない。
 
-- (a) 期待値へ D305 を足す (最小)。**次に D291 を参照する決定が入るたびに再発する。**
-- (b) 期待値を「D292 を必ず含む」等の**単調な性質**へ変える。
-- **(c) [推奨] scan 対象を live な `docs/decisions.md` でなく凍結 bytes (`F_p`) へ固定する。**
-  D305 自身が「payload は `F_p` の実 bytes を毎回読んで導出する」と決めており、
-  **test が live 台帳を読んでいること自体が D305 と食い違う**。これは
-  「説明と実装の食い違い」型であり、(a) の対症療法では同じ赤が繰り返す。
+### 親の当初推奨 (c) は誤りだった — 撤回する
+
+親は当初「scan 対象を live な `docs/decisions.md` でなく凍結 bytes (`F_p`) へ固定する」を
+推奨した。**これは fail-open を作る誤りである。** [T-827] セッションの反論を受けて
+実装を読み直し、こちらの誤りと確認した。
+
+| 根拠 (`orchestrator/publication/report.py`) | 内容 |
+|---|---|
+| `:22` `D291ReportError` | 「**HEAD decision scan** または report 構築に失敗した」 |
+| `:26` `_SupersessionScan` | 「**HEAD 上で** D291 より後ろにある canonical supersession の走査結果」 |
+| `:76` `_scan_d291_supersession` | 「後続 decision にある D291 参照を **fail-closed に列挙する**。…後続 decision section に `D291` が一度でも現れたら、**現在も承認済みとは断言しない**」 |
+| `:114` `_read_head_decisions` | 名前と実装のとおり HEAD を読む |
+
+**この走査は意図的に「HEAD を見張る fail-closed な番人」**である。`F_p` へ固定すると
+**凍結後に追加された decision を構造的に一切見られなくなり、常に `none_found` を返す
+恒真ゲート (検出力ゼロの fail-open) になる。**
+
+親の誤りの中身は、**目的が逆向きの 2 つを同じ「`F_p` を読め」で揃えようとした**ことである。
+
+- **payload の trust root** (D305 が定める) — **再現性**のため過去 (`F_p`) に固定する
+- **supersession の見張り** (この走査) — **検出**のため現在 (HEAD) を見る
+
+D305 を後者へ適用すると後者の存在理由が消える。しかも**テストが壊れたのは番人が
+正しく働いた結果**であり、壊れているのは期待値の側だけである。
+
+### 正しい解
+
+**exact な `status` は維持し、`"D292" in decision_ids` を必須にしつつ、
+完全一致は要求せず decision 番号の昇順・重複なしという構造的性質を検査する。**
+[T-827] の `292151a5` (branch `worktree-dev-wave-t827-slow-tests`、18+/5-、実走 9 passed) が
+この形である。**番人の検出力を落とさずに脆さだけを外す**ので、次に D291 を参照する決定が
+入っても再発しない。
+
+親が当初挙げた (a)「期待値へ D305 を足す」も、次の決定で再発するので採らない。

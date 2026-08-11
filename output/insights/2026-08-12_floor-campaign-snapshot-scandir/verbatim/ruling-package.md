@@ -49,6 +49,17 @@ repo 全体 clone × 2 と**同型の機序**である。
 C2 と同型なので、**同じ裁定を両方へ一度に当てる**か、個別に扱うか。
 親の推奨は「Q1 の結論が出たら両方へ同じ判断を当てる」。
 
+**[T-827] セッションの実測 (2026-08-12 に本 wave へ共有された値、出典は同セッション):**
+
+| 対象 | 実測 |
+|---|---|
+| 本 wave の C2 (`test_real_seal_..._e2e`) | repo 全体 313MB + submodule を複製。solo 26.81s / hardlink 許可 16.33s / `--no-checkout` 5.24s |
+| [T-827] の `codex_reasoning_ab.py:1289` | `git clone --no-hardlinks --no-checkout` を POS/NEG の **2 回**。`.git` は **258MB**。`benchmark_snapshots` の setup が **87.00s** = `test_codex_reasoning_ab.py` 単独 259.36s の 1/3 |
+
+**両方とも「repo 履歴に比例して重くなる」型**であり、2026-08-11 のユーザー恒久ルール
+**「repo 履歴に比例するコストをテスト経路に入れない」**の対象である。
+両セッションが独立に同型と判断し、互いの実測を併記することで合意した。
+
 **Q3. 本 wave の成果表現。**
 
 親は段 6 裁定で、成果を **「実 `output/` snapshot を行う 11 テストの仕事量を 35% 削減した」**
