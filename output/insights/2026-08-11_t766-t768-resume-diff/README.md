@@ -67,6 +67,28 @@ orchestrator/tests/test_spool_fold.py -q -rf`。
 
 `mutation-spec.json` (事前登録) と `mutation-ledger.json` (harness 出力) が正本。期待 node は
 runner scope (上記 2 test file から known-red 5 件を除いた集合) の完全集合として登録した。
+本走の `repo_head` は `39f81174`。
+
+| ID | 変異 | 実測 | 期待 |
+|---|---|---|---|
+| M1 | `elif not failures:` を wave 前の逐語 `else:` へ戻す | KILLED (3 node) | KILLED (3) |
+| M2 | state ブロック全体を `if not failures:` の内側へ移す | KILLED (4 node) | KILLED (4) |
+| M3 | 正常時の `state_path.unlink()` を `pass` にする | KILLED (1 node) | KILLED (1) |
+| M4 | `--show-diff` の `--dry-run` 必須検査を外す | KILLED (1 node) | KILLED (1) |
+| M5 | diff の対象から `gc_paths` を外す | **MISMATCH (3 node 実測 / 2 登録)** | KILLED (2) |
+| M6 | diff を stderr でなく stdout へ書く | KILLED (4 node) | KILLED (4) |
+
+summary = KILLED 5 / MISMATCH 1 / **SURVIVED 0** / TIMEOUT 0。
+
+### M5 の erratum
+
+M5 は登録した 2 node に加えて `test_cli_dry_run_show_diff_matches_target_after_bytes` も落とした。
+**検出力が登録より弱いのではなく強い**方向のズレである。原因は親の事前予測の読み落としで、
+段 6 fix が hash 行の値照合を `gc_paths` にも広げたため、gc 出力を止めると同テストも赤くなる。
+
+初回 ledger は消さず (`DW-M02`)、`mutation-spec-erratum.json` で M5 だけを正しい期待 3 node で
+再走した (`mutation-ledger-erratum.json`、同じ `repo_head` `39f81174`)。結果は
+**KILLED / 期待 node 完全一致**。したがって実質 6/6 KILLED、SURVIVED ゼロである。
 
 M1 は memory `mutation-must-include-pre-wave-form` に従い、**wave 前の実コードの逐語** (`else:`) を
 復元する形で登録している。
