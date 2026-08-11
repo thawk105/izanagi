@@ -53,9 +53,46 @@ def _run_git(repo: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def _hash_object(repo: Path, content: bytes) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), "hash-object", "--stdin"],
+        check=True,
+        input=content,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return completed.stdout.decode("ascii", errors="strict").strip()
+
+
 def _commit(repo: Path, message: str = "fixture") -> None:
     _run_git(repo, "add", "-A")
     _run_git(repo, "commit", "-m", message)
+
+
+def _raw_commit(
+    repo: Path,
+    *,
+    author: bytes,
+    message: bytes = FOLD_COMMIT_MESSAGE,
+) -> str:
+    parent = _run_git(repo, "rev-parse", "HEAD")
+    tree = _run_git(repo, "write-tree")
+    raw = (
+        f"tree {tree}\nparent {parent}\n".encode("ascii")
+        + b"author " + author + b"\n"
+        + b"committer Fixture <fixture@example.invalid> 1700000000 +0000\n\n"
+        + message
+    )
+    completed = subprocess.run(
+        ["git", "-C", str(repo), "hash-object", "-t", "commit", "-w", "--stdin"],
+        check=True,
+        input=raw,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    commit = completed.stdout.decode("ascii", errors="strict").strip()
+    _run_git(repo, "update-ref", "HEAD", commit, parent)
+    return commit
 
 
 def _land_origin(repo: Path) -> spool_fold.FoldOrigin:
@@ -120,6 +157,42 @@ def _finish_fold(repo: Path, plan: spool_fold.FoldPlan) -> spool_fold.FoldResult
     spool_fold.finalize_fold(repo, committed, fold_commit=fold_commit)
     assert not state_path.exists() and not state_path.is_symlink()
     return result
+
+
+def _commit_applied_fold(repo: Path, plan: spool_fold.FoldPlan) -> str:
+    spool_fold.apply_fold(repo, plan)
+    _run_git(repo, "add", "-A")
+    subprocess.run(
+        [
+            "git", "-C", str(repo), "commit", "--no-gpg-sign",
+            "--cleanup=verbatim", f"--author={FOLD_AUTHOR_IDENTITY}", "-F", "-",
+        ],
+        check=True,
+        input=FOLD_COMMIT_MESSAGE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return _run_git(repo, "rev-parse", "HEAD")
+
+
+def _assert_declared_fold(repo: Path, plan: spool_fold.FoldPlan, fold_commit: str) -> None:
+    audited = tuple(
+        _run_git(
+            repo,
+            "rev-list",
+            "--reverse",
+            f"{plan.origin.trusted_main_cutoff}..{plan.origin.tested_tip}",
+        ).splitlines()
+    )
+    declared = verify_declared_fold_commit(
+        repo,
+        fold_commit_sha=fold_commit,
+        trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,
+        landed_main_sha=fold_commit,
+        landed_commits=audited,
+        wave_tip=plan.origin.tested_tip,
+    )
+    assert declared.ok, declared
 
 
 def _complete_fold(
@@ -313,6 +386,43 @@ def _transaction_raises(needle: str, callable_object, *args, **kwargs):
         assert needle in str(exc), str(exc)
         return exc
     raise AssertionError(f"TransactionError({needle!r}) を返さなかった")
+
+
+def _unchecked_plan_from_state(
+    original: spool_fold.FoldPlan,
+    state: dict[str, object],
+) -> spool_fold.FoldPlan:
+    fragments = tuple(
+        spool_fold.FragmentReceipt(
+            item["path"],
+            item["authored"],
+            item["wave"],
+            item["seq"],
+            item["content_sha256"],
+            tuple(tuple(pair) for pair in item["allocations"]),
+        )
+        for item in state["fragments"]
+    )
+    targets = tuple(
+        spool_fold.TargetChange(
+            item["path"],
+            item["before_sha256"],
+            item["after_sha256"],
+            item["before_exists"],
+            spool_fold.base64.b64decode(item["after_bytes_b64"]),
+        )
+        for item in state["targets"]
+    )
+    return dataclasses.replace(
+        original,
+        fold_date=state["fold_date"],
+        input_closure_sha256=state["input_closure_sha256"],
+        fragments=fragments,
+        gc_paths=tuple(state["gc_paths"]),
+        projected_worklog_bytes=state["projected_worklog_bytes"],
+        rotation_path=state["rotation_path"],
+        targets=targets,
+    )
 
 
 def _target(plan, rel: str):
@@ -1990,6 +2100,68 @@ def test_transaction_id_binds_origin_closure_and_before_exists(tmp_path: Path) -
     assert spool_fold._state_plan(committed_state).transaction_id == plan.transaction_id
 
 
+def test_apply_rejects_each_state_transaction_id_payload_field_mutation(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    original_state = spool_fold._plan_state(plan)
+
+    def mutate_gc_paths(state: dict[str, object]) -> None:
+        state["gc_paths"] = [*state["gc_paths"], "docs/spool/worklog/2099-01-01-other-1.md"]
+
+    def mutate_fragment(state: dict[str, object], field: str, value: object) -> None:
+        state["fragments"][0][field] = value
+
+    def mutate_target(state: dict[str, object], field: str, value: object) -> None:
+        state["targets"][0][field] = value
+
+    cases = (
+        ("gc_paths", mutate_gc_paths),
+        ("fragment.path", lambda state: mutate_fragment(
+            state, "path", "docs/spool/worklog/2099-01-01-other-1.md",
+        )),
+        ("fragment.authored", lambda state: mutate_fragment(state, "authored", "2099-01-01")),
+        ("fragment.wave", lambda state: mutate_fragment(state, "wave", "other-wave")),
+        ("fragment.seq", lambda state: mutate_fragment(state, "seq", 2)),
+        ("fragment.content_sha256", lambda state: mutate_fragment(
+            state, "content_sha256", "0" * 64,
+        )),
+        ("fragment.allocations", lambda state: mutate_fragment(
+            state, "allocations", [["T:payload-pin", "[T-999]"]],
+        )),
+        ("projected_worklog_bytes", lambda state: state.__setitem__(
+            "projected_worklog_bytes", state["projected_worklog_bytes"] + 1,
+        )),
+        ("rotation_path", lambda state: state.__setitem__(
+            "rotation_path", "docs/archive/worklog-phase3-2099-1.md",
+        )),
+        ("target.path", lambda state: mutate_target(
+            state, "path", "docs/archive/README.md",
+        )),
+        ("target.before_sha256", lambda state: mutate_target(
+            state, "before_sha256", "0" * 64,
+        )),
+        ("target.after_sha256", lambda state: mutate_target(
+            state, "after_sha256", "0" * 64,
+        )),
+    )
+    for label, mutate in cases:
+        state = json.loads(json.dumps(original_state))
+        mutate(state)
+        candidate = _unchecked_plan_from_state(plan, state)
+        exc = _transaction_raises(
+            "transaction_id が payload と不一致",
+            spool_fold.apply_fold,
+            repo,
+            candidate,
+        )
+        assert label not in str(exc)
+        state_path = spool_fold._state_path(repo)
+        assert not state_path.exists() and not state_path.is_symlink()
+
+
 def test_input_closure_binds_both_rendering_engine_files(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     _fragment(repo, "worklog", _worklog_body(repo))
@@ -2108,6 +2280,163 @@ def test_commit_identity_gate_rejects_mode_only_manual_fold_commit(tmp_path: Pat
         plan,
         fold_commit=fold_commit,
     )
+
+
+def test_commit_identity_gate_rejects_author_suffix_bytes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    _run_git(repo, "add", "-A")
+    forged_author = (
+        FOLD_AUTHOR_IDENTITY.encode("utf-8")
+        + b" forged-suffix 1700000000 +0000"
+    )
+    fold_commit = _raw_commit(repo, author=forged_author)
+    raw_author = next(
+        line.removeprefix(b"author ")
+        for line in subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "commit", fold_commit],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout.splitlines()
+        if line.startswith(b"author ")
+    )
+    assert raw_author.startswith(FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" ")
+    _transaction_raises(
+        "author identity",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_extra_state_external_path(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    extra_path = "docs/decisions.md"
+    assert extra_path not in {target.path for target in plan.targets}
+    with (repo / extra_path).open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n## D2. state-external fixture\n")
+    _run_git(repo, "add", "-A")
+    fold_commit = _raw_commit(
+        repo,
+        author=FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" 1700000000 +0000",
+    )
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    expected_paths = {target.path for target in plan.targets} | set(plan.gc_paths)
+    assert set(actual) == expected_paths | {extra_path}
+    assert actual[extra_path][0] == "M"
+    for target in plan.targets:
+        status, old_mode, new_mode, new_oid = actual[target.path]
+        assert status == ("M" if target.before_exists else "A")
+        assert old_mode == ("100644" if target.before_exists else "000000")
+        assert new_mode == "100644"
+        assert new_oid == _hash_object(repo, target.after_bytes)
+    assert all(actual[path][0] == "D" for path in plan.gc_paths)
+    _transaction_raises(
+        "path 集合",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_target_status_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    fold_commit = _commit_applied_fold(repo, plan)
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    target = next(target for target in plan.targets if target.before_exists)
+    original_record = actual[target.path]
+    assert original_record[0] == "M"
+    synthetic = dict(actual)
+    synthetic[target.path] = ("A", *original_record[1:])
+    assert set(synthetic) == set(actual)
+    assert synthetic[target.path][1:] == original_record[1:]
+    original_reader = spool_fold._commit_diff_records
+    spool_fold._commit_diff_records = lambda *_args: synthetic
+    try:
+        _transaction_raises(
+            "target record",
+            spool_fold.verify_fold_commit_identity,
+            repo,
+            plan,
+            fold_commit=fold_commit,
+        )
+    finally:
+        spool_fold._commit_diff_records = original_reader
+
+
+def test_commit_identity_gate_rejects_target_blob_oid_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    target = next(target for target in plan.targets if target.path == "docs/worklog.md")
+    (repo / target.path).write_bytes(target.after_bytes + b"\nwrong blob only\n")
+    _run_git(repo, "add", "-A")
+    fold_commit = _raw_commit(
+        repo,
+        author=FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" 1700000000 +0000",
+    )
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    assert set(actual) == {item.path for item in plan.targets} | set(plan.gc_paths)
+    status, old_mode, new_mode, new_oid = actual[target.path]
+    assert status == "M" and old_mode == new_mode == "100644"
+    assert new_oid != _hash_object(repo, target.after_bytes)
+    for other in plan.targets:
+        if other.path == target.path:
+            continue
+        record = actual[other.path]
+        assert record[0] == ("M" if other.before_exists else "A")
+        assert record[2] == "100644"
+        assert record[3] == _hash_object(repo, other.after_bytes)
+    assert all(actual[path][0] == "D" for path in plan.gc_paths)
+    _transaction_raises(
+        "target record",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_gc_status_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    fold_commit = _commit_applied_fold(repo, plan)
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    gc_path = plan.gc_paths[0]
+    original_record = actual[gc_path]
+    assert original_record[0] == "D" and original_record[2] == "000000"
+    synthetic = dict(actual)
+    synthetic[gc_path] = ("M", *original_record[1:])
+    assert set(synthetic) == set(actual)
+    assert synthetic[gc_path][1:] == original_record[1:]
+    original_reader = spool_fold._commit_diff_records
+    spool_fold._commit_diff_records = lambda *_args: synthetic
+    try:
+        _transaction_raises(
+            "GC record",
+            spool_fold.verify_fold_commit_identity,
+            repo,
+            plan,
+            fold_commit=fold_commit,
+        )
+    finally:
+        spool_fold._commit_diff_records = original_reader
 
 
 def test_discover_requires_exact_expected_id_complete_targets_and_absent_gc(tmp_path: Path) -> None:
@@ -2827,6 +3156,32 @@ def test_p03_empty_spool_is_noop(tmp_path: Path) -> None:
     plan = spool_fold.plan_fold(repo)
     result = spool_fold.apply_fold(repo, plan)
     assert plan.status == "noop" and result.status == "noop" and not plan.targets
+
+
+def test_apply_rejects_forged_noop_transaction_payload(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    noop = spool_fold.plan_fold(repo)
+    assert spool_fold.apply_fold(repo, noop).status == "noop"
+
+    _fragment(repo, "worklog", _worklog_body(repo))
+    pending = _plan_for_commit(repo)
+    forged = (
+        dataclasses.replace(noop, transaction_id=pending.transaction_id),
+        dataclasses.replace(noop, input_closure_sha256=pending.input_closure_sha256),
+        dataclasses.replace(noop, targets=pending.targets),
+        dataclasses.replace(noop, fragments=pending.fragments),
+        dataclasses.replace(noop, gc_paths=pending.gc_paths),
+        dataclasses.replace(pending, status="noop"),
+    )
+    for candidate in forged:
+        _transaction_raises(
+            "noop plan が non-empty transaction payload",
+            spool_fold.apply_fold,
+            repo,
+            candidate,
+        )
+    state_path = spool_fold._state_path(repo)
+    assert not state_path.exists() and not state_path.is_symlink()
 
 
 def test_noop_plan_reports_observed_worklog_bytes_with_or_without_canonical_ledgers(

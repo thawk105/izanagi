@@ -3529,6 +3529,140 @@ def test_shape_b_finalizes_without_reapply_recommit_or_provenance_audit() -> Non
         assert module.events == ["verify", "mark", "finalize"]
 
 
+def test_shape_b_rejects_active_origin_from_different_existing_wave_ref() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        canonical = {
+            "docs/worklog.md": (
+                "# worklog\n\n## ローテーション\n\n---\n\n"
+                "## 2026-08-01 (1) — seed\n\n- seed\n\n"
+                "### 次の一手\n\n- [T-001] seed\n"
+            ),
+            "docs/decisions.md": (
+                "# decisions\n\n## D1. seed (2026-08-01)\n\n**決定:** seed\n"
+            ),
+            "docs/failures.md": (
+                "# failures\n\n## エントリ\n\n### F1. seed [手順漏れ]\n"
+                "- 事象: seed\n- 根本原因: seed\n- 恒久対応: seed\n- 再発検知: seed\n"
+            ),
+            "docs/phase3.md": (
+                "# phase3\n\n## 見送り台帳\n\n### プロセス文書系\n\n"
+                "- [T-050] 既存見送り — 理由: seed\n\n"
+                "### 研究・計測系\n\n- [T-051] 既存見送り — 理由: seed\n\n"
+                "### 裁定・完了記録\n\n- [T-052] 完了済み\n"
+            ),
+            "docs/archive/README.md": "# archive\n\n## 現在の収容物\n",
+            "tools/check_docs.py": "WORKLOG_ROTATE_BYTES = 100000\n",
+            "tools/spool_fold.py": (ROOT / "tools/spool_fold.py").read_text(
+                encoding="utf-8"
+            ),
+        }
+        for relative, content in canonical.items():
+            path = wave / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8", newline="\n")
+        fragment_relative = "docs/spool/worklog/2026-08-03-test-wave-1.md"
+        (wave / fragment_relative).write_text(
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: worklog\n"
+            "authored: 2026-08-03\n"
+            "wave: test-wave\n"
+            "seq: 1\n"
+            "title: wave ref gate\n"
+            "---\n"
+            "## 本文\n\n- fold for wave ref gate\n\n"
+            "## 次の一手差分\n\n### carry\n\n- [T-001]\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        _git(wave, "add", "-A")
+        _git(wave, "commit", "-qm", "add wave ref recovery fixture")
+        tip = _git(wave, "rev-parse", "HEAD")
+        wave_ref = _git(wave, "symbolic-ref", "HEAD")
+        audited = repo.audited(repo.base, tip, wave)
+        fold = LAND._load_spool_fold()
+        origin = fold.FoldOrigin(
+            kind="land",
+            base=repo.base,
+            tested_tip=tip,
+            wave_ref=wave_ref,
+            rollback_ref=repo.base,
+            trusted_main_cutoff=repo.base,
+            audited_digest=fold.audited_commit_digest(audited),
+        )
+        plan = fold.plan_fold(wave, fold_date="2026-08-03", origin=origin)
+        request = repo.request(wave, tip=tip)
+        _git(repo.main, "merge", "--ff-only", tip)
+        fold.apply_fold(repo.main, plan)
+        _git(repo.main, "add", "-A")
+        subprocess.run(
+            [
+                REAL_GIT, "-C", str(repo.main), "commit", "--no-gpg-sign",
+                "--cleanup=verbatim", f"--author={LAND.FOLD_AUTHOR_IDENTITY}",
+                "-F", "-",
+            ],
+            check=True,
+            input=LAND._FOLD_MESSAGE.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        fold_commit = _git(repo.main, "rev-parse", "HEAD")
+
+        other_ref = "refs/heads/wave/other-existing"
+        _git(wave, "branch", other_ref.removeprefix("refs/heads/"), tip)
+        assert _git(wave, "rev-parse", "--verify", other_ref) == tip
+        assert other_ref != wave_ref
+        stored_origin = dataclasses.replace(plan.origin, wave_ref=other_ref)
+        transaction_id = fold._plan_transaction_id(
+            plan.fold_date,
+            stored_origin,
+            plan.input_closure_sha256,
+            plan.fragments,
+            plan.gc_paths,
+            plan.projected_worklog_bytes,
+            plan.rotation_path,
+            plan.targets,
+        )
+        stored_plan = dataclasses.replace(
+            plan,
+            origin=stored_origin,
+            transaction_id=transaction_id,
+        )
+        state_path = fold._state_path(repo.main)
+        fold._atomic_write(
+            state_path,
+            json.dumps(
+                fold._plan_state(stored_plan),
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8") + b"\n",
+        )
+        loaded = fold.load_active_plan(repo.main)
+        assert loaded is not None
+        assert loaded.transaction_id == transaction_id
+        assert loaded.input_closure_sha256 == plan.input_closure_sha256
+        assert loaded.targets == stored_plan.targets
+        assert loaded.gc_paths == stored_plan.gc_paths
+        fold.verify_fold_commit_identity(repo.main, loaded, fold_commit=fold_commit)
+
+        with _patched_land_attr("_load_spool_fold", lambda: fold):
+            recovered = _land(request)
+
+        assert (recovered.rc, recovered.status) == (
+            LAND.RC_FOLD_RECOVERY_FAILED,
+            "fold-recovery-failed",
+        ), recovered
+        assert "origin wave_ref" in recovered.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == fold_commit
+        assert fold.load_active_plan(repo.main).transaction_id == transaction_id
+
+
 def test_shape_b_rejects_fold_commit_whose_parent_is_not_tested_tip() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]

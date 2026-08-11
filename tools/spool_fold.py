@@ -2934,6 +2934,14 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
 
     repo = Path(repo).resolve()
     if plan.status == "noop":
+        if (
+            plan.transaction_id != ""
+            or plan.input_closure_sha256 != ""
+            or plan.targets
+            or plan.fragments
+            or plan.gc_paths
+        ):
+            raise TransactionError("noop plan が non-empty transaction payload を持つ")
         return FoldResult("noop", "", (), (), ())
     state_path = _state_path(repo)
     state_exists = state_path.exists() or state_path.is_symlink()
@@ -3095,8 +3103,11 @@ def verify_fold_commit_identity(
         raise TransactionError(f"declared fold verifier を import できない: {exc}") from exc
     if parents != [plan.origin.tested_tip]:
         raise TransactionError("fold commit の単一 parent が origin.tested_tip と不一致")
-    author_prefix = FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" "
-    if len(authors) != 1 or not authors[0].startswith(author_prefix):
+    author_pattern = (
+        re.escape(FOLD_AUTHOR_IDENTITY.encode("utf-8"))
+        + rb" (?:0|[1-9][0-9]*) [+-](?:(?:0[0-9]|1[0-3])[0-5][0-9]|1400)"
+    )
+    if len(authors) != 1 or re.fullmatch(author_pattern, authors[0]) is None:
         raise TransactionError("fold commit author identity が不一致")
     if message != FOLD_COMMIT_MESSAGE:
         raise TransactionError("fold commit message bytes が不一致")
