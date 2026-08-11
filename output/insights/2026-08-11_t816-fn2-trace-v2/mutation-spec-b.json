@@ -1,0 +1,43 @@
+{
+  "estimated_run_seconds": 90,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2-normalized-compare-disabled",
+      "replacements": [
+        {
+          "file": "tools/check_trace0_preprocess_identity.py",
+          "new": "            if False:\n",
+          "old": "            if old_normalized != new_normalized:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5-context-count-gate-removed",
+      "replacements": [
+        {
+          "file": "tools/check_trace0_preprocess_identity.py",
+          "new": "    if False:\n",
+          "old": "    if len(contexts) != expected_context_count:\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800
+}

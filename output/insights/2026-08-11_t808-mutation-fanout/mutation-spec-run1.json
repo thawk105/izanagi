@@ -1,0 +1,70 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120.0,
+  "timeout_seconds": 1800.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "old": "if status == \"TIMEOUT\":",
+          "new": "if status == \"__mutation_never_matches__\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "old": "if collection[\"collected_nodes\"] != observed_collection:",
+          "new": "if collection[\"collected_nodes\"] is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_collected_nodes_gate_has_a_single_cross_shard_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "old": "if tool[\"path\"] != expected_paths[\"tool_path\"]:",
+          "new": "if tool[\"path\"] is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "old": "if history_record[\"status\"] == \"TIMEOUT\":",
+          "new": "if history_record[\"status\"] == \"__mutation_never_matches__\":"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

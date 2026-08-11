@@ -785,17 +785,19 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
 - **`--merge-message-file` は待機を始める前に用意しておく。** behind が判明した時点で必須になり、
   無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
 - **rc=0 は「受入 command が緑で、lease を保持したまま返った」を意味する。** 成功時は release
-  しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外のすべての終わり方
+  しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外の終わり方
   (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
-- 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (lease 未取得、Git 失敗、
-  再検査で先行が残る 等)、`74` = cleanup (merge abort / release) の完了を確認できない、
-  それ以外の非 0 = 受入 command の rc。
+  **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、
+  失敗しても保持したまま返して親の終端 release に委ねる (下の「自己保持」を見よ)。
+- 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (進行不可。lease 未取得、
+  Git 失敗、再検査で先行が残る、自己保持なのに進めない 等)、`74` = cleanup (merge abort /
+  release) の完了を確認できない、それ以外の非 0 = 受入 command の rc。
 
 script が担う判定は次のとおりで、**同じ内容を別 shell loop として書き直さない**。
 
-- `claim` の出力は rc=0 のときだけ JSON として parse し、トップレベル `state` の値と
-  `acquired` の **exact 比較**で投入可否を決める。出力全体への部分一致
-  (`case *acquired*` / glob / grep) では判定しない — `state` 以外の field や診断文に
+- `claim` の出力は rc=0 のときだけ JSON として parse し、トップレベル `state` が
+  **`acquired` または `held-self` に exact 一致する**ときだけ投入する ([T-812])。出力全体への
+  部分一致 (`case *acquired*` / glob / grep) では判定しない — `state` 以外の field や診断文に
   同じ語が出れば偽陽性になる。**`claim` の出力は JSON、`status` の出力は key=value である**
   (`status --json` のときだけ JSON)。
 - 各段は 1 コマンド 1 値へ分解し、rc と値を別々に判定する。rc をパイプへ通さない、
@@ -804,7 +806,8 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   ないこと、`git rev-parse --show-toplevel` が起動 cwd と一致すること、branch 名が wave slug で
   終わること、tracked に未 commit の変更が無いこと。自動 merge/commit が別 checkout へ
   入るのを止めるためである。
-- **`acquired` の直後に待ち手自身が local main を取り直して取り込む ([T-732] 裁定 (a) の正本)。**
+- **受理 (`acquired` / `held-self`) の直後に待ち手自身が local main を取り直して取り込む
+  ([T-732] 裁定 (a) の正本)。**
   待っている間に先行 holder が land するので、`claim` 時の `main_sha` は取得時点の main では
   ない。取り込まずに走らせると land 対象 tip が main の子孫でなくなり、全走をやり直すことになる。
   順序は `git rev-parse main` → `git rev-list --count HEAD..main` → (非 0 のときだけ)
@@ -820,10 +823,31 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   待ち手が判定しなければ無審査の merge commit ができ、land の provenance 監査まで赤にならない。
   本 wave が触った実装面 path は `--owned-path` で外から渡す (repo へ固定値を焼かない)。
 - 待ちの周期は 30〜120 秒 (既定 30 秒)、claim loop の全体上限は既定 7200 秒である。
-- `claim` が構造化された `held` / `queued` を返した時点で「この呼出しが lease を作った可能性」は
-  消えるので、**その後の失敗では release しない**。`release` の権限証明は wave slug の digest
-  だけであり、同一 slug の別 invocation が保持中の lease を消してしまうためである。
-  自分の待ち札は残るが 300 秒で失効する。
+- `claim` が構造化された `held` / `queued` / `held-self` を返した時点で「この呼出しが lease を
+  作った可能性」は消えるので、**その後の失敗では release しない**。`release` の権限証明は
+  wave slug の digest だけであり、同一 slug の別 invocation が保持中の lease を消してしまう
+  ためである。自分の待ち札は残るが 300 秒で失効する。
+
+#### 自己保持 (`held-self`) — 2 走目や再開でそのまま進む ([T-812])
+
+**同じ wave が lease を保持したまま `claim` すると、TTL (lease の mtime) を更新して
+`held-self` を返す。** 待ち手はこれを受理して受入を投入するので、**保持したまま 2 走目を回すのに
+release して取り直す必要はない** (取り直すと待ち行列の最後尾へ戻り、解放窓で他 wave に割り込まれる)。
+恒久対応前は自己保持が `held` を返し、待ち手が `acquired` を待って**最大 7200 秒無言で空転**した
+(実害 4 例)。
+
+- 更新は `claim` の自己保持分岐だけで起こる。**`status` は lease を一切変更しない。**
+- **stale な自己保持 (TTL 超過) は `held-self` にしない。** 排他が失われた可能性があるので、
+  従来どおり unlink → 再取得 (`acquired`) に倒す。
+- **自己保持なのに進めないときは polling せず fail-closed する** — 更新に失敗したら
+  `stage=claim-self-renew-failed`、`held-self` の形が契約を満たさない (holder が 12 桁 hex で
+  ない、age が int でない、`source` が `{"status":"ok","reason":null}` でない) か、`held` /
+  `queued` / `stale-held` / `unavailable` が自己 holder を指すなら `stage=claim-self-unverified`。
+  いずれも rc=70 で、**lease は保持したまま**返る (親の終端 release に委ねる)。
+- **既知限界 (裁定パッケージへ返却済み)**: holder は wave slug の digest 12 桁であり
+  **invocation を識別しない**。同一 slug の別 invocation も `held-self` を得て進めるため、
+  **1 slug につき active な待ち手は 1 本**という運用前提が要る (機械保証ではない)。また
+  自己更新は待ち行列を追い越す (owner 優先) — 連続更新の上限は設けていない。
 
 #### 背景 producer の待ち手
 
@@ -861,9 +885,9 @@ python3 tools/dev_wave_wait.py producer \
   15 commit 遅れ。別 wave では 4 回空振り)。
 - 待ち手が閉じない残余 race が 1 つ残る — 最後の `HEAD..main` 再検査から受入 command 起動までの
   間に main が進む場合である (fencing token が無いので閉じられない)。
-- 受入と land の**どの終わり方でも** lease を手放す。待ち手は成功時だけ保持したまま返すので、
-  **land の終端では親が `release --wave "$W"` を実行する** (赤・失敗・中断を含む)。
-  他 wave の lease は消せない (holder digest 不一致なら `not-owner` で何もしない)。
+- 受入と land の**どの終わり方でも** lease を手放す。待ち手が保持したまま返すのは成功時と
+  `held-self` 経路の失敗時なので、**land の終端では親が `release --wave "$W"` を実行する**
+  (赤・失敗・中断を含む)。他 wave の lease は消せない (holder digest 不一致なら `not-owner`)。
 - land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
   照合した peer へ 1 度だけ送る。
 
@@ -874,7 +898,9 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 
 - 取り残した lease は TTL (既定 2400 秒) で自然失効する。失効までの間は他 wave の受入投入が
   止まるので、release を忘れないこと。**受入を 2 度走らせると 2 走で TTL を超える** (1 走
-  1055〜1273 秒)。2 走目の前に `claim` し直す。取り直せなければ 2 走目を投入しない。
+  1055〜1273 秒)。2 走目の前に `claim` し直す — 保持したままなら `held-self` が返って TTL が
+  更新され、そのまま進める ([T-812])。`held-self` 以外 (`claim-self-renew-failed` /
+  `claim-self-unverified` / stale で取り直せない) なら 2 走目を投入しない。
 - **既知の限界 (裁定パッケージ)**: TTL 超過で lease を取り直した場合、旧 holder の受入は
   止められない (fencing token が無い)。その場合の帰結は本機構が無かった場合と同じ競合であり、
   悪化はしない。release の権限証明は wave slug の digest だけである。
@@ -1072,11 +1098,21 @@ floor / oracle の集約は expected cell 集合との完全一致を要求す�
   (iv) 同時 dispatch 負荷とログインノードの admission、(v) `mutation_worktree.py` の
   container 名が固定 (`.izanagi-mutation-worktree`) なので **`--scratch-root` を N 個に分ける**必要。
   **いずれも未実測である。**着手は起票済みタスクで行う。
-- **8c trial は workload 単位で逐次に回す** (`p3_autonomous_workload_trial.py` の
-  `for workload in selected:`)。workload ごとの campaign root は分離できる構造だが、
-  現行呼出しは `journal`・`active_providers`・`build_context`・`max_wall_s` を共有するため、
-  **そのまま別 job へ割るのは未承認である。**分けるには run root・provider / journal・
-  receipt・wall 予算の分離と、部分成功・再投入の定義が要る。候補として記録するに留める。
+- **8c trial の workload fan-out は「探索 pilot を `--workloads` 単数で N 起動する」形だけを許す**
+  ([T-809] 2026-08-11 ユーザー裁定)。`p3_autonomous_workload_trial.py` の
+  `for workload in selected:` を割る実装はしない — 足りないのは起動側ではなく**検証側**であり、
+  N 本を 1 成果物として束ねる verifier が存在しない。
+  **満たすべき全条件は `docs/phase3-s8c-autonomous-trial-runbook.md` §5 が正本である。**
+  N 起動自体は今日そのまま動く (fixture + `--no-build` の 3 process 同時が衝突ゼロで完走)。
+  **ただし測ったのは supervisor 配線だけで、本番の律速 (role 呼び・build・verify・bench) への
+  利得は測っていない。この比を fan-out の利得として主張しない。**
+- **build を伴う 8c fan-out は許さない** (同上の裁定)。同一ノードでは他 process の compiler が
+  bench を汚し (`bench_lock` は bench だけを排除し、`competing_bench_pids` は compiler を見ない)、
+  別ノードでは上記の交絡と run 内 build cache 再利用の喪失が乗る。
+  **正式系列 6 trial を 6 node へ散らしてよいという意味ではない** — 処置と node が一対一に
+  対応する配置は完全交絡なので採らない (上の「ノード間の性能差」を参照)。現 manifest は
+  `{trial_id, arm, holdout, campaign_id}` しか持たず node 因子が無い。配置は正式系列の
+  着手時に prereg 側で再評価する。
 - **既に job 内で並列化済みのものを候補に数えない。** 履歴監査 (`check_ai_provenance.py`) は
   commit 単位の thread pool を持ち、pytest は worker 並列、build は `-j` を持つ。
   これらは job 間 fan-out の対象ではない。
