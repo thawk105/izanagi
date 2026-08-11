@@ -845,3 +845,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:submission-deny-release-authority":"D292"},"authored":"2026-08-11","content_sha256":"c71d0ddfbdd909d4f472aa18868cb4cef497d435fd27a151bbecda86c3be049b","seq":55,"wave":"rulings-20260806-a"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"7e4ef68b1dd9bbd1f817174c76bb909a49672e7a4eb5f7c7a0ca62e8a7575f20","seq":56,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:acceptance-lease-self-renew":"[T-812]"},"authored":"2026-08-11","content_sha256":"a47dc500a29c45571726f0ce04fcf9a93f416c7a1294931dd6701927304a0fb7","seq":57,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:acceptance-shard-eval":"[T-813]"},"authored":"2026-08-11","content_sha256":"33b41b060e4bd763b47582e4f8f414818e1efe62b0b7321349dcaf98939a65e7","seq":58,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:dw-g05-partial-land-direction":"[T-814]"},"authored":"2026-08-11","content_sha256":"fff7468637ec006f8fa60070ee43fa6ff37347993540d75cfa0c2dac9e839dc6","seq":1,"wave":"dev-wave-t8b-restart-residue"}
+- {"allocations":{"D:toolchain-binding-and-unlock-are-inseparable":"D293"},"authored":"2026-08-11","content_sha256":"75d8fcb7520c3f6ea6538594b2a062648321fdaebe7252450347c81e92d03632","seq":2,"wave":"dev-wave-t8b-restart-residue"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"2c45ec232c70d8d9128ed44f2e5951a914da3fa555d89a47587bfb022fdb4587","seq":3,"wave":"dev-wave-t8b-restart-residue"}
