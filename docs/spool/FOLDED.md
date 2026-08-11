@@ -902,3 +902,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:backoff-value-truncation":"[T-843]","T:codex-roles-import-path":"[T-846]","T:dw-o01-artifact-root":"[T-845]","T:launcher-termination-flake":"[T-844]","T:t316-coder-derived-bypass":"[T-840]","T:t316-forbidden-identifiers-vacuous":"[T-842]","T:t316-gate-receipt-binding":"[T-841]"},"authored":"2026-08-11","content_sha256":"7ca3e99bcac4deb11f36c4cb6bb5c9a317a981416ec8129190403d7fb4cbe824","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
 - {"allocations":{"D:coder-hole-effect-gate":"D298"},"authored":"2026-08-11","content_sha256":"9158576e97999a58a820cc471d2cdd945684b5bc74b561f8003b796f496a58ba","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
+
+- {"allocations":{"T:lease-invocation-fencing":"[T-847]"},"authored":"2026-08-11","content_sha256":"356fa6945e58659d9256e87cfca875b9b3f1e667e07046d7274027b62a3e2a13","seq":1,"wave":"dev-wave-t812-lease-self-renew"}
+- {"allocations":{"D:lease-self-renew-scope":"D299"},"authored":"2026-08-11","content_sha256":"a0c36ccda61dfc9bf4533fef5942af3f249be8b97135c7d34164421f54df0bd7","seq":2,"wave":"dev-wave-t812-lease-self-renew"}
+- {"allocations":{"F:codex-observation-cap-kills-lens":"F222"},"authored":"2026-08-11","content_sha256":"a99440b888f83091d86242da5789c4ea185d793d45bd53ab9176884bfa1e34f2","seq":3,"wave":"dev-wave-t812-lease-self-renew"}
