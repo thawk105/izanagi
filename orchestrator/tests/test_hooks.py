@@ -100,6 +100,16 @@ def _edit(root, rel, old, new, tool="Edit", replace_all=False):
                             "replace_all": replace_all}, repo_root=root)
 
 
+def _patch(root, command, *, cwd=None, tool_input=None):
+    payload = {"command": command}
+    if tool_input:
+        payload.update(tool_input)
+    return GW.decide(
+        "apply_patch", payload, repo_root=root,
+        cwd=root if cwd is None else cwd,
+    )
+
+
 # ---------- guard_write: 管轄と防護対象 ----------
 
 def test_write_outside_jurisdiction_allowed():
@@ -278,6 +288,383 @@ def test_notebookedit_decoy_file_path_denied():
                 "notebook_path": os.path.join(root, nb),
                 "file_path": "/tmp/decoy.txt"}, repo_root=root)
             assert not ok, f"NotebookEdit decoy で {nb} への書込が通った (#7)"
+    finally:
+        shutil.rmtree(root)
+
+
+# ---------- guard_write: Codex apply_patch adapter ----------
+
+def test_parse_apply_patch_exact_directives_scans_all_blocks():
+    command = """*** Begin Patch
+*** Add File: docs/a.md
++a
+*** End Patch
+*** Begin Patch
+*** Delete File: docs/b.md
+*** End Patch
+  *** Update File: output/campaigns/c/runs/anything.log
+*** update File: output/campaigns/c/campaign.lock
+*** Move to: docs/orphan.md
+"""
+    assert GW.parse_apply_patch(command) == [
+        ("add", "docs/a.md"),
+        ("delete", "docs/b.md"),
+        ("move_to", "docs/orphan.md"),
+    ]
+
+
+def test_apply_patch_normal_directives_allowed():
+    root = _mk_fixture_repo()
+    try:
+        command = """*** Begin Patch
+*** Add File: docs/add.md
++x
+*** Update File: docs/update.md
+@@
+-a
++b
+*** Delete File: docs/delete.md
+*** Update File: docs/old.md
+*** Move to: docs/new.md
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert ok, f"通常の apply_patch directive が誤拒否された: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_protected_directive_matrix_denied():
+    root = _mk_fixture_repo()
+    try:
+        commands = {
+            "add": "*** Add File: output/campaigns/c/runs/wal.jsonl",
+            "update": "*** Update File: output/campaigns/c/campaign.lock",
+            "delete": "*** Delete File: build-variants/x/meta.json",
+            "move_to": (
+                "*** Update File: docs/safe.md\n"
+                "*** Move to: output/s8b-freeze/approvals/x.json"
+            ),
+        }
+        for kind, directive in commands.items():
+            ok, why = _patch(
+                root, f"*** Begin Patch\n{directive}\n*** End Patch\n")
+            assert not ok, f"{kind} の防護 path が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_move_both_directions_denied():
+    root = _mk_fixture_repo()
+    try:
+        for source, destination in (
+            ("output/campaigns/c/runs/anything.log", "docs/safe.log"),
+            ("docs/safe.log", "output/campaigns/c/runs/anything.log"),
+        ):
+            command = (
+                "*** Begin Patch\n"
+                f"*** Update File: {source}\n"
+                f"*** Move to: {destination}\n"
+                "*** End Patch\n"
+            )
+            ok, why = _patch(root, command)
+            assert not ok, f"Move {source} -> {destination} が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_all_paths_composed():
+    root = _mk_fixture_repo()
+    try:
+        command = """*** Begin Patch
+*** Update File: docs/safe.md
+*** Add File: output/campaigns/c/runs/anything.log
++forged
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert not ok, f"後置した防護 path が見落とされた: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_reports_all_denials():
+    root = _mk_fixture_repo()
+    try:
+        wal = "output/campaigns/c/runs/anything.log"
+        freeze = "output/s8b-freeze/approvals/x.json"
+        command = (
+            "*** Begin Patch\n"
+            f"*** Update File: {wal}\n"
+            f"*** Add File: {freeze}\n"
+            "*** End Patch\n"
+        )
+        ok, why = _patch(root, command)
+        assert not ok
+        assert wal in why and freeze in why, why
+        assert "WAL" in why and "s8b-freeze" in why, why
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_all_begin_blocks_scanned():
+    root = _mk_fixture_repo()
+    try:
+        command = """*** Begin Patch
+*** Add File: docs/safe.md
++safe
+*** End Patch
+*** Begin Patch
+*** Update File: output/campaigns/c/runs/anything.log
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert not ok, f"第 2 block の防護 path が見落とされた: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_broken_first_block_does_not_hide_later_protected_path():
+    root = _mk_fixture_repo()
+    try:
+        command = """*** Begin Patch
+*** Add File: docs/broken.md
++missing end
+*** Begin Patch
+*** Update File: output/campaigns/c/runs/anything.log
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert not ok, f"壊れた第 1 block の後段が見落とされた: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_body_directive_lookalikes_allowed():
+    root = _mk_fixture_repo()
+    try:
+        protected = "output/campaigns/c/runs/anything.log"
+        command = f"""*** Begin Patch
+*** Add File: docs/example.md
++*** Update File: {protected}
++本文中の *** Delete File: {protected}
+  *** Update File: {protected}
+-*** Delete File: {protected}
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert ok, f"本文中の directive 風文字列が誤拒否された: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_exact_case_and_whitespace():
+    root = _mk_fixture_repo()
+    try:
+        command = """*** Begin Patch
+*** update File: output/campaigns/c/runs/anything.log
+*** UPDATE FILE: output/campaigns/c/campaign.lock
+  *** Update File: output/s8b-freeze/approvals/x.json
+*** End Patch
+"""
+        ok, why = _patch(root, command)
+        assert ok, f"case 違い・行頭空白を directive と誤認した: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_absolute_relative_dotdot():
+    root = _mk_fixture_repo()
+    subdir = os.path.join(root, "sub")
+    os.makedirs(subdir)
+    try:
+        absolute = os.path.join(root, "output", "campaigns", "c", "runs", "x")
+        ok, _ = _patch(root, f"*** Delete File: {absolute}\n", cwd=subdir)
+        assert not ok, "absolute の防護 path は拒否されるべき"
+
+        ok, _ = _patch(
+            root, "*** Update File: ../output/campaigns/c/runs/x\n", cwd=subdir)
+        assert not ok, "cwd から .. 解決した防護 path は拒否されるべき"
+
+        ok, why = _patch(root, "*** Update File: ../docs/safe.md\n", cwd=subdir)
+        assert ok, f"cwd から docs へ解決する control が誤拒否された: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_subdirectory_cwd_relative_path_denied():
+    root = _mk_fixture_repo()
+    cwd = os.path.join(root, "docs", "deeper")
+    os.makedirs(cwd)
+    try:
+        command = "*** Add File: ../../output/campaigns/c/runs/anything.log\n"
+        ok, why = _patch(root, command, cwd=cwd)
+        assert not ok, f"payload cwd 基準の相対 path が見落とされた: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_relative_path_invalid_cwd_denied():
+    root = _mk_fixture_repo()
+    try:
+        command = "*** Add File: docs/safe.md\n"
+        for cwd in ("", "relative/cwd", os.path.join(root, "missing")):
+            ok, why = GW.decide(
+                "apply_patch", {"command": command}, repo_root=root, cwd=cwd)
+            assert not ok, f"cwd={cwd!r} の相対 path が通った"
+            assert "payload cwd" in why and "docs/safe.md" in why
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_absolute_path_does_not_require_cwd():
+    root = _mk_fixture_repo()
+    try:
+        safe = os.path.join(root, "docs", "safe.md")
+        ok, why = GW.decide(
+            "apply_patch", {"command": f"*** Add File: {safe}\n"},
+            repo_root=root, cwd="")
+        assert ok, f"absolute path に不要な cwd を要求した: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_component_boundaries():
+    root = _mk_fixture_repo()
+    try:
+        for rel in (
+            "build-variants-copy/x/meta.json",
+            "output/s8b-freezer/approvals/x.json",
+            "output/campaigns/c/campaign.lock.bak",
+            "external/ccbenchmark/cmake/Options.cmake",
+        ):
+            ok, why = _patch(root, f"*** Update File: {rel}\n")
+            assert ok, f"component boundary 外が誤拒否された: {rel} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_file_path_decoy_ignored():
+    root = _mk_fixture_repo()
+    try:
+        command = "*** Update File: output/campaigns/c/runs/anything.log\n"
+        ok, why = _patch(
+            root, command, tool_input={"file_path": os.path.join(root, "docs", "safe")})
+        assert not ok, f"file_path decoy で command 側の防護 path が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_write_tool_command_is_not_parsed_as_apply_patch():
+    root = _mk_fixture_repo()
+    try:
+        command = "*** Update File: output/campaigns/c/runs/anything.log\n"
+        ok, why = GW.decide("Write", {"command": command}, repo_root=root)
+        assert ok, f"Write の command を apply_patch と誤配送した: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_orphan_move_to_protected_denied():
+    root = _mk_fixture_repo()
+    try:
+        target = "output/s8b-freeze/approvals/x.json"
+        ok, why = _patch(root, f"*** Move to: {target}\n")
+        assert not ok and target in why, why
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_protected_leaf_and_neighbor_matrix():
+    root = _mk_fixture_repo()
+    try:
+        protected = (
+            "output/campaigns/c/runs/anything.log",
+            "output/exploration/campaigns/c/runs/anything.log",
+            "output/campaigns/c/campaign.lock",
+            "output/exploration/campaigns/c/campaign.lock",
+            "build-variants",
+            "build-variants/x/meta.json",
+            "output/s8b-freeze",
+            "output/s8b-freeze/approvals/x.json",
+            "output/s8b-freeze/active/x.json",
+            "output/s8b-freeze/revocations/x.json",
+            "output/exploration/namespace.json",
+            "output/exploration/autonomous-trials/t1/namespace.json",
+        )
+        for rel in protected:
+            ok, why = _patch(root, f"*** Update File: {rel}\n")
+            assert not ok, f"apply_patch 防護 leaf が通った: {rel} ({why})"
+
+        allowed = (
+            "output/campaigns/c/reports/report.md",
+            "output/exploration/campaigns/c/insights/note.json",
+            "output/exploration/autonomous-trials/t1/attempts.jsonl",
+            "output/insights/note.md",
+        )
+        for rel in allowed:
+            ok, why = _patch(root, f"*** Update File: {rel}\n")
+            assert ok, f"proof chain 外の neighbor が誤拒否された: {rel} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_ccbench_surface_and_move_directions():
+    root = _mk_fixture_repo()
+    try:
+        for rel in GW.EVOLVE_BLOCK_SOURCES:
+            ok, why = _patch(root, f"*** Update File: external/ccbench/{rel}\n")
+            assert ok, f"designated source が誤拒否された: {rel} ({why})"
+
+        for rel in (
+            "external/ccbench/cmake/Options.cmake",
+            "external/ccbench/include/tuple.h",
+            "external/ccbench/cc/silo/other.cc",
+        ):
+            ok, why = _patch(root, f"*** Update File: {rel}\n")
+            assert not ok, f"non-designated ccbench source が通った: {rel} ({why})"
+
+        for source, destination in (
+            ("external/ccbench/include/tuple.h", "docs/tuple.h"),
+            ("docs/tuple.h", "external/ccbench/include/tuple.h"),
+        ):
+            command = f"*** Update File: {source}\n*** Move to: {destination}\n"
+            ok, why = _patch(root, command)
+            assert not ok, f"ccbench Move {source} -> {destination} が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_apply_patch_delete_and_move_source_check_lexical_symlink_entry():
+    root = _mk_fixture_repo()
+    safe = os.path.join(root, "docs", "safe.txt")
+    protected = os.path.join(root, "output", "campaigns", "c", "runs", "ref")
+    protected_target = os.path.join(
+        root, "output", "campaigns", "c", "runs", "target")
+    safe_alias = os.path.join(root, "docs", "protected-target-alias")
+    os.makedirs(os.path.dirname(safe))
+    os.makedirs(os.path.dirname(protected))
+    with open(safe, "w", encoding="utf-8") as f:
+        f.write("safe\n")
+    with open(protected_target, "w", encoding="utf-8") as f:
+        f.write("protected\n")
+    os.symlink(safe, protected)
+    os.symlink(protected_target, safe_alias)
+    try:
+        rel = os.path.relpath(protected, root)
+        ok, why = _patch(root, f"*** Update File: {rel}\n")
+        assert ok, f"通常 Update に Delete/Move の lexical 規則を誤適用した: {why}"
+
+        ok, why = _patch(root, f"*** Delete File: {rel}\n")
+        assert not ok, f"protected lexical symlink の Delete が通った: {why}"
+
+        command = f"*** Update File: {rel}\n*** Move to: docs/moved-ref\n"
+        ok, why = _patch(root, command)
+        assert not ok, f"protected lexical symlink の Move 元が通った: {why}"
+
+        alias_rel = os.path.relpath(safe_alias, root)
+        ok, why = _patch(root, f"*** Delete File: {alias_rel}\n")
+        assert not ok, f"protected realpath を指す Delete が通った: {why}"
     finally:
         shutil.rmtree(root)
 
@@ -2992,12 +3379,39 @@ def test_hook_scripts_run_as_subprocess():
         ("guard_write", {"tool_name": "Write", "tool_input": {
             "file_path": os.path.join(_REPO, "output/campaigns/c/runs/wal.jsonl"),
             "content": "x"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch", "cwd": _REPO,
+                         "tool_input": {"command":
+                             "*** Add File: docs/codex-safe.md\n+x\n"}}, 0),
+        ("guard_write", {"tool_name": "apply_patch", "cwd": _REPO,
+                         "tool_input": {"command":
+                             "*** Add File: output/campaigns/c/runs/anything.log\n"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch", "cwd": _REPO,
+                         "tool_input": {"command":
+                             "*** Update File: output/campaigns/c/campaign.lock\n"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch", "cwd": _REPO,
+                         "tool_input": {"command":
+                             "*** Delete File: build-variants/x/meta.json\n"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch", "cwd": _REPO,
+                         "tool_input": {"command":
+                             "*** Move to: output/s8b-freeze/approvals/x.json\n"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch",
+                         "cwd": os.path.join(_REPO, "docs"),
+                         "tool_input": {"command":
+                             "*** Add File: ../output/campaigns/c/runs/anything.log\n"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch", "tool_input": {"command":
+                             "*** Add File: docs/cwd-required.md\n"}}, 2),
+        ("guard_write", {"tool_name": "apply_patch", "cwd": _REPO,
+                         "tool_input": {"command": [
+                             "output/campaigns/c/runs/anything.log"]}}, 2),
+        ("guard_write", {"tool_name": "Write", "tool_input": {"command":
+                             "*** Update File: output/campaigns/c/runs/anything.log\n"}}, 0),
         ("guard_bash", {"tool_name": "Bash", "tool_input": {
             "command": "ls"}}, 0),
         ("guard_bash", {"tool_name": "Bash", "tool_input": {
             "command": "echo x >> output/campaigns/c/runs/wal.jsonl"}}, 2),
         ("guard_bash", {"tool_name": "Bash", "tool_input": {}}, 0),   # command 欠落
         ("guard_write", "壊れた json wal.jsonl", 2),                  # 不正入力 fails-closed
+        ("guard_write", "壊れた json", 0),                            # 管轄 token 無しは従来どおり
         ("guard_read", {"tool_name": "Read", "tool_input": {
             "file_path": decisions}}, 2),                             # 無指定全読は拒否
         ("guard_read", {"tool_name": "Read", "tool_input": {
