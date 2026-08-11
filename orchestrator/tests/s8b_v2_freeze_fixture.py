@@ -9,6 +9,11 @@ exact 検査を満たす正例を単一源で生成し、各テストの fixture
 """
 from __future__ import annotations
 
+import hashlib
+import json
+import shutil
+import subprocess
+from pathlib import Path
 from typing import Optional
 
 # manifest verifier のハードコード stock 名と一致させる (両者とも freeze 記録値に
@@ -65,3 +70,237 @@ def fill(document, *, total_bench_s: float = 100.0,
         per_holdout_bench_s=per_holdout_bench_s,
     )
     return document
+
+
+def canonical_bytes(value) -> bytes:
+    return json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=root, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    ).stdout.strip()
+
+
+def _write(root: Path, rel: str, raw: bytes) -> None:
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+
+
+def _holdout_hit_text(module, holdout_id: str) -> bytes:
+    ycsb = module.HOLDOUTS[holdout_id]["ycsb"]
+    values = {
+        "rratio": ycsb[module.RRATIO_KEY],
+        "skew": ycsb[module.SKEW_KEY],
+        "rmw": ycsb[module.RMW_KEY],
+    }
+    text = "\n".join(
+        module.concrete_axis_encodings(axis, value)[0]
+        for axis, value in values.items()
+    ) + "\n"
+    return text.encode("utf-8")
+
+
+def _synthetic_floor_result(v1: dict, protocol: dict) -> dict:
+    from orchestrator.campaign import s8b_floor_contract as contract
+    from orchestrator.campaign import s8b_floor_stats as stats
+
+    cells = contract.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    sessions = []
+    by_cell = {}
+    seq = 0
+    for cell in cells:
+        records = []
+        for _round in range(protocol["n_sessions"]):
+            row = {
+                "cell_id": cell["cell_id"],
+                "holdout_id": cell["holdout_id"],
+                "configuration_id": cell["configuration_id"],
+                "seq": seq,
+                "throughputs": [1000.0] * protocol["reps"],
+                "reps_expected": protocol["reps"],
+                "exec_failures": 0,
+                "excluded_reason": None,
+                "retry": False,
+            }
+            sessions.append(row)
+            records.append(stats.SessionRecord(
+                cell_id=row["cell_id"], holdout_id=row["holdout_id"],
+                configuration_id=row["configuration_id"], seq=row["seq"],
+                throughputs=tuple(row["throughputs"]),
+                reps_expected=row["reps_expected"], exec_failures=0,
+                excluded_reason=None, retry=False,
+            ))
+            seq += 1
+        by_cell[cell["cell_id"]] = stats.cell_stats(
+            records,
+            n_sessions=protocol["n_sessions"],
+            reps=protocol["reps"],
+            session_cv_max=protocol["session_cv_max"],
+        )
+
+    cells_out = {
+        cell_id: {
+            "holdout_id": value.holdout_id,
+            "configuration_id": value.configuration_id,
+            "n_valid": value.n_valid,
+            "medians": list(value.medians),
+            "m": value.m,
+            "s": value.s,
+            "valid": value.valid,
+            "cv": value.cv,
+            "notes": list(value.notes),
+        }
+        for cell_id, value in by_cell.items()
+    }
+    floors = {}
+    for holdout_id in sorted(v1["holdouts"]):
+        holdout_cells = {
+            cell_id: value for cell_id, value in by_cell.items()
+            if value.holdout_id == holdout_id
+        }
+        value = stats.holdout_floors(
+            holdout_cells,
+            stock_id=f"{holdout_id}::{protocol['stock_configuration']}",
+            wired_min_rel_floor=protocol["wired_min_rel_floor"],
+            cell_cv_max=protocol["cell_cv_max"],
+        )
+        floors[holdout_id] = {
+            "pairs": dict(value.pairs),
+            "scalar_alt": value.scalar_alt,
+            "scale_ref": value.scale_ref,
+            "diagnostics": value.diagnostics,
+        }
+    binaries = {}
+    for cell in cells:
+        sha256 = hashlib.sha256(cell["cell_id"].encode("utf-8")).hexdigest()
+        binaries[cell["cell_id"]] = {
+            "cell_id": cell["cell_id"],
+            "holdout_id": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"],
+            "binary_sha256": sha256,
+            "bin_hash_short": sha256[:16],
+        }
+    protocol_sha256 = contract.canonical_protocol_sha256(protocol)
+    configurations = sorted({cell["configuration_id"] for cell in cells})
+    return {
+        "schema": contract.RESULT_SCHEMA,
+        "formula": protocol["formula"],
+        "mode": "official",
+        "eligible_for_refreeze": True,
+        "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "manifest_sha256": "0" * 64,
+        "stock_configuration": protocol["stock_configuration"],
+        "wired_min_rel_floor": protocol["wired_min_rel_floor"],
+        "reps": protocol["reps"],
+        "n_sessions": protocol["n_sessions"],
+        "scale_adequacy_rel_tolerance": protocol["scale_adequacy_rel_tolerance"],
+        "holdouts": sorted(v1["holdouts"]),
+        "configurations": configurations,
+        "binaries": binaries,
+        "config": contract.project_protocol_for_floor_artifact(protocol),
+        "sessions": sessions,
+        "cells": cells_out,
+        "floors": floors,
+        "wall_ledger": [],
+        "excluded": [],
+        "attempts": [],
+    }
+
+
+def candidate_repository(tmp_path: Path, module) -> dict:
+    """v2 producer 正例用の synthetic-only tmp git repository を作る。"""
+    from orchestrator.campaign import env_contract
+    from orchestrator.campaign import s8b_floor_contract as contract
+
+    root = tmp_path / "candidate-repo"
+    root.mkdir()
+    _git(root, "init", "-q")
+    _git(root, "config", "user.name", "fixture")
+    _git(root, "config", "user.email", "fixture@example.invalid")
+
+    source_root = Path(module.ROOT)
+    for rel in (
+        module.FREEZE_REL,
+        module.DESIGN_REL,
+        module.KNOWN_AXES_REL,
+        module.SCRIPT_REL,
+        module.FLOOR_PROTOCOL_REL,
+    ):
+        source = source_root / rel
+        destination = root / rel
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+
+    ccbench = root / "external" / "ccbench"
+    ccbench.mkdir(parents=True)
+    _git(ccbench, "init", "-q")
+    _git(ccbench, "config", "user.name", "fixture")
+    _git(ccbench, "config", "user.email", "fixture@example.invalid")
+    (ccbench / "fixture.txt").write_text("fixture\n", encoding="utf-8")
+    _git(ccbench, "add", "fixture.txt")
+    _git(ccbench, "commit", "-qm", "ccbench fixture")
+
+    v1 = json.loads((root / module.FREEZE_REL).read_bytes())
+    protocol_raw = (root / module.FLOOR_PROTOCOL_REL).read_bytes()
+    protocol_document = json.loads(protocol_raw)
+    protocol = contract.validate_protocol(
+        protocol_document,
+        contract_sha256_lookup=lambda env_tag: env_contract.lookup(
+            env_tag,
+        ).contract_sha256,
+    )
+    protocol_sha256 = contract.canonical_protocol_sha256(protocol)
+    run_dir = (
+        f"output/env/{protocol['env_tag']}/calibration/s8b-floor-official/"
+        f"20260811T000000Z-{protocol_sha256[:8]}"
+    )
+    result_rel = f"{run_dir}/result.json"
+    _write(root, result_rel, canonical_bytes(_synthetic_floor_result(v1, protocol)))
+    _write(root, f"{run_dir}/manifest.json", b"{}")
+    _write(root, f"{run_dir}/journal.jsonl", b"{}\n")
+    _write(root, f"{run_dir}/launch_certificate.json", b"{}")
+
+    budget_rel = "output/s8b-freeze-budget-inputs/g1.json"
+    budget_document = {
+        "total_bench_s": 100,
+        "per_holdout_bench_s": {holdout_id: 50 for holdout_id in v1["holdouts"]},
+        "oracle_shared": True,
+    }
+    _write(root, budget_rel, canonical_bytes(budget_document))
+    approval = {
+        "approved_at": "2026-08-11T00:00:00Z",
+        "approver": "fixture-human",
+        "budget": budget_document,
+        "scope": module.BUDGET_APPROVAL_SCOPE,
+    }
+    approval_raw = canonical_bytes(approval)
+    _write(root, module.BUDGET_APPROVAL_REL, approval_raw)
+
+    closure_paths = []
+    for holdout_id in sorted(module.HOLDOUTS):
+        rel = f"evidence/{holdout_id}.txt"
+        _write(root, rel, _holdout_hit_text(module, holdout_id))
+        closure_paths.append(rel)
+
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "synthetic v2 candidate inputs")
+    return {
+        "root": root,
+        "head": _git(root, "rev-parse", "HEAD"),
+        "result_rel": result_rel,
+        "budget_rel": budget_rel,
+        "budget": budget_document,
+        "approval_sha256": hashlib.sha256(approval_raw).hexdigest(),
+        "closure_paths": closure_paths,
+    }
