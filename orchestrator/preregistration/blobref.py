@@ -62,14 +62,23 @@ def _validate_repo_relative_path(value: object) -> str:
         raise InvalidBlobRefError("path は canonical な POSIX repo 相対 path でなければならない")
     if any(part in {"", ".", ".."} for part in path.parts):
         raise InvalidBlobRefError("path に空要素・'.'・'..' は使えない")
-    return value
+    normalized = str.__str__(value)
+    if type(normalized) is not str:
+        raise InvalidBlobRefError("path は組み込み str へ正規化できない")
+    if type(value) is not str:
+        return _validate_repo_relative_path(normalized)
+    return normalized
 
 
 def _require_hex(value: object, pattern: re.Pattern[str], label: str) -> str:
     if not isinstance(value, str) or pattern.fullmatch(value) is None:
         width = 40 if label == "commit" else 64
         raise InvalidBlobRefError(f"{label} は {width} 桁 lowercase hex でなければならない")
-    return value
+    normalized = str.__str__(value)
+    if type(normalized) is not str or pattern.fullmatch(normalized) is None:
+        width = 40 if label == "commit" else 64
+        raise InvalidBlobRefError(f"{label} は {width} 桁 lowercase hex でなければならない")
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -81,9 +90,13 @@ class BlobRef:
     sha256: str
 
     def __post_init__(self) -> None:
-        _validate_repo_relative_path(self.path)
-        _require_hex(self.commit, _COMMIT_RE, "commit")
-        _require_hex(self.sha256, _SHA256_RE, "sha256")
+        object.__setattr__(self, "path", _validate_repo_relative_path(self.path))
+        object.__setattr__(
+            self, "commit", _require_hex(self.commit, _COMMIT_RE, "commit")
+        )
+        object.__setattr__(
+            self, "sha256", _require_hex(self.sha256, _SHA256_RE, "sha256")
+        )
 
 
 def read_pinned_blob(repository_root: str | os.PathLike[str], ref: BlobRef) -> bytes:
@@ -127,8 +140,9 @@ def read_pinned_blob(repository_root: str | os.PathLike[str], ref: BlobRef) -> b
     if len(result.stdout) != blob_size:
         raise BlobResolutionError("固定 blob の宣言 size と読取 size が一致しない")
 
-    actual = hashlib.sha256(result.stdout).hexdigest()
-    if actual != ref.sha256:
+    actual_digest = hashlib.sha256(result.stdout).digest()
+    if actual_digest != bytes.fromhex(ref.sha256):
+        actual = actual_digest.hex()
         raise BlobDigestMismatchError(
             f"固定 blob の SHA-256 が不一致: expected={ref.sha256}, actual={actual}"
         )

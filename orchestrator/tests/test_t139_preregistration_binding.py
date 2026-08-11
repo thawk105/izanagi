@@ -9,6 +9,7 @@ import subprocess
 import pytest
 
 import orchestrator.preregistration as preregistration
+import orchestrator.preregistration.erratum as erratum_module
 from orchestrator.preregistration.addendum_envelope import (
     ExtraFieldsError,
     FieldsSectionNotFoundError,
@@ -25,8 +26,8 @@ from orchestrator.preregistration.erratum import (
     DRAFT_ERRATA,
     ComposedDigestMismatchError,
     EmptyErratumSetError,
-    LineCountMismatchError,
-    LocatorOverlapError,
+    ErratumParseError,
+    ErratumRegistryError,
     OccurrenceCountError,
     OldDigestMismatchError,
     OperationCountError,
@@ -50,17 +51,17 @@ ERRATUM_REF = BlobRef(
     commit="1d235e0e455020cf54e66cf83304961910c369d8",
     sha256="a1abc60ef8e3f4346f61fbdd8282c295f353ca272062af02a856e3c5de9dd6d3",
 )
-DRAFT_ERRATUM_PATH = REPOSITORY_ROOT / (
-    "output/insights/2026-08-10_t139-manifest-w1/"
-    "erratum-core-s7-stresscheck.md"
+S7_ERRATUM_PATH = REPOSITORY_ROOT / (
+    "output/insights/2026-08-11_t139-manifest-land1/"
+    "erratum-core-s7-stresscheck-v2.md"
 )
-DRAFT_ERRATUM_REF = BlobRef(
+S7_ERRATUM_REF = BlobRef(
     path=(
-        "output/insights/2026-08-10_t139-manifest-w1/"
-        "erratum-core-s7-stresscheck.md"
+        "output/insights/2026-08-11_t139-manifest-land1/"
+        "erratum-core-s7-stresscheck-v2.md"
     ),
-    commit="0" * 40,
-    sha256="0" * 64,
+    commit="d0e7645192d56f429fc8d8a04f9c1776d50978d9",
+    sha256="deedd71b97640213035c76dac1b22ea15bb21d447991000b0e433de873684df2",
 )
 ADDENDUM_REF = BlobRef(
     path="output/insights/2026-08-08_t139-r4-env-probe/addendum-a-reissue.md",
@@ -69,19 +70,19 @@ ADDENDUM_REF = BlobRef(
 )
 EXPECTED_COMPOSED_SHA256 = "d1782b04ceb7cd56a3d10e2e6efb4eb7f90e6a89506a74bba727d34a5f79de82"
 EXPECTED_TWO_ERRATA_COMPOSED_SHA256 = (
-    "dfb821a5ff0b085f7092bbd5536772a8c6728ec946291a6e6eb61da9fbef678c"
+    "e0b0caeaca9300acffbb5cd6b81db7b6fb7fa8f9eeab81219affb4e2f94a8e0c"
 )
 EXPECTED_OPERATION_LINE_SHA256 = (
     "6e87b981b2d3550ea56278a50f9544a86bab575d18de3ea7f3984abdeca5681e",
     "b5e2c7b290c1c21aff84f4b520468df551c9d0e4bd76d2102ace3208b3e1b7d1",
 )
 EXPECTED_S7_OPERATION_LINE_SHA256 = (
-    "225268a9fe702eae37ac3f4c150fcbc24e71835ce40bd3735ce0116784278e89"
+    "225268a9fe702eae37ac3f4c150fcbc24e71835ce40bd3735ce0116784278e89",
+    "a7852ad9a4812f8adc8ebf33354a5934bd6620205a23defa48732a1737a89952",
 )
-S7_OLD_TEXT = "事前 simulation で較正する"
-S7_NEW_TEXT = (
-    "事前固定した stress model のもとで名目水準を超えないことを"
-    "事前 simulation で確認する。"
+EXPECTED_S7_NEW_LINE_SHA256 = (
+    "92fd71754c81b45b6cc01fb14600bfdc140af8e464c50484b45e1bb8caaa01a4",
+    "b8741cc99c5c45acee8e9c78a9e72a34f9ab9c2a0e27bdfd5ee71e9ec54b37fe",
 )
 EXPECTED_FIELDS = frozenset(
     {
@@ -159,14 +160,6 @@ def _synthetic_erratum(
 ) -> bytes:
     lines = core.splitlines(keepends=True)
     replacements = dict(new_line_overrides or {})
-    if erratum_id == "t139-core-s7-stresscheck-v1":
-        for index, line_number in enumerate(line_numbers, start=1):
-            replacements.setdefault(
-                index,
-                lines[line_number - 1].replace(
-                    f"{S7_OLD_TEXT}。".encode(), S7_NEW_TEXT.encode()
-                ),
-            )
     operations = "".join(
         _operation_yaml(
             index=index,
@@ -195,39 +188,12 @@ def _synthetic_erratum(
     ).encode()
 
 
-def _synthetic_s7_core(*, occurrences: int = 1) -> bytes:
-    phrase = f"{S7_OLD_TEXT}。\n"
-    lines = ["# synthetic core\n", phrase, "unrelated line\n"]
-    if occurrences == 0:
-        lines[1] = "no calibration claim here\n"
-    elif occurrences == 2:
-        lines[2] = phrase
-    return "".join(lines).encode()
-
-
 def _expected_synthetic_composed_sha256(
     core: bytes, line_numbers: tuple[int, ...] = (2, 4)
 ) -> str:
     lines = core.splitlines(keepends=True)
     for line_number in line_numbers:
         lines[line_number - 1] = lines[line_number - 1].replace(b"a12", b"a13", 1)
-    return hashlib.sha256(b"".join(lines)).hexdigest()
-
-
-def _expected_s7_composed_sha256(
-    core: bytes,
-    line_numbers: tuple[int, ...] = (2,),
-    *,
-    new_line_overrides: dict[int, bytes] | None = None,
-) -> str:
-    lines = core.splitlines(keepends=True)
-    for index, line_number in enumerate(line_numbers, start=1):
-        replacement = (new_line_overrides or {}).get(index)
-        if replacement is None:
-            replacement = lines[line_number - 1].replace(
-                f"{S7_OLD_TEXT}。".encode(), S7_NEW_TEXT.encode()
-            )
-        lines[line_number - 1] = replacement
     return hashlib.sha256(b"".join(lines)).hexdigest()
 
 
@@ -266,35 +232,6 @@ def _compose_synthetic(
     )
 
 
-def _compose_synthetic_errata(
-    monkeypatch: pytest.MonkeyPatch,
-    core: bytes,
-    errata: tuple[bytes, ...],
-    *,
-    expected_composed_sha256: str,
-):
-    refs = tuple(
-        BlobRef(f"synthetic-{index}.md", "0" * 40, f"{index}" * 64)
-        for index in range(1, len(errata) + 1)
-    )
-
-    def fake_read(_root: str, ref: BlobRef) -> bytes:
-        if ref is CORE_REF:
-            return core
-        for candidate, blob in zip(refs, errata, strict=True):
-            if ref is candidate:
-                return blob
-        raise AssertionError(ref)
-
-    monkeypatch.setattr("orchestrator.preregistration.erratum.read_pinned_blob", fake_read)
-    return compose_core(
-        "unused",
-        core_ref=CORE_REF,
-        erratum_refs=refs,
-        expected_composed_sha256=expected_composed_sha256,
-    )
-
-
 def test_erratum_rejects_operation_count_not_two(monkeypatch: pytest.MonkeyPatch):
     core, _ = _synthetic_core()
     for count in (1, 3):
@@ -306,7 +243,7 @@ def test_erratum_rejects_operation_count_not_two(monkeypatch: pytest.MonkeyPatch
 def test_erratum_operations_must_be_direct_sequence(monkeypatch: pytest.MonkeyPatch):
     core, _ = _synthetic_core()
     erratum = _synthetic_erratum(core, decoy_operations=True)
-    with pytest.raises(OperationCountError):
+    with pytest.raises(ErratumParseError):
         _compose_synthetic(monkeypatch, core, erratum)
 
 
@@ -398,201 +335,244 @@ def test_unknown_erratum_id_fails_closed(monkeypatch: pytest.MonkeyPatch):
         )
 
 
-def test_s7_erratum_rejects_operation_count_not_one(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    core = _synthetic_s7_core()
-    erratum = _synthetic_erratum(
-        core, (2, 3), erratum_id="t139-core-s7-stresscheck-v1"
+def _s7_yaml_parts(blob: bytes) -> tuple[str, str, str, str]:
+    text = blob.decode()
+    yaml_start = text.index("```yaml\n") + len("```yaml\n")
+    yaml_end = text.index("```\n", yaml_start)
+    yaml_text = text[yaml_start:yaml_end]
+    first = yaml_text.index("  - index: 1\n")
+    second = yaml_text.index("  - index: 2\n")
+    expected = yaml_text.index("expected_composed_sha256:")
+    return (
+        yaml_text[:first],
+        yaml_text[first:second],
+        yaml_text[second:expected],
+        yaml_text[expected:],
     )
+
+
+def _replace_s7_yaml(blob: bytes, yaml_text: str) -> bytes:
+    text = blob.decode()
+    yaml_start = text.index("```yaml\n") + len("```yaml\n")
+    yaml_end = text.index("```\n", yaml_start)
+    return (text[:yaml_start] + yaml_text + text[yaml_end:]).encode()
+
+
+def _compose_s7_variant(
+    monkeypatch: pytest.MonkeyPatch,
+    s7_blob: bytes,
+    *,
+    core_blob: bytes | None = None,
+):
+    real_read_pinned_blob = read_pinned_blob
+
+    def read_variant(_root: str, ref: BlobRef) -> bytes:
+        if ref is CORE_REF and core_blob is not None:
+            return core_blob
+        if ref is S7_ERRATUM_REF:
+            return s7_blob
+        return real_read_pinned_blob(REPOSITORY_ROOT, ref)
+
+    monkeypatch.setattr(erratum_module, "read_pinned_blob", read_variant)
+    return compose_core(
+        str(REPOSITORY_ROOT),
+        core_ref=CORE_REF,
+        erratum_refs=(ERRATUM_REF, S7_ERRATUM_REF),
+        expected_composed_sha256=EXPECTED_TWO_ERRATA_COMPOSED_SHA256,
+    )
+
+
+def test_s7_erratum_rejects_one_operation(monkeypatch: pytest.MonkeyPatch):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    prefix, first, _second, suffix = _s7_yaml_parts(blob)
     with pytest.raises(OperationCountError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(core, (2, 3)),
+        _compose_s7_variant(
+            monkeypatch, _replace_s7_yaml(blob, prefix + first + suffix)
         )
 
 
-def test_s7_erratum_rejects_old_sha256_mismatch(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    core = _synthetic_s7_core()
-    erratum = _synthetic_erratum(
-        core,
-        (2,),
-        old_sha_overrides={1: "0" * 64},
-        erratum_id="t139-core-s7-stresscheck-v1",
-    )
-    with pytest.raises(OldDigestMismatchError):
-        _compose_synthetic(
+def test_s7_erratum_rejects_three_operations(monkeypatch: pytest.MonkeyPatch):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    prefix, first, second, suffix = _s7_yaml_parts(blob)
+    third = second.replace("  - index: 2\n", "  - index: 3\n", 1)
+    with pytest.raises(OperationCountError):
+        _compose_s7_variant(
             monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(core),
+            _replace_s7_yaml(blob, prefix + first + second + third + suffix),
         )
 
 
-def test_s7_erratum_rejects_old_text_bytes_mismatch(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    core = _synthetic_s7_core()
-    erratum = _synthetic_erratum(
-        core, (2,), erratum_id="t139-core-s7-stresscheck-v1"
-    ).replace(
-        f"{S7_OLD_TEXT}。\n".encode(),
-        b"different old text\n",
+def test_s7_erratum_rejects_missing_index(monkeypatch: pytest.MonkeyPatch):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(b"  - index: 2\n", b"  - index: 3\n", 1)
+    with pytest.raises(OperationCountError):
+        _compose_s7_variant(monkeypatch, mutated)
+
+
+def test_s7_erratum_rejects_duplicate_index(monkeypatch: pytest.MonkeyPatch):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(b"  - index: 2\n", b"  - index: 1\n", 1)
+    with pytest.raises(OperationCountError):
+        _compose_s7_variant(monkeypatch, mutated)
+
+
+def test_s7_erratum_rejects_missing_333_operation(monkeypatch: pytest.MonkeyPatch):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(
+        b"      line_number_at_target_commit: 333\n",
+        b"      line_number_at_target_commit: 332\n",
         1,
     )
+    with pytest.raises(OccurrenceCountError):
+        _compose_s7_variant(monkeypatch, mutated)
+
+
+def test_s7_erratum_rejects_swapped_locators(monkeypatch: pytest.MonkeyPatch):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    prefix, first, second, suffix = _s7_yaml_parts(blob)
+    first_locator = first[
+        first.index("    locator:\n") : first.index("    old_sha256:")
+    ]
+    second_locator = second[
+        second.index("    locator:\n") : second.index("    old_sha256:")
+    ]
+    first = first.replace(first_locator, second_locator, 1)
+    second = second.replace(second_locator, first_locator, 1)
     with pytest.raises(OldDigestMismatchError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(core),
+        _compose_s7_variant(
+            monkeypatch, _replace_s7_yaml(blob, prefix + first + second + suffix)
         )
 
 
-def test_s7_erratum_rejects_occurrence_count_not_one(
+def test_s7_erratum_rejects_first_old_digest_change(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    core = _synthetic_s7_core(occurrences=2)
-    erratum = _synthetic_erratum(
-        core, (2,), erratum_id="t139-core-s7-stresscheck-v1"
+    blob = S7_ERRATUM_PATH.read_bytes()
+    old_line = (
+        b"    old_sha256: "
+        + EXPECTED_S7_OPERATION_LINE_SHA256[0].encode()
+        + b"\n"
     )
-    with pytest.raises(OccurrenceCountError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(core),
-        )
+    mutated = blob.replace(old_line, b"    old_sha256: " + b"0" * 64 + b"\n", 1)
+    with pytest.raises(OldDigestMismatchError):
+        _compose_s7_variant(monkeypatch, mutated)
 
 
-def test_s7_erratum_occurrence_must_bind_to_operation_line(
+def test_s7_erratum_rejects_second_old_digest_change(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    core = _synthetic_s7_core()
-    erratum = _synthetic_erratum(
-        core, (3,), erratum_id="t139-core-s7-stresscheck-v1"
+    blob = S7_ERRATUM_PATH.read_bytes()
+    old_line = (
+        b"    old_sha256: "
+        + EXPECTED_S7_OPERATION_LINE_SHA256[1].encode()
+        + b"\n"
     )
-    with pytest.raises(OccurrenceCountError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=hashlib.sha256(core).hexdigest(),
-        )
+    mutated = blob.replace(old_line, b"    old_sha256: " + b"0" * 64 + b"\n", 1)
+    with pytest.raises(OldDigestMismatchError):
+        _compose_s7_variant(monkeypatch, mutated)
 
 
-def test_s7_erratum_rejects_new_text_line_count_change(
+def test_s7_erratum_rejects_first_new_digest_change(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    core = _synthetic_s7_core()
-    erratum = _synthetic_erratum(
-        core,
-        (2,),
-        new_line_overrides={1: b"first replacement line\nsecond replacement line\n"},
-        erratum_id="t139-core-s7-stresscheck-v1",
-    )
-    with pytest.raises(LineCountMismatchError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(
-                core,
-                new_line_overrides={
-                    1: b"first replacement line\nsecond replacement line\n"
-                },
-            ),
-        )
-
-
-def test_s7_erratum_rejects_strong_calibration_claim(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    core = _synthetic_s7_core()
-    replacement = (
-        "事前 simulation で cluster level の型 I 誤りを較正済みである。\n"
-    ).encode()
-    erratum = _synthetic_erratum(
-        core,
-        (2,),
-        new_line_overrides={1: replacement},
-        erratum_id="t139-core-s7-stresscheck-v1",
-    )
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(EXPECTED_S7_NEW_LINE_SHA256[0].encode(), b"0" * 64, 1)
     with pytest.raises(ReplacementTextMismatchError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(
-                core, new_line_overrides={1: replacement}
-            ),
-        )
+        _compose_s7_variant(monkeypatch, mutated)
 
 
-def test_s7_erratum_rejects_unconstrained_reassurance(
+def test_s7_erratum_rejects_second_new_digest_change(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    core = _synthetic_s7_core()
-    replacement = "型 I 誤りは問題ない。\n".encode()
-    erratum = _synthetic_erratum(
-        core,
-        (2,),
-        new_line_overrides={1: replacement},
-        erratum_id="t139-core-s7-stresscheck-v1",
-    )
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(EXPECTED_S7_NEW_LINE_SHA256[1].encode(), b"0" * 64, 1)
     with pytest.raises(ReplacementTextMismatchError):
-        _compose_synthetic(
-            monkeypatch,
-            core,
-            erratum,
-            expected_composed_sha256=_expected_s7_composed_sha256(
-                core, new_line_overrides={1: replacement}
-            ),
-        )
+        _compose_s7_variant(monkeypatch, mutated)
 
 
-def test_draft_erratum_is_not_in_approved_set():
-    draft_id = "t139-core-s7-stresscheck-v1"
-    approved_id = "t139-core-s15-exactkey-v1"
-    assert DRAFT_ERRATA == frozenset({draft_id})
-    assert APPROVED_ERRATA == frozenset({approved_id})
-    assert approved_erratum_ids() == APPROVED_ERRATA
-    assert draft_id not in approved_erratum_ids()
-    assert DRAFT_ERRATA.isdisjoint(approved_erratum_ids())
-    assert parse_erratum(DRAFT_ERRATUM_PATH.read_bytes()).erratum_id == draft_id
-
-
-def test_overlapping_locators_rejected(monkeypatch: pytest.MonkeyPatch):
-    core = (
-        "# synthetic core\n"
-        "5. exact fields are `a01`〜`a12` only.\n"
-        "unrelated line\n"
-        f"The addendum sets `a01`〜`a12`; {S7_OLD_TEXT}。\n"
-    ).encode()
-    s15_erratum = _synthetic_erratum(core)
-    s7_new_text = f"{S7_NEW_TEXT}\n".encode()
-    s7_erratum = _synthetic_erratum(
-        core,
-        (4,),
-        new_line_overrides={1: s7_new_text},
-        erratum_id="t139-core-s7-stresscheck-v1",
+def test_s7_erratum_rejects_unknown_operation_key():
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(
+        b"    old_sha256: ", b"    unknown_key: value\n    old_sha256: ", 1
     )
-    composed_lines = core.splitlines(keepends=True)
-    composed_lines[1] = composed_lines[1].replace(b"a12", b"a13", 1)
-    composed_lines[3] = s7_new_text
-    with pytest.raises(LocatorOverlapError):
-        _compose_synthetic_errata(
+    with pytest.raises(ErratumParseError):
+        parse_erratum(mutated)
+
+
+def test_s7_erratum_rejects_duplicate_operation_key():
+    blob = S7_ERRATUM_PATH.read_bytes()
+    key = b"    new_sha256: " + EXPECTED_S7_NEW_LINE_SHA256[0].encode() + b"\n"
+    with pytest.raises(ErratumParseError):
+        parse_erratum(blob.replace(key, key + key, 1))
+
+
+def test_s7_erratum_rejects_document_composed_digest_change(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    blob = S7_ERRATUM_PATH.read_bytes()
+    mutated = blob.replace(EXPECTED_TWO_ERRATA_COMPOSED_SHA256.encode(), b"0" * 64, 1)
+    with pytest.raises(ComposedDigestMismatchError):
+        _compose_s7_variant(monkeypatch, mutated)
+
+
+def test_s15_erratum_rejects_added_new_sha256():
+    blob = read_pinned_blob(REPOSITORY_ROOT, ERRATUM_REF)
+    old_digest_line = (
+        b"    old_sha256: " + EXPECTED_OPERATION_LINE_SHA256[0].encode() + b"\n"
+    )
+    added = old_digest_line + b"    new_sha256: " + b"0" * 64 + b"\n"
+    with pytest.raises(ErratumParseError):
+        parse_erratum(blob.replace(old_digest_line, added, 1))
+
+
+def test_s7_erratum_rejects_missing_expected_composed_sha256():
+    blob = S7_ERRATUM_PATH.read_bytes()
+    line = (
+        b"expected_composed_sha256: "
+        + EXPECTED_TWO_ERRATA_COMPOSED_SHA256.encode()
+        + b"\n"
+    )
+    with pytest.raises(ErratumParseError):
+        parse_erratum(blob.replace(line, b"", 1))
+
+
+def test_s7_erratum_rejects_third_core_occurrence(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    core = read_pinned_blob(REPOSITORY_ROOT, CORE_REF) + "較正\n".encode()
+    with pytest.raises(OccurrenceCountError):
+        _compose_s7_variant(
             monkeypatch,
-            core,
-            (s15_erratum, s7_erratum),
-            expected_composed_sha256=hashlib.sha256(
-                b"".join(composed_lines)
-            ).hexdigest(),
+            S7_ERRATUM_PATH.read_bytes(),
+            core_blob=core,
         )
+
+
+def test_registry_classification_is_checked_before_composition(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(
+        erratum_module,
+        "APPROVED_ERRATA",
+        frozenset({"t139-core-s15-exactkey-v1"}),
+    )
+    with pytest.raises(ErratumRegistryError):
+        compose_core(
+            "unused",
+            core_ref=CORE_REF,
+            erratum_refs=(),
+            expected_composed_sha256="0" * 64,
+        )
+
+
+def test_both_errata_are_approved_and_draft_registry_is_empty():
+    approved = frozenset(
+        {"t139-core-s15-exactkey-v1", "t139-core-s7-stresscheck-v1"}
+    )
+    assert APPROVED_ERRATA == approved
+    assert DRAFT_ERRATA == frozenset()
+    assert approved_erratum_ids() == approved
+    assert parse_erratum(S7_ERRATUM_PATH.read_bytes()).erratum_id in approved
 
 
 def test_envelope_parser_ignores_headings_outside_fields():
@@ -808,9 +788,13 @@ def test_approved_erratum_target_line_digests_are_frozen():
     assert actual == EXPECTED_OPERATION_LINE_SHA256
 
 
-def test_s7_erratum_target_line_digest_is_frozen():
+def test_s7_erratum_target_line_digests_are_frozen():
     core = read_pinned_blob(REPOSITORY_ROOT, CORE_REF)
-    actual = hashlib.sha256(core.splitlines(keepends=True)[220]).hexdigest()
+    lines = core.splitlines(keepends=True)
+    actual = (
+        hashlib.sha256(lines[220]).hexdigest(),
+        hashlib.sha256(lines[332]).hexdigest(),
+    )
     assert actual == EXPECTED_S7_OPERATION_LINE_SHA256
 
 
@@ -824,42 +808,35 @@ def test_approved_erratum_composes_to_expected_digest():
     assert composed.composed_sha256 == EXPECTED_COMPOSED_SHA256
 
 
-def test_two_errata_locators_are_disjoint_and_compose_to_expected_digest(
-    monkeypatch: pytest.MonkeyPatch,
-):
+def test_two_errata_locators_are_disjoint_and_compose_to_expected_digest():
     approved_blob = read_pinned_blob(REPOSITORY_ROOT, ERRATUM_REF)
-    draft_blob = DRAFT_ERRATUM_PATH.read_bytes()
-    approved = parse_erratum(approved_blob)
-    draft = parse_erratum(draft_blob)
-    approved_locators = {
+    s7_blob = read_pinned_blob(REPOSITORY_ROOT, S7_ERRATUM_REF)
+    s15 = parse_erratum(approved_blob)
+    s7 = parse_erratum(s7_blob)
+    s15_locators = {
         operation.locator.line_number_at_target_commit
-        for operation in approved.operations
+        for operation in s15.operations
     }
-    draft_locators = {
-        operation.locator.line_number_at_target_commit for operation in draft.operations
+    s7_locators = {
+        operation.locator.line_number_at_target_commit for operation in s7.operations
     }
-    assert approved_locators == {404, 424}
-    assert draft_locators == {221}
-    assert approved_locators.isdisjoint(draft_locators)
-
-    real_read_pinned_blob = read_pinned_blob
-
-    def read_with_draft(_root: str, ref: BlobRef) -> bytes:
-        if ref is DRAFT_ERRATUM_REF:
-            return draft_blob
-        return real_read_pinned_blob(REPOSITORY_ROOT, ref)
-
-    monkeypatch.setattr(
-        "orchestrator.preregistration.erratum.read_pinned_blob", read_with_draft
+    assert s15_locators == {404, 424}
+    assert s7_locators == {221, 333}
+    assert s15_locators.isdisjoint(s7_locators)
+    assert tuple(operation.new_sha256 for operation in s7.operations) == (
+        EXPECTED_S7_NEW_LINE_SHA256
     )
+    assert s7.expected_composed_sha256 == EXPECTED_TWO_ERRATA_COMPOSED_SHA256
+
     composed = compose_core(
         str(REPOSITORY_ROOT),
         core_ref=CORE_REF,
-        erratum_refs=(ERRATUM_REF, DRAFT_ERRATUM_REF),
+        erratum_refs=(ERRATUM_REF, S7_ERRATUM_REF),
         expected_composed_sha256=EXPECTED_TWO_ERRATA_COMPOSED_SHA256,
     )
     assert EXPECTED_TWO_ERRATA_COMPOSED_SHA256 != EXPECTED_COMPOSED_SHA256
     assert composed.composed_sha256 == EXPECTED_TWO_ERRATA_COMPOSED_SHA256
+    assert composed.composed_bytes.count("較正".encode()) == 0
 
 
 def test_module_exports_no_admission_api():
@@ -868,6 +845,7 @@ def test_module_exports_no_admission_api():
         "PreregBinding",
         "submit_pilot",
         "verify_receipt",
+        "verify_prereg_receipt",
     }
     assert forbidden.isdisjoint(preregistration.__all__)
     assert all(not hasattr(preregistration, name) for name in forbidden)
