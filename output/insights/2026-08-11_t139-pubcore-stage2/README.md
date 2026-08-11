@@ -13,7 +13,7 @@ worklog 404 の裁定 **C-1〜C-5 (全問 (a))** に着手した wave の成果�
 | `publication-core-v2.md` | 公表手続きの新 core の**承認候補**。段階 1 版からの変更は 2 箇所 (8 行追加 / 5 行削除) |
 | `addendum-b-v2.md` | 追補 B の**再発行版**。変更は 3 系統 (再発行 preamble / `b03` の縮小 / 末尾節の追加・変更)。`b01`・`b02` は初版の逐語 |
 | `addendum-p-draft.md` | 追補 P の**草案**。従属先 commit が未確定のため凍結対象ではない |
-| `verbatim/` | 段 2〜段 6 の子出力の逐語凍結 |
+| `verbatim/` | 段 1〜段 6 の親 brief・裁定と codex 子出力の逐語凍結 (索引と erratum は `verbatim/README.md`) |
 
 ## 前段からの位置づけ
 

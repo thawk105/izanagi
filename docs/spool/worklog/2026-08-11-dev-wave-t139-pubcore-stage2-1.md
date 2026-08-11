@@ -86,6 +86,20 @@ title: 公表 core 段階 2 に着手した ([T-139]) — C-1・C-3・C-5 を実
   **追補 P に置いた未確定 marker は機械的な防壁ではない** — 現行の placeholder 検査は別 literal
   だけを見ており、marker 入りの blob でも land も fold も止まらない。止めているのは規律である。
 
+- **受入全走は本エントリを含む最終 tip で実施する。**`tools/dev_wave_land.py` は
+  wave HEAD と tested tip の**厳密一致**を要求するため、走行後に結果値を足すと land が拒否される。
+  したがって**受入の結果値は本エントリに含まれない** — 値は wave の報告と handoff が持つ。
+  検査は `check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0 (`planned`)、
+  全史 provenance rc=0、envelope の exact-key 3 文書とも OK、
+  および数値主張の機械照合 (`git diff --numstat` との一致、`b01`/`b02` slice の byte 一致、
+  追補 B v2 が自分の行数を書いていないこと) rc=0 をいずれも実測済みである。
+
+- **凍結逐語の defang を 1 件行った (D88)。**段 6 レンズ C の出力が `check_docs.py` の
+  placeholder 検査 literal 3 つを逐語引用していたため、角括弧を `«` `»` へ可逆置換した。
+  **gate が赤だったための処置ではない** — 現行の insights 列挙は再帰しないので本ファイルを
+  走査しない。将来の再帰的検査に備えた先行処置である。原文 sha256 と復元法は
+  `output/insights/2026-08-11_t139-pubcore-stage2/verbatim/README.md` に記録した。
+
 - **セッション事象:** 待ち手へ `nohup setsid` の親 pid を渡し、偽の producer 死 (rc=70) を
   1 回受けた。3 点照合 (成果物・`.done`・pid) で気づき、run script 自身に `echo $$` で
   pid を書かせる形へ直した。以後の段では再発していない。
