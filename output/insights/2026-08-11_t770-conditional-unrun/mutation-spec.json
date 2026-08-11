@@ -1,0 +1,72 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 900,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_skip_classification.py::test_conditional_unrun_nodes_use_classified_helper"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_hooks.py",
+     "old": "    if \"EVOLVE-BLOCK-BEGIN\" not in text:\n        skip_conditional_unrun(\"template patch 未適用: backoff.hh に EVOLVE-BLOCK marker 無し\")\n",
+     "new": "    if \"EVOLVE-BLOCK-BEGIN\" not in text:\n        skip(\"template patch 未適用 (marker 無し)。適用後に有効化される\")\n"
+    }
+   ]
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_skip_classification.py::test_conditional_unrun_nodes_use_classified_helper"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_campaign.py",
+     "old": "    if \"BACKOFF_FIXED\" not in d:\n        skip_conditional_unrun(\"template patch 未適用: Options.cmake に BACKOFF_FIXED 既定なし\")\n",
+     "new": "    if \"BACKOFF_FIXED\" not in d:\n        skip(\"template patch 未適用 (Options.cmake に BACKOFF_FIXED 既定なし) — 適用後のみ\")\n"
+    }
+   ]
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_skip_classification.py::test_conditional_unrun_reason_has_classification_reason_and_pointer"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/tests/skiputil.py",
+     "old": "    skip(f\"{CONDITIONAL_UNRUN}: {reason} — {_CONDITIONAL_UNRUN_POINTER}\")\n",
+     "new": "    skip(reason)\n"
+    }
+   ]
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_skip_classification.py::test_readme_conditional_unrun_census_names_all_nodes"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/tests/README.md",
+     "old": "- `orchestrator/tests/test_hooks.py::test_real_submodule_payload_edit`\n",
+     "new": ""
+    }
+   ]
+  }
+ ]
+}

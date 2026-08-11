@@ -72,6 +72,20 @@ def _profile_path(fixture_root: Path) -> Path:
     return fixture_root / "ruling-profile.v1.json"
 
 
+def _ruling_by_id(document: dict[str, Any], ruling_id: str) -> dict[str, Any]:
+    return next(
+        ruling for ruling in document["rulings"] if ruling["ruling_id"] == ruling_id
+    )
+
+
+def _gate_by_id(document: dict[str, Any], gate_id: str) -> dict[str, Any]:
+    return next(
+        gate
+        for gate in document["required_gates"]["entries"]
+        if gate["gate_id"] == gate_id
+    )
+
+
 def _rewrite_manifest(
     fixture_root: Path, mutate: Callable[[dict[str, Any]], None]
 ) -> None:
@@ -119,6 +133,8 @@ def _assert_rejected(
 
 
 def test_real_repository_contract_is_consistent_but_incomplete() -> None:
+    """裁定後の正しい exact 要約へ期待値を置換するだけで、受理集合には中立である。"""
+
     result = contract.validate_repository()
     assert set(result) == {
         "status",
@@ -130,7 +146,7 @@ def test_real_repository_contract_is_consistent_but_incomplete() -> None:
     assert result == {
         "status": "incomplete",
         "pending_count": 5,
-        "unresolved_count": 6,
+        "unresolved_count": 2,
         "row_ids": EXPECTED_ROW_IDS,
         "executable_fixture_ids": EXPECTED_EXECUTABLE_FIXTURE_IDS,
     }
@@ -154,15 +170,68 @@ def test_real_repository_contract_is_consistent_but_incomplete() -> None:
 
 
 def test_current_repository_is_rejected_as_stage0_incomplete() -> None:
+    """裁定後の正しい blocker 診断へ期待値を置換するだけで、受理集合には中立である。"""
+
     try:
         contract.require_stage0_complete()
     except contract.ContractError as exc:
         assert str(exc) == (
             "stage 0 is incomplete: status=incomplete, pending=5, "
-            "applicable_unresolved=6, blocking_gates=8"
+            "applicable_unresolved=2, blocking_gates=3"
         )
     else:
         raise AssertionError("the incomplete repository was accepted as stage 0 complete")
+
+
+def test_adjudicated_ruling_and_gate_projection_is_exact() -> None:
+    """snapshot pin として現行 fixture・manifest literal・module 定数の三者一致を固定する。"""
+
+    profile = contract.load_ruling_profile()
+    assert tuple(
+        (ruling["ruling_id"], ruling["status"], ruling["selection"])
+        for ruling in profile["rulings"]
+    ) == (
+        ("CFAB-Q1-PLACEMENT", "resolved", "outside-authority-directory"),
+        ("CFAB-Q2-ACTOR", "resolved", "human-approval-and-activation"),
+        ("CFAB-Q2-MEANING", "resolved", "digest-plus-inspection-receipt"),
+        ("CFAB-Q3-LOCKSTEP", "resolved", "both-components-change"),
+        ("CFAB-Q3-ROLLBACK", "resolved", "forward-compensating-generation"),
+        ("CFAB-Q3-REVOCATION", "resolved", "no-lower-fallback-fail-closed"),
+        ("CFAB-Q3-XF-POSITION", "resolved", "after-upper-activation"),
+        ("CFAB-Q4-HEAD-MODE", "resolved", "literal-pinned"),
+        ("CFAB-S-SEAL", "unresolved", None),
+        ("CFAB-S-GUARANTEE", "unresolved", None),
+        ("CFAB-B-SIDE-EFFECT", "unresolved", None),
+        ("FREEZE-U-A1", "resolved", "activation-window"),
+    )
+    manifest = contract.load_manifest()
+    assert tuple(
+        (gate["gate_id"], gate["owner"], gate["status"])
+        for gate in manifest["required_gates"]["entries"]
+    ) == (
+        ("CFAB-Q3-REVOCATION", "user", "resolved"),
+        ("CFAB-Q3-ROLLBACK", "user", "resolved"),
+        ("CFAB-Q3-XF-POSITION", "user", "resolved"),
+        ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
+        (
+            "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
+            "stage1-and-later",
+            "pending",
+        ),
+        ("FREEZE-AX-TOPOLOGY", "lower-impl-wave", "nonconforming"),
+        ("FREEZE-CONFORMANCE-LITERAL", "lower-wa-wave", "unresolved"),
+        ("FREEZE-U-A1", "user", "resolved"),
+    )
+
+
+def test_required_gate_entries_have_independent_module_sha_pin() -> None:
+    """snapshot pin として現行 fixture・manifest literal・module 定数の三者一致を固定する。"""
+
+    manifest = contract.load_manifest()
+    gates = manifest["required_gates"]
+    entries_sha256 = hashlib.sha256(_canonical_bytes(gates["entries"])).hexdigest()
+    assert entries_sha256 == gates["entries_sha256"]
+    assert entries_sha256 == contract._EXPECTED_REQUIRED_GATES_ENTRIES_SHA256
 
 
 def test_design_row_removed_is_rejected(tmp_path: Path) -> None:
@@ -328,6 +397,114 @@ def test_pending_binding_with_positive_control_is_rejected(tmp_path: Path) -> No
     )
 
 
+def test_adjudicated_rollback_cannot_regress_to_unresolved(tmp_path: Path) -> None:
+    """rollback の裁定前状態を新たに拒否し、profile の受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _ruling_by_id(document, "CFAB-Q3-ROLLBACK").update(
+            status="unresolved", selection=None
+        )
+
+    _rewrite_profile(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "adjudicated and deferred ruling states do not match the independent pin",
+    )
+
+
+def test_adjudicated_revocation_cannot_regress_to_unresolved(tmp_path: Path) -> None:
+    """revocation の裁定前状態を新たに拒否し、profile の受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _ruling_by_id(document, "CFAB-Q3-REVOCATION").update(
+            status="unresolved", selection=None
+        )
+
+    _rewrite_profile(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "adjudicated and deferred ruling states do not match the independent pin",
+    )
+
+
+def test_adjudicated_xf_position_cannot_regress_to_unresolved(tmp_path: Path) -> None:
+    """X_f 位置の裁定前状態を新たに拒否し、profile の受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _ruling_by_id(document, "CFAB-Q3-XF-POSITION").update(
+            status="unresolved", selection=None
+        )
+
+    _rewrite_profile(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "adjudicated and deferred ruling states do not match the independent pin",
+    )
+
+
+def test_adjudicated_u_a1_cannot_regress_to_unresolved(tmp_path: Path) -> None:
+    """U-A1 の裁定前状態を新たに拒否し、profile の受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _ruling_by_id(document, "FREEZE-U-A1").update(
+            status="unresolved", selection=None
+        )
+
+    _rewrite_profile(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "adjudicated and deferred ruling states do not match the independent pin",
+    )
+
+
+def test_deferred_seal_ruling_cannot_be_resolved(tmp_path: Path) -> None:
+    """先送り中の seal 解決を新たに拒否し、profile の受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _ruling_by_id(document, "CFAB-S-SEAL").update(
+            status="resolved", selection="S1"
+        )
+
+    _rewrite_profile(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "adjudicated and deferred ruling states do not match the independent pin",
+    )
+
+
+def test_rejected_post_activation_lease_is_rejected(tmp_path: Path) -> None:
+    """却下済み post-activation lease を新たに拒否し、enum の受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        _ruling_by_id(document, "FREEZE-U-A1").update(
+            status="resolved", selection="post-activation-lease"
+        )
+
+    _rewrite_profile(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "selection is outside its allowed enum",
+    )
+
+
 def test_s2_profile_without_not_applicable_guarantee_is_rejected(
     tmp_path: Path,
 ) -> None:
@@ -358,11 +535,13 @@ def test_manifest_status_cannot_claim_complete_while_gates_remain(
 
 
 def test_required_gate_removed_is_rejected(tmp_path: Path) -> None:
+    """同じ gate 削除負例を index 指定から ID 指定へ変えるだけで、中立である。"""
+
     fixture_root, design_doc = _synthetic_repository(tmp_path)
 
     def mutate(document: dict[str, Any]) -> None:
         entries = document["required_gates"]["entries"]
-        entries.pop(0)
+        entries.remove(_gate_by_id(document, "CFAB-Q3-REVOCATION"))
         document["required_gates"]["count"] = len(entries)
         _refresh_entries_sha(document, "required_gates")
 
@@ -375,10 +554,12 @@ def test_required_gate_removed_is_rejected(tmp_path: Path) -> None:
 
 
 def test_required_gate_owner_changed_is_rejected(tmp_path: Path) -> None:
+    """等価な owner drift 負例へ ID 指定で再照準するだけで、受理集合には中立である。"""
+
     fixture_root, design_doc = _synthetic_repository(tmp_path)
 
     def mutate(document: dict[str, Any]) -> None:
-        document["required_gates"]["entries"][0]["owner"] = "wrong-owner"
+        _gate_by_id(document, "FREEZE-AX-TOPOLOGY")["owner"] = "wrong-owner"
         _refresh_entries_sha(document, "required_gates")
 
     _rewrite_manifest(fixture_root, mutate)
@@ -390,10 +571,14 @@ def test_required_gate_owner_changed_is_rejected(tmp_path: Path) -> None:
 
 
 def test_required_gate_resolved_without_evidence_is_rejected(tmp_path: Path) -> None:
+    """裁定後の正例から依然負例の fixture assignment へ再照準するだけで、中立である。"""
+
     fixture_root, design_doc = _synthetic_repository(tmp_path)
 
     def mutate(document: dict[str, Any]) -> None:
-        document["required_gates"]["entries"][0]["status"] = "resolved"
+        _gate_by_id(
+            document, "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT"
+        )["status"] = "resolved"
         _refresh_entries_sha(document, "required_gates")
 
     _rewrite_manifest(fixture_root, mutate)
@@ -401,6 +586,27 @@ def test_required_gate_resolved_without_evidence_is_rejected(tmp_path: Path) -> 
         fixture_root,
         design_doc,
         "required_gates entries do not exactly match",
+    )
+
+
+def test_required_gate_reorder_with_refreshed_manifest_hash_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """hash 再計算済みの gate 並べ替えも新たに拒否し、受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+
+    def mutate(document: dict[str, Any]) -> None:
+        entries = document["required_gates"]["entries"]
+        entries[0], entries[1] = entries[1], entries[0]
+        _refresh_entries_sha(document, "required_gates")
+
+    _rewrite_manifest(fixture_root, mutate)
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "required_gates.entries_sha256 must match canonical entries bytes "
+        "and the independent module pin",
     )
 
 
@@ -436,13 +642,76 @@ def test_ruling_profile_order_drift_is_rejected(tmp_path: Path) -> None:
     )
 
 
+def test_design_selection_column_matches_selection_enums(tmp_path: Path) -> None:
+    """設計だけで selection を広げる drift を新たに拒否し、受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "| `FREEZE-U-A1` | resolved | `activation-window` |"
+    replacement = (
+        "| `FREEZE-U-A1` | resolved | `activation-window` / "
+        "`post-activation-lease` |"
+    )
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §8.1 selection column does not exactly match selection enums",
+    )
+
+
+def test_design_literals_hidden_in_html_comment_are_not_authoritative(
+    tmp_path: Path,
+) -> None:
+    """comment にだけ canonical literal を残す文書を新たに拒否する。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "| `FREEZE-U-A1` | resolved | `activation-window` |"
+    replacement = (
+        "<!--\n"
+        f"{target}\n"
+        "-->\n"
+        "<tr><td>FREEZE-U-A1</td><td>resolved</td>"
+        "<td>activation-window / post-activation-lease</td></tr>"
+    )
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design document must not contain HTML comments",
+    )
+
+
+def test_design_stage_scope_matches_fixture_assignment_gate_id(tmp_path: Path) -> None:
+    """設計の段集合だけを広げる drift を新たに拒否し、受理集合を狭める。"""
+
+    fixture_root, design_doc = _synthetic_repository(tmp_path)
+    text = design_doc.read_text(encoding="utf-8")
+    target = "段 1〜4 と段 6〜8 である"
+    replacement = "段 1〜4 と段 5〜8 である"
+    assert text.count(target) == 1
+    design_doc.write_text(text.replace(target, replacement, 1), encoding="utf-8")
+    _assert_rejected(
+        fixture_root,
+        design_doc,
+        "design §10 stage scope does not exactly match the fixture assignment gate ID",
+    )
+
+
 def test_not_applicable_outside_applicability_rule_is_rejected(
     tmp_path: Path,
 ) -> None:
+    """同じ Q3 負例を index 指定から ID 指定へ変えるだけで、中立である。"""
+
     fixture_root, design_doc = _synthetic_repository(tmp_path)
 
     def mutate(document: dict[str, Any]) -> None:
-        document["rulings"][4].update(status="not-applicable", selection=None)
+        _ruling_by_id(document, "CFAB-Q3-ROLLBACK").update(
+            status="not-applicable", selection=None
+        )
 
     _rewrite_profile(fixture_root, mutate)
     _assert_rejected(
@@ -455,10 +724,14 @@ def test_not_applicable_outside_applicability_rule_is_rejected(
 def test_resolved_ruling_without_design_selection_enum_is_rejected(
     tmp_path: Path,
 ) -> None:
+    """裁定後の正例から依然負例の未裁定 B へ再照準するだけで、中立である。"""
+
     fixture_root, design_doc = _synthetic_repository(tmp_path)
 
     def mutate(document: dict[str, Any]) -> None:
-        document["rulings"][4].update(status="resolved", selection="invented-choice")
+        _ruling_by_id(document, "CFAB-B-SIDE-EFFECT").update(
+            status="resolved", selection="invented-choice"
+        )
 
     _rewrite_profile(fixture_root, mutate)
     _assert_rejected(

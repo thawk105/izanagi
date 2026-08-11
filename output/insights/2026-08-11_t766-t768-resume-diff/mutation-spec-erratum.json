@@ -1,0 +1,26 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    empty_sha = _sha256(b\"\")\n    for rel in sorted(plan.gc_paths):\n        before = gc_before[rel]\n",
+          "new": "    empty_sha = _sha256(b\"\")\n    for rel in sorted(()):\n        before = gc_before[rel]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_emits_gc_deletion_diff",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_matches_target_after_bytes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_show_diff_escapes_terminal_control_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
