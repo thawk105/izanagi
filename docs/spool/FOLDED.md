@@ -919,3 +919,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:codex-cannot-perform-merge":"F225","F:mutation-node-id-nonascii":"F224","F:source-hash-pin-drags-mutations":"F226"},"authored":"2026-08-11","content_sha256":"c1b6eeedba5261bec9b1c65ca69af4f6bb6d699219d3fc0abd2544833db0b5ba","seq":3,"wave":"dev-wave-t804-spec-sha256"}
 
 - {"allocations":{"T:guided-wal-status":"[T-860]","T:legacy-campaign-admission":"[T-861]","T:trace-run-binding-nonce":"[T-859]"},"authored":"2026-08-12","content_sha256":"09c418ea7494001689080b281ffd8dda70f779c4a5bf673ca5b2692f9e6c1b04","seq":67,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-12","content_sha256":"3aa920a826f01eae565de32ec2fea6ceae44259e202391d0fa7f4d2dc63d2926","seq":68,"wave":"rulings-20260806-a"}
