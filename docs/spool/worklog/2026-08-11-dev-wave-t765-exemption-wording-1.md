@@ -49,7 +49,10 @@ title: DW-S04 の変異免除条件を連言明示へ書き換えた — 焦点�
   の 1 件のみ** (単一理由性)。復元後 `git status` 空・`check_docs` rc=0。
   **曖昧さの解消そのものは機械変異では証明できない** (本文の意味を pin する検査は存在しない) ため、
   KILLED として数えず、真理値表・独立 2 レンズ・焦点 3 巡・consumer 棚卸しを代替証拠とした。
-- **受入全走**: 本エントリの記録 commit を含む tip で実走する (結果はこのエントリ末尾へ追記する)。
+- **受入全走は 9021 passed / 20 skipped / 570.17 秒 / rc=0** (受入 lease 内、計算ノード dispatch、
+  request `904611.nqsv`)。記録 commit `046ca9a2` を含む tip で走らせ、走行前に待ち手が local main を
+  取り込んだ (merge commit `c87868f4`)。この結果行だけが全走後の追記である。
+  1 回目は lease を 7,200 秒待って `claim-timeout` (rc=70) となり、解放直後に取り直した。
   免除の可否は証拠で判定した — 実 repo を読むテストは実在する
   (`orchestrator/tests/test_check_docs.py::test_dev_wave_waiter_consumer_pins_accept_current_docs_contract`
   が `check_docs.REPO / "docs/dev-wave/core.md"` を読む) ため、docs のみでも免除しない。
