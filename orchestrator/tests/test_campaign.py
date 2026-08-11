@@ -71,7 +71,7 @@ from orchestrator.campaign.pipeline import (EvalResult, PerfConfig,           # 
                                ScreeningConfig)
 from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate     # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence                # noqa: E402
-from skiputil import Skip, skip                                  # noqa: E402
+from skiputil import Skip, skip, skip_conditional_unrun          # noqa: E402
 from orchestrator.verifier.model import (Anomaly, CycleEdge, EdgeReason,       # noqa: E402
                             Integrity, RW, VerifyResult)
 from certified_writer_fixtures import (                          # noqa: E402
@@ -8333,7 +8333,7 @@ def test_source_digest_parse_options_defaults():
     with open(opts, encoding="utf-8") as f:
         d = source_digest.parse_options_defaults(f.read())
     if "BACKOFF_FIXED" not in d:
-        skip("template patch 未適用 (Options.cmake に BACKOFF_FIXED 既定なし) — 適用後のみ")
+        skip_conditional_unrun("template patch 未適用: Options.cmake に BACKOFF_FIXED 既定なし")
     assert d["BACKOFF_FIXED"] == "-1" and d["BACK_OFF"] == "1"
     assert "INSERT_READ_DELAY_MS" not in d        # 空値 ("") は除外
 
@@ -8358,9 +8358,9 @@ def test_source_digest_fixed_variant_distinct():
         skip("submodule 未 init — BACKOFF_FIXED digest 分離は実 working-tree が要る")
     wt = source_digest._read(os.path.join(buildcache._ccbench_dir(), "include/backoff.hh"))
     if "#if BACKOFF_FIXED" not in wt:
-        # clean stock checkout (template patch 未適用) では BACKOFF_FIXED が参照されず
-        # digest が分離しない (assert が偽 fail する)。適用済み working-tree 前提を明示。
-        skip("template patch 未適用 (backoff.hh に #if BACKOFF_FIXED 無し) — digest 分離は適用後のみ")
+        # 受入 suite は共有 submodule に template patch の窓を開けないため、
+        # BACKOFF_FIXED が参照されない stock checkout では digest 分離を実走しない。
+        skip_conditional_unrun("template patch 未適用: backoff.hh に #if BACKOFF_FIXED 無し")
     base = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
             "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
     g50 = Genome("silo", {**base, "BACKOFF_FIXED": 50})
@@ -8388,7 +8388,7 @@ def test_source_digest_failsclosed_on_missing_define():
     with open(hh, encoding="utf-8") as f:
         src = f.read()
     if "BACKOFF_FIXED" not in src:
-        skip("template patch 未適用 (backoff.hh に BACKOFF_FIXED 骨格なし) — 適用後のみ")
+        skip_conditional_unrun("template patch 未適用: backoff.hh に BACKOFF_FIXED 骨格なし")
     _require_g13()  # 供給漏れ停止と preprocess 起動不能を取り違えないため g++-13 不在は skip
     try:
         source_digest._cpp_normalize(src, {"BACKOFF_NOINLINE": "0"}, "g++-13")  # FIXED 欠落
