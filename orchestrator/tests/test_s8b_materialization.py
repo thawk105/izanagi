@@ -469,6 +469,32 @@ def test_floor_manifest_golden_stable():
                            ccbench_dir="/tmp/cc", cache_root="/tmp/ca")
 
     contract = ec.lookup("linux-baremetal")
+    verified_calibration = floor.env_attestation.load_verified_calibration(
+        contract, ROOT,
+    )
+
+    def fixture_toolchain_binding(candidate, *, cc, cxx):
+        assert candidate is verified_calibration
+        return {
+            "cc": {
+                "requested": cc,
+                "realpath": f"/fixture/toolchain/{cc}",
+                "version_first_line": "fixture cc version",
+                "version": "fixture cc version\nfixture cc detail",
+            },
+            "cxx": {
+                "requested": cxx,
+                "realpath": f"/fixture/toolchain/{cxx}",
+                "version_first_line": "fixture cxx version",
+                "version": "fixture cxx version\nfixture cxx detail",
+            },
+            "cmake": {
+                "requested": "cmake",
+                "realpath": "/fixture/toolchain/cmake",
+                "version_first_line": "cmake version fixture",
+                "version": "cmake version fixture\nfixture cmake detail",
+            },
+        }
 
     def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
         source_sha = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
@@ -490,11 +516,14 @@ def test_floor_manifest_golden_stable():
                 genome.canonical(), kw["contract"].contract_sha256)), \
             mock.patch.object(
                 floor.source_digest, "resolve_evidence", fixture_evidence,
+            ), \
+            mock.patch.object(
+                floor, "_bind_current_toolchain", fixture_toolchain_binding,
             ):
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
             out_root=Path("/tmp/out"), prepare_fn=prepare_fn,
-            contract=contract)
+            contract=contract, verified_calibration=verified_calibration)
     for record in built.values():
         record["store_path"] = "/tmp/out/store/" + record["binary_sha256"]
     built = floor.project_built_records(built, out_root=Path("/tmp/out"))

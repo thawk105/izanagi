@@ -28,7 +28,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 _ROOT = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
+sys.path.insert(0, _HERE)
 
+from orchestrator.calibrator import schema_v2 as CALIBRATION_V2  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze as M  # noqa: E402
 from orchestrator.campaign import env_contract as EC  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign as FLOOR  # noqa: E402
@@ -40,6 +42,7 @@ from orchestrator.campaign.durable_root import DurableRootPolicy  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
 
@@ -327,6 +330,71 @@ def _fixed_receipt(contract, *, now_fn):
     }
 
 
+def _verified_calibration_v2_fixture():
+    """acquisition receipt 付きの synthetic v2 calibration を返す。"""
+    document = _valid_calibration_v2_document()
+    document["env_tag"] = "linux-baremetal"
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
+    document["acquisition_receipt"]["toolchain"].update({
+        "compiler_path": "/fixture/toolchain/cc",
+        "compiler_version": "fixture-cc 13.0\nfixture detail",
+        "cmake_version": "fixture-cmake version 3.28\nfixture detail",
+    })
+    document["acquisition_receipt"]["ccbench"]["build_argv"] = [
+        "cmake",
+        "-DCMAKE_C_COMPILER=/fixture/toolchain/cc",
+        "-DCMAKE_CXX_COMPILER=/fixture/toolchain/cxx",
+    ]
+    calibration = CALIBRATION_V2.validate_calibration_v2(document)
+    raw = json.dumps(
+        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return FLOOR.env_attestation.VerifiedCalibration(
+        schema_version=CALIBRATION_V2.SCHEMA_VERSION,
+        sha256=_sha(raw),
+        calibration=calibration,
+        attestation_profile_sha256=FLOOR.env_attestation.profile_sha256(
+            calibration.attestation_profile,
+        ),
+    )
+
+
+def _fixture_toolchain_manifest(*, cc: str, cxx: str) -> dict[str, dict[str, str]]:
+    return {
+        "cc": {
+            "requested": cc,
+            "realpath": "/fixture/toolchain/cc",
+            "version_first_line": "live-cc 13.0",
+            "version": "live-cc 13.0\nfixture detail",
+        },
+        "cxx": {
+            "requested": cxx,
+            "realpath": "/fixture/toolchain/cxx",
+            "version_first_line": "live-cxx 13.0",
+            "version": "live-cxx 13.0\nfixture detail",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": "/fixture/toolchain/cmake",
+            "version_first_line": "live-cmake version 3.28",
+            "version": "live-cmake version 3.28\nfixture detail",
+        },
+    }
+
+
+def _fixture_observe_floor_tool(requested: str, role: str):
+    assert requested == {
+        "cc": "fixture-cc", "cxx": "fixture-cxx", "cmake": "cmake",
+    }[role]
+    entry = _fixture_toolchain_manifest(
+        cc="fixture-cc", cxx="fixture-cxx",
+    )[role]
+    return FLOOR._ObservedFloorTool(
+        requested=entry["requested"], realpath=entry["realpath"],
+        version_first_line=entry["version_first_line"], version=entry["version"],
+    )
+
+
 @contextlib.contextmanager
 def _fixed_prepare(cell, ccbench_pin):
     entry = cell["variant"]
@@ -346,10 +414,13 @@ def _make_emitter_build():
     def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
               jobs=16, ccbench_dir="", src_token=None, contract=None,
               timeout_s=None, admission=None, build_context=None,
-              source_evidence=None):
+              source_evidence=None, expected_toolchain_manifest=None):
         assert admission is not None
         assert build_context is not None
         assert source_evidence is not None
+        assert expected_toolchain_manifest == _fixture_toolchain_manifest(
+            cc=cc, cxx=cxx,
+        )
         assert trace is False
         assert ccbench_dir == _fixed_prepare.ccbench_dir
         assert timeout_s == 900
@@ -720,7 +791,7 @@ def _emitter_artifact_paths(run_dir: Path, root: Path) -> dict[str, str]:
 
 
 def _run_official_fixture_campaign(
-        protocol, verified, *, build_fn, **kwargs) -> dict:
+        protocol, verified, *, build_fn, verified_calibration, **kwargs) -> dict:
     """official-shaped bytes を作る pytest 専用入口。
 
     materializer は production core の引数 seam へ渡さず、既定 gateway の局所パッチとして
@@ -746,8 +817,31 @@ def _run_official_fixture_campaign(
             tracked_paths=(),
         )
 
+    expected_repo_root = Path(kwargs["repo_root"])
+
+    def fixture_calibration_loader(contract, repo_root):
+        assert contract == EC.lookup("linux-baremetal")
+        assert Path(repo_root) == expected_repo_root
+        assert isinstance(
+            verified_calibration, FLOOR.env_attestation.VerifiedCalibration,
+        )
+        assert verified_calibration.calibration is not None
+        assert verified_calibration.calibration.acquisition_receipt is not None
+        return verified_calibration
+
     with mock.patch.object(FLOOR, "_assert_official_permitted", lambda _mode: None), \
             mock.patch.object(FLOOR.buildcache, "build_v2", build_fn), \
+            mock.patch.object(
+                FLOOR.buildcache, "compilers_for_current_site",
+                return_value=("fixture-cc", "fixture-cxx"),
+            ), \
+            mock.patch.object(
+                FLOOR.env_attestation, "load_verified_calibration",
+                side_effect=fixture_calibration_loader,
+            ), \
+            mock.patch.object(
+                FLOOR, "_observe_floor_tool", side_effect=_fixture_observe_floor_tool,
+            ), \
             mock.patch.object(
                 FLOOR.source_digest, "resolve_evidence", fixture_evidence,
             ):
@@ -810,6 +904,7 @@ def build_production_emitter_g1(
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
         execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
+        verified_calibration=_verified_calibration_v2_fixture(),
         repo_root=root, after_certificate_issued_fn=commit_certificate,
         durable_root_policy=DurableRootPolicy(
             approved_roots=(root.resolve(),), forbidden_roots=(),
@@ -998,6 +1093,7 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
         execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
+        verified_calibration=_verified_calibration_v2_fixture(),
         repo_root=scan_root, after_certificate_issued_fn=commit_certificate,
         durable_root_policy=DurableRootPolicy(
             approved_roots=(root.resolve(),), forbidden_roots=(),
