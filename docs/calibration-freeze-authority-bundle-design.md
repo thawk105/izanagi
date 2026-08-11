@@ -7,18 +7,23 @@
 v1 に対し段 6 の敵対レビュー 2 本が、v2 に対し段 0 wave の敵対レビュー 2 本が、
 それぞれ独立に破れ方を構成した。したがって「決まったこと」と「決まっていないこと」を分けて書く。
 
-**決まったこと (ユーザー裁定 2026-08-10 = worklog エントリ 376、2026-08-11 = 同 403):**
+**決まったこと (ユーザー裁定 2026-08-10 = worklog エントリ 376、2026-08-11 = 同 403 と 415):**
 Q1 = (i) 環境の候補 record は権威 directory の外の候補 namespace へ置く /
 Q2 = 上位束の承認 A・発効 X とも人間、A は digest + 添付レポートの確認 /
 Q3 = lockstep (片側交代を拒否し、承認条件へ「両成分がともに交代」を加える。topology は不変) +
 rollback = forward compensating generation + revocation = 下位 authority へ fallback しない +
 下位 X_f は上位 X の後 / Q4 = (E-1) literal 保持 / U-A1 = 未発効 activation window /
-§8 と §10 の矛盾 = 段 0 の完了判定から段 5 を除く。selection literal と正本節は §12.1。
+§8 と §10 の矛盾 = 段 0 の完了判定から段 5 を除く /
+R1 = 失効 record は束 digest を stem とする 0/1 件・exact 7 key (§7.5) /
+R2 = 段 0 の完了は先送り確定 S・B の裁定後まで待つ (§10.2) /
+R3 = 段 6 の完了 predicate を構造部分と policy 依存部分へ分割し、構造部分だけを段 0 で固定する
+(§10 の段 6 行)。selection literal と正本節は §12.1。
 
 **決まっていないこと:** §12 が正本である。他者の手番の gate が 2 件
 (conformance 期待出力 literal / 下位 A・X commit topology の不適合)、
-ユーザー裁定待ちが 3 件 (§12.3 = 失効 record の namespace と schema / 段 0 完了の到達可能性 /
-段 6 の完了 predicate)。先送り確定の S (封印と保証境界) と B (副作用境界) は本書では決めない。
+段 6 の policy 依存 predicate が 1 件 (`CFAB-STAGE6-POLICY-PREDICATE`。S と B の裁定後に書く)。
+**ユーザー裁定待ちは 0 件である** (§12.3)。
+先送り確定の S (封印と保証境界) と B (副作用境界) は本書では決めない。
 
 **段 0 は `incomplete` である。** 完了か否かは §10.2 の機械算出だけを正本とする。
 
@@ -414,9 +419,11 @@ output/calibration-freeze-authority/
   seal-bindings/                       # §8-1 の slot
   approvals/                           # 上位承認 A
   active/                              # 上位 pointer X
+  revocations/                         # 上位失効 R
 ```
 
-file 名は原則としてその record 自身の raw sha256 (`<64hex>.json`)。候補 record だけ §6.1 の形。
+file 名は原則としてその record 自身の raw sha256 (`<64hex>.json`)。候補 record だけ §6.1 の形、
+失効 record だけ**対象束の `bundle_digest`** を stem とする (§S2-1.10 と同型。R1 裁定)。
 
 **上位承認 A** — `approvals/<raw sha256>.json`、top-level exact 7 key。
 
@@ -450,8 +457,31 @@ file 名は原則としてその record 自身の raw sha256 (`<64hex>.json`)。
 (`schema_version` / `authority_bundle_generation` / `parent_active_pointer_raw_sha256` /
 `bundle_digest` / `approval_raw_sha256`)。genesis だけ parent が `null`。
 digest は A と一致し、`approval_raw_sha256` は A の raw bytes および file 名と一致する。
-**失効の振る舞いは確定した (Q3 (ii) 裁定) が、失効 record の namespace と schema は依然として
-本書が定めない。** 裁定が答えたのは fallback の可否だけである (§12.3 R1)。
+**失効 record R** — `revocations/<bundle_digest>.json`、束当たり 0/1 件、top-level exact 7 key。
+
+| key | 型・制約 |
+|---|---|
+| `schema_version` | 逐語 `calibration-freeze-authority-revocation/v1` |
+| `bundle_digest` | 64 lower-hex。file 名の stem と一致し、§7.3 の再計算値と一致 |
+| `approval_raw_sha256` | 64 lower-hex。対象束の A の raw bytes の sha256 および `approvals/<raw sha256>.json` の file 名 stem と一致 |
+| `revoked_by` | NFC、trim 済み、1〜128 code point |
+| `revoked_at` | exact int の UTC 秒。`bool` を int として受理しない |
+| `scope` | 逐語 `bundle-only` |
+| `reason` | 非空 string |
+
+**この 7 key と各制約は、下位 exact 正本 `docs/freeze-permanent-design-s2.md` §S2-1.10 への
+conformance である** (R1 裁定 = 下位と同じ形を 1 層上へ写す)。上位語彙への写像は
+`approval_sha256` → `approval_raw_sha256` の 1 件だけで、他の 6 key は逐語で一致する。
+key を独自に増減すると、§12.4 の `FREEZE-AX-TOPOLOGY` と同型の**下位正本への不適合を上位に
+新設する**ことになる。
+
+意味規則 (§S2-1.10 の 4 規則を上位語彙へ写す)。
+
+- 対象は**一度上位 X が成立した束**に限る。承認だけで発効していない束への失効 record を受理しない。
+- **live tip の束が失効した後、active な上位束は存在しない。下位 authority へ fallback しない。**
+- **子孫世代を自動的に失効させない。**
+- record の**変更・削除・rename・再追加を拒否する** (§11.1 `CFAB-11.1-01` と同型の履歴不変)。
+  失効 record を削除して旧 X を再受理させる経路 (段 3 レンズ A が構成した) をこれで閉じる。
 
 - **上位 X が一度成立した後に上位権限が解決不能になった場合、下位 authority へ fallback しない。**
   失効を検出した場合も、record の重複・破損で一意に解決できない場合も、resolver は
@@ -459,9 +489,9 @@ digest は A と一致し、`approval_raw_sha256` は A の raw bytes および 
   「上位 X が一度も成立していない HEAD」に限る。
 - したがって失効は「解決不能」を**下位が肩代わりできない状態**として設計する。失効後に
   上位が承認していない環境と凍結の直積が再生成される経路 (段 3 レンズ A が構成) はこれで閉じる。
-- **固定 schema を land させてはならない。** 置き場・record の粒度・時刻表現・重複数は、
-  いずれも複数の形が成立し、選択によって受理集合が変わる。裁定前に選ぶことは
-  「決めない」の隠れた解除である。cancellation record も同様に定めない。
+- **cancellation record は依然として本書が定めない。** R1 が答えたのは失効 record についてであり、
+  下位 §S2-1.11 の fork cancellation に対応する上位 record は、置き場・粒度とも未確定である。
+  裁定前に選ぶことは「決めない」の隠れた解除である。
 
 ---
 
@@ -680,7 +710,7 @@ exact に書かない。書けないからである。** 段 0 で次を確定�
 | 3 | consumer の束経由への移行 (挙動保存) | §9 の閉包に対し、束外の固定 path 参照・下位 family resolver の直接呼び出し・独立した HEAD 取得が残っていれば落ちる。**かつ §7.2-3 の識別変異が落ちる**。挙動保存は §9.1 の遡及不拒否を含む |
 | 4 | その世代で交代する成分の commit 列 (E / G_f / A_f のうち該当分) と Q / A の構成 | これらを追加しても active 束は不変。A の余分な file・merge・trailer 不正・digest 不一致・**Q の対象集合と成分一覧の不一致**・承認前世代の直接参照・非承認組合せ・**parent が exact でない列**が落ちる。**かつ正当な A が X の候補としてちょうど受理される** |
 | 5 | 裁定に応じた policy 実装 | **未定義。** 封印・保証境界・副作用境界の裁定がないと、期待する受理・拒否の集合を一意に書けない。裁定に依らず言えるのは「適用される裁定項目が未解決の束は発効を拒否」「全観測に束の識別子が残る」まで |
-| 6 | 発効 X | **段 5 の後にしか置けない。** policy 未実装のまま X を置くと、X 自身が拒否されるか policy なしで production へ入るかの二択になる。判定式は段 0 と段 5 の裁定後に書く。**段 5 の除外は段 6 へ及ばない** — 段 6 は fixture 閉包の対象のままであり、その帰結は §12.3 のユーザー裁定待ちである |
+| 6 | 発効 X | **段 5 の後にしか置けない。** **構造部分 (段 0 で固定):** (i) X は `active/<raw sha256>.json` に置く top-level exact 5 key (`schema_version` / `authority_bundle_generation` / `parent_active_pointer_raw_sha256` / `bundle_digest` / `approval_raw_sha256`) の record で、file 名の stem は X の raw bytes の sha256 と一致する。 (ii) `parent_active_pointer_raw_sha256` は genesis のときだけ `null`、それ以外は**その時点の live tip X** の raw sha256 と一致する (祖先の非 tip X を parent にした列を拒否する)。 (iii) `authority_bundle_generation` は A の同 field と一致し、非 genesis では parent X の値より真に大きい (§5.1 の世代単調増加)。 (iv) `bundle_digest` は A の `bundle_digest` と一致し、§7.3 の再計算値と一致する。 (v) `approval_raw_sha256` は A の raw bytes の sha256 と `approvals/<raw sha256>.json` の file 名 stem の双方に一致し、参照先 A は下位 family 検証器と §5.1 の topology 検査を通った承認済み A に限る。 以上 5 条件をすべて満たす陽性 control を少なくとも 1 件受理し、各条件を 1 つだけ破る 5 個の陰性変異をそれぞれ対応する理由で拒否する。 **本行が固定するのは predicate であって実行ではない** — 実 entrypoint と fixture の対応付けは `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` の手番であり、それが `pending` である限り段 0 は完了しない。 **policy 依存部分:** 段 5 の S / B 裁定後まで `CFAB-STAGE6-POLICY-PREDICATE` (owner = `user`, status = `unresolved`) として残し、段 6 の完了には構造部分と policy 依存部分の双方を要求する。段 5 の除外は段 6 へ及ばない |
 | 7 | 発効後の受入と再検査 | 旧固定 path の履歴不変条件が引き続き成立し、新 path にも別 bytes の歴史が無い。**かつ段 0 で固定した陽性 campaign fixture が通る** |
 | 8 | 次世代への継承の先行検証 | 段 0 が定義した (§10.2)。現行は世代 2 以上を先に拒否するため、その拒否が先に発火して全変異が「緑」に見える (本 wave 時点の実測)。判定は**先行拒否を外した隔離環境で、実 entrypoint を呼んで**行う |
 
@@ -721,7 +751,10 @@ applicable な `unresolved` の件数がともに 0 で、blocking な gate が 
 > **本節の第 1 条件は、先送り確定の `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` も数える。**
 > 両者は applicable であり `unresolved` だから、**先送りを維持する限り段 0 は `complete` に
 > 到達しない。** §8/§10 矛盾の裁定 (段 5 の除外) は fixture 側の要求を外すだけで、この条件には
-> 触れていない。これは裁定時点で見えていなかった事実であり、扱いは §12.3 のユーザー裁定待ちである。
+> 触れていない。**R2 = (b) の裁定により、段 0 の完了は S と B の裁定後まで待つ。**
+> applicability を先送り確定項目へ広げて算入から外す案 (R2 (a)) は、「決めなくても完了できる」
+> 経路を作り、§8-2 が発効 X に課した「適用される項目は解決していること」を段 0 側で空洞化するため
+> 不採用である。したがって現在の `incomplete` は欠陥ではなく、**意図した正直な表示**である。
 > **親判断で applicability を広げて回避しない。**
 manifest の整合検査が通ることと、段 0 が完了したことは別である — 全行を未解決印に結んだ
 manifest でも整合検査だけは通せる (段 0 wave の敵対レビューが構成した)。
@@ -799,6 +832,9 @@ row ID = `CFAB-11.2-01`。
 | Q4 | **(E-1)** literal 保持 | `literal-pinned` | §6。source-side pin を失わない |
 | U-A1 | **未発効 activation window** (A_f→X_f の間だけ期限を検査し、X_f 後は失効させない) | `activation-window` | §7.2 `CFAB-7.2-01` |
 | §8/§10 矛盾 | **(a) 段 0 の完了判定から段 5 を除外する** | — (gate `CFAB-S8-S10-CONTRADICTION`) | §10 冒頭の fixture 閉包 |
+| R1 | **(a)** 失効 record は `revocations/<bundle_digest>.json`、exact 7 key、束当たり 0/1 件、時刻は UTC 秒 int。下位 §S2-1.10 への conformance | — (gate `CFAB-R1-REVOCATION-RECORD`) | §7.5 |
+| R2 | **(b)** 段 0 の完了は先送り確定 S・B の裁定後まで待つ。applicability は広げない | — (gate `CFAB-R2-STAGE0-COMPLETION`) | §10.2 |
+| R3 | **分割**。段 6 を構造部分と policy 依存部分へ分け、構造部分だけを段 0 で固定する | — (gate `CFAB-R3-STAGE6-PREDICATE`) | §10 の段 6 行 |
 
 ### 12.2 先送り (ユーザー確定済み。本設計では決めない)
 
@@ -809,27 +845,23 @@ row ID = `CFAB-11.2-01`。
 
 ### 12.3 残るユーザー裁定 (親が決めない)
 
-2026-08-11 の裁定 (worklog 403) で U-A1・Q3 の残部・§8/§10 矛盾は閉じた (§12.1)。
-その実施 wave が、裁定文からは導けない次の 3 件を新たに残した。
+**本節時点で残るユーザー裁定は 0 件である。**
 
-- **R1. 失効 record の namespace と schema。** 裁定が答えたのは fallback の可否だけである
-  (§7.5 に反映済み)。置き場・record の粒度・時刻表現・重複数は複数の形が成立し、選択で受理集合が
-  変わる。段 3 の 2 レンズが独立に「親が選ぶのは越権」と構成した。候補は
-  (a) `revocations/<bundle_digest>.json`・exact 7 key・束当たり 0/1 件・UTC 秒 int /
-  (b) `revocations/<record raw sha256>.json`・承認 record 単位・RFC 3339。**どちらでも
-  「fallback しない」は成立する。** 親の推奨は (a) — 束を単位にすると「同じ束に対する 2 通りの
-  失効」が構造的に置けず、resolver の解決不能条件が単純になるため。
-- **R2. 段 0 完了の到達可能性。** §10.2 の第 1 条件は先送り確定の `CFAB-S-SEAL` と
-  `CFAB-B-SIDE-EFFECT` を数えるため、**先送りを維持する限り段 0 は `complete` に到達しない。**
-  §8/§10 矛盾の裁定 (段 5 除外) は fixture 側だけを外し、この条件に触れていない。
-  (a) §8-2 の applicability を段 0 status にも及ぼす (先送り確定項目を算入から外す) /
-  (b) 段 0 の完了を S と B の裁定後まで待つ / (c) 現状維持で、後続段は段 0 完了を前提にしない。
-  親の推奨は (b) — (a) は「決めなくても完了できる」経路を作り、§8-2 が発効 X に課した
-  「適用される項目は解決していること」を段 0 側で空洞化する。
-- **R3. 段 6 の完了 predicate。** 段 6 の判定式も段 5 の裁定に依存する (§10 の段 6 行)。
-  段 5 の除外を段 6 へ広げるか、段 6 を構造部分 (X の形状・ancestry) と policy 依存部分へ
-  分割して前者だけ段 0 で固定するか。親の推奨は分割 — 段 6 の構造部分は S / B に依存しない。
-  **本 wave では gate を新設していない** (裁定の無い択一を台帳へ既成事実化しないため)。
+2026-08-11 の裁定 (worklog 403) で U-A1・Q3 の残部・§8/§10 矛盾が閉じ、同 415 の裁定で
+その実施 wave が残した R1 / R2 / R3 も閉じた。3 件は §12.1 へ移し、規則本文はそれぞれ
+§7.5 (R1) / §10.2 (R2) / §10 の段 6 行 (R3) へ畳み込んだ。
+
+**「残る裁定が 0 件」は「段 0 が完了できる」を意味しない。** 次の 4 件が引き続き段 0 を block する。
+
+- §12.2 の先送り確定 `CFAB-S-SEAL` と `CFAB-B-SIDE-EFFECT` (R2 = (b) により、段 0 の完了は
+  この 2 件の裁定を待つ)。
+- 段 6 の policy 依存 predicate `CFAB-STAGE6-POLICY-PREDICATE` (S と B の裁定後に書く)。
+- §12.4 の他者手番 gate 2 件。
+- fixture assignment gate `CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT` (段 1 以降の手番)。
+
+**R1 の実施で残った未確定が 1 件ある。** 下位 §S2-1.11 の fork cancellation に対応する上位
+cancellation record は、置き場も粒度も未確定である (§7.5)。これは失効 record とは別の record 種別
+であり、R1 の裁定範囲外だった。**先回りして schema を固定しない。**
 
 ### 12.4 他者の手番の gate (ユーザー裁定ではない)
 
