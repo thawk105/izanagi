@@ -50,6 +50,16 @@ _DESIGN_TABLE_ROW_RE = re.compile(
 _DESIGN_DECLARED_ROW_RE = re.compile(
     r"^row ID\s*=\s*`(CFAB-11\.2-[0-9]{2})`[.。]$", re.MULTILINE
 )
+_RULING_TABLE_ROW_RE = re.compile(
+    r"^\|\s*`((?:CFAB|FREEZE)-[^`]+)`\s*\|[^|]*\|\s*(.*?)\s*\|\s*$",
+    re.MULTILINE,
+)
+_SELECTION_LITERAL_RE = re.compile(r"`([^`]+)`")
+_STAGE_SCOPE_DECLARATION_RE = re.compile(
+    r"^\*\*この fixture 閉包が対象とする段は、段 ([0-9]+)〜([0-9]+) と"
+    r"段 ([0-9]+)〜([0-9]+) である",
+    re.MULTILINE,
+)
 _ENTRYPOINT_RE = re.compile(
     r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*:[A-Za-z_]\w*$"
 )
@@ -75,13 +85,24 @@ _SELECTION_ENUMS = {
     "CFAB-Q2-ACTOR": frozenset({"human-approval-and-activation"}),
     "CFAB-Q2-MEANING": frozenset({"digest-plus-inspection-receipt"}),
     "CFAB-Q3-LOCKSTEP": frozenset({"both-components-change"}),
+    "CFAB-Q3-ROLLBACK": frozenset({"forward-compensating-generation"}),
+    "CFAB-Q3-REVOCATION": frozenset({"no-lower-fallback-fail-closed"}),
+    "CFAB-Q3-XF-POSITION": frozenset({"after-upper-activation"}),
     "CFAB-Q4-HEAD-MODE": frozenset({"literal-pinned"}),
     "CFAB-S-SEAL": frozenset({"S1", "S2"}),
     "CFAB-S-GUARANTEE": frozenset({"G-a", "G-b", "G-c"}),
-    "FREEZE-U-A1": frozenset(
-        {"activation-window", "post-activation-lease"}
-    ),
+    "FREEZE-U-A1": frozenset({"activation-window"}),
 }
+
+_EXPECTED_RULING_STATES: Mapping[str, tuple[str, str | None]] = MappingProxyType({
+    "CFAB-Q3-ROLLBACK": ("resolved", "forward-compensating-generation"),
+    "CFAB-Q3-REVOCATION": ("resolved", "no-lower-fallback-fail-closed"),
+    "CFAB-Q3-XF-POSITION": ("resolved", "after-upper-activation"),
+    "CFAB-S-SEAL": ("unresolved", None),
+    "CFAB-S-GUARANTEE": ("unresolved", None),
+    "CFAB-B-SIDE-EFFECT": ("unresolved", None),
+    "FREEZE-U-A1": ("resolved", "activation-window"),
+})
 
 # These literals were calculated once from the checked-in case-file bytes.  They
 # are deliberately independent of manifest.v1.json so that changing a case and
@@ -115,15 +136,22 @@ _EXPECTED_ROW_IDS_SHA256 = (
     "facd79bcbd94c1783df767bede2a727df5db6e758bba79833deb5478d76eabfe"
 )
 _EXPECTED_REQUIRED_GATES = frozenset({
-    ("CFAB-Q3-REVOCATION", "user", "unresolved"),
-    ("CFAB-Q3-ROLLBACK", "user", "unresolved"),
-    ("CFAB-Q3-XF-POSITION", "user", "unresolved"),
-    ("CFAB-S8-S10-CONTRADICTION", "user", "unresolved"),
-    ("CFAB-STAGE-FIXTURE-ASSIGNMENT", "stage1-and-later", "pending"),
+    ("CFAB-Q3-REVOCATION", "user", "resolved"),
+    ("CFAB-Q3-ROLLBACK", "user", "resolved"),
+    ("CFAB-Q3-XF-POSITION", "user", "resolved"),
+    ("CFAB-S8-S10-CONTRADICTION", "user", "resolved"),
+    (
+        "CFAB-STAGES1-4-AND6-8-FIXTURE-ASSIGNMENT",
+        "stage1-and-later",
+        "pending",
+    ),
     ("FREEZE-AX-TOPOLOGY", "lower-impl-wave", "nonconforming"),
     ("FREEZE-CONFORMANCE-LITERAL", "lower-wa-wave", "unresolved"),
-    ("FREEZE-U-A1", "user", "unresolved"),
+    ("FREEZE-U-A1", "user", "resolved"),
 })
+_EXPECTED_REQUIRED_GATES_ENTRIES_SHA256 = (
+    "93cfe2b396d4831800537967d67628c7bca38b8b7595c4ffedaccb5e88211e41"
+)
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -243,9 +271,12 @@ def _expect_sha256(value: Any, *, label: str) -> str:
 
 def _read_design(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise ContractError(f"design document cannot be read: {path}") from exc
+    if "<!--" in text or "-->" in text:
+        raise ContractError("design document must not contain HTML comments")
+    return text
 
 
 def _extract_design_row_ids(path: Path) -> tuple[str, ...]:
@@ -282,6 +313,48 @@ def _extract_ruling_ids(path: Path) -> tuple[str, ...]:
             f"design §8.1 ruling IDs drifted: expected={_PROFILE_IDS!r}, actual={ids!r}"
         )
     return ids
+
+
+def _extract_design_selection_enums(path: Path) -> dict[str, frozenset[str]]:
+    text = _read_design(path)
+    start_marker = "### 8.1 裁定 profile の exact schema"
+    start = text.find(start_marker)
+    if start < 0 or text.find(start_marker, start + 1) >= 0:
+        raise ContractError("design §8.1 heading is missing or duplicated")
+    end = text.find("\n---", start)
+    if end < 0:
+        raise ContractError("design §8.1 terminator is missing")
+    rows = _RULING_TABLE_ROW_RE.findall(text[start:end])
+    ids = tuple(ruling_id for ruling_id, _selection_cell in rows)
+    if ids != _PROFILE_IDS:
+        raise ContractError(
+            "design §8.1 selection rows drifted: "
+            f"expected={_PROFILE_IDS!r}, actual={ids!r}"
+        )
+    return {
+        ruling_id: frozenset(_SELECTION_LITERAL_RE.findall(selection_cell))
+        for ruling_id, selection_cell in rows
+        if _SELECTION_LITERAL_RE.search(selection_cell) is not None
+    }
+
+
+def _fixture_assignment_gate_id_from_design(path: Path) -> str:
+    text = _read_design(path)
+    start_marker = "## 10. 段階分割と完了判定"
+    start = text.find(start_marker)
+    if start < 0 or text.find(start_marker, start + 1) >= 0:
+        raise ContractError("design §10 heading is missing or duplicated")
+    end = text.find("\n## ", start + len(start_marker))
+    if end < 0:
+        raise ContractError("design §10 terminator is missing")
+    matches = _STAGE_SCOPE_DECLARATION_RE.findall(text[start:end])
+    if len(matches) != 1:
+        raise ContractError("design §10 stage-scope declaration is missing or duplicated")
+    first_start, first_end, second_start, second_end = matches[0]
+    return (
+        f"CFAB-STAGES{first_start}-{first_end}-AND{second_start}-{second_end}"
+        "-FIXTURE-ASSIGNMENT"
+    )
 
 
 def _validate_manifest(document: dict[str, Any]) -> None:
@@ -422,9 +495,14 @@ def _validate_manifest(document: dict[str, Any]) -> None:
     actual_gates_sha = _expect_sha256(
         gates["entries_sha256"], label="required_gates.entries_sha256"
     )
-    if actual_gates_sha != expected_gates_sha:
+    if not (
+        actual_gates_sha
+        == expected_gates_sha
+        == _EXPECTED_REQUIRED_GATES_ENTRIES_SHA256
+    ):
         raise ContractError(
-            "required_gates.entries_sha256 does not match canonical entries bytes"
+            "required_gates.entries_sha256 must match canonical entries bytes "
+            "and the independent module pin"
         )
 
 
@@ -450,6 +528,11 @@ def _validate_ruling_profile(document: dict[str, Any], *, design_doc: Path) -> N
         raise ContractError("ruling profile schema_version is unsupported")
     rulings = _expect_list(document["rulings"], label="ruling profile.rulings")
     design_ids = _extract_ruling_ids(design_doc)
+    design_selection_enums = _extract_design_selection_enums(design_doc)
+    if design_selection_enums != _SELECTION_ENUMS:
+        raise ContractError(
+            "design §8.1 selection column does not exactly match selection enums"
+        )
     actual_ids: list[str] = []
     by_id: dict[str, dict[str, Any]] = {}
     for index, ruling in enumerate(rulings):
@@ -505,6 +588,14 @@ def _validate_ruling_profile(document: dict[str, Any], *, design_doc: Path) -> N
     if seal["status"] == "unresolved" and guarantee["status"] != "unresolved":
         raise ContractError(
             "CFAB-S-GUARANTEE must remain unresolved while CFAB-S-SEAL is unresolved"
+        )
+    actual_pinned_states = {
+        ruling_id: (by_id[ruling_id]["status"], by_id[ruling_id]["selection"])
+        for ruling_id in _EXPECTED_RULING_STATES
+    }
+    if actual_pinned_states != _EXPECTED_RULING_STATES:
+        raise ContractError(
+            "adjudicated and deferred ruling states do not match the independent pin"
         )
 
 
@@ -659,6 +750,16 @@ def _validate_repository(fixture_root: Path, design_doc: Path) -> Mapping[str, A
     profile = _load_ruling_profile(fixture_root, design_doc)
     cases = _load_fixture_cases(fixture_root)
     design_row_ids = _extract_design_row_ids(design_doc)
+    expected_assignment_gate_id = _fixture_assignment_gate_id_from_design(design_doc)
+    assignment_gate_ids = [
+        entry["gate_id"]
+        for entry in manifest["required_gates"]["entries"]
+        if entry["gate_id"].endswith("-FIXTURE-ASSIGNMENT")
+    ]
+    if assignment_gate_ids != [expected_assignment_gate_id]:
+        raise ContractError(
+            "design §10 stage scope does not exactly match the fixture assignment gate ID"
+        )
 
     declared_entries = manifest["fixtures"]["entries"]
     declared_by_id = {entry["fixture_id"]: entry for entry in declared_entries}

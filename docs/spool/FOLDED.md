@@ -813,3 +813,11 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:t139-publication-layer-impl":"[T-793]"},"authored":"2026-08-11","content_sha256":"352b124f6132baf451d47d8cad297b6331772e462517243989d2f9780dae280c","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
 - {"allocations":{"D:t139-addendum-b-no-primary-ledger-reference":"D284","D:t139-publication-downstream-exception":"D283"},"authored":"2026-08-11","content_sha256":"974f5bf8f70b5195859155a6f226470919257e21e6a1ee64c6622c9bc25c74a5","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
 - {"allocations":{"F:diff-count-instrument-contaminated-claim":"F214"},"authored":"2026-08-11","content_sha256":"ddaf7ae112a3c4b46d3f8bcca81d1bd0e7fc798126b63718badebe3cf9f98e06","seq":1,"wave":"dev-wave-t139-pubcore-stage2"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"5d25712797501f1362162a7562125daec88c4c3e76c4f494f017312c0b476d1c","seq":50,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"40e3400bcabea7e7b971ce8dc1b37843a62d541fcf5177f241559f4724ea8067","seq":51,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-design-row-extraction-declared-form-only":"[T-797]","T:cfab-revocation-record-schema":"[T-795]","T:cfab-stage0-completion-unreachable":"[T-794]","T:cfab-stage6-completion-predicate":"[T-796]"},"authored":"2026-08-11","content_sha256":"ceee57ea924a61366a0a9cf49a23dc85803ae25aaaf81bbb31e3768d0a267566","seq":1,"wave":"dev-wave-t657-stage0-rulings"}
+- {"allocations":{"F:design-literal-hidden-in-html-comment":"F215","F:mutation-spec-renumbered-after-preregistration":"F216"},"authored":"2026-08-11","content_sha256":"e0c7ccd1aee1e877779e1bbaa415d9816720db1061f5403152b7cc8c2a292b02","seq":2,"wave":"dev-wave-t657-stage0-rulings"}
+- {"allocations":{"D:design-literal-binding-rejects-html-comments":"D285","D:dev-wave-waiter-pid-and-codex-coldstart":"D286"},"authored":"2026-08-11","content_sha256":"5df2a09f5ffc1ceb3d42c4f3610bb0591b1a2b0fb7c2fc066aabe51a4834b4a6","seq":3,"wave":"dev-wave-t657-stage0-rulings"}
