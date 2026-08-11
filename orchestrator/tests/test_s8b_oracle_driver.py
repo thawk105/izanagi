@@ -4426,8 +4426,20 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
             configuration_id=configuration_id, ccbench_pin=pin,
             prepare_fn=driver.prepare_cell) as (identity, prepared), \
             mock.patch.object(pipeline.buildcache, "build_v2", recording_build_v2), \
-            mock.patch.object(pipeline, "_run_trace", return_value=(1, 0, 1)), \
-            mock.patch.object(pipeline, "verify_trace_dir", side_effect=lambda _p: _green_vr()), \
+            mock.patch.object(
+                pipeline, "_run_trace",
+                return_value=pipeline._TraceRunResult(
+                    trace_c_lines=1,
+                    returncode=0,
+                    abort_counts=1,
+                    commit_count_witness=1,
+                    batch_commit_count_witness=0,
+                ),
+            ), \
+            mock.patch.object(
+                pipeline, "verify_trace_dir",
+                side_effect=lambda _p, *, expected_commits=None: _green_vr(),
+            ), \
             driver._assert_v2_build_contract(contract):
         layout = campaign_layout(
             "oracle-real-v2-build-control", output_root=str(tmp_path / "wal"),
