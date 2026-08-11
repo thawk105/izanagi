@@ -826,3 +826,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:dryrun-git-admin-no-write":"[T-802]","T:fold-finalize-protocol":"[T-798]","T:fold-state-head-binding":"[T-799]","T:rollback-lifecycle-details":"[T-801]","T:rollback-state-inspection":"[T-800]"},"authored":"2026-08-11","content_sha256":"2eeeaec13db4463c9d5202a17ffcffa7ee0e3de03fb2f704e58fc354d0bdff92","seq":1,"wave":"dev-wave-t766-t768-resume-diff"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"694f8616196d584bb23ccda37c289c0d368b0776d68f9604b55357bcda032434","seq":2,"wave":"dev-wave-t766-t768-resume-diff"}
+
+- {"allocations":{"T:budget-authorization-proof-chain":"[T-805]","T:dev-wave-launch-procedure-gaps":"[T-806]","T:legacy-writer-path-containment":"[T-807]","T:manifest-spec-propagation":"[T-804]","T:oracle-spec-trust-root":"[T-803]"},"authored":"2026-08-11","content_sha256":"7f5a3178022576be563e4ec0d2da5b0cc86f05d3d3c0d5f3b8dc47f1979770e9","seq":1,"wave":"dev-wave-t750-freeze-v2-manifest"}
+- {"allocations":{"D:manifest-choke-point-cell-product":"D288","D:pinned-literal-human-approval":"D287"},"authored":"2026-08-11","content_sha256":"5f9d88e3a00e9858f75e594524d031898e23214e0aad30e74507a8cfe401e8bc","seq":2,"wave":"dev-wave-t750-freeze-v2-manifest"}
