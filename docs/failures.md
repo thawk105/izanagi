@@ -698,6 +698,25 @@
   段 3 の 2 レンズが独立に検出し、親が実測で裏を取った。本 wave は当該 module を変更せず
   終端したため実害はない。恒久対応は `DW-O09` から変更せず、**検索出力を件数で切らない**ことを
   同節の既存義務の運用として守る (新しい節は作らない)。
+
+- **再発: 2026-08-11** — 五度目と六度目を同一 wave で踏んだ。どちらも path 検索でも role 名 key
+  検索でも捕まらない型で、**静的レビュー 4 本 (プラン + 敵対 2 レンズ + 要件レビュー) が全員
+  取りこぼし、計算ノードでのテスト実測だけが捕らえた。**
+  (i) **出力形状を等値比較する pin** — `result_to_dict(verify_trace_dir(...))` の**出力**が凍結証拠
+  `.../raw-bundle-attempt-1/correctness/verifier.json` へ記録され、
+  `test_silo_ladder_rung1_evidence.py` が完全一致を要求する。親は段 1 でこれを自力で捕らえたので
+  実害なし (near miss)。
+  (ii) **編集面 source の bytes closure pin** — 同 evidence の `binding` が
+  `verifier_module = orchestrator/verifier/report.py` の**現行 bytes 一致**を要求し
+  (`driver` と `policy` だけが歴史 drift 許容という非対称契約)、さらに
+  `orchestrator/campaign/pipeline.py` は `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS` の 8 path の
+  1 つで `verify_live_contract_loader_binding` が disk bytes と記録 commit blob を照合する。
+  前者は段 5 が編集して赤になり fix で完全復帰、後者は未 commit の間 40 件が必ず赤になる。
+  **どちらも「編集してよいか」が事前に分からないまま実装子へ渡っていた。**
+- 恒久対応は `DW-O09` から変更しない。運用として、段 1 の pin 閉包に
+  **(a) 出力形状を等値・byte 比較する consumer** と **(b) `CONTRACT_LOADER_RELATIVE_PATHS` などの
+  source bytes closure** を含める。**編集面が確定した時点で焦点走を 1 度回し、静的検査で
+  「触ってよい」と結論しない。**
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -1733,6 +1752,39 @@
   `DW-M03` の kill 判定は失敗 node 集合の完全一致で行うため、無関係なフレークが 1 件混ざるだけで
   正しく kill された変異が MISMATCH に化ける。`DW-M02` に従い初回結果を消さず erratum として残し、
   実質 KILLED として扱った。恒久対応は [T-553] のままで本 wave では変えない
+
+- **再発: 2026-08-11 (8b 再開残余 wave の受入全走 2 走目)。** 1 走目 (tip `ba73d199`) が
+  **8483 passed / 20 skipped / 547.73 秒 / rc=0** で緑だったのに対し、
+  **docs 2 commit だけを積んだ** tip `73c8ba95` の 2 走目は
+  `test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape` が 1 件落ちた
+  (**1 failed / 8482 passed / 20 skipped / 538.44 秒**)。述語は既載と同じ 2 本
+  (`failed_predicates=["process_group_residual","termination_verified"]`) で、
+  `codex_exit_code=0` / `validator_rc=0` / `evidence_status='complete'` /
+  `metering_status='complete'` はすべて正常、`wall_clock_s=0.139159472` も上限に対し十分小さい。
+  同 file の単独再走は **97 passed / 6.27 秒 / rc=0** で再現しない。
+  本 wave の差分は **docs のみ**で launcher 実装にも同 test file にも到達しえず、
+  `DW-O18` により帰属しない。
+  **新しい情報が 2 つある。** (1) `loadavg=(12.92, 3.66, 1.90)` で発火した。
+  既載は 15.05 と 12.67 で、12 台での発火は 2 例目となり
+  「1 分平均 15 台が閾値ではない」という既載の観察を補強する。
+  (2) **同一 file の 3 つ目の node** (`test_fake_stdout_matches_observed_cli_event_shape`) である。
+  既載は `test_late_rollout_writer_does_not_change_sealed_receipt` と
+  `test_all_repo_policy_reasoning_values_are_accepted[xhigh]` で、
+  述語系の不成立が同 file 内を移動し続けることの 3 例目にあたる。
+  **同一 wave で docs 2 commit しか違わない 2 tip の全走が、緑 → 赤と割れた対照は初出**であり、
+  差分ではなく走行そのものに依存することの直接の証拠になる
+- **再発: 2026-08-11 (同 wave の受入全走 6 走目、別 test file)。** main 取り込み後の tip
+  `73fe73bc` の全走で
+  `test_campaign.py::test_pipeline_stale_screening_falls_back_to_verify_first_and_records_trace`
+  が 1 件落ちた (**1 failed / 8573 passed / 20 skipped / 555.67 秒**)。
+  単独 node の再走は **1 passed / 2.40 秒 / rc=0** で再現しない。
+  本 wave の差分は docs のみで同 test file へ到達しえず、`DW-O18` により帰属しない。
+  同 node は 2026-08-11 の 8b 統合 wave でも変異 MU-1 の判定を MISMATCH にした既載であり、
+  **launcher 系 (`test_codex_worker_launch.py`) 以外の node も同じ性質を示す**ことの 2 例目。
+  **新しい情報は、docs のみの 1 wave の中で受入全走 4 本のうち 2 本が別 node で赤になったこと**
+  である。既載の再発はいずれも「1 走で当たり、次走または単独走で緑」であり、
+  **同一 wave 内で 2 件・別 file というのは初出**である。並行 wave の land が続く時間帯には
+  「再走すれば緑が取れる」という運用上の前提が成り立ちにくいことを示す
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -2867,6 +2919,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **検査の欠落の同定**にする、(b) 「手順書の形で書かないこと」を制約として明記する。
   恒久対応は memory `codex-adversarial-prompt-defensive-framing` の更新
   (防御目的の明記は必要だが十分ではない、を追記)。
+
+- **再発: 2026-08-11** — 二度目。**防御目的の明記だけでは不十分**だと分かった。冒頭で
+  「防御側レビュア」「land 前に防ぐため」と明記した consult prompt が、それでも
+  cybersecurity risk として flag され rc=1・出力 0 bytes (54 model call・806 秒を空費)。
+  引っかかったのは「検査を通す経路があるか探せ」という**回避手順の作成を求める依頼文**である。
+- 恒久対応の追加 (F102 の既存対応に上積み): 敵対 prompt では
+  (i) 対象がセキュリティ製品でない旨の文脈を前置し、(ii)「回避経路を構成せよ」ではなく
+  **「限界を記述し、より独立な代替の有無を評価せよ」**と書き、(iii)「攻撃」語彙を「検算」へ置く。
+  本 wave はこの 3 点で書き換えて rc=0・25758 bytes を得た。
+- 再発検知: consult / review 子が rc=1 かつ出力 0 bytes のとき、events 末尾の `turn.failed` を
+  読んで flag か上限かを切り分ける (上限なら `stop_reason`、flag なら message が入る)。
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -5334,3 +5397,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   記録した (`docs/spool/worklog/2026-08-11-dev-wave-t657-stage0-rulings-1.md`)。
 - 再発検知: 段 6 の敵対レビューへ「事前登録と実 spec の一致」を観点として渡す
   (本 wave はこれで検出した)。
+
+### F217. Codex 子が web 検索を使うと成果物が必ず不採用になる [手順漏れ]
+
+- 事象: `codex exec` は rc=0 で完走し出力も生成されたのに receipt が `evidence_status=invalid` /
+  `accepted=false` になり、`-o` の最終成果物が書かれない。段 3 の 1 本が 1531 秒・入力 530 万 token を
+  消費して不採用になった。
+- 根本原因: Codex の `web_search` イベントは `item` オブジェクト内に `id` キーを 2 回持つ
+  (`"id":"item_34"` と `"id":"exec-…"`)。`tools/codex_worker_launch.py` の stdout 解析は重複キーを
+  拒否する strict parser を使うため `stdout_invalid` が立ち、`_evidence_status()` が invalid を返す。
+  rollout 側の証跡 (model・effort・cwd・session_meta・turn_context・usage) はすべて正常だった。
+- 恒久対応: 当面は子 prompt に web 検索禁止を明記する (repo 内の一次資料だけを根拠にさせる)。
+  解析側で重複キーを許容するか、worker 起動時に web 検索を機械的に無効化するかは裁定へ回す。
+- 再発検知: receipt の `evidence_status` が invalid のとき、stdout イベントに `web_search` が
+  含まれるかを見る。含まれていれば本 F。
+
+### F218. Codex は `.codex/` 配下へ構造的に書けない [手順漏れ]
+
+- 事象: 段 5 の実装子が `.codex/hooks.json` だけを作れず、`patch rejected: writing outside of the
+  project; rejected by user approval settings` で拒否された。sandbox は `workspace-write`、
+  approval は `never`、ディレクトリは書き込み可能だった。
+- 根本原因: Codex が自分の設定ディレクトリへの書き込みを自己保護として拒否する。D95 は `.codex/`
+  配下の非 md/rst を実装面 (Codex author 必須) と定めているため、規約と実行可能性が正面衝突する。
+- 恒久対応: 当該ファイルだけ親が書き、commit trailer に `role=author` を製品別に分けて記す
+  (本 wave は Codex author 行と Claude author 行を scope 付きで併記した)。
+- 再発検知: `.codex/` 配下の実装面を Codex 子へ割り当てた時点で本 F を想起する。

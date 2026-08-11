@@ -17,6 +17,18 @@ wave = dev-wave-t8b-restart-integration、base main = `118feb6d`。
 
 # R-4 — [T-747] (a) の実装前提が段 1 実測で覆った
 
+> **superseded (2026-08-11、wave `dev-wave-t8b-restart-residue` による追記)。**
+> 本節が扱う **(a) 「env contract へ toolchain を束縛する field を足す」は、
+> その後のユーザー裁定で採られなかった。** 現行の正本は
+> **[T-747] = (B)** (worklog 403、2026-08-11 /rulings) —
+> toolchain 束縛は env contract へ field を足さず契約の外へ置き、contract 内
+> `calibration_ref` の実 calibration bytes を derived toolchain authority として、
+> attempt 実測値と `build_v2` toolchain manifest を照合する。
+> 実装単位は [T-783]。**本節を実装の根拠にしてはならない** — 以下は
+> 「(a) がなぜ採れないか」の記録として読むこと。
+> なお (B) 自身も `output/insights/2026-08-11_t8b-restart-residue/package.md` の
+> 4 blocker により再裁定へ戻っている。
+
 ## 何が裁定されていたか
 
 [T-747] = **(a)**: 「env contract へ toolchain を束縛する field を足し、Pegasus 世代は system compiler を
