@@ -29,6 +29,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from orchestrator.campaign import pipeline, wal                    # noqa: E402
 from orchestrator.campaign.artifact_admission import (             # noqa: E402
     AdmittedCampaign, require_admitted_campaign)
+from orchestrator.campaign.coder_effect_gate import (              # noqa: E402
+    MAX_HOLE_TOKENS,
+    RULE_CATEGORY_ALLOWLIST,
+)
 from orchestrator.campaign.layout import CampaignLayout            # noqa: E402
 from orchestrator.campaign.model import (                          # noqa: E402
     STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START, STAGE_COMMIT,
@@ -184,6 +188,9 @@ class DiffQuarantineRejection:
     reason: str
     diff_region: str = ""
     evidence: str = ""
+    rule_id: str = ""
+    category: str = ""
+    finding_count: int = 0
     template_diff_id: str = ""
     variant: str = ""
     src_token: str = ""
@@ -364,12 +371,29 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
                 continue
             dq = r.payload.get("diff_quarantine") or {}
             g = genome_of.get(r.variant, r.payload.get("genome", ""))
+            rule_id = dq.get("rule_id", "")
+            category = dq.get("category", "")
+            finding_count = dq.get("finding_count", 0)
+            if (
+                dq.get("subtype") != "host-effect"
+                or RULE_CATEGORY_ALLOWLIST.get(rule_id) != category
+            ):
+                rule_id = ""
+                category = ""
+            if (
+                type(finding_count) is not int
+                or not 1 <= finding_count <= MAX_HOLE_TOKENS
+            ):
+                finding_count = 0
             out.append(DiffQuarantineRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
                 subtype=dq.get("subtype", ""),
                 reason=dq.get("reason", ""),
                 diff_region=dq.get("diff_region", ""),
                 evidence=dq.get("evidence", ""),
+                rule_id=rule_id,
+                category=category,
+                finding_count=finding_count,
                 template_diff_id=dq.get("template_diff_id", ""),
                 variant=r.variant, src_token=srctok_of.get(r.variant, "")))
     return out
@@ -686,9 +710,18 @@ def render_rejections(rejections: List[Rejection],
                  + (f" src_token={projected_src_token}" if projected_src_token else ""))
         L.append(f"  marker={dq.template_diff_id or '?'} / region={dq.diff_region or '?'}")
         L.append(f"  理由: {dq.reason or '(理由なし)'}")
-        if dq.evidence:
+        if dq.evidence and (dq.subtype or "") != "host-effect":
             L.append(f"  証拠: {dq.evidence}")
-        if (dq.subtype or "").startswith("auditor-"):
+        if (dq.subtype or "") == "host-effect":
+            if dq.rule_id:
+                L.append(f"  policy_rule_id={dq.rule_id}")
+            if dq.category:
+                L.append(f"  policy_category={dq.category}")
+            if dq.finding_count:
+                L.append(f"  finding_count={dq.finding_count}")
+            L.append("  修正: 有限 lexical policy が報告した identifier / loop 形を除く。"
+                     "通過は計算のみを意味せず、host 安全性を証明しない。")
+        elif (dq.subtype or "").startswith("auditor-"):
             # 段5 sort-strategy の auditor gate reject (敵対レビュー 2026-07-10、
             # p3_s4_loop_sort._auditor_reject_result が同じ diff-quarantine 経路に相乗り)。
             # フレーム/hole 逸脱でなく auditor の意味論判定 (SWO/fairness/marker 領域外

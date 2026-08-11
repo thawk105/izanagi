@@ -12,6 +12,13 @@ obtained before the scanned text; and compiler extensions outside the deny
 table.  The lexical loop rule also conservatively rejects
 ``while (true) { break; }`` without attempting reachability analysis.
 
+Scope 外・未閉鎖の層は ``p3_s4_red.py``、手動 patch +
+``--allow-coder-derived-build``、直接 ``buildcache`` caller、
+``s5_permutation_coverage`` の直接 CMake build、shell materializer と任意
+binary path、cache / WAL / COMMIT / freeze への gate 結果の非束縛、および
+``p3_autonomous_workload_trial._preview`` の ``forbidden_identifiers`` が恒偽で
+あること。これらは本 gate が閉じたとも検査したとも主張しない。
+
 Findings deliberately contain no identifier, string literal, statement,
 command, path, URL, or other candidate-derived bytes.  Malformed tokens and
 strings fail closed under one fixed rule ID.
@@ -26,6 +33,9 @@ __all__ = [
     "DenyRule",
     "EffectFinding",
     "MALFORMED_RULE_ID",
+    "MAX_HOLE_BYTES",
+    "MAX_HOLE_TOKENS",
+    "RULE_CATEGORY_ALLOWLIST",
     "scan_host_effects",
 ]
 
@@ -93,23 +103,33 @@ _LOOP_RULE_ID = "host-effect.unconditional-loop.v1"
 _MALFORMED_CATEGORY = "malformed-token"
 _LOOP_CATEGORY = "unconditional-loop"
 
+# The byte cap is checked before tokenization.  The token cap bounds later
+# whole-token passes even for punctuation-dense input below the byte cap.
+MAX_HOLE_BYTES = 256 * 1024
+MAX_HOLE_TOKENS = 4 * 1024
+
 _ALL_RULE_IDS = tuple(rule.rule_id for rule in DENY_TABLE) + (
     MALFORMED_RULE_ID,
     _LOOP_RULE_ID,
 )
-assert len(_ALL_RULE_IDS) == len(set(_ALL_RULE_IDS)), "effect rule IDs must be unique"
-assert len(DENY_TABLE) == len({rule.category for rule in DENY_TABLE}), (
-    "effect categories must be unique"
-)
+if len(_ALL_RULE_IDS) != len(set(_ALL_RULE_IDS)):
+    raise RuntimeError("effect rule IDs must be unique")
+if len(DENY_TABLE) != len({rule.category for rule in DENY_TABLE}):
+    raise RuntimeError("effect categories must be unique")
 
 _IDENTIFIER_RULE = {
     identifier: rule
     for rule in DENY_TABLE
     for identifier in rule.identifiers
 }
-assert sum(len(rule.identifiers) for rule in DENY_TABLE) == len(_IDENTIFIER_RULE), (
-    "effect identifiers must belong to exactly one category"
-)
+if sum(len(rule.identifiers) for rule in DENY_TABLE) != len(_IDENTIFIER_RULE):
+    raise RuntimeError("effect identifiers must belong to exactly one category")
+
+RULE_CATEGORY_ALLOWLIST = {
+    **{rule.rule_id: rule.category for rule in DENY_TABLE},
+    MALFORMED_RULE_ID: _MALFORMED_CATEGORY,
+    _LOOP_RULE_ID: _LOOP_CATEGORY,
+}
 
 
 @dataclass(frozen=True)
@@ -313,7 +333,11 @@ def _tokens(source: str) -> Iterator[_Token]:
                 source, offset, prefix, ordinal, line,
             )
             text = source[offset:end]
-            yield _Token("string", "", ordinal, line, _byte_length(text))
+            kind = "char" if prefix.endswith("'") else "string"
+            yield _Token(
+                kind, text if kind == "char" else "", ordinal, line,
+                _byte_length(text),
+            )
             line += _line_delta(text)
             ordinal += 1
             offset = end
@@ -363,22 +387,27 @@ def _tokens(source: str) -> Iterator[_Token]:
         offset += len(punctuator)
 
 
+def _parenthesis_matches(tokens: Sequence[_Token]) -> dict[int, int]:
+    matches: dict[int, int] = {}
+    stack: list[int] = []
+    for index, token in enumerate(tokens):
+        if token.text == "(":
+            stack.append(index)
+        elif token.text == ")" and stack:
+            matches[stack.pop()] = index
+    return matches
+
+
 def _strip_parentheses(tokens: Sequence[_Token]) -> Sequence[_Token]:
-    while len(tokens) >= 2 and tokens[0].text == "(" and tokens[-1].text == ")":
-        depth = 0
-        encloses_all = True
-        for index, token in enumerate(tokens):
-            if token.text == "(":
-                depth += 1
-            elif token.text == ")":
-                depth -= 1
-                if depth == 0 and index != len(tokens) - 1:
-                    encloses_all = False
-                    break
-        if not encloses_all or depth != 0:
-            break
-        tokens = tokens[1:-1]
-    return tokens
+    """Strip enclosing pairs with one matching pass and one final slice."""
+    matches = _parenthesis_matches(tokens)
+
+    left = 0
+    right = len(tokens) - 1
+    while left < right and matches.get(left) == right:
+        left += 1
+        right -= 1
+    return tokens[left:right + 1]
 
 
 def _is_nonzero_integer_literal(text: str) -> bool:
@@ -411,6 +440,65 @@ def _is_nonzero_integer_literal(text: str) -> bool:
         return False
 
 
+def _is_nonzero_floating_literal(text: str) -> bool:
+    """Recognize core decimal/hex floating literals whose value is non-zero."""
+    import re
+
+    compact = text.replace("'", "")
+    suffix = r"(?:[fFlL])?"
+    decimal = re.fullmatch(
+        rf"((?:[0-9]+\.[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|"
+        rf"[0-9]+[eE][+-]?[0-9]+){suffix}",
+        compact,
+    )
+    hexadecimal = re.fullmatch(
+        rf"(0[xX](?:[0-9a-fA-F]+\.?[0-9a-fA-F]*|"
+        rf"\.[0-9a-fA-F]+)[pP][+-]?[0-9]+){suffix}",
+        compact,
+    )
+    match = decimal or hexadecimal
+    if match is None:
+        return False
+    numeric = match.group(1)
+    try:
+        value = (
+            float.fromhex(numeric)
+            if numeric.lower().startswith("0x")
+            else float(numeric)
+        )
+    except (OverflowError, ValueError):
+        return False
+    return value != 0.0
+
+
+def _is_nonzero_character_literal(text: str) -> bool:
+    """Recognize one-character core literals with an implementation-stable value."""
+    compact = text.replace("\\\r\n", "").replace("\\\n", "").replace("\\\r", "")
+    quote = compact.find("'")
+    if quote < 0 or not compact.endswith("'"):
+        return False
+    body = compact[quote + 1:-1]
+    if len(body) == 1 and body != "\\":
+        return body != "\x00"
+    if not body.startswith("\\"):
+        return False
+    escape = body[1:]
+    if escape in {"'", '"', "?", "\\", "a", "b", "f", "n", "r", "t", "v"}:
+        return True
+    try:
+        if 1 <= len(escape) <= 3 and all(character in "01234567" for character in escape):
+            return int(escape, 8) != 0
+        if escape.startswith("x") and len(escape) > 1:
+            return int(escape[1:], 16) != 0
+        if escape.startswith("u") and len(escape) == 5:
+            return int(escape[1:], 16) != 0
+        if escape.startswith("U") and len(escape) == 9:
+            return int(escape[1:], 16) != 0
+    except ValueError:
+        return False
+    return False
+
+
 def _is_true_condition(tokens: Sequence[_Token]) -> bool:
     tokens = _strip_parentheses(tokens)
     if len(tokens) != 1:
@@ -419,29 +507,25 @@ def _is_true_condition(tokens: Sequence[_Token]) -> bool:
     return (
         token.kind == "identifier" and token.text == "true"
     ) or (
-        token.kind == "number" and _is_nonzero_integer_literal(token.text)
+        token.kind == "number" and (
+            _is_nonzero_integer_literal(token.text)
+            or _is_nonzero_floating_literal(token.text)
+        )
+    ) or (
+        token.kind == "char" and _is_nonzero_character_literal(token.text)
+    ) or (
+        token.kind == "string"
     )
 
 
-def _matching_paren(tokens: Sequence[_Token], open_index: int) -> int | None:
-    depth = 0
-    for index in range(open_index, len(tokens)):
-        if tokens[index].text == "(":
-            depth += 1
-        elif tokens[index].text == ")":
-            depth -= 1
-            if depth == 0:
-                return index
-    return None
-
-
 def _loop_findings(tokens: Sequence[_Token]) -> Iterator[EffectFinding]:
+    parenthesis_matches = _parenthesis_matches(tokens)
     for index, token in enumerate(tokens):
         if token.kind != "identifier" or token.text not in {"while", "for"}:
             continue
         if index + 1 >= len(tokens) or tokens[index + 1].text != "(":
             continue
-        close_index = _matching_paren(tokens, index + 1)
+        close_index = parenthesis_matches.get(index + 1)
         if close_index is None:
             continue
         header = tokens[index + 2:close_index]
@@ -487,8 +571,17 @@ def scan_host_effects(implementation: str) -> tuple[EffectFinding, ...]:
     """Return disclosure-free findings; malformed input is a fixed fail-closed hit."""
     if type(implementation) is not str:
         return _malformed_finding(_Malformed(0, 0, 0))
+    if (
+        len(implementation) > MAX_HOLE_BYTES
+        or _byte_length(implementation) > MAX_HOLE_BYTES
+    ):
+        return _malformed_finding(_Malformed(0, 0, 0))
     try:
-        tokens = tuple(_tokens(implementation))
+        tokens = []
+        for token in _tokens(implementation):
+            if len(tokens) >= MAX_HOLE_TOKENS:
+                raise _Malformed(0, 0, 0)
+            tokens.append(token)
         findings: list[EffectFinding] = []
         for token in tokens:
             if token.kind != "identifier":

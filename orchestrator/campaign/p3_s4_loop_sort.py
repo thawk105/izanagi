@@ -15,12 +15,13 @@ sort 戦略固有の設計 (敵対レビュー 2026-07-10、3レンズで確定)
     `strategy_summary` のような一言要約フィールドも持たない — 具体戦略名の例示は
     D39 決定7 (coder に勝ち筋の機序を見せない) を出力スキーマの例示という経路で
     直撃するリークだったため、`justification` のみに絞った (backoff 版と同型)。
-  - `assert_value_literal_consistent` 相当の数値整合チェックは適用不可。代わりに
-    **auditor (D41 条件4) を機械的な pre-build gate** にする: auditor の
-    `diff_digest` (審査した working_diff の sha256) と、`--run-iteration` 実行時に
+  - `assert_value_literal_consistent` 相当の数値整合チェックは適用不可。代わりに auditor を
+    **mandatory deny-only veto; affirmative security credit なし**の pre-build gate にする。
+    `diff_digest` は attribution/provenance 専用であり、審査した working_diff の sha256 と、
+    `--run-iteration` 実行時に
     `quarantine()` が実際に生成する working_diff の digest を突合し、不一致なら
     `AuditorGateFailure` で即座に停止する (backoff の `AttributionMismatch` と同型の
-    「宣言でなく機械照合」)。`auditor.verdict != "pass"` (reject/uncertain) は
+    「宣言でなく機械照合」)。auditor の reject/uncertain は
     diff-quarantine reject と同じ WAL 経路 (`record_diff_reject`) に相乗りさせ、
     既存の consumer (`load_diff_rejections`/`render_rejections`) をそのまま使う
     (auditor.md 型5 「consumer 取り残し」を自ら再演しない)。
@@ -73,7 +74,8 @@ from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,
                                       add_coder_build_authority_argument,
                                       build_run_context)
 from .auditor_gate import (AuditorGateFailure,            # noqa: E402
-                                   AuditorVerdict, assert_digest_matches,
+                                   AuditorVerdict,
+                                   apply_mandatory_deny_only_veto,
                                    auditor_reject_result, compute_diff_digest,
                                    parse_auditor_dict)
 from .diff_quarantine import DiffQuarantineResult          # noqa: E402
@@ -142,28 +144,32 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalSort, auditor: AuditorVe
                           genome: Genome, layout: CampaignLayout, state: L.LoopState,
                           planner: L.PlannerProposal, write: bool,
                           log=print) -> Optional[Dict]:
-    """hole 挿入 → diff 検疫 → auditor gate。呼び出し元が return すべき reject dict を
+    """hole 挿入 → diff 検疫 → mandatory deny-only veto; affirmative security credit なし。
+
+    ``diff_digest`` は attribution/provenance 専用。呼び出し元が return すべき reject dict を
     返すか (reject/gate不通過)、None (通過、呼び出し元は build へ進めるか dry-pass を返す)。
 
     **前提: 呼び出し元が既に `applied(TEMPLATE_PATCH)` 下にある。**"""
     res, _base, _edited, working_diff = L.quarantine(
         sub, coder.implementation, marker_id=MARKER_ID, source_rel=SOURCE_REL, write=write)
-    if not res.passed:
-        v = L.record_diff_reject(layout, genome, coder.implementation, res, env_tag=ENV_TAG)
+    combined = apply_mandatory_deny_only_veto(
+        res,
+        auditor,
+        working_diff,
+        diff_region=SOURCE_REL,
+        template_diff_id=MARKER_ID,
+    )
+    if not combined.passed:
+        v = L.record_diff_reject(
+            layout, genome, coder.implementation, combined, env_tag=ENV_TAG,
+        )
         L.project_whiteboard(state, planner, "rejected")
-        log(f"  diff 検疫 reject: {res.subtype} — {res.reason}")
-        return {"outcome": "rejected", "variant": v, "digest": res.digest}
-
-    assert_digest_matches(auditor, working_diff)   # 不一致 → AuditorGateFailure (共有照合コア)
-
-    if auditor.verdict != "pass":
-        subtype = "auditor-uncertain" if auditor.verdict == "uncertain" else "auditor-violation"
-        ares = _auditor_reject_result(subtype, auditor)
-        v = L.record_diff_reject(layout, genome, coder.implementation, ares, env_tag=ENV_TAG)
-        L.project_whiteboard(state, planner, "rejected")
-        log(f"  auditor gate reject (verdict={auditor.verdict}): "
-            f"{len(auditor.violations)} violations")
-        return {"outcome": "rejected", "variant": v, "digest": ares.digest}
+        if combined is res:
+            log(f"  diff 検疫 reject: {combined.subtype} — {combined.reason}")
+        else:
+            log(f"  auditor gate reject (verdict={auditor.verdict}): "
+                f"{len(auditor.violations)} violations")
+        return {"outcome": "rejected", "variant": v, "digest": combined.digest}
 
     return None
 

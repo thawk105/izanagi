@@ -10,6 +10,8 @@ from orchestrator.campaign import coder_effect_gate as effect_gate
 from orchestrator.campaign.coder_effect_gate import (
     DENY_TABLE,
     MALFORMED_RULE_ID,
+    MAX_HOLE_BYTES,
+    MAX_HOLE_TOKENS,
     EffectFinding,
     scan_host_effects,
 )
@@ -167,6 +169,14 @@ def test_ordinary_for_range_for_and_data_dependent_loops_pass(implementation):
         "while (0xDEADu) {}",
         "while ((true)) {}",
         "while (tr\\\nue) {}",
+        "while (1.0) {}",
+        "for (; 0.5f ;) {}",
+        "while (.25L) {}",
+        "while (0x1p-2) {}",
+        "while ('x') {}",
+        "while (u'x') {}",
+        r"while (L'\n') {}",
+        'while ("") {}',
         "for (;;) {}",
         "for (; true ;) {}",
         "do {} while (1);",
@@ -180,6 +190,46 @@ def test_explicit_unconditional_loop_headers_are_rejected(implementation):
 def test_while_true_with_break_is_intentionally_conservatively_rejected():
     """過剰拒否として意図した「保守的拒否」を受理集合の契約に固定する。"""
     findings = scan_host_effects("while (true) { break; }")
+    assert [finding.category for finding in findings] == ["unconditional-loop"]
+
+
+@pytest.mark.parametrize(
+    "implementation",
+    (
+        "while (0.0) {}",
+        "for (; 0.0f ;) {}",
+        r"while ('\0') {}",
+        "while (false) {}",
+        "while (nullptr) {}",
+    ),
+)
+def test_single_core_literals_that_are_definitely_false_do_not_match(implementation):
+    assert scan_host_effects(implementation) == ()
+
+
+def test_hole_byte_limit_fails_closed_before_tokenization(monkeypatch):
+    def should_not_scan(_implementation):
+        raise AssertionError("byte limit must run before tokenization")
+
+    monkeypatch.setattr(effect_gate, "_tokens", should_not_scan)
+    findings = scan_host_effects("x" * (MAX_HOLE_BYTES + 1))
+    assert [finding.rule_id for finding in findings] == [MALFORMED_RULE_ID]
+
+
+def test_hole_token_limit_fails_closed():
+    at_limit = " ".join(["x"] * MAX_HOLE_TOKENS)
+    over_limit = f"{at_limit} x"
+    assert len(tuple(effect_gate._tokens(at_limit))) == MAX_HOLE_TOKENS
+    assert len(tuple(effect_gate._tokens(over_limit))) == MAX_HOLE_TOKENS + 1
+    assert scan_host_effects(at_limit) == ()
+    findings = scan_host_effects(over_limit)
+    assert [finding.rule_id for finding in findings] == [MALFORMED_RULE_ID]
+
+
+def test_deep_enclosing_parentheses_are_bounded_and_still_rejected():
+    depth = 1_000
+    implementation = "while (" + "(" * depth + "true" + ")" * depth + ") {}"
+    findings = scan_host_effects(implementation)
     assert [finding.category for finding in findings] == ["unconditional-loop"]
 
 
