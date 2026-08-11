@@ -902,3 +902,22 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:backoff-value-truncation":"[T-843]","T:codex-roles-import-path":"[T-846]","T:dw-o01-artifact-root":"[T-845]","T:launcher-termination-flake":"[T-844]","T:t316-coder-derived-bypass":"[T-840]","T:t316-forbidden-identifiers-vacuous":"[T-842]","T:t316-gate-receipt-binding":"[T-841]"},"authored":"2026-08-11","content_sha256":"7ca3e99bcac4deb11f36c4cb6bb5c9a317a981416ec8129190403d7fb4cbe824","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
 - {"allocations":{"D:coder-hole-effect-gate":"D298"},"authored":"2026-08-11","content_sha256":"9158576e97999a58a820cc471d2cdd945684b5bc74b561f8003b796f496a58ba","seq":1,"wave":"dev-wave-t316-semantic-gate-impl"}
+
+- {"allocations":{"T:lease-invocation-fencing":"[T-847]"},"authored":"2026-08-11","content_sha256":"356fa6945e58659d9256e87cfca875b9b3f1e667e07046d7274027b62a3e2a13","seq":1,"wave":"dev-wave-t812-lease-self-renew"}
+- {"allocations":{"D:lease-self-renew-scope":"D299"},"authored":"2026-08-11","content_sha256":"a0c36ccda61dfc9bf4533fef5942af3f249be8b97135c7d34164421f54df0bd7","seq":2,"wave":"dev-wave-t812-lease-self-renew"}
+- {"allocations":{"F:codex-observation-cap-kills-lens":"F222"},"authored":"2026-08-11","content_sha256":"a99440b888f83091d86242da5789c4ea185d793d45bd53ab9176884bfa1e34f2","seq":3,"wave":"dev-wave-t812-lease-self-renew"}
+
+- {"allocations":{"T:fanout-exact-n-run":"[T-851]","T:fanout-tamper-evidence":"[T-849]","T:fanout-uncovered-gates":"[T-850]","T:legacy-mutation-reservation":"[T-852]","T:mutation-timeout-semantics":"[T-848]"},"authored":"2026-08-11","content_sha256":"cd27f34c01b4c1fd3c1b8c2589f0872dbb06df29c9d2b813043afe66a212caf5","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
+- {"allocations":{"D:mutation-fanout-contract":"D300"},"authored":"2026-08-11","content_sha256":"3f22b793ac1a96ebbf6d902409b6fcaf1b37e0e825700a62fe8ba72ead2fc068","seq":1,"wave":"dev-wave-t808-mutation-fanout"}
+
+- {"allocations":{"T:dw-s04-docs-only-carveout":"[T-854]","T:dw-s04-scope-of-impl-diff":"[T-853]","T:normalize-non-nfc-test-literals":"[T-855]"},"authored":"2026-08-11","content_sha256":"2beaee1b2bb4cd2ad95cce3f879603619195430b663402d6d298da636d011325","seq":1,"wave":"dev-wave-t765-exemption-wording"}
+- {"allocations":{"D:dw-s04-conjunction":"D301"},"authored":"2026-08-11","content_sha256":"4405f6195f259b0b23625a903b84fa2f66a4c85ccd1475945567bd9e0d32a111","seq":2,"wave":"dev-wave-t765-exemption-wording"}
+- {"allocations":{"F:non-nfc-line-invalidates-codex-run":"F223"},"authored":"2026-08-11","content_sha256":"a5a0ada3c70e918e8304291eafd950b95d2555aa1cbdef26321c9f51e48b749c","seq":3,"wave":"dev-wave-t765-exemption-wording"}
+
+- {"allocations":{"T:legacy-observations-retirement":"[T-857]","T:official-sink-audit":"[T-858]","T:oracle-verdict-sealing":"[T-856]"},"authored":"2026-08-11","content_sha256":"d76dc0000bba21639f1657de49d8a3de18bd6c92d64249c951cd3469b837d845","seq":1,"wave":"dev-wave-t804-spec-sha256"}
+- {"allocations":{"D:judge-reverifies-not-compares-pin":"D304","D:mutation-expected-nodes-from-collection":"D303","D:spec-binding-by-rederivation":"D302"},"authored":"2026-08-11","content_sha256":"09064ff67cebc90d8d9060eca7a6abb21503c067178aff31659984e58e2f6e3f","seq":2,"wave":"dev-wave-t804-spec-sha256"}
+- {"allocations":{"F:codex-cannot-perform-merge":"F225","F:mutation-node-id-nonascii":"F224","F:source-hash-pin-drags-mutations":"F226"},"authored":"2026-08-11","content_sha256":"c1b6eeedba5261bec9b1c65ca69af4f6bb6d699219d3fc0abd2544833db0b5ba","seq":3,"wave":"dev-wave-t804-spec-sha256"}
+
+- {"allocations":{"T:guided-wal-status":"[T-860]","T:legacy-campaign-admission":"[T-861]","T:trace-run-binding-nonce":"[T-859]"},"authored":"2026-08-12","content_sha256":"09c418ea7494001689080b281ffd8dda70f779c4a5bf673ca5b2692f9e6c1b04","seq":67,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-12","content_sha256":"3aa920a826f01eae565de32ec2fea6ceae44259e202391d0fa7f4d2dc63d2926","seq":68,"wave":"rulings-20260806-a"}

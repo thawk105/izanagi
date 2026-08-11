@@ -289,8 +289,8 @@ DEV_WAVE_DW_O01_DISPATCH_ROUTE_LITERAL = (
 )
 DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
     "6. **レビュー・fix (codex 並列):** 敵対レビュー 2 本、fix、変異 matrix、受入再走を行う。",
-    "   受入直前に runbook の受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、",
-    "   `acquired` のときだけ投入する。",
+    "   受入直前に受入 lease を `tools/dev_wave_wait.py acceptance` で `claim` し、",
+    "   `acquired` / `held-self` のときだけ投入する。",
 )
 DEV_WAVE_STAGE9_WAITER_CONSUMER_LINES = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。",

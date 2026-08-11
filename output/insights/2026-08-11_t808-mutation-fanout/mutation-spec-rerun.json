@@ -1,0 +1,38 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120.0,
+  "timeout_seconds": 1800.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "old": "if ledger[\"procedure\"][\"collection\"][\"collected_nodes\"] != collected_nodes:",
+          "new": "if ledger[\"procedure\"][\"collection\"][\"collected_nodes\"] is None:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_collected_nodes_gate_has_a_single_cross_shard_reason"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "old": "if not expected_nodes <= set(collection[\"collected_nodes\"]):",
+          "new": "if expected_nodes is None:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
