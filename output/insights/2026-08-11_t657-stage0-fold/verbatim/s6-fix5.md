@@ -1,0 +1,8 @@
+指定のテストファイルだけに 10 node を追加しました。検証器・docs・manifest は変更せず、commit/add も行っていません。AST 構文検査と `git diff --check` は成功しています。
+
+## 総括
+
+- 追加 nodeid: 陰性 `orchestrator/tests/test_calibration_freeze_authority_contract.py::test_design_tab_indented_fence_closer_is_rejected`, 陽性 `…::test_design_three_space_indented_fence_closer_is_accepted`; 陰性 `…::test_design_fence_closer_with_non_whitespace_suffix_is_rejected`, 陽性 `…::test_design_fence_closer_without_suffix_is_accepted`; 陰性 `…::test_design_space_tab_indented_fence_opener_is_rejected`, 陽性 `…::test_design_three_space_indented_fence_opener_is_accepted`; 陰性 `…::test_design_crlf_unclosed_fence_is_rejected`, 陽性 `…::test_design_crlf_fence_is_accepted`; 陰性 `…::test_design_short_fence_closer_with_trailing_spaces_is_rejected`, 陽性 `…::test_design_fence_closer_with_trailing_spaces_is_accepted`
+- 条件 1〜5: 1=`tab_indented_fence_closer` / `three_space_indented_fence_closer`; 2=`fence_closer_with_non_whitespace_suffix` / `fence_closer_without_suffix`; 3=`space_tab_indented_fence_opener` / `three_space_indented_fence_opener`; 4=`crlf_unclosed_fence` / `crlf_fence`; 5=`short_fence_closer_with_trailing_spaces` / `fence_closer_with_trailing_spaces`
+- 単独帰属の根拠: 1 は正当な opener のまま closer indent だけを tab/3-space で対照化、2 は marker・indent を保ち suffix だけを対照化、3 は正当な closer のまま opener の `space+tab=column 4` と3-space境界を対照化、4 は CRLF bytes を明示確認して closer の欠落/存在だけを対照化、5 は ASCII trailing spaces を両方に保ち marker 長だけを短い/十分で対照化しており、各陽性 node はほかの fence 条件をすべて満たします。
+- 走らせた nodeid と結果: `python3 tools/run_tests.py --force-dispatch orchestrator/tests/test_calibration_freeze_authority_contract.py -q` で対象ファイル全体を投入しましたが、`qstat -Q` preflight の dispatch infrastructure failure（rc=16）により pytest node は起動されませんでした。**実装済み・未実走**。

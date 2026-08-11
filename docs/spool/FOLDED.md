@@ -878,3 +878,16 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"414af363582fee40a92b69399a7267178859e8a5f735cd6ea9243cb1c0da8bb1","seq":63,"wave":"rulings-20260806-a"}
 
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"b5b69013f1eed280068c41821534a8a86683a8c78c02fd7984239fc369a0e68b","seq":64,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"2963c3efa0a227159cb490d6dd0146202b97cfdd16970da0e2e880128ca16a3f","seq":1,"wave":"dev-wave-t813-shard-eval"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"45bc12a3a0d6df2ba1dffb70f84252b1663568c47f5d0596888bf278cb066586","seq":2,"wave":"dev-wave-t813-shard-eval"}
+
+- {"allocations":{"T:acceptance-partition-invariance":"[T-826]","T:acceptance-slow-tests":"[T-827]"},"authored":"2026-08-11","content_sha256":"bb1633270592ba73e9b2d4cebeb8b3657c686c55564e97c81d4e8293a34b968e","seq":65,"wave":"rulings-20260806-a"}
+
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"5d581974f7f629a0a03ebbd7c0f2cfce0b8ba01199d9078bbb476472fc31a989","seq":66,"wave":"rulings-20260806-a"}
+
+- {"allocations":{"T:cfab-hash-pin-detection-gap":"[T-829]","T:check-docs-fence-scanner-column":"[T-830]","T:upper-cancellation-record":"[T-828]"},"authored":"2026-08-11","content_sha256":"fccbb75f5264a075062422ca4306aab4ce62b9e899638178f06c3bba5f80d10d","seq":1,"wave":"dev-wave-t657-stage0-fold"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"913c11c384e8b7e6e270abdf63838c53f50fcf4294e7475a2df3663849047073","seq":2,"wave":"dev-wave-t657-stage0-fold"}
+
+- {"allocations":{"T:living-docs-node-variance":"[T-832]","T:node-variance-impl":"[T-831]"},"authored":"2026-08-11","content_sha256":"82b2d4808cdd19011ee6020eb3c681bf81b3edf625d30b025438f9848eeef278","seq":1,"wave":"dev-wave-t810-node-variance"}
+- {"allocations":{},"authored":"2026-08-11","content_sha256":"1e4961a9efd8c407d119a5eda8e4782b65bb8a18f24f02a6b15ee54e50fe3af8","seq":2,"wave":"dev-wave-t810-node-variance"}
