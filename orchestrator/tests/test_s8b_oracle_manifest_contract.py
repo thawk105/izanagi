@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import ast
 import inspect
+import sys
 from pathlib import Path
 
-from orchestrator.campaign import s8b_oracle_manifest as manifest
-
-
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from orchestrator.campaign import s8b_oracle_manifest as manifest  # noqa: E402
+
+
 CAMPAIGN = ROOT / "orchestrator/campaign"
 
 LOADER_EXPECTED_CONSUMERS = {
@@ -139,3 +142,25 @@ def test_schema_v1_has_no_durable_manifest_candidate_or_reviewed_spec():
         "schema version 据え置きの前提が崩れた。durable artifact の再発行が要る: "
         f"{sorted(durable_files)!r}"
     )
+
+
+def _run() -> int:
+    tests = [
+        value for name, value in sorted(globals().items())
+        if name.startswith("test_") and callable(value)
+    ]
+    passed = failed = 0
+    for test in tests:
+        try:
+            test()
+            print(f"PASS {test.__name__}")
+            passed += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"FAIL {test.__name__}: {type(exc).__name__}: {exc}")
+            failed += 1
+    print(f"\n{passed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
