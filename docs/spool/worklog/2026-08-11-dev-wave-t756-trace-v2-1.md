@@ -59,7 +59,16 @@ witness の方が強い (欠落位置に依らず thread file 丸ごとの欠落
   runner 範囲を drift 非感受な control node へ絞り、drift control (意味的 no-op) を 1 件置いて
   SURVIVED を実測してから kill を数えた。詳細は同 insights の `erratum.md`。
 
-**受入・実測 (すべて計算ノード dispatch):** 焦点走 3 回 (41 failed → 914 passed → 929 passed)、
+**規律違反を 1 件、自分の wave の中で犯して merge 時に捕らえた。** 実装 commit は既存テスト
+`test_run_trace_parses_abort_from_stdout` を削除していた (`_run_trace` の返り値を型付きにする際、
+witness 版へ whole-function replacement した形)。**既存テストの削除は禁止事項だが、段 6 の敵対
+レビュー 2 本と焦点再レビューの 3 本すべてが「テスト削除なし」と誤って報告した。** main 側に同テストが
+残っていたため受入直前の merge で差分として現れ、DW-O17 が要求する merge の Codex `role=author`
+検証が独立に捕らえて復元した (期待値は不変。返り値を属性参照へ、binary 名を YCSB allowlist へ
+合わせただけ)。**「両親と異なる実装面を持つ merge には Codex author を立てる」という契約が、
+形式要件ではなく実益を出した実例である。**
+
+**受入・実測 (すべて計算ノード dispatch):** 焦点走 4 回 (41 failed → 914 → 929 → 930 passed)、
 変異 3 走 (1 巡目 MISMATCH 11 / KILLED 3 → spec A 8/8 KILLED → spec B 6/6 KILLED +
 drift control SURVIVED)。**合計 14/14 KILLED。SURVIVED は drift control の 1 件だけ。**
 変異 harness の起動前検査が 2 回止めてくれた (期待 node の非実在、`category` の未知値) ため、
