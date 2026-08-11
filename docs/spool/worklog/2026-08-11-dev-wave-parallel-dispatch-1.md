@@ -67,9 +67,16 @@ title: 計算ノード job の並行投入規範を新設した — 親の初稿
   `(Per-Req) Elapse Time Limit` 86400 秒、JSV 149。`qstat -Q` / `pegasusinfo` (11:40 頃) =
   gen_S TOT 135 / RUN 28 / HLD 107、Run Node 33 / 149。`rbudgetcheck` = SFC 残 5084.76 / 6000。
 
-- **検査:** `python3 tools/check_docs.py` rc=0。**変異 matrix は免除** — 実装差分ゼロで
-  kill を観測する面が無い ({{D:compute-job-fanout}} は docs 規範であり機械 gate を 1 つも
-  新設していない)。受入要否は本文の記録に従い判定した。
+- **検査:** `python3 tools/check_docs.py` rc=0 (runbook §7.0 の dispatch inventory 検査を含む)、
+  `python3 tools/spool_fold.py --dry-run` rc=0 (`planned`)。
+  **変異 matrix は免除** — 実装差分ゼロで kill を観測する面が無い ({{D:compute-job-fanout}} は
+  docs 規範であり機械 gate を 1 つも新設していない)。
+  **受入全走は免除しない。**`docs/pegasus-runbook.md` を実 repo から読むテストが実在するため
+  (`grep -rln pegasus-runbook orchestrator/tests/` = `test_check_docs.py`,
+  `test_check_ai_provenance.py`, `test_calibrator_certify.py`, `test_schema_v2.py` の 4 file)、
+  受入 lease を取って計算ノードで全走した。**結果値は本エントリに含まれない** —
+  land は wave HEAD と tested tip の厳密一致を要求するので、走行後に値を足すと拒否される。
+  値は wave の報告と handoff が持つ。
 
 - **エージェント工数:** codex 子 2 本 (段 3 相当の敵対レンズ、`consult` sol / luna、
   reasoning=high、いずれも rc=0)。段 2 プランと段 5 実装子は docs-only のため不使用。
