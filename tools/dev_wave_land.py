@@ -1979,11 +1979,14 @@ def _fold_main_locked(
         if rollback_failures:
             reason += "; rollback incomplete: " + "; ".join(rollback_failures)
             try:
-                state_path.lstat()
+                state_metadata = state_path.lstat()
             except OSError:
                 pass
             else:
-                reason += f"; resume journal preserved at {state_path}"
+                if stat.S_ISREG(state_metadata.st_mode):
+                    reason += f"; resume journal preserved at {state_path}"
+                else:
+                    reason += f"; non-resumable transaction state remains at {state_path}"
         return LandResult(
             RC_FOLD_ROLLBACK_FAILED if rollback_failures else RC_FOLD_FAILED,
             "fold-rollback-failed" if rollback_failures else "fold-failed",

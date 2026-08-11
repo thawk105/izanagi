@@ -209,6 +209,10 @@ class TransactionError(SpoolError):
     """transaction の before/after 以外を検出した。"""
 
 
+class _DiffPreflightError(TransactionError):
+    """show-diff の全照合中に、diff payload 出力前に検出した不一致。"""
+
+
 @dataclasses.dataclass(frozen=True)
 class _TaskItem:
     task_id: str
@@ -2360,21 +2364,63 @@ def apply_fold(repo: str | os.PathLike[str] | Path, plan: FoldPlan) -> FoldResul
     return FoldResult(status, plan.transaction_id, tuple(written), tuple(resumed), tuple(removed))
 
 
+def _lf_lines(data: bytes) -> list[bytes]:
+    """LF だけを行境界として、元 byte を保持した行列を返す。"""
+
+    if not data:
+        return []
+    parts = data.split(b"\n")
+    lines = [part + b"\n" for part in parts[:-1]]
+    if parts[-1]:
+        lines.append(parts[-1])
+    return lines
+
+
+def _unsafe_terminal_byte(value: int) -> bool:
+    return (value < 0x20 and value not in {0x09, 0x0A}) or value == 0x7F
+
+
+def _escape_diff_payload(line: bytes) -> bytes:
+    """先頭の diff marker を保ち、payload を可逆な C-style 表記へする。"""
+
+    escaped = bytearray(line[:1])
+    for value in line[1:]:
+        if value == 0x5C:
+            escaped.extend(b"\\\\")
+        elif _unsafe_terminal_byte(value):
+            escaped.extend(f"\\x{value:02x}".encode("ascii"))
+        else:
+            escaped.append(value)
+    return bytes(escaped)
+
+
 def _diff_lines(before: bytes, after: bytes, *, fromfile: bytes, tofile: bytes) -> Iterable[bytes]:
-    diff = difflib.diff_bytes(
+    raw_diff = difflib.diff_bytes(
         difflib.unified_diff,
-        before.splitlines(keepends=True),
-        after.splitlines(keepends=True),
+        _lf_lines(before),
+        _lf_lines(after),
         fromfile=fromfile,
         tofile=tofile,
     )
-    for index, line in enumerate(diff):
+    diff: list[tuple[bytes, bool]] = []
+    for index, line in enumerate(raw_diff):
         is_payload = index >= 2 and line[:1] in {b" ", b"+", b"-"}
         if is_payload and not line.endswith(b"\n"):
-            yield line + b"\n"
-            yield b"\\ No newline at end of file\n"
+            diff.append((line + b"\n", True))
+            diff.append((b"\\ No newline at end of file\n", False))
         else:
-            yield line
+            diff.append((line, is_payload))
+
+    escaped_mode = any(
+        _unsafe_terminal_byte(value)
+        for line, is_payload in diff
+        if is_payload
+        for value in line[1:]
+    )
+    if escaped_mode:
+        yield b"# payload_control_bytes=escaped-c-v1\n"
+    for line, is_payload in diff:
+        yield _escape_diff_payload(line) if escaped_mode and is_payload else line
 
 
 def _iter_plan_diff(repo: Path, plan: FoldPlan) -> Iterable[bytes]:
@@ -2388,9 +2434,9 @@ def _iter_plan_diff(repo: Path, plan: FoldPlan) -> Iterable[bytes]:
         exists = path.exists()
         before = path.read_bytes() if exists else b""
         if exists != target.before_exists or _sha256(before) != target.before_sha256:
-            raise TransactionError(f"{target.path}: diff before が plan と不一致")
+            raise _DiffPreflightError(f"{target.path}: diff before が plan と不一致")
         if _sha256(target.after_bytes) != target.after_sha256:
-            raise TransactionError(f"{target.path}: diff after が plan と不一致")
+            raise _DiffPreflightError(f"{target.path}: diff after が plan と不一致")
         target_before[target.path] = before
 
     receipts = {fragment.path: fragment for fragment in plan.fragments}
@@ -2398,11 +2444,11 @@ def _iter_plan_diff(repo: Path, plan: FoldPlan) -> Iterable[bytes]:
     for rel in sorted(plan.gc_paths):
         path = repo / rel
         if path.is_symlink() or not path.is_file():
-            raise TransactionError(f"{rel}: diff GC target が存在しないか regular file でない")
+            raise _DiffPreflightError(f"{rel}: diff GC target が存在しないか regular file でない")
         receipt = receipts.get(rel)
         before = path.read_bytes()
         if receipt is None or _sha256(before) != receipt.content_sha256:
-            raise TransactionError(f"{rel}: diff GC target content が plan と不一致")
+            raise _DiffPreflightError(f"{rel}: diff GC target content が plan と不一致")
         gc_before[rel] = before
 
     for target in plan.targets:
@@ -2436,7 +2482,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--show-diff",
         action="store_true",
-        help="dry-run の unified diff を stderr へ出す（人間向け表示であり JSON channel ではない）",
+        help=(
+            "dry-run の unified diff を stderr へ出す（人間向け表示であり JSON channel ではない。"
+            "端末制御 byte は可逆な \\xNN 表記へ escape する）"
+        ),
     )
     parser.add_argument(
         "--fold-date",

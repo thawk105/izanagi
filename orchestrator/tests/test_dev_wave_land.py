@@ -2839,48 +2839,63 @@ def test_rollback_fold_reports_directory_state_after_prior_failure() -> None:
             assert "regular file" in str(exc)
 
 
+def _fold_main_locked_with_failed_ref_rollback(
+    repo: _Repo,
+    wave: Path,
+    tip: str,
+    index_tree: str,
+    snapshots,
+    state_path: Path,
+) -> LAND.LandResult:
+    expected = ["update-ref", "refs/heads/main", repo.base, tip]
+    wrapper, env = _exact_git_failure(repo, expected)
+    module = _FakeFoldModule(
+        _FakeFoldPlan("docs/spool/worklog/synthetic.md"),
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("synthetic apply failure")),
+    )
+    successful_land = LAND.LandResult(
+        LAND.RC_OK,
+        "landed",
+        "synthetic successful fast-forward",
+        repo.base,
+        tip,
+        tip,
+    )
+    with _cwd(wave):
+        repository = LAND._verify_repository(repo.request(wave, tip=tip))
+        try:
+            with _patched_git(wrapper, env):
+                result = LAND._fold_main_locked(
+                    repository,
+                    successful_land,
+                    fold=module,
+                    plan=module._plan,
+                    trusted_main_cutoff_sha=repo.base,
+                    tested_tip=tip,
+                    landed_commits=(tip,),
+                    wave_ref=_git(wave, "symbolic-ref", "HEAD"),
+                    rollback_ref=repo.base,
+                    snapshots=snapshots,
+                    index_tree=index_tree,
+                    state_path=state_path,
+                )
+        finally:
+            repository.close()
+
+    _assert_exact_git_failure(Path(env["DEV_WAVE_FAIL_RECORD"]), expected)
+    return result
+
+
 def test_fold_rollback_failure_reason_reports_preserved_state() -> None:
     with _rollback_fold_fixture() as fixture:
         (
             repo, wave, tip, index_tree, _restore_path, snapshots,
             fold, plan, state_path, state_bytes,
         ) = fixture
-        expected = ["update-ref", "refs/heads/main", repo.base, tip]
-        wrapper, env = _exact_git_failure(repo, expected)
-        module = _FakeFoldModule(
-            _FakeFoldPlan("docs/spool/worklog/synthetic.md"),
-            lambda *_args: (_ for _ in ()).throw(RuntimeError("synthetic apply failure")),
+        result = _fold_main_locked_with_failed_ref_rollback(
+            repo, wave, tip, index_tree, snapshots, state_path,
         )
-        successful_land = LAND.LandResult(
-            LAND.RC_OK,
-            "landed",
-            "synthetic successful fast-forward",
-            repo.base,
-            tip,
-            tip,
-        )
-        with _cwd(wave):
-            repository = LAND._verify_repository(repo.request(wave, tip=tip))
-            try:
-                with _patched_git(wrapper, env):
-                    result = LAND._fold_main_locked(
-                        repository,
-                        successful_land,
-                        fold=module,
-                        plan=module._plan,
-                        trusted_main_cutoff_sha=repo.base,
-                        tested_tip=tip,
-                        landed_commits=(tip,),
-                        wave_ref=_git(wave, "symbolic-ref", "HEAD"),
-                        rollback_ref=repo.base,
-                        snapshots=snapshots,
-                        index_tree=index_tree,
-                        state_path=state_path,
-                    )
-            finally:
-                repository.close()
 
-        _assert_exact_git_failure(Path(env["DEV_WAVE_FAIL_RECORD"]), expected)
         assert (result.rc, result.status) == (
             LAND.RC_FOLD_ROLLBACK_FAILED,
             "fold-rollback-failed",
@@ -2888,6 +2903,65 @@ def test_fold_rollback_failure_reason_reports_preserved_state() -> None:
         assert "rollback incomplete" in result.reason
         assert f"resume journal preserved at {state_path}" in result.reason
         _assert_valid_state_preserved(fold, repo, plan, state_path, state_bytes)
+
+
+def test_fold_rollback_failure_reason_omits_non_regular_state_symlink() -> None:
+    with _rollback_fold_fixture() as fixture:
+        (
+            repo, wave, tip, index_tree, _restore_path, snapshots,
+            _fold, _plan, state_path, state_bytes,
+        ) = fixture
+        payload_path = state_path.with_name(state_path.name + ".payload")
+        state_path.replace(payload_path)
+        state_path.symlink_to(payload_path.name)
+
+        result = _fold_main_locked_with_failed_ref_rollback(
+            repo, wave, tip, index_tree, snapshots, state_path,
+        )
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_ROLLBACK_FAILED,
+            "fold-rollback-failed",
+        )
+        assert (
+            "rollback incomplete: fold/main ref CAS rollback failed "
+            "(synthetic exact git failure); "
+            "fold transaction state is symlink/non-regular"
+        ) in result.reason
+        assert "resume journal preserved at" not in result.reason
+        assert f"non-resumable transaction state remains at {state_path}" in result.reason
+        assert state_path.is_symlink()
+        assert payload_path.read_bytes() == state_bytes
+
+
+def test_fold_rollback_failure_reason_omits_non_regular_state_directory() -> None:
+    with _rollback_fold_fixture() as fixture:
+        (
+            repo, wave, tip, index_tree, _restore_path, snapshots,
+            _fold, _plan, state_path, state_bytes,
+        ) = fixture
+        state_path.unlink()
+        state_path.mkdir()
+        payload_path = state_path / "preserved-state.json"
+        payload_path.write_bytes(state_bytes)
+
+        result = _fold_main_locked_with_failed_ref_rollback(
+            repo, wave, tip, index_tree, snapshots, state_path,
+        )
+
+        assert (result.rc, result.status) == (
+            LAND.RC_FOLD_ROLLBACK_FAILED,
+            "fold-rollback-failed",
+        )
+        assert (
+            "rollback incomplete: fold/main ref CAS rollback failed "
+            "(synthetic exact git failure); "
+            "fold transaction state is symlink/non-regular"
+        ) in result.reason
+        assert "resume journal preserved at" not in result.reason
+        assert f"non-resumable transaction state remains at {state_path}" in result.reason
+        assert state_path.is_dir()
+        assert payload_path.read_bytes() == state_bytes
 
 
 def test_failed_cas_rollback_has_distinct_rc_and_status() -> None:
