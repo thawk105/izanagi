@@ -356,6 +356,39 @@ def test_load_liveness_rejections_surfaces_reason_and_extra():
     assert other == {"build-error": 1, "eval-exception": 1}
 
 
+def test_commit_witness_liveness_reasons_preserve_witness_and_workload():
+    lay = _tmp_layout()
+    reasons = (
+        "trace-no-commit-witness",
+        "trace-batch-commits-unattributed",
+        "trace-witness-unsupported-workload",
+    )
+    for index, reason in enumerate(reasons):
+        genome = _G.format(b=index % 2, l=1, t=0, w=0)
+        attempt = _start_attempt(lay, genome, src_token=f"witness-{index}")
+        _attempt_event(lay, attempt, STAGE_ABORT, {
+            "reason": reason,
+            "commit_witness": {
+                "commit_counts": 10,
+                "batch_commit_counts": index,
+            },
+            "workload": {"tag": "legacy"},
+            "binary_workload": "tpcc_silo.exe" if index == 2 else "ycsb_silo.exe",
+        })
+
+    liveness, other = load_liveness_rejections(_view(lay))
+    assert other == {}
+    assert {item.reason for item in liveness} == set(reasons)
+    for item in liveness:
+        assert item.extra["commit_witness"]["commit_counts"] == 10
+        assert item.extra["workload"] == {"tag": "legacy"}
+        assert item.workload == {"tag": "legacy"}
+    rendered = render_rejections([], liveness, {}, None)
+    for reason in reasons:
+        assert f"[liveness:{reason}]" in rendered
+        assert "読み方:" in rendered
+
+
 def test_screen_rejection_loader_is_disjoint_and_render_hides_uncertified_metrics():
     """screen reject は専用 loader だけが拾い、未認証性能値は render へ渡さない。
 
@@ -453,6 +486,25 @@ def test_render_rejections_cycle_shape_shows_total_cycles():
     assert "cycle 全数 57 / witness 1 件" in out
     assert "抜粋" in out                                # 切り詰めの明示
     assert "T1 → T2" in out and "rw key=aa" in out      # どの依存を断つかが読める
+
+
+def test_render_nonserializable_also_shows_unclean_integrity():
+    lay = _tmp_layout()
+    red = _G.format(b=1, l=1, t=0, w=0)
+    attempt = _start_attempt(lay, red, src_token="cd-unclean")
+    payload = _red_verify_payload(total_cycles=1)
+    payload["integrity"] = {
+        "clean": False,
+        "missing_txids": 1,
+        "notes": ["cycle と trace 欠落が共存"],
+    }
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "non-serializable",
+        "verify": payload,
+    })
+    out = render_rejections(load_rejections(_view(lay)), [], {}, None)
+    assert "integrity.clean=False" in out
+    assert "cycle 全数 1" in out
 
 
 def test_render_rejections_liveness_hints_and_other_counts():

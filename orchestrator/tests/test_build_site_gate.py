@@ -53,6 +53,113 @@ _COVERAGE_MODULES = (
 )
 
 
+def test_s2_verifier_run_passes_commit_witness_to_cli():
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({
+                "results": [{
+                    "verdict": "serializable",
+                    "certified": True,
+                    "total_cycles": 0,
+                    "stats": {"txns": 17, "edges": 0},
+                }],
+            }),
+            stderr="Maximum resident set size (kbytes): 1024\n",
+        )
+
+    with patch.object(s2_verify_calibration.subprocess, "run", fake_run):
+        result = s2_verify_calibration._verifier_run("/fixture/traces", 17)
+
+    assert result["certified"] is True
+    assert len(calls) == 1
+    cmd = calls[0][0]
+    assert cmd[-2:] == ["--expected-commits", "17"]
+
+
+def _s2_run_once_with_stdout(stdout: str):
+    def fake_run(*args, **kwargs):
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    with patch.object(s2_verify_calibration.subprocess, "run", fake_run):
+        return s2_verify_calibration._run_once(
+            "/fixture/ycsb_silo.exe", {}, 1, trace=False,
+        )
+
+
+def _assert_s2_run_once_rejects_stdout(stdout: str, message: str) -> None:
+    caught = None
+    try:
+        _s2_run_once_with_stdout(stdout)
+    except RuntimeError as exc:
+        caught = exc
+    assert caught is not None
+    assert message in str(caught)
+
+
+def test_s2_run_once_accepts_unique_zero_batch_commit_witness():
+    result = _s2_run_once_with_stdout(
+        "abort_counts_: 3\ncommit_counts_: 17\nbatch_commit_counts_: 0\n"
+    )
+    assert result["commits"] == 17
+    assert result["aborts"] == 3
+
+
+def test_s2_run_once_rejects_duplicate_main_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\ncommit_counts_: 1\ncommit_counts_: 17\n"
+        "batch_commit_counts_: 0\n",
+        "欠落または不正",
+    )
+
+
+def test_s2_run_once_rejects_duplicate_batch_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\ncommit_counts_: 17\nbatch_commit_counts_: 0\n"
+        "batch_commit_counts_: 0\n",
+        "欠落または不正",
+    )
+
+
+def test_s2_run_once_rejects_missing_main_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\nbatch_commit_counts_: 0\n",
+        "欠落または不正",
+    )
+
+
+def test_s2_run_once_rejects_missing_batch_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\ncommit_counts_: 17\n",
+        "欠落または不正",
+    )
+
+
+def test_s2_run_once_rejects_negative_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\ncommit_counts_: -1\nbatch_commit_counts_: 0\n",
+        "欠落または不正",
+    )
+
+
+def test_s2_run_once_rejects_noninteger_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\ncommit_counts_: seventeen\n"
+        "batch_commit_counts_: 0\n",
+        "欠落または不正",
+    )
+
+
+def test_s2_run_once_rejects_nonzero_batch_commit_witness():
+    _assert_s2_run_once_rejects_stdout(
+        "abort_counts_: 3\ncommit_counts_: 17\nbatch_commit_counts_: 1\n",
+        "batch_commit_counts_ が非 0",
+    )
+
+
 def _call_coverage_configure(module, root: Path, site: str) -> None:
     if module is s2_verify_calibration:
         module._broken_build_and_verify(

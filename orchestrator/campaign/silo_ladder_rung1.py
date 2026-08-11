@@ -829,6 +829,20 @@ def parse_run_stdout(text: str, *, liveness: bool) -> dict[str, Any]:
     return result
 
 
+def _validate_correctness_commit_witness(
+        verifier: Mapping[str, Any], stdout: str,
+) -> None:
+    """凍結 verifier JSON の外側で raw stdout counter と txns を照合する。"""
+    witness = parse_run_stdout(stdout, liveness=False)
+    recorded_txns = verifier["results"][0]["stats"]["txns"]
+    if witness["batch_commit_count"] != 0:
+        raise DriverError("raw correctness batch commit count is not zero")
+    if witness["commit_count"] != recorded_txns:
+        raise DriverError(
+            "raw correctness commit witness differs from verifier txns"
+        )
+
+
 def _exact_keys(value: Any, keys: set[str]) -> bool:
     return type(value) is dict and set(value) == keys
 
@@ -2835,6 +2849,12 @@ def validate_raw_bundle(
         verifier = _load_json(raw_root / "correctness/verifier.json")
         if verifier != document["correctness_leg"]["verifier"]:
             raise DriverError("raw verifier JSON differs from final JSON")
+        _validate_correctness_commit_witness(
+            verifier,
+            (raw_root / "correctness/run.stdout").read_text(
+                encoding="utf-8", errors="strict",
+            ),
+        )
         trace_root = raw_root / "correctness/traces"
         trace_paths = sorted(trace_root.glob("trace_*.log"))
         if len(trace_paths) != 4:
