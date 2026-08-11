@@ -491,6 +491,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t141_region_profile.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/validate_t810.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 
 - **この投影検査が保証しないこと。** 検査するのは正本と docs の間の (path, class, evidence) の
   一致だけである。`reason` / `primary_gate` の散文が正本と食い違っても検出しない ([T-522] で
