@@ -136,7 +136,9 @@ def test_missing_fixed_git_path_has_identifiable_resolution_error(
     root, _data, _commit, ref = git_blob_fixture
     monkeypatch.setattr(blobref, "_GIT_EXECUTABLE", tmp_path / "missing-git")
 
-    with pytest.raises(blobref.BlobResolutionError, match="git executable.*解決できない"):
+    with pytest.raises(
+        blobref.BlobResolutionError, match=r"^git executable を解決できない$"
+    ):
         blobref.read_pinned_blob(root, ref)
 
 
@@ -160,7 +162,10 @@ def test_external_alternate_object_store_is_rejected(
     )
     ref = blobref.BlobRef("regular.txt", commit, hashlib.sha256(data).hexdigest())
 
-    with pytest.raises(blobref.BlobResolutionError, match="alternates"):
+    with pytest.raises(
+        blobref.BlobResolutionError,
+        match=r"^alternates を持つ repository は受理しない$",
+    ):
         blobref.read_pinned_blob(target, ref)
 
 
@@ -169,7 +174,10 @@ def test_http_alternate_object_store_is_rejected(git_blob_fixture) -> None:
     marker = root / ".git" / "objects" / "info" / "http-alternates"
     marker.write_text("https://example.invalid/git-objects/\n", encoding="utf-8")
 
-    with pytest.raises(blobref.BlobResolutionError, match="alternates"):
+    with pytest.raises(
+        blobref.BlobResolutionError,
+        match=r"^alternates を持つ repository は受理しない$",
+    ):
         blobref.read_pinned_blob(root, ref)
 
 
@@ -235,7 +243,10 @@ def test_promisor_remote_is_rejected(git_blob_fixture) -> None:
     root, _data, _commit, ref = git_blob_fixture
     _git(root, "config", "remote.inert.promisor", "true")
 
-    with pytest.raises(blobref.BlobResolutionError, match="promisor remote"):
+    with pytest.raises(
+        blobref.BlobResolutionError,
+        match=r"^promisor remote を持つ repository は受理しない$",
+    ):
         blobref.read_pinned_blob(root, ref)
 
 
@@ -244,7 +255,10 @@ def test_promisor_pack_marker_is_rejected(git_blob_fixture) -> None:
     marker = root / ".git" / "objects" / "pack" / "synthetic.promisor"
     marker.write_bytes(b"")
 
-    with pytest.raises(blobref.BlobResolutionError, match="promisor object"):
+    with pytest.raises(
+        blobref.BlobResolutionError,
+        match=r"^promisor object を持つ repository は受理しない$",
+    ):
         blobref.read_pinned_blob(root, ref)
 
 
@@ -252,7 +266,10 @@ def test_partial_clone_configuration_is_rejected(git_blob_fixture) -> None:
     root, _data, _commit, ref = git_blob_fixture
     _git(root, "config", "extensions.partialClone", "inert")
 
-    with pytest.raises(blobref.BlobResolutionError, match="partial clone"):
+    with pytest.raises(
+        blobref.BlobResolutionError,
+        match=r"^partial clone repository は受理しない$",
+    ):
         blobref.read_pinned_blob(root, ref)
 
 
