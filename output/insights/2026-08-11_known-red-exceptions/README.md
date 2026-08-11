@@ -20,9 +20,10 @@ wave: `dev-wave-known-red-exceptions` / 実装 commit `d4d1e82c`、受入 tip `3
 | 3 | bundled Codex/bwrap/busybox required | 同 |
 | 1 | gnuplot 無し | 同 |
 | 1 | no real Silo sample (`output/runs/silo-sample` は git 追跡外) | 同 |
-| 4 | template patch 未適用 | **repo 内で満たせる前提** (`package.md` R1) |
+| 4 | template patch 未適用 | **条件付き未実走** — repo 内で満たせるが開けていない (`package.md` R1) |
 
-**発火している skip はすべて具体的な依存物不在で、失敗を skip に化かしたものは無い。**
+**失敗を skip に化かしたものは無い。** ただし「発火している skip はすべて具体的な依存物不在」
+ではない — 最終行の 4 件は依存物不在ではなく**条件付き未実走**である (末尾の erratum 参照)。
 規約違反は静的走査の側だけに出た (下記)。
 
 ## 静的全数走査で出た規約違反
@@ -73,3 +74,19 @@ lease 取得後に local main を取り込み (`34255bba`)、受入形のまま�
 template patch を一時適用して 4 node の実挙動を測ろうとしたが、submodule への patch 適用が
 権限層に拒否された。迂回はしていない。`git apply --check` が現行 pin に対して rc=0 で
 当たることだけは確認済みで、それ以外は静的判断である (`package.md` の事実 6)。
+
+## erratum (2026-08-11、wave `dev-wave-t8b-restart-residue`)
+
+[T-770] の裁定 (R1 = (b) + (c) 起票、R2 = (a)) に従い、分類語を訂正した。本文の
+「発火している skip はすべて具体的な依存物不在」は、表の最終行 4 件について誤りである。
+4 件の前提は repo 内で満たせるため、外部依存物の不在ではなく**条件付き未実走**に分類する。
+
+**実測値 (件数・rc・request ID・変異結果) は 1 つも変えていない。** 訂正したのは分類語と、
+それに基づく本文 1 文だけである。
+
+分類の正本は `orchestrator/tests/README.md` の
+「条件付き未実走 (repo 内で満たせるが開けていない)」節であり、同節と
+`skiputil.skip_conditional_unrun()` / `test_skip_classification.py` による機械固定は
+並行 wave `dev-wave-t770-conditional-unrun` が実装・land した ([T-770] 完了、変異 4/4 KILLED)。
+本 erratum はその land が触れなかった census 側だけを揃えるものである。
+4 node を実際に走らせる経路 (R1 (c) の隔離 checkout を含む) は [T-790] が持つ。
