@@ -41,7 +41,7 @@ _ROW_KEYS = {
     "holdout_id", "configuration_id",
 }
 _MANIFEST_KEYS = {
-    "schema_version", "manifest_id", "freeze", "known_axes_freeze",
+    "schema_version", "manifest_id", "spec_sha256", "freeze", "known_axes_freeze",
     "run_contract", "binding_identity", "schedule", "schedule_sha256",
     "campaign_ids", "campaign_config_preimages", "floor_budget_snapshot_sha256",
     "holdout_references", "allowed_excluded_reasons", "generator_versions",
@@ -111,10 +111,12 @@ def _verified_manifest_api():
             object.__setattr__(self, "sha256", sha256)
 
     def seal_verifier(function):
-        def verified(path, *, root, freeze_document, freeze_sha256):
+        def verified(
+                path, *, root, freeze_document, freeze_sha256, approved_spec):
             return function(
                 path, root=root, freeze_document=freeze_document,
-                freeze_sha256=freeze_sha256, _seal=seal,
+                freeze_sha256=freeze_sha256, approved_spec=approved_spec,
+                _seal=seal,
             )
 
         verified.__name__ = function.__name__
@@ -709,7 +711,7 @@ def _manifest_id(document_without_id: Mapping) -> str:
 
 def _build_manifest_from_snapshot(
     *, freeze: Mapping, freeze_record: Mapping, freeze_source_path: Path,
-    schedule, run_contract, binding_identity, campaign_ids,
+    spec_sha256, schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, campaign_config_preimages=None,
     root: Path,
 ) -> _artifacts.OfficialManifest:
@@ -763,6 +765,7 @@ def _build_manifest_from_snapshot(
 
     document = {
         "schema_version": SCHEMA_VERSION,
+        "spec_sha256": _sha256_text(spec_sha256, field="spec_sha256"),
         "freeze": freeze_record,
         "known_axes_freeze": known_axes_record,
         "run_contract": run_contract_copy,
@@ -785,7 +788,7 @@ def _build_manifest_from_snapshot(
 
 
 def build_manifest(
-    *, freeze_path, schedule, run_contract, binding_identity, campaign_ids,
+    *, freeze_path, spec_sha256, schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, campaign_config_preimages=None,
 ) -> _artifacts.OfficialManifest:
     """参照 hash と実走契約だけを持つ 8b oracle manifest を組み立てる。"""
@@ -796,6 +799,7 @@ def build_manifest(
         freeze=freeze,
         freeze_record=freeze_record,
         freeze_source_path=freeze_path,
+        spec_sha256=spec_sha256,
         schedule=schedule,
         run_contract=run_contract,
         binding_identity=binding_identity,
@@ -808,7 +812,7 @@ def build_manifest(
 
 
 def build_manifest_from_ratified(
-    ratified, *, schedule, run_contract, binding_identity, campaign_ids,
+    ratified, *, spec_sha256, schedule, run_contract, binding_identity, campaign_ids,
     allowed_excluded_reasons, generator_versions, root=ROOT,
 ) -> _artifacts.OfficialManifest:
     """loader が返した active snapshot を再読込せず manifest へ射影する。"""
@@ -826,6 +830,7 @@ def build_manifest_from_ratified(
         freeze=_mutable_json_tree(ratified.document),
         freeze_record=freeze_record,
         freeze_source_path=root / freeze_rel,
+        spec_sha256=spec_sha256,
         schedule=schedule,
         run_contract=run_contract,
         binding_identity=binding_identity,
@@ -984,7 +989,7 @@ def _write_approved_manifest(
 
 @_seal_verified_manifest
 def verify_manifest(
-    path, *, root, freeze_document, freeze_sha256, _seal,
+    path, *, root, freeze_document, freeze_sha256, approved_spec, _seal,
 ) -> VerifiedManifest:
     """manifest の参照 hash、schedule、block/campaign 束縛を再照合する。
 
@@ -1064,10 +1069,12 @@ def verify_manifest(
     expected_holdout_ids = sorted(frozen_holdouts)
     _validate_execution_snapshot(freeze, holdout_ids=expected_holdout_ids)
     run_contract = _validate_run_contract(document.get("run_contract"))
-    _validate_binding_identity(
+    binding_identity = _validate_binding_identity(
         document.get("binding_identity"), schedule=document["schedule"],
     )
-    _validate_generators(document.get("generator_versions"), root=root)
+    generator_versions = _validate_generators(
+        document.get("generator_versions"), root=root,
+    )
     _validate_campaign_config_preimages(
         document.get("campaign_config_preimages"), schedule=document["schedule"],
         run_contract=run_contract, campaign_ids=campaigns,
@@ -1084,6 +1091,42 @@ def verify_manifest(
             or any(not isinstance(reason, str) or not reason for reason in reasons)
             or len(set(reasons)) != len(reasons)):
         raise ManifestError("allowed_excluded_reasons が不正")
+
+    from . import s8b_oracle_spec
+
+    try:
+        approved = s8b_oracle_spec.validate_approved_spec_snapshot(
+            approved_spec, root=root,
+        )
+    except s8b_oracle_spec.ReviewedSpecError as exc:
+        raise ManifestError(f"approved spec が不正: {exc}") from exc
+    spec = _mutable_json_tree(approved.document)
+    parameters = spec["schedule_parameters"]
+    expected_schedule = build_schedule(
+        n=parameters["n"],
+        master_seed=parameters["master_seed"],
+        block_sizes=parameters["block_sizes"],
+        holdout_ids=parameters["holdout_ids"],
+        configuration_ids=parameters["configuration_ids"],
+    )
+    if document["schedule"] != expected_schedule:
+        raise ManifestError("schedule が approved spec の再生成値と不一致")
+    if campaigns != spec["campaign_ids"]:
+        raise ManifestError("campaign_ids が approved spec と不一致")
+    if run_contract != spec["run_contract"]:
+        raise ManifestError("run_contract が approved spec と不一致")
+    if binding_identity != spec["binding_identity"]:
+        raise ManifestError("binding_identity が approved spec と不一致")
+    if reasons != spec["allowed_excluded_reasons"]:
+        raise ManifestError("allowed_excluded_reasons が approved spec と不一致")
+    if generator_versions != spec["generator_versions"]:
+        # 両側の canonical path/実 byte hash 検査後の defense-in-depth。
+        raise ManifestError("generator_versions が approved spec と不一致")
+    recorded_spec_sha256 = _sha256_text(
+        document.get("spec_sha256"), field="spec_sha256",
+    )
+    if recorded_spec_sha256 != approved.sha256:
+        raise ManifestError("spec_sha256 が approved spec と不一致")
 
     without_id = dict(document)
     recorded_id = without_id.pop("manifest_id", None)
@@ -1151,12 +1194,12 @@ def build_approved_manifest(raw_output: str, *, root=ROOT) -> _artifacts.Officia
         raise ManifestCliError("invalid-ratified-freeze", "holdouts が object でない")
     holdout_ids = parameters["holdout_ids"]
     configuration_ids = parameters["configuration_ids"]
-    if holdout_ids != sorted(freeze_holdouts):
+    if list(holdout_ids) != sorted(freeze_holdouts):
         raise ManifestCliError(
             "approved-spec-cell-product-mismatch",
             "spec holdout_ids が active freeze の全 holdout と一致しない",
         )
-    if configuration_ids != sorted(configuration_ids):
+    if list(configuration_ids) != sorted(configuration_ids):
         raise ManifestCliError(
             "approved-spec-cell-product-mismatch",
             "spec configuration_ids が sort 済みでない",
@@ -1172,7 +1215,8 @@ def build_approved_manifest(raw_output: str, *, root=ROOT) -> _artifacts.Officia
     try:
         result = build_manifest_from_ratified(
             ratified,
-            schedule=approved.schedule,
+            spec_sha256=approved.sha256,
+            schedule=_mutable_json_tree(approved.schedule),
             run_contract=spec["run_contract"],
             binding_identity=spec["binding_identity"],
             campaign_ids=spec["campaign_ids"],

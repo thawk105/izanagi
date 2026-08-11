@@ -428,6 +428,40 @@ def test_public_sweep_does_not_turn_admission_error_into_driver_error(monkeypatc
                     log=lambda _line: None)
 
 
+def test_public_sweep_driver_error_provenance_never_reflects_candidate_bytes(monkeypatch):
+    """固定化された上流例外を S6 の error・log・永続 JSON まで通して非反射を固定する。"""
+    layout = _tmp_layout()
+    _install_public_reject_sweep_fakes(monkeypatch, layout)
+    name = W.CANDIDATES[0][0]
+    sentinel = "SENTINEL_S6_CANDIDATE_BYTES_7f39"
+
+    def fail_with_sanitized_candidate_error(*_args, **_kwargs):
+        coder = L.CoderProposal(
+            axis=L.MARKER_ID,
+            value=17.0,
+            implementation=f"double now_backoff = compute_{sentinel}();",
+        )
+        # Candidate bytes enter the real attribution validator, whose exception
+        # projection is fixed before S6's broad per-candidate isolation sees it.
+        L.assert_value_literal_consistent(coder)
+        raise AssertionError("fixed validator was expected to stop")
+
+    monkeypatch.setattr(W, "_eval_one", fail_with_sanitized_candidate_error)
+    log_lines = []
+    result = W.run_sweep(
+        "balanced", names=[name], isolate=False, log=log_lines.append,
+    )
+    provenance_path = Path(
+        layout.root, "reports", "s6_sort_sweep_provenance.json",
+    )
+    persisted = provenance_path.read_text(encoding="utf-8")
+
+    assert result[name]["outcome"] == "driver-error"
+    assert result[name]["error"]
+    for projection in (result[name]["error"], "\n".join(log_lines), persisted):
+        assert sentinel not in projection
+
+
 def test_eval_one_propagates_context_and_source_capability_to_build_entry(monkeypatch):
     """検疫通過後の build は policy context と source-bound resolver を受ける。"""
     from orchestrator.campaign import patchharness

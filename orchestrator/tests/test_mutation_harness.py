@@ -1065,6 +1065,79 @@ def test_dispatch_run_calls_receipt_reader_instead_of_using_console_stdout(
     assert result["job_stdout"] == "receipt-bound stdout\n"
 
 
+def test_attempt_sidecar_is_started_before_popen_and_finished_after_failure(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    attempt_path = tmp_path / "attempts.json"
+    recorder = MH.AttemptRecorder(
+        path=attempt_path,
+        wrapper_attempt_ordinal=7,
+        document={
+            "schema": MH.ATTEMPT_SCHEMA,
+            "repo_head": "a" * 40,
+            "spec_sha256": "b" * 64,
+            "runner_sha256": "c" * 64,
+            "tool_sha256": "d" * 64,
+            "expected_initial_requests": 3,
+            "attempts": [],
+        },
+    )
+    observed_state: list[str] = []
+
+    def failing_popen(*args: object, **kwargs: object) -> None:
+        sidecar = json.loads(attempt_path.read_text(encoding="utf-8"))
+        observed_state.append(sidecar["attempts"][0]["state"])
+        raise OSError("fixture popen failure")
+
+    monkeypatch.setattr(MH.subprocess, "Popen", failing_popen)
+
+    result = MH._run_tests(
+        repo,
+        [sys.executable, "-c", "pass"],
+        timeout_s=1,
+        runner_mode="dispatch",
+        attempt_recorder=recorder,
+        attempt_phase="mutation",
+        mutation_id="M1",
+    )
+
+    assert observed_state == ["started"]
+    assert result["rc"] is None
+    sidecar = json.loads(attempt_path.read_text(encoding="utf-8"))
+    assert sidecar["attempts"][0]["state"] == "finished"
+    assert sidecar["attempts"][0]["wrapper_attempt_ordinal"] == 7
+    assert sidecar["attempts"][0]["request"] is None
+
+
+def test_timeout_request_recovery_uses_partial_receipt_as_correspondence_source(
+    repo: Path,
+) -> None:
+    before = MH._dispatch_submission_inventory(repo)
+    submission = repo / "output" / "pegasus-dispatch" / "timeout-request"
+    submission.mkdir(parents=True)
+    receipt = submission / "receipt.json"
+    receipt.write_text(
+        json.dumps(
+            {
+                "submission_dir": str(submission),
+                "request_id": "987.server",
+                "request": {"job_name": "izdw-timeout"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    request = MH._recover_dispatch_request(repo, before)
+
+    assert request == {
+        "request_id": "987.server",
+        "submission_dir": str(submission),
+        "receipt_path": str(receipt),
+        "job_stdout_path": None,
+        "outcome_rc": None,
+    }
+
+
 def test_dispatch_collection_uses_compute_dispatcher_not_login_exempt_runner(
     repo: Path,
 ) -> None:

@@ -1,0 +1,283 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/ae50b4904ff55bd26a382bd257375e0f/izdw-ae50b4904f.o903885",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/ae50b4904ff55bd26a382bd257375e0f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................                                     [100%]\n36 passed in 3.16s\n",
+      "stdout_sha256": "6f3293d8f0f2768ec71e2c1ca7acdadc114c45d0e43c4510fa9f22eae9886460"
+    },
+    "artifact_error": null,
+    "collection_sha256": "556e965b2b109252f4e5edd28951ef54384cf70ca030eea4c379e73e423598d4",
+    "duration_s": 26.761,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "17bf8ff0094323eb8d8059be0bab5003f2fd78df79e9713c5af79baca69b29ce",
+    "repo_head": "a90f3f9f10422476f6679b38adbac4e5e50c7ac2",
+    "runner_sha256": "708b6d477b220d85274b0e634bbfd49d5dd45993d6b0ee96f77b4aca00e1f081",
+    "spec_sha256": "d338d9d7e4f10b900777e61041a1ac0baa2ebd56a9d2cda66810d478e4b76475",
+    "status": "PASSED",
+    "test_output_sha256": "6f3293d8f0f2768ec71e2c1ca7acdadc114c45d0e43c4510fa9f22eae9886460",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c3486d859d54f1ad3d767bebcb6552abc78e682cd8832ae83a56c040d5d4cb62"
+  },
+  "date": "2026-08-11T11:40:07.134125+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/c663fd5d7ee4afbd54532f64c6765829/izdw-c663fd5d7e.o903887",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/c663fd5d7ee4afbd54532f64c6765829/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FFF.F.                                     [100%]\n=================================== FAILURES ===================================\n______________ test_trace_output_outside_trace_branch_is_rejected ______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_trace_output_outside_trac0')\n\n    def test_trace_output_outside_trace_branch_is_rejected(tmp_path: Path) -> None:\n        pair = _modified_pair(tmp_path, _OLD_SOURCE + \"int leaked_trace_output = 1;\\n\")\n>       _assert_rejected(_run(pair), \"TRACE=0 正規化 preprocess 出力が不一致\")\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:218: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_trace_output_outside_trac0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='')\nmessage = 'TRACE=0 正規化 preprocess 出力が不一致'\n\n    def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n>       assert result.returncode != 0\nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_trace_output_outside_trac0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='').returncode\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n_________ test_difference_visible_only_in_nonbase_context_is_rejected __________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_difference_visible_only_i0')\n\n    def test_difference_visible_only_in_nonbase_context_is_rejected(tmp_path: Path) -> None:\n        new = _OLD_SOURCE.replace(\n            \"int context_value() { return 11; }\", \"int context_value() { return 99; }\"\n        )\n        pair = _modified_pair(tmp_path, new)\n        result = _run(pair)\n>       _assert_rejected(result, \"TRACE=0 正規化 preprocess 出力が不一致\")\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:468: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_difference_visible_only_i0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='')\nmessage = 'TRACE=0 正規化 preprocess 出力が不一致'\n\n    def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n>       assert result.returncode != 0\nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_difference_visible_only_i0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='').returncode\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n__________ test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero __________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_ifdef_trace_is_rejected_w0')\n\n    def test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero(tmp_path: Path) -> None:\n        old = \"#if TRACE\\nint trace_value = 1;\\n#endif\\nint steady = 7;\\n\"\n        new = \"#ifdef TRACE\\nint trace_value = 1;\\n#endif\\nint steady = 7;\\n\"\n        pair = _modified_pair(tmp_path, new, old_source=old)\n>       _assert_rejected(_run(pair), \"TRACE=0 正規化 preprocess 出力が不一致\")\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:225: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_ifdef_trace_is_rejected_w0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='')\nmessage = 'TRACE=0 正規化 preprocess 出力が不一致'\n\n    def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n>       assert result.returncode != 0\nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_ifdef_trace_is_rejected_w0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='').returncode\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n_______ test_every_modified_cpp_source_is_checked_without_expected_paths _______\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_every_modified_cpp_source0')\n\n    def test_every_modified_cpp_source_is_checked_without_expected_paths(tmp_path: Path) -> None:\n        extra_new = \"#if TRACE\\nint extra_trace = 2;\\n#endif\\nint extra_steady = 99;\\n\"\n        pair = _two_source_pair(tmp_path, extra_new)\n        result = _run(pair)\n>       _assert_rejected(result, \"TRACE=0 正規化 preprocess 出力が不一致\")\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:239: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nresult = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_every_modified_cpp_source0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='')\nmessage = 'TRACE=0 正規化 preprocess 出力が不一致'\n\n    def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n>       assert result.returncode != 0\nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_every_modified_cpp_source0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\n', stderr='').returncode\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected\nFAILED orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected\nFAILED orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero\nFAILED orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths\n4 failed, 32 passed in 3.13s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1502 retained_bytes=1502 omitted_bytes=0 rendered_excerpt_bytes=1631 sha256=ce6beb0f7920b8103f016c0356e8033c2b46ecfe3ec258011c87cf972b593108\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_ifdef_trace_is_rejected_w0')\n> \n>     def test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero(tmp_path: Path) -> None:\n>         old = \"#if TRACE\\x5cnint trace_value = 1;\\x5cn#endif\\x5cnint steady = 7;\\x5cn\"\n>         new = \"#ifdef TRACE\\x5cnint trace_value = 1;\\x5cn#endif\\x5cnint steady = 7;\\x5cn\"\n>         pair = _modified_pair(tmp_path, new, old_source=old)\n> >       _assert_rejected(_run(pair), \"TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4\")\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:225: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_ifdef_trace_is_rejected_w0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='')\n> message = 'TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4'\n> \n>     def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n> >       assert result.returncode != 0\n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_ifdef_trace_is_rejected_w0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1492 retained_bytes=1492 omitted_bytes=0 rendered_excerpt_bytes=1601 sha256=6fef3e0215ac2fa2ab7d5cc704bd53e769855580e6eb93a490f8eb1dbcbc963b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_difference_visible_only_i0')\n> \n>     def test_difference_visible_only_in_nonbase_context_is_rejected(tmp_path: Path) -> None:\n>         new = _OLD_SOURCE.replace(\n>             \"int context_value() { return 11; }\", \"int context_value() { return 99; }\"\n>         )\n>         pair = _modified_pair(tmp_path, new)\n>         result = _run(pair)\n> >       _assert_rejected(result, \"TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4\")\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:468: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_difference_visible_only_i0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='')\n> message = 'TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4'\n> \n>     def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n> >       assert result.returncode != 0\n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_difference_visible_only_i0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1459 retained_bytes=1459 omitted_bytes=0 rendered_excerpt_bytes=1576 sha256=f3f3a223bf66b0849afbd470de6df7341a284720e5d5e0bee8b7db62ddd23c28\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_every_modified_cpp_source0')\n> \n>     def test_every_modified_cpp_source_is_checked_without_expected_paths(tmp_path: Path) -> None:\n>         extra_new = \"#if TRACE\\x5cnint extra_trace = 2;\\x5cn#endif\\x5cnint extra_steady = 99;\\x5cn\"\n>         pair = _two_source_pair(tmp_path, extra_new)\n>         result = _run(pair)\n> >       _assert_rejected(result, \"TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4\")\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:239: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_every_modified_cpp_source0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='')\n> message = 'TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4'\n> \n>     def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n> >       assert result.returncode != 0\n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_every_modified_cpp_source0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1368 retained_bytes=1368 omitted_bytes=0 rendered_excerpt_bytes=1472 sha256=228c19bf941f6136d527a7a6d755316701812bf508025f83c49b4d6bb771377d\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_trace_output_outside_trac0')\n> \n>     def test_trace_output_outside_trace_branch_is_rejected(tmp_path: Path) -> None:\n>         pair = _modified_pair(tmp_path, _OLD_SOURCE + \"int leaked_trace_output = 1;\\x5cn\")\n> >       _assert_rejected(_run(pair), \"TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4\")\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:218: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_trace_output_outside_trac0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='')\n> message = 'TRACE=0 \\u6b63\\u898f\\u5316 preprocess \\u51fa\\u529b\\u304c\\u4e0d\\u4e00\\u81f4'\n> \n>     def _assert_rejected(result: subprocess.CompletedProcess[str], message: str) -> None:\n> >       assert result.returncode != 0\n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tool...st_trace_output_outside_trac0/ccbench\",\"result\":\"pass\",\"schema\":\"izanagi-trace0-preprocess-identity/v1\"}\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:138: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5821 retained_bytes=5821 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8406 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "98f8b58500ba757b95bc36949051e1e8e97760ab96d9be9f77562837ab3ce0c0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "556e965b2b109252f4e5edd28951ef54384cf70ca030eea4c379e73e423598d4",
+      "duration_s": 26.785,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths"
+      ],
+      "hang_risk": false,
+      "id": "M2-normalized-compare-disabled",
+      "injection_diff_sha256": "65d42734b9e09bb68fe81bd538d543944efb71b428d871462e70e66670be40ab",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bb14e39eda7165c6159a3c32bda0f9569bee59e147688b1bfc652a3699750034",
+      "replacements": [
+        {
+          "file": "tools/check_trace0_preprocess_identity.py",
+          "new": "            if False:\n",
+          "old": "            if old_normalized != new_normalized:\n"
+        }
+      ],
+      "repo_head": "a90f3f9f10422476f6679b38adbac4e5e50c7ac2",
+      "runner_sha256": "708b6d477b220d85274b0e634bbfd49d5dd45993d6b0ee96f77b4aca00e1f081",
+      "spec_sha256": "d338d9d7e4f10b900777e61041a1ac0baa2ebd56a9d2cda66810d478e4b76475",
+      "status": "KILLED",
+      "test_output_sha256": "98f8b58500ba757b95bc36949051e1e8e97760ab96d9be9f77562837ab3ce0c0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3486d859d54f1ad3d767bebcb6552abc78e682cd8832ae83a56c040d5d4cb62"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/835253a29183e251b0307a310438aa98/izdw-835253a291.o903889",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/835253a29183e251b0307a310438aa98/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F...                                     [100%]\n=================================== FAILURES ===================================\n_____________ test_context_count_mismatch_is_rejected_fail_closed ______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_context_count_mismatch_is0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153046a0a5c0>\n\n    def test_context_count_mismatch_is_rejected_fail_closed(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n    ) -> None:\n        pair = _modified_pair(tmp_path, _TRACE_ONLY_NEW_SOURCE)\n        checker = _load_checker_module()\n        compare_file = checker._compare_file\n    \n        def compare_with_one_fewer_genome(\n            repo, old_oid, new_oid, path, compiler, genomes, overlays, expected_context_count\n        ):\n            assert expected_context_count > 0\n            assert len(genomes) > 1\n            return compare_file(\n                repo,\n                old_oid,\n                new_oid,\n                path,\n                compiler,\n                genomes[:-1],\n                overlays,\n                expected_context_count,\n            )\n    \n        monkeypatch.setattr(checker, \"_compare_file\", compare_with_one_fewer_genome)\n>       with pytest.raises(\n            checker.CheckError,\n            match=\"context 比較件数が列挙元から導出した期待数と一致しない\",\n        ):\nE       Failed: DID NOT RAISE CheckError\n\norchestrator/tests/test_check_trace0_preprocess_identity.py:339: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed\n1 failed, 35 passed in 3.18s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1372 retained_bytes=1372 omitted_bytes=0 rendered_excerpt_bytes=1514 sha256=ad939a4e8810c787082d6be395eb4c36cd3547ca941065081c99c8ff20480c2b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_context_count_mismatch_is0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153046a0a5c0>\n> \n>     def test_context_count_mismatch_is_rejected_fail_closed(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch\n>     ) -> None:\n>         pair = _modified_pair(tmp_path, _TRACE_ONLY_NEW_SOURCE)\n>         checker = _load_checker_module()\n>         compare_file = checker._compare_file\n>     \n>         def compare_with_one_fewer_genome(\n>             repo, old_oid, new_oid, path, compiler, genomes, overlays, expected_context_count\n>         ):\n>             assert expected_context_count > 0\n>             assert len(genomes) > 1\n>             return compare_file(\n>                 repo,\n>                 old_oid,\n>                 new_oid,\n>                 path,\n>                 compiler,\n>                 genomes[:-1],\n>                 overlays,\n>                 expected_context_count,\n>             )\n>     \n>         monkeypatch.setattr(checker, \"_compare_file\", compare_with_one_fewer_genome)\n> >       with pytest.raises(\n>             checker.CheckError,\n>             match=\"context \\u6bd4\\u8f03\\u4ef6\\u6570\\u304c\\u5217\\u6319\\u5143\\u304b\\u3089\\u5c0e\\u51fa\\u3057\\u305f\\u671f\\u5f85\\u6570\\u3068\\u4e00\\u81f4\\u3057\\u306a\\u3044\",\n>         ):\n> E       Failed: DID NOT RAISE CheckError\n> \n> orchestrator/tests/test_check_trace0_preprocess_identity.py:339: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1372 retained_bytes=1372 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2254 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cbe16cba8fec96db85507c2d31bcc49364d94a8f16dc307b5814737d7bd3a524"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "556e965b2b109252f4e5edd28951ef54384cf70ca030eea4c379e73e423598d4",
+      "duration_s": 26.846,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed"
+      ],
+      "hang_risk": false,
+      "id": "M5-context-count-gate-removed",
+      "injection_diff_sha256": "5f110a542b8793bb8433f8c98114c848ff663da860425f51c6f24accce0b5ab1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2f2bf0e5616108e635a70ad2328952f3feb37b35bc6472d42d5b6de2aa3b5ee6",
+      "replacements": [
+        {
+          "file": "tools/check_trace0_preprocess_identity.py",
+          "new": "    if False:\n",
+          "old": "    if len(contexts) != expected_context_count:\n"
+        }
+      ],
+      "repo_head": "a90f3f9f10422476f6679b38adbac4e5e50c7ac2",
+      "runner_sha256": "708b6d477b220d85274b0e634bbfd49d5dd45993d6b0ee96f77b4aca00e1f081",
+      "spec_sha256": "d338d9d7e4f10b900777e61041a1ac0baa2ebd56a9d2cda66810d478e4b76475",
+      "status": "KILLED",
+      "test_output_sha256": "cbe16cba8fec96db85507c2d31bcc49364d94a8f16dc307b5814737d7bd3a524",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c3486d859d54f1ad3d767bebcb6552abc78e682cd8832ae83a56c040d5d4cb62"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/6a867c461ec19eb57de9bb942a02e6e0/izdw-6a867c461e.o903883",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/output/pegasus-dispatch/6a867c461ec19eb57de9bb942a02e6e0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_moved_inside_trace_branch_is_rejected_by_activity\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_match_is_order_independent_and_recorded\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected0]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected1]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_duplicates\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_help_documents_expected_paths_exact_set_contract\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.h]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hh]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hpp]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hxx]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.ipp]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_empty_context_enumeration_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_old_and_new_digests_are_computed_by_independent_calls\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[add]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[delete]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[rename]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_mode_change_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_non_cpp_changed_path_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_preprocess_failure_is_not_downgraded_to_pass\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonexistent_compiler_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_required_cxx_argument_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_same_commit_empty_diff_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[short]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[symbolic]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_commit_object_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonancestor_commit_relation_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_line_spelling_change_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#ifdef UNKNOWN_BUILD_MACRO\\nint hidden = 1;\\n#endif\\n-\\u672a\\u77e5\\u30de\\u30af\\u30ed]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#if __has_include(<hidden.hh>)\\nint hidden = 1;\\n#endif\\n-__has_include]\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected\norchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_only_drift_outside_trace_is_accepted\n\n36 tests collected in 0.46s\n",
+        "stdout_sha256": "719ff65dd24a66557aca3d40b0fddec66ae2297d6b5c582872509dc018c203b2"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_only_change_passes_with_deterministic_required_evidence",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_moved_inside_trace_branch_is_rejected_by_activity",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_match_is_order_independent_and_recorded",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected0]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_actual_or_expected_superset[expected1]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_expected_paths_rejects_duplicates",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_help_documents_expected_paths_exact_set_contract",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.h]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hh]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hpp]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.hxx]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_modified_header_is_rejected_as_outside_checker_guarantee[.ipp]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_empty_context_enumeration_is_rejected_fail_closed",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_old_and_new_digests_are_computed_by_independent_calls",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[add]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[delete]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_add_delete_and_rename_are_rejected_as_unsupported_status[rename]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_mode_change_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_non_cpp_changed_path_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_preprocess_failure_is_not_downgraded_to_pass",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonexistent_compiler_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_required_cxx_argument_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_same_commit_empty_diff_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[short]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_short_sha_and_symbolic_ref_are_rejected[symbolic]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_missing_commit_object_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_nonancestor_commit_relation_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_include_line_spelling_change_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#ifdef UNKNOWN_BUILD_MACRO/nint hidden = 1;/n#endif/n-/u672a/u77e5/u30de/u30af/u30ed]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_existing_conditional_macro_guard_remains_fail_closed[#if __has_include(<hidden.hh>)/nint hidden = 1;/n#endif/n-__has_include]",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected",
+        "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_comment_only_drift_outside_trace_is_accepted"
+      ],
+      "duration_s": 21.764,
+      "rc": 0,
+      "repo_head": "a90f3f9f10422476f6679b38adbac4e5e50c7ac2",
+      "runner_sha256": "708b6d477b220d85274b0e634bbfd49d5dd45993d6b0ee96f77b4aca00e1f081",
+      "spec_sha256": "d338d9d7e4f10b900777e61041a1ac0baa2ebd56a9d2cda66810d478e4b76475",
+      "status": "PASSED",
+      "tool_sha256": "c3486d859d54f1ad3d767bebcb6552abc78e682cd8832ae83a56c040d5d4cb62"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M2-normalized-compare-disabled": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_trace_output_outside_trace_branch_is_rejected",
+          "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_difference_visible_only_in_nonbase_context_is_rejected",
+          "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_ifdef_trace_is_rejected_when_trace_is_explicitly_zero",
+          "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_every_modified_cpp_source_is_checked_without_expected_paths"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "65d42734b9e09bb68fe81bd538d543944efb71b428d871462e70e66670be40ab",
+        "replacements": [
+          {
+            "file": "tools/check_trace0_preprocess_identity.py",
+            "new": "            if False:\n",
+            "old": "            if old_normalized != new_normalized:\n"
+          }
+        ]
+      },
+      "M5-context-count-gate-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_trace0_preprocess_identity.py::test_context_count_mismatch_is_rejected_fail_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5f110a542b8793bb8433f8c98114c848ff663da860425f51c6f24accce0b5ab1",
+        "replacements": [
+          {
+            "file": "tools/check_trace0_preprocess_identity.py",
+            "new": "    if False:\n",
+            "old": "    if len(contexts) != expected_context_count:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "17bf8ff0094323eb8d8059be0bab5003f2fd78df79e9713c5af79baca69b29ce",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_trace0_preprocess_identity.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "a90f3f9f10422476f6679b38adbac4e5e50c7ac2",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_trace0_preprocess_identity.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "88e4e9953ed0152c6e03b4b2898a5f3e16c58033",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "708b6d477b220d85274b0e634bbfd49d5dd45993d6b0ee96f77b4aca00e1f081",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "d338d9d7e4f10b900777e61041a1ac0baa2ebd56a9d2cda66810d478e4b76475",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t756-fn2-trace-v2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "c3486d859d54f1ad3d767bebcb6552abc78e682cd8832ae83a56c040d5d4cb62",
+  "updated_at": "2026-08-11T11:41:31.204341+00:00"
+}

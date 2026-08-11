@@ -1,0 +1,395 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7aae05d88d9d0f56ff72cda9d6500674/izdw-7aae05d88d.o903702",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7aae05d88d9d0f56ff72cda9d6500674/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................                                [100%]\n41 passed in 2.48s\n",
+      "stdout_sha256": "689c374903d9fa271d3a7f47db9716783c179bc9b444a0b2d388be4557873e36"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e84fe594c6de97f4e7c3289b19085e2e412d368c6eef41d5ae3f8f56ed03e4de",
+    "duration_s": 26.863,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "1a1012f7ce4171c44e81966a0d53c5c7f68939db0896e8876e047f72eb508b68",
+    "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+    "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+    "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+    "status": "PASSED",
+    "test_output_sha256": "689c374903d9fa271d3a7f47db9716783c179bc9b444a0b2d388be4557873e36",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471"
+  },
+  "date": "2026-08-11T09:34:12.917760+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c17e915fd64d1bd6933efbd4ac668567/izdw-c17e915fd6.o903705",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c17e915fd64d1bd6933efbd4ac668567/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................F................                                [100%]\n=================================== FAILURES ===================================\n_ test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record] _\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_merge_rejects_each_fail_c0')\ntarget = 'ledgers', update = <function <lambda> at 0x150e85e64a60>\nmessage = 'TIMEOUT record'\n\n    @pytest.mark.parametrize(\n        (\"target\", \"update\", \"message\"),\n        [\n            (\n                \"ledgers\",\n                lambda value: value.__setitem__(\"spec_sha256\", \"0\" * 64),\n                \"spec hash\",\n            ),\n            (\n                \"ledgers\",\n                lambda value: value[\"summary\"].__setitem__(\"recorded\", 1),\n                \"registered != recorded\",\n            ),\n            (\n                \"wrappers\",\n                lambda value: value.__setitem__(\"terminal_ledger\", False),\n                \"terminal_ledger\",\n            ),\n            (\n                \"ledgers\",\n                lambda value: (\n                    value[\"mutations\"][0].__setitem__(\"status\", \"TIMEOUT\"),\n                    value[\"mutations\"][0].__setitem__(\"matches_expectation\", False),\n                    value[\"summary\"].__setitem__(\"KILLED\", value[\"summary\"][\"KILLED\"] - 1),\n                    value[\"summary\"].__setitem__(\"TIMEOUT\", 1),\n                    value[\"summary\"].__setitem__(\"matching\", value[\"summary\"][\"matching\"] - 1),\n                ),\n                \"TIMEOUT record\",\n            ),\n            (\n                \"ledgers\",\n                lambda value: value[\"procedure\"].__setitem__(\"source_policy\", \"drift\"),\n                \"内容 identity\",\n            ),\n            (\n                \"attempts\",\n                lambda value: value[\"attempts\"].pop(),\n                \"attempt 数\",\n            ),\n        ],\n    )\n    def test_merge_rejects_each_fail_closed_condition(\n        tmp_path: Path,\n        target: str,\n        update: Callable[[dict[str, Any]], None],\n        message: str,\n    ) -> None:\n        paths = _build_group(tmp_path)\n        path = paths[target][1]\n        _mutate_json(path, update)\n    \n>       with pytest.raises(MF.FanoutContractError, match=message):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'TIMEOUT record'\nE         Actual message: 'shard-001 M3 status が rc/node/artifact evidence と不一致'\n\norchestrator/tests/test_mutation_fanout_contract.py:587: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]\n1 failed, 40 passed in 2.54s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]\" nodeid_bytes=131 nodeid_omitted_bytes=0 source_bytes=2335 retained_bytes=2335 omitted_bytes=0 rendered_excerpt_bytes=2486 sha256=a35c386cea824a25c7e7002399a48578663893c2caf04db933b60459a713ecad\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_merge_rejects_each_fail_c0')\n> target = 'ledgers', update = <function <lambda> at 0x150e85e64a60>\n> message = 'TIMEOUT record'\n> \n>     @pytest.mark.parametrize(\n>         (\"target\", \"update\", \"message\"),\n>         [\n>             (\n>                 \"ledgers\",\n>                 lambda value: value.__setitem__(\"spec_sha256\", \"0\" * 64),\n>                 \"spec hash\",\n>             ),\n>             (\n>                 \"ledgers\",\n>                 lambda value: value[\"summary\"].__setitem__(\"recorded\", 1),\n>                 \"registered != recorded\",\n>             ),\n>             (\n>                 \"wrappers\",\n>                 lambda value: value.__setitem__(\"terminal_ledger\", False),\n>                 \"terminal_ledger\",\n>             ),\n>             (\n>                 \"ledgers\",\n>                 lambda value: (\n>                     value[\"mutations\"][0].__setitem__(\"status\", \"TIMEOUT\"),\n>                     value[\"mutations\"][0].__setitem__(\"matches_expectation\", False),\n>                     value[\"summary\"].__setitem__(\"KILLED\", value[\"summary\"][\"KILLED\"] - 1),\n>                     value[\"summary\"].__setitem__(\"TIMEOUT\", 1),\n>                     value[\"summary\"].__setitem__(\"matching\", value[\"summary\"][\"matching\"] - 1),\n>                 ),\n>                 \"TIMEOUT record\",\n>             ),\n>             (\n>                 \"ledgers\",\n>                 lambda value: value[\"procedure\"].__setitem__(\"source_policy\", \"drift\"),\n>                 \"\\u5185\\u5bb9 identity\",\n>             ),\n>             (\n>                 \"attempts\",\n>                 lambda value: value[\"attempts\"].pop(),\n>                 \"attempt \\u6570\",\n>             ),\n>         ],\n>     )\n>     def test_merge_rejects_each_fail_closed_condition(\n>         tmp_path: Path,\n>         target: str,\n>         update: Callable[[dict[str, Any]], None],\n>         message: str,\n>     ) -> None:\n>         paths = _build_group(tmp_path)\n>         path = paths[target][1]\n>         _mutate_json(path, update)\n>     \n> >       with pytest.raises(MF.FanoutContractError, match=message):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'TIMEOUT record'\n> E         Actual message: 'shard-001 M3 status \\u304c rc/node/artifact evidence \\u3068\\u4e0d\\u4e00\\u81f4'\n> \n> orchestrator/tests/test_mutation_fanout_contract.py:587: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2335 retained_bytes=2335 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3245 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d1fe9807cfab1bbfedda33037fd026973a31877a8826a1c0c5dc3b35e814625f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e84fe594c6de97f4e7c3289b19085e2e412d368c6eef41d5ae3f8f56ed03e4de",
+      "duration_s": 26.931,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "4f0bbc3f8591670d7fe642588d01e6a50507e12fe853ee1dd1f367074d992b90",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6e9c7ed62e8cb17873eb1452b03269b41175ade82ef0f07d84e4c3d98e7cdece",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "new": "if status == \"__mutation_never_matches__\":",
+          "old": "if status == \"TIMEOUT\":"
+        }
+      ],
+      "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+      "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+      "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+      "status": "KILLED",
+      "test_output_sha256": "d1fe9807cfab1bbfedda33037fd026973a31877a8826a1c0c5dc3b35e814625f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/07365ee575514badb11e9b64f73b208e/izdw-07365ee575.o903706",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/07365ee575514badb11e9b64f73b208e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................                                [100%]\n41 passed in 2.50s\n",
+        "stdout_sha256": "dd72e7095f054f4c20a3dfede712f0c6f5d4f2e83b6d7bd414d83e693b71efbc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e84fe594c6de97f4e7c3289b19085e2e412d368c6eef41d5ae3f8f56ed03e4de",
+      "duration_s": 26.88,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_collected_nodes_gate_has_a_single_cross_shard_reason"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "8172e7671cdd649aa65ef2600c9ab12bce1cbeb4aa5bf136608d474b55d55f68",
+      "matches_expectation": false,
+      "rc": 0,
+      "registration_sha256": "74de04a70d87e5acec542457b943bd9d4731472f8a228a29d111eb6f1030b069",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "new": "if collection[\"collected_nodes\"] is None:",
+          "old": "if collection[\"collected_nodes\"] != observed_collection:"
+        }
+      ],
+      "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+      "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+      "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+      "status": "SURVIVED",
+      "test_output_sha256": "dd72e7095f054f4c20a3dfede712f0c6f5d4f2e83b6d7bd414d83e693b71efbc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c67c8b17b9417c16a4935af7f086e3ab/izdw-c67c8b17b9.o903707",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c67c8b17b9417c16a4935af7f086e3ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................F...                                [100%]\n=================================== FAILURES ===================================\n________ test_merge_compares_paths_to_manifest_not_pairwise_difference _________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_merge_compares_paths_to_m0')\n\n    def test_merge_compares_paths_to_manifest_not_pairwise_difference(tmp_path: Path) -> None:\n        paths = _build_group(tmp_path)\n        group = json.loads(paths[\"group\"].read_text(encoding=\"utf-8\"))\n        group[\"shards\"][1][\"expected_paths\"][\"tool_path\"] += \".wrong\"\n        _write_json(paths[\"group\"], group)\n    \n>       with pytest.raises(MF.FanoutContractError, match=\"manifest path\"):\nE       Failed: DID NOT RAISE FanoutContractError\n\norchestrator/tests/test_mutation_fanout_contract.py:769: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference\n1 failed, 40 passed in 2.46s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=658 retained_bytes=658 omitted_bytes=0 rendered_excerpt_bytes=687 sha256=f172ba72951f190de4e8703deae9e081153d7ac78066b8e8cebbaa7848a876e1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_merge_compares_paths_to_m0')\n> \n>     def test_merge_compares_paths_to_manifest_not_pairwise_difference(tmp_path: Path) -> None:\n>         paths = _build_group(tmp_path)\n>         group = json.loads(paths[\"group\"].read_text(encoding=\"utf-8\"))\n>         group[\"shards\"][1][\"expected_paths\"][\"tool_path\"] += \".wrong\"\n>         _write_json(paths[\"group\"], group)\n>     \n> >       with pytest.raises(MF.FanoutContractError, match=\"manifest path\"):\n> E       Failed: DID NOT RAISE FanoutContractError\n> \n> orchestrator/tests/test_mutation_fanout_contract.py:769: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=658 retained_bytes=658 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1424 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "001d916520280f78516d1b09669d32e405146738dbd5cff54f9380f45fd138eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e84fe594c6de97f4e7c3289b19085e2e412d368c6eef41d5ae3f8f56ed03e4de",
+      "duration_s": 26.853,
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference"
+      ],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "832b1738a7c3ac3de94b45e70b328c7cd911b9c24b5e295a781777c9b641566f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f6c439af581263e0df04c5a2f12c688f3db71f45c71c7f8b9ebde68d42578eb1",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "new": "if tool[\"path\"] is None:",
+          "old": "if tool[\"path\"] != expected_paths[\"tool_path\"]:"
+        }
+      ],
+      "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+      "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+      "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+      "status": "KILLED",
+      "test_output_sha256": "001d916520280f78516d1b09669d32e405146738dbd5cff54f9380f45fd138eb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0cc5b61427a8304237d287cffbb8a99c/izdw-0cc5b61427.o903708",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0cc5b61427a8304237d287cffbb8a99c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................................                                [100%]\n41 passed in 2.49s\n",
+        "stdout_sha256": "8a63f70b62cd15307c1f96347cc42333f62a26a52a267e18e0b0ab9f09692edb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e84fe594c6de97f4e7c3289b19085e2e412d368c6eef41d5ae3f8f56ed03e4de",
+      "duration_s": 26.946,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M04",
+      "injection_diff_sha256": "ff00ca888536d60d6353d1d2b06f45482d22d3998e26c4f4cb20aacd643d1b1c",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "183f8e23143ced6225793bcf7f15180e0a8e7833996ec6142920f82da8b3d658",
+      "replacements": [
+        {
+          "file": "tools/mutation_fanout_contract.py",
+          "new": "if history_record[\"status\"] == \"__mutation_never_matches__\":",
+          "old": "if history_record[\"status\"] == \"TIMEOUT\":"
+        }
+      ],
+      "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+      "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+      "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+      "status": "SURVIVED",
+      "test_output_sha256": "8a63f70b62cd15307c1f96347cc42333f62a26a52a267e18e0b0ab9f09692edb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/37c45f87c4f8c7c78bb6655c7f637004/izdw-37c45f87c4.o903701",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/37c45f87c4f8c7c78bb6655c7f637004/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_mutation_fanout_contract.py::test_serializer_and_split_are_deterministic_and_preserve_parent_values\norchestrator/tests/test_mutation_fanout_contract.py::test_split_requires_explicit_valid_n_and_rejects_existing_outputs\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-spec hash]\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-registered != recorded]\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[wrappers-<lambda>-terminal_ledger]\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-\\u5185\\u5bb9 identity]\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[attempts-<lambda>-attempt \\u6570]\norchestrator/tests/test_mutation_fanout_contract.py::test_collected_nodes_gate_has_a_single_cross_shard_reason\norchestrator/tests/test_mutation_fanout_contract.py::test_unknown_identity_field_gate_has_a_single_exact_key_reason\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rederives_terminal_status_from_rc_nodes_stdout_and_receipt\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_receipt_body_mismatch_and_orphan_evidence\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_old_shards_replayed_under_new_parent_authority\norchestrator/tests/test_mutation_fanout_contract.py::test_fixed_head_identity_accepts_matching_and_rejects_dirty_merger_bytes\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference\norchestrator/tests/test_mutation_fanout_contract.py::test_merge_derives_global_result_from_records_and_cross_checks_rc\norchestrator/tests/test_mutation_fanout_contract.py::test_parent_id_bijection_rejects_missing_duplicate_and_unknown[shard_ids0]\norchestrator/tests/test_mutation_fanout_contract.py::test_parent_id_bijection_rejects_missing_duplicate_and_unknown[shard_ids1]\norchestrator/tests/test_mutation_fanout_contract.py::test_parent_id_bijection_rejects_missing_duplicate_and_unknown[shard_ids2]\norchestrator/tests/test_mutation_fanout.py::test_run_persists_complete_invocation_set_before_barrier_and_keeps_rc1_terminal\norchestrator/tests/test_mutation_fanout.py::test_nonterminal_shard_does_not_retry_or_merge\norchestrator/tests/test_mutation_fanout.py::test_scope_reexec_applies_one_memory_limit_to_the_driver_and_all_descendants\norchestrator/tests/test_mutation_fanout.py::test_receipt_for_another_n_is_unknown_and_never_launches_or_clips\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[commit-0000000000000000000000000000000000000000]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[outer_argv_sha256-0000000000000000000000000000000000000000000000000000000000000000]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[input_bytes-1]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[input_count-1]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[memory_max_bytes-1]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[measurement_logs-drop-one]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[producer_identity-wrong-producer]\norchestrator/tests/test_mutation_fanout.py::test_admission_rejects_when_measurement_scope_is_not_live_kernel_evidence\norchestrator/tests/test_mutation_fanout.py::test_missing_bounded_scope_stops_before_any_wrapper_launch\norchestrator/tests/test_mutation_fanout.py::test_dirty_wrapper_is_rejected_against_fixed_head_before_group_creation\norchestrator/tests/test_mutation_fanout.py::test_dirty_driver_copy_cannot_claim_the_fixed_head_identity\norchestrator/tests/test_mutation_fanout.py::test_group_root_inside_registered_worktree_is_rejected_before_creation\norchestrator/tests/test_mutation_fanout.py::test_unexpected_registered_worktree_is_reported_without_merge_or_removal\norchestrator/tests/test_mutation_fanout.py::test_qdel_is_limited_to_receipt_bound_owned_que_or_hld\norchestrator/tests/test_mutation_fanout.py::test_null_attempt_and_orphan_receipt_remain_in_remote_job_report\norchestrator/tests/test_mutation_fanout.py::test_preserved_container_report_names_shard_and_human_owner\norchestrator/tests/test_mutation_fanout.py::test_driver_source_has_no_shell_waiter_or_pattern_pid_detection\n\n41 tests collected in 0.41s\n",
+        "stdout_sha256": "606039646a0ba16e3a0afd3c660fd1fb30c60f4f70fc3f6c99e407bb6e72fd49"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_serializer_and_split_are_deterministic_and_preserve_parent_values",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_split_requires_explicit_valid_n_and_rejects_existing_outputs",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_accepts_manifest_exact_paths_even_when_shards_reuse_same_paths",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-spec hash]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-registered != recorded]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[wrappers-<lambda>-terminal_ledger]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-/u5185/u5bb9 identity]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[attempts-<lambda>-attempt /u6570]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_collected_nodes_gate_has_a_single_cross_shard_reason",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_unknown_identity_field_gate_has_a_single_exact_key_reason",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rederives_terminal_status_from_rc_nodes_stdout_and_receipt",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_receipt_body_mismatch_and_orphan_evidence",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_old_shards_replayed_under_new_parent_authority",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_fixed_head_identity_accepts_matching_and_rejects_dirty_merger_bytes",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_derives_global_result_from_records_and_cross_checks_rc",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_parent_id_bijection_rejects_missing_duplicate_and_unknown[shard_ids0]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_parent_id_bijection_rejects_missing_duplicate_and_unknown[shard_ids1]",
+        "orchestrator/tests/test_mutation_fanout_contract.py::test_parent_id_bijection_rejects_missing_duplicate_and_unknown[shard_ids2]",
+        "orchestrator/tests/test_mutation_fanout.py::test_run_persists_complete_invocation_set_before_barrier_and_keeps_rc1_terminal",
+        "orchestrator/tests/test_mutation_fanout.py::test_nonterminal_shard_does_not_retry_or_merge",
+        "orchestrator/tests/test_mutation_fanout.py::test_scope_reexec_applies_one_memory_limit_to_the_driver_and_all_descendants",
+        "orchestrator/tests/test_mutation_fanout.py::test_receipt_for_another_n_is_unknown_and_never_launches_or_clips",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[commit-0000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[outer_argv_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[input_bytes-1]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[input_count-1]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[memory_max_bytes-1]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[measurement_logs-drop-one]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_unmeasured_or_mismatched_receipt[producer_identity-wrong-producer]",
+        "orchestrator/tests/test_mutation_fanout.py::test_admission_rejects_when_measurement_scope_is_not_live_kernel_evidence",
+        "orchestrator/tests/test_mutation_fanout.py::test_missing_bounded_scope_stops_before_any_wrapper_launch",
+        "orchestrator/tests/test_mutation_fanout.py::test_dirty_wrapper_is_rejected_against_fixed_head_before_group_creation",
+        "orchestrator/tests/test_mutation_fanout.py::test_dirty_driver_copy_cannot_claim_the_fixed_head_identity",
+        "orchestrator/tests/test_mutation_fanout.py::test_group_root_inside_registered_worktree_is_rejected_before_creation",
+        "orchestrator/tests/test_mutation_fanout.py::test_unexpected_registered_worktree_is_reported_without_merge_or_removal",
+        "orchestrator/tests/test_mutation_fanout.py::test_qdel_is_limited_to_receipt_bound_owned_que_or_hld",
+        "orchestrator/tests/test_mutation_fanout.py::test_null_attempt_and_orphan_receipt_remain_in_remote_job_report",
+        "orchestrator/tests/test_mutation_fanout.py::test_preserved_container_report_names_shard_and_human_owner",
+        "orchestrator/tests/test_mutation_fanout.py::test_driver_source_has_no_shell_waiter_or_pattern_pid_detection"
+      ],
+      "duration_s": 21.821,
+      "rc": 0,
+      "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+      "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+      "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+      "status": "PASSED",
+      "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_rejects_each_fail_closed_condition[ledgers-<lambda>-TIMEOUT record]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4f0bbc3f8591670d7fe642588d01e6a50507e12fe853ee1dd1f367074d992b90",
+        "replacements": [
+          {
+            "file": "tools/mutation_fanout_contract.py",
+            "new": "if status == \"__mutation_never_matches__\":",
+            "old": "if status == \"TIMEOUT\":"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_fanout_contract.py::test_collected_nodes_gate_has_a_single_cross_shard_reason"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8172e7671cdd649aa65ef2600c9ab12bce1cbeb4aa5bf136608d474b55d55f68",
+        "replacements": [
+          {
+            "file": "tools/mutation_fanout_contract.py",
+            "new": "if collection[\"collected_nodes\"] is None:",
+            "old": "if collection[\"collected_nodes\"] != observed_collection:"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mutation_fanout_contract.py::test_merge_compares_paths_to_manifest_not_pairwise_difference"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "832b1738a7c3ac3de94b45e70b328c7cd911b9c24b5e295a781777c9b641566f",
+        "replacements": [
+          {
+            "file": "tools/mutation_fanout_contract.py",
+            "new": "if tool[\"path\"] is None:",
+            "old": "if tool[\"path\"] != expected_paths[\"tool_path\"]:"
+          }
+        ]
+      },
+      "M04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "ff00ca888536d60d6353d1d2b06f45482d22d3998e26c4f4cb20aacd643d1b1c",
+        "replacements": [
+          {
+            "file": "tools/mutation_fanout_contract.py",
+            "new": "if history_record[\"status\"] == \"__mutation_never_matches__\":",
+            "old": "if history_record[\"status\"] == \"TIMEOUT\":"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "1a1012f7ce4171c44e81966a0d53c5c7f68939db0896e8876e047f72eb508b68",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_mutation_fanout_contract.py",
+      "orchestrator/tests/test_mutation_fanout.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "3c01faa53e1ebf92ea3ae4f17de4fff5b44d8c18",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_mutation_fanout_contract.py",
+      "orchestrator/tests/test_mutation_fanout.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3eaedb57e9cece8f5169163d6a58942bf4fce03b",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d601ccbcb90db4449888397f218e5c859d61d0cf6d8519d1711b17388d3be418",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b61ca6d305514cd3994c0a0f063a5af7e595fe8969e7b3d0d973b24bc618866c",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 2,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 3,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/mutation-scratch/t808-main/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "92f6cfc73c90a2af11c633dd0ee7a21059a263de3affb1cd6cc69e7c259eb471",
+  "updated_at": "2026-08-11T09:36:33.006791+00:00"
+}
