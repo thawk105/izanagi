@@ -63,6 +63,13 @@ title: [T-316] 意味 gate を実装した — 主張を「測定済み 4 種の
   受入 lease 取得後に main を取り込んだ tip `31ea06c8`)。**焦点走で赤だった
   `test_checkpoint_direction_and_magnitude_domains_match_role_policy` は全走では緑**であり、
   差分外・実行経路依存という帰属が裏付けられた。本記録を足した最終 tip でも同じ受入を再走した。
+- **受入を 3 走した。3 走目だけ赤が 1 件出たが、単独再走で再現せずフレークと判定した。**
+  落ちたのは `orchestrator/tests/test_codex_worker_launch.py` の launcher 終了検査で、
+  `process_group_residual` と `termination_verified` が不成立だった。**本 wave の差分は同 file を
+  1 行も触っていない** (`67760fdb..3e567539` に該当 path なし)。診断は終了確認の予算が 0.05 秒、
+  計測ノードの loadavg が 10.3、`PYTEST_XDIST_WORKER=gw6` で、並列実行下のタイミングに敏感である。
+  同じ file を単独で再走すると **97 passed / rc=0** で再現しない。`DW-O18` に従い実装差分へ
+  帰属させず {{T:launcher-termination-flake}} として起票する。
 - **変異 runner の範囲は既知赤 1 node を deselect して baseline を緑にした。**
   `test_p3_s4_loop.py::test_checkpoint_direction_and_magnitude_domains_match_role_policy` は
   `from codex_roles import policy` を使い、`orchestrator/` が `sys.path` に入る実行でしか解決
@@ -104,6 +111,12 @@ title: [T-316] 意味 gate を実装した — 主張を「測定済み 4 種の
   `assert_value_literal_consistent` を通るが genome は `int()` で 20 を記録する。実行 binary と
   台帳 genome が別値になる帰属の穴。既存欠陥で本 wave の差分外。role policy は 1..1000 の
   `int|float` を許可している。
+- {{T:launcher-termination-flake}} **P3・受入で実測したフレーク**:
+  `orchestrator/tests/test_codex_worker_launch.py` の launcher 終了検査が、受入全走 (xdist、
+  loadavg 10.3 の計測ノード) で `process_group_residual` / `termination_verified` 不成立により
+  1 度だけ落ちた。同 file 単独では 97 passed / rc=0 で再現しない。終了確認の予算が **0.05 秒**と
+  短く、並列実行下の負荷に敏感である。予算を実測に基づいて見直すか、負荷非依存の観測点へ
+  置き換えるかを検討する。本 wave の差分は同 file を触っていない。
 - {{T:dw-o01-artifact-root}} **P3・段 8 自己改善 (要裁定)**: `DW-O01` は
   `tools/dev_wave_codex.py` の `--artifact-root` が wave 名 dir の**親**を取ること、
   および tool が組む `<root>/<wave>/<job-id>` を**呼び手が先に作る**必要があることを書いていない。
