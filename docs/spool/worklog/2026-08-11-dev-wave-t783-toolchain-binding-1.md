@@ -41,6 +41,40 @@ title: toolchain 束縛を receipt 側へ実装し、環境・世代をまたぐ
   本 wave はキュー投入 (計測) を行っていない。検査系の dispatch は行った。
 - **AI 工数**: codex 子 9 本 (plan 1 / consult 2 / author 2 / fix 4)。
   うち段 6 review の初回 2 本は引数契約違反で即死し成果物ゼロ (下記 §改善)。
+- **既知赤 waiver W2 をユーザー裁定で新設し、それを適用して land した。**
+  下記の main 由来の赤 2 件だけは land を止めない。**並行セッションも同じ条件でだけ適用してよい。**
+  - **対象は 2 node のみ**:
+    `orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials`
+    `orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed`
+  - **原因の同一性検査 (毎回やる)**: 赤の内容が
+    `{'decision_ids': ['D292', 'D305']} != {'decision_ids': ['D292']}` であること。
+    すなわち `docs/decisions.md` の `D305` 節が `D291` に言及するため supersession scan が
+    `D305` を拾う一方、`test_t793_report.py` の期待値が `["D292"]` のままであること
+  - **帰属検査 (毎回やる)**: 自 wave の差分が走査器・走査対象・期待値のいずれにも触れていないこと。
+    `git diff --name-only <base main>..<wave tip>` に
+    `orchestrator/publication/`・`docs/decisions.md`・`orchestrator/tests/test_t793_report.py` が
+    1 件も含まれないこと (本 wave では 0 件を実測)
+  - **他の赤が 1 件でもあれば waiver は適用せず `DW-STOP` に従って停止する。**
+    「赤が 2 件だから通す」ではなく「この 2 node のこの原因だから通す」である
+  - **失効条件**: `test_t793_report.py` の期待値が `D305` へ追随した時点で自動失効。
+    以後この waiver を使ってはならない
+  - **記録義務**: waiver を使って land した wave は、worklog に「waiver W2 適用」と
+    受入全走の実測値 (passed / failed / skipped と赤 node 名) を必ず書く
+  - **射程**: これは公表台帳の報告 gate に対する免除であり、**CC 合成の正しさ防壁
+    (verifier / diff 検疫 / 凍結成果物 / proof chain) には一切適用しない**。
+    それらが赤なら waiver の有無に関わらず停止する (規律 2)
+  - **本 wave の toolchain 束縛 gate にも適用しない。** 束縛検査の赤は実装の誤りであり、
+    waiver で通してはならない
+- **W2 新設の経緯 — local main 自体が赤だった。** 最終 tip での受入全走が 2 件赤になり、
+  走査器 (`orchestrator/publication/report.py`)・走査対象 (`docs/decisions.md`)・
+  期待値 (`orchestrator/tests/test_t793_report.py`) の 3 つとも**本 branch で main と byte 一致**
+  であることを `git diff main --stat` で実測した (いずれも空)。
+  supersession scan が読むのは `HEAD` の `docs/decisions.md` だけで spool fragment を見ない
+  (`_read_head_decisions`)。よって本 wave の差分は到達しない。
+  現行 main で `D305` 節が `D291` に 6 回言及することも実測した。
+  親は一度 `DW-STOP` に従い停止してユーザーへ返し、その裁定として W2 が新設された。
+  **`F101` の恒久対応どおり、停止判断の前に赤 node 名で worklog を検索し、
+  既存 waiver が無いことを確認済み** (検索語 `test_t793_report` / `D305` / `waiver`、結果 0 件)。
 - **ユーザー手番**: 裁定 4 件 (下記「新規」)。push は行わない。
 
 ### 実測 (すべて親が取得)
