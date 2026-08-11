@@ -67,10 +67,18 @@ title: 8b 再開の残余 — 床値実測・freeze v2 再凍結・oracle 実走
   `tools/run_tests.py` の 4 者が読むため、実 repo を読むテストは**存在する**
 - **凍結前の機械走査**: 変更・新規 docs 13 file に holdout 三軸語の conjunction hit
   **0 件 / rc=0** (両 holdout とも)
-- **検査の実測**: 受入全走 **8483 passed / 20 skipped / 547.73 秒 / rc=0**
+- **検査の実測**: 受入全走 1 走目 **8483 passed / 20 skipped / 547.73 秒 / rc=0**
   (受入 lease 取得後に local main を取り込んだ tip `ba73d199` で実走)。
   `check_docs` 違反なし、`spool_fold --dry-run` = planned、provenance 全史監査 rc=0 (2388 件、
   新規違反なし)。**skip 件数 20 は変更前と同一**で、本 wave は skip を増やしていない
+- **受入 2 走目で F57 が再発した。** docs 2 commit だけを積んだ tip `73c8ba95` の全走で
+  `test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape` が 1 件落ちた
+  (**1 failed / 8482 passed / 20 skipped / 538.44 秒**、
+  `failed_predicates=["process_group_residual","termination_verified"]`、
+  `loadavg=(12.92, 3.66, 1.90)`)。同 file の単独再走は **97 passed / 6.27 秒 / rc=0** で再現しない。
+  本 wave の差分は docs のみで launcher 実装にも同 test file にも到達しえず、
+  `DW-O18` により帰属しない。**同一 wave で docs 2 commit しか違わない 2 tip の全走が
+  緑 → 赤と割れた対照は F57 では初出**で、台帳へ再発として記録した
 - **並走ガード 3 条件を遵守した。** 本 wave は**計測系のキュー投入を 1 件も行っていない**
   (床値投入が不可のため)。投入したのは検査系の dispatch だけで、
   provenance 監査 (request `901529.nqsv`、Elapse 17 秒) と受入全走である。
