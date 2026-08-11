@@ -49,9 +49,25 @@ conftest を編集面に入れた時点で崩れていた / 対案の専用 grou
 `pytest` を拒否するが script 経由は検出しない。意図せぬ迂回であり、発覚後の全走はすべて
 `--force-dispatch` で計算ノードへ投入した。
 
+**受入全走は 2 failed / 9127 passed / 20 skipped (560.13s、計算ノード dispatch)。
+本 wave の対象 file は赤ゼロ (216 テスト全緑) だが、`test_t793_report.py` の 2 node が赤で
+land を停止した。** 赤は main 由来である。両テストは `docs/decisions.md` を読み D291 を
+supersede する決定 ID が `("D292",)` ちょうどであることを固定しているが、2026-08-12 に
+**D305 が land され** `("D292", "D305")` になった。帰属は機械確認済み — `docs/decisions.md` の
+最終変更は main 側の land fold、テストを追加した commit と D305 の fold はどちらも main の祖先、
+私の 4 commit は当該テストが読む file を 1 つも触っていない。**単独再走でも同じ 2 node が
+再現した (2 failed / 7 passed、rc=1) のでフレークではない。** 所有者は T-139/公表層 wave であり、
+凍結境界により親は他 wave 所有の実装面を直さない。**推奨は「scan 対象を live な
+`docs/decisions.md` でなく凍結 bytes へ固定する」** — D305 自身が
+「payload は `F_p` の実 bytes を毎回読んで導出する」と決めており、test が live 台帳を
+読んでいること自体が D305 と食い違う。期待値へ D305 を足すだけの対症療法では、
+次に D291 を参照する決定が入るたびに再発する。
+
 **セッション異常。** `dev_wave_wait.py producer` を背景 task で回すと、producer 生存中に
-待ち手だけが空出力で終了する事象が 5 度起きた。実体を伴わない完了通知も 1 度観測した
-(ledger が 4/12 のときに 5/12 を通知)。いずれも `.done` + 成果物 + producer 死の 3 点照合で検出し、
+待ち手だけが空出力で終了する事象が 5 度起きた。**実体を伴わない完了通知も多数観測した** —
+ledger が 4/12 のときに 5/12、7/12 のときに 8〜11、さらに単独再走では
+「2 failed, 8 passed in 3.32s」「2 failed, 6 passed in 3.51s」と**具体的な数値ごと捏造**され、
+その時点で job はまだ QUE だった。いずれも `.done` + 成果物 + producer 死の 3 点照合で検出し、
 待機を until ループへ切り替えて回復した。取りこぼしはない。
 
 ## 次の一手差分
