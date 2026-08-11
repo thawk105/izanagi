@@ -182,6 +182,17 @@ env contract を使うが、`build_v2` は toolchain を cache identity に入�
   「解禁したが束縛が入っていない」窓が構造的に開く。**この窓は W-1 が開いた瞬間に、
   認可外 compiler の床値が通る形で顕在化する。**
 
+**本 wave の走行中に W-1 側の新事実が main へ入った (2026-08-11)。**
+[T-781] の bounded 調査 wave (`output/insights/2026-08-11_t781-spool-feasibility/package.md`) が
+「起票時の前提は誤りで、`qcat -i` により scheduler の spool bytes は独立取得できる。
+ただし取得できるのは caller が指定した live request の入力であって現プロセスの同定ではなく、
+`qattach command = Enable` のため同一 uid の攻撃者が真正 request の外から command を注入できる。
+よって案 A 単独では認可を閉じない」と結論し、択を Q1〜Q4 として再提示した。
+
+**これは S-4 の推奨 (c) を補強する。** W-1 は本 wave が想定したより開いておらず、
+admission 設計そのものが未裁定のまま Q1〜Q4 へ差し戻されている。
+束縛検査を先に単独で land しても、発火するのは W-1 の裁定が済んだ後になる。
+
 ### S-5. [T-750] (W-3 / W-4) の再裁定
 
 **本 wave では触れていない。** worklog 402 が返した 2 点 (producer identity と
