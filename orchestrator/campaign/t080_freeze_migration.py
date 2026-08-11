@@ -1008,6 +1008,10 @@ def _batched_history_touches_path(
         return False
     if any(_SHA1_RE.fullmatch(commit) is None for commit in targets):
         raise MigrationError("receipt.git_error", "batch diff-tree commit が不正")
+    try:
+        path_raw = path.encode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise MigrationError("receipt.basis_invalid", "diff-tree path が UTF-8 でない") from exc
     stdin = "".join(f"{commit}\n" for commit in targets).encode("ascii", "strict")
     out = _git(
         [
@@ -1058,21 +1062,15 @@ def _batched_history_touches_path(
         path_count = 2 if status_code in {b"R", b"C"} else 1
         if offset + path_count >= len(records):
             raise MigrationError("receipt.git_error", "batch diff-tree path の件数が不一致")
-        try:
-            paths = tuple(
-                records[offset + index].decode("utf-8", "strict")
-                for index in range(1, path_count + 1)
-            )
-        except UnicodeError as exc:
-            raise MigrationError("receipt.git_error", "batch diff-tree path が UTF-8 でない") from exc
-        if status_code.decode("ascii") in {"M", "D", "R", "C", "T"} and path in paths:
+        paths = tuple(records[offset + index] for index in range(1, path_count + 1))
+        if status_code in {b"M", b"D", b"R", b"C", b"T"} and path_raw in paths:
             touched = True
         destination_path = paths[-1]
         if (
             duplicate_oid is not None
             and dst_oid.strip(b"0")
             and dst_oid.decode("ascii") == duplicate_oid
-            and destination_path != path
+            and destination_path != path_raw
         ):
             touched = True
         offset += path_count + 1

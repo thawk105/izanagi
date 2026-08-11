@@ -585,16 +585,73 @@ def _t080_stub_free_e2e_repo(
 
 def test_t080_stub_free_e2e_opt_in_gate_b5(monkeypatch):
     """既定 skip と明示 opt-in の両向きを固定する。"""
+    assert _T080_E2E_OPT_IN_ENV == "IZANAGI_T080_E2E"
     assert _T080_STUB_FREE_E2E_OPT_IN.mark.args == (
-        _t080_stub_free_e2e_should_skip(),
+        os.environ.get("IZANAGI_T080_E2E") != "1",
     )
     assert _T080_STUB_FREE_E2E_OPT_IN.mark.kwargs["reason"] == (
         "set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests"
     )
-    monkeypatch.delenv(_T080_E2E_OPT_IN_ENV, raising=False)
+    monkeypatch.delenv("IZANAGI_T080_E2E", raising=False)
     assert _t080_stub_free_e2e_should_skip() is True
-    monkeypatch.setenv(_T080_E2E_OPT_IN_ENV, "1")
+    monkeypatch.setenv("IZANAGI_T080_E2E", "1")
     assert _t080_stub_free_e2e_should_skip() is False
+
+
+def test_t080_stub_free_e2e_opt_in_decorator_exact_consumers_and_nodeids_b5():
+    """重い helper の全 consumer だけを opt-in にし、展開後 11 nodeid を固定する。"""
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    expected_consumers = {
+        "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5": 1,
+        "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5": 4,
+        "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5": 1,
+        "test_t080_full_valid_history_defects_have_one_baseline_reason_f28": 3,
+        "test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28": 1,
+        "test_never_issued_generator_tamper_reaches_public_driver_gate_g7": 1,
+    }
+
+    helper_consumers = {
+        name
+        for name, function in functions.items()
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_t080_stub_free_e2e_repo"
+            for node in ast.walk(function)
+        )
+    }
+    decorated = {
+        name
+        for name, function in functions.items()
+        if any(
+            isinstance(decorator, ast.Name)
+            and decorator.id == "_T080_STUB_FREE_E2E_OPT_IN"
+            for decorator in function.decorator_list
+        )
+    }
+
+    assert helper_consumers == set(expected_consumers)
+    assert decorated == set(expected_consumers)
+
+    expanded_nodeids = {}
+    for name in sorted(helper_consumers):
+        count = 1
+        for decorator in functions[name].decorator_list:
+            if (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and decorator.func.attr == "parametrize"
+            ):
+                parameters = ast.literal_eval(decorator.args[1])
+                count *= len(parameters)
+        expanded_nodeids[name] = count
+    assert expanded_nodeids == expected_consumers
+    assert sum(expanded_nodeids.values()) == 11
 
 
 def _build_t080_stub_free_e2e_repo(

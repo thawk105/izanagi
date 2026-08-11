@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import ast
+import collections
 import hashlib
 import io
 import json
@@ -786,8 +787,28 @@ def test_batched_descendant_unchanged_history_is_accepted_positive_control():
         temp.cleanup()
 
 
+def test_batched_descendant_non_utf8_unrelated_path_is_accepted_equivalence_control():
+    """raw byte path は decode せず、無関係な履歴として旧 scalar と同じく受理する。"""
+    temp, root = _repo_with_schema_valid_receipt()
+    try:
+        root_raw = os.fsencode(root)
+        fd = os.open(
+            os.path.join(root_raw, b"unrelated-\xff"),
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o644,
+        )
+        os.close(fd)
+        _commit_all(root, "unrelated non-UTF-8 path descendant")
+
+        result = migration.inspect_receipt_history(root=root)
+        assert result.state == "invalid"
+        assert result.refusals == ()
+    finally:
+        temp.cleanup()
+
+
 def test_inspect_receipt_history_uses_one_call_per_descendant_batch():
-    """総数は付随的な Git 呼出でばらつくため、種別ごとの一致で不変条件を固定する。"""
+    """全 Git argv と総数が descendant 数に依存せず、scalar 起動へ戻らない。"""
     temp, root = _repo_with_schema_valid_receipt()
     original = migration._git
     try:
@@ -799,18 +820,18 @@ def test_inspect_receipt_history_uses_one_call_per_descendant_batch():
                 _commit_all(root, f"unrelated descendant {number}")
 
         def measure_calls():
+            migration._BLOB_CACHE.clear()
+            migration._OID_MAP_CACHE.clear()
+            receipt_oid = _run_git(
+                root, "rev-parse", f"HEAD:{migration.RECEIPT_REL}",
+            ).decode("ascii").strip()
+            migration._BLOB_CACHE[(str(root), receipt_oid)] = (
+                root / migration.RECEIPT_REL
+            ).read_bytes()
             calls = []
 
             def record_git(args, repo_root, *, stdin=None):
-                if list(args) == ["cat-file", "--batch"]:
-                    call = "tree-batch"
-                elif args[:2] == ["diff-tree", "--stdin"]:
-                    call = "diff-batch"
-                elif args[:2] == ["ls-tree", "-z"]:
-                    call = "ls-tree"
-                else:
-                    call = args[0]
-                calls.append(call)
+                calls.append(tuple(args))
                 return original(args, repo_root, stdin=stdin)
 
             migration._git = record_git
@@ -819,9 +840,31 @@ def test_inspect_receipt_history_uses_one_call_per_descendant_batch():
                 assert migration._format_refusal(
                     migration.RECEIPT_PREFIX, "receipt.history_mutated",
                 ) not in result.refusals
-                return calls
+                return tuple(calls)
             finally:
                 migration._git = original
+
+        def normalized_argv(calls):
+            return collections.Counter(
+                tuple(
+                    "<sha1>" if migration._SHA1_RE.fullmatch(arg) else arg
+                    for arg in argv
+                )
+                for argv in calls
+            )
+
+        def assert_no_per_commit_calls(calls):
+            scalar_raw_diff_tree = tuple(
+                argv for argv in calls
+                if argv[0] == "diff-tree" and "--raw" in argv and "--stdin" not in argv
+            )
+            non_batch_cat_file = tuple(
+                argv for argv in calls
+                if argv[0] == "cat-file"
+                and not any(arg.startswith("--batch") for arg in argv[1:])
+            )
+            assert scalar_raw_diff_tree == ()
+            assert non_batch_cat_file == ()
 
         small_descendants = 3
         large_descendants = 7
@@ -830,9 +873,10 @@ def test_inspect_receipt_history_uses_one_call_per_descendant_batch():
         add_descendants(small_descendants, large_descendants)
         large_calls = measure_calls()
 
-        for call in ("tree-batch", "diff-batch", "ls-tree"):
-            assert small_calls.count(call) == large_calls.count(call)
-        assert large_calls.count("ls-tree") < large_descendants
+        assert len(small_calls) == len(large_calls)
+        assert normalized_argv(small_calls) == normalized_argv(large_calls)
+        assert_no_per_commit_calls(small_calls)
+        assert_no_per_commit_calls(large_calls)
     finally:
         migration._git = original
         temp.cleanup()
