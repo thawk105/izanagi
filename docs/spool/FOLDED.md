@@ -853,3 +853,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:dw-g05-partial-land-direction":"[T-814]"},"authored":"2026-08-11","content_sha256":"fff7468637ec006f8fa60070ee43fa6ff37347993540d75cfa0c2dac9e839dc6","seq":1,"wave":"dev-wave-t8b-restart-residue"}
 - {"allocations":{"D:toolchain-binding-and-unlock-are-inseparable":"D293"},"authored":"2026-08-11","content_sha256":"75d8fcb7520c3f6ea6538594b2a062648321fdaebe7252450347c81e92d03632","seq":2,"wave":"dev-wave-t8b-restart-residue"}
 - {"allocations":{},"authored":"2026-08-11","content_sha256":"2c45ec232c70d8d9128ed44f2e5951a914da3fa555d89a47587bfb022fdb4587","seq":3,"wave":"dev-wave-t8b-restart-residue"}
+
+- {"allocations":{"T:codex-hook-trust-and-surfaces":"[T-815]"},"authored":"2026-08-11","content_sha256":"aef5a6d3d75c9ea00022309d94ed225c0629cbd963f6d37f993e880a03fcd26b","seq":1,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"F:codex-cannot-write-own-config-dir":"F218","F:codex-web-search-evidence":"F217"},"authored":"2026-08-11","content_sha256":"7383a5629385491e85f8ffaa7c788e968daa0838dce1409c6278d4f6117c6de4","seq":2,"wave":"dev-wave-codex-hook-parity"}
+- {"allocations":{"D:codex-hook-wiring":"D294"},"authored":"2026-08-11","content_sha256":"d774c81d3b51bba6f9af3b8cc8380120c0baa042fdf8a78c69dff53919f54aee","seq":3,"wave":"dev-wave-codex-hook-parity"}
