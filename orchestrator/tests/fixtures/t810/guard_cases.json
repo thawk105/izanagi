@@ -1,0 +1,7 @@
+{
+  "multiple_blocks": "Job Id: 81011.nqsv\n    Job_Name = first\n    Job_Owner = alice@nqsv\n    job_state = Q\n    queue = gen_S\n    exec_host = --\nJob Id: 81012.nqsv\n    Job_Name = second\n    Job_Owner = alice@nqsv\n    job_state = R\n    queue = gen_S\n    exec_host = node02/0\n",
+  "duplicate_state": "Job Id: 81011.nqsv\n    Job_Name = first\n    Job_Owner = alice@nqsv\n    job_state = Q\n    job_state = R\n    queue = gen_S\n    exec_host = --\n",
+  "different_owner": "Job Id: 81011.nqsv\n    Job_Name = first\n    Job_Owner = mallory@nqsv\n    job_state = Q\n    queue = gen_S\n    exec_host = --\n",
+  "unknown_state": "Job Id: 81011.nqsv\n    Job_Name = first\n    Job_Owner = alice@nqsv\n    job_state = E\n    queue = gen_S\n    exec_host = --\n",
+  "missing_job_name": "Job Id: 81011.nqsv\n    Job_Owner = alice@nqsv\n    job_state = Q\n    queue = gen_S\n    exec_host = --\n"
+}

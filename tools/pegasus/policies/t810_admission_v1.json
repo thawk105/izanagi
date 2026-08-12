@@ -1,0 +1,75 @@
+{
+  "schema_version": "t810-admission-policy/v1",
+  "parallel_guard": {
+    "a_series_identity": {
+      "status": "unresolved",
+      "field": "Job_Name",
+      "pilot_patterns": [],
+      "main_patterns": []
+    }
+  },
+  "qsub": {
+    "status": "unratified",
+    "project": null,
+    "queue": null,
+    "walltime_by_run_kind": {
+      "builder": null,
+      "liveness": null,
+      "main": null
+    }
+  },
+  "approved_hostnames": {
+    "status": "unratified",
+    "hostnames": []
+  },
+  "budget": {
+    "status": "unratified",
+    "accounting_unit": "node-seconds",
+    "total_node_seconds": null,
+    "estimates": {
+      "builder": {
+        "walltime_seconds": null,
+        "jobs_per_attempt": null,
+        "node_seconds_per_attempt": null,
+        "provisional_note": "Protocol 4.3 records 1080 seconds as an existing certify build upper bound; it is provisional evidence only and is not an admission value."
+      },
+      "liveness": {
+        "walltime_seconds": null,
+        "jobs_per_attempt": null,
+        "node_seconds_per_attempt": null,
+        "provisional_note": "Protocol 4.3 estimates the 13-job critical section at about 451 node-seconds, while per-job fixed cost P is unmeasured; no ratified estimate is implied."
+      },
+      "main": {
+        "walltime_seconds": null,
+        "jobs_per_attempt": null,
+        "node_seconds_per_attempt": null,
+        "provisional_note": "Protocol 4.3 estimates the 13-job critical section at about 451 node-seconds, while per-job fixed cost P is unmeasured; no ratified estimate is implied."
+      }
+    },
+    "attempt_policy": {
+      "builder_attempts": null,
+      "liveness_max_attempts": null,
+      "main_max_attempts_ref": null
+    },
+    "ledger": {
+      "schema_version": "t810-budget-ledger-event/v1",
+      "location": "repository-external",
+      "lock_method": "flock",
+      "counted_statuses": [
+        "reserved",
+        "consumed"
+      ],
+      "genesis_sha256": "30696eec087f8503a972130802206f38414ba5e2de7970348b64016d07e27f21"
+    },
+    "admission": {
+      "formula": "0 < required <= remaining",
+      "integer_arithmetic": "exact",
+      "max_node_seconds": 9223372036854775807
+    }
+  },
+  "limitations": [
+    "authorization-witness-trust-root-absent",
+    "guard-snapshot-to-release-race-not-eliminated",
+    "shared-mount-repository-reachability-not-eliminated"
+  ]
+}
