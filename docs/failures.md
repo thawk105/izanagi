@@ -746,6 +746,21 @@
   **(a) 出力形状を等値・byte 比較する consumer** と **(b) `CONTRACT_LOADER_RELATIVE_PATHS` などの
   source bytes closure** を含める。**編集面が確定した時点で焦点走を 1 度回し、静的検査で
   「触ってよい」と結論しない。**
+
+- **再発: 2026-08-13** — 五度目。**編集面 source を bytes で pin している側**を段 1 で数え落とした
+  (2026-08-04 の再発と同じ向き)。[T-953] の項目 (d) が
+  `orchestrator/campaign/s1_direct_comparison.py` を編集したが、この path は
+  `orchestrator/campaign/s8b_oracle_manifest.py` の `_GENERATOR_SOURCES` が `materializer` として
+  束縛しており、`validate_reviewed_spec` が spec 内の `generator_versions.materializer.sha256` を
+  実ファイルの byte hash と突き合わせる。テストの golden literal は旧 hash を焼いていたため、
+  **受入全走で 2 件が赤になって初めて判明した** (段 1・段 3・段 6 のいずれも検出できていない)。
+  親は段 1 で `ORACLE_CONTRACT_ID` を pin する側は全列挙したが、**編集対象ファイル自身を
+  pin する側**を列挙しなかった。決定的証拠は golden の `dc67d934...` が
+  `git show main:orchestrator/campaign/s1_direct_comparison.py | sha256sum` と完全一致すること。
+  実害は受入 1 走 (134 秒) と fix 1 巡の手戻りで、誤った land には至っていない。
+  恒久対応は `DW-O09` から変更しない (本文は既に両向きの列挙を要求している)。
+  **今回効かなかったのは規約ではなく遵守であり、pin の向きを両方数える義務が
+  4 度目・5 度目と続けて破られている事実を顕在化させる。**
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -1900,6 +1915,19 @@
   変異走 (48 worker) で launcher の receipt 系 node が 1 件混ざる形は
   worklog (476) の M3 に続く独立 2 例目である。恒久対応は F57 既載のとおり失敗 artifact 保存による
   原因分離であり、本 wave では変えない。
+
+- **再発: 2026-08-13 ([T-1005] の帰属調査)。** 新規 F ではなく本族の機序特定として記録する。
+  2026-08-13 の受入 8 走で同一 file の失敗が **21 / 8 / 3 / 0 件**と振れた
+  (既載の再発はすべて 1〜2 件で、**1 桁大きいのは初出**)。
+  機序と判定不能の理由は F285 に記録した。
+  **新しい情報は 3 点。** (i) 予算超過幅が 0.3%〜9% しかないこと (縁張り付き) を
+  一次資料の `receipt_actuals.wall_clock_s` で初めて実測した。
+  (ii) 「バーストの述語が均一なのは 1 原因の証拠」ではないこと — 実装が複数原因を単一 field へ
+  縮約するため、均一性は selection effect でも生じる。
+  (iii) 並行 codex 子は判別子でない — 同じ窓で codex 子は**緑の走とも重なっていた**。
+  これは [T-139] land2 の K5 (受入 lease を他 wave の codex 子まで広げるか) の
+  親推奨「現状維持」を支持する実測である。
+  本 wave の差分は docs のみで launcher 実装へ到達しえず、`DW-O18` により帰属しない。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -6908,6 +6936,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 待ち手が 0 を返したのに成果物が無い場合は必ず本エントリを参照し、
   producer 生存を `ps -p <pid file の pid>` で確認してから再び待つ。
 
+
+- **再発: 2026-08-13** — 段 3 の敵対レンズ A を待つ待ち手が exit 0 を返したが、`.done` も成果物も
+  無く producer は生存していた (3 点照合で捕捉、子は約 3 分後に正常完了)。恒久対応どおり
+  3 点照合が効いた。**別 wave での独立 2 例目**であり、待ち手の 0 復帰を完了の十分条件に
+  しない規律は維持する。本 wave は親側で 3 点照合する待ち手を自作して回避した。
 ### F283. admission registry の未コミット差分が codex 子の起動を止めた [手順漏れ]
 
 - 事象: 段 6 の敵対レビュー 2 本が、起動前検査
@@ -6941,3 +6974,76 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異 harness の abort メッセージ 3 種
   (`spec の field 集合が不正` / `期待 node が pytest collection に実在しない` /
   `fresh --attempt-out が既に存在する`) は、いずれも走行ゼロの起動前拒否である。
+
+### F285. launcher テストの wall 予算は 48 並列下で余裕がほぼゼロで、判定に使った情報は保存されていなかった [テストフレーク] [資源競合] [恒真ゲート]
+
+- 事象: ([T-1005] 診断 wave、2026-08-13) F57 の族について、2026-08-13 の受入 8 走を一次資料に
+  機序を特定した。走 A (`acceptance.log`、bnode130、request 908484) の失敗 21 件すべてに
+  receipt の job 側 wall clock が記録されており、実測は **3.0099 / 3.0460 / 3.1160 / 3.1369 /
+  3.2324 / 3.2650 …** 秒。テストが渡す予算は **3.0 秒ちょうど**で、超過幅は
+  **0.010〜0.265 秒 (0.3%〜9%)** しかない。
+- 根本原因: 次の 3 つが重なっている。
+- (1) **余裕の欠如**: 48 並列下では launcher の job 全体所要が予算の縁に常時張り付く。
+  必要な摂動が極小なので、負荷指標に現れる必要がない。F57 既載の未説明の性質
+  (失敗 node が毎回移動する / 単独再走で非再現 / loadavg 0.80 でも 17.42 でも発火 /
+  件数が 1〜21 と振れる) はすべてこれで説明できる。
+- (2) **判定量が失敗報告に現れない**: wall gate は **job clock**
+  (`tools/codex_worker_launch.py:1244`、起点は `:35` の module import 時刻) で判定するが、
+  失敗診断が印字する `wall_clock_s` は **attempt clock** (`:1540`、起点 `:1347`) である。
+  同じ名前の別量が出るため「予算 3 秒に対し 0.716 秒で wall 超過」という不可能に見える記録になる。
+- (3) **近接原因を事後に区別できない**: `codex_exit_code=-9` は外部 SIGKILL と識別不能、
+  `evidence_forced_stop` は代入されるだけで receipt にも受理判定にも出ない (`:349` / `:1497`)、
+  `residual=None` の出所は 4 つ以上あって区別されない、phase 別時刻も記録されない。
+  実装は `if/elif` で複数原因を単一 `limit_trigger` へ縮約し (`:1461-1475`)、
+  `limit_trigger` が立つと evidence deadline を見ずに break する (`:1487-1499`)。
+  **F57 が 20 回以上「未確定」だったのは解析不足ではなく観測設計の帰結である。**
+- 恒久対応: 未実施。本 wave は診断のみで実装差分ゼロ。選択肢と親推奨を
+  `output/insights/2026-08-13_t1005-acceptance-flake-attribution/package.md` の R1〜R3 で
+  裁定へ返した。第 1 手は計装 (発火した latch の識別・強制停止の理由・`residual=None` の出所・
+  phase 別時刻・失敗時 receipt の保存) であり、F57 既載の [T-190] と同じ対象に対して
+  **必要 field を初めて具体化した**。予算是正は test file 内に限り launcher parser の既定を
+  触らないこと、壊れる 12 nodeid の個別対応が要ることを同 package に列挙した。
+- 再発検知: 受入全走の `receipt_actuals.wall_clock_s` が予算の 90% を超える件数。
+  計装が入るまでは、失敗 record の `receipt_actuals.wall_clock_s` と予算の比を手で見る。
+
+### F286. main に landed した handoff が、背景 job の wave をすべて起動時 rc=1 にする [恒真ゲート] [手順漏れ]
+
+- 事象: (2026-08-13, [T-1005] 起動時) `tools/check_wave_startup.py --external-handoff` が
+  `worktree-local handoff remains (2026-08-13-known-red-octopus.md)` で rc=1 になった。
+  当該 file は別 wave が main へ **tracked** で land したものであり、worktree 固有の残骸ではない。
+- 根本原因: `_check_worktree_handoff` は `docs/handoff` を列挙し README 以外を一律に残骸と扱い、
+  tracked/untracked を区別しない。一方 land は `docs/handoff` 直下の削除を拒む (rc=21) ため、
+  **wave 側では解消できない。** 背景 job は `DW-O20` により `--external-handoff` が必須で、
+  この flag は同検査を必ず起動するので、**landed handoff が 1 つ残っている限り
+  以後の背景 job wave はすべて起動時 rc=1 になる。**
+- **独立 2 例目 (同日 08:08 JST)**: 本 wave が 07:32 JST に踏んだ直後、別セッションが同じ赤に当たり、
+  main で直接 `docs/handoff/2026-08-13-known-red-octopus.md` を撤去した (`a3168d85`)。
+  commit message も「新規の背景 wave をすべて起動不能にする」「land 経路では撤去できない (rc=21)
+  ため main で直接撤去する」と同じ診断に達している。
+  **40 分以内に独立 2 セッションが踏んだため、`DW-G03` の独立 2 例が成立する。**
+- 恒久対応: 未実施。`a3168d85` は当該 file を消しただけで **checker は直っていない**。
+  land は handoff の追加を許すので、次に wave が handoff を land した時点で同じ赤が再発する。
+  [T-1038] として起票し、checker 側で tracked file を
+  除外する案を親推奨として裁定へ返した (package の R4)。
+- 再発検知: `git ls-files docs/handoff/` が README.md 以外を返すこと。
+
+### F287. 段 1 brief の「存在しない」実測を head で切った検索から書いた [誤前提]
+
+- 事象: 親が段 1 brief に「finding の `observations` を生成する箇所は 0 件」と書いた。実際は
+  producer に 3 箇所ある。この誤った前提の上に消費側 schema の設計を組み立てていた。
+- 根本原因: 完全性を要する検索を `grep -rn observations ... | head -20` で切っており、
+  campaign 側の hit が truncate されて表示に出ていなかった。**「無い」ことの実測は全件を見ないと
+  成立しない**が、親は truncate された出力を根拠にした。
+- 検出経路: 段 3 の敵対レンズ 2 本が独立に同じ誤りを指摘した (レンズ A と B が別の攻撃面から
+  到達)。親はその後に自分で測り直して是正し、schema を実 producer の emit 形から作り直した。
+  実害には至っていない (near miss)。
+- 恒久対応: memory `complete-search-not-truncated-for-absence` (「無い」の実測は全件検索でだけ
+  成立し、`head` 等で切った出力を根拠にしない)。**`DW-S01` への統合は予算で入らなかった** —
+  本文を 1 文足すと `docs/dev-wave/**` の L1 unique footprint が 10,731 bytes となり
+  予算 10,625 bytes を超えて `check_docs.py` が赤になる (実測)。予算引き上げは自己改善の範囲外
+  なので入口・reference は変更せず、機構は memory に置いた。
+- 再発検知: 段 3 の敵対レンズが「親自身の実測値とその一般化」を攻撃対象に含める既存契約
+  (`DW-S03`) が検出経路として実際に働いた。この経路を弱めない。
+- 型の区別: F30 の 4 度目の再発 (2026-08-07) も `head` で切った検索が原因だが、あちらの型は
+  **凍結 pin の閉包漏れ**であり、その恒久対応 (pin 元の全列挙) では本件は防げない。
+  本件は pin と無関係な段 1 の一般の実測であるため別エントリにした。

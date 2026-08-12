@@ -312,9 +312,12 @@ def test_candidate_compile_failure_is_reject_not_unavailable(monkeypatch):
     compile_calls = []
 
     def compile_control_then_candidate(*args, **kwargs):
+        if args[1].name == "trusted-postflight.cpp":
+            return None, False
         compile_calls.append(1)
-        return ((None, False) if len(compile_calls) == 1
-                else (compile_finding, False))
+        if len(compile_calls) == 1:
+            return None, False
+        return compile_finding, False
 
     monkeypatch.setattr(O, "_compile", compile_control_then_candidate)
     monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
@@ -326,6 +329,372 @@ def test_candidate_compile_failure_is_reject_not_unavailable(monkeypatch):
     assert result.status is O.OracleStatus.REJECT
     assert result.finding is compile_finding
     assert len(compile_calls) == 2
+
+
+def test_candidate_compile_failure_with_failing_postflight_is_unavailable(
+        monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    postflight_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, False),
+        (postflight_finding, False),
+    ))
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.finding is None
+    assert result.receipt is not None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.infrastructure.detail_code == (
+        "trusted-positive-tu-postflight-compile-failed"
+    )
+
+
+def test_postflight_unavailable_retains_candidate_finding(monkeypatch):
+    candidate_diagnostic = O.CompilerDiagnostic(
+        "candidate source must stay private", 34, 34, "5" * 64, False,
+    )
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+        compiler_diagnostic=candidate_diagnostic,
+    )
+    postflight_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, False),
+        (postflight_finding, False),
+    ))
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+    attempt = O.attempt_record(result)
+
+    assert result.receipt is not None
+    assert attempt["oracle_receipt"] == result.receipt.as_dict()
+    assert result.candidate_compile_finding is candidate_finding
+    assert attempt["candidate_compile_finding"] == {
+        "kind": "compile",
+        "reason_code": "candidate-compile-failed",
+        "corpus_id": O.CORPUS_ID,
+        "compiler_diagnostic": candidate_diagnostic.metadata_dict(),
+    }
+    assert "candidate source must stay private" not in json.dumps(
+        attempt, sort_keys=True,
+    )
+
+
+def test_candidate_compile_reject_postflight_control_success_stays_reject(
+        monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    calls = []
+    candidate_artifacts = []
+
+    def compile_spy(source, source_path, executable, **kwargs):
+        calls.append((source, source_path.name, executable.name))
+        if len(calls) == 2:
+            artifacts = (
+                source_path,
+                executable,
+                source_path.with_suffix(source_path.suffix + ".stderr"),
+            )
+            for artifact in artifacts:
+                artifact.write_bytes(b"candidate-residue")
+            candidate_artifacts.extend(artifacts)
+            return candidate_finding, False
+        if len(calls) == 3:
+            assert source_path.parent != candidate_artifacts[0].parent
+            assert all(not artifact.exists() for artifact in candidate_artifacts)
+        return None, False
+
+    monkeypatch.setattr(O, "_compile", compile_spy)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.REJECT
+    assert result.finding is candidate_finding
+    digest = O.rejection_digest(
+        result, diff_region="fixture diff", marker_id="silo-writeset-sort",
+    )
+    assert digest["reason"] == "candidate-compile-failed"
+    assert digest["oracle_finding"]["reason_code"] == "candidate-compile-failed"
+    assert [call[1:] for call in calls] == [
+        ("trusted-control.cpp", "trusted-control"),
+        ("oracle.cpp", "oracle"),
+        ("trusted-postflight.cpp", "trusted-postflight"),
+    ]
+    assert calls[0][0] == calls[2][0] == O._translation_unit(
+        O._TRUSTED_CONTROL_STATEMENT,
+    )
+
+
+def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, False),
+        (None, False),
+    ))
+    compile_calls = 0
+    real_unlink = Path.unlink
+
+    def fail_candidate_cleanup(path, *args, **kwargs):
+        if path.name == "oracle.cpp":
+            raise OSError("candidate cleanup unavailable")
+        return real_unlink(path, *args, **kwargs)
+
+    def compile_with_successful_postflight(*args, **kwargs):
+        nonlocal compile_calls
+        compile_calls += 1
+        return next(results)
+
+    monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
+    monkeypatch.setattr(O, "_compile", compile_with_successful_postflight)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.REJECT
+    assert result.receipt is not None
+    assert result.finding is candidate_finding
+    assert result.infrastructure is None
+    assert compile_calls == 3
+
+
+def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
+        monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    postflight_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, False),
+        (postflight_finding, False),
+    ))
+    real_unlink = Path.unlink
+
+    def fail_candidate_cleanup(path, *args, **kwargs):
+        if path.name == "oracle.cpp":
+            raise OSError("candidate cleanup unavailable")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+    attempt = O.attempt_record(result)
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.receipt is not None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.infrastructure.detail_code == (
+        "trusted-positive-tu-postflight-compile-failed-"
+        "after-candidate-cleanup-failed"
+    )
+    assert result.candidate_compile_finding is candidate_finding
+    assert attempt["infrastructure"]["detail_code"] == (
+        "trusted-positive-tu-postflight-compile-failed-"
+        "after-candidate-cleanup-failed"
+    )
+
+
+def test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable(
+        monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "compiler-launch-unavailable",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, True),
+        (None, False),
+    ))
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "candidate-compile"
+    assert result.infrastructure.detail_code == "compiler-launch-unavailable"
+    assert result.candidate_compile_finding is None
+
+
+def test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail(
+        monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "compiler-launch-unavailable",
+    )
+    postflight_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, True),
+        (postflight_finding, False),
+    ))
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.infrastructure.detail_code == (
+        "trusted-positive-tu-postflight-compile-failed"
+    )
+    assert result.candidate_compile_finding is candidate_finding
+
+
+def test_postflight_source_write_oserror_preserves_receipt(monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    compile_calls = 0
+    real_write_text = Path.write_text
+
+    def fail_postflight_write(path, *args, **kwargs):
+        if path.name == "trusted-postflight.cpp":
+            raise OSError("postflight source unavailable")
+        return real_write_text(path, *args, **kwargs)
+
+    def compile_with_real_postflight_write(source, source_path, *args, **kwargs):
+        nonlocal compile_calls
+        compile_calls += 1
+        if compile_calls == 2:
+            return candidate_finding, False
+        if compile_calls == 3:
+            source_path.write_text(source, encoding="utf-8")
+            raise AssertionError("postflight write unexpectedly succeeded")
+        return None, False
+
+    monkeypatch.setattr(Path, "write_text", fail_postflight_write)
+    monkeypatch.setattr(O, "_compile", compile_with_real_postflight_write)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.receipt is not None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.candidate_compile_finding is candidate_finding
+
+
+def test_postflight_cleanup_oserror_preserves_receipt(monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    compile_calls = 0
+    real_unlink = Path.unlink
+
+    def fail_postflight_cleanup(path, *args, **kwargs):
+        if path.name == "trusted-postflight.cpp":
+            raise OSError("postflight cleanup unavailable")
+        return real_unlink(path, *args, **kwargs)
+
+    def compile_with_successful_postflight(*args, **kwargs):
+        nonlocal compile_calls
+        compile_calls += 1
+        if compile_calls == 2:
+            return candidate_finding, False
+        return None, False
+
+    monkeypatch.setattr(Path, "unlink", fail_postflight_cleanup)
+    monkeypatch.setattr(O, "_compile", compile_with_successful_postflight)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.receipt is not None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.candidate_compile_finding is candidate_finding
+
+
+def test_postflight_programmer_error_is_not_infrastructure(monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    compile_calls = 0
+
+    def compile_with_programmer_error(*args, **kwargs):
+        nonlocal compile_calls
+        compile_calls += 1
+        if compile_calls == 2:
+            return candidate_finding, False
+        if compile_calls == 3:
+            raise AssertionError("programmer error")
+        return None, False
+
+    monkeypatch.setattr(O, "_compile", compile_with_programmer_error)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    with pytest.raises(AssertionError, match="programmer error"):
+        O.check_materialized_sort_swo(
+            _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+            proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+        )
 
 
 def test_trusted_positive_preflight_compile_failure_is_unavailable(monkeypatch):
@@ -403,18 +772,108 @@ def test_fixed_corpus_contract_has_required_values_topology_and_triplicate():
     assert O._N >= 17 and O._CORPORA == (0, 1) and O._ORDERS == (0, 1, 2)
 
 
+def test_public_oracle_domain_aliases_track_contract_inputs():
+    assert (O.N, O.CORPORA, O.ORDERS) == (O._N, O._CORPORA, O._ORDERS)
+
+
+def test_contract_digest_binds_axiom_checker_source_component():
+    assert O._ORACLE_CONTRACT_COMPONENTS_SCHEMA == (
+        "sort-swo-contract-components-v1"
+    )
+    assert O._ORACLE_CONTRACT_COMPONENTS == {
+        "axiom_checker_implementation_sha256": (
+            O.AXIOM_CHECKER_IMPLEMENTATION_SHA256
+        ),
+        "compile_flags_sha256": O.COMPILE_FLAGS_SHA256,
+        "corpus_sha256": O.CORPUS_SHA256,
+        "tu_template_sha256": O.TU_TEMPLATE_SHA256,
+    }
+    assert O.ORACLE_COMPONENTS_SHA256 == O._contract_components_sha256(
+        O._ORACLE_CONTRACT_COMPONENTS,
+    )
+    changed = dict(O._ORACLE_CONTRACT_COMPONENTS)
+    changed["axiom_checker_implementation_sha256"] = "0" * 64
+    assert O._contract_components_sha256(changed) != O.ORACLE_COMPONENTS_SHA256
+    assert f"-x{O.ORACLE_COMPONENTS_SHA256}-" in O.ORACLE_CONTRACT_ID
+
+
+def test_contract_digest_binds_corpus_and_order_selection():
+    current = O._source_bundle_sha256(
+        O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+        n=O._N, orders=O._ORDERS, corpora=O._CORPORA,
+    )
+    narrowed_corpora = O._source_bundle_sha256(
+        O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+        n=O._N, orders=O._ORDERS, corpora=(0,),
+    )
+    narrowed_orders = O._source_bundle_sha256(
+        O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+        n=O._N, orders=(0, 1), corpora=O._CORPORA,
+    )
+    changed_n = O._source_bundle_sha256(
+        O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+        n=O._N - 1, orders=O._ORDERS, corpora=O._CORPORA,
+    )
+    assert current == O.AXIOM_CHECKER_IMPLEMENTATION_SHA256
+    assert len({current, narrowed_corpora, narrowed_orders, changed_n}) == 4
+
+
+def test_axiom_checker_source_bundle_is_enumerated_and_ordered():
+    assert O._AXIOM_CHECKER_SOURCE_FUNCTIONS == (
+        O.check_relation_matrix,
+        O._evaluate_executable,
+        O._run_matrix,
+        O._compile_command,
+    )
+
+
+def test_axiom_checker_source_digest_fails_closed_when_source_unavailable(
+        monkeypatch):
+    monkeypatch.setattr(
+        O.inspect, "getsource",
+        lambda _function: (_ for _ in ()).throw(OSError("source unavailable")),
+    )
+    with pytest.raises(OSError, match="source unavailable"):
+        O._source_bundle_sha256(
+            O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+            n=O._N, orders=O._ORDERS, corpora=O._CORPORA,
+        )
+
+
+def test_axiom_checker_source_digest_changes_with_source_text(monkeypatch):
+    target = O.check_relation_matrix
+    real_getsource = inspect.getsource
+
+    def digest_with_target_source(source):
+        monkeypatch.setattr(
+            O.inspect,
+            "getsource",
+            lambda function: (
+                source if function is target else real_getsource(function)
+            ),
+        )
+        return O._source_bundle_sha256(
+            O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+            n=O._N, orders=O._ORDERS, corpora=O._CORPORA,
+        )
+
+    source_a = "def check_relation_matrix(matrix, n):\n    return None\n"
+    source_b = "def check_relation_matrix(matrix, n):\n    return True\n"
+    assert len(source_a.encode("utf-8")) == len(source_b.encode("utf-8"))
+    assert digest_with_target_source(source_a) != digest_with_target_source(source_b)
+
+
 def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
     assert O.CORPUS_SHA256 == "436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253"
     assert O.TU_TEMPLATE_SHA256 == "d88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956"
     assert O.COMPILE_FLAGS_SHA256 == "7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
     assert O.ORACLE_CONTRACT_ID == (
-        "sort-swo-v2-corpus1-protocol2-checker2-grammar1-"
-        "c436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253-"
-        "tud88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956-"
-        "f7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
+        "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
+        "x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-"
+        "c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe"
     )
     assert (O.CONTRACT_VERSION, O.CORPUS_VERSION, O.PROTOCOL_VERSION,
-            O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (2, 1, 2, 2, 1)
+            O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (3, 1, 2, 2, 1)
 
 
 def test_translation_unit_uses_real_type_real_ctor_and_candidate_statement_verbatim():

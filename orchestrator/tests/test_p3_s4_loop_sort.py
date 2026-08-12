@@ -328,6 +328,8 @@ def test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic(monkey
         oracle.SwoCounterexample(
             oracle.SwoAxiom.ASYMMETRIC, ((0, 1), (1, 0)),
         ),
+        corpus_id=f"{oracle.CORPUS_ID}/corpus-0",
+        order_id=oracle.ORDERS[0],
     )
     rejected = oracle.SortSwoOracleResult(
         oracle.OracleStatus.REJECT, "a" * 64, "b" * 64, finding,
