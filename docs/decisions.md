@@ -15031,3 +15031,130 @@ campaign を一律 `admission_status="admitted"` で返し、coder 由来かど�
 - 捕捉する例外型を列挙する — 列挙から漏れた型 (メモリ不足など) が新しい拒否になる。
   実際に敵対レビューが `OSError` 派生だけを使う検査では狭い列挙を殺せないことを示した。
 - 権威経路を捨てて fast path だけにする — 同一性の証明が候補の外を見られなくなる。
+
+## D338. formal consumer は `aborted=False` を構造的に発行しない — P6 が未実装である以上 fail-closed だけが誠実な実装であり、caller 注入は恒真化する (2026-08-12)
+
+**決定:** 8c formal consumer の到達可能な結果を `FormalContractRejected` と `P6Unavailable` の
+2 型に限り、どちらも `OriginSealed(aborted=True, constraint_class_sha256s=())` へ写す。
+**`aborted=False` を構成する式を production code に置かない。**
+「将来 P6 が来たら通る」分岐も置かない。本 wave の新規・変更 production 13 ファイル全体を
+AST 走査し、keyword `aborted=False` と `OriginSealed(False, ...)` の positional 構築の
+双方が存在しないことを機械検査する (ledger に wave 前から存在する feasibility 用の
+positional 構築 1 箇所だけを文脈で allowlist する)。
+
+**根拠となる実測:**
+
+- **P6 契約 (`derive_p6_cut`) はコード全体に存在しない。**
+  `grep -rn "derive_p6_cut\|P6Derived\|P6NotDerived" --include=*.py` が 0 件で、
+  設計文書に 1 回出るだけである。D138 は「実装は発火 artifact 0 件のため行わない」、
+  D156 は「境界テストを含む機械実装は **P6 実装 wave** と cap-lift receipt 設計の所有であり、
+  本決定は規範の発効のみを行う」と定める。**その wave は未実施である。**
+- 設計 §4.1 の条件 8 は「P6 result が `P6Derived` で marginal set が空でない」を要求する。
+  実装が存在しない以上、この条件は**判定不能**である。
+
+**却下した選択肢:**
+
+- **P6 の判定結果を caller から注入させ、evidence 集合 digest へ束縛する** — 段 3 の敵対レンズ
+  2 本が独立に**恒真化**と反証した。集合 digest は「同じ evidence を見た」ことしか示さず、
+  D138 の witness 正規化・反証 test・`B \ C_exact`、D156 の認定、admission への限界効果を
+  何一つ証明しない。caller は整合した synthetic evidence 集合と `P6Derived` を同時に自作できる。
+  親の provisional 裁定はこれだったが、反証を受けて撤回した。
+- **本 wave で `derive_p6_cut` を自前実装する** — 段 2 プランの案。D156 が機械実装を別 wave の
+  所有と定め、認定に 4 要件 (end-to-end calibration / conjunct 単位の反転変異 /
+  独立検査者 attestation / 認定記録と失効照合) を課している。プランはその 4 要件を 1 つも
+  扱っていなかった。
+- **「将来 P6 が来たら通る」分岐を置いておく** — 発火しない恒真な死にコードであり、
+  読み手に実装済みの印象を与える。
+
+**帰結:** 本結線は fixture 経路で条件 1〜7・9・10 と §4.2 双射を実際に駆動できるが、
+**`OriginSealed(aborted=False)` を発行できる状態にはならない。**
+これは欠陥ではなく、今日の実態に対する誠実な表現である。
+
+## D339. ledger の private seam 経由の迂回は塞がず保証限界として明記する — underscore は信頼境界ではない (2026-08-12)
+
+**決定:** raw public 3 API (`read_origin` / `commit_event` / `read_sealed_batch`) を公開面から
+除去し issued capability を必須にするが、`_production_store()` / `_fixture_store_for_test()` →
+`_locked()` → `_commit_locked()` を直接呼ぶ経路は塞がない。
+**保証限界として module docstring・worklog・受入報告へ明記する。**
+
+> この結線は「ledger の private seam を直接呼ぶ caller が居ない」という**運用前提の上でのみ
+> 成立する**。formal consumer を通らずに `certifiable` terminal を作る経路は Python の
+> 同一 process 内では構造的に塞げない。
+
+**根拠:** 段 6 の敵対レビューが実測した。raw 3 関数を消しても、既存の public `OriginSealed` で
+整合する counters/class を構築して private seam へ渡せば、typed client・formal receipt・
+条件 1〜10 を一度も通らずに `terminal_status="certifiable"` にできる。
+
+**理由:** 塞ぐには commit 時に formal receipt を要求する = **ledger の受理集合の変更**が要り、
+V-6 と同型の scope 外変更である。D198 の決定にも隣接する。
+設計 §3.6 が create-only について既に採った形 (運用前提として明記する) と同じ扱いにする。
+
+**却下した選択肢:** underscore を信頼境界と見なして「塞いだ」と名乗る — 自己申告であり、
+実測が反証している。
+
+**残余:** ledger 側で formal receipt を要求するかは V-13 としてユーザー裁定へ返す。
+
+## D340. execution receipt の実体解決は `result-evidence/v1` の exact key 集合を超えるため実装しない (2026-08-12)
+
+**決定:** provenance が claim する `execution_receipt_sha256` は**字句形式 (64 hex) しか
+検査しない**。receipt bytes を解決して digest を再計算する検査は実装しない。
+保証限界として明記し、V-14 としてユーザー裁定へ返す。
+
+**根拠:** 設計 §3.2 の `evidence` は `ordered_wal_ref` と `execution_provenance_ref` の
+**exact 2 参照**しか持ち、receipt への参照が無い。consumer に receipt を解決させるには
+record schema へ第 3 の `{path, sha256}` を足す = 批准済み exact key 集合の改訂が要り、
+producer (fixture と将来の trusted harness) が receipt bytes を deterministic path へ書く
+義務も生じる。実装 wave の裁量を超える。
+
+**経緯:** 焦点再レビューがこの残余を partial として指摘し、親は当初 fix を指示した。
+**その指示が誤りで、fix 子は契約衝突を見抜いて実装せず停止し報告した。**
+親は子の判断を採り、scope 外へ裁定し直した。
+
+**却下した選択肢:** consumer が receipt bytes を推測・生成して照合する — 検査器が被検査物を
+作ることになり恒真化する。
+
+## D341. task-run 台帳の凍結は契約であり、再開・記録先・被覆範囲はユーザー裁定へ返す (2026-08-12)
+
+**決定:** 「テスト運用観測層 (TestOps) を導入する」という依頼に対し、本 wave では実装しない。
+D66 の task-run 台帳 v1 が同じ役割をすでに担っており、その停止は破損でも放置でもなく pilot 契約の
+発効だからである。再開の可否と形、記録先、被覆範囲の 3 点を裁定パッケージとしてユーザーへ返す。
+
+**裁定結果 (2026-08-12、第 3 束):** 返した 3 点はいずれも第 1 案で確定した (Q1〜Q3 = (a)(a)(a))。
+再開は有界の次世代 pilot に限り、記録先は repo 外の repo 兄弟として改竄検出は主張せず、被覆は
+`tools/run_tests.py` 経由のみとする。本決定の「実装しない」は本 wave の範囲についてであり、
+以後の実装は上記制約の下で別 wave が担う。
+
+**理由:**
+
+- **停止機序は三重の構造的拒否である。** `tools/task_runs/ledger.py:544-557` が final marker 存在、
+  `published >= max_task_runs`、`now >= pilot_started + max_days` のそれぞれで `start_run` を拒否する。
+  実測時点で 3 条件すべてが成立していた。したがって「記録率ゼロ」は観測不能な母集団の推定ではない。
+- **再開は D66 が明示的に予約した事項である。** D66 (6) は常設化を「pilot 実証前の常設化は盛りすぎ —
+  実証後にユーザー提案」として却下し、`output/task-runs/README.md` の pilot 契約は「最終 report
+  生成後に凍結。次 pilot の root 世代命名はその時に裁定」と定める。scope を選ぶ設問への回答を、
+  別の設問 (無期限 rollover の可否) への承認として流用しない。
+- **記録先の択一は threat model の変更を含む。** D66 (5) は append-only を crash-consistency 契約へ
+  格下げし、改竄検出は tracked file の git 履歴という外部 anchor に委ねた。repo 外へ移すと
+  schema 妥当な事後書換えが validate も git も通る。一方 repo 内 tracked に留めると、走行ごとに
+  untracked が生じ、並行する全 wave の clean-tree gate と land の untracked 拒否を毎走行で壊す。
+  どちらも代償の性質が異なり、親が単独で決める範囲を超える。
+- **規模が D205 / D220 の判断に触れる。** 敵対相談 2 本が独立に返した blocker 9 件 (並行 start での
+  cap race、世代作成の crash recovery、dispatch / bounded scope での counts 欠測、OOM・timeout の
+  未記録、series 単位の fail-closed reader 不在、外部 base が証拠 namespace を指せる、
+  base commit の間接的な caller 指定、無言 fail-open、4 gate の凍結範囲) を安全に閉じると、
+  段 2 プランの 142 行見積りは成立しない。D220 が同種の拡張を 645〜816 行として不採用にしている。
+
+**却下した選択肢:**
+
+- **凍結済み世代を捕捉して自動 rollover する** (段 2 プランの骨子) — 有界 pilot を無期限の常時計装へ
+  黙って変える。cap と最終レビューが無意味になり、上記の予約を迂回する。
+- **既定の記録先を `XDG_STATE_HOME` → `HOME/.local/state` の順で解決する** — 実機では
+  `XDG_STATE_HOME` が未設定であり home 配下に解決される。作業ファイルを home へ置かないという
+  ユーザー是正と `docs/pegasus-runbook.md` §6 に反する。repo 外に置くなら、コードへマシン固有 path を
+  焼かずに済む形として `git rev-parse --git-common-dir` から導く repo 兄弟が候補になる
+  (前例 = third-party cache と dev-wave-jobs)。ただし採否は記録先の裁定に従属する。
+- **分析側 (実行時間の回帰検出・flaky 検出) を先に実装する** — 台帳へ新規記録が入らない以上、
+  発火する既存 artifact path を書けない。順序として成立しない。
+- **per-test 粒度を持たせて flaky 検出と遅いテスト順位を作る** — `tools/task_runs/pytest_stats.py` は
+  node ID を保存せず digest だけを残す。git 履歴へ入った記録は事実上削除できないため privacy を
+  schema で機械強制した D66 (1) の設計であり、緩めるなら独立の裁定を要する。

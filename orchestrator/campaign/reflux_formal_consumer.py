@@ -1,0 +1,1068 @@
+"""Fail-closed formal consumption of reflux result evidence.
+
+This module cannot produce a non-aborted origin terminal.  The P6 contract
+``derive_p6_cut`` does not exist anywhere in the codebase: D138 declined an
+implementation because there were no firing artifacts, and D156 assigns the
+mechanical boundary tests and cap-lift receipt design to a future P6
+implementation wave.  That wave has not happened, so condition 8 is
+unjudgeable and failing closed is the only honest implementation.
+
+The prohibition on an all-tombstone batch is deliberately inside the formal
+consumer / typed-client boundary only.  It does not change the ledger rule
+fixed by D198, under which a batch with zero execution candidates is outside
+the ledger's lower-bound gate.
+
+This wiring also assumes that callers do not invoke the ledger's private
+seams directly.  Python code in the same process can otherwise bypass this
+consumer; closing that route would require a ledger acceptance change outside
+this unit's scope.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import threading
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from types import MappingProxyType
+from typing import Mapping, Sequence, TypeAlias
+
+from . import reflux_origin_ledger as ledger
+from .reflux_origin_artifacts import (
+    ArtifactError,
+    canonical_json_bytes,
+    strict_json_loads,
+)
+from .reflux_origin_binding import (
+    OriginBindingCapability,
+    OriginBindingError,
+    assert_issued_origin_binding_capability,
+    origin_binding_capability_record,
+)
+from .reflux_origin_topology import (
+    RecoveryEnvelope,
+    SOURCE_AND_VALIDATION_MEMBER_COUNT,
+    VALIDATION_MASK_COUNT,
+    canonical_recovery_envelope_bytes,
+)
+from .reflux_result_evidence import (
+    ResolvedResultEvidence,
+    ResultEvidenceError,
+    assert_non_overlapping_wal_ranges,
+    parse_result_evidence_bytes,
+    resolve_result_evidence,
+)
+from .reflux_source_closure import (
+    SourceClosureError,
+    ValidatedSourceClosure,
+    assert_issued_validated_source_closure,
+)
+
+
+__all__ = [
+    "FORMAL_CONSUMER_RECEIPT_SCHEMA_VERSION",
+    "ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION",
+    "AbortedOriginDecision",
+    "FormalContractRejected",
+    "FormalConsumerReceipt",
+    "FormalConsumerResult",
+    "FormalReasonCode",
+    "FormalReceiptError",
+    "FormalReceiptReason",
+    "OriginTerminalProjection",
+    "P6Unavailable",
+    "aborted_origin_payload_sha256",
+    "canonical_aborted_origin_payload_bytes",
+    "canonical_formal_consumer_receipt_bytes",
+    "consume_formal_consumer_receipt",
+    "evaluate_formal_origin",
+    "formal_consumer_receipt_record",
+    "formal_consumer_receipt_sha256",
+    "origin_terminal_projection_record",
+]
+
+
+FORMAL_CONSUMER_RECEIPT_SCHEMA_VERSION = "formal-consumer-receipt/v1"
+ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION = "OriginTerminalProjection/v1"
+_RECEIPT_ISSUER = "izanagi-formal-consumer/v1"
+_PROJECTION_KEY = "origin_terminal_projection"
+_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+class FormalReasonCode(Enum):
+    """Closed terminal reason set; values are the stable wire codes."""
+
+    FC01 = "FC01"
+    FC02 = "FC02"
+    FC03 = "FC03"
+    FC04 = "FC04"
+    FC05A = "FC05a"
+    FC05B = "FC05b"
+    FC05C = "FC05c"
+    FC06 = "FC06"
+    FC07 = "FC07"
+    FC09 = "FC09"
+    FC10 = "FC10"
+    P6_UNAVAILABLE = "P6Unavailable"
+
+
+class FormalReceiptReason(Enum):
+    ISSUER = "issuer-mismatch"
+    OPERATION = "operation-mismatch"
+    STATE = "state-commitment-mismatch"
+    PAYLOAD = "terminal-payload-mismatch"
+    REPLAY = "operation-replay-payload-mismatch"
+
+
+class FormalReceiptError(ValueError):
+    def __init__(self, reason_code: FormalReceiptReason, message: str) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+@dataclass(frozen=True, slots=True)
+class AbortedOriginDecision:
+    """Counters for the only terminal payload this consumer can authorize."""
+
+    batch_count: int
+    tombstone_count: int
+    sealed_queries: int
+    tombstoned_queries: int
+    forfeited_iterations: int
+    forfeited_queries: int
+    terminal_payload_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class OriginTerminalProjection:
+    schema_version: str
+    reason_code: FormalReasonCode
+    formal_receipt_sha256: str | None
+    evidence_root_sha256: str | None
+    authority_blob_sha256: str
+    origin_id: str
+    cell_key: str
+    terminal_payload_sha256: str
+
+    def __post_init__(self) -> None:
+        if self.schema_version != ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION:
+            raise ValueError("unsupported origin terminal projection")
+        if type(self.reason_code) is not FormalReasonCode:
+            raise TypeError("projection reason_code must be FormalReasonCode")
+        required = self.reason_code is FormalReasonCode.P6_UNAVAILABLE
+        if required != (self.formal_receipt_sha256 is not None):
+            raise ValueError("formal receipt nullability differs from result kind")
+        if required != (self.evidence_root_sha256 is not None):
+            raise ValueError("evidence root nullability differs from result kind")
+        for value in (
+            self.authority_blob_sha256,
+            self.terminal_payload_sha256,
+            *(() if self.formal_receipt_sha256 is None else (self.formal_receipt_sha256,)),
+            *(() if self.evidence_root_sha256 is None else (self.evidence_root_sha256,)),
+        ):
+            _sha256(value, label="projection digest")
+        _token(self.origin_id, label="projection origin_id")
+        _token(self.cell_key, label="projection cell_key")
+
+
+@dataclass(frozen=True, slots=True)
+class FormalContractRejected:
+    reason_code: FormalReasonCode
+    decision: AbortedOriginDecision
+    projection: OriginTerminalProjection
+
+    def __post_init__(self) -> None:
+        if self.reason_code is FormalReasonCode.P6_UNAVAILABLE:
+            raise ValueError("rejected result cannot use the unavailable code")
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class FormalConsumerReceipt:
+    """Issuer-bound, canonical receipt without a self-digest field."""
+
+    operation_id: str
+    authority_blob_sha256: str
+    source_closure_sha256: str
+    run_plan_sha256: str
+    origin_id: str
+    input_state_commitment: str
+    origin_sealed_payload_sha256: str
+    evidence_sha256s: tuple[str, ...]
+    evidence_root_sha256: str
+    enforcement_arm: str
+    generator_closure: Mapping[str, object]
+    reason_code: FormalReasonCode
+    issuer_seal: str
+    _seal: object = field(repr=False, compare=False)
+
+    def __init__(
+        self,
+        *,
+        operation_id: str,
+        authority_blob_sha256: str,
+        source_closure_sha256: str,
+        run_plan_sha256: str,
+        origin_id: str,
+        input_state_commitment: str,
+        origin_sealed_payload_sha256: str,
+        evidence_sha256s: tuple[str, ...],
+        evidence_root_sha256: str,
+        enforcement_arm: str,
+        generator_closure: Mapping[str, object],
+        reason_code: FormalReasonCode,
+        _issuer: object,
+    ) -> None:
+        if _issuer is not _RECEIPT_CONSTRUCTOR:
+            raise TypeError("FormalConsumerReceipt values are issuer-only")
+        seal = object()
+        object.__setattr__(self, "operation_id", operation_id)
+        object.__setattr__(self, "authority_blob_sha256", authority_blob_sha256)
+        object.__setattr__(self, "source_closure_sha256", source_closure_sha256)
+        object.__setattr__(self, "run_plan_sha256", run_plan_sha256)
+        object.__setattr__(self, "origin_id", origin_id)
+        object.__setattr__(self, "input_state_commitment", input_state_commitment)
+        object.__setattr__(
+            self, "origin_sealed_payload_sha256", origin_sealed_payload_sha256
+        )
+        object.__setattr__(self, "evidence_sha256s", evidence_sha256s)
+        object.__setattr__(self, "evidence_root_sha256", evidence_root_sha256)
+        object.__setattr__(self, "enforcement_arm", enforcement_arm)
+        object.__setattr__(
+            self, "generator_closure", MappingProxyType(dict(generator_closure))
+        )
+        object.__setattr__(self, "reason_code", reason_code)
+        object.__setattr__(self, "issuer_seal", _RECEIPT_ISSUER)
+        object.__setattr__(self, "_seal", seal)
+
+
+@dataclass(frozen=True, slots=True)
+class P6Unavailable:
+    reason_code: FormalReasonCode
+    receipt: FormalConsumerReceipt
+    decision: AbortedOriginDecision
+    projection: OriginTerminalProjection
+
+    def __post_init__(self) -> None:
+        if self.reason_code is not FormalReasonCode.P6_UNAVAILABLE:
+            raise ValueError("P6Unavailable has the wrong reason code")
+
+
+FormalConsumerResult: TypeAlias = FormalContractRejected | P6Unavailable
+
+
+@dataclass(frozen=True, slots=True)
+class _ContractFailure(Exception):
+    reason_code: FormalReasonCode
+
+
+@dataclass(frozen=True, slots=True)
+class _MemberRecord:
+    batch: ledger.SealedBatch
+    member: ledger.SealedBatchMember
+    record: dict
+    raw_bytes: bytes
+    raw_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class _ReplayEntry:
+    request_bytes: bytes
+    decision: AbortedOriginDecision
+
+
+_RECEIPT_CONSTRUCTOR = object()
+_ISSUED_RECEIPTS: dict[object, bytes] = {}
+_OPERATION_REPLAY_CACHE: dict[str, _ReplayEntry] = {}
+_REPLAY_LOCK = threading.Lock()
+
+
+def _sha256(value: object, *, label: str) -> str:
+    if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+        raise ValueError(f"{label} must be a lowercase SHA-256")
+    return value
+
+
+def _token(value: object, *, label: str) -> str:
+    if type(value) is not str or not value or any(char.isspace() for char in value):
+        raise ValueError(f"{label} must be a non-empty token")
+    return value
+
+
+def _require(reason_code: FormalReasonCode, condition: bool) -> None:
+    if type(condition) is not bool or not condition:
+        raise _ContractFailure(reason_code)
+
+
+def _decision(snapshot: ledger.OriginSnapshot) -> AbortedOriginDecision:
+    counters = {
+        "batch_count": snapshot.batch_count,
+        "tombstone_count": snapshot.tombstone_count,
+        "sealed_queries": snapshot.sealed_queries,
+        "tombstoned_queries": snapshot.tombstoned_queries,
+        "forfeited_iterations": snapshot.forfeited_iterations,
+        "forfeited_queries": snapshot.forfeited_queries,
+    }
+    provisional = AbortedOriginDecision(**counters, terminal_payload_sha256="0" * 64)
+    return AbortedOriginDecision(
+        **counters,
+        terminal_payload_sha256=aborted_origin_payload_sha256(provisional),
+    )
+
+
+def _aborted_origin_payload(decision: AbortedOriginDecision) -> dict[str, object]:
+    if type(decision) is not AbortedOriginDecision:
+        raise TypeError("decision must be AbortedOriginDecision")
+    counters = (
+        decision.batch_count,
+        decision.tombstone_count,
+        decision.sealed_queries,
+        decision.tombstoned_queries,
+        decision.forfeited_iterations,
+        decision.forfeited_queries,
+    )
+    if any(type(value) is not int or value < 0 for value in counters):
+        raise ValueError("terminal counters must be non-negative integers")
+    return {
+        "seal_kind": "aborted",
+        "constraint_class_sha256s": [],
+        "batch_count": decision.batch_count,
+        "tombstone_count": decision.tombstone_count,
+        "sealed_queries": decision.sealed_queries,
+        "tombstoned_queries": decision.tombstoned_queries,
+        "forfeited_iterations": decision.forfeited_iterations,
+        "forfeited_queries": decision.forfeited_queries,
+    }
+
+
+def canonical_aborted_origin_payload_bytes(decision: AbortedOriginDecision) -> bytes:
+    """Return the ledger's exact aborted ``origin-sealed`` payload bytes."""
+
+    return canonical_json_bytes(_aborted_origin_payload(decision))
+
+
+def aborted_origin_payload_sha256(decision: AbortedOriginDecision) -> str:
+    return hashlib.sha256(canonical_aborted_origin_payload_bytes(decision)).hexdigest()
+
+
+def origin_terminal_projection_record(
+    projection: OriginTerminalProjection,
+) -> dict[str, object]:
+    if type(projection) is not OriginTerminalProjection:
+        raise TypeError("expected exact OriginTerminalProjection")
+    return {
+        _PROJECTION_KEY: {
+            "schema_version": projection.schema_version,
+            "reason_code": projection.reason_code.value,
+            "formal_receipt_sha256": projection.formal_receipt_sha256,
+            "evidence_root_sha256": projection.evidence_root_sha256,
+            "authority_blob_sha256": projection.authority_blob_sha256,
+            "origin_id": projection.origin_id,
+            "cell_key": projection.cell_key,
+            "terminal_payload_sha256": projection.terminal_payload_sha256,
+        }
+    }
+
+
+def formal_consumer_receipt_record(
+    receipt: FormalConsumerReceipt,
+) -> dict[str, object]:
+    if type(receipt) is not FormalConsumerReceipt:
+        raise TypeError("expected exact FormalConsumerReceipt")
+    return {
+        "schema_version": FORMAL_CONSUMER_RECEIPT_SCHEMA_VERSION,
+        "operation_id": receipt.operation_id,
+        "authority_blob_sha256": receipt.authority_blob_sha256,
+        "source_closure_sha256": receipt.source_closure_sha256,
+        "run_plan_sha256": receipt.run_plan_sha256,
+        "origin_id": receipt.origin_id,
+        "input_state_commitment": receipt.input_state_commitment,
+        "origin_sealed_payload_sha256": receipt.origin_sealed_payload_sha256,
+        "evidence_sha256s": list(receipt.evidence_sha256s),
+        "evidence_root_sha256": receipt.evidence_root_sha256,
+        "enforcement_arm": receipt.enforcement_arm,
+        "generator_closure": dict(receipt.generator_closure),
+        "reason_code": receipt.reason_code.value,
+        "issuer_seal": receipt.issuer_seal,
+    }
+
+
+def canonical_formal_consumer_receipt_bytes(receipt: FormalConsumerReceipt) -> bytes:
+    raw = canonical_json_bytes(formal_consumer_receipt_record(receipt))
+    expected = _ISSUED_RECEIPTS.get(receipt._seal)
+    if expected != raw:
+        raise FormalReceiptError(
+            FormalReceiptReason.ISSUER, "receipt differs from issuer snapshot"
+        )
+    return raw
+
+
+def formal_consumer_receipt_sha256(receipt: FormalConsumerReceipt) -> str:
+    return hashlib.sha256(canonical_formal_consumer_receipt_bytes(receipt)).hexdigest()
+
+
+def _projection(
+    *,
+    reason_code: FormalReasonCode,
+    decision: AbortedOriginDecision,
+    capability: OriginBindingCapability,
+    receipt: FormalConsumerReceipt | None,
+) -> OriginTerminalProjection:
+    return OriginTerminalProjection(
+        schema_version=ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION,
+        reason_code=reason_code,
+        formal_receipt_sha256=(
+            None if receipt is None else formal_consumer_receipt_sha256(receipt)
+        ),
+        evidence_root_sha256=(
+            None if receipt is None else receipt.evidence_root_sha256
+        ),
+        authority_blob_sha256=capability.authority_blob_sha256,
+        origin_id=capability.origin_id,
+        cell_key=capability.cell_key,
+        terminal_payload_sha256=decision.terminal_payload_sha256,
+    )
+
+
+def _rejected(
+    reason_code: FormalReasonCode,
+    *,
+    snapshot: ledger.OriginSnapshot,
+    capability: OriginBindingCapability,
+) -> FormalContractRejected:
+    decision = _decision(snapshot)
+    projection = _projection(
+        reason_code=reason_code,
+        decision=decision,
+        capability=capability,
+        receipt=None,
+    )
+    return FormalContractRejected(reason_code, decision, projection)
+
+
+def _member_rows(
+    sealed_batches: Sequence[ledger.SealedBatch],
+) -> tuple[tuple[ledger.SealedBatch, ledger.SealedBatchMember], ...]:
+    batches = tuple(sealed_batches)
+    if any(type(batch) is not ledger.SealedBatch for batch in batches):
+        raise TypeError("sealed_batches must contain exact SealedBatch values")
+    return tuple((batch, member) for batch in batches for member in batch.members)
+
+
+def _pair_records(
+    *,
+    sealed_batches: Sequence[ledger.SealedBatch],
+    result_record_bytes: Sequence[bytes],
+) -> tuple[_MemberRecord, ...]:
+    rows = _member_rows(sealed_batches)
+    parsed: list[tuple[dict, bytes, str]] = []
+    try:
+        for raw in result_record_bytes:
+            if type(raw) is not bytes:
+                raise ResultEvidenceError("result record input is not raw bytes")
+            record = parse_result_evidence_bytes(raw)
+            parsed.append((record, raw, hashlib.sha256(raw).hexdigest()))
+    except ResultEvidenceError as exc:
+        raise _ContractFailure(FormalReasonCode.FC01) from exc
+
+    keyed_rows = {
+        (batch.batch_id, member.query_ordinal): member for batch, member in rows
+    }
+    for record, _raw, _digest in parsed:
+        key = (
+            record["ledger_member"]["batch_id"],
+            record["ledger_member"]["query_ordinal"],
+        )
+        keyed = keyed_rows.get(key)
+        if keyed is not None and keyed.outcome == "tombstoned":
+            raise _ContractFailure(FormalReasonCode.FC02)
+
+    digest_records: dict[str, list[tuple[dict, bytes]]] = {}
+    for record, raw, digest in parsed:
+        digest_records.setdefault(digest, []).append((record, raw))
+
+    paired: list[_MemberRecord] = []
+    referenced: set[int] = set()
+    for batch, member in rows:
+        if member.outcome == "tombstoned":
+            _require(FormalReasonCode.FC02, member.evidence_digest is None)
+            continue
+        _require(FormalReasonCode.FC01, member.evidence_digest is not None)
+        matches = digest_records.get(member.evidence_digest.sha256, [])
+        _require(FormalReasonCode.FC01, len(matches) == 1)
+        record, raw = matches[0]
+        referenced.add(id(raw))
+        paired.append(
+            _MemberRecord(
+                batch=batch,
+                member=member,
+                record=record,
+                raw_bytes=raw,
+                raw_sha256=member.evidence_digest.sha256,
+            )
+        )
+    _require(FormalReasonCode.FC01, len(referenced) == len(parsed))
+    return tuple(paired)
+
+
+def _authority_manifest(
+    raw_bytes: bytes, capability: OriginBindingCapability
+) -> ledger.AuthorityManifest:
+    try:
+        authority = ledger._authority_from_bytes(raw_bytes)
+    except (TypeError, ValueError, ledger.RefluxOriginLedgerError) as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+    _require(
+        FormalReasonCode.FC03,
+        authority.blob_sha256 == capability.authority_blob_sha256,
+    )
+    entry = authority.entries.get(capability.origin_id)
+    _require(FormalReasonCode.FC03, entry is not None)
+    _require(FormalReasonCode.FC03, entry.cell_key == capability.cell_key)
+    return entry.manifest
+
+
+def _validate_bindings(
+    *,
+    capability: OriginBindingCapability,
+    source_closure: ValidatedSourceClosure,
+    manifest: ledger.AuthorityManifest,
+    run_plan: RecoveryEnvelope,
+    launch_admission_record_sha256: str,
+    snapshot: ledger.OriginSnapshot,
+    sealed_batches: Sequence[ledger.SealedBatch],
+    paired: Sequence[_MemberRecord],
+) -> None:
+    try:
+        assert_issued_origin_binding_capability(capability)
+        assert_issued_validated_source_closure(source_closure)
+        launch_digest = _sha256(
+            launch_admission_record_sha256, label="launch admission digest"
+        )
+    except (OriginBindingError, SourceClosureError, ValueError) as exc:
+        raise _ContractFailure(FormalReasonCode.FC03) from exc
+
+    _require(FormalReasonCode.FC03, snapshot.origin_id == capability.origin_id)
+    _require(
+        FormalReasonCode.FC03,
+        source_closure.source_closure_sha256 == capability.source_closure_sha256,
+    )
+    _require(FormalReasonCode.FC03, source_closure.origin_id == capability.origin_id)
+    _require(FormalReasonCode.FC03, source_closure.cell_key == capability.cell_key)
+    _require(
+        FormalReasonCode.FC03,
+        run_plan.source_closure_sha256 == capability.source_closure_sha256,
+    )
+    capability_sha256 = hashlib.sha256(
+        canonical_json_bytes(origin_binding_capability_record(capability))
+    ).hexdigest()
+    _require(
+        FormalReasonCode.FC03,
+        run_plan.origin_binding_capability_sha256 == capability_sha256,
+    )
+    _require(
+        FormalReasonCode.FC03,
+        manifest.workload["descriptor_sha256"]
+        == capability.authority_workload.descriptor_sha256
+        == source_closure.referent_sha256s[
+            "authority.workload.descriptor_sha256"
+        ],
+    )
+    _require(
+        FormalReasonCode.FC03,
+        manifest.axis_semantics_sha256 == capability.axis_semantics_sha256,
+    )
+    _require(
+        FormalReasonCode.FC03,
+        manifest.verifier_policy_sha256 == capability.verifier_policy_sha256,
+    )
+    _require(
+        FormalReasonCode.FC03,
+        manifest.environment_contract_sha256
+        == capability.environment_contract_sha256,
+    )
+    for batch in sealed_batches:
+        _require(FormalReasonCode.FC03, batch.origin_id == capability.origin_id)
+    for item in paired:
+        record = item.record
+        origin = record["origin_binding"]
+        trial = record["trial_binding"]
+        _require(FormalReasonCode.FC03, origin["origin_id"] == capability.origin_id)
+        _require(FormalReasonCode.FC03, origin["cell_key"] == capability.cell_key)
+        _require(
+            FormalReasonCode.FC03,
+            origin["authority_blob_sha256"] == capability.authority_blob_sha256,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            origin["source_closure_sha256"] == capability.source_closure_sha256,
+        )
+        _require(FormalReasonCode.FC03, trial["campaign_id"] == capability.campaign_id)
+        _require(
+            FormalReasonCode.FC03,
+            origin["workload"] == capability.trial_workload
+            and trial["workload"] == capability.trial_workload,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            origin["axis_semantics_sha256"] == capability.axis_semantics_sha256,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            origin["verifier_policy_sha256"] == capability.verifier_policy_sha256,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            origin["environment_contract_sha256"]
+            == capability.environment_contract_sha256,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            trial["launch_admission_record_sha256"] == launch_digest,
+        )
+
+
+def _validate_member_mapping(paired: Sequence[_MemberRecord]) -> None:
+    for item in paired:
+        record = item.record
+        member = item.member
+        ledger_member = record["ledger_member"]
+        physical = record["physical_result"]
+        _require(
+            FormalReasonCode.FC04,
+            ledger_member["query_ordinal"] == member.query_ordinal,
+        )
+        _require(
+            FormalReasonCode.FC04,
+            ledger_member["replicate_ordinal"] == member.replicate_ordinal,
+        )
+        _require(
+            FormalReasonCode.FC04,
+            record["trigger_binding"]["candidate_wire"].encode("ascii")
+            == member.candidate_bytes,
+        )
+        _require(FormalReasonCode.FC04, physical["outcome"] == member.outcome)
+        _require(
+            FormalReasonCode.FC04,
+            physical["constraint_sha256"] == member.constraint_sha256,
+        )
+
+
+def _resolved_records(
+    paired: Sequence[_MemberRecord], *, evidence_root: Path
+) -> tuple[ResolvedResultEvidence, ...]:
+    try:
+        resolved = tuple(
+            resolve_result_evidence(item.record, evidence_root=evidence_root)
+            for item in paired
+        )
+    except ResultEvidenceError as exc:
+        raise _ContractFailure(FormalReasonCode.FC05B) from exc
+    try:
+        assert_non_overlapping_wal_ranges(resolved)
+    except ResultEvidenceError as exc:
+        raise _ContractFailure(FormalReasonCode.FC05B) from exc
+    return resolved
+
+
+def _validate_execution_provenance_bindings(
+    capability: OriginBindingCapability,
+    paired: Sequence[_MemberRecord],
+    resolved: Sequence[ResolvedResultEvidence],
+) -> None:
+    for item, resolved_item in zip(paired, resolved, strict=True):
+        record = item.record
+        provenance = resolved_item.execution_provenance
+        origin = record["origin_binding"]
+        trial = record["trial_binding"]
+        physical = record["physical_result"]
+        _require(
+            FormalReasonCode.FC03,
+            provenance["build_attempt_id"] == physical["build_attempt_id"],
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["campaign_id"]
+            == trial["campaign_id"]
+            == capability.campaign_id,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["workload"]
+            == origin["workload"]
+            == trial["workload"]
+            == capability.trial_workload,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["contract_sha256"]
+            == origin["environment_contract_sha256"]
+            == capability.environment_contract_sha256,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["trigger_binding"] == record["trigger_binding"],
+        )
+
+
+def _wal_trigger(records: Sequence[dict]) -> object:
+    bindings = [
+        record.get("trigger_binding")
+        for record in records
+        if record.get("kind") == "TriggerGateBinding"
+    ]
+    return bindings[0] if len(bindings) == 1 else None
+
+
+def _validate_bijection(
+    paired: Sequence[_MemberRecord],
+    resolved: Sequence[ResolvedResultEvidence],
+) -> None:
+    attempts = [item.record["physical_result"]["build_attempt_id"] for item in paired]
+    _require(FormalReasonCode.FC05A, len(attempts) == len(set(attempts)))
+    for item, resolved_item in zip(paired, resolved, strict=True):
+        _require(
+            FormalReasonCode.FC05C,
+            _wal_trigger(resolved_item.ordered_wal.records)
+            == item.record["trigger_binding"],
+        )
+
+
+def _validate_topology(
+    paired: Sequence[_MemberRecord], run_plan: RecoveryEnvelope
+) -> None:
+    _require(
+        FormalReasonCode.FC06,
+        len(paired) == SOURCE_AND_VALIDATION_MEMBER_COUNT,
+    )
+    records = [item.record for item in paired]
+    source = records[0]
+    _require(FormalReasonCode.FC06, source["p6_plan"]["purpose"] == "source")
+    source_mask = source["trigger_binding"]["mask"]
+    for index, record in enumerate(records):
+        plan = record["p6_plan"]
+        _require(
+            FormalReasonCode.FC06,
+            plan["hypothesis_sha256"] == run_plan.hypothesis_sha256
+            and plan["validation_plan_sha256"] == run_plan.validation_plan_sha256,
+        )
+        planned = run_plan.members[index]
+        _require(
+            FormalReasonCode.FC06,
+            record["ledger_member"]["iteration_index"] == planned.iteration_index
+            and record["ledger_member"]["query_ordinal"] == planned.query_ordinal
+            and record["ledger_member"]["replicate_ordinal"]
+            == planned.replicate_ordinal
+            and record["trigger_binding"]["candidate_wire"]
+            == planned.candidate_wire,
+        )
+    masks = [record["trigger_binding"]["mask"] for record in records[1:]]
+    _require(FormalReasonCode.FC06, masks == list(range(VALIDATION_MASK_COUNT)))
+    _require(
+        FormalReasonCode.FC06,
+        all(record["p6_plan"]["purpose"] == "p6-validation" for record in records[1:]),
+    )
+    _require(
+        FormalReasonCode.FC06,
+        records[1 + source_mask]["ledger_member"]["replicate_ordinal"] == 1,
+    )
+
+
+def _wal_field(record: Mapping[str, object], name: str) -> object:
+    if name in record:
+        return record[name]
+    payload = record.get("payload")
+    return payload.get(name) if type(payload) is dict else None
+
+
+def _verifier_policy(raw_bytes: bytes, expected_sha256: str) -> tuple[str, ...]:
+    try:
+        policy = strict_json_loads(raw_bytes)
+    except ArtifactError as exc:
+        raise _ContractFailure(FormalReasonCode.FC07) from exc
+    _require(FormalReasonCode.FC07, type(policy) is dict)
+    _require(
+        FormalReasonCode.FC07,
+        hashlib.sha256(raw_bytes).hexdigest() == expected_sha256,
+    )
+    ordered = policy.get("ordered_passes")
+    _require(
+        FormalReasonCode.FC07,
+        type(ordered) is list
+        and ordered
+        and all(type(item) is str and item for item in ordered),
+    )
+    return tuple(ordered)
+
+
+def _validate_wal_outcomes(
+    paired: Sequence[_MemberRecord],
+    resolved: Sequence[ResolvedResultEvidence],
+    *,
+    ordered_verifiers: tuple[str, ...],
+) -> None:
+    for item, resolved_item in zip(paired, resolved, strict=True):
+        physical = item.record["physical_result"]
+        wal_records = resolved_item.ordered_wal.records
+        terminal = wal_records[-1]
+        attempt = physical["build_attempt_id"]
+        _require(FormalReasonCode.FC07, _wal_field(terminal, "build_attempt_id") == attempt)
+        if physical["outcome"] == "accepted":
+            _require(FormalReasonCode.FC07, terminal.get("kind") == "commit")
+            _require(
+                FormalReasonCode.FC07,
+                tuple(_wal_field(terminal, "verify_configs") or ()) == ordered_verifiers,
+            )
+        else:
+            _require(FormalReasonCode.FC07, terminal.get("kind") == "abort")
+            _require(
+                FormalReasonCode.FC07,
+                _wal_field(terminal, "candidate_attributable") is True
+                and _wal_field(terminal, "truncated") is False,
+            )
+            witnesses = _wal_field(terminal, "witness_class_sha256s")
+            _require(
+                FormalReasonCode.FC07,
+                type(witnesses) is list
+                and witnesses == [physical["constraint_sha256"]],
+            )
+
+
+def _validate_exact_rejected_classes(paired: Sequence[_MemberRecord]) -> None:
+    record_values = {
+        item.record["physical_result"]["constraint_sha256"]
+        for item in paired
+        if item.record["physical_result"]["outcome"] == "rejected"
+    }
+    ledger_values = {
+        item.member.constraint_sha256
+        for item in paired
+        if item.member.outcome == "rejected"
+    }
+    _require(
+        FormalReasonCode.FC09,
+        all(type(value) is str and _SHA256_RE.fullmatch(value) for value in ledger_values),
+    )
+    record_classes = tuple(sorted(record_values))
+    ledger_classes = tuple(sorted(ledger_values))
+    _require(FormalReasonCode.FC09, record_classes == ledger_classes)
+
+
+def _validate_aggregate(
+    *,
+    paired: Sequence[_MemberRecord],
+    manifest: ledger.AuthorityManifest,
+    snapshot: ledger.OriginSnapshot,
+) -> None:
+    observed = tuple(sorted({
+        item.record["physical_result"]["constraint_sha256"]
+        for item in paired
+        if item.record["physical_result"]["outcome"] == "rejected"
+    }))
+    _require(FormalReasonCode.FC09, len(observed) <= manifest.budget_policy.kmax)
+    _require(
+        FormalReasonCode.FC09,
+        all(
+            snapshot.sealed_queries >= floor.required_queries
+            for floor in manifest.budget_policy.query_floor_constraints
+        ),
+    )
+
+
+def _validate_no_all_tombstone_batch(
+    sealed_batches: Sequence[ledger.SealedBatch],
+) -> None:
+    for batch in sealed_batches:
+        _require(
+            FormalReasonCode.FC10,
+            not batch.members
+            or any(member.outcome != "tombstoned" for member in batch.members),
+        )
+
+
+def _issue_receipt(
+    *,
+    operation_id: str,
+    capability: OriginBindingCapability,
+    source_closure: ValidatedSourceClosure,
+    run_plan: RecoveryEnvelope,
+    snapshot: ledger.OriginSnapshot,
+    decision: AbortedOriginDecision,
+    evidence_sha256s: tuple[str, ...],
+    enforcement_arm: str,
+    generator_closure: Mapping[str, object],
+) -> FormalConsumerReceipt:
+    _token(operation_id, label="operation_id")
+    _token(enforcement_arm, label="enforcement_arm")
+    if type(generator_closure) is not dict:
+        raise TypeError("generator_closure must be an exact object")
+    detached = json.loads(canonical_json_bytes(generator_closure).decode("utf-8"))
+    evidence_root_sha256 = hashlib.sha256(
+        canonical_json_bytes(list(evidence_sha256s))
+    ).hexdigest()
+    receipt = FormalConsumerReceipt(
+        operation_id=operation_id,
+        authority_blob_sha256=capability.authority_blob_sha256,
+        source_closure_sha256=source_closure.source_closure_sha256,
+        run_plan_sha256=hashlib.sha256(
+            canonical_recovery_envelope_bytes(run_plan)
+        ).hexdigest(),
+        origin_id=capability.origin_id,
+        input_state_commitment=snapshot.state_commitment,
+        origin_sealed_payload_sha256=decision.terminal_payload_sha256,
+        evidence_sha256s=evidence_sha256s,
+        evidence_root_sha256=evidence_root_sha256,
+        enforcement_arm=enforcement_arm,
+        generator_closure=detached,
+        reason_code=FormalReasonCode.P6_UNAVAILABLE,
+        _issuer=_RECEIPT_CONSTRUCTOR,
+    )
+    raw = canonical_json_bytes(formal_consumer_receipt_record(receipt))
+    _ISSUED_RECEIPTS[receipt._seal] = raw
+    return receipt
+
+
+def evaluate_formal_origin(
+    *,
+    capability: OriginBindingCapability,
+    source_closure: ValidatedSourceClosure,
+    run_plan: RecoveryEnvelope,
+    authority_blob_bytes: bytes,
+    launch_admission_record_sha256: str,
+    origin_snapshot: ledger.OriginSnapshot,
+    sealed_batches: Sequence[ledger.SealedBatch],
+    result_record_bytes: Sequence[bytes],
+    evidence_root: Path,
+    verifier_policy_bytes: bytes,
+    enforcement_arm: str,
+    generator_closure: Mapping[str, object],
+    operation_id: str,
+) -> FormalConsumerResult:
+    """Evaluate conditions 1--7, 9--10 and §4.2, then stop at P6."""
+
+    if type(capability) is not OriginBindingCapability:
+        raise TypeError("capability must be an exact OriginBindingCapability")
+    if type(origin_snapshot) is not ledger.OriginSnapshot:
+        raise TypeError("origin_snapshot must be an exact OriginSnapshot")
+    if type(run_plan) is not RecoveryEnvelope:
+        raise TypeError("run_plan must be an exact RecoveryEnvelope")
+    try:
+        paired = _pair_records(
+            sealed_batches=sealed_batches,
+            result_record_bytes=result_record_bytes,
+        )
+        manifest = _authority_manifest(authority_blob_bytes, capability)
+        _validate_bindings(
+            capability=capability,
+            source_closure=source_closure,
+            manifest=manifest,
+            run_plan=run_plan,
+            launch_admission_record_sha256=launch_admission_record_sha256,
+            snapshot=origin_snapshot,
+            sealed_batches=sealed_batches,
+            paired=paired,
+        )
+        _validate_exact_rejected_classes(paired)
+        _validate_member_mapping(paired)
+        resolved = _resolved_records(paired, evidence_root=Path(evidence_root))
+        _validate_execution_provenance_bindings(capability, paired, resolved)
+        _validate_bijection(paired, resolved)
+        _validate_topology(paired, run_plan)
+        ordered_verifiers = _verifier_policy(
+            verifier_policy_bytes, capability.verifier_policy_sha256
+        )
+        _validate_wal_outcomes(
+            paired, resolved, ordered_verifiers=ordered_verifiers
+        )
+        _validate_aggregate(
+            paired=paired,
+            manifest=manifest,
+            snapshot=origin_snapshot,
+        )
+        _validate_no_all_tombstone_batch(sealed_batches)
+    except _ContractFailure as failure:
+        return _rejected(
+            failure.reason_code,
+            snapshot=origin_snapshot,
+            capability=capability,
+        )
+
+    decision = _decision(origin_snapshot)
+    evidence_sha256s = tuple(item.raw_sha256 for item in paired)
+    receipt = _issue_receipt(
+        operation_id=operation_id,
+        capability=capability,
+        source_closure=source_closure,
+        run_plan=run_plan,
+        snapshot=origin_snapshot,
+        decision=decision,
+        evidence_sha256s=evidence_sha256s,
+        enforcement_arm=enforcement_arm,
+        generator_closure=generator_closure,
+    )
+    reason = FormalReasonCode.P6_UNAVAILABLE
+    return P6Unavailable(
+        reason,
+        receipt,
+        decision,
+        _projection(
+            reason_code=reason,
+            decision=decision,
+            capability=capability,
+            receipt=receipt,
+        ),
+    )
+
+
+def _receipt_request_bytes(
+    *, input_state_commitment: str, decision: AbortedOriginDecision
+) -> bytes:
+    return canonical_json_bytes({
+        "input_state_commitment": input_state_commitment,
+        "origin_sealed_payload": _aborted_origin_payload(decision),
+    })
+
+
+def consume_formal_consumer_receipt(
+    receipt: FormalConsumerReceipt,
+    *,
+    operation_id: str,
+    input_state_commitment: str,
+    decision: AbortedOriginDecision,
+) -> AbortedOriginDecision:
+    """Consume once, while allowing byte-identical exact-operation replay."""
+
+    canonical_formal_consumer_receipt_bytes(receipt)
+    if operation_id != receipt.operation_id:
+        raise FormalReceiptError(
+            FormalReceiptReason.OPERATION, "receipt operation_id mismatch"
+        )
+    request_bytes = _receipt_request_bytes(
+        input_state_commitment=input_state_commitment, decision=decision
+    )
+    with _REPLAY_LOCK:
+        cached = _OPERATION_REPLAY_CACHE.get(operation_id)
+        if cached is not None:
+            if cached.request_bytes != request_bytes:
+                raise FormalReceiptError(
+                    FormalReceiptReason.REPLAY,
+                    "operation_id was already used with different payload bytes",
+                )
+            return cached.decision
+        if input_state_commitment != receipt.input_state_commitment:
+            raise FormalReceiptError(
+                FormalReceiptReason.STATE, "receipt input state commitment mismatch"
+            )
+        observed_payload_sha256 = aborted_origin_payload_sha256(decision)
+        if (
+            decision.terminal_payload_sha256 != observed_payload_sha256
+            or observed_payload_sha256 != receipt.origin_sealed_payload_sha256
+        ):
+            raise FormalReceiptError(
+                FormalReceiptReason.PAYLOAD, "receipt terminal payload digest mismatch"
+            )
+        _OPERATION_REPLAY_CACHE[operation_id] = _ReplayEntry(
+            request_bytes=request_bytes, decision=decision
+        )
+        return decision
