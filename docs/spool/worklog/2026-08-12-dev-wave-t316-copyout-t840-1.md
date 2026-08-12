@@ -71,7 +71,7 @@ orchestrator source を pin しない。`t080_freeze_migration` が `p3_s4_loop_
   directory publish の create-only 原子性はいずれも主張しない。
   残る blocker ([T-184] canonical stage matrix 未発行、R3-3〜R3-9、R2-b 独立 oracle 本体) は**変わらず**。
   正本 = `output/insights/2026-08-12_t316-copyout-t840/package.md`
-  base: d1128a0cd4cdc7a29ed2d96d288d8117f836d0dfdb80f888d69735ce7f3ee74a
+  base: 844a9c2f956ae14211e707afe0b8767a52845ca8fe59c5b7cb1b0169691a0f6f
 - [T-840] **P1・部分実装、成果物隔離は要再裁定**: issuer 集合の機械閉包
   (単一 registry の typed 拡張 + 未登録 site からの coder authority 発行の fail-closed 拒否 +
   tracked Python 全体を母集合とする AST 閉包) を実装した。**現存 6 entry point は 1 件も落ちない。**
@@ -82,7 +82,7 @@ orchestrator source を pin しない。`t080_freeze_migration` が `p3_s4_loop_
   COMMIT へ束縛して真の成果物隔離にするか ([T-841] と同時)、(Q3) calibrator の任意 binary path と
   shell materializer の扱い、(Q4) 旧実装が作った既存 cache entry を拒否・再発行するか、
   (Q5) fd-to-exec 束縛・build 子孫の終了保証・floor/oracle の store/resume 束縛。
-  base: 1fbf0378025349a39512e984bed8af122395d65a106b4b8c72a66e1fbefe7270
+  base: 12f7b0afa52f7aa37bbd175d4c35bb09fd034628781c08ab0f438a08dcb04782
 
 ### 新規
 
