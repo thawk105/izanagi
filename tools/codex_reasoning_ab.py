@@ -304,6 +304,7 @@ def _find_rollout(
         and pinned_label in ROLLOUT_SHA256
     )
     if eligible:
+        candidate: Path | None = None
         try:
             assert pinned_label is not None
             separators = (os.sep,) if os.altsep is None else (os.sep, os.altsep)
@@ -313,14 +314,20 @@ def _find_rollout(
                     sessions_root.rglob(f"rollout-*-{escaped}.jsonl"),
                     key=os.fspath,
                 )
-                if len(candidates) == 1 and _rollout_matches_session(
-                    candidates[0], session_id
-                ):
-                    resolved = candidates[0].resolve()
-                    _verify_rollout_sha(resolved, pinned_label)
-                    return resolved
+                if len(candidates) == 1:
+                    candidate = candidates[0]
         except Exception:
             pass
+
+        if candidate is not None and _rollout_matches_session(candidate, session_id):
+            try:
+                resolved = candidate.resolve()
+                assert pinned_label is not None
+                _verify_rollout_sha(resolved, pinned_label)
+            except Exception:
+                pass
+            else:
+                return resolved
 
     matches: list[Path] = []
     for path in sorted(sessions_root.rglob("rollout-*.jsonl"), key=os.fspath):
