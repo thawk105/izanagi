@@ -23,12 +23,21 @@ _GIT_ENV_ALLOW = frozenset(
         "LANG",
         "LC_ALL",
         "LC_CTYPE",
-        "PATH",
         "SYSTEMROOT",
         "TMPDIR",
     }
 )
-_GIT_HARDEN = ("-c", "core.useReplaceRefs=false")
+# 運用環境への固定束縛であり、この path を持たない環境では本 module の受理集合は空になる。
+_GIT_EXECUTABLE = Path("/usr/bin/git")
+_GIT_HARDEN = (
+    "--no-pager",
+    "-c",
+    "core.useReplaceRefs=false",
+    "-c",
+    "core.commitGraph=false",
+    "-c",
+    "core.fsmonitor=false",
+)
 GIT_TIMEOUT_BASE_SECONDS = 5.0
 GIT_TIMEOUT_BYTES_PER_SECOND = 1024 * 1024
 GIT_TIMEOUT_CAP_SECONDS = 30.0
@@ -62,14 +71,23 @@ def _validate_repo_relative_path(value: object) -> str:
         raise InvalidBlobRefError("path は canonical な POSIX repo 相対 path でなければならない")
     if any(part in {"", ".", ".."} for part in path.parts):
         raise InvalidBlobRefError("path に空要素・'.'・'..' は使えない")
-    return value
+    normalized = str.__str__(value)
+    if type(normalized) is not str:
+        raise InvalidBlobRefError("path は組み込み str へ正規化できない")
+    if type(value) is not str:
+        return _validate_repo_relative_path(normalized)
+    return normalized
 
 
 def _require_hex(value: object, pattern: re.Pattern[str], label: str) -> str:
     if not isinstance(value, str) or pattern.fullmatch(value) is None:
         width = 40 if label == "commit" else 64
         raise InvalidBlobRefError(f"{label} は {width} 桁 lowercase hex でなければならない")
-    return value
+    normalized = str.__str__(value)
+    if type(normalized) is not str or pattern.fullmatch(normalized) is None:
+        width = 40 if label == "commit" else 64
+        raise InvalidBlobRefError(f"{label} は {width} 桁 lowercase hex でなければならない")
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -81,9 +99,13 @@ class BlobRef:
     sha256: str
 
     def __post_init__(self) -> None:
-        _validate_repo_relative_path(self.path)
-        _require_hex(self.commit, _COMMIT_RE, "commit")
-        _require_hex(self.sha256, _SHA256_RE, "sha256")
+        object.__setattr__(self, "path", _validate_repo_relative_path(self.path))
+        object.__setattr__(
+            self, "commit", _require_hex(self.commit, _COMMIT_RE, "commit")
+        )
+        object.__setattr__(
+            self, "sha256", _require_hex(self.sha256, _SHA256_RE, "sha256")
+        )
 
 
 def read_pinned_blob(repository_root: str | os.PathLike[str], ref: BlobRef) -> bytes:
@@ -95,6 +117,17 @@ def read_pinned_blob(repository_root: str | os.PathLike[str], ref: BlobRef) -> b
 
     if not isinstance(ref, BlobRef):
         raise InvalidBlobRefError("ref は BlobRef でなければならない")
+    path, commit, sha256 = ref.path, ref.commit, ref.sha256
+    for field_name, value in (
+        ("path", path),
+        ("commit", commit),
+        ("sha256", sha256),
+    ):
+        if type(value) is not str:
+            raise InvalidBlobRefError(
+                f"ref.{field_name} は組み込み str でなければならない"
+            )
+    ref = BlobRef(path=path, commit=commit, sha256=sha256)
     try:
         root = Path(repository_root).resolve(strict=True)
     except OSError as exc:
@@ -127,8 +160,9 @@ def read_pinned_blob(repository_root: str | os.PathLike[str], ref: BlobRef) -> b
     if len(result.stdout) != blob_size:
         raise BlobResolutionError("固定 blob の宣言 size と読取 size が一致しない")
 
-    actual = hashlib.sha256(result.stdout).hexdigest()
-    if actual != ref.sha256:
+    actual_digest = hashlib.sha256(result.stdout).digest()
+    if actual_digest != bytes.fromhex(ref.sha256):
+        actual = actual_digest.hex()
         raise BlobDigestMismatchError(
             f"固定 blob の SHA-256 が不一致: expected={ref.sha256}, actual={actual}"
         )
@@ -144,6 +178,8 @@ def _git_env() -> dict[str, str]:
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_LITERAL_PATHSPECS": "1",
+            # promisor 拒否の補助として、検査中の lazy fetch を禁じる。
+            "GIT_NO_LAZY_FETCH": "1",
             "GIT_NO_REPLACE_OBJECTS": "1",
             "GIT_OPTIONAL_LOCKS": "0",
             "GIT_TERMINAL_PROMPT": "0",
@@ -167,10 +203,11 @@ def _git(
     work_bytes: int = 0,
     max_output_bytes: int = MAX_GIT_METADATA_OUTPUT_BYTES,
 ) -> subprocess.CompletedProcess[bytes]:
+    executable = _resolve_git_executable()
     try:
         with tempfile.TemporaryFile() as stdout:
             completed = subprocess.run(
-                ["git", *_GIT_HARDEN, "--no-replace-objects", *arguments],
+                [executable, *_GIT_HARDEN, "--no-replace-objects", *arguments],
                 cwd=root,
                 env=env,
                 stdout=stdout,
@@ -192,6 +229,20 @@ def _git(
         raise BlobResolutionError("固定 blob の Git 解決を実行できない") from exc
 
 
+def _resolve_git_executable() -> str:
+    """PATH 探索をせず、固定した絶対 path の Git だけを返す。"""
+
+    if not _GIT_EXECUTABLE.is_absolute():
+        raise BlobResolutionError("git executable を絶対 path として解決できない")
+    try:
+        present = _GIT_EXECUTABLE.is_file()
+    except OSError as exc:
+        raise BlobResolutionError("git executable を解決できない") from exc
+    if not present:
+        raise BlobResolutionError("git executable を解決できない")
+    return os.fspath(_GIT_EXECUTABLE)
+
+
 def _require_git_top_level(root: Path, env: dict[str, str]) -> None:
     result = _git(root, env, ["rev-parse", "--show-toplevel"])
     if result.returncode != 0:
@@ -207,6 +258,8 @@ def _require_git_top_level(root: Path, env: dict[str, str]) -> None:
 
 
 def _require_safe_history(root: Path, env: dict[str, str]) -> None:
+    _require_no_alternates_or_promisor(root, env)
+
     shallow = _git(root, env, ["rev-parse", "--is-shallow-repository"])
     if shallow.returncode != 0 or shallow.stdout.strip() != b"false":
         raise BlobResolutionError("shallow repository は受理しない")
@@ -230,6 +283,97 @@ def _require_safe_history(root: Path, env: dict[str, str]) -> None:
         graft_path = root / graft_path
     if graft_path.exists():
         raise BlobResolutionError("grafts を持つ repository は受理しない")
+
+
+def _require_no_alternates_or_promisor(root: Path, env: dict[str, str]) -> None:
+    """外部 object store と promisor に依存する repository を拒否する。"""
+
+    objects_result = _git(root, env, ["rev-parse", "--git-path", "objects"])
+    if objects_result.returncode != 0:
+        raise BlobResolutionError("Git objects path を解決できない")
+    try:
+        objects_text = objects_result.stdout.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise BlobResolutionError("Git objects path の解決結果が不正である") from exc
+    if (
+        not objects_text.endswith("\n")
+        or not objects_text[:-1]
+        or "\n" in objects_text[:-1]
+        or "\x00" in objects_text
+    ):
+        raise BlobResolutionError("Git objects path の解決結果が不正である")
+    objects_path = Path(objects_text[:-1])
+    if not objects_path.is_absolute():
+        objects_path = root / objects_path
+
+    for marker in (
+        objects_path / "info" / "alternates",
+        objects_path / "info" / "http-alternates",
+    ):
+        try:
+            marker.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            raise BlobResolutionError("alternates の状態を検査できない") from exc
+        else:
+            raise BlobResolutionError("alternates を持つ repository は受理しない")
+
+    pack_path = objects_path / "pack"
+    try:
+        with os.scandir(pack_path) as entries:
+            has_promisor_marker = any(
+                entry.name.endswith(".promisor") for entry in entries
+            )
+    except FileNotFoundError:
+        has_promisor_marker = False
+    except OSError as exc:
+        raise BlobResolutionError("promisor object の状態を検査できない") from exc
+    if has_promisor_marker:
+        raise BlobResolutionError("promisor object を持つ repository は受理しない")
+
+    partial_clone = _git(
+        root,
+        env,
+        ["config", "--includes", "--get-all", "extensions.partialClone"],
+    )
+    if partial_clone.returncode == 0:
+        raise BlobResolutionError("partial clone repository は受理しない")
+    if partial_clone.returncode != 1:
+        raise BlobResolutionError("partial clone 設定を検査できない")
+
+    promisors = _git(
+        root,
+        env,
+        [
+            "config",
+            "-z",
+            "--includes",
+            "--type=bool",
+            "--get-regexp",
+            r"^remote\..*\.promisor$",
+        ],
+    )
+    if promisors.returncode == 1:
+        return
+    if promisors.returncode != 0:
+        raise BlobResolutionError("promisor remote 設定を検査できない")
+    promisor_records = promisors.stdout.split(b"\0")
+    if promisor_records[-1:] != [b""]:
+        raise BlobResolutionError("promisor remote 設定の解決結果が不正である")
+    promisor_records.pop()
+    if not promisor_records or any(not record for record in promisor_records):
+        raise BlobResolutionError("promisor remote 設定の解決結果が不正である")
+    for record in promisor_records:
+        fields = record.split(b"\n")
+        if (
+            len(fields) != 2
+            or not fields[0]
+            or fields[1] not in {b"true", b"false"}
+        ):
+            raise BlobResolutionError("promisor remote 設定の解決結果が不正である")
+        if fields[1] == b"true":
+            raise BlobResolutionError("promisor remote を持つ repository は受理しない")
 
 
 def _require_commit_regular_blob(

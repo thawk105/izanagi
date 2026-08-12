@@ -983,19 +983,65 @@ def test_floor_job_exports_exact_reservation_fields() -> None:
     assert actual == set(reservation._ENV_FIELDS.values())
 
 
-def test_floor_job_invokes_fixed_official_cli_without_bypass() -> None:
+def test_floor_job_invokes_fixed_pilot_cli_without_bypass(tmp_path: Path) -> None:
     source = JOB.read_text(encoding="utf-8")
-    start = source.index('PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"')
-    end = source.index("# 出典: certify_calibration.sh:734-762", start)
-    invocation = source[start:end]
-    assert (
-        '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"'
-        in invocation
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    argv_record = tmp_path / "driver-argv.json"
+    driver.write_text(
+        "import json\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        f"Path({str(argv_record)!r}).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n",
+        encoding="utf-8",
     )
-    assert "--mode official" in invocation
-    assert '--protocol "$REPO_ROOT/$PROTOCOL_PATH"' in invocation
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "IZANAGI_FLOOR_MODE=pilot",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    actual_argv = json.loads(argv_record.read_text(encoding="utf-8"))
+    assert actual_argv == [
+        "--mode",
+        "pilot",
+        "--protocol",
+        str(repo / "output" / "s8b-freeze" / "floor_protocol.json"),
+    ]
+
+    source_tokens = shlex.split(source, comments=True, posix=True)
+    driver_path = "orchestrator/campaign/s8b_floor_campaign.py"
+    driver_tokens = [
+        token
+        for token in source_tokens
+        if token == driver_path or token.endswith("/" + driver_path)
+    ]
+    assert len(driver_tokens) == 1
+    assert source_tokens.count("--mode") == 1
+    source_mode_index = source_tokens.index("--mode")
+    assert source_tokens[source_mode_index + 1] == "pilot"
+    assert "--mode official" not in source
     assert "--resume" not in source
-    assert "pilot" not in source.lower()
     assert "eval " not in source
 
 
@@ -1661,7 +1707,7 @@ def test_floor_driver_failure_propagates_rc(
         "schema_version": "pegasus-floor-job-result/v1",
         "pbs_jobid": "0:fixture.nqsv",
         "driver_rc": driver_rc,
-        "mode": "official",
+        "mode": "pilot",
         "protocol_path": "output/s8b-freeze/floor_protocol.json",
         "source_commit": "a" * 40,
         "job_script_sha256": "b" * 64,
@@ -1677,8 +1723,8 @@ def test_floor_driver_failure_propagates_rc(
     if driver_rc == 0:
         assert not failure_call.exists()
     else:
-        assert failure_call.read_text(encoding="utf-8").startswith(
-            f"{driver_rc}|floor_driver|"
+        assert failure_call.read_text(encoding="utf-8") == (
+            f"{driver_rc}|floor_driver|pilot floor driver returned nonzero\n"
         )
 
 
@@ -1779,6 +1825,62 @@ def test_floor_job_result_writer_failure_preserves_driver_rc(
     failures = failure_call.read_text(encoding="utf-8").splitlines()
     assert failures[0].split("|", 2)[:2] == ["1", "job_result"]
     assert failures[1].split("|", 2)[:2] == ["7", "floor_driver"]
+
+
+def test_floor_job_result_writer_failure_with_successful_driver_keeps_rc_zero(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    sentinel = '{"preexisting": true}\n'
+    (attempt / "job-result.json").write_text(sentinel, encoding="utf-8")
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "failure_written=0",
+            "",
+        ]
+    )
+    source = JOB.read_text(encoding="utf-8")
+    writer_start = source.index("write_failure() {")
+    writer_end = source.index("write_interpreter_failure()", writer_start)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            prefix + source[writer_start:writer_end] + _driver_tail(),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    # この rc=0 は裁定待ちの既知の穴であり、望ましい挙動として承認したものではない。
+    # production の exit code は本 wave では変えない。
+    assert result.returncode == 0, result.stderr
+    assert (attempt / "job-result.json").read_text(encoding="utf-8") == sentinel
+    failure = json.loads((attempt / "failure.json").read_text(encoding="utf-8"))
+    assert failure == {
+        "schema_version": "pegasus-job-failure/v1",
+        "pbs_jobid": "0:fixture.nqsv",
+        "rc": 1,
+        "stage": "job_result",
+        "message": "cannot write floor job result create-only",
+        "recorded_epoch": failure["recorded_epoch"],
+    }
+    assert type(failure["recorded_epoch"]) is int and failure["recorded_epoch"] > 0
 
 
 def _run() -> int:
