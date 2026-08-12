@@ -34,10 +34,17 @@ title: 起動 gate の再開モードは「新設」ではなく「無条件 byp
   (`_commit_all` が HEAD を 1 commit 進めることを親が見落とし、resume 正例が 1 件増えていた)。
   完全集合で再登録した 2 走目 (spec sha `b9d13203…`) は **16/16 KILLED、MISMATCH 0、SURVIVED 0**。
   probe の spec と結果は `mutation-spec-probe1.json` / `mutation-out-probe1.json` に保全した。
-- **main 由来の既知赤 1 件を確認した。** 2026-08-13 00:45 に main へ入った 4 親の octopus merge
+- **受入全走 (1 走目、tip `1a306deb`) は 1 failed / 10288 passed / 65 skipped / 108.46 秒。**
+  唯一の赤は main 由来の既知赤で、2026-08-13 00:45 に main へ入った 4 親の octopus merge
   `d1de13ad` により `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
-  が決定的に赤。本 wave で一次確認 (`validate_condition_freeze_at`: `7c9ac465` GREEN /
-  `d1de13ad` RED / `adf7997f` RED)。本 wave の差分から到達しない。
+  が決定的に落ちる。本 wave で一次確認した (`validate_condition_freeze_at`: `7c9ac465` GREEN /
+  `d1de13ad` RED / `adf7997f` RED)。本 wave の差分からは到達しない。
+- **この既知赤を跨いで land した根拠は伝聞である。** 「既知の赤は受入をブロックしてはいけない」
+  というユーザー裁定を独立した 2 セッション (`cleanup-branches-cherry-3stage` と T-930 wave) が
+  逐語で伝えてきたが、起票控え
+  (`dev-wave-jobs/rulings-inbox/2026-08-13-main-octopus-merge-blocks-all-acceptance.md`) 自体は
+  「親は (b) を自分では選ばない。ユーザー裁定に委ねる」と書いており、裁定本文を一次資料で
+  確認できていない。赤が本 wave の差分に帰属しないことだけは一次確認済みである。
 - **効くのは `DW-O20` 経由の手動実行だけである。** repo 内に checker の自動 caller は 0 件で、
   supervisor の `resume RUN_ID` は checker を呼ばない別契約。今回の変更で supervisor 側の受理集合は
   変わらない。
