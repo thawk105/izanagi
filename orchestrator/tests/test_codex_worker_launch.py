@@ -41,6 +41,7 @@ _STREAM_EXCERPT_BYTES = 2048
 _STREAM_READ_MAX_BYTES = 64 * 1024
 _RECEIPT_MAX_BYTES = LAUNCHER._MAX_JSON_BYTES
 _TRUTH_SUMMARY_MAX_BYTES = 4096
+_EXPECTED_TRUST_BYPASS_FLAG = "--dangerously-bypass-hook-trust"
 
 
 class LauncherReturncodeMismatch(AssertionError):
@@ -1090,6 +1091,15 @@ def _prepare_authority_repo(path: Path) -> tuple[Path, str]:
         (root / "docs/dev-wave" / name).write_bytes(
             (_ROOT / "docs/dev-wave" / name).read_bytes()
         )
+    for relative in (
+        Path(".codex/hooks.json"),
+        Path("hooks/codex_guard.sh"),
+        Path("hooks/guard_write.py"),
+        Path("hooks/guard_bash.py"),
+    ):
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((_ROOT / relative).read_bytes())
     subprocess.run(["git", "-C", os.fspath(root), "init", "-q"], check=True)
     subprocess.run(
         ["git", "-C", os.fspath(root), "config", "user.name", "launcher-test"],
@@ -1099,7 +1109,10 @@ def _prepare_authority_repo(path: Path) -> tuple[Path, str]:
         ["git", "-C", os.fspath(root), "config", "user.email", "launcher-test@example.invalid"],
         check=True,
     )
-    subprocess.run(["git", "-C", os.fspath(root), "add", "docs"], check=True)
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "add", "docs", ".codex", "hooks"],
+        check=True,
+    )
     subprocess.run(
         ["git", "-C", os.fspath(root), "commit", "-qm", "authority fixture"],
         check=True,
@@ -1958,6 +1971,220 @@ def test_authority_bound_launch_uses_derived_model_and_effort(
         f'model_reasoning_effort="{derived.effort}"'
     )
     assert completed.returncode == 0
+
+
+def test_codex_argv_has_exact_trust_bypass_without_sandbox_bypass(
+    tmp_path: Path,
+) -> None:
+    _completed, _receipt, paths = _run_case(
+        tmp_path, "normal", expected_returncode=0, sandbox="read-only"
+    )
+    argv = json.loads(
+        next(paths["pid_dir"].glob("argv-*.json")).read_text(encoding="utf-8")
+    )
+    assert (
+        LAUNCHER._hook_checker.TRUST_BYPASS_FLAG
+        == _EXPECTED_TRUST_BYPASS_FLAG
+    )
+    assert argv.count(_EXPECTED_TRUST_BYPASS_FLAG) == 1
+    assert LAUNCHER._hook_checker.SANDBOX_BYPASS_FLAG not in argv
+    assert argv[argv.index("-s") + 1] == "read-only"
+
+
+def test_hook_preflight_rejection_prevents_codex_exec_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker,
+        "validate_installation",
+        lambda _root: ["synthetic drift"],
+    )
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(
+        LAUNCHER, "_LAUNCHER_PROCESS_STARTED_NS", time.monotonic_ns()
+    )
+    LAUNCHER.main(command[2:])
+    assert not paths["pid_dir"].exists()
+
+
+def test_hook_preflight_rejection_returns_launcher_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker,
+        "validate_installation",
+        lambda _root: ["synthetic drift"],
+    )
+    assert _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=2
+    ) == 2
+
+
+def test_hook_preflight_validates_repo_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    roots = []
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, cwd=_ROOT / "orchestrator" / "tests"
+    )
+
+    def validator(root):
+        roots.append(root)
+        return []
+
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker, "validate_installation", validator
+    )
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=0
+    )
+    assert roots == [_ROOT]
+
+
+def test_hook_preflight_wraps_validator_exception_as_launch_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail(_root):
+        raise RuntimeError("validator failure")
+
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker, "validate_installation", fail
+    )
+    with pytest.raises(LAUNCHER.LaunchError, match="validator failure"):
+        LAUNCHER._require_attempt_hook_installation(_ROOT, _ROOT)
+
+
+@pytest.mark.parametrize(
+    "exception_type", (KeyboardInterrupt, SystemExit, GeneratorExit)
+)
+def test_attempt_loop_propagates_non_exception_baseexceptions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exception_type: type[BaseException],
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+
+    def interrupt(_root: Path) -> None:
+        raise exception_type()
+
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker, "validate_installation", interrupt
+    )
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(
+        LAUNCHER, "_LAUNCHER_PROCESS_STARTED_NS", time.monotonic_ns()
+    )
+    with pytest.raises(exception_type):
+        LAUNCHER.main(command[2:])
+    assert not paths["pid_dir"].exists()
+
+
+def test_hook_preflight_is_rechecked_before_each_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    roots = []
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, sandbox="read-only", max_attempts=2,
+    )
+    env["FAKE_SEQUENCE"] = "retry_reject,normal"
+
+    def validator(root):
+        roots.append(root)
+        return [] if len(roots) == 1 else ["retry drift"]
+
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker, "validate_installation", validator
+    )
+    _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=2
+    )
+    assert roots == [_ROOT, _ROOT]
+    assert paths["counter"].read_text(encoding="ascii") == "1"
+
+
+def test_attempt_preflight_rejects_nested_linked_worktree_top_level(
+    tmp_path: Path,
+) -> None:
+    main, _commit = _prepare_authority_repo(tmp_path / "main-repo")
+    nested = main / "nested-worktree"
+    subprocess.run(
+        [
+            "git", "-C", os.fspath(main), "worktree", "add", "--detach", "-q",
+            os.fspath(nested),
+        ],
+        check=True,
+    )
+    try:
+        with pytest.raises(LAUNCHER.LaunchError, match="top-level"):
+            LAUNCHER._require_attempt_hook_installation(main, nested)
+    finally:
+        _remove_authority_worktree(main, nested)
+
+
+@pytest.mark.parametrize(
+    "stdout", ("", "/repo/one\n/repo/two\n", "relative/repo\n"),
+    ids=("empty", "multiple-lines", "non-absolute"),
+)
+def test_attempt_preflight_rejects_malformed_git_top_level_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: str,
+) -> None:
+    completed = subprocess.CompletedProcess(
+        args=["git"], returncode=0, stdout=stdout, stderr=""
+    )
+    monkeypatch.setattr(
+        LAUNCHER.subprocess, "run", lambda *_args, **_kwargs: completed
+    )
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker,
+        "validate_installation",
+        lambda _root: pytest.fail("malformed top-level 後に validator を呼んだ"),
+    )
+    with pytest.raises(LAUNCHER.LaunchError, match="top-level"):
+        LAUNCHER._require_attempt_hook_installation(_ROOT, _ROOT)
+
+
+def test_attempt_preflight_delay_exhausts_wall_clock_before_spawn(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, max_wall="3"
+    )
+    clock_ns = time.monotonic_ns()
+    offset_ns = 0
+
+    def logical_clock() -> int:
+        return clock_ns + offset_ns
+
+    def delayed_validator(_root: Path) -> list[str]:
+        nonlocal offset_ns
+        offset_ns += 4_000_000_000
+        return []
+
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(LAUNCHER, "_LAUNCHER_PROCESS_STARTED_NS", clock_ns)
+    monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+    monkeypatch.setattr(
+        LAUNCHER._hook_checker,
+        "validate_installation",
+        delayed_validator,
+    )
+    assert LAUNCHER.main(command[2:]) == 2
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert receipt["outcome"] == "launcher_error"
+    assert receipt["attempts"] == []
+    assert not paths["pid_dir"].exists()
 
 
 def test_turn_context_top_level_and_collaboration_decoys_are_rejected(
