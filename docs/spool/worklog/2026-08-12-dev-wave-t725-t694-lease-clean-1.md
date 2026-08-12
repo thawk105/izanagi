@@ -109,6 +109,16 @@ title: 受入 lease の待ち手へ投入直前の clean 検査と provenance pr
   runbook を書き直す。**親の推奨は (b)** — receipt は証拠、staging は再生成可能という区別が
   先例と整合する。成果物影響 = 未裁定のままだと、untracked な test/conftest の混入を受入が
   検出できない状態が残る。
+- {{T:dev-wave-docs-budget-blocked-notes}} **P3・新規 (段 8 自己改善、予算で保留)**: 本 wave で
+  実測した dev-wave の手順欠落 2 件が、`docs/dev-wave/**` の L1.5 予算 (9,566 bytes) に収まらず
+  land できなかった (追記すると 9,915 bytes)。内容は (i) `dev_wave_codex.py --artifact-root` は
+  `<root>/<wave>/` は作るが `<root>` 自身は作らないので、初回投入前に `<root>` を作らないと
+  rc=2 で起動せず成果物ゼロになる (本 wave の段 2 で 1 投入を空費)、(ii) 期待 node を直して
+  変異を再走するときは `--out` を別 path にする (既存 out は rc=2 で拒否される。本 wave の
+  変異 2 走目で実測)。予算上限は上げず、安全義務の削除・弱化による捻出もしない方針なので、
+  (a) 既存 L1.5 節の縮約で捻出、(b) 予算の独立審査、(c) memory 側での運用に留める、の裁定へ返す。
+  **親の推奨は (c)** — どちらも機械が rc=2 で即座に教える罠であり、docs の常時読み込み面を
+  増やす価値に見合わない。成果物影響 = 未裁定なら同じ 2 罠で 1 投入ずつの空費が再発する。
 - {{T:mutation-subset-match-frame}} **P3・新規**: [T-709] が裁定した部分集合一致の判定枠
   (期待 node が実測失敗集合に含まれれば KILLED) は `tools/mutation_harness.py` に未実装である。
   本 wave では完全集合を再導出して 2 走した。成果物影響 = 波及の広い変異のたびに 1 走が
