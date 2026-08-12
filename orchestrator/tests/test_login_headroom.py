@@ -31,16 +31,20 @@ def _write(path: Path, value: str | bytes) -> None:
         path.write_text(value, encoding="utf-8")
 
 
-def _memory_stat(**updates: int) -> str:
+def _memory_stat(*, omit: str | None = None, **updates: int) -> str:
     fields = {
         "anon": 101,
         "file": 202,
         "shmem": 303,
         "file_dirty": 404,
         "file_writeback": 505,
+        "slab_reclaimable": 0,
+        "unevictable": 0,
         "inactive_anon": 606,
     }
     fields.update(updates)
+    if omit is not None:
+        fields.pop(omit, None)
     return "".join(f"{name} {value}\n" for name, value in fields.items())
 
 
@@ -83,18 +87,35 @@ def _fake_cgroup(
     return {"root": root, "user": user, "own": own, "proc": proc}
 
 
-def _observation(*, ceiling: int, current: int, anon: int = 1) -> LH.LoginHeadroom:
+def _observation(
+    *,
+    ceiling: int,
+    current: int,
+    anon: int = 1,
+    unreclaimable_base: int | None = None,
+    file: int = 2,
+    shmem: int = 3,
+    dirty: int = 4,
+    writeback: int = 5,
+    unevictable: int | None = 0,
+    slab: int | None = 0,
+) -> LH.LoginHeadroom:
     return LH.LoginHeadroom(
         cgroup_path=Path("/fixture/user.slice/user-4242.slice"),
         memory_max_bytes=ceiling,
         effective_ceiling_bytes=ceiling,
         memory_current_bytes=current,
+        unreclaimable_base_bytes=(
+            current if unreclaimable_base is None else unreclaimable_base
+        ),
         headroom_bytes=max(0, ceiling - current),
         anon_bytes=anon,
-        file_bytes=2,
-        shmem_bytes=3,
-        file_dirty_bytes=4,
-        file_writeback_bytes=5,
+        file_bytes=file,
+        shmem_bytes=shmem,
+        file_dirty_bytes=dirty,
+        file_writeback_bytes=writeback,
+        slab_reclaimable_bytes=slab,
+        unevictable_bytes=unevictable,
     )
 
 
@@ -178,12 +199,15 @@ def test_reads_exact_user_slice_and_returns_every_observation_field(
         memory_max_bytes=LH.CEILING_BYTES + 1000,
         effective_ceiling_bytes=LH.CEILING_BYTES,
         memory_current_bytes=500,
+        unreclaimable_base_bytes=500,
         headroom_bytes=LH.CEILING_BYTES - 500,
         anon_bytes=101,
         file_bytes=202,
         shmem_bytes=303,
         file_dirty_bytes=404,
         file_writeback_bytes=505,
+        slab_reclaimable_bytes=0,
+        unevictable_bytes=0,
     )
     assert observed.ceiling_bytes == observed.effective_ceiling_bytes
     assert observed.current_bytes == observed.memory_current_bytes
@@ -237,6 +261,247 @@ def test_uses_raw_memory_current_not_anon_for_occupancy_and_admission(
     )
     monkeypatch.setattr(LH, "login_headroom", lambda: admission_observation)
     assert LH.admit(101, _base_dir=_ledger_base(tmp_path))[0] is LH.Admission.DISPATCH
+
+
+@pytest.mark.parametrize(
+    ("current_after_stat", "expected_base"),
+    [(1200, 1200), (800, 1000)],
+    ids=["current-increased", "current-decreased"],
+)
+def test_unreclaimable_base_uses_maximum_of_both_current_reads(
+    tmp_path,
+    monkeypatch,
+    current_after_stat,
+    expected_base,
+):
+    paths = _fake_cgroup(
+        tmp_path,
+        monkeypatch,
+        slice_current=1000,
+        slice_max=2000,
+    )
+    real_read_at = LH._read_at
+    slice_currents = iter((1000, current_after_stat))
+    slice_reads = []
+
+    def changing_current(directory_fd, name):
+        directory = Path(os.readlink(f"/proc/self/fd/{directory_fd}"))
+        if directory == paths["own"]:
+            slice_reads.append(name)
+            if name == "memory.current":
+                return f"{next(slice_currents)}\n"
+        return real_read_at(directory_fd, name)
+
+    monkeypatch.setattr(LH, "_read_at", changing_current)
+
+    observed = LH.login_headroom()
+
+    assert observed is not None
+    assert observed.memory_current_bytes == 1000
+    assert observed.unreclaimable_base_bytes == expected_base
+    assert observed.headroom_bytes == 1000
+    assert slice_reads == [
+        "memory.current",
+        "memory.max",
+        "memory.stat",
+        "memory.current",
+    ]
+
+
+def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():
+    observed = _observation(
+        ceiling=2000,
+        current=1000,
+        anon=500,
+        file=500,
+        shmem=100,
+        dirty=60,
+        writeback=40,
+        unevictable=30,
+        slab=50,
+    )
+
+    difference = observed.unreclaimable_base_bytes - (270 + 50)
+    floor = observed.anon_bytes + observed.shmem_bytes
+    assert difference == 680
+    assert difference >= floor
+    assert observed.unreclaimable_bytes == 680
+    assert observed.admission_bytes == 680
+    assert observed.occupied_bytes == 1000
+
+
+def test_anon_and_shmem_floor_handles_transient_clean_file_aba(
+    tmp_path,
+    monkeypatch,
+):
+    paths = _fake_cgroup(
+        tmp_path,
+        monkeypatch,
+        slice_current=1000,
+        slice_max=2000,
+    )
+    real_read_at = LH._read_at
+    slice_reads = []
+
+    def transient_cache_between_current_reads(directory_fd, name):
+        directory = Path(os.readlink(f"/proc/self/fd/{directory_fd}"))
+        if directory == paths["own"]:
+            slice_reads.append(name)
+            if name == "memory.stat":
+                return _memory_stat(
+                    anon=800,
+                    file=1000,
+                    shmem=100,
+                    file_dirty=0,
+                    file_writeback=0,
+                    slab_reclaimable=0,
+                    unevictable=0,
+                )
+        return real_read_at(directory_fd, name)
+
+    monkeypatch.setattr(LH, "_read_at", transient_cache_between_current_reads)
+
+    observed = LH.login_headroom()
+
+    assert observed is not None
+    assert observed.memory_current_bytes == 1000
+    assert observed.unreclaimable_base_bytes == 1000
+    assert observed.unreclaimable_base_bytes - 900 == 100
+    assert observed.anon_bytes + observed.shmem_bytes == 900
+    assert observed.unreclaimable_bytes == 900
+    assert observed.admission_bytes == 900
+    assert slice_reads == [
+        "memory.current",
+        "memory.max",
+        "memory.stat",
+        "memory.current",
+    ]
+
+
+def test_clean_file_is_clamped_at_zero_before_reclaimable_slab():
+    observed = _observation(
+        ceiling=2000,
+        current=1000,
+        file=100,
+        shmem=100,
+        dirty=60,
+        writeback=40,
+        unevictable=30,
+        slab=50,
+    )
+
+    assert observed.unreclaimable_bytes == 950
+    assert observed.admission_bytes == 950
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    ["slab_reclaimable", "unevictable"],
+)
+def test_missing_optional_unreclaimable_stat_degrades_conservatively(
+    tmp_path,
+    monkeypatch,
+    missing_key,
+):
+    _fake_cgroup(
+        tmp_path,
+        monkeypatch,
+        slice_current=100,
+        slice_max=LH.RESERVE_BYTES + 101,
+        memory_stat=_memory_stat(omit=missing_key),
+    )
+    observed = LH.login_headroom()
+    assert observed is not None
+    assert observed.unreclaimable_bytes is None
+    assert observed.admission_bytes == observed.unreclaimable_base_bytes == 100
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    admission, admit_reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))
+    grant = LH.grant_budget(
+        max_bytes=1,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert admission is LH.Admission.LOCAL
+    assert grant.admission is LH.Admission.LOCAL
+    for reason in (admit_reason, grant.reason):
+        assert f"回収不能量=不明 (欠落キー={missing_key})" in reason
+        assert "判定占有量=100 bytes" in reason
+    grant.release()
+
+
+def test_missing_optional_stat_after_current_increase_falls_back_to_base(
+    tmp_path,
+    monkeypatch,
+):
+    paths = _fake_cgroup(
+        tmp_path,
+        monkeypatch,
+        slice_current=100,
+        slice_max=LH.RESERVE_BYTES + 101,
+        memory_stat=_memory_stat(omit="slab_reclaimable"),
+    )
+    real_read_at = LH._read_at
+    slice_currents = iter((100, 200))
+
+    def increasing_current(directory_fd, name):
+        directory = Path(os.readlink(f"/proc/self/fd/{directory_fd}"))
+        if directory == paths["own"] and name == "memory.current":
+            return f"{next(slice_currents)}\n"
+        return real_read_at(directory_fd, name)
+
+    monkeypatch.setattr(LH, "_read_at", increasing_current)
+    observed = LH.login_headroom()
+
+    assert observed is not None
+    assert observed.memory_current_bytes == 100
+    assert observed.unreclaimable_base_bytes == 200
+    assert observed.unreclaimable_bytes is None
+    assert observed.admission_bytes == observed.unreclaimable_base_bytes
+    assert observed.memory_current_bytes + 1 + LH.RESERVE_BYTES == (
+        observed.effective_ceiling_bytes
+    )
+    assert observed.unreclaimable_base_bytes + 1 + LH.RESERVE_BYTES > (
+        observed.effective_ceiling_bytes
+    )
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    admission, reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))
+
+    assert admission is LH.Admission.DISPATCH
+    assert "回収不能量=不明 (欠落キー=slab_reclaimable)" in reason
+    assert "判定占有量=200 bytes" in reason
+
+
+def test_snapshot_inconsistency_degrades_conservatively(tmp_path, monkeypatch):
+    observed = _observation(
+        ceiling=LH.RESERVE_BYTES + 101,
+        current=100,
+        file=200,
+        shmem=0,
+        dirty=0,
+        writeback=0,
+        unevictable=0,
+        slab=0,
+    )
+    assert observed.unreclaimable_bytes is None
+    assert observed.admission_bytes == observed.unreclaimable_base_bytes == 100
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    admission, admit_reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))
+    grant = LH.grant_budget(
+        max_bytes=1,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert admission is LH.Admission.LOCAL
+    assert grant.admission is LH.Admission.LOCAL
+    for reason in (admit_reason, grant.reason):
+        assert "回収不能量=不明 (snapshot 不整合)" in reason
+        assert "判定占有量=100 bytes" in reason
+    grant.release()
 
 
 @pytest.mark.parametrize(
@@ -531,6 +796,119 @@ def test_admission_accepts_exact_ceiling_boundary(tmp_path, monkeypatch):
 
     assert admission is LH.Admission.LOCAL
     assert isinstance(reason, str) and reason
+
+
+def test_dispatch_reason_exposes_rejection_arithmetic(tmp_path, monkeypatch):
+    ceiling = LH.RESERVE_BYTES + 200
+    estimate = 101
+    observed = _observation(
+        ceiling=ceiling,
+        current=100,
+        file=0,
+        shmem=0,
+        dirty=0,
+        writeback=0,
+        unevictable=0,
+        slab=0,
+    )
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    admission, reason = LH.admit(estimate, _base_dir=_ledger_base(tmp_path))
+
+    assert admission is LH.Admission.DISPATCH
+    assert f"見積もり={estimate} bytes" in reason
+    assert f"固定予約={LH.RESERVE_BYTES} bytes" in reason
+    assert f"実効天井={ceiling} bytes" in reason
+    assert f"必要量={LH.RESERVE_BYTES + 201} bytes" in reason
+
+
+def test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary(
+    tmp_path,
+    monkeypatch,
+):
+    observed = _observation(
+        ceiling=LH.RESERVE_BYTES + 200,
+        current=900,
+        file=800,
+        shmem=0,
+        dirty=0,
+        writeback=0,
+        unevictable=0,
+        slab=0,
+    )
+    assert observed.admission_bytes == 100
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    admission, admit_reason = LH.admit(100, _base_dir=_ledger_base(tmp_path))
+    with LH.reserve(100, _base_dir=_ledger_base(tmp_path)) as reservation:
+        assert reservation[0] is LH.Admission.LOCAL
+        reserve_reason = reservation[1]
+
+    assert admission is LH.Admission.LOCAL
+    for reason in (admit_reason, reserve_reason):
+        assert "現在使用量=900 bytes" in reason
+        assert "回収不能量=100 bytes" in reason
+        assert "判定占有量=100 bytes" in reason
+
+
+def test_grant_budget_uses_unreclaimable_bytes_for_available(
+    tmp_path,
+    monkeypatch,
+):
+    observed = _observation(
+        ceiling=LH.RESERVE_BYTES + 1000,
+        current=900,
+        file=800,
+        shmem=0,
+        dirty=0,
+        writeback=0,
+        unevictable=0,
+        slab=0,
+    )
+    assert observed.admission_bytes == 100
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    grant = LH.grant_budget(
+        max_bytes=1000,
+        min_bytes=1,
+        _base_dir=_ledger_base(tmp_path),
+    )
+
+    assert grant.admission is LH.Admission.LOCAL
+    assert grant.budget_bytes == 900
+    assert "予約控除後の観測余裕=900 bytes" in grant.reason
+    assert "現在使用量=900 bytes" in grant.reason
+    assert "回収不能量=100 bytes" in grant.reason
+    assert "判定占有量=100 bytes" in grant.reason
+    grant.release()
+
+
+@pytest.mark.parametrize(
+    ("dirty", "expected"),
+    [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],
+    ids=["dirty-unreclaimable", "clean-file-reclaimable"],
+)
+def test_dirty_bytes_cross_admission_boundary(
+    tmp_path,
+    monkeypatch,
+    dirty,
+    expected,
+):
+    observed = _observation(
+        ceiling=LH.RESERVE_BYTES + 24576,
+        current=100000,
+        file=100000,
+        shmem=0,
+        dirty=dirty,
+        writeback=0,
+        unevictable=0,
+        slab=0,
+    )
+    monkeypatch.setattr(LH, "login_headroom", lambda: observed)
+
+    admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))
+
+    assert admission is expected
 
 
 def test_grant_budget_is_capped_at_maximum_and_records_diagnostics(
@@ -1021,6 +1399,7 @@ def test_remembered_peak_larger_than_available_dispatches_immediately(
     assert grant.admission is LH.Admission.DISPATCH
     assert grant.budget_bytes is None
     assert f"前回ピーク {LH.MAX_LOCAL_BUDGET_BYTES * 2} bytes" in grant.reason
+    assert "scope の raw memory.current peak" in grant.reason
     assert f"今の余裕 {LH.MAX_LOCAL_BUDGET_BYTES} bytes" in grant.reason
 
 
@@ -1066,6 +1445,7 @@ def test_remembered_peak_narrows_budget_to_estimate_instead_of_all_available(
     assert grant.admission is LH.Admission.LOCAL
     assert grant.budget_bytes == expected
     assert grant.budget_bytes < LH.MAX_LOCAL_BUDGET_BYTES
+    assert "scope の raw memory.current peak" in grant.reason
     assert LH.recall_peak("tests", _base_dir=base) == peak
     assert LH.estimate_for("tests", _base_dir=base) == expected
     grant.release()
