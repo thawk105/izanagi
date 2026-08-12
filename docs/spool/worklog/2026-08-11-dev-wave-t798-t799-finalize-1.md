@@ -62,38 +62,30 @@ title: fold transaction を単一 finalize protocol にし観測値で束縛し�
 - **セッション事象**: 段 2 の初回投入は `--artifact-root` の親 directory 不在で rc=2 (起動前の
   argv エラー、成果物ゼロ) だった。directory を作り新しい artifact 名で再投入した。
 
-- **既知赤 waiver W2 を適用して land した。** 本 wave は W2 を新設していない。
-  親は受入全走で main 由来の赤 2 件を観測し、いったん `DW-STOP` に従って停止して
-  ユーザーへ返した。その裁定 (「main 由来の赤なら免除リストに入れる」) で waiver を
-  用意したが、**land までに並行 wave [T-783] が同じ waiver を W2 として main へ land した**
-  (`08fbea7c`)。よって本 wave は**新設の記帳を取り下げ、main 側 W2 を正本として適用する**。
-  二重記帳を避けるための取り下げであり、免除の内容は同一である。
-- **W2 の記録義務に対する実測 (main 側 W2 が要求する項目)。**
-  - 受入全走 (tip `81b54cae`、Pegasus request `905252.nqsv`、570.32s):
-    **2 failed / 9241 passed / 20 skipped**
-  - 赤 node は次の 2 つ**だけ**である:
-    `orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials`
-    `orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed`
-  - 最終 tip (main `31d3a4f2` 取り込み後) での確認走も**同一の 2 node のみが赤**である
-    ことを land の gate とした。異なれば waiver を適用せず停止する。
-- **W2 の 3 検査を本 wave でも実施した。**
-  (1) **原因の同一性**: 赤の逐語が
-  `{'decision_ids': ['D292', 'D305']} != {'decision_ids': ['D292']}` であること
-  (受入 log の failure digest で確認)。
-  (2) **帰属**: 自 wave の差分が走査器・走査対象・期待値のいずれにも触れていないこと。
-  `git diff --name-only <base main>..<wave tip>` に `orchestrator/publication/`・
-  `docs/decisions.md`・`orchestrator/tests/test_t793_report.py` が 1 件も含まれない (0 件を実測)。
-  (3) **他の赤が無いこと**: 上記 2 node 以外の赤が 0 件であること。
-  なお canonical の `D305` 節が `D291` に 6 回言及することも本 wave で実測した。
-- **W2 の失効見込み — 修正は既に存在するが未 land。** 並行 wave [T-827] の
-  `worktree-dev-wave-t827-slow-tests` の commit `292151a5` が
-  `orchestrator/tests/test_t793_report.py` だけを直している (production は正しいので不変)。
-  向こうの裁定は「`status == "possible_supersession"` は exact 維持、`"D292" in decision_ids` を
-  必須にし、**完全一致は要求せず**昇順・重複なしという構造的性質を検査する」であり、
-  D292 を落とす変異で両 node が KILLED になることを確認済みとのこと。
-  **本 wave は cherry-pick しない** — 同じ commit を二重に持つと land 時に衝突するため。
-  本 wave の land 時点の main (`31d3a4f2`) では期待値が `("D292",)` のままであることを
-  実測しており、W2 は依然有効である。向こうの land で自動失効する。
+- **既知赤 waiver W2 は用意したが、land 時点で失効したため適用していない。**
+  本 wave は W2 を新設も適用もしていない。経緯を残す。
+  - 受入全走 (tip `81b54cae`、Pegasus request `905252.nqsv`、570.32s) が
+    **2 failed / 9241 passed / 20 skipped** となり、赤は
+    `orchestrator/tests/test_t793_report.py` の
+    `test_deny_only_report_contains_authority_and_both_submission_denials` と
+    `test_actual_head_d292_reference_is_reported_fail_closed` の 2 node だけだった。
+  - 原因は本 wave の差分ではなく、main の `docs/decisions.md` の `D305` 節が `D291` に
+    6 回言及するため supersession scan が `D305` を拾う一方、テストの期待値が
+    `["D292"]` の完全一致のままだったことである。親は `DW-STOP` に従い停止してユーザーへ
+    返し、その裁定 (「main 由来の赤なら免除リストに入れる」) で waiver を用意した。
+  - **帰属を実測済み**: `git diff --name-only main...HEAD` に `orchestrator/publication/`・
+    `docs/decisions.md`・`orchestrator/tests/test_t793_report.py` が **0 件**。
+    走査器・走査対象・期待値のいずれにも本 wave は触れていない。
+  - land までに並行 wave [T-783] が同じ免除を W2 として main へ land し (`08fbea7c`)、
+    さらに [T-827] の修正 `ac994a33` が main へ land して**期待値が
+    `"D292" in decision_ids` の構造検査へ追随した**。これは W2 自身が定める失効条件
+    (「`test_t793_report.py` の期待値が `D305` へ追随した時点で自動失効」) そのものである。
+  - よって**最終 tip の受入全走は waiver 無しで判定する**。この 2 node が緑であることを
+    含め、赤 0 件を land の gate とした。
+- **教訓**: main 由来の赤に対して waiver を起こす判断は正しかったが、**並行 wave が
+  同じ赤を直しつつあるかを先に確認する**方が安い。本件は [T-827] から共有があった時点で
+  「向こうの land を待って main を取り込む」を選べた。cherry-pick しない判断は正しく、
+  二重の commit による land 衝突を避けられた。
 
 ## 次の一手差分
 
