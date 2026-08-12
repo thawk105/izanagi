@@ -81,6 +81,7 @@ from ..calibrator.runner import (  # noqa: E402
     classify_competing_probe,
     measure_point,
 )
+from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import buildcache, s8b_floor_stats, source_digest  # noqa: E402
 from . import toolchain_binding  # noqa: E402
 from .build_admission import (  # noqa: E402
@@ -198,6 +199,42 @@ class FloorCampaignError(RuntimeError):
 
 class CampaignAbort(FloorCampaignError):
     """臨界区間 (probe 実行不能・rc>1・parse 不能等) の破れで campaign を安全側に中断する (規律4)。"""
+
+
+def _policy_perf_candidates(repo_root: Path) -> tuple[str, ...]:
+    """Pegasus policy の perf 候補を evidence 用にだけ読む。"""
+    path = Path(repo_root) / "tools/pegasus/policy.json"
+    try:
+        policy = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FloorCampaignError(f"perf candidate policy を読めない: {path}: {exc}") from exc
+    candidates = policy.get("perf_candidates") if isinstance(policy, Mapping) else None
+    if (not isinstance(candidates, list)
+            or not all(isinstance(candidate, str) and candidate for candidate in candidates)
+            or len(set(candidates)) != len(candidates)):
+        raise FloorCampaignError("policy.perf_candidates が一意な str list でない")
+    return tuple(candidates)
+
+
+def _normalize_perf_preflight(receipt) -> dict:
+    try:
+        normalized = _perf_preflight.validate_perf_preflight_receipt(receipt)
+        _perf_preflight.use_perf_from_receipt(normalized)
+    except _perf_preflight.PerfPreflightError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+    return normalized
+
+
+def _assert_perf_mode(mode: str, receipt) -> bool:
+    if mode != "pilot" and receipt is not None:
+        raise CampaignAbort("official mode では perf_preflight/no-perf を拒否する")
+    try:
+        use_perf = _perf_preflight.use_perf_from_receipt(receipt)
+    except _perf_preflight.PerfPreflightError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+    if mode != "pilot" and not use_perf:
+        raise CampaignAbort("official mode では perf_preflight/no-perf を拒否する")
+    return use_perf
 
 
 def _validate_mode(mode) -> str:
@@ -1413,10 +1450,17 @@ def resolve_portable_built(artifact_built: Mapping, *, out_root: Path) -> dict[s
 
 def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
                       freeze_sha256: str, cells: list[dict],
-                      built: Mapping, schedule: list[dict]) -> dict:
+                      built: Mapping, schedule: list[dict],
+                      perf_preflight=None, mode=None) -> dict:
     """参照 hash と build identity・schedule を持つ floor manifest を組み立てる (純粋)。"""
     portable_built = _validate_portable_built(built)
-    return {
+    if perf_preflight is not None and mode != "pilot":
+        raise CampaignAbort("perf_preflight を持つ manifest は pilot 専用")
+    normalized_perf = (
+        _normalize_perf_preflight(perf_preflight)
+        if perf_preflight is not None else None
+    )
+    manifest = {
         "schema_version": MANIFEST_SCHEMA,
         "protocol_sha256": protocol_sha256,
         "freeze": dict(protocol["freeze"]),
@@ -1435,6 +1479,9 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
         "binaries": portable_built,
         "schedule": [dict(row) for row in schedule],
     }
+    if normalized_perf is not None:
+        manifest["perf_preflight"] = normalized_perf
+    return manifest
 
 
 def _write_create_only_json(
@@ -2078,7 +2125,8 @@ def _verify_resume_store(built: Mapping, out_root: Path) -> None:
 def _project_measure_run_cmd(
         raw_run_cmd, *, runtime_binary: str, portable_binary: str,
         workload: Mapping, records: int, threads: int, protocol: Mapping,
-        contract: _env_contract.ExecutionEnvironmentContract) -> str:
+        contract: _env_contract.ExecutionEnvironmentContract,
+        perf_preflight=None, mode: str = "official") -> str:
     """production raw command を完全照合し portable canonical command へ射影する。
 
     calibrator は workload Mapping の挿入順で末尾 flag を出すため、raw 側では workload
@@ -2089,11 +2137,13 @@ def _project_measure_run_cmd(
             or contract.env_tag != protocol["env_tag"]
             or contract.contract_sha256 != protocol["contract_sha256"]):
         raise CampaignAbort("measure run_cmd の env contract が protocol と不一致")
+    use_perf = _assert_perf_mode(mode, perf_preflight)
     try:
         portable = build_portable_run_cmd(
             binary=portable_binary, workload=workload, records=records,
             threads=threads, extime_s=protocol["extime_s"],
             clocks_per_us=contract.clocks_per_us, numactl=contract.numactl,
+            use_perf=use_perf,
         )
     except _floor_contract.FloorContractError as exc:
         raise CampaignAbort(f"portable run_cmd を構築できない: {exc}") from exc
@@ -2105,10 +2155,13 @@ def _project_measure_run_cmd(
         raise CampaignAbort(f"measure raw run_cmd を shlex parse できない: {exc}") from exc
 
     runtime_expected = list(portable)
-    try:
-        binary_index = runtime_expected.index("--") + 1
-    except ValueError as exc:  # leaf の内部契約破れ。安全側に停止する。
-        raise CampaignAbort("portable run_cmd に binary separator がない") from exc
+    if use_perf:
+        try:
+            binary_index = runtime_expected.index("--") + 1
+        except ValueError as exc:  # leaf の内部契約破れ。安全側に停止する。
+            raise CampaignAbort("portable run_cmd に binary separator がない") from exc
+    else:
+        binary_index = len(contract.numactl)
     runtime_expected[binary_index] = runtime_binary
     workload_count = len(workload)
     prefix_length = len(runtime_expected) - workload_count
@@ -2136,7 +2189,8 @@ class _Runner:
                  protocol_sha256, freeze_sha256, manifest_sha256,
                  execution_receipt=None, launch_certificate_sha256=None,
                  records=None, host_provenance_fn=None, process_identity_fn=None,
-                 reservation_check=None, write_capability=None):
+                 reservation_check=None, write_capability=None,
+                 perf_preflight=None, mode="official"):
         self.protocol = protocol
         self.contract = contract
         self.cells = cells
@@ -2160,6 +2214,9 @@ class _Runner:
         self.process_identity_fn = process_identity_fn or _process_identity
         self.reservation_check = reservation_check
         self.write_capability = write_capability
+        self.mode = _validate_mode(mode)
+        self.perf_preflight = perf_preflight
+        self.use_perf = _assert_perf_mode(self.mode, self.perf_preflight)
         self.reps = protocol["reps"]
         self.session_cv_max = protocol["session_cv_max"]
         self.retry_slots = protocol["retry_slots_per_cell"]
@@ -2341,6 +2398,7 @@ class _Runner:
                 workload=cell["workload"], records=cell["records"],
                 threads=cell["threads"], protocol=self.protocol,
                 contract=self.contract,
+                perf_preflight=self.perf_preflight, mode=self.mode,
             )
             notes = list(getattr(scale_point, "notes", []) or [])
         else:
@@ -2566,7 +2624,7 @@ def _expected_protocol(protocol: Mapping, cells: list[dict]) -> dict:
 
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
                     manifest_sha256, cells, binaries, records,
-                    eligible_for_refreeze=False) -> dict:
+                    eligible_for_refreeze=False, perf_preflight=None) -> dict:
     """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
     cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v2) が正本。artifact の
@@ -2579,6 +2637,11 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         raise FloorCampaignError("eligible_for_refreeze が bool でない")
     if eligible_for_refreeze and mode != "official":
         raise FloorCampaignError("pilot result は eligible_for_refreeze=True にできない")
+    _assert_perf_mode(mode, perf_preflight)
+    normalized_perf = (
+        _normalize_perf_preflight(perf_preflight)
+        if perf_preflight is not None else None
+    )
     portable_binaries = _validate_portable_built(binaries)
     n_sessions = protocol["n_sessions"]
     reps = protocol["reps"]
@@ -2657,7 +2720,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         if r.get("event") in {"campaign-start", "round-start", "round-complete"}
     ]
 
-    return {
+    result = {
         "schema": RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": mode,
@@ -2696,6 +2759,9 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "excluded": excluded,
         "attempts": attempts,
     }
+    if normalized_perf is not None:
+        result["perf_preflight"] = normalized_perf
+    return result
 
 
 def _fmt(value) -> str:
@@ -2725,6 +2791,15 @@ def _render_result_md(result: Mapping) -> str:
     lines.append(f"- protocol_sha256: `{result['protocol_sha256']}`")
     lines.append(f"- freeze_sha256: `{result['freeze_sha256']}`")
     lines.append(f"- manifest_sha256: `{result['manifest_sha256']}`")
+    perf_receipt = result.get("perf_preflight")
+    if perf_receipt is not None:
+        perf_mode = "enabled" if perf_receipt.get("available") else "disabled"
+        perf_reason = perf_receipt.get("reason")
+        perf_digest = _canonical_sha256(perf_receipt)
+        lines.append(
+            f"- perf: mode={perf_mode}, reason={perf_reason}, "
+            f"receipt_sha256=`{perf_digest}`"
+        )
     lines.append(f"- stock_configuration: `{result['stock_configuration']}`")
     lines.append(f"- wired_min_rel_floor: {result['wired_min_rel_floor']}")
     lines.append(f"- scale_adequacy_rel_tolerance: {result.get('scale_adequacy_rel_tolerance')}")
@@ -2893,7 +2968,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  host_provenance_fn=None, process_identity_fn=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
                  after_certificate_issued_fn=None,
-                 durable_root_policy=None) -> dict:
+                 durable_root_policy=None, perf_preflight_fn=None) -> dict:
     """production wrapper。official の seam 注入を副作用前に構造拒否する。"""
     mode = _validate_mode(mode)
     if mode == "official":
@@ -2911,6 +2986,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             "repo_root": repo_root is not None,
             "after_certificate_issued_fn": after_certificate_issued_fn is not None,
             "durable_root_policy": durable_root_policy is not None,
+            "perf_preflight_fn": perf_preflight_fn is not None,
         }
         non_default = sorted(name for name, present in injected.items() if present)
         if non_default:
@@ -2926,6 +3002,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         repo_root=repo_root,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
+        perf_preflight_fn=perf_preflight_fn,
     )
 
 
@@ -2935,7 +3012,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        host_provenance_fn=None, process_identity_fn=None,
                        execution_receipt_fn=None, build_fn=None, repo_root=None,
                        after_certificate_issued_fn=None,
-                       durable_root_policy=None, _floor_preflight_fn=None) -> dict:
+                       durable_root_policy=None, _floor_preflight_fn=None,
+                       perf_preflight_fn=None) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
@@ -2946,6 +3024,10 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     固定はこの core 自体が行い、wrapper 迂回時にも admission-aware gateway を外せない。
     """
     mode = _validate_mode(mode)
+    if mode == "official" and perf_preflight_fn is not None:
+        raise FloorCampaignError(
+            "official mode への非 default seam 注入を拒否する: ['perf_preflight_fn']"
+        )
     if mode == "official" and build_fn is not None:
         raise FloorCampaignError(
             "official mode への非 default materializer 注入を拒否する: ['build_fn']"
@@ -2966,6 +3048,13 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     repo_root = ROOT if repo_root is None else Path(repo_root)
     after_certificate_issued_fn = (
         after_certificate_issued_fn or _after_certificate_issued_noop)
+
+    def perform_perf_preflight() -> dict:
+        producer = perf_preflight_fn or _perf_preflight.probe_perf_availability
+        raw_receipt = producer(
+            perf_candidates=_policy_perf_candidates(ROOT),
+        )
+        return _normalize_perf_preflight(raw_receipt)
 
     protocol, contract = _validate_protocol_against_current(protocol)
 
@@ -3044,18 +3133,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         except reservation.ReservationError as exc:
             raise FloorCampaignError(f"reservation preflight 失敗: {exc}") from exc
 
-    if measure_fn is None:
-        extime_s = protocol["extime_s"]
-        reps = protocol["reps"]
-        clocks_per_us = contract.clocks_per_us
-        numactl = list(contract.numactl)
-
-        def measure_fn(binary, records, threads, workload):  # noqa: ANN001
-            return measure_point(
-                binary, records, threads, clocks_per_us, extime=extime_s, reps=reps,
-                workload=workload, numactl=numactl,
-            )
-
     out_root = Path(out_root)
     try:
         output_write_capability = authorize_output_root(
@@ -3066,6 +3143,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     launch_certificate_sha256 = None
     resume_records = None
     resume_state = None
+    perf_preflight_receipt = None
 
     started_at = now_fn() if resume_dir is None else None
     claim_identity = (
@@ -3132,6 +3210,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 campaign_run_id=campaign_run_id,
                 freeze_allowlist=freeze_allowlist,
             )
+        else:
+            perf_preflight_receipt = perform_perf_preflight()
+        _assert_perf_mode(mode, perf_preflight_receipt)
 
         run_dir = _fresh_run_dir(
             out_root, protocol, mode, protocol_sha256, started_at,
@@ -3213,6 +3294,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             protocol=protocol, protocol_sha256=protocol_sha256,
             freeze_sha256=freeze_sha256, cells=cells,
             built=artifact_built, schedule=schedule,
+            perf_preflight=perf_preflight_receipt, mode=mode,
         )
         manifest_bytes = _atomic_create_only_json(
             manifest_path, manifest, write_capability=run_write_capability,
@@ -3244,6 +3326,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
                 manifest_sha256=None, resume_state=resume_state,
             )
+            if mode == "pilot":
+                perf_preflight_receipt = perform_perf_preflight()
+            _assert_perf_mode(mode, perf_preflight_receipt)
             runtime_built = build_cells(
                 freeze, cells, ccbench_pin=protocol["ccbench_pin"],
                 out_root=out_root, prepare_fn=prepare_fn, contract=contract,
@@ -3268,6 +3353,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 protocol=protocol, protocol_sha256=protocol_sha256,
                 freeze_sha256=freeze_sha256, cells=cells,
                 built=artifact_built, schedule=schedule,
+                perf_preflight=perf_preflight_receipt, mode=mode,
             )
             manifest_bytes = _atomic_create_only_json(
                 manifest_path, manifest, write_capability=run_write_capability,
@@ -3279,6 +3365,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 manifest_path, protocol_sha256=protocol_sha256,
                 freeze_sha256=freeze_sha256, out_root=out_root,
             )
+            perf_preflight_receipt = manifest.get("perf_preflight")
+            _assert_perf_mode(mode, perf_preflight_receipt)
             manifest_schedule = manifest.get("schedule")
             if not isinstance(manifest_schedule, list):
                 raise FloorCampaignError("resume: manifest.schedule が list でない")
@@ -3301,6 +3389,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
             cells=cells, binaries=artifact_built, records=resume_records,
             eligible_for_refreeze=(mode == "official"),
+            perf_preflight=perf_preflight_receipt,
         )
         staged = _stage_finalize_files(
             run_dir, result, _render_result_md(result),
@@ -3319,6 +3408,26 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         )
         return {"status": "completed", "run_dir": str(run_dir), "result": result}
 
+    use_perf = _assert_perf_mode(mode, perf_preflight_receipt)
+    if measure_fn is None:
+        extime_s = protocol["extime_s"]
+        reps = protocol["reps"]
+        clocks_per_us = contract.clocks_per_us
+        numactl = list(contract.numactl)
+
+        def measure_fn(binary, records, threads, workload):  # noqa: ANN001
+            if use_perf:
+                return measure_point(
+                    binary, records, threads, clocks_per_us,
+                    extime=extime_s, reps=reps, workload=workload,
+                    numactl=numactl,
+                )
+            return measure_point(
+                binary, records, threads, clocks_per_us,
+                extime=extime_s, reps=reps, workload=workload,
+                numactl=numactl, use_perf=False,
+            )
+
     runner = _Runner(
         protocol=protocol, contract=contract, cells=cells, cell_by_id=cell_by_id,
         binaries=runtime_built,
@@ -3333,6 +3442,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         process_identity_fn=process_identity_fn,
         reservation_check=reservation_check,
         write_capability=run_write_capability,
+        perf_preflight=perf_preflight_receipt, mode=mode,
     )
 
     try:
@@ -3350,6 +3460,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
         cells=cells, binaries=artifact_built, records=runner.records,
         eligible_for_refreeze=(mode == "official"),
+        perf_preflight=perf_preflight_receipt,
     )
 
     # phase 1: result/md bytes を pending file へ fsync。まだ public artifact は存在しない。
@@ -3432,6 +3543,10 @@ def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
         raise FloorCampaignError("resume: protocol sha256 が manifest と不一致")
     if manifest.get("freeze_sha256") != freeze_sha256:
         raise FloorCampaignError("resume: freeze sha256 が manifest と不一致")
+    if "perf_preflight" in manifest:
+        manifest["perf_preflight"] = _normalize_perf_preflight(
+            manifest["perf_preflight"]
+        )
     artifact_built = _validate_portable_built(manifest.get("binaries"))
     runtime_built = resolve_portable_built(artifact_built, out_root=out_root)
     return dict(manifest), manifest_sha256, artifact_built, runtime_built

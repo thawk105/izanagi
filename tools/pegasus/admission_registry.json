@@ -157,6 +157,12 @@
       "primary_gate": "compute-node environment attestation",
       "evidence": "static semantic-site classification"
     },
+    "tools/pegasus/run_t139_a12_stress_check.py": {
+      "class": "dispatch-required",
+      "reason": "compute-side T139 A12 stress-check simulation runner",
+      "primary_gate": "compute allocation owned by t139_a12_stress_check.pbs",
+      "evidence": "compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker"
+    },
     "tools/pegasus/silo_ladder_rung1.sh": {
       "class": "dispatch-required",
       "reason": "PBS silo ladder job body",
@@ -196,6 +202,12 @@
     "tools/pegasus/t126_qualification.sh": {
       "class": "dispatch-required",
       "reason": "PBS T126 qualification job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
+    "tools/pegasus/t139_a12_stress_check.pbs": {
+      "class": "dispatch-required",
+      "reason": "PBS T139 A12 stress-check job body",
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },

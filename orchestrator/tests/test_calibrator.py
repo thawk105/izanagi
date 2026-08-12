@@ -335,6 +335,61 @@ def _completed_process(returncode, stdout=_BENCH):
     })()
 
 
+def test_runner_default_perf_commands_are_unchanged():
+    from orchestrator.calibrator import runner
+
+    assert runner._build_cmd("/bench", ["-x=1"], "/tmp/perf.csv", ("numactl",)) == [
+        "numactl", "perf", "stat", "-x,", "-o", "/tmp/perf.csv", "-e",
+        "LLC-load-misses,LLC-loads,instructions,cycles", "--", "/bench", "-x=1",
+    ]
+    assert runner.repro_command("/bench", ["-x=1"], ("numactl",)) == (
+        "numactl perf stat -e LLC-load-misses,LLC-loads,instructions,cycles "
+        "-- /bench -x=1"
+    )
+
+
+def test_run_once_without_perf_executes_binary_and_keeps_counters_missing():
+    from orchestrator.calibrator import runner
+    seen = []
+
+    def fake_run(argv, **_kwargs):
+        seen.append(list(argv))
+        return _completed_process(0)
+
+    _metrics, counters, _wall = runner.run_once(
+        "/bench", ["-x=1"], numactl=("numactl", "--interleave=all"),
+        subprocess_runner=fake_run, use_perf=False,
+    )
+    assert seen == [["numactl", "--interleave=all", "/bench", "-x=1"]]
+    assert counters.llc_load_misses is None
+    assert counters.llc_loads is None
+    assert counters.instructions is None
+    assert counters.cycles is None
+
+
+def test_measure_point_without_perf_records_matching_direct_repro_command():
+    from orchestrator.calibrator import runner
+    seen = []
+
+    def fake_run_once(binary, gflags, **kwargs):
+        seen.append((binary, list(gflags), dict(kwargs)))
+        return ({"throughput[tps]": "1000", "maxrss": "100 kB"},
+                PerfCounters(), 0.5)
+
+    original = runner.run_once
+    runner.run_once = fake_run_once
+    try:
+        point = runner.measure_point(
+            "/bench", records=1000, threads=4, clocks_per_us=1800,
+            reps=1, numactl=("numactl",), use_perf=False,
+        )
+    finally:
+        runner.run_once = original
+    assert seen[0][2]["use_perf"] is False
+    assert point.run_cmd.startswith("numactl /bench ")
+    assert "perf" not in point.run_cmd
+
+
 def test_run_once_records_rc_and_keeps_three_tuple_when_not_strict():
     """M-P1a: rc 収集を opt-in しても既存 3-tuple 契約は変えない。"""
     from orchestrator.calibrator import runner
