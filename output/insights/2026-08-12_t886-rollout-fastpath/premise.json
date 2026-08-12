@@ -1,0 +1,95 @@
+{
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t886-rollout-fastpath",
+  "sessions_root": "/home/SFC/tanab/.codex/sessions",
+  "rollout_file_count": 2941,
+  "rollout_total_bytes": 2594078782,
+  "distinct_ids_from_name": 2941,
+  "names_with_duplicate_id": {},
+  "labels": [
+    {
+      "label": "POS",
+      "session_id": "019faca2-6e1f-7601-bfc7-be27edcfb4ba",
+      "glob_count": 1,
+      "glob_seconds": 0.0182,
+      "glob_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+      "scan_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+      "scan_error": null,
+      "scan_seconds": 4.4106,
+      "paths_equal": true,
+      "speedup": 242.3,
+      "glob_sha_matches_pin": true,
+      "glob_content_ids": [
+        "019faca2-6e1f-7601-bfc7-be27edcfb4ba"
+      ],
+      "glob_content_confirms": true
+    },
+    {
+      "label": "NEG",
+      "session_id": "019facbe-9584-7642-aa30-37f1c77e6c5f",
+      "glob_count": 1,
+      "glob_seconds": 0.0207,
+      "glob_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+      "scan_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+      "scan_error": null,
+      "scan_seconds": 4.4492,
+      "paths_equal": true,
+      "speedup": 214.9,
+      "glob_sha_matches_pin": true,
+      "glob_content_ids": [
+        "019facbe-9584-7642-aa30-37f1c77e6c5f"
+      ],
+      "glob_content_confirms": true
+    },
+    {
+      "label": "fix2",
+      "session_id": "019facb2-7ddb-7102-814d-eeddcb1102ed",
+      "glob_count": 1,
+      "glob_seconds": 0.0188,
+      "glob_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+      "scan_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+      "scan_error": null,
+      "scan_seconds": 4.3375,
+      "paths_equal": true,
+      "speedup": 230.7,
+      "glob_sha_matches_pin": true,
+      "glob_content_ids": [
+        "019facb2-7ddb-7102-814d-eeddcb1102ed"
+      ],
+      "glob_content_confirms": true
+    },
+    {
+      "label": "author",
+      "session_id": "019fac6b-4f74-7a03-aa4d-8a9de22b352c",
+      "glob_count": 1,
+      "glob_seconds": 0.0195,
+      "glob_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+      "scan_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+      "scan_error": null,
+      "scan_seconds": 4.3146,
+      "paths_equal": true,
+      "speedup": 221.3,
+      "glob_sha_matches_pin": true,
+      "glob_content_ids": [
+        "019fac6b-4f74-7a03-aa4d-8a9de22b352c"
+      ],
+      "glob_content_confirms": true
+    },
+    {
+      "label": "fix1",
+      "session_id": "019fac91-8cde-7f73-bce1-77a9d63b4269",
+      "glob_count": 1,
+      "glob_seconds": 0.0195,
+      "glob_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl",
+      "scan_path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl",
+      "scan_error": null,
+      "scan_seconds": 4.3742,
+      "paths_equal": true,
+      "speedup": 224.3,
+      "glob_sha_matches_pin": true,
+      "glob_content_ids": [
+        "019fac91-8cde-7f73-bce1-77a9d63b4269"
+      ],
+      "glob_content_confirms": true
+    }
+  ]
+}
