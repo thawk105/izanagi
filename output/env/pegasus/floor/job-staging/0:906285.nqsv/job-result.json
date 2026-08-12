@@ -1,0 +1,13 @@
+{
+  "completed_epoch": 1786519568,
+  "driver_rc": 0,
+  "executing_script_sha256": "32af891d32b4867df0e7f16c716f83086e2fefc1fc5d141758b9cfdc157df97f",
+  "job_script_sha256": "32af891d32b4867df0e7f16c716f83086e2fefc1fc5d141758b9cfdc157df97f",
+  "mode": "pilot",
+  "nonce": "140e5d5fc4caa5aa215fa662e741ec8a",
+  "pbs_jobid": "0:906285.nqsv",
+  "protocol_path": "output/s8b-freeze/floor_protocol.json",
+  "reservation_requested_s": 36000,
+  "schema_version": "pegasus-floor-job-result/v1",
+  "source_commit": "c073abe8cc79c8ac9e4c74deaa88c8a701bba5cd"
+}

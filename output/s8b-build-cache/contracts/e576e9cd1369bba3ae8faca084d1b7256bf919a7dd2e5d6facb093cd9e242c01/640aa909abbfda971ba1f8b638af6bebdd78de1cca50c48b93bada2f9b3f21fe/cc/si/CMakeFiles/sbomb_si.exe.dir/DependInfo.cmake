@@ -1,0 +1,24 @@
+
+# Consider dependencies only in project.
+set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
+
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  )
+
+# The set of dependency files which are needed:
+set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/scr/0_906428.nqsv/izanagi_wt_pvmzmuqu/wt/cc/si/garbage_collection.cc" "cc/si/CMakeFiles/sbomb_si.exe.dir/garbage_collection.cc.o" "gcc" "cc/si/CMakeFiles/sbomb_si.exe.dir/garbage_collection.cc.o.d"
+  "/scr/0_906428.nqsv/izanagi_wt_pvmzmuqu/wt/cc/si/sbomb_si.cc" "cc/si/CMakeFiles/sbomb_si.exe.dir/sbomb_si.cc.o" "gcc" "cc/si/CMakeFiles/sbomb_si.exe.dir/sbomb_si.cc.o.d"
+  "/scr/0_906428.nqsv/izanagi_wt_pvmzmuqu/wt/cc/si/transaction.cc" "cc/si/CMakeFiles/sbomb_si.exe.dir/transaction.cc.o" "gcc" "cc/si/CMakeFiles/sbomb_si.exe.dir/transaction.cc.o.d"
+  "/scr/0_906428.nqsv/izanagi_wt_pvmzmuqu/wt/cc/si/util.cc" "cc/si/CMakeFiles/sbomb_si.exe.dir/util.cc.o" "gcc" "cc/si/CMakeFiles/sbomb_si.exe.dir/util.cc.o.d"
+  )
+
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t748-pilot-path/output/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-789626-fd51d2060071fe12ed55e97f33482fef/CMakeFiles/ccbench_common.dir/DependInfo.cmake"
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t748-pilot-path/output/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-789626-fd51d2060071fe12ed55e97f33482fef/_deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/DependInfo.cmake"
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")

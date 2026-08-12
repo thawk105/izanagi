@@ -1,0 +1,1161 @@
+{
+  "binaries": {
+    "rr20::backoff_fixed_best": {
+      "bin_hash_short": "df0708e6afe6923f",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/3365b6937f7690b5878fdb5af5c42b5b0a7997ab1cf29b901dd86d88b62450c0/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "df0708e6afe6923fed7fb74c238c091cb9e06fb35104ddf1d50698522a3c1bcd",
+      "binding": {
+        "binding_sha256": "5236679a13c234ed739966a18a943811b127f8ade6bfe60bd93583d0fc4804ba",
+        "entry_sha256": "e6d002d8177afb0f234129b714350ffcccf4a6a0a5b3e6b86c7c47c86182f4ea",
+        "genome_canonical": "silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "fedf593b9442caaf269f373b4da9c31eae72cbe6779e00831b3ece5b945e68cb",
+        "variant_id": "b26385835c82"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/3365b6937f7690b5878fdb5af5c42b5b0a7997ab1cf29b901dd86d88b62450c0",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr20::backoff_fixed_best",
+      "configuration_id": "backoff_fixed_best",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/3365b6937f7690b5878fdb5af5c42b5b0a7997ab1cf29b901dd86d88b62450c0",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACKOFF_FIXED=10",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr20",
+      "store_path": "env/pegasus/binaries/df0708e6afe6923fed7fb74c238c091cb9e06fb35104ddf1d50698522a3c1bcd"
+    },
+    "rr20::ident_all": {
+      "bin_hash_short": "2fa28ba12eacd023",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/26af4ade04937e8ce05a322a8d9ce7c6c22a77ebeb5dedbdb1f46d25aefb3718/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "2fa28ba12eacd0238c9bbcd3665707c423e2e8e3adf0457353a443f3cf999410",
+      "binding": {
+        "binding_sha256": "82d6359eddcc21e3c43c870e48a72600b173456867f08e55b602d4c3776e3a1f",
+        "entry_sha256": "8b88668bfe49350ce62c649f8d50c2674171236cccbf05693b711c56be07b5c7",
+        "genome_canonical": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "baa526227b3a27e480e9f859f0a543ca12eda24d37fc3e6badfcfc335e1d4794",
+        "variant_id": "1caef6f65a9d"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/26af4ade04937e8ce05a322a8d9ce7c6c22a77ebeb5dedbdb1f46d25aefb3718",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr20::ident_all",
+      "configuration_id": "ident_all",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/26af4ade04937e8ce05a322a8d9ce7c6c22a77ebeb5dedbdb1f46d25aefb3718",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACKOFF_TRIGGER_GATING=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr20",
+      "store_path": "env/pegasus/binaries/2fa28ba12eacd0238c9bbcd3665707c423e2e8e3adf0457353a443f3cf999410"
+    },
+    "rr20::p2_2_flag_opt": {
+      "bin_hash_short": "76892591a181b9f5",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/92269021c85fd33f1c8bd3230ca4b8131a18fa3db999a9add05b54e3e8bc1f76/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "76892591a181b9f5460df8b389cf80d5949c4199a30588a844d9a2a95ac9d9e9",
+      "binding": {
+        "binding_sha256": "ff106ea0561c26dfb94b52bb81cf32677f1ff0f969b7e7e36296712c1d3eeccf",
+        "entry_sha256": "fc6e41b98d541d311c6c4fb35be25cfe88aa2759324ccdd1878494d6fa7c14e5",
+        "genome_canonical": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "stock",
+        "variant_id": "5185ee5e6094"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/92269021c85fd33f1c8bd3230ca4b8131a18fa3db999a9add05b54e3e8bc1f76",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr20::p2_2_flag_opt",
+      "configuration_id": "p2_2_flag_opt",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/92269021c85fd33f1c8bd3230ca4b8131a18fa3db999a9add05b54e3e8bc1f76",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr20",
+      "store_path": "env/pegasus/binaries/76892591a181b9f5460df8b389cf80d5949c4199a30588a844d9a2a95ac9d9e9"
+    },
+    "rr20::sort_best": {
+      "bin_hash_short": "ba51df4ee19b28c8",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/a9935809fdb7ad17bb97992538f6fa07a09c8da6c78b715d3577e12525b3f652/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "ba51df4ee19b28c8b4c6dbb828de218f0596d3cbbd608657eb643b3e3e292161",
+      "binding": {
+        "binding_sha256": "ec07ac7f30767f322a887dc861296b2cdbe28e3bed58b619b493cec154ec02fb",
+        "entry_sha256": "8302f087b622515355465ea69a2ee907f81c6f2f2629564531c83aa7054eadf6",
+        "genome_canonical": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,SORT_VARIANT=1,WAL=0",
+        "src_token": "50df94866deff604037901afc9ab06918fac45d992d7f85552f0283b01c5528f",
+        "variant_id": "6d2d7227e55d"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/a9935809fdb7ad17bb97992538f6fa07a09c8da6c78b715d3577e12525b3f652",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr20::sort_best",
+      "configuration_id": "sort_best",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/a9935809fdb7ad17bb97992538f6fa07a09c8da6c78b715d3577e12525b3f652",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_SORT_VARIANT=1",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr20",
+      "store_path": "env/pegasus/binaries/ba51df4ee19b28c8b4c6dbb828de218f0596d3cbbd608657eb643b3e3e292161"
+    },
+    "rr20::stock_common": {
+      "bin_hash_short": "0c8887d560ae5004",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/6ac67f632408d5a39ad8096f5fb82ab2c24a96543c551e98e0b7f9e0b770873e/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "0c8887d560ae500434a27c8b8a81d0d6bcf494c3c3cc71d70c49fcb325639109",
+      "binding": {
+        "binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520",
+        "entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+        "genome_canonical": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "stock",
+        "variant_id": "db4764543546"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/6ac67f632408d5a39ad8096f5fb82ab2c24a96543c551e98e0b7f9e0b770873e",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr20::stock_common",
+      "configuration_id": "stock_common",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/6ac67f632408d5a39ad8096f5fb82ab2c24a96543c551e98e0b7f9e0b770873e",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr20",
+      "store_path": "env/pegasus/binaries/0c8887d560ae500434a27c8b8a81d0d6bcf494c3c3cc71d70c49fcb325639109"
+    },
+    "rr20::system_gate": {
+      "bin_hash_short": "67b868116792ac1f",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/a04df67490f70c51469a73d093f15d51f158f61f406d8c1ee06b40b595d38507/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "67b868116792ac1fdef91ee8f2d41695b757734e703b2f87d5932d2f367dd6c7",
+      "binding": {
+        "binding_sha256": "95c6d1522c4ec5e3eed55195d04e9f5f53148d6b7b59f0fbeafc93031ddc131b",
+        "entry_sha256": "f9e3b597519dc885a42eea5d0997fe0a46ec471596502e4603a476fbf1526a72",
+        "genome_canonical": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "8fea39e7930f427b6cbcc5b7c5e60e3a536a18c74070e5b72cd1c098668553e6",
+        "variant_id": "459cc361d96e"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/a04df67490f70c51469a73d093f15d51f158f61f406d8c1ee06b40b595d38507",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr20::system_gate",
+      "configuration_id": "system_gate",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/a04df67490f70c51469a73d093f15d51f158f61f406d8c1ee06b40b595d38507",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACKOFF_TRIGGER_GATING=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr20",
+      "store_path": "env/pegasus/binaries/67b868116792ac1fdef91ee8f2d41695b757734e703b2f87d5932d2f367dd6c7"
+    },
+    "rr80::backoff_fixed_best": {
+      "bin_hash_short": "72c02d014025b23b",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/640aa909abbfda971ba1f8b638af6bebdd78de1cca50c48b93bada2f9b3f21fe/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "72c02d014025b23b1414dd29c0bc20e20b4cbd194bb4fa04fd08cd9094b5a549",
+      "binding": {
+        "binding_sha256": "b64c398a2aaabb4c7590c6129a33adbc62fd78121572aaa9309ffd4a16c23b54",
+        "entry_sha256": "95b5f69f9b08bf8ea34504fa735263512be74970e82a646d72f098c0d0085760",
+        "genome_canonical": "silo|BACKOFF_FIXED=2,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "dc6a5e83f9f832e746b1107359c3fef25b5e939b8f8913079870f81c4dd5a8a3",
+        "variant_id": "293e358f6923"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/640aa909abbfda971ba1f8b638af6bebdd78de1cca50c48b93bada2f9b3f21fe",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr80::backoff_fixed_best",
+      "configuration_id": "backoff_fixed_best",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/640aa909abbfda971ba1f8b638af6bebdd78de1cca50c48b93bada2f9b3f21fe",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACKOFF_FIXED=2",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr80",
+      "store_path": "env/pegasus/binaries/72c02d014025b23b1414dd29c0bc20e20b4cbd194bb4fa04fd08cd9094b5a549"
+    },
+    "rr80::ident_all": {
+      "bin_hash_short": "66f6fc5ad954ab50",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/ee3cc24f6d73389015a28abe9883241db2bb72ba0252de180103a7bd2094c827/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "66f6fc5ad954ab5026323614920108a1dd16ac8d502b7f1ed950755e848b2d09",
+      "binding": {
+        "binding_sha256": "66c8a1f3259f876421f5b464cdca30191923d292617ef17ea17c44cb7ae78cdd",
+        "entry_sha256": "7eba49e7e1b87a262a9229ecabb41b90b01506b2b656e0c0c1f0d5502d30b365",
+        "genome_canonical": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "baa526227b3a27e480e9f859f0a543ca12eda24d37fc3e6badfcfc335e1d4794",
+        "variant_id": "1caef6f65a9d"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/ee3cc24f6d73389015a28abe9883241db2bb72ba0252de180103a7bd2094c827",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr80::ident_all",
+      "configuration_id": "ident_all",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/ee3cc24f6d73389015a28abe9883241db2bb72ba0252de180103a7bd2094c827",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACKOFF_TRIGGER_GATING=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr80",
+      "store_path": "env/pegasus/binaries/66f6fc5ad954ab5026323614920108a1dd16ac8d502b7f1ed950755e848b2d09"
+    },
+    "rr80::p2_2_flag_opt": {
+      "bin_hash_short": "7ca27aee39073eb2",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/317b6db09110e5dae636b1b8d3171183142537b48f2b7945967b0800e66da1f3/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "7ca27aee39073eb230b17e83bfa47989dc706dbd0f623da532b7b90c18c04d86",
+      "binding": {
+        "binding_sha256": "97e209dfb502c8b36ba15d70881575c768be7da9afb07a1a538cfab04a264a97",
+        "entry_sha256": "11eea6e86c387e29fa3cf15eefb3c64f09ff4ba8b34c4be9b00122d140a9ee2e",
+        "genome_canonical": "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0",
+        "src_token": "stock",
+        "variant_id": "b971a1d9f80a"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/317b6db09110e5dae636b1b8d3171183142537b48f2b7945967b0800e66da1f3",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr80::p2_2_flag_opt",
+      "configuration_id": "p2_2_flag_opt",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/317b6db09110e5dae636b1b8d3171183142537b48f2b7945967b0800e66da1f3",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=0",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=1",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr80",
+      "store_path": "env/pegasus/binaries/7ca27aee39073eb230b17e83bfa47989dc706dbd0f623da532b7b90c18c04d86"
+    },
+    "rr80::sort_best": {
+      "bin_hash_short": "c40073e3f8d34eae",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/d04a39acaa701df9d184da12cfac6efdcd30d1599a9424fe473c444e13b5bf3c/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "c40073e3f8d34eae1980de7564511c432097a751711f1ac28708d40e7475a1e6",
+      "binding": {
+        "binding_sha256": "9dbf3adde724d0471683a5f457b3b4ba631aac3c5ef18b91a627e3c3430a7977",
+        "entry_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+        "genome_canonical": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,SORT_VARIANT=1,WAL=0",
+        "src_token": "50df94866deff604037901afc9ab06918fac45d992d7f85552f0283b01c5528f",
+        "variant_id": "6d2d7227e55d"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/d04a39acaa701df9d184da12cfac6efdcd30d1599a9424fe473c444e13b5bf3c",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr80::sort_best",
+      "configuration_id": "sort_best",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/d04a39acaa701df9d184da12cfac6efdcd30d1599a9424fe473c444e13b5bf3c",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_SORT_VARIANT=1",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr80",
+      "store_path": "env/pegasus/binaries/c40073e3f8d34eae1980de7564511c432097a751711f1ac28708d40e7475a1e6"
+    },
+    "rr80::stock_common": {
+      "bin_hash_short": "4babcb3b3cfd3dac",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/31e00aa35998948f14d9db12c07395e1f9eab35c352a740e5b21a4cca27ae8ea/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "4babcb3b3cfd3dac9003c5e9657874a6fec440ae54539327911831041ee73bfc",
+      "binding": {
+        "binding_sha256": "63c62ed2701ac129c7f9803ae535390c01f1c89a65ce7350271c950229762520",
+        "entry_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+        "genome_canonical": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "stock",
+        "variant_id": "db4764543546"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/31e00aa35998948f14d9db12c07395e1f9eab35c352a740e5b21a4cca27ae8ea",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr80::stock_common",
+      "configuration_id": "stock_common",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/31e00aa35998948f14d9db12c07395e1f9eab35c352a740e5b21a4cca27ae8ea",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr80",
+      "store_path": "env/pegasus/binaries/4babcb3b3cfd3dac9003c5e9657874a6fec440ae54539327911831041ee73bfc"
+    },
+    "rr80::system_gate": {
+      "bin_hash_short": "84d4f2c4a45fce78",
+      "binary": "s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/d27074f6384b59c39db36dadf09a2f0761b7faee9ed02b4e5a196cd2a111f7a9/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "84d4f2c4a45fce78f437bca4cf0ff87860e5e3fe6d6c7900fb3209848e6f491e",
+      "binding": {
+        "binding_sha256": "c739bc7632ee1e52aa3791113e7b5566a9df1899f6649be9f3743ad1ea316fff",
+        "entry_sha256": "6b174daaade66de4113fa71267b4a1954bb2009e9dc54aa21c066402023f8a53",
+        "genome_canonical": "silo|BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
+        "src_token": "310fdf0d9b86dcb3382b9aadee890dcc063df4e48ad04ac50a57f0b0f8f87920",
+        "variant_id": "7d5c599b4437"
+      },
+      "build_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "--build",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/d27074f6384b59c39db36dadf09a2f0761b7faee9ed02b4e5a196cd2a111f7a9",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "cached": false,
+      "cell_id": "rr80::system_gate",
+      "configuration_id": "system_gate",
+      "configure_argv": [
+        "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+        "-S",
+        "${CCBENCH_ROOT}",
+        "-B",
+        "${OUT_ROOT}/s8b-build-cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/d27074f6384b59c39db36dadf09a2f0761b7faee9ed02b4e5a196cd2a111f7a9",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_BACKOFF_TRIGGER_GATING=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "holdout_id": "rr80",
+      "store_path": "env/pegasus/binaries/84d4f2c4a45fce78f437bca4cf0ff87860e5e3fe6d6c7900fb3209848e6f491e"
+    }
+  },
+  "ccbench_pin": "d706650cdb31e442bef45b9b4216951d4fb40969",
+  "cell_cv_max": "0.15",
+  "cells": [
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "configuration_id": "backoff_fixed_best",
+      "holdout_id": "rr20",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "20",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "configuration_id": "ident_all",
+      "holdout_id": "rr20",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "20",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "configuration_id": "p2_2_flag_opt",
+      "holdout_id": "rr20",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "20",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "configuration_id": "sort_best",
+      "holdout_id": "rr20",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "20",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "configuration_id": "stock_common",
+      "holdout_id": "rr20",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "20",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "configuration_id": "system_gate",
+      "holdout_id": "rr20",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "20",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "configuration_id": "backoff_fixed_best",
+      "holdout_id": "rr80",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "80",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "configuration_id": "ident_all",
+      "holdout_id": "rr80",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "80",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "configuration_id": "p2_2_flag_opt",
+      "holdout_id": "rr80",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "80",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "configuration_id": "sort_best",
+      "holdout_id": "rr80",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "80",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "configuration_id": "stock_common",
+      "holdout_id": "rr80",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "80",
+        "ycsb_zipf_skew": "0.9"
+      }
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "configuration_id": "system_gate",
+      "holdout_id": "rr80",
+      "records": 1000000,
+      "threads": 48,
+      "workload": {
+        "ycsb_rmw": "0",
+        "ycsb_rratio": "80",
+        "ycsb_zipf_skew": "0.9"
+      }
+    }
+  ],
+  "env_tag": "pegasus",
+  "extime_s": 5,
+  "freeze": {
+    "path": "output/s8b-freeze/holdout_freeze.json",
+    "sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
+  },
+  "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+  "master_seed": "2026-07-18T17:16:12+09:00",
+  "n_sessions": 8,
+  "protocol_sha256": "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac",
+  "reps": 5,
+  "schedule": [
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 1,
+      "seq": 0
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 1,
+      "seq": 1
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 1,
+      "seq": 2
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 1,
+      "seq": 3
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 1,
+      "seq": 4
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 1,
+      "seq": 5
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 1,
+      "seq": 6
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 1,
+      "seq": 7
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 1,
+      "seq": 8
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 1,
+      "seq": 9
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 1,
+      "seq": 10
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 1,
+      "seq": 11
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 2,
+      "seq": 12
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 2,
+      "seq": 13
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 2,
+      "seq": 14
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 2,
+      "seq": 15
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 2,
+      "seq": 16
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 2,
+      "seq": 17
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 2,
+      "seq": 18
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 2,
+      "seq": 19
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 2,
+      "seq": 20
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 2,
+      "seq": 21
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 2,
+      "seq": 22
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 2,
+      "seq": 23
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 3,
+      "seq": 24
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 3,
+      "seq": 25
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 3,
+      "seq": 26
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 3,
+      "seq": 27
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 3,
+      "seq": 28
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 3,
+      "seq": 29
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 3,
+      "seq": 30
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 3,
+      "seq": 31
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 3,
+      "seq": 32
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 3,
+      "seq": 33
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 3,
+      "seq": 34
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 3,
+      "seq": 35
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 4,
+      "seq": 36
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 4,
+      "seq": 37
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 4,
+      "seq": 38
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 4,
+      "seq": 39
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 4,
+      "seq": 40
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 4,
+      "seq": 41
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 4,
+      "seq": 42
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 4,
+      "seq": 43
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 4,
+      "seq": 44
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 4,
+      "seq": 45
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 4,
+      "seq": 46
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 4,
+      "seq": 47
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 5,
+      "seq": 48
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 5,
+      "seq": 49
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 5,
+      "seq": 50
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 5,
+      "seq": 51
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 5,
+      "seq": 52
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 5,
+      "seq": 53
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 5,
+      "seq": 54
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 5,
+      "seq": 55
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 5,
+      "seq": 56
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 5,
+      "seq": 57
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 5,
+      "seq": 58
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 5,
+      "seq": 59
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 6,
+      "seq": 60
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 6,
+      "seq": 61
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 6,
+      "seq": 62
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 6,
+      "seq": 63
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 6,
+      "seq": 64
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 6,
+      "seq": 65
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 6,
+      "seq": 66
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 6,
+      "seq": 67
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 6,
+      "seq": 68
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 6,
+      "seq": 69
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 6,
+      "seq": 70
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 6,
+      "seq": 71
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 7,
+      "seq": 72
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 7,
+      "seq": 73
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 7,
+      "seq": 74
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 7,
+      "seq": 75
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 7,
+      "seq": 76
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 7,
+      "seq": 77
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 7,
+      "seq": 78
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 7,
+      "seq": 79
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 7,
+      "seq": 80
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 7,
+      "seq": 81
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 7,
+      "seq": 82
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 7,
+      "seq": 83
+    },
+    {
+      "cell_id": "rr80::sort_best",
+      "round": 8,
+      "seq": 84
+    },
+    {
+      "cell_id": "rr20::system_gate",
+      "round": 8,
+      "seq": 85
+    },
+    {
+      "cell_id": "rr80::backoff_fixed_best",
+      "round": 8,
+      "seq": 86
+    },
+    {
+      "cell_id": "rr20::stock_common",
+      "round": 8,
+      "seq": 87
+    },
+    {
+      "cell_id": "rr20::sort_best",
+      "round": 8,
+      "seq": 88
+    },
+    {
+      "cell_id": "rr80::ident_all",
+      "round": 8,
+      "seq": 89
+    },
+    {
+      "cell_id": "rr80::stock_common",
+      "round": 8,
+      "seq": 90
+    },
+    {
+      "cell_id": "rr20::p2_2_flag_opt",
+      "round": 8,
+      "seq": 91
+    },
+    {
+      "cell_id": "rr80::system_gate",
+      "round": 8,
+      "seq": 92
+    },
+    {
+      "cell_id": "rr80::p2_2_flag_opt",
+      "round": 8,
+      "seq": 93
+    },
+    {
+      "cell_id": "rr20::ident_all",
+      "round": 8,
+      "seq": 94
+    },
+    {
+      "cell_id": "rr20::backoff_fixed_best",
+      "round": 8,
+      "seq": 95
+    }
+  ],
+  "schedule_algorithm": "round-permutation/v2",
+  "schema_version": "s8b-floor-manifest/v2",
+  "session_cv_max": "0.10",
+  "stock_configuration": "stock_common"
+}

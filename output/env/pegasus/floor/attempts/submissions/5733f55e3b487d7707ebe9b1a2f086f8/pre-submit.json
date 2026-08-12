@@ -1,0 +1,37 @@
+{
+  "dry_run": true,
+  "job_script_path": "tools/pegasus/floor_campaign.sh",
+  "job_script_sha256": "32af891d32b4867df0e7f16c716f83086e2fefc1fc5d141758b9cfdc157df97f",
+  "nonce": "5733f55e3b487d7707ebe9b1a2f086f8",
+  "preflight": {
+    "check_quota": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "pegasusinfo": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "qstat_Q": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "rbudgetcheck": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    }
+  },
+  "prepared_at": 1786515658,
+  "request": {
+    "elapstim_req_s": 36000,
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S"
+  },
+  "schema_version": "pegasus-floor-pre-submit/v1",
+  "source_commit": "f0eb8e7fee3b5f954520e0f08bbfbbd94846ebf9"
+}

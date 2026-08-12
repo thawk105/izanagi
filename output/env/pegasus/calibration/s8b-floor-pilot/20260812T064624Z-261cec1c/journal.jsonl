@@ -1,0 +1,1 @@
+{"build_cap_per_cell_s": 900, "event": "reservation-preflight", "finalize_reserve_s": 600, "formula": "cell_count * (build_cap_per_cell_s + (scheduled_attempts_per_cell + retry_slots_per_cell) * (bench_extime_s * reps + verify_cap_per_attempt_s))", "required_s": 28200, "safety_margin_s": 600, "verify_cap_per_attempt_s": 120}

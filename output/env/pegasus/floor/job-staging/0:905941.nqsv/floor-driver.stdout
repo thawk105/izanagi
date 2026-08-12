@@ -1,0 +1,1 @@
+{"status": "error", "error": "FloorCampaignError: attestation comparisons failed: [{\"expected\":\"proc-cpuinfo\",\"field\":\"effective_clock.method\",\"observed\":\"proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1\",\"verdict\":\"fail\"}]"}

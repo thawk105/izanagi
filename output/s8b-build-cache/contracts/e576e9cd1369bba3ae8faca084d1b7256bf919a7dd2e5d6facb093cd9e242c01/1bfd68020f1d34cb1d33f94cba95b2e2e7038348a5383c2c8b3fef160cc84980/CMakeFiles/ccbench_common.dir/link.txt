@@ -1,0 +1,2 @@
+/usr/bin/x86_64-linux-gnu-ar qc libccbench_common.a CMakeFiles/ccbench_common.dir/common/result.cc.o CMakeFiles/ccbench_common.dir/common/util.cc.o
+/usr/bin/x86_64-linux-gnu-ranlib libccbench_common.a
