@@ -1,0 +1,692 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/586b3940329f127f098c243ea5e021ef/izdw-586b394032.o908057",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/586b3940329f127f098c243ea5e021ef/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................                                 [100%]\n40 passed in 3.19s\n",
+      "stdout_sha256": "bc0245d79022b760658d6cf0f3998b8def178757e038a50986593209d149c2b0"
+    },
+    "artifact_error": null,
+    "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+    "duration_s": 26.95,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7a29e22f228ec750537d0fdabdff0f951a637ff5dc08fbc7ccda1739d5c7d773",
+    "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+    "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+    "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+    "status": "PASSED",
+    "test_output_sha256": "bc0245d79022b760658d6cf0f3998b8def178757e038a50986593209d149c2b0",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+  },
+  "date": "2026-08-12T14:11:05.991042+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/6ba78715ca331656867a62bb172570a0/izdw-6ba78715ca.o908058",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/6ba78715ca331656867a62bb172570a0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................FF...F......F                                 [100%]\n=================================== FAILURES ===================================\n_______________ test_refusal_diagnostic_is_canonical_ascii_json ________________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1535520c20b0>\n\n    def test_refusal_diagnostic_is_canonical_ascii_json(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        wrapped = _wrap_held_function(lambda: None, \"test_日.py::test_name\")\n>       with pytest.raises(GrowthTestHoldBypassRefused) as caught:\nE       Failed: DID NOT RAISE GrowthTestHoldBypassRefused\n\norchestrator/tests/test_growth_test_holds_contract.py:587: Failed\n__________ test_exact_token_is_the_only_release_for_lightweight_body ___________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ea70418730>\n\n    def test_exact_token_is_the_only_release_for_lightweight_body(monkeypatch):\n        calls = []\n    \n        def lightweight_body(value):\n            calls.append(value)\n            return value + 1\n    \n        lightweight_body.pytestmark = [pytest.mark.parametrize(\"value\", [7])]\n        original_signature = inspect.signature(lightweight_body)\n        function_name = \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n        namespace = {function_name: lightweight_body}\n        monkeypatch.setenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"explicit-user-command\")\n        assert enforce_held_functions(\n            namespace,\n            \"test_s8b_repo_scan_invariant.py\",\n            plain_runner=\"manual\",\n        ) == (function_name,)\n        wrapped = namespace[function_name]\n        assert inspect.signature(wrapped) == original_signature\n        assert wrapped.pytestmark == lightweight_body.pytestmark\n    \n        for refused_value in (\"\", \"explicit-user-command-typo\"):\n            monkeypatch.setenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", refused_value)\n>           with pytest.raises(\n                GrowthTestHoldBypassRefused,\n                match=\"^IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 \",\n            ):\nE           Failed: DID NOT RAISE GrowthTestHoldBypassRefused\n\norchestrator/tests/test_growth_test_holds_contract.py:620: Failed\n_______________ test_all_registered_nodes_are_call_time_wrapped ________________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bc493122c0>\n\n    def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        for node_id in GROWTH_TEST_HOLDS:\n            filename, function_name = node_id.split(\"::\", 1)\n            module = importlib.import_module(f\"orchestrator.tests.{filename[:-3]}\")\n            function = getattr(module, function_name)\n            assert hasattr(function, \"__wrapped__\"), node_id\n            with pytest.raises(GrowthTestHoldBypassRefused) as caught:\n>               function()\n\norchestrator/tests/test_growth_test_holds_contract.py:557: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (), kwargs = {}\n\n    @wraps(function)\n    def wrapped(*args, **kwargs):\n        if False:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))\n>       return function(*args, **kwargs)\nE       TypeError: test_m3_focus_artifact_directions() missing 4 required positional arguments: 'case', 'name', 'tmp_path', and 'benchmark_snapshots'\n\norchestrator/tests/growth_test_holds.py:250: TypeError\n________________ test_direct_import_and_call_bypass_is_refused _________________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_direct_import_and_call_bypass_is_refused():\n>       result = _run_subprocess([\n            sys.executable,\n            \"-c\",\n            (\n                \"import os; \"\n                \"os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; \"\n                \"from orchestrator.tests.test_s8b_repo_scan_invariant import \"\n                \"test_real_repository_scan_matches_known_hits_and_has_positive_control \"\n                \"as held; \"\n                \"os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"\n            ),\n        ])\n\norchestrator/tests/test_growth_test_holds_contract.py:740: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n    return subprocess.run(\n/usr/lib/python3.10/subprocess.py:505: in run\n    stdout, stderr = process.communicate(input, timeout=timeout)\n/usr/lib/python3.10/subprocess.py:1154: in communicate\n    stdout, stderr = self._communicate(input, endtime, timeout)\n/usr/lib/python3.10/subprocess.py:2022: in _communicate\n    self._check_timeout(endtime, orig_timeout, stdout, stderr)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: -9 args: ['/bin/python3.10', '-c', \"import os; os.enviro...>\nendtime = 1393142.570988034, orig_timeout = 10.0, stdout_seq = []\nstderr_seq = [], skip_check_and_raise = False\n\n    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n                       skip_check_and_raise=False):\n        \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n        if endtime is None:\n            return\n        if skip_check_and_raise or _time() > endtime:\n>           raise TimeoutExpired(\n                    self.args, orig_timeout,\n                    output=b''.join(stdout_seq) if stdout_seq else None,\n                    stderr=b''.join(stderr_seq) if stderr_seq else None)\nE           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-c', \"import os; os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; from orchestrator.tests.test_s8b_repo_scan_invariant import test_real_repository_scan_matches_known_hits_and_has_positive_control as held; os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"]' timed out after 10.0 seconds\n\n/usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused\n4 failed, 36 passed in 12.42s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2449 retained_bytes=2449 omitted_bytes=0 rendered_excerpt_bytes=2540 sha256=5d7e994ee6e80d7b7063eadf4f8c0b55628c8e75e0412d37572b2ee472b9204d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_direct_import_and_call_bypass_is_refused():\n> >       result = _run_subprocess([\n>             sys.executable,\n>             \"-c\",\n>             (\n>                 \"import os; \"\n>                 \"os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; \"\n>                 \"from orchestrator.tests.test_s8b_repo_scan_invariant import \"\n>                 \"test_real_repository_scan_matches_known_hits_and_has_positive_control \"\n>                 \"as held; \"\n>                 \"os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"\n>             ),\n>         ])\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:740: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n>     return subprocess.run(\n> /usr/lib/python3.10/subprocess.py:505: in run\n>     stdout, stderr = process.communicate(input, timeout=timeout)\n> /usr/lib/python3.10/subprocess.py:1154: in communicate\n>     stdout, stderr = self._communicate(input, endtime, timeout)\n> /usr/lib/python3.10/subprocess.py:2022: in _communicate\n>     self._check_timeout(endtime, orig_timeout, stdout, stderr)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Popen: returncode: -9 args: ['/bin/python3.10', '-c', \"import os; os.enviro...>\n> endtime = 1393142.570988034, orig_timeout = 10.0, stdout_seq = []\n> stderr_seq = [], skip_check_and_raise = False\n> \n>     def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n>                        skip_check_and_raise=False):\n>         \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n>         if endtime is None:\n>             return\n>         if skip_check_and_raise or _time() > endtime:\n> >           raise TimeoutExpired(\n>                     self.args, orig_timeout,\n>                     output=b''.join(stdout_seq) if stdout_seq else None,\n>                     stderr=b''.join(stderr_seq) if stderr_seq else None)\n> E           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-c', \"import os; os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; from orchestrator.tests.test_s8b_repo_scan_invariant import test_real_repository_scan_matches_known_hits_and_has_positive_control as held; os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"]' timed out after 10.0 seconds\n> \n> /usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=1487 retained_bytes=1487 omitted_bytes=0 rendered_excerpt_bytes=1556 sha256=0ee51818f6be0360d60c037875085092caf392258e2f8170094bcf3675cc2049\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ea70418730>\n> \n>     def test_exact_token_is_the_only_release_for_lightweight_body(monkeypatch):\n>         calls = []\n>     \n>         def lightweight_body(value):\n>             calls.append(value)\n>             return value + 1\n>     \n>         lightweight_body.pytestmark = [pytest.mark.parametrize(\"value\", [7])]\n>         original_signature = inspect.signature(lightweight_body)\n>         function_name = \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n>         namespace = {function_name: lightweight_body}\n>         monkeypatch.setenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"explicit-user-command\")\n>         assert enforce_held_functions(\n>             namespace,\n>             \"test_s8b_repo_scan_invariant.py\",\n>             plain_runner=\"manual\",\n>         ) == (function_name,)\n>         wrapped = namespace[function_name]\n>         assert inspect.signature(wrapped) == original_signature\n>         assert wrapped.pytestmark == lightweight_body.pytestmark\n>     \n>         for refused_value in (\"\", \"explicit-user-command-typo\"):\n>             monkeypatch.setenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", refused_value)\n> >           with pytest.raises(\n>                 GrowthTestHoldBypassRefused,\n>                 match=\"^IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 \",\n>             ):\n> E           Failed: DID NOT RAISE GrowthTestHoldBypassRefused\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:620: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1226 retained_bytes=1226 omitted_bytes=0 rendered_excerpt_bytes=1281 sha256=d7197d28e80131c5381fd42096d9d796cd6560cfa34d3ac8c44f927dee268b1f\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bc493122c0>\n> \n>     def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         for node_id in GROWTH_TEST_HOLDS:\n>             filename, function_name = node_id.split(\"::\", 1)\n>             module = importlib.import_module(f\"orchestrator.tests.{filename[:-3]}\")\n>             function = getattr(module, function_name)\n>             assert hasattr(function, \"__wrapped__\"), node_id\n>             with pytest.raises(GrowthTestHoldBypassRefused) as caught:\n> >               function()\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:557: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (), kwargs = {}\n> \n>     @wraps(function)\n>     def wrapped(*args, **kwargs):\n>         if False:\n>             raise GrowthTestHoldBypassRefused(_refusal_message(node_id))\n> >       return function(*args, **kwargs)\n> E       TypeError: test_m3_focus_artifact_directions() missing 4 required positional arguments: 'case', 'name', 'tmp_path', and 'benchmark_snapshots'\n> \n> orchestrator/tests/growth_test_holds.py:250: TypeError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=536 retained_bytes=536 omitted_bytes=0 rendered_excerpt_bytes=562 sha256=7ed20c9737674526a92a738cfbf183de12c4f13b0d830fcce53548ee2525f8b4\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1535520c20b0>\n> \n>     def test_refusal_diagnostic_is_canonical_ascii_json(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         wrapped = _wrap_held_function(lambda: None, \"test_\\u65e5.py::test_name\")\n> >       with pytest.raises(GrowthTestHoldBypassRefused) as caught:\n> E       Failed: DID NOT RAISE GrowthTestHoldBypassRefused\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:587: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5698 retained_bytes=5698 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8003 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d0cd517b74e864f213777f5c24ca8af5fc0009654070480e066e5cdb0fd41fd2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 37.121,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "5d3255bd91e61527a441bb257064077e9568258f782a8b4981bdfdc383d4cba6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e20b09a8ebc602a69ded457ca8b6869194e66de3caed7d3d1cad00d746681f04",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "        if False:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))",
+          "old": "        if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) != RUN_GROWTH_HELD_TESTS_TOKEN:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "d0cd517b74e864f213777f5c24ca8af5fc0009654070480e066e5cdb0fd41fd2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/758c5e5f24d38803e71784d5ee4f14ee/izdw-758c5e5f24.o908060",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/758c5e5f24d38803e71784d5ee4f14ee/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................FFFF....F.FF                                 [100%]\n=================================== FAILURES ===================================\n___________ test_guard_binding_negative_control_detects_removed_call ___________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_guard_binding_negative_control_detects_removed_call():\n        filename = \"test_s8b_repo_scan_invariant.py\"\n        path = Path(__file__).resolve().parent / filename\n        valid_source = path.read_text(encoding=\"utf-8\")\n>       assert _guard_binding_errors(valid_source, filename) == ()\nE       AssertionError: assert ('call count ..., expected 1') == ()\nE         \nE         Left contains 2 more items, first extra item: 'call count is 0, expected 1'\nE         Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:514: AssertionError\n_ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra] _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-user-command-extra'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n___ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo] ___\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-typo'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n___________ test_every_held_module_has_exact_top_level_guard_binding ___________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_every_held_module_has_exact_top_level_guard_binding():\n        assert _held_filenames() == (\n            \"test_campaign_import_invariant.py\",\n            \"test_codex_reasoning_ab.py\",\n            \"test_env_attestation.py\",\n            \"test_ruleops.py\",\n            \"test_s8b_binding_driftguards.py\",\n            \"test_s8b_holdout_freeze.py\",\n            \"test_s8b_oracle_driver.py\",\n            \"test_s8b_repo_scan_invariant.py\",\n        )\n        for filename in _held_filenames():\n            path = Path(__file__).resolve().parent / filename\n            assert path.is_file(), filename\n>           assert _guard_binding_errors(path.read_text(encoding=\"utf-8\"), filename) == ()\nE           AssertionError: assert ('call count ..., expected 1') == ()\nE             \nE             Left contains 2 more items, first extra item: 'call count is 0, expected 1'\nE             Use -v to get more diff\n\norchestrator/tests/test_growth_test_holds_contract.py:507: AssertionError\n_______________ test_all_registered_nodes_are_call_time_wrapped ________________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ea1d9aa110>\n\n    def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        for node_id in GROWTH_TEST_HOLDS:\n            filename, function_name = node_id.split(\"::\", 1)\n            module = importlib.import_module(f\"orchestrator.tests.{filename[:-3]}\")\n            function = getattr(module, function_name)\n>           assert hasattr(function, \"__wrapped__\"), node_id\nE           AssertionError: test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control\nE           assert False\nE            +  where False = hasattr(<function test_real_repository_scan_matches_known_hits_and_has_positive_control at 0x14ea1ce393f0>, '__wrapped__')\n\norchestrator/tests/test_growth_test_holds_contract.py:555: AssertionError\n_____________ test_imported_conftest_does_not_enable_runpy_bypass ______________\n[gw36] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_imported_conftest_does_not_enable_runpy_bypass():\n>       result = _run_subprocess([\n            sys.executable,\n            \"-c\",\n            (\n                \"import orchestrator.tests.conftest; import runpy; \"\n                \"runpy.run_path(\"\n                \"'orchestrator/tests/test_s8b_repo_scan_invariant.py', \"\n                \"run_name='__main__')\"\n            ),\n        ])\n\norchestrator/tests/test_growth_test_holds_contract.py:724: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n    return subprocess.run(\n/usr/lib/python3.10/subprocess.py:505: in run\n    stdout, stderr = process.communicate(input, timeout=timeout)\n/usr/lib/python3.10/subprocess.py:1154: in communicate\n    stdout, stderr = self._communicate(input, endtime, timeout)\n/usr/lib/python3.10/subprocess.py:2022: in _communicate\n    self._check_timeout(endtime, orig_timeout, stdout, stderr)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: -9 args: ['/bin/python3.10', '-c', \"import orchestrator....>\nendtime = 1393182.176350469, orig_timeout = 10.0, stdout_seq = []\nstderr_seq = [], skip_check_and_raise = False\n\n    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n                       skip_check_and_raise=False):\n        \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n        if endtime is None:\n            return\n        if skip_check_and_raise or _time() > endtime:\n>           raise TimeoutExpired(\n                    self.args, orig_timeout,\n                    output=b''.join(stdout_seq) if stdout_seq else None,\n                    stderr=b''.join(stderr_seq) if stderr_seq else None)\nE           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-c', \"import orchestrator.tests.conftest; import runpy; runpy.run_path('orchestrator/tests/test_s8b_repo_scan_invariant.py', run_name='__main__')\"]' timed out after 10.0 seconds\n\n/usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n________________ test_direct_import_and_call_bypass_is_refused _________________\n[gw37] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_direct_import_and_call_bypass_is_refused():\n>       result = _run_subprocess([\n            sys.executable,\n            \"-c\",\n            (\n                \"import os; \"\n                \"os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; \"\n                \"from orchestrator.tests.test_s8b_repo_scan_invariant import \"\n                \"test_real_repository_scan_matches_known_hits_and_has_positive_control \"\n                \"as held; \"\n                \"os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"\n            ),\n        ])\n\norchestrator/tests/test_growth_test_holds_contract.py:740: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n    return subprocess.run(\n/usr/lib/python3.10/subprocess.py:505: in run\n    stdout, stderr = process.communicate(input, timeout=timeout)\n/usr/lib/python3.10/subprocess.py:1154: in communicate\n    stdout, stderr = self._communicate(input, endtime, timeout)\n/usr/lib/python3.10/subprocess.py:2022: in _communicate\n    self._check_timeout(endtime, orig_timeout, stdout, stderr)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: -9 args: ['/bin/python3.10', '-c', \"import os; os.enviro...>\nendtime = 1393182.176372057, orig_timeout = 10.0, stdout_seq = []\nstderr_seq = [], skip_check_and_raise = False\n\n    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n                       skip_check_and_raise=False):\n        \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n        if endtime is None:\n            return\n        if skip_check_and_raise or _time() > endtime:\n>           raise TimeoutExpired(\n                    self.args, orig_timeout,\n                    output=b''.join(stdout_seq) if stdout_seq else None,\n                    stderr=b''.join(stderr_seq) if stderr_seq else None)\nE           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-c', \"import os; os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; from orchestrator.tests.test_s8b_repo_scan_invariant import test_real_repository_scan_matches_known_hits_and_has_positive_control as held; os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"]' timed out after 10.0 seconds\n\n/usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused\n7 failed, 33 passed in 12.41s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2449 retained_bytes=2449 omitted_bytes=0 rendered_excerpt_bytes=2540 sha256=5ea458a267700fc61b52623f293b090c027bddbdcdbc4aaefee8c123b3d04244\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_direct_import_and_call_bypass_is_refused():\n> >       result = _run_subprocess([\n>             sys.executable,\n>             \"-c\",\n>             (\n>                 \"import os; \"\n>                 \"os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; \"\n>                 \"from orchestrator.tests.test_s8b_repo_scan_invariant import \"\n>                 \"test_real_repository_scan_matches_known_hits_and_has_positive_control \"\n>                 \"as held; \"\n>                 \"os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"\n>             ),\n>         ])\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:740: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n>     return subprocess.run(\n> /usr/lib/python3.10/subprocess.py:505: in run\n>     stdout, stderr = process.communicate(input, timeout=timeout)\n> /usr/lib/python3.10/subprocess.py:1154: in communicate\n>     stdout, stderr = self._communicate(input, endtime, timeout)\n> /usr/lib/python3.10/subprocess.py:2022: in _communicate\n>     self._check_timeout(endtime, orig_timeout, stdout, stderr)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Popen: returncode: -9 args: ['/bin/python3.10', '-c', \"import os; os.enviro...>\n> endtime = 1393182.176372057, orig_timeout = 10.0, stdout_seq = []\n> stderr_seq = [], skip_check_and_raise = False\n> \n>     def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n>                        skip_check_and_raise=False):\n>         \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n>         if endtime is None:\n>             return\n>         if skip_check_and_raise or _time() > endtime:\n> >           raise TimeoutExpired(\n>                     self.args, orig_timeout,\n>                     output=b''.join(stdout_seq) if stdout_seq else None,\n>                     stderr=b''.join(stderr_seq) if stderr_seq else None)\n> E           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-c', \"import os; os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; from orchestrator.tests.test_s8b_repo_scan_invariant import test_real_repository_scan_matches_known_hits_and_has_positive_control as held; os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()\"]' timed out after 10.0 seconds\n> \n> /usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=2147 retained_bytes=2147 omitted_bytes=0 rendered_excerpt_bytes=2234 sha256=dcedc80641b5d42b54dd2951667187bbe89d57478fb748e42b865e0b1e02458a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_imported_conftest_does_not_enable_runpy_bypass():\n> >       result = _run_subprocess([\n>             sys.executable,\n>             \"-c\",\n>             (\n>                 \"import orchestrator.tests.conftest; import runpy; \"\n>                 \"runpy.run_path(\"\n>                 \"'orchestrator/tests/test_s8b_repo_scan_invariant.py', \"\n>                 \"run_name='__main__')\"\n>             ),\n>         ])\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:724: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n>     return subprocess.run(\n> /usr/lib/python3.10/subprocess.py:505: in run\n>     stdout, stderr = process.communicate(input, timeout=timeout)\n> /usr/lib/python3.10/subprocess.py:1154: in communicate\n>     stdout, stderr = self._communicate(input, endtime, timeout)\n> /usr/lib/python3.10/subprocess.py:2022: in _communicate\n>     self._check_timeout(endtime, orig_timeout, stdout, stderr)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Popen: returncode: -9 args: ['/bin/python3.10', '-c', \"import orchestrator....>\n> endtime = 1393182.176350469, orig_timeout = 10.0, stdout_seq = []\n> stderr_seq = [], skip_check_and_raise = False\n> \n>     def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n>                        skip_check_and_raise=False):\n>         \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n>         if endtime is None:\n>             return\n>         if skip_check_and_raise or _time() > endtime:\n> >           raise TimeoutExpired(\n>                     self.args, orig_timeout,\n>                     output=b''.join(stdout_seq) if stdout_seq else None,\n>                     stderr=b''.join(stderr_seq) if stderr_seq else None)\n> E           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-c', \"import orchestrator.tests.conftest; import runpy; runpy.run_path('orchestrator/tests/test_s8b_repo_scan_invariant.py', run_name='__main__')\"]' timed out after 10.0 seconds\n> \n> /usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1130 retained_bytes=1130 omitted_bytes=0 rendered_excerpt_bytes=1193 sha256=4e83b3a0b203c0f7f6316d51f63b6ce7661810df5e96c9fc0f2db9f69f25a9b2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-user-command-extra'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=1116 retained_bytes=1116 omitted_bytes=0 rendered_excerpt_bytes=1179 sha256=6a402fcd61815683b95d1964bc67c5d8d8c2480c854ef29b96fdc65c54149441\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-typo'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1031 retained_bytes=1031 omitted_bytes=0 rendered_excerpt_bytes=1078 sha256=49a90b204a0beb8257aa200ea7224ceac9ea780d06837b088050176bcd0926c4\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_every_held_module_has_exact_top_level_guard_binding():\n>         assert _held_filenames() == (\n>             \"test_campaign_import_invariant.py\",\n>             \"test_codex_reasoning_ab.py\",\n>             \"test_env_attestation.py\",\n>             \"test_ruleops.py\",\n>             \"test_s8b_binding_driftguards.py\",\n>             \"test_s8b_holdout_freeze.py\",\n>             \"test_s8b_oracle_driver.py\",\n>             \"test_s8b_repo_scan_invariant.py\",\n>         )\n>         for filename in _held_filenames():\n>             path = Path(__file__).resolve().parent / filename\n>             assert path.is_file(), filename\n> >           assert _guard_binding_errors(path.read_text(encoding=\"utf-8\"), filename) == ()\n> E           AssertionError: assert ('call count ..., expected 1') == ()\n> E             \n> E             Left contains 2 more items, first extra item: 'call count is 0, expected 1'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:507: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=952 retained_bytes=952 omitted_bytes=0 rendered_excerpt_bytes=985 sha256=1c59f1fcb2bc8745d7f45ed2ee1566427da4cff12428c9bf4acfb110e91b97ca\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ea1d9aa110>\n> \n>     def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         for node_id in GROWTH_TEST_HOLDS:\n>             filename, function_name = node_id.split(\"::\", 1)\n>             module = importlib.import_module(f\"orchestrator.tests.{filename[:-3]}\")\n>             function = getattr(module, function_name)\n> >           assert hasattr(function, \"__wrapped__\"), node_id\n> E           AssertionError: test_s8b_repo_scan_invariant.py::test_real_repository_scan_matches_known_hits_and_has_positive_control\n> E           assert False\n> E            +  where False = hasattr(<function test_real_repository_scan_matches_known_hits_and_has_positive_control at 0x14ea1ce393f0>, '__wrapped__')\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:555: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=623 retained_bytes=623 omitted_bytes=0 rendered_excerpt_bytes=650 sha256=bc338a85ce890306e749f897ae8df20b6935e71e2449b9631909cb9cd8d1e8b8\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_guard_binding_negative_control_detects_removed_call():\n>         filename = \"test_s8b_repo_scan_invariant.py\"\n>         path = Path(__file__).resolve().parent / filename\n>         valid_source = path.read_text(encoding=\"utf-8\")\n> >       assert _guard_binding_errors(valid_source, filename) == ()\n> E       AssertionError: assert ('call count ..., expected 1') == ()\n> E         \n> E         Left contains 2 more items, first extra item: 'call count is 0, expected 1'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:514: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=9448 retained_bytes=9448 omitted_bytes=0 budget_bytes=49152 rendered_bytes=13326 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "654f8391ca3a3809bef80fe0d8e92b52de4f7425e8ef90db7b1d08e35ddab239"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 37.148,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "82e5bba097dd4d051505f78a228a10e02ada871d2658d976995b9df777315592",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "24be2c8e9e7076d4f186f4acdb57141bdf4ee73f345cfd1e7064bf4390b485d1",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_repo_scan_invariant.py",
+          "new": "pass",
+          "old": "enforce_held_functions(globals(), __file__, plain_runner=\"manual\")"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "654f8391ca3a3809bef80fe0d8e92b52de4f7425e8ef90db7b1d08e35ddab239",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/9e30f2cac8c582fadd28f45bf0d7ab7e/izdw-9e30f2cac8.o908062",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/9e30f2cac8c582fadd28f45bf0d7ab7e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F.FF..F                                 [100%]\n=================================== FAILURES ===================================\n_______________ test_all_registered_nodes_are_call_time_wrapped ________________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15042b339fc0>\n\n    def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        for node_id in GROWTH_TEST_HOLDS:\n            filename, function_name = node_id.split(\"::\", 1)\n>           module = importlib.import_module(f\"orchestrator.tests.{filename[:-3]}\")\n\norchestrator/tests/test_growth_test_holds_contract.py:553: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n<frozen importlib._bootstrap>:1050: in _gcd_import\n    ???\n<frozen importlib._bootstrap>:1027: in _find_and_load\n    ???\n<frozen importlib._bootstrap>:1006: in _find_and_load_unlocked\n    ???\n<frozen importlib._bootstrap>:688: in _load_unlocked\n    ???\n/home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:188: in exec_module\n    exec(co, module.__dict__)\norchestrator/tests/test_codex_reasoning_ab.py:4270: in <module>\n    enforce_held_functions(globals(), __file__, plain_runner=\"pytest-delegating\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nnamespace = {'__name__': 'orchestrator.tests.test_codex_reasoning_ab', '__doc__': 'T-181 schema v2 の閉包・supervisor・裁定・集計回帰。\\n\\nDW-M...: 'orchestrator.tests', '__loader__': <_pytest.assertion.rewrite.AssertionRewritingHook object at 0x15042b5a5cf0>, ...}\nmodule_file = '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/orchestrator/tests/test_codex_reasoning_ab.py'\nplain_runner = 'pytest-delegating'\n\n    def enforce_held_functions(\n        namespace: MutableMapping[str, object],\n        module_file: str | os.PathLike[str],\n        *,\n        plain_runner: PlainRunner,\n    ) -> tuple[str, ...]:\n        \"\"\"Bind held call guards and reject imports outside an enforcing runner.\"\"\"\n        if plain_runner not in _PLAIN_RUNNERS:\n            raise ValueError(f\"invalid growth-test plain runner: {plain_runner!r}\")\n        filename = os.path.basename(os.fspath(module_file))\n        held_nodes = sorted(\n            node_id for node_id in GROWTH_TEST_HOLDS\n            if node_id.split(\"::\", 1)[0] == filename\n        )\n        if not held_nodes:\n            raise ValueError(f\"no growth-test holds registered for {filename!r}\")\n    \n        function_names = tuple(\n            name for name in namespace\n            if isinstance(name, str) and name.startswith(\"test_\")\n        ) or tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)\n        missing = tuple(name for name in function_names if name not in namespace)\n        if missing:\n            raise ValueError(\n                f\"growth-test held functions missing from {filename!r}: {missing!r}\"\n            )\n        noncallable = tuple(\n            name for name in function_names if not callable(namespace[name])\n        )\n        if noncallable:\n            raise ValueError(\n                f\"growth-test held names are not callable in {filename!r}: {noncallable!r}\"\n            )\n    \n>       for node_id, function_name in zip(held_nodes, function_names, strict=True):\nE       ValueError: zip() argument 2 is longer than argument 1\n\norchestrator/tests/growth_test_holds.py:289: ValueError\n_____________ test_plain_runner_bypass_is_refused_before_held_body _____________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_plain_runner_bypass_is_refused_before_held_body():\n        result = _run_subprocess([\n            sys.executable,\n            \"orchestrator/tests/test_campaign_import_invariant.py\",\n        ])\n        output = _combined_output(result)\n        assert result.returncode != 0, output\n>       assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\nE       assert 'IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1' in 'Traceback (most recent call last):\\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/...nction_name in zip(held_nodes, function_names, strict=True):\\nValueError: zip() argument 2 is longer than argument 1\\n'\n\norchestrator/tests/test_growth_test_holds_contract.py:718: AssertionError\n___________ test_plain_pytest_delegating_runner_is_not_over_rejected ___________\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_plain_pytest_delegating_runner_is_not_over_rejected():\n        result = _run_subprocess([\n            sys.executable,\n            \"orchestrator/tests/test_env_attestation.py\",\n        ])\n        output = _combined_output(result)\n>       assert result.returncode == 0, output\nE       AssertionError: Traceback (most recent call last):\nE           File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/orchestrator/tests/test_env_attestation.py\", line 1360, in <module>\nE             enforce_held_functions(globals(), __file__, plain_runner=\"pytest-delegating\")\nE           File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/orchestrator/tests/growth_test_holds.py\", line 289, in enforce_held_functions\nE             for node_id, function_name in zip(held_nodes, function_names, strict=True):\nE         ValueError: zip() argument 2 is longer than argument 1\nE         \nE       assert 1 == 0\nE        +  where 1 = CompletedProcess(args=['/bin/python3.10', 'orchestrator/tests/test_env_attestation.py'], returncode=1, stdout='', stde...ction_name in zip(held_nodes, function_names, strict=True):\\nValueError: zip() argument 2 is longer than argument 1\\n').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:781: AssertionError\n______________ test_noconftest_bypass_is_refused_before_held_body ______________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_noconftest_bypass_is_refused_before_held_body():\n        result = _run_subprocess([\n            sys.executable,\n            \"-m\",\n            \"pytest\",\n            \"--noconftest\",\n            \"-p\",\n            \"no:cacheprovider\",\n            \"-q\",\n            \"orchestrator/tests/test_campaign_import_invariant.py::\"\n            \"test_repository_scan_set_is_nonempty_and_contains_sentinels\",\n        ])\n        output = _combined_output(result)\n        assert result.returncode != 0, output\n>       assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\nE       AssertionError: assert 'IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1' in '\\n==================================== ERRORS ====================================\\n____ ERROR collecting orchestrato.../orchestrator/tests/test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels\\n\\n'\n\norchestrator/tests/test_growth_test_holds_contract.py:679: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body\n4 failed, 36 passed in 2.87s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=3441 retained_bytes=3441 omitted_bytes=0 rendered_excerpt_bytes=3627 sha256=b427c8558a5eb698a5918c84f39b883b71c021ae4c30ac4c6491ea5753f409fc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15042b339fc0>\n> \n>     def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         for node_id in GROWTH_TEST_HOLDS:\n>             filename, function_name = node_id.split(\"::\", 1)\n> >           module = importlib.import_module(f\"orchestrator.tests.{filename[:-3]}\")\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:553: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/importlib/__init__.py:126: in import_module\n>     return _bootstrap._gcd_import(name[level:], package, level)\n> <frozen importlib._bootstrap>:1050: in _gcd_import\n>     ???\n> <frozen importlib._bootstrap>:1027: in _find_and_load\n>     ???\n> <frozen importlib._bootstrap>:1006: in _find_and_load_unlocked\n>     ???\n> <frozen importlib._bootstrap>:688: in _load_unlocked\n>     ???\n> /home/SFC/tanab/.local/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:188: in exec_module\n>     exec(co, module.__dict__)\n> orchestrator/tests/test_codex_reasoning_ab.py:4270: in <module>\n>     enforce_held_functions(globals(), __file__, plain_runner=\"pytest-delegating\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> namespace = {'__name__': 'orchestrator.tests.test_codex_reasoning_ab', '__doc__': 'T-181 schema v2 \\u306e\\u9589\\u5305\\u30fbsupervisor\\u30fb\\u88c1\\u5b9a\\u30fb\\u96c6\\u8a08\\u56de\\u5e30\\u3002\\x5cn\\x5cnDW-M...: 'orchestrator.tests', '__loader__': <_pytest.assertion.rewrite.AssertionRewritingHook object at 0x15042b5a5cf0>, ...}\n> module_file = '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/orchestrator/tests/test_codex_reasoning_ab.py'\n> plain_runner = 'pytest-delegating'\n> \n>     def enforce_held_functions(\n>         namespace: MutableMapping[str, object],\n>         module_file: str | os.PathLike[str],\n>         *,\n>         plain_runner: PlainRunner,\n>     ) -> tuple[str, ...]:\n>         \"\"\"Bind held call guards and reject imports outside an enforcing runner.\"\"\"\n>         if plain_runner not in _PLAIN_RUNNERS:\n>             raise ValueError(f\"invalid growth-test plain runner: {plain_runner!r}\")\n>         filename = os.path.basename(os.fspath(module_file))\n>         held_nodes = sorted(\n>             node_id for node_id in GROWTH_TEST_HOLDS\n>             if node_id.split(\"::\", 1)[0] == filename\n>         )\n>         if not held_nodes:\n>             raise ValueError(f\"no growth-test holds registered for {filename!r}\")\n>     \n>         function_names = tuple(\n>             name for name in namespace\n>             if isinstance(name, str) and name.startswith(\"test_\")\n>         ) or tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)\n>         missing = tuple(name for name in function_names if name not in namespace)\n>         if missing:\n>             raise ValueError(\n>                 f\"growth-test held functions missing from {filename!r}: {missing!r}\"\n>             )\n>         noncallable = tuple(\n>             name for name in function_names if not callable(namespace[name])\n>         )\n>         if noncallable:\n>             raise ValueError(\n>                 f\"growth-test held names are not callable in {filename!r}: {noncallable!r}\"\n>             )\n>     \n> >       for node_id, function_name in zip(held_nodes, function_names, strict=True):\n> E       ValueError: zip() argument 2 is longer than argument 1\n> \n> orchestrator/tests/growth_test_holds.py:289: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1351 retained_bytes=1351 omitted_bytes=0 rendered_excerpt_bytes=1398 sha256=72a80939a55cda1649655bc8b0acf6b723b4790ef610752799fe80ecb3a5cb59\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_plain_pytest_delegating_runner_is_not_over_rejected():\n>         result = _run_subprocess([\n>             sys.executable,\n>             \"orchestrator/tests/test_env_attestation.py\",\n>         ])\n>         output = _combined_output(result)\n> >       assert result.returncode == 0, output\n> E       AssertionError: Traceback (most recent call last):\n> E           File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/orchestrator/tests/test_env_attestation.py\", line 1360, in <module>\n> E             enforce_held_functions(globals(), __file__, plain_runner=\"pytest-delegating\")\n> E           File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/orchestrator/tests/growth_test_holds.py\", line 289, in enforce_held_functions\n> E             for node_id, function_name in zip(held_nodes, function_names, strict=True):\n> E         ValueError: zip() argument 2 is longer than argument 1\n> E         \n> E       assert 1 == 0\n> E        +  where 1 = CompletedProcess(args=['/bin/python3.10', 'orchestrator/tests/test_env_attestation.py'], returncode=1, stdout='', stde...ction_name in zip(held_nodes, function_names, strict=True):\\x5cnValueError: zip() argument 2 is longer than argument 1\\x5cn').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:781: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1006 retained_bytes=1006 omitted_bytes=0 rendered_excerpt_bytes=1059 sha256=8e11c95a0054dd503a8782cb251e11f2ea24a830a0a8c5e7fb34ce2528355748\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_noconftest_bypass_is_refused_before_held_body():\n>         result = _run_subprocess([\n>             sys.executable,\n>             \"-m\",\n>             \"pytest\",\n>             \"--noconftest\",\n>             \"-p\",\n>             \"no:cacheprovider\",\n>             \"-q\",\n>             \"orchestrator/tests/test_campaign_import_invariant.py::\"\n>             \"test_repository_scan_set_is_nonempty_and_contains_sentinels\",\n>         ])\n>         output = _combined_output(result)\n>         assert result.returncode != 0, output\n> >       assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\n> E       AssertionError: assert 'IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1' in '\\x5cn==================================== ERRORS ====================================\\x5cn____ ERROR collecting orchestrato.../orchestrator/tests/test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels\\x5cn\\x5cn'\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:679: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=780 retained_bytes=780 omitted_bytes=0 rendered_excerpt_bytes=816 sha256=a9f9237e93e92abdf2bba66757a220c43b1fba8b144e0211d1e732d935941ce6\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_plain_runner_bypass_is_refused_before_held_body():\n>         result = _run_subprocess([\n>             sys.executable,\n>             \"orchestrator/tests/test_campaign_import_invariant.py\",\n>         ])\n>         output = _combined_output(result)\n>         assert result.returncode != 0, output\n> >       assert \"IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1\" in output\n> E       assert 'IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1' in 'Traceback (most recent call last):\\x5cn  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/...nction_name in zip(held_nodes, function_names, strict=True):\\x5cnValueError: zip() argument 2 is longer than argument 1\\x5cn'\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:718: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6578 retained_bytes=6578 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8973 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b341b136467ce927ac82b8c9a524ae8d66b70ae06414e4cf3ab524aa4aa8990f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 231.801,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "961fa922edf49f17910f000bfb2c5b0af8ad58dd60a0fc6e791df765d494054b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7ec152ea1166078842dd1aba726988c9837654e56806251f555c2e77e3bea11f",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    function_names = tuple(\n        name for name in namespace\n        if isinstance(name, str) and name.startswith(\"test_\")\n    ) or tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)",
+          "old": "    function_names = tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "b341b136467ce927ac82b8c9a524ae8d66b70ae06414e4cf3ab524aa4aa8990f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/9120980ace75161ae9e6082b50491d8a/izdw-9120980ace.o908072",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/9120980ace75161ae9e6082b50491d8a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................FF.......FF                                 [100%]\n=================================== FAILURES ===================================\n_ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra] _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-user-command-extra'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n___ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo] ___\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-typo'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n_____________ test_plain_runner_bypass_is_refused_before_held_body _____________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_plain_runner_bypass_is_refused_before_held_body():\n>       result = _run_subprocess([\n            sys.executable,\n            \"orchestrator/tests/test_campaign_import_invariant.py\",\n        ])\n\norchestrator/tests/test_growth_test_holds_contract.py:712: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n    return subprocess.run(\n/usr/lib/python3.10/subprocess.py:505: in run\n    stdout, stderr = process.communicate(input, timeout=timeout)\n/usr/lib/python3.10/subprocess.py:1154: in communicate\n    stdout, stderr = self._communicate(input, endtime, timeout)\n/usr/lib/python3.10/subprocess.py:2022: in _communicate\n    self._check_timeout(endtime, orig_timeout, stdout, stderr)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: -9 args: ['/bin/python3.10', 'orchestrator/tests/test_ca...>\nendtime = 3829092.837378794, orig_timeout = 10.0, stdout_seq = []\nstderr_seq = [], skip_check_and_raise = False\n\n    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n                       skip_check_and_raise=False):\n        \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n        if endtime is None:\n            return\n        if skip_check_and_raise or _time() > endtime:\n>           raise TimeoutExpired(\n                    self.args, orig_timeout,\n                    output=b''.join(stdout_seq) if stdout_seq else None,\n                    stderr=b''.join(stderr_seq) if stderr_seq else None)\nE           subprocess.TimeoutExpired: Command '['/bin/python3.10', 'orchestrator/tests/test_campaign_import_invariant.py']' timed out after 10.0 seconds\n\n/usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n______________ test_noconftest_bypass_is_refused_before_held_body ______________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_noconftest_bypass_is_refused_before_held_body():\n>       result = _run_subprocess([\n            sys.executable,\n            \"-m\",\n            \"pytest\",\n            \"--noconftest\",\n            \"-p\",\n            \"no:cacheprovider\",\n            \"-q\",\n            \"orchestrator/tests/test_campaign_import_invariant.py::\"\n            \"test_repository_scan_set_is_nonempty_and_contains_sentinels\",\n        ])\n\norchestrator/tests/test_growth_test_holds_contract.py:666: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n    return subprocess.run(\n/usr/lib/python3.10/subprocess.py:505: in run\n    stdout, stderr = process.communicate(input, timeout=timeout)\n/usr/lib/python3.10/subprocess.py:1154: in communicate\n    stdout, stderr = self._communicate(input, endtime, timeout)\n/usr/lib/python3.10/subprocess.py:2022: in _communicate\n    self._check_timeout(endtime, orig_timeout, stdout, stderr)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: -9 args: ['/bin/python3.10', '-m', 'pytest', '--noconfte...>\nendtime = 3829092.836816812, orig_timeout = 10.0, stdout_seq = []\nstderr_seq = [], skip_check_and_raise = False\n\n    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n                       skip_check_and_raise=False):\n        \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n        if endtime is None:\n            return\n        if skip_check_and_raise or _time() > endtime:\n>           raise TimeoutExpired(\n                    self.args, orig_timeout,\n                    output=b''.join(stdout_seq) if stdout_seq else None,\n                    stderr=b''.join(stderr_seq) if stderr_seq else None)\nE           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-m', 'pytest', '--noconftest', '-p', 'no:cacheprovider', '-q', 'orchestrator/tests/test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels']' timed out after 10.0 seconds\n\n/usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body\n4 failed, 36 passed in 12.36s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2196 retained_bytes=2196 omitted_bytes=0 rendered_excerpt_bytes=2285 sha256=abddbe899edff091fe99ce3733d3198d0d6b8e57379cf67916ed0f348f186d13\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_noconftest_bypass_is_refused_before_held_body():\n> >       result = _run_subprocess([\n>             sys.executable,\n>             \"-m\",\n>             \"pytest\",\n>             \"--noconftest\",\n>             \"-p\",\n>             \"no:cacheprovider\",\n>             \"-q\",\n>             \"orchestrator/tests/test_campaign_import_invariant.py::\"\n>             \"test_repository_scan_set_is_nonempty_and_contains_sentinels\",\n>         ])\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:666: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n>     return subprocess.run(\n> /usr/lib/python3.10/subprocess.py:505: in run\n>     stdout, stderr = process.communicate(input, timeout=timeout)\n> /usr/lib/python3.10/subprocess.py:1154: in communicate\n>     stdout, stderr = self._communicate(input, endtime, timeout)\n> /usr/lib/python3.10/subprocess.py:2022: in _communicate\n>     self._check_timeout(endtime, orig_timeout, stdout, stderr)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Popen: returncode: -9 args: ['/bin/python3.10', '-m', 'pytest', '--noconfte...>\n> endtime = 3829092.836816812, orig_timeout = 10.0, stdout_seq = []\n> stderr_seq = [], skip_check_and_raise = False\n> \n>     def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n>                        skip_check_and_raise=False):\n>         \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n>         if endtime is None:\n>             return\n>         if skip_check_and_raise or _time() > endtime:\n> >           raise TimeoutExpired(\n>                     self.args, orig_timeout,\n>                     output=b''.join(stdout_seq) if stdout_seq else None,\n>                     stderr=b''.join(stderr_seq) if stderr_seq else None)\n> E           subprocess.TimeoutExpired: Command '['/bin/python3.10', '-m', 'pytest', '--noconftest', '-p', 'no:cacheprovider', '-q', 'orchestrator/tests/test_campaign_import_invariant.py::test_repository_scan_set_is_nonempty_and_contains_sentinels']' timed out after 10.0 seconds\n> \n> /usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1861 retained_bytes=1861 omitted_bytes=0 rendered_excerpt_bytes=1936 sha256=0619c9da906394659d280aaae187463c544195d6cd17406dfac7520e701d48dd\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_plain_runner_bypass_is_refused_before_held_body():\n> >       result = _run_subprocess([\n>             sys.executable,\n>             \"orchestrator/tests/test_campaign_import_invariant.py\",\n>         ])\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:712: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n>     return subprocess.run(\n> /usr/lib/python3.10/subprocess.py:505: in run\n>     stdout, stderr = process.communicate(input, timeout=timeout)\n> /usr/lib/python3.10/subprocess.py:1154: in communicate\n>     stdout, stderr = self._communicate(input, endtime, timeout)\n> /usr/lib/python3.10/subprocess.py:2022: in _communicate\n>     self._check_timeout(endtime, orig_timeout, stdout, stderr)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Popen: returncode: -9 args: ['/bin/python3.10', 'orchestrator/tests/test_ca...>\n> endtime = 3829092.837378794, orig_timeout = 10.0, stdout_seq = []\n> stderr_seq = [], skip_check_and_raise = False\n> \n>     def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n>                        skip_check_and_raise=False):\n>         \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n>         if endtime is None:\n>             return\n>         if skip_check_and_raise or _time() > endtime:\n> >           raise TimeoutExpired(\n>                     self.args, orig_timeout,\n>                     output=b''.join(stdout_seq) if stdout_seq else None,\n>                     stderr=b''.join(stderr_seq) if stderr_seq else None)\n> E           subprocess.TimeoutExpired: Command '['/bin/python3.10', 'orchestrator/tests/test_campaign_import_invariant.py']' timed out after 10.0 seconds\n> \n> /usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1130 retained_bytes=1130 omitted_bytes=0 rendered_excerpt_bytes=1193 sha256=4e83b3a0b203c0f7f6316d51f63b6ce7661810df5e96c9fc0f2db9f69f25a9b2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-user-command-extra'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=1116 retained_bytes=1116 omitted_bytes=0 rendered_excerpt_bytes=1179 sha256=6a402fcd61815683b95d1964bc67c5d8d8c2480c854ef29b96fdc65c54149441\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-typo'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=6303 retained_bytes=6303 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8724 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b60299c0bc90df0df5d690f43c21a5b00a62349d560b30b594ea8fb632993404"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 37.147,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "8e6aeee3ce59b512a5784f063fd8a48870e66dc6503f7afddb50ca2a2504d623",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "90c8e2aa403012e743d320f4ac821de60cc3a7b54a835928b35de734ea863cf6",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    return function_names",
+          "old": "    raise GrowthTestHoldBypassRefused(_refusal_message(f\"{filename}::*\"))"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "b60299c0bc90df0df5d690f43c21a5b00a62349d560b30b594ea8fb632993404",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/663586aff389893c1950f10d9124a55f/izdw-663586aff3.o908074",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/663586aff389893c1950f10d9124a55f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................FF.........                                 [100%]\n=================================== FAILURES ===================================\n___ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo] ___\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-typo'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n_ test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra] _\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\nrelease_value = 'explicit-user-command-extra'\n\n    @pytest.mark.parametrize(\n        \"release_value\",\n        [\"explicit-typo\", \"explicit-user-command-extra\"],\n    )\n    def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n        env = _clean_subprocess_env()\n        env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n        result = subprocess.run(\n            [\n                sys.executable,\n                \"-c\",\n                \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n            ],\n            cwd=ROOT,\n            env=env,\n            capture_output=True,\n            text=True,\n            timeout=10.0,\n            check=False,\n        )\n        output = _combined_output(result)\n>       assert result.returncode != 0, output\nE       AssertionError: \nE       assert 0 != 0\nE        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\n2 failed, 38 passed in 3.18s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\" nodeid_bytes=141 nodeid_omitted_bytes=0 source_bytes=1130 retained_bytes=1130 omitted_bytes=0 rendered_excerpt_bytes=1193 sha256=4e83b3a0b203c0f7f6316d51f63b6ce7661810df5e96c9fc0f2db9f69f25a9b2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-user-command-extra'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=1116 retained_bytes=1116 omitted_bytes=0 rendered_excerpt_bytes=1179 sha256=6a402fcd61815683b95d1964bc67c5d8d8c2480c854ef29b96fdc65c54149441\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> release_value = 'explicit-typo'\n> \n>     @pytest.mark.parametrize(\n>         \"release_value\",\n>         [\"explicit-typo\", \"explicit-user-command-extra\"],\n>     )\n>     def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):\n>         env = _clean_subprocess_env()\n>         env[\"IZANAGI_RUN_GROWTH_HELD_TESTS\"] = release_value\n>         result = subprocess.run(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 \"import orchestrator.tests.test_s8b_repo_scan_invariant\",\n>             ],\n>             cwd=ROOT,\n>             env=env,\n>             capture_output=True,\n>             text=True,\n>             timeout=10.0,\n>             check=False,\n>         )\n>         output = _combined_output(result)\n> >       assert result.returncode != 0, output\n> E       AssertionError: \n> E       assert 0 != 0\n> E        +  where 0 = CompletedProcess(args=['/bin/python3.10', '-c', 'import orchestrator.tests.test_s8b_repo_scan_invariant'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:705: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2246 retained_bytes=2246 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3609 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4af1fed735dae65a9f0ec4de4ed5542c2795f14e7c0705c0c4b0d618c0ff4dc1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 26.965,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "4461cac4f76515f733c7bba71b1dc8012e6608f6ae336c232ab0d10f9a2c84f4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "353f23839669c06eea65bef128315924f368198abed9714cbd7cf45d428dfdf9",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    if (os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) or \"\").startswith(\"explicit\"):\n        return function_names",
+          "old": "    if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) == RUN_GROWTH_HELD_TESTS_TOKEN:\n        return function_names"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "4af1fed735dae65a9f0ec4de4ed5542c2795f14e7c0705c0c4b0d618c0ff4dc1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/2c02ac6a78f3ceb5038d0fc551dd2a4e/izdw-2c02ac6a78.o908077",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/2c02ac6a78f3ceb5038d0fc551dd2a4e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................F...........                                 [100%]\n=================================== FAILURES ===================================\n_________ test_enforcement_rejects_misplacement_and_missing_functions __________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_enforcement_rejects_misplacement_and_missing_functions():\n>       with pytest.raises(ValueError, match=\"no growth-test holds registered\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_growth_test_holds_contract.py:569: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions\n1 failed, 39 passed in 3.18s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=307 retained_bytes=307 omitted_bytes=0 rendered_excerpt_bytes=322 sha256=7f7234c2c07849af6c75807fa3a5fe0115425f4c3bf97931450d251be013ac3e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_enforcement_rejects_misplacement_and_missing_functions():\n> >       with pytest.raises(ValueError, match=\"no growth-test holds registered\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:569: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=307 retained_bytes=307 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1059 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9c634f3b60edf6a07d84130779497761ecb1deb28a101a7a834200a598c8de78"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 26.939,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "15f14b7b9188ac088c33608bce52b585d2ca3c28aec3dc9c6671972aa71bc692",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c06f62f16fa08e6b1d53a7ec41c36b0d857cb7463d4f9732e6cf99927aaf1dcb",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    if not held_nodes:\n        return ()",
+          "old": "    if not held_nodes:\n        raise ValueError(f\"no growth-test holds registered for {filename!r}\")"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "9c634f3b60edf6a07d84130779497761ecb1deb28a101a7a834200a598c8de78",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/222c7abfe05b20895c7231d8fe1523d4/izdw-222c7abfe0.o908079",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/222c7abfe05b20895c7231d8fe1523d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................F                                 [100%]\n=================================== FAILURES ===================================\n_____________ test_plain_runner_bypass_is_refused_before_held_body _____________\n[gw35] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_plain_runner_bypass_is_refused_before_held_body():\n>       result = _run_subprocess([\n            sys.executable,\n            \"orchestrator/tests/test_campaign_import_invariant.py\",\n        ])\n\norchestrator/tests/test_growth_test_holds_contract.py:712: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n    return subprocess.run(\n/usr/lib/python3.10/subprocess.py:505: in run\n    stdout, stderr = process.communicate(input, timeout=timeout)\n/usr/lib/python3.10/subprocess.py:1154: in communicate\n    stdout, stderr = self._communicate(input, endtime, timeout)\n/usr/lib/python3.10/subprocess.py:2022: in _communicate\n    self._check_timeout(endtime, orig_timeout, stdout, stderr)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Popen: returncode: -9 args: ['/bin/python3.10', 'orchestrator/tests/test_ca...>\nendtime = 3829191.980618722, orig_timeout = 10.0, stdout_seq = []\nstderr_seq = [], skip_check_and_raise = False\n\n    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n                       skip_check_and_raise=False):\n        \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n        if endtime is None:\n            return\n        if skip_check_and_raise or _time() > endtime:\n>           raise TimeoutExpired(\n                    self.args, orig_timeout,\n                    output=b''.join(stdout_seq) if stdout_seq else None,\n                    stderr=b''.join(stderr_seq) if stderr_seq else None)\nE           subprocess.TimeoutExpired: Command '['/bin/python3.10', 'orchestrator/tests/test_campaign_import_invariant.py']' timed out after 10.0 seconds\n\n/usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\n1 failed, 39 passed in 12.39s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1861 retained_bytes=1861 omitted_bytes=0 rendered_excerpt_bytes=1936 sha256=a1d4fd4b2d37e0be0f66847123e53400a719452070b9fc2ae73886b57a2bdab1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_plain_runner_bypass_is_refused_before_held_body():\n> >       result = _run_subprocess([\n>             sys.executable,\n>             \"orchestrator/tests/test_campaign_import_invariant.py\",\n>         ])\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:712: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_growth_test_holds_contract.py:478: in _run_subprocess\n>     return subprocess.run(\n> /usr/lib/python3.10/subprocess.py:505: in run\n>     stdout, stderr = process.communicate(input, timeout=timeout)\n> /usr/lib/python3.10/subprocess.py:1154: in communicate\n>     stdout, stderr = self._communicate(input, endtime, timeout)\n> /usr/lib/python3.10/subprocess.py:2022: in _communicate\n>     self._check_timeout(endtime, orig_timeout, stdout, stderr)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Popen: returncode: -9 args: ['/bin/python3.10', 'orchestrator/tests/test_ca...>\n> endtime = 3829191.980618722, orig_timeout = 10.0, stdout_seq = []\n> stderr_seq = [], skip_check_and_raise = False\n> \n>     def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,\n>                        skip_check_and_raise=False):\n>         \"\"\"Convenience for checking if a timeout has expired.\"\"\"\n>         if endtime is None:\n>             return\n>         if skip_check_and_raise or _time() > endtime:\n> >           raise TimeoutExpired(\n>                     self.args, orig_timeout,\n>                     output=b''.join(stdout_seq) if stdout_seq else None,\n>                     stderr=b''.join(stderr_seq) if stderr_seq else None)\n> E           subprocess.TimeoutExpired: Command '['/bin/python3.10', 'orchestrator/tests/test_campaign_import_invariant.py']' timed out after 10.0 seconds\n> \n> /usr/lib/python3.10/subprocess.py:1198: TimeoutExpired\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1861 retained_bytes=1861 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2671 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "adecc0421fd04425ca219e9d1e2952da53f6d6a0ef1023575d35380cb8ec21c0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 37.159,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "b593e8433a9ab97fbc1826f0ab75c3e1c9ea8adc68d93c1af0bd56d1a36b634e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "15ea7ff4fb40a02ad3183e2844561a7ace5abd08ea4a929e665b809c17f62221",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    if namespace.get(\"__name__\") == \"__main__\":\n        return function_names",
+          "old": "    if (\n        namespace.get(\"__name__\") == \"__main__\"\n        and plain_runner == \"pytest-delegating\"\n    ):\n        return function_names"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "adecc0421fd04425ca219e9d1e2952da53f6d6a0ef1023575d35380cb8ec21c0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/c6f26ea34b7518ee6865c157acc99a45/izdw-c6f26ea34b.o908080",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/c6f26ea34b7518ee6865c157acc99a45/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................F...........                                 [100%]\n=================================== FAILURES ===================================\n_________ test_enforcement_rejects_misplacement_and_missing_functions __________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_enforcement_rejects_misplacement_and_missing_functions():\n        with pytest.raises(ValueError, match=\"no growth-test holds registered\"):\n            enforce_held_functions({}, \"test_not_held.py\", plain_runner=\"none\")\n        with pytest.raises(ValueError, match=\"held functions missing\"):\n            enforce_held_functions(\n                {}, \"test_s8b_repo_scan_invariant.py\", plain_runner=\"manual\",\n            )\n        function_name = \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n>       with pytest.raises(ValueError, match=\"held names are not callable\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_growth_test_holds_contract.py:576: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions\n1 failed, 39 passed in 3.21s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=760 retained_bytes=760 omitted_bytes=0 rendered_excerpt_bytes=789 sha256=c6e4163fca7e2141f2ea753610c969bdb6ef42e845988d78bfe2d6b0d018897e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_enforcement_rejects_misplacement_and_missing_functions():\n>         with pytest.raises(ValueError, match=\"no growth-test holds registered\"):\n>             enforce_held_functions({}, \"test_not_held.py\", plain_runner=\"none\")\n>         with pytest.raises(ValueError, match=\"held functions missing\"):\n>             enforce_held_functions(\n>                 {}, \"test_s8b_repo_scan_invariant.py\", plain_runner=\"manual\",\n>             )\n>         function_name = \"test_real_repository_scan_matches_known_hits_and_has_positive_control\"\n> >       with pytest.raises(ValueError, match=\"held names are not callable\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_growth_test_holds_contract.py:576: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=760 retained_bytes=760 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1526 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a740211e4fc85b92d88bffacbc46598a040da232024535291c807879768ed73a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aff1ddcdbbd3e3c114bd4ee7937b3b1ab4e50ab6f05205afcfb7552803e27e48",
+      "duration_s": 26.869,
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "ecccc6d40c206f834c9798d3662df022765b92175588f409721da549a568cdd2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bfcf60ff90995ecd43b89bda63d597d9837ec8bb04629541619fdb9891052c15",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "new": "    noncallable = ()",
+          "old": "    noncallable = tuple(\n        name for name in function_names if not callable(namespace[name])\n    )\n    if noncallable:\n        raise ValueError(\n            f\"growth-test held names are not callable in {filename!r}: {noncallable!r}\"\n        )"
+        }
+      ],
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "KILLED",
+      "test_output_sha256": "a740211e4fc85b92d88bffacbc46598a040da232024535291c807879768ed73a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/ba7877af719807d42e25ef2aea5e4f11/izdw-ba7877af71.o908056",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/output/pegasus-dispatch/ba7877af719807d42e25ef2aea5e4f11/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_count_and_key_digest_are_independently_pinned\norchestrator/tests/test_growth_test_holds_contract.py::test_registry_rows_preserve_current_wave_contract\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold0]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold1]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py:test_name_typo-hold2]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold3]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold4]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold5]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold6]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold7]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold8]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold9]\norchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold10]\norchestrator/tests/test_growth_test_holds_contract.py::test_empty_and_duplicate_registries_are_rejected\norchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_attaches_skip_metadata_and_prints_early_summary\norchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_opt_in_keeps_real_repo_serialization_without_skip\norchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_rejects_opt_in_typo\norchestrator/tests/test_growth_test_holds_contract.py::test_complete_collection_rejects_valid_shape_function_typo\norchestrator/tests/test_growth_test_holds_contract.py::test_contract_module_is_not_held\norchestrator/tests/test_growth_test_holds_contract.py::test_inventory_output_is_sorted_exact_and_marks_correctness_gates\norchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_changes_only_suite_identity_not_acceptance_shape\norchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding\norchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    if False:\\n        pytest.main([__file__])\\n    sys.exit(_run())\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    def delegate():\\n        return pytest.main([__file__])\\n    sys.exit(_run())\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(getattr(pytest, 'main')([__file__]))\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(pytest_entry([__file__]))\\n]\norchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped\norchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions\norchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json\norchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body\norchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_runs_held_fixture_and_parametrize_shape\norchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body\norchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]\norchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body\norchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass\norchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused\norchestrator/tests/test_growth_test_holds_contract.py::test_regular_pytest_path_keeps_single_hold_skip\norchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected\n\n40 tests collected in 0.22s\n",
+        "stdout_sha256": "fe31b35ae3a8f450001e4f5dd84d15fbb7c86b9f370cd513f599d451b5e53465"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_count_and_key_digest_are_independently_pinned",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_registry_rows_preserve_current_wave_contract",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold0]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold1]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py:test_name_typo-hold2]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold3]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold4]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold5]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold6]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold7]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold8]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold9]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_schema_negative_controls_are_rejected[test_file.py::test_name-hold10]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_empty_and_duplicate_registries_are_rejected",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_attaches_skip_metadata_and_prints_early_summary",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_opt_in_keeps_real_repo_serialization_without_skip",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_collection_hook_rejects_opt_in_typo",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_complete_collection_rejects_valid_shape_function_typo",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_contract_module_is_not_held",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_output_is_sorted_exact_and_marks_correctness_gates",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_changes_only_suite_identity_not_acceptance_shape",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    if False:/n        pytest.main([__file__])/n    sys.exit(_run())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    def delegate():/n        return pytest.main([__file__])/n    sys.exit(_run())/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(getattr(pytest, 'main')([__file__]))/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls[    sys.exit(pytest_entry([__file__]))/n]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_opt_in_runs_held_fixture_and_parametrize_shape",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_regular_pytest_path_keeps_single_hold_skip",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected"
+      ],
+      "duration_s": 21.743,
+      "rc": 0,
+      "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+      "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+      "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+      "status": "PASSED",
+      "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5d3255bd91e61527a441bb257064077e9568258f782a8b4981bdfdc383d4cba6",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "        if False:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))",
+            "old": "        if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) != RUN_GROWTH_HELD_TESTS_TOKEN:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "82e5bba097dd4d051505f78a228a10e02ada871d2658d976995b9df777315592",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_repo_scan_invariant.py",
+            "new": "pass",
+            "old": "enforce_held_functions(globals(), __file__, plain_runner=\"manual\")"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "961fa922edf49f17910f000bfb2c5b0af8ad58dd60a0fc6e791df765d494054b",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    function_names = tuple(\n        name for name in namespace\n        if isinstance(name, str) and name.startswith(\"test_\")\n    ) or tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)",
+            "old": "    function_names = tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8e6aeee3ce59b512a5784f063fd8a48870e66dc6503f7afddb50ca2a2504d623",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    return function_names",
+            "old": "    raise GrowthTestHoldBypassRefused(_refusal_message(f\"{filename}::*\"))"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4461cac4f76515f733c7bba71b1dc8012e6608f6ae336c232ab0d10f9a2c84f4",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    if (os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) or \"\").startswith(\"explicit\"):\n        return function_names",
+            "old": "    if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) == RUN_GROWTH_HELD_TESTS_TOKEN:\n        return function_names"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "15f14b7b9188ac088c33608bce52b585d2ca3c28aec3dc9c6671972aa71bc692",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    if not held_nodes:\n        return ()",
+            "old": "    if not held_nodes:\n        raise ValueError(f\"no growth-test holds registered for {filename!r}\")"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b593e8433a9ab97fbc1826f0ab75c3e1c9ea8adc68d93c1af0bd56d1a36b634e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    if namespace.get(\"__name__\") == \"__main__\":\n        return function_names",
+            "old": "    if (\n        namespace.get(\"__name__\") == \"__main__\"\n        and plain_runner == \"pytest-delegating\"\n    ):\n        return function_names"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ecccc6d40c206f834c9798d3662df022765b92175588f409721da549a568cdd2",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/growth_test_holds.py",
+            "new": "    noncallable = ()",
+            "old": "    noncallable = tuple(\n        name for name in function_names if not callable(namespace[name])\n    )\n    if noncallable:\n        raise ValueError(\n            f\"growth-test held names are not callable in {filename!r}: {noncallable!r}\"\n        )"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7a29e22f228ec750537d0fdabdff0f951a637ff5dc08fbc7ccda1739d5c7d773",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_growth_test_holds_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "ec2a99cafd374e408aec4d7abb743016a761cd2f",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_growth_test_holds_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/tools/run_tests.py",
+    "entrypoint_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "f54637cf07fcd047a1203822930014dfe7cc5bc4",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "f898bb4102b6d199f1dcd75e43d04febc2cb698fe2982109724a03d1108ecf43",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "2d4759d65c9188d051bc02fd4843404dcebc9983347ad44f7821354ac57454d6",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t930-hold-no-bypass/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "339d1f647ba06e3e8e78a29c68d528dd2e2aa897d54e854f5b7009792711215a",
+  "updated_at": "2026-08-12T14:19:30.990255+00:00"
+}
