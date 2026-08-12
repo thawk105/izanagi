@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -228,6 +229,25 @@ def test_required_literal_unsupported_grammar_falls_back(expressions):
     assert M._derive_required_literal(expressions) is None
 
 
+@pytest.mark.parametrize(
+    "metacharacter", tuple("\\.^$*+?{}[]()|"), ids=repr,
+)
+def test_required_literal_rejects_each_key_regex_metacharacter(metacharacter):
+    expressions = {"axis": "(?:a" + metacharacter + "=v)"}
+
+    assert M._derive_required_literal(expressions) is None
+
+
+def test_star_in_key_falls_back_and_slow_path_detects_hit():
+    expressions = {"axis": "(?:a*=v)"}
+
+    assert M._derive_required_literal(expressions) is None
+    result = M._scan_one({"hit.txt": "=v"}, "candidate", expressions)
+
+    assert result["per_axis_counts"] == {"axis": 1}
+    assert result["conjunction_hits"] == ["hit.txt"]
+
+
 def test_unsupported_expression_fallback_still_detects_hit():
     expression = "(?:key=(?:value))"
 
@@ -300,6 +320,23 @@ def test_empty_prefilter_is_distinct_from_disabled_prefilter(monkeypatch):
 
     assert searched == []
     assert result["per_axis_counts"] == {"rratio": 0, "skew": 0, "rmw": 0}
+
+
+def test_str_subclass_disables_prefilter(monkeypatch):
+    class ExpressionSubclass(str):
+        pass
+
+    monkeypatch.setattr(
+        M, "_derive_required_literal",
+        lambda _expressions: pytest.fail("str subclass で前置フィルタを導出した"),
+    )
+    result = M._scan_one(
+        {"hit.txt": "key=value"}, "candidate",
+        {"axis": ExpressionSubclass("(?:key=value)")},
+    )
+
+    assert result["per_axis_counts"] == {"axis": 1}
+    assert result["conjunction_hits"] == ["hit.txt"]
 
 
 def test_value_side_dot_is_not_used_as_required_literal():
@@ -650,6 +687,60 @@ def test_prefilter_derives_from_monkeypatched_expressions(tmp_path, monkeypatch)
     ]
     assert optimized == unfiltered
     assert _report_bytes(optimized) == _report_bytes(unfiltered)
+
+
+def test_prefilter_snapshots_monkeypatched_mapping_once(tmp_path, monkeypatch):
+    created = []
+
+    class SplitViewExpressions(Mapping):
+        def __init__(self):
+            self.items_calls = 0
+            self.values_calls = 0
+            created.append(self)
+
+        def __getitem__(self, key):
+            if key != "axis":
+                raise KeyError(key)
+            return "(?:actual=v)"
+
+        def __iter__(self):
+            return iter(("axis",))
+
+        def __len__(self):
+            return 1
+
+        def items(self):
+            self.items_calls += 1
+            return (("axis", "(?:actual=v)"),)
+
+        def values(self):
+            self.values_calls += 1
+            return ("(?:safe=v)",)
+
+    monkeypatch.setattr(
+        M, "_expressions", lambda _rratio, _skew, _rmw: SplitViewExpressions(),
+    )
+    hit = tmp_path / "hit.txt"
+    _write(hit, "actual=v")
+
+    optimized = M.search_repository(tmp_path, files=[hit])
+    with monkeypatch.context() as slow:
+        slow.setattr(M, "_derive_required_literal", lambda _expressions: None)
+        unfiltered = M.search_repository(tmp_path, files=[hit])
+
+    assert all(
+        result["conjunction_hits"] == ["hit.txt"]
+        for result in optimized["holdouts"].values()
+    )
+    assert optimized["positive_control"]["hit_paths"] == ["hit.txt"]
+    assert optimized["positive_control"]["expressions"] == {
+        "axis": "(?:actual=v)",
+    }
+    assert optimized == unfiltered
+    assert _report_bytes(optimized) == _report_bytes(unfiltered)
+    assert len(created) == 6
+    assert all(mapping.items_calls == 1 for mapping in created)
+    assert all(mapping.values_calls == 0 for mapping in created)
 
 
 def test_exact_exemption_matching_bytes_is_not_scanned_but_is_enumerated(tmp_path):

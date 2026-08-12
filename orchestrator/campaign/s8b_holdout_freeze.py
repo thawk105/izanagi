@@ -487,16 +487,20 @@ def _read_search_text(path: Path) -> Optional[str]:
 def _scan_one(
     texts: Mapping[str, str], candidate_id: str, expressions: Mapping[str, str],
 ) -> Dict:
-    compiled = {axis: re.compile(expression) for axis, expression in expressions.items()}
-    per_axis_paths = {axis: [] for axis in expressions}
+    expression_snapshot = dict(expressions.items())
+    compiled = {
+        axis: re.compile(expression)
+        for axis, expression in expression_snapshot.items()
+    }
+    per_axis_paths = {axis: [] for axis in expression_snapshot}
     conjunction_hits = []
-    required_literal = _derive_required_literal(expressions)
-    prefilter_paths = (
-        frozenset(rel for rel, text in texts.items() if required_literal in text)
-        if required_literal is not None else None
+    required_literal = (
+        _derive_required_literal(expression_snapshot)
+        if all(type(expression) is str for expression in expression_snapshot.values())
+        else None
     )
     for rel, text in texts.items():
-        if prefilter_paths is not None and rel not in prefilter_paths:
+        if required_literal is not None and required_literal not in text:
             continue
         matched = {axis: bool(pattern.search(text)) for axis, pattern in compiled.items()}
         for axis, is_match in matched.items():
@@ -508,7 +512,7 @@ def _scan_one(
     conjunction_hits.sort()
     hash_input = {
         "candidate_id": candidate_id,
-        "expressions": dict(expressions),
+        "expressions": expression_snapshot,
         "per_axis_counts": per_axis_counts,
         "conjunction_hits": conjunction_hits,
     }
