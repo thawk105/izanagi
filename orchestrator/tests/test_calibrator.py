@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -468,6 +469,89 @@ def test_measure_point_survives_partial_rep_failure():
     assert pt.throughput == 1000.0
     assert any("rep1 failed" in n for n in pt.notes)
     assert any("1/3 reps failed" in n for n in pt.notes)
+    assert pt.rep_observations is None  # P5: opt-in しない既存 caller は無影響
+
+
+def test_measure_point_rep_observations_are_indexed_across_timeout_exception_and_rc():
+    """M3: timeout/例外/非 0/success が logical rep index からずれず全件残る。"""
+    from orchestrator.calibrator import runner
+    calls = {"n": 0}
+    observations = []
+    returncodes = []
+    perf_text = (
+        "11,,LLC-load-misses,0,100.00,,\n"
+        "22,,LLC-loads,0,100.00,,\n"
+        "33,,instructions,0,100.00,,\n"
+        "44,,cycles,0,100.00,,\n"
+    )
+
+    def fake_run(argv, **_kwargs):
+        index = calls["n"]
+        calls["n"] += 1
+        if index == 0:
+            raise subprocess.TimeoutExpired(argv, 1.0)
+        if index == 1:
+            raise OSError("synthetic spawn failure")
+        perf_path = Path(argv[argv.index("-o") + 1])
+        perf_path.write_text(perf_text, encoding="utf-8")
+        return _completed_process(7 if index == 2 else 0)
+
+    point = runner.measure_point(
+        "dummy", records=1000, threads=4, clocks_per_us=1800, reps=4,
+        subprocess_runner=fake_run, rep_returncodes=returncodes,
+        rep_observations=observations,
+    )
+
+    assert [row["rep_index"] for row in observations] == [0, 1, 2, 3]
+    assert [row["returncode"] for row in observations] == [None, None, 7, 0]
+    assert returncodes == [7, 0]
+    assert observations[0]["counter_status"] == "incomplete"
+    assert observations[1]["counter_status"] == "incomplete"
+    assert observations[2]["perf_raw"] == {
+        "LLC-load-misses": 11, "LLC-loads": 22,
+        "instructions": 33, "cycles": 44,
+    }
+    assert observations[3]["missing_perf_events"] == []
+    assert point.rep_observations == observations
+
+
+def test_measure_point_rep_observations_no_perf_are_not_required():
+    """P1/P5: no-perf は rc 0 を保ち counter だけを not_required にする。"""
+    from orchestrator.calibrator import runner
+    observations = []
+    point = runner.measure_point(
+        "dummy", records=1000, threads=4, clocks_per_us=1800, reps=2,
+        subprocess_runner=lambda *args, **kwargs: _completed_process(0),
+        rep_observations=observations, use_perf=False,
+    )
+    assert [row["returncode"] for row in observations] == [0, 0]
+    assert [row["counter_status"] for row in observations] == [
+        "not_required", "not_required",
+    ]
+    assert [row["missing_perf_events"] for row in observations] == [[], []]
+    assert point.rep_observations == observations
+
+
+def test_perf_raw_evidence_rejects_duplicate_and_infinite_values():
+    """B3/A7: parser 集約値が残っても raw 証跡は曖昧値・inf を欠損へ倒す。"""
+    from orchestrator.calibrator import runner
+    text = (
+        "11,,LLC-load-misses,0,100.00,,\n"
+        "22,,LLC-loads,0,100.00,,\n"
+        "33,,instructions,0,100.00,,\n"
+        "44,,cycles,0,100.00,,\n"
+        "<not counted>,,cycles,0,0.00,,\n"
+    )
+    assert runner._perf_raw_values(text) == {
+        "LLC-load-misses": 11, "LLC-loads": 22,
+        "instructions": 33, "cycles": None,
+    }
+    assert runner._perf_raw_values(
+        text.replace("33,,instructions", "inf,,instructions")
+    )["instructions"] is None
+    assert runner._perf_raw_values(
+        text.replace("33,,instructions", "33.5,,instructions")
+    )["instructions"] is None
 
 
 def test_measure_point_all_reps_fail_raises():
