@@ -73,9 +73,23 @@ title: backlog 仕分け wave — 裁定済みで終端していた 66 項を見
 - **残りの仕分けは返す。** 退役後も 50 エントリ以上無変化の項が約 400 件残る。全件を 1 度に
   意味判断すると「生きた項を沈める」危険が [T-412] の実例どおり現実になるため、本 wave では
   裁定済み終端項の退役だけを確定し、残余の三値分類の進め方を [T-499] の更新本文で択一にして返した。
-- **docs-only 受入免除判定の証拠。** 本 wave の変更は `docs/spool/` 配下の fragment のみ
-  (判定手順 = `git diff --name-only main` が `docs/spool/` 配下だけを示す)。実装面ゼロ、
-  該当 nodeid 不存在。`tools/check_docs.py` と `tools/spool_fold.py --dry-run` は実走した。
+- **敵対レビュー 2 本の効き。** 分類表と兄弟 fragment の編集を read-only codex 2 本で攻撃させ、
+  所見 8 件をすべて real として採用した。最大の捕捉は [T-690] の偽陽性退役で、次が
+  「終端語をもつ active は 63 でなく 62」という親の数え違い (`grep -c` で再計数して確定)。
+  移し替えで落ちた逐語 5 箇所も 2 本が独立に指摘した。**親が 1 件ずつ読んだうえでなお
+  取りこぼしが出る**ことが、[T-499] 本文の「1 件ずつの意味判断を仕分け側が担う」義務の
+  実測的な裏付けになっている。
+- **docs-only の受入判定は免除でなく実走で閉じた。** 本 wave の変更は `docs/spool/` 配下の
+  fragment のみ (判定手順 = `git diff --name-only main` が `docs/spool/` 配下だけを示す)。
+  実装面ゼロ。ただし実 repo を読む docs 不変条件の node が実在するため、
+  `test_check_docs.py::test_real_repo_clean` /
+  `::test_dev_wave_model_pins_accept_current_docs_contract` /
+  `::test_normative_exact_section_pins_accept_real_repo` を計算ノードで焦点走し
+  **3 passed** を実測した (受入形ではない)。`tools/check_docs.py` rc=0、
+  `tools/spool_fold.py --dry-run` rc=0、`tools/check_ai_provenance.py` 全史 rc=0。
+- **段 8 (自己改善)。** 候補 1 件を失敗台帳へ送った ({{F:fold-two-fragments-same-task}})。
+  fragment の合成規則 (同じ T を 2 つの fragment が操作できない、適用順は wave slug の辞書順) が
+  `docs/spool/` の契約文書に書かれておらず、fold 実装を読むまで気付けなかった。
 
 ## 次の一手差分
 
