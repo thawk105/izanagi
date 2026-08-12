@@ -225,8 +225,23 @@ tools/pegasus/submit_floor.sh             # 人間が明示的に実行する。
   この環境変数が依存を渡す唯一の seam である。
 - **submit receipt は submission の記録であり、人間性の証明ではない。** 実行者が人間か AI かは
   生成物から区別できない。authorization として扱ってはならない。
-- **現時点では driver が official guard により必ず rc=2 で拒否する。** wrapper はこの rc を
-  `job-result.json` と `failure.json` に忠実に記録し、同じ rc で終了する。成功と偽らない。
+- **wrapper は driver を固定 `--mode pilot` で起動する** ([T-748] 裁定 (c))。mode を環境変数・argv・
+  `eval` から受け取る口は持たない。`job-result.json` には driver rc と `"mode": "pilot"` を記録する。
+  **official の受理集合は空のままである** — driver 側の CLI / core による official の二重拒否は
+  変更していない。将来 official を開くには wrapper・job-result・失敗文言・guard・手順書を
+  改めて変更して**別の source commit と script hash で再投入**する必要があり、
+  現行の pilot job をそのまま official と解釈することはできない。
+- **pilot の成果物は `eligible_for_refreeze=false` であり、再凍結・oracle・certified の証拠にはできない。**
+  測定値としてのみ使う。
+- driver が非 zero を返したとき、wrapper は `failure.json` へ
+  `pilot floor driver returned nonzero` の記録を試み、同じ rc で終了する。
+- **`failure.json` は best-effort であり、存在も内容も保証しない。** 実装は次のとおり。
+  - 記録は**最初の失敗 1 件だけ** (`failure_written` guard)。job-result の書込み失敗が先に起きた
+    場合、後続の driver 失敗文言は**記録されない**。
+  - failure writer 自身が失敗しても、その rc は握られて呼出しは成功扱いになる。
+- **既知の穴 (裁定待ち): `job-result.json` の書込みに失敗しても、driver が成功していれば
+  wrapper は rc=0 で終わる。**
+  **したがって rc だけを見て受理してはならない。** 受理判定では `job-result.json` の実在を確かめる。
 
 ## 6. third-party source を取得して worktree へ供給する (2026-08-04 実装、[T-340])
 

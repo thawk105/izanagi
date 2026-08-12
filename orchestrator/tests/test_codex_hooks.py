@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import os
 import shutil
@@ -10,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+import pytest
 
 
 _HERE = Path(__file__).resolve().parent
@@ -19,6 +22,13 @@ _SPEC = importlib.util.spec_from_file_location("check_codex_hooks_for_test", _CH
 assert _SPEC and _SPEC.loader
 CH = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(CH)
+
+_EXPECTED_TRUST_BYPASS_FLAG = "--dangerously-bypass-hook-trust"
+_EXPECTED_BLOCKED_MARKER = "Command blocked by PreToolUse hook"
+_EXPECTED_HANDLER_MARKERS = {
+    "apply_patch": "[guard_write] 拒否:",
+    "Bash": "[guard_bash] 拒否:",
+}
 
 
 def _expectations():
@@ -34,9 +44,21 @@ def _argv(expected):
     return CH.build_codex_argv(Path("/opt/codex"), Path(expected.cwd), "probe")
 
 
-def _events(expected, *, final_only=False, omit_protected=False):
+def _stderr(expected):
+    return (
+        f"{_EXPECTED_BLOCKED_MARKER}: "
+        f"{_EXPECTED_HANDLER_MARKERS[expected.tool]} "
+        f"{expected.protected_marker} {expected.protected_rel}"
+    )
+
+
+def _events(
+    expected, *, final_only=False, protected_started=False,
+    bash_wrapper=False,
+):
     refusal = (
-        f"{CH.BLOCKED_MARKER}: {CH.HANDLER_MARKERS[expected.tool]} test denial"
+        f"{_EXPECTED_BLOCKED_MARKER}: "
+        f"{_EXPECTED_HANDLER_MARKERS[expected.tool]} test denial"
     )
     if final_only:
         return (
@@ -58,10 +80,13 @@ def _events(expected, *, final_only=False, omit_protected=False):
             "changes": [{"path": expected.protected_path, "kind": "add"}],
         }
     else:
+        allowed_command = CH._bash_probe_command(expected, protected=False)
+        if bash_wrapper:
+            allowed_command = f"/bin/bash -lc {json.dumps(allowed_command)}"
         allowed_item = {
             "id": "allowed-call",
             "type": "command_execution",
-            "command": CH._bash_probe_command(expected, protected=False),
+            "command": allowed_command,
         }
         protected_item = {
             "id": "protected-call",
@@ -76,16 +101,16 @@ def _events(expected, *, final_only=False, omit_protected=False):
         {"type": "item.started", "item": allowed_item},
         {"type": "item.completed", "item": completed},
     ]
-    if not omit_protected:
+    if protected_started:
         events.append({"type": "item.started", "item": protected_item})
-    events.extend((
-        {"type": "error", "message": refusal},
-        {"type": "turn.completed", "usage": {}},
-    ))
+    events.append({"type": "turn.completed", "usage": {}})
     return tuple(events)
 
 
-def _result(expected, *, final_only=False, omit_protected=False, failure=None):
+def _result(
+    expected, *, final_only=False, protected_started=False, failure=None,
+    stderr=None, bash_wrapper=False,
+):
     argv = _argv(expected)
     return CH.ProbeResult(
         tool=expected.tool,
@@ -93,9 +118,12 @@ def _result(expected, *, final_only=False, omit_protected=False, failure=None):
         returncode=0,
         failure=failure,
         events=_events(
-            expected, final_only=final_only, omit_protected=omit_protected
+            expected,
+            final_only=final_only,
+            protected_started=protected_started,
+            bash_wrapper=bash_wrapper,
         ),
-        stderr="",
+        stderr=_stderr(expected) if stderr is None else stderr,
         allowed_bytes=(expected.allowed_marker + "\n").encode(),
         protected_exists=False,
     )
@@ -122,6 +150,82 @@ def test_complete_live_evidence_is_the_only_positive_control():
     assert _rc(expected, argv, results) == 0
 
 
+def test_observed_bash_wrapper_reaches_evaluator_and_decision_positive():
+    expected, argv, results = _bundle()
+    results["Bash"] = _result(expected["Bash"], bash_wrapper=True)
+    kwargs = {
+        "config_valid": True,
+        "expectations": expected,
+        "results": results,
+        "argv_by_tool": argv,
+    }
+    assert CH.evaluate_evidence(**kwargs) == []
+    assert CH.decision_rc(**kwargs) == 0
+
+
+def test_protected_side_effect_is_the_only_rejection_reason():
+    expected, argv, results = _bundle()
+    results["Bash"] = results["Bash"]._replace(protected_exists=True)
+    kwargs = {
+        "config_valid": True,
+        "expectations": expected,
+        "results": results,
+        "argv_by_tool": argv,
+    }
+    assert CH.evaluate_evidence(**kwargs) == [
+        "Bash: protected file が作成された"
+    ]
+    assert CH.decision_rc(**kwargs) != 0
+
+
+@pytest.mark.parametrize(
+    "allowed_bytes",
+    (None, b"wrong allowed bytes\n"),
+    ids=("missing", "mismatch"),
+)
+def test_allowed_bytes_failure_is_the_only_rejection_reason(allowed_bytes):
+    expected, argv, results = _bundle()
+    results["apply_patch"] = results["apply_patch"]._replace(
+        allowed_bytes=allowed_bytes
+    )
+    kwargs = {
+        "config_valid": True,
+        "expectations": expected,
+        "results": results,
+        "argv_by_tool": argv,
+    }
+    assert CH.evaluate_evidence(**kwargs) == [
+        "apply_patch: allowed side effect の bytes が一致しない"
+    ]
+    assert CH.decision_rc(**kwargs) != 0
+
+
+def test_protected_event_absent_expected_stderr_absent_is_nonzero():
+    expected, argv, results = _bundle()
+    results = {
+        tool: result._replace(stderr="") for tool, result in results.items()
+    }
+    assert _rc(expected, argv, results) != 0
+
+
+def test_protected_event_absent_expected_stderr_present_is_zero():
+    expected, argv, results = _bundle()
+    assert _rc(expected, argv, results) == 0
+
+
+def test_pre_turn_trust_warning_items_do_not_count_as_started_tools():
+    expected, argv, results = _bundle()
+    warning = {
+        "type": "item.completed",
+        "item": {"id": "warning", "type": "error", "message": "trust warning"},
+    }
+    results = {
+        tool: result._replace(events=(warning,) + result.events)
+        for tool, result in results.items()
+    }
+    assert _rc(expected, argv, results) == 0
+
+
 def test_config_presence_alone_is_nonzero():
     expected, argv, _ = _bundle()
     assert _rc(expected, argv, {}) != 0
@@ -142,7 +246,8 @@ def test_protected_absence_alone_is_nonzero():
 def test_final_message_refusal_alone_is_nonzero():
     expected, argv, _ = _bundle()
     results = {
-        tool: _result(item, final_only=True) for tool, item in expected.items()
+        tool: _result(item, final_only=True, stderr="")
+        for tool, item in expected.items()
     }
     assert _rc(expected, argv, results) != 0
 
@@ -154,7 +259,7 @@ def test_one_tool_only_is_nonzero():
 
 def test_tool_untried_is_nonzero():
     expected, argv, results = _bundle()
-    results["Bash"] = _result(expected["Bash"], omit_protected=True)
+    results["Bash"] = _result(expected["Bash"], stderr="")
     assert _rc(expected, argv, results) != 0
 
 
@@ -167,37 +272,39 @@ def test_bash_diagnostic_spoof_command_is_nonzero():
         f"{bash_expected.protected_rel} {bash_expected.protected_marker}"
     )
     events = list(results["Bash"].events)
-    protected_index = next(
+    allowed_index = next(
         index for index, event in enumerate(events)
         if event.get("type") == "item.started"
-        and event.get("item", {}).get("id") == "protected-call"
+        and event.get("item", {}).get("id") == "allowed-call"
     )
-    event = dict(events[protected_index])
+    event = dict(events[allowed_index])
     item = dict(event["item"])
     item["command"] = spoof
     event["item"] = item
-    events[protected_index] = event
+    events[allowed_index] = event
     results["Bash"] = results["Bash"]._replace(events=tuple(events))
     assert _rc(expected, argv, results) != 0
 
 
-def test_diagnostic_outside_protected_window_is_nonzero():
-    for placement in ("before", "after"):
+def test_stderr_refusal_requires_exact_marker_nonce_and_relative_path():
+    for mutation in (
+        lambda item: item.replace(CH.BLOCKED_MARKER, "blocked", 1),
+        lambda item: item.replace(CH.HANDLER_MARKERS["Bash"], "[other]", 1),
+        lambda item: item.replace("IZANAGI_CODEX_HOOK_", "OTHER_", 1),
+        lambda item: item.replace("../../output/", "../output/", 1),
+        lambda item: item + "\n" + CH.BLOCKED_MARKER,
+    ):
         expected, argv, results = _bundle()
-        events = list(results["Bash"].events)
-        diagnostic = next(event for event in events if event.get("type") == "error")
-        events.remove(diagnostic)
-        protected_index = next(
-            index for index, event in enumerate(events)
-            if event.get("type") == "item.started"
-            and event.get("item", {}).get("id") == "protected-call"
+        results["Bash"] = results["Bash"]._replace(
+            stderr=mutation(results["Bash"].stderr)
         )
-        if placement == "before":
-            events.insert(protected_index, diagnostic)
-        else:
-            events.append(diagnostic)
-        results["Bash"] = results["Bash"]._replace(events=tuple(events))
-        assert _rc(expected, argv, results) != 0, placement
+        assert _rc(expected, argv, results) != 0
+
+
+def test_protected_started_item_is_fail_closed():
+    expected, argv, results = _bundle()
+    results["Bash"] = _result(expected["Bash"], protected_started=True)
+    assert _rc(expected, argv, results) != 0
 
 
 def test_unexpected_tool_call_is_nonzero():
@@ -221,20 +328,146 @@ def test_auth_quota_and_timeout_are_each_nonzero():
         assert _rc(expected, argv, results) != 0, failure
 
 
-def test_production_argv_trust_bypass_mutation_is_nonzero():
-    expected, argv, results = _bundle()
-    mutated = list(argv["apply_patch"])
-    mutated.insert(-1, CH.TRUST_BYPASS_FLAG)
-    argv["apply_patch"] = tuple(mutated)
-    results["apply_patch"] = results["apply_patch"]._replace(
-        argv=tuple(mutated)
+def test_probe_builder_option_region_has_exactly_one_trust_bypass():
+    expected = _expectations()["apply_patch"]
+    assert CH.TRUST_BYPASS_FLAG == _EXPECTED_TRUST_BYPASS_FLAG
+    assert _argv(expected)[:-1].count(_EXPECTED_TRUST_BYPASS_FLAG) == 1
+
+
+def test_live_handler_markers_match_independent_contract_literals():
+    assert CH.BLOCKED_MARKER == _EXPECTED_BLOCKED_MARKER
+    assert CH.HANDLER_MARKERS == _EXPECTED_HANDLER_MARKERS
+    for tool, expected in _expectations().items():
+        assert _EXPECTED_HANDLER_MARKERS[tool] in _stderr(expected)
+
+
+def test_probe_argv_rejects_missing_duplicate_and_assignment_trust_bypass():
+    expected = _expectations()["apply_patch"]
+    baseline = list(_argv(expected))
+    option_index = baseline.index(CH.TRUST_BYPASS_FLAG)
+    mutations = (
+        baseline[:option_index] + baseline[option_index + 1:],
+        baseline[:option_index] + [CH.TRUST_BYPASS_FLAG] + baseline[option_index:],
+        baseline[:option_index]
+        + [CH.TRUST_BYPASS_FLAG + "=true"]
+        + baseline[option_index + 1:],
     )
-    assert _rc(expected, argv, results) != 0
+    for mutated in mutations:
+        assert CH.validate_production_argv(mutated, expected.cwd)
+
+
+def test_prompt_trust_flag_does_not_satisfy_option_requirement():
+    expected = _expectations()["apply_patch"]
+    mutated = list(_argv(expected))
+    mutated.remove(CH.TRUST_BYPASS_FLAG)
+    mutated[-1] += " " + CH.TRUST_BYPASS_FLAG
+    assert any(
+        "trust bypass が exact 1 件でない" in finding
+        for finding in CH.validate_production_argv(mutated, expected.cwd)
+    )
+
+
+def test_probe_argv_rejects_sandbox_bypass_in_options_or_prompt():
+    expected = _expectations()["apply_patch"]
+    baseline = list(_argv(expected))
+    option_mutation = baseline[:-1] + [CH.SANDBOX_BYPASS_FLAG, baseline[-1]]
+    prompt_mutation = baseline[:-1] + [baseline[-1] + CH.SANDBOX_BYPASS_FLAG]
+    for mutated in (option_mutation, prompt_mutation):
+        assert CH.validate_production_argv(mutated, expected.cwd)
+
+
+def test_bash_accepts_only_raw_or_observed_exact_wrapper():
+    expected = _expectations()["Bash"]
+    command = CH._bash_probe_command(expected, protected=False)
+    assert CH._bash_command_matches(command, command)
+    assert CH._bash_command_matches(
+        f"/bin/bash -lc {json.dumps(command)}", command
+    )
+
+
+def test_bash_rejects_unobserved_wrapper_shapes():
+    expected = _expectations()["Bash"]
+    command = CH._bash_probe_command(expected, protected=False)
+    for candidate in (
+        f"bash -lc {json.dumps(command)}",
+        f"/bin/bash -c {json.dumps(command)}",
+        f"/bin/bash --noprofile -lc {json.dumps(command)}",
+        f"/bin/bash -lc {json.dumps(command)} extra",
+    ):
+        assert not CH._bash_command_matches(candidate, command)
+
+
+def _fake_clone(_source, parent):
+    repo = parent / "repo"
+    repo.mkdir()
+    return repo
+
+
+def test_projected_probe_installation_is_validated_before_live_run():
+    validated = []
+    run_calls = []
+
+    def validator(root):
+        validated.append(root)
+        return [] if len(validated) == 1 else ["projected drift"]
+
+    findings = CH.check(
+        Path("/source"), Path("/opt/codex"), 1,
+        clone_factory=_fake_clone,
+        probe_runner=lambda *args, **kwargs: run_calls.append((args, kwargs)),
+        validator=validator,
+    )
+    assert findings == ["projected drift"] and not run_calls
+
+
+def test_invalid_probe_argv_never_reaches_probe_runner():
+    run_calls = []
+    findings = CH.check(
+        Path("/source"), Path(CH.SANDBOX_BYPASS_FLAG), 1,
+        clone_factory=_fake_clone,
+        probe_runner=lambda *args, **kwargs: run_calls.append((args, kwargs)),
+        validator=lambda _root: [],
+    )
+    assert findings and not run_calls
+
+
+def test_check_production_defaults_are_the_real_functions():
+    parameters = inspect.signature(CH.check).parameters
+    assert parameters["clone_factory"].default is CH._make_disposable_clone
+    assert parameters["probe_runner"].default is CH.run_probe
+    assert parameters["validator"].default is CH.validate_installation
 
 
 def test_config_preflight_cannot_be_replaced_by_live_evidence():
     expected, argv, results = _bundle()
     assert _rc(expected, argv, results, config_valid=False) != 0
+
+
+def test_installation_requires_all_hook_sources_as_regular_files():
+    with tempfile.TemporaryDirectory(prefix="codex-hook-install-test-") as name:
+        root = Path(name) / "repo"
+        CH._project_current_files(_REPO, root)
+        assert CH.validate_installation(root) == []
+        for relative in (
+            Path("hooks/codex_guard.sh"),
+            Path("hooks/guard_write.py"),
+            Path("hooks/guard_bash.py"),
+        ):
+            target = root / relative
+            target.unlink()
+            assert any(
+                os.fspath(relative) in finding
+                for finding in CH.validate_installation(root)
+            )
+            target.write_bytes((_REPO / relative).read_bytes())
+            target.unlink()
+            target.symlink_to(_REPO / relative)
+            assert any(
+                os.fspath(relative) in finding
+                for finding in CH.validate_installation(root)
+            )
+            target.unlink()
+            target.write_bytes((_REPO / relative).read_bytes())
 
 
 def test_codex_guard_maps_only_zero_and_two_to_themselves():
