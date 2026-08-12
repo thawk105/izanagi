@@ -34,8 +34,8 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign import s8b_approved  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign as fc  # noqa: E402
-from tests import repo_tree_util  # noqa: E402
-from tests.skiputil import Skip, skip  # noqa: E402
+from orchestrator.tests import repo_tree_util  # noqa: E402
+from orchestrator.tests.skiputil import Skip, skip  # noqa: E402
 
 # 固定 golden 引数。env_tag は登録済み linux-baremetal、freeze/ccbench は実 repo を要求する。
 _G_SEED = "golden-master-seed"
