@@ -1,0 +1,44 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MUT-A",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    return all(left[field] >= right[field] for field in USAGE_FIELDS)\n",
+          "new": "    return True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[cache_creation_input_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[cache_read_input_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[input_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[output_tokens]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "            and len(request_id_sets) == 1\n",
+          "new": "            and True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_same_message_and_usage_with_different_request_ids_remains_fatal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

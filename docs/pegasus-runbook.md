@@ -348,11 +348,15 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | 足りない | 使える / 不明 | 計算ノードへ dispatch (従来経路) |
 | 足りない | 使えない | 取れるだけの枠で試み、当たったら**投げずに停止** |
 
-- **判定量 = user slice の raw `memory.current`。** 天井は 14 GiB
-  (`login_headroom.CEILING_BYTES`。数値はこの 1 箇所だけに置く)。**reclaim できる file cache を
-  差し引く案は採らない** — ユーザーが指した「合計」の再定義になるため。差し引けば実効許容量は
-  ほぼ倍になるが、それは別裁定が要る。
-- **1 コマンドへ渡す予算** = `min(4 GiB, 天井 − 現在使用量 − 生存中の予約 − 予備 2 GiB)`。
+- **判定量 = user slice の回収不能メモリ量。** 天井は 14 GiB
+  (`login_headroom.CEILING_BYTES`。数値はこの 1 箇所だけに置く)。
+  回収不能量 = 基準値 − clean file cache − 回収可能 slab で、clean file cache は `file` から
+  `shmem` / `file_dirty` / `file_writeback` / `unevictable` を引いた残り。基準値は
+  `memory.stat` の前後で読んだ `memory.current` の大きい方とし、差の結果は `anon + shmem` を
+  下回らせない。`slab_reclaimable` または `unevictable` が読めない環境と snapshot 不整合では
+  基準値そのもの (従来相当の保守判定) へ degrade する。**ファイルキャッシュが溢れることは
+  問題としない** (ユーザー裁定)。既存 5 キーが読めない観測失敗は従来どおり必ず dispatch。
+- **1 コマンドへ渡す予算** = `min(4 GiB, 天井 − 判定量 − 生存中の予約 − 予備 2 GiB)`。
   予備 2 GiB は**暫定値で実測根拠が無い**。予算が 1 GiB を割れば dispatch。
 - **予約台帳**は `/run/user/<uid>/izanagi-admission/` (repo 外・tmpfs)。同時要求は互いの予約を
   見て減額されるので、`現在使用量 + Σ予約` が天井を超えない。**repo へは実行状態を書かない**

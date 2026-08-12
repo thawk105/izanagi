@@ -208,18 +208,21 @@ class ReservationDecision(tuple):
 
 @dataclass(frozen=True)
 class LoginHeadroom:
-    """user slice の観測値。判定上の占有量は ``memory_current_bytes``。"""
+    """user slice の観測値。admission の判定量は ``admission_bytes``。"""
 
     cgroup_path: Path
     memory_max_bytes: int
     effective_ceiling_bytes: int
     memory_current_bytes: int
+    unreclaimable_base_bytes: int
     headroom_bytes: int
     anon_bytes: int
     file_bytes: int
     shmem_bytes: int
     file_dirty_bytes: int
     file_writeback_bytes: int
+    slab_reclaimable_bytes: int | None = None
+    unevictable_bytes: int | None = None
 
     @property
     def ceiling_bytes(self) -> int:
@@ -232,6 +235,32 @@ class LoginHeadroom:
     @property
     def occupied_bytes(self) -> int:
         return self.memory_current_bytes
+
+    @property
+    def unreclaimable_bytes(self) -> int | None:
+        if self.slab_reclaimable_bytes is None or self.unevictable_bytes is None:
+            return None
+        clean_file = max(
+            0,
+            self.file_bytes
+            - self.shmem_bytes
+            - self.file_dirty_bytes
+            - self.file_writeback_bytes
+            - self.unevictable_bytes,
+        )
+        reclaimable = clean_file + self.slab_reclaimable_bytes
+        if reclaimable > self.unreclaimable_base_bytes:
+            return None
+        floor = self.anon_bytes + self.shmem_bytes
+        value = self.unreclaimable_base_bytes - reclaimable
+        return min(self.unreclaimable_base_bytes, max(value, floor))
+
+    @property
+    def admission_bytes(self) -> int:
+        unreclaimable = self.unreclaimable_bytes
+        if unreclaimable is None:
+            return self.unreclaimable_base_bytes
+        return unreclaimable
 
 
 class _StatFs(ctypes.Structure):
@@ -423,17 +452,21 @@ def login_headroom() -> LoginHeadroom | None:
             current + min(finite_headrooms),
         )
         stats = _parse_memory_stat(_read_at(slice_fd, "memory.stat"))
+        current_after_stat = _parse_uint64(_read_at(slice_fd, "memory.current"))
         return LoginHeadroom(
             cgroup_path=Path(_CGROUP_ROOT) / "user.slice" / slice_name,
             memory_max_bytes=memory_max,
             effective_ceiling_bytes=effective_ceiling,
             memory_current_bytes=current,
+            unreclaimable_base_bytes=max(current, current_after_stat),
             headroom_bytes=max(0, effective_ceiling - current),
             anon_bytes=stats["anon"],
             file_bytes=stats["file"],
             shmem_bytes=stats["shmem"],
             file_dirty_bytes=stats["file_dirty"],
             file_writeback_bytes=stats["file_writeback"],
+            slab_reclaimable_bytes=stats.get("slab_reclaimable"),
+            unevictable_bytes=stats.get("unevictable"),
         )
     except Exception:
         return None
@@ -809,6 +842,26 @@ def _issues_suffix(issues: list[str]) -> str:
     return "、" + "、".join(issues)
 
 
+def _observation_detail(observed: LoginHeadroom) -> str:
+    missing = []
+    if observed.slab_reclaimable_bytes is None:
+        missing.append("slab_reclaimable")
+    if observed.unevictable_bytes is None:
+        missing.append("unevictable")
+    unreclaimable = observed.unreclaimable_bytes
+    if missing:
+        unreclaimable_detail = f"不明 (欠落キー={','.join(missing)})"
+    elif unreclaimable is None:
+        unreclaimable_detail = "不明 (snapshot 不整合)"
+    else:
+        unreclaimable_detail = f"{unreclaimable} bytes"
+    return (
+        f"現在使用量={observed.memory_current_bytes} bytes、"
+        f"回収不能量={unreclaimable_detail}、"
+        f"判定占有量={observed.admission_bytes} bytes"
+    )
+
+
 def _decision_locked(
     directory_fd: int,
     estimate_bytes: int,
@@ -826,21 +879,24 @@ def _decision_locked(
         )
 
     reserved, issues = _collect_live_reservations(directory_fd)
-    required = observed.memory_current_bytes + reserved + estimate_bytes + RESERVE_BYTES
+    required = observed.admission_bytes + reserved + estimate_bytes + RESERVE_BYTES
     issue_detail = _issues_suffix(issues)
+    observation_detail = _observation_detail(observed)
     if required > observed.effective_ceiling_bytes:
         return BudgetGrant(
             Admission.DISPATCH,
             None,
             "ログインノードのメモリ余裕が不足するため、計算ノードへ dispatch します"
-            f"（生存中の予約={reserved} bytes{issue_detail}）。",
+            f"（{observation_detail}、生存中の予約={reserved} bytes{issue_detail}、"
+            f"見積もり={estimate_bytes} bytes、固定予約={RESERVE_BYTES} bytes、"
+            f"実効天井={observed.effective_ceiling_bytes} bytes、必要量={required} bytes）。",
         )
     if not acquire:
         return BudgetGrant(
             Admission.LOCAL,
             estimate_bytes,
             "ログインノードのメモリ余裕と予約枠を確認できたため、local 実行できます"
-            f"（生存中の予約={reserved} bytes{issue_detail}）。",
+            f"（{observation_detail}、生存中の予約={reserved} bytes{issue_detail}）。",
         )
 
     reservation_name = _create_reservation(
@@ -853,7 +909,7 @@ def _decision_locked(
         Admission.LOCAL,
         estimate_bytes,
         "ログインノードのメモリ余裕を予約したため、local 実行できます"
-        f"（生存中の予約={reserved} bytes{issue_detail}）。",
+        f"（{observation_detail}、生存中の予約={reserved} bytes{issue_detail}）。",
         lease,
     )
 
@@ -1034,7 +1090,7 @@ def grant_budget(
             reserved, issues = _collect_live_reservations(directory_fd)
             available = (
                 observed.effective_ceiling_bytes
-                - observed.memory_current_bytes
+                - observed.admission_bytes
                 - reserved
                 - RESERVE_BYTES
             )
@@ -1053,8 +1109,8 @@ def grant_budget(
             else:
                 budget = max(estimated, MIN_LOCAL_BUDGET_BYTES)
             detail = (
-                f"予約控除後の観測余裕={available} bytes、算出予算={budget} bytes、現在使用量="
-                f"{observed.memory_current_bytes} bytes、実効天井="
+                f"予約控除後の観測余裕={available} bytes、算出予算={budget} bytes、"
+                f"{_observation_detail(observed)}、実効天井="
                 f"{observed.effective_ceiling_bytes} bytes、"
                 f"生存中の予約={reserved} bytes{_issues_suffix(issues)}"
             )
@@ -1062,7 +1118,8 @@ def grant_budget(
                 return BudgetGrant(
                     Admission.DISPATCH,
                     None,
-                    f"前回ピーク {peak} bytes の見積もり {estimated} bytes は今の余裕 "
+                    f"前回ピーク {peak} bytes (scope の raw memory.current peak) の見積もり "
+                    f"{estimated} bytes は今の余裕 "
                     f"{usable} bytes に収まらないため、計算ノードへ dispatch します"
                     f"（{detail}）。",
                 )
@@ -1082,7 +1139,8 @@ def grant_budget(
             peak_detail = (
                 ""
                 if peak is None
-                else f"、前回ピーク={peak} bytes、次回見積もり={estimated} bytes"
+                else f"、前回ピーク={peak} bytes (scope の raw memory.current peak)、"
+                f"次回見積もり={estimated} bytes"
             )
             return BudgetGrant(
                 Admission.LOCAL,

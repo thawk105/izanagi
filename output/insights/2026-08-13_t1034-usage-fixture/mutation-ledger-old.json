@@ -1,0 +1,298 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/29a6faabe05d275626de65fddcf3da6f/izdw-29a6faabe0.o908817",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/29a6faabe05d275626de65fddcf3da6f/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................................           [100%]\n62 passed in 2.46s\n",
+      "stdout_sha256": "690dc2962f27a6cdc235e38cb3346b6b528240a736d1f1b021dbb860ff5adde4"
+    },
+    "artifact_error": null,
+    "collection_sha256": "37f84e21057d13053dbe2e7a18247744b67281142ddb7283a7419708af9572ff",
+    "duration_s": 21.748,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "e685726a54a0800a195cb15319e00ec9f09793e66560b943e85ada8f71f815a1",
+    "repo_head": "734c03a1cd72d5aa79ea855a21c0e230a71dffd7",
+    "runner_sha256": "8d250af9cd469622c03f11b98554564d9ac6ee96c6e90aef91c0a30ea21c729e",
+    "spec_sha256": "e36da424ec54fa6bf68245c65c8cf63bca402aabd7b74d7b1fd207ef3bd69b09",
+    "status": "PASSED",
+    "test_output_sha256": "690dc2962f27a6cdc235e38cb3346b6b528240a736d1f1b021dbb860ff5adde4",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "cdf419be7f002a81e3f60e35f694d1058c49179ed5fc4e239614ef9c7f9dd61f"
+  },
+  "date": "2026-08-12T22:51:11.569583+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aeb397baa7fa30e5bba86cb1b7ce14eb/izdw-aeb397baa7.o908818",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aeb397baa7fa30e5bba86cb1b7ce14eb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................F.           [100%]\n=================================== FAILURES ===================================\n_____________ test_cross_bucket_replica_is_attributed_to_root_once _____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_cross_bucket_replica_is_a0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x148dc9e9b070>\n\n    def test_cross_bucket_replica_is_attributed_to_root_once(\n        tmp_path: Path, capsys: pytest.CaptureFixture[str]\n    ) -> None:\n        projects = tmp_path / \"projects\"\n        replicas = (\n            (\"root.jsonl\", 3),\n            (\"session/subagents/dominator.jsonl\", 100),\n        )\n        for relative, output in replicas:\n            _write_jsonl(\n                projects,\n                \"project-a\",\n                relative,\n                [\n                    _assistant(\n                        request_id=\"req-cross-bucket\",\n                        message_id=\"msg_CrossBucket1\",\n                        usage=_usage(\n                            cache_read=1,\n                            cache_creation=2,\n                            input_tokens=3,\n                            output=output,\n                        ),\n                    )\n                ],\n            )\n    \n        rc, report, stderr = _run_json(capsys, projects, \"--strict\")\n    \n        assert rc == 0\n        assert stderr == \"\"\n        assert report[\"root\"][\"model_calls\"] == 1\n>       assert report[\"root\"][\"output_tokens\"] == 100\nE       assert 3 == 100\n\norchestrator/tests/test_claude_session_ledger.py:984: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once\n1 failed, 61 passed in 2.42s\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1439 retained_bytes=1439 omitted_bytes=0 rendered_excerpt_bytes=1522 sha256=94e96c448697beba510475cf9330d7fcdf99a9f02a9301e2631b0ed2d4086b26\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_cross_bucket_replica_is_a0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x148dc9e9b070>\n> \n>     def test_cross_bucket_replica_is_attributed_to_root_once(\n>         tmp_path: Path, capsys: pytest.CaptureFixture[str]\n>     ) -> None:\n>         projects = tmp_path / \"projects\"\n>         replicas = (\n>             (\"root.jsonl\", 3),\n>             (\"session/subagents/dominator.jsonl\", 100),\n>         )\n>         for relative, output in replicas:\n>             _write_jsonl(\n>                 projects,\n>                 \"project-a\",\n>                 relative,\n>                 [\n>                     _assistant(\n>                         request_id=\"req-cross-bucket\",\n>                         message_id=\"msg_CrossBucket1\",\n>                         usage=_usage(\n>                             cache_read=1,\n>                             cache_creation=2,\n>                             input_tokens=3,\n>                             output=output,\n>                         ),\n>                     )\n>                 ],\n>             )\n>     \n>         rc, report, stderr = _run_json(capsys, projects, \"--strict\")\n>     \n>         assert rc == 0\n>         assert stderr == \"\"\n>         assert report[\"root\"][\"model_calls\"] == 1\n> >       assert report[\"root\"][\"output_tokens\"] == 100\n> E       assert 3 == 100\n> \n> orchestrator/tests/test_claude_session_ledger.py:984: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1439 retained_bytes=1439 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2252 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "376b4d938e06fc2c437cc8bcee31f8c4e8de566cf72e24e4bb9d49cb89bc57d1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "37f84e21057d13053dbe2e7a18247744b67281142ddb7283a7419708af9572ff",
+      "duration_s": 26.78,
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A",
+      "injection_diff_sha256": "628873174edf7acd8576f4b8439452dd8cd5aa0f5987c68a54bd6cc270e69e4d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a6ff3e4935faa618d49debf300f0268142094453f2453074ec23966aa2832726",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "new": "    return True\n",
+          "old": "    return all(left[field] >= right[field] for field in USAGE_FIELDS)\n"
+        }
+      ],
+      "repo_head": "734c03a1cd72d5aa79ea855a21c0e230a71dffd7",
+      "runner_sha256": "8d250af9cd469622c03f11b98554564d9ac6ee96c6e90aef91c0a30ea21c729e",
+      "spec_sha256": "e36da424ec54fa6bf68245c65c8cf63bca402aabd7b74d7b1fd207ef3bd69b09",
+      "status": "KILLED",
+      "test_output_sha256": "376b4d938e06fc2c437cc8bcee31f8c4e8de566cf72e24e4bb9d49cb89bc57d1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdf419be7f002a81e3f60e35f694d1058c49179ed5fc4e239614ef9c7f9dd61f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/81ac72b953f5d400273669331599d3d0/izdw-81ac72b953.o908819",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/81ac72b953f5d400273669331599d3d0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................................................           [100%]\n62 passed in 2.41s\n",
+        "stdout_sha256": "c31f0140446ef412ae19476598ea3459a45563309c003c1bc973d8fe16cc69e6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "37f84e21057d13053dbe2e7a18247744b67281142ddb7283a7419708af9572ff",
+      "duration_s": 26.751,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MUT-B",
+      "injection_diff_sha256": "fafbe82b6dafa501b4b04a5404753ad72114278bdff95726556c6b05d99b4444",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "7fc623076da0422f7a1ef14e09e7b8c6a1d4a33ec141345f543a0e7e8e9cfed0",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "new": "            and True\n",
+          "old": "            and len(request_id_sets) == 1\n"
+        }
+      ],
+      "repo_head": "734c03a1cd72d5aa79ea855a21c0e230a71dffd7",
+      "runner_sha256": "8d250af9cd469622c03f11b98554564d9ac6ee96c6e90aef91c0a30ea21c729e",
+      "spec_sha256": "e36da424ec54fa6bf68245c65c8cf63bca402aabd7b74d7b1fd207ef3bd69b09",
+      "status": "SURVIVED",
+      "test_output_sha256": "c31f0140446ef412ae19476598ea3459a45563309c003c1bc973d8fe16cc69e6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "cdf419be7f002a81e3f60e35f694d1058c49179ed5fc4e239614ef9c7f9dd61f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7426002e551cd89c8cf273c9ecc0aeec/izdw-7426002e55.o908816",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7426002e551cd89c8cf273c9ecc0aeec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields\norchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported\norchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined\norchestrator/tests/test_claude_session_ledger.py::test_default_file_budget_is_balanced_before_unused_quota_is_reassigned\norchestrator/tests/test_claude_session_ledger.py::test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete\norchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[requestId]\norchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[message.id]\norchestrator/tests/test_claude_session_ledger.py::test_replicated_message_id_with_identical_usage_counts_once\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[-False]\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[x-False]\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-True]\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-False]\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_\\u30e1\\u30c3\\u30bb\\u30fc\\u30b8-False]\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_has space-False]\norchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_has\\ncontrol-False]\norchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_connection_reports_message_id_collision\norchestrator/tests/test_claude_session_ledger.py::test_message_only_and_request_only_replicas_do_not_double_count\norchestrator/tests/test_claude_session_ledger.py::test_shared_record_uuid_without_exact_clone_evidence_fails_closed\norchestrator/tests/test_claude_session_ledger.py::test_partial_snapshot_replica_uses_dominating_usage\norchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[cache_read_input_tokens]\norchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[cache_creation_input_tokens]\norchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[input_tokens]\norchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[output_tokens]\norchestrator/tests/test_claude_session_ledger.py::test_same_message_and_usage_with_different_request_ids_remains_fatal\norchestrator/tests/test_claude_session_ledger.py::test_replica_loser_anomaly_is_not_hidden_by_representative\norchestrator/tests/test_claude_session_ledger.py::test_replica_resolution_is_input_order_independent\norchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_never_enables_cross_file_dedup[]\norchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_never_enables_cross_file_dedup[\\u30e1\\u30c3\\u30bb\\u30fc\\u30b8]\norchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_never_enables_cross_file_dedup[mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm]\norchestrator/tests/test_claude_session_ledger.py::test_replica_tool_identity_must_be_subset_of_dominator\norchestrator/tests/test_claude_session_ledger.py::test_replica_terminal_model_must_match\norchestrator/tests/test_claude_session_ledger.py::test_replica_without_terminal_usage_remains_fatal\norchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once\norchestrator/tests/test_claude_session_ledger.py::test_cross_file_replica_with_divergent_cwd_selection_fails_closed\norchestrator/tests/test_claude_session_ledger.py::test_cross_file_replica_with_equal_selector_identity_counts_once\norchestrator/tests/test_claude_session_ledger.py::test_root_root_streaming_replicas_count_once_without_collisions\norchestrator/tests/test_claude_session_ledger.py::test_request_collision_invalidates_representative_and_all_replicas\norchestrator/tests/test_claude_session_ledger.py::test_conflicting_alias_graph_fails_closed\norchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used\norchestrator/tests/test_claude_session_ledger.py::test_terminal_assistant_record_without_usage_is_not_silently_aggregated\norchestrator/tests/test_claude_session_ledger.py::test_partially_missing_event_timestamps_are_rejected_as_incomplete\norchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum\norchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback\norchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible\norchestrator/tests/test_claude_session_ledger.py::test_unreadable_file_is_counted_without_crashing\norchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract\norchestrator/tests/test_claude_session_ledger.py::test_compaction_boundaries_are_reported_without_a_monotonic_curve\norchestrator/tests/test_claude_session_ledger.py::test_missing_fields_are_reported_and_strict_mode_fails_cleanly\norchestrator/tests/test_claude_session_ledger.py::test_missing_root_returns_a_population_report_not_a_traceback\norchestrator/tests/test_claude_session_ledger.py::test_default_literals_and_all_hard_limits_are_independently_pinned\norchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_TOTAL_BYTES-1-records0-total_bytes_limit_exceeded]\norchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_LINE_BYTES-4-records1-line_too_long]\norchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_RECORDS-1-records2-record_limit_exceeded]\norchestrator/tests/test_claude_session_ledger.py::test_issue_detail_retention_is_hard_bounded\norchestrator/tests/test_claude_session_ledger.py::test_walk_errors_are_reported_through_onerror_and_fail_closed\norchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[inside-non_regular_file]\norchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[outside-path_outside_root]\norchestrator/tests/test_claude_session_ledger.py::test_strict_issue_matrix_covers_every_classification\norchestrator/tests/test_claude_session_ledger.py::test_cli_has_no_write_destination_argument\norchestrator/tests/test_claude_session_ledger.py::test_test_loader_suppresses_bytecode_before_importing_ledger\norchestrator/tests/test_claude_session_ledger.py::test_read_only_run_preserves_entire_isolated_tree_and_makes_no_bytecode\norchestrator/tests/test_claude_session_ledger.py::test_public_collect_report_matches_cli_json_schema_v2\n\n62 tests collected in 0.38s\n",
+        "stdout_sha256": "23aa437b35495d405e148ad2ca37e9394a9cdbae138df90e817dd24a6f292334"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_dedupe_uses_final_usage_and_all_three_input_fields",
+        "orchestrator/tests/test_claude_session_ledger.py::test_synthetic_zero_usage_is_excluded_and_reported",
+        "orchestrator/tests/test_claude_session_ledger.py::test_recursive_sidechains_are_separate_and_only_explicitly_combined",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_file_budget_is_balanced_before_unused_quota_is_reassigned",
+        "orchestrator/tests/test_claude_session_ledger.py::test_reserved_balanced_quota_precedes_reassignment_when_candidates_compete",
+        "orchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[requestId]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_raw_ids_do_not_merge_across_file_or_sidechain_provenance[message.id]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replicated_message_id_with_identical_usage_counts_once",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[-False]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[x-False]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-True]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-False]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_/u30e1/u30c3/u30bb/u30fc/u30b8-False]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_has space-False]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_canonical_message_id_validator_boundaries[msg_has/ncontrol-False]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_connection_reports_message_id_collision",
+        "orchestrator/tests/test_claude_session_ledger.py::test_message_only_and_request_only_replicas_do_not_double_count",
+        "orchestrator/tests/test_claude_session_ledger.py::test_shared_record_uuid_without_exact_clone_evidence_fails_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_partial_snapshot_replica_uses_dominating_usage",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[cache_read_input_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[cache_creation_input_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[input_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_incomparable_usage_replicas_remain_fatal[output_tokens]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_same_message_and_usage_with_different_request_ids_remains_fatal",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replica_loser_anomaly_is_not_hidden_by_representative",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replica_resolution_is_input_order_independent",
+        "orchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_never_enables_cross_file_dedup[]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_never_enables_cross_file_dedup[/u30e1/u30c3/u30bb/u30fc/u30b8]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_noncanonical_message_id_never_enables_cross_file_dedup[mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replica_tool_identity_must_be_subset_of_dominator",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replica_terminal_model_must_match",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replica_without_terminal_usage_remains_fatal",
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once",
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_file_replica_with_divergent_cwd_selection_fails_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_file_replica_with_equal_selector_identity_counts_once",
+        "orchestrator/tests/test_claude_session_ledger.py::test_root_root_streaming_replicas_count_once_without_collisions",
+        "orchestrator/tests/test_claude_session_ledger.py::test_request_collision_invalidates_representative_and_all_replicas",
+        "orchestrator/tests/test_claude_session_ledger.py::test_conflicting_alias_graph_fails_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_timestamp_reversal_is_reported_and_chronological_terminal_is_used",
+        "orchestrator/tests/test_claude_session_ledger.py::test_terminal_assistant_record_without_usage_is_not_silently_aggregated",
+        "orchestrator/tests/test_claude_session_ledger.py::test_partially_missing_event_timestamps_are_rejected_as_incomplete",
+        "orchestrator/tests/test_claude_session_ledger.py::test_descending_terminal_usage_is_used_instead_of_fieldwise_maximum",
+        "orchestrator/tests/test_claude_session_ledger.py::test_window_uses_each_event_timestamp_then_reports_mtime_fallback",
+        "orchestrator/tests/test_claude_session_ledger.py::test_population_filters_corruption_and_file_limit_are_visible",
+        "orchestrator/tests/test_claude_session_ledger.py::test_unreadable_file_is_counted_without_crashing",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_text_report_is_an_exact_population_and_metric_contract",
+        "orchestrator/tests/test_claude_session_ledger.py::test_compaction_boundaries_are_reported_without_a_monotonic_curve",
+        "orchestrator/tests/test_claude_session_ledger.py::test_missing_fields_are_reported_and_strict_mode_fails_cleanly",
+        "orchestrator/tests/test_claude_session_ledger.py::test_missing_root_returns_a_population_report_not_a_traceback",
+        "orchestrator/tests/test_claude_session_ledger.py::test_default_literals_and_all_hard_limits_are_independently_pinned",
+        "orchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_TOTAL_BYTES-1-records0-total_bytes_limit_exceeded]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_LINE_BYTES-4-records1-line_too_long]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_stream_resource_bounds_fail_closed_before_unbounded_parsing[MAX_RECORDS-1-records2-record_limit_exceeded]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_issue_detail_retention_is_hard_bounded",
+        "orchestrator/tests/test_claude_session_ledger.py::test_walk_errors_are_reported_through_onerror_and_fail_closed",
+        "orchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[inside-non_regular_file]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_symlink_jsonl_is_rejected_as_non_regular_or_outside_declared_root[outside-path_outside_root]",
+        "orchestrator/tests/test_claude_session_ledger.py::test_strict_issue_matrix_covers_every_classification",
+        "orchestrator/tests/test_claude_session_ledger.py::test_cli_has_no_write_destination_argument",
+        "orchestrator/tests/test_claude_session_ledger.py::test_test_loader_suppresses_bytecode_before_importing_ledger",
+        "orchestrator/tests/test_claude_session_ledger.py::test_read_only_run_preserves_entire_isolated_tree_and_makes_no_bytecode",
+        "orchestrator/tests/test_claude_session_ledger.py::test_public_collect_report_matches_cli_json_schema_v2"
+      ],
+      "duration_s": 21.71,
+      "rc": 0,
+      "repo_head": "734c03a1cd72d5aa79ea855a21c0e230a71dffd7",
+      "runner_sha256": "8d250af9cd469622c03f11b98554564d9ac6ee96c6e90aef91c0a30ea21c729e",
+      "spec_sha256": "e36da424ec54fa6bf68245c65c8cf63bca402aabd7b74d7b1fd207ef3bd69b09",
+      "status": "PASSED",
+      "tool_sha256": "cdf419be7f002a81e3f60e35f694d1058c49179ed5fc4e239614ef9c7f9dd61f"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-A": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "628873174edf7acd8576f4b8439452dd8cd5aa0f5987c68a54bd6cc270e69e4d",
+        "replacements": [
+          {
+            "file": "tools/claude_session_ledger.py",
+            "new": "    return True\n",
+            "old": "    return all(left[field] >= right[field] for field in USAGE_FIELDS)\n"
+          }
+        ]
+      },
+      "MUT-B": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "fafbe82b6dafa501b4b04a5404753ad72114278bdff95726556c6b05d99b4444",
+        "replacements": [
+          {
+            "file": "tools/claude_session_ledger.py",
+            "new": "            and True\n",
+            "old": "            and len(request_id_sets) == 1\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "e685726a54a0800a195cb15319e00ec9f09793e66560b943e85ada8f71f815a1",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_claude_session_ledger.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "734c03a1cd72d5aa79ea855a21c0e230a71dffd7",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_claude_session_ledger.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:randomly",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "dbb14b2a0ede7cd7de57bdd09c1e4ee3e8f05ff5",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8d250af9cd469622c03f11b98554564d9ac6ee96c6e90aef91c0a30ea21c729e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e36da424ec54fa6bf68245c65c8cf63bca402aabd7b74d7b1fd207ef3bd69b09",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/t1034-usage-fixture/scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "cdf419be7f002a81e3f60e35f694d1058c49179ed5fc4e239614ef9c7f9dd61f",
+  "updated_at": "2026-08-12T22:52:31.770758+00:00"
+}
