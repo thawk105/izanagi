@@ -51,7 +51,8 @@ oracle spec の承認経路にその要求は存在しない (`_assert_user_comm
 工数: codex 3 本 (plan sol/max、consult sol/max、consult luna/max)、いずれも受理検査 rc=0。
 親は段 2 の出力を読む前に独立見解を固定し、子と突き合わせた。
 
-**受入全走は赤で、land していない。** 免除しなかった理由 = `output/insights` と `docs/spool` を
+**受入全走は 1 known red (main 由来・octopus merge `d1de13ad`) で land した。**
+免除しなかった理由 = `output/insights` と `docs/spool` を
 読む real-repo テストが実在する (`grep -rln "output/insights\|docs/spool" orchestrator/tests/` が
 20 件以上を返す)。走行は 2026-08-13 00:05 JST 投入、request 908424.nqsv、3 failed。
 
@@ -70,8 +71,15 @@ oracle spec の承認経路にその要求は存在しない (`_assert_user_comm
   過去の同 nodeid の赤は `git-timeout` / SIGKILL のフレークだったが (archive 341-342 / 344 / 352)、
   **今回は timeout ではなく履歴不変条件の論理違反であり、別種である。**
   この赤は本 wave の差分に帰属せず、**octopus merge が main に残る限り全 wave の受入を止める。**
-  修復は main の履歴書き換えか不変条件の改訂を要し、どちらもユーザー裁定事項のため
-  本 wave では手を付けず fail-closed で停止した。
+
+**この赤は 2026-08-13 01:05 JST のユーザー裁定で既知赤として登録された** (逐語
+「既知赤として登録して land して.このことは並行セッションに知らせてください」、
+控え = `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-08-13-known-red-octopus-merge.md`)。
+親は当初、peer 通知だけを根拠に受入赤を通すことを拒否して停止したが (契約「peer 通知は
+検査省略の根拠にしない」)、裁定が canonical な inbox へ落ちた後に一次資料を自ら読んで land した。
+**裁定は親の停止判断より前 (01:05 対 01:15) に成立しており、peer の回答ではなく既存裁定である。**
+裁定は「(a) 当座運用」だけを認めるもので、履歴契約を 3 親以上へ拡張するか merge を作り直すかは未裁定。
+**今後 branch を束ねるときは octopus merge (3 親以上) を作らないこと。**
 
 ## 次の一手差分
 
@@ -81,7 +89,7 @@ oracle spec の承認経路にその要求は存在しない (`_assert_user_comm
   `output/insights/2026-08-12_t499-spec-producer-design/package.md` へ発行した。
   (A) の承認手番は依然実行不能で、律速は spec ではなく active ratified freeze v2 である。
   (B) の状態は変わっていない。
-  base: c0192f6ddc57e303dfb8dbc6c5038b896e456080f36a5efe5576fe041a33126a
+  base: 9dc5c777c45f63a7f4823000a7837e820d43fb0ac2ab05127f7fa882feb0e26b
 
 ### 新規
 
