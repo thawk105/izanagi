@@ -576,10 +576,26 @@ def test_gate_normalizes_unexpected_check_exceptions_and_continues_g5():
         assert reasons == {
             "holdout.positive_control",
             "holdout.unknownness_layer2",
-            "known_axes.ccbench_current",
+        }
+        assert "t080.live-known-axes-ccbench-current-pin" in {
+            marker["check_id"] for marker in result.held_checks
         }
         assert reached == ["known-schema"]
         assert result.state == "invalid"
+        reached.clear()
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.verify_receipt(root=root)
+        released_reasons = {
+            item.split("[", 1)[1].split("]", 1)[0]
+            for item in released.refusals
+        }
+        assert released_reasons == {
+            "holdout.positive_control",
+            "holdout.unknownness_layer2",
+            "known_axes.ccbench_current",
+        }
+        assert reached == ["known-schema"]
+        assert released.state == "invalid"
     finally:
         _restore_functions(originals)
         temp.cleanup()
@@ -638,7 +654,21 @@ def test_invalid_r_topology_keeps_independent_ccbench_refusal_j4():
         result = migration.verify_receipt(root=root)
         assert result.state == "invalid"
         assert any("receipt.introduction_diff" in refusal for refusal in result.refusals)
-        assert any("known_axes.ccbench_current" in refusal for refusal in result.refusals)
+        assert not any("known_axes.ccbench_current" in refusal for refusal in result.refusals)
+        assert "t080.live-known-axes-ccbench-current-pin" in {
+            marker["check_id"] for marker in result.held_checks
+        }
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.verify_receipt(root=root)
+        assert released.state == "invalid"
+        assert any(
+            "receipt.introduction_diff" in refusal
+            for refusal in released.refusals
+        )
+        assert any(
+            "known_axes.ccbench_current" in refusal
+            for refusal in released.refusals
+        )
     finally:
         _restore_functions(original)
         temp.cleanup()
@@ -916,10 +946,20 @@ def test_static_adapter_discards_clean_envelope_when_any_check_refuses_f4():
         migration._verify_ccbench_current = lambda *_args, **_kwargs: (_ for _ in ()).throw(
             migration.MigrationError("known_axes.ccbench_current", "drift")
         )
-        result = migration.static_gate_adapter(
+        held = migration.static_gate_adapter(
             resolution=resolution, known_raw=known_raw, holdout_raw=holdout_raw,
             root=migration.ROOT,
         )
+        assert held.refusals == ()
+        assert held.t080_freeze_migration_observation == {"clean": True}
+        assert "t080.static-known-axes-ccbench-current-pin" in {
+            marker["check_id"] for marker in held.held_checks
+        }
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            result = migration.static_gate_adapter(
+                resolution=resolution, known_raw=known_raw,
+                holdout_raw=holdout_raw, root=migration.ROOT,
+            )
         assert len(result.refusals) == 1
         assert "known_axes.ccbench_current" in result.refusals[0]
         assert result.t080_freeze_migration_observation is None

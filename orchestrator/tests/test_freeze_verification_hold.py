@@ -95,3 +95,11 @@ def test_hold_has_no_environment_or_cli_release_surface():
     assert "getenv" not in source
     assert "argparse" not in source
     assert "click" not in source
+
+
+def _run():
+    return pytest.main([__file__])
+
+
+if __name__ == "__main__":
+    sys.exit(_run())
