@@ -200,6 +200,14 @@ _DEV_WAVE_8C_ACCEPTANCE_MERGE_NOTE = (
     "main 側は各 wave land 時に監査済みであり、merge 自体に新規の人間・AI 著作なし"
     "（差分は git の結合が生成）；親作成 merge のため Codex 著者とは記さない"
 )
+_DEV_WAVE_8C_LAND_RETRY_MERGE_NOTE = (
+    "land 再試行前に local main を取り込んだ merge；実装面で両側が触ったのは"
+    " `orchestrator/tests/test_autonomous_trial_completeness.py` と"
+    " `orchestrator/tests/test_p3_autonomous_workload_trial.py` の 2 test file だけで、"
+    "結果はいずれも両側の変更の和集合であり、競合解決による新規著作なし；"
+    "wave 側は Codex `role=author` 済み、main 側は各 wave land 時に監査済み；"
+    "親作成 merge のため Codex 著者とは記さない"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -524,6 +532,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING,
         note=_DEV_WAVE_8C_ACCEPTANCE_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "c96803854911dd989954c20d0955ad423e7d1207",
+        MISSING_CODEX_AUTHOR,
+        _DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING,
+        note=_DEV_WAVE_8C_LAND_RETRY_MERGE_NOTE,
     ),
 )
 
