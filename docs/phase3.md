@@ -115,7 +115,10 @@ ancestry の typed 化、D73 の ccbench_pin・機械再構成検査は維持、
 receipt が active-valid でなければ機械拒否されるため、凍結成立自体が receipt 発効の機械証明でもある)。
 予測封印実走と [T-011] の §5-(viii) 受諾も完了 (worklog 2026-07-24 (2) / (6))。**D79 (7) のうち
 exemption 拡張 + cert 束縛のコード機構は 2026-07-23 に実装完了 (wave3、D80)、統合 E2E は 2026-07-24 に
-部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** 残る floor 実測前 gate = official guard 解禁
+部分閉鎖 — 残 = lineage 照合 (oracle 結線 wave 再評価)。** **床値の実測自体は 2026-08-12 の
+[T-748] 裁定 (c) により固定 pilot 経路で先行できるようになった** (投入 script が `--mode pilot` を
+固定で渡す。official の受理集合は空のまま、pilot 成果物は `eligible_for_refreeze=false` なので
+再凍結には使えない)。**再凍結 → oracle → certified を開く gate は依然 official guard 解禁**
 ([T-088]。設計は 2026-07-25 にユーザー承認済 = D86) → **Pegasus PBS floor wrapper は 2026-07-25 に
 実装完了 (D87)、段階 1 は 2026-07-28 に実機で閉鎖** (job 873225 = rc=2 で official guard の実機拒否を
 確認。正本 = worklog (33)。qsub の投入規則は F49 (ii) 裁定 (2026-07-29) により「書込永続が実証された

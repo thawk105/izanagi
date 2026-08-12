@@ -49,8 +49,8 @@
 | floor campaign の official 拒否 | 設計どおり | core と CLI の二重拒否が生きている |
 
 **結論: 7 月実装分に腐りはない。** pin・封印・受領証はすべて現行 main と整合し、gate は設計どおりの
-拒否を返す。再開を塞いでいるのは腐りではなく、**未実装の段** (§3) と、**未解決の toolchain 前提**
-(§3 の W-2) である。
+拒否を返す。再開を塞いでいるのは腐りではなく **未実装の段** (§3) である。
+**toolchain 前提は 2026-08-11 に解決した** ([T-747] (B) / [T-783]。§5 R-4 が正本)。
 
 ### 1.3 再測 (2026-08-11、main `f4db7036`、wave `dev-wave-t8b-restart-residue`)
 
@@ -66,11 +66,17 @@
 **P3 は §1 の表の値と同一である** (peer wave の `s8c_preregistration` NUL 検査追加を
 取り込んだ後に再測しても変わらない)。
 
-### 1.2 新たに判明した前提の欠落 — Pegasus に固定要求の compiler が無い
+### 1.2 かつての前提の欠落 — Pegasus に固定要求の compiler が無い (**解決済み**)
 
-床値 driver は CCBench のビルドで `cc="gcc-13"`, `cxx="g++-13"` を**固定で渡す**
+> **現況 (2026-08-11 以降)。** 固定要求は撤廃され、compiler は site 解決になった —
+> `buildcache.compilers_for_current_site` が Pegasus compute では `gcc` / `g++` を選ぶ。
+> 認可の根拠は registered calibration の `acquisition_receipt` との束縛検査であり、
+> **build 前に fail-closed で照合する** (§5 R-4 が正本)。
+> **以下は欠落が判明した当時 (2026-08-10) の記述であり、現況ではない。**
+
+床値 driver は CCBench のビルドで `cc="gcc-13"`, `cxx="g++-13"` を**固定で渡していた**
 (`s8b_floor_campaign` の build 呼び出し)。`buildcache` はこれを `shutil.which` で解決し、
-PATH に無ければ `toolchain cxx が PATH に存在しない: 'g++-13' (fails-closed)` で倒れる。
+PATH に無ければ `toolchain cxx が PATH に存在しない: 'g++-13' (fails-closed)` で倒れていた。
 
 一方 Pegasus には `g++-13` がログインノードにも計算ノードにも無い。Pegasus 用の較正証明
 (`certify_calibration.sh`) と floor job script の依存ビルド段は、いずれも
@@ -153,8 +159,11 @@ P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先
 
 ## 3. 再開の順序 — 何が塞いでいるか
 
-床値実測を塞いでいるのは official mode の guard である。実測 → 再凍結 → oracle は、
-**次の 3 つの未実装段を順に埋めない限り開かない。**
+**床値の実測は [T-748] 裁定 (c) の固定 pilot 経路で先行する。** 投入 script は
+`--mode pilot` を固定で渡すようになり、pilot 経路の欠落 (旧 blocker 3) は解消した。
+ただし pilot の成果物は `eligible_for_refreeze=false` なので、
+**再凍結 → oracle → certified は official 解禁まで閉じたままである。**
+official mode の guard は変更していない (受理集合は空のまま)。
 
 ### W-1. [T-088] 段階 3・4 の実装 (承認済み・着手可)
 
@@ -162,41 +171,52 @@ P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先
   同じ判断を二重に返す。段階 1 は 2026-07-28 に実機で閉じている (job 873225 = rc=2)
 - **残:** 段階 3 = 単一 admission predicate + 実行 revision 束縛 + spool bytes 照合、
   段階 4 = CLI rc 翻訳。2026-07-28 (36) で 3 項とも推奨採用済み
-- **これが無いと:** `tools/pegasus/floor_campaign.sh` は `--mode official` を渡すため、
-  投入しても計算ノードで rc=2 に倒れる。**投入する意味が無い**
-- **塞いでいるのは guard 1 つではない (2026-08-11 実測)。** 次の 3 点が独立に効いている。
-  1. `s8b_floor_campaign._assert_official_permitted` (`:207-217`) が `official` を無条件拒否する
-  2. `assemble_result` (`:2453`) は `eligible_for_refreeze=True` を `mode == "official"` に
-     限定する。**したがって pilot mode で測った床値は、そもそも再凍結に使えない**
-  3. `tools/pegasus/floor_campaign.sh` (`:962`) は `--mode official` を固定で渡し、
-     pilot 投入の経路を持たない
+- **塞いでいた 3 点のうち 2 点は「維持する側」だと [T-748] 裁定 (c) で確定した
+  (2026-08-12)。** 現況は次のとおり。
+  1. `s8b_floor_campaign._assert_official_permitted` (`:209-219`) が `official` を無条件拒否する。
+     **維持する** (official は空集合のまま)
+  2. `assemble_result` (`:2572-2575`) は `eligible_for_refreeze=True` を `mode == "official"` に
+     限定する。**維持する。したがって pilot で測った床値は再凍結に使えない** — 測定値としてのみ使う
+  3. `tools/pegasus/floor_campaign.sh` が `--mode official` を固定で渡していた点は
+     **解消済み**。裁定 (c) により `--mode pilot` 固定へ変更した
 - **「投入できない」ではなく「完遂できない」である。** `submit_floor.sh` に mode の分岐は無く、
   `--dry-run` を付けなければ `qsub` は実行され scheduler は job を受理する。
   倒れるのは計算ノード上であり、**キュー資源は消費されうる。**
   完遂できないのは再凍結適格な artifact である
-- **成果物への影響:** 床値が採れないので freeze v2 の floor/budget は null のままとなり、
-  oracle gate は永久に 2 件拒否を返し続ける (certified 選択の結果が 1 件も出ない)
+- **成果物への影響:** **再凍結適格な**床値が採れないので freeze v2 の floor/budget は null のまま
+  となり、oracle gate は 2 件拒否を返し続ける (certified 選択の結果が 1 件も出ない)。
+  **測定値としての床値は W-2 の pilot 経路で採れる** — 再凍結へ渡せないだけである
 
-### W-2. 床値実測 (Pegasus 単独) — **塞いでいるのは R-4 ではなく W-1 である**
+### W-2. 床値実測 (Pegasus 単独・pilot) — **W-1 の完了は前提ではない**
 
-- **R-4 は 2026-08-11 に (B) で裁定済み** ([T-747]、worklog 403)。しかしその実装単位
-  ([T-783]) も 2026-08-11 の wave `dev-wave-t8b-restart-residue` で **blocker 4 件により
-  再裁定へ戻った** (`output/insights/2026-08-11_t8b-restart-residue/package.md`)。
-  **順序は次のとおりで、W-2 の手前に 2 つ未了段がある。**
-  1. R-4 (B) の toolchain 束縛検査 — **未了** (再裁定待ち)
-  2. W-1 (official 解禁) — **未了** ([T-781] が「択保留・調査先行」)
-  3. W-2 投入 — 1 と 2 の両方が済んでから
-- **toolchain 束縛を先に入れずに W-1 だけ開けてはならない。** 床値 driver の `gcc-13`/`g++-13`
-  固定要求は、Pegasus では現に効いている fail-closed 障壁である。
-  compiler 解決を site 依存へ寄せる変更 ([T-783]) を束縛検査なしで入れると、
-  **認可されていない compiler で床値を測れるようにするだけ**の変更になる
-  (§1.2 の「既定 compiler へ黙って倒すのは選択肢にしない」に反する)。両者は不可分である
-- §1.2 のとおり、driver が固定要求する `g++-13` は Pegasus に無い
-- W-1・R-4 完了後に `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認し、
-  明示実行する。投入インタフェースは同 script が正本で、`qsub -v VAR=value <script>` 形を
-  自分で発明しない (runbook §8)
+- **[T-748] 裁定 (c) (2026-08-12、authority: user) が順序を変えた。** 固定 pilot 経路で
+  W-2 を先行させる。W-1 (official 解禁) は W-2 の前提ではない。
+  **ただし pilot 成果物は再凍結へ渡せず、official 解禁 → 再凍結 → oracle の順序は閉じたまま**である。
+- **R-4 (B) の toolchain 束縛検査は実装済み** ([T-747]、worklog 455)。
+  **pilot でも無条件に発火する** — `build_cells` が `_bind_current_toolchain` を呼ぶ経路に
+  mode 分岐は無い。**拒否されたらそれは正しい fail-closed であり、緩めて通してはならない** (§5 R-4)。
+- 投入手順は次の順で行う。**順序を崩さない。**
+  1. pilot 経路と docs の**全 tracked 変更を commit する** (未 commit の変更があると
+     `submit_floor.sh` の drift 検査が qsub 前に rc=2 で止める)
+  2. `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認する
+  3. 同 script を明示実行する。投入インタフェースは同 script が正本で、
+     `qsub -v VAR=value <script>` 形を自分で発明しない (runbook §8)
 - 背景 job セッションからの投入は F49 (ii) の例外で許されるが、投入直後に有効性検査 3 点
   (計算ノード側 marker の実在 / `qstat` 可視 / 会計痕跡) を必ず行う
+- **成果物を repo へ commit しない。** driver は `out_root = repo_output_root()` で repo の
+  `output/` 配下へ書き、`output/env/pegasus/calibration/s8b-floor-pilot/…` は gitignore されない。
+  holdout clean-scan の除外は `output/s8b-freeze/` だけなので、pilot result を repo に置くと
+  **将来の official 床値 job の起動証明 (`clean_scan_digest` の hit 0 件要求) が止まる**
+  (worklog 131-132 が同じ性質を記録している)。使い捨ての作業木で走らせ、repo 外へ退避する。
+  **退避は run directory だけでは足りない** — 次を 1 つの bundle にまとめ、構成 manifest と
+  各 hash を残す。run directory / content-addressed の binary store
+  (`output/env/<env>/binaries/<sha>`。manifest と result はここを `store_path` で参照する) /
+  submission receipt / job staging。**run directory だけを残すと参照が dangling になる。**
+- **途中で死んだら救出しない。** wrapper は `--resume` を渡さず、reservation 再検査は余裕不足を
+  `reservation-lost` terminal として numeric values を不適格にする。**新規 job で最初から再実行する。**
+- 完了後、記録された `cmake.path` を期待値と照合する。**cmake は version body だけが照合対象で
+  realpath は束縛されていない**ため、実体同一性は gate では証明されない
+  (§5 R-4 の「束縛していない量」に既記)。
 - cygnus は使わない (frozen/standby)
 
 ### W-3. freeze v2 の生成側 — **producer が存在しない**
@@ -226,7 +246,11 @@ P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先
 
 ---
 
-## 4. 順序の争点 — [T-657] 世代交代との衝突 (裁定待ち)
+## 4. 順序の争点 — [T-657] 世代交代との衝突 (**裁定済み**)
+
+> **決着 (2026-08-10 [T-748] 裁定、2026-08-12 裁定 (c) で投入経路まで確定)。**
+> **W-2 は第 1 世代のうちに固定 pilot 経路で走らせる。** 恒久機構 ([T-657] の世代交代) が
+> 先に発効した場合の作り直しリスクは受容する。以下の争点記述は決着の背景として残す。
 
 現行 floor protocol は pegasus **第 1 世代**の契約 hash を焼き込んでおり、いま有効な env 契約も
 第 1 世代なので整合している。しかし registry には**未発効の第 2 世代**が既に登録済みである。
@@ -240,9 +264,8 @@ P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先
 - **floor を作り直すと**、selector の予測封印が結び付いている protocol と食い違い、campaign launch が
   拒否される (式 3)。これは事前登録性を守る正しい挙動であって、迂回してはならない
 
-**したがって W-2 (床値実測) を第 1 世代のうちに走らせるか、第 2 世代へ交代してから
-protocol と封印を作り直すかは、8b 側では決められない順序の択一である。** [T-657] 側にも
-「floor protocol 復元のユーザー確認手番」が残置されている。裁定は §5 のパッケージで返す。
+**この択一は 8b 側では決められないため裁定へ返し、[T-748] で「第 1 世代のうちに走らせる」と
+決着した** (2026-08-10)。[T-657] 側の「floor protocol 復元のユーザー確認手番」は残置のままである。
 
 ---
 
@@ -255,7 +278,7 @@ protocol と封印を作り直すかは、8b 側では決められない順序�
 | R-1 (順序の択一) | **決着。** [T-748] で第 1 世代のうちに実測する方針を維持 |
 | R-2 (verify CLI の罠) | **決着 = (a)。** [T-749] として実装済み (worklog 402) |
 | R-3 (W-3 + W-4 の分割) | **未裁定。** [T-750] として再裁定待ち。統合 wave の段 3 が producer identity と budget authority の 2 点を新たに出した |
-| R-4 (toolchain 前提) | **裁定 = (B)** ([T-747])。ただし実装単位 [T-783] は blocker 4 件で再裁定へ戻った (§3 W-2) |
+| R-4 (toolchain 前提) | **決着 = (B) ([T-747])、実装済み (2026-08-11、[T-783])。** 束縛検査は pilot / official を問わず build 前に発火する。残る穴は下記「束縛していない量」 |
 
 以下は検分 wave 時点の記述である。本 wave は本番コードを編集していない。
 修理・設計択一は実装せず、次を裁定へ返す。
