@@ -1246,13 +1246,16 @@ def test_admission_non_pegasus_registry_entry_requires_projection_only():
     path = "tools/claude_session_ledger.py"
     entry = {
         "class": "unknown",
-        "reason": "input caps and capped-input measurement are incomplete",
-        "primary_gate": "hook deny pending admission evidence",
-        "evidence": "unmeasured; unbounded input surfaces remain",
+        "reason": "inputs are hard-capped; isolated-scope and cap-boundary measurements are unavailable",
+        "primary_gate": "hook deny pending isolated-scope admission evidence",
+        "evidence": "compute-node shared-service cgroup delta sampling (not runbook 7.0 isolated-scope evidence); default --json argv over 25 files; 5 valid runs, max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 negative-delta run excluded",
     }
     row = (
         f"| `{path}` | `unknown` | "
-        "`unmeasured; unbounded input surfaces remain` |"
+        "`compute-node shared-service cgroup delta sampling (not runbook 7.0 "
+        "isolated-scope evidence); default --json argv over 25 files; 5 valid runs, "
+        "max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 negative-delta "
+        "run excluded` |"
     )
     try:
         def add_entry(document):
@@ -1266,7 +1269,10 @@ def test_admission_non_pegasus_registry_entry_requires_projection_only():
         detail = (
             "runbook §7.0 投影表が registry と集合完全一致しない — "
             "registry_only=[('tools/claude_session_ledger.py', 'unknown', "
-            "'unmeasured; unbounded input surfaces remain')], runbook_only=[]"
+            "'compute-node shared-service cgroup delta sampling (not runbook 7.0 "
+            "isolated-scope evidence); default --json argv over 25 files; 5 valid "
+            "runs, max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 "
+            "negative-delta run excluded')], runbook_only=[]"
         )
         _assert_admission_exact(root, detail)
 
@@ -1279,6 +1285,44 @@ def test_admission_non_pegasus_registry_entry_requires_projection_only():
         assert runbook.count(first_row) == 1
         _write(root, rel, runbook.replace(first_row, row + "\n" + first_row, 1))
         _assert_admission_exact(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_admission_non_pegasus_runbook_measurement_is_absent_from_measured_table():
+    root = _build_min_repo()
+    path = "tools/claude_session_ledger.py"
+    entry = {
+        "class": "unknown",
+        "reason": "synthetic non-Pegasus measurement",
+        "primary_gate": "synthetic deny",
+        "evidence": "runbook §7.0 実測",
+    }
+    row = f"| `{path}` | `unknown` | `runbook §7.0 実測` |"
+    try:
+        def add_entry(document):
+            entries = dict(document["entries"])
+            entries[path] = entry
+            document["entries"] = {
+                key: entries[key] for key in sorted(entries)
+            }
+
+        _rewrite_registry(root, add_entry)
+        rel = "docs/pegasus-runbook.md"
+        runbook = _read(root, rel)
+        first_row = (
+            "| `tools/pegasus/collect_receipt.py` | `unknown` | "
+            "`unmeasured synthetic input` |"
+        )
+        assert runbook.count(first_row) == 1
+        _write(root, rel, runbook.replace(first_row, row + "\n" + first_row, 1))
+        _assert_admission_exact(
+            root,
+            "runbook §7.0 実測表の path 集合が registry と不一致 — "
+            "registry=['tools/claude_session_ledger.py', "
+            "'tools/pegasus/fetch_third_party.py'], "
+            "runbook=['tools/pegasus/fetch_third_party.py']",
+        )
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

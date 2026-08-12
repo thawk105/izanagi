@@ -99,7 +99,7 @@ def test_zero_model_calls_is_missing_not_complete(
         lambda argv: SimpleNamespace(report=report, exit_code=0),
     )
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "missing"
@@ -129,7 +129,7 @@ def test_zero_model_calls_is_missing_before_incomplete_reasons(
         lambda argv: SimpleNamespace(report=report, exit_code=0),
     )
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "missing"
@@ -150,7 +150,7 @@ def test_limit_reached_is_incomplete(
         lambda argv: SimpleNamespace(report=report, exit_code=0),
     )
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "incomplete"
@@ -158,7 +158,7 @@ def test_limit_reached_is_incomplete(
     assert artifact["ledger_report"] == report
 
 
-def test_helper_passes_cwd_under_and_fixed_sidechain_selector(
+def test_collector_argv_uses_equals_tokens_for_every_value_option(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     out = tmp_path / "usage.json"
@@ -171,32 +171,125 @@ def test_helper_passes_cwd_under_and_fixed_sidechain_selector(
 
     monkeypatch.setattr(USAGE, "collect_report", fake_collect)
 
-    assert USAGE.main(_argv(out, "--project", "synthetic-secondary")) == 0
+    assert USAGE.main(
+        _argv(
+            out,
+            "--project",
+            "synthetic-secondary",
+            "--projects-root",
+            "/synthetic/projects",
+            "--since",
+            "2026-08-13T00:00:00Z",
+            "--until",
+            "2026-08-13T01:00:00Z",
+            "--max-files",
+            "37",
+        )
+    ) == 0
 
-    cwd_index = seen.index("--cwd-under")
-    assert seen[cwd_index + 1] == "/synthetic/izanagi"
-    projects = [
-        seen[index + 1]
-        for index, value in enumerate(seen)
-        if value == "--project"
+    assert seen == [
+        "--projects-root=/synthetic/projects",
+        "--project=synthetic-project",
+        "--project=synthetic-secondary",
+        "--cwd-under=/synthetic/izanagi",
+        "--since=2026-08-13T00:00:00Z",
+        "--until=2026-08-13T01:00:00Z",
+        "--max-files=37",
+        "--include-sidechains",
     ]
-    assert projects == [
-        "synthetic-project",
-        "synthetic-secondary",
-    ]
-    assert seen.count("--include-sidechains") == 1
     assert "--strict" not in seen
-    max_files_index = seen.index("--max-files")
-    assert seen[max_files_index + 1] == str(LEDGER.MAX_MAX_FILES)
     artifact = _load_artifact(out)
     assert artifact["artifact_type"] == "izanagi.dev-wave.claude-usage"
     assert artifact["schema_version"] == 1
-    assert artifact["selector"]["max_files"] == LEDGER.MAX_MAX_FILES
+    assert artifact["selector"]["max_files"] == 37
     assert artifact["selector"]["include_sidechains"] is True
-    assert artifact["selector"]["projects"] == projects
-    assert artifact["selector"]["projects_root"] is None
-    assert artifact["selector"]["since"] is None
-    assert artifact["selector"]["until"] is None
+    assert artifact["selector"]["projects"] == [
+        "synthetic-project",
+        "synthetic-secondary",
+    ]
+    assert artifact["selector"]["projects_root"] == "/synthetic/projects"
+    assert artifact["selector"]["since"] == "2026-08-13T00:00:00Z"
+    assert artifact["selector"]["until"] == "2026-08-13T01:00:00Z"
+
+
+def test_leading_dash_project_slug_reaches_collector_intact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "usage.json"
+    _patch_other_site(monkeypatch)
+    seen: list[list[str]] = []
+
+    def fake_collect(argv: list[str]) -> SimpleNamespace:
+        seen.append(argv)
+        return SimpleNamespace(report=_report(), exit_code=0)
+
+    monkeypatch.setattr(USAGE, "collect_report", fake_collect)
+
+    assert USAGE.main(
+        [
+            "--wave-id",
+            "synthetic-wave",
+            "--out",
+            str(out),
+            "--project=-work-1-SFC-tanab-izanagi",
+            "--cwd-under",
+            "/synthetic/izanagi",
+        ]
+    ) == 0
+    assert seen == [
+        [
+            "--project=-work-1-SFC-tanab-izanagi",
+            "--cwd-under=/synthetic/izanagi",
+            f"--max-files={LEDGER.MAX_MAX_FILES}",
+            "--include-sidechains",
+        ]
+    ]
+    assert _load_artifact(out)["selector"]["projects"] == [
+        "-work-1-SFC-tanab-izanagi"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("status", "site", "expected_rc"),
+    [
+        ("complete", USAGE.site_policy.OTHER, 0),
+        ("blocked", USAGE.site_policy.PEGASUS_LOGIN, 3),
+        ("blocked", USAGE.site_policy.PEGASUS_SUSPECT, 1),
+        ("incomplete", USAGE.site_policy.OTHER, 1),
+        ("missing", USAGE.site_policy.OTHER, 1),
+        ("error", USAGE.site_policy.OTHER, 1),
+        ("synthetic-unknown", USAGE.site_policy.OTHER, 1),
+    ],
+)
+def test_collection_status_exit_code_contract_preserves_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+    site: str,
+    expected_rc: int,
+) -> None:
+    out = tmp_path / "usage.json"
+    monkeypatch.setattr(
+        USAGE.site_policy,
+        "current_site",
+        lambda **kwargs: site,
+    )
+
+    def fake_collect(args: Any, observed_site: str) -> dict[str, Any]:
+        assert observed_site == site
+        return USAGE._artifact(
+            args,
+            site=observed_site,
+            status=status,
+            reasons=[] if status == "complete" else ["synthetic reason"],
+        )
+
+    monkeypatch.setattr(USAGE, "_collect", fake_collect)
+
+    assert USAGE.main(_argv(out)) == expected_rc
+    artifact = _load_artifact(out)
+    assert artifact["collection"]["status"] == status
+    assert artifact["collection"]["site"] == site
 
 
 def test_issues_make_a_nonzero_collection_incomplete(
@@ -211,7 +304,7 @@ def test_issues_make_a_nonzero_collection_incomplete(
         lambda argv: SimpleNamespace(report=report, exit_code=0),
     )
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "incomplete"
@@ -260,7 +353,7 @@ def test_helper_imports_public_collector_without_subprocess_or_json_reparse(
     assert "from tools.claude_session_ledger import" in source
 
 
-def test_collector_exception_is_error_but_main_returns_zero(
+def test_collector_exception_is_error_but_main_returns_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     out = tmp_path / "usage.json"
@@ -271,7 +364,7 @@ def test_collector_exception_is_error_but_main_returns_zero(
 
     monkeypatch.setattr(USAGE, "collect_report", failing_collect)
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "error"
@@ -293,7 +386,7 @@ def test_existing_output_is_not_overwritten_and_leaves_no_temporary_artifact(
         lambda argv: SimpleNamespace(report=_report(), exit_code=0),
     )
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     assert out.read_bytes() == original
     assert list(tmp_path.glob(f".{out.name}.*.tmp")) == []
@@ -324,7 +417,8 @@ def test_unclassified_site_is_blocked_without_calling_collector(
 
     monkeypatch.setattr(USAGE, "collect_report", counted_collect)
 
-    assert USAGE.main(_argv(out)) == 0
+    expected_rc = 3 if site == USAGE.site_policy.PEGASUS_LOGIN else 1
+    assert USAGE.main(_argv(out)) == expected_rc
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "blocked"
@@ -366,7 +460,7 @@ def test_collector_site_classification_fails_closed_without_evidence(
 
     monkeypatch.setattr(USAGE, "collect_report", counted_collect)
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "blocked"
@@ -374,6 +468,41 @@ def test_collector_site_classification_fails_closed_without_evidence(
     assert artifact["collection"]["reasons"] == [
         "site evidence is insufficient to run the unclassified collector"
     ]
+    assert calls == 0
+
+
+@pytest.mark.parametrize(
+    ("site", "expected_rc"),
+    [
+        (USAGE.site_policy.PEGASUS_SUSPECT, 1),
+        (USAGE.site_policy.PEGASUS_LOGIN, 3),
+    ],
+)
+def test_suspect_site_is_collection_error_not_normal_policy_block(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    site: str,
+    expected_rc: int,
+) -> None:
+    out = tmp_path / "usage.json"
+    monkeypatch.setattr(
+        USAGE.site_policy,
+        "current_site",
+        lambda **kwargs: site,
+    )
+    calls = 0
+
+    def counted_collect(argv: list[str]) -> SimpleNamespace:
+        nonlocal calls
+        calls += 1
+        return SimpleNamespace(report=_report(), exit_code=0)
+
+    monkeypatch.setattr(USAGE, "collect_report", counted_collect)
+
+    assert USAGE.main(_argv(out)) == expected_rc
+    artifact = _load_artifact(out)
+    assert artifact["collection"]["status"] == "blocked"
+    assert artifact["collection"]["site"] == site
     assert calls == 0
 
 
@@ -400,7 +529,7 @@ def test_missing_project_never_falls_back_to_all_projects(
         "/synthetic/izanagi",
     ]
 
-    assert USAGE.main(argv) == 0
+    assert USAGE.main(argv) == 1
 
     artifact = _load_artifact(out)
     assert artifact["collection"]["status"] == "error"
@@ -419,7 +548,7 @@ def test_output_must_be_absolute(
 
     monkeypatch.setattr(USAGE, "collect_report", forbidden_collect)
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 2
     assert not out.exists()
 
 
@@ -450,7 +579,7 @@ def test_output_below_any_git_marker_is_rejected(
 
     monkeypatch.setattr(USAGE, "collect_report", counted_collect)
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
     assert not out.exists()
     assert calls == 0
 
@@ -477,15 +606,48 @@ def test_output_below_empty_git_directory_is_accepted(
     assert calls == 1
 
 
-def test_process_returns_zero_when_required_arguments_are_missing(
+def test_process_returns_two_when_required_arguments_are_missing(
     tmp_path: Path,
 ) -> None:
     completed = _run_helper_process(tmp_path)
 
+    assert completed.returncode == 2
+
+
+def test_process_help_documents_equals_project_and_exit_code_contract(
+    tmp_path: Path,
+) -> None:
+    completed = _run_helper_process(tmp_path, "--help")
+
     assert completed.returncode == 0
+    assert "--project=<slug>" in completed.stdout
+    assert "0  collection.status=complete または --help" in completed.stdout
+    assert "1  PEGASUS_SUSPECT の blocked、incomplete、missing、error" in completed.stdout
+    assert "2  外側 argv を argparse が拒否" in completed.stdout
+    assert "3  PEGASUS_LOGIN と確証できた site の blocked" in completed.stdout
 
 
-def test_process_returns_zero_when_project_is_missing(tmp_path: Path) -> None:
+def test_split_leading_dash_project_is_rejected_and_requires_equals_form(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "usage.json"
+    completed = _run_helper_process(
+        tmp_path,
+        "--wave-id",
+        "synthetic-wave",
+        "--out",
+        os.fspath(out),
+        "--project",
+        "-work-1-SFC-tanab-izanagi",
+        "--cwd-under",
+        "/synthetic/izanagi",
+    )
+
+    assert completed.returncode == 2
+    assert not out.exists()
+
+
+def test_process_returns_one_when_project_is_missing(tmp_path: Path) -> None:
     out = tmp_path / "missing-project.json"
     completed = _run_helper_process(
         tmp_path,
@@ -497,19 +659,19 @@ def test_process_returns_zero_when_project_is_missing(tmp_path: Path) -> None:
         "/synthetic/izanagi",
     )
 
-    assert completed.returncode == 0
+    assert completed.returncode == 1
     assert _load_artifact(out)["collection"]["status"] == "error"
 
 
-def test_process_returns_zero_when_output_is_inside_repo(tmp_path: Path) -> None:
+def test_process_returns_one_when_output_is_inside_repo(tmp_path: Path) -> None:
     out = USAGE._REPO_ROOT / f"synthetic-repo-usage-{tmp_path.name}.json"
     completed = _run_helper_process(tmp_path, *_argv(out))
 
-    assert completed.returncode == 0
+    assert completed.returncode == 1
     assert not out.exists()
 
 
-def test_process_returns_zero_and_records_nonzero_collector_exit_code(
+def test_process_returns_one_and_records_nonzero_collector_exit_code(
     tmp_path: Path,
 ) -> None:
     out = tmp_path / "collector-error.json"
@@ -519,7 +681,7 @@ def test_process_returns_zero_and_records_nonzero_collector_exit_code(
         *_argv(out, "--projects-root", os.fspath(projects_root)),
     )
 
-    assert completed.returncode == 0
+    assert completed.returncode == 1
     artifact = _load_artifact(out)
     assert artifact["collection"]["collector_exit_code"] == 2
     assert artifact["collection"]["status"] == "missing"
@@ -537,7 +699,7 @@ def test_missing_output_parent_is_not_created(
         lambda argv: SimpleNamespace(report=_report(), exit_code=0),
     )
 
-    assert USAGE.main(_argv(out)) == 0
+    assert USAGE.main(_argv(out)) == 1
     assert not parent.exists()
 
 

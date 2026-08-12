@@ -457,7 +457,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 
 | path | class | evidence |
 |---|---|---|
-| `tools/claude_session_ledger.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/claude_session_ledger.py` | `unknown` | `compute-node shared-service cgroup delta sampling (not runbook 7.0 isolated-scope evidence); default --json argv over 25 files; 5 valid runs, max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 negative-delta run excluded` |
 | `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
@@ -526,6 +526,18 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
     再提案には新しい実測が要る。
   - この手番が確定した帰結として、**hook 面で `systemd-run` 経由の綴りを塞いでも正規の測定面は
     失われない** ([T-518] (d) の閉じ方の入力。閉じるかどうかは [T-481] の族再設計で決める)。
+  - **2026-08-13 の委任と、そこで採られた非 canonical 測定。** ユーザーが実行場所分類の**選択**を
+    AI へ明示委任し (「あなたが適切なところを選んでください」)、その下で
+    `tools/claude_session_ledger.py` が計算ノードで測られた。**この測定は本節の canonical 手順では
+    ない。** 計算ノードには per-job cgroup も cgroup delegation も無く
+    (`/proc/self/cgroup` が `0::/system.slice/nqs-jsv.service` の 1 行だけであることを 2 ノードで確認)、
+    非 root では専有 scope を作れないため、採られたのは共有 service cgroup の `memory.current` を
+    busy sampling する delta 方式である。同居 job の充当変動が混入し、実際に 1 走が負 delta になって
+    無効化された。**したがってこの値は `local-ok` の根拠にならず、class は `unknown` のまま**で、
+    証拠は非 certifying であることを evidence 文字列自身に書いている。
+    **委任は「どこで走らせるかを選ぶこと」であって、AI が本節の専有 scope 測定を自ら実行してよいと
+    いう意味ではない** (F159 / F160 / D233 決定 4 の手番は変わっていない)。本節を計算ノードで
+    動く測定手順へ改訂する案も、依然として採らない。
 - **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
   である (D103 決定 2 / D105 決定 3 が enum を閉じている)。表に無い重い処理は自動化されていない
   ので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。sanctioned な経路が無ければ

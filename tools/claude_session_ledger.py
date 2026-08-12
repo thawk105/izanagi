@@ -3,7 +3,9 @@
 
 ``model_calls`` は usage を持つ assistant response を file provenance 内で
 ``requestId`` / ``message.id`` alias により dedupe した件数であり、tool 呼び出し数では
-ない。入力は ``cache_read_input_tokens + cache_creation_input_tokens + input_tokens`` の
+ない。空でない canonical な ``message.id`` が一致する assistant 応答は同一の model
+call であることを同一性の公理とし、検証済みの cross-file replica も全体で 1 回だけ
+数える。入力は ``cache_read_input_tokens + cache_creation_input_tokens + input_tokens`` の
 生トークン交通量であり、費用・課金・利用枠を表さない。
 """
 from __future__ import annotations
@@ -36,6 +38,8 @@ MAX_REQUESTS = 250_000
 MAX_TOOL_IDENTITIES = 500_000
 MAX_DISCOVERY_ENTRIES = 100_000
 MAX_ISSUE_DETAILS = 100
+MAX_CANONICAL_MESSAGE_ID_LENGTH = 256
+DEDUP_ALGORITHM_VERSION = "canonical_message_id_usage_dominance_v1"
 
 USAGE_FIELDS = (
     "cache_read_input_tokens",
@@ -394,13 +398,15 @@ def _record_meta(
 ) -> dict[str, Any]:
     raw_timestamp = record.get("timestamp")
     event_timestamp = _parse_timestamp(raw_timestamp)
-    if raw_timestamp not in (None, "") and event_timestamp is None:
+    invalid_timestamp = raw_timestamp not in (None, "") and event_timestamp is None
+    if invalid_timestamp:
         _issue(issues, "invalid_timestamp", location)
     cwd = record.get("cwd")
     if not isinstance(cwd, str):
         cwd = ""
     return {
         "event_timestamp": event_timestamp,
+        "invalid_timestamp": invalid_timestamp,
         "mtime": mtime,
         "cwd": cwd,
         "sidechain": sidechain,
@@ -427,7 +433,12 @@ def _new_request(path: str, sidechain: bool) -> dict[str, Any]:
         "request_ids": set(),
         "message_ids": set(),
         "tools": set(),
+        "member_anomaly": False,
     }
+
+
+def _is_canonical_message_id(value: str) -> bool:
+    return bool(value) and value.isascii() and len(value) <= MAX_CANONICAL_MESSAGE_ID_LENGTH
 
 
 def _request_identity(
@@ -458,7 +469,7 @@ def _request_identity(
     if len(mapped) > 1:
         detail = f"{location}: requestId/message.id map to distinct responses"
         _issue(issues, "alias_conflict", detail)
-        state["invalid_requests"].update(mapped)
+        state["identity_conflicts"].update(mapped)
         return None
     if mapped:
         canonical = next(iter(mapped))
@@ -490,13 +501,13 @@ def _request_identity(
                 "alias_conflict",
                 f"{location}: one response has multiple {field}",
             )
-            state["invalid_requests"].add(canonical)
+            state["identity_conflicts"].add(canonical)
             return None
     for alias_key in alias_keys:
         existing = state["aliases"].get(alias_key)
         if existing is not None and existing != canonical:
             _issue(issues, "alias_conflict", location)
-            state["invalid_requests"].update({existing, canonical})
+            state["identity_conflicts"].update({existing, canonical})
             return None
         state["aliases"][alias_key] = canonical
         _, kind, value = alias_key
@@ -663,6 +674,8 @@ def _stream_file(
                 continue
 
             request = state["requests"][canonical]
+            if meta["invalid_timestamp"]:
+                request["member_anomaly"] = True
             previous_meta = request["last_stream_meta"]
             if not meta["cwd"] and previous_meta is not None:
                 meta["cwd"] = previous_meta["cwd"]
@@ -678,6 +691,7 @@ def _stream_file(
                         "event_timestamp_out_of_order",
                         f"{resolved_path}:{line_number}",
                     )
+                    request["member_anomaly"] = True
                 request["last_stream_timestamp"] = event_timestamp
             request["last_stream_meta"] = meta
 
@@ -728,6 +742,7 @@ def _stream_file(
                         maxima[field] = max(maxima[field], parsed_usage[field])
             if usage_errors:
                 counters["malformed_usage_records"] += 1
+                request["member_anomaly"] = True
             for detail in usage_errors:
                 _issue(issues, "malformed_usage", detail)
             if terminal:
@@ -741,21 +756,186 @@ def _stream_file(
     return sequence, resource_stop
 
 
-def _mark_cross_file_collisions(state: dict[str, Any], issues: dict[str, list[str]]) -> None:
-    for (kind, value), canonicals in sorted(state["raw_aliases"].items()):
-        provenances = {canonical[0] for canonical in canonicals}
+def _member_local_validation(
+    state: dict[str, Any],
+    issues: dict[str, list[str]],
+    *,
+    cwd_filters: list[str],
+    cwd_under: str | None,
+    since: datetime | None,
+    until: datetime | None,
+) -> tuple[set[tuple[str, int]], set[tuple[str, int]]]:
+    """相 1: replica 解決前に member 固有の anomaly をすべて確定する。"""
+    anomalous = set(state["identity_conflicts"])
+    aggregation_excluded = set(state["identity_conflicts"])
+    cross_file_message_members: set[tuple[str, int]] = set()
+    for (kind, _), raw_group in state["raw_aliases"].items():
+        if kind == "message.id" and len({canonical[0] for canonical in raw_group}) > 1:
+            cross_file_message_members.update(raw_group)
+    for canonical in sorted(state["requests"]):
+        if canonical in state["identity_conflicts"]:
+            continue
+        request = state["requests"][canonical]
+        if request["member_anomaly"]:
+            anomalous.add(canonical)
+        request_key = f"{canonical[0]}#{canonical[1]}"
+        if request["timestamped_records"] and request["untimestamped_records"]:
+            _issue(issues, "incomplete_event_timestamps", request_key)
+            anomalous.add(canonical)
+            aggregation_excluded.add(canonical)
+        if request["usage_seen"] and not request["terminal_has_usage"]:
+            _issue(issues, "terminal_usage_missing", request_key)
+            anomalous.add(canonical)
+            aggregation_excluded.add(canonical)
+        meta = request["terminal_meta"]
+        if (
+            (cwd_filters or cwd_under is not None)
+            and meta is not None
+            and not meta["cwd"]
+        ):
+            _issue(issues, "missing_cwd", request_key)
+            anomalous.add(canonical)
+            aggregation_excluded.add(canonical)
+        usage = request["terminal_usage"]
+        maxima = request["usage_maxima"]
+        if usage is not None and maxima is not None:
+            lower = [field for field in USAGE_FIELDS if usage[field] < maxima[field]]
+            if lower:
+                anomalous.add(canonical)
+                if canonical in cross_file_message_members or _selected(
+                    meta,
+                    cwd_filters=cwd_filters,
+                    cwd_under=cwd_under,
+                    since=since,
+                    until=until,
+                ):
+                    _issue(
+                        issues,
+                        "usage_final_below_prior_max",
+                        f"{request_key}: {', '.join(lower)}",
+                    )
+    return anomalous, aggregation_excluded
+
+
+def _dominates(left: dict[str, int], right: dict[str, int]) -> bool:
+    return all(left[field] >= right[field] for field in USAGE_FIELDS)
+
+
+def _replica_preference(
+    canonical: tuple[str, int], state: dict[str, Any]
+) -> tuple[bool, str, int]:
+    request = state["requests"][canonical]
+    return request["sidechain"], canonical[0], canonical[1]
+
+
+def _resolve_cross_file_replicas(
+    state: dict[str, Any],
+    issues: dict[str, list[str]],
+    *,
+    member_anomalies: set[tuple[str, int]],
+) -> None:
+    """相 2 を読み取り専用で完了し、相 3 で解決結果を一括適用する。"""
+    canonicals = set(state["requests"])
+    planned_representatives = {canonical: canonical for canonical in canonicals}
+    planned_invalid = set(state["identity_conflicts"])
+    planned_sidechain = {
+        canonical: state["requests"][canonical]["sidechain"]
+        for canonical in canonicals
+    }
+    components = {canonical: {canonical} for canonical in canonicals}
+
+    # 相 2a: message.id 群を検証する。ここでは state へ一切書かない。
+    for (kind, value), raw_group in sorted(state["raw_aliases"].items()):
+        if kind != "message.id":
+            continue
+        group = tuple(sorted(raw_group))
+        provenances = {canonical[0] for canonical in group}
         if len(provenances) <= 1:
             continue
-        category = "request_id_collision" if kind == "requestId" else "message_id_collision"
-        _issue(issues, category, f"{value}: {', '.join(sorted(provenances))}")
-        state["invalid_requests"].update(canonicals)
+        requests = [state["requests"][canonical] for canonical in group]
+        request_id_sets = {frozenset(request["request_ids"]) for request in requests}
+        models = {request["terminal_model"] for request in requests}
+        locally_clean = not any(canonical in member_anomalies for canonical in group)
+        structurally_valid = bool(
+            _is_canonical_message_id(value)
+            and all(request["message_ids"] == {value} for request in requests)
+            and len(request_id_sets) == 1
+            and all(
+                request["terminal_has_usage"]
+                and request["terminal_usage"] is not None
+                for request in requests
+            )
+            and len(models) == 1
+            and locally_clean
+        )
+        candidates: list[tuple[str, int]] = []
+        if structurally_valid:
+            for candidate in group:
+                candidate_request = state["requests"][candidate]
+                candidate_usage = candidate_request["terminal_usage"]
+                if all(
+                    _dominates(
+                        candidate_usage,
+                        state["requests"][other]["terminal_usage"],
+                    )
+                    and state["requests"][other]["tools"].issubset(
+                        candidate_request["tools"]
+                    )
+                    for other in group
+                ):
+                    candidates.append(candidate)
+        if not candidates:
+            _issue(
+                issues,
+                "message_id_collision",
+                f"{value}: {', '.join(sorted(provenances))}",
+            )
+            planned_invalid.update(group)
+            continue
+
+        representative = min(
+            candidates, key=lambda canonical: _replica_preference(canonical, state)
+        )
+        component = set(group)
+        components[representative] = component
+        planned_sidechain[representative] = all(
+            state["requests"][canonical]["sidechain"] for canonical in group
+        )
+        for canonical in group:
+            planned_representatives[canonical] = representative
+
+    # 相 2b: message representative へ写像した後の requestId 再利用を検証する。
+    for (kind, value), raw_group in sorted(state["raw_aliases"].items()):
+        if kind != "requestId":
+            continue
+        group = tuple(sorted(raw_group))
+        provenances = {canonical[0] for canonical in group}
+        if len(provenances) <= 1:
+            continue
+        mapped = {planned_representatives[canonical] for canonical in group}
+        if len(mapped) <= 1:
+            continue
+        _issue(
+            issues,
+            "request_id_collision",
+            f"{value}: {', '.join(sorted(provenances))}",
+        )
+        for representative in mapped:
+            planned_invalid.update(components[representative])
+        planned_invalid.update(group)
+
+    # 相 3: 全群の検証後に初めて representative map と invalid 集合を書く。
+    for canonical, representative in planned_representatives.items():
+        if representative in planned_invalid:
+            planned_invalid.update(components[representative])
+    state["representatives"] = planned_representatives
+    state["representative_sidechain"] = planned_sidechain
+    state["invalid_requests"] = planned_invalid
 
 
 def _add_request(
     metrics: dict[str, int],
-    request_key: str,
     request: dict[str, Any],
-    issues: dict[str, list[str]],
 ) -> None:
     metrics["tool_calls"] += len(request["tools"])
     usage = request["terminal_usage"]
@@ -766,15 +946,6 @@ def _add_request(
     ):
         metrics["synthetic_zero_usage_excluded"] += 1
         return
-    maxima = request["usage_maxima"]
-    if maxima is not None:
-        lower = [field for field in USAGE_FIELDS if usage[field] < maxima[field]]
-        if lower:
-            _issue(
-                issues,
-                "usage_final_below_prior_max",
-                f"{request_key}: {', '.join(lower)}",
-            )
     metrics["model_calls"] += 1
     for field in USAGE_FIELDS:
         metrics[field] += usage[field]
@@ -871,7 +1042,14 @@ def _empty_report(
             "projects_root": os.fspath(projects_root),
             "project_filters": sorted(set(project_filters)),
             "cwd_contains_filters": sorted(set(cwd_filters)),
-            "request_identity": "resolved_file_provenance_with_requestId_message.id_aliases",
+            "request_identity": (
+                "resolved_file_provenance_aliases_with_verified_cross_file_"
+                "canonical_message.id_replicas"
+            ),
+            "dedup_algorithm_version": DEDUP_ALGORITHM_VERSION,
+            "dedup_comparison_compatibility": (
+                "incomparable_with_reports_without_dedup_algorithm_version"
+            ),
             "time_window": {
                 "since_inclusive": since_text,
                 "until_exclusive": until_text,
@@ -957,7 +1135,7 @@ def collect_report(argv: Sequence[str] | None = None) -> CollectionResult:
         "requests": {},
         "aliases": {},
         "raw_aliases": {},
-        "invalid_requests": set(),
+        "identity_conflicts": set(),
         "next_request": 0,
         "tool_identities": 0,
         "resource_stop": False,
@@ -1013,26 +1191,28 @@ def collect_report(argv: Sequence[str] | None = None) -> CollectionResult:
             if resource_stop:
                 break
 
-        _mark_cross_file_collisions(state, issues)
+        member_anomalies, aggregation_excluded = _member_local_validation(
+            state,
+            issues,
+            cwd_filters=args.cwd_contains,
+            cwd_under=args.cwd_under,
+            since=since,
+            until=until,
+        )
+        _resolve_cross_file_replicas(
+            state,
+            issues,
+            member_anomalies=member_anomalies,
+        )
         for canonical in sorted(state["requests"]):
-            if canonical in state["invalid_requests"]:
+            representative = state["representatives"][canonical]
+            if canonical != representative:
+                continue
+            if canonical in state["invalid_requests"] or canonical in aggregation_excluded:
                 continue
             request = state["requests"][canonical]
             request_key = f"{canonical[0]}#{canonical[1]}"
-            if request["timestamped_records"] and request["untimestamped_records"]:
-                _issue(issues, "incomplete_event_timestamps", request_key)
-                continue
-            if request["usage_seen"] and not request["terminal_has_usage"]:
-                _issue(issues, "terminal_usage_missing", request_key)
-                continue
             meta = request["terminal_meta"]
-            if (
-                (args.cwd_contains or args.cwd_under is not None)
-                and meta is not None
-                and not meta["cwd"]
-            ):
-                _issue(issues, "missing_cwd", request_key)
-                continue
             if not _selected(
                 meta,
                 cwd_filters=args.cwd_contains,
@@ -1041,8 +1221,12 @@ def collect_report(argv: Sequence[str] | None = None) -> CollectionResult:
                 until=until,
             ):
                 continue
-            metrics = report["sidechains" if request["sidechain"] else "root"]
-            _add_request(metrics, request_key, request, issues)
+            metrics = report[
+                "sidechains"
+                if state["representative_sidechain"][canonical]
+                else "root"
+            ]
+            _add_request(metrics, request)
 
     report["issues"] = {
         key: sorted(set(value)) for key, value in sorted(issues.items())
