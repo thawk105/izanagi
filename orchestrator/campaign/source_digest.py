@@ -594,11 +594,26 @@ def _read(path: str) -> str:
             "fails-closed で停止 (D23)") from e
 
 
+def _sanitized_git_env() -> dict[str, str]:
+    """Repository 指定を親から継承せず、Git read の index 副作用を抑止する。"""
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    return env
+
+
 def _git_show(ccbench_dir: str, commit: str, rel: str) -> str:
     """submodule の特定 commit のファイル内容 (baseline = patch 前 stock)。"""
     try:
-        r = subprocess.run(["git", "-C", ccbench_dir, "show", f"{commit}:{rel}"],
-                           capture_output=True, text=True)
+        r = subprocess.run(
+            ["git", "-C", ccbench_dir, "show", f"{commit}:{rel}"],
+            capture_output=True, text=True, env=_sanitized_git_env(),
+        )
     except (OSError, subprocess.SubprocessError) as e:
         raise RuntimeError(
             f"source_digest: git show 起動失敗 ({e}) — baseline を確定できず "
@@ -764,7 +779,7 @@ def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
     sub = ccbench_dir or _ccbench_dir()
     try:
         r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, env=_sanitized_git_env())
     except (OSError, subprocess.SubprocessError) as e:
         raise RuntimeError(
             f"source_digest: git status 起動失敗 ({e}) — working-tree の健全性を "
@@ -804,7 +819,7 @@ def _tracked_diff_sha256(ccbench_dir: str = "") -> str:
     try:
         r = subprocess.run(
             ["git", "-C", sub, "diff", "--binary", "HEAD", "--"],
-            capture_output=True,
+            capture_output=True, env=_sanitized_git_env(),
         )
     except (OSError, subprocess.SubprocessError) as e:
         raise RuntimeError(

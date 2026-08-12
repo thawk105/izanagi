@@ -119,6 +119,18 @@ def _synthetic_floor_result(v1: dict, protocol: dict) -> dict:
     for cell in cells:
         records = []
         for _round in range(protocol["n_sessions"]):
+            observations = [
+                {
+                    "rep_index": index, "returncode": 0,
+                    "counter_status": "complete", "missing_perf_events": [],
+                    "perf_raw": {
+                        "LLC-load-misses": 1, "LLC-loads": 2,
+                        "instructions": 3, "cycles": 4,
+                    },
+                    "throughput": 1000.0,
+                }
+                for index in range(protocol["reps"])
+            ]
             row = {
                 "cell_id": cell["cell_id"],
                 "holdout_id": cell["holdout_id"],
@@ -129,6 +141,9 @@ def _synthetic_floor_result(v1: dict, protocol: dict) -> dict:
                 "exec_failures": 0,
                 "excluded_reason": None,
                 "retry": False,
+                "rep_observations": observations,
+                "rep_integrity_failures": 0,
+                "exclusion_class": None,
             }
             sessions.append(row)
             records.append(stats.SessionRecord(
@@ -137,6 +152,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict) -> dict:
                 throughputs=tuple(row["throughputs"]),
                 reps_expected=row["reps_expected"], exec_failures=0,
                 excluded_reason=None, retry=False,
+                rep_observations=tuple(observations), rep_integrity_failures=0,
             ))
             seq += 1
         by_cell[cell["cell_id"]] = stats.cell_stats(

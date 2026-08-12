@@ -53,6 +53,13 @@ ALLOWED_EXCLUDED_REASONS = (
 )
 _REASON_PARTIAL = "nonfinite_or_partial_output"
 _REASON_PERFORMANCE = "performance_anomaly"
+REP_INTEGRITY_EXCLUSION_CLASS = "rep_integrity_failure"
+PERF_EVENTS = ("LLC-load-misses", "LLC-loads", "instructions", "cycles")
+_REP_OBSERVATION_KEYS = frozenset({
+    "rep_index", "returncode", "counter_status", "missing_perf_events",
+    "perf_raw", "throughput",
+})
+_COUNTER_STATUSES = frozenset({"complete", "incomplete", "not_required", "unknown"})
 
 # throughput から再導出できる (＝ verifier が生値照合できる) 理由。probe/launch 起因の
 # competing_process / launch_failure は throughput から導出不能で、その真正性は F7 wave
@@ -159,7 +166,7 @@ def assess_session(throughputs, *, reps: int, session_cv_max) -> SessionAssessme
 class SessionRecord:
     """1 セッション (= 実 campaign の 1 measure_point と同形) の生計測。
 
-    throughputs は「成功した rep の tps」列であり、reps_expected 本揃って初めて有効。
+    throughputs は「rc/counter が完備した rep の tps」列であり、reps_expected 本揃って初めて有効。
     exec_failures / excluded_reason / 非有限・非正値・CV 超過はいずれも session を無効にする。
     formula v2 で block field は廃止 (2-block delta_c 対比は F1 裁定で削除, α-12)。
     """
@@ -172,6 +179,8 @@ class SessionRecord:
     exec_failures: int
     excluded_reason: Optional[str]
     retry: bool
+    rep_observations: tuple = ()
+    rep_integrity_failures: Optional[int] = None
 
 
 def session_median(rec: SessionRecord, *, reps: int, session_cv_max) -> Optional[float]:
@@ -405,7 +414,8 @@ _EXPECTED_PROTOCOL_KEYS = ("formula", "n_sessions", "reps", "stock_configuration
                            "expected_cells")
 _REQUIRED_SESSION = ("cell_id", "holdout_id", "configuration_id", "seq",
                      "throughputs", "reps_expected", "exec_failures",
-                     "excluded_reason", "retry")
+                     "excluded_reason", "retry", "rep_observations",
+                     "rep_integrity_failures", "exclusion_class")
 # artifact.config に self-report される protocol 値 (expected と完全一致すべき)。
 _CONFIG_SCALARS = ("formula", "n_sessions", "reps", "stock_configuration",
                    "wired_min_rel_floor", "session_cv_max", "cell_cv_max")
@@ -413,17 +423,164 @@ _CONFIG_SCALARS = ("formula", "n_sessions", "reps", "stock_configuration",
 
 def _record_from_mapping(d: Mapping) -> SessionRecord:
     """session 生データ dict を SessionRecord に厳密変換 (欠損キーは KeyError)。"""
+    for field in ("seq", "reps_expected", "exec_failures"):
+        value = d[field]
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{field} が非負 exact int でない: {value!r}")
+    if type(d["retry"]) is not bool:
+        raise ValueError(f"retry が exact bool でない: {d['retry']!r}")
     return SessionRecord(
         cell_id=d["cell_id"],
         holdout_id=d["holdout_id"],
         configuration_id=d["configuration_id"],
-        seq=int(d["seq"]),
+        seq=d["seq"],
         throughputs=tuple(d["throughputs"]),
-        reps_expected=int(d["reps_expected"]),
-        exec_failures=int(d["exec_failures"]),
+        reps_expected=d["reps_expected"],
+        exec_failures=d["exec_failures"],
         excluded_reason=d["excluded_reason"],
-        retry=bool(d["retry"]),
+        retry=d["retry"],
+        rep_observations=tuple(d["rep_observations"]),
+        rep_integrity_failures=d["rep_integrity_failures"],
     )
+
+
+def _rep_evidence_exemption_kind(raw: Mapping) -> Optional[str]:
+    """構造的に測定されなかった session の固定分類を返す。"""
+    if (raw.get("run_cmd") is not None
+            or raw.get("throughputs") != []
+            or raw.get("session_median") is not None
+            or raw.get("valid") is not False):
+        return None
+    probe_before = raw.get("probe_before")
+    probe_after = raw.get("probe_after")
+    if (isinstance(probe_before, Mapping)
+            and probe_before.get("competing") is True
+            and probe_after is None):
+        return "pre_probe_competing"
+    if raw.get("exec_failures") == raw.get("reps_expected"):
+        return "measure_exception"
+    return None
+
+
+def _derive_rep_integrity(observations, *, reps: int,
+                          expected_use_perf: bool) -> tuple[list, int, tuple]:
+    """rep 証跡を独立検査し、(errors, failure count, qualified tps) を返す。"""
+    errors: list = []
+    if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+        return ["rep_observations が配列でない"], reps, ()
+    if len(observations) != reps:
+        errors.append(f"rep_observations 件数 {len(observations)} != reps {reps}")
+
+    by_index: dict[int, Mapping] = {}
+    structurally_bad: set[int] = set()
+    for position, observation in enumerate(observations):
+        ctx = f"rep_observations[{position}]"
+        if not isinstance(observation, Mapping):
+            errors.append(f"{ctx}: object でない")
+            continue
+        if set(observation) != _REP_OBSERVATION_KEYS:
+            errors.append(
+                f"{ctx}: exact key 不一致 (受領 {sorted(map(repr, observation))})"
+            )
+        index = observation.get("rep_index")
+        if type(index) is not int or not 0 <= index < reps:
+            errors.append(f"{ctx}: rep_index が範囲内 exact int でない: {index!r}")
+            continue
+        if index in by_index:
+            errors.append(f"{ctx}: rep_index {index} が重複")
+            structurally_bad.add(index)
+            continue
+        by_index[index] = observation
+
+    missing_indices = sorted(set(range(reps)) - set(by_index))
+    if missing_indices:
+        errors.append(f"rep_observations: rep_index 欠損 {missing_indices}")
+
+    failures = len(missing_indices)
+    qualified: list = []
+    for index in range(reps):
+        observation = by_index.get(index)
+        if observation is None:
+            continue
+        ctx = f"rep_observations[{index}]"
+        bad = index in structurally_bad
+
+        returncode = observation.get("returncode")
+        returncode_is_exact_int = type(returncode) is int
+        if returncode is not None and not returncode_is_exact_int:
+            errors.append(f"{ctx}: returncode が exact int/null でない: {returncode!r}")
+            bad = True
+
+        perf_raw = observation.get("perf_raw")
+        if not isinstance(perf_raw, Mapping) or set(perf_raw) != set(PERF_EVENTS):
+            errors.append(f"{ctx}: perf_raw の exact event 集合が不一致")
+            perf_raw = {}
+            bad = True
+        raw_missing: list[str] = []
+        for event in PERF_EVENTS:
+            value = perf_raw.get(event)
+            if value is not None and type(value) is not int:
+                errors.append(f"{ctx}: perf_raw[{event!r}] が exact int/null でない")
+                bad = True
+            if type(value) is not int or value < 0:
+                raw_missing.append(event)
+
+        reported_missing = observation.get("missing_perf_events")
+        if (not isinstance(reported_missing, Sequence)
+                or isinstance(reported_missing, (str, bytes))):
+            errors.append(f"{ctx}: missing_perf_events が配列でない")
+            reported_missing = []
+            bad = True
+        else:
+            reported_missing = list(reported_missing)
+            strings_only = all(isinstance(event, str) for event in reported_missing)
+            expected_order = (
+                [event for event in PERF_EVENTS if event in reported_missing]
+                if strings_only else []
+            )
+            if (not strings_only or reported_missing != expected_order
+                    or len(set(reported_missing)) != len(reported_missing)):
+                errors.append(f"{ctx}: missing_perf_events が固定順 subset でない")
+                bad = True
+
+        derived_missing = raw_missing if expected_use_perf else []
+        if reported_missing != derived_missing:
+            errors.append(
+                f"{ctx}: missing_perf_events 齟齬 "
+                f"(申告 {reported_missing!r} != raw 再導出 {derived_missing!r})"
+            )
+            bad = True
+        derived_status = (
+            "not_required" if not expected_use_perf
+            else "complete" if not derived_missing else "incomplete"
+        )
+        status = observation.get("counter_status")
+        if not isinstance(status, str) or status not in _COUNTER_STATUSES:
+            errors.append(f"{ctx}: counter_status が未知: {status!r}")
+            bad = True
+        if status != derived_status:
+            errors.append(
+                f"{ctx}: counter_status 齟齬 "
+                f"(申告 {status!r} != 再導出 {derived_status!r})"
+            )
+            bad = True
+
+        throughput = observation.get("throughput")
+        if throughput is not None and (
+                isinstance(throughput, bool) or not isinstance(throughput, (int, float))):
+            errors.append(f"{ctx}: throughput が数値/null でない: {throughput!r}")
+
+        complete = (
+            not bad
+            and returncode is not None and returncode == 0
+            and status == derived_status
+            and derived_status in {"complete", "not_required"}
+        )
+        if not complete:
+            failures += 1
+        elif throughput is not None:
+            qualified.append(throughput)
+    return errors, failures, tuple(qualified)
 
 
 def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
@@ -432,7 +589,8 @@ def _cmp(ctx: str, name: str, reported, computed, out: list) -> None:
 
 
 def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
-                          expected_binaries: Optional[Mapping] = None) -> list:
+                          expected_binaries: Optional[Mapping] = None, *,
+                          expected_use_perf: bool) -> list:
     """artifact の生 session を再計算し、自己申告値 + 外部 expected_protocol と厳密照合する。
 
     **保証境界 (α-1):** 本関数が保証するのは (1) raw session からの cells/floors/理由の内部整合
@@ -460,6 +618,8 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
     で齟齬として列挙する (黙認しない)。
     """
     errors: list = []
+    if type(expected_use_perf) is not bool:
+        return [f"expected_use_perf が bool でない: {expected_use_perf!r}"]
 
     # --- expected_protocol のキー集合検査 (外部入力自体の完全性) ---
     if not isinstance(expected_protocol, Mapping):
@@ -511,15 +671,65 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
         if missing:
             errors.append(f"sessions[{i}]: 必須キー欠損 {missing}")
             continue
-        records.append((i, _record_from_mapping(d)))
+        try:
+            records.append((i, _record_from_mapping(d)))
+        except (TypeError, ValueError, KeyError) as exc:
+            errors.append(f"sessions[{i}]: SessionRecord へ変換不能 ({exc})")
     if errors:
         return errors
 
-    # --- reps 一様性 + 理由 (閉表) + CV↔reason 双方向一致 (α-4/α-5) ---
+    # --- rep 証跡 + reps 一様性 + 理由 + CV↔reason 双方向一致 ---
     for i, r in records:
         ctx = f"sessions[{i}]"
         if r.reps_expected != reps:
             errors.append(f"{ctx}: reps_expected {r.reps_expected} != expected.reps {reps}")
+        raw = raw_sessions[i]
+        exempt_without_measure = _rep_evidence_exemption_kind(raw) is not None
+        derived_failures: Optional[int] = None
+        if not exempt_without_measure:
+            evidence_errors, derived_failures, qualified = _derive_rep_integrity(
+                r.rep_observations, reps=reps, expected_use_perf=expected_use_perf,
+            )
+            errors.extend(f"{ctx}: {error}" for error in evidence_errors)
+            if (type(r.rep_integrity_failures) is not int
+                    or r.rep_integrity_failures < 0):
+                errors.append(
+                    f"{ctx}: rep_integrity_failures が非負 exact int でない: "
+                    f"{r.rep_integrity_failures!r}"
+                )
+            elif r.rep_integrity_failures != derived_failures:
+                errors.append(
+                    f"{ctx}: rep_integrity_failures 齟齬 "
+                    f"(申告 {r.rep_integrity_failures} != 再導出 {derived_failures})"
+                )
+            if tuple(r.throughputs) != qualified:
+                errors.append(
+                    f"{ctx}: integrity-qualified throughputs 齟齬 "
+                    f"(申告 {tuple(r.throughputs)!r} != 再導出 {qualified!r})"
+                )
+            if derived_failures > 0 and r.excluded_reason not in {
+                    "competing_process", "launch_failure", _REASON_PARTIAL}:
+                errors.append(f"{ctx}: rep integrity 違反なのに partial へ閉じていない")
+            if derived_failures == 0 and raw.get("exclusion_class") == \
+                    REP_INTEGRITY_EXCLUSION_CLASS:
+                errors.append(f"{ctx}: 完備な証跡を rep_integrity_failure と偽除外")
+            if derived_failures > 0:
+                if raw.get("valid") is True:
+                    errors.append(f"{ctx}: rep integrity 違反なのに valid=true")
+                if raw.get("session_median") is not None:
+                    errors.append(f"{ctx}: rep integrity 違反なのに session_median が非 null")
+        expected_class = (
+            r.excluded_reason
+            if r.excluded_reason in {"competing_process", "launch_failure"}
+            else REP_INTEGRITY_EXCLUSION_CLASS
+            if derived_failures is not None and derived_failures > 0
+            else r.excluded_reason
+        )
+        if raw["exclusion_class"] != expected_class:
+            errors.append(
+                f"{ctx}: exclusion_class 齟齬 "
+                f"(申告 {raw['exclusion_class']!r} != 再導出 {expected_class!r})"
+            )
         reason = r.excluded_reason
         if reason is not None and reason not in ALLOWED_EXCLUDED_REASONS:
             errors.append(f"{ctx}: excluded_reason {reason!r} が閉表 4 理由に無い")
