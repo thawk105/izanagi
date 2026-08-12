@@ -323,22 +323,27 @@ def composite_competing_probe(
 
 
 def _build_cmd(binary: str, gflags: Sequence[str], perf_out: str,
-               numactl: Optional[Sequence[str]]) -> List[str]:
+               numactl: Optional[Sequence[str]], *, use_perf: bool = True) -> List[str]:
     cmd: List[str] = []
     if numactl:
         cmd += list(numactl)
-    cmd += ["perf", "stat", "-x,", "-o", perf_out, "-e", ",".join(PERF_EVENTS),
-            "--", binary]
+    if use_perf:
+        cmd += ["perf", "stat", "-x,", "-o", perf_out, "-e", ",".join(PERF_EVENTS),
+                "--"]
+    cmd.append(binary)
     cmd += list(gflags)
     return cmd
 
 
 def repro_command(binary: str, gflags: Sequence[str],
-                  numactl: Optional[Sequence[str]] = None) -> str:
+                  numactl: Optional[Sequence[str]] = None, *,
+                  use_perf: bool = True) -> str:
     """測定点を手で再現するコマンド文字列。perf の `-o` 出力先 (一時ファイル) は外す =
     再現に無関係。実験再現用に ScalePoint.run_cmd / WAL に残す (forensic binding)。"""
     parts = list(numactl) if numactl else []
-    parts += ["perf", "stat", "-e", ",".join(PERF_EVENTS), "--", binary]
+    if use_perf:
+        parts += ["perf", "stat", "-e", ",".join(PERF_EVENTS), "--"]
+    parts.append(binary)
     parts += list(gflags)
     return " ".join(parts)
 
@@ -349,7 +354,8 @@ def run_once(binary: str, gflags: Sequence[str],
              extra_env: Optional[Dict[str, str]] = None,
              strict_returncode: bool = False,
              subprocess_runner: Callable[..., object] = subprocess.run,
-             rep_returncodes: Optional[List[int]] = None):
+             rep_returncodes: Optional[List[int]] = None, *,
+             use_perf: bool = True):
     """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。
 
     extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
@@ -361,7 +367,7 @@ def run_once(binary: str, gflags: Sequence[str],
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")
     try:
         perf_out = os.path.join(tmp, "perf.csv")
-        cmd = _build_cmd(binary, gflags, perf_out, numactl)
+        cmd = _build_cmd(binary, gflags, perf_out, numactl, use_perf=use_perf)
         # WAL=1 の genome は <cwd>/log/log<thid> に log を書く (CCBench fileio.hh
         # genLogFileName)。log/ が無いと open 失敗 → LibcError → SIGABRT で計測不能。
         # cwd を使い捨て tmp にし log/ を用意する (binary/perf_out は絶対パスなので
@@ -403,7 +409,8 @@ def measure_point(binary: str, records: int, threads: int,
                   require_all_reps: bool = False,
                   require_complete_metrics: bool = False,
                   subprocess_runner: Callable[..., object] = subprocess.run,
-                  rep_returncodes: Optional[List[int]] = None) -> ScalePoint:
+                  rep_returncodes: Optional[List[int]] = None, *,
+                  use_perf: bool = True) -> ScalePoint:
     """1 測定点を reps 回反復して ScalePoint を組む。
 
     throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
@@ -428,8 +435,10 @@ def measure_point(binary: str, records: int, threads: int,
     for k, v in (workload or {}).items():
         base_flags.append(f"-{k}={v}")
 
-    pt = ScalePoint(records=records, threads=threads,
-                    run_cmd=repro_command(binary, base_flags, numactl))
+    pt = ScalePoint(
+        records=records, threads=threads,
+        run_cmd=repro_command(binary, base_flags, numactl, use_perf=use_perf),
+    )
     rep_results = []   # (tps, counters, wall, maxrss_kb, abort_rate, latency_ns)
     n_exec_fail = 0
     for i in range(reps):
@@ -447,6 +456,8 @@ def measure_point(binary: str, records: int, threads: int,
                 run_kwargs["subprocess_runner"] = subprocess_runner
             if rep_returncodes is not None:
                 run_kwargs["rep_returncodes"] = rep_returncodes
+            if not use_perf:
+                run_kwargs["use_perf"] = False
             metrics, counters, wall = run_once(binary, base_flags, **run_kwargs)
         except (RuntimeError, subprocess.TimeoutExpired) as e:
             if require_all_reps:

@@ -15335,3 +15335,192 @@ canonical literal で固定する。
   保留一覧という読み取り専用の目的に対して過大で、本 wave の scope を超える。
 - 禁止語 blacklist だけで過剰保証を防ぐ — 回避文言が実際に書けることを実証済み。
 - 完全性を名乗って運用で担保する — 保証の主体が機械でなくなる。
+
+## D348. perf preflight は pilot に閉じ、official の受理言語を 1 bit も変えない (2026-08-12)
+
+**文脈.** 第 5 束のユーザー裁定 (branch `worktree-rulings6-20260812` の decisions fragment、
+slug `perf-optional-measurement`。本 wave 時点で未 land のため実番号を書かない) が
+「perf を測定の前提にしない。
+あれば使い、なければ無しで測る。有無は環境タグへ記録、比較は同条件内」を確定し、T-921 の
+preflight を「置く」と定めた。素直な実装は、測定条件 (perf の有無) を artifact へ記録し、
+run_cmd の期待形をその記録から導出することである。
+
+**問題.** run_cmd は 2 系統の consumer が独立に再導出して**完全一致**を要求する
+(`s8b_floor_campaign._project_measure_run_cmd`、`s8b_ratified_freeze` の 3 matcher)。
+perf 無し形を足すと、この防壁が「2 形のどちらでも通る」に退化しうる。
+段 3 の敵対検証は「`available` は artifact 作者の自己申告であり、偽装すれば official verifier に
+no-perf 形を受理させられる」という攻撃を具体化した。create-only は初回からの虚偽を防がない。
+
+**決定.** **receipt の emit と perf 無し形の到達可能性を `mode == "pilot"` に限定する。**
+official 経路は従来どおり perf あり形だけを期待し、`s8b_ratified_freeze.py` と
+`s8b_holdout_freeze.py` は 1 行も変更しない。official mode で receipt が非 None または
+`use_perf=False` になったら `CampaignAbort` で止める。
+
+**根拠 (実測).** pilot artifact は official 検証系へ構造的に入れない。
+`s8b_holdout_freeze._validate_floor_inputs` は `mode != "official"` と
+`eligible_for_refreeze is not True` を拒否し、`s8b_ratified_freeze` は期待 result に
+`"mode": "official"` を固定する。したがって pilot 限定にすれば、official の受理集合は
+「広がらない」のではなく**変化しない**。自己申告で買えるものが存在しなくなる。
+
+**却下した代案.** (a) receipt を official にも emit して verifier を拡張する — 自己申告に
+受理集合を委ねる。(b) `env_tag` 文字列へ perf 有無を焼く — `contract_sha256` と machine pin に
+束縛されており凍結契約の同一性が壊れる。(c) perf 不在時に測定を止める — ユーザー裁定に反する。
+
+**副次の決定.**
+
+- **判定は 3 値** (`available` / `unavailable` / `probe_error`)。timeout・予期しない OSError・
+  signal 終了は `probe_error` として **abort** する。`rc != 0` と perf 不在は `unavailable`
+  であって異常ではない (T-920 の実測が `perf stat` rc=2 である以上、rc≠0 を abort にすると
+  裁定が開けた経路を再び閉じる)。
+- **検出は実行で行う。** `shutil.which` 型の存在検査では足りない (perf は PATH に在って rc=2)。
+  probe は runner と同じ event 列と `-o` 出力形を使い、行が揃えば値が `<not counted>` でも
+  `available` とする (false negative を避ける)。
+- **使う perf は PATH の literal `perf` だけ。** `policy.json` の `perf_candidates` は
+  receipt へ evidence として記録するのみで選択に使わない。絶対 path を採るには run_cmd・
+  toolchain binding・verifier の同時拡張が要り、F89 が未裁定である。
+- **回収条件を機械強制する。** `floor_campaign.sh` は driver rc=0 の後に result.json を読み、
+  全 holdout の床値が有限実数であることを要求する。欠損なら非 0 rc。
+  「完走したのに床値ゼロ」を成功として記録する経路を塞ぐ。
+
+**成果物影響.** 実装しなければ床値 (T-748 W-2) の実測値が 1 つも得られない。
+official の受理集合・`eligible_for_refreeze`・certified 選択は本決定では変わらない。
+
+## D349. 測定装置の authority は import 解決でなく設置場所から導く (2026-08-13)
+
+**決定:** T-810 測定装置が caller の申告値を検証するとき、比較の相手 (authority) は
+**coordinator 自身の設置場所からパスで導く**。具体的には staged wrapper の bytes は
+`Path(t810_coordinator.__file__).resolve().parent / "t810_pbs_wrapper.py"` の実 bytes と、
+repository roots は `resolve_git_identity(Path(t810_coordinator.__file__).resolve().parents[2])` の
+live git identity と比較する。**import 済み module の `__file__` を authority にしない。**
+caller が別途 roots を渡す経路は残すが、authority との**和集合**とし、caller は roots を
+増やせるが減らせない。
+
+**理由:**
+- `tools` と `tools/pegasus` は `__init__.py` を持たない namespace package である。
+  `PYTHONPATH` に別の `tools/pegasus/` を先置きすれば、official な coordinator を repo から
+  読みながら wrapper だけを差し替えられる。import 解決を authority にすると、
+  攻撃者は「authority 自身」を用意できてしまう。設置場所からパスで導けばこの経路は塞がる。
+- 測定装置には launch intent / config を書く production producer が存在しない。
+  producer が無い以上、caller config の外に置ける根は「今まさに動いている実装の所在」しかない。
+  凍結 pin 台帳や署名連鎖を新設せずに済むため、凍結チェーン検証の保留 (D328) とも衝突しない。
+  D328 の保留対象は実装↔測定の同一性検証であり、実行認可 (admission) と信頼境界は対象外である。
+- caller roots を捨てず和集合にするのは、authority が一時的に不完全でも受理集合が広がらない
+  ようにするためである。共有 repo では並行 wave が worktree を絶えず追加・撤去するため、
+  live な registry は一瞬だけ解決不能になりうる。解決できない登録は**捨てず**、
+  その登録が主張する root を非 strict 解決で保持する。roots への操作を追加のみに保てば、
+  外乱は過剰拒否にも受理拡大にも化けない。
+
+**却下した選択肢:**
+- import 済み module の `__file__` を authority にする — namespace package の shadowing で
+  authority ごと差し替えられる。
+- 解決不能な worktree 登録を skip する — 並行 churn は消えるが、main tree の外にある
+  linked worktree が roots から落ち、そこへの書き込みが repository-external として受理される。
+- 解決不能な登録で fail-closed のまま止める — 他 session の worktree 操作という無関係な外乱で
+  測定準備が失敗する。安全側ではあるが正当な運用を殺す。
+- 検査を最上位の入口にだけ置く — 内側の adapter を直接呼べば迂回できる。private 名は
+  能力境界ではない (D331)。検査は最内の effect adapter に置く。
+
+## D350. 検索の前置フィルタは実際に compile する式へ束縛する (2026-08-13)
+
+**決定:** 三軸検索の必要条件 literal は、**その scan が実際に compile する `expressions` から**
+導出する。module の template 定数から導出してはならない。導出できない文法に出会ったら
+`None` を返し、その scan は前置フィルタなしで従来経路を走る。
+
+**理由:**
+
+- 式は template から `_expressions` が作るが、`_expressions` は monkeypatch 可能な seam であり、
+  テストが現に patch している。template 由来の literal と実際に compile される式が別物になると、
+  前置フィルタが**正しい hit を捨てる** = 受理集合が変わる。段 3 の敵対レンズが反例を構成した。
+- 同じ理由で、compile と導出は**同一 snapshot** に束縛する。`items()` と `values()` を別に読むと、
+  不安定な `Mapping` で両者が食い違う。段 6 の敵対レビューが反例を構成した。
+- 値側は導出に使わない。値は正規表現であり、任意 1 文字に一致するメタ文字を含みうる。
+  値を literal 扱いすると、正規表現には一致するのに literal を含まない text を捨てる。
+
+**却下した選択肢:**
+
+- **template から導出して scan 間で共有する** — 起草段の案。共有は速いが、上記の seam により
+  受理集合が変わりうる。安全側を採り、scan ごとに独立導出する。
+- **必要 literal をソースへ直接書く** — 具体的な軸符号化はソースに書けない
+  (repo 全文検索が自己汚染するため既存の source guard が禁じている)。また template が変われば黙って壊れる。
+- **速度のために正規表現を literal 一致へ置き換える** — 値のメタ文字を無視することになり
+  受理集合が狭まる。
+
+## D351. 前置フィルタの安全性は独立 slow 経路との bytes 一致で担保する (2026-08-13)
+
+**決定:** 検索の最適化が受理集合を変えていないことの根拠は、**導出器を無効化した独立 slow 経路との
+全 report の canonical bytes 一致**に置く。live gate の通過を根拠にしてはならない。
+
+**理由:**
+
+- live gate が固定するのは (a) candidate 集合、(b) 照合規約、(c) 検索式、
+  (d) holdout の conjunction が空、(e) 陽性対照の hit が 0 より大きい、の 5 点だけである。
+  `per_axis_counts` と `result_sha256` は live では照合されない。
+- 段 3 の敵対レンズが具体的な反例を構成した。必要 literal を「固定陽性対照だけが含む形」に
+  固定すると、陽性対照の hit を残したまま通常形式の holdout hit を落とせる。
+  凍結側の陽性対照は 41 hit あり、`> 0` の条件は容易に残る。**oracle gate は騙せる。**
+- したがって等価テストが唯一の検出者である。変異検査でこの検出力自体を裏取りする。
+
+**却下した選択肢:**
+
+- **live gate の通過を証拠にする** — 上記の反例により不十分。
+- **live 値と凍結値の完全一致を要求する** — 凍結側の `per_axis_counts` と陽性対照件数は
+  経時変動を許す契約になっている。要求するとその契約を壊す。
+- **等価テストを実 repo で走らせる** — 開発するほど遅くなるテストを新設することになる。
+  固定 fixture に限定する。
+
+## D352. perf を測定の前提にしない — あれば使い、なければ無しで測る (2026-08-13)
+
+**決定:** 性能測定 (床値・calibration・oracle を含む) は perf (linux-tools) の可用性を
+前提にしない。perf が動く環境では使い、動かない環境では perf なしで測定を進める。
+preflight は可用性を検出して環境タグへ記録し、実行を止めるためには使わない。
+perf 依存の量 (cache miss 率等) はその環境では取得しないと明記し、**値の比較は同条件
+(perf 有無が同じ環境タグ) 内に限る** — 測定の公正は不変。
+
+**理由:**
+- 2026-08-12 ユーザー裁定 (authority: user、rulings 第 5 束): 「動かせる時は使うし、
+  動かせない時は使わない」。
+- 2026-08-12 の実測で計算ノード 8/8 とも現行 kernel 用 linux-tools が不在 (`perf stat` rc=2)
+  であり、導入は管理者手番で期限を制御できない。外部手番を測定の閂にすると研究が止まる。
+- 環境ごとに取得可能な量が違うことは既定の前提 (環境タグと 3 層分類) で扱える。
+
+**却下した選択肢:**
+- perf を必須とし導入まで測定を停止する — 外部依存で主経路が無期限に止まる。
+- perf 不在を無記録で通す — 同条件比較の判定材料が失われる。記録は必須のまま。
+
+## D353. テスト保留は全実行経路で効かせる — runner 依存の保留は保留でない (2026-08-13)
+
+**決定:** 恒久保留 (D335 系) の保留は、受入経路だけでなく**素の pytest 直叩きを含む
+すべての実行経路**で発火させる。collection 層など経路非依存の位置で実装し、保留の解除は
+明示 opt-in 機構 (ユーザー明示命令の系) のみとする。一部の runner でだけ効く保留を
+「保留済み」と記録してはならない。
+
+**理由:**
+- 2026-08-12 ユーザー裁定 (authority: user、rulings 第 5 束): 「素の pytest 直叩きが
+  実行できるのは許さない。それは izanagi として保留ではなく、あなたが回避してるだけ。
+  そのようなごまかしは認めない」。rulings の容認推奨はこの発話で棄却された。
+- 経路依存の保留は「保留した」という台帳記録を偽にする — 謳うだけで発火しない保証と
+  同型の失敗であり、可視性 (何が保留中か 1 箇所で読める) の前提も壊す。
+
+**却下した選択肢:**
+- 直叩きを開発者の opt-in と同義として容認する — 台帳の「保留」と実挙動が食い違う。
+- runner ごとの個別対応 — 経路の追加のたびに穴が再発する。collection 層で 1 箇所に置く。
+
+## D354. ログインノードの実行可否は回収不能メモリで判定する (2026-08-13)
+
+**決定:** login node での実行可否 (headroom admission) の占有量は、cgroup の
+`memory.current` そのままではなく**回収不能量**を使う。回収可能 = clean な file page cache
+(file − shmem − file_dirty − file_writeback) + 回収可能 slab。回収不能 = 合計 − 回収可能。
+ファイルキャッシュが上限近くまで積もっても、それ自体は拒否理由・dispatch 逃がしの理由に
+しない (2026-08-12 ユーザー指示)。
+
+**理由:**
+- ファイルキャッシュは上限に当たればカーネルが捨てられる (読み直しが遅くなるだけ)。
+  swap の無い login node で OOM kill を招くのは回収不能分だけである。
+- `memory.current` での判定は安全側に倒れすぎ、余裕があるのに計算ノードへ逃がす
+  過小許可を生む。dirty / writeback は書き戻すまで捨てられないため回収不能側に数える
+  (保守形)。
+
+**却下した選択肢:**
+- `memory.current` のままの現状維持 — 過小許可の実害をユーザーが指摘した。
+- システム全体の `MemAvailable` — user slice の予算管理と粒度が合わず、他ユーザーの
+  変動を自分の判定に混ぜてしまう。

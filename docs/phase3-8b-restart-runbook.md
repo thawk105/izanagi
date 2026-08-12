@@ -200,11 +200,32 @@ official mode の guard は変更していない (受理集合は空のまま)�
   mode 分岐は無い。**拒否されたらそれは正しい fail-closed であり、緩めて通してはならない** (§5 R-4)。
 - **実投入で判明した停止点 (2026-08-12)。** 投入経路の欠陥 4 件は修正済みで、
   admission・attestation・toolchain 束縛・実体化はすべて通過する。
-  **残る停止点は測定そのもの** — 計算ノードに現行 kernel 用の perf が無く、
+  かつての停止点は測定そのものだった — 計算ノードに現行 kernel 用の perf が無く、
   `perf stat` の下で走る測定が 1 点も取れない (8/8 ノードで実測)。
-  **これは環境手番であり、perf を外す回避は採らない。**
-  campaign は `driver_rc=0` / `status: completed` を返しつつ床値が全 null になるので、
+- **この停止点はユーザー裁定で解除された (2026-08-12、第 5 束、authority: user)。**
+  裁定 `perf-optional-measurement` により **perf は測定の前提ではない**。あれば使い、
+  なければ無しで測る。T-920 (linux-tools 導入依頼) は閂ではなくなった。
+  実装は設計判断 `perf-preflight-pilot-scoped` に従い、次の形で固定されている。
+  - **検出**: 測定開始前・12 セル build 前に 1 回だけ probe する。判定は
+    `available` / `unavailable` / `probe_error` の 3 値。**`probe_error` (timeout・
+    予期しない OSError・signal 終了) は abort** する。`rc != 0` と perf 不在は
+    `unavailable` であって異常ではない。
+  - **使う perf は PATH の literal `perf` だけ**である (runner が実行するのと同一)。
+    `policy.json` の `perf_candidates` は **evidence として probe 結果を receipt に残すだけで
+    選択には使わない** (絶対 path を選ぶには run_cmd・toolchain binding・verifier の
+    拡張が要り、F89 が未裁定のため)。**candidate を PATH へ注入する運用をしない。**
+  - **分岐**: `unavailable` でも build と測定を続行する (床値は throughput だけを使い
+    perf counters を消費しない)。
+  - **記録**: receipt を manifest と result へ create-only で残し、`result.md` にも
+    perf 条件を出す。**比較は同条件内でのみ行う。**
+  - **pilot 限定**: receipt の emit と perf 無し形は `mode == "pilot"` でだけ到達できる。
+    official は従来どおり perf あり形だけを期待し、**official の受理集合は 1 bit も変わらない**。
+- campaign は `driver_rc=0` / `status: completed` を返しつつ床値が全 null になりうるので、
   **rc だけで成功と判定してはならない。** `floors` が実数を持つことまで確かめる。
+  この確認は `floor_campaign.sh` が driver 終了後に機械強制する (欠損なら非 0 rc)。
+  加えて **job 開始直後に journal を見て、最初の数 session が全滅していないかを確かめる** —
+  全滅していれば残り 10 時間を捨てずに止める (`smoke_probe.sh` は perf も ccbench も
+  起動しないため direct 実行の canary にはならない。2026-08-12 実測)。
 - 投入手順は次の順で行う。**順序を崩さない。**
   1. pilot 経路と docs の**全 tracked 変更を commit する** (未 commit の変更があると
      `submit_floor.sh` の drift 検査が qsub 前に rc=2 で止める)

@@ -22,7 +22,9 @@ from orchestrator.campaign.t810_preregistration import (
 from orchestrator.campaign.t810_validator import (
     BaselineEnvelope,
     GitIdentity,
+    T810ValidationError,
     pass_witness_sha256,
+    resolve_git_identity,
     validate_t810,
 )
 from tools.pegasus import t810_harness_schema as schema
@@ -194,6 +196,32 @@ def _read_regular_bytes(path: Path, name: str, *, missing_ok: bool = False) -> b
         return b"".join(chunks)
     finally:
         os.close(fd)
+
+
+def _assert_declared_file_identity(
+    path: Path, declared_sha256: str, name: str,
+) -> str:
+    """Require a declared digest to describe stable regular-file bytes."""
+    raw = _read_regular_bytes(path, name)
+    assert raw is not None
+    actual_sha256 = schema.sha256_bytes(raw)
+    if actual_sha256 != declared_sha256:
+        _fail(f"{name} does not match its declared SHA-256")
+    return actual_sha256
+
+
+def _assert_staged_file_identities(slot: Mapping[str, Any]) -> None:
+    wrapper_sha256 = _assert_declared_file_identity(
+        Path(slot["wrapper_path"]), slot["wrapper_sha256"], "staged wrapper",
+    )
+    shipped_wrapper = Path(__file__).resolve().parent / "t810_pbs_wrapper.py"
+    shipped_raw = _read_regular_bytes(shipped_wrapper, "shipped wrapper")
+    assert shipped_raw is not None
+    if wrapper_sha256 != schema.sha256_bytes(shipped_raw):
+        _fail("staged wrapper does not match the shipped wrapper bytes")
+    _assert_declared_file_identity(
+        Path(slot["binary_source_path"]), slot["binary_sha256"], "staged binary",
+    )
 
 
 def _read_json(path: Path, name: str) -> Mapping[str, Any]:
@@ -505,13 +533,28 @@ def repository_roots_from_git_identity(identity: GitIdentity) -> frozenset[Path]
     if worktrees.is_dir():
         for admin in worktrees.iterdir():
             gitdir = admin / "gitdir"
-            if not gitdir.is_file() or gitdir.is_symlink():
+            if gitdir.is_symlink():
                 _fail("git common-dir contains an invalid worktree registration")
+            registered_raw = _read_regular_bytes(gitdir, "worktree registration")
+            assert registered_raw is not None
             try:
-                registered = Path(gitdir.read_text(encoding="utf-8").strip())
-                roots.add(registered.resolve(strict=True).parent)
-            except (OSError, UnicodeError) as exc:
+                registered_text = registered_raw.decode("utf-8").strip()
+            except UnicodeError as exc:
                 raise T810CoordinatorError("cannot resolve registered worktree") from exc
+            if not registered_text:
+                continue
+            try:
+                registered = Path(registered_text).resolve(strict=True)
+            except FileNotFoundError:
+                try:
+                    registered = Path(registered_text).resolve(strict=False)
+                except OSError as exc:
+                    raise T810CoordinatorError(
+                        "cannot resolve registered worktree"
+                    ) from exc
+            except OSError as exc:
+                raise T810CoordinatorError("cannot resolve registered worktree") from exc
+            roots.add(registered.parent)
     return frozenset(roots)
 
 
@@ -654,9 +697,19 @@ def prepare_group(
     if (intent["node_count"] != int(selected["node_count"])
             or intent["round_count"] != int(selected["round_count"])):
         _fail("launch intent differs from preregistration design")
-    roots = frozenset(Path(root).resolve(strict=False) for root in repository_roots)
-    if not roots:
+    try:
+        coordinator_identity = resolve_git_identity(Path(__file__).resolve().parents[2])
+    except T810ValidationError as exc:
+        raise T810CoordinatorError("cannot resolve coordinator repository identity") from exc
+    caller_roots = frozenset(
+        Path(root).resolve(strict=False) for root in repository_roots
+    )
+    if not caller_roots:
         _fail("repository_roots must not be empty")
+    roots = frozenset({
+        *repository_roots_from_git_identity(coordinator_identity),
+        *caller_roots,
+    })
     work_root = _ensure_external_root(token, Path(intent["work_root"]), "work_root", repository_roots=roots)
     output_root = _ensure_external_root(token, Path(intent["output_root"]), "output_root", repository_roots=roots)
     if work_root == output_root or work_root in output_root.parents or output_root in work_root.parents:
@@ -682,6 +735,7 @@ def prepare_group(
             slot, policy=policy, run_kind=intent["run_kind"],
         ):
             _fail("qsub argv does not match the ratified canonical form")
+        _assert_staged_file_identities(slot)
     intent_sha256 = schema.canonical_sha256(intent)
     guard = _validate_guard_receipt(
         _read_json(document["guard_receipt_path"], "guard receipt"),
@@ -1649,6 +1703,7 @@ def _subprocess_scheduler(
     if selected is None or cwd != str(prepared.work_root) or env:
         _fail("subprocess scheduler inputs are not the prepared canonical submission")
     _assert_canonical_job_script(selected)
+    _assert_staged_file_identities(selected)
     return subprocess.run(
         list(argv), cwd=cwd, env=dict(env), text=True, capture_output=True, check=False,
     )
