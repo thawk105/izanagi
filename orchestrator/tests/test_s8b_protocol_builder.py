@@ -423,6 +423,31 @@ def test_freeze_protocol_success_writes_only_fixed_tmp_repo_path(tmp_path):
 # 実 repo tree 不変                                                             #
 # --------------------------------------------------------------------------- #
 
+def test_repo_status_scrubs_git_environment_and_disables_optional_locks(monkeypatch):
+    """repo snapshot status は親の Git 指定を捨て optional lock を 0 に固定する。"""
+    forbidden = (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    )
+    for name in forbidden:
+        monkeypatch.setenv(name, f"decoy-{name}")
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "1")
+    captured = {}
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(
+            command, 0, stdout=b" M tracked.txt\0", stderr=b"",
+        )
+
+    monkeypatch.setattr(repo_tree_util.subprocess, "run", runner)
+    assert repo_tree_util._repo_status(Path("/real/repo")) == b" M tracked.txt\0"
+    assert captured["env"]["GIT_OPTIONAL_LOCKS"] == "0"
+    assert all(name not in captured["env"] for name in forbidden)
+    assert captured["check"] is True
+    assert captured["cwd"] == "/real/repo"
+
 @pytest.mark.parametrize(
     "relative_dest",
     [Path("protocol.json"), Path("nested/protocol.json")],

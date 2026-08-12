@@ -1,6 +1,7 @@
 """実 repo tree の tracked + untracked 不変性を検査する pytest 非依存 helper。"""
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -18,10 +19,19 @@ class RepoTreeListError(RuntimeError):
 
 
 def _repo_status(root: Path) -> bytes:
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    # optional index refresh lock を抑止する。mandatory lock と status の意味は変えない。
+    env["GIT_OPTIONAL_LOCKS"] = "0"
     try:
         return subprocess.run(
             ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
             cwd=str(root), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+            env=env,
         ).stdout
     except (OSError, subprocess.CalledProcessError) as exc:
         raise RepoTreeSnapshotError(f"git status snapshot を取得できない: {root}") from exc

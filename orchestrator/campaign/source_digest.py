@@ -762,9 +762,17 @@ def _tracked_status_paths(ccbench_dir: str = "") -> tuple[str, ...]:
     """Return sorted tracked paths from one porcelain snapshot; ignore untracked output."""
 
     sub = ccbench_dir or _ccbench_dir()
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    # optional index refresh lock を抑止する。mandatory lock と status の意味は変えない。
+    env["GIT_OPTIONAL_LOCKS"] = "0"
     try:
         r = subprocess.run(["git", "-C", sub, "status", "--porcelain"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, env=env)
     except (OSError, subprocess.SubprocessError) as e:
         raise RuntimeError(
             f"source_digest: git status 起動失敗 ({e}) — working-tree の健全性を "

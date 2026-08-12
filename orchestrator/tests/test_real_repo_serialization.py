@@ -71,6 +71,31 @@ _REAL_REPO_SERIAL_NODES_GOLDEN = frozenset({
     "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
     "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict",
     "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics",
+    "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control",
+    # prepare_cell が実共有 submodule の linked-worktree 管理領域を更新する writer。
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+    "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+    # module fixture が実 repo / 実 submodule を clone source として読む reader。
+    "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
+    "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
+    "test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure",
+    "test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested",
+    "test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
+    "test_codex_reasoning_ab.py::test_m3_snapshot_mode_change",
+    "test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required",
+    "test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing",
+    "test_codex_reasoning_ab.py::test_m3_focus_artifact_directions",
+    "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive",
+    "test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected",
+    "test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected",
+    "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+    "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
+    "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
+    "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
+    # helper が実親 repo と実共有 submodule を clone source として直接読む reader。
+    "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
@@ -374,6 +399,49 @@ def _collect_xdist_group_report(
                 import os
                 from pathlib import Path
 
+                def shared_fixture_closure(item):
+                    fixtureinfo = getattr(item, "_fixtureinfo", None)
+                    if fixtureinfo is None:
+                        raise TypeError(f"{item.nodeid}: item._fixtureinfo がない")
+                    names = getattr(fixtureinfo, "names_closure", None)
+                    definitions = getattr(fixtureinfo, "name2fixturedefs", None)
+                    if not isinstance(names, (list, tuple)):
+                        raise TypeError(
+                            f"{item.nodeid}: names_closure の型が不正: {type(names)!r}"
+                        )
+                    if not isinstance(definitions, dict):
+                        raise TypeError(
+                            f"{item.nodeid}: name2fixturedefs の型が不正: "
+                            f"{type(definitions)!r}"
+                        )
+                    closure = set()
+                    for name in names:
+                        if not isinstance(name, str):
+                            raise TypeError(
+                                f"{item.nodeid}: fixture 名の型が不正: {type(name)!r}"
+                            )
+                        fixturedefs = definitions.get(name)
+                        if fixturedefs is None:
+                            continue
+                        if not isinstance(fixturedefs, (list, tuple)) or not fixturedefs:
+                            raise TypeError(
+                                f"{item.nodeid}: {name} の fixturedefs が不正: "
+                                f"{type(fixturedefs)!r}"
+                            )
+                        fixturedef = fixturedefs[-1]
+                        scope = getattr(fixturedef, "scope", None)
+                        baseid = getattr(fixturedef, "baseid", None)
+                        argname = getattr(fixturedef, "argname", None)
+                        if not all(isinstance(value, str) for value in (scope, baseid, argname)):
+                            raise TypeError(
+                                f"{item.nodeid}: {name} の FixtureDef 属性が不正"
+                            )
+                        # function scope は node 間で instance を共有しない。空 baseid の
+                        # pytest/plugin 組込み fixture も repo 固有の共有 fixture ではない。
+                        if scope != "function" and baseid:
+                            closure.add(f"{baseid}::{argname}[{scope}]")
+                    return sorted(closure)
+
                 def pytest_collection_finish(session):
                     report = []
                     for item in session.items:
@@ -384,12 +452,26 @@ def _collect_xdist_group_report(
                         report.append({
                             "nodeid": item.nodeid,
                             "canonical_node": node,
+                            "fixture_closure": shared_fixture_closure(item),
+                            "real_repo_stamps": [list(value) for value in item.user_properties
+                                                 if value[0] == "real_repo_serial_node"],
                             "marks": [
                                 {"args": list(mark.args),
                                  "kwargs": dict(mark.kwargs)}
                                 for mark in marks
                             ],
                         })
+                    consumers = {}
+                    for entry in report:
+                        for fixture in entry["fixture_closure"]:
+                            consumers.setdefault(fixture, set()).add(
+                                entry["canonical_node"]
+                            )
+                    if report:
+                        report[0]["fixture_consumers"] = {
+                            fixture: sorted(nodes)
+                            for fixture, nodes in sorted(consumers.items())
+                        }
                     Path(os.environ["IZANAGI_REAL_REPO_MARK_REPORT"]).write_text(
                         json.dumps(report, sort_keys=True), encoding="utf-8",
                     )
@@ -460,6 +542,57 @@ def _assert_xdist_group_contract(
         "xdist_group 名集合が独立 golden と不一致: "
         f"missing={sorted(set(expected_group_names) - actual_group_names)} "
         f"extra={sorted(actual_group_names - set(expected_group_names))}"
+    )
+
+
+def _fixture_consumers_from_report(report: list[dict]) -> dict[str, set[str]]:
+    """per-item closure と subprocess 側 consumer 集約を相互検査する。"""
+    actual: dict[str, set[str]] = {}
+    declarations = []
+    for entry in report:
+        canonical = entry["canonical_node"]
+        closure = entry.get("fixture_closure")
+        assert isinstance(closure, list) and all(
+            isinstance(fixture, str) for fixture in closure
+        ), f"fixture_closure の型が不正: node={canonical!r} value={closure!r}"
+        for fixture in closure:
+            actual.setdefault(fixture, set()).add(canonical)
+        if "fixture_consumers" in entry:
+            declarations.append(entry["fixture_consumers"])
+    assert len(declarations) == 1, (
+        f"fixture consumer 集約は report に 1 個必要: count={len(declarations)}"
+    )
+    declared_raw = declarations[0]
+    assert isinstance(declared_raw, dict), "fixture consumer 集約が dict でない"
+    declared = {}
+    for fixture, consumers in declared_raw.items():
+        assert isinstance(fixture, str) and isinstance(consumers, list)
+        assert all(isinstance(node, str) for node in consumers)
+        declared[fixture] = set(consumers)
+    assert declared == actual, (
+        "fixture consumer 集約が per-item closure と不一致: "
+        f"declared={declared!r} actual={actual!r}"
+    )
+    return actual
+
+
+def _assert_fixture_closure_complete(
+    report: list[dict], canonical_nodes: set[str] | frozenset[str],
+) -> None:
+    """正本を seed とする共有 fixture consumer 閉包が欠けていないことを検査する。"""
+    consumers = _fixture_consumers_from_report(report)
+    seeded = {
+        fixture for fixture, nodes in consumers.items()
+        if nodes & set(canonical_nodes)
+    }
+    missing = {
+        fixture: sorted(consumers[fixture] - set(canonical_nodes))
+        for fixture in seeded
+        if consumers[fixture] - set(canonical_nodes)
+    }
+    assert not missing, (
+        "REAL_REPO_SERIAL_NODES が共有 fixture consumer について閉じていない: "
+        f"missing={missing!r}"
     )
 
 
@@ -577,6 +710,48 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         f"missing={sorted(golden - configured)} "
         f"extra={sorted(configured - golden)}"
     )
+    _assert_fixture_closure_complete(report, golden)
+
+    # 系統 1 / 3 の各 fan-out から 1 node を落とすと、正本 seed の閉包検査が赤になる。
+    for removed in (
+        "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control",
+        "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
+    ):
+        try:
+            _assert_fixture_closure_complete(report, golden - {removed})
+        except AssertionError as exc:
+            assert removed in str(exc), (
+                f"欠落 control が意図した node を報告しなかった: {exc}"
+            )
+        else:
+            raise AssertionError(f"共有 fixture consumer 欠落を検出しなかった: {removed}")
+
+    # detector 自身の control: subprocess 側集約が最初の consumer だけを保存する
+    # 退行を偽 report で注入し、per-item closure との相互検査が必ず赤になることを示す。
+    consumers = _fixture_consumers_from_report(report)
+    system1 = (
+        "test_s1_measurement_freeze.py::"
+        "test_recorded_ccbench_pin_hold_and_release_positive_control"
+    )
+    fanout_fixture = next(
+        fixture for fixture, nodes in consumers.items()
+        if system1 in nodes and len(nodes) > 1
+    )
+    fake_report = json.loads(json.dumps(report))
+    declaration = next(
+        entry["fixture_consumers"]
+        for entry in fake_report if "fixture_consumers" in entry
+    )
+    declaration[fanout_fixture] = declaration[fanout_fixture][:1]
+    try:
+        _assert_fixture_closure_complete(fake_report, golden)
+    except AssertionError as exc:
+        assert "consumer 集約" in str(exc), (
+            f"集約 detector control が意図した不変条件で赤にならなかった: {exc}"
+        )
+    else:
+        raise AssertionError("最初の consumer しか保存しない偽 report を拒否しなかった")
+
     nodeids = [entry["nodeid"] for entry in report]
     assert len(nodeids) == len(set(nodeids)), (
         "collection report の item.nodeid が重複している"
@@ -589,15 +764,22 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         nodeid = entry["nodeid"]
         canonical = entry["canonical_node"]
         marks = entry["marks"]
+        stamps = entry["real_repo_stamps"]
         collected_counts[canonical] += 1
         group_name = marks[0]["args"][0] if marks else None
         if canonical in golden:
+            assert stamps == [["real_repo_serial_node", canonical]], (
+                f"{nodeid} の runtime guard 印が正本由来の 1 個でない: {stamps!r}"
+            )
             assert marks == exact_mark, (
                 f"{nodeid} の xdist_group は real-repo 1 個だけでなければならない: "
                 f"{marks!r}"
             )
             marked_counts[canonical] += 1
         else:
+            assert stamps == [], (
+                f"golden 外 instance {nodeid} に runtime guard 印がある: {stamps!r}"
+            )
             assert group_name != "real-repo", (
                 f"golden 外 instance {nodeid} に real-repo marker がある: "
                 f"{marks!r}"

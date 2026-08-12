@@ -10213,6 +10213,55 @@ def test_patchharness_git_disables_optional_locks_in_environment():
     assert captured["text"] is True
 
 
+def test_patchharness_real_shared_checkout_guard_is_pytest_only_and_fails_closed():
+    """実共有 submodule は正本印付き node だけが pytest 中に checkout できる。"""
+    from orchestrator.campaign import patchharness
+
+    real = patchharness._default_ccbench_dir()
+    token = patchharness._PYTEST_NODE.set(None)
+    try:
+        patchharness._guard_real_shared_checkout(real)  # 印機構不在の production は不変。
+    finally:
+        patchharness._PYTEST_NODE.reset(token)
+    with patchharness._pytest_node_context("test_missing.py::test_missing", False):
+        with pytest.raises(RuntimeError) as excinfo:
+            with patchharness.checkout("unused-pin", base_dir=real):
+                raise AssertionError("guard が checkout body より先に拒否すべき")
+        message = str(excinfo.value)
+        assert "test_missing.py::test_missing" in message
+        assert "REAL_REPO_SERIAL_NODES へ追加せよ" in message
+        patchharness._guard_real_shared_checkout("/tmp/hermetic-ccbench")
+    with patchharness._pytest_node_context("test_registered.py::test_registered", True):
+        patchharness._guard_real_shared_checkout(real)
+
+
+def test_source_digest_status_scrubs_git_environment_and_disables_optional_locks(
+        monkeypatch):
+    """status は親の Git repository 指定を捨て、optional lock を必ず 0 に固定する。"""
+    forbidden = (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    )
+    for name in forbidden:
+        monkeypatch.setenv(name, f"decoy-{name}")
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "1")
+    captured = {}
+
+    def runner(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return subprocess.CompletedProcess([], 0, " M include/backoff.hh\n?? build/\n", "")
+
+    monkeypatch.setattr(source_digest.subprocess, "run", runner)
+    assert source_digest._tracked_status_paths("/real/ccbench") == (
+        "include/backoff.hh",
+    )
+    assert captured["env"]["GIT_OPTIONAL_LOCKS"] == "0"
+    assert all(name not in captured["env"] for name in forbidden)
+    assert captured["capture_output"] is True
+    assert captured["text"] is True
+
+
 def test_patchharness_fails_closed_on_dirty_or_unpinned_tree():
     """apply 前の pinned-clean assert: tracked 改変が残る tree / pin 不一致 / 空 pin には
     patch を当てない (前 variant の revert 漏れ・別セッション残骸との合成を防ぐ)。"""
