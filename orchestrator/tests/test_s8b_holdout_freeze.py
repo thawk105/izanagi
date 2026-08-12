@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -194,6 +195,186 @@ def test_binary_and_non_utf8_files_are_skipped(tmp_path):
     assert report["search"]["file_count"] == 3
     assert report["search"]["skipped_binary_count"] == 2
     assert report["holdouts"]["rr80"]["conjunction_hits"] == []
+
+
+def _current_expressions(holdout_name: str = "rr80") -> dict[str, str]:
+    values = {
+        axis: _axis_value(holdout_name, axis)
+        for axis in ("rratio", "skew", "rmw")
+    }
+    return M._expressions(values["rratio"], values["skew"], values["rmw"])
+
+
+def test_required_literal_is_nonempty_and_present_in_all_current_encodings():
+    literal = M._derive_required_literal(_current_expressions())
+
+    assert literal
+    for axis in ("rratio", "skew", "rmw"):
+        value = _axis_value("rr80", axis)
+        assert all(literal in encoding for encoding in M.concrete_axis_encodings(axis, value))
+
+
+@pytest.mark.parametrize("expressions", [
+    {},
+    {"axis": object()},
+    {"axis": "key=value"},
+    {"axis": "(?:ke.y=value)"},
+    {"axis": r"(?:key=val\\ue)"},
+    {"axis": "(?:key=[value])"},
+    {"axis": "(?:key=(value))"},
+    {"axis": "(?:key=value+)"},
+    {"axis": "(?:key=(?=value))"},
+])
+def test_required_literal_unsupported_grammar_falls_back(expressions):
+    assert M._derive_required_literal(expressions) is None
+
+
+@pytest.mark.parametrize(
+    "metacharacter", tuple("\\.^$*+?{}[]()|"), ids=repr,
+)
+def test_required_literal_rejects_each_key_regex_metacharacter(metacharacter):
+    expressions = {"axis": "(?:a" + metacharacter + "=v)"}
+
+    assert M._derive_required_literal(expressions) is None
+
+
+def test_star_in_key_falls_back_and_slow_path_detects_hit():
+    expressions = {"axis": "(?:a*=v)"}
+
+    assert M._derive_required_literal(expressions) is None
+    result = M._scan_one({"hit.txt": "=v"}, "candidate", expressions)
+
+    assert result["per_axis_counts"] == {"axis": 1}
+    assert result["conjunction_hits"] == ["hit.txt"]
+
+
+def test_unsupported_expression_fallback_still_detects_hit():
+    expression = "(?:key=(?:value))"
+
+    result = M._scan_one({"hit.txt": "key=value"}, "candidate", {"axis": expression})
+
+    assert result["per_axis_counts"] == {"axis": 1}
+    assert result["conjunction_hits"] == ["hit.txt"]
+
+
+def test_search_derives_once_per_actual_scan(tmp_path, monkeypatch):
+    positive = tmp_path / "positive.txt"
+    _write(positive, _positive_text())
+    original = M._derive_required_literal
+    seen = []
+
+    def spy(expressions):
+        seen.append(expressions)
+        return original(expressions)
+
+    monkeypatch.setattr(M, "_derive_required_literal", spy)
+    M.search_repository(tmp_path, files=[positive])
+
+    assert len(seen) == 3
+    assert len({id(expressions) for expressions in seen}) == 3
+
+
+def test_prefilter_skips_regex_search_for_text_without_required_literal(
+        tmp_path, monkeypatch):
+    positive_text = _positive_text()
+    irrelevant_text = "irrelevant text\n"
+    positive = tmp_path / "positive.txt"
+    irrelevant = tmp_path / "irrelevant.txt"
+    _write(positive, positive_text)
+    _write(irrelevant, irrelevant_text)
+    original_compile = M.re.compile
+    searched = []
+
+    class SearchSpy:
+        def __init__(self, expression):
+            self._pattern = original_compile(expression)
+
+        def search(self, text):
+            searched.append(text)
+            return self._pattern.search(text)
+
+    monkeypatch.setattr(M.re, "compile", SearchSpy)
+    M.search_repository(tmp_path, files=[positive, irrelevant])
+
+    assert irrelevant_text not in searched
+    assert searched.count(positive_text) == 9
+    assert len(searched) < 2 * 9
+
+
+def test_empty_prefilter_is_distinct_from_disabled_prefilter(monkeypatch):
+    original_compile = M.re.compile
+    searched = []
+
+    class SearchSpy:
+        def __init__(self, expression):
+            self._pattern = original_compile(expression)
+
+        def search(self, text):
+            searched.append(text)
+            return self._pattern.search(text)
+
+    monkeypatch.setattr(M.re, "compile", SearchSpy)
+    result = M._scan_one(
+        {"irrelevant.txt": "irrelevant\n"}, "candidate", _current_expressions(),
+    )
+
+    assert searched == []
+    assert result["per_axis_counts"] == {"rratio": 0, "skew": 0, "rmw": 0}
+
+
+def test_str_subclass_disables_prefilter(monkeypatch):
+    class ExpressionSubclass(str):
+        pass
+
+    monkeypatch.setattr(
+        M, "_derive_required_literal",
+        lambda _expressions: pytest.fail("str subclass で前置フィルタを導出した"),
+    )
+    result = M._scan_one(
+        {"hit.txt": "key=value"}, "candidate",
+        {"axis": ExpressionSubclass("(?:key=value)")},
+    )
+
+    assert result["per_axis_counts"] == {"axis": 1}
+    assert result["conjunction_hits"] == ["hit.txt"]
+
+
+def test_value_side_dot_is_not_used_as_required_literal():
+    expressions = _current_expressions()
+    skew_value = _axis_value("rr80", "skew")
+    regex_encoding = M.concrete_axis_encodings("skew", skew_value)[0]
+    matching_value = skew_value[:1] + "x" + skew_value[2:]
+    matching_encoding = M.concrete_axis_encodings("skew", matching_value)[0]
+    text = _three_axis_text(_axis_value("rr80", "rratio")).replace(
+        regex_encoding, matching_encoding,
+    )
+
+    result = M._scan_one({"dot-match.txt": text}, "candidate", expressions)
+
+    assert result["conjunction_hits"] == ["dot-match.txt"]
+
+
+def test_single_axis_required_literal_excludes_value_side():
+    skew_value = _axis_value("rr80", "skew")
+    expressions = {"skew": _current_expressions()["skew"]}
+
+    literal = M._derive_required_literal(expressions)
+
+    assert literal == M.SKEW_KEY
+    assert skew_value not in literal
+
+
+def test_single_axis_dot_match_survives_required_literal_prefilter():
+    skew_value = _axis_value("rr80", "skew")
+    matching_value = skew_value.replace(".", "X", 1)
+    expressions = {"skew": _current_expressions()["skew"]}
+    text = M.concrete_axis_encodings("skew", matching_value)[0]
+
+    assert matching_value != skew_value
+    result = M._scan_one({"dot-match.txt": text}, "candidate", expressions)
+
+    assert result["per_axis_counts"] == {"skew": 1}
+    assert result["conjunction_hits"] == ["dot-match.txt"]
 
 
 def test_zero_positive_control_fails_closed(tmp_path):
@@ -417,6 +598,172 @@ def _report_bytes(report: dict) -> bytes:
     return json.dumps(
         report, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _prefilter_equivalence_fixture(root: Path) -> tuple[list[str], str]:
+    positive = "fixtures/positive.txt"
+    holdout = "fixtures/holdout.txt"
+    skew_only = "fixtures/skew-only.txt"
+    rmw_only = "fixtures/rmw-only.txt"
+    binary = "fixtures/binary.dat"
+    non_utf8 = "fixtures/non-utf8.dat"
+    excluded = M.EXCLUDED_PATHS[0] + "excluded-hit.txt"
+    exact = M.EXCLUDED_PATHS[0] + "exact-hit.txt"
+    irrelevant = "fixtures/irrelevant.txt"
+    _write(root / positive, _positive_text())
+    _write(root / holdout, _three_axis_text(_axis_value("rr80", "rratio")))
+    _write(
+        root / skew_only,
+        M.concrete_axis_encodings("skew", _axis_value("rr80", "skew"))[0] + "\n",
+    )
+    _write(
+        root / rmw_only,
+        M.concrete_axis_encodings("rmw", _axis_value("rr80", "rmw"))[0] + "\n",
+    )
+    (root / binary).write_bytes(
+        b"\0" + _three_axis_text(_axis_value("rr20", "rratio")).encode("utf-8")
+    )
+    (root / non_utf8).write_bytes(b"\xff\xfe")
+    _write(root / excluded, _three_axis_text(_axis_value("rr20", "rratio")))
+    _write(root / exact, _three_axis_text(_axis_value("rr20", "rratio")))
+    _write(root / irrelevant, "irrelevant\n")
+    return [
+        positive, holdout, skew_only, rmw_only, binary, non_utf8,
+        excluded, exact, irrelevant,
+    ], exact
+
+
+@pytest.mark.parametrize("mode", [
+    "files",
+    "exempt-none",
+    "empty-mapping",
+    "hash-match",
+    "hash-mismatch",
+])
+def test_prefilter_report_exactly_matches_slow_path(tmp_path, monkeypatch, mode):
+    root = _empty_search_repo(tmp_path)
+    files, exact = _prefilter_equivalence_fixture(root)
+    if mode == "files":
+        kwargs = {"files": files, "exempt_exact": None}
+    elif mode == "exempt-none":
+        kwargs = {"exempt_exact": None}
+    elif mode == "empty-mapping":
+        kwargs = {"exempt_exact": {}}
+    elif mode == "hash-match":
+        kwargs = {"exempt_exact": {exact: M._sha256(root / exact)}}
+    else:
+        kwargs = {"exempt_exact": {exact: "0" * 64}}
+
+    optimized = M.search_repository(root, **kwargs)
+    with monkeypatch.context() as slow:
+        slow.setattr(M, "_derive_required_literal", lambda _expressions: None)
+        unfiltered = M.search_repository(root, **kwargs)
+
+    assert optimized["holdouts"]["rr80"]["conjunction_hits"] == [
+        "fixtures/holdout.txt",
+    ]
+    assert optimized["positive_control"]["hit_count"] == 1
+    assert optimized == unfiltered
+    assert _report_bytes(optimized) == _report_bytes(unfiltered)
+
+
+def test_prefilter_derives_from_monkeypatched_expressions(tmp_path, monkeypatch):
+    values_by_ratio = {
+        _axis_value(name, "rratio"): name
+        for name in ("rr80", "rr20")
+    }
+
+    def runtime_expressions(rratio: str, skew: str, rmw: str) -> dict[str, str]:
+        values = {"rratio": rratio, "skew": skew, "rmw": rmw}
+        return {
+            axis: "(?:runtime_" + axis + "=" + value + ")"
+            for axis, value in values.items()
+        }
+
+    def runtime_text(rratio: str) -> str:
+        values = {
+            "rratio": rratio,
+            "skew": _axis_value("rr80", "skew"),
+            "rmw": _axis_value("rr80", "rmw"),
+        }
+        return "\n".join(
+            "runtime_" + axis + "=" + value
+            for axis, value in values.items()
+        ) + "\n"
+
+    holdout = tmp_path / "runtime-holdout.txt"
+    positive = tmp_path / "runtime-positive.txt"
+    holdout_ratio = next(
+        ratio for ratio, name in values_by_ratio.items() if name == "rr80"
+    )
+    _write(holdout, runtime_text(holdout_ratio))
+    _write(positive, runtime_text(M._POSITIVE_RATIO))
+    monkeypatch.setattr(M, "_expressions", runtime_expressions)
+
+    optimized = M.search_repository(tmp_path, files=[holdout, positive])
+    with monkeypatch.context() as slow:
+        slow.setattr(M, "_derive_required_literal", lambda _expressions: None)
+        unfiltered = M.search_repository(tmp_path, files=[holdout, positive])
+
+    assert optimized["holdouts"]["rr80"]["conjunction_hits"] == [
+        "runtime-holdout.txt",
+    ]
+    assert optimized == unfiltered
+    assert _report_bytes(optimized) == _report_bytes(unfiltered)
+
+
+def test_prefilter_snapshots_monkeypatched_mapping_once(tmp_path, monkeypatch):
+    created = []
+
+    class SplitViewExpressions(Mapping):
+        def __init__(self):
+            self.items_calls = 0
+            self.values_calls = 0
+            created.append(self)
+
+        def __getitem__(self, key):
+            if key != "axis":
+                raise KeyError(key)
+            return "(?:actual=v)"
+
+        def __iter__(self):
+            return iter(("axis",))
+
+        def __len__(self):
+            return 1
+
+        def items(self):
+            self.items_calls += 1
+            return (("axis", "(?:actual=v)"),)
+
+        def values(self):
+            self.values_calls += 1
+            return ("(?:safe=v)",)
+
+    monkeypatch.setattr(
+        M, "_expressions", lambda _rratio, _skew, _rmw: SplitViewExpressions(),
+    )
+    hit = tmp_path / "hit.txt"
+    _write(hit, "actual=v")
+
+    optimized = M.search_repository(tmp_path, files=[hit])
+    with monkeypatch.context() as slow:
+        slow.setattr(M, "_derive_required_literal", lambda _expressions: None)
+        unfiltered = M.search_repository(tmp_path, files=[hit])
+
+    assert all(
+        result["conjunction_hits"] == ["hit.txt"]
+        for result in optimized["holdouts"].values()
+    )
+    assert optimized["positive_control"]["hit_paths"] == ["hit.txt"]
+    assert optimized["positive_control"]["expressions"] == {
+        "axis": "(?:actual=v)",
+    }
+    assert optimized == unfiltered
+    assert _report_bytes(optimized) == _report_bytes(unfiltered)
+    assert len(created) == 6
+    assert all(mapping.items_calls == 1 for mapping in created)
+    assert all(mapping.values_calls == 0 for mapping in created)
 
 
 def test_exact_exemption_matching_bytes_is_not_scanned_but_is_enumerated(tmp_path):

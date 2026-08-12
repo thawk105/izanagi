@@ -15384,3 +15384,249 @@ official 経路は従来どおり perf あり形だけを期待し、`s8b_ratifi
 
 **成果物影響.** 実装しなければ床値 (T-748 W-2) の実測値が 1 つも得られない。
 official の受理集合・`eligible_for_refreeze`・certified 選択は本決定では変わらない。
+
+## D349. 測定装置の authority は import 解決でなく設置場所から導く (2026-08-13)
+
+**決定:** T-810 測定装置が caller の申告値を検証するとき、比較の相手 (authority) は
+**coordinator 自身の設置場所からパスで導く**。具体的には staged wrapper の bytes は
+`Path(t810_coordinator.__file__).resolve().parent / "t810_pbs_wrapper.py"` の実 bytes と、
+repository roots は `resolve_git_identity(Path(t810_coordinator.__file__).resolve().parents[2])` の
+live git identity と比較する。**import 済み module の `__file__` を authority にしない。**
+caller が別途 roots を渡す経路は残すが、authority との**和集合**とし、caller は roots を
+増やせるが減らせない。
+
+**理由:**
+- `tools` と `tools/pegasus` は `__init__.py` を持たない namespace package である。
+  `PYTHONPATH` に別の `tools/pegasus/` を先置きすれば、official な coordinator を repo から
+  読みながら wrapper だけを差し替えられる。import 解決を authority にすると、
+  攻撃者は「authority 自身」を用意できてしまう。設置場所からパスで導けばこの経路は塞がる。
+- 測定装置には launch intent / config を書く production producer が存在しない。
+  producer が無い以上、caller config の外に置ける根は「今まさに動いている実装の所在」しかない。
+  凍結 pin 台帳や署名連鎖を新設せずに済むため、凍結チェーン検証の保留 (D328) とも衝突しない。
+  D328 の保留対象は実装↔測定の同一性検証であり、実行認可 (admission) と信頼境界は対象外である。
+- caller roots を捨てず和集合にするのは、authority が一時的に不完全でも受理集合が広がらない
+  ようにするためである。共有 repo では並行 wave が worktree を絶えず追加・撤去するため、
+  live な registry は一瞬だけ解決不能になりうる。解決できない登録は**捨てず**、
+  その登録が主張する root を非 strict 解決で保持する。roots への操作を追加のみに保てば、
+  外乱は過剰拒否にも受理拡大にも化けない。
+
+**却下した選択肢:**
+- import 済み module の `__file__` を authority にする — namespace package の shadowing で
+  authority ごと差し替えられる。
+- 解決不能な worktree 登録を skip する — 並行 churn は消えるが、main tree の外にある
+  linked worktree が roots から落ち、そこへの書き込みが repository-external として受理される。
+- 解決不能な登録で fail-closed のまま止める — 他 session の worktree 操作という無関係な外乱で
+  測定準備が失敗する。安全側ではあるが正当な運用を殺す。
+- 検査を最上位の入口にだけ置く — 内側の adapter を直接呼べば迂回できる。private 名は
+  能力境界ではない (D331)。検査は最内の effect adapter に置く。
+
+## D350. 検索の前置フィルタは実際に compile する式へ束縛する (2026-08-13)
+
+**決定:** 三軸検索の必要条件 literal は、**その scan が実際に compile する `expressions` から**
+導出する。module の template 定数から導出してはならない。導出できない文法に出会ったら
+`None` を返し、その scan は前置フィルタなしで従来経路を走る。
+
+**理由:**
+
+- 式は template から `_expressions` が作るが、`_expressions` は monkeypatch 可能な seam であり、
+  テストが現に patch している。template 由来の literal と実際に compile される式が別物になると、
+  前置フィルタが**正しい hit を捨てる** = 受理集合が変わる。段 3 の敵対レンズが反例を構成した。
+- 同じ理由で、compile と導出は**同一 snapshot** に束縛する。`items()` と `values()` を別に読むと、
+  不安定な `Mapping` で両者が食い違う。段 6 の敵対レビューが反例を構成した。
+- 値側は導出に使わない。値は正規表現であり、任意 1 文字に一致するメタ文字を含みうる。
+  値を literal 扱いすると、正規表現には一致するのに literal を含まない text を捨てる。
+
+**却下した選択肢:**
+
+- **template から導出して scan 間で共有する** — 起草段の案。共有は速いが、上記の seam により
+  受理集合が変わりうる。安全側を採り、scan ごとに独立導出する。
+- **必要 literal をソースへ直接書く** — 具体的な軸符号化はソースに書けない
+  (repo 全文検索が自己汚染するため既存の source guard が禁じている)。また template が変われば黙って壊れる。
+- **速度のために正規表現を literal 一致へ置き換える** — 値のメタ文字を無視することになり
+  受理集合が狭まる。
+
+## D351. 前置フィルタの安全性は独立 slow 経路との bytes 一致で担保する (2026-08-13)
+
+**決定:** 検索の最適化が受理集合を変えていないことの根拠は、**導出器を無効化した独立 slow 経路との
+全 report の canonical bytes 一致**に置く。live gate の通過を根拠にしてはならない。
+
+**理由:**
+
+- live gate が固定するのは (a) candidate 集合、(b) 照合規約、(c) 検索式、
+  (d) holdout の conjunction が空、(e) 陽性対照の hit が 0 より大きい、の 5 点だけである。
+  `per_axis_counts` と `result_sha256` は live では照合されない。
+- 段 3 の敵対レンズが具体的な反例を構成した。必要 literal を「固定陽性対照だけが含む形」に
+  固定すると、陽性対照の hit を残したまま通常形式の holdout hit を落とせる。
+  凍結側の陽性対照は 41 hit あり、`> 0` の条件は容易に残る。**oracle gate は騙せる。**
+- したがって等価テストが唯一の検出者である。変異検査でこの検出力自体を裏取りする。
+
+**却下した選択肢:**
+
+- **live gate の通過を証拠にする** — 上記の反例により不十分。
+- **live 値と凍結値の完全一致を要求する** — 凍結側の `per_axis_counts` と陽性対照件数は
+  経時変動を許す契約になっている。要求するとその契約を壊す。
+- **等価テストを実 repo で走らせる** — 開発するほど遅くなるテストを新設することになる。
+  固定 fixture に限定する。
+
+## D352. perf を測定の前提にしない — あれば使い、なければ無しで測る (2026-08-13)
+
+**決定:** 性能測定 (床値・calibration・oracle を含む) は perf (linux-tools) の可用性を
+前提にしない。perf が動く環境では使い、動かない環境では perf なしで測定を進める。
+preflight は可用性を検出して環境タグへ記録し、実行を止めるためには使わない。
+perf 依存の量 (cache miss 率等) はその環境では取得しないと明記し、**値の比較は同条件
+(perf 有無が同じ環境タグ) 内に限る** — 測定の公正は不変。
+
+**理由:**
+- 2026-08-12 ユーザー裁定 (authority: user、rulings 第 5 束): 「動かせる時は使うし、
+  動かせない時は使わない」。
+- 2026-08-12 の実測で計算ノード 8/8 とも現行 kernel 用 linux-tools が不在 (`perf stat` rc=2)
+  であり、導入は管理者手番で期限を制御できない。外部手番を測定の閂にすると研究が止まる。
+- 環境ごとに取得可能な量が違うことは既定の前提 (環境タグと 3 層分類) で扱える。
+
+**却下した選択肢:**
+- perf を必須とし導入まで測定を停止する — 外部依存で主経路が無期限に止まる。
+- perf 不在を無記録で通す — 同条件比較の判定材料が失われる。記録は必須のまま。
+
+## D353. テスト保留は全実行経路で効かせる — runner 依存の保留は保留でない (2026-08-13)
+
+**決定:** 恒久保留 (D335 系) の保留は、受入経路だけでなく**素の pytest 直叩きを含む
+すべての実行経路**で発火させる。collection 層など経路非依存の位置で実装し、保留の解除は
+明示 opt-in 機構 (ユーザー明示命令の系) のみとする。一部の runner でだけ効く保留を
+「保留済み」と記録してはならない。
+
+**理由:**
+- 2026-08-12 ユーザー裁定 (authority: user、rulings 第 5 束): 「素の pytest 直叩きが
+  実行できるのは許さない。それは izanagi として保留ではなく、あなたが回避してるだけ。
+  そのようなごまかしは認めない」。rulings の容認推奨はこの発話で棄却された。
+- 経路依存の保留は「保留した」という台帳記録を偽にする — 謳うだけで発火しない保証と
+  同型の失敗であり、可視性 (何が保留中か 1 箇所で読める) の前提も壊す。
+
+**却下した選択肢:**
+- 直叩きを開発者の opt-in と同義として容認する — 台帳の「保留」と実挙動が食い違う。
+- runner ごとの個別対応 — 経路の追加のたびに穴が再発する。collection 層で 1 箇所に置く。
+
+## D354. ログインノードの実行可否は回収不能メモリで判定する (2026-08-13)
+
+**決定:** login node での実行可否 (headroom admission) の占有量は、cgroup の
+`memory.current` そのままではなく**回収不能量**を使う。回収可能 = clean な file page cache
+(file − shmem − file_dirty − file_writeback) + 回収可能 slab。回収不能 = 合計 − 回収可能。
+ファイルキャッシュが上限近くまで積もっても、それ自体は拒否理由・dispatch 逃がしの理由に
+しない (2026-08-12 ユーザー指示)。
+
+**理由:**
+- ファイルキャッシュは上限に当たればカーネルが捨てられる (読み直しが遅くなるだけ)。
+  swap の無い login node で OOM kill を招くのは回収不能分だけである。
+- `memory.current` での判定は安全側に倒れすぎ、余裕があるのに計算ノードへ逃がす
+  過小許可を生む。dirty / writeback は書き戻すまで捨てられないため回収不能側に数える
+  (保守形)。
+
+**却下した選択肢:**
+- `memory.current` のままの現状維持 — 過小許可の実害をユーザーが指摘した。
+- システム全体の `MemAvailable` — user slice の予算管理と粒度が合わず、他ユーザーの
+  変動を自分の判定に混ぜてしまう。
+
+## D355. 8b oracle の durable 発行判断は schema version の択一ではなく lifecycle state machine の問題である (2026-08-13)
+
+**決定:** `output/s8b-oracle-spec/` と `output/s8b-oracle-manifest-candidates/` へ durable artifact を
+発行する判断を、「D302 の schema version 据え置きを解除するか再発行するか」という択一として扱わない。
+`orchestrator/tests/test_s8b_oracle_manifest_contract.py` の zero-file assertion は
+schema version で分岐しないため、どちらを選んでも同じ検査が落ちる。
+**schema version は、schema object に実際の field / 意味の差分が生じたときだけ、
+変更した側だけを上げる。** 現時点では reviewed spec 側も official manifest 側も v1 据え置きとする。
+
+真の問いは「未承認状態の zero-file 条件を保ったまま、承認済み状態だけを受理する lifecycle
+state machine をどう設計し、それを runtime のどこへ接続するか」である。
+この置換は受理集合を真に広げる (0 件 ⊊ 承認された 1 件) ため、実装者の裁量ではなく
+ユーザーの明示裁定として記録されなければならない。**本 wave は裁定材料の提示に留め、実装しない。**
+
+**理由:**
+- 現行 test は JSON を parse せず、2 directory 配下の `is_file()` が真な entry の件数だけを見る。
+  schema literal を変えても受理集合は 1 bit も動かない。
+- durable artifact が 0 件である以上、v1 bytes を読んでいる consumer は存在しない。
+  守るべき互換性が無い状態で version を上げると、spec SHA・manifest SHA・manifest ID・
+  driver の claim identity・golden・consumer 定数が一斉に変わるだけで、
+  certified 選択も受理集合も変わらない。
+- D302 が直接論じているのは official manifest schema であり、
+  却下選択肢の「durable 発行後にこの決定を変えるなら再発行が要る」は
+  **D302 の意味を変える場合**の条件である。最初の v1 artifact を発行すること自体は再発行理由でない。
+- 段 2 プラン子は選択肢 A を「受理集合を広げるから規律 2 と両立しない」として却下したが、
+  同じプランが「B でも zero-file assertion は落ちる」と認めている。
+  受理集合の包含で形式化すると `E ⊊ A` かつ `E ⊊ B` であり、
+  差が schema literal だけなら規律 2 の観点で A と B の強さは同じである。
+  この否認は段 3 の敵対 2 本と親の独立実測が独立に一致した。
+
+**却下した選択肢:**
+- **reviewed spec と official manifest の協調 v2 再発行** — 上記のとおり受理集合を変えず、
+  参照値だけを一斉に変える。実利が無い。
+- **contract test を「非空でもよい」へ緩める** — 未検証 durable artifact を受け入れる方向へ
+  受理集合を広げる。規律 2 違反。
+- **contract test を削除・skip する** — 同上。
+
+## D356. oracle spec の人間承認は現状 機械強制されていないと明記する (2026-08-13)
+
+**決定:** 現行の `APPROVED_SPEC_SHA256` 方式も、receipt を追加する方式も、
+**同じ実装担当 (AI を含む) が bytes・hash・receipt・pin をすべて作成でき、
+値の一致検査はすべて通る。** したがって、これらの機構について
+**「人間承認を機械確認した」と書いてはならない。** 書けるのは
+「人間が staged diff を review した」までである。
+機械強制するには AI が書けない外部 trust root (allowlist key による detached signature、
+または allowlist 済み署名 commit) が要る。その導入是非はユーザー裁定事項とし、本 wave では実装しない。
+
+**理由:**
+- `_load_approved_spec_bytes` は pin と disk bytes の一致だけを見る。git provenance を見ない。
+  `_assert_user_commit` は freeze v2 の record 専用で、oracle spec 経路からは呼ばれない。
+- `_assert_user_commit` を spec 経路へ足しても人間性は証明できない。
+  逐語 `AI-Agent: none` は commit message の文字列であり、誰でも書ける。
+  履歴 topology の defense-in-depth としては有用だが、単独で承認の証明にはならない。
+- T-810 事前登録は先例にならない。その artifact 自身が
+  `limitations.approval_receipt_trust_root_absent = True` と `protocol.run_authorized = False` を
+  宣言し、`request_t810_launch` には正例が構造的に存在しない (常に例外送出)。
+  すなわち「trust root が無いことを明記した休眠 seal」であって、動いている承認機構ではない。
+- D302 は「hash は識別子にすぎず、承認は内容の再導出を伴う」としている。
+  内容束縛の層 (`verify_manifest` の再導出比較) は健全であり、恒真ではない。
+  欠けているのは内容束縛ではなく**承認者の同一性**である。
+
+**却下した選択肢:**
+- **receipt を足せば人間承認を表現できるとする** — receipt も同じ担当が作れる。
+  信頼根を持たない receipt は authority ではない。
+- **staged diff の人間 review を機械強制と同一視する** — 手続きであって runtime 表現ではない。
+
+## D357. 受入 wall の主張は反復走の中央値で行う (2026-08-13)
+
+**決定:** 受入全走の所要を根拠にして律速を同定したり改善を主張したりするときは、
+**同一 tip・同一条件で 3 走以上を逐次に取り、中央値で述べる。** 1 走同士の差が
+10% 未満なら「変化なし」と扱い、改善としても退行としても記録しない。
+測定中は自分の他 job を同時に走らせない (dispatch receipt と共有ファイルシステムの双方で干渉する)。
+
+**理由:**
+- 同一 tip・逐次・条件交互の sweep で、同一条件の 2 走が 99.30 秒と 117.80 秒 (19% 差) まで開いた。
+  受入 wall の観測域は 99.3〜117.8 秒 (±9%) である。
+- この幅は、これまで 1 走の値で行ってきた律速同定・改善主張の解像度を上回る。
+- 48 worker で観測される node 所要は競合で膨らむ。同一 suite の node 秒合計は
+  worker 12 / 24 / 32 / 48 本で 1,542 / 2,261 / 2,828 / 3,344 秒と単調に増える。
+  **node 秒は仕事量の代理にならない。**
+
+**却下した選択肢:**
+- 1 走のまま報告して「参考値」と注記する — 実際には設計択一の根拠に使われてきたので不十分。
+- job Elapse で代用する — job 側の設定・収集時間を含み、pytest wall と別量である。
+
+## D358. real-repo の排他は単一 worker 直列化のまま維持する (2026-08-13)
+
+**決定:** D63 の `real-repo` loadgroup を、プロセス間 reader/writer ロックへ置き換えない。
+排他機構の変更で受入を速くする路線を閉じる。
+
+**理由:**
+- 直列 group を丸ごと無効化した診断走行 (`--dist load`) の wall は 116.63 秒で、
+  予測された約 80 秒には遠く及ばなかった。**置き換えの最良ケースに利得が無い。**
+- 「現行の対象 node は全て reader」という前提が成立しない。`git status` を
+  `GIT_OPTIONAL_LOCKS=0` なしで呼ぶ経路が複数あり、read-only に見える node も
+  git の optional index lock を書く。同 repo 内の別経路はこの抑止が必要だと明記しており、
+  1 箇所は実際に抑止している。
+- 排他の閉包そのものが未確定である。正本リストの外に、module fixture 経由で実材料を読む node と、
+  実 git object を書く node が実在する。**閉包が確定していない排他を差し替えてはならない。**
+
+**却下した選択肢:**
+- reader を共有ロックで並列化する — 上記のとおり reader 判定が成立しない。
+- group を file 単位へ割る — 排他を保つには結局ロックが要るうえ、module fixture の
+  worker 跨ぎ重複支払いを増やす。
+- worker 数を throughput の頂点へ下げる — 24 / 32 / 48 本の差は run 間変動に埋もれた。
