@@ -14548,3 +14548,162 @@ engine 自身の bytes**) の hash を束縛し、mutation 前に再計算して
   止まる構造が残る。
 - 正しさゲートまで同じ基準で軽くする — 規律 2/3 違反。結果の真実性は論文主張そのものであり、
   ここは粒度の議論の対象にならない。
+
+## D321. materialized trigger predicate の受理を物理行の raw bytes 一致にする (2026-08-12)
+
+**決定:** build admission は materialized source の hole を、`PREDICATE_HOLE_INDENT + emit_predicate(mask)`
+の UTF-8 bytes と**物理行 raw bytes で完全一致**するときだけ受理する。骨格由来のインデントは
+`axis_trigger_gating.PREDICATE_HOLE_INDENT` として pin し、その pin が骨格 patch の実バイトと
+一致することを独立したテストで固定する。比較は共有 parser の text 復号結果ではなく、
+同じファイルを binary で読み直した bytes に対して行う。
+
+**理由:**
+- 正規の materializer は骨格 hole 行のインデントを前置して書く。したがって「emitter 出力そのもの」を
+  期待する素朴な exact 比較は、正規経路を全拒否する。exact の期待値には骨格インデントが要る。
+- text mode の universal-newline 変換は `\r` を比較前に落とす。共有 parser の復号結果で比較すると、
+  CRLF / CR-only の source が exact 比較を素通りする。raw bytes で比べて初めて
+  「emitter が生成しうる bytes だけを受理する」という主張が成立する。
+- インデントを patch から実行時に導出する案は、admission に patch ファイルへの実行時依存を作る。
+  期待値は結局同じなので、pin + drift 検査の方が依存が少ない。
+
+**却下した選択肢:**
+- 先頭空白だけ許して末尾空白を閉じる部分 exact — 任意インデントと tab を受理したままで、
+  受理集合の穴が残る。exact とは呼べない。
+- 共有 parser の `newline` 挙動を変える — quarantine 経路の全 consumer へ波及する。
+  admission 1 箇所の受理集合を狭めるために、読み取り層の意味を全体で変えるのは範囲が広すぎる。
+
+**限定:** この受理集合は `trigger_gate_binding` を伴う評価にだけ適用される。binding を渡さない
+呼び出しはこの検査に到達しないため、trigger source 一般の受理集合を狭めたことにはならない。
+
+## D322. erratum の「検査可能性」と「承認」を独立 2 軸で持ち、D263 の「第 2 erratum は既に承認済み」を前向きに失効させる (2026-08-12)
+
+**決定:** 凍結 core への erratum の状態を、**排他的な 3 値ではなく独立した 2 軸**として型と
+機械検査で区別する。
+
+```text
+軸 1 validator:  unregistered | registered   erratum_id 別 registry に固有 validator が居るか
+軸 2 approval:   draft_unapproved | approved  承認 manifest の approved_errata に属するか
+```
+
+2 軸は独立でなく、次の含意だけを課す — **`approved` ならば必ず `registered`** である
+(検査方法の定まらない文書を承認できない)。逆は成り立たない。
+`registered ∧ draft_unapproved` は正当な状態であり、本決定を書いた時点の第 2 erratum が
+まさにそれである。
+
+**「registered を第 3 の状態として draft / approved と並べてはならない。」**
+並べると、後続 resolver が「approved は registered とは別状態」と読み、
+承認済み erratum の固有 validator を飛ばすか、逆に承認済み文書を拒否する。
+
+**registry への登録は承認ではない。** registry は「この ID の文書をどう検査するか」だけを定め、
+「適用してよいか」は定めない。承認集合を問う経路は draft を返してはならない。
+
+あわせて D263 の理由節にある「実際、同じ core に対する第 2 の erratum が既に承認済みである」を
+**前向きに失効させる。** その erratum 文書は当該決定の時点で存在しておらず、承認されていたのは
+第 2 erratum を当てるという**方向**であって文書ではない。D263 の決定本文
+(固有不変条件を `erratum_id` 別 validator に持たせ、未知 ID を fail-closed にする) は有効なまま残す。
+
+**理由:**
+
+- 承認済み erratum の resolver 契約は「resolver は approval manifest から
+  `approval_fold_commit` と blob identity を取得する。caller の引数や受領証の自己申告からは
+  取らない」を課す。registry membership を承認と読む実装は、この trust root を
+  **コード側の import 可能性**へすり替える。erratum を 1 枚足して registry へ登録するだけで
+  受理述語が動く経路になる。
+- 実際に本 wave は未承認の第 2 erratum を起草した。三値の区別が無ければ、
+  その validator を登録した瞬間に「承認済み」と読める状態になる。
+- 逆に、誤記を保守側へ読んだ実装は第 2 erratum を永久に拒否する。どちらへ倒れても
+  受理集合が実装依存になる。
+
+**却下した選択肢:**
+
+- 誤記を「説明文だから無視してよい」として放置する — canonical decision を根拠に
+  実装を書く後続 wave が、承認集合を 2 通りに解釈する。無視ではなく上書き記録が要る。
+- D263 全体を失効させる — 決定本文 (固有検査の分離と未知 ID の fail-closed) は正しく、
+  実装済みで機能している。失効させるのは事実文 1 つでよい。
+- 承認状態を文書の frontmatter だけで表す — 文書は producer 側が書けるので trust root にならない。
+  承認集合は manifest 側にしか置けない。
+- registered / draft / approved を排他的な 3 値として並べる — 実装上すべての approved と draft は
+  同時に registered であり、3 値は排他にならない。排他でないものを排他として書くと、
+  後続実装が「approved は registered でない」と読む余地を残す。
+
+**本決定が主張しないこと:**
+
+- **承認が機械的に強制されている、とは主張しない。** 本決定の時点で承認集合を問う関数に
+  production caller は無く、参照束縛の純関数 (`compose_core` 相当) は登録済みでさえあれば
+  未承認 erratum も合成できる。これは「純関数は投入 gate ではない」という D264 の境界どおりであり
+  fail-open ではないが、**承認の強制は投入 gate を実装する wave の責務として残る。**
+  本決定を「承認検査が入った」と読んではならない。
+
+## D323. 床値投入 script の mode は固定 pilot にし、受け口を作らない (2026-08-12)
+
+**決定:** `tools/pegasus/floor_campaign.sh` は driver を `--mode pilot` 固定で起動する。
+mode を環境変数・argv・`eval` から受け取る口を作らない。official を渡す手段も残さない。
+将来 official を開くときは wrapper・job-result・失敗文言・guard・手順書を改めて変更し、
+**別の source commit と script hash で再投入する**。
+
+**理由:**
+
+- ユーザー裁定 (2026-08-12) が「投入 script へ pilot 経路追加、official は空集合維持、
+  `eligible_for_refreeze` は緩めない」を確定した。mode の受け口は「空集合維持」に必要な作業ではなく、
+  bypass 面の新設に近い。
+- official には発火経路が無い。条件付き機能は発火条件を満たす経路を書けるときだけ実装する規律
+  (`DW-G04`) に照らして、渡せるだけの口は作らない。
+- submission receipt が source commit と script blob hash を束縛するため、
+  **pilot job をそのまま official と解釈することはできない。** 固定化しても将来の解禁を妨げず、
+  解禁時には別 identity の投入になることが機械的に保証される。
+
+**却下した選択肢:**
+
+- 環境変数 `IZANAGI_FLOOR_MODE` で受け既定 pilot — production の受理面と `qsub -v` interface を
+  増やす。official を渡せる口ができ、driver 拒否に頼る二段構えになる。非同値。
+- pilot 専用の別 script — source binding・receipt・guard を複製する。非同値。
+- 現状維持 (official 固定) — driver が必ず拒否するため、床値の測定が構造的に不可能なまま。
+
+## D324. shell script の bypass 面検査は生文字列でなく token で数える (2026-08-12)
+
+**決定:** job script が固定の CLI を起動していることを固定する検査は、
+**(1) stub が記録した実 argv の完全一致**を主検査、
+**(2) script 全体を posix mode の `shlex` で token 化した件数・値の検査**を従検査とする。
+生の部分文字列一致 (`source.count(...)`) を検出の主体にしない。
+
+**理由:**
+
+- 生文字列一致は `--mo"de"` や `"s8b_floor_"campaign.py` のような分割記法を素通しする。
+  posix mode の `shlex` は隣接引用を 1 token に連結するので、この回避を潰せる。
+- 生文字列一致は逆に、説明コメントが同じ語を含むだけで落ちる。安全要件とコメント表現が結合する。
+  `shlex` はコメントを除去するので、この誤検知も消える。
+- 実 argv の完全一致だけでは、実行されない位置に置かれた第 2 起動を検出できない。
+  token 検査と組み合わせて初めて「ファイル全体で 1 起動」を言える。
+- 逐語の行一致 (`mode_lines == [...]`) は、意味を変えない整形変更で落ちる過剰拒否になる。
+  実際に変異 matrix の正例で検査した。
+
+**却下した選択肢:**
+
+- 逐語の行 exact 一致 — 整形変更で落ち、かつ後続 assert が論理的に従属して恒真になる。
+- 実 argv 検査だけ — 実行されない第 2 起動と、区間外の記述を検出できない。
+- 検査を marker 区間に限る — 区間外に置くだけで回避できる。
+
+## D325. 検出力を足す走行は、新しい走行としてではなく既に回す走行の形を変えて足す (2026-08-12)
+
+**決定:** 「全走では緑・焦点走では赤」型を塞ぐ焦点走は、受入の後段に走行を 1 本足す形では
+実装しない。親がテストを走らせる直前の規定 (`DW-O18`) を強め、**変更した test file は
+受入全走の前に別 process の単独走で 1 度確認する**ことを義務にする。既に回す走行へ相乗りさせ、
+受入の後へ走行を足さない。全走の緑はその file 単独の緑を含意しない、を同節に明記する。
+
+**理由:**
+- Pegasus では実行を伴う焦点走は必ず計算ノードへ dispatch される (`run_tests.py` の dispatch
+  免除集合は非実行 flag だけ)。実測で login 往復 26.8〜32.0 秒、job 内 5〜16 秒であり、
+  「1 本足す」は無条件に閾値 10 秒を超える固定費になる。
+- 段 6 の fix 巡回で親はどのみちテストを走らせる。義務を「その走行のうち 1 本を単独走にせよ」に
+  落とせば、検出力は同じで追加 dispatch は原則 0 本になる。
+- 焦点走のコストは file 依存で尾が重い (file 別直列時間の p50 1.17s に対し p90 31.9s、
+  max 1330.8s、179 file 中 33 file が 10 秒以上)。固定費として一律に足すと、
+  重い file を触った wave ほど二重に払う。
+
+**却下した選択肢:**
+- 段 6 受入へ焦点走を 1 本足す — 実測が閾値を超えたため裁定どおり不採用。走行時間が
+  wave 数に比例して増え、恒久ルール「開発するほどテストが遅くなる構造を作らない」に抵触する。
+- 受入と同一 job へ畳んで dispatch 往復を消す — `run_tests.py` の改修が要るうえ、
+  畳んでも job 内 5〜16 秒で閾値を割らない。往復の除去は本件とは別に評価する。
+- 現状維持 — 部分走・焦点走を回した作業者だけが踏み続け、全走の緑が「その file が単独で
+  健全である」ことを意味しない状態が残る。同型が独立 2 例出ている。
