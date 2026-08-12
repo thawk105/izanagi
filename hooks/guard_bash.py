@@ -1439,6 +1439,16 @@ class _HooksInodeIndex:
             return
         self._loaded = True
 
+        try:
+            os.stat(self.hooks_root)
+        except FileNotFoundError:
+            # hooks/ 自体が無い repo には共有 inode も無い。走査失敗ではない。
+            return
+        except OSError:
+            # root が存在するか確認不能なら、列挙不能と同じく局所 deny。
+            self._scan_failed = True
+            return
+
         def record_error(_error) -> None:
             self._scan_failed = True
 

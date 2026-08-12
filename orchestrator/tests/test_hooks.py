@@ -857,6 +857,29 @@ def test_t956_hook_loader_executes_source_bytes_not_matching_pyc():
         shutil.rmtree(root)
 
 
+def test_t956_load_hook_executes_source_bytes_not_matching_pyc():
+    """G2: public test-loader wiring itself must bypass a matching stale pyc."""
+    root = tempfile.mkdtemp(prefix="izanagi-t956-load-hook-")
+    hooks = os.path.join(root, "hooks")
+    os.makedirs(hooks)
+    path = os.path.join(hooks, "fixture_hook.py")
+    try:
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write('VALUE = "poison"\n')
+        py_compile.compile(path, doraise=True)
+        metadata = os.stat(path)
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write('VALUE = "source"\n')
+        os.utime(path, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+
+        with patch.dict(_load_hook.__globals__, {"_REPO": root}):
+            module = _load_hook("fixture_hook")
+        assert module.VALUE == "source", \
+            "_load_hook が source bytes でなく matching cache を実行した"
+    finally:
+        shutil.rmtree(root)
+
+
 def test_t956_guard_write_rejects_r09_through_r16_patch_directives():
     root = _mk_fixture_repo()
     outside, _, hardlink, _ = _mk_t956_aliases(root)
@@ -1140,6 +1163,30 @@ def test_t956_hardlink_inode_scan_errors_fail_closed_in_both_guards():
         for module in (GW, GB):
             _assert_t956_inode_scan_failure_denied(module, root, target)
             _assert_t956_inode_stat_failure_denied(module, root, target)
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_missing_hooks_root_allows_ordinary_writes_in_both_guards():
+    """G1: absent hooks/ means an empty inode index, not a failed scan."""
+    root = tempfile.mkdtemp(prefix="izanagi-t956-no-hooks-")
+    target = os.path.join(root, "docs", "ordinary.txt")
+    os.makedirs(os.path.dirname(target))
+    with open(target, "w", encoding="utf-8") as stream:
+        stream.write("ordinary\n")
+    try:
+        cases = {
+            "Write": GW.decide(
+                "Write", {"file_path": target, "content": "replacement"},
+                repo_root=root),
+            "Edit": GW.decide(
+                "Edit", {"file_path": target, "old_string": "ordinary",
+                         "new_string": "replacement"}, repo_root=root),
+            "apply_patch": _patch(root, "*** Update File: docs/ordinary.txt"),
+            "Bash": GB.decide(f"cp /tmp/new {target}", repo_root=root),
+        }
+        for surface, (ok, why) in cases.items():
+            assert ok, f"hooks/ 不在時に通常 {surface} が誤拒否された: {why}"
     finally:
         shutil.rmtree(root)
 
