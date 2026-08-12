@@ -25,7 +25,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 INFRA_RC = 16
 DEFAULT_PROJECT = "SFC"
 DEFAULT_QUEUE = "gen_S"
-DEFAULT_WALLTIME = "00:40:00"
+DEFAULT_WALLTIME = "01:00:00"
 DEFAULT_QUEUE_WAIT_TIMEOUT_S = 900.0
 DEFAULT_OVERALL_GRACE_S = 300.0
 DEFAULT_ACCOUNTING_GRACE_S = 60.0
@@ -60,6 +60,8 @@ TASKS = {
             "PYTEST_ADDOPTS",
             "IZANAGI_TEST_NPROC",
             "IZANAGI_TEST_TRIGGER",
+            # T-080 E2E の opt-in を計算ノードへ伝える。
+            "IZANAGI_T080_E2E",
         }),
         probe_imports=("pytest", "xdist", "packaging"),
     ),

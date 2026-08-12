@@ -24,6 +24,8 @@ if str(ORCHESTRATOR.parent) not in sys.path:
     sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import s8b_freeze_io as fio  # noqa: E402
+from orchestrator.calibrator import schema_v2 as calibration_v2  # noqa: E402
+from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 
 def _write(path: Path, text: str) -> Path:
@@ -245,6 +247,61 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     }
     verified = fio.VerifiedFreeze(document=freeze, sha256=freeze_sha)
     contract = ec.lookup(ENV_TAG)
+    calibration_document = _valid_calibration_v2_document()
+    calibration_document["env_tag"] = ENV_TAG
+    calibration_document["acquisition_receipt"]["toolchain"].update({
+        "compiler_path": "/fixture/toolchain/cc",
+        "compiler_version": "fixture-cc 13.0\nfixture detail",
+        "cmake_version": "fixture-cmake version 3.28\nfixture detail",
+    })
+    calibration_document["acquisition_receipt"]["ccbench"]["build_argv"] = [
+        "cmake",
+        "-DCMAKE_C_COMPILER=/fixture/toolchain/cc",
+        "-DCMAKE_CXX_COMPILER=/fixture/toolchain/cxx",
+    ]
+    calibration = calibration_v2.validate_calibration_v2(calibration_document)
+    calibration_raw = json.dumps(
+        calibration_document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    verified_calibration = floor.env_attestation.VerifiedCalibration(
+        schema_version=calibration_v2.SCHEMA_VERSION,
+        sha256=hashlib.sha256(calibration_raw).hexdigest(),
+        calibration=calibration,
+        attestation_profile_sha256=floor.env_attestation.profile_sha256(
+            calibration.attestation_profile,
+        ),
+    )
+    toolchain_manifest = {
+        "cc": {
+            "requested": "fixture-cc", "realpath": "/fixture/toolchain/cc",
+            "version_first_line": "live-cc 13.0",
+            "version": "live-cc 13.0\nfixture detail",
+        },
+        "cxx": {
+            "requested": "fixture-cxx", "realpath": "/fixture/toolchain/cxx",
+            "version_first_line": "live-cxx 13.0",
+            "version": "live-cxx 13.0\nfixture detail",
+        },
+        "cmake": {
+            "requested": "cmake", "realpath": "/fixture/toolchain/cmake",
+            "version_first_line": "live-cmake version 3.28",
+            "version": "live-cmake version 3.28\nfixture detail",
+        },
+    }
+
+    def fixture_calibration_loader(observed_contract, _repo_root):
+        assert observed_contract == contract
+        return verified_calibration
+
+    def fixture_observe_floor_tool(requested, role):
+        assert requested == {
+            "cc": "fixture-cc", "cxx": "fixture-cxx", "cmake": "cmake",
+        }[role]
+        entry = toolchain_manifest[role]
+        return floor._ObservedFloorTool(
+            requested=entry["requested"], realpath=entry["realpath"],
+            version_first_line=entry["version_first_line"], version=entry["version"],
+        )
 
     @contextlib.contextmanager
     def fake_prepare(cell, ccbench_pin):
@@ -255,10 +312,11 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
                    timeout_s=None, admission=None, build_context=None,
-                   source_evidence=None):
+                   source_evidence=None, expected_toolchain_manifest=None):
         assert admission is not None
         assert build_context is not None
         assert source_evidence is not None
+        assert expected_toolchain_manifest == toolchain_manifest
         assert ccbench_dir == "/fx/ccbench"
         assert timeout_s == 900
         d = Path(cache_root) / "fixture" / src_token.replace("::", "__")
@@ -302,7 +360,15 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         return SimpleNamespace(throughputs=[1000.0] * 5, notes=[],
                                run_cmd=shlex.join(argv))
 
-    with mock.patch.object(floor.buildcache, "build_v2", fake_build), \
+    with mock.patch.object(
+            floor.env_attestation, "load_verified_calibration",
+            side_effect=fixture_calibration_loader), \
+         mock.patch.object(
+             floor.buildcache, "compilers_for_current_site",
+             return_value=("fixture-cc", "fixture-cxx")), \
+         mock.patch.object(
+             floor, "_observe_floor_tool", side_effect=fixture_observe_floor_tool), \
+         mock.patch.object(floor.buildcache, "build_v2", fake_build), \
          mock.patch.object(floor.source_digest, "resolve_evidence", fixture_evidence), \
          mock.patch.object(floor, "measure_point", spy_measure_point):
         floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",

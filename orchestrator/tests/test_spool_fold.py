@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+import dataclasses
 import difflib
 import hashlib
 import importlib.util
@@ -15,6 +18,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+from tools.dev_waves.git_state import (
+    FOLD_AUTHOR_IDENTITY,
+    FOLD_COMMIT_MESSAGE,
+    verify_declared_fold_commit,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,9 +55,155 @@ def _run_git(repo: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def _hash_object(repo: Path, content: bytes) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), "hash-object", "--stdin"],
+        check=True,
+        input=content,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return completed.stdout.decode("ascii", errors="strict").strip()
+
+
 def _commit(repo: Path, message: str = "fixture") -> None:
     _run_git(repo, "add", "-A")
     _run_git(repo, "commit", "-m", message)
+
+
+def _raw_commit(
+    repo: Path,
+    *,
+    author: bytes,
+    message: bytes = FOLD_COMMIT_MESSAGE,
+) -> str:
+    parent = _run_git(repo, "rev-parse", "HEAD")
+    tree = _run_git(repo, "write-tree")
+    raw = (
+        f"tree {tree}\nparent {parent}\n".encode("ascii")
+        + b"author " + author + b"\n"
+        + b"committer Fixture <fixture@example.invalid> 1700000000 +0000\n\n"
+        + message
+    )
+    completed = subprocess.run(
+        ["git", "-C", str(repo), "hash-object", "-t", "commit", "-w", "--stdin"],
+        check=True,
+        input=raw,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    commit = completed.stdout.decode("ascii", errors="strict").strip()
+    _run_git(repo, "update-ref", "HEAD", commit, parent)
+    return commit
+
+
+def _land_origin(repo: Path) -> spool_fold.FoldOrigin:
+    tested_tip = _run_git(repo, "rev-parse", "HEAD")
+    wave_ref = _run_git(repo, "symbolic-ref", "HEAD")
+    parent = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--verify", "HEAD^"],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    trusted = parent.stdout.strip() if parent.returncode == 0 else tested_tip
+    audited = tuple(
+        line
+        for line in _run_git(repo, "rev-list", "--reverse", f"{trusted}..{tested_tip}").splitlines()
+        if line
+    )
+    return spool_fold.FoldOrigin(
+        kind="land",
+        base=trusted,
+        tested_tip=tested_tip,
+        wave_ref=wave_ref,
+        rollback_ref=trusted,
+        trusted_main_cutoff=trusted,
+        audited_digest=spool_fold.audited_commit_digest(audited),
+    )
+
+
+def _plan_for_commit(
+    repo: Path,
+    *,
+    fold_date: str | None = None,
+) -> spool_fold.FoldPlan:
+    if _run_git(repo, "status", "--porcelain=v1"):
+        _commit(repo, "fold inputs")
+    return spool_fold.plan_fold(repo, fold_date=fold_date, origin=_land_origin(repo))
+
+
+def _finish_fold(repo: Path, plan: spool_fold.FoldPlan) -> spool_fold.FoldResult:
+    state_path = spool_fold._state_path(repo)
+    assert not state_path.exists() and not state_path.is_symlink()
+    result = spool_fold.apply_fold(repo, plan)
+    assert state_path.is_file()
+    assert spool_fold._load_state(state_path)["phase"] == "applied"
+    _run_git(repo, "add", "-A")
+    completed = subprocess.run(
+        [
+            "git", "-C", str(repo), "commit", "--no-gpg-sign",
+            "--cleanup=verbatim", f"--author={FOLD_AUTHOR_IDENTITY}", "-F", "-",
+        ],
+        check=True,
+        input=FOLD_COMMIT_MESSAGE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert completed.returncode == 0
+    fold_commit = _run_git(repo, "rev-parse", "HEAD")
+    committed = spool_fold.mark_fold_committed(repo, plan, fold_commit=fold_commit)
+    assert committed.phase == "committed"
+    assert spool_fold._load_state(state_path)["phase"] == "committed"
+    spool_fold.finalize_fold(repo, committed, fold_commit=fold_commit)
+    assert not state_path.exists() and not state_path.is_symlink()
+    return result
+
+
+def _commit_applied_fold(repo: Path, plan: spool_fold.FoldPlan) -> str:
+    spool_fold.apply_fold(repo, plan)
+    _run_git(repo, "add", "-A")
+    subprocess.run(
+        [
+            "git", "-C", str(repo), "commit", "--no-gpg-sign",
+            "--cleanup=verbatim", f"--author={FOLD_AUTHOR_IDENTITY}", "-F", "-",
+        ],
+        check=True,
+        input=FOLD_COMMIT_MESSAGE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return _run_git(repo, "rev-parse", "HEAD")
+
+
+def _assert_declared_fold(repo: Path, plan: spool_fold.FoldPlan, fold_commit: str) -> None:
+    audited = tuple(
+        _run_git(
+            repo,
+            "rev-list",
+            "--reverse",
+            f"{plan.origin.trusted_main_cutoff}..{plan.origin.tested_tip}",
+        ).splitlines()
+    )
+    declared = verify_declared_fold_commit(
+        repo,
+        fold_commit_sha=fold_commit,
+        trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,
+        landed_main_sha=fold_commit,
+        landed_commits=audited,
+        wave_tip=plan.origin.tested_tip,
+    )
+    assert declared.ok, declared
+
+
+def _complete_fold(
+    repo: Path,
+    *,
+    fold_date: str | None = None,
+) -> tuple[spool_fold.FoldPlan, spool_fold.FoldResult]:
+    plan = _plan_for_commit(repo, fold_date=fold_date)
+    return plan, _finish_fold(repo, plan)
 
 
 def _item(task_id: str, text: str) -> str:
@@ -65,6 +220,8 @@ def _repo(tmp_path: Path, *, active: tuple[str, ...] = ("[T-001]",), limit: int 
     _run_git(repo, "init", "-q")
     _run_git(repo, "config", "user.name", "Fixture")
     _run_git(repo, "config", "user.email", "fixture@example.invalid")
+    (repo / "tools").mkdir()
+    shutil.copy2(ROOT / "tools/spool_fold.py", repo / "tools/spool_fold.py")
     _write(repo / "tools/check_docs.py", f"WORKLOG_ROTATE_BYTES = {limit}\n")
     next_actions = "".join(_item(task_id, f"現本文 {task_id}") for task_id in active)
     _write(
@@ -215,13 +372,59 @@ def _synthetic_worklog(*entries: str) -> str:
     return "# worklog\n\n## ローテーション\n\n---\n\n" + "\n".join(entries)
 
 
-def _raises(code: str, callable_object, *args):
+def _raises(code: str, callable_object, *args, **kwargs):
     try:
-        callable_object(*args)
+        callable_object(*args, **kwargs)
     except spool_fold.SpoolValidationError as exc:
         assert [issue.code for issue in exc.issues] == [code], [issue.code for issue in exc.issues]
         return exc
     raise AssertionError(f"{code} を拒否しなかった")
+
+
+def _transaction_raises(needle: str, callable_object, *args, **kwargs):
+    try:
+        callable_object(*args, **kwargs)
+    except spool_fold.TransactionError as exc:
+        assert needle in str(exc), str(exc)
+        return exc
+    raise AssertionError(f"TransactionError({needle!r}) を返さなかった")
+
+
+def _unchecked_plan_from_state(
+    original: spool_fold.FoldPlan,
+    state: dict[str, object],
+) -> spool_fold.FoldPlan:
+    fragments = tuple(
+        spool_fold.FragmentReceipt(
+            item["path"],
+            item["authored"],
+            item["wave"],
+            item["seq"],
+            item["content_sha256"],
+            tuple(tuple(pair) for pair in item["allocations"]),
+        )
+        for item in state["fragments"]
+    )
+    targets = tuple(
+        spool_fold.TargetChange(
+            item["path"],
+            item["before_sha256"],
+            item["after_sha256"],
+            item["before_exists"],
+            spool_fold.base64.b64decode(item["after_bytes_b64"]),
+        )
+        for item in state["targets"]
+    )
+    return dataclasses.replace(
+        original,
+        fold_date=state["fold_date"],
+        input_closure_sha256=state["input_closure_sha256"],
+        fragments=fragments,
+        gc_paths=tuple(state["gc_paths"]),
+        projected_worklog_bytes=state["projected_worklog_bytes"],
+        rotation_path=state["rotation_path"],
+        targets=targets,
+    )
 
 
 def _target(plan, rel: str):
@@ -549,7 +752,7 @@ def test_parallel_fold_implicitly_carries_task_added_by_earlier_wave(tmp_path: P
     repo = _repo(tmp_path)
     _fragment(repo, "worklog", _worklog_body(repo, carry=(), new=(("wave-a-task", "A の新規"),)))
     _commit(repo, "wave A fragment")
-    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo))
+    _complete_fold(repo)
     _fragment(repo, "worklog", _worklog_body(repo, carry=()), wave="wave-b")
     text = _target(spool_fold.plan_fold(repo), "docs/worklog.md").after_bytes.decode("utf-8")
     tail = text[text.rfind("### 次の一手"):]
@@ -572,7 +775,7 @@ def test_parallel_new_then_existing_update_uses_substantive_base_digest(tmp_path
         wave="wave-a",
     )
     _commit(repo, "wave A fragment")
-    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo, fold_date="2026-08-02"))
+    _complete_fold(repo, fold_date="2026-08-02")
 
     _fragment(
         repo,
@@ -859,14 +1062,14 @@ def test_compact_carry_uses_explicit_prior_across_ordinal_gap(tmp_path: Path) ->
     )
     _commit(repo, "ordinal gap canonical fixture")
     _fragment(repo, "worklog", _worklog_body(repo, carry=()))
-    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    first = _plan_for_commit(repo, fold_date="2026-08-02")
     first_text = _target(first, "docs/worklog.md").after_bytes.decode("utf-8")
     assert "## 2026-08-02 (10) — fold test" in first_text
     assert _next_action(_entry(first_text, 10)) == (
         f"{_GENERATED_NEXT_ACTION_HEADING}\n\n- [T-001] (5)\n"
     )
 
-    spool_fold.apply_fold(repo, first)
+    _finish_fold(repo, first)
     _fragment(
         repo,
         "worklog",
@@ -900,14 +1103,14 @@ def test_two_worklog_fragments_use_immediate_prior_ordinals(tmp_path: Path) -> N
         seq=1,
     )
     _fragment(repo, "worklog", _worklog_body(repo, carry=()), seq=2)
-    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    first = _plan_for_commit(repo, fold_date="2026-08-02")
     first_text = _target(first, "docs/worklog.md").after_bytes.decode("utf-8")
     assert "- [T-001] A の更新" in _next_action(_entry(first_text, 2))
     assert _next_action(_entry(first_text, 3)) == (
         f"{_GENERATED_NEXT_ACTION_HEADING}\n\n- [T-001] (2)\n"
     )
 
-    spool_fold.apply_fold(repo, first)
+    _finish_fold(repo, first)
     _fragment(
         repo,
         "worklog",
@@ -983,7 +1186,7 @@ def test_rotation_between_two_new_entries_preserves_compact_chain(tmp_path: Path
     _write(repo / "tools/check_docs.py", f"WORKLOG_ROTATE_BYTES = {limit}\n")
     _commit(repo, "rotation capacity fixture")
 
-    first = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+    first = _plan_for_commit(repo, fold_date="2026-08-02")
     assert first.rotation_path is not None
     archived = _target(first, first.rotation_path).after_bytes.decode("utf-8")
     current = _target(first, "docs/worklog.md").after_bytes.decode("utf-8")
@@ -992,7 +1195,7 @@ def test_rotation_between_two_new_entries_preserves_compact_chain(tmp_path: Path
     assert _next_action(_entry(current, 3)) == (
         f"{_GENERATED_NEXT_ACTION_HEADING}\n\n- [T-001] (2)\n"
     )
-    spool_fold.apply_fold(repo, first)
+    _finish_fold(repo, first)
 
     _fragment(
         repo,
@@ -1520,7 +1723,7 @@ def test_failure_supersede_replay_guards_exact_and_changed_fragments(tmp_path: P
     body = _failure_body(supersedes=((1, _supersede("replay")),))
     fragment = _fragment(repo, "failures", body)
     raw = fragment.read_bytes()
-    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo, fold_date="2026-08-10"))
+    _complete_fold(repo, fold_date="2026-08-10")
     fragment.parent.mkdir(parents=True, exist_ok=True)
     fragment.write_bytes(raw)
     _raises("receipt-replay", spool_fold.plan_fold, repo)
@@ -1556,7 +1759,8 @@ def test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact(tmp
     body = _supersede("実 canonical の空行なし境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
     expected = _splice_exact(before, ((boundary.start(), f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path) -> None:
@@ -1571,7 +1775,8 @@ def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path)
     body = _supersede("実 canonical の F196/F197 境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((196, body),)))
     expected = _splice_exact(before, ((boundary.start() - 1, f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) -> None:
@@ -1586,7 +1791,8 @@ def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) ->
     body = _supersede("実 canonical の EOF 境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((number, body),)))
     expected = _splice_exact(before, ((len(before), f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_n11_existing_canonical_bytes_are_only_appended_or_inserted(tmp_path: Path) -> None:
@@ -1612,8 +1818,8 @@ def test_n12_second_fold_after_gc_is_noop(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     _fragment(repo, "worklog", _worklog_body(repo))
     _commit(repo, "fragment")
-    first = spool_fold.plan_fold(repo)
-    result = spool_fold.apply_fold(repo, first)
+    first = _plan_for_commit(repo)
+    result = _finish_fold(repo, first)
     after = (repo / "docs/worklog.md").read_bytes()
     second = spool_fold.plan_fold(repo)
     assert result.status == "applied" and second.status == "noop"
@@ -1627,7 +1833,7 @@ def test_n13_same_content_replay_is_rejected_by_receipt(tmp_path: Path) -> None:
     path = _fragment(repo, "worklog", _worklog_body(repo))
     raw = path.read_bytes()
     _commit(repo, "fragment")
-    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo))
+    _complete_fold(repo)
     path.write_bytes(raw)
     _raises("receipt-replay", spool_fold.plan_fold, repo)
 
@@ -1638,7 +1844,7 @@ def test_changed_content_cannot_reuse_folded_symbol_identity(tmp_path: Path) -> 
     repo = _repo(tmp_path)
     _fragment(repo, "worklog", _worklog_body(repo, new=(("durable", "first"),)))
     _commit(repo, "first fragment")
-    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo))
+    _complete_fold(repo)
     body = _worklog_body(repo, carry=("[T-001]", "[T-052]"), new=(("durable", "changed"),))
     _fragment(repo, "worklog", body, seq=2)
     _raises("symbol-replay", spool_fold.plan_fold, repo)
@@ -1776,7 +1982,557 @@ def test_interrupted_transaction_resumes_before_and_after_targets(tmp_path: Path
     assert (repo / phase_target.path).resolve() not in writes
     assert all((repo / target.path).read_bytes() == target.after_bytes for target in plan.targets)
     assert all(not (repo / rel).exists() for rel in plan.gc_paths)
-    assert not state_path.exists()
+    assert state_path.is_file()
+    stored = spool_fold._load_state(state_path)
+    assert stored["phase"] == "applied"
+    assert stored["transaction_id"] == plan.transaction_id
+
+
+def test_plan_fold_observes_standalone_head_and_symbolic_ref(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _commit(repo, "fragment")
+    observed_head = _run_git(repo, "rev-parse", "HEAD")
+    observed_ref = _run_git(repo, "symbolic-ref", "HEAD")
+
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+
+    assert dataclasses.fields(spool_fold.FoldOrigin)
+    assert {field.name for field in dataclasses.fields(spool_fold.FoldOrigin)} == {
+        "kind", "base", "tested_tip", "wave_ref", "rollback_ref",
+        "trusted_main_cutoff", "audited_digest",
+    }
+    assert plan.origin == spool_fold.FoldOrigin(
+        "standalone",
+        observed_head,
+        observed_head,
+        observed_ref,
+        observed_head,
+        observed_head,
+        spool_fold.audited_commit_digest(()),
+    )
+
+
+def test_plan_fold_rejects_origin_not_matching_observed_git(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _commit(repo, "fragment")
+    origin = _land_origin(repo)
+
+    for changed in (
+        dataclasses.replace(origin, tested_tip=origin.base),
+        dataclasses.replace(origin, wave_ref="refs/heads/not-observed"),
+        dataclasses.replace(origin, audited_digest="0" * 64),
+    ):
+        _raises("origin", spool_fold.plan_fold, repo, origin=changed)
+
+
+def test_state_v2_schema_is_exact_and_v1_is_rejected(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo, fold_date="2026-08-02")
+    state = spool_fold._plan_state(plan)
+
+    assert frozenset(state) == spool_fold.STATE_FIELDS
+    assert frozenset(state["origin"]) == spool_fold.ORIGIN_FIELDS
+    assert state["version"] == 2 and state["phase"] == "applied"
+    assert all(frozenset(item) == spool_fold.FRAGMENT_STATE_FIELDS for item in state["fragments"])
+    assert all(frozenset(item) == spool_fold.TARGET_STATE_FIELDS for item in state["targets"])
+    v1 = dict(state, version=1)
+    _transaction_raises("version", spool_fold._state_plan, v1)
+
+
+def test_state_v2_rejects_missing_extra_and_coerced_nested_fields(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    state = spool_fold._plan_state(plan)
+
+    missing = dict(state)
+    missing.pop("phase")
+    extra = dict(state, unexpected=False)
+    coerced = json.loads(json.dumps(state))
+    coerced["fragments"][0]["seq"] = "1"
+    coerced_bool = json.loads(json.dumps(state))
+    coerced_bool["targets"][0]["before_exists"] = 1
+    for candidate in (missing, extra, coerced, coerced_bool):
+        _transaction_raises("transaction state", spool_fold._state_plan, candidate)
+
+
+def test_transaction_id_binds_origin_closure_and_before_exists(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+
+    def transaction_id(
+        *,
+        origin=plan.origin,
+        closure=plan.input_closure_sha256,
+        targets=plan.targets,
+    ):
+        return spool_fold._plan_transaction_id(
+            plan.fold_date,
+            origin,
+            closure,
+            plan.fragments,
+            plan.gc_paths,
+            plan.projected_worklog_bytes,
+            plan.rotation_path,
+            targets,
+        )
+
+    first = plan.targets[0]
+    changed_targets = (dataclasses.replace(first, before_exists=not first.before_exists), *plan.targets[1:])
+    assert transaction_id() == plan.transaction_id
+    assert transaction_id(closure="0" * 64) != plan.transaction_id
+    origin_changes = (
+        {"kind": "standalone"},
+        {"base": "0" * 40},
+        {"tested_tip": "1" * 40},
+        {"wave_ref": "refs/heads/changed"},
+        {"rollback_ref": "2" * 40},
+        {"trusted_main_cutoff": "3" * 40},
+        {"audited_digest": "4" * 64},
+    )
+    assert all(
+        transaction_id(origin=dataclasses.replace(plan.origin, **change)) != plan.transaction_id
+        for change in origin_changes
+    )
+    assert transaction_id(targets=changed_targets) != plan.transaction_id
+
+    committed_state = spool_fold._plan_state(plan)
+    committed_state["phase"] = "committed"
+    assert spool_fold._state_plan(committed_state).transaction_id == plan.transaction_id
+
+
+def test_apply_rejects_each_state_transaction_id_payload_field_mutation(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    original_state = spool_fold._plan_state(plan)
+
+    def mutate_gc_paths(state: dict[str, object]) -> None:
+        state["gc_paths"] = [*state["gc_paths"], "docs/spool/worklog/2099-01-01-other-1.md"]
+
+    def mutate_fragment(state: dict[str, object], field: str, value: object) -> None:
+        state["fragments"][0][field] = value
+
+    def mutate_target(state: dict[str, object], field: str, value: object) -> None:
+        state["targets"][0][field] = value
+
+    cases = (
+        ("fold_date", lambda state: state.__setitem__(
+            "fold_date", "2000-01-02" if state["fold_date"] == "2000-01-01" else "2000-01-01",
+        )),
+        ("gc_paths", mutate_gc_paths),
+        ("fragment.path", lambda state: mutate_fragment(
+            state, "path", "docs/spool/worklog/2099-01-01-other-1.md",
+        )),
+        ("fragment.authored", lambda state: mutate_fragment(state, "authored", "2099-01-01")),
+        ("fragment.wave", lambda state: mutate_fragment(state, "wave", "other-wave")),
+        ("fragment.seq", lambda state: mutate_fragment(state, "seq", 2)),
+        ("fragment.content_sha256", lambda state: mutate_fragment(
+            state, "content_sha256", "0" * 64,
+        )),
+        ("fragment.allocations", lambda state: mutate_fragment(
+            state, "allocations", [["T:payload-pin", "[T-999]"]],
+        )),
+        ("projected_worklog_bytes", lambda state: state.__setitem__(
+            "projected_worklog_bytes", state["projected_worklog_bytes"] + 1,
+        )),
+        ("rotation_path", lambda state: state.__setitem__(
+            "rotation_path", "docs/archive/worklog-phase3-2099-1.md",
+        )),
+        ("target.path", lambda state: mutate_target(
+            state, "path", "docs/archive/README.md",
+        )),
+        ("target.before_sha256", lambda state: mutate_target(
+            state, "before_sha256", "0" * 64,
+        )),
+        ("target.after_sha256", lambda state: mutate_target(
+            state, "after_sha256", "0" * 64,
+        )),
+    )
+    for label, mutate in cases:
+        state = json.loads(json.dumps(original_state))
+        mutate(state)
+        candidate = _unchecked_plan_from_state(plan, state)
+        exc = _transaction_raises(
+            "transaction_id が payload と不一致",
+            spool_fold.apply_fold,
+            repo,
+            candidate,
+        )
+        assert label not in str(exc)
+        state_path = spool_fold._state_path(repo)
+        assert not state_path.exists() and not state_path.is_symlink()
+
+
+def test_input_closure_binds_both_rendering_engine_files(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _commit(repo, "fragment")
+    for rel in ("tools/spool_fold.py", "tools/check_docs.py"):
+        plan = spool_fold.plan_fold(repo, fold_date="2026-08-02")
+        path = repo / rel
+        before = path.read_bytes()
+        path.write_bytes(before + b"\n# changed after plan\n")
+        _transaction_raises("closure", spool_fold.apply_fold, repo, plan)
+        assert not spool_fold._state_path(repo).exists()
+        path.write_bytes(before)
+
+
+def test_resume_rejects_head_advanced_after_state_write(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    state_path = spool_fold._state_path(repo)
+    spool_fold._atomic_write(
+        state_path,
+        json.dumps(
+            spool_fold._plan_state(plan),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode() + b"\n",
+    )
+    _write(repo / "unrelated.txt", "advance\n")
+    _commit(repo, "advance head")
+
+    _transaction_raises("apply HEAD", spool_fold.apply_fold, repo, plan)
+
+
+def test_apply_keeps_applied_state_and_fsyncs_every_gc_parent(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _fragment(repo, "decisions", "## {{D:one}}. one\n")
+    _commit(repo, "fragments")
+    plan = spool_fold.plan_fold(repo)
+    observed: list[set[Path]] = []
+    original = spool_fold._fsync_directories
+    spool_fold._fsync_directories = lambda paths: observed.append({Path(path).resolve() for path in paths})
+    try:
+        spool_fold.apply_fold(repo, plan)
+    finally:
+        spool_fold._fsync_directories = original
+
+    state_path = spool_fold._state_path(repo)
+    state = spool_fold._load_state(state_path)
+    assert state["phase"] == "applied"
+    assert state["transaction_id"] == plan.transaction_id
+    assert observed == [{(repo / rel).parent.resolve() for rel in plan.gc_paths}]
+
+
+def test_mark_and_finalize_require_commit_identity_and_phase(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    _transaction_raises(
+        "state ID/phase",
+        spool_fold.mark_fold_committed,
+        repo,
+        dataclasses.replace(plan, transaction_id="0" * 64),
+        fold_commit=plan.origin.tested_tip,
+    )
+    _transaction_raises(
+        "state ID/phase",
+        spool_fold.finalize_fold,
+        repo,
+        plan,
+        fold_commit=plan.origin.tested_tip,
+    )
+
+
+def test_commit_identity_gate_rejects_mode_only_manual_fold_commit(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    (repo / "docs/worklog.md").chmod(0o755)
+    _run_git(repo, "add", "-A")
+    subprocess.run(
+        [
+            "git", "-C", str(repo), "commit", "--no-gpg-sign",
+            "--cleanup=verbatim", f"--author={FOLD_AUTHOR_IDENTITY}", "-F", "-",
+        ],
+        check=True,
+        input=FOLD_COMMIT_MESSAGE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    fold_commit = _run_git(repo, "rev-parse", "HEAD")
+    audited = tuple(
+        _run_git(
+            repo,
+            "rev-list",
+            "--reverse",
+            f"{plan.origin.trusted_main_cutoff}..{plan.origin.tested_tip}",
+        ).splitlines()
+    )
+    declared = verify_declared_fold_commit(
+        repo,
+        fold_commit_sha=fold_commit,
+        trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,
+        landed_main_sha=fold_commit,
+        landed_commits=audited,
+        wave_tip=plan.origin.tested_tip,
+    )
+    assert declared.ok, declared
+    _transaction_raises(
+        "target record",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_author_suffix_bytes(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    _run_git(repo, "add", "-A")
+    forged_author = (
+        FOLD_AUTHOR_IDENTITY.encode("utf-8")
+        + b" forged-suffix 1700000000 +0000"
+    )
+    fold_commit = _raw_commit(repo, author=forged_author)
+    raw_author = next(
+        line.removeprefix(b"author ")
+        for line in subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "commit", fold_commit],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout.splitlines()
+        if line.startswith(b"author ")
+    )
+    assert raw_author.startswith(FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" ")
+    _transaction_raises(
+        "author identity",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_extra_state_external_path(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    extra_path = "docs/decisions.md"
+    assert extra_path not in {target.path for target in plan.targets}
+    with (repo / extra_path).open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n## D2. state-external fixture\n")
+    _run_git(repo, "add", "-A")
+    fold_commit = _raw_commit(
+        repo,
+        author=FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" 1700000000 +0000",
+    )
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    expected_paths = {target.path for target in plan.targets} | set(plan.gc_paths)
+    assert set(actual) == expected_paths | {extra_path}
+    assert actual[extra_path][0] == "M"
+    for target in plan.targets:
+        status, old_mode, new_mode, new_oid = actual[target.path]
+        assert status == ("M" if target.before_exists else "A")
+        assert old_mode == ("100644" if target.before_exists else "000000")
+        assert new_mode == "100644"
+        assert new_oid == _hash_object(repo, target.after_bytes)
+    assert all(actual[path][0] == "D" for path in plan.gc_paths)
+    _transaction_raises(
+        "path 集合",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_target_status_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    fold_commit = _commit_applied_fold(repo, plan)
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    target = next(target for target in plan.targets if target.before_exists)
+    original_record = actual[target.path]
+    assert original_record[0] == "M"
+    synthetic = dict(actual)
+    synthetic[target.path] = ("A", *original_record[1:])
+    assert set(synthetic) == set(actual)
+    assert synthetic[target.path][1:] == original_record[1:]
+    original_reader = spool_fold._commit_diff_records
+    spool_fold._commit_diff_records = lambda *_args: synthetic
+    try:
+        _transaction_raises(
+            "target record",
+            spool_fold.verify_fold_commit_identity,
+            repo,
+            plan,
+            fold_commit=fold_commit,
+        )
+    finally:
+        spool_fold._commit_diff_records = original_reader
+
+
+def test_commit_identity_gate_rejects_target_blob_oid_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+    target = next(target for target in plan.targets if target.path == "docs/worklog.md")
+    (repo / target.path).write_bytes(target.after_bytes + b"\nwrong blob only\n")
+    _run_git(repo, "add", "-A")
+    fold_commit = _raw_commit(
+        repo,
+        author=FOLD_AUTHOR_IDENTITY.encode("utf-8") + b" 1700000000 +0000",
+    )
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    assert set(actual) == {item.path for item in plan.targets} | set(plan.gc_paths)
+    status, old_mode, new_mode, new_oid = actual[target.path]
+    assert status == "M" and old_mode == new_mode == "100644"
+    assert new_oid != _hash_object(repo, target.after_bytes)
+    for other in plan.targets:
+        if other.path == target.path:
+            continue
+        record = actual[other.path]
+        assert record[0] == ("M" if other.before_exists else "A")
+        assert record[2] == "100644"
+        assert record[3] == _hash_object(repo, other.after_bytes)
+    assert all(actual[path][0] == "D" for path in plan.gc_paths)
+    _transaction_raises(
+        "target record",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+
+
+def test_commit_identity_gate_rejects_gc_status_only(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    fold_commit = _commit_applied_fold(repo, plan)
+    _assert_declared_fold(repo, plan, fold_commit)
+    actual = spool_fold._commit_diff_records(repo, plan.origin.tested_tip, fold_commit)
+    gc_path = plan.gc_paths[0]
+    original_record = actual[gc_path]
+    assert original_record[0] == "D" and original_record[2] == "000000"
+    synthetic = dict(actual)
+    synthetic[gc_path] = ("M", *original_record[1:])
+    assert set(synthetic) == set(actual)
+    assert synthetic[gc_path][1:] == original_record[1:]
+    original_reader = spool_fold._commit_diff_records
+    spool_fold._commit_diff_records = lambda *_args: synthetic
+    try:
+        _transaction_raises(
+            "GC record",
+            spool_fold.verify_fold_commit_identity,
+            repo,
+            plan,
+            fold_commit=fold_commit,
+        )
+    finally:
+        spool_fold._commit_diff_records = original_reader
+
+
+def test_discover_requires_exact_expected_id_complete_targets_and_absent_gc(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    fragment = _fragment(repo, "worklog", _worklog_body(repo))
+    fragment_raw = fragment.read_bytes()
+    plan = _plan_for_commit(repo)
+    spool_fold.apply_fold(repo, plan)
+
+    default_issues = spool_fold.validate_spool_tree(repo)
+    wrong_issues = spool_fold.validate_spool_tree(repo, expected_transaction_id="0" * 64)
+    assert [issue.code for issue in default_issues] == ["transaction-active"]
+    assert [issue.code for issue in wrong_issues] == ["transaction-state"]
+    assert spool_fold.validate_spool_tree(
+        repo, expected_transaction_id=plan.transaction_id,
+    ) == []
+
+    fragment.parent.mkdir(parents=True, exist_ok=True)
+    fragment.write_bytes(fragment_raw)
+    incomplete = spool_fold.validate_spool_tree(
+        repo, expected_transaction_id=plan.transaction_id,
+    )
+    assert [issue.code for issue in incomplete] == ["transaction-state"]
+    assert "complete shape" in incomplete[0].message
+
+
+def test_discover_detects_dangling_state_symlink(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    state_path = spool_fold._state_path(repo)
+    state_path.symlink_to("missing-state-payload")
+    issues = spool_fold.validate_spool_tree(repo)
+    assert [issue.code for issue in issues] == ["transaction-active"]
+    assert str(state_path.absolute()) in issues[0].message
+
+
+def test_receipt_v2_contains_independently_observed_git_values(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    _commit(repo, "fragment")
+    observed_tip = _run_git(repo, "rev-parse", "HEAD")
+    observed_base = _run_git(repo, "rev-parse", "HEAD^")
+    observed_ref = _run_git(repo, "symbolic-ref", "HEAD")
+    plan = spool_fold.plan_fold(repo, origin=_land_origin(repo))
+    receipt = _target(plan, "docs/spool/FOLDED.md").after_bytes.decode("utf-8")
+    record = spool_fold._receipt_records(receipt)[-1]
+    assert frozenset(record) == spool_fold.RECEIPT_V2_FIELDS
+    assert record["base"] == observed_base
+    assert record["tested_tip"] == observed_tip
+    assert record["wave_ref"] == observed_ref
+
+
+def test_receipt_parser_enforces_positional_v2_cutover() -> None:
+    legacy = {
+        "allocations": {},
+        "authored": "2026-08-02",
+        "content_sha256": "1" * 64,
+        "seq": 1,
+        "wave": "wave-a",
+    }
+    v2 = {
+        **legacy,
+        "base": "2" * 40,
+        "tested_tip": "3" * 40,
+        "wave_ref": "refs/heads/wave-a",
+    }
+    line = lambda record: "- " + json.dumps(record, separators=(",", ":"), sort_keys=True)
+    assert len(spool_fold._receipt_records(line(legacy) + "\n" + line(v2) + "\n")) == 2
+    _raises("receipt", spool_fold._receipt_records, line(v2) + "\n" + line(legacy) + "\n")
+    missing = dict(v2)
+    missing.pop("base")
+    _raises("receipt", spool_fold._receipt_records, line(missing) + "\n")
+
+
+def test_load_rotate_limit_wraps_baseexceptions_and_restores_import_state(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "tools/check_docs.py").write_text(
+        "WORKLOG_ROTATE_BYTES = True\n", encoding="utf-8",
+    )
+    _raises("rotate-limit", spool_fold._load_rotate_limit, repo)
+    for statement in ("raise SystemExit(0)\n", "raise KeyboardInterrupt()\n"):
+        path = repo / "tools/check_docs.py"
+        path.write_text(statement, encoding="utf-8")
+        before_modules = set(sys.modules)
+        before_bytecode = sys.dont_write_bytecode
+        exc = _raises("rotate-limit", spool_fold._load_rotate_limit, repo)
+        assert type(exc.__cause__) in {SystemExit, KeyboardInterrupt}
+        assert sys.dont_write_bytecode == before_bytecode
+        assert set(sys.modules) == before_modules
 
 
 def test_n17_fragment_allocation_order_is_explicitly_sorted(tmp_path: Path) -> None:
@@ -2318,7 +3074,7 @@ def test_deferred_append_rejects_replayed_identical_suffix(tmp_path: Path) -> No
     suffix = " 発火記録: replay guard"
     _fragment(repo, "worklog", _worklog_body(repo, deferred_appends=(("[T-050]", suffix),)))
     _commit(repo, "first append fragment")
-    spool_fold.apply_fold(repo, spool_fold.plan_fold(repo, fold_date="2026-08-02"))
+    _complete_fold(repo, fold_date="2026-08-02")
     _fragment(
         repo,
         "worklog",
@@ -2408,6 +3164,100 @@ def test_p03_empty_spool_is_noop(tmp_path: Path) -> None:
     plan = spool_fold.plan_fold(repo)
     result = spool_fold.apply_fold(repo, plan)
     assert plan.status == "noop" and result.status == "noop" and not plan.targets
+
+
+def test_apply_rejects_forged_noop_transaction_payload(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    noop = spool_fold.plan_fold(repo)
+    assert spool_fold.apply_fold(repo, noop).status == "noop"
+
+    _fragment(repo, "worklog", _worklog_body(repo))
+    pending = _plan_for_commit(repo)
+    forged = (
+        dataclasses.replace(noop, transaction_id=pending.transaction_id),
+        dataclasses.replace(noop, input_closure_sha256=pending.input_closure_sha256),
+        dataclasses.replace(noop, targets=pending.targets),
+        dataclasses.replace(noop, fragments=pending.fragments),
+        dataclasses.replace(noop, gc_paths=pending.gc_paths),
+        dataclasses.replace(pending, status="noop"),
+    )
+    for candidate in forged:
+        _transaction_raises(
+            "noop plan が non-empty transaction payload",
+            spool_fold.apply_fold,
+            repo,
+            candidate,
+        )
+    state_path = spool_fold._state_path(repo)
+    assert not state_path.exists() and not state_path.is_symlink()
+
+
+def test_noop_plan_reports_observed_worklog_bytes_with_or_without_canonical_ledgers(
+    tmp_path: Path,
+) -> None:
+    present_root = tmp_path / "present"
+    present_root.mkdir()
+    present_repo = _repo(present_root)
+    worklog_bytes = (present_repo / "docs/worklog.md").read_bytes()
+    present_plan = spool_fold.plan_fold(present_repo)
+
+    absent_root = tmp_path / "absent"
+    absent_root.mkdir()
+    absent_repo = _repo(absent_root)
+    for rel in (
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/phase3.md",
+    ):
+        (absent_repo / rel).unlink()
+    absent_plan = spool_fold.plan_fold(absent_repo)
+
+    assert present_plan.status == absent_plan.status == "noop"
+    assert present_plan.projected_worklog_bytes == len(worklog_bytes)
+    assert absent_plan.projected_worklog_bytes == 0
+
+
+def test_noop_plan_does_not_require_canonical_ledgers_or_write_state(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    origin = _land_origin(repo)
+    for rel in (
+        "docs/worklog.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "docs/phase3.md",
+    ):
+        (repo / rel).unlink()
+
+    plan = spool_fold.plan_fold(repo, fold_date="2026-08-02", origin=origin)
+    result = spool_fold.apply_fold(repo, plan)
+
+    assert plan.status == "noop" and result.status == "noop"
+    assert plan.origin == origin
+    assert plan.input_closure_sha256 == "" and plan.transaction_id == ""
+    assert plan.phase == "applied" and plan.projected_worklog_bytes == 0
+    state_path = spool_fold._state_path(repo)
+    assert not state_path.exists() and not state_path.is_symlink()
+    _transaction_raises(
+        "transaction state の transaction_id が不正",
+        spool_fold._state_plan,
+        spool_fold._plan_state(plan),
+    )
+
+
+def test_non_noop_plan_still_requires_canonical_ledgers(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    (repo / "docs/worklog.md").unlink()
+
+    exc = _raises(
+        "canonical",
+        spool_fold.plan_fold,
+        repo,
+        fold_date="2026-08-02",
+        origin=_land_origin(repo),
+    )
+    assert exc.issues[0].path == "docs/worklog.md"
 
 
 def test_p04_below_threshold_does_not_rotate(tmp_path: Path) -> None:
@@ -2940,6 +3790,27 @@ def _real_entry(ordinal: int) -> str:
     return matches[0]
 
 
+@contextmanager
+def _fixture_tools_imports(repo: Path) -> Iterator[None]:
+    original_path = sys.path[:]
+    original_modules = {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "dev_waves" or name.startswith("dev_waves.")
+    }
+    try:
+        for name in original_modules:
+            sys.modules.pop(name, None)
+        sys.path.insert(0, str(repo / "tools"))
+        yield
+    finally:
+        sys.path[:] = original_path
+        for name in tuple(sys.modules):
+            if name == "dev_waves" or name.startswith("dev_waves."):
+                sys.modules.pop(name, None)
+        sys.modules.update(original_modules)
+
+
 def _copy_real_canonical_family(tmp_path: Path) -> Path:
     checkout = Path(__file__).resolve().parents[2]
     repo = tmp_path / "real-canonical"
@@ -2954,16 +3825,94 @@ def _copy_real_canonical_family(tmp_path: Path) -> Path:
         "docs/spool/worklog/README.md",
         "docs/spool/decisions/README.md",
         "docs/spool/failures/README.md",
+        "tools/spool_fold.py",
         "tools/check_docs.py",
     )
     sources = [checkout / rel for rel in fixed_paths]
     sources.extend(sorted((checkout / "docs/archive").glob("worklog-*.md")))
+    sources.extend(
+        source
+        for source in sorted((checkout / "tools/dev_waves").rglob("*"))
+        if source.is_file() and "__pycache__" not in source.parts and source.suffix != ".pyc"
+    )
     for source in sources:
         destination = repo / source.relative_to(checkout)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
         assert destination.read_bytes() == source.read_bytes()
+    _run_git(repo, "init", "-q")
+    _run_git(repo, "config", "user.name", "Fixture")
+    _run_git(repo, "config", "user.email", "fixture@example.invalid")
+    _commit(repo, "real canonical family")
     return repo
+
+
+def _loaded_dev_waves_modules() -> dict[str, object]:
+    return {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "dev_waves" or name.startswith("dev_waves.")
+    }
+
+
+def _assert_dev_waves_modules_restored(expected: dict[str, object]) -> None:
+    actual = _loaded_dev_waves_modules()
+    assert actual.keys() == expected.keys()
+    for name, original_module in expected.items():
+        assert actual[name] is original_module
+
+
+def test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions(
+    tmp_path: Path,
+) -> None:
+    repo = _copy_real_canonical_family(tmp_path)
+    probe_name = "dev_waves._fixture_tools_imports_positive_control"
+    _write(
+        repo / "tools/dev_waves/_fixture_tools_imports_positive_control.py",
+        "FIXTURE_ONLY = True\n",
+    )
+
+    with _fixture_tools_imports(ROOT):
+        preloaded = importlib.import_module("dev_waves.launch_authority")
+        path_before = sys.path[:]
+        modules_before = _loaded_dev_waves_modules()
+        assert modules_before["dev_waves.launch_authority"] is preloaded
+        assert probe_name not in modules_before
+
+        with _fixture_tools_imports(repo):
+            fixture_module = importlib.import_module("dev_waves.launch_authority")
+            module_file = Path(fixture_module.__file__).resolve()
+            assert repo.resolve() in module_file.parents
+            assert module_file.relative_to(repo.resolve()) == Path(
+                "tools/dev_waves/launch_authority.py"
+            )
+            assert fixture_module is not preloaded
+            importlib.import_module(probe_name)
+            assert probe_name in sys.modules
+
+        assert sys.path == path_before
+        _assert_dev_waves_modules_restored(modules_before)
+        assert sys.modules["dev_waves.launch_authority"] is preloaded
+
+        marker = RuntimeError("fixture import context exception probe")
+        try:
+            with _fixture_tools_imports(repo):
+                fixture_module = importlib.import_module(
+                    "dev_waves.launch_authority"
+                )
+                module_file = Path(fixture_module.__file__).resolve()
+                assert repo.resolve() in module_file.parents
+                importlib.import_module(probe_name)
+                assert probe_name in sys.modules
+                raise marker
+        except RuntimeError as raised:
+            assert raised is marker
+        else:
+            raise AssertionError("_fixture_tools_imports が区間内の例外を握り潰した")
+
+        assert sys.path == path_before
+        _assert_dev_waves_modules_restored(modules_before)
+        assert sys.modules["dev_waves.launch_authority"] is preloaded
 
 
 def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path: Path) -> None:
@@ -2989,7 +3938,8 @@ def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path
         title="実 canonical family smoke",
     )
 
-    plan = spool_fold.plan_fold(repo, fold_date=fold_date)
+    with _fixture_tools_imports(repo):
+        plan = spool_fold.plan_fold(repo, fold_date=fold_date)
 
     assert plan.status == "planned"
     assert len(plan.fragments) == 1

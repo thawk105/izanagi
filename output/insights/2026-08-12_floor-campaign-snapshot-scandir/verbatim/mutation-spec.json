@@ -1,0 +1,207 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 70.0,
+  "timeout_seconds": 2400.0,
+  "hang_timeout_seconds": 600.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "def _digest(abspath: str) -> str:\n    with open(abspath, \"rb\") as handle:\n        return hashlib.sha256(handle.read()).hexdigest()",
+          "new": "def _digest(abspath: str) -> str:\n    with open(abspath, \"rb\") as handle:\n        return str(len(handle.read()))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "    for kind, rel, abspath in entries:\n        if kind == \"symlink\":\n            snapshot.append((\"symlink\", rel, Path(abspath).readlink().as_posix()))\n        elif kind == \"file\":",
+          "new": "    for kind, rel, abspath in entries:\n        if kind == \"symlink\":\n            pass\n        elif kind == \"file\":"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "            snapshot.append((\"file\", rel, digest_by_rel[rel]))\n        else:\n            snapshot.append((\"dir\", rel))",
+          "new": "            snapshot.append((\"file\", rel, digest_by_rel[rel]))\n        else:\n            pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "                entries.append((\"dir\", rel, entry.path))\n                stack.append(entry.path)",
+          "new": "                entries.append((\"dir\", rel, entry.path))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "    snapshot.sort(key=lambda row: row[1])\n    return tuple(snapshot)",
+          "new": "    return tuple(snapshot)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "    if not output.exists():\n        return ()\n    entries = _walk_entries(output)",
+          "new": "    if not output.exists():\n        return ()\n    if output == ROOT / \"output\":\n        return ((\"file\", \"sentinel\", \"0\" * 64),)\n    entries = _walk_entries(output)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "    if not output.exists():\n        return ()\n    entries = _walk_entries(output)",
+          "new": "    if not output.exists():\n        return ()\n    _cache = globals().setdefault(\"_MUTANT_SNAPSHOT_CACHE\", {})\n    if output == ROOT / \"output\" and output in _cache:\n        return _cache[output]\n    entries = _walk_entries(output)"
+        },
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "    snapshot.sort(key=lambda row: row[1])\n    return tuple(snapshot)",
+          "new": "    snapshot.sort(key=lambda row: row[1])\n    _result = tuple(snapshot)\n    if output == ROOT / \"output\":\n        globals()[\"_MUTANT_SNAPSHOT_CACHE\"][output] = _result\n    return _result"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "    digest_by_rel = {}\n    for rel, abspath in files:\n        digest_by_rel[rel] = _digest(abspath)",
+          "new": "    digest_by_rel = {}\n    for rel, abspath in files:\n        try:\n            digest_by_rel[rel] = _digest(abspath)\n        except OSError:\n            digest_by_rel[rel] = \"0\" * 64"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_propagates_digest_failure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "def _digest(abspath: str) -> str:\n    with open(abspath, \"rb\") as handle:\n        return hashlib.sha256(handle.read()).hexdigest()",
+          "new": "def _digest(abspath: str) -> str:\n    try:\n        with open(abspath, \"rb\") as handle:\n            return hashlib.sha256(handle.read()).hexdigest()\n    except OSError:\n        return \"0\" * 64"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_propagates_digest_failure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "            rel = os.path.relpath(entry.path, base).replace(os.sep, \"/\")",
+          "new": "            rel = os.path.relpath(entry.path, str(ROOT)).replace(os.sep, \"/\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_matches_reference_and_is_deterministic"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "def _real_output_snapshot(output: Path = ROOT / \"output\") -> tuple:\n    \"\"\"統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。",
+          "new": "def _real_output_snapshot(output: Path = ROOT) -> tuple:\n    \"\"\"統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_default_root_reobserves_dependencies"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_floor_campaign.py",
+          "old": "def _real_output_snapshot_reference(output: Path = ROOT / \"output\") -> tuple:\n    \"\"\"並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。\"\"\"\n    if not output.exists():\n        return ()",
+          "new": "def _real_output_snapshot_reference(output: Path = ROOT / \"output\") -> tuple:\n    \"\"\"並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。\"\"\"\n    return _real_output_snapshot(output)\n    if not output.exists():\n        return ()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_output_snapshot_reference_is_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

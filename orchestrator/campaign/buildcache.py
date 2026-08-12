@@ -21,7 +21,7 @@ import socket
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from . import site_policy, source_digest
 from .build_admission import (
@@ -241,6 +241,55 @@ def _toolchain_manifest(cc: str, cxx: str) -> Dict[str, Dict[str, str]]:
         "cxx": _tool_version(cxx, "cxx"),
         "cmake": _tool_version("cmake", "cmake"),
     }
+
+
+def _tool_version_full(realpath: str, role: str) -> str:
+    """Caller binding 用に ``--version`` の stdout + stderr 全文を再観測する。"""
+    try:
+        result = subprocess.run(
+            [realpath, "--version"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise BuildError(
+            f"toolchain {role} --version 全文を再観測できない: {realpath}: {exc}"
+        ) from exc
+    lines = result.stdout.splitlines()
+    version = (result.stdout + result.stderr).strip()
+    if (result.returncode != 0 or not lines or not lines[0].strip()
+            or not version):
+        raise BuildError(
+            f"toolchain {role} --version 全文の再観測に失敗 "
+            f"(rc={result.returncode}): {realpath}"
+        )
+    return version
+
+
+def _split_expected_toolchain_manifest(
+        expected: Mapping[str, object],
+) -> tuple[Dict[str, Dict[str, str]], Dict[str, str]]:
+    """Caller の期待値を identity 投影と全文投影へ fail-closed に分ける。"""
+    roles = ("cc", "cxx", "cmake")
+    identity_keys = ("requested", "realpath", "version_first_line")
+    expected_keys = {*identity_keys, "version"}
+    if not isinstance(expected, Mapping) or set(expected) != set(roles):
+        raise BuildCacheError("v2 expected toolchain manifest の role 集合が不正")
+    identity: Dict[str, Dict[str, str]] = {}
+    versions: Dict[str, str] = {}
+    for role in roles:
+        entry = expected[role]
+        if not isinstance(entry, Mapping) or set(entry) != expected_keys:
+            raise BuildCacheError(
+                f"v2 expected toolchain manifest の {role} key 集合が不正"
+            )
+        values = {key: entry[key] for key in expected_keys}
+        if any(type(value) is not str or not value for value in values.values()):
+            raise BuildCacheError(
+                f"v2 expected toolchain manifest の {role} 値が非空 str でない"
+            )
+        identity[role] = {key: values[key] for key in identity_keys}
+        versions[role] = values["version"]
+    return identity, versions
 
 
 def _v2_identity(
@@ -580,6 +629,7 @@ def build_v2(
         cc: str, cxx: str, cache_root: str, ccbench_dir: str = "",
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
+        expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -596,6 +646,9 @@ def build_v2(
     identity の site は注入値でなく実環境から独立に解決する。非空の
     ``dependency_prefix`` は configure argv へ明示し、subprocess 環境の同名変数を除く。
     空なら argv と環境継承を変えず、ambient 値の正準形だけを identity に束縛する。
+    ``expected_toolchain_manifest`` が指定された場合だけ、identity 用 manifest に加えて
+    ``version`` 全文を別に再観測し、双方の完全一致を要求する。既定 ``None`` は従来の
+    受理集合と実行順を変えない。
     """
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -655,6 +708,22 @@ def build_v2(
     _verify_ccbench_commit(sub, ccbench_commit)
     source_digest.assert_worktree_within_allowlist(sub)
     toolchain = _toolchain_manifest(cc, cxx)
+    if expected_toolchain_manifest is not None:
+        expected_identity, expected_versions = _split_expected_toolchain_manifest(
+            expected_toolchain_manifest
+        )
+        if toolchain != expected_identity:
+            raise BuildCacheError(
+                "v2 toolchain manifest が caller の事前観測と不一致"
+            )
+        observed_versions = {
+            role: _tool_version_full(entry["realpath"], role)
+            for role, entry in toolchain.items()
+        }
+        if observed_versions != expected_versions:
+            raise BuildCacheError(
+                "v2 toolchain version 全文が caller の事前観測と不一致"
+            )
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
