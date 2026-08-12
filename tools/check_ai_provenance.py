@@ -187,6 +187,10 @@ _DW8C_MERGE_RULING = (
     "2026-08-12 dev-wave-8c-formal-consumer-wiring land 前裁定 "
     "(ユーザー選択: known-violation 登録)"
 )
+_T316_GITLINK_RULING = (
+    "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
 _T720_MERGE_NOTE = (
     "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
     "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
@@ -208,6 +212,11 @@ _DW8C_RETRY_MERGE_NOTE = (
     "両側の変更の和集合；競合なし・競合解決による新規著作なし；wave 側は Codex "
     "`role=author`、main 側は各 wave land 時に監査済み；親作成 merge のため Codex "
     "著者とは記さない"
+)
+_T316_GITLINK_NOTE = (
+    "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を"
+    "古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみで"
+    "ソース著作なし；親作成 commit のため Codex 著者とは記さない"
 )
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
@@ -550,6 +559,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _DW8C_MERGE_RULING,
         note=_DW8C_RETRY_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+        MISSING_CODEX_AUTHOR,
+        _T316_GITLINK_RULING,
+        note=_T316_GITLINK_NOTE,
     ),
 )
 
