@@ -42,6 +42,9 @@ LIMITATIONS = {
     "repository_absence_not_proven_from_node": True,
     "budget_ledger_trust_root_absent": False,
 }
+_RUNTIME_REQUEST_FIELDS = frozenset({
+    "pbs_request_id", "assigned_hostname", "allocated_cpus",
+})
 
 
 def _is_sha256(value: Any) -> bool:
@@ -338,16 +341,19 @@ def _write_bytes_create_only(
 def publish_wrapper_request(
     launch_intent: Mapping[str, Any], group_manifest: Mapping[str, Any],
     preregistration: Any, token: schema.AuthorizationToken, *, slot_id: str,
-    pbs_request_id: str, assigned_hostname: str, allocated_cpus: Sequence[int],
-    observed_submission_argv: Sequence[str], dependency_manifest_path: str | Path,
-    interpreter_realpath: str | Path,
-) -> WrapperRequest:
-    """Publish the prereg-derived policy and request through token-gated effects."""
+    dependency_manifest_path: str | Path, interpreter_realpath: str | Path,
+) -> Mapping[str, Any]:
+    """Publish the qsub-time static request without node runtime identity."""
     verified = _require_token(token)
+    intent = schema.validate_launch_intent(launch_intent)
+    matches = [slot for slot in intent["slots"] if slot["slot_id"] == slot_id]
+    if len(matches) != 1:
+        raise T810WrapperError("wrapper request slot is not unique in launch intent")
+    slot = matches[0]
     request = build_wrapper_request(
-        launch_intent, group_manifest, preregistration, verified, slot_id=slot_id,
-        pbs_request_id=pbs_request_id, assigned_hostname=assigned_hostname,
-        allocated_cpus=allocated_cpus, observed_submission_argv=observed_submission_argv,
+        intent, group_manifest, preregistration, verified, slot_id=slot_id,
+        pbs_request_id="runtime-unbound", assigned_hostname="runtime-unbound",
+        allocated_cpus=(0,), observed_submission_argv=slot["qsub_argv"],
         dependency_manifest_path=dependency_manifest_path,
         interpreter_realpath=interpreter_realpath,
     )
@@ -362,6 +368,8 @@ def publish_wrapper_request(
     )
     document: dict[str, Any] = {}
     for field in dataclass_fields(WrapperRequest):
+        if field.name in _RUNTIME_REQUEST_FIELDS:
+            continue
         value = getattr(request, field.name)
         if isinstance(value, Path):
             value = str(value)
@@ -375,7 +383,7 @@ def publish_wrapper_request(
     _write_bytes_create_only(
         verified, request.request_path, schema.canonical_json_bytes(document) + b"\n",
     )
-    return request
+    return document
 
 
 def _has_git_ancestor(path: Path) -> bool:
@@ -391,12 +399,12 @@ def _has_git_ancestor(path: Path) -> bool:
 def inspect_repository_absence(
     request: WrapperRequest, *, repo_root: Path | None = None,
 ) -> Mapping[str, bool]:
-    """Return no affirmative repository-absence claims from a compute node."""
-    del request, repo_root
+    """Report only the git-ancestor absence that the compute node can inspect."""
+    del repo_root
     return {
         "package_repo_free": False,
         "roots_repo_external": False,
-        "git_ancestor_absent": False,
+        "git_ancestor_absent": not _repository_hazard_observed(request),
         "pbs_workdir_repo_external": False,
     }
 
@@ -1097,10 +1105,25 @@ def run_wrapper(request: WrapperRequest) -> WrapperOutcome:
 def _request_from_json(value: Any) -> WrapperRequest:
     if not isinstance(value, Mapping):
         raise T810WrapperError("wrapper request is not an object")
-    expected = {field.name for field in dataclass_fields(WrapperRequest)}
+    expected = {
+        field.name for field in dataclass_fields(WrapperRequest)
+        if field.name not in _RUNTIME_REQUEST_FIELDS
+    }
     if set(value) != expected:
         raise T810WrapperError("wrapper request has unknown or missing fields")
     document = dict(value)
+    pbs_request_id = os.environ.get("PBS_JOBID")
+    if not isinstance(pbs_request_id, str) or not pbs_request_id:
+        raise T810WrapperError("PBS_JOBID is required for runtime identity")
+    assigned_hostname = os.uname().nodename
+    allocated_cpus = frozenset(os.sched_getaffinity(0))
+    if not assigned_hostname or not allocated_cpus:
+        raise T810WrapperError("node runtime identity is incomplete")
+    document.update({
+        "pbs_request_id": pbs_request_id,
+        "assigned_hostname": assigned_hostname,
+        "allocated_cpus": allocated_cpus,
+    })
     path_fields = {
         "release_marker_path", "cancel_marker_path", "node_receipt_path", "request_path",
         "work_root", "output_root", "control_root", "pbs_workdir",
@@ -1118,7 +1141,7 @@ def _request_from_json(value: Any) -> WrapperRequest:
             raise T810WrapperError(f"wrapper request {field} is not an argv")
         document[field] = tuple(value_argv)
     cpus = document["allocated_cpus"]
-    if (not isinstance(cpus, list) or not cpus
+    if (not isinstance(cpus, (list, frozenset)) or not cpus
             or any(isinstance(cpu, bool) or not isinstance(cpu, int) or cpu < 0 for cpu in cpus)
             or len(cpus) != len(set(cpus))):
         raise T810WrapperError("wrapper request allocated_cpus is invalid")
@@ -1129,10 +1152,14 @@ def _request_from_json(value: Any) -> WrapperRequest:
     return WrapperRequest(**document)
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="run one authorized T-810 PBS slot")
     parser.add_argument("--request", required=True)
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _argument_parser().parse_args(argv)
     request_path = Path(args.request)
     if not request_path.is_absolute() or request_path.is_symlink() or not request_path.is_file():
         raise T810WrapperError("--request must be an absolute non-symlink regular file")

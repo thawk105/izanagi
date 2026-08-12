@@ -175,13 +175,12 @@ def test_intent_manifest_producer_binds_prereg_policy_request_and_publication(tm
     assert not hasattr(request, "canonical_benchmark_argv")
     assert not hasattr(request, "expected_binary_sha256")
     published = W.publish_wrapper_request(
-        intent, manifest, prereg, token, slot_id="slot-00", pbs_request_id="81000.server",
-        assigned_hostname="node00", allocated_cpus=[0, 1],
-        observed_submission_argv=slots[0]["qsub_argv"],
+        intent, manifest, prereg, token, slot_id="slot-00",
         dependency_manifest_path=dependency, interpreter_realpath=interpreter,
     )
-    assert published == request
     serialized = json.loads(request.request_path.read_text())
+    assert published == serialized
+    assert {"pbs_request_id", "assigned_hostname", "allocated_cpus"}.isdisjoint(serialized)
     assert serialized["runner_policy_sha256"] == policy_sha
     assert "canonical_benchmark_argv" not in serialized
 
@@ -567,7 +566,7 @@ def test_node_repo_absence_never_claims_unprovable_positive(tmp_path):
     assert W.inspect_repository_absence(request, repo_root=REPO) == {
         "package_repo_free": False,
         "roots_repo_external": False,
-        "git_ancestor_absent": False,
+        "git_ancestor_absent": True,
         "pbs_workdir_repo_external": False,
     }
     assert W.LIMITATIONS["shared_mount_repository_reachability_not_eliminated"] is True
@@ -592,6 +591,7 @@ def test_repo_alias_and_repo_internal_pbs_workdir_are_denied(tmp_path):
     request = replace(_request(tmp_path), pbs_workdir=REPO / "tools")
     absence = W.inspect_repository_absence(request, repo_root=REPO)
     assert absence["roots_repo_external"] is False
+    assert absence["git_ancestor_absent"] is False
     assert absence["pbs_workdir_repo_external"] is False
     assert W._repository_hazard_observed(request) is True
 

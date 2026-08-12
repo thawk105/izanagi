@@ -4,6 +4,7 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
+import shlex
 import subprocess
 from types import SimpleNamespace
 
@@ -18,6 +19,8 @@ from orchestrator.campaign.t810_preregistration import (
 from orchestrator.campaign.t810_validator import GitIdentity, ValidationLineage
 from tools.pegasus import t810_coordinator as C
 from tools.pegasus import t810_harness_schema as S
+from tools.pegasus import t810_pbs_wrapper as W
+from tools.pegasus import t810_runner_policy as R
 
 
 H = "a" * 64
@@ -101,7 +104,16 @@ def _config(tmp_path: Path, *, ordinal: int = 1) -> dict:
     prereg = _preregistration()
     output = tmp_path / "output"
     work = tmp_path / "work"
+    package = tmp_path / "package"
+    package.mkdir(parents=True, exist_ok=True)
+    binary = package / "CCBench"
+    binary.write_bytes(b"coordinator-production-route-fixture")
+    binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+    (package / "dependencies.json").write_bytes(b"dependencies")
     policy = _policy()
+    runner_policy_sha256 = S.canonical_sha256(
+        R.build_runner_policy(prereg, executable_sha256=binary_sha256),
+    )
     slots = []
     for index in range(S.NODE_COUNT):
         slot_id = f"slot-{index:02d}"
@@ -117,12 +129,15 @@ def _config(tmp_path: Path, *, ordinal: int = 1) -> dict:
             "slot_id": slot_id,
             "logical_request_id": f"logical-{index:02d}",
             "job_name": f"t810-{index:02d}", "qsub_argv": qsub,
-            "wrapper_argv": ["python3.10", "/var/tmp/t810/package/wrapper.py"],
+            "wrapper_argv": [
+                "python3.10", str(package / "wrapper.py"), "--request",
+                str(work / slot_id / "wrapper-request.json"),
+            ],
             "pbs_stdout_path": str(stdout), "pbs_stderr_path": str(stderr),
-            "binary_source_path": "/var/tmp/t810/package/CCBench", "binary_sha256": H,
-            "wrapper_path": "/var/tmp/t810/package/wrapper.py", "wrapper_sha256": H,
-            "runner_policy_path": "/var/tmp/t810/package/policy.py",
-            "runner_policy_sha256": H,
+            "binary_source_path": str(binary), "binary_sha256": binary_sha256,
+            "wrapper_path": str(package / "wrapper.py"), "wrapper_sha256": H,
+            "runner_policy_path": str(work / slot_id / "runner-policy.json"),
+            "runner_policy_sha256": runner_policy_sha256,
             "expected_dependency_manifest_sha256": H,
             "expected_module_list_sha256": H, "expected_numa_nodes": 4,
             "script_path": str(script),
@@ -291,13 +306,14 @@ def _ready_events(prepared) -> list[dict]:
                 {"observed_at": f"sample-{sample}", "load_average_1m": 0.5}
                 for sample in range(3)
             ],
-            "binary_source_sha256": H, "binary_copy_sha256": H,
+            "binary_source_sha256": prepared.launch_intent["slots"][index]["binary_sha256"],
+            "binary_copy_sha256": prepared.launch_intent["slots"][index]["binary_sha256"],
             "dependency_manifest_sha256": H, "module_list_sha256": H,
             "trace_symbols": [],
             "isolation_before": {"inventory_sha256": H, "competing_processes_sha256": H},
             "observed_submission_argv": list(qsub),
-            "repo_absence": {"package_repo_free": True, "roots_repo_external": False,
-                             "git_ancestor_absent": True, "pbs_workdir_repo_external": True},
+            "repo_absence": {"package_repo_free": False, "roots_repo_external": False,
+                             "git_ancestor_absent": True, "pbs_workdir_repo_external": False},
             "passed": True, "reason_codes": [],
         }
         events.append(_node_event(prepared, slot_id, "preflight", payload))
@@ -441,9 +457,15 @@ def test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified(tmp_path
     assert prepared.manifest["release_token_commitment"] == S.release_token_commitment(config["release_nonce"])
     for slot in prepared.launch_intent["slots"]:
         script = Path(slot["script_path"])
-        assert script.read_text(encoding="utf-8") == (
-            "#!/bin/sh\nset -eu\nexec python3.10 /var/tmp/t810/package/wrapper.py\n"
-        )
+        command = script.read_text(encoding="utf-8").splitlines()[-1]
+        argv = shlex.split(command.removeprefix("exec "))
+        assert argv == slot["wrapper_argv"]
+        parsed = W._argument_parser().parse_args(argv[2:])
+        request_path = Path(parsed.request)
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        assert request_path.is_absolute()
+        assert request["request_path"] == str(request_path)
+        assert {"pbs_request_id", "assigned_hostname", "allocated_cpus"}.isdisjoint(request)
         assert script.stat().st_mode & 0o700 == 0o700
     with pytest.raises(C.T810CoordinatorError, match="create-only"):
         C.prepare_group(config, prereg, _token(config, prereg), repository_roots={Path("/repository")})
@@ -469,7 +491,8 @@ def test_cli_and_effect_entries_deny_missing_or_wrong_witness(tmp_path: Path) ->
 @pytest.mark.parametrize(
     ("mutation", "reason"),
     [("duplicate_host", "duplicate_hostname"), ("binary", "binary_copy_hash_mismatch"),
-     ("argv", "submission_argv_mismatch"), ("quiet", "quiet_gate_failed")],
+     ("argv", "submission_argv_mismatch"), ("quiet", "quiet_gate_failed"),
+     ("repo_positive", "preflight_failed")],
 )
 def test_ready_barrier_recomputes_raw_evidence(tmp_path: Path, mutation: str, reason: str) -> None:
     _, _, prepared, _, _ = _prepared(tmp_path)
@@ -481,11 +504,26 @@ def test_ready_barrier_recomputes_raw_evidence(tmp_path: Path, mutation: str, re
         events[-1]["payload"]["binary_copy_sha256"] = "b" * 64
     elif mutation == "argv":
         events[-1]["payload"]["observed_submission_argv"].append("--extra")
+    elif mutation == "repo_positive":
+        events[-1]["payload"]["repo_absence"]["package_repo_free"] = True
     else:
         events[-1]["payload"]["quiet_samples"][-1]["load_average_1m"] = 1.0000001
     decision = C.evaluate_ready_barrier(prepared, events, elapsed_seconds=1199)
     assert decision.status == "cancel"
     assert reason in decision.reason_codes
+
+
+def test_canonical_wrapper_preflight_passes_ready_barrier(tmp_path: Path) -> None:
+    _, _, prepared, _, _ = _prepared(tmp_path)
+    events = _ready_events(prepared)
+    assert all(event["payload"]["repo_absence"] == {
+        "package_repo_free": False,
+        "roots_repo_external": False,
+        "git_ancestor_absent": True,
+        "pbs_workdir_repo_external": False,
+    } for event in events)
+    decision = C.evaluate_ready_barrier(prepared, events, elapsed_seconds=1199)
+    assert decision.status == "release" and decision.reason_codes == ()
 def test_submission_must_be_complete_before_barrier_and_timeout_boundary(tmp_path: Path) -> None:
     prereg = _preregistration()
     config = _config(tmp_path)

@@ -26,6 +26,7 @@ from orchestrator.campaign.t810_validator import (
     validate_t810,
 )
 from tools.pegasus import t810_harness_schema as schema
+from tools.pegasus import t810_pbs_wrapper as pbs_wrapper
 
 
 POLICY_SCHEMA = "t810-admission-policy/v1"
@@ -668,10 +669,15 @@ def prepare_group(
                 raise T810CoordinatorError(f"{field} is not repository-external: {exc}") from exc
         slot_root = output_root / slot["slot_id"]
         script_path = work_root / slot["slot_id"] / "job.pbs"
+        request_path = work_root / slot["slot_id"] / "wrapper-request.json"
         if (Path(slot["pbs_stdout_path"]) != slot_root / "pbs.stdout.log"
                 or Path(slot["pbs_stderr_path"]) != slot_root / "pbs.stderr.log"
                 or Path(slot["script_path"]) != script_path):
             _fail("PBS paths do not match the frozen artifact layout")
+        if tuple(slot["wrapper_argv"]) != (
+            "python3.10", slot["wrapper_path"], "--request", str(request_path),
+        ):
+            _fail("wrapper argv does not bind the static request path")
         if tuple(slot["qsub_argv"]) != _canonical_qsub_argv(
             slot, policy=policy, run_kind=intent["run_kind"],
         ):
@@ -707,6 +713,11 @@ def prepare_group(
     manifest_path = output_root / "group-manifest.json"
     _write_create_only(token, manifest_path, manifest)
     for slot in intent["slots"]:
+        pbs_wrapper.publish_wrapper_request(
+            intent, manifest, preregistration, token, slot_id=slot["slot_id"],
+            dependency_manifest_path=Path(slot["wrapper_path"]).parent / "dependencies.json",
+            interpreter_realpath=Path("/usr/bin/python3.10"),
+        )
         _write_bytes_create_only(
             token, Path(slot["script_path"]), _canonical_job_script(slot), mode=0o700,
         )
@@ -994,8 +1005,10 @@ def evaluate_ready_barrier(
         if payload["observed_submission_argv"] != slot["qsub_argv"]:
             reasons.add("submission_argv_mismatch")
         absence = payload["repo_absence"]
-        if (not absence["package_repo_free"] or absence["roots_repo_external"] is not False
-                or not absence["git_ancestor_absent"] or not absence["pbs_workdir_repo_external"]
+        if (absence["package_repo_free"] is not False
+                or absence["roots_repo_external"] is not False
+                or absence["git_ancestor_absent"] is not True
+                or absence["pbs_workdir_repo_external"] is not False
                 or not event["limitations"]["repository_absence_not_proven_from_node"]):
             reasons.add("preflight_failed")
         if payload["competing_processes"] or not payload["passed"] or payload["reason_codes"]:
