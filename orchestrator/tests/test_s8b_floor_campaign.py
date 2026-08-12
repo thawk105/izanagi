@@ -105,7 +105,6 @@ _BASE_TPS = {
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
 
-
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
     del cxx
     source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
@@ -469,9 +468,61 @@ def _read_journal_lines(journal_path: Path) -> list:
            .splitlines() if line.strip()]
 
 
-def _real_output_snapshot() -> tuple:
-    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"""
-    output = ROOT / "output"
+def _walk_entries(output: Path) -> list[tuple]:
+    """``rglob`` と同じ entry 集合を symlink 非追跡で列挙する。"""
+    entries = []
+    stack = [str(output)]
+    base = str(output)
+    while stack:
+        current = stack.pop()
+        with os.scandir(current) as iterator:
+            items = list(iterator)
+        for entry in items:
+            rel = os.path.relpath(entry.path, base).replace(os.sep, "/")
+            if entry.is_symlink():
+                entries.append(("symlink", rel, entry.path))
+            elif entry.is_dir(follow_symlinks=False):
+                entries.append(("dir", rel, entry.path))
+                stack.append(entry.path)
+            elif entry.is_file(follow_symlinks=False):
+                entries.append(("file", rel, entry.path))
+    return entries
+
+
+def _digest(abspath: str) -> str:
+    with open(abspath, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+
+# 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
+# critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
+def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
+    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。
+
+    旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
+    を定義域とする。
+    """
+    if not output.exists():
+        return ()
+    entries = _walk_entries(output)
+    files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
+    digest_by_rel = {}
+    for rel, abspath in files:
+        digest_by_rel[rel] = _digest(abspath)
+    snapshot = []
+    for kind, rel, abspath in entries:
+        if kind == "symlink":
+            snapshot.append(("symlink", rel, Path(abspath).readlink().as_posix()))
+        elif kind == "file":
+            snapshot.append(("file", rel, digest_by_rel[rel]))
+        else:
+            snapshot.append(("dir", rel))
+    snapshot.sort(key=lambda row: row[1])
+    return tuple(snapshot)
+
+
+def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
+    """並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
     snapshot = []
@@ -484,6 +535,97 @@ def _real_output_snapshot() -> tuple:
         elif path.is_dir():
             snapshot.append(("dir", rel))
     return tuple(snapshot)
+
+
+def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
+    output = tmp_path / "snapshot"
+    (output / "empty-dir").mkdir(parents=True)
+    (output / "nested" / "deep" / "level-3").mkdir(parents=True)
+    (output / "same-size-a").mkdir()
+    (output / "same-size-b").mkdir()
+    (output / "regular.txt").write_bytes(b"regular contents")
+    (output / "empty.bin").write_bytes(b"")
+    (output / "same-size-a" / "same.bin").write_bytes(b"ABCD")
+    (output / "same-size-b" / "same.bin").write_bytes(b"WXYZ")
+    (output / "nested" / "deep" / "level-3" / "leaf.bin").write_bytes(b"leaf")
+    (output / "file-link").symlink_to("regular.txt")
+    (output / "dir-link").symlink_to("nested", target_is_directory=True)
+
+    actual = _real_output_snapshot(output)
+    assert actual == _real_output_snapshot_reference(output)
+    assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
+    module = sys.modules[__name__]
+    observations = [
+        [("file", "first.bin", "/synthetic/first"),
+         ("dir", "first-empty", "/synthetic/first-empty")],
+        [("file", "second.bin", "/synthetic/second")],
+    ]
+    digests = {
+        "/synthetic/first": "first-digest",
+        "/synthetic/second": "second-digest",
+    }
+    walk_calls = []
+    digest_calls = []
+
+    def synthetic_walk(output):
+        assert output == ROOT / "output"
+        walk_calls.append(output)
+        return observations[len(walk_calls) - 1]
+
+    def synthetic_digest(abspath):
+        digest_calls.append(abspath)
+        return digests[abspath]
+
+    monkeypatch.setattr(module, "_walk_entries", synthetic_walk)
+    monkeypatch.setattr(module, "_digest", synthetic_digest)
+
+    assert _real_output_snapshot() == (
+        ("dir", "first-empty"),
+        ("file", "first.bin", "first-digest"),
+    )
+    assert _real_output_snapshot() == (
+        ("file", "second.bin", "second-digest"),
+    )
+    assert walk_calls == [ROOT / "output", ROOT / "output"]
+    assert digest_calls == ["/synthetic/first", "/synthetic/second"]
+
+
+def test_real_output_snapshot_propagates_digest_failure(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot"
+    output.mkdir()
+    missing = output / "missing.bin"
+    monkeypatch.setattr(
+        sys.modules[__name__], "_walk_entries",
+        lambda _output: [("file", "missing.bin", str(missing))],
+    )
+
+    with pytest.raises(OSError):
+        _real_output_snapshot(output)
+
+
+def test_real_output_snapshot_reference_is_independent(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot"
+    (output / "a-empty").mkdir(parents=True)
+    (output / "b-file.bin").write_bytes(b"reference payload")
+    (output / "c-link").symlink_to("b-file.bin")
+    expected = (
+        ("dir", "a-empty"),
+        ("file", "b-file.bin", hashlib.sha256(b"reference payload").hexdigest()),
+        ("symlink", "c-link", "b-file.bin"),
+    )
+
+    def poison(*_args, **_kwargs):
+        raise AssertionError("optimized snapshot dependency was called")
+
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "_real_output_snapshot", poison)
+    monkeypatch.setattr(module, "_walk_entries", poison)
+    monkeypatch.setattr(module, "_digest", poison)
+
+    assert _real_output_snapshot_reference(output) == expected
 
 
 def _tree_snapshot(root: Path) -> tuple:
