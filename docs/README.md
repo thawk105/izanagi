@@ -68,7 +68,12 @@
   (`ruleops.py` = read-only inventory / 候補 package 検査 /
   `check_docs.py` = 文書 lint / `check_codex_agents.py` = Claude role と
   Codex adapter の本文・metadata・schema・policy parity、実行可否・発見可能性の fail-closed 検査 /
-  `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_ledger.py` = codex rollout ログから
+  `check_ai_provenance.py` = commit trailer 監査 / `codex_worker_launch.py` = dev-wave の codex 子を
+  起動し、1 job につき 1 件の `receipt.json` (schema v3) を wave の job artifact directory (repo 外、
+  所在は worklog と環境 runbook) へ書く producer。段・lane・model・effort・base commit・CLI 版・
+  上限 (`limits`)・実測 (`actuals`)・打ち切り軸 (`stop_reason`) を持ち、**dev-wave の工数と失敗の
+  一次資料**である (地図であって resource authority ではない。値の正本は receipt 自身) /
+  `codex_worker_ledger.py` = codex rollout ログから
   worker の session/stage/token/終了分類/retry を決定的に集計する read-only 台帳 (T-179) /
   `claude_session_ledger.py` = claude session transcript から model call と raw token 交通量を
   母集団付きで集計する read-only 台帳 (D206。費用・課金・利用枠ではない) /

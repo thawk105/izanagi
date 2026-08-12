@@ -5921,5 +5921,61 @@ def test_fr3_mutation_node_registry_is_exact_and_complete():
         m9e["replacement"].splitlines())
 
 
+def test_submission_durable_json_completes_partial_write(monkeypatch, tmp_path):
+    from orchestrator.qualification import submission
+
+    expected = b'{"payload":"partial-write"}\n'
+    write_results = []
+    real_os = submission.os
+
+    class OsProxy:
+        def __getattr__(self, name):
+            return getattr(real_os, name)
+
+    def partial_write(fd, data):
+        requested = len(data)
+        written = real_os.write(fd, data[:min(3, requested)])
+        write_results.append((requested, written))
+        return written
+
+    target = tmp_path / "submission.json"
+    proxy = OsProxy()
+    proxy.write = partial_write
+    with monkeypatch.context() as patch:
+        patch.setattr(submission, "os", proxy)
+        submission._durable_json(target, {"payload": "partial-write"})
+
+    assert target.read_bytes() == expected
+    assert sum(written < requested for requested, written in write_results) >= 2
+
+
+def test_submission_durable_json_rejects_zero_write(monkeypatch, tmp_path):
+    from orchestrator.qualification import submission
+
+    real_os = submission.os
+    write_calls = 0
+
+    class OsProxy:
+        def __getattr__(self, name):
+            return getattr(real_os, name)
+
+    def zero_write(_fd, _data):
+        nonlocal write_calls
+        write_calls += 1
+        if write_calls > 1:
+            pytest.fail("submission retried after a zero-byte write")
+        return 0
+
+    target = tmp_path / "submission.json"
+    proxy = OsProxy()
+    proxy.write = zero_write
+    with monkeypatch.context() as patch:
+        patch.setattr(submission, "os", proxy)
+        with pytest.raises(submission.SubmissionPreparationError):
+            submission._durable_json(target, {"payload": "zero-write"})
+
+    assert write_calls == 1
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__]))
