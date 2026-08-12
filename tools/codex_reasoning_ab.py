@@ -1034,11 +1034,24 @@ def _metadata_manifest(root: Path) -> list[dict[str, Any]]:
 
 
 def _filesystem_file_set(snapshot: Path) -> set[str]:
+    """Return non-directory paths observed in a static snapshot tree.
+
+    The walk is not atomic if the filesystem changes while it is in progress,
+    matching the existing ``Path.rglob`` behavior.
+    """
     found: set[str] = set()
     root_git = (snapshot / ".git").resolve()
+    parent_is_root_git: dict[Path, bool] = {}
     for path in snapshot.rglob("*"):
-        resolved_parent = path.parent.resolve()
-        if resolved_parent == root_git or root_git in resolved_parent.parents:
+        lexical_parent = path.parent
+        is_root_git = parent_is_root_git.get(lexical_parent)
+        if is_root_git is None:
+            resolved_parent = lexical_parent.resolve()
+            is_root_git = (
+                resolved_parent == root_git or root_git in resolved_parent.parents
+            )
+            parent_is_root_git[lexical_parent] = is_root_git
+        if is_root_git:
             continue
         metadata = path.lstat()
         if not stat.S_ISDIR(metadata.st_mode):

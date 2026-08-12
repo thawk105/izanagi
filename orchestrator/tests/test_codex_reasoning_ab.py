@@ -44,6 +44,7 @@ import importlib.util
 import json
 import os
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -110,6 +111,20 @@ def _canonical(path: Path, value: Any) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(TOOL._canonical_bytes(value))
     return path
+
+
+def _rglob_filesystem_file_set_reference(snapshot: Path) -> set[str]:
+    """変更前の実装を逐語で保つ、静止した test tree 用 oracle。"""
+    found: set[str] = set()
+    root_git = (snapshot / ".git").resolve()
+    for path in snapshot.rglob("*"):
+        resolved_parent = path.parent.resolve()
+        if resolved_parent == root_git or root_git in resolved_parent.parents:
+            continue
+        metadata = path.lstat()
+        if not stat.S_ISDIR(metadata.st_mode):
+            found.add(path.relative_to(snapshot).as_posix())
+    return found
 
 
 def _descriptor(path: Path, root: Path) -> dict[str, str]:
@@ -1048,6 +1063,156 @@ def test_ls_files_never_combines_stage_and_recurse_submodules() -> None:
         not {"--stage", "--recurse-submodules"} <= literals
         for literals in ls_files_calls
     )
+
+
+def test_m10_filesystem_file_set_boundary_matrix_matches_rglob_reference(
+    tmp_path: Path,
+) -> None:
+    """静止した木で non-directory と symlink の受理集合を旧実装へ束縛する。"""
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    (snapshot / "regular.txt").write_text("regular\n", encoding="utf-8")
+    directory = snapshot / "directory"
+    directory.mkdir()
+    (directory / "inside.txt").write_text("inside\n", encoding="utf-8")
+    (snapshot / "file-link").symlink_to("regular.txt")
+    (snapshot / "directory-link").symlink_to("directory", target_is_directory=True)
+    (snapshot / "broken-link").symlink_to("missing-target")
+    os.mkfifo(snapshot / "fifo")
+
+    root_git = snapshot / ".git"
+    (root_git / "objects").mkdir(parents=True)
+    (root_git / "HEAD").write_text("ref: refs/heads/main\n", encoding="ascii")
+    (root_git / "objects" / "hidden").write_bytes(b"hidden")
+
+    nested_submodule = snapshot / "nested" / "submodule"
+    nested_submodule.mkdir(parents=True)
+    (nested_submodule / ".git").write_text(
+        "gitdir: ../../.git/modules/nested/submodule\n", encoding="utf-8"
+    )
+
+    unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        unix_socket.bind(os.fspath(snapshot / "socket"))
+        reference = _rglob_filesystem_file_set_reference(snapshot)
+        actual = TOOL._filesystem_file_set(snapshot)
+    finally:
+        unix_socket.close()
+
+    expected = {
+        "regular.txt",
+        "directory/inside.txt",
+        "file-link",
+        "directory-link",
+        "broken-link",
+        "fifo",
+        "socket",
+        "nested/submodule/.git",
+    }
+    assert reference == expected
+    assert actual == reference
+    assert "directory-link/inside.txt" not in actual
+
+
+def test_filesystem_file_set_memoizes_each_lexical_parent_per_call(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    parent = snapshot / "parent"
+    parent.mkdir(parents=True)
+    (parent / "first").write_text("first\n", encoding="utf-8")
+    (parent / "second").write_text("second\n", encoding="utf-8")
+    resolve_calls: dict[Path, int] = {}
+    original_resolve = Path.resolve
+
+    def counted_resolve(path: Path, strict: bool = False) -> Path:
+        resolve_calls[path] = resolve_calls.get(path, 0) + 1
+        return original_resolve(path, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", counted_resolve)
+
+    expected = {"parent/first", "parent/second"}
+    assert TOOL._filesystem_file_set(snapshot) == expected
+    assert TOOL._filesystem_file_set(snapshot) == expected
+    assert resolve_calls[parent] == 2
+    assert resolve_calls[snapshot] == 2
+
+
+@pytest.mark.parametrize(
+    "error_type", (OSError, RuntimeError), ids=("oserror", "symlink-loop")
+)
+def test_filesystem_file_set_parent_resolve_errors_propagate_per_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: type[Exception],
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    parent = snapshot / "parent"
+    parent.mkdir(parents=True)
+    (parent / "first").write_text("first\n", encoding="utf-8")
+    original_resolve = Path.resolve
+    failures = 0
+
+    def failing_resolve(path: Path, strict: bool = False) -> Path:
+        nonlocal failures
+        if path == parent:
+            failures += 1
+            raise error_type("parent resolve failed")
+        return original_resolve(path, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", failing_resolve)
+
+    for _ in range(2):
+        with pytest.raises(error_type, match="parent resolve failed"):
+            TOOL._filesystem_file_set(snapshot)
+    assert failures == 2
+
+
+def test_filesystem_file_set_permission_error_directory_is_empty_subtree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    denied = snapshot / "denied"
+    denied.mkdir(parents=True)
+    (snapshot / "visible").write_text("visible\n", encoding="utf-8")
+    (denied / "hidden").write_text("hidden\n", encoding="utf-8")
+    original_scandir = os.scandir
+
+    def permission_denied(path: os.PathLike[str] | str):
+        if Path(path) == denied:
+            raise PermissionError("directory is unreadable")
+        return original_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", permission_denied)
+
+    reference = _rglob_filesystem_file_set_reference(snapshot)
+    assert reference == {"visible"}
+    assert TOOL._filesystem_file_set(snapshot) == reference
+
+
+def test_m9_filesystem_file_set_skips_root_git_before_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    root_git = snapshot / ".git"
+    root_git.mkdir(parents=True)
+    poison = root_git / "poison"
+    poison.write_bytes(b"unobservable stat failure")
+    (snapshot / "visible").write_text("visible\n", encoding="utf-8")
+    original_lstat = Path.lstat
+    poison_lstat_calls = 0
+
+    def fail_poison_lstat(path: Path):
+        nonlocal poison_lstat_calls
+        if path == poison:
+            poison_lstat_calls += 1
+            raise OSError("simulated NFS EIO")
+        return original_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", fail_poison_lstat)
+
+    assert TOOL._filesystem_file_set(snapshot) == {"visible"}
+    assert poison_lstat_calls == 0
 
 
 def _synthetic_nested_submodule_snapshot(
