@@ -1421,34 +1421,31 @@ def test_leading_dash_untracked_path_is_hashed_as_path(
     snapshot, _, _ = _synthetic_nested_submodule_snapshot(tmp_path)
     TOOL._seal_git_object_closure(snapshot)
     relative = "-answer"
-    payload = b"t904 leading-dash untracked artifact\n"
-    (snapshot / relative).write_bytes(payload)
+    (snapshot / relative).write_bytes(b"t904 leading-dash untracked artifact\n")
 
     reasons, _, _ = TOOL._git_closure_reasons(snapshot, (relative,))
     assert reasons == []
 
-    TOOL._git(snapshot, "hash-object", "-w", "--stdin", input_bytes=payload)
+    (snapshot / relative).write_bytes((snapshot / "root.txt").read_bytes())
     contaminated_reasons, _, _ = TOOL._git_closure_reasons(
         snapshot, (relative,)
     )
-    assert (
-        f"untracked artifact entered git object store: {relative}"
-        in contaminated_reasons
-    )
+    assert contaminated_reasons == [
+        "untracked artifact entered git object store: -answer"
+    ]
 
 
 def test_option_named_untracked_path_is_hashed_not_stdin(
     tmp_path: Path,
 ) -> None:
+    """Without ``--``, Git hashes empty stdin and misses this reachable blob."""
     snapshot, _, _ = _synthetic_nested_submodule_snapshot(tmp_path)
     TOOL._seal_git_object_closure(snapshot)
     relative = "--stdin"
-    payload = b"t904 option-named untracked artifact\n"
-    (snapshot / relative).write_bytes(payload)
-    TOOL._git(snapshot, "hash-object", "-w", "--stdin", input_bytes=payload)
+    (snapshot / relative).write_bytes((snapshot / "root.txt").read_bytes())
 
     reasons, _, _ = TOOL._git_closure_reasons(snapshot, (relative,))
-    assert f"untracked artifact entered git object store: {relative}" in reasons
+    assert reasons == ["untracked artifact entered git object store: --stdin"]
 
 
 def test_uninitialized_nested_submodule_gitlink_pin_rejects_change(
