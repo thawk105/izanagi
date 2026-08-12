@@ -56,10 +56,19 @@ title: 45 件を一括裁定した — 論文主張は生成物と概ねの時�
   主張に不要。再訪条件 = 外部公開で proof chain の提示が必要になったとき。
   正本 = `output/insights/2026-08-11_t793-pubcore-impl/package.md`
   base: bf550d7e849f3f7635ae8e4fb5765a5badc2cbfebaccccbcc49ae97468d97368
-- [T-139] **P1・裁定済み (2026-08-12 /rulings) → pilot/本走の投入禁止を解除**: Q3 (b)「追補 P 凍結まで
-  投入しない」を本裁定が上書きし、投入可否を追補 P の凍結から切り離す。追補 P の blob 凍結は
-  [T-793] R1/R2 の保留終端に伴い実施しない (値の承認 `p01`/`α_pub` は不変)。投入の技術前提の確認は
-  投入 wave が行う。land 2 (branch `worktree-dev-wave-t139-manifest-w2` 継承、land は最後に 1 回) は継続。
+- [T-139] **P1・裁定済み (2026-08-12 /rulings、2 束) → land 2 は完了 land 可、pilot は投入経路 wave で**:
+  第 1 束 = pilot/本走の投入禁止を Q3 (b) から切り離して解除。追補 P の blob 凍結は実施しない
+  (値の承認 `p01`/`α_pub` は不変)。第 2 束 = land 2 session 2/3 の残問を確定 —
+  Q1 (受理述語の入力欠落 4 件を閉じる decision) と Q2 (approval manifest の新表現) は
+  {{D:coarse-provenance-standard}} により**機構を新設しない**。Q4 = scope を組み替え、投入の実務経路
+  (`submit_pilot`・PBS driver・collector) + D292 を上書きする解除 decision + 束縛検査だけを
+  1 session・同一 land で組む (解除 decision だけ先に land しない)。Q5 = 段 8 候補 3 件は機械化移管を
+  先に試し、散文の残余のみ既開の独立審査束へ。Q6 = (a) S6 (a) を維持し可視性は repo 外控えで担保 —
+  Q1/Q2 の見送り確定で待ちが消えるため、land 2 は現土台 + Q4 scope で完了 land できる。
+  正本 = branch `worktree-dev-wave-t139-manifest-w2` の
+  `output/insights/2026-08-11_t139-manifest-land2-s2/package.md`、一次控え = rulings-inbox の
+  `2026-08-12-t139-land2-s2-five-rulings.md` / `2026-08-12-coarse-provenance-45rulings.md` /
+  `2026-08-12-second-batch-11rulings.md`。
   base: 17290cdd8d0c915a1d8561d030280223120ce4638f3b042c999f0c76cb7f8463
 - [T-748] **P1・裁定済み (2026-08-12 /rulings、(c)) → 実装 wave 起票可 (Codex author)**: 投入 script
   (`tools/pegasus/floor_campaign.sh`) へ pilot 経路を追加し、official 受理集合は空集合のまま維持する
