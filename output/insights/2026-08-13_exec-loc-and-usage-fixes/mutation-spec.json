@@ -1,0 +1,93 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MUT-1-collector-split-token",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "old": "        argv.append(f\"--project={project}\")",
+          "new": "        argv.extend((\"--project\", project))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_collector_argv_uses_equals_tokens_for_every_value_option",
+        "orchestrator/tests/test_collect_wave_usage.py::test_leading_dash_project_slug_reaches_collector_intact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-2-collector-rc-fail-open",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/collect_wave_usage.py",
+          "old": "        return 3",
+          "new": "        return 0"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_collect_wave_usage.py::test_collection_status_exit_code_contract_preserves_artifact[blocked-PEGASUS_LOGIN-3]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_suspect_site_is_collection_error_not_normal_policy_block[PEGASUS_LOGIN-3]",
+        "orchestrator/tests/test_collect_wave_usage.py::test_unclassified_site_is_blocked_without_calling_collector[PEGASUS_LOGIN]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-3-dominance-always-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    return all(left[field] >= right[field] for field in USAGE_FIELDS)",
+          "new": "    return True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-4-dominance-equality-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    return all(left[field] >= right[field] for field in USAGE_FIELDS)",
+          "new": "    return all(left[field] == right[field] for field in USAGE_FIELDS)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once",
+        "orchestrator/tests/test_claude_session_ledger.py::test_partial_snapshot_replica_uses_dominating_usage",
+        "orchestrator/tests/test_claude_session_ledger.py::test_replica_resolution_is_input_order_independent"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-5-selector-verdict-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "            and len(selector_verdicts(group)) == 1",
+          "new": "            and True"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_file_replica_with_divergent_cwd_selection_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+host=bnode013 date=2026-08-13T00:24:20+09:00
+memfile=/sys/fs/cgroup/system.slice/nqs-jsv.service/memory.current
+[ledger-1] base=821682176 peak=842317824 rc=2
+[ledger-2] base=830062592 peak=842268672 rc=2
+[ledger-3] base=829915136 peak=842395648 rc=2
+[usage-1] base=829784064 peak=841445376 rc=0
+[usage-2] base=830623744 peak=841654272 rc=0
+[usage-3] base=830771200 peak=841744384 rc=0
+done

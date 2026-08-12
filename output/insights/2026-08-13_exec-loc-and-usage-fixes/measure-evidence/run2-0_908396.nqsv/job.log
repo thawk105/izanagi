@@ -1,0 +1,11 @@
+host=bnode094 date=2026-08-13T00:32:31+09:00 jobid=0:908396.nqsv
+--- probe ---
+0::/system.slice/nqs-jsv.service
+memfile=/sys/fs/cgroup/system.slice/nqs-jsv.service/memory.current isolation=shared-service-delta peakfile=none
+[ledger-1] base=4211462144 peak=4230475776 kernelpeak=- rc=2
+[ledger-2] base=3884523520 peak=3853193216 kernelpeak=- rc=2
+[ledger-3] base=3678195712 peak=3690270720 kernelpeak=- rc=2
+[usage-1] base=3677913088 peak=3689525248 kernelpeak=- rc=0
+[usage-2] base=3679539200 peak=3688570880 kernelpeak=- rc=0
+[usage-3] base=3678367744 peak=3689971712 kernelpeak=- rc=0
+done
