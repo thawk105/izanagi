@@ -5039,6 +5039,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   merge 中止と lease 返却 / 走行前の behind 再検査と `git status --porcelain` 空検査) を必須とする。
   runbook §7.3 本文への明文化は head-of-line blocking と引き換えの設計択一のため裁定へ返す
 - 再発検知: 1 wave 内で lease の claim ログに behind 由来の返却が 2 回以上出たら同型
+- **supersede: 2026-08-12** — 恒久対応の安全配線 点 1「親が用意した message template へ SHA だけ差し込む」は実装しない。待ち手は `git merge --no-ff --no-commit` → `git commit -F` で merge commit を作るので、取り込んだ main SHA は second parent として commit object に不可変に記録される (実在 commit `ce46e128` の parents で実測)。message 本文への差し込みより強く、改竄もできない。
+- **supersede: 2026-08-12** — 点 2「provenance preflight」は `git commit --dry-run -F` と行頭 `AI-Agent:` の存在検査では満たさない。`docs/ai-provenance.md` が commit 前に要求するのは `tools/check_ai_provenance.py --message-file` の rc=0 であり、こちらだけが product/model/reasoning/role の順と許可値を検査する (実測 0.097 秒・local 実行・形式違反を実検出)。待ち手は `stage=merge-message-provenance` としてこれを merge の後に実行する — checker は `MERGE_HEAD` の有無で検査対象 path を変えるため、merge 前だと staged path が空になり検出力が落ちる。
+- **supersede: 2026-08-12** — 点 3 後半の述語は option なしの `git status --porcelain` ではなく `git status --porcelain --untracked-files=no --ignore-submodules=none` とする。untracked まで拒否すると、`.gitignore` に無い実在の floor 生成物 (`output/env/pegasus/floor/attempts/submissions/`、`.../job-staging/`) を持つ稼働中 wave の受入が claim 前に rc=2 で止まることを実測したためで、untracked の扱いは裁定へ返した。
+- **supersede: 2026-08-12** — この検査が保証するのは「`git status` を実行したその時点で tracked 木が HEAD と一致していた」ことだけである。20〜40 分走る受入 command の走行中に入った変更は覆わないので、受入結果に「投入の瞬間に一致した」とも「走行中ずっと一致していた」とも書かない。走行中まで覆う設計は裁定へ返した。
 
 ### F192. 受入 lease の待ち手が JSON 出力を平文パターンで照合し、取得済みの lease を 2 時間見落とした [手順漏れ] [恒真ゲート]
 
