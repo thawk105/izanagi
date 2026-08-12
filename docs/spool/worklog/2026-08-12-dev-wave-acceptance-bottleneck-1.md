@@ -110,14 +110,6 @@ T-080 receipt の `metadata_fields` が**現行 worktree bytes と live 照合**
 
 ## 次の一手差分
 
-### carry
-
-- [T-316]
-- [T-345]
-- [T-346]
-- [T-317]
-- [T-139]
-
 ### 更新
 
 - [T-887] **P2・裁定待ち**: 限定 group 化の再提示に、本 wave が実証データを足す。
