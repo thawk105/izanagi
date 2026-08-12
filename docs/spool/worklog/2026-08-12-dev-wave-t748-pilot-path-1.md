@@ -59,6 +59,9 @@ title: 床値 campaign の投入経路を固定 pilot にし、死経路だっ�
   `.done` も成果物も無く、producer は生存していた**。前景では正しく `rc=70` (timeout) を返すことを
   実測しており、背景実行時だけ無音で終わる。3 点照合をしていなければ成果物ゼロで先へ進んでいた。
   詳細は F24 の再発記録。
+- **受入全走は 9383 passed / 31 skipped / 0 failed (199.49 秒、rc=0、計算ノード dispatch)。**
+  waiver は適用していない。焦点走 (`test_pegasus_floor_tools.py`) は fix 前後とも
+  56 passed / rc=0 (Pegasus request 905768.nqsv ほか)。
 - **ユーザー手番**: 裁定 4 件 (下記「新規」)。push は行わない。
 
 ## 次の一手差分
