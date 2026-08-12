@@ -37,6 +37,14 @@ def _manifest() -> dict:
         "release_token_commitment": S.release_token_commitment("secret"),
     }
 
+def _launch_authorization() -> dict:
+    return {
+        "schema_version": S.LAUNCH_AUTHORIZATION_SCHEMA, "approval_id": "approval-1",
+        "preregistration_sha256": H, "policy_sha256": H,
+        "run_kinds": ["builder", "liveness", "main"],
+        "issued_on": "2026-08-12", "nonce": "authorization-nonce",
+    }
+
 def _node(event: str, payload: dict) -> dict:
     return {
         "schema_version": S.NODE_EVENT_SCHEMA, "group_manifest_sha256": H,
@@ -58,7 +66,7 @@ def _preflight() -> dict:
         "binary_source_sha256": H, "binary_copy_sha256": H,
         "dependency_manifest_sha256": H, "module_list_sha256": H, "trace_symbols": [],
         "isolation_before": {"inventory_sha256": H, "competing_processes_sha256": H},
-        "submission_argv_match": True,
+        "observed_submission_argv": ["qsub", "-q", "default", "job.sh"],
         "repo_absence": {"package_repo_free": True, "roots_repo_external": True,
                          "git_ancestor_absent": True, "pbs_workdir_repo_external": True},
         "passed": True, "reason_codes": [],
@@ -71,6 +79,8 @@ def _terminal(state: str = "valid", ordinal: int = 1) -> dict:
         completed, dropped, reason = slots[:-1], slots[-1:], "single_job_dropped"
     elif state == "pre_release_invalid":
         completed, dropped, reason = [], slots, "ready_timeout"
+    elif state == "post_release_pre_measurement_invalid":
+        completed, dropped, reason = [], slots, "ack-missing"
     expected = {slot: [f"nodes/{slot}.json"] for slot in slots}
     actual = deepcopy(expected)
     if state == "terminal_reduced":
@@ -84,12 +94,13 @@ def _terminal(state: str = "valid", ordinal: int = 1) -> dict:
         "node_receipt_sha256_by_slot": {slot: None if state == "pre_release_invalid" else H for slot in slots},
         "expected_presence": expected, "actual_presence": actual, "presence_valid": True,
         "pre_validator_receipt_sha256": H,
-        "post_validator_receipt_sha256": None if state == "pre_release_invalid" else H,
+        "post_validator_receipt_sha256": H,
         "retry_allowed": state == "pre_release_invalid" and ordinal == 1,
     }
 
 def test_positive_dag_documents_and_scheduler_schemas() -> None:
     S.validate_launch_intent(_intent())
+    S.validate_launch_authorization(_launch_authorization())
     S.validate_group_manifest(_manifest())
     requests = [{
         "slot_id": f"slot-{i:02d}", "logical_request_id": f"logical-{i}",
@@ -136,7 +147,8 @@ def test_positive_coordinator_event_payloads() -> None:
         "manifest_committed": {"manifest_sha256": H},
         "ready_received": {"receipt_sha256": H, "accepted": True, "reason_codes": []},
         "release_published": {"marker_sha256": H},
-        "start_ack_received": {"receipt_sha256": H, "received_monotonic_ns": 20, "latency_ns": 10},
+        "start_ack_received": {"receipt_sha256": H, "received_monotonic_ns": 20,
+                               "latency_ns": 10, "accepted": True, "reason_codes": []},
         "cancel_published": {"marker_sha256": H, "reason_codes": ["ready_timeout"]},
         "completion_received": {"receipt_sha256": H, "accepted": True, "reason_codes": []},
         "terminal_decided": {"terminal_state_sha256": H},
@@ -156,6 +168,23 @@ def test_terminal_states_retry_and_dropped_exclusion() -> None:
     assert S.retry_allowed("pre_release_invalid", 1)
     assert not S.retry_allowed("pre_release_invalid", 2)
     assert not S.retry_allowed("valid", 1)
+
+def test_post_validator_receipt_is_required_for_pre_release_invalid() -> None:
+    value = _terminal("pre_release_invalid")
+    value["post_validator_receipt_sha256"] = None
+    with pytest.raises(S.T810SchemaError, match="post_validator_receipt_sha256"):
+        S.validate_terminal_state(value)
+
+@pytest.mark.parametrize("reason", [
+    "release-marker-mismatch", "ack-missing", "ack-unknown-slot", "ack-duplicate",
+])
+def test_ack_reason_codes_are_post_release_only(reason: str) -> None:
+    value = _terminal("post_release_pre_measurement_invalid")
+    value["reason_codes"] = [reason]
+    S.validate_terminal_state(value)
+    assert S.classify_terminal_state("post_release_pre_measurement", reason) == value["state"]
+    with pytest.raises(S.T810SchemaError, match=r"\$\.reason_code"):
+        S.classify_terminal_state("pre_release", reason)
 
 def test_frozen_state_classification_all_rows() -> None:
     for (boundary, reason), state in S.BOUNDARY_REASON_TO_STATE.items():
@@ -177,6 +206,53 @@ def test_launch_intent_exact_rejections(mutation: str) -> None:
     else: value[1] = "bad"
     with pytest.raises(S.T810SchemaError, match=r"^\$"):
         S.validate_launch_intent(value)
+
+@pytest.mark.parametrize("mutation", ["unknown", "missing", "unknown_run_kind", "duplicate_run_kind"])
+def test_launch_authorization_exact_rejections(mutation: str) -> None:
+    value = _launch_authorization()
+    if mutation == "unknown": value["extra"] = 1
+    elif mutation == "missing": del value["approval_id"]
+    elif mutation == "unknown_run_kind": value["run_kinds"] = ["main", "other"]
+    else: value["run_kinds"] = ["main", "main"]
+    with pytest.raises(S.T810SchemaError, match=r"^\$"):
+        S.validate_launch_authorization(value)
+
+@pytest.mark.parametrize("argv", [[], ["qsub", 1]])
+def test_observed_submission_argv_rejects_empty_or_non_string(argv: list) -> None:
+    value = _node("preflight", _preflight())
+    value["payload"]["observed_submission_argv"] = argv
+    with pytest.raises(S.T810SchemaError, match="observed_submission_argv"):
+        S.validate_node_event(value)
+
+def test_legacy_submission_argv_match_is_an_unknown_field() -> None:
+    value = _node("preflight", _preflight())
+    value["payload"]["submission_argv_match"] = True
+    with pytest.raises(S.T810SchemaError, match=r"submission_argv_match: unknown field"):
+        S.validate_node_event(value)
+
+@pytest.mark.parametrize(("field", "invalid"), [("accepted", 1), ("reason_codes", [1])])
+def test_start_ack_received_rejects_invalid_decision_details(field: str, invalid: object) -> None:
+    details = {"receipt_sha256": H, "received_monotonic_ns": 20, "latency_ns": 10,
+               "accepted": True, "reason_codes": []}
+    details[field] = invalid
+    value = {"schema_version": S.COORDINATOR_EVENT_SCHEMA, "group_manifest_sha256": H,
+             "sequence": 0, "event": "start_ack_received", "wall_time": "now",
+             "coordinator_monotonic_ns": 10, "slot_id": "slot-00",
+             "previous_event_sha256": None, "details": details}
+    with pytest.raises(S.T810SchemaError, match=field):
+        S.validate_coordinator_event(value)
+
+@pytest.mark.parametrize("field", ["accepted", "reason_codes"])
+def test_start_ack_received_requires_decision_details(field: str) -> None:
+    details = {"receipt_sha256": H, "received_monotonic_ns": 20, "latency_ns": 10,
+               "accepted": False, "reason_codes": ["ack-duplicate"]}
+    del details[field]
+    value = {"schema_version": S.COORDINATOR_EVENT_SCHEMA, "group_manifest_sha256": H,
+             "sequence": 0, "event": "start_ack_received", "wall_time": "now",
+             "coordinator_monotonic_ns": 10, "slot_id": "slot-00",
+             "previous_event_sha256": None, "details": details}
+    with pytest.raises(S.T810SchemaError, match=field):
+        S.validate_coordinator_event(value)
 
 
 def test_duplicate_key_commitment_and_start_permit_rejected() -> None:

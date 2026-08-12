@@ -13,6 +13,7 @@ JSONValue: TypeAlias = None | bool | int | float | str | list["JSONValue"] | dic
 Document: TypeAlias = dict[str, Any]
 
 LAUNCH_INTENT_SCHEMA = "t810-launch-intent/v1"
+LAUNCH_AUTHORIZATION_SCHEMA = "t810-launch-authorization/v1"
 GROUP_MANIFEST_SCHEMA = "t810-group-manifest/v1"
 SUBMISSION_RECEIPT_SCHEMA = "t810-submission-receipt/v1"
 CONTROL_MARKER_SCHEMA = "t810-control-marker/v1"
@@ -47,7 +48,8 @@ _STATE_ROWS = {
     (_POST, reason): "post_release_pre_measurement_invalid" for reason in (
         "start_spread_exceeded", "cancel_marker_observed",
         "dependency_manifest_mismatch", "module_list_mismatch",
-        "trace_symbols_present", "numa_nodes_mismatch",
+        "trace_symbols_present", "numa_nodes_mismatch", "release-marker-mismatch",
+        "ack-missing", "ack-unknown-slot", "ack-duplicate",
     )
 } | {
     (_STARTED, reason): "incomplete_after_start" for reason in (
@@ -310,6 +312,25 @@ def validate_launch_intent(value: Any) -> Document:
     return doc
 
 
+_LAUNCH_AUTHORIZATION_FIELDS = frozenset({
+    "schema_version", "approval_id", "preregistration_sha256", "policy_sha256",
+    "run_kinds", "issued_on", "nonce",
+})
+
+
+def validate_launch_authorization(value: Any) -> Document:
+    doc = _object(value, _LAUNCH_AUTHORIZATION_FIELDS, "$")
+    _schema(doc, LAUNCH_AUTHORIZATION_SCHEMA)
+    for field in ("approval_id", "issued_on", "nonce"):
+        _string(doc[field], f"$.{field}")
+    for field in ("preregistration_sha256", "policy_sha256"):
+        _hash(doc[field], f"$.{field}")
+    run_kinds = _strings(doc["run_kinds"], "$.run_kinds", unique=True)
+    for index, run_kind in enumerate(run_kinds):
+        _literal(run_kind, RUN_KINDS, f"$.run_kinds[{index}]")
+    return doc
+
+
 _MANIFEST_FIELDS = frozenset({
     "schema_version", "group_id", "created_at", "launch_intent_sha256",
     "guard_receipt_sha256", "budget_receipt_sha256", "release_token_commitment",
@@ -410,7 +431,7 @@ def _preflight(value: Any, path: str) -> None:
         "assigned_hostname", "actual_hostname", "hardware", "interpreter",
         "competing_processes", "quiet_samples", "binary_source_sha256",
         "binary_copy_sha256", "dependency_manifest_sha256", "module_list_sha256",
-        "trace_symbols", "isolation_before", "submission_argv_match", "repo_absence",
+        "trace_symbols", "isolation_before", "observed_submission_argv", "repo_absence",
         "passed", "reason_codes",
     })
     item = _object(value, fields, path)
@@ -454,7 +475,7 @@ def _preflight(value: Any, path: str) -> None:
         _hash(item[field], f"{path}.{field}")
     _strings(item["trace_symbols"], f"{path}.trace_symbols", unique=True)
     _isolation(item["isolation_before"], f"{path}.isolation_before")
-    _boolean(item["submission_argv_match"], f"{path}.submission_argv_match")
+    _argv(item["observed_submission_argv"], f"{path}.observed_submission_argv")
     absence = _object(item["repo_absence"], frozenset({"package_repo_free", "roots_repo_external", "git_ancestor_absent", "pbs_workdir_repo_external"}), f"{path}.repo_absence")
     for field in absence:
         _boolean(absence[field], f"{path}.repo_absence.{field}")
@@ -523,7 +544,9 @@ _COORDINATOR_DETAILS = {
     "manifest_committed": frozenset({"manifest_sha256"}),
     "ready_received": frozenset({"receipt_sha256", "accepted", "reason_codes"}),
     "release_published": frozenset({"marker_sha256"}),
-    "start_ack_received": frozenset({"receipt_sha256", "received_monotonic_ns", "latency_ns"}),
+    "start_ack_received": frozenset({
+        "receipt_sha256", "received_monotonic_ns", "latency_ns", "accepted", "reason_codes",
+    }),
     "cancel_published": frozenset({"marker_sha256", "reason_codes"}),
     "completion_received": frozenset({"receipt_sha256", "accepted", "reason_codes"}),
     "terminal_decided": frozenset({"terminal_state_sha256"}),
@@ -645,9 +668,7 @@ def validate_terminal_state(value: Any, *, expected_node_count: int = NODE_COUNT
     if doc["presence_valid"] != actual_valid:
         _fail("$.presence_valid", "does not match exact evaluated presence")
     _hash(doc["pre_validator_receipt_sha256"], "$.pre_validator_receipt_sha256")
-    post_validator = _hash(doc["post_validator_receipt_sha256"], "$.post_validator_receipt_sha256", nullable=True)
-    if (state == "pre_release_invalid") != (post_validator is None):
-        _fail("$.post_validator_receipt_sha256", "null iff state is pre_release_invalid")
+    _hash(doc["post_validator_receipt_sha256"], "$.post_validator_receipt_sha256")
     _boolean(doc["retry_allowed"], "$.retry_allowed")
     if doc["retry_allowed"] != retry_allowed(state, ordinal):
         _fail("$.retry_allowed", "does not match frozen retry rule")
