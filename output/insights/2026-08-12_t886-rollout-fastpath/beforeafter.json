@@ -1,0 +1,113 @@
+{
+  "manifest_start": {
+    "measured_at_utc": "2026-08-12T06:26:57.843669+00:00",
+    "rollout_file_count": 2973,
+    "rollout_total_bytes": 2618198126,
+    "sessions_root": "/home/SFC/tanab/.codex/sessions"
+  },
+  "runs": [
+    {
+      "order": "before_then_after",
+      "labels": [
+        {
+          "label": "POS",
+          "before_seconds": 8.3109,
+          "after_seconds": 0.0227,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+          "speedup": 365.7
+        },
+        {
+          "label": "NEG",
+          "before_seconds": 4.2612,
+          "after_seconds": 0.0239,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+          "speedup": 178.3
+        },
+        {
+          "label": "fix2",
+          "before_seconds": 4.2932,
+          "after_seconds": 0.0205,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+          "speedup": 209.0
+        },
+        {
+          "label": "author",
+          "before_seconds": 4.1385,
+          "after_seconds": 0.0217,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+          "speedup": 191.0
+        },
+        {
+          "label": "fix1",
+          "before_seconds": 4.162,
+          "after_seconds": 0.0211,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl",
+          "speedup": 196.9
+        }
+      ],
+      "fixture_before_seconds": 25.166,
+      "fixture_after_seconds": 0.11,
+      "fixture_saved_seconds": 25.056
+    },
+    {
+      "order": "after_then_before",
+      "labels": [
+        {
+          "label": "POS",
+          "before_seconds": 4.144,
+          "after_seconds": 0.0191,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-49-14-019faca2-6e1f-7601-bfc7-be27edcfb4ba.jsonl",
+          "speedup": 217.0
+        },
+        {
+          "label": "NEG",
+          "before_seconds": 4.1688,
+          "after_seconds": 0.0224,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-19-59-019facbe-9584-7642-aa30-37f1c77e6c5f.jsonl",
+          "speedup": 185.7
+        },
+        {
+          "label": "fix2",
+          "before_seconds": 4.1474,
+          "after_seconds": 0.0211,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T16-06-46-019facb2-7ddb-7102-814d-eeddcb1102ed.jsonl",
+          "speedup": 196.6
+        },
+        {
+          "label": "author",
+          "before_seconds": 4.141,
+          "after_seconds": 0.0202,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T14-49-01-019fac6b-4f74-7a03-aa4d-8a9de22b352c.jsonl",
+          "speedup": 204.9
+        },
+        {
+          "label": "fix1",
+          "before_seconds": 4.2141,
+          "after_seconds": 0.0206,
+          "paths_identical": true,
+          "path": "/home/SFC/tanab/.codex/sessions/2026/07/29/rollout-2026-07-29T15-30-47-019fac91-8cde-7f73-bce1-77a9d63b4269.jsonl",
+          "speedup": 205.0
+        }
+      ],
+      "fixture_before_seconds": 20.815,
+      "fixture_after_seconds": 0.103,
+      "fixture_saved_seconds": 20.712
+    }
+  ],
+  "all_paths_identical": true,
+  "manifest_end": {
+    "measured_at_utc": "2026-08-12T06:27:44.098098+00:00",
+    "rollout_file_count": 2973,
+    "rollout_total_bytes": 2618288012,
+    "sessions_root": "/home/SFC/tanab/.codex/sessions"
+  }
+}

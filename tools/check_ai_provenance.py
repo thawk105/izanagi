@@ -182,31 +182,13 @@ _T659_PROBE_RULING = (
 _T720_MERGE_RULING = (
     "2026-08-10 [T-720] 受入後の land 前裁定 (ユーザー選択 (a))"
 )
+_T886_MERGE_RULING = "worklog(t886) 2026-08-12 dev-wave 段 7"
 _T720_MERGE_NOTE = (
     "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
     "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
     "wave 側は Codex `role=author`、main 側は各 wave land 時に監査済みで merge 自体に"
     "新規著作なし；親作成 merge のため Codex 著者とは記さない；横断統一 wave 固有"
     "（通常 merge 例 fbc95b2f は片親と一致）"
-)
-_DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING = (
-    "2026-08-12 dev-wave-8c-formal-consumer-wiring land 前裁定 "
-    "(ユーザー選択: known-violation 登録)"
-)
-_DEV_WAVE_8C_ACCEPTANCE_MERGE_NOTE = (
-    "受入 lease 内で `dev_wave_wait.py acceptance --merge-message-file` が自動生成した merge；"
-    "`p3_autonomous_workload_trial.py` の 3 方向結合結果が両親のどちらとも異なるため"
-    " checker が実装面著作と判定；wave 側の当該 file は Codex `role=author` 済みで、"
-    "main 側は各 wave land 時に監査済みであり、merge 自体に新規の人間・AI 著作なし"
-    "（差分は git の結合が生成）；親作成 merge のため Codex 著者とは記さない"
-)
-_DEV_WAVE_8C_LAND_RETRY_MERGE_NOTE = (
-    "land 再試行前に local main を取り込んだ merge；実装面で両側が触ったのは"
-    " `orchestrator/tests/test_autonomous_trial_completeness.py` と"
-    " `orchestrator/tests/test_p3_autonomous_workload_trial.py` の 2 test file だけで、"
-    "結果はいずれも両側の変更の和集合であり、競合解決による新規著作なし；"
-    "wave 側は Codex `role=author` 済み、main 側は各 wave land 時に監査済み；"
-    "親作成 merge のため Codex 著者とは記さない"
 )
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
@@ -528,16 +510,15 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         note=_T720_MERGE_NOTE,
     ),
     KnownViolationSpec(
-        "9408fb4ae8f999c7c0d6ced735335c9da97e35a4",
+        "187fed698bcefb5e93bbad312e1323617fc368ce",
         MISSING_CODEX_AUTHOR,
-        _DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING,
-        note=_DEV_WAVE_8C_ACCEPTANCE_MERGE_NOTE,
-    ),
-    KnownViolationSpec(
-        "c96803854911dd989954c20d0955ad423e7d1207",
-        MISSING_CODEX_AUTHOR,
-        _DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING,
-        note=_DEV_WAVE_8C_LAND_RETRY_MERGE_NOTE,
+        _T886_MERGE_RULING,
+        note=(
+            "本 wave と並行 wave が同じ 2 file（tools/codex_reasoning_ab.py、"
+            "orchestrator/tests/test_codex_reasoning_ab.py）を触った union merge；"
+            "`git diff-tree --cc` は空で merge 自体に新規著作なし；両側の実装面は"
+            "それぞれの wave で Codex `role=author` が書き監査済み"
+        ),
     ),
 )
 

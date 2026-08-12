@@ -1,0 +1,29 @@
+{
+  "full_tree_walk_no_match": {
+    "seconds": 0.0173,
+    "matches": 0
+  },
+  "full_tree_count": {
+    "seconds": 0.0225,
+    "files": 2946
+  },
+  "per_month_subtree": [
+    {
+      "subtree": "2026/07",
+      "files": 836,
+      "walk_seconds": 0.0085,
+      "us_per_file": 10.17
+    },
+    {
+      "subtree": "2026/08",
+      "files": 2110,
+      "walk_seconds": 0.0077,
+      "us_per_file": 3.65
+    }
+  ],
+  "aggregate": {
+    "files": 2946,
+    "sum_of_subtree_walks_seconds": 0.0162,
+    "mean_us_per_file": 5.5
+  }
+}
