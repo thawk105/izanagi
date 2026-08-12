@@ -84,6 +84,22 @@ title: [T-316] R2-b の独立 SWO oracle を実装した — 実型 harness + �
   攻撃成果物の作成を求めていたのが原因で、テスト設計としての提示を求める言い回しへ書き直し、
   新 artifact 名で再投入して rc=0 を得た (F102 の射程が「防御目的を書く」だけでは足りない実例)。
 
+- **land 直前に provenance で 1 度止まり、ユーザー裁定で通した。** 受入緑・変異緑の後、
+  全史 provenance 監査が `8ceebcdb`「merge が取り残した submodule gitlink を main の pin へ揃える」を
+  **実装面に Codex `role=author` なし**として拒否した (`DW-O25` の rc=29 関門)。
+  当該 commit は `external/ccbench` の gitlink を `d706650c → 511c9538` へ進めただけでソース著作は無く、
+  **真の trailer を書く手段が無かった** — Codex 著者行は虚偽、`AI-Agent: none` も虚偽、
+  waiver は当該 commit の message への記載が要るが merge 2 本の下に埋まり履歴書き換えは権限層が拒否した。
+  ユーザー選択は **known-violation 登録**。1 commit 限定で登録し、`external/` を実装面から外す等の
+  一般的な緩和はしていない。ユーザーは併せて「監査ログは嘘があってもミッションクリティカルではないが、
+  トークン衛生やプロセス改善に使う情報なので、ひどければ dev-wave で改善する」と述べた。
+  → 段 8 でその改善を入れた ({{F:merge-submodule-gitlink-blocks-land}} と `DW-O17`)。
+- **段 8 (自己改善) の終端。** 候補 3 件を裁定した。(1)(2) は failures へ routing 済み。
+  (3) `DW-O17` へ「merge commit の中で main 側 submodule pin へ揃える」を追加し、単節予算
+  (1000 bytes) に収めるため同節を意味を保って縮約した (**予算値は上げていない**)。
+  `DW-S03` への「攻撃成果物を作らせる指示は上流分類器が遮断する」追記は **L1.5 が予算満杯
+  (9566 bytes) で意味等価に収まらず見送り**、failures 側の記録に留めた (先例 [T-845] と同型)。
+
 ## 次の一手差分
 
 ### 更新
