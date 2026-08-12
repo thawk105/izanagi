@@ -34,6 +34,7 @@ _DISPATCH_LINE_PREFIX = "| "
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 NodeRunner = Callable[[Path, str], int]
 CollectionRunner = Callable[[Path, str], Sequence[str]]
+SubmoduleReceipt = tuple[Mapping[str, str], ...]
 
 
 class InvalidInput(RuntimeError):
@@ -514,17 +515,150 @@ def _default_collection_runner(
 
 def _initialize_submodules_cache_only(
     worktree: Path, *, command_runner: CommandRunner,
-) -> None:
-    result = _git(
+) -> SubmoduleReceipt:
+    indexed = _git(
         worktree,
-        ["submodule", "update", "--init", "--recursive", "--no-fetch"],
+        ["ls-files", "--stage", "-z"],
         command_runner=command_runner,
-        environment_overrides={"GIT_ALLOW_PROTOCOL": "file"},
     )
-    if result.returncode != 0:
-        raise InvalidInput(
-            f"cache-only submodule initialization failed with rc={result.returncode}"
+    if indexed.returncode != 0:
+        raise InvalidInput("cannot enumerate indexed submodules")
+
+    indexed_paths: list[str] = []
+    for record in indexed.stdout.split("\0"):
+        if not record:
+            continue
+        metadata, separator, path_text = record.partition("\t")
+        fields = metadata.split(" ")
+        if separator != "\t" or len(fields) != 3:
+            raise InvalidInput("git ls-files --stage returned malformed output")
+        mode, _object_id, stage = fields
+        if mode != "160000":
+            continue
+        path = PurePosixPath(path_text)
+        if (
+            not path_text
+            or path.is_absolute()
+            or str(path) != path_text
+            or ".." in path.parts
+            or unicodedata.normalize("NFC", path_text) != path_text
+            or any(unicodedata.category(character) == "Cc" for character in path_text)
+            or stage != "0"
+        ):
+            raise InvalidInput(f"indexed submodule path is invalid: {path_text!r}")
+        indexed_paths.append(path_text)
+    if len(indexed_paths) != len(set(indexed_paths)):
+        raise InvalidInput("indexed submodule paths contain duplicates")
+
+    configured_paths: list[str] = []
+    gitmodules = worktree / ".gitmodules"
+    if gitmodules.is_symlink() or (gitmodules.exists() and not gitmodules.is_file()):
+        raise InvalidInput(".gitmodules is not a regular file")
+    if gitmodules.is_file():
+        configured = _git(
+            worktree,
+            [
+                "config",
+                "-z",
+                "--file",
+                ".gitmodules",
+                "--get-regexp",
+                r"^submodule\..*\.path$",
+            ],
+            command_runner=command_runner,
         )
+        if configured.returncode not in {0, 1}:
+            raise InvalidInput("cannot enumerate configured submodule paths")
+        for record in configured.stdout.split("\0"):
+            if not record:
+                continue
+            _key, separator, path_text = record.partition("\n")
+            if separator != "\n":
+                raise InvalidInput("git config returned malformed submodule path output")
+            path = PurePosixPath(path_text)
+            if (
+                not path_text
+                or path.is_absolute()
+                or str(path) != path_text
+                or ".." in path.parts
+                or unicodedata.normalize("NFC", path_text) != path_text
+                or any(unicodedata.category(character) == "Cc" for character in path_text)
+            ):
+                raise InvalidInput(f"configured submodule path is invalid: {path_text!r}")
+            configured_paths.append(path_text)
+    if len(configured_paths) != len(set(configured_paths)):
+        raise InvalidInput("configured submodule paths contain duplicates")
+
+    indexed_path_set = set(indexed_paths)
+    paths = indexed_path_set | set(configured_paths)
+
+    common_result = _git(
+        worktree,
+        ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        command_runner=command_runner,
+    )
+    common_text = common_result.stdout.rstrip("\n")
+    if (
+        common_result.returncode != 0
+        or not common_text
+        or "\n" in common_text
+        or unicodedata.normalize("NFC", common_text) != common_text
+    ):
+        raise InvalidInput("cannot resolve the absolute git common directory")
+    common_dir = Path(common_text)
+    if not common_dir.is_absolute() or not common_dir.is_dir():
+        raise InvalidInput("git common directory is not an absolute directory")
+
+    receipt: list[Mapping[str, str]] = []
+    for path_text in sorted(paths):
+        if path_text not in indexed_path_set:
+            receipt.append(
+                {"path": path_text, "status": "reference-uninitialized"}
+            )
+            continue
+        module_dir = common_dir.joinpath("modules", *PurePosixPath(path_text).parts)
+        if not module_dir.exists():
+            if module_dir.is_symlink():
+                raise InvalidInput(
+                    f"reference submodule cache is a broken symlink: {path_text!r}"
+                )
+            receipt.append(
+                {"path": path_text, "status": "reference-uninitialized"}
+            )
+            continue
+        if not module_dir.is_dir():
+            raise InvalidInput(
+                f"reference submodule cache is not a directory: {path_text!r}"
+            )
+        configured = _git(
+            worktree,
+            ["config", f"submodule.{path_text}.url", str(module_dir)],
+            command_runner=command_runner,
+        )
+        if configured.returncode != 0:
+            raise InvalidInput(
+                f"cache-only submodule URL rewrite failed with rc={configured.returncode}: "
+                f"{path_text!r}"
+            )
+        updated = _git(
+            worktree,
+            ["submodule", "update", "--init", "--no-fetch", "--", path_text],
+            command_runner=command_runner,
+            environment_overrides={"GIT_ALLOW_PROTOCOL": "file"},
+        )
+        if updated.returncode != 0:
+            raise InvalidInput(
+                "cache-only submodule initialization failed with "
+                f"rc={updated.returncode}: {path_text!r}"
+            )
+        receipt.append(
+            {
+                "path": path_text,
+                "reference_module_dir": str(module_dir),
+                "status": "initialized",
+            }
+        )
+    return tuple(receipt)
 
 
 def _probe_nodes(
@@ -536,7 +670,7 @@ def _probe_nodes(
     node_runner: NodeRunner | None,
     collection_runner: CollectionRunner | None,
     command_runner: CommandRunner,
-) -> tuple[dict[str, int], tuple[str, ...], tuple[str, ...]]:
+) -> tuple[dict[str, int], tuple[str, ...], tuple[str, ...], SubmoduleReceipt]:
     rerun_rcs: dict[str, int] = {}
     attributable: list[str] = []
     selected_runner: NodeRunner
@@ -553,6 +687,7 @@ def _probe_nodes(
     else:
         selected_collection_runner = collection_runner
     logged_nodeids: list[str] = []
+    submodule_receipt: SubmoduleReceipt | None = None
     for reference in sorted(nodeids):
         parent = Path(
             tempfile.mkdtemp(prefix="izanagi-acceptance-reds-", dir=probe_root)
@@ -569,9 +704,15 @@ def _probe_nodes(
             if add.returncode != 0:
                 raise InvalidInput(f"git worktree add failed with rc={add.returncode}")
             added = True
-            _initialize_submodules_cache_only(
+            current_submodules = _initialize_submodules_cache_only(
                 worktree, command_runner=command_runner
             )
+            if submodule_receipt is None:
+                submodule_receipt = current_submodules
+            elif current_submodules != submodule_receipt:
+                raise InvalidInput(
+                    "reference submodule initialization state changed between probes"
+                )
             _assert_probe_identity(
                 worktree, tested_main, command_runner=command_runner
             )
@@ -634,6 +775,7 @@ def _probe_nodes(
         rerun_rcs,
         tuple(sorted(attributable)),
         tuple(sorted(logged_nodeids)),
+        submodule_receipt or (),
     )
 
 
@@ -758,8 +900,9 @@ def check_acceptance_reds(
     rerun_rcs: dict[str, int] = {}
     attributable: tuple[str, ...] = ()
     nodeids: tuple[str, ...] = ()
+    submodules: SubmoduleReceipt = ()
     if references:
-        rerun_rcs, attributable, nodeids = _probe_nodes(
+        rerun_rcs, attributable, nodeids, submodules = _probe_nodes(
             repo,
             probe,
             tested_main,
@@ -794,6 +937,7 @@ def check_acceptance_reds(
             "nodes": nodes,
             "schema_version": _SCHEMA_VERSION,
             "status": status,
+            "submodules": list(submodules),
             "tested_main": tested_main,
             "wave_tip": wave_tip,
         },

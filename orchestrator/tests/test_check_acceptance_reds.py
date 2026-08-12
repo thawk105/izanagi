@@ -85,6 +85,76 @@ def committed_repo(tmp_path: Path) -> tuple[Path, str, Path]:
     return repo, tested_main, probe_root
 
 
+def _commit_fixture(repo: Path, message: str) -> str:
+    _git(
+        repo,
+        "-c",
+        "user.name=Acceptance Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qam",
+        message,
+    )
+    return _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+
+def _add_initialized_submodule(repo: Path, tmp_path: Path) -> tuple[str, str, Path]:
+    path_text = "external/dependency"
+    source = tmp_path / "dependency-source"
+    source.mkdir()
+    _git(source, "init", "-q")
+    (source / "dependency.txt").write_text("cached dependency\n", encoding="utf-8")
+    _git(source, "add", "dependency.txt")
+    _git(
+        source,
+        "-c",
+        "user.name=Acceptance Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qm",
+        "dependency fixture",
+    )
+    _git(
+        repo,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        str(source),
+        path_text,
+    )
+    tested_main = _commit_fixture(repo, "add initialized dependency")
+    common_dir = Path(
+        _git(
+            repo, "rev-parse", "--path-format=absolute", "--git-common-dir"
+        ).stdout.strip()
+    )
+    return tested_main, path_text, common_dir / "modules" / path_text
+
+
+def _add_uninitialized_submodule(repo: Path) -> tuple[str, str]:
+    path_text = "external/uninitialized"
+    object_id = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    (repo / ".gitmodules").write_text(
+        '[submodule "external/uninitialized"]\n'
+        "\tpath = external/uninitialized\n"
+        "\turl = https://example.invalid/uninitialized.git\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".gitmodules")
+    _git(
+        repo,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{object_id},{path_text}",
+    )
+    return _commit_fixture(repo, "add uninitialized dependency"), path_text
+
+
 def _summary_log(
     outcomes: Sequence[tuple[str, str]],
     *,
@@ -461,7 +531,8 @@ def test_each_node_uses_a_fresh_probe_worktree(
 def test_cache_only_submodule_initialization_failure_fails_closed(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
-    repo, tested_main, probe_root = committed_repo
+    repo, _old_main, probe_root = committed_repo
+    tested_main, path_text, _module_dir = _add_initialized_submodule(repo, tmp_path)
     log = _write_log(
         tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
     )
@@ -469,7 +540,9 @@ def test_cache_only_submodule_initialization_failure_fails_closed(
 
     def fail_submodule_update(command: Sequence[str], **kwargs):
         values = list(command)
-        if values[-5:] == ["submodule", "update", "--init", "--recursive", "--no-fetch"]:
+        if values[-6:] == [
+            "submodule", "update", "--init", "--no-fetch", "--", path_text,
+        ]:
             observed_environment.update(kwargs["env"])
             return subprocess.CompletedProcess(values, 1, "", "cache miss")
         return subprocess.run(values, **kwargs)
@@ -481,6 +554,116 @@ def test_cache_only_submodule_initialization_failure_fails_closed(
         command_runner=fail_submodule_update,
     ) == 2
     assert observed_environment["GIT_ALLOW_PROTOCOL"] == "file"
+    assert list(probe_root.iterdir()) == []
+
+
+def test_initialized_submodule_uses_local_module_dir_and_file_protocol(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, _old_main, probe_root = committed_repo
+    tested_main, path_text, module_dir = _add_initialized_submodule(repo, tmp_path)
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+    receipt = tmp_path / "receipt.json"
+    observed_config: list[list[str]] = []
+    observed_update_environment: dict[str, str] = {}
+
+    def observe_submodule_commands(command: Sequence[str], **kwargs):
+        values = list(command)
+        if values[-3:] == ["config", f"submodule.{path_text}.url", str(module_dir)]:
+            observed_config.append(values)
+        if values[-6:] == [
+            "submodule", "update", "--init", "--no-fetch", "--", path_text,
+        ]:
+            observed_update_environment.update(kwargs["env"])
+        return subprocess.run(values, **kwargs)
+
+    def assert_initialized(worktree: Path, _nodeid: str) -> int:
+        assert (worktree / path_text / "dependency.txt").read_text(
+            encoding="utf-8"
+        ) == "cached dependency\n"
+        assert _git(
+            worktree, "config", "--get", f"submodule.{path_text}.url"
+        ).stdout.strip() == str(module_dir)
+        return 1
+
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=assert_initialized,
+        command_runner=observe_submodule_commands,
+    ) == 0
+    assert len(observed_config) == 1
+    assert observed_update_environment["GIT_ALLOW_PROTOCOL"] == "file"
+    assert json.loads(receipt.read_text(encoding="utf-8"))["submodules"] == [
+        {
+            "path": path_text,
+            "reference_module_dir": str(module_dir),
+            "status": "initialized",
+        }
+    ]
+
+
+def test_reference_uninitialized_submodule_is_not_initialized_and_is_receipted(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, _old_main, probe_root = committed_repo
+    tested_main, path_text = _add_uninitialized_submodule(repo)
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+    receipt = tmp_path / "receipt.json"
+    submodule_updates: list[list[str]] = []
+
+    def observe_commands(command: Sequence[str], **kwargs):
+        values = list(command)
+        if "submodule" in values and "update" in values:
+            submodule_updates.append(values)
+        return subprocess.run(values, **kwargs)
+
+    def assert_uninitialized(worktree: Path, _nodeid: str) -> int:
+        assert not (worktree / path_text / ".git").exists()
+        return 1
+
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        node_runner=assert_uninitialized,
+        command_runner=observe_commands,
+    ) == 0
+    assert submodule_updates == []
+    assert json.loads(receipt.read_text(encoding="utf-8"))["submodules"] == [
+        {"path": path_text, "status": "reference-uninitialized"}
+    ]
+
+
+def test_submodule_url_rewrite_failure_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, _old_main, probe_root = committed_repo
+    tested_main, path_text, module_dir = _add_initialized_submodule(repo, tmp_path)
+    log = _write_log(
+        tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+    )
+    update_reached = False
+
+    def fail_url_rewrite(command: Sequence[str], **kwargs):
+        nonlocal update_reached
+        values = list(command)
+        if values[-3:] == ["config", f"submodule.{path_text}.url", str(module_dir)]:
+            return subprocess.CompletedProcess(values, 1, "", "config rejected")
+        if "submodule" in values and "update" in values:
+            update_reached = True
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=_unexpected_runner,
+        command_runner=fail_url_rewrite,
+    ) == 2
+    assert not update_reached
     assert list(probe_root.iterdir()) == []
 
 
