@@ -44,6 +44,9 @@ _PRE_T343_NO_BUILD_CAMPAIGN_ID = (
 _T343_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
 )
+_CURRENT_NO_BUILD_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e"
+)
 _T530_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
 )
@@ -57,10 +60,10 @@ assert _T530_PEGASUS_CONTRACT.contract_sha256 == (
 )
 # T-671 で契約 H が identity から外れ、C01 の golden も H なし preimage へ戻る。
 _C01_OTHER_CAMPAIGN_ID = (
-    "p3-t178-ycsb-a-workload-conditioned-autonomous-1f567653"
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-841e8a89"
 )
 _C01_PEGASUS_CAMPAIGN_ID = (
-    "p3-t178-ycsb-a-workload-conditioned-autonomous-5336ac05"
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-7b2f2838"
 )
 
 
@@ -316,8 +319,11 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         contract=_T530_CONTRACT, build_context=context,
     )
     assert cfg.search_config["build_admission"] == context.policy.as_preimage()
-    # T-671 で H が identity から外れ、current は旧 T343 値になる。
-    assert str(A.ident.campaign_id(cfg)) == _T343_NO_BUILD_CAMPAIGN_ID
+    # T-671 で H が identity から外れた current golden を独立に pin する。
+    assert str(A.ident.campaign_id(cfg)) == _CURRENT_NO_BUILD_CAMPAIGN_ID
+    assert _T343_NO_BUILD_CAMPAIGN_ID == (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
+    )
     assert _PRE_T343_NO_BUILD_CAMPAIGN_ID == (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )

@@ -33,6 +33,11 @@ TRACE=0 同一性証拠が適用できないうえ、現物は必要 field を�
 build / attestation / seal / manifest / commit witness の検査はすべて残した。**凍結 bytes は
 1 bit も変えていない。**
 
+**受入全走で構造的 blocker が出たため、本 wave は land していない。** 実装は緑だったが、
+焦点走の範囲が狭すぎた — 前 wave は 5 file、本 wave の焦点走も 16 file しか測っておらず、
+`test_s8b_oracle_driver.py` 等が入っていなかった。前 wave の記録にある
+「S1 freeze の破れは受入では検出されない」は**誤り**である。詳細は [T-816] の項。
+
 実測は `output/insights/2026-08-12_t816-step4-impl/README.md` が正本。焦点 16 file は
 `828 passed, 10 skipped` で赤ゼロ。残る 1 error は `test_s8b_approved.py` の収集失敗
 (`No module named 'tests'`) で、単一ファイル選択走で import path が確立しない DW-O18 の偽赤である
@@ -54,33 +59,30 @@ codex author が書いた実装と同じ統合 commit に含めて回避した�
 
 ### 完了
 
-- [T-816] 手順 4 を実装した。gitlink `d706650` → `511c9538`、現用 pin 23 箇所、
-  trace v2 専用化、framing integrity、負 txid 拒否、record 種別の完全一致、
-  凍結 v1 証拠の trace 再検証の退役。凍結 bytes は不変。
-  remaining: none
-  base: 9f7a085030bd26aa99323a37d6e0b1ae02e5ac75c1e3481a275a8f408f140da0
-
-- [T-838] hard block の実体 (凍結 v1 raw trace と歴史 pin 再現経路) は [T-816] Q1 の裁定へ吸収され、
-  本 wave で処理した。凍結 raw bundle は bytes 据置で trace 再検証を退役、歴史再現 driver
-  (`s2_verify_calibration.py`) はコードを変えず `docs/phase3.md` へ日付級 1 行を記録した。
-  remaining: none
-  base: 6585187ae5c157c435e983cd5517f661b956720446efdb795ac69b86c3ac44cf
-
 - [T-879] 負 txid の false-green を塞いだ。`txid >= 0` の構文検査と、負値が `max(txid)+1` の
   欠番計算を相殺する負例を追加し、変異 (検査除去) が期待 node で KILLED になることを確認した。
   remaining: none
   base: 0bda3813ecf73d6fa180f4cadf3b4e7edffcb4704e8f132c2b7ac45a92bdde09
 
-### 新規
+### 更新
 
-- {{T:s1-freeze-family-retired-under-new-pin}} **P1・新規 (ユーザー裁定候補)**: pin 前進の結果、
-  S1 freeze 族 (`output/s1-freeze/known_axes_freeze.json` / `measurement_freeze.json`) は
-  記録された pin と現行 pin が食い違う状態になった。`s1_measurement_freeze.verify()` と
-  `s1_known_axes_freeze.verify()` は実行時に pin 不一致で拒否するため、`s1_report` と
-  8b oracle を**新 pin で走らせると refusal が出る**。**受入全走では検出されない**
-  (検査が実 artifact を読まないため)。bytes を書き換える再 pin は不可 — 移行 receipt・
-  holdout freeze・measurement freeze が旧 bytes を hash で束縛しており、8b oracle が即座に止まる
-  ({{F:consumer-liveness-misjudged}})。選択肢は (a) freeze 族を新 pin で再発行 (再測定が要る)、
-  (b) 8b を旧 pin の checkout で走らせる運用に固定する、(c) 現状を退役として受け入れ、
-  8b が freeze 族を要求しない形へ配線し直す。費用と影響範囲の見積りを添えて裁定へ出す。
-  正本 = `output/insights/2026-08-12_t816-step4-impl/README.md`
+- [T-816] **P1・手順 4 は実装完了・受入で構造的 blocker → ユーザー裁定待ち
+  (2026-08-12 dev-wave-t816-step4-impl)**: 実装は緑になった (焦点 16 file が `828 passed`、
+  変異 8/8 検出・SURVIVED 0) が、**受入全走が `44 failed, 9357 passed`** になった。
+  うち 12 件 (pin 由来 campaign identity golden と、段 2 の A/B 分類を 1 件誤って据置にした
+  fixture pin) は本 wave で修正し、**残る 32 件はすべて 1 つの構造的事実に帰着する** —
+  `s1_known_axes_freeze.verify()` が `ccbench_pin` を**submodule の現 HEAD**と比較するため、
+  **gitlink を進める限りどの実装でも通らない**。これが T-080 移行受領証 → holdout freeze →
+  8b oracle → 床値 protocol の連鎖を fail-closed にする。機械的再 pin は 1 field で閉じず、
+  受領証と seal の bytes 書き換えに波及するため無裁定では実施しない。
+  **4 択を裁定へ返す** (機械的再発行 / 再測定して再発行 / freeze の検証条件を変える /
+  手順 4 の撤回。親推奨 = 機械的再発行、根拠 = TRACE=0 同一性の機械証明)。
+  正本 = `output/insights/2026-08-12_t816-step4-impl/README.md`、
+  一次控え = `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-08-12-t816-step4-freeze-chain-blocks-pin-advance.md`
+  base: 9f7a085030bd26aa99323a37d6e0b1ae02e5ac75c1e3481a275a8f408f140da0
+
+- [T-838] **P1・[T-816] の裁定へ吸収済み、実装も同 wave が保持**: hard block の実体
+  (凍結 v1 raw trace と歴史 pin 再現経路) は処理した — 凍結 raw bundle は bytes 据置で
+  trace 再検証を退役し、歴史再現 driver (`s2_verify_calibration.py`) はコードを変えず
+  `docs/phase3.md` へ日付級 1 行を記録した。**本項の終端は [T-816] の裁定に従属する。**
+  base: 6585187ae5c157c435e983cd5517f661b956720446efdb795ac69b86c3ac44cf

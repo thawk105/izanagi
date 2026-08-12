@@ -62,7 +62,25 @@ wave: dev-wave-t816-step4-impl / branch worktree-dev-wave-t816-step4-impl
 **誤りの機序**: 「生きた consumer が居る」ことだけで現用と判定し、**その consumer が何を要求して
 いるか**を読まなかった。consumer は新しい pin ではなく旧 bytes を要求していた。
 
-## 退役の帰結 (未解決・次の一手へ)
+## 受入全走で出た構造的 blocker (本 wave は land していない)
+
+焦点走が緑になった後の**受入全走は `44 failed, 9357 passed, 31 skipped`** だった。
+
+| 系統 | 件数 | 内容 | 処置 |
+|---|---:|---|---|
+| A | 12 | pin 由来の campaign identity golden 11 件 + 段 2 の A/B 分類を 1 件誤って据置にした fixture pin 1 件 | 本 wave で修正済み (`44 failed` → `32 failed` を実測) |
+| B | **32** | `s1_known_axes_freeze.verify()` が `ccbench_pin` を**submodule の現 HEAD**と比較するため、gitlink を進める限り通らない。T-080 移行受領証 → holdout freeze → 8b oracle → 床値 protocol の連鎖が fail-closed になる | **ユーザー裁定待ち** |
+
+**焦点走の範囲が狭すぎたことが、この発見を最後まで遅らせた。** 前 wave は 5 file、本 wave の
+焦点走も 16 file しか測っておらず、`test_s8b_oracle_driver.py` / `test_s8b_holdout_freeze.py` /
+`test_autonomous_trial_completeness.py` が入っていなかった。前 wave の記録にある
+「S1 freeze の破れは受入では検出されない」は**誤り**である。
+
+裁定パッケージ =
+`/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-08-12-t816-step4-freeze-chain-blocks-pin-advance.md`
+(択一 4 つ、親推奨 = 凍結チェーンの機械的再発行。根拠 = TRACE=0 同一性の機械証明)。
+
+## 退役の帰結 (上記 B に吸収された)
 
 pin を前進させた結果、S1 freeze 族 (`known_axes_freeze.json` / `measurement_freeze.json`) は
 記録された pin と現行 pin が食い違う状態になった。`s1_measurement_freeze.verify()` と
