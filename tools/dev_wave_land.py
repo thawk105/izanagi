@@ -59,7 +59,7 @@ _MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
-_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v1"
+_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v2"
 _ACCEPTANCE_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
@@ -67,6 +67,7 @@ _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
     "authority_kind",
     "acceptance_wave",
     "lease_holder",
+    "tested_main",
     "tested_tip",
     "argv",
     "resolved_runner_path",
@@ -75,6 +76,13 @@ _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
     "post_fingerprint",
     "waiter_blob_sha",
     "env_projection",
+    "verdict",
+    "log_sha256",
+    "checker_rc",
+    "checker_status",
+    "checker_blob_sha",
+    "checker_receipt_sha256",
+    "red_nodeids",
 })
 _FINGERPRINT_FIELDS = frozenset({
     "digest",
@@ -130,6 +138,8 @@ class LandResult:
     wave_tip: str | None = None
     fold_commit_sha: str | None = None
     acceptance_receipt_sha256: str | None = None
+    acceptance_verdict: str | None = None
+    acceptance_red_nodeids: tuple[str, ...] | None = None
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -140,6 +150,12 @@ class LandResult:
             "wave_tip": self.wave_tip,
             "fold_commit_sha": self.fold_commit_sha,
             "acceptance_receipt_sha256": self.acceptance_receipt_sha256,
+            "acceptance_verdict": self.acceptance_verdict,
+            "acceptance_red_nodeids": (
+                None
+                if self.acceptance_red_nodeids is None
+                else list(self.acceptance_red_nodeids)
+            ),
         }
 
 
@@ -195,6 +211,13 @@ class _ProvenanceReceipt:
     checker_blob_sha: str
     executed_bytes_sha: str
     returncode: int
+
+
+@dataclass(frozen=True)
+class _AcceptanceVerification:
+    receipt_sha256: str
+    verdict: str
+    red_nodeids: tuple[str, ...]
 
 
 @dataclass
@@ -497,18 +520,23 @@ def _verify_acceptance_receipt(
     *,
     receipt_path: Path,
     acceptance_wave: str,
+    tested_main: str,
     tested_tip: str,
-) -> str:
+) -> _AcceptanceVerification:
     raw = _read_acceptance_receipt(receipt_path)
     receipt = _receipt_object(raw)
     try:
-        expected_holder = hashlib.sha256(acceptance_wave.encode("utf-8")).hexdigest()[:12]
+        expected_holder = hashlib.sha256(
+            acceptance_wave.encode("utf-8")
+        ).hexdigest()[:12]
     except UnicodeError:
         raise _acceptance_rejected() from None
     pre = receipt.get("pre_fingerprint")
     post = receipt.get("post_fingerprint")
     env_projection = receipt.get("env_projection")
     argv = receipt.get("argv")
+    verdict = receipt.get("verdict")
+    red_nodeids = receipt.get("red_nodeids")
     if not (
         receipt.get("schema_version") == _ACCEPTANCE_RECEIPT_SCHEMA
         and receipt.get("authority_kind") == _ACCEPTANCE_AUTHORITY_KIND
@@ -516,11 +544,13 @@ def _verify_acceptance_receipt(
         and isinstance(receipt.get("lease_holder"), str)
         and _HOLDER_RE.fullmatch(receipt["lease_holder"]) is not None
         and receipt["lease_holder"] == expected_holder
+        and receipt.get("tested_main") == tested_main
         and receipt.get("tested_tip") == tested_tip
         and argv == ["python3", "tools/run_tests.py"]
         and receipt.get("resolved_runner_path") == "tools/run_tests.py"
         and type(receipt.get("child_rc")) is int
-        and receipt["child_rc"] == 0
+        and isinstance(receipt.get("log_sha256"), str)
+        and _SHA256_RE.fullmatch(receipt["log_sha256"]) is not None
         and _valid_fingerprint(pre, tested_tip)
         and post == pre
         and isinstance(env_projection, dict)
@@ -532,6 +562,38 @@ def _verify_acceptance_receipt(
         and not env_projection["PYTEST_ADDOPTS"]
         and not env_projection["PYTEST_PLUGINS"]
     ):
+        raise _acceptance_rejected()
+    if verdict == "child-green":
+        if not (
+            receipt["child_rc"] == 0
+            and receipt.get("checker_rc") is None
+            and receipt.get("checker_status") is None
+            and receipt.get("checker_blob_sha") is None
+            and receipt.get("checker_receipt_sha256") is None
+            and red_nodeids == []
+        ):
+            raise _acceptance_rejected()
+        accepted_nodeids: tuple[str, ...] = ()
+    elif verdict == "non-attributable-only":
+        if not (
+            receipt["child_rc"] != 0
+            and type(receipt.get("checker_rc")) is int
+            and receipt["checker_rc"] == 0
+            and receipt.get("checker_status") == "non-attributable-only"
+            and isinstance(receipt.get("checker_blob_sha"), str)
+            and _SHA_RE.fullmatch(receipt["checker_blob_sha"]) is not None
+            and isinstance(receipt.get("checker_receipt_sha256"), str)
+            and _SHA256_RE.fullmatch(
+                receipt["checker_receipt_sha256"]
+            ) is not None
+            and isinstance(red_nodeids, list)
+            and red_nodeids
+            and all(isinstance(nodeid, str) and nodeid for nodeid in red_nodeids)
+            and red_nodeids == sorted(set(red_nodeids))
+        ):
+            raise _acceptance_rejected()
+        accepted_nodeids = tuple(red_nodeids)
+    else:
         raise _acceptance_rejected()
     waiter_result = _git(
         repository.wave,
@@ -548,18 +610,51 @@ def _verify_acceptance_receipt(
         "-e",
         f"{tested_tip}:tools/run_tests.py",
     )
+    checker_blob = ""
+    checker_result: _GitResult | None = None
+    if verdict == "non-attributable-only":
+        checker_result = _git(
+            repository.wave,
+            "rev-parse",
+            f"{tested_tip}:tools/check_acceptance_reds.py",
+        )
+        try:
+            checker_blob = checker_result.stdout.decode("ascii").strip()
+        except UnicodeError:
+            raise _acceptance_rejected() from None
     if (
         waiter_result.returncode != 0
         or _SHA_RE.fullmatch(waiter_blob) is None
         or runner_blob.returncode != 0
         or receipt.get("waiter_blob_sha") != waiter_blob
+        or (
+            verdict == "non-attributable-only"
+            and (
+                checker_result is None
+                or checker_result.returncode != 0
+                or _SHA_RE.fullmatch(checker_blob) is None
+                or receipt.get("checker_blob_sha") != checker_blob
+            )
+        )
     ):
         raise _acceptance_rejected()
-    return hashlib.sha256(raw).hexdigest()
+    return _AcceptanceVerification(
+        receipt_sha256=hashlib.sha256(raw).hexdigest(),
+        verdict=verdict,
+        red_nodeids=accepted_nodeids,
+    )
 
 
-def _with_acceptance_digest(result: LandResult, digest: str) -> LandResult:
-    return replace(result, acceptance_receipt_sha256=digest)
+def _with_acceptance_verification(
+    result: LandResult,
+    verification: _AcceptanceVerification,
+) -> LandResult:
+    return replace(
+        result,
+        acceptance_receipt_sha256=verification.receipt_sha256,
+        acceptance_verdict=verification.verdict,
+        acceptance_red_nodeids=verification.red_nodeids,
+    )
 
 
 def _canonical_absolute(path: Path, label: str) -> Path:
@@ -2426,12 +2521,12 @@ def land(request: LandRequest) -> LandResult:
     repository: _Repository | None = None
     main_before: str | None = None
     tested_tip: str | None = None
-    acceptance_receipt_sha256: str | None = None
+    acceptance_verification: _AcceptanceVerification | None = None
 
     def finish(result: LandResult) -> LandResult:
-        if acceptance_receipt_sha256 is None:
+        if acceptance_verification is None:
             return result
-        return _with_acceptance_digest(result, acceptance_receipt_sha256)
+        return _with_acceptance_verification(result, acceptance_verification)
 
     try:
         tested_main = _sha(request.tested_main_sha, "tested main")
@@ -2523,10 +2618,11 @@ def land(request: LandRequest) -> LandResult:
                     )
                 _verify_provenance_receipt(repository, receipt, tested_tip)
                 main_before = preflight.locked_main
-            acceptance_receipt_sha256 = _verify_acceptance_receipt(
+            acceptance_verification = _verify_acceptance_receipt(
                 repository,
                 receipt_path=request.acceptance_receipt,
                 acceptance_wave=request.acceptance_wave,
+                tested_main=tested_main,
                 tested_tip=tested_tip,
             )
             fold = preflight.fold

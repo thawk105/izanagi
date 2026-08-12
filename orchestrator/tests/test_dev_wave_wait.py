@@ -35,9 +35,14 @@ _MESSAGE = Path("/message.txt")
 _VALIDATED_MESSAGE = Path("/validated-message.txt")
 _RECEIPT = Path("/receipts/acceptance.json")
 _RECEIPT_TEMP = Path("/receipts/.dev-wave-acceptance-receipt-test.tmp")
+_LOG = Path("/receipts/acceptance.log")
+_CHECKER_RECEIPT = Path(
+    "/receipts/acceptance.json.acceptance-red-check.json"
+)
 _COMMAND = ("harmless-command", "--flag")
 _HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
 _WAITER_BLOB = "d" * 40
+_CHECKER_BLOB = "e" * 40
 _RELEASE_JSON = json.dumps({"state": "released"})
 _LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
 _STATUS_ARGV = (
@@ -83,12 +88,15 @@ class _FakeEffects:
         self.temp_path = _VALIDATED_MESSAGE
         self.existing_paths: set[Path] = set()
         self.directories: set[Path] = {_RECEIPT.parent}
+        self.symlinks: set[Path] = set()
         self.receipt_temp_result: object = _RECEIPT_TEMP
         self.rename_result: object = None
         self.receipt_content: bytes | None = None
         self.receipt_published = False
         self.last_claim_main_sha: str | None = None
         self.final_claim_age_seconds = 0
+        self.logged_bytes = b""
+        self.byte_files: dict[Path, bytes] = {}
 
     @property
     def effects(self) -> object:
@@ -108,6 +116,9 @@ class _FakeEffects:
             resolve_path=self.resolve_path,
             write_receipt_temp=self.write_receipt_temp,
             rename=self.rename,
+            run_logged=self.run_logged,
+            read_bytes=self.read_bytes,
+            is_symlink=self.is_symlink,
         )
 
     def expect_run(
@@ -185,6 +196,16 @@ class _FakeEffects:
             raise result
         return result
 
+    def run_logged(self, argv: object, cwd: Path, log_file: Path) -> object:
+        result = self.run(argv, cwd, False)
+        self.byte_files[log_file] = self.logged_bytes
+        self.existing_paths.add(log_file)
+        return result
+
+    def read_bytes(self, path: Path) -> bytes:
+        assert path in self.byte_files, f"unexpected read_bytes: {path}"
+        return self.byte_files[path]
+
     def sleep(self, seconds: float) -> None:
         self.events.append(("sleep", seconds))
 
@@ -231,6 +252,9 @@ class _FakeEffects:
 
     def is_dir(self, path: Path) -> bool:
         return path in self.directories
+
+    def is_symlink(self, path: Path) -> bool:
+        return path in self.symlinks
 
     def resolve_path(self, path: Path) -> Path:
         if path.is_absolute():
@@ -391,6 +415,99 @@ def _held_self_payload(**overrides: object) -> str:
     return json.dumps(payload)
 
 
+def _checker_argv() -> tuple[str, ...]:
+    return (
+        sys.executable,
+        str(_REPO / "tools" / "check_acceptance_reds.py"),
+        "--log",
+        str(_LOG),
+        "--tested-main",
+        _SHA_A,
+        "--wave-tip",
+        _SHA_A,
+        "--receipt",
+        str(_CHECKER_RECEIPT),
+        "--probe-root",
+        str(_LOG.parent),
+    )
+
+
+def _checker_receipt_bytes(
+    fake: _FakeEffects,
+    *,
+    status: str,
+    nodes: list[dict[str, object]],
+    log_sha256: str | None = None,
+) -> bytes:
+    return (
+        json.dumps(
+            {
+                "log_path": str(_LOG),
+                "log_sha256": (
+                    hashlib.sha256(fake.logged_bytes).hexdigest()
+                    if log_sha256 is None
+                    else log_sha256
+                ),
+                "nodes": nodes,
+                "schema_version": "izanagi-acceptance-red-check/v1",
+                "status": status,
+                "submodules": [],
+                "tested_main": _SHA_A,
+                "wave_tip": _SHA_A,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("ascii")
+
+
+def _queue_checker(
+    fake: _FakeEffects,
+    *,
+    rc: int = 0,
+    status: str = "non-attributable-only",
+    nodes: list[dict[str, object]] | None = None,
+    log_sha256: str | None = None,
+) -> bytes:
+    fake.expect_run(_checker_argv(), DW._CommandResult(rc), capture=False)
+    raw = _checker_receipt_bytes(
+        fake,
+        status=status,
+        nodes=(
+            [{
+                "classification": "non-attributable",
+                "nodeid": "orchestrator/tests/test_known.py::test_known",
+                "rerun_rc": 1,
+            }]
+            if nodes is None
+            else nodes
+        ),
+        log_sha256=log_sha256,
+    )
+    fake.byte_files[_CHECKER_RECEIPT] = raw
+    return raw
+
+
+def _queue_non_attributable_receipt_tail(fake: _FakeEffects) -> None:
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/check_acceptance_reds.py"),
+        DW._CommandResult(0, _CHECKER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(0, _held_self_payload()),
+    )
+
+
 _SUCCESS_RECEIPT_EVENTS = [
     (
         "run",
@@ -542,6 +659,7 @@ def _run_acceptance(
     lease_dir: Path = _LEASE,
     lifecycle: object = None,
     receipt_file: Path = _RECEIPT,
+    log_file: Path = _LOG,
 ) -> object:
     return DW.run_acceptance(
         wave=_WAVE,
@@ -553,6 +671,7 @@ def _run_acceptance(
         repo=_REPO,
         effects=fake.effects,
         receipt_file=receipt_file,
+        log_file=log_file,
         owned_paths=owned_paths,
         lifecycle=lifecycle,
     )
@@ -702,6 +821,32 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             if isinstance(self.command_result, BaseException):
                 raise self.command_result
             return self.command_result
+        if (
+            len(actual) >= 2
+            and Path(actual[1]).name == "check_acceptance_reds.py"
+        ):
+            def option(name: str) -> str:
+                return actual[actual.index(name) + 1]
+
+            checker_receipt = Path(option("--receipt"))
+            self.byte_files[checker_receipt] = (
+                json.dumps(
+                    {
+                        "log_path": option("--log"),
+                        "log_sha256": hashlib.sha256(self.logged_bytes).hexdigest(),
+                        "nodes": [],
+                        "schema_version": "izanagi-acceptance-red-check/v1",
+                        "status": "green",
+                        "submodules": [],
+                        "tested_main": option("--tested-main"),
+                        "wave_tip": option("--wave-tip"),
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                + "\n"
+            ).encode("ascii")
+            return DW._CommandResult(0)
         if actual == _helper("release", lease_dir=self.lease_dir):
             self.releases += 1
             lease_path = self.lease_dir / "acceptance.lease"
@@ -850,6 +995,8 @@ def test_preflight_untracked_dirty_rejects_before_claim(tmp_path: Path) -> None:
             str(lease),
             "--receipt-file",
             str(tmp_path / "untracked-receipt.json"),
+            "--log-file",
+            str(tmp_path / "untracked.log"),
             "--",
             "python3",
             "tools/run_tests.py",
@@ -1143,12 +1290,13 @@ def test_nonzero_child_is_postchecked_before_propagation() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(23), capture=False)
+    _queue_checker(fake, status="green", nodes=[])
     _release(fake)
 
     outcome = _run_acceptance(fake)
 
-    assert outcome.rc == 23
-    assert outcome.stage == "acceptance-command"
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-red-check"
     child_index = fake.events.index(("run", _COMMAND, _REPO, False))
     release_index = fake.events.index(("run", _helper("release"), _REPO, True))
     assert ("run", _INDEX_FLAGS_ARGV, _REPO, True) in fake.events[child_index:release_index]
@@ -1229,14 +1377,17 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
     receipt = json.loads(fake.receipt_content)
     assert set(receipt) == {
         "schema_version", "authority_kind", "acceptance_wave", "lease_holder",
-        "tested_tip", "argv", "resolved_runner_path", "child_rc",
+        "tested_main", "tested_tip", "argv", "resolved_runner_path", "child_rc",
         "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
-        "env_projection",
+        "env_projection", "verdict", "log_sha256", "checker_rc",
+        "checker_status", "checker_blob_sha", "checker_receipt_sha256",
+        "red_nodeids",
     }
-    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v1"
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v2"
     assert receipt["authority_kind"] == "dev-wave-wait-acceptance"
     assert receipt["acceptance_wave"] == _WAVE
     assert receipt["lease_holder"] == _HOLDER
+    assert receipt["tested_main"] == _SHA_A
     assert receipt["tested_tip"] == _SHA_A
     assert receipt["argv"] == list(_COMMAND)
     assert receipt["resolved_runner_path"] == "--flag"
@@ -1244,6 +1395,13 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
     assert receipt["pre_fingerprint"] == receipt["post_fingerprint"]
     assert receipt["pre_fingerprint"]["head_sha"] == _SHA_A
     assert receipt["waiter_blob_sha"] == _WAITER_BLOB
+    assert receipt["verdict"] == "child-green"
+    assert receipt["log_sha256"] == hashlib.sha256(b"").hexdigest()
+    assert receipt["checker_rc"] is None
+    assert receipt["checker_status"] is None
+    assert receipt["checker_blob_sha"] is None
+    assert receipt["checker_receipt_sha256"] is None
+    assert receipt["red_nodeids"] == []
     assert receipt["env_projection"] == {
         "PYTEST_ADDOPTS": None,
         "PYTEST_PLUGINS": None,
@@ -1258,13 +1416,135 @@ def test_failed_acceptance_never_publishes_receipt(child_rc: int) -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(child_rc), capture=False)
+    _queue_checker(fake, status="green", nodes=[])
     _release(fake)
 
     outcome = _run_acceptance(fake)
 
-    assert outcome.rc == child_rc
+    assert outcome == DW._Outcome(70, "acceptance-red-check")
     assert fake.receipt_content is None
     assert fake.receipt_published is False
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("checker_rc", [1, 2], ids=("attributable", "unknown"))
+def test_failed_acceptance_rejects_nonzero_checker_rc(checker_rc: int) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    _queue_checker(fake, rc=checker_rc)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-red-check",
+        checker_rc,
+    )
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    fake.assert_drained()
+
+
+def test_non_attributable_only_publishes_receipt_with_real_child_rc() -> None:
+    fake = _FakeEffects()
+    fake.logged_bytes = b"synthetic failing pytest log\n"
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    checker_raw = _queue_checker(fake)
+    _queue_non_attributable_receipt_tail(fake)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(0)
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["verdict"] == "non-attributable-only"
+    assert receipt["child_rc"] == 1
+    assert receipt["checker_rc"] == 0
+    assert receipt["checker_status"] == "non-attributable-only"
+    assert receipt["checker_blob_sha"] == _CHECKER_BLOB
+    assert receipt["checker_receipt_sha256"] == hashlib.sha256(
+        checker_raw
+    ).hexdigest()
+    assert receipt["red_nodeids"] == [
+        "orchestrator/tests/test_known.py::test_known"
+    ]
+    assert receipt["log_sha256"] == hashlib.sha256(fake.logged_bytes).hexdigest()
+    fake.assert_drained()
+
+
+def test_checker_receipt_log_hash_mismatch_is_rejected() -> None:
+    fake = _FakeEffects()
+    fake.logged_bytes = b"owned log bytes\n"
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    _queue_checker(fake, log_sha256=hashlib.sha256(b"other log").hexdigest())
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-red-check")
+    assert fake.receipt_content is None
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("schema_version", "wave_tip", "tested_main", "classification"),
+)
+def test_checker_receipt_identity_and_nodes_are_bound(field: str) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    checker_raw = _queue_checker(fake)
+    payload = json.loads(checker_raw)
+    if field == "schema_version":
+        payload[field] = "izanagi-acceptance-red-check/v0"
+    elif field in {"wave_tip", "tested_main"}:
+        payload[field] = _SHA_B
+    else:
+        payload["nodes"][0][field] = "attributable"
+    fake.byte_files[_CHECKER_RECEIPT] = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("ascii")
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-red-check")
+    assert fake.receipt_content is None
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "postcheck",
+    ("postrun-clean", "postrun-index-flags", "postrun-fingerprint"),
+)
+def test_postrun_failure_prevents_red_checker(postcheck: str) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(1),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    if postcheck == "postrun-clean":
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, " M changed.py\n"))
+    elif postcheck == "postrun-index-flags":
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, "S hidden.py\0"))
+    else:
+        _postrun_integrity(fake, head=_SHA_B)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, postcheck)
+    assert not any(event[0] == "run" and event[1] == _checker_argv()
+                   for event in fake.events)
     fake.assert_drained()
 
 
@@ -1477,6 +1757,43 @@ def test_receipt_path_rejected_before_claim(case: str) -> None:
     fake.assert_drained()
 
 
+def test_existing_log_path_is_rejected_before_claim() -> None:
+    fake = _FakeEffects()
+    fake.existing_paths.add(_LOG)
+    _preflight(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(2, "acceptance-log-preflight")
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "case",
+    ("existing-checker-receipt", "symlink-probe-root"),
+)
+def test_red_checker_paths_are_rejected_before_claim(case: str) -> None:
+    fake = _FakeEffects()
+    if case == "existing-checker-receipt":
+        fake.existing_paths.add(_CHECKER_RECEIPT)
+    else:
+        fake.symlinks.add(_LOG.parent)
+    _preflight(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(2, "acceptance-red-check-preflight")
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
 @pytest.mark.parametrize(
     ("key", "value"),
     [
@@ -1517,6 +1834,8 @@ def test_real_pytest_addopts_is_rejected_before_claim(tmp_path: Path) -> None:
             str(lease),
             "--receipt-file",
             str(receipt),
+            "--log-file",
+            str(tmp_path / "env.log"),
             "--",
             "python3",
             "tools/run_tests.py",
@@ -1820,8 +2139,8 @@ def test_acceptance_real_acquired_payload_runs_command_and_releases_on_failure(
 
     outcome = _run_acceptance(fake)
 
-    assert outcome.rc == 23
-    assert outcome.stage == "acceptance-command"
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-red-check"
     assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 1)
     assert fake.events.count(("sleep", 30)) == 0
 
@@ -1953,6 +2272,8 @@ def test_public_main_self_renew_failure_reports_reason_without_poll_or_release(
             str(_LEASE),
             "--receipt-file",
             str(_RECEIPT),
+            "--log-file",
+            str(_LOG),
             "--",
             *_COMMAND,
         ],
@@ -3087,8 +3408,8 @@ def test_held_self_acceptance_red_retains_real_lease_without_polling(
 
     outcome = _run_acceptance(fake, lease_dir=lease_dir)
 
-    assert outcome.rc == 23
-    assert outcome.stage == "acceptance-command"
+    assert outcome.rc == 70
+    assert outcome.stage == "acceptance-red-check"
     assert fake.releases == 0
     assert fake.events.count(("sleep", 30)) == 0
     assert (lease_path.stat().st_mtime_ns, lease_path.read_bytes()) == before
@@ -3145,9 +3466,10 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(23), capture=False)
+    _queue_checker(fake, status="green", nodes=[])
     _release(fake)
     outcome = _run_acceptance(fake)
-    assert outcome.rc == 23
+    assert outcome.rc == 70
     assert fake.events == [
         *_PREFLIGHT_EVENTS,
         ("monotonic",),
@@ -3161,6 +3483,7 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
         *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
+        ("run", _checker_argv(), _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -3192,6 +3515,9 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             resolve_path=effects.resolve_path,
             write_receipt_temp=effects.write_receipt_temp,
             rename=effects.rename,
+            run_logged=effects.run_logged,
+            read_bytes=effects.read_bytes,
+            is_symlink=effects.is_symlink,
         )
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
@@ -3200,6 +3526,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             wave=_WAVE, lease_dir=_LEASE, merge_message_file=None,
             poll_seconds=30, max_wait_seconds=7200, command=_COMMAND,
             repo=_REPO, effects=effects, receipt_file=_RECEIPT,
+            log_file=_LOG,
         )
     assert outcome.rc == (130 if kind == "keyboard-interrupt" else 70)
     expected = [
@@ -3488,6 +3815,7 @@ def test_acceptance_cli_contract(case: str) -> None:
     base = [
         "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
         "--receipt-file", str(_RECEIPT),
+        "--log-file", str(_LOG),
     ]
     if case == "missing-delimiter":
         argv = base + ["harmless"]
@@ -3520,6 +3848,8 @@ def test_acceptance_owned_path_is_repeatable() -> None:
             str(_LEASE),
             "--receipt-file",
             str(_RECEIPT),
+            "--log-file",
+            str(_LOG),
             "--owned-path",
             "./docs/x.md",
             "--owned-path",
@@ -3542,6 +3872,24 @@ def test_acceptance_cli_requires_receipt_file() -> None:
             _WAVE,
             "--lease-dir",
             str(_LEASE),
+            "--log-file",
+            str(_LOG),
+            "--",
+            "harmless",
+        ])
+    assert raised.value.outcome == DW._Outcome(2, "cli-usage")
+
+
+def test_acceptance_cli_requires_log_file() -> None:
+    with pytest.raises(DW._StageFailure) as raised:
+        DW._parse_cli([
+            "acceptance",
+            "--wave",
+            _WAVE,
+            "--lease-dir",
+            str(_LEASE),
+            "--receipt-file",
+            str(_RECEIPT),
             "--",
             "harmless",
         ])
@@ -3766,6 +4114,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
             [
                 "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
                 "--receipt-file", str(_RECEIPT),
+                "--log-file", str(_LOG),
                 "--", *_COMMAND,
             ],
             effects=fake.effects,
@@ -3821,6 +4170,7 @@ def test_public_main_failure_restores_handler_without_release() -> None:
             [
                 "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
                 "--receipt-file", str(_RECEIPT),
+                "--log-file", str(_LOG),
                 "--", *_COMMAND,
             ],
             effects=fake.effects,
@@ -3944,6 +4294,8 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
             str(lease),
             "--receipt-file",
             str(tmp_path / "dirty-receipt.json"),
+            "--log-file",
+            str(tmp_path / "dirty.log"),
             "--",
             sys.executable,
             "-c",
@@ -4022,6 +4374,8 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
             str(message),
             "--receipt-file",
             str(tmp_path / "provenance-receipt.json"),
+            "--log-file",
+            str(tmp_path / "provenance.log"),
             "--",
             sys.executable,
             "-c",
@@ -4124,6 +4478,8 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
             str(message),
             "--receipt-file",
             str(tmp_path / "integration-receipt.json"),
+            "--log-file",
+            str(tmp_path / "integration.log"),
             "--",
             sys.executable,
             "-c",
@@ -4139,8 +4495,17 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "lease is held" in result.stdout
-    assert "CHILD-STDOUT-SENTINEL" in result.stdout
-    assert "CHILD-STDERR-SENTINEL" in result.stderr
+    captured_log = (tmp_path / "integration.log").read_text(encoding="utf-8")
+    assert "CHILD-STDOUT-SENTINEL" in captured_log
+    assert "CHILD-STDERR-SENTINEL" in captured_log
+    assert "CHILD-STDOUT-SENTINEL" not in result.stdout
+    assert "CHILD-STDERR-SENTINEL" not in result.stderr
+    integration_receipt = json.loads(
+        (tmp_path / "integration-receipt.json").read_text(encoding="ascii")
+    )
+    assert integration_receipt["log_sha256"] == hashlib.sha256(
+        (tmp_path / "integration.log").read_bytes()
+    ).hexdigest()
     assert "AI-Agent: product=codex" in git(
         "log", "-1", "--format=%B", "HEAD"
     ).stdout
@@ -4238,6 +4603,8 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
             "1",
             "--receipt-file",
             str(tmp_path / "second-receipt.json"),
+            "--log-file",
+            str(tmp_path / "second.log"),
             "--",
             sys.executable,
             "-c",
@@ -4251,7 +4618,10 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     )
 
     assert result.returncode == 0, result.stderr
-    assert "SECOND-ACCEPTANCE-SENTINEL" in result.stdout
+    assert "SECOND-ACCEPTANCE-SENTINEL" in (
+        tmp_path / "second.log"
+    ).read_text(encoding="utf-8")
+    assert "SECOND-ACCEPTANCE-SENTINEL" not in result.stdout
     assert "claim-timeout" not in result.stderr
     assert lease_path.read_bytes() == before_payload
     assert lease_path.stat().st_mtime_ns > before_mtime
@@ -4298,6 +4668,8 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
             "signal",
             "--receipt-file",
             str(tmp_path / "signal-receipt.json"),
+            "--log-file",
+            str(tmp_path / "signal.log"),
             "--",
             sys.executable,
             "-c",
@@ -4354,7 +4726,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "received=[]\n"
         "signal.signal(signal.SIGTERM, lambda n, f: received.append(n))\n"
         "rc=module.main(['acceptance','--wave','signal-success',"
-        "'--receipt-file',sys.argv[3],'--',"
+        "'--receipt-file',sys.argv[3],'--log-file',sys.argv[4],'--',"
         "sys.executable,'-c','raise SystemExit(0)'], repo=Path(sys.argv[2]))\n"
         "os.kill(os.getpid(), signal.SIGTERM)\n"
         "print(f'RESTORED={received} RC={rc}')\n"
@@ -4369,6 +4741,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
             str(_TOOL),
             str(repo),
             str(tmp_path / "signal-success-receipt.json"),
+            str(tmp_path / "signal-success.log"),
         ],
         cwd=repo,
         capture_output=True,

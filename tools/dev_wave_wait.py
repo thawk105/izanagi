@@ -37,9 +37,11 @@ _STAGE_TIMEOUT_SECONDS = 300
 _STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
-_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v1"
+_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v2"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
+_RED_CHECK_SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
+_RED_CHECK_RECEIPT_SUFFIX = ".acceptance-red-check.json"
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _PYTEST_ENV_KEYS = ("PYTEST_ADDOPTS", "PYTEST_PLUGINS")
@@ -125,6 +127,15 @@ class _AcceptanceEnvironment:
         }
 
 
+@dataclass(frozen=True)
+class _RedCheckResult:
+    checker_rc: int
+    checker_status: str
+    checker_blob_sha: str
+    checker_receipt_sha256: str
+    red_nodeids: tuple[str, ...]
+
+
 class _PidState(Enum):
     ALIVE = "alive"
     DEAD = "dead"
@@ -148,6 +159,9 @@ class _Effects:
     resolve_path: Callable[[Path], Path] | None = None
     write_receipt_temp: Callable[[Path, bytes], Path] | None = None
     rename: Callable[[Path, Path], None] | None = None
+    run_logged: Callable[[Sequence[str], Path, Path], _CommandResult] | None = None
+    read_bytes: Callable[[Path], bytes] | None = None
+    is_symlink: Callable[[Path], bool] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -253,6 +267,22 @@ def _default_run_unbounded(
     return _run_subprocess(argv, cwd, capture, stage_policy=False)
 
 
+def _default_run_logged(
+    argv: Sequence[str], cwd: Path, log_file: Path
+) -> _CommandResult:
+    with log_file.open("xb") as stream:
+        result = subprocess.run(
+            list(argv),
+            cwd=cwd,
+            shell=False,
+            check=False,
+            stdin=None,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+        )
+    return _CommandResult(result.returncode)
+
+
 def _default_read_text(path: Path) -> str:
     # newline translation を無効にし、検査した UTF-8 bytes を一時 file へ再現する。
     with path.open("r", encoding="utf-8", newline="") as stream:
@@ -309,6 +339,9 @@ def _default_effects() -> _Effects:
         resolve_path=lambda path: path.resolve(strict=False),
         write_receipt_temp=_default_write_receipt_temp,
         rename=os.rename,
+        run_logged=_default_run_logged,
+        read_bytes=Path.read_bytes,
+        is_symlink=Path.is_symlink,
     )
 
 
@@ -351,6 +384,7 @@ def _acceptance_parser() -> argparse.ArgumentParser:
     parser.add_argument("--wave", required=True)
     parser.add_argument("--lease-dir", type=Path)
     parser.add_argument("--receipt-file", type=Path, required=True)
+    parser.add_argument("--log-file", type=Path, required=True)
     parser.add_argument("--merge-message-file", type=Path)
     parser.add_argument("--owned-path", type=Path, action="append", default=[])
     parser.add_argument(
@@ -643,6 +677,12 @@ def _path_is_dir(effects: _Effects, path: Path) -> bool:
     return path.is_dir()
 
 
+def _path_is_symlink(effects: _Effects, path: Path) -> bool:
+    if effects.is_symlink is not None:
+        return effects.is_symlink(path)
+    return path.is_symlink()
+
+
 def _resolve_path(effects: _Effects, path: Path) -> Path:
     if effects.resolve_path is not None:
         return effects.resolve_path(path)
@@ -657,6 +697,56 @@ def _is_within(path: Path, root: Path) -> bool:
     return True
 
 
+def _external_new_file_preflight(
+    effects: _Effects,
+    repo: Path,
+    path: Path,
+    stage: str,
+    *,
+    reserved_prefix: str | None = None,
+) -> Path:
+    try:
+        resolved_repo = _resolve_path(effects, repo)
+        resolved_path = _resolve_path(effects, path)
+        if (
+            _is_within(resolved_path, resolved_repo)
+            or (
+                reserved_prefix is not None
+                and path.name.startswith(reserved_prefix)
+            )
+            or not _path_is_dir(effects, path.parent)
+            or _path_exists(effects, path)
+        ):
+            raise _StageFailure(stage, RC_USAGE)
+        return resolved_path
+    except _StageFailure:
+        raise
+    except (OSError, RuntimeError, UnicodeError, ValueError):
+        raise _StageFailure(stage, RC_USAGE) from None
+
+
+def _external_probe_root_preflight(
+    effects: _Effects,
+    repo: Path,
+    path: Path,
+) -> Path:
+    stage = "acceptance-red-check-preflight"
+    try:
+        resolved_repo = _resolve_path(effects, repo)
+        resolved_path = _resolve_path(effects, path)
+        if (
+            _is_within(resolved_path, resolved_repo)
+            or not _path_is_dir(effects, path)
+            or _path_is_symlink(effects, path)
+        ):
+            raise _StageFailure(stage, RC_USAGE)
+        return resolved_path
+    except _StageFailure:
+        raise
+    except (OSError, RuntimeError, UnicodeError, ValueError):
+        raise _StageFailure(stage, RC_USAGE) from None
+
+
 def _acceptance_receipt_preflight(
     effects: _Effects,
     repo: Path,
@@ -665,14 +755,13 @@ def _acceptance_receipt_preflight(
 ) -> str:
     try:
         resolved_repo = _resolve_path(effects, repo)
-        resolved_receipt = _resolve_path(effects, receipt_file)
-        if (
-            _is_within(resolved_receipt, resolved_repo)
-            or receipt_file.name.startswith(_RECEIPT_TEMP_PREFIX)
-            or not _path_is_dir(effects, receipt_file.parent)
-            or _path_exists(effects, receipt_file)
-        ):
-            raise _StageFailure("acceptance-receipt-preflight", RC_USAGE)
+        _external_new_file_preflight(
+            effects,
+            repo,
+            receipt_file,
+            "acceptance-receipt-preflight",
+            reserved_prefix=_RECEIPT_TEMP_PREFIX,
+        )
         if len(command) < 2:
             raise _StageFailure("acceptance-receipt-preflight", RC_USAGE)
         runner = Path(command[1])
@@ -686,6 +775,35 @@ def _acceptance_receipt_preflight(
         raise
     except (OSError, RuntimeError, UnicodeError, ValueError):
         raise _StageFailure("acceptance-receipt-preflight", RC_USAGE) from None
+
+
+def _acceptance_log_preflight(
+    effects: _Effects,
+    repo: Path,
+    log_file: Path,
+    receipt_file: Path,
+) -> tuple[Path, Path, Path]:
+    resolved_log = _external_new_file_preflight(
+        effects,
+        repo,
+        log_file,
+        "acceptance-log-preflight",
+    )
+    if resolved_log == _resolve_path(effects, receipt_file):
+        raise _StageFailure("acceptance-log-preflight", RC_USAGE)
+    checker_receipt = receipt_file.with_name(
+        receipt_file.name + _RED_CHECK_RECEIPT_SUFFIX
+    )
+    resolved_checker_receipt = _external_new_file_preflight(
+        effects,
+        repo,
+        checker_receipt,
+        "acceptance-red-check-preflight",
+    )
+    if resolved_checker_receipt == resolved_log:
+        raise _StageFailure("acceptance-red-check-preflight", RC_USAGE)
+    probe_root = _external_probe_root_preflight(effects, repo, log_file.parent)
+    return resolved_log, resolved_checker_receipt, probe_root
 
 
 def _acceptance_environment_preflight(
@@ -1129,6 +1247,7 @@ def _acceptance_receipt_bytes(
     *,
     wave: str,
     holder: str,
+    tested_main: str,
     tested_tip: str,
     command: Sequence[str],
     resolved_runner_path: str,
@@ -1136,20 +1255,48 @@ def _acceptance_receipt_bytes(
     post_fingerprint: _TreeFingerprint,
     waiter_blob_sha: str,
     environment: _AcceptanceEnvironment,
+    child_rc: int,
+    verdict: str,
+    log_sha256: str,
+    red_check: _RedCheckResult | None,
 ) -> bytes:
+    if not (
+        _SHA_RE.fullmatch(tested_main) is not None
+        and _SHA_RE.fullmatch(tested_tip) is not None
+        and re.fullmatch(r"[0-9a-f]{64}", log_sha256) is not None
+    ):
+        raise _StageFailure("acceptance-receipt")
+    if verdict == "child-green":
+        if child_rc != 0 or red_check is not None:
+            raise _StageFailure("acceptance-receipt")
+    elif verdict == "non-attributable-only":
+        if child_rc == 0 or red_check is None or not red_check.red_nodeids:
+            raise _StageFailure("acceptance-receipt")
+    else:
+        raise _StageFailure("acceptance-receipt")
     receipt = {
         "schema_version": _RECEIPT_SCHEMA_VERSION,
         "authority_kind": _RECEIPT_AUTHORITY_KIND,
         "acceptance_wave": wave,
         "lease_holder": holder,
+        "tested_main": tested_main,
         "tested_tip": tested_tip,
         "argv": list(command),
         "resolved_runner_path": resolved_runner_path,
-        "child_rc": 0,
+        "child_rc": child_rc,
         "pre_fingerprint": _fingerprint_json(pre_fingerprint),
         "post_fingerprint": _fingerprint_json(post_fingerprint),
         "waiter_blob_sha": waiter_blob_sha,
         "env_projection": environment.as_json(),
+        "verdict": verdict,
+        "log_sha256": log_sha256,
+        "checker_rc": None if red_check is None else red_check.checker_rc,
+        "checker_status": None if red_check is None else red_check.checker_status,
+        "checker_blob_sha": None if red_check is None else red_check.checker_blob_sha,
+        "checker_receipt_sha256": (
+            None if red_check is None else red_check.checker_receipt_sha256
+        ),
+        "red_nodeids": [] if red_check is None else list(red_check.red_nodeids),
     }
     try:
         return (
@@ -1163,6 +1310,101 @@ def _acceptance_receipt_bytes(
         ).encode("ascii")
     except (TypeError, UnicodeError, ValueError, RecursionError):
         raise _StageFailure("acceptance-receipt") from None
+
+
+def _read_bytes(effects: _Effects, path: Path, stage: str) -> bytes:
+    reader = effects.read_bytes or Path.read_bytes
+    try:
+        value = reader(path)
+    except (OSError, UnicodeError, ValueError):
+        raise _StageFailure(stage) from None
+    if not isinstance(value, bytes):
+        raise _StageFailure(stage)
+    return value
+
+
+def _verify_red_check_receipt(
+    *,
+    effects: _Effects,
+    repo: Path,
+    log_file: Path,
+    checker_receipt: Path,
+    probe_root: Path,
+    tested_main: str,
+    tested_tip: str,
+    log_sha256: str,
+) -> _RedCheckResult:
+    stage = "acceptance-red-check"
+    checker_argv = (
+        sys.executable,
+        str(repo / "tools" / "check_acceptance_reds.py"),
+        "--log",
+        str(log_file),
+        "--tested-main",
+        tested_main,
+        "--wave-tip",
+        tested_tip,
+        "--receipt",
+        str(checker_receipt),
+        "--probe-root",
+        str(probe_root),
+    )
+    try:
+        checker = effects.run(checker_argv, repo, False)
+    except (OSError, UnicodeError, subprocess.SubprocessError):
+        raise _StageFailure(stage) from None
+    checker_rc = _normalize_child_rc(checker.returncode)
+    if checker_rc != 0:
+        raise _StageFailure(stage, source_rc=checker.returncode)
+    raw = _read_bytes(effects, checker_receipt, stage)
+    try:
+        receipt = _parse_json_object(raw.decode("utf-8"), stage=stage)
+    except UnicodeError:
+        raise _StageFailure(stage) from None
+    expected_fields = {
+        "log_path", "log_sha256", "nodes", "schema_version", "status",
+        "submodules", "tested_main", "wave_tip",
+    }
+    nodes = receipt.get("nodes")
+    if not (
+        set(receipt) == expected_fields
+        and receipt.get("schema_version") == _RED_CHECK_SCHEMA_VERSION
+        and receipt.get("status") == "non-attributable-only"
+        and receipt.get("log_sha256") == log_sha256
+        and receipt.get("wave_tip") == tested_tip
+        and receipt.get("tested_main") == tested_main
+        and isinstance(nodes, list)
+        and nodes
+    ):
+        raise _StageFailure(stage)
+    red_nodeids: list[str] = []
+    for node in nodes:
+        if not (
+            isinstance(node, dict)
+            and set(node) == {"classification", "nodeid", "rerun_rc"}
+            and node.get("classification") == "non-attributable"
+            and isinstance(node.get("nodeid"), str)
+            and node["nodeid"]
+            and type(node.get("rerun_rc")) is int
+        ):
+            raise _StageFailure(stage)
+        red_nodeids.append(node["nodeid"])
+    if red_nodeids != sorted(set(red_nodeids)):
+        raise _StageFailure(stage)
+    checker_blob_sha = _blob_sha(
+        effects,
+        repo,
+        tested_tip,
+        "tools/check_acceptance_reds.py",
+        stage,
+    )
+    return _RedCheckResult(
+        checker_rc=checker_rc,
+        checker_status="non-attributable-only",
+        checker_blob_sha=checker_blob_sha,
+        checker_receipt_sha256=hashlib.sha256(raw).hexdigest(),
+        red_nodeids=tuple(red_nodeids),
+    )
 
 
 def _prepare_acceptance_receipt(
@@ -1239,6 +1481,7 @@ def run_acceptance(
     repo: Path,
     effects: _Effects,
     receipt_file: Path,
+    log_file: Path,
     lifecycle: _AcceptanceLifecycle | None = None,
     owned_paths: Sequence[Path] = (),
 ) -> _Outcome:
@@ -1249,6 +1492,9 @@ def run_acceptance(
     committed_sha: str | None = None
     claim_context: _ClaimContext | None = None
     receipt_temp: Path | None = None
+    resolved_log_file: Path | None = None
+    checker_receipt: Path | None = None
+    probe_root: Path | None = None
     try:
         _identity_preflight(effects, repo, wave)
         _check_index_flags(effects, repo, "preflight-index-flags")
@@ -1258,6 +1504,12 @@ def run_acceptance(
             repo,
             receipt_file,
             command,
+        )
+        resolved_log_file, checker_receipt, probe_root = _acceptance_log_preflight(
+            effects,
+            repo,
+            log_file,
+            receipt_file,
         )
         acceptance_environment = _acceptance_environment_preflight(effects, repo)
         if merge_message_file is not None and not effects.is_file(merge_message_file):
@@ -1360,9 +1612,11 @@ def run_acceptance(
             "acceptance-command timeout=none (long-running acceptance is intentional)",
             file=sys.stderr,
         )
+        assert resolved_log_file is not None
         try:
             # 受入 command 自身は正当に長時間走るため、stage timeout を適用しない。
-            child = effects.run_unbounded(tuple(command), repo, False)
+            run_logged = effects.run_logged or _default_run_logged
+            child = run_logged(tuple(command), repo, resolved_log_file)
         except (OSError, UnicodeError, subprocess.SubprocessError):
             raise _StageFailure("acceptance-command") from None
         child_rc = _normalize_child_rc(child.returncode)
@@ -1388,85 +1642,105 @@ def run_acceptance(
         )
         if postrun_fingerprint != prerun_fingerprint:
             raise _StageFailure("postrun-fingerprint")
-        if child_rc == 0:
-            assert claim_context is not None and claim_context.holder is not None
-            waiter_blob_sha = _blob_sha(
-                effects,
-                repo,
-                postrun_fingerprint.head_sha,
-                "tools/dev_wave_wait.py",
-                "acceptance-receipt",
-            )
-            receipt_content = _acceptance_receipt_bytes(
-                wave=wave,
-                holder=claim_context.holder,
+        log_sha256 = hashlib.sha256(
+            _read_bytes(effects, resolved_log_file, "acceptance-command")
+        ).hexdigest()
+        assert claim_context is not None and claim_context.holder is not None
+        red_check: _RedCheckResult | None = None
+        verdict = "child-green"
+        if child_rc != 0:
+            assert checker_receipt is not None and probe_root is not None
+            red_check = _verify_red_check_receipt(
+                effects=effects,
+                repo=repo,
+                log_file=resolved_log_file,
+                checker_receipt=checker_receipt,
+                probe_root=probe_root,
+                tested_main=claim_context.main_sha,
                 tested_tip=postrun_fingerprint.head_sha,
-                command=command,
-                resolved_runner_path=resolved_runner_path,
-                pre_fingerprint=prerun_fingerprint,
-                post_fingerprint=postrun_fingerprint,
-                waiter_blob_sha=waiter_blob_sha,
-                environment=acceptance_environment,
+                log_sha256=log_sha256,
             )
-            receipt_temp = _prepare_acceptance_receipt(
-                effects=effects,
-                receipt_file=receipt_file,
-                content=receipt_content,
-            )
-            final_main_sha = _main_sha(
+            verdict = "non-attributable-only"
+        waiter_blob_sha = _blob_sha(
+            effects,
+            repo,
+            postrun_fingerprint.head_sha,
+            "tools/dev_wave_wait.py",
+            "acceptance-receipt",
+        )
+        receipt_content = _acceptance_receipt_bytes(
+            wave=wave,
+            holder=claim_context.holder,
+            tested_main=claim_context.main_sha,
+            tested_tip=postrun_fingerprint.head_sha,
+            command=command,
+            resolved_runner_path=resolved_runner_path,
+            pre_fingerprint=prerun_fingerprint,
+            post_fingerprint=postrun_fingerprint,
+            waiter_blob_sha=waiter_blob_sha,
+            environment=acceptance_environment,
+            child_rc=child_rc,
+            verdict=verdict,
+            log_sha256=log_sha256,
+            red_check=red_check,
+        )
+        receipt_temp = _prepare_acceptance_receipt(
+            effects=effects,
+            receipt_file=receipt_file,
+            content=receipt_content,
+        )
+        final_main_sha = _main_sha(
+            effects,
+            repo,
+            "acceptance-receipt",
+        )
+        if final_main_sha != claim_context.main_sha:
+            raise _StageFailure("acceptance-receipt")
+        confirmation_lifecycle = _AcceptanceLifecycle()
+        try:
+            confirmed = _claim_once(
                 effects,
                 repo,
-                "acceptance-receipt",
+                lease_dir,
+                wave,
+                final_main_sha,
+                confirmation_lifecycle,
             )
-            if final_main_sha != claim_context.main_sha:
-                raise _StageFailure("acceptance-receipt")
-            confirmation_lifecycle = _AcceptanceLifecycle()
-            try:
-                confirmed = _claim_once(
-                    effects,
-                    repo,
-                    lease_dir,
-                    wave,
-                    final_main_sha,
-                    confirmation_lifecycle,
-                )
-            except _StageFailure as exc:
-                if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
-                    active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
-                raise _StageFailure(
-                    "acceptance-receipt",
-                    source_rc=exc.outcome.source_rc,
-                ) from None
-            if confirmed.state == "acquired":
+        except _StageFailure as exc:
+            if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
                 active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
-            confirmed_remaining = (
-                _LEASE_TTL_SECONDS - confirmed.age_seconds
-                if confirmed.age_seconds is not None
-                else -1
-            )
-            if not (
-                confirmed.state == "held-self"
-                and confirmed.holder == claim_context.holder
-                and confirmed.main_sha == claim_context.main_sha
-                and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
-            ):
-                raise _StageFailure("acceptance-receipt")
-            _publish_acceptance_receipt(
-                effects=effects,
-                lifecycle=active_lifecycle,
-                receipt_file=receipt_file,
-                temp_path=receipt_temp,
-            )
-            receipt_temp = None
-            print(
-                "acceptance succeeded; lease is held; "
-                f"TTL remaining at most {confirmed_remaining} seconds; "
-                "exclusivity is lost after expiry"
-            )
-            print("known limitation: no fencing token is provided")
-            primary = _Outcome(RC_OK)
-        else:
-            primary = _Outcome(child_rc, "acceptance-command", child.returncode)
+            raise _StageFailure(
+                "acceptance-receipt",
+                source_rc=exc.outcome.source_rc,
+            ) from None
+        if confirmed.state == "acquired":
+            active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
+        confirmed_remaining = (
+            _LEASE_TTL_SECONDS - confirmed.age_seconds
+            if confirmed.age_seconds is not None
+            else -1
+        )
+        if not (
+            confirmed.state == "held-self"
+            and confirmed.holder == claim_context.holder
+            and confirmed.main_sha == claim_context.main_sha
+            and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+        ):
+            raise _StageFailure("acceptance-receipt")
+        _publish_acceptance_receipt(
+            effects=effects,
+            lifecycle=active_lifecycle,
+            receipt_file=receipt_file,
+            temp_path=receipt_temp,
+        )
+        receipt_temp = None
+        print(
+            "acceptance succeeded; lease is held; "
+            f"TTL remaining at most {confirmed_remaining} seconds; "
+            "exclusivity is lost after expiry"
+        )
+        print("known limitation: no fencing token is provided")
+        primary = _Outcome(RC_OK)
     except _StageFailure as exc:
         primary = exc.outcome
     except KeyboardInterrupt:
@@ -1595,6 +1869,7 @@ def main(
                     repo=active_repo,
                     effects=active_effects,
                     receipt_file=args.receipt_file,
+                    log_file=args.log_file,
                     lifecycle=lifecycle,
                     owned_paths=args.owned_path,
                 )
