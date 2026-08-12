@@ -51,6 +51,28 @@ oracle spec の承認経路にその要求は存在しない (`_assert_user_comm
 工数: codex 3 本 (plan sol/max、consult sol/max、consult luna/max)、いずれも受理検査 rc=0。
 親は段 2 の出力を読む前に独立見解を固定し、子と突き合わせた。
 
+**受入全走は赤で、land していない。** 免除しなかった理由 = `output/insights` と `docs/spool` を
+読む real-repo テストが実在する (`grep -rln "output/insights\|docs/spool" orchestrator/tests/` が
+20 件以上を返す)。走行は 2026-08-13 00:05 JST 投入、request 908424.nqsv、3 failed。
+
+- **2 件はフレークと実測。** `test_codex_worker_launch.py` の
+  `test_parallel_jobs_preserve_both_manifest_entries` と
+  `test_fake_stdout_matches_observed_cli_event_shape`。全走では
+  `codex_exit_code=-9` (SIGKILL)、`wall_clock_s` 2.07 対 budget 3.0、
+  bnode112 の loadavg 23.6、xdist gw26。**単独再走 (login、`-p no:randomly`) で 2 件とも緑**
+  (2 passed、18.38 秒)。本 wave の差分はこの経路に到達しない。
+- **1 件は main 側の論理的な赤で、単独再走でも再現する。**
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が `[octopus-merge] d1de13add1bcbcfeb415cf13303848ad32dde212` で失敗する。
+  この commit は**本 wave の受入走行中 (2026-08-13 00:45:56 JST) に別 wave が main へ入れた
+  親 4 つの merge** (`Merge 3 rulings branches into land wave`)。
+  `git merge-base --is-ancestor` で **main 自身が含む**ことを確認した。
+  過去の同 nodeid の赤は `git-timeout` / SIGKILL のフレークだったが (archive 341-342 / 344 / 352)、
+  **今回は timeout ではなく履歴不変条件の論理違反であり、別種である。**
+  この赤は本 wave の差分に帰属せず、**octopus merge が main に残る限り全 wave の受入を止める。**
+  修復は main の履歴書き換えか不変条件の改訂を要し、どちらもユーザー裁定事項のため
+  本 wave では手を付けず fail-closed で停止した。
+
 ## 次の一手差分
 
 ### 更新
