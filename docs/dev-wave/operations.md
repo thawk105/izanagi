@@ -110,8 +110,8 @@ Codex著者行を要求されlandが止まる。
 
 cwd を必ず repo root にする。nested subprocess の import path による偽赤を差分の回帰として扱わない。
 file 選択走は `from tests import` の import path を確立してから走らせる (未確立の赤は偽赤)。
-受入赤は `tools/check_acceptance_reds.py` で tested main 単独再走を実測し、rc=0 だけを非帰属とする。
-帰属・入力不成立・probe 異常は停止する。再現しない赤はフレークとして新規所見に起票する。
+差分が到達しえない赤は単独再走で実測し、再現しなければ帰属せずフレーク起票する。
+`tools/check_acceptance_reds.py` はこの機械化で rc=1 なら停止。rc=2 は判定不能で非帰属の根拠にしない。
 測定値は測った checkout を併記する（F41）。変更した test file は受入全走の前に別 process の
 単独走で 1 度確認する。全走の緑は file 単独の緑を含意しない。新規 test file を足す走は
 file 集合を列挙するメタテストも焦点走に含める。並行 wave が自分の編集 file を所有するなら
