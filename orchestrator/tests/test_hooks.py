@@ -31,12 +31,18 @@ from orchestrator.campaign import source_digest                               # 
 from skiputil import skip, skip_conditional_unrun                # noqa: E402
 
 
-def _load_hook(name: str):
-    path = os.path.join(_REPO, "hooks", f"{name}.py")
+def _load_source_module(name: str, path: str):
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    with open(path, "rb") as stream:
+        source_bytes = stream.read()
+    exec(compile(source_bytes, path, "exec", dont_inherit=True), mod.__dict__)
     return mod
+
+
+def _load_hook(name: str):
+    path = os.path.join(_REPO, "hooks", f"{name}.py")
+    return _load_source_module(name, path)
 
 
 GW = _load_hook("guard_write")
@@ -91,6 +97,13 @@ def _mk_fixture_repo() -> str:
     with open(os.path.join(root, "external", "ccbench", "cmake", "Options.cmake"),
               "w", encoding="utf-8") as f:
         f.write('set(CCBENCH_VAL_SIZE 4 CACHE STRING "v")\n')
+    hooks = os.path.join(root, "hooks")
+    os.makedirs(hooks)
+    for name in ("guard_write.py", "guard_bash.py", "codex_guard.sh"):
+        with open(os.path.join(hooks, name), "w", encoding="utf-8") as f:
+            f.write(f"# fixture {name}\n")
+    with open(os.path.join(hooks, "README.md"), "w", encoding="utf-8") as f:
+        f.write("fixture README\n")
     return root
 
 
@@ -108,6 +121,11 @@ def _patch(root, command, *, cwd=None, tool_input=None):
         "apply_patch", payload, repo_root=root,
         cwd=root if cwd is None else cwd,
     )
+
+
+def _guard_main(module, raw: str) -> int:
+    with patch.object(module.sys, "stdin", io.StringIO(raw)):
+        return module.main()
 
 
 # ---------- guard_write: 管轄と防護対象 ----------
@@ -708,6 +726,555 @@ def test_apply_patch_move_source_resolves_ancestors_but_not_final_symlink():
 """
         ok, why = _patch(root, command)
         assert not ok, f"祖先 alias 経由の protected entry Move 元が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+# ---------- T-956: hooks/ self-guard ----------
+
+def _mk_t956_aliases(root):
+    os.makedirs(os.path.join(root, "a"), exist_ok=True)
+    os.makedirs(os.path.join(root, "subdir"), exist_ok=True)
+    os.makedirs(os.path.join(root, "docs"), exist_ok=True)
+    os.symlink("../hooks", os.path.join(root, "docs", "hooks-alias"))
+
+    outside = tempfile.mkdtemp(prefix="izanagi-t956-alias-")
+    file_alias = os.path.join(outside, "file-alias")
+    hardlink = os.path.join(outside, "hardlink")
+    os.symlink(os.path.join(root, "hooks", "guard_write.py"), file_alias)
+    os.link(os.path.join(root, "hooks", "guard_write.py"), hardlink)
+
+    safe = os.path.join(outside, "safe")
+    with open(safe, "w", encoding="utf-8") as stream:
+        stream.write("safe\n")
+    os.symlink(safe, os.path.join(root, "hooks", "outside-link"))
+
+    base = os.path.join(outside, "base")
+    os.makedirs(base)
+    os.symlink(os.path.join(root, "subdir"), os.path.join(base, "a"))
+    dotdot_alias = os.path.join(base, "a", "..", "hooks", "guard_write.py")
+    return outside, file_alias, hardlink, dotdot_alias
+
+
+def test_t956_guard_write_rejects_r01_through_r08_path_aliases():
+    root = _mk_fixture_repo()
+    outside, file_alias, hardlink, dotdot_alias = _mk_t956_aliases(root)
+    try:
+        cases = {
+            "R01": "./hooks/guard_write.py",
+            "R02": "a/../hooks/guard_write.py",
+            "R03": os.path.join(root, "hooks", "guard_write.py"),
+            "R04": "docs/hooks-alias/guard_write.py",
+            "R05": file_alias,
+            "R06": hardlink,
+            "R07": "hooks/outside-link",
+            "R08": dotdot_alias,
+        }
+        for case_id, path in cases.items():
+            ok, why = GW.decide(
+                "Edit", {"file_path": path}, repo_root=root)
+            assert not ok, f"{case_id} が通った: {path!r} ({why})"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_guard_write_keeps_legacy_canonical_denials_f1():
+    """F1: raw canonical への移行前に拒否していた 4 形を deny union で維持する。"""
+    root = _mk_fixture_repo()
+    outside = tempfile.mkdtemp(prefix="izanagi-t956-f1-legacy-")
+    try:
+        os.makedirs(os.path.join(outside, "inner"))
+        os.symlink(os.path.join(outside, "inner"), os.path.join(root, "jump"))
+        exploration = os.path.join(
+            root, "output", "exploration", "trials", "t1")
+        os.makedirs(exploration)
+        os.symlink(exploration, os.path.join(root, "alias"))
+
+        cases = {
+            "campaign": os.path.join(
+                root, "jump", "..", "output", "campaigns", "c", "runs", "x"),
+            "freeze": os.path.join(
+                root, "jump", "..", "output", "s8b-freeze", "active", "x"),
+            "ccbench": os.path.join(
+                root, "jump", "..", "external", "ccbench", "cmake", "Options.cmake"),
+            "exploration": os.path.join(
+                root, "jump", "..", "alias", "namespace.json"),
+        }
+        for label, path in cases.items():
+            ok, why = GW.decide(
+                "Write", {"file_path": path, "content": "x"}, repo_root=root)
+            assert not ok, f"F1 legacy canonical の {label} が通った: {path!r} ({why})"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_guard_write_keeps_raw_canonical_denials_f1():
+    """F1: legacy canonical だけへ戻して raw 起点の追加拒否を失わない。"""
+    root = _mk_fixture_repo()
+    outside = tempfile.mkdtemp(prefix="izanagi-t956-f1-raw-")
+    try:
+        base = os.path.join(outside, "base")
+        os.makedirs(base)
+        os.makedirs(os.path.join(root, "subdir"))
+        os.symlink(os.path.join(root, "subdir"), os.path.join(base, "jump"))
+        cases = {
+            "campaign": os.path.join(
+                base, "jump", "..", "output", "campaigns", "c", "runs", "x"),
+            "freeze": os.path.join(
+                base, "jump", "..", "output", "s8b-freeze", "active", "x"),
+            "ccbench": os.path.join(
+                base, "jump", "..", "external", "ccbench", "cmake", "Options.cmake"),
+            "exploration": os.path.join(
+                base, "jump", "..", "output", "exploration", "namespace.json"),
+        }
+        for label, path in cases.items():
+            ok, why = GW.decide(
+                "Write", {"file_path": path, "content": "x"}, repo_root=root)
+            assert not ok, f"F1 raw canonical の {label} が通った: {path!r} ({why})"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_hook_loader_executes_source_bytes_not_matching_pyc():
+    root = tempfile.mkdtemp(prefix="izanagi-t956-loader-")
+    path = os.path.join(root, "fixture_hook.py")
+    try:
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write('VALUE = "poison"\n')
+        py_compile.compile(path, doraise=True)
+        metadata = os.stat(path)
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write('VALUE = "source"\n')
+        os.utime(path, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+
+        module = _load_source_module("t956_source_loader_fixture", path)
+        assert module.VALUE == "source", \
+            "hook test loader が source bytes でなく matching cache を実行した"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_load_hook_executes_source_bytes_not_matching_pyc():
+    """G2: public test-loader wiring itself must bypass a matching stale pyc."""
+    root = tempfile.mkdtemp(prefix="izanagi-t956-load-hook-")
+    hooks = os.path.join(root, "hooks")
+    os.makedirs(hooks)
+    path = os.path.join(hooks, "fixture_hook.py")
+    try:
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write('VALUE = "poison"\n')
+        py_compile.compile(path, doraise=True)
+        metadata = os.stat(path)
+        with open(path, "w", encoding="utf-8") as stream:
+            stream.write('VALUE = "source"\n')
+        os.utime(path, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+
+        with patch.dict(_load_hook.__globals__, {"_REPO": root}):
+            module = _load_hook("fixture_hook")
+        assert module.VALUE == "source", \
+            "_load_hook が source bytes でなく matching cache を実行した"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_guard_write_rejects_r09_through_r16_patch_directives():
+    root = _mk_fixture_repo()
+    outside, _, hardlink, _ = _mk_t956_aliases(root)
+    main = tempfile.mkdtemp(prefix="izanagi-t956-main-")
+    worktree = os.path.join(main, ".claude", "worktrees", "t956")
+    os.makedirs(os.path.dirname(worktree))
+    shutil.copytree(root, worktree, symlinks=True)
+    try:
+        cases = {
+            "R09": (root, root, "*** Add File: hooks/new_guard.py"),
+            "R10": (root, root, "*** Update File: hooks/guard_bash.py"),
+            "R11": (root, root, "*** Delete File: hooks/codex_guard.sh"),
+            "R12": (root, root,
+                    "*** Update File: hooks/guard_write.py\n"
+                    "*** Move to: docs/guard_write.py"),
+            "R13": (root, root,
+                    "*** Update File: docs/helper.py\n"
+                    "*** Move to: hooks/helper.py"),
+            "R14": (root, root, "*** Delete File: hooks/outside-link"),
+            "R15": (root, root, f"*** Update File: {hardlink}"),
+            "R16": (worktree, main,
+                    "*** Update File: .claude/worktrees/t956/hooks/guard_write.py"),
+        }
+        for case_id, (repo_root, cwd, command) in cases.items():
+            ok, why = _patch(repo_root, command, cwd=cwd)
+            assert not ok, f"{case_id} が通った: {command!r} ({why})"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+        shutil.rmtree(main)
+
+
+def test_t956_guard_write_rejects_r59_through_r61_hook_artifacts():
+    root = _mk_fixture_repo()
+    try:
+        cases = {
+            "R59": "hooks/__pycache__/guard_write.cpython-310.pyc",
+            "R60": "hooks/json.pyc",
+            "R61": "hooks/json.so",
+            "direct-meta": "hooks/*.py",
+        }
+        for case_id, path in cases.items():
+            ok, why = GW.decide(
+                "Write", {"file_path": path, "content": "poison"},
+                repo_root=root)
+            assert not ok, f"{case_id} が通った: {path!r} ({why})"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_guard_write_rejects_apply_patch_literal_hooks_meta_name():
+    """F2: apply_patch は glob 展開せず hooks/ 内に `*.py` を実作成する。"""
+    root = _mk_fixture_repo()
+    try:
+        ok, why = _patch(root, "*** Add File: hooks/*.py")
+        assert not ok, f"F2 hooks/*.py の literal Add File が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_guard_write_rejects_r62_and_r64_decoded_payload_strings():
+    for case_id, raw in (
+        ("R62", '{"tool_name":"apply_patch","tool_input":'
+                '{"command":["\\u0068ooks/guard_write.py"]}}'),
+        ("R64", '{"tool_name":"apply_patch","tool_input":'
+                '{"command":["hooks"]}}'),
+    ):
+        assert _guard_main(GW, raw) == 2, \
+            f"{case_id} の decode 後 hooks token が fail-open"
+
+
+def test_t956_guard_write_readme_exception_is_exact_and_inode_safe():
+    root = _mk_fixture_repo()
+    readme = os.path.join(root, "hooks", "README.md")
+    try:
+        ok, why = GW.decide("Edit", {"file_path": "hooks/README.md"}, repo_root=root)
+        assert ok, f"A01 regular README が誤拒否された: {why}"
+        for case_id, directive in (
+            ("A02", "*** Update File: hooks/README.md"),
+            ("A03", "*** Delete File: hooks/README.md"),
+        ):
+            ok, why = _patch(root, directive)
+            assert ok, f"{case_id} regular README が誤拒否された: {why}"
+
+        os.link(readme, os.path.join(root, "README-hardlink"))
+        ok, _ = GW.decide("Edit", {"file_path": readme}, repo_root=root)
+        assert not ok, "st_nlink > 1 の README 例外が通った"
+        os.unlink(os.path.join(root, "README-hardlink"))
+
+        os.unlink(readme)
+        os.symlink("../docs/readme-target", readme)
+        ok, _ = GW.decide("Edit", {"file_path": readme}, repo_root=root)
+        assert not ok, "final component が symlink の README 例外が通った"
+
+        os.unlink(readme)
+        ok, why = GW.decide("Edit", {"file_path": readme}, repo_root=root)
+        assert ok, f"存在しない exact README の新規作成が誤拒否された: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_guard_write_readme_conditions_have_independent_detectors():
+    """README 例外の lexical/canonical/regular/non-symlink を一理由ずつ発火。"""
+    root = _mk_fixture_repo()
+    outside = tempfile.mkdtemp(prefix="izanagi-t956-readme-conditions-")
+    readme = os.path.join(root, "hooks", "README.md")
+    try:
+        # lexical exact だけを外す: ancestor alias の実体は exact README、現物条件は全て真。
+        os.symlink("hooks", os.path.join(root, "hooks-alias"))
+        alias = os.path.join(root, "hooks-alias", "README.md")
+        ok, _ = GW.decide("Edit", {"file_path": alias}, repo_root=root)
+        assert not ok, "lexical exact 条件を外した README alias が通った"
+
+        # raw canonical exact だけを外す: abspath 後は exact、OS 解決後は repo 外の regular。
+        os.makedirs(os.path.join(outside, "inner"))
+        os.makedirs(os.path.join(outside, "hooks"))
+        outside_readme = os.path.join(outside, "hooks", "README.md")
+        with open(outside_readme, "w", encoding="utf-8") as stream:
+            stream.write("outside\n")
+        os.symlink(os.path.join(outside, "inner"), os.path.join(root, "jump"))
+        canonical_mismatch = os.path.join(
+            root, "jump", "..", "hooks", "README.md")
+        ok, _ = GW.decide(
+            "Edit", {"file_path": canonical_mismatch}, repo_root=root)
+        assert not ok, "raw canonical exact 条件を外した README path が通った"
+
+        # regular だけを外す: FIFO は exact・non-symlink・st_nlink == 1。
+        os.unlink(readme)
+        os.mkfifo(readme)
+        metadata = os.lstat(readme)
+        assert not stat.S_ISREG(metadata.st_mode)
+        assert not stat.S_ISLNK(metadata.st_mode) and metadata.st_nlink == 1
+        ok, _ = GW.decide("Edit", {"file_path": readme}, repo_root=root)
+        assert not ok, "regular 条件を外した FIFO README が通った"
+
+        # non-symlink は S_ISREG に隠れるため、regular だけを synthetic に真へ固定する。
+        symlink_metadata = type(
+            "SymlinkMetadata", (), {"st_mode": stat.S_IFLNK, "st_nlink": 1})()
+        synthetic_path = os.path.join(outside, "synthetic-symlink")
+        real_lstat = os.lstat
+
+        def synthetic_lstat(path, *args, **kwargs):
+            if os.fspath(path) == synthetic_path:
+                return symlink_metadata
+            return real_lstat(path, *args, **kwargs)
+
+        with patch.object(GW.os, "lstat", side_effect=synthetic_lstat), \
+                patch.object(GW.stat, "S_ISREG", return_value=True):
+            assert not GW._readme_exception_allowed(
+                synthetic_path, readme, readme, root), \
+                "non-symlink 条件を外した synthetic README が通った"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_guard_write_accepts_a04_a05_and_a25_through_a27():
+    root = _mk_fixture_repo()
+    other = tempfile.mkdtemp(prefix="izanagi-t956-other-")
+    try:
+        cases = {
+            "A04": GW.decide(
+                "Edit", {"file_path": "docs/t956-note.md"}, repo_root=root),
+            "A05": GW.decide(
+                "Edit", {"file_path": os.path.join(
+                    other, "hooks", "guard_write.py")}, repo_root=root),
+            "A25": _patch(root, "*** Add File: ~/hooks/x.py"),
+            "A27": _patch(root, "*** Add File: hook{,s}/x.py"),
+        }
+        for case_id, (ok, why) in cases.items():
+            assert ok, f"{case_id} が誤拒否された: {why}"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(other)
+
+
+def test_t956_guard_bash_rejects_adopted_literal_writer_matrix():
+    root = _mk_fixture_repo()
+    outside, file_alias, hardlink, dotdot_alias = _mk_t956_aliases(root)
+    os.symlink("hooks", os.path.join(root, "Hooks"))
+    try:
+        cases = {
+            "R17": "printf pwn > ./hooks/guard_write.py",
+            "R18": "printf pwn > a/../hooks/guard_write.py",
+            "R19": f"printf pwn > {root}/hooks/guard_write.py",
+            "R21": f"printf pwn > {file_alias}",
+            "R22": f"printf pwn > {hardlink}",
+            "R25": "printf pwn > Hooks/guard_write.py",
+            "R26": "rm -rf hooks/",
+            "R27": "rm -f hooks/*",
+            "R34": f"printf pwn > {dotdot_alias}",
+            "R35": "tar -xf /tmp/payload.tar -C hooks",
+            "R36": 'printf x > hooks/guard_write.py "$(date)"',
+            "R37": "printf x > hooks/guard_write.py `date`",
+            "R38": "cat <(printf x) > hooks/guard_write.py",
+            "R39": "eval 'printf x > hooks/guard_write.py'",
+            "R40": "printf x | xargs -I{} sh -c 'printf {} > hooks/guard_write.py'",
+            "R41": "printf x > 'hooks/guard_write.py",
+            "R45": "find hooks -delete",
+            "R59": ("cp /tmp/poison.pyc "
+                    "hooks/__pycache__/guard_write.cpython-310.pyc"),
+            "R60": "cp /tmp/poison.pyc hooks/json.pyc",
+            "R61": "cp /tmp/poison.so hooks/json.so",
+        }
+        for case_id, command in cases.items():
+            ok, why = GB.decide(command, repo_root=root)
+            assert not ok, f"{case_id} が通った: {command!r} ({why})"
+
+        expanded = f"{root}/hooks/guard_write.py"
+        original_expanduser = os.path.expanduser
+        with patch.object(
+                GB.os.path, "expanduser",
+                side_effect=lambda value: (
+                    expanded if value == "~/t956-repo/hooks/guard_write.py"
+                    else original_expanduser(value))):
+            ok, why = GB.decide(
+                "printf pwn > ~/t956-repo/hooks/guard_write.py", repo_root=root)
+        assert not ok, f"R20 が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_guard_bash_rejects_r57_and_r58_as_single_reason_cases():
+    root = _mk_fixture_repo()
+    outside, _, hardlink, _ = _mk_t956_aliases(root)
+    try:
+        ok, why = GB.decide(f"printf bad > {hardlink}", repo_root=root)
+        assert not ok, f"R57 external hardlink alias が通った: {why}"
+
+        command = "ln -sfn ../.codex/hooks.json hooks/README.md"
+        ok, why = GB.decide(command, repo_root=root)
+        assert not ok, f"R58 README entry replacement が通った: {why}"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def _assert_t956_inode_scan_failure_denied(module, root, target):
+    def failing_walk(_path, *, followlinks=False, onerror=None):
+        assert followlinks is False and onerror is not None
+        onerror(PermissionError("synthetic hooks listing failure"))
+        return iter(())
+
+    with patch.object(module.os, "walk", side_effect=failing_walk):
+        if module is GW:
+            ok, why = module.decide(
+                "Edit", {"file_path": target}, repo_root=root)
+        else:
+            ok, why = module.decide(
+                f"printf bad > {target}", repo_root=root)
+    assert not ok, f"{module.__name__} が hooks listing error で fail-open: {why}"
+
+
+def _assert_t956_inode_stat_failure_denied(module, root, target):
+    failed_entry = os.path.join(root, "hooks", "guard_write.py")
+    real_stat = os.stat
+
+    def failing_stat(path, *args, **kwargs):
+        if os.fspath(path) == failed_entry:
+            raise PermissionError("synthetic hooks entry stat failure")
+        return real_stat(path, *args, **kwargs)
+
+    with patch.object(module.os, "stat", side_effect=failing_stat):
+        if module is GW:
+            ok, why = module.decide(
+                "Edit", {"file_path": target}, repo_root=root)
+        else:
+            ok, why = module.decide(
+                f"printf bad > {target}", repo_root=root)
+    assert not ok, f"{module.__name__} が hooks stat error で fail-open: {why}"
+
+
+def test_t956_hardlink_inode_scan_errors_fail_closed_in_both_guards():
+    root = _mk_fixture_repo()
+    target = os.path.join(root, "docs", "ordinary.txt")
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, "w", encoding="utf-8") as stream:
+        stream.write("ordinary\n")
+    try:
+        for module in (GW, GB):
+            _assert_t956_inode_scan_failure_denied(module, root, target)
+            _assert_t956_inode_stat_failure_denied(module, root, target)
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_missing_hooks_root_allows_ordinary_writes_in_both_guards():
+    """G1: absent hooks/ means an empty inode index, not a failed scan."""
+    root = tempfile.mkdtemp(prefix="izanagi-t956-no-hooks-")
+    target = os.path.join(root, "docs", "ordinary.txt")
+    os.makedirs(os.path.dirname(target))
+    with open(target, "w", encoding="utf-8") as stream:
+        stream.write("ordinary\n")
+    try:
+        cases = {
+            "Write": GW.decide(
+                "Write", {"file_path": target, "content": "replacement"},
+                repo_root=root),
+            "Edit": GW.decide(
+                "Edit", {"file_path": target, "old_string": "ordinary",
+                         "new_string": "replacement"}, repo_root=root),
+            "apply_patch": _patch(root, "*** Update File: docs/ordinary.txt"),
+            "Bash": GB.decide(f"cp /tmp/new {target}", repo_root=root),
+        }
+        for surface, (ok, why) in cases.items():
+            assert ok, f"hooks/ 不在時に通常 {surface} が誤拒否された: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_hardlink_inode_index_is_built_once_per_decide():
+    root = _mk_fixture_repo()
+    outside, _, hardlink, _ = _mk_t956_aliases(root)
+    real_walk = os.walk
+    try:
+        command = (
+            f"*** Update File: {hardlink}\n"
+            f"*** Delete File: {hardlink}\n"
+        )
+        with patch.object(GW.os, "walk", wraps=real_walk) as walk:
+            ok, _ = _patch(root, command)
+        assert not ok and walk.call_count == 1, \
+            f"guard_write inode scan count={walk.call_count}"
+
+        with patch.object(GB.os, "walk", wraps=real_walk) as walk:
+            ok, _ = GB.decide(
+                f"printf bad > {hardlink} && rm -f {hardlink}", repo_root=root)
+        assert not ok and walk.call_count == 1, \
+            f"guard_bash inode scan count={walk.call_count}"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_guard_bash_rejects_r63_decoded_payload_string():
+    raw = ('{"tool_input":{"command":'
+           '["\\u0068ooks/guard_write.py"]}}')
+    assert _guard_main(GB, raw) == 2, \
+        "R63 の decode 後 hooks token が fail-open"
+
+
+def test_t956_guard_bash_rejects_readme_writes_a17_through_a19():
+    root = _mk_fixture_repo()
+    try:
+        for case_id, command in {
+            "A17": "sed -i 's/old/new/' hooks/README.md",
+            "A18": "printf '%s\\n' note > hooks/README.md",
+            "A19": "rm hooks/README.md",
+        }.items():
+            ok, why = GB.decide(command, repo_root=root)
+            assert not ok, f"{case_id} は裁定 §3 で reject: {why}"
+    finally:
+        shutil.rmtree(root)
+
+
+def test_t956_guard_bash_accepts_a06_through_a16_reads():
+    root = _mk_fixture_repo()
+    outside, file_alias, _, _ = _mk_t956_aliases(root)
+    try:
+        cases = {
+            "A06": "cat hooks/guard_write.py",
+            "A07": "grep -n classify_path hooks/guard_write.py",
+            "A08": f"cat {file_alias}",
+            "A09": "cat hooks/*",
+            "A10": "git diff -- hooks/guard_write.py",
+            "A11": "dd if=hooks/guard_write.py of=/tmp/copy",
+            "A12": "find hooks -type f -print",
+            "A13": "sort hooks/guard_write.py",
+            "A14": "awk '{print}' hooks/guard_write.py",
+            "A15": "python3 hooks/guard_bash.py",
+            "A16": ("python3 -m py_compile hooks/guard_bash.py "
+                    "tools/check_ai_provenance.py"),
+        }
+        for case_id, command in cases.items():
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"{case_id} が誤拒否された: {command!r} ({why})"
+    finally:
+        shutil.rmtree(root)
+        shutil.rmtree(outside)
+
+
+def test_t956_guard_bash_accepts_a20_through_a24_component_boundaries():
+    root = _mk_fixture_repo()
+    try:
+        cases = {
+            "A20": "printf '%s\\n' note > docs/t956-note.md",
+            "A21": "rm -f hooks-copy/guard_write.py",
+            "A22": "rm -f myhooks/guard_write.py",
+            "A23": "rm -f Hooks/guard_write.py",
+            "A24": "rm -f $'hoo\u0301ks/guard_write.py'",
+        }
+        for case_id, command in cases.items():
+            ok, why = GB.decide(command, repo_root=root)
+            assert ok, f"{case_id} が誤拒否された: {command!r} ({why})"
     finally:
         shutil.rmtree(root)
 

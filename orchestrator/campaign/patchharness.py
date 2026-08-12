@@ -29,6 +29,7 @@ fails-closed (規律2/6):
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import fcntl
 import hashlib
 import os
@@ -41,6 +42,17 @@ from typing import List
 
 _INDEX_LOCK_RETRIES = 5
 _INDEX_LOCK_RETRY_INTERVAL_S = 0.2
+_PYTEST_NODE = contextvars.ContextVar("patchharness_pytest_node", default=None)
+
+
+@contextlib.contextmanager
+def _pytest_node_context(node_id: str, real_repo_serial: bool):
+    """pytest conftest だけが test protocol 全区間へ設定する process-local 印。"""
+    token = _PYTEST_NODE.set((node_id, real_repo_serial))
+    try:
+        yield
+    finally:
+        _PYTEST_NODE.reset(token)
 
 
 def _writes_checkout_or_apply(args: tuple[str, ...]) -> bool:
@@ -257,6 +269,66 @@ def _default_ccbench_dir() -> str:
     return os.path.join(repo, "external", "ccbench")
 
 
+def _read_only_git_env() -> dict[str, str]:
+    """Git repository 指定を親から継承しない read-only probe 用 env。"""
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    return env
+
+
+def _git_repository_identity(path: str) -> tuple[str, tuple[int, int]]:
+    """path が属する repository の common-dir を canonical path と inode で返す。"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--path-format=absolute",
+             "--git-common-dir"],
+            capture_output=True, text=True, env=_read_only_git_env(),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(
+            f"patchharness: Git repository identity を解決できない ({path}: {exc}) — "
+            "pytest guard は fails-closed"
+        ) from exc
+    common_dir = result.stdout.strip()
+    if result.returncode != 0 or not common_dir or "\n" in common_dir:
+        raise RuntimeError(
+            "patchharness: Git repository identity を解決できない "
+            f"({path}, rc={result.returncode}) — pytest guard は fails-closed"
+        )
+    canonical = os.path.realpath(common_dir)
+    try:
+        stat_result = os.stat(canonical)
+    except OSError as exc:
+        raise RuntimeError(
+            f"patchharness: Git common-dir を確認できない ({canonical}: {exc}) — "
+            "pytest guard は fails-closed"
+        ) from exc
+    return canonical, (stat_result.st_dev, stat_result.st_ino)
+
+
+def _guard_real_shared_checkout(base: str) -> None:
+    """pytest 内の未登録 node による実共有 submodule checkout を拒否する。"""
+    current = _PYTEST_NODE.get()
+    if current is None:
+        return
+    candidate_path, candidate_inode = _git_repository_identity(base)
+    default_path, default_inode = _git_repository_identity(_default_ccbench_dir())
+    if candidate_path != default_path and candidate_inode != default_inode:
+        return
+    node_id, real_repo_serial = current
+    if not real_repo_serial:
+        raise RuntimeError(
+            "patchharness: pytest node が実共有 submodule を checkout しようとした: "
+            f"{node_id}; REAL_REPO_SERIAL_NODES へ追加せよ"
+        )
+
+
 def _worktree_paths(base: str) -> List[str]:
     """base repo に登録済みの worktree 絶対パス一覧 (`git worktree list --porcelain`)。
 
@@ -286,6 +358,7 @@ def checkout(pin_commit: str, base_dir: str = ""):
     untracked 残骸検査 (「porcelain 空」より弱い既知の限界、残存リスク節) の限界はこの経路
     では実害が無い — tree ごと消えるので残骸が次 variant に持ち越されることがない。"""
     base = base_dir or _default_ccbench_dir()
+    _guard_real_shared_checkout(base)
     parent = tempfile.mkdtemp(prefix="izanagi_wt_", dir=os.environ.get("TMPDIR", "/tmp"))
     path = os.path.join(parent, "wt")     # git worktree add は対象パス非存在を要求 → 親だけ予約
     r = _git(base, "worktree", "add", "--detach", path, pin_commit)

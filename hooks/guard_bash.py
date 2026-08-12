@@ -16,7 +16,7 @@ closed で拒否)。** これで新種の writer は列挙せずとも自動的�
 
 判定 (shlex でクォートを解決してからトークン単位で見る):
 1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants/exploration namespace
-   marker、ツリー = official / exploration campaigns と external/ccbench) がコマンドに
+   marker、ツリー = official / exploration campaigns、external/ccbench、hooks) がコマンドに
    現れない → 即許可 (fast path、通常作業を妨げない)。
 2. 末端/防護ツリーの**パス字面**と不透明構文 ($()/バッククォート/プロセス置換/<<<
    /eval/xargs) が同居 → 分類不能 = fails-closed で拒否 (パス字面が無ければ通す —
@@ -52,6 +52,7 @@ import os
 import re
 import shlex
 import socket
+import stat
 import sys
 import unicodedata
 
@@ -84,7 +85,7 @@ _LEAF_RE = re.compile(
 # 防護ツリーのパス字面 (opaque 同居・bare interpreter 判定の精密トリガ)。
 _TREE_LITERAL_RE = re.compile(
     r"output/(?:exploration/)?campaigns|output/exploration/namespace\.json"
-    r"|external/ccbench")
+    r"|external/ccbench|(?<![-\w])hooks(?=/|$)")
 # fast path トリガ (広い): これが現れなければ即許可。祖先の祖先 (rm -rf output)
 # まで精査に載せるため、防護ツリーの構成語を広く含める。精査自体はトークン単位の
 # 厳密パターン (_LEAF_RE / _tree_violation) が担うので、広い分は read で落ちる。
@@ -93,6 +94,7 @@ _MENTION_RE = re.compile(
     r"wal\.jsonl|campaign\.lock|build-variants"
     r"|output/(?:exploration/)?campaigns|output/exploration/namespace\.json"
     r"|external/ccbench"
+    r"|(?<![-\w])hooks(?=/|$)"
     r"|(?<![-\w])(?:output|external|ccbench|campaigns|exploration|namespace)\b")
 # proof chain を配下に持つツリー root。
 _CCBENCH_TREE = "external/ccbench"     # 全域防護 (submodule working-tree = identity の実体)
@@ -101,6 +103,7 @@ _CAMPAIGN_TREE = (                      # 閉じた二要素集合 (子孫は末
     "output/exploration/campaigns",
 )
 _EXPLORATION_TREE = "output/exploration"
+_HOOKS_TREE = "hooks"
 
 # 不透明構文: 中で何が起きるかテキストから追えない。防護対象パス字面と同居したら拒否。
 # `<<` は here-doc (本文コードが追えない) と here-string `<<<` を両方捕える
@@ -1413,6 +1416,102 @@ def _repo_relative(token: str, repo_root: str, cwd: str = "") -> str:
     return _repo_relative_path(_glob_prefix(token), repo_root, cwd)
 
 
+def _inside(path: str, tree: str) -> bool:
+    return path == tree or path.startswith(tree + os.sep)
+
+
+class _HooksInodeIndex:
+    """1 回の decide 内で共有する hooks regular-file inode 集合。
+
+    target 自体が存在しない場合は hardlink alias ではない。hooks subtree の列挙または
+    entry stat が一部でも失敗した場合だけは「一致なし」と区別し、既存 regular target を
+    局所的に拒否する。
+    """
+
+    def __init__(self, hooks_root: str):
+        self.hooks_root = hooks_root
+        self._loaded = False
+        self._identities = set()
+        self._scan_failed = False
+
+    def _load(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+
+        try:
+            os.stat(self.hooks_root)
+        except FileNotFoundError:
+            # hooks/ 自体が無い repo には共有 inode も無い。走査失敗ではない。
+            return
+        except OSError:
+            # root が存在するか確認不能なら、列挙不能と同じく局所 deny。
+            self._scan_failed = True
+            return
+
+        def record_error(_error) -> None:
+            self._scan_failed = True
+
+        try:
+            for directory, _, filenames in os.walk(
+                    self.hooks_root, followlinks=False, onerror=record_error):
+                for filename in filenames:
+                    try:
+                        candidate = os.stat(os.path.join(directory, filename))
+                    except OSError:
+                        self._scan_failed = True
+                        continue
+                    if stat.S_ISREG(candidate.st_mode):
+                        self._identities.add((candidate.st_dev, candidate.st_ino))
+        except OSError:
+            # custom scandir/walk 実装が onerror を経ず列挙例外を送出する場合も局所 deny。
+            self._scan_failed = True
+
+    def protects(self, path: str) -> bool:
+        try:
+            target = os.stat(path)
+        except OSError:
+            return False
+        if not stat.S_ISREG(target.st_mode):
+            return False
+        self._load()
+        return (self._scan_failed
+                or (target.st_dev, target.st_ino) in self._identities)
+
+
+def _hooks_tree_violation(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
+    """token が hooks root/子孫または既存 file alias を指すなら True。"""
+    raw = os.path.expanduser(token)
+    if not os.path.isabs(raw):
+        base = repo_root
+        if cwd:
+            base = cwd if os.path.isabs(cwd) else os.path.join(repo_root, cwd)
+        raw = os.path.join(base, raw)
+    lexical_path = os.path.abspath(raw)
+    canonical_path = os.path.realpath(raw)
+    lexical_root = os.path.abspath(os.path.join(repo_root, _HOOKS_TREE))
+    canonical_root = os.path.realpath(os.path.join(repo_root, _HOOKS_TREE))
+    if (_inside(lexical_path, lexical_root)
+            or _inside(canonical_path, canonical_root)):
+        return True
+    index = hooks_index or _HooksInodeIndex(canonical_root)
+    return index.protects(raw)
+
+
+def _string_values(value):
+    """JSON decode 済み payload の string value を再帰走査する。"""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for nested in value.values():
+            yield from _string_values(nested)
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            yield from _string_values(nested)
+
+
 def _brace_patterns(pattern: str):
     """shell brace のカンマ列挙を marker 照合用に展開する。"""
     match = re.search(r"\{([^{}]*)\}", pattern)
@@ -1456,7 +1555,9 @@ def _campaign_tree_violation(token: str, repo_root: str = "") -> bool:
     return False
 
 
-def _tree_violation(token: str, repo_root: str = "", cwd: str = "") -> bool:
+def _tree_violation(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
     """token の削除/移動/展開が proof chain を壊すか。
 
     - 末端 (_LEAF_RE) はどの深さでも壊す。
@@ -1469,7 +1570,9 @@ def _tree_violation(token: str, repo_root: str = "", cwd: str = "") -> bool:
     絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
     メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
     ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
-    if _LEAF_RE.search(token) or _namespace_marker_violation(token, repo_root, cwd):
+    if (_hooks_tree_violation(token, repo_root, cwd, hooks_index)
+            or _LEAF_RE.search(token)
+            or _namespace_marker_violation(token, repo_root, cwd)):
         return True
     p = _repo_relative(token, repo_root)
     if not p or p == ".":
@@ -1510,33 +1613,40 @@ def _tar_creates(args) -> bool:
 
 
 def _destroys_protected_tree(
-        head: str, args, repo_root: str = "", cwd: str = "") -> bool:
+        head: str, args, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
     """head が防護ツリーを丸ごと削除/移動/展開する操作か。"""
     if head == "git":
         if "clean" in args:                       # cwd 再帰で untracked WAL を消す
             return True
         if any(a in _GIT_DESTROY_SUBS for a in args):
-            return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
+            return any(_tree_violation(t, repo_root, cwd, hooks_index)
+                       for t in _path_args(args))
         return False
     if head == "find":
         if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
-            return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
+            return any(_tree_violation(t, repo_root, cwd, hooks_index)
+                       for t in _path_args(args))
         return False
     if head == "tar":
         if _tar_creates(args):                    # backup (読み) は通す
             return False
-        return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
+        return any(_tree_violation(t, repo_root, cwd, hooks_index)
+                   for t in _path_args(args))
     if head == "rsync":
         # DEST (最後の path 引数) が防護ツリーなら mirror INTO (書き) = 拒否。
         # SRC だけが防護対象 (backup 元) の読みは通す。
         paths = _path_args(args)
-        return bool(paths) and _tree_violation(paths[-1], repo_root, cwd)
+        return bool(paths) and _tree_violation(
+            paths[-1], repo_root, cwd, hooks_index)
     if head in _TREE_MUTATORS:
-        return any(_tree_violation(t, repo_root, cwd) for t in _path_args(args))
+        return any(_tree_violation(t, repo_root, cwd, hooks_index)
+                   for t in _path_args(args))
     return False
 
 
-def _redirect_hits_protected(seg, repo_root: str = "", cwd: str = "") -> bool:
+def _redirect_hits_protected(
+        seg, repo_root: str = "", cwd: str = "", hooks_index=None) -> bool:
     """セグメント内でリダイレクト先が末端または防護 tree 自体なら True。"""
     for i, t in enumerate(seg):
         if t in _REDIR_OPS and i + 1 < len(seg):
@@ -1544,6 +1654,7 @@ def _redirect_hits_protected(seg, repo_root: str = "", cwd: str = "") -> bool:
             if t == ">&" and tgt.isdigit():       # 2>&1 等の fd 複製は無視
                 continue
             if (_LEAF_RE.search(tgt)
+                    or _hooks_tree_violation(tgt, repo_root, cwd, hooks_index)
                     or _namespace_marker_violation(tgt, repo_root, cwd)
                     or _campaign_tree_violation(tgt, repo_root)
                     and _repo_relative(tgt, repo_root).startswith(
@@ -1562,12 +1673,21 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
         violation = _heavy_command_violation(command, root)
         if violation:
             return False, _heavy_refusal(site, violation)
-    if not _MENTION_RE.search(command):
+    tokens = _tokenize(command)
+    hooks_index = _HooksInodeIndex(
+        os.path.realpath(os.path.join(root, _HOOKS_TREE)))
+    hooks_hot = bool(_TREE_LITERAL_RE.search(command))
+    if tokens is not None:
+        hooks_hot = hooks_hot or any(
+            _hooks_tree_violation(token, root, hooks_index=hooks_index)
+            for token in tokens)
+    if not _MENTION_RE.search(command) and not hooks_hot:
         return True, ""                            # fast path
 
     # 「防護対象パスの字面が実在するか」— opaque 同居と bare interpreter の発火条件。
     # 裸単語 mention (散文の 'output' 等) では発火させない (F-FP-4 の虚偽拒否防止)。
-    hot = bool(_LEAF_RE.search(command) or _TREE_LITERAL_RE.search(command))
+    hot = bool(_LEAF_RE.search(command) or _TREE_LITERAL_RE.search(command)
+               or hooks_hot)
 
     if hot and _OPAQUE_RE.search(command):
         return False, ("末端/防護ツリーのパス (WAL/campaign.lock/build-variants/"
@@ -1577,17 +1697,17 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
                        "読むだけなら cat/grep/jq で、正規の書き込みは pipeline.evaluate() "
                        "で、コミットは単一行 -m か -F <file> で")
 
-    tokens = _tokenize(command)
     if tokens is None:
-        if _LEAF_RE.search(command) or any(
-                _tree_violation(w, root) for w in command.split()):
+        if _LEAF_RE.search(command) or hooks_hot or any(
+                _tree_violation(w, root, hooks_index=hooks_index)
+                for w in command.split()):
             return False, ("防護対象を含むコマンドを解析できない (クォート不整合等) — "
                            "fails-closed で拒否")
         return True, ""                            # 防護対象に触れない解析不能は素通し
 
     marker_cwd = ""
     for seg in _segments(tokens):
-        if _redirect_hits_protected(seg, root, marker_cwd):
+        if _redirect_hits_protected(seg, root, marker_cwd, hooks_index):
             return False, ("リダイレクト先が末端防護対象または campaign tree。WAL/"
                            "campaign.lock/build-cache を書く唯一の経路は "
                            "pipeline.evaluate() (規律2)")
@@ -1608,13 +1728,16 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
                 # 明示形 `perf <sub> [opts] -- <cmd>`: 子コマンドを実 head として続検査
                 # (build-variants バイナリの計測 = 正道を通しつつ、子が writer なら落とす)
                 head, args = _head_and_args(args[args.index("--") + 1:])
-            elif any(_LEAF_RE.search(t) or _tree_violation(t, root) for t in args):
+            elif any(_LEAF_RE.search(t)
+                     or _tree_violation(t, root, hooks_index=hooks_index)
+                     for t in args):
                 return False, ("perf と防護対象の同居は `perf <サブコマンド> [opts] -- "
                                "<コマンド>` の明示形のみ許可 (子コマンドを検査するため)。"
                                "防護対象に触れない計測は自由 (F-FP-1)")
             else:
                 continue
-        if _destroys_protected_tree(head, args, root, marker_cwd):
+        if _destroys_protected_tree(
+                head, args, root, marker_cwd, hooks_index):
             return False, (f"campaign dir / ccbench root を破壊する操作 ({head})。"
                            "proof chain を配下ごと削除/移動/展開するのは不可 (規律2)")
         if (head in _TREE_DIRECT_WRITERS
@@ -1628,7 +1751,9 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
                            "(pipe や here-string でコードを流し込む形) は中身を追えない "
                            "= fails-closed (GB2-3)。スクリプトはファイルに置いて実行する")
         leaf_hits = [t for t in args if (
-            _LEAF_RE.search(t) or _namespace_marker_violation(t, root, marker_cwd)
+            _LEAF_RE.search(t)
+            or _hooks_tree_violation(t, root, marker_cwd, hooks_index)
+            or _namespace_marker_violation(t, root, marker_cwd)
         )]
         if leaf_hits and not _is_read_only(head, args, root, marker_cwd):
             # ビルドシステムによる build-variants の生成/更新は正当経路
@@ -1645,6 +1770,7 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
 
 def main() -> int:
     raw = sys.stdin.read()                 # 例外時の fails-closed 判定に使うため一度で読む
+    payload = None
     try:
         payload = json.loads(raw)
         command = (payload.get("tool_input") or {}).get("command", "")
@@ -1653,9 +1779,17 @@ def main() -> int:
         allow, reason = decide(command, site=_runtime_site())
     except BaseException as exc:  # SystemExit/KeyboardInterrupt も hook 外へ漏らさない。
         # ただし生入力に防護対象が見えるときだけ fails-closed。
+        decoded_values = tuple(_string_values(payload)) if payload is not None else ()
+        decoded_protected = any(
+            _MENTION_RE.search(value)
+            or _PEGASUS_RAW_MENTION_RE.search(value)
+            or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(value)
+            or value == "hooks"
+            for value in decoded_values)
         if (_MENTION_RE.search(raw)
                 or _PEGASUS_RAW_MENTION_RE.search(raw)
-                or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)):
+                or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)
+                or decoded_protected):
             print(f"guard_bash hook 内部エラー ({type(exc).__name__}) — 防護対象を"
                   "含むため fails-closed で拒否", file=sys.stderr)
             return 2

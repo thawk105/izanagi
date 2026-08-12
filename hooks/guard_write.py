@@ -5,7 +5,7 @@
 PreToolUse (Write|Edit|MultiEdit|NotebookEdit) で発火し、対象パスが管轄内なら
 書き込み**前**に検査して exit 2 (拒否, stderr が Claude に返る) / exit 0 (許可)。
 
-管轄 = **明白な直接書き込みの拒否、この 2 本だけ** (方針 A, D30/D33。これ以外のパスは
+管轄 = **明白な直接書き込みの拒否、この 3 本だけ** (方針 A, D30/D33。これ以外のパスは
 即許可 — 通常の開発作業を妨げない):
 1. **成果物の proof chain (規律2):** official / exploration campaign の `runs/`
    (WAL)・`campaign.lock` と `build-variants/` への Edit/Write を拒否する。また、
@@ -14,6 +14,8 @@ PreToolUse (Write|Edit|MultiEdit|NotebookEdit) で発火し、対象パスが管
 2. **designated ソース外への Write (D23/D24):** `external/ccbench/` 内は EVOLVE-BLOCK
    ソース (source_digest.EVOLVE_BLOCK_SOURCES) だけ書き込み可。`Options.cmake` 等は
    人間 template 専有 — template 改訂は patches/ + git apply (Bash) 経由で行う。
+3. **hook 実行面:** `hooks/` subtree 自身への直接変更を拒否する。文書更新用の exact
+   `hooks/README.md` だけは、現物が regular non-symlink かつ単一 link の場合に許可する。
 
 **旧設計 (payload/skeleton のテキスト検査) は方針 A で削除した (D33):** #ifdef・build 時
 マクロ・TRACE 混入の保証は、テキスト検査の完全性 (GW2R-1 の backslash-newline splice が
@@ -31,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import sys
 
 # source_digest.EVOLVE_BLOCK_SOURCES の写し (hook は単体で動く必要があるため import
@@ -58,9 +61,125 @@ def _protected_artifact(rp: str, camp_roots: tuple[str, ...]) -> str:
             if len(parts) == 2 and parts[1] == "campaign.lock":
                 return "campaign.lock (identity の正準 pre-image)"
     # campaign root に依存しない leaf 条件は root loop の外に一度だけ置く。
-    if os.sep + "build-variants" + os.sep in rp or rp.endswith(os.sep + "build-variants"):
+    if os.sep + "build-variants" + os.sep in rp or rp.endswith(
+            os.sep + "build-variants"):
         return "build-variants (ビルドキャッシュ)"
     return ""
+
+
+def _inside(path: str, tree: str) -> bool:
+    return path == tree or path.startswith(tree + os.sep)
+
+
+class _HooksInodeIndex:
+    """1 回の decide 内で共有する hooks regular-file inode 集合。
+
+    target 自体が存在しない場合は hardlink alias ではない。hooks subtree の列挙または
+    entry stat が一部でも失敗した場合だけは「一致なし」と区別し、既存 regular target を
+    局所的に拒否する。
+    """
+
+    def __init__(self, hooks_root: str):
+        self.hooks_root = hooks_root
+        self._loaded = False
+        self._identities = set()
+        self._scan_failed = False
+
+    def _load(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+
+        try:
+            os.stat(self.hooks_root)
+        except FileNotFoundError:
+            # hooks/ 自体が無い repo には共有 inode も無い。走査失敗ではない。
+            return
+        except OSError:
+            # root が存在するか確認不能なら、列挙不能と同じく局所 deny。
+            self._scan_failed = True
+            return
+
+        def record_error(_error) -> None:
+            self._scan_failed = True
+
+        try:
+            for directory, _, filenames in os.walk(
+                    self.hooks_root, followlinks=False, onerror=record_error):
+                for filename in filenames:
+                    try:
+                        candidate = os.stat(os.path.join(directory, filename))
+                    except OSError:
+                        self._scan_failed = True
+                        continue
+                    if stat.S_ISREG(candidate.st_mode):
+                        self._identities.add((candidate.st_dev, candidate.st_ino))
+        except OSError:
+            self._scan_failed = True
+
+    def protects(self, path: str) -> bool:
+        try:
+            target = os.stat(path)
+        except OSError:
+            return False
+        if not stat.S_ISREG(target.st_mode):
+            return False
+        self._load()
+        return (self._scan_failed
+                or (target.st_dev, target.st_ino) in self._identities)
+
+
+def _readme_exception_allowed(
+    raw_path: str,
+    lexical_path: str,
+    canonical_path: str,
+    root: str,
+) -> bool:
+    """exact README が regular・非 symlink・単一 link なら例外許可する。"""
+    lexical_readme = os.path.abspath(os.path.join(root, "hooks", "README.md"))
+    canonical_readme = os.path.realpath(os.path.join(root, "hooks", "README.md"))
+    if lexical_path != lexical_readme or canonical_path != canonical_readme:
+        return False
+    try:
+        metadata = os.lstat(raw_path)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return (stat.S_ISREG(metadata.st_mode)
+            and not stat.S_ISLNK(metadata.st_mode)
+            and metadata.st_nlink == 1)
+
+
+def _protected_hooks(
+    raw_path: str,
+    lexical_path: str,
+    canonical_path: str,
+    root: str,
+    hooks_index: _HooksInodeIndex,
+) -> bool:
+    """hooks subtree、その file alias、または走査不能な既存 target なら True。"""
+    lexical_root = os.path.abspath(os.path.join(root, "hooks"))
+    canonical_root = os.path.realpath(os.path.join(root, "hooks"))
+    if _readme_exception_allowed(
+            raw_path, lexical_path, canonical_path, root):
+        return False
+    if (_inside(lexical_path, lexical_root)
+            or _inside(canonical_path, canonical_root)):
+        return True
+    return hooks_index.protects(raw_path)
+
+
+def _string_values(value):
+    """JSON decode 済み payload の string value を再帰走査する。"""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for nested in value.values():
+            yield from _string_values(nested)
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            yield from _string_values(nested)
 
 
 _APPLY_PATCH_DIRECTIVES = (
@@ -86,35 +205,52 @@ def parse_apply_patch(command: str) -> list[tuple[str, str]]:
     return operations
 
 
+def _canonical_path(path: str, lexical_path: str, resolve_final: bool) -> str:
+    if resolve_final:
+        return os.path.realpath(path)
+    return os.path.join(
+        os.path.realpath(os.path.dirname(path)), os.path.basename(lexical_path))
+
+
 def classify_path(
     abs_path: str,
     root: str,
     *,
     resolve_final: bool = True,
+    hooks_index=None,
 ) -> tuple[bool, str]:
-    """絶対 path を既存の artifact / namespace / freeze / ccbench 核で判定する。
+    """path を hooks と既存 artifact / namespace / freeze / ccbench 核で判定する。
 
-    ``resolve_final=False`` は Delete / Move 元の directory entry 用。祖先 directory
-    だけ realpath 化し、unlink/rename が操作する最終要素そのものは解決しない。
+    legacy canonical = ``realpath(abspath(raw))`` と raw canonical =
+    ``realpath(raw)`` を両方保持し、既存 4 判定は deny union にする。hooks 判定は
+    lexical + raw canonical を使う。``resolve_final=False`` は Delete / Move 元の
+    directory entry 用で、両 canonical とも最終要素そのものは解決しない。
     """
     root = os.path.realpath(root)
     lexical_path = os.path.abspath(abs_path)
-    if resolve_final:
-        rp = os.path.realpath(lexical_path)
-    else:
-        rp = os.path.join(
-            os.path.realpath(os.path.dirname(lexical_path)),
-            os.path.basename(lexical_path),
-        )
+    legacy_canonical = _canonical_path(
+        lexical_path, lexical_path, resolve_final)
+    raw_canonical = _canonical_path(abs_path, lexical_path, resolve_final)
+    canonical_paths = tuple(dict.fromkeys((legacy_canonical, raw_canonical)))
+
+    index = hooks_index or _HooksInodeIndex(
+        os.path.realpath(os.path.join(root, "hooks")))
+    if _protected_hooks(
+            abs_path, lexical_path, raw_canonical, root, index):
+        return False, (
+            "hooks/ subtree への直接書き込みは拒否。exact hooks/README.md は regular "
+            "non-symlink かつ st_nlink == 1 の場合だけ Write 系ツールで更新可能")
+
     camp_roots = (
         os.path.realpath(os.path.join(root, "output", "campaigns")),
         os.path.realpath(os.path.join(root, "output", "exploration", "campaigns")),
     )
-    label = _protected_artifact(rp, camp_roots)
-    if label:
-        return False, (
-            f"{label} への直接書き込みは拒否 (規律2)。COMMIT/fitness を書く唯一の"
-            "経路は pipeline.evaluate()。verifier を迂回した成果物の更新は不可")
+    for canonical in canonical_paths:
+        label = _protected_artifact(canonical, camp_roots)
+        if label:
+            return False, (
+                f"{label} への直接書き込みは拒否 (規律2)。COMMIT/fitness を書く唯一の"
+                "経路は pipeline.evaluate()。verifier を迂回した成果物の更新は不可")
 
     exploration_root = os.path.realpath(
         os.path.join(root, "output", "exploration"))
@@ -122,44 +258,40 @@ def classify_path(
         os.path.join(root, "output", "exploration"))
     if (os.path.basename(lexical_path) == "namespace.json"
             and (lexical_path.startswith(lexical_exploration_root + os.sep)
-                 or rp.startswith(exploration_root + os.sep))):
+                 or any(_inside(canonical, exploration_root)
+                        for canonical in canonical_paths))):
         return False, (
             "output/exploration/ 配下の namespace.json への直接書き込みは"
             "拒否。exploration 成果物を official と誤受理させないための "
             "namespace marker は変更不可")
 
     # s8b-freeze namespace (承認 record / active pointer / revocation / 世代 file) への
-    # 直接 Write/Edit を拒否する (F6a、C1-11)。これは **誤操作抑止であって認証防壁では
-    # ない** — approval/active/revocation の真正性は s8b_ratified_freeze の Git 内容による
-    # 規約 attestation (AI-Agent: none 逐語 + 導入 commit topology) が担い、hook を層に
-    # 数えない。AI が `none` commit を作れる以上ここは人間性の機械証明にならない。
+    # 直接 Write/Edit を拒否する (F6a、C1-11)。これは誤操作抑止であって認証防壁ではない。
     freeze_root = os.path.realpath(os.path.join(root, "output", "s8b-freeze"))
-    if rp == freeze_root or rp.startswith(freeze_root + os.sep):
+    if any(_inside(canonical, freeze_root) for canonical in canonical_paths):
         return False, (
             "output/s8b-freeze/ 配下への直接書き込みは拒否 (F6a 誤操作抑止)。approval/"
             "active pointer/revocation/世代 file の発効は人間 commit + s8b_ratified_freeze "
             "検証を経る (これは認証防壁ではなく誤操作抑止)")
 
     sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
-    if rp == sub or rp.startswith(sub + os.sep):
-        rel = os.path.relpath(rp, sub)
-        if rel not in EVOLVE_BLOCK_SOURCES:
-            return False, (
-                f"external/ccbench の編集面は EVOLVE-BLOCK ソース {EVOLVE_BLOCK_SOURCES} "
-                f"のみ ({rel} は不可)。Options.cmake 等は人間 template 専有 — template "
-                "改訂は patches/ + git apply で (F1/D24)")
-        # designated ソース内 — 内容は検査しない (方針 A, D33)。identity の正直さと
-        # TRACE 混入は一次防壁 (preprocess 後ハッシュ / diff-of-diffs) が build/resolve
-        # 出口で fails-closed に捕える。意味判定は auditor / 人間レビュー領域。
-        return True, ""
-
-    return True, ""                          # 管轄外 (通常の開発作業)
+    for canonical in canonical_paths:
+        if _inside(canonical, sub):
+            rel = os.path.relpath(canonical, sub)
+            if rel not in EVOLVE_BLOCK_SOURCES:
+                return False, (
+                    f"external/ccbench の編集面は EVOLVE-BLOCK ソース "
+                    f"{EVOLVE_BLOCK_SOURCES} のみ ({rel} は不可)。Options.cmake 等は人間 "
+                    "template 専有 — template 改訂は patches/ + git apply で (F1/D24)")
+    # designated ソース内は内容非検査。どちらの canonical にも拒否が無ければ許可する。
+    return True, ""
 
 
 def _decide_apply_patch(
     tool_input: dict,
     root: str,
     cwd: str,
+    hooks_index: _HooksInodeIndex,
 ) -> tuple[bool, str]:
     operations = parse_apply_patch(tool_input.get("command") or "")
     cwd_valid = bool(cwd) and os.path.isabs(cwd) and os.path.isdir(cwd)
@@ -171,10 +303,11 @@ def _decide_apply_patch(
                 f"{raw_path!r}: 相対 path の基準となる payload cwd が空・非絶対・不在")
             continue
 
-        lexical_path = os.path.abspath(
+        candidate_path = (
             raw_path if os.path.isabs(raw_path) else os.path.join(cwd, raw_path))
         reasons = []
-        allow, reason = classify_path(lexical_path, root)
+        allow, reason = classify_path(
+            candidate_path, root, hooks_index=hooks_index)
         if not allow:
             reasons.append(reason)
 
@@ -185,7 +318,8 @@ def _decide_apply_patch(
         )
         if kind == "delete" or is_move_source:
             lexical_allow, lexical_reason = classify_path(
-                lexical_path, root, resolve_final=False)
+                candidate_path, root, resolve_final=False,
+                hooks_index=hooks_index)
             if not lexical_allow and lexical_reason not in reasons:
                 reasons.append(lexical_reason)
 
@@ -194,8 +328,6 @@ def _decide_apply_patch(
 
     if denials:
         return False, "apply_patch の拒否対象: " + "; ".join(denials)
-    # path を抽出できたこと自体は許可根拠ではない。候補から拒否が増えなかった場合にのみ、
-    # wave 前と同じ管轄外扱いへ戻す。
     return True, ""
 
 
@@ -206,51 +338,63 @@ def decide(
     cwd: str = "",
 ) -> tuple:
     """(allow: bool, reason: str)。reason は拒否時のみ。"""
-    # root も realpath で解決する: rp は realpath 済みなので、root が未解決 (output/ や
-    # external/ccbench が別ボリュームへの symlink 等) だと startswith 照合が外れ fail-open に
-    # なる (2026-07-04 敵対検証 write-bypass)。両端を realpath で揃える。
     root = os.path.realpath(repo_root or _repo_root())
+    hooks_index = _HooksInodeIndex(
+        os.path.realpath(os.path.join(root, "hooks")))
     if tool_name == "apply_patch":
-        return _decide_apply_patch(tool_input, root, cwd)
+        return _decide_apply_patch(tool_input, root, cwd, hooks_index)
 
-    # NotebookEdit の実書込先は notebook_path。file_path を先に見ると、良性 file_path decoy で
-    # 管轄外と誤判定し notebook_path 側 (ccbench/WAL) への書込を通す (2026-07-04 敵対検証)。
+    # NotebookEdit の実書込先は notebook_path。file_path decoy より優先する。
     if tool_name == "NotebookEdit":
         path = tool_input.get("notebook_path") or tool_input.get("file_path") or ""
     else:
         path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
     if not path:
-        return True, ""                     # パス無し = ツール側が失敗する。管轄外
-    lexical_path = os.path.abspath(
-        path if os.path.isabs(path) else os.path.join(root, path))
-    allow, reason = classify_path(lexical_path, root)
+        return True, ""
+    candidate_path = path if os.path.isabs(path) else os.path.join(root, path)
+    allow, reason = classify_path(
+        candidate_path, root, hooks_index=hooks_index)
     if tool_name == "NotebookEdit":
-        rp = os.path.realpath(lexical_path)
+        lexical_path = os.path.abspath(candidate_path)
+        canonical_paths = (
+            os.path.realpath(lexical_path), os.path.realpath(candidate_path))
         sub = os.path.realpath(os.path.join(root, "external", "ccbench"))
-        if (rp == sub or rp.startswith(sub + os.sep)) and (
-                allow or reason.startswith("external/ccbench の編集面")):
+        if any(_inside(canonical, sub) for canonical in canonical_paths):
             return False, "external/ccbench への NotebookEdit は編集面外 (D24)"
     return allow, reason
 
 
 def main() -> int:
-    raw = sys.stdin.read()                 # 例外時の fails-closed 判定に使うため一度で読む
+    raw = sys.stdin.read()
     tool_name = ""
+    payload = None
     try:
         payload = json.loads(raw)
         tool_name = payload.get("tool_name", "")
         tool_input = payload.get("tool_input") or {}
-        allow, reason = decide(tool_name, tool_input, cwd=payload.get("cwd") or "")
-    except Exception as e:  # noqa: BLE001 — hook 自身の不具合で全書き込みを止めない。
-        # ただし入力に管轄トークンが見えるときだけは fails-closed に倒す。
-        protected_tokens = ("external/ccbench", "wal.jsonl", "campaign.lock",
-                            "build-variants", "output/s8b-freeze",
-                            "output/exploration/", "namespace.json")
+        allow, reason = decide(
+            tool_name, tool_input, cwd=payload.get("cwd") or "")
+    except Exception as exc:  # noqa: BLE001 — 管轄 token が無ければ可用性優先。
+        protected_tokens = (
+            "external/ccbench", "wal.jsonl", "campaign.lock",
+            "build-variants", "output/s8b-freeze",
+            "output/exploration/", "namespace.json",
+        )
         if tool_name == "apply_patch":
             protected_tokens += ("output/campaigns/", "/runs/", "runs/")
-        if any(t in raw for t in protected_tokens):
-            print(f"guard_write hook 内部エラー ({type(e).__name__}: {e}) — 管轄パスを"
-                  "含むため fails-closed で拒否", file=sys.stderr)
+        decoded_values = tuple(_string_values(payload)) if payload is not None else ()
+        raw_protected = any(token in raw for token in protected_tokens)
+        decoded_protected = any(
+            any(token in value for token in protected_tokens)
+            for value in decoded_values)
+        hooks_protected = (
+            "hooks/" in raw or '"hooks"' in raw
+            or any(value == "hooks" or "hooks/" in value
+                   for value in decoded_values))
+        if raw_protected or decoded_protected or hooks_protected:
+            print(
+                f"guard_write hook 内部エラー ({type(exc).__name__}: {exc}) — 管轄パスを"
+                "含むため fails-closed で拒否", file=sys.stderr)
             return 2
         return 0
     if not allow:

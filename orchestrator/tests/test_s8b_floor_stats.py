@@ -16,6 +16,7 @@ reference calculator と手導出 literal で固定する (`_ref_*`)。productio
 """
 from __future__ import annotations
 
+import inspect
 import math
 import os
 import sys
@@ -39,8 +40,15 @@ from orchestrator.campaign.s8b_floor_stats import (  # noqa: E402
     cell_stats,
     holdout_floors,
     session_median,
-    verify_floor_artifact,
+    verify_floor_artifact as _verify_floor_artifact,
 )
+
+
+def verify_floor_artifact(artifact, expected, expected_binaries=None):
+    return _verify_floor_artifact(
+        artifact, expected, expected_binaries=expected_binaries,
+        expected_use_perf=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -86,10 +94,23 @@ def _ref_u_noise(s_c, s_stock):
 # ---------------------------------------------------------------------------
 def _sess(cell_id, seq, throughputs, *, reps_expected=5, holdout_id="H",
           configuration_id="cfg", exec_failures=0, excluded_reason=None, retry=False):
+    raw_values = list(throughputs) + [None] * max(0, reps_expected - len(throughputs))
+    perf_raw = {
+        "LLC-load-misses": 1, "LLC-loads": 2, "instructions": 3, "cycles": 4,
+    }
+    observations = tuple(
+        {
+            "rep_index": index, "returncode": 0, "counter_status": "complete",
+            "missing_perf_events": [], "perf_raw": dict(perf_raw),
+            "throughput": raw_values[index],
+        }
+        for index in range(reps_expected)
+    )
     return SessionRecord(
         cell_id=cell_id, holdout_id=holdout_id, configuration_id=configuration_id,
         seq=seq, throughputs=tuple(throughputs), reps_expected=reps_expected,
-        exec_failures=exec_failures, excluded_reason=excluded_reason, retry=retry)
+        exec_failures=exec_failures, excluded_reason=excluded_reason, retry=retry,
+        rep_observations=observations, rep_integrity_failures=0)
 
 
 def _flat(cell_id, seq, median_value, **kw):
@@ -396,8 +417,11 @@ def _honest_artifact():
     config = {"formula": FORMULA_ID, "n_sessions": n_sessions, "reps": reps,
               "stock_configuration": stock_cfg, "wired_min_rel_floor": 0.01,
               "session_cv_max": "0.10", "cell_cv_max": "0.15"}
-    artifact = {"config": config,
-                "sessions": [asdict(r) for r in records],
+    sessions = [asdict(r) for r in records]
+    for row in sessions:
+        row["rep_observations"] = [dict(item) for item in row["rep_observations"]]
+        row["exclusion_class"] = None
+    artifact = {"config": config, "sessions": sessions,
                 "cells": cells, "floors": floors}
     expected = {"formula": FORMULA_ID, "n_sessions": n_sessions, "reps": reps,
                 "stock_configuration": stock_cfg, "wired_min_rel_floor": 0.01,
@@ -408,6 +432,163 @@ def _honest_artifact():
 
 def test_verify_accepts_consistent_artifact():
     artifact, expected, *_ = _honest_artifact()
+    assert verify_floor_artifact(artifact, expected) == []
+
+
+def test_verify_requires_expected_use_perf_keyword_argument():
+    artifact, expected, *_ = _honest_artifact()
+    parameter = inspect.signature(_verify_floor_artifact).parameters["expected_use_perf"]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is inspect.Parameter.empty
+    with pytest.raises(TypeError, match="expected_use_perf"):
+        _verify_floor_artifact(artifact, expected)
+
+
+def test_verify_rejects_integrity_violation_with_valid_claim():
+    """M8: rc 違反を count 0・全 tps 採用のまま隠すと拒否する。"""
+    artifact, expected, *_ = _honest_artifact()
+    artifact["sessions"][0]["rep_observations"][2]["returncode"] = 7
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("rep_integrity_failures 齟齬" in error for error in errors)
+    assert any("integrity-qualified throughputs 齟齬" in error for error in errors)
+
+
+def test_verify_rejects_false_rep_integrity_exclusion():
+    """M9: 全 rep 完備なのに failure count を自己申告しても信用しない。"""
+    artifact, expected, *_ = _honest_artifact()
+    row = artifact["sessions"][0]
+    row["rep_integrity_failures"] = 1
+    row["exclusion_class"] = "rep_integrity_failure"
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("rep_integrity_failures 齟齬" in error for error in errors)
+    assert any("偽除外" in error for error in errors)
+
+
+@pytest.mark.parametrize("reason", [
+    pytest.param("competing_process", id="competing"),
+    pytest.param("launch_failure", id="launch"),
+])
+def test_verify_rejects_exempt_session_exclusion_class_tamper(reason):
+    """R1: 証跡免除 session でも exclusion_class の改変を拒否する。"""
+    artifact, expected, *_ = _honest_artifact()
+    row = artifact["sessions"][0]
+    row.update({
+        "throughputs": [], "rep_observations": [],
+        "rep_integrity_failures": None, "run_cmd": None,
+        "excluded_reason": reason, "exclusion_class": reason,
+        "exec_failures": 0 if reason == "competing_process" else row["reps_expected"],
+        "probe_before": {"competing": reason == "competing_process"},
+        "probe_after": None if reason == "competing_process" else {"competing": False},
+    })
+    before = verify_floor_artifact(artifact, expected)
+    assert not any("exclusion_class 齟齬" in error for error in before)
+    row["exclusion_class"] = "rep_integrity_failure"
+    after = verify_floor_artifact(artifact, expected)
+    assert any("exclusion_class 齟齬" in error for error in after)
+
+
+def test_verify_rejects_completed_measure_disguised_as_unmeasured_exemption():
+    """R2: post-probe 済み session は自己申告だけで証跡免除へ偽装できない。"""
+    artifact, expected, *_ = _honest_artifact()
+    row = artifact["sessions"][0]
+    row.update({
+        "throughputs": [], "rep_observations": [],
+        "rep_integrity_failures": None, "run_cmd": None,
+        "excluded_reason": "competing_process",
+        "exclusion_class": "competing_process", "exec_failures": 0,
+        "probe_before": {"competing": False},
+        "probe_after": {"competing": False},
+    })
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("rep_observations 件数" in error for error in errors)
+    assert any("rep_integrity_failures が非負 exact int" in error for error in errors)
+
+
+@pytest.mark.parametrize("field,value", [
+    pytest.param("seq", "5", id="seq-string"),
+    pytest.param("reps_expected", 5.9, id="reps-float"),
+    pytest.param("exec_failures", "0", id="failures-string"),
+    pytest.param("retry", 0.9, id="retry-float"),
+])
+def test_verify_rejects_normalizable_session_scalar_types(field, value):
+    """R3: int/bool へ正規化できても保存型が exact でなければ拒否する。"""
+    artifact, expected, *_ = _honest_artifact()
+    artifact["sessions"][0][field] = value
+    errors = verify_floor_artifact(artifact, expected)
+    assert any(field in error and "変換不能" in error for error in errors)
+
+
+def test_verify_rejects_perf_required_not_required_claim():
+    """M10: perf-required 文脈で not_required を良好値にできない。"""
+    artifact, expected, *_ = _honest_artifact()
+    observation = artifact["sessions"][0]["rep_observations"][0]
+    observation["counter_status"] = "not_required"
+    observation["perf_raw"] = {event: None for event in (
+        "LLC-load-misses", "LLC-loads", "instructions", "cycles",
+    )}
+    observation["missing_perf_events"] = [
+        "LLC-load-misses", "LLC-loads", "instructions", "cycles",
+    ]
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("counter_status 齟齬" in error for error in errors)
+
+
+def test_verify_rejects_counter_status_missing_contradiction():
+    """M11: missing 列からの status 再導出と申告が矛盾すれば拒否する。"""
+    artifact, expected, *_ = _honest_artifact()
+    observation = artifact["sessions"][0]["rep_observations"][0]
+    observation["perf_raw"]["cycles"] = None
+    observation["missing_perf_events"] = ["cycles"]
+    observation["counter_status"] = "complete"
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("counter_status 齟齬" in error for error in errors)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("returncode", False),
+    ("rep_index", False),
+])
+def test_verify_rejects_bool_in_rep_observation(field, value):
+    """M12: bool を exact int として受け入れない。"""
+    artifact, expected, *_ = _honest_artifact()
+    artifact["sessions"][0]["rep_observations"][0][field] = value
+    errors = verify_floor_artifact(artifact, expected)
+    assert any(field in error for error in errors)
+
+
+def test_verify_rejects_negative_perf_counter():
+    """M5: 負 counter は取得済みでなく欠損として扱う。"""
+    artifact, expected, *_ = _honest_artifact()
+    observation = artifact["sessions"][0]["rep_observations"][0]
+    observation["perf_raw"]["cycles"] = -1
+    errors = verify_floor_artifact(artifact, expected)
+    assert any("missing_perf_events 齟齬" in error for error in errors)
+
+
+@pytest.mark.parametrize("mutation", ["unknown", "missing_observation"])
+def test_verify_rejects_unknown_or_missing_rep_evidence(mutation):
+    """M6: unknown・証跡欠落を違反なしへ補わない。"""
+    artifact, expected, *_ = _honest_artifact()
+    if mutation == "unknown":
+        artifact["sessions"][0]["rep_observations"][0]["counter_status"] = "unknown"
+    else:
+        artifact["sessions"][0]["rep_observations"].pop()
+    errors = verify_floor_artifact(artifact, expected)
+    assert errors
+    assert any(
+        "counter_status 齟齬" in error or "rep_observations 件数" in error
+        for error in errors
+    )
+
+
+def test_verify_accepts_zero_perf_counters():
+    """P4: counter 0 は取得済みの exact int であり complete。"""
+    artifact, expected, *_ = _honest_artifact()
+    for observation in artifact["sessions"][0]["rep_observations"]:
+        observation["perf_raw"] = {
+            "LLC-load-misses": 0, "LLC-loads": 0,
+            "instructions": 0, "cycles": 0,
+        }
     assert verify_floor_artifact(artifact, expected) == []
 
 
