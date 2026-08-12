@@ -2,15 +2,22 @@
 """Evidence-derived admission metadata for campaign builds.
 
 The sealed runtime values and exact canonical receipts in this module prevent accidental class
-selection and make provenance structurally checkable.  They do **not** authenticate an issuer:
-trusted orchestrator code in the same Python process can call the private factories, register an
-``argparse`` action of its own, or mutate process memory.  This is misuse prevention and
-provenance structuring, not a security boundary against an in-process caller.
+selection and make provenance structurally checkable.  The repository AST audit covers direct
+calls reached from imports of this module, non-call uses of those imported low-level bindings,
+and statically resolved ``import_module`` / ``getattr`` / ``globals`` lookups.  It does not model
+``eval`` / ``exec``, strings assembled only at runtime, values injected from outside the scanned
+module, monkeypatched import machinery or builtins, or non-Python issuers.  Registered CLI actions
+enforce the registered inventory at flag use.  They do **not** authenticate an issuer: a caller in
+the same process can invoke the private factories directly, register an ``argparse`` action of its
+own, or mutate process memory.  This is misuse prevention and provenance structuring, not a
+security boundary against an in-process caller.
 
 The following boundaries are deliberately still open and receive no security credit here:
-in-process issuers, shell materializers, the ABA/mixed-snapshot window between evidence capture
-and compilation, and transitive provenance through older artifacts.  In particular, a receipt
-proves canonical structure and internal consistency, not that a human or generator really acted.
+in-process issuers, shell materializers, arbitrary binary paths, runnable scripts under
+``output/**``, the ABA/mixed-snapshot window between evidence capture and compilation, and
+transitive provenance through older artifacts.  registry への登録は下流の拒否を起こさない。成果物の
+隔離は成立しておらず、それは T-841 の範囲である。In particular, a receipt proves canonical
+structure and internal consistency, not that a human or generator really acted.
 """
 from __future__ import annotations
 
@@ -22,6 +29,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Mapping
 
+from .materializer_admission import require_registered_coder_entrypoint
 from .pin import CURRENT_PIN
 from .source_digest import STOCK, SourceEvidence
 
@@ -116,14 +124,22 @@ def _source_map(source: SourceEvidence) -> dict[str, object]:
 
 @dataclass(frozen=True, slots=True, init=False)
 class CoderBuildAuthority:
-    """Opaque, process-local token issued only by the private argparse action."""
+    """Opaque, process-local token issued only by a private argparse action."""
 
     _nonce: str
+    _coder_entrypoint_site: str | None
 
-    def __init__(self, nonce: str, *, _seal: object = None) -> None:
+    def __init__(
+        self,
+        nonce: str,
+        coder_entrypoint_site: str | None,
+        *,
+        _seal: object = None,
+    ) -> None:
         if _seal is not _SEAL:
             raise BuildAdmissionError("CoderBuildAuthority は parser action だけが発行できる")
         object.__setattr__(self, "_nonce", nonce)
+        object.__setattr__(self, "_coder_entrypoint_site", coder_entrypoint_site)
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -152,6 +168,7 @@ class BuildRunContext:
     _generator_id: GeneratorId
     _context_nonce: str
     _authority_nonce: str | None
+    _coder_entrypoint_site: str | None
 
     def __init__(
         self,
@@ -159,6 +176,7 @@ class BuildRunContext:
         generator_id: GeneratorId,
         context_nonce: str,
         authority_nonce: str | None,
+        coder_entrypoint_site: str | None,
         *,
         _seal: object = None,
     ) -> None:
@@ -168,6 +186,7 @@ class BuildRunContext:
         object.__setattr__(self, "_generator_id", generator_id)
         object.__setattr__(self, "_context_nonce", context_nonce)
         object.__setattr__(self, "_authority_nonce", authority_nonce)
+        object.__setattr__(self, "_coder_entrypoint_site", coder_entrypoint_site)
 
     @property
     def policy(self) -> BuildAdmissionPolicy:
@@ -251,12 +270,37 @@ class BuildAdmission:
 
 
 class _CoderAuthorityAction(argparse.Action):
-    """Private action: the only supported issuer of a coder authority token."""
+    """Low-level action retained for build-admission unit fixtures only."""
 
     def __call__(self, parser, namespace, values, option_string=None) -> None:
+        self._issue(namespace, coder_entrypoint_site=None)
+
+    def _issue(self, namespace, *, coder_entrypoint_site: str | None) -> None:
         nonce = secrets.token_hex(32)
         _ISSUED_AUTHORITY_NONCES.add(nonce)
-        setattr(namespace, self.dest, CoderBuildAuthority(nonce, _seal=_SEAL))
+        setattr(
+            namespace,
+            self.dest,
+            CoderBuildAuthority(nonce, coder_entrypoint_site, _seal=_SEAL),
+        )
+
+
+class _RegisteredCoderAuthorityAction(_CoderAuthorityAction):
+    """Flag-time registry gate for production coder authority issuers."""
+
+    def __init__(self, *args, coder_entrypoint_site: str, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._coder_entrypoint_site = coder_entrypoint_site
+
+    def __call__(self, parser, namespace, values, option_string=None) -> None:
+        try:
+            require_registered_coder_entrypoint(self._coder_entrypoint_site)
+        except ValueError as exc:
+            raise BuildAdmissionError(str(exc)) from exc
+        self._issue(
+            namespace,
+            coder_entrypoint_site=self._coder_entrypoint_site,
+        )
 
 
 def add_coder_build_authority_argument(
@@ -264,7 +308,12 @@ def add_coder_build_authority_argument(
     *,
     dest: str = "coder_build_authority",
 ) -> None:
-    """Add ``--allow-coder-derived-build`` with an opaque process-local value."""
+    """Add the low-level flag issuer retained for admission-unit fixtures.
+
+    Production entry points must use
+    :func:`add_registered_coder_build_authority_argument`.  Keeping this in-process issuer
+    callable is an explicit compatibility seam, not an authentication boundary.
+    """
 
     if type(parser) is not argparse.ArgumentParser:
         raise TypeError("parser は argparse.ArgumentParser の exact instance が必要")
@@ -272,6 +321,37 @@ def add_coder_build_authority_argument(
         "--allow-coder-derived-build",
         dest=dest,
         action=_CoderAuthorityAction,
+        nargs=0,
+        default=None,
+        help="permit coder-derived source builds for this invocation",
+    )
+
+
+def add_registered_coder_build_authority_argument(
+    parser: argparse.ArgumentParser,
+    *,
+    coder_entrypoint_site: str,
+    dest: str = "coder_build_authority",
+) -> None:
+    """Add the public flag with an exact, flag-time registered-site requirement.
+
+    The site is 保存済み・未消費: it is stored on the process-local authority object and run
+    context but is not consumed by admission derivation, so it is not a rejection gate.  It is not
+    added to the persistent admission receipt, WAL, cache identity, COMMIT, or freeze data.
+    Registration also does not prove quarantine ran or cause downstream artifact rejection.  A
+    same-process caller can still invoke the low-level issuer directly, so this is not an
+    authentication boundary.
+    """
+
+    if type(parser) is not argparse.ArgumentParser:
+        raise TypeError("parser は argparse.ArgumentParser の exact instance が必要")
+    if type(coder_entrypoint_site) is not str:
+        raise TypeError("coder_entrypoint_site は exact str が必要")
+    parser.add_argument(
+        "--allow-coder-derived-build",
+        dest=dest,
+        action=_RegisteredCoderAuthorityAction,
+        coder_entrypoint_site=coder_entrypoint_site,
         nargs=0,
         default=None,
         help="permit coder-derived source builds for this invocation",
@@ -299,6 +379,7 @@ def build_run_context(
     if type(generator_id) is not GeneratorId:
         raise BuildAdmissionError("generator_id は registered GeneratorId の exact member が必要")
     authority_nonce = None
+    coder_entrypoint_site = None
     if coder_authority is not None:
         if type(coder_authority) is not CoderBuildAuthority:
             raise BuildAdmissionError("coder_authority は parser 発行 token の exact type が必要")
@@ -308,8 +389,10 @@ def build_run_context(
         if authority_nonce in _CLAIMED_AUTHORITY_NONCES:
             raise BuildAdmissionError("coder_authority は別 run context で既に使用済み")
         _CLAIMED_AUTHORITY_NONCES.add(authority_nonce)
+        coder_entrypoint_site = coder_authority._coder_entrypoint_site
     return BuildRunContext(
-        _new_policy(), generator_id, secrets.token_hex(32), authority_nonce, _seal=_SEAL
+        _new_policy(), generator_id, secrets.token_hex(32), authority_nonce,
+        coder_entrypoint_site, _seal=_SEAL
     )
 
 
