@@ -72,7 +72,7 @@ title: 床値 campaign の投入経路を固定 pilot にし、死経路だっ�
   成果物は repo へ commit せず repo 外の bundle (run directory + binary store +
   submission/job receipt) へ退避し、worklog には path と hash を書く。
   途中で死んだら救出せず新規 job で再実行する。
-  base: ce926217ac02c9d7ffbd6809c2040c6d362483973fcbf76dad615eec25fea047
+  base: 0ec5336cf2b3c3d647f877d7f78bc6c43b70f39c5cc82b9f112eee1b552b3a6f
 
 ### 新規
 
