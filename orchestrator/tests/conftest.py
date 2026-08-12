@@ -43,6 +43,8 @@ try:
         GROWTH_TEST_HOLDS,
         RUN_GROWTH_HELD_TESTS_ENV,
         RUN_GROWTH_HELD_TESTS_TOKEN,
+        mark_pytest_session_enforcing,
+        unmark_pytest_session_enforcing,
     )
 except ModuleNotFoundError as exc:
     # failure-digest の plain-import probe は repo root を sys.path へ足さずに
@@ -53,6 +55,8 @@ except ModuleNotFoundError as exc:
     GROWTH_TEST_HOLDS = None
     RUN_GROWTH_HELD_TESTS_ENV = None
     RUN_GROWTH_HELD_TESTS_TOKEN = None
+    mark_pytest_session_enforcing = None
+    unmark_pytest_session_enforcing = None
 
 
 def _ensure_growth_test_holds_loaded() -> None:
@@ -60,6 +64,8 @@ def _ensure_growth_test_holds_loaded() -> None:
     global GROWTH_TEST_HOLDS
     global RUN_GROWTH_HELD_TESTS_ENV
     global RUN_GROWTH_HELD_TESTS_TOKEN
+    global mark_pytest_session_enforcing
+    global unmark_pytest_session_enforcing
 
     if GROWTH_TEST_HOLDS is not None:
         return
@@ -67,11 +73,15 @@ def _ensure_growth_test_holds_loaded() -> None:
         GROWTH_TEST_HOLDS as holds,
         RUN_GROWTH_HELD_TESTS_ENV as env_name,
         RUN_GROWTH_HELD_TESTS_TOKEN as env_token,
+        mark_pytest_session_enforcing as mark_enforcing,
+        unmark_pytest_session_enforcing as unmark_enforcing,
     )
 
     GROWTH_TEST_HOLDS = holds
     RUN_GROWTH_HELD_TESTS_ENV = env_name
     RUN_GROWTH_HELD_TESTS_TOKEN = env_token
+    mark_pytest_session_enforcing = mark_enforcing
+    unmark_pytest_session_enforcing = unmark_enforcing
 
 
 @pytest.fixture
@@ -509,6 +519,8 @@ _FAILURE_REPORTS: list[_StashedFailure] = []
 
 def pytest_configure(config) -> None:
     _growth_holds_opted_in()
+    if mark_pytest_session_enforcing is not None:
+        mark_pytest_session_enforcing(config)
     _FAILURE_REPORTS.clear()
 
 
@@ -898,6 +910,8 @@ def pytest_unconfigure(config):
         inner_exception = exc
         raise
     finally:
+        if unmark_pytest_session_enforcing is not None:
+            unmark_pytest_session_enforcing(config)
         stashed = tuple(_FAILURE_REPORTS)
         _FAILURE_REPORTS.clear()
         # finally 内で return すると inner hook の例外を StopIteration で消すため、
