@@ -23,6 +23,7 @@ WAVE_PRODUCTION_FILES = (
     "reflux_origin_artifacts.py",
     "reflux_source_closure.py",
     "reflux_result_evidence.py",
+    "reflux_origin_ledger.py",
     "reflux_origin_topology.py",
     "reflux_origin_binding.py",
     "reflux_formal_consumer.py",
@@ -789,15 +790,36 @@ def test_terminal_projection_is_one_nested_key_with_closed_reason(case: _Case) -
 
 
 def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> None:
-    assert len(WAVE_PRODUCTION_FILES) == 12
+    assert len(WAVE_PRODUCTION_FILES) == 13
+    assert set(WAVE_PRODUCTION_FILES) == {
+        "autonomous_trial_completeness.py",
+        "p3_autonomous_workload_trial.py",
+        "reflux_formal_consumer.py",
+        "reflux_origin_artifacts.py",
+        "reflux_origin_binding.py",
+        "reflux_origin_client.py",
+        "reflux_origin_ledger.py",
+        "reflux_origin_topology.py",
+        "reflux_result_evidence.py",
+        "reflux_source_closure.py",
+        "s8b_descriptor.py",
+        "trial_registry.py",
+        "wal.py",
+    }
     campaign_root = Path(C.__file__).resolve().parent
     sources = {
         name: (campaign_root / name).read_text(encoding="utf-8")
         for name in WAVE_PRODUCTION_FILES
     }
     assert all((campaign_root / name).is_file() for name in WAVE_PRODUCTION_FILES)
+    positional_nonaborted_calls = []
     for name, source in sources.items():
         tree = ast.parse(source, filename=name)
+        parents = {
+            child: parent
+            for parent in ast.walk(tree)
+            for child in ast.iter_child_nodes(parent)
+        }
         assert not any(
             isinstance(node, ast.Call)
             and any(
@@ -808,6 +830,57 @@ def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> 
             )
             for node in ast.walk(tree)
         )
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and (
+                    (
+                        isinstance(node.func, ast.Name)
+                        and node.func.id == "OriginSealed"
+                    )
+                    or (
+                        isinstance(node.func, ast.Attribute)
+                        and node.func.attr == "OriginSealed"
+                    )
+                )
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and node.args[0].value is False
+            ):
+                continue
+            ancestor = parents[node]
+            wrapper_name = None
+            if isinstance(ancestor, ast.Call):
+                if isinstance(ancestor.func, ast.Name):
+                    wrapper_name = ancestor.func.id
+                elif isinstance(ancestor.func, ast.Attribute):
+                    wrapper_name = ancestor.func.attr
+            assignment_name = None
+            function_name = None
+            while not isinstance(ancestor, ast.Module):
+                if (
+                    assignment_name is None
+                    and isinstance(ancestor, ast.Assign)
+                    and len(ancestor.targets) == 1
+                    and isinstance(ancestor.targets[0], ast.Name)
+                ):
+                    assignment_name = ancestor.targets[0].id
+                if isinstance(ancestor, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    function_name = ancestor.name
+                    break
+                ancestor = parents[ancestor]
+            positional_nonaborted_calls.append(
+                (name, function_name, wrapper_name, assignment_name)
+            )
+
+    assert positional_nonaborted_calls == [
+        (
+            "reflux_origin_ledger.py",
+            "_check_budget_codec_feasibility",
+            "_feasibility_event_frame",
+            "class_frame",
+        )
+    ]
 
     consumer_tree = ast.parse(
         sources["reflux_formal_consumer.py"],
