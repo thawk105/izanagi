@@ -1,0 +1,108 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "old": "    _assert_canonical_job_script(selected)\n    _assert_staged_file_identities(selected)\n",
+          "new": "    _assert_canonical_job_script(selected)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "old": "    if wrapper_sha256 != schema.sha256_bytes(shipped_raw):\n        _fail(\"staged wrapper does not match the shipped wrapper bytes\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "old": "        coordinator_identity = resolve_git_identity(Path(__file__).resolve().parents[2])\n",
+          "new": "        coordinator_identity = document[\"validator_kwargs\"][\"approved_git_identity\"]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "old": "    roots = frozenset({\n        *repository_roots_from_git_identity(coordinator_identity),\n        *caller_roots,\n    })\n",
+          "new": "    roots = frozenset(caller_roots)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "old": "        after = os.fstat(fd)\n        if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (\n            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns,\n        ):\n            _fail(f\"{name} changed while reading\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "old": "            except FileNotFoundError:\n                try:\n                    registered = Path(registered_text).resolve(strict=False)\n                except OSError as exc:\n                    raise T810CoordinatorError(\n                        \"cannot resolve registered worktree\"\n                    ) from exc\n",
+          "new": "            except FileNotFoundError:\n                continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
