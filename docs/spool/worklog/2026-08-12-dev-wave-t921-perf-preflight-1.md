@@ -51,8 +51,24 @@ title: perf を測定の前提から外し preflight を pilot 限定で置い�
   `test_floor_job_hardens_interpreter` が 15 を検出して赤になった。子は手を出さず報告し、
   親が「硬化済み・承認済みの追加なので pin を追随させる (緩和ではない)」と裁定して
   別の限定 fix 子へ投げた。worklog 472 が同じテストで同型の先取りを記録している (2 例目)。
+- **変異 6/6 KILLED、MISMATCH 0、baseline 緑** (固定 commit `cbb9cdab` 束縛の使い捨て
+  worktree、計算ノード dispatch、runner は焦点 6 file)。本命 2 件が生きていた —
+  M1 (記録 receipt を無視して perf あり形と無し形の**どちらでも通す**)、
+  M2 (official mode でも receipt / perf 無し形を許す)。
+  M5 は **wave 前の実コードの形** (`build_portable_run_cmd` が常に perf を前置) を復元する
+  変異で、これも殺された。M6 は perf あり既定 bytes を変える正例。
+- **段 6 luna が予告した先取りは fix で実際に解消していた。** 「M1 と portable builder 変異が
+  `test_measure_run_cmd_rejects_shape_opposite_to_recorded_preflight` の同じ最初の assertion で
+  落ちるため証拠が一意に帰属しない」という指摘に対し、fix が M1 の test を固定 stub で
+  portable builder から隔離した。**本走の 6 変異の失敗 node 集合に重複は 1 件もない。**
+- **erratum: 変異の初回走は probe である。** 期待 node の完全集合を事前に確定できなかったため、
+  全変異を `SURVIVED` 期待 + `expected_nodes` 空で 1 度走らせ (harness は KILLED 期待に
+  完全集合を要求するため空では起動しない)、MISMATCH 6/6 の実失敗 node を採取してから
+  本 spec を組んだ。probe の結果は消さず `mutation-probe.json` として残す。
 - **AI 工数**: codex 子 6 本 (plan 1 / consult 2 / review 2 / fix 2)。
   段 6 の review 投入で `--lane` を渡して rc=2 を 1 回 (consult 専用の引数、dry-run で検出)。
+  変異 harness の投入で `-rf` 欠落による起動前 rc=2 を 1 回 (DW-M08 の要求。
+  **受入全走では逆に足してはいけない flag** であり、走行の種類で要求が反転する)。
 
 ## 次の一手差分
 
