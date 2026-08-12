@@ -938,3 +938,6 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:verifier-negative-txid-false-green":"[T-879]"},"authored":"2026-08-12","content_sha256":"7c0f470313474beb00edede9ed935527e719a4512d61ecb3ed18d41233e77d3e","seq":1,"wave":"dev-wave-t816-step4"}
 
 - {"allocations":{"T:focal-red-invisible-to-acceptance":"[T-881]","T:load-rotate-limit-import-provenance":"[T-880]"},"authored":"2026-08-12","content_sha256":"6ce1e313fd8a2a9eac93fd4ab4cb98947193544bb9af59ad3f97319037585f28","seq":1,"wave":"dev-wave-t860-test-red"}
+
+- {"allocations":{"D:keep-gains-below-target":"D312","D:no-history-proportional-test-cost":"D311","D:optin-needs-dispatch-env-allowlist":"D314","D:t080-history-scan-batched":"D313"},"authored":"2026-08-12","content_sha256":"2756b2d21bc9b5862d3f195d8eeeb13860b0e78662db2ccfad1de2766eae98f1","seq":1,"wave":"dev-wave-t827-slow-tests"}
+- {"allocations":{"T:codex-sessions-history-scan":"[T-884]","T:decompose-batch-vs-optin":"[T-882]","T:preserve-git-clone-isolation-cost":"[T-885]","T:record-hostname-with-perf":"[T-883]"},"authored":"2026-08-12","content_sha256":"24f46555a9a878b0ec4c6bb4d829dbd122d7c73bf4733189ee443723b4c706d7","seq":2,"wave":"dev-wave-t827-slow-tests"}
