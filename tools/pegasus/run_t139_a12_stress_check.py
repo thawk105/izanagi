@@ -14,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from orchestrator.preregistration.stress_check_simulation import (  # noqa: E402
+    CELL_COUNT,
     run_smoke,
     run_stress_check,
 )
@@ -29,7 +30,10 @@ def _positive_int(value: str) -> int:
 def _workers(value: str) -> int | None:
     if value == "auto":
         return None
-    return _positive_int(value)
+    parsed = _positive_int(value)
+    if parsed > CELL_COUNT:
+        raise argparse.ArgumentTypeError(f"workers must not exceed {CELL_COUNT}")
+    return parsed
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -37,6 +41,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=("smoke", "full"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--workers", type=_workers, default=None)
+    parser.add_argument(
+        "--execution-path",
+        choices=("qsub_compute", "login_bounded"),
+        default=None,
+        help="explicit execution path; omission is recorded as indeterminate",
+    )
     parser.add_argument("--chunk-datasets", type=_positive_int, default=32_768)
     parser.add_argument("--smoke-repetitions", type=_positive_int, default=10_000)
     return parser
@@ -52,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
             output_path=args.output,
             workers=args.workers,
             chunk_datasets=args.chunk_datasets,
+            execution_path=args.execution_path,
         )
     else:
         result = run_smoke(
@@ -60,12 +71,17 @@ def main(argv: list[str] | None = None) -> int:
             repetitions=args.smoke_repetitions,
             workers=args.workers,
             chunk_datasets=args.chunk_datasets,
+            execution_path=args.execution_path,
         )
     print(
         json.dumps(
             {
                 "authoritative": result.authoritative,
+                "B": result.transcript["constants"]["B"],
+                "claim_scope": result.transcript["claim_scope"]["value"],
+                "mode": result.transcript["mode"],
                 "output": str(result.output_path),
+                "pilot_ready": result.transcript["claim_scope"]["pilot_ready"],
                 "run_status": result.run_status,
                 "verdict": result.verdict,
             },
@@ -74,7 +90,11 @@ def main(argv: list[str] | None = None) -> int:
             allow_nan=False,
         )
     )
-    return 1 if result.run_status == "precondition_failed" else 0
+    if result.run_status == "precondition_failed":
+        return 1
+    if result.verdict == "design_not_feasible":
+        return 3
+    return 0
 
 
 if __name__ == "__main__":

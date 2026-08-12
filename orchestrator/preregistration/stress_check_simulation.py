@@ -46,6 +46,7 @@ FULL_REPETITIONS = 1_000_000
 ALPHA_1 = 0.025
 DELTA_MC = 0.001
 CELL_COUNT = 60
+EXECUTION_PATHS = ("qsub_compute", "login_bounded")
 J_VALUES = tuple(range(4, 14))
 WORKLOADS = ("W1", "W2")
 COMPONENTS = ("N", "H", "G")
@@ -54,6 +55,10 @@ ALGORITHM_VERSION = "t139-a12-v1"
 BETA_CF_MAX_ITERATIONS = 10_000
 _BETA_EPSILON = 4.0 * sys.float_info.epsilon
 _HASH_DESCRIPTION = "Recomputation aid only; not an acceptance condition."
+_STREAM_HASH_DESCRIPTION = (
+    "Recomputation aid and internal simulation-completeness evidence; not an "
+    "acceptance condition for admission, claims, commit, HEAD, or a manifest."
+)
 
 
 @dataclass(frozen=True)
@@ -492,7 +497,7 @@ def _simulate_cell(
         "final_byte_offset": stream.final_byte_offset,
         "stream_sha256": {
             "value": stream.accepted_sha256,
-            "description": _HASH_DESCRIPTION,
+            "description": _STREAM_HASH_DESCRIPTION,
         },
     }
 
@@ -510,11 +515,85 @@ def _cell_keys() -> tuple[tuple[int, str, str], ...]:
     )
 
 
+def _expected_stream_evidence(
+    J: int,
+    workload: str,
+    component: str,
+    B: int,
+    *,
+    chunk_draws: int = 1_048_576,
+) -> dict[str, Any]:
+    """Independently derive the deterministic stream evidence for one cell."""
+
+    if B <= 0 or chunk_draws <= 0:
+        raise ValueError("B and chunk_draws must be positive")
+    stream = _IndexStream(J, workload, component)
+    remaining = 6 * J * B
+    while remaining:
+        count = min(remaining, chunk_draws)
+        stream.take(count)
+        remaining -= count
+    return {
+        "accepted_draws": stream.accepted_count,
+        "rejected_bytes": stream.rejected_bytes,
+        "final_counter": stream.final_counter,
+        "final_byte_offset": stream.final_byte_offset,
+        "stream_sha256": stream.accepted_sha256,
+    }
+
+
+def _expected_stream_evidence_task(
+    arguments: tuple[int, str, str, int]
+) -> tuple[tuple[int, str, str], dict[str, Any]]:
+    J, workload, component, B = arguments
+    return (
+        (J, workload, component),
+        _expected_stream_evidence(J, workload, component, B),
+    )
+
+
+def _expected_stream_evidence_by_cell(
+    B: int, workers: int
+) -> dict[tuple[int, str, str], dict[str, Any]]:
+    tasks = [(*key, B) for key in _cell_keys()]
+    if workers == 1:
+        pairs = [_expected_stream_evidence_task(task) for task in tasks]
+    else:
+        pairs = []
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(_expected_stream_evidence_task, task)
+                for task in tasks
+            ]
+            for future in as_completed(futures):
+                pairs.append(future.result())
+    return dict(pairs)
+
+
+def _verify_stream_evidence(
+    result: Mapping[str, Any], expected: Mapping[str, Any]
+) -> None:
+    actual_hash = result.get("stream_sha256")
+    actual_hash_value = (
+        actual_hash.get("value") if isinstance(actual_hash, Mapping) else None
+    )
+    actual = {
+        "accepted_draws": result.get("accepted_draws"),
+        "rejected_bytes": result.get("rejected_bytes"),
+        "final_counter": result.get("final_counter"),
+        "final_byte_offset": result.get("final_byte_offset"),
+        "stream_sha256": actual_hash_value,
+    }
+    if actual != expected:
+        raise ValueError("cell stream evidence mismatch")
+
+
 def _aggregate_cells(
     worker_results: Sequence[Mapping[str, Any]],
     B: int,
     *,
     upper_bound_fn: Callable[[int, int], float] | None = None,
+    verify_streams: bool | int = False,
 ) -> tuple[str, list[dict[str, Any]], int]:
     if B <= 0:
         raise ValueError("B must be positive")
@@ -527,6 +606,18 @@ def _aggregate_cells(
         received[key] = result
     if set(received) != expected:
         raise ValueError("cell results are not the exact 60-cell Cartesian product")
+    expected_streams: dict[tuple[int, str, str], dict[str, Any]] | None = None
+    if verify_streams:
+        verification_workers = 1 if verify_streams is True else verify_streams
+        if (
+            isinstance(verification_workers, bool)
+            or not isinstance(verification_workers, int)
+            or not 1 <= verification_workers <= CELL_COUNT
+        ):
+            raise ValueError("stream verification workers must be in [1, 60]")
+        expected_streams = _expected_stream_evidence_by_cell(
+            B, verification_workers
+        )
     cells: list[dict[str, Any]] = []
     all_pass = True
     max_iterations = 0
@@ -539,6 +630,10 @@ def _aggregate_cells(
             raise ValueError("cell did not complete all datasets")
         if result.get("accepted_draws") != 6 * J * B:
             raise ValueError("cell did not consume all accepted draws")
+        if expected_streams is not None:
+            _verify_stream_evidence(
+                result, expected_streams[(J, workload, component)]
+            )
         if upper_bound_fn is None:
             upper, iterations = _clopper_pearson_upper_details(x, B)
         else:
@@ -563,15 +658,24 @@ def _auto_workers() -> int:
     return max(1, min(CELL_COUNT, available))
 
 
+def _effective_workers(workers: int | None) -> int:
+    requested_workers = _auto_workers() if workers is None else workers
+    if (
+        isinstance(requested_workers, bool)
+        or not isinstance(requested_workers, int)
+        or requested_workers <= 0
+    ):
+        raise ValueError("workers must be a positive integer or None")
+    return min(requested_workers, CELL_COUNT)
+
+
 def _run_cells(
     support: Mapping[str, Mapping[str, np.ndarray]],
     B: int,
     workers: int | None,
     chunk_datasets: int,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
-    worker_count = _auto_workers() if workers is None else workers
-    if isinstance(worker_count, bool) or not isinstance(worker_count, int) or worker_count <= 0:
-        raise ValueError("workers must be a positive integer or None")
+    worker_count = _effective_workers(workers)
     q_details = [_q_details(J) for J in J_VALUES]
     q_by_J = {item["J"]: item["q"] for item in q_details}
     tasks = [
@@ -590,14 +694,38 @@ def _run_cells(
         results = [_simulate_cell_task(task) for task in tasks]
     else:
         results = []
-        with ProcessPoolExecutor(max_workers=min(worker_count, CELL_COUNT)) as executor:
+        with ProcessPoolExecutor(max_workers=worker_count) as executor:
             futures = [executor.submit(_simulate_cell_task, task) for task in tasks]
             for future in as_completed(futures):
                 results.append(future.result())
     return results, q_details, worker_count
 
 
-def _base_transcript(mode: str, authoritative: bool, B: int, chunk: int) -> dict[str, Any]:
+def _execution_path_record(execution_path: str | None) -> dict[str, Any]:
+    if execution_path is None:
+        return {
+            "value": None,
+            "determination": "indeterminate",
+            "basis": "caller_did_not_declare_execution_path",
+        }
+    if execution_path not in EXECUTION_PATHS:
+        raise ValueError(
+            "execution_path must be qsub_compute, login_bounded, or None"
+        )
+    return {
+        "value": execution_path,
+        "determination": "declared",
+        "basis": "explicit_caller_declaration",
+    }
+
+
+def _base_transcript(
+    mode: str,
+    authoritative: bool,
+    B: int,
+    chunk: int,
+    execution_path: str | None,
+) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "algorithm_version": ALGORITHM_VERSION,
@@ -616,6 +744,7 @@ def _base_transcript(mode: str, authoritative: bool, B: int, chunk: int) -> dict
             "hostname": socket.gethostname(),
             "scheduler_job_id": os.environ.get("PBS_JOBID"),
             "chunk_datasets": chunk,
+            "execution_path": _execution_path_record(execution_path),
         },
         "constants": {
             "seed": SEED,
@@ -632,20 +761,47 @@ def _base_transcript(mode: str, authoritative: bool, B: int, chunk: int) -> dict
         "prng": {
             "grammar_version": ALGORITHM_VERSION,
             "seed_encoding": "64 lowercase hexadecimal ASCII bytes",
+            "block_generation": (
+                "block(counter) = SHA-256(seed_ascii || domain(J,w,k) || "
+                "uint64_be(counter))"
+            ),
+            "domain": (
+                'ASCII("|t139-a12-v1|" || dec(J) || "|" || w || "|" || k)'
+            ),
+            "cell_streams": "Each (J,w,k) cell has an independent stream.",
             "counter_start": 0,
-            "counter_encoding": "uint64 big endian",
+            "counter_encoding": "exact 8 raw bytes, unsigned big endian",
             "digest_byte_order": "raw bytes 0 through 31",
             "rejected_byte": 255,
+            "accepted_index": "byte mod 5",
+            "rejection_consumption": (
+                "After rejecting byte 255, consume the next byte from the same "
+                "digest before generating another digest."
+            ),
+            "chunk_boundary": (
+                "Do not discard unconsumed digest bytes at a chunk boundary."
+            ),
             "draw_order": ["dataset", "cluster", "block_position_0_through_5"],
             "B_in_domain": False,
+            "stream_sha256_definition": (
+                "SHA-256 of the accepted index byte sequence after byte mod 5, "
+                "not the raw digest stream."
+            ),
             "grammar_sensitivity": (
                 "The adjudicated alternative rejection grammars did not change the "
                 "conclusion in the independent full runs."
             ),
         },
+        "false_pass_rule": {
+            "formula": "mean - q*sqrt(s/J) > 0",
+            "comparison": "strict greater than zero",
+            "sample_variance_divisor": "J-1",
+            "dataset_recentering": "forbidden",
+            "zero_variance_positive_mean": "count as a false-pass",
+        },
         "field_descriptions": {
             "source_commit": _HASH_DESCRIPTION,
-            "stream_sha256": _HASH_DESCRIPTION,
+            "stream_sha256": _STREAM_HASH_DESCRIPTION,
             "result_sha256": _HASH_DESCRIPTION,
         },
     }
@@ -659,8 +815,11 @@ def _precondition_result(
     chunk_datasets: int,
     output_path: Path,
     reason: str,
+    execution_path: str | None,
 ) -> SimulationResult:
-    transcript = _base_transcript(mode, authoritative, B, chunk_datasets)
+    transcript = _base_transcript(
+        mode, authoritative, B, chunk_datasets, execution_path
+    )
     transcript.update(
         {
             "run_status": "precondition_failed",
@@ -680,10 +839,118 @@ def _precondition_result(
         "value": hashlib.sha256(_canonical_bytes(deterministic)).hexdigest(),
         "description": _HASH_DESCRIPTION,
     }
-    _write_canonical_json(output_path, transcript)
+    try:
+        _write_canonical_json(output_path, transcript)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        transcript.update(
+            {
+                "run_status": "simulation_incomplete",
+                "verdict": "design_not_feasible",
+                "reason_codes": [
+                    f"transcript_write_failure:{exc.__class__.__name__}"
+                ],
+                "transcript_persisted": False,
+            }
+        )
+        failure_payload = {
+            "run_status": transcript["run_status"],
+            "verdict": transcript["verdict"],
+            "reason_codes": transcript["reason_codes"],
+            "cells": [],
+        }
+        transcript["result_sha256"] = {
+            "value": hashlib.sha256(_canonical_bytes(failure_payload)).hexdigest(),
+            "description": _HASH_DESCRIPTION,
+        }
+        return SimulationResult(
+            verdict="design_not_feasible",
+            run_status="simulation_incomplete",
+            authoritative=authoritative,
+            transcript=transcript,
+            output_path=output_path,
+        )
     return SimulationResult(
         verdict="design_not_feasible",
         run_status="precondition_failed",
+        authoritative=authoritative,
+        transcript=transcript,
+        output_path=Path(output_path),
+    )
+
+
+def _incomplete_result(
+    *,
+    mode: str,
+    authoritative: bool,
+    B: int,
+    chunk_datasets: int,
+    output_path: Path,
+    reason: str,
+    execution_path: str | None,
+    input_metadata: Mapping[str, Any],
+) -> SimulationResult:
+    transcript = _base_transcript(
+        mode, authoritative, B, chunk_datasets, execution_path
+    )
+    transcript.update(
+        {
+            "run_status": "simulation_incomplete",
+            "verdict": "design_not_feasible",
+            "reason_codes": [reason],
+            "input": dict(input_metadata),
+            "cells": [],
+            "completed_cell_count": 0,
+        }
+    )
+    deterministic = {
+        "run_status": transcript["run_status"],
+        "verdict": transcript["verdict"],
+        "reason_codes": transcript["reason_codes"],
+        "input": transcript["input"],
+        "cells": [],
+    }
+    transcript["result_sha256"] = {
+        "value": hashlib.sha256(_canonical_bytes(deterministic)).hexdigest(),
+        "description": _HASH_DESCRIPTION,
+    }
+    try:
+        _write_canonical_json(output_path, transcript)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        transcript.update(
+            {
+                "run_status": "simulation_incomplete",
+                "verdict": "design_not_feasible",
+                "reason_codes": [
+                    f"transcript_write_failure:{exc.__class__.__name__}"
+                ],
+                "transcript_persisted": False,
+            }
+        )
+        failure_payload = {
+            "run_status": transcript["run_status"],
+            "verdict": transcript["verdict"],
+            "reason_codes": transcript["reason_codes"],
+            "input": transcript["input"],
+            "cells": transcript["cells"],
+        }
+        transcript["result_sha256"] = {
+            "value": hashlib.sha256(_canonical_bytes(failure_payload)).hexdigest(),
+            "description": _HASH_DESCRIPTION,
+        }
+        return SimulationResult(
+            verdict="design_not_feasible",
+            run_status="simulation_incomplete",
+            authoritative=authoritative,
+            transcript=transcript,
+            output_path=output_path,
+        )
+    return SimulationResult(
+        verdict="design_not_feasible",
+        run_status="simulation_incomplete",
         authoritative=authoritative,
         transcript=transcript,
         output_path=Path(output_path),
@@ -699,7 +966,17 @@ def _run(
     B: int,
     workers: int | None,
     chunk_datasets: int,
+    execution_path: str | None = None,
 ) -> SimulationResult:
+    if isinstance(B, bool) or not isinstance(B, int) or B <= 0:
+        raise ValueError("B must be a positive integer")
+    if mode == "full" and (not authoritative or B != FULL_REPETITIONS):
+        raise ValueError("full authoritative runs require B=1_000_000")
+    if authoritative and mode != "full":
+        raise ValueError("authoritative runs require mode=full")
+    if mode not in ("full", "smoke"):
+        raise ValueError("mode must be full or smoke")
+    _execution_path_record(execution_path)
     output_path = Path(output_path)
     if output_path.exists():
         raise FileExistsError(f"refusing to overwrite transcript: {output_path}")
@@ -714,14 +991,65 @@ def _run(
             chunk_datasets=chunk_datasets,
             output_path=output_path,
             reason=str(exc),
+            execution_path=execution_path,
         )
-    raw_results, q_details, worker_count = _run_cells(
-        support, B, workers, chunk_datasets
-    )
-    aggregate_verdict, cells, cp_iterations = _aggregate_cells(raw_results, B)
+    try:
+        raw_results, q_details, worker_count = _run_cells(
+            support, B, workers, chunk_datasets
+        )
+    except ArithmeticError as exc:
+        return _incomplete_result(
+            mode=mode,
+            authoritative=authoritative,
+            B=B,
+            chunk_datasets=chunk_datasets,
+            output_path=output_path,
+            reason=f"numerical_nonconvergence:{exc.__class__.__name__}",
+            execution_path=execution_path,
+            input_metadata=input_metadata,
+        )
+    except Exception as exc:
+        return _incomplete_result(
+            mode=mode,
+            authoritative=authoritative,
+            B=B,
+            chunk_datasets=chunk_datasets,
+            output_path=output_path,
+            reason=f"worker_failure:{exc.__class__.__name__}",
+            execution_path=execution_path,
+            input_metadata=input_metadata,
+        )
+    try:
+        aggregate_verdict, cells, cp_iterations = _aggregate_cells(
+            raw_results, B, verify_streams=worker_count
+        )
+    except ArithmeticError as exc:
+        return _incomplete_result(
+            mode=mode,
+            authoritative=authoritative,
+            B=B,
+            chunk_datasets=chunk_datasets,
+            output_path=output_path,
+            reason=f"numerical_nonconvergence:{exc.__class__.__name__}",
+            execution_path=execution_path,
+            input_metadata=input_metadata,
+        )
+    except Exception as exc:
+        return _incomplete_result(
+            mode=mode,
+            authoritative=authoritative,
+            B=B,
+            chunk_datasets=chunk_datasets,
+            output_path=output_path,
+            reason=f"aggregation_inconsistency:{exc.__class__.__name__}",
+            execution_path=execution_path,
+            input_metadata=input_metadata,
+        )
     elapsed = time.monotonic() - started
     verdict: str | None = aggregate_verdict if authoritative else None
-    transcript = _base_transcript(mode, authoritative, B, chunk_datasets)
+    transcript = _base_transcript(
+        mode, authoritative, B, chunk_datasets, execution_path
+    )
     transcript["runtime"].update(
         {"workers": worker_count, "elapsed_seconds": elapsed}
     )
@@ -769,7 +1097,39 @@ def _run(
         "value": hashlib.sha256(_canonical_bytes(deterministic)).hexdigest(),
         "description": _HASH_DESCRIPTION,
     }
-    _write_canonical_json(output_path, transcript)
+    try:
+        _write_canonical_json(output_path, transcript)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        transcript.update(
+            {
+                "run_status": "simulation_incomplete",
+                "verdict": "design_not_feasible",
+                "reason_codes": [
+                    f"transcript_write_failure:{exc.__class__.__name__}"
+                ],
+                "transcript_persisted": False,
+            }
+        )
+        failure_payload = {
+            "run_status": transcript["run_status"],
+            "verdict": transcript["verdict"],
+            "reason_codes": transcript["reason_codes"],
+            "input": transcript["input"],
+            "cells": transcript["cells"],
+        }
+        transcript["result_sha256"] = {
+            "value": hashlib.sha256(_canonical_bytes(failure_payload)).hexdigest(),
+            "description": _HASH_DESCRIPTION,
+        }
+        return SimulationResult(
+            verdict="design_not_feasible",
+            run_status="simulation_incomplete",
+            authoritative=authoritative,
+            transcript=transcript,
+            output_path=output_path,
+        )
     return SimulationResult(
         verdict=verdict,
         run_status="completed",
@@ -785,6 +1145,7 @@ def run_stress_check(
     output_path: Path,
     workers: int | None = None,
     chunk_datasets: int = 32_768,
+    execution_path: str | None = None,
 ) -> SimulationResult:
     """Run the pinned authoritative B=1,000,000 simulation."""
 
@@ -796,6 +1157,7 @@ def run_stress_check(
         B=FULL_REPETITIONS,
         workers=workers,
         chunk_datasets=chunk_datasets,
+        execution_path=execution_path,
     )
 
 
@@ -806,6 +1168,7 @@ def run_smoke(
     repetitions: int = 10_000,
     workers: int | None = None,
     chunk_datasets: int = 32_768,
+    execution_path: str | None = None,
 ) -> SimulationResult:
     """Run all 60 cells on a non-authoritative prefix of every full stream."""
 
@@ -819,4 +1182,5 @@ def run_smoke(
         B=repetitions,
         workers=workers,
         chunk_datasets=chunk_datasets,
+        execution_path=execution_path,
     )
