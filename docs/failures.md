@@ -6483,3 +6483,86 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   焦点レビューへ広げる)。
 - 再発検知: 逐語と台帳の件数照合 (目視)。機械化は未実装で、
   逐語の must-fix 見出しが定型でないため lint 化には形式の固定が要る。
+
+### F263. codex 子が正常終了しても web_search を使うと成果物が全損する [観測系の欠落] [恒真ゲート]
+
+- 事象: 段 3 の敵対レンズ 1 本が独立に 2 回失われた。いずれも
+  `codex_exit_code=0` / `validator_rc=0` / `termination_verified=true` /
+  `process_group_residual=0` / `limit_trigger=null` / model call と wall-clock は上限内で、
+  成果物 (17,321 bytes と 17,595 bytes) も完全かつ NFC 正規化済み・`## 総括` 付きだった。
+  それでも `evidence_status=invalid` で `accepted=false` になり、`-o` の出力 path には
+  何も書かれなかった (`output_sha256=null`)。合計 2,668 秒と input 9.2M token 相当を空費した。
+- 根本原因: `tools/codex_worker_launch.py` の `_drain_stdout` が stdout event 行を厳格に検査し、
+  失敗すると `stdout_invalid` を立てる。`_evidence_status` はそれを `invalid` にし、
+  受理条件が `complete` を要求するため attempt ごと落ちる。
+  **拒否されていたのは Codex CLI が出す `web_search` の `item.started` event で、
+  同一 object 内に `"id"` が 2 つある** (`"id":"item_32"` と `"id":"exec-..."`)。
+  厳格 parser は `JSON key が重複` で拒否する。10 行中 12 行が該当した走もある。
+  同時刻の別 lane は web_search を使わず、最大行 1,098,349 bytes でも `complete` だった
+  (行長上限 4 MiB は無関係)。
+- 恒久対応: 当面の回避は prompt に「Web 検索を使うな」を明記し、判断根拠を repo 内一次資料と
+  親の実測に限定すること (3 度目の投入はこれで rc=0)。恒久側は
+  D351 とは独立の裁定事項として
+  worklog の新規項目へ起票した (`evidence_status=invalid` の理由を receipt へ書く、
+  consult / review 段で web_search を既定無効にする、stdout event の重複キー扱いを分離する、の 3 案)。
+  **`tools/` の実装面なので Codex `role=author` が要る。**
+- 再発検知: 受理条件は既に fail-closed である。欠けているのは**理由の記録**で、
+  現状 receipt には「どの行のどの検査で落ちたか」が一切残らない。上記 3 案のうち
+  「理由を receipt へ書く」はどの案を採っても要る。
+
+### F264. 多軸で書いたテストが値側 literal の検査を恒真にした [恒真ゲート] [検査漏れ]
+
+- 事象: 三軸検索の前置フィルタで「値側を必要条件 literal の導出に使わない」ことを固定したはずの
+  テストが、**恒真だった**。`keys.append(key)` を `keys.append(key + "=" + value)` にする
+  1 行変異が、既存テスト 105 件を 1 本も発火させずに生存した (rc=0、失敗 node ゼロ)。
+  静的レビュー 6 本 (起草 + 段 3 の 2 本 + 段 6 の 2 本 + 親) が全て見落とし、変異だけが見つけた。
+- 根本原因: 既存テストがすべて**多軸**で書かれていた。軸ごとに値が違うため、
+  値を混ぜても最長共通部分文字列が結局 key 側へ戻り、導出結果が変異前後で一致する。
+  実害が出るのは**単軸**のときで、値の任意 1 文字メタ文字に一致する text が
+  正規表現には一致するのに必要 literal を含まず、正しい hit が捨てられる。
+- 恒久対応: 単軸 `expressions` を使う検査 2 件を追加し、変異 matrix の本走で
+  当該変異が 2 node で KILLED になることを固定した (10/10 期待どおり)。
+- 再発検知: 変異 matrix の当該 entry が恒久の positive control として残る。
+  同型 (多軸の共通部分文字列が単軸固有の欠陥を隠す) を疑う場合は、
+  **軸数を最小にした経路を必ず 1 本置く**。
+
+### F265. 既 fold の fragment を wave 側で削除して land が rc=26 で止まった — fold の dry-run は緑のまま [手順漏れ]
+
+- 事象: 古い 3 branch の裁定 fragment を land する wave で、`spool_fold.py --dry-run` が
+  `receipt-replay` を出した既 fold の fragment 2 本を `git rm` して独立 commit にした。
+  dry-run はその後 rc=0 (`status=planned`) になり、`check_docs.py` も rc=0 だったが、
+  `dev_wave_land.py` が `rc=26` `status=fold-failed`
+  `reason=landed-fold-owned-path` で拒否した。main は 1 bit も動いていない。
+- 根本原因: **fragment path の削除は fold だけの署名**であり、land は landed 区間の各 commit を
+  `_landed_fold_output_path` で検査して弾く (F82 が定めた署名 2 条件の片方)。gate は正しく発火した。
+  誤りは wave 側にあり、「不要な fragment を消す」という発想そのものが fold の役を奪っていた。
+  `spool_fold.py --dry-run` は fold の意味論 (replay・遷移対象・base) だけを見て git 履歴の署名は
+  見ないため、**dry-run の緑は land の緑を含意しない**。この非含意が見えにくさの本体である。
+- 恒久対応: 不要な fragment は削除せず**最初から持ち込まない**。branch を main から作り直し、
+  `git merge --no-ff --no-commit <branch>` の後 commit 前に `git rm` して、除外を merge commit 自身の
+  中で完結させる。land の `_landed_commit_diff` は親が 2 つで trusted が 1 つの commit では
+  trusted な main 側の親とだけ差分を取るため、merge commit の差分は「追加のみ」になり通る。
+- 再発検知: land 前に `git diff --name-status <tested-main>..<tip>` を取り、`D` で始まる行の path が
+  `docs/spool/**` の fragment に当たらないことを確認する (当たれば rc=26 が確定しているので
+  land を投入しない)。`docs/spool/FOLDED.md` の `M` も同じ扱い。ただしこの累積差分検査は
+  必要条件でしかない — 同 land が commit 単位でも検査するため、F266 の
+  条件も併せて満たす必要がある。
+
+### F266. 古い branch を順に merge すると 2 本目以降で land が止まる — 親が 1 つも trusted でない merge は両親と差分を取る [受理集合の過剰縮小]
+
+- 事象: 古い 3 branch を main 基点の wave branch へ**順に** merge したところ、1 本目の merge commit は
+  通り、2 本目と 3 本目が `landed-fold-owned-path` で違反になった。違反内容は
+  `M docs/spool/FOLDED.md`。累積差分 (`main..tip`) は追加のみで、`FOLDED.md` は 1 byte も変わって
+  いない。land は `rc=26` で 2 度止まった。
+- 根本原因: `_landed_commit_diff` は merge commit の親のうち **tested main の祖先であるもの**を
+  trusted とし、trusted がちょうど 1 つのときだけその親との差分に絞る。順に merge すると 2 本目以降は
+  第 1 親が自分の直前 commit (main の祖先でない)、第 2 親が古い branch tip (同じく祖先でない) となり
+  **trusted が 0 個**になる。この場合は両親と差分を取るため、古い branch 基点以降に main で起きた
+  fold の署名を wave の変更として読んでしまう。F82 の 3 度目の再発で `trusted_main_cutoff` が
+  入ったが、救われるのは trusted が 1 つ以上ある形だけで、trusted 0 の連鎖 merge は残っていた。
+- 恒久対応: 複数の古い branch を取り込む wave は、**main から 1 つの merge commit で同時に取り込む**
+  (`git merge --no-ff --no-commit <b1> <b2> <b3>`)。main を唯一の trusted な親とする形にすれば
+  差分は追加のみになる。fragment の除外・編集も同じ commit の中で済ませる。
+- 再発検知: land 前に `git rev-list --reverse <tested-main>..<tip>` の各 commit について、親が 2 つ
+  以上あるなら少なくとも 1 つが `git merge-base --is-ancestor <parent> <tested-main>` を満たすことを
+  確認する。満たさない commit が 1 つでもあれば land は必ず止まる。
