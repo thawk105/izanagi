@@ -4299,5 +4299,9 @@ def test_tool_import_reuses_ledger_token_and_outcome_definitions() -> None:
     assert 'model_reasoning_effort = "max"' not in source
 
 
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="pytest-delegating")
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-x"]))
