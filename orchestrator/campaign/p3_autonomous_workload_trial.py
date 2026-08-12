@@ -36,8 +36,14 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import p3_s4_loop as loop_core
 from . import p3_s4_loop_trigger_gating as trigger
+from . import reflux_formal_consumer
+from . import reflux_origin_binding
+from . import reflux_origin_client
+from . import reflux_origin_ledger
+from . import reflux_origin_topology
 from . import s8c_preregistration
 from . import trial_registry
+from .reflux_source_closure import ValidatedSourceClosure
 from .reflux_ir import emit_predicate, parse_wire
 from .autonomous_trial_completeness import (
     assert_campaign_layer3_chain,
@@ -244,6 +250,63 @@ class PreparedCampaignIdentity:
     campaign_id: str
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginBindingRequest:
+    """Primary issuer inputs plus the explicitly selected typed ledger client."""
+
+    client: reflux_origin_client.OriginLedgerClient | None
+    validated_source_closure: ValidatedSourceClosure
+    authority_blob_bytes: bytes
+    source_closure_bytes: bytes
+    provisioning_receipt: Mapping[str, object]
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginProducerInputs:
+    """Closed formal-consumer inputs supplied by the logical producer."""
+
+    run_plan: reflux_origin_topology.RecoveryEnvelope
+    result_record_bytes: tuple[bytes, ...]
+    evidence_root: Path
+    verifier_policy_bytes: bytes
+    enforcement_arm: str
+    generator_closure: Mapping[str, object]
+    terminal_operation_id: str
+
+
+@dataclasses.dataclass(slots=True)
+class OriginTrialRuntime:
+    """One in-process capability threaded through the bounded trial."""
+
+    capability: reflux_origin_binding.OriginBindingCapability
+    client: reflux_origin_client.OriginLedgerClient
+    binding_request: OriginBindingRequest
+    producer_inputs: OriginProducerInputs
+    launch_admission_record_sha256: str
+    initial_snapshot: reflux_origin_ledger.OriginSnapshot
+    terminal_projection: (
+        reflux_formal_consumer.OriginTerminalProjection | None
+    ) = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginPreflightFailure:
+    error_type: str
+    message: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginPartialTrialReport:
+    report: Mapping[str, Any] | None
+    error_type: str | None = None
+    message: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class OriginCompletedTrialReport:
+    report: Mapping[str, Any]
+
+
 _RUN_SCOPE_SEAL = object()
 
 
@@ -251,6 +314,7 @@ _RUN_SCOPE_SEAL = object()
 class _RunScopeBinding:
     admission: trial_registry.TrialLaunchAdmission
     _seal: object = dataclasses.field(repr=False)
+    origin_capability: reflux_origin_binding.OriginBindingCapability | None = None
 
 
 _ACTIVE_TRIAL_BINDING: contextvars.ContextVar[
@@ -647,6 +711,178 @@ def _trial_launch_admission(
         actual_campaign_id=prepared.campaign_id,
     )
     return admission
+
+
+def _prepare_origin_trial_runtime(
+    *,
+    admission: trial_registry.TrialLaunchAdmission,
+    request: OriginBindingRequest,
+    producer_inputs: OriginProducerInputs,
+    trial_id: str,
+    selected: list[str],
+    generations: int,
+    trial_manifest: Path | None,
+    effective_preregistration: (
+        s8c_preregistration.EffectivePreregistration | None
+    ),
+    build_context: BuildRunContext,
+) -> OriginTrialRuntime:
+    """Issue and exercise the fixture capability before lifecycle start."""
+
+    if type(request) is not OriginBindingRequest:
+        raise TypeError("origin_binding_request must be an OriginBindingRequest")
+    if type(producer_inputs) is not OriginProducerInputs:
+        raise TypeError("origin_producer_inputs must be an OriginProducerInputs")
+    if request.client is None:
+        raise reflux_origin_client.OriginLedgerClientError(
+            "origin-bound run requires an explicit typed ledger client"
+        )
+    if type(request.client) is not reflux_origin_client.OriginLedgerClient:
+        raise reflux_origin_client.OriginLedgerClientError(
+            "origin-bound run requires the exact typed ledger client"
+        )
+    if admission.mode != "registered-effective" or admission.binding is None:
+        raise reflux_origin_binding.OriginBindingError(
+            "[launch-mode] origin request requires registered-effective admission"
+        )
+    if trial_manifest is None:
+        raise reflux_origin_binding.OriginBindingError(
+            "[launch-mode] origin request requires a registered manifest"
+        )
+    if len(selected) != 1:
+        raise reflux_origin_binding.OriginBindingError(
+            "[trial-workload] origin request requires exactly one workload"
+        )
+    if type(producer_inputs.run_plan) is not reflux_origin_topology.RecoveryEnvelope:
+        raise TypeError("origin producer run_plan must be a RecoveryEnvelope")
+    if type(producer_inputs.result_record_bytes) is not tuple or any(
+        type(raw) is not bytes for raw in producer_inputs.result_record_bytes
+    ):
+        raise TypeError("origin result_record_bytes must be a tuple of bytes")
+    if type(producer_inputs.verifier_policy_bytes) is not bytes:
+        raise TypeError("origin verifier_policy_bytes must be bytes")
+    if (
+        type(producer_inputs.enforcement_arm) is not str
+        or not producer_inputs.enforcement_arm
+        or type(producer_inputs.terminal_operation_id) is not str
+        or not producer_inputs.terminal_operation_id
+    ):
+        raise TypeError("origin producer tokens must be non-empty strings")
+
+    launch = reflux_origin_binding.rederive_launch_admission(
+        admission,
+        effective_preregistration=effective_preregistration,
+        manifest_path=Path(trial_manifest),
+        trial_id=trial_id,
+        workloads=selected,
+        allow_unregistered_exploratory=False,
+        repository_root=ROOT,
+        registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+    )
+    site = trigger._current_site()
+    contract = trigger._admit_env_contract(site)
+    prepared_campaign = _prepare_campaign_identity(
+        workload=selected[0],
+        trial_id=trial_id,
+        generations=generations,
+        site=site,
+        contract=contract,
+        build_context=build_context,
+    )
+    prepared_origin = reflux_origin_binding.prepare_origin_identity(
+        authority_blob_bytes=request.authority_blob_bytes,
+        source_closure_bytes=request.source_closure_bytes,
+        provisioning_receipt=request.provisioning_receipt,
+        validated_source_closure=request.validated_source_closure,
+    )
+    capability = reflux_origin_binding.issue_origin_binding_capability(
+        launch_rederivation=launch,
+        prepared_campaign=prepared_campaign,
+        prepared_origin=prepared_origin,
+        validated_source_closure=request.validated_source_closure,
+        authority_blob_bytes=request.authority_blob_bytes,
+        source_closure_bytes=request.source_closure_bytes,
+        provisioning_receipt=request.provisioning_receipt,
+        effective_preregistration=effective_preregistration,
+        manifest_path=Path(trial_manifest),
+        trial_id=trial_id,
+        workloads=selected,
+        allow_unregistered_exploratory=False,
+        repository_root=ROOT,
+        registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
+        trial_workload=selected[0],
+        expected_axis_semantics_sha256=prepared_origin.axis_semantics_sha256,
+        expected_verifier_policy_sha256=prepared_origin.verifier_policy_sha256,
+        expected_environment_contract_sha256=(
+            prepared_origin.environment_contract_sha256
+        ),
+        store_scope=request.client.store_scope,
+    )
+    client = reflux_origin_client.require_origin_ledger_client(
+        capability, request.client
+    )
+    initial_snapshot = client.read_origin(capability)
+    launch_record = trial_registry.launch_admission_record(
+        admission, origin_binding=capability
+    )
+    return OriginTrialRuntime(
+        capability=capability,
+        client=client,
+        binding_request=request,
+        producer_inputs=producer_inputs,
+        launch_admission_record_sha256=hashlib.sha256(
+            _canonical_json_bytes(launch_record)
+        ).hexdigest(),
+        initial_snapshot=initial_snapshot,
+    )
+
+
+def _launch_admission_record(
+    admission: trial_registry.TrialLaunchAdmission,
+    origin_capability: reflux_origin_binding.OriginBindingCapability | None,
+) -> dict[str, Any]:
+    if origin_capability is None:
+        return trial_registry.launch_admission_record(admission)
+    return trial_registry.launch_admission_record(
+        admission, origin_binding=origin_capability
+    )
+
+
+def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
+    """Evaluate and commit the sole abort-only formal terminal result."""
+
+    if type(runtime) is not OriginTrialRuntime:
+        raise TypeError("origin runtime has the wrong exact type")
+    capability = reflux_origin_binding.assert_issued_origin_binding_capability(
+        runtime.capability
+    )
+    snapshot = runtime.client.read_origin(capability)
+    sealed_batches = runtime.client.read_sealed_batches(capability)
+    producer = runtime.producer_inputs
+    result = reflux_formal_consumer.evaluate_formal_origin(
+        capability=capability,
+        source_closure=runtime.binding_request.validated_source_closure,
+        run_plan=producer.run_plan,
+        authority_blob_bytes=runtime.binding_request.authority_blob_bytes,
+        launch_admission_record_sha256=(
+            runtime.launch_admission_record_sha256
+        ),
+        origin_snapshot=snapshot,
+        sealed_batches=sealed_batches,
+        result_record_bytes=producer.result_record_bytes,
+        evidence_root=Path(producer.evidence_root),
+        verifier_policy_bytes=producer.verifier_policy_bytes,
+        enforcement_arm=producer.enforcement_arm,
+        generator_closure=producer.generator_closure,
+        operation_id=producer.terminal_operation_id,
+    )
+    runtime.terminal_projection = result.projection
+    runtime.client.commit_formal_result(
+        capability,
+        operation_id=producer.terminal_operation_id,
+        expected_state_commitment=snapshot.state_commitment,
+        result=result,
+    )
 
 
 def _preview(coder: trigger.CoderProposalTriggerGating, *, sub: str) -> dict[str, Any]:
@@ -1329,9 +1565,14 @@ def _finish_trial(
     ) = None,
     trial_manifest: Path | None = None,
     allow_unregistered_exploratory: bool = True,
+    origin_runtime: OriginTrialRuntime | None = None,
 ) -> dict[str, Any]:
-    trial_registry.assert_rederived_launch_admission(
-        launch_admission,
+    if origin_runtime is not None and type(origin_runtime) is not OriginTrialRuntime:
+        raise TypeError("origin runtime has the wrong exact type")
+    origin_capability = (
+        None if origin_runtime is None else origin_runtime.capability
+    )
+    rederivation_arguments = dict(
         effective_preregistration=effective_preregistration,
         manifest_path=trial_manifest,
         trial_id=trial_id,
@@ -1340,12 +1581,17 @@ def _finish_trial(
         repository_root=ROOT,
         registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
     )
+    if origin_capability is not None:
+        rederivation_arguments["origin_binding"] = origin_capability
+    trial_registry.assert_rederived_launch_admission(
+        launch_admission, **rederivation_arguments
+    )
     active_scope = _ACTIVE_TRIAL_BINDING.get()
     if (
         type(active_scope) is not _RunScopeBinding
         or active_scope._seal is not _RUN_SCOPE_SEAL
-        or trial_registry.launch_admission_record(active_scope.admission)
-        != trial_registry.launch_admission_record(launch_admission)
+        or active_scope.admission is not launch_admission
+        or active_scope.origin_capability is not origin_capability
     ):
         raise trial_registry.TrialRegistryError(
             "[run-scope] finish requires the exact sealed run_trial admission"
@@ -1371,7 +1617,7 @@ def _finish_trial(
                 break
             partial: dict[str, Any] = {}
             try:
-                cell = _run_workload(
+                workload_arguments = dict(
                     workload=workload,
                     generations=generations,
                     providers=active_providers,
@@ -1390,6 +1636,9 @@ def _finish_trial(
                     transport_admission=transport_admission,
                     build_context=build_context,
                 )
+                if origin_runtime is not None:
+                    workload_arguments["origin_runtime"] = origin_runtime
+                cell = _run_workload(**workload_arguments)
             except Exception as exc:
                 fatal_error = {
                     "type": type(exc).__name__,
@@ -1505,6 +1754,8 @@ def _finish_trial(
         raise AutonomousTrialError(
             "cell admission decision missing before report construction"
         )
+    if origin_runtime is not None:
+        _complete_origin_runtime(origin_runtime)
     report = {
         "schema_version": REPORT_SCHEMA_VERSION,
         "trial_id": trial_id,
@@ -1530,13 +1781,20 @@ def _finish_trial(
             ),
         },
         "attempt_journal": str(run_root / "attempts.jsonl"),
-        "launch_admission": trial_registry.launch_admission_record(
-            launch_admission
+        "launch_admission": _launch_admission_record(
+            launch_admission, origin_capability
         ),
         "cells": cells,
     }
     if fatal_error is not None:
         report["fatal_error"] = fatal_error
+    if origin_runtime is not None:
+        projection = origin_runtime.terminal_projection
+        if projection is None:  # pragma: no cover - formal adapter postcondition
+            raise AutonomousTrialError("origin terminal projection is absent")
+        report.update(
+            reflux_formal_consumer.origin_terminal_projection_record(projection)
+        )
     if transport_receipt is not None:
         report["transport_receipt"] = _validate_transport_receipt(
             dict(transport_receipt), expected=transport_receipt
@@ -1591,7 +1849,10 @@ def _run_workload(
     transport_receipt: Mapping[str, Any] | None = None,
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
+    origin_runtime: OriginTrialRuntime | None = None,
 ) -> dict[str, Any]:
+    if origin_runtime is not None and type(origin_runtime) is not OriginTrialRuntime:
+        raise TypeError("origin runtime has the wrong exact type")
     active_scope = _ACTIVE_TRIAL_BINDING.get()
     if active_scope is None:
         raise trial_registry.TrialRegistryError(
@@ -1606,6 +1867,13 @@ def _run_workload(
         )
     active_admission = active_scope.admission
     trial_registry.assert_issued_trial_launch_admission(active_admission)
+    expected_origin_capability = (
+        None if origin_runtime is None else origin_runtime.capability
+    )
+    if active_scope.origin_capability is not expected_origin_capability:
+        raise trial_registry.TrialRegistryError(
+            "[run-scope] workload origin capability identity changed"
+        )
     if (
         active_admission.trial_id != trial_id
         or workload not in active_admission.workloads
@@ -1656,6 +1924,12 @@ def _run_workload(
             str(run_root / "campaigns" / campaign_id)
         )
     _assert_fresh_campaign_state(layout)
+    if origin_runtime is not None:
+        reflux_origin_topology.write_recovery_envelope_create_only(
+            evidence_root=run_root,
+            envelope=origin_runtime.producer_inputs.run_plan,
+            relative_path=Path("origin/recovery-envelope.json"),
+        )
     result: dict[str, Any] = {
         "workload": workload,
         "workload_flags": dict(flags),
@@ -1911,6 +2185,9 @@ def _record_indeterminate_terminal(
     token: trial_registry.TrialLifecycleToken,
     *,
     cause: BaseException,
+    origin_terminal_projection: (
+        reflux_formal_consumer.OriginTerminalProjection | None
+    ) = None,
 ) -> None:
     """Terminalize a consumed formal trial or expose irrecoverable ledger I/O.
 
@@ -1919,10 +2196,14 @@ def _record_indeterminate_terminal(
     failure and the failed terminalization instead of implying recovery.
     """
     try:
-        trial_registry.record_trial_terminal(
-            token,
-            terminal_status="indeterminate",
-        )
+        terminal_arguments: dict[str, Any] = {
+            "terminal_status": "indeterminate",
+        }
+        if origin_terminal_projection is not None:
+            terminal_arguments["origin_terminal_projection"] = (
+                origin_terminal_projection
+            )
+        trial_registry.record_trial_terminal(token, **terminal_arguments)
     except BaseException as terminal_error:
         raise AutonomousTrialError(
             "formal trial failed after lifecycle start and indeterminate "
@@ -1955,6 +2236,8 @@ def run_trial(
         s8c_preregistration.EffectivePreregistration | None
     ) = None,
     trial_admission: trial_registry.TrialLaunchAdmission | None = None,
+    origin_binding_request: OriginBindingRequest | None = None,
+    origin_producer_inputs: OriginProducerInputs | None = None,
 ) -> dict[str, Any]:
     if _TRIAL_ID_RE.fullmatch(trial_id) is None:
         raise AutonomousTrialError(f"trial_id が安全な形式でない: {trial_id!r}")
@@ -2000,6 +2283,27 @@ def run_trial(
     if type(allow_unregistered_exploratory) is not bool:
         raise AutonomousTrialError(
             "allow_unregistered_exploratory は bool 必須"
+        )
+    if (origin_binding_request is None) != (origin_producer_inputs is None):
+        raise AutonomousTrialError(
+            "origin_binding_request and origin_producer_inputs must be supplied together"
+        )
+    if (
+        origin_binding_request is not None
+        and type(origin_binding_request) is not OriginBindingRequest
+    ):
+        raise TypeError("origin_binding_request must be an OriginBindingRequest")
+    if (
+        origin_producer_inputs is not None
+        and type(origin_producer_inputs) is not OriginProducerInputs
+    ):
+        raise TypeError("origin_producer_inputs must be an OriginProducerInputs")
+    if (
+        origin_binding_request is not None
+        and origin_binding_request.client is None
+    ):
+        raise reflux_origin_client.OriginLedgerClientError(
+            "origin-bound run requires an explicit typed ledger client"
         )
     selected = list(workloads)
     if trial_admission is None:
@@ -2064,9 +2368,27 @@ def run_trial(
         raise AutonomousTrialError(
             f"run_root は新規 directory 必須 (resume は MVP 範囲外): {run_root}"
         )
+    origin_runtime: OriginTrialRuntime | None = None
+    preflight_build_context: BuildRunContext | None = None
+    if origin_binding_request is not None:
+        preflight_build_context = build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+            coder_authority=coder_authority if do_build else None,
+        )
+        origin_runtime = _prepare_origin_trial_runtime(
+            admission=trial_admission,
+            request=origin_binding_request,
+            producer_inputs=origin_producer_inputs,
+            trial_id=trial_id,
+            selected=selected,
+            generations=generations,
+            trial_manifest=trial_manifest,
+            effective_preregistration=effective_preregistration,
+            build_context=preflight_build_context,
+        )
     lifecycle_token: trial_registry.TrialLifecycleToken | None = None
     if trial_admission.mode == "registered-effective":
-        lifecycle_token = trial_registry.record_trial_start_once(
+        lifecycle_arguments = dict(
             admission=trial_admission,
             effective_preregistration=effective_preregistration,
             manifest_path=Path(trial_manifest),
@@ -2075,15 +2397,23 @@ def run_trial(
             registry_path=ROOT / trial_registry.DEFAULT_REGISTRY_PATH,
             lifecycle_path=ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH,
         )
+        if origin_runtime is not None:
+            lifecycle_arguments["origin_binding"] = origin_runtime.capability
+        lifecycle_token = trial_registry.record_trial_start_once(
+            **lifecycle_arguments
+        )
     try:
         run_root.mkdir(parents=True)
         ensure_exploration_namespace(str(run_root))
-        for child in ("raw", "proposals"):
+        run_children = ["raw", "proposals"]
+        if origin_runtime is not None:
+            run_children.append("origin")
+        for child in run_children:
             (run_root / child).mkdir()
         journal = AttemptJournal(run_root / "attempts.jsonl")
         started = _now_iso()
         started_monotonic = time.monotonic()
-        build_context = build_run_context(
+        build_context = preflight_build_context or build_run_context(
             generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
             coder_authority=coder_authority if do_build else None,
         )
@@ -2123,8 +2453,9 @@ def run_trial(
             "do_build": do_build,
             "performance_early_stop": False,
             "scientific_claim": False,
-            "launch_admission": trial_registry.launch_admission_record(
-                trial_admission
+            "launch_admission": _launch_admission_record(
+                trial_admission,
+                None if origin_runtime is None else origin_runtime.capability,
             ),
         }
         trial_binding = trial_admission.binding
@@ -2137,7 +2468,15 @@ def run_trial(
         journal.append(run_start)
     except BaseException as exc:
         if lifecycle_token is not None:
-            _record_indeterminate_terminal(lifecycle_token, cause=exc)
+            _record_indeterminate_terminal(
+                lifecycle_token,
+                cause=exc,
+                origin_terminal_projection=(
+                    None
+                    if origin_runtime is None
+                    else origin_runtime.terminal_projection
+                ),
+            )
         raise
     owns_active_providers = providers is None
     active_providers: dict[str, Any] = {}
@@ -2177,10 +2516,14 @@ def run_trial(
                     fatal_error=fatal_error,
                     transport_receipt=transport_receipt,
                 )
-        run_scope = _RunScopeBinding(trial_admission, _RUN_SCOPE_SEAL)
+        run_scope = _RunScopeBinding(
+            trial_admission,
+            _RUN_SCOPE_SEAL,
+            None if origin_runtime is None else origin_runtime.capability,
+        )
         scope_token = _ACTIVE_TRIAL_BINDING.set(run_scope)
         try:
-            report = _finish_trial(
+            finish_arguments = dict(
                 trial_id=trial_id,
                 selected=selected,
                 generations=generations,
@@ -2207,10 +2550,19 @@ def run_trial(
                     allow_unregistered_exploratory
                 ),
             )
+            if origin_runtime is not None:
+                finish_arguments["origin_runtime"] = origin_runtime
+            report = _finish_trial(**finish_arguments)
             if lifecycle_token is not None:
+                terminal_arguments: dict[str, Any] = {
+                    "terminal_status": report["status"],
+                }
+                if origin_runtime is not None:
+                    terminal_arguments["origin_terminal_projection"] = (
+                        origin_runtime.terminal_projection
+                    )
                 trial_registry.record_trial_terminal(
-                    lifecycle_token,
-                    terminal_status=report["status"],
+                    lifecycle_token, **terminal_arguments
                 )
                 lifecycle_terminalized = True
             return report
@@ -2218,11 +2570,90 @@ def run_trial(
             _ACTIVE_TRIAL_BINDING.reset(scope_token)
     except BaseException as exc:
         if lifecycle_token is not None and not lifecycle_terminalized:
-            _record_indeterminate_terminal(lifecycle_token, cause=exc)
+            _record_indeterminate_terminal(
+                lifecycle_token,
+                cause=exc,
+                origin_terminal_projection=(
+                    None
+                    if origin_runtime is None
+                    else origin_runtime.terminal_projection
+                ),
+            )
         raise
     finally:
         if owns_active_providers:
             _close_owned_providers(active_providers)
+
+
+def _origin_lifecycle_started(*, trial_id: str, run_root: Path) -> bool:
+    lifecycle = ROOT / trial_registry.DEFAULT_LIFECYCLE_PATH
+    try:
+        rows = [
+            json.loads(line)
+            for line in lifecycle.read_bytes().splitlines()
+            if line
+        ]
+    except (OSError, ValueError, TypeError):
+        return False
+    expected_root = os.path.abspath(os.fspath(run_root))
+    return any(
+        type(row) is dict
+        and row.get("event") == "start"
+        and row.get("trial_id") == trial_id
+        and row.get("run_root") == expected_root
+        for row in rows
+    )
+
+
+def run_origin_trial(
+    *,
+    origin_binding_request: OriginBindingRequest | None = None,
+    origin_producer_inputs: OriginProducerInputs | None = None,
+    **trial_arguments: Any,
+) -> (
+    OriginPreflightFailure
+    | OriginPartialTrialReport
+    | OriginCompletedTrialReport
+):
+    """Typed public boundary for origin-bound trials; it never raises failures."""
+
+    trial_id = trial_arguments.get("trial_id")
+    run_root = trial_arguments.get("run_root")
+    if origin_binding_request is None or origin_producer_inputs is None:
+        return OriginPreflightFailure(
+            "OriginInputPairError",
+            "origin_binding_request and origin_producer_inputs are both required",
+        )
+    try:
+        report = run_trial(
+            **trial_arguments,
+            origin_binding_request=origin_binding_request,
+            origin_producer_inputs=origin_producer_inputs,
+        )
+    except Exception as exc:
+        error_type = type(exc).__name__
+        message = _redacted_transport_error(exc, None)
+        if type(trial_id) is not str or run_root is None or not _origin_lifecycle_started(
+            trial_id=trial_id, run_root=Path(run_root)
+        ):
+            return OriginPreflightFailure(error_type, message)
+        report_path = Path(run_root) / "report.json"
+        partial_report: Mapping[str, Any] | None = None
+        try:
+            loaded = json.loads(report_path.read_bytes())
+            if type(loaded) is dict:
+                partial_report = loaded
+        except (OSError, ValueError, TypeError):
+            pass
+        return OriginPartialTrialReport(partial_report, error_type, message)
+    if report.get("status") == "complete":
+        return OriginCompletedTrialReport(report)
+    fatal = report.get("fatal_error")
+    return OriginPartialTrialReport(
+        report,
+        fatal.get("type") if type(fatal) is dict else None,
+        fatal.get("message") if type(fatal) is dict else None,
+    )
 
 
 def _parse_workloads(raw: str) -> list[str]:

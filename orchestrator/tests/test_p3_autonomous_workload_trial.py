@@ -28,6 +28,10 @@ from orchestrator.campaign import claude_transport
 from orchestrator.campaign import artifact_admission
 from orchestrator.campaign import model as campaign_model
 from orchestrator.campaign import p3_autonomous_workload_trial as A
+from orchestrator.campaign import reflux_origin_client
+from orchestrator.campaign import reflux_origin_ledger
+from orchestrator.campaign import reflux_origin_topology
+from orchestrator.campaign import reflux_source_closure
 from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign import wal
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
@@ -37,6 +41,7 @@ from orchestrator.critic.digest import DiffQuarantineRejection
 from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.campaign import claude_projected_provider as P
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock
+from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
 
 _PRE_T343_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
@@ -4611,6 +4616,367 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
             effective_preregistration=t325_registered_trial.capability,
         )
     assert not run_root.exists()
+
+
+def _canonical_origin_test_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _origin_recovery_envelope():
+    raw = origin_fixtures.build_recovery_envelope_inputs()
+    materials = tuple(
+        reflux_origin_topology.MemberRecoveryMaterial(
+            candidate_salt=item["candidate_salt"],
+            result_evidence_salt=item["result_evidence_salt"],
+            constraint_salt=item["constraint_salt"],
+            evidence_path=item["evidence_path"],
+            planned_campaign_run_identity=f"fixture-run-{index:04d}",
+        )
+        for index, item in enumerate(raw["members"])
+    )
+    return reflux_origin_topology.build_recovery_envelope(
+        capability_digest=raw["origin_binding_capability_sha256"],
+        source_closure_digest=raw["source_closure_sha256"],
+        hypothesis_sha256=raw["hypothesis_sha256"],
+        validation_plan_sha256=raw["validation_plan_sha256"],
+        attempt_0_batch_id=raw["reserve_attempts"][0]["batch_id"],
+        retry_1_batch_id=raw["reserve_attempts"][1]["batch_id"],
+        event_operation_ids=reflux_origin_topology.EventOperationIds(
+            **raw["event_operation_ids"]
+        ),
+        source_mask=7,
+        member_materials=materials,
+        initial_expected_state_commitment=raw["expected_state_commitment"],
+    )
+
+
+def _origin_public_inputs(tmp_path, monkeypatch, registered):
+    frozen = origin_fixtures.build_fixture_repository(tmp_path / "origin-frozen")
+    descriptor, descriptor_binding = A._descriptor_for(A.WORKLOADS["rr80"])
+    descriptor_bytes = _canonical_origin_test_bytes(descriptor)
+    descriptor_sha256 = hashlib.sha256(descriptor_bytes).hexdigest()
+    authority_manifest = origin_fixtures.build_authority_manifest(
+        workload={
+            "descriptor_sha256": descriptor_sha256,
+            "records": 100_000,
+            "threads": 4,
+        }
+    )
+    manifest_bytes = _canonical_origin_test_bytes(authority_manifest)
+    origin_id = hashlib.sha256(
+        b"izanagi-reflux-origin-manifest/v2\0" + manifest_bytes
+    ).hexdigest()
+    cell_key = hashlib.sha256(
+        b"izanagi-reflux-origin-cell/v1\0"
+        + _canonical_origin_test_bytes([
+            authority_manifest["workload"]["descriptor_sha256"],
+            authority_manifest["axis_semantics_sha256"],
+            authority_manifest["verifier_policy_sha256"],
+            authority_manifest["environment_contract_sha256"],
+        ])
+    ).hexdigest()
+    authority_bytes = _canonical_origin_test_bytes({
+        "authority_schema": "izanagi-reflux-origin-authority/v2",
+        "origins": [{
+            "cell_key": cell_key,
+            "manifest": authority_manifest,
+            "origin_id": origin_id,
+        }],
+    }) + b"\n"
+
+    authority_path = registered.repo / reflux_origin_ledger.AUTHORITY_RELATIVE_PATH
+    authority_path.parent.mkdir(parents=True, exist_ok=True)
+    authority_path.write_bytes(_canonical_origin_test_bytes({
+        "authority_schema": "izanagi-reflux-origin-authority/v2",
+        "origins": [],
+    }) + b"\n")
+    artifacts = registered.repo / "artifacts"
+    artifacts.mkdir(exist_ok=True)
+    descriptor_path = artifacts / "workload-descriptor.json"
+    descriptor_path.write_bytes(descriptor_bytes)
+    artifact_paths = [descriptor_path]
+    for name in (
+        "axis-semantics.json",
+        "verifier-policy.json",
+        "environment-contract.json",
+    ):
+        destination = artifacts / name
+        destination.write_bytes((frozen.root / "artifacts" / name).read_bytes())
+        artifact_paths.append(destination)
+    _t325_git(
+        registered.repo,
+        "add",
+        "--",
+        *[str(path.relative_to(registered.repo)) for path in [authority_path, *artifact_paths]],
+    )
+    _t325_git(registered.repo, "commit", "-m", "origin source referents")
+    captured_commit = _t325_git(registered.repo, "rev-parse", "HEAD")
+
+    source_record = origin_fixtures.build_source_closure_record(**{
+        "captured_commit_oid": captured_commit,
+        "authority_series_id": authority_manifest["authority_series_id"],
+        "origin_id": origin_id,
+        "cell_key": cell_key,
+        (
+            "referents__authority.workload.descriptor_sha256"
+            "__preimage_ref__sha256"
+        ): descriptor_sha256,
+    })
+    source_bytes = _canonical_origin_test_bytes(source_record)
+    provisioning_receipt = {
+        "authority_blob_sha256": hashlib.sha256(authority_bytes).hexdigest(),
+        "source_closure_sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "origin_id": origin_id,
+        "cell_key": cell_key,
+    }
+    monkeypatch.setattr(
+        reflux_source_closure,
+        "resolve_by_contract_sha256",
+        lambda digest: object()
+        if digest == authority_manifest["environment_contract_sha256"]
+        else (_ for _ in ()).throw(ValueError("unknown fixture contract")),
+    )
+    validated = reflux_source_closure.validate_source_closure(
+        source_bytes,
+        repo_root=registered.repo,
+        authority_manifest=authority_manifest,
+        report_cell={
+            "descriptor": descriptor,
+            "descriptor_binding": descriptor_binding,
+        },
+        candidate_authority_blob_sha256=hashlib.sha256(authority_bytes).hexdigest(),
+        human_approval_receipt=provisioning_receipt,
+    )
+    authority_path.write_bytes(authority_bytes)
+    _t325_git(
+        registered.repo,
+        "add",
+        "--",
+        str(authority_path.relative_to(registered.repo)),
+    )
+    _t325_git(registered.repo, "commit", "-m", "activate fixture origin")
+    client = reflux_origin_client.OriginLedgerClient.for_fixture_repository(
+        registered.repo
+    )
+    request = A.OriginBindingRequest(
+        client=client,
+        validated_source_closure=validated,
+        authority_blob_bytes=authority_bytes,
+        source_closure_bytes=source_bytes,
+        provisioning_receipt=provisioning_receipt,
+    )
+    producer = A.OriginProducerInputs(
+        run_plan=_origin_recovery_envelope(),
+        result_record_bytes=tuple(
+            path.read_bytes() for path in frozen.result_evidence_paths
+        ),
+        evidence_root=frozen.evidence_root,
+        verifier_policy_bytes=(
+            frozen.root / "artifacts" / "verifier-policy.json"
+        ).read_bytes(),
+        enforcement_arm="fixture-enforced",
+        generator_closure={
+            "schema_version": "fixture-generator-closure/v1",
+            "generator_sha256": "a" * 64,
+        },
+        terminal_operation_id="public-origin-terminal",
+    )
+    return request, producer
+
+
+def _origin_trial_arguments(registered, run_root: Path) -> dict[str, object]:
+    return {
+        "trial_id": registered.trial_id,
+        "workloads": ["rr80"],
+        "generations": 1,
+        "provider_kind": "fixture",
+        "run_root": run_root,
+        "sub": "/unused",
+        "do_build": False,
+        "drive": _fake_drive,
+        "preview": _fake_preview,
+        "trial_manifest": registered.manifest_path,
+        "effective_preregistration": registered.capability,
+    }
+
+
+def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    issued: list[object] = []
+    original_issue = A.reflux_origin_binding.issue_origin_binding_capability
+    original_assert = A.trial_registry.assert_rederived_launch_admission
+    original_finish = A._finish_trial
+    original_run_workload = A._run_workload
+    snapshot_reads: list[object] = []
+    original_read = reflux_origin_client.OriginLedgerClient.read_origin
+
+    def observe_issue(**kwargs):
+        capability = original_issue(**kwargs)
+        issued.append(capability)
+        return capability
+
+    def observe_assert(admission, **kwargs):
+        if kwargs.get("origin_binding") is not None:
+            assert kwargs["origin_binding"] is issued[0]
+        return original_assert(admission, **kwargs)
+
+    def observe_run_workload(**kwargs):
+        runtime = kwargs["origin_runtime"]
+        assert runtime.capability is issued[0]
+        assert A._ACTIVE_TRIAL_BINDING.get().origin_capability is issued[0]
+        return original_run_workload(**kwargs)
+
+    def observe_finish(**kwargs):
+        runtime = kwargs["origin_runtime"]
+        assert runtime.capability is issued[0]
+        assert A._ACTIVE_TRIAL_BINDING.get().origin_capability is issued[0]
+        return original_finish(**kwargs)
+
+    def observe_read(self, capability):
+        snapshot_reads.append(capability)
+        return original_read(self, capability)
+
+    monkeypatch.setattr(
+        A.reflux_origin_binding, "issue_origin_binding_capability", observe_issue
+    )
+    monkeypatch.setattr(
+        A.trial_registry, "assert_rederived_launch_admission", observe_assert
+    )
+    monkeypatch.setattr(A, "_finish_trial", observe_finish)
+    monkeypatch.setattr(A, "_run_workload", observe_run_workload)
+    monkeypatch.setattr(
+        reflux_origin_client.OriginLedgerClient, "read_origin", observe_read
+    )
+    run_root = tmp_path / "origin-public-run"
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        **_origin_trial_arguments(t325_registered_trial, run_root),
+    )
+    assert type(outcome) is A.OriginCompletedTrialReport
+    assert issued and all(capability is issued[0] for capability in snapshot_reads)
+    envelope_path = run_root / "origin" / "recovery-envelope.json"
+    assert envelope_path.read_bytes() == (
+        reflux_origin_topology.canonical_recovery_envelope_bytes(
+            producer.run_plan
+        )
+    )
+    report = outcome.report
+    assert "origin_terminal_projection" in report
+    lifecycle_rows = [
+        json.loads(line)
+        for line in (
+            t325_registered_trial.repo
+            / A.trial_registry.DEFAULT_LIFECYCLE_PATH
+        ).read_bytes().splitlines()
+    ]
+    terminal = lifecycle_rows[-1]
+    assert _canonical_origin_test_bytes({
+        "origin_terminal_projection": report["origin_terminal_projection"]
+    }) == _canonical_origin_test_bytes({
+        "origin_terminal_projection": terminal["origin_terminal_projection"]
+    })
+
+
+def test_origin_client_omission_is_typed_preflight_before_production_resolution(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    reached: list[bool] = []
+
+    def forbidden_production_store():
+        reached.append(True)
+        raise AssertionError("production store resolution was reached")
+
+    monkeypatch.setattr(
+        reflux_origin_ledger, "_production_store", forbidden_production_store
+    )
+    run_root = tmp_path / "missing-origin-client"
+    outcome = A.run_origin_trial(
+        origin_binding_request=dataclasses.replace(request, client=None),
+        origin_producer_inputs=producer,
+        **_origin_trial_arguments(t325_registered_trial, run_root),
+    )
+    assert type(outcome) is A.OriginPreflightFailure
+    assert reached == []
+    assert not run_root.exists()
+
+
+def test_origin_arguments_are_all_or_none_before_artifact_creation(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, _producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    run_root = tmp_path / "one-sided-origin"
+    with pytest.raises(A.AutonomousTrialError, match="must be supplied together"):
+        A.run_trial(
+            **_origin_trial_arguments(t325_registered_trial, run_root),
+            origin_binding_request=request,
+        )
+    typed = A.run_origin_trial(
+        **_origin_trial_arguments(t325_registered_trial, run_root),
+        origin_binding_request=request,
+    )
+    assert type(typed) is A.OriginPreflightFailure
+    assert not run_root.exists()
+
+
+def test_origin_request_rejects_unregistered_exploratory_admission(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    run_root = tmp_path / "origin-exploratory"
+    arguments = _origin_trial_arguments(t325_registered_trial, run_root)
+    arguments.update({
+        "trial_id": "origin-unregistered",
+        "workloads": ["ycsb-a"],
+        "trial_manifest": None,
+        "effective_preregistration": None,
+        "allow_unregistered_exploratory": True,
+    })
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        **arguments,
+    )
+    assert type(outcome) is A.OriginPreflightFailure
+    assert "registered-effective" in outcome.message
+    assert not run_root.exists()
+
+
+def test_origin_public_result_distinguishes_partial_from_completed(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial
+    )
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        providers={},
+        **_origin_trial_arguments(
+            t325_registered_trial, tmp_path / "origin-partial-run"
+        ),
+    )
+    assert type(outcome) is A.OriginPartialTrialReport
+    assert outcome.report is not None
+    assert outcome.report["status"] == "partial"
+    assert "origin_terminal_projection" in outcome.report
 
 
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
