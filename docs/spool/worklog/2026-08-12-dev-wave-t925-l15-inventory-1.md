@@ -44,8 +44,11 @@ title: [T-925] docs/dev-wave 予算棚卸し — 削除可能な節は 1 件も�
   存在しない。L2 各節の空きの総和は **7,252 bytes**。新規 L2 節を 1 つ足す費用は入口の条件 dispatch
   表 1 行 (最短 79 bytes) だけである。**L0 を 180〜280 bytes 空けられれば堰き止め 4 件すべてが通る。**
   L1.5 と L1 を個別に空ける従来の枠組みより桁違いに小さい。詳細は {{T:l2-slack-routing}}。
-- **受入の要否判定 (docs-only)**: 実 repo の docs を読むテストがあるため免除しない。
-  `python3 tools/check_docs.py` を実走し **rc=0 (違反なし)**。
+- **受入の要否判定 (docs-only)**: 免除しない。判定手順 =
+  `grep -rln "output/insights\|docs/spool" orchestrator/tests/*.py` で変更面を読む test file を
+  列挙し、`test_check_docs.py` ほか **10 file が実在**したため免除条件を満たさないと判定した
+  (証拠なしの免除をしない)。受入全走を実走し **10,085 passed / 65 skipped、rc=0** (tested tip
+  `e7a9c8fb`、lease 保持のまま記録追記後に再走)。`python3 tools/check_docs.py` も rc=0 (違反なし)。
   変異 matrix は `DW-S04` の免除条件「『実装しない』裁定済みかつ実装差分ゼロ」に該当し免除。
 - **工数**: codex 子 3 本 (段 2 プラン 1 本 `reasoning=max`、段 3 敵対 2 本並列 `reasoning=max`、
   lane sol / luna)。段 2 は artifact-root の親 directory 未作成で 1 度 rc=2 (起動前終了、成果物ゼロ)。

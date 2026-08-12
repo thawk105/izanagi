@@ -80,5 +80,6 @@ wave branch = `worktree-dev-wave-t925-l15-inventory`。base = main `6331284e`。
 
 ## 受入
 
-docs-only だが実 repo の docs を読むテストがあるため免除しない。
-`python3 tools/check_docs.py` を実走し **rc=0 (違反なし)**。
+docs-only だが実 repo の docs を読むテストが 10 file 実在するため免除しない。
+受入全走 **10,085 passed / 65 skipped、rc=0** (tested tip `e7a9c8fb`)。
+`python3 tools/check_docs.py` も rc=0 (違反なし)。
