@@ -83,6 +83,16 @@ submodule marker・外部 handoff の各項目はすべて緑。再開後の受�
   閉じる plan v2 から起こす。規模は D205 / D220 の水準に触れうるので、着手前に見積りを実測で出す。
   選択肢の詳細と代償は同 insights の `verbatim/s4-ruling.md` §3。
 
+- {{T:startup-gate-blocks-wave-resume}} **P2・ユーザー裁定待ち**: `DW-O20` は worktree の
+  「作成・再開直後」に `tools/check_wave_startup.py` を走らせ非 0 なら停止せよと定めるが、
+  自 wave の commit を持つ branch を再開する場合、点 1 (`HEAD == local main`) は構造的に成立せず
+  **必ず非 0 になる**。本 wave の再開で実測 (2026-08-12) — 乖離報告は「local main との乖離なし
+  (0 commit)」で他の項目はすべて緑なのに、点 1 だけが「fresh worktree を作り直す」を返した。
+  文面どおりに従えば、裁定で再開を認可された wave が起動 gate で止まる。択一は
+  (i) checker へ再開モードを足す (自 wave commit を許容し「main を包含し 0 commit 遅れ」を条件にする)、
+  (ii) `DW-O20` へ「再開時は点 1 を除く」と明記する、(iii) 現状維持で再開のたび親が個別に判断する。
+  (i)(ii) はいずれも fail-closed gate の受理集合を広げる方向なので、段 8 では実装せず裁定へ返す。
+
 - {{T:dev-wave-reference-budget-has-zero-headroom}} **P2・ユーザー裁定待ち**:
   `docs/dev-wave/**` の L1.5 unique footprint が予算 9566 bytes ちょうどで、余白が 1 byte も無い
   (2026-08-12 実測)。本 wave の段 8 は実測に基づく改善候補を 1 件持っていたが、249 bytes の追記が
