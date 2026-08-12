@@ -22,7 +22,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import env_contract, ident, pipeline, wal           # noqa: E402
+from orchestrator.campaign import (env_contract, ident, pipeline,             # noqa: E402
+                                   sort_swo_oracle, wal)
 from orchestrator.campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
                                          require_admitted_campaign)
 from orchestrator.campaign.build_admission import (                            # noqa: E402
@@ -42,6 +43,7 @@ from orchestrator.campaign.source_digest import (                              #
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
+from orchestrator.critic import digest as critic_digest                       # noqa: E402
 from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E402
                            IdentityProjection, LivenessRejection,
                            Rejection, VerifyAbortSignal,
@@ -146,6 +148,52 @@ def _valid_oracle_findings():
             "compiler_diagnostic": _oracle_diagnostic(),
         },
     }
+
+
+def _producer_record(
+    *, corpus: int, order: int,
+    mutation_pair: tuple[int, int] | None = None,
+    repeat_pair: tuple[int, int] | None = None,
+    repeat_values: int = 0,
+) -> bytes:
+    mutation_lhs, mutation_rhs = (
+        mutation_pair
+        if mutation_pair is not None
+        else (sort_swo_oracle._WITNESS_NONE,) * 2
+    )
+    repeat_lhs, repeat_rhs = (
+        repeat_pair
+        if repeat_pair is not None
+        else (sort_swo_oracle._WITNESS_NONE,) * 2
+    )
+    return sort_swo_oracle._HEADER.pack(
+        sort_swo_oracle._MAGIC,
+        sort_swo_oracle.PROTOCOL_VERSION,
+        corpus,
+        order,
+        sort_swo_oracle.N,
+        mutation_lhs,
+        mutation_rhs,
+        repeat_lhs,
+        repeat_rhs,
+        repeat_values,
+    ) + bytes(sort_swo_oracle.N * sort_swo_oracle.N)
+
+
+def _run_matrix_record(monkeypatch, record: bytes, *, corpus: int, order: int):
+    monkeypatch.setattr(
+        sort_swo_oracle.subprocess, "Popen", lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        sort_swo_oracle, "_communicate_hard_timeout",
+        lambda process, timeout: (False, 0),
+    )
+    monkeypatch.setattr(
+        sort_swo_oracle, "_read_all", lambda fd, expected: record,
+    )
+    return sort_swo_oracle._run_matrix(
+        Path("/fixture/oracle"), corpus, order,
+    )
 
 
 def _tmp_layout():
@@ -938,6 +986,19 @@ def test_oracle_finding_accepts_exact_producer_keysets():
         assert _validated_oracle_finding(finding) == finding
 
 
+def test_oracle_consumer_domain_exactly_tracks_producer():
+    assert critic_digest.ORACLE_N == sort_swo_oracle.N
+    assert critic_digest.ORACLE_ORDERS == sort_swo_oracle.ORDERS
+    assert critic_digest.ORACLE_CORPORA == sort_swo_oracle.CORPORA
+    assert critic_digest._ORACLE_CORPUS_IDS == frozenset({
+        sort_swo_oracle.CORPUS_ID,
+        *(
+            f"{sort_swo_oracle.CORPUS_ID}/corpus-{corpus}"
+            for corpus in sort_swo_oracle.CORPORA
+        ),
+    })
+
+
 def test_oracle_finding_rejects_unknown_key_for_every_kind():
     for finding in _valid_oracle_findings().values():
         finding["unknown_key"] = "must-not-be-projected"
@@ -948,6 +1009,21 @@ def test_oracle_finding_rejects_unknown_reason_code_for_every_kind():
     for finding in _valid_oracle_findings().values():
         finding["reason_code"] = "unknown-reason-code"
         assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+@pytest.mark.parametrize(
+    ("kind", "reason_code"),
+    [
+        pytest.param("compile", "compiler-launch-unavailable", id="launch"),
+        pytest.param("compile", "compiler-signal-unavailable", id="signal"),
+        pytest.param("timeout", "compile-wall-timeout", id="wall-timeout"),
+    ],
+)
+def test_oracle_finding_rejects_unavailable_only_reason_codes(
+        kind, reason_code):
+    finding = copy.deepcopy(_valid_oracle_findings()[kind])
+    finding["reason_code"] = reason_code
+    assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
 
 
 def test_oracle_finding_rejects_non_canonical_corpus_id():
@@ -970,40 +1046,73 @@ def test_oracle_finding_rejects_protocol_kind():
     assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
 
 
-def test_oracle_finding_accepts_real_producer_mutation_finding():
-    finding = _valid_oracle_findings()["mutation"]
-    assert finding == {
-        "kind": "mutation",
-        "reason_code": "corpus-mutated-by-comparator",
-        "corpus_id": f"{CORPUS_ID}/corpus-0",
-        "order_id": 1,
-        "input_pairs": [{"lhs_index": 1, "rhs_index": 2}],
-        "observations": [{"point": "after-call", "changed": True}],
-    }
-    assert _validated_oracle_finding(finding) == finding
+_PRODUCER_DOMAIN_CASES = [
+    pytest.param(corpus, order, id=f"corpus-{corpus}-order-{order}")
+    for corpus in sort_swo_oracle.CORPORA
+    for order in sort_swo_oracle.ORDERS
+]
 
 
-def test_oracle_finding_accepts_real_producer_nondeterministic_finding():
-    within_process = _valid_oracle_findings()["nondeterministic"]
-    across_process = {
-        "kind": "nondeterministic",
-        "reason_code": "relation-varies-across-process-order",
-        "corpus_id": f"{CORPUS_ID}/corpus-0",
-        "order_id": 0,
-        "input_pairs": [{"lhs_index": 1, "rhs_index": 2}],
-        "observations": [
-            {
-                "point": "fresh-process",
-                "order_id": order_id,
-                "lhs_index": 1,
-                "rhs_index": 2,
-                "value": value,
-            }
-            for order_id, value in ((0, True), (1, False), (2, True))
-        ],
-    }
-    assert _validated_oracle_finding(within_process) == within_process
-    assert _validated_oracle_finding(across_process) == across_process
+@pytest.mark.parametrize(("corpus", "order"), _PRODUCER_DOMAIN_CASES)
+def test_oracle_finding_accepts_real_producer_mutation_finding(
+        monkeypatch, corpus, order):
+    pair = (sort_swo_oracle.N - 1, 0)
+    record = _producer_record(
+        corpus=corpus, order=order, mutation_pair=pair,
+    )
+    matrix, finding = _run_matrix_record(
+        monkeypatch, record, corpus=corpus, order=order,
+    )
+    assert matrix is None
+    assert finding is not None
+    finding_dict = finding.as_dict()
+    assert _validated_oracle_finding(finding_dict) == finding_dict
+
+
+@pytest.mark.parametrize(("corpus", "order"), _PRODUCER_DOMAIN_CASES)
+def test_oracle_finding_accepts_real_producer_within_process_finding(
+        monkeypatch, corpus, order):
+    pair = (sort_swo_oracle.N - 1, 0)
+    record = _producer_record(
+        corpus=corpus,
+        order=order,
+        repeat_pair=pair,
+        repeat_values=1,
+    )
+    matrix, finding = _run_matrix_record(
+        monkeypatch, record, corpus=corpus, order=order,
+    )
+    assert matrix is None
+    assert finding is not None
+    finding_dict = finding.as_dict()
+    assert _validated_oracle_finding(finding_dict) == finding_dict
+
+
+_ACROSS_PROCESS_CASES = [
+    pytest.param(corpus, order, id=f"corpus-{corpus}-changed-order-{order}")
+    for corpus in sort_swo_oracle.CORPORA
+    for order in sort_swo_oracle.ORDERS[1:]
+]
+
+
+@pytest.mark.parametrize(("corpus", "changed_order"), _ACROSS_PROCESS_CASES)
+def test_oracle_finding_accepts_real_producer_across_process_finding(
+        monkeypatch, corpus, changed_order):
+    changed_index = sort_swo_oracle.N * sort_swo_oracle.N - 1
+    baseline = bytes(sort_swo_oracle.N * sort_swo_oracle.N)
+    changed = bytearray(baseline)
+    changed[changed_index] = 1
+
+    def run_matrix(_executable, got_corpus, order, *, test_mode=None):
+        assert got_corpus == corpus
+        return (bytes(changed) if order == changed_order else baseline), None
+
+    monkeypatch.setattr(sort_swo_oracle, "_CORPORA", (corpus,))
+    monkeypatch.setattr(sort_swo_oracle, "_run_matrix", run_matrix)
+    finding = sort_swo_oracle._evaluate_executable(Path("/fixture/oracle"))
+    assert finding is not None
+    finding_dict = finding.as_dict()
+    assert _validated_oracle_finding(finding_dict) == finding_dict
 
 
 def test_oracle_finding_rejects_invalid_observation_schema():
@@ -1125,7 +1234,7 @@ def test_sort_swo_axiom_kind_alone_renders_axiom_and_counterexample():
     assert "示された pair の comparator 関係を修正する" in out
 
 
-def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection():
+def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit():
     lay = _tmp_layout()
     attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="swo")
     materialized_hash = "a" * 64
@@ -1143,20 +1252,20 @@ def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection()
             ],
         },
     }
-    receipt = {
-        "contract_id": "sort-swo-fixture-contract",
-        "materialized_hole_sha256": materialized_hash,
-        "proposal_sha256": proposal_hash,
-        "corpus_id": "sort-swo-corpus-v1/corpus-1",
-        "corpus_version": 1,
-        "compiler_realpath": "/usr/bin/c++",
-        "compiler_version": "fixture-c++ 1.0",
-        "compile_flags_sha256": "c" * 64,
-        "tu_sha256": "d" * 64,
-        "tu_template_sha256": "e" * 64,
-        "dependency_root_realpath": "/fixture/dependency-root",
-        "dependency_config_sha256": "f" * 64,
-    }
+    receipt = sort_swo_oracle.OracleReceipt(
+        contract_id=sort_swo_oracle.ORACLE_CONTRACT_ID,
+        materialized_hole_sha256=materialized_hash,
+        proposal_sha256=proposal_hash,
+        corpus_id=sort_swo_oracle.CORPUS_ID,
+        corpus_version=sort_swo_oracle.CORPUS_VERSION,
+        compiler_realpath="/usr/bin/c++",
+        compiler_version="fixture-c++ 1.0",
+        compile_flags_sha256=sort_swo_oracle.COMPILE_FLAGS_SHA256,
+        tu_sha256="d" * 64,
+        tu_template_sha256=sort_swo_oracle.TU_TEMPLATE_SHA256,
+        dependency_root_realpath="/fixture/dependency-root",
+        dependency_config_sha256="f" * 64,
+    ).as_dict()
     _attempt_event(lay, attempt, STAGE_ABORT, {
         "reason": "diff-quarantine",
         "diff_quarantine": {
@@ -1180,6 +1289,7 @@ def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection()
 
     loaded = load_diff_rejections(view)
     assert len(loaded) == 1
+    assert loaded[0].oracle_contract_id == sort_swo_oracle.ORACLE_CONTRACT_ID
     assert loaded[0].oracle_finding == finding
     assert loaded[0].oracle_receipt == receipt
     assert type(loaded[0].oracle_finding) is dict

@@ -409,11 +409,23 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
     calls = []
+    candidate_artifacts = []
 
     def compile_spy(source, source_path, executable, **kwargs):
         calls.append((source, source_path.name, executable.name))
         if len(calls) == 2:
+            artifacts = (
+                source_path,
+                executable,
+                source_path.with_suffix(source_path.suffix + ".stderr"),
+            )
+            for artifact in artifacts:
+                artifact.write_bytes(b"candidate-residue")
+            candidate_artifacts.extend(artifacts)
             return candidate_finding, False
+        if len(calls) == 3:
+            assert source_path.parent != candidate_artifacts[0].parent
+            assert all(not artifact.exists() for artifact in candidate_artifacts)
         return None, False
 
     monkeypatch.setattr(O, "_compile", compile_spy)
@@ -440,6 +452,35 @@ def test_candidate_compile_reject_postflight_control_success_stays_reject(
     assert calls[0][0] == calls[2][0] == O._translation_unit(
         O._TRUSTED_CONTROL_STATEMENT,
     )
+
+
+def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter(((None, False), (candidate_finding, False)))
+    real_unlink = Path.unlink
+
+    def fail_candidate_cleanup(path, *args, **kwargs):
+        if path.name == "oracle.cpp":
+            raise OSError("candidate cleanup unavailable")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: next(results))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.receipt is not None
+    assert result.infrastructure is not None
+    assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.candidate_compile_finding is candidate_finding
 
 
 def test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable(
@@ -675,6 +716,10 @@ def test_fixed_corpus_contract_has_required_values_topology_and_triplicate():
     assert O._N >= 17 and O._CORPORA == (0, 1) and O._ORDERS == (0, 1, 2)
 
 
+def test_public_oracle_domain_aliases_track_contract_inputs():
+    assert (O.N, O.CORPORA, O.ORDERS) == (O._N, O._CORPORA, O._ORDERS)
+
+
 def test_contract_digest_binds_axiom_checker_source_component():
     assert O._ORACLE_CONTRACT_COMPONENTS_SCHEMA == (
         "sort-swo-contract-components-v1"
@@ -739,9 +784,27 @@ def test_axiom_checker_source_digest_fails_closed_when_source_unavailable(
         )
 
 
-def test_contract_id_fits_critic_limit():
-    assert len(O.ORACLE_CONTRACT_ID) == 170
-    assert 256 - len(O.ORACLE_CONTRACT_ID) == 86
+def test_axiom_checker_source_digest_changes_with_source_text(monkeypatch):
+    target = O.check_relation_matrix
+    real_getsource = inspect.getsource
+
+    def digest_with_target_source(source):
+        monkeypatch.setattr(
+            O.inspect,
+            "getsource",
+            lambda function: (
+                source if function is target else real_getsource(function)
+            ),
+        )
+        return O._source_bundle_sha256(
+            O._AXIOM_CHECKER_SOURCE_FUNCTIONS,
+            n=O._N, orders=O._ORDERS, corpora=O._CORPORA,
+        )
+
+    source_a = "def check_relation_matrix(matrix, n):\n    return None\n"
+    source_b = "def check_relation_matrix(matrix, n):\n    return True\n"
+    assert len(source_a.encode("utf-8")) == len(source_b.encode("utf-8"))
+    assert digest_with_target_source(source_a) != digest_with_target_source(source_b)
 
 
 def test_contract_manifest_hashes_and_literal_are_exact_snapshot():

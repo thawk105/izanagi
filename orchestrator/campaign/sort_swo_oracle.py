@@ -48,6 +48,10 @@ _MAX_SOURCE_BYTES = 64 * 1024
 _MAX_DIAGNOSTIC_BYTES = 16 * 1024
 _ORDERS = (0, 1, 2)
 _CORPORA = (0, 1)
+# Public producer-domain aliases for consumers of the finding schema.
+N = _N
+ORDERS = _ORDERS
+CORPORA = _CORPORA
 CORPUS_ID = f"sort-swo-corpus-v{CORPUS_VERSION}"
 INFRASTRUCTURE_REASON_CODE = "sort-swo-oracle-infrastructure-unavailable"
 _TRUSTED_CONTROL_STATEMENT = (
@@ -1200,7 +1204,14 @@ def check_materialized_sort_swo(
     environment: Optional[OracleEnvironment],
     scratch_root: Optional[os.PathLike[str] | str] = None,
 ) -> SortSwoOracleResult:
-    """Check the exact post-materialization sort hole with a closed result."""
+    """Check the exact post-materialization sort hole with a closed result.
+
+    A postflight failure establishes only that the trusted control also failed
+    after the candidate compile.  Candidate compile artifacts are removed and
+    the postflight uses a fresh temporary directory, but filesystem quota,
+    cgroup resources, and host state remain shared; this is correlation, not a
+    candidate-independent environment diagnosis.
+    """
     proposal_hash = _sha256(proposal_source)
     try:
         statement = extract_materialized_hole(materialized_source, marker_id)
@@ -1290,35 +1301,67 @@ def check_materialized_sort_swo(
                 masstree_dir=environment.dependency_root,
             )
             if finding is not None or unavailable:
-                postflight_source_path = temp / "trusted-postflight.cpp"
-                postflight_executable = temp / "trusted-postflight"
-                postflight_artifacts = (
-                    postflight_source_path,
-                    postflight_executable,
-                    postflight_source_path.with_suffix(
-                        postflight_source_path.suffix + ".stderr",
-                    ),
+                candidate_artifacts = (
+                    temp / "oracle.cpp",
+                    executable,
+                    (temp / "oracle.cpp").with_suffix(".cpp.stderr"),
                 )
+                candidate_cleanup_failed = False
+                for artifact in candidate_artifacts:
+                    try:
+                        artifact.unlink(missing_ok=True)
+                    except OSError:
+                        candidate_cleanup_failed = True
+                if candidate_cleanup_failed:
+                    return _unavailable_result(
+                        materialized_hash,
+                        proposal_hash,
+                        phase="trusted-postflight-compile",
+                        detail_code=_TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE,
+                        receipt=receipt,
+                        candidate_compile_finding=finding,
+                    )
                 postflight_finding = None
                 postflight_unavailable = False
                 postflight_io_failed = False
+                postflight_artifacts: tuple[Path, ...] = ()
                 try:
-                    postflight_finding, postflight_unavailable = _compile(
-                        control_source,
-                        postflight_source_path,
-                        postflight_executable,
-                        compiler=os.fspath(environment.compiler),
-                        ccbench_dir=ccbench,
-                        masstree_dir=environment.dependency_root,
-                    )
+                    with tempfile.TemporaryDirectory(
+                        prefix="izanagi_sort_swo_postflight_",
+                        dir=(None if scratch_root is None
+                             else os.fspath(scratch_root)),
+                    ) as postflight_temporary:
+                        postflight_temp = Path(postflight_temporary)
+                        postflight_source_path = (
+                            postflight_temp / "trusted-postflight.cpp"
+                        )
+                        postflight_executable = (
+                            postflight_temp / "trusted-postflight"
+                        )
+                        postflight_artifacts = (
+                            postflight_source_path,
+                            postflight_executable,
+                            postflight_source_path.with_suffix(
+                                postflight_source_path.suffix + ".stderr",
+                            ),
+                        )
+                        try:
+                            postflight_finding, postflight_unavailable = _compile(
+                                control_source,
+                                postflight_source_path,
+                                postflight_executable,
+                                compiler=os.fspath(environment.compiler),
+                                ccbench_dir=ccbench,
+                                masstree_dir=environment.dependency_root,
+                            )
+                        finally:
+                            for artifact in postflight_artifacts:
+                                try:
+                                    artifact.unlink(missing_ok=True)
+                                except OSError:
+                                    postflight_io_failed = True
                 except OSError:
                     postflight_io_failed = True
-                finally:
-                    for artifact in postflight_artifacts:
-                        try:
-                            artifact.unlink(missing_ok=True)
-                        except OSError:
-                            postflight_io_failed = True
                 if (postflight_io_failed or postflight_unavailable
                         or postflight_finding is not None):
                     return _unavailable_result(
@@ -1429,7 +1472,8 @@ def attempt_record(result: SortSwoOracleResult) -> dict[str, object]:
 __all__ = [
     "AXIOM_CHECKER_IMPLEMENTATION_SHA256", "AXIOM_CHECKER_VERSION",
     "COMPILE_FLAGS_SHA256", "CONTRACT_VERSION",
-    "CORPUS_ID", "CORPUS_SHA256", "CORPUS_VERSION", "GRAMMAR_VERSION",
+    "CORPORA", "CORPUS_ID", "CORPUS_SHA256", "CORPUS_VERSION",
+    "GRAMMAR_VERSION", "N", "ORDERS",
     "INFRASTRUCTURE_REASON_CODE", "ORACLE_COMPONENTS_SHA256",
     "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
     "TU_TEMPLATE_SHA256", "CompilerDiagnostic", "OracleEnvironment",

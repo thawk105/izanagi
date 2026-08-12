@@ -38,7 +38,12 @@ from orchestrator.campaign.layout import CampaignLayout            # noqa: E402
 from orchestrator.campaign.model import (                          # noqa: E402
     STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START, STAGE_COMMIT,
     STAGE_VERIFY_DONE)
-from orchestrator.campaign.sort_swo_oracle import CORPUS_ID        # noqa: E402
+from orchestrator.campaign.sort_swo_oracle import (                # noqa: E402
+    CORPORA as ORACLE_CORPORA,
+    CORPUS_ID,
+    N as ORACLE_N,
+    ORDERS as ORACLE_ORDERS,
+)
 from .identity_projection import IdentityProjection                # noqa: E402
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
@@ -253,8 +258,6 @@ _ORACLE_FINDING_REASON_CODES = {
         "swo-transitive-equivalence",
     }),
     "compile": frozenset({
-        "compiler-launch-unavailable",
-        "compiler-signal-unavailable",
         "candidate-compile-failed",
     }),
     "execution": frozenset({
@@ -278,7 +281,6 @@ _ORACLE_FINDING_REASON_CODES = {
         "not-a-single-sort-statement",
     }),
     "timeout": frozenset({
-        "compile-wall-timeout",
         "candidate-compile-cpu-limit-exceeded",
         "candidate-run-cpu-limit-exceeded",
     }),
@@ -288,7 +290,7 @@ _ORACLE_AXIOMS = frozenset({
 })
 _ORACLE_CORPUS_IDS = frozenset({
     CORPUS_ID,
-    *(f"{CORPUS_ID}/corpus-{corpus}" for corpus in (0, 1)),
+    *(f"{CORPUS_ID}/corpus-{corpus}" for corpus in ORACLE_CORPORA),
 })
 _ORACLE_OBSERVATION_POINTS = frozenset({
     "after-call",
@@ -337,8 +339,8 @@ def _valid_index_pair(value: object) -> bool:
         and set(value) == {"lhs_index", "rhs_index"}
         and type(value.get("lhs_index")) is int
         and type(value.get("rhs_index")) is int
-        and 0 <= value["lhs_index"] < 18
-        and 0 <= value["rhs_index"] < 18
+        and 0 <= value["lhs_index"] < ORACLE_N
+        and 0 <= value["rhs_index"] < ORACLE_N
     )
 
 
@@ -381,15 +383,25 @@ def _validated_oracle_finding(value: object) -> Dict:
     kind = value.get("kind")
     reason = value.get("reason_code")
     corpus_id = value.get("corpus_id")
-    if (type(kind) is not str or kind not in _ORACLE_FINDING_KINDS
-            or frozenset(value) not in _ORACLE_FINDING_EXACT_KEYSETS[kind]
+    if type(kind) is not str:
+        return _invalid_oracle_finding()
+    # The membership gate below is authoritative.  Neutral ``get`` defaults
+    # keep a disabled gate from being masked by a second KeyError in mutation
+    # testing; live unknown kinds still return the fixed anomaly first.
+    exact_keysets = _ORACLE_FINDING_EXACT_KEYSETS.get(
+        kind, (frozenset(value),),
+    )
+    reason_codes = _ORACLE_FINDING_REASON_CODES.get(kind, (reason,))
+    if (kind not in _ORACLE_FINDING_KINDS
+            or frozenset(value) not in exact_keysets
             or type(reason) is not str
-            or reason not in _ORACLE_FINDING_REASON_CODES[kind]
+            or reason not in reason_codes
             or type(corpus_id) is not str
             or corpus_id not in _ORACLE_CORPUS_IDS):
         return _invalid_oracle_finding()
     order_id = value.get("order_id")
-    if order_id is not None and (type(order_id) is not int or order_id not in {0, 1, 2}):
+    if (order_id is not None
+            and (type(order_id) is not int or order_id not in ORACLE_ORDERS)):
         return _invalid_oracle_finding()
     if "input_pairs" in value:
         pairs = value["input_pairs"]
