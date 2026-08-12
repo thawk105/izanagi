@@ -69,9 +69,25 @@ title: cleanup-branches 自己改善 — 取り残し判定と worktree 占有�
 - **受入は免除しなかった。** 実装面 (`tools/check_docs.py` の pin と
   `orchestrator/tests/test_check_docs.py`) を含むため、受入 lease を取得して全走した。
   byte 予算は command 3973 bytes で、追記型 positive control が要求する実質上限 3983 を
-  10 bytes 下回ることを land 前に再実測した。**全走は記録 commit を含む最終 tip に対する 1 走**と
-  した (結果を本エントリへ書くには 2 走が要り、稼働 12 wave が争う lease 窓を二重に占有するため)。
-  合否と件数は land receipt と本 wave の報告に残す。
+  10 bytes 下回ることを land 前に再実測した。
+- **受入全走 1 走目は差分から到達不能な 2 件で赤くなり、2 走目で 2 件とも再現しなかった。**
+  1 走目 (tip `32d65c89`、request `908394.nqsv`、124.49 秒) は **2 failed / 10198 passed / 65 skipped**
+  で、`test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code`
+  (失敗述語は `process_group_residual` / `termination_verified`。F57 系の既知の外乱型で、
+  共有機で他 wave が codex 子を走らせている時間帯に発火する) と
+  `test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed`
+  (`operation_id was already used with different payload bytes`、台帳に記録の無い初出) だった。
+  2 走目 (tip `808bfb3f`、request `908431.nqsv`、103.50 秒、**1 failed / 10239 passed / 65 skipped**)
+  でどちらも再現せず、`DW-O18` に従い実装差分へ帰属しない外乱と判定した。
+- **2 走目の 1 件は main 自身の赤で、これが本 wave の land を一度止めた。**
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が `[octopus-merge]` で落ちた。原因は別セッションが 00:45:56 JST に land した 4 親の merge commit
+  で、詳細と切り分け実測は {{F:octopus-merge-in-main}} に置く。**ユーザー裁定
+  {{D:known-red-does-not-block-acceptance}}** (既知の赤は受入と land をブロックしない) を受けて
+  land を再開し、裁定に従って稼働中の並行 12 セッションへ内容と確認手順を通知した。
+- **受入は最終 tip で 3 走目を実施した。** 記録 commit を含む tip で走らせないと land が
+  `tested_tip` 不一致で拒否されるためで、既知の赤 1 件以外が緑であることを確認して land した。
+  合否と件数は本 wave の報告と handoff に残す。
 
 ## 次の一手差分
 
@@ -85,3 +101,9 @@ title: cleanup-branches 自己改善 — 取り残し判定と worktree 占有�
   prompt 規律と施錠だけで、撤去は不可逆に近い。
 - {{T:codex-validator-heading}} **P3・新規**: codex 成果物の検証器が要求する `## 総括` 見出しを
   dev-wave の prompt 定型へ入れる。今回 1 投入 (64 秒・model call 6) を空費した。
+- {{T:octopus-merge-invariant}} **P1・新規**: `_assert_history_transition` を n 親へ一般化し
+  (親状態のうち唯一の後継と state が一致することを見る = 既存 2 親ロジックの自然な延長)、
+  併せて land / merge 経路で 3 親以上の merge を機械的に禁じるかを決める。
+  {{F:octopus-merge-in-main}} により **main が現在この 1 件で赤**であり、修正が land するまで
+  全 wave の受入が同じ赤を踏む。裁定 {{D:known-red-does-not-block-acceptance}} で land は
+  止まらなくなったが、赤そのものは残っている。
