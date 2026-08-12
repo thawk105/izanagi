@@ -1445,6 +1445,7 @@ def test_known_violation_ledger_matches_literal_entries():
         ("c96803854911dd989954c20d0955ad423e7d1207", "missing-codex-author", dw8c_ruling, dw8c_retry_note, ""),
         ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author", t316_ruling, t316_note, ""),
     )
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
     assert len({row[0] for row in expected}) == len(expected)
     assert provenance._LEDGER_FINDING_KINDS == frozenset({
