@@ -1525,6 +1525,204 @@ def test_merge_transition_alone_rejects_mutually_divergent_revisions() -> None:
     assert caught.value.reason == "merge-divergent-revision"
 
 
+def _history_transition_states() -> dict[str, M._HistoryState]:
+    return {
+        "g0": M._HistoryState(None, 0, None, ()),
+        "other-g0": M._HistoryState("0" * 64, 0, None, ()),
+        "g1": M._HistoryState("1" * 64, 1, "a" * 64, ("g1",)),
+        "g1-tip-a": M._HistoryState("1" * 64, 1, "e" * 64, ("g1",)),
+        "g1-tip-b": M._HistoryState("1" * 64, 1, "f" * 64, ("g1",)),
+        "other-g1": M._HistoryState(None, 1, None, ("other-g1",)),
+        "g2": M._HistoryState("2" * 64, 2, "b" * 64, ("g1", "g2")),
+        "right-g2": M._HistoryState(
+            "3" * 64, 2, "c" * 64, ("g1", "right-g2")
+        ),
+        "g3": M._HistoryState(
+            "4" * 64, 3, "d" * 64, ("g1", "g2", "g3")
+        ),
+        "bad-g3": M._HistoryState(
+            None, 3, None, ("unrelated-g1", "unrelated-g2", "bad-g3")
+        ),
+    }
+
+
+def test_history_state_fields_are_pinned_for_deduplication() -> None:
+    assert tuple(field.name for field in dataclasses.fields(M._HistoryState)) == (
+        "protected_sha256",
+        "tip_generation_number",
+        "tip_record_sha256",
+        "record_oids",
+    )
+
+
+@pytest.mark.parametrize(
+    ("state_name", "parent_names"),
+    (
+        pytest.param(
+            "g3",
+            ("g1", "g2", "g3"),
+            id="three-state-chain",
+        ),
+        pytest.param(
+            "g1",
+            ("g1", "g1", "g1", "g1"),
+            id="four-equal-parent-states",
+        ),
+    ),
+)
+def test_n_parent_transition_accepts_unique_greatest_state(
+    state_name: str, parent_names: tuple[str, ...]
+) -> None:
+    states = _history_transition_states()
+    M._assert_history_transition(
+        "merge-fixture",
+        states[state_name],
+        tuple(states[name] for name in parent_names),
+    )
+
+
+@pytest.mark.parametrize(
+    ("state_name", "parent_names"),
+    (
+        pytest.param(
+            "g2",
+            ("g1", "g2", "right-g2"),
+            id="same-generation-maxima",
+        ),
+        pytest.param(
+            "bad-g3",
+            ("g1", "g2", "bad-g3"),
+            id="higher-generation-non-prefix",
+        ),
+    ),
+)
+def test_n_parent_transition_rejects_incomparable_maxima(
+    state_name: str, parent_names: tuple[str, ...]
+) -> None:
+    states = _history_transition_states()
+    _assert_reason(
+        "merge-divergent-revision",
+        M._assert_history_transition,
+        "merge-fixture",
+        states[state_name],
+        tuple(states[name] for name in parent_names),
+    )
+
+
+@pytest.mark.parametrize(
+    ("state_name", "parent_names", "expected_reason"),
+    (
+        pytest.param("g1", ("g1", "g1"), None, id="equal-accept"),
+        pytest.param(
+            "g2",
+            ("g1", "g1"),
+            "merge-state",
+            id="equal-reject-merge-state",
+        ),
+        pytest.param(
+            "g2", ("g2", "g1"), None, id="left-successor-accept"
+        ),
+        pytest.param(
+            "g2", ("g1", "g2"), None, id="right-successor-accept"
+        ),
+        pytest.param(
+            "g1",
+            ("g1", "g2"),
+            "merge-divergent-revision",
+            id="successor-state-mismatch",
+        ),
+        pytest.param(
+            "g2",
+            ("g2", "right-g2"),
+            "merge-divergent-revision",
+            id="incomparable-reject",
+        ),
+    ),
+)
+def test_two_parent_transition_matrix_is_unchanged(
+    state_name: str,
+    parent_names: tuple[str, str],
+    expected_reason: str | None,
+) -> None:
+    states = _history_transition_states()
+    arguments = (
+        "merge-fixture",
+        states[state_name],
+        tuple(states[name] for name in parent_names),
+    )
+    if expected_reason is None:
+        M._assert_history_transition(*arguments)
+    else:
+        _assert_reason(expected_reason, M._assert_history_transition, *arguments)
+
+
+def test_two_parent_transition_matches_legacy_reference_for_generated_states() -> None:
+    @dataclasses.dataclass(frozen=True)
+    class ReferenceState:
+        protected_sha256: str | None
+        tip_generation_number: int
+        tip_record_sha256: str | None
+        record_oids: tuple[str, ...]
+
+    def reference(
+        state: ReferenceState,
+        left: ReferenceState,
+        right: ReferenceState,
+    ) -> str | None:
+        def is_successor(
+            newer: ReferenceState, older: ReferenceState
+        ) -> bool:
+            return (
+                newer.tip_generation_number > older.tip_generation_number
+                and newer.record_oids[: older.tip_generation_number]
+                == older.record_oids
+            )
+
+        if left == right:
+            return None if state == left else "merge-state"
+        successor = (
+            left
+            if is_successor(left, right)
+            else right
+            if is_successor(right, left)
+            else None
+        )
+        if successor is None or state != successor:
+            return "merge-divergent-revision"
+        return None
+
+    generated_states = tuple(
+        (
+            state,
+            ReferenceState(
+                state.protected_sha256,
+                state.tip_generation_number,
+                state.tip_record_sha256,
+                state.record_oids,
+            ),
+        )
+        for state in _history_transition_states().values()
+    )
+    for state, reference_state in generated_states:
+        for left, reference_left in generated_states:
+            for right, reference_right in generated_states:
+                try:
+                    M._assert_history_transition(
+                        "merge-fixture", state, (left, right)
+                    )
+                except M.PreregistrationError as caught:
+                    actual = caught.reason
+                else:
+                    actual = None
+                assert actual == reference(
+                    reference_state, reference_left, reference_right
+                ), (
+                    state,
+                    left,
+                    right,
+                )
+
+
 def test_same_revision_introduced_on_two_forks_is_rejected(tmp_path: Path) -> None:
     root = _init_repo(tmp_path)
     g1_head, g1 = _install_g1(root)
