@@ -50,7 +50,17 @@ title: dev-wave の L2 経路を成立させ、裁定済み保留 11 項を収�
   `tools/check_docs.py` を「関数名で探して読め」と書いたのが原因で、行番号表と実測値表を
   親が digest にして先渡しし、上限を 250 へ上げた 2 本目は完走した。本 wave が収容した
   T-925 (3) / T-139 Q5-a (`--max-*` は caller が上げてよい) と同型の事故である。
-- **受入全走は本エントリの記録 commit を含む最終 tip で実走する。** 本 fragment 執筆時点では未実施。
+- **受入全走 (1 走目、tip `a7289002`) は 2 failed / 10297 passed / 65 skipped / 114.10 秒。**
+  赤 2 件はいずれも本 wave の差分から到達しないファイルで、独立に外部由来と実測した。
+  (1) `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  は main 由来の既知赤。`validate_condition_freeze_at` の直呼びで `d1de13ad` 自身・`main`・本 wave
+  `HEAD` の 3 点とも `[octopus-merge] d1de13ad` で RED と実測した (pytest 不要)。
+  2026-08-13 01:05 JST のユーザー裁定により既知赤として land 可。
+  (2) `test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries` は [T-1005] の
+  非決定赤 (`codex_exit_code=-9`)。同 file の単独再走は **114 passed / rc=0** で再現しない。
+  `DW-O18` に従い本 wave の差分へ帰属させない。
+  なお単独再走の 1 回目は `--force-dispatch` 無しで rc=16 (bounded local scope の attest 不能) となり、
+  テスト結果を得られなかった。親の焦点走にも dispatch 明示が要る。
 - 親の実測 (rc は単独取得): `python3 tools/check_docs.py` rc=0、全史 provenance rc=0、
   focal 9 passed、command guard positive control 88 passed。
   変更後の予算は L1 = 10,615 / 10,625、L1.5 = 9,546 / 9,566、入口 = 9,498 / 9,500 (最長行 134 / 140)、
