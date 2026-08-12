@@ -52,7 +52,7 @@ positive control) も登録し、正例・drift・4 空白攻撃・crossed の 4
   tab / 任意インデント / 空白族 4 種を閉じた。変異 4/4 KILLED。
   binding 省略経路は scope 外として別項へ分離した。
   remaining: none
-  base: 520eecbb2b05b86034ca15426abbdb3541ff8d43a0a4948fd68307a0725f28fc
+  base: 08e2555c3151b33f7649416a0756c7b77923ff791e7cfc397a4295f038e42429
 
 ### 更新
 
@@ -71,7 +71,7 @@ positive control) も登録し、正例・drift・4 空白攻撃・crossed の 4
   非互換になる一方、守りたい性質は「正準化を迂回させない」ことに尽きるため。
   成果物影響: 直さない場合、将来 raw text producer を足したときに同一の正準述語が
   複数の reject variant として試行台帳に残り、critic の rejection 参照が重複する。
-  base: eaff1debd0bfbd5e4d6ed67d137915a97b6b07734699af90061dfbc088fdd33d
+  base: 541f9206c4bf323dfca7bd239a4cf992e3963bc5c34ed84efd3bdc08e568da5f
 
 ### 新規
 
