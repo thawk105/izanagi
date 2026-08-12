@@ -21,10 +21,11 @@ seq: 2
   `codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid=True` を立て、
   `_evidence_status` が `invalid` を返して attempt が accepted にならない。
   本 wave では 99 行中 22 行が該当した。
-- 恒久対応: dev-wave の子 prompt に「Web 検索を使わない。使うと成果物が全損する」を
-  絶対制約として書く (本 wave の `prompt-s3-lensA2.md` / `prompt-s5-author.md` /
-  `prompt-s6-*.md` が実例)。**検証側を緩めない** — 重複 key の拒否は evidence の
-  健全性検査であり、これを甘くする回避は規律 2 に反する。
+- 恒久対応: memory `codex-web-search-invalidates-evidence` — 子 prompt に Web 検索の禁止を
+  絶対制約として書く。`DW-O02` への統合を試みたが、dev-wave docs の L1.5 予算に余白がなく
+  (71 bytes の追記で 93 bytes 超過を実測) 断念した。予算は上げず、安全義務の削除もしない。
+  **検証側を緩めない** — 重複 key の拒否は evidence の健全性検査であり、これを甘くする回避は
+  規律 2 に反する。
 - 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
   `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
   `web_search` 由来の重複 key 行を探す。
