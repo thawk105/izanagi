@@ -1,0 +1,99 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 95,
+ "timeout_seconds": 1200,
+ "hang_timeout_seconds": 240,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_spool_fold.py",
+     "old": "    sources.extend(\n        source\n        for source in sorted((checkout / \"tools/dev_waves\").rglob(\"*\"))\n        if source.is_file() and \"__pycache__\" not in source.parts and source.suffix != \".pyc\"\n    )\n",
+     "new": ""
+    }
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions",
+    "orchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history"
+   ]
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_spool_fold.py",
+     "old": "    expected = _splice_exact(before, ((boundary.start() - 1, f\"- {body}\\n\".encode()),))\n    with _fixture_tools_imports(repo):\n        assert _failures_after(repo) == expected\n",
+     "new": "    expected = _splice_exact(before, ((boundary.start() - 1, f\"- {body}\\n\".encode()),))\n    assert _failures_after(repo) == expected\n"
+    }
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact"
+   ]
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/spool_fold.py",
+     "old": "        positions[number] = heading.start() + nonempty_lines[-1].end()",
+     "new": "        positions[number] = heading.start() + nonempty_lines[-1].start()"
+    }
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_and_supersede_identical_line_are_rejected",
+    "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_precedes_supersede_for_same_target_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_accepted_body_is_preserved_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_only_fragment_inserts_at_entry_end_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact",
+    "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_existing_identical_line"
+   ]
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_spool_fold.py",
+     "old": "        sys.path.insert(0, str(repo / \"tools\"))",
+     "new": "        sys.path.insert(0, str(ROOT / \"tools\"))"
+    }
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions"
+   ]
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_spool_fold.py",
+     "old": "        sys.modules.update(original_modules)",
+     "new": "        pass"
+    }
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions"
+   ]
+  }
+ ]
+}
