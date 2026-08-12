@@ -925,3 +925,16 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"T:approval-decision-machine-schema":"[T-864]","T:pubcore-s81-root-erratum":"[T-863]","T:publication-reservation-writer":"[T-862]","T:spool-fold-real-fixture-closure":"[T-865]"},"authored":"2026-08-11","content_sha256":"48fbcee3be71e60b6d74af53dd078f314e331ab25c6e81e49bcf109a30a94286","seq":1,"wave":"dev-wave-t793-pubcore-impl"}
 - {"allocations":{"D:marker-gate-scope":"D306","D:publication-trust-root":"D305"},"authored":"2026-08-11","content_sha256":"c4197ce0df367252d7da90299b0c92a611553de4a4923d9eca3fc60b7bcf2805","seq":1,"wave":"dev-wave-t793-pubcore-impl"}
 - {"allocations":{"F:test-assumes-empty-spool":"F228","F:tools-to-orchestrator-gate-import":"F227"},"authored":"2026-08-11","content_sha256":"b78f5294bdf81f6e6d9a28244b0e0869fcdceaab4b45220ca3fd9a5a38de39d2","seq":1,"wave":"dev-wave-t793-pubcore-impl"}
+
+- {"allocations":{"T:run-tests-overall-grace":"[T-870]","T:t793-d305-supersession-expectation":"[T-869]","T:t810-approval-trust-root":"[T-868]","T:t810-coordinator-and-wrapper":"[T-866]","T:t810-guard-and-budget":"[T-867]"},"authored":"2026-08-12","content_sha256":"f270e0fc8af5b82c5f5b237c76bb3d2364d3c848ccaaad27b7b075bcfe379be3","seq":1,"wave":"dev-wave-t810-harness"}
+
+- {"allocations":{"T:codex-launch-argv-preflight":"[T-875]","T:floor-artifact-toolchain-report-schema":"[T-872]","T:floor-attempt-toolchain-provenance":"[T-871]","T:toolchain-authority-completeness":"[T-873]","T:toolchain-binding-other-producers":"[T-874]"},"authored":"2026-08-11","content_sha256":"4b19f89610b4a3bc963790fe429da265abb0128a93c8202dc5b698dd28343726","seq":1,"wave":"dev-wave-t783-toolchain-binding"}
+- {"allocations":{"D:site-resolution-and-binding-land-together":"D308","D:toolchain-binding-scope-narrowed":"D307"},"authored":"2026-08-11","content_sha256":"df1831511f662dc4a68acca9f1e9beaf5dc7c77818c2b75fc4b12475d0ea2dcd","seq":2,"wave":"dev-wave-t783-toolchain-binding"}
+- {"allocations":{"F:redundant-gate-masks-authority-mutation":"F229"},"authored":"2026-08-11","content_sha256":"0edc71cea511f24794520a72d4da5b7e4172c4ccabab4ed9c73f3c7916776529","seq":3,"wave":"dev-wave-t783-toolchain-binding"}
+
+- {"allocations":{"T:dw-artifact-root-subdir-precreate":"[T-877]","T:mutation-node-xdist-group-suffix":"[T-876]","T:test-s8b-approved-tests-import":"[T-878]"},"authored":"2026-08-12","content_sha256":"ffa04a93d973c0900608764226e1425fea16a77e1abfd26477515c02c714f346","seq":1,"wave":"dev-wave-t717-t485-t792"}
+- {"allocations":{"D:evidence-content-addressed-resolver":"D310","D:walltime-sixty-minutes":"D309"},"authored":"2026-08-12","content_sha256":"e63316ff6ce67c80fd8adb5e4323726673c72544d1ba98b9b34771c7f7cddf75","seq":2,"wave":"dev-wave-t717-t485-t792"}
+
+- {"allocations":{"T:verifier-negative-txid-false-green":"[T-879]"},"authored":"2026-08-12","content_sha256":"7c0f470313474beb00edede9ed935527e719a4512d61ecb3ed18d41233e77d3e","seq":1,"wave":"dev-wave-t816-step4"}
+
+- {"allocations":{"T:focal-red-invisible-to-acceptance":"[T-881]","T:load-rotate-limit-import-provenance":"[T-880]"},"authored":"2026-08-12","content_sha256":"6ce1e313fd8a2a9eac93fd4ab4cb98947193544bb9af59ad3f97319037585f28","seq":1,"wave":"dev-wave-t860-test-red"}
