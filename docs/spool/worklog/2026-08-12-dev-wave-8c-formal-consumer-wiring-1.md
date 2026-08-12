@@ -75,6 +75,18 @@ title: 8c formal consumer の contract を fixture 経路で実装した — abo
   形だけの `_run()` を足さず README の allowlist へ理由付きで記載した
   (形だけの自走 harness はこの gate が防ぐ恒真化そのものである)。
   **3 走目 (tip `52f64478`) が 9,943 passed / 31 skipped / 184.52 秒で rc=0。**
+- **land が 1 度 rc=29 (provenance) で拒否され、ユーザー裁定で解いた。**
+  受入 lease 内で `dev_wave_wait.py acceptance --merge-message-file` が自動生成した merge
+  `9408fb4a` が、`p3_autonomous_workload_trial.py` について**両親のどちらとも異なる
+  3 方向結合結果**を持つため (親 1 比 +8/-2 行)、checker が実装面著作と判定して
+  Codex `role=author` を要求した。**その差分を書いたのは Codex でも親でもなく git の結合**で、
+  wave 側の当該 file は Codex `role=author` 済み・main 側は各 land 時に監査済みであり、
+  merge 自体に新規著作が無い。したがって Codex 著者を後付けで名乗るのは虚偽になる。
+  `PR-C01` の forward correction は枠が消費済みで使えず、rebase / force は契約が禁じる。
+  **2026-08-12 ユーザー裁定「known-violation で登録して land し直す」**に従い、
+  T-720 の merge 4 件と同型で登録した (件数 34 → 35)。
+  **この経路は wave の時間を大きく食う** — 受入全走 3 走を終えてから land 時に初めて露見し、
+  登録後に受入をもう 1 走やり直す必要がある。段 8 の改善候補に挙げた。
 - **erratum:** commit `1cd991c2` の subject が `Wire the origin binding into the 8c bounded
   MVP through a public fixture path` で、裁定が禁じた「結線した」に相当する。履歴は書き換えない。
   本 wave の名乗りは上記の上限が正本であり、当該 subject は過大である。
