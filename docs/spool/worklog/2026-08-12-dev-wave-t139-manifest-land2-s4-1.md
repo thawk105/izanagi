@@ -92,4 +92,4 @@ title: T-139 land 2 を完了 land した — Q4 scope は Q1/Q2 と内部衝突
   親推奨 = 別タスク起票)。正本 = `output/insights/2026-08-12_t139-land2-s4/package.md`。
   **pilot / 本走は依然投入不可** — 認可は解除されたが D292 が要求する canonical decision が無く、
   投入機構も存在しない。
-  base: b63ef322e8638a715148ed40fc60e3ba14e542d6ef1cf57c30ac1872fe6c17b5
+  base: 849e7788f6c60dc96d84397e7432dd7c7e56e59bbbba97e42b5b6522ee91c8e2

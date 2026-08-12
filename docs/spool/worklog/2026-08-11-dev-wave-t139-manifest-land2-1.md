@@ -110,4 +110,4 @@ title: land 2 の基礎層を作った — erratum v2 対応・digest 迂回封�
   (Q4) 次 session の編成 (親推奨 = Q1・Q2 確定後に RP-1 (a) を再実行)。
   逐語 = `output/insights/2026-08-11_t139-manifest-land2/` と
   `output/insights/2026-08-11_t139-manifest-land2-s2/`
-  base: 17290cdd8d0c915a1d8561d030280223120ce4638f3b042c999f0c76cb7f8463
+  base: 0b263c4ff73425b435927344128523e2d8b469c7c007b93055062cec363df406
