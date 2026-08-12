@@ -20,11 +20,23 @@ worklog の該当エントリが要約の正本。ここは機械成果物の凍
 - (d) S1 の oracle REJECT を session ledger へ耐久化する。
 - (e) S6 の docstring を実体へ是正する。
 
+## 実測
+
+| 項目 | 値 |
+|---|---|
+| 変異 matrix | **KILLED 12 / SURVIVED 0 / MISMATCH 0 / TIMEOUT 0 / PARSE_ERROR 0**、baseline PASSED |
+| 変異の HEAD 束縛 | `7c1fa911692bd06613208c2ef80c4f7c6c4a8669` |
+| spec digest | `752a48683a1cb87c5591a79ddb625aaa45b23216a6d403a3953388808cc50c24` |
+| 期待赤 node | 計 36 件 (M1=6 / M2=5 / M3=2 / M4=2 / M5=2 / M6=1 / M7=1 / M8=1 / M9=1 / P1=7 / P2=4 / P3=4)。**初回走行で全件一致** |
+| 焦点走 (fix 第 1 巡後) | 159 passed / 4.68 秒 (Pegasus request 908801.nqsv) |
+| 焦点走 (fix 第 2 巡後) | 160 passed / 4.63 秒 (Pegasus request 908811.nqsv) |
+| Codex 工数 | 11 本 (plan 1 / consult 2 / author 2 / review 2 / fix 2 / focus 2)、model call 342、wall clock 7,906 秒、全件 rc=0 / evidence complete |
+
+受入全走の結果は worklog の該当エントリを正本とする。
+
 ## 成果物
 
 | ファイル | 内容 |
 |---|---|
 | `mutation-spec.json` | 段 4 で事前登録した変異 12 件 (負例 9 + 正例 3) の spec。schema `izanagi-dev-wave-mutation-spec/v1` |
-
-変異の本走結果 (`mutation-ledger.json`) と実測値は段 7 の記録 commit で追加する。
-本 commit の時点では**未実走**である。
+| `mutation-ledger.json` | 上記 spec の本走台帳。runner scope は `test_sort_swo_oracle.py` + `test_critic.py` + `test_s1_direct_comparison.py` + `test_p3_s4_loop_sort.py` |
