@@ -104,16 +104,29 @@ worklog を赤 node 名で検索して成立済み waiver を確認する) を�
 
 ### W2 の適用検査の結果 (条件 4 の併記義務)
 
-記録込みの最終 tip で受入を走らせ直し、4 条件を実結果に当てた。**全条件成立につき適用した。**
+**W2 は 1 度適用したのち、land 前に失効した。経緯を両方残す。**
+
+**(i) 適用した走行 (tip `aed90106`)。** 4 条件すべて成立を実測で確認した。
 
 | 条件 | 実測 |
 |---|---|
-| 1. 赤が対象 2 node ちょうど | **成立**。`nodeid=` の全数は `test_actual_head_d292_reference_is_reported_fail_closed` と `test_deny_only_report_contains_authority_and_both_submission_denials` の 2 件のみ。**他の赤 0 件** |
+| 1. 赤が対象 2 node ちょうど | **成立**。`nodeid=` の全数が当該 2 件のみ。**他の赤 0 件** |
 | 2. 失敗理由が期待値集合の差 | **成立**。`assert ('D292', 'D305') == ('D292',)` および `{'decision_ids': ['D292','D305']} != {'decision_ids': ['D292']}` |
 | 3. 自 wave が該当 file を触っていない | **成立**。`git diff --stat main HEAD -- orchestrator/tests/test_t793_report.py docs/decisions.md orchestrator/publication/` が**空** |
 | 4. 検査結果の併記 | 本表 |
 
-受入全走の総数 = **2 failed / 9209 passed / 20 skipped**。本 wave の対象 file は赤ゼロ。
+総数 = 2 failed / 9209 passed / 20 skipped。本 wave の対象 file は赤ゼロ。
+
+**(ii) その後 W2 は失効した。** 次の受入投入が `rc=70 stage=owned-path-overlap` で止まった —
+main が 33 commit 進み、その差分が本 wave の所有 path (`test_s8b_floor_campaign.py`) と
+重なったためである (別 wave `869a71bb` / `5256b96b` が同 file へ 335 行追加)。取り込んだところ、
+**同じ main に赤の修正 `ac994a33` が入っていた。** 期待値は完全一致をやめ
+「`"D292"` を含む」+「decision 番号の昇順・重複なし」という構造的性質の検査になっており、
+番人の検出力を落とさずに脆さだけを外す形である。**W2 の失効条件「対象 2 node の期待値が
+是正された時点で自動失効」に該当するので、本 land では W2 を引いていない。**
+
+→ **本 wave が land に使った受入は W2 抜きで判定した。** W2 の記録は、同型の赤に再び遭遇した
+セッションのための前例として残す (適用条件と失効条件はそのまま有効)。
 
 **セッション異常。** `dev_wave_wait.py producer` を背景 task で回すと、producer 生存中に
 待ち手だけが空出力で終了する事象が 5 度起きた。**実体を伴わない完了通知も多数観測した** —
