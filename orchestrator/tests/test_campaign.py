@@ -21,6 +21,7 @@ import inspect
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -293,6 +294,7 @@ def _bound(cfg: CampaignConfig) -> CampaignConfig:
 
 _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-45ca7ab9"
 _T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-4347a1fd"
+_T816_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-27d737fd"
 _T530_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-cbddc476"
 _PRE_T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-4891e99f",
@@ -303,6 +305,16 @@ _T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-c7e53c07",
     "backoff-sweep-silo-balanced-sweep-09c1364f",
     "backoff-sweep-silo-read-heavy-sweep-adad17bc",
+})
+_T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-4fdedcc4",
+    "backoff-sweep-silo-balanced-sweep-920bb445",
+    "backoff-sweep-silo-read-heavy-sweep-ac548305",
+})
+_T816_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-172b45ad",
+    "backoff-sweep-silo-balanced-sweep-2899b6a7",
+    "backoff-sweep-silo-read-heavy-sweep-57160b6c",
 })
 _T530_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-d0589634",
@@ -316,6 +328,10 @@ _PRE_T343_S6_CAMPAIGN_IDS = frozenset({
 _T343_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-c5a978ca",
     "p3-s6-sort-sweep-write-heavy-sweep-dde984c3",
+})
+_T816_S6_CAMPAIGN_IDS = frozenset({
+    "p3-s6-sort-sweep-balanced-sweep-36c93671",
+    "p3-s6-sort-sweep-write-heavy-sweep-e6174b76",
 })
 _T530_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-cc0921a0",
@@ -355,9 +371,12 @@ def test_campaign_id_binds_admission_policy():
     )
     current = str(ident.campaign_id(_cfg()))
     assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
-    # T-671 で H が identity から外れ、current は admission-policy 世代の ID に戻る。
-    assert current == _T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert current not in {historical, _T530_REPRESENTATIVE_CAMPAIGN_ID}
+    assert current == _T816_REPRESENTATIVE_CAMPAIGN_ID
+    assert current not in {
+        historical,
+        _T343_REPRESENTATIVE_CAMPAIGN_ID,
+        _T530_REPRESENTATIVE_CAMPAIGN_ID,
+    }
 
 
 def test_environment_contract_binding_is_runtime_carrier_only():
@@ -550,10 +569,10 @@ def test_screening_search_config_omits_none_and_binds_current_admission_policy()
     search = {**base, **ident.screening_search_config(None)}
     assert search == base and "screening" not in search
     cfg = _cfg(search_config=search)
-    # T-671 では runtime authority H を hash しないため T343 identity が current。
-    assert str(ident.campaign_id(_bound(cfg))) == _T343_REPRESENTATIVE_CAMPAIGN_ID
+    assert str(ident.campaign_id(_bound(cfg))) == _T816_REPRESENTATIVE_CAMPAIGN_ID
     assert str(ident.campaign_id(_bound(cfg))) not in {
         _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID,
+        _T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T530_REPRESENTATIVE_CAMPAIGN_ID,
     }
 
@@ -624,10 +643,14 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     saved_lookup = ec.lookup
     ec.lookup = lambda _env_tag: _T530_CONTRACT
     try:
-        backoff_cfgs = [
+        current_policy_kickoff_backoff_cfgs = [
             _bound(dataclasses.replace(
                 backoff_config(tag, workload), ccbench_commit="dff0f1e",
             ))
+            for tag, workload in BACKOFF_WORKLOADS
+        ]
+        current_backoff_cfgs = [
+            _bound(backoff_config(tag, workload))
             for tag, workload in BACKOFF_WORKLOADS
         ]
         s6_cfgs = [
@@ -635,10 +658,24 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
         ]
     finally:
         ec.lookup = saved_lookup
-    current_backoff = {str(ident.campaign_id(cfg)) for cfg in backoff_cfgs}
-    # T-671 で H が preimage から消え、current は T343 値になる。
-    assert current_backoff == _T343_BACKOFF_CAMPAIGN_IDS
-    assert current_backoff.isdisjoint(_T530_BACKOFF_CAMPAIGN_IDS)
+    current_policy_kickoff_backoff = {
+        str(ident.campaign_id(cfg))
+        for cfg in current_policy_kickoff_backoff_cfgs
+    }
+    assert (
+        current_policy_kickoff_backoff
+        == _T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
+    )
+    assert current_policy_kickoff_backoff.isdisjoint(
+        _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
+    )
+    current_backoff = {
+        str(ident.campaign_id(cfg)) for cfg in current_backoff_cfgs
+    }
+    assert current_backoff == _T816_BACKOFF_CAMPAIGN_IDS
+    assert current_backoff.isdisjoint(
+        _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
+    )
 
     historical_s6 = set()
     for tag in ("balanced", "write-heavy"):
@@ -665,11 +702,11 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
             },
         ))
     assert historical_s6 == _PRE_T343_S6_CAMPAIGN_IDS
-    # 同じ理由で S6 current も T530 H 込み値ではなく T343 値になる。
+    # T-816 pin 前進後の current は歴史的 T343/T530 集合と分離する。
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs} == \
-        _T343_S6_CAMPAIGN_IDS
+        _T816_S6_CAMPAIGN_IDS
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs}.isdisjoint(
-        _T530_S6_CAMPAIGN_IDS
+        _T343_S6_CAMPAIGN_IDS | _T530_S6_CAMPAIGN_IDS
     )
 
 
@@ -6221,9 +6258,10 @@ def test_pipeline_write_intent_violation_aborts_without_commit():
     """I 行入り trace は実 parser/verifier を通って correctness gate で reject される。
     cycle ではないため serializable=True のまま indeterminate、fitness/COMMIT は無し。"""
     trace_content = (
-        "C 0 0 5 10\n"
+        "C 0 0 5 10 0 1\n"
         "W 0 aa U 5 10\n"
         "I 0 aa write-set-entry-without-intent\n"
+        "E 0\n"
     )
     i_rows = [line for line in trace_content.splitlines() if line.startswith("I ")]
     assert i_rows == ["I 0 aa write-set-entry-without-intent"]  # DW-M03: 単一理由
@@ -6392,7 +6430,7 @@ def test_pipeline_preexisting_trace_rejects_with_structured_wal():
 
 def test_pipeline_tail_loss_witness_reaches_verifier():
     lay = _tmp_layout()
-    trace = "C 0 0 1 1\nW 0 aa U 1 1\n"
+    trace = "C 0 0 1 1 0 1\nW 0 aa U 1 1\n"
     r, calls = _eval(
         lay, do_bench=False, trace_content=trace,
         ncommit=1, commit_witness=2,
@@ -6402,7 +6440,15 @@ def test_pipeline_tail_loss_witness_reaches_verifier():
     payload = wal.replay(lay)[r.variant].last_terminal.payload
     assert payload["reason"] == "indeterminate"
     expected_note = "commit witness mismatch: expected=2 observed=1 delta=-1"
-    assert payload["verify"]["integrity"]["notes"] == [expected_note]
+    framing_note = (
+        "1 txn framing violation(s) [missing-end×1] — declared R/W counts or "
+        "mandatory E boundary is broken (trace may omit dependency edges): "
+        "txn0 missing-end reads=0/0 writes=1/1"
+    )
+    assert payload["verify"]["integrity"]["notes"] == [
+        expected_note,
+        framing_note,
+    ]
     assert payload["verify"]["integrity"]["clean"] is False
     assert payload["verify"]["certified"] is False
     verify_records = [
@@ -6526,7 +6572,7 @@ def test_run_trace_rejects_non_ycsb_binary_before_subprocess():
 def test_run_trace_rejects_preexisting_trace_files_before_subprocess():
     tdir = _tmpdir("izanagi_runtrace_stale_")
     with open(os.path.join(tdir, "trace_0.log"), "w", encoding="ascii") as stream:
-        stream.write("C 0 0 1 1\n")
+        stream.write("C 0 0 1 1 0 0\nE 0\n")
     calls = []
 
     def subprocess_spy(*args, **kwargs):
@@ -6727,14 +6773,28 @@ def test_pipeline_screen_reject_skips_verify_and_never_commits():
 def test_pipeline_stale_screening_falls_back_to_verify_first_and_records_trace():
     lay = _tmp_layout()
     now = time.time()
+    screening = _screening(baseline_measured_at=now - 31 * 60)
     r, calls = _eval(
         lay,
-        screening=_screening(baseline_measured_at=now - 31 * 60),
+        screening=screening,
         median=8000.0,
     )
     assert r.certified and not r.aborted
     assert calls.events == ["verify", "bench"]
-    assert any("stale-baseline" in note and "1860" in note for note in r.notes)
+    stale_notes = [note for note in r.notes if "stale-baseline" in note]
+    assert len(stale_notes) == 1
+    note_match = re.fullmatch(
+        r"stale-baseline: baseline age (?P<age_s>\d+\.\d{3})s "
+        r"exceeds reanchor threshold (?P<threshold_s>\d+\.\d{3})s; "
+        r"screening disabled",
+        stale_notes[0],
+    )
+    assert note_match is not None
+    assert float(note_match.group("age_s")) >= 1860.0
+    assert (
+        float(note_match.group("threshold_s"))
+        == screening.reanchor_threshold_s
+    )
     records = list(wal.read_records(lay))
     bench = [rec for rec in records if rec.stage == STAGE_BENCH_DONE][-1]
     disabled = bench.payload["screening_disabled"]
@@ -8727,6 +8787,9 @@ _PRE_T343_GOLDEN_CK0 = {  # T-343 以前の歴史的 stock cache key
 _T343_GOLDEN_CK0 = {
     "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_d7eee324f7_t0",
 }
+_T816_GOLDEN_CK0 = {
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_2b19d78065_t0",
+}
 
 
 def _ccbench_head_or_skip():
@@ -8831,8 +8894,11 @@ def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():
     current = buildcache.cache_key(
         g0, pin.KICKOFF_PIN_FULL, False, admission=stock_admission,
     )
-    assert current == _T343_GOLDEN_CK0[g0.canonical()]
-    assert current != _PRE_T343_GOLDEN_CK0[g0.canonical()]
+    assert current == _T816_GOLDEN_CK0[g0.canonical()]
+    assert current not in {
+        _PRE_T343_GOLDEN_CK0[g0.canonical()],
+        _T343_GOLDEN_CK0[g0.canonical()],
+    }
 
 
 def test_source_digest_parse_options_defaults():

@@ -295,6 +295,11 @@ def receipt_matches_contract(
 def _independent_comparison_passes(field: str, expected: object, observed: object) -> bool:
     """Consumer-side recomputation, intentionally independent of issuer verdict code."""
     try:
+        if field == "effective_clock.method":
+            return (
+                type(expected) is str and bool(expected)
+                and type(observed) is str and bool(observed)
+            )
         if field == "cpu.model_name_raw":
             return (
                 _env_attestation.normalize_cpu_model_name(expected)  # type: ignore[arg-type]

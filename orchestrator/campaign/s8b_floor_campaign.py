@@ -90,6 +90,7 @@ from .build_admission import (  # noqa: E402
     derive_build_admission,
 )
 from . import t080_freeze_migration as _t080_migration  # noqa: E402
+from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from . import s8b_floor_contract as _floor_contract  # noqa: E402
 from . import s8b_approved  # noqa: E402  (承認定数の単一源 C4-3/C4-4)
 from . import env_contract as _env_contract  # noqa: E402
@@ -1045,13 +1046,13 @@ def _project_scalepoint(scale_point) -> dict:
 @contextlib.contextmanager
 def _prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
-        ccbench_pin: str, prepare_fn):
+        ccbench_pin: str, cxx: str, prepare_fn):
     """共有 materializer の floor 境界 wrapper。identity 合成の MaterializationError だけを
     FloorCampaignError へ因果付き変換する。"""
     try:
         with prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
-                configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+                configuration_id=configuration_id, ccbench_pin=ccbench_pin, cxx=cxx,
                 prepare_fn=prepare_fn) as (identity, prepared):
             yield identity, prepared
     except MaterializationError as exc:
@@ -1191,7 +1192,7 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
         with _prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
-                prepare_fn=prepare_fn) as (identity, prepared):
+                cxx=cxx, prepare_fn=prepare_fn) as (identity, prepared):
             evidence = source_digest.resolve_evidence(
                 prepared.genome,
                 ccbench_pin,
@@ -1552,6 +1553,7 @@ def _floor_preflight_freeze_allowlist(
         _read_bytes: Optional[Callable[[Path], bytes]] = None) -> dict[str, str]:
     """journal 宣言由来の有界集合を exact path + bytes hash で構成する。"""
     root = Path(root)
+    held_checks = []
     read_bytes = (lambda path: path.read_bytes()) if _read_bytes is None else _read_bytes
     if freeze_path != _HOLDOUT_FREEZE_REL:
         raise FloorCampaignError(
@@ -1585,7 +1587,11 @@ def _floor_preflight_freeze_allowlist(
         raise FloorCampaignError(
             "launch refusal: prediction 検証対象が v1 freeze bytes でない"
         )
-    if hashlib.sha256(captured[_FLOOR_PROTOCOL_REL]).hexdigest() != protocol_sha256:
+    if _freeze_hold.HELD:
+        held_checks.append(_freeze_hold.held_marker(
+            "s8b-floor.protocol-bytes-expected-pin",
+        ))
+    elif hashlib.sha256(captured[_FLOOR_PROTOCOL_REL]).hexdigest() != protocol_sha256:
         raise FloorCampaignError(
             "launch refusal: floor protocol bytes sha256 が expected と不一致"
         )
@@ -1687,7 +1693,7 @@ def _floor_preflight_freeze_allowlist(
             declare(record["raw_response_path"], record["raw_sha256"])
         elif record_type == "envelope":
             declare(record["envelope_path"], record["envelope_sha256"])
-    return allowlist
+    return _freeze_hold.result_with_markers(allowlist, held_checks)
 
 
 class _CapturedSelectorJournal:

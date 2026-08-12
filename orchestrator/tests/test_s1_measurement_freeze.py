@@ -213,6 +213,22 @@ def test_schedule_is_balanced_and_reproducible(freeze_env):
     assert first["schedule_hash"] == second["schedule_hash"]
 
 
+def test_recorded_ccbench_pin_hold_and_release_positive_control(
+        freeze_env, monkeypatch):
+    doc = _build(freeze_env)
+    with monkeypatch.context() as current_pin_drift:
+        current_pin_drift.setattr(M.pin, "CURRENT_PIN", "0" * 40)
+        held_checks = M.verify_document(
+            doc, source_resolver=freeze_env["resolver"],
+        )
+        assert "s1-measurement.recorded-pin-current-pin" in {
+            marker["check_id"] for marker in held_checks
+        }
+        current_pin_drift.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(M.FreezeError, match="ccbench_pin 不一致"):
+            M.verify_document(doc, source_resolver=freeze_env["resolver"])
+
+
 def test_s1b_pairing_rejects_mismatched_flags(freeze_env):
     doc = _build(freeze_env)
     forged = copy.deepcopy(doc)

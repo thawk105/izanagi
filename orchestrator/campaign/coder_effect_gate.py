@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """Finite lexical defense-in-depth for coder-supplied C++ hole text.
 
+This gate is a finite lexical defense applied to coder-supplied hole bytes
+*before* a build.  ``buildcache`` copy-out is the separate post-build output
+boundary.  They are used together, but neither is a host-security boundary nor
+proof of certified safety.
+
 This gate shrinks the accepted set against the four measured injection forms
 (``std::system``, ``execl``, ``std::ofstream``, and ``while (true) {}``).  It is
 not a host-security boundary and is not a semantically complete account of C++
@@ -17,7 +22,8 @@ Scope 外・未閉鎖の層は ``p3_s4_red.py``、手動 patch +
 ``s5_permutation_coverage`` の直接 CMake build、shell materializer と任意
 binary path、cache / WAL / COMMIT / freeze への gate 結果の非束縛、および
 ``p3_autonomous_workload_trial._preview`` の ``forbidden_identifiers`` が恒偽で
-あること。これらは本 gate が閉じたとも検査したとも主張しない。
+あること。特に cache / WAL / COMMIT / freeze への receipt 非束縛は T-841 に残る。
+これらは本 gate が閉じたとも検査したとも主張しない。
 
 Findings deliberately contain no identifier, string literal, statement,
 command, path, URL, or other candidate-derived bytes.  Malformed tokens and

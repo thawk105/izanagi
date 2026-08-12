@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import ident, layout as layout_module, wal            # noqa: E402
 from orchestrator.campaign import env_contract                                  # noqa: E402
 from orchestrator.campaign import patchharness                                  # noqa: E402
+from orchestrator.campaign import p3_autonomous_workload_trial as AUTONOMOUS     # noqa: E402
 from orchestrator.campaign import p3_kickoff as KICKOFF                          # noqa: E402
 from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
@@ -40,7 +41,9 @@ _DRIVERS = (
     ("trigger_gating", TRIGGER, TRIGGER.default_cfg, 1, 5),
     ("red", RED, RED._cfg, 2, 1),
     ("kickoff", KICKOFF, KICKOFF._cfg, 2, 1),
+    ("autonomous", AUTONOMOUS, None, None, None),
 )
+_CAMPAIGN_DRIVERS = _DRIVERS[:-1]
 _PARSER = argparse.ArgumentParser()
 add_coder_build_authority_argument(_PARSER)
 _AUTHORITY = _PARSER.parse_args(["--allow-coder-derived-build"]).coder_build_authority
@@ -56,16 +59,26 @@ _CODER_CONTEXT = build_run_context(
 def test_coder_driver_without_flag_rejects_before_build_spy(name, module, monkeypatch):
     """M2: 各 coder CLI の既定拒否を、materialization 以前の単一理由で固定する。"""
     reached = []
-    monkeypatch.setattr(
-        module, "run_campaign", lambda *_a, **_k: reached.append("campaign"),
-    )
+    if hasattr(module, "run_campaign"):
+        monkeypatch.setattr(
+            module, "run_campaign", lambda *_a, **_k: reached.append("campaign"),
+        )
     if hasattr(module, "run_one_iteration"):
         monkeypatch.setattr(
             module, "run_one_iteration",
             lambda *_a, **_k: reached.append("iteration"),
         )
+    argv = []
+    if name == "autonomous":
+        monkeypatch.setattr(
+            module, "_assert_build_site_opted_in", lambda *_a, **_k: None,
+        )
+        monkeypatch.setattr(
+            module, "run_trial", lambda *_a, **_k: reached.append("trial"),
+        )
+        argv = ["--trial-id", "fixture", "--provider", "claude-headless"]
     with pytest.raises(BuildAdmissionError, match="明示 opt-in"):
-        module.main([])
+        module.main(argv)
     assert reached == [], f"{name}: flag 無しで build spy に到達した"
 
 
@@ -74,8 +87,8 @@ class _BuildSpyReached(RuntimeError):
 
 
 @pytest.mark.parametrize(
-    "name,module", [(case[0], case[1]) for case in _DRIVERS],
-    ids=[case[0] for case in _DRIVERS],
+    "name,module", [(case[0], case[1]) for case in _CAMPAIGN_DRIVERS],
+    ids=[case[0] for case in _CAMPAIGN_DRIVERS],
 )
 def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
         name, module, monkeypatch, tmp_path,
@@ -135,6 +148,46 @@ def test_coder_driver_flag_reaches_build_spy_with_exact_run_context(
     with pytest.raises(_BuildSpyReached, match=name):
         module.main(argv)
     assert seen == [(BuildRunContext, "cli-opt-in")]
+
+
+def test_autonomous_coder_driver_flag_reaches_trial_with_site_bound_authority(
+        monkeypatch, tmp_path):
+    from orchestrator.calibrator import runner as calibrator_runner
+
+    seen = []
+
+    def capture(**kwargs):
+        context = build_run_context(
+            generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
+            coder_authority=kwargs["coder_authority"],
+        )
+        seen.append((type(context), context._coder_entrypoint_site))
+        return {"status": "complete", "cells": []}
+
+    monkeypatch.setattr(
+        AUTONOMOUS, "_assert_build_site_opted_in", lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        AUTONOMOUS, "_trial_launch_admission", lambda **_k: SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        AUTONOMOUS, "checkout",
+        lambda *_a, **_k: contextlib.nullcontext(str(tmp_path / "ccbench")),
+    )
+    monkeypatch.setattr(calibrator_runner, "competing_bench_pids", lambda: [])
+    monkeypatch.setattr(AUTONOMOUS, "run_trial", capture)
+    assert AUTONOMOUS.main([
+        "--trial-id", "fixture",
+        "--provider", "claude-headless",
+        "--allow-unregistered-exploratory",
+        "--allow-coder-derived-build",
+        "--run-root", str(tmp_path / "run"),
+        "--ccbench-dir", str(tmp_path / "ccbench"),
+    ]) == 0
+    assert seen == [(
+        BuildRunContext,
+        "orchestrator.campaign.p3_autonomous_workload_trial.main",
+    )]
 
 
 def _spy_driver_layout(monkeypatch, tmp_path, module):
@@ -357,8 +410,8 @@ def test_main_public_entry_routes_runtime_layout_and_selector(
 
 
 @pytest.mark.parametrize(
-    "name,module,_cfg_factory,run_count,layout_count", _DRIVERS,
-    ids=[case[0] for case in _DRIVERS],
+    "name,module,_cfg_factory,run_count,layout_count", _CAMPAIGN_DRIVERS,
+    ids=[case[0] for case in _CAMPAIGN_DRIVERS],
 )
 def test_driver_ast_supplements_runtime_namespace_gate(
         name, module, _cfg_factory, run_count, layout_count):

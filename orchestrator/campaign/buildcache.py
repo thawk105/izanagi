@@ -18,6 +18,7 @@ import re
 import secrets
 import shutil
 import socket
+import stat
 import subprocess
 import time
 from dataclasses import dataclass
@@ -47,13 +48,64 @@ _V2_COMPLETION_MANIFEST = "completion.json"
 _LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
 _LEGACY_ADMISSION_SIDECAR = "admission.json"
 
+_SECURE_FLAG_NAMES = (
+    "O_CLOEXEC", "O_DIRECTORY", "O_EXCL", "O_NOFOLLOW", "O_NONBLOCK",
+)
+_SECURE_DIR_FD_FUNCTIONS = ("open", "stat", "mkdir", "rename", "unlink", "rmdir")
+_ORIGINAL_SECURE_DIR_FD_CALLABLES = {
+    name: getattr(os, name, None) for name in _SECURE_DIR_FD_FUNCTIONS
+}
+_ORIGINAL_OS_STAT = os.stat
+_PROC_SELF_FD_ROOT = "/proc/self/fd"
+
+
+def _close_fds_best_effort(fds) -> None:
+    """全 fd の close を一度ずつ試み、最初の例外だけを再送出する。"""
+    first_error: Optional[Exception] = None
+    for fd in fds:
+        if fd < 0:
+            continue
+        try:
+            os.close(fd)
+        except Exception as exc:
+            if first_error is None:
+                first_error = exc
+    if first_error is not None:
+        raise first_error
+
+
+def _probe_proc_self_fd() -> bool:
+    """Return whether a held regular-file fd can be reopened through procfs."""
+    source_fd = reopened_fd = -1
+    try:
+        probe_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+        source_fd = os.open(__file__, probe_flags)
+        reopened_fd = os.open(
+            f"{_PROC_SELF_FD_ROOT}/{source_fd}", probe_flags,
+        )
+        source_info = os.fstat(source_fd)
+        reopened_info = os.fstat(reopened_fd)
+        return (
+            source_info.st_dev, source_info.st_ino, stat.S_IFMT(source_info.st_mode),
+        ) == (
+            reopened_info.st_dev, reopened_info.st_ino,
+            stat.S_IFMT(reopened_info.st_mode),
+        )
+    except OSError:
+        return False
+    finally:
+        _close_fds_best_effort([reopened_fd, source_fd])
+
+
+_PROC_SELF_FD_AVAILABLE = _probe_proc_self_fd()
+
 
 class BuildError(RuntimeError):
     """v2 build/toolchain の取得・実行が完遂できなかった。"""
 
 
 class BuildCacheError(RuntimeError):
-    """v2 cache の claim・完成 entry・manifest が信用できない。"""
+    """build cache の namespace・claim・完成 entry・metadata が信用できない。"""
 
 
 class BinaryDigestError(RuntimeError):
@@ -75,6 +127,409 @@ class BinaryDigestMismatch(BinaryDigestError):
             path, cause=cause,
             message=(f"binary sha256 不一致: {path} "
                      f"(expected={expected} actual={actual})"))
+
+
+def _require_secure_fs_contract() -> None:
+    """copy-out が必要とする POSIX/Linux platform capability を検査する。
+
+    これは platform capability の検査であり、in-process の関数差し替えに対する
+    防壁ではない。import 時に保存した original callable を capability set と照合し、
+    観測用 wrapper の現在 identity を platform 欠如と誤認しない。
+    """
+    if os.name != "posix":
+        raise BuildCacheError("secure build-cache copy-out は POSIX 環境を必要とする")
+    missing = [name for name in _SECURE_FLAG_NAMES if not hasattr(os, name)]
+    if missing:
+        raise BuildCacheError(
+            "secure build-cache copy-out に必要な os constant がない: "
+            + ", ".join(missing)
+        )
+    if not hasattr(os, "supports_dir_fd") or not hasattr(os, "supports_follow_symlinks"):
+        raise BuildCacheError("secure build-cache copy-out の os capability set が存在しない")
+    unsupported = [
+        name for name in _SECURE_DIR_FD_FUNCTIONS
+        if _ORIGINAL_SECURE_DIR_FD_CALLABLES[name] not in os.supports_dir_fd
+    ]
+    if unsupported:
+        raise BuildCacheError(
+            "secure build-cache copy-out に必要な dir_fd API がない: "
+            + ", ".join(unsupported)
+        )
+    if _ORIGINAL_OS_STAT not in os.supports_follow_symlinks:
+        raise BuildCacheError(
+            "secure build-cache copy-out は stat(..., follow_symlinks=False) を必要とする"
+        )
+    if not _PROC_SELF_FD_AVAILABLE:
+        raise BuildCacheError(
+            "secure build-cache copy-out は /proc/self/fd 経由の held-fd reopen を必要とする"
+        )
+
+
+def _secure_dir_flags() -> int:
+    _require_secure_fs_contract()
+    return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+
+
+def _secure_read_flags() -> int:
+    _require_secure_fs_contract()
+    return os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC
+
+
+def _stat_identity(info: os.stat_result) -> tuple[int, int, int]:
+    return info.st_dev, info.st_ino, stat.S_IFMT(info.st_mode)
+
+
+def _stable_file_identity(info: os.stat_result) -> tuple[int, int, int, int, int, int]:
+    return (
+        info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns,
+        info.st_ctime_ns, info.st_nlink,
+    )
+
+
+def _validated_relpath(relpath: str) -> tuple[str, ...]:
+    if type(relpath) is not str or not relpath or "\x00" in relpath:
+        raise BuildCacheError("cache member path は NUL のない非空 str でなければならない")
+    if os.path.isabs(relpath):
+        raise BuildCacheError(f"cache member path は relative でなければならない: {relpath!r}")
+    parts = tuple(relpath.split(os.sep))
+    if any(not part or part in {".", ".."} for part in parts):
+        raise BuildCacheError(f"cache member path component が不正: {relpath!r}")
+    separators = tuple(dict.fromkeys(item for item in (os.sep, os.altsep, "\\") if item))
+    if any(any(separator in part for separator in separators) for part in parts):
+        raise BuildCacheError(f"cache member path component に separator が混入: {relpath!r}")
+    return parts
+
+
+def _open_checked_directory_at(parent_fd: int, name: str, *, label: str) -> int:
+    try:
+        before = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        child_fd = os.open(name, _secure_dir_flags(), dir_fd=parent_fd)
+    except OSError as exc:
+        raise BuildCacheError(f"{label} directory を no-follow open できない: {name}: {exc}") from exc
+    try:
+        after = os.fstat(child_fd)
+        if (not stat.S_ISDIR(before.st_mode) or not stat.S_ISDIR(after.st_mode)
+                or _stat_identity(before) != _stat_identity(after)):
+            raise BuildCacheError(f"{label} directory identity が open 中に変化した: {name}")
+        return child_fd
+    except Exception:
+        os.close(child_fd)
+        raise
+
+
+def _open_or_create_directory_path(path: str) -> int:
+    """absolute directory path を `/` の held fd から no-follow で作成・走査する。"""
+    _require_secure_fs_contract()
+    absolute = os.path.abspath(path)
+    parts = tuple(part for part in absolute.split(os.sep) if part)
+    current_fd = os.open(os.sep, _secure_dir_flags())
+    try:
+        for part in parts:
+            try:
+                os.mkdir(part, 0o700, dir_fd=current_fd)
+            except FileExistsError:
+                pass
+            except OSError as exc:
+                raise BuildCacheError(
+                    f"cache parent component を mkdir できない: {absolute}: {part}: {exc}"
+                ) from exc
+            child_fd = _open_checked_directory_at(
+                current_fd, part, label="cache parent component",
+            )
+            # child の所有権を先に current_fd へ移す。親 close が失敗しても、
+            # outer cleanup が直前に開いた child を失わない。
+            parent_fd = current_fd
+            current_fd = child_fd
+            os.close(parent_fd)
+        return current_fd
+    except Exception:
+        try:
+            _close_fds_best_effort([current_fd])
+        except Exception:
+            # traversal/close の最初の例外を保持する。child close は試行済み。
+            pass
+        raise
+
+
+def _open_directory_path_nofollow(path: str, *, label: str) -> int:
+    try:
+        fd = os.open(path, _secure_dir_flags())
+    except OSError as exc:
+        raise BuildCacheError(f"{label} を final-component no-follow open できない: {path}: {exc}") from exc
+    try:
+        info = os.fstat(fd)
+    except Exception:
+        os.close(fd)
+        raise
+    if not stat.S_ISDIR(info.st_mode):
+        os.close(fd)
+        raise BuildCacheError(f"{label} が directory でない: {path}")
+    return fd
+
+
+def _open_relative_parent(root_fd: int, parts: tuple[str, ...], *, label: str) -> tuple[int, list[int]]:
+    current_fd = os.dup(root_fd)
+    opened = [current_fd]
+    try:
+        for part in parts[:-1]:
+            child_fd = _open_checked_directory_at(current_fd, part, label=label)
+            opened.append(child_fd)
+            current_fd = child_fd
+        return current_fd, opened
+    except Exception:
+        _close_fds_best_effort(reversed(opened))
+        raise
+
+
+def _create_relative_parent(root_fd: int, parts: tuple[str, ...], *, label: str) -> tuple[int, list[int]]:
+    current_fd = os.dup(root_fd)
+    opened = [current_fd]
+    try:
+        for part in parts[:-1]:
+            try:
+                os.mkdir(part, 0o700, dir_fd=current_fd)
+            except FileExistsError:
+                pass
+            except OSError as exc:
+                raise BuildCacheError(f"{label} directory を mkdir できない: {part}: {exc}") from exc
+            child_fd = _open_checked_directory_at(current_fd, part, label=label)
+            opened.append(child_fd)
+            os.fchmod(child_fd, 0o700)
+            current_fd = child_fd
+        return current_fd, opened
+    except Exception:
+        _close_fds_best_effort(reversed(opened))
+        raise
+
+
+def _validate_regular_file(info: os.stat_result, *, label: str) -> None:
+    if not stat.S_ISREG(info.st_mode):
+        raise BuildCacheError(f"{label} は通常ファイルでなければならない")
+    if info.st_nlink != 1:
+        raise BuildCacheError(f"{label} は hard link であってはならない (nlink={info.st_nlink})")
+    if info.st_mode & (stat.S_ISUID | stat.S_ISGID | stat.S_ISVTX):
+        raise BuildCacheError(f"{label} に setuid/setgid/sticky bit がある")
+
+
+def _open_regular_at(root_fd: int, relpath: str, *, label: str) -> tuple[int, os.stat_result]:
+    parts = _validated_relpath(relpath)
+    parent_fd, opened = _open_relative_parent(root_fd, parts, label=label)
+    fd = -1
+    try:
+        before = os.stat(parts[-1], dir_fd=parent_fd, follow_symlinks=False)
+        fd = os.open(parts[-1], _secure_read_flags(), dir_fd=parent_fd)
+        after = os.fstat(fd)
+        _validate_regular_file(before, label=label)
+        _validate_regular_file(after, label=label)
+        if _stat_identity(before) != _stat_identity(after):
+            raise BuildCacheError(f"{label} identity が open 中に変化した")
+    except OSError as exc:
+        try:
+            _close_fds_best_effort([fd, *reversed(opened)])
+        except Exception:
+            pass
+        raise BuildCacheError(f"{label} を no-follow open できない: {relpath}: {exc}") from exc
+    except Exception:
+        try:
+            _close_fds_best_effort([fd, *reversed(opened)])
+        except Exception:
+            pass
+        raise
+    # Parent cleanup が完了するまでは leaf を caller 所有へ移さない。
+    try:
+        _close_fds_best_effort(reversed(opened))
+    except Exception:
+        try:
+            _close_fds_best_effort([fd])
+        except Exception:
+            pass
+        raise
+    return fd, after
+
+
+def _open_source_regular_at(
+        root_fd: int, relpath: str, *, label: str,
+) -> tuple[int, os.stat_result]:
+    """source leaf は O_NOFOLLOW open 後の fstat だけを判定基準にする (M1 anchor)。"""
+    parts = _validated_relpath(relpath)
+    parent_fd, opened = _open_relative_parent(root_fd, parts, label=label)
+    fd = -1
+    try:
+        fd = os.open(parts[-1], _secure_read_flags(), dir_fd=parent_fd)
+        info = os.fstat(fd)
+        _validate_regular_file(info, label=label)
+    except OSError as exc:
+        try:
+            _close_fds_best_effort([fd, *reversed(opened)])
+        except Exception:
+            pass
+        raise BuildCacheError(f"{label} を no-follow open できない: {relpath}: {exc}") from exc
+    except Exception:
+        try:
+            _close_fds_best_effort([fd, *reversed(opened)])
+        except Exception:
+            pass
+        raise
+    # Parent cleanup が完了するまでは leaf を caller 所有へ移さない。
+    try:
+        _close_fds_best_effort(reversed(opened))
+    except Exception:
+        try:
+            _close_fds_best_effort([fd])
+        except Exception:
+            pass
+        raise
+    return fd, info
+
+
+def _relative_entry_lexists(root_fd: int, relpath: str, *, label: str) -> bool:
+    parts = _validated_relpath(relpath)
+    try:
+        parent_fd, opened = _open_relative_parent(root_fd, parts, label=label)
+    except BuildCacheError as exc:
+        if isinstance(exc.__cause__, FileNotFoundError):
+            return False
+        raise
+    try:
+        try:
+            os.stat(parts[-1], dir_fd=parent_fd, follow_symlinks=False)
+            return True
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            raise BuildCacheError(f"{label} を no-follow stat できない: {relpath}: {exc}") from exc
+    finally:
+        _close_fds_best_effort(reversed(opened))
+
+
+def _read_stable_fd(fd: int, *, label: str) -> bytes:
+    before = os.fstat(fd)
+    _validate_regular_file(before, label=label)
+    os.lseek(fd, 0, os.SEEK_SET)
+    chunks = []
+    while True:
+        chunk = os.read(fd, 1 << 20)
+        if not chunk:
+            break
+        chunks.append(chunk)
+    after = os.fstat(fd)
+    if _stable_file_identity(before) != _stable_file_identity(after):
+        raise BuildCacheError(f"{label} が read 中に変化した")
+    return b"".join(chunks)
+
+
+def _full_sha256_fd(fd: int, display_path: str) -> str:
+    before = os.fstat(fd)
+    _validate_regular_file(before, label=f"binary {display_path}")
+    try:
+        digest = full_sha256(f"/proc/self/fd/{fd}")
+    except BinaryDigestError as exc:
+        raise BuildCacheError(f"held fd の binary sha256 を取得できない: {display_path}: {exc}") from exc
+    after = os.fstat(fd)
+    if _stable_file_identity(before) != _stable_file_identity(after):
+        raise BuildCacheError(f"binary が sha256 中に変化した: {display_path}")
+    return digest
+
+
+@dataclass
+class _CopiedBinary:
+    source_fd: int
+    destination_fd: int
+    destination_parent_fd: int
+    destination_name: str
+    directory_fds: list[int]
+    destination_path: str
+
+    def verify_destination_entry(self) -> None:
+        entry = os.stat(
+            self.destination_name, dir_fd=self.destination_parent_fd,
+            follow_symlinks=False,
+        )
+        held = os.fstat(self.destination_fd)
+        _validate_regular_file(entry, label=f"published binary {self.destination_path}")
+        if (_stat_identity(entry) != _stat_identity(held)
+                or _stable_file_identity(entry) != _stable_file_identity(held)):
+            raise BuildCacheError(
+                f"clean destination entry が held binary fd と不一致: {self.destination_path}"
+            )
+
+    def fsync_directories(self) -> None:
+        for fd in reversed(self.directory_fds):
+            os.fsync(fd)
+
+    def _owned_fds(self) -> list[int]:
+        return [
+            self.source_fd,
+            self.destination_fd,
+            *reversed(self.directory_fds),
+        ]
+
+    def close(self) -> None:
+        _close_fds_best_effort(self._owned_fds())
+
+
+def _secure_copy_binary(
+        staging_fd: int, clean_fd: int, relpath: str, clean_path: str,
+) -> _CopiedBinary:
+    """held staging fd から allowlisted binary 1 本だけを clean root へ copy する。
+
+    CMake subprocess 自体には pathname を渡すため staging 全体の anchor は主張しない。
+    held fd は copy-out destination の inode binding に使う source 選択だけを固定する。
+    """
+    _require_secure_fs_contract()
+    parts = _validated_relpath(relpath)
+    source_fd = -1
+    destination_fd = -1
+    destination_dirs: list[int] = []
+    try:
+        source_fd, source_before = _open_source_regular_at(
+            staging_fd, relpath, label=f"staging binary {relpath}",
+        )
+        destination_parent_fd, destination_dirs = _create_relative_parent(
+            clean_fd, parts, label="clean binary parent",
+        )
+        flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+        try:
+            destination_fd = os.open(
+                parts[-1], flags, 0o600, dir_fd=destination_parent_fd,
+            )
+        except OSError as exc:
+            raise BuildCacheError(f"clean destination を create-only open できない: {relpath}: {exc}") from exc
+        destination_created = os.fstat(destination_fd)
+        _validate_regular_file(destination_created, label=f"clean destination {relpath}")
+        os.lseek(source_fd, 0, os.SEEK_SET)
+        while True:
+            chunk = os.read(source_fd, 1 << 20)
+            if not chunk:
+                break
+            view = memoryview(chunk)
+            while view:
+                written = os.write(destination_fd, view)
+                if written <= 0:
+                    raise BuildCacheError(f"clean destination への copy が進まない: {relpath}")
+                view = view[written:]
+        os.fchmod(destination_fd, 0o500)
+        source_after = os.fstat(source_fd)
+        if _stable_file_identity(source_before) != _stable_file_identity(source_after):
+            raise BuildCacheError(f"staging binary が copy 中に変化した: {relpath}")
+        result = _CopiedBinary(
+            source_fd=source_fd,
+            destination_fd=destination_fd,
+            destination_parent_fd=destination_parent_fd,
+            destination_name=parts[-1],
+            directory_fds=destination_dirs,
+            destination_path=os.path.join(clean_path, relpath),
+        )
+        result.verify_destination_entry()
+        source_fd = destination_fd = -1
+        destination_dirs = []
+        return result
+    except OSError as exc:
+        raise BuildCacheError(f"secure binary copy に失敗: {relpath}: {exc}") from exc
+    finally:
+        _close_fds_best_effort([
+            source_fd, destination_fd, *reversed(destination_dirs),
+        ])
 
 
 def is_full_sha256(value) -> bool:
@@ -317,8 +772,7 @@ def _v2_identity(
 
 def _fsync_dir(path: str) -> None:
     """directory entry の永続化を要求する。失敗は握りつぶさない。"""
-    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    fd = os.open(path, flags)
+    fd = os.open(path, _secure_dir_flags())
     try:
         os.fsync(fd)
     finally:
@@ -326,7 +780,7 @@ def _fsync_dir(path: str) -> None:
 
 
 def _fsync_file(path: str) -> None:
-    fd = os.open(path, os.O_RDONLY)
+    fd = os.open(path, _secure_read_flags())
     try:
         os.fsync(fd)
     finally:
@@ -341,6 +795,30 @@ def _write_fsynced_json(path: str, value: Any) -> None:
         os.fsync(handle.fileno())
 
 
+def _write_fsynced_json_at(directory_fd: int, name: str, value: Any) -> None:
+    """host-generated metadata を held directory fd 内へ create-only で永続化する。"""
+    if type(name) is not str or not name or name in {".", ".."} or os.sep in name:
+        raise BuildCacheError(f"metadata leaf name が不正: {name!r}")
+    payload = _canonical_json_bytes(value) + b"\n"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+    try:
+        fd = os.open(name, flags, 0o600, dir_fd=directory_fd)
+    except OSError as exc:
+        raise BuildCacheError(f"host-generated metadata を create-only open できない: {name}: {exc}") from exc
+    try:
+        info = os.fstat(fd)
+        _validate_regular_file(info, label=f"metadata {name}")
+        view = memoryview(payload)
+        while view:
+            written = os.write(fd, view)
+            if written <= 0:
+                raise BuildCacheError(f"metadata write が進まない: {name}")
+            view = view[written:]
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def _reject_duplicate_pairs(pairs):
     value = {}
     for key, item in pairs:
@@ -350,35 +828,59 @@ def _reject_duplicate_pairs(pairs):
     return value
 
 
-def _read_completion_manifest(path: str) -> Dict[str, Any]:
-    if os.path.islink(path) or not os.path.isfile(path):
-        raise BuildCacheError(
-            f"v2 completion manifest が存在しない/通常ファイルでない: {path}"
-        )
+def _decode_json_object(raw: bytes, path: str, label: str) -> Dict[str, Any]:
     try:
-        with open(path, "rb") as handle:
-            raw = handle.read()
         value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
-        raise BuildCacheError(f"v2 completion manifest を厳密に読めない: {path}: {exc}") from exc
+    except (UnicodeError, ValueError, json.JSONDecodeError) as exc:
+        raise BuildCacheError(f"{label} を厳密に読めない: {path}: {exc}") from exc
     if type(value) is not dict:
-        raise BuildCacheError(f"v2 completion manifest の top-level が object でない: {path}")
+        raise BuildCacheError(f"{label} の top-level が object でない: {path}")
     return value
 
 
-def _read_legacy_admission_sidecar(path: str) -> Dict[str, Any]:
-    if os.path.islink(path) or not os.path.isfile(path):
-        raise BuildCacheError(
-            f"legacy admission sidecar が欠落または通常ファイルでない: {path}"
-        )
+def _read_json_member(root_fd: int, relpath: str, *, path: str, label: str) -> Dict[str, Any]:
+    fd = -1
     try:
-        with open(path, "rb") as handle:
-            raw = handle.read()
-        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_pairs)
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
-        raise BuildCacheError(
-            f"legacy admission sidecar を厳密に読めない: {path}: {exc}"
-        ) from exc
+        fd, _ = _open_regular_at(root_fd, relpath, label=label)
+        raw = _read_stable_fd(fd, label=label)
+        return _decode_json_object(raw, path, label)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def _read_completion_manifest(path: str, *, directory_fd: Optional[int] = None) -> Dict[str, Any]:
+    owned_fd = -1
+    try:
+        if directory_fd is None:
+            owned_fd = _open_directory_path_nofollow(os.path.dirname(path), label="v2 cache entry")
+            directory_fd = owned_fd
+        return _read_json_member(
+            directory_fd, os.path.basename(path), path=path,
+            label="v2 completion manifest",
+        )
+    finally:
+        if owned_fd >= 0:
+            os.close(owned_fd)
+
+
+def _read_legacy_admission_sidecar(
+        path: str, *, directory_fd: Optional[int] = None,
+) -> Dict[str, Any]:
+    owned_fd = -1
+    try:
+        if directory_fd is None:
+            owned_fd = _open_directory_path_nofollow(
+                os.path.dirname(path), label="legacy cache entry",
+            )
+            directory_fd = owned_fd
+        value = _read_json_member(
+            directory_fd, os.path.basename(path), path=path,
+            label="legacy admission sidecar",
+        )
+    finally:
+        if owned_fd >= 0:
+            os.close(owned_fd)
     if type(value) is not dict or set(value) != {"schema_version", "admission"}:
         actual = sorted(value) if type(value) is dict else type(value).__name__
         raise BuildCacheError(
@@ -390,9 +892,10 @@ def _read_legacy_admission_sidecar(path: str) -> Dict[str, Any]:
 def _validate_legacy_admission_sidecar(
         bdir: str, *, admission: BuildAdmission,
         build_context: BuildRunContext, source_evidence: SourceEvidence,
+        directory_fd: Optional[int] = None,
 ) -> None:
     path = os.path.join(bdir, _LEGACY_ADMISSION_SIDECAR)
-    sidecar = _read_legacy_admission_sidecar(path)
+    sidecar = _read_legacy_admission_sidecar(path, directory_fd=directory_fd)
     if sidecar["schema_version"] != _LEGACY_ADMISSION_SCHEMA:
         raise BuildCacheError(f"legacy admission sidecar schema 不一致: {path}")
     try:
@@ -417,69 +920,99 @@ def _validate_v2_entry(
         toolchain: Dict[str, Dict[str, str]], binary_relpath: str,
         contract_sha256: str, admission: Dict[str, Any],
         build_context: BuildRunContext, source_evidence: SourceEvidence,
-) -> tuple[str, str]:
-    """完成 entry を manifest と binary bytes の両方で検証する。修復はしない。"""
-    if os.path.islink(bdir) or not os.path.isdir(bdir):
-        raise BuildCacheError(f"v2 cache publish 先が通常 directory でない: {bdir}")
+        parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
+) -> tuple[str, str, int]:
+    """完成 entry の host metadata と binary を held fd beneath-only で検証する。
+
+    cache contract は ``binary + host-generated metadata`` である。旧実装が発行した
+    entry の extra member は互換性のため hit 時に拒否しない、という残余を意図的に保つ。
+    """
+    if parent_fd is None:
+        bdir_fd = _open_directory_path_nofollow(bdir, label="v2 cache publish 先")
+    else:
+        bdir_fd = _open_checked_directory_at(
+            parent_fd, bdir_name or os.path.basename(bdir), label="v2 cache publish 先",
+        )
+    binary_fd = result_fd = -1
     manifest_path = os.path.join(bdir, _V2_COMPLETION_MANIFEST)
-    manifest = _read_completion_manifest(manifest_path)
-    expected_keys = {
-        "schema_version", "completion_marker", "full_build_digest",
-        "contract_sha256", "preimage", "toolchain", "binary", "admission",
-    }
-    if set(manifest) != expected_keys:
-        raise BuildCacheError(
-            f"v2 completion manifest field 集合が不一致: {manifest_path}: "
-            f"actual={sorted(manifest)}"
-        )
-    if manifest["schema_version"] != _V2_SCHEMA:
-        raise BuildCacheError(f"v2 completion manifest schema 不一致: {manifest_path}")
-    if manifest["completion_marker"] != "complete":
-        raise BuildCacheError(f"v2 completion marker 不一致: {manifest_path}")
-    if manifest["full_build_digest"] != digest:
-        raise BuildCacheError(f"v2 full build digest 不一致: {manifest_path}")
-    if manifest["contract_sha256"] != contract_sha256:
-        raise BuildCacheError(f"v2 contract namespace sha256 不一致: {manifest_path}")
-    if manifest["preimage"] != preimage:
-        raise BuildCacheError(f"v2 pre-image 完全一致検査に失敗: {manifest_path}")
-    if (preimage.get("admission") != admission
-            or manifest["admission"] != admission
-            or manifest["admission"] != preimage.get("admission")):
-        raise BuildCacheError(
-            f"v2 admission の pre-image/manifest/current 完全一致検査に失敗: "
-            f"{manifest_path}"
-        )
     try:
-        checked_admission = validate_build_admission_receipt(
-            manifest["admission"],
-            expected_policy=build_context.policy,
-            expected_source=source_evidence,
+        manifest = _read_completion_manifest(manifest_path, directory_fd=bdir_fd)
+        expected_keys = {
+            "schema_version", "completion_marker", "full_build_digest",
+            "contract_sha256", "preimage", "toolchain", "binary", "admission",
+        }
+        if set(manifest) != expected_keys:
+            raise BuildCacheError(
+                f"v2 completion manifest field 集合が不一致: {manifest_path}: "
+                f"actual={sorted(manifest)}"
+            )
+        if manifest["schema_version"] != _V2_SCHEMA:
+            raise BuildCacheError(f"v2 completion manifest schema 不一致: {manifest_path}")
+        if manifest["completion_marker"] != "complete":
+            raise BuildCacheError(f"v2 completion marker 不一致: {manifest_path}")
+        if manifest["full_build_digest"] != digest:
+            raise BuildCacheError(f"v2 full build digest 不一致: {manifest_path}")
+        if manifest["contract_sha256"] != contract_sha256:
+            raise BuildCacheError(f"v2 contract namespace sha256 不一致: {manifest_path}")
+        if manifest["preimage"] != preimage:
+            raise BuildCacheError(f"v2 pre-image 完全一致検査に失敗: {manifest_path}")
+        if (preimage.get("admission") != admission
+                or manifest["admission"] != admission
+                or manifest["admission"] != preimage.get("admission")):
+            raise BuildCacheError(
+                f"v2 admission の pre-image/manifest/current 完全一致検査に失敗: "
+                f"{manifest_path}"
+            )
+        try:
+            checked_admission = validate_build_admission_receipt(
+                manifest["admission"],
+                expected_policy=build_context.policy,
+                expected_source=source_evidence,
+            )
+        except (TypeError, ValueError, RuntimeError) as exc:
+            raise BuildCacheError(
+                f"v2 admission receipt canonicality/current evidence 検証失敗: "
+                f"{manifest_path}: {exc}"
+            ) from exc
+        if checked_admission != admission:
+            raise BuildCacheError(
+                f"v2 admission receipt canonical projection 不一致: {manifest_path}"
+            )
+        if manifest["toolchain"] != toolchain:
+            raise BuildCacheError(f"v2 toolchain manifest 完全一致検査に失敗: {manifest_path}")
+        if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
+                preimage["toolchain_manifest_sha256"]:
+            raise BuildCacheError(f"v2 toolchain manifest sha256 不一致: {manifest_path}")
+        binary_record = manifest["binary"]
+        if type(binary_record) is not dict or set(binary_record) != {"relative_path", "sha256"}:
+            raise BuildCacheError(f"v2 binary manifest の field 集合が不一致: {manifest_path}")
+        if binary_record["relative_path"] != binary_relpath:
+            raise BuildCacheError(f"v2 binary relative path 不一致: {manifest_path}")
+        if not is_full_sha256(binary_record["sha256"]):
+            raise BuildCacheError(f"v2 binary sha256 が正規形でない: {manifest_path}")
+        binary = os.path.join(bdir, binary_relpath)
+        binary_fd, _ = _open_regular_at(
+            bdir_fd, binary_relpath, label=f"v2 cached binary {binary}",
         )
-    except (TypeError, ValueError, RuntimeError) as exc:
-        raise BuildCacheError(
-            f"v2 admission receipt canonicality/current evidence 検証失敗: "
-            f"{manifest_path}: {exc}"
-        ) from exc
-    if checked_admission != admission:
-        raise BuildCacheError(
-            f"v2 admission receipt canonical projection 不一致: {manifest_path}"
-        )
-    if manifest["toolchain"] != toolchain:
-        raise BuildCacheError(f"v2 toolchain manifest 完全一致検査に失敗: {manifest_path}")
-    if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
-            preimage["toolchain_manifest_sha256"]:
-        raise BuildCacheError(f"v2 toolchain manifest sha256 不一致: {manifest_path}")
-    binary_record = manifest["binary"]
-    if type(binary_record) is not dict or set(binary_record) != {"relative_path", "sha256"}:
-        raise BuildCacheError(f"v2 binary manifest の field 集合が不一致: {manifest_path}")
-    if binary_record["relative_path"] != binary_relpath:
-        raise BuildCacheError(f"v2 binary relative path 不一致: {manifest_path}")
-    binary = os.path.join(bdir, binary_relpath)
-    try:
-        assert_binary_sha256(binary, binary_record["sha256"])
-    except BinaryDigestError as exc:
-        raise BuildCacheError(f"v2 cached binary sha256 照合失敗: {binary}: {exc}") from exc
-    return binary, binary_record["sha256"]
+        actual = _full_sha256_fd(binary_fd, binary)
+        if actual != binary_record["sha256"]:
+            raise BuildCacheError(
+                f"v2 cached binary sha256 照合失敗: {binary}: "
+                f"expected={binary_record['sha256']} actual={actual}"
+            )
+        result_fd = binary_fd
+        binary_fd = -1
+        return binary, binary_record["sha256"], result_fd
+    finally:
+        try:
+            _close_fds_best_effort([binary_fd, bdir_fd])
+        except Exception:
+            # return は破棄されるため、返却予定 leaf も finalizer 所有へ戻す。
+            try:
+                _close_fds_best_effort([result_fd])
+            except Exception:
+                pass
+            raise
 
 
 def _resolve_site(site: Optional[str]) -> str:
@@ -584,9 +1117,71 @@ def _v2_result(
     )
 
 
-def _acquire_v2_claim(claim: str, parent: str, nonce: str) -> None:
+def _mkdir_open_at(parent_fd: int, name: str, *, label: str) -> tuple[int, os.stat_result]:
+    fd = -1
+    created = False
     try:
-        os.mkdir(claim, 0o700)
+        os.mkdir(name, 0o700, dir_fd=parent_fd)
+        created = True
+        before = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        fd = _open_checked_directory_at(parent_fd, name, label=label)
+        os.fchmod(fd, 0o700)
+    except FileExistsError:
+        raise
+    except Exception as exc:
+        cleanup_errors = []
+        if fd >= 0:
+            try:
+                _close_fds_best_effort([fd])
+            except Exception as cleanup_exc:
+                cleanup_errors.append(f"fd close: {cleanup_exc}")
+        if created:
+            try:
+                os.rmdir(name, dir_fd=parent_fd)
+            except OSError as cleanup_exc:
+                cleanup_errors.append(f"rmdir: {cleanup_exc}")
+        if cleanup_errors:
+            raise BuildCacheError(
+                f"{label} を create-only で作れない: {name}: {exc}; "
+                f"cleanup 失敗: {'; '.join(cleanup_errors)}"
+            ) from exc
+        if isinstance(exc, OSError):
+            raise BuildCacheError(
+                f"{label} を create-only で作れない: {name}: {exc}"
+            ) from exc
+        raise
+    return fd, before
+
+
+def _verify_directory_entry(
+        parent_fd: int, name: str, held_fd: int, expected: os.stat_result, *, label: str,
+) -> None:
+    try:
+        entry = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    except OSError as exc:
+        raise BuildCacheError(f"{label} を rename 直前に再照合できない: {name}: {exc}") from exc
+    held = os.fstat(held_fd)
+    if (not stat.S_ISDIR(entry.st_mode)
+            or _stat_identity(entry) != _stat_identity(expected)
+            or _stat_identity(entry) != _stat_identity(held)):
+        raise BuildCacheError(f"{label} identity が rename 前に変化した: {name}")
+
+
+def _entry_lexists_at(parent_fd: int, name: str) -> bool:
+    try:
+        os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise BuildCacheError(f"cache entry を no-follow stat できない: {name}: {exc}") from exc
+
+
+def _acquire_v2_claim(claim: str, parent: str, nonce: str, *, parent_fd: int) -> None:
+    claim_name = os.path.basename(claim)
+    claim_fd = -1
+    try:
+        claim_fd, _ = _mkdir_open_at(parent_fd, claim_name, label="v2 build claim")
     except FileExistsError as exc:
         raise BuildCacheError(
             f"v2 build claim が既に存在する: {claim} — 他 process が build 中または stale。"
@@ -601,24 +1196,35 @@ def _acquire_v2_claim(claim: str, parent: str, nonce: str) -> None:
         "nonce": nonce,
     }
     try:
-        _write_fsynced_json(os.path.join(claim, "owner.json"), owner)
-        _fsync_dir(claim)
-        _fsync_dir(parent)
+        _write_fsynced_json_at(claim_fd, "owner.json", owner)
+        os.fsync(claim_fd)
+        os.fsync(parent_fd)
     except (OSError, ValueError) as exc:
         # 取得済み claim は stale として残す。自動削除すると別 process と区別不能になる。
         raise BuildCacheError(f"v2 build claim receipt の永続化に失敗: {claim}: {exc}") from exc
+    finally:
+        if claim_fd >= 0:
+            os.close(claim_fd)
 
 
-def _release_v2_claim(claim: str, parent: str) -> None:
+def _release_v2_claim(claim: str, parent: str, *, parent_fd: int) -> None:
     """正常 publish 後に限り、自 process が取得した claim を除去する。"""
+    claim_name = os.path.basename(claim)
+    claim_fd = -1
     try:
-        os.unlink(os.path.join(claim, "owner.json"))
-        os.rmdir(claim)
-        _fsync_dir(parent)
+        claim_fd = _open_checked_directory_at(parent_fd, claim_name, label="v2 build claim")
+        os.unlink("owner.json", dir_fd=claim_fd)
+        os.close(claim_fd)
+        claim_fd = -1
+        os.rmdir(claim_name, dir_fd=parent_fd)
+        os.fsync(parent_fd)
     except OSError as exc:
         raise BuildCacheError(
             f"publish 後の v2 build claim を除去できない: {claim}: {exc}; 手動回収が必要"
         ) from exc
+    finally:
+        if claim_fd >= 0:
+            os.close(claim_fd)
 
 
 def build_v2(
@@ -632,6 +1238,10 @@ def build_v2(
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
+
+    copy-out destination は held fd と directory entry の inode を publish 直前まで
+    再照合する。CMake には staging pathname を渡すため、staging 全体が fd で
+    anchor されるとは主張しない。
 
     ``admission`` は pipeline が current source evidence から導出した sealed value に限る。
     materializer 境界で context/source と再検証し、完全な receipt を cache preimage と
@@ -649,7 +1259,13 @@ def build_v2(
     ``expected_toolchain_manifest`` が指定された場合だけ、identity 用 manifest に加えて
     ``version`` 全文を別に再観測し、双方の完全一致を要求する。既定 ``None`` は従来の
     受理集合と実行順を変えない。
+
+    fresh publish は untrusted staging から binary だけを clean candidate へ copy し、
+    host-generated ``completion.json`` とともに完成名へ rename する。Python 3.10 stdlib
+    には ``renameat2(RENAME_NOREPLACE)`` がないため、directory publish の create-only
+    原子性は保証しない。cache publish 時点の inode 厳格化に限定した境界である。
     """
+    _require_secure_fs_contract()
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if type(source_evidence) is not SourceEvidence:
@@ -735,137 +1351,164 @@ def build_v2(
     binary_relpath = os.path.join(
         "cc", genome.protocol, f"ycsb_{genome.protocol}.exe",
     )
+    parent_fd = _open_or_create_directory_path(parent)
     try:
-        os.makedirs(parent, mode=0o700, exist_ok=True)
-    except OSError as exc:
-        raise BuildCacheError(f"v2 contract namespace を作成できない: {parent}: {exc}") from exc
+        claim_name = os.path.basename(claim)
+        bdir_name = os.path.basename(bdir)
+        # 完成 entry より claim を先に見る。publish→claim 除去間の crash も自動回収しない。
+        if _entry_lexists_at(parent_fd, claim_name):
+            raise BuildCacheError(
+                f"v2 build claim が既に存在する: {claim} — build 中または stale; 手動回収が必要"
+            )
+        if _entry_lexists_at(parent_fd, bdir_name):
+            binary, bin_sha256, binary_fd = _validate_v2_entry(
+                bdir, preimage=preimage, digest=digest, toolchain=toolchain,
+                binary_relpath=binary_relpath, contract_sha256=contract_sha256,
+                admission=admission_identity,
+                build_context=build_context, source_evidence=source_evidence,
+                parent_fd=parent_fd, bdir_name=bdir_name,
+            )
+            try:
+                _recheck_source_evidence(
+                    genome, ccbench_commit, sub, cxx, source_evidence, bdir,
+                    built_fresh=False,
+                )
+                _assert_trace_diff(
+                    genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
+                )
+                if not trace:
+                    _assert_no_trace_symbols(binary, binary_fd=binary_fd)
+            finally:
+                os.close(binary_fd)
+            return _v2_result(
+                genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
+                contract_sha256, resolved_site, configure_dependency_prefix,
+            )
 
-    # 完成 entry より claim を先に見る。publish→claim 除去の間に crash した場合も stale を
-    # 自動的に無視せず、管理者が owner receipt を確認して回収するまで fail-closed。
-    if os.path.lexists(claim):
-        raise BuildCacheError(
-            f"v2 build claim が既に存在する: {claim} — build 中または stale; 手動回収が必要"
-        )
-    if os.path.lexists(bdir):
-        binary, bin_sha256 = _validate_v2_entry(
-            bdir, preimage=preimage, digest=digest, toolchain=toolchain,
-            binary_relpath=binary_relpath, contract_sha256=contract_sha256,
-            admission=admission_identity,
-            build_context=build_context, source_evidence=source_evidence,
-        )
-        _recheck_source_evidence(
-            genome, ccbench_commit, sub, cxx, source_evidence, bdir,
-            built_fresh=False,
-        )
-        _assert_trace_diff(
-            genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
-        )
-        if not trace:
-            _assert_no_trace_symbols(binary)
+        nonce = secrets.token_hex(16)
+        _acquire_v2_claim(claim, parent, nonce, parent_fd=parent_fd)
+        staging_name = f".staging-{os.getpid()}-{nonce}"
+        clean_name = f".publish-{os.getpid()}-{nonce}"
+        staging = os.path.join(parent, staging_name)
+        clean = os.path.join(parent, clean_name)
+        staging_created = False
+        clean_created = False
+        staging_fd = -1
+        clean_fd = -1
+        copied: Optional[_CopiedBinary] = None
+        try:
+            if _entry_lexists_at(parent_fd, bdir_name):
+                raise BuildCacheError(
+                    f"v2 publish 先が claim 取得と競合して出現した: {bdir}; 上書きしない"
+                )
+            staging_fd, staging_identity = _mkdir_open_at(
+                parent_fd, staging_name, label="v2 staging",
+            )
+            staging_created = True
+            configure, build_cmd = _v2_commands(
+                genome, trace, sub, staging, toolchain, site=resolved_site,
+                dependency_prefix=configure_dependency_prefix,
+            )
+            run_env = {}
+            if configure_dependency_prefix:
+                build_env = os.environ.copy()
+                build_env.pop("CMAKE_PREFIX_PATH", None)
+                run_env["env"] = build_env
+            try:
+                if site is None:
+                    _run(configure, "configure", timeout_s=timeout_s, **run_env)
+                    _run(build_cmd, "build", timeout_s=timeout_s, **run_env)
+                else:
+                    _run(
+                        configure, "configure", timeout_s=timeout_s,
+                        site=resolved_site, **run_env,
+                    )
+                    _run(
+                        build_cmd, "build", timeout_s=timeout_s,
+                        site=resolved_site, **run_env,
+                    )
+            except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+                raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
+
+            clean_fd, clean_identity = _mkdir_open_at(
+                parent_fd, clean_name, label="v2 clean publish candidate",
+            )
+            clean_created = True
+            _verify_directory_entry(
+                parent_fd, staging_name, staging_fd, staging_identity,
+                label="v2 staging copy source",
+            )
+            copied = _secure_copy_binary(
+                staging_fd, clean_fd, binary_relpath, clean,
+            )
+
+            _recheck_source_evidence(
+                genome, ccbench_commit, sub, cxx, source_evidence, staging,
+                built_fresh=True,
+            )
+            _assert_trace_diff(
+                genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
+            )
+            final_binary = os.path.join(bdir, binary_relpath)
+            if not trace:
+                _assert_no_trace_symbols(final_binary, binary_fd=copied.destination_fd)
+            bin_sha256 = _full_sha256_fd(copied.destination_fd, final_binary)
+            os.fsync(copied.destination_fd)
+            copied.verify_destination_entry()
+            completion = {
+                "schema_version": _V2_SCHEMA,
+                "completion_marker": "complete",
+                "full_build_digest": digest,
+                "contract_sha256": contract_sha256,
+                "preimage": preimage,
+                "admission": admission_identity,
+                "toolchain": toolchain,
+                "binary": {"relative_path": binary_relpath, "sha256": bin_sha256},
+            }
+            _write_fsynced_json_at(clean_fd, _V2_COMPLETION_MANIFEST, completion)
+            copied.fsync_directories()
+            os.fsync(clean_fd)
+            _discard_build_dir(staging)
+            staging_created = False
+            copied.verify_destination_entry()
+            _verify_directory_entry(
+                parent_fd, clean_name, clean_fd, clean_identity,
+                label="v2 clean publish candidate",
+            )
+            if _entry_lexists_at(parent_fd, bdir_name):
+                raise BuildCacheError(f"v2 publish 先が rename 直前に出現した: {bdir}")
+            try:
+                os.rename(
+                    clean_name, bdir_name,
+                    src_dir_fd=parent_fd, dst_dir_fd=parent_fd,
+                )
+            except OSError as exc:
+                raise BuildCacheError(
+                    f"v2 clean candidate publish に失敗: {clean} -> {bdir}: {exc}"
+                ) from exc
+            clean_created = False
+            os.fsync(parent_fd)
+            _release_v2_claim(claim, parent, parent_fd=parent_fd)
+        except Exception:
+            _discard_build_candidates(*(
+                path for created, path in (
+                    (staging_created, staging), (clean_created, clean),
+                ) if created
+            ))
+            raise
+        finally:
+            owned_fds = [staging_fd, clean_fd]
+            if copied is not None:
+                owned_fds = copied._owned_fds() + owned_fds
+            _close_fds_best_effort(owned_fds)
+
+        binary = os.path.join(bdir, binary_relpath)
         return _v2_result(
-            genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
+            genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
             contract_sha256, resolved_site, configure_dependency_prefix,
         )
-
-    nonce = secrets.token_hex(16)
-    _acquire_v2_claim(claim, parent, nonce)
-    staging = os.path.join(parent, f".staging-{os.getpid()}-{nonce}")
-    try:
-        # claim 取得前に存在しなかった publish 先が今あるなら、外部 writer との競合。
-        # validation 後の上書きにも cache-hit 化にも倒さず、claim/staging を残して停止する。
-        if os.path.lexists(bdir):
-            raise BuildCacheError(
-                f"v2 publish 先が claim 取得と競合して出現した: {bdir}; 上書きしない"
-            )
-        os.mkdir(staging, 0o700)
-        configure, build_cmd = _v2_commands(
-            genome, trace, sub, staging, toolchain, site=resolved_site,
-            dependency_prefix=configure_dependency_prefix,
-        )
-        run_env = {}
-        if configure_dependency_prefix:
-            build_env = os.environ.copy()
-            build_env.pop("CMAKE_PREFIX_PATH", None)
-            run_env["env"] = build_env
-        try:
-            if site is None:
-                _run(
-                    configure, "configure", timeout_s=timeout_s, **run_env,
-                )
-                _run(
-                    build_cmd, "build", timeout_s=timeout_s, **run_env,
-                )
-            else:
-                _run(
-                    configure, "configure", timeout_s=timeout_s,
-                    site=resolved_site, **run_env,
-                )
-                _run(
-                    build_cmd, "build", timeout_s=timeout_s,
-                    site=resolved_site, **run_env,
-                )
-        except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
-            raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
-        staging_binary = os.path.join(staging, binary_relpath)
-        if not os.path.isfile(staging_binary):
-            raise BuildError(f"v2 build succeeded but binary missing: {staging_binary}")
-
-        # legacy 経路と同じ 3 検査を publish 前に全て通す。identity / diff-of-diffs
-        # 不一致では既存 helper の fresh-build 規約どおり staging を破棄するが、claim は
-        # stale receipt として残す。不完全 entry を完成 namespace へは出さない。
-        _recheck_source_evidence(
-            genome, ccbench_commit, sub, cxx, source_evidence, staging,
-            built_fresh=True,
-        )
-        _assert_trace_diff(
-            genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
-        )
-        if not trace:
-            _assert_no_trace_symbols(staging_binary)
-        try:
-            bin_sha256 = full_sha256(staging_binary)
-        except BinaryDigestError as exc:
-            raise BuildError(f"v2 built binary sha256 を取得できない: {staging_binary}: {exc}") from exc
-        try:
-            _fsync_file(staging_binary)
-        except OSError as exc:
-            raise BuildError(f"v2 built binary を fsync できない: {staging_binary}: {exc}") from exc
-        completion = {
-            "schema_version": _V2_SCHEMA,
-            "completion_marker": "complete",
-            "full_build_digest": digest,
-            "contract_sha256": contract_sha256,
-            "preimage": preimage,
-            "admission": admission_identity,
-            "toolchain": toolchain,
-            "binary": {
-                "relative_path": binary_relpath,
-                "sha256": bin_sha256,
-            },
-        }
-        _write_fsynced_json(
-            os.path.join(staging, _V2_COMPLETION_MANIFEST), completion,
-        )
-        _fsync_dir(staging)
-        try:
-            os.rename(staging, bdir)
-            _fsync_dir(parent)
-        except OSError as exc:
-            raise BuildCacheError(
-                f"v2 staging の atomic publish に失敗: {staging} -> {bdir}: {exc}"
-            ) from exc
-        _release_v2_claim(claim, parent)
-    except (BuildError, BuildCacheError):
-        raise
-    except OSError as exc:
-        # claim/staging は手動診断用に残す。自動 cleanup/retry は裁定違反。
-        raise BuildCacheError(f"v2 cache staging/publish 操作に失敗: {exc}") from exc
-
-    binary = os.path.join(bdir, binary_relpath)
-    return _v2_result(
-        genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
-        contract_sha256, resolved_site, configure_dependency_prefix,
-    )
+    finally:
+        os.close(parent_fd)
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,
@@ -878,7 +1521,16 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
 
     ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
     再検証し、receipt digest を key と sidecar の両方へ束縛する。``src_token`` は互換用の
-    期待値に限り、current evidence と不一致なら拒否する。"""
+    期待値に限り、current evidence と不一致なら拒否する。
+
+    cache contract は ``binary + host-generated admission.json``。旧 entry の extra member
+    は hit 時に許容する。copy-out destination は held fd と directory entry の inode を
+    publish 直前まで再照合する。一方 CMake には staging pathname を渡すため、staging
+    全体が fd で anchor されるとは主張しない。fresh publish は clean candidate のみを
+    完成名へ rename するが、Python 3.10 stdlib では directory publish の create-only
+    原子性は保証しない。
+    """
+    _require_secure_fs_contract()
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if type(source_evidence) is not SourceEvidence:
@@ -917,92 +1569,153 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
     ]
     cfg_str, build_str = " ".join(cfg), " ".join(build_cmd)
 
-    if os.path.exists(binary):
-        _validate_legacy_admission_sidecar(
-            bdir,
-            admission=admission,
-            build_context=build_context,
-            source_evidence=source_evidence,
-        )
-        # cache hit でも identity を再照合する: resolve→hit 判定の間に working-tree が
-        # 動いていると「今の tree と食い違うバイナリ」を今の key で返してしまう。
-        _recheck_source_evidence(
-            genome, ccbench_commit, sub, cxx, source_evidence,
-            bdir, built_fresh=False,
-        )
-        _assert_trace_diff(genome, ccbench_commit, sub, cxx, bdir, built_fresh=False)
-        if not trace:
-            _assert_no_trace_symbols(binary)     # 規律1: 既存 perf binary も継続検査
-        return BuildResult(genome=genome, trace=trace, binary=binary,
-                           bin_sha256=full_sha256(binary), build_dir=bdir, cached=True,
-                           configure_cmd=cfg_str, build_cmd=build_str,
-                           configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
-                           cache_root=os.path.abspath(root),
-                           ccbench_root=os.path.abspath(sub))
-
-    _clear_stale_build_dir(bdir, binary)
-    os.makedirs(root, exist_ok=True)
-    staging = f"{bdir}.staging-{os.getpid()}-{secrets.token_hex(16)}"
-    staging_binary = os.path.join(staging, "cc", genome.protocol, target)
-    staging_cfg = [
-        "cmake", "-S", sub, "-B", staging, "-DCMAKE_BUILD_TYPE=Release",
-        "-DENABLE_SANITIZER=OFF", f"-DCMAKE_C_COMPILER={cc}",
-        f"-DCMAKE_CXX_COMPILER={cxx}",
-    ] + defines
-    staging_build_cmd = [
-        "cmake", "--build", staging, "--target", target,
-        "-j", str(resolved_jobs),
-    ]
+    root_fd = _open_or_create_directory_path(root)
+    bdir_name = os.path.basename(bdir)
+    binary_relpath = os.path.join("cc", genome.protocol, target)
     try:
-        if site is None:
-            _run(staging_cfg, "configure")
-            _run(staging_build_cmd, "build")
-        else:
-            _run(staging_cfg, "configure", site=resolved_site)
-            _run(staging_build_cmd, "build", site=resolved_site)
-        if not os.path.exists(staging_binary):
-            raise RuntimeError(f"build succeeded but binary missing: {staging_binary}")
-    # TOCTOU 遮断 (phase3.md blocking / D30): resolve→build 間に working-tree が動くと
-    # digest と実バイナリが食い違ったまま**共有ビルドキャッシュ (campaign 非依存) に永続**し、
-    # 以後 cache hit で沈黙再利用される (偽 cache hit = 規律2 直撃)。build 完了直後に
-    # src_token を再計算して照合し、不一致は build dir ごと破棄して fails-closed。
-        _recheck_source_evidence(
-            genome, ccbench_commit, sub, cxx, source_evidence,
-            staging, built_fresh=True,
-        )
-        _assert_trace_diff(
-            genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
-        )
-        if not trace:
-            _assert_no_trace_symbols(staging_binary)
-        bin_sha256 = full_sha256(staging_binary)
-        _write_fsynced_json(
-            os.path.join(staging, _LEGACY_ADMISSION_SIDECAR),
-            {
-                "schema_version": _LEGACY_ADMISSION_SCHEMA,
-                "admission": admission.as_cache_identity(),
-            },
-        )
-        _fsync_file(staging_binary)
-        _fsync_dir(staging)
-        if os.path.lexists(bdir):
-            raise BuildCacheError(
-                f"legacy publish 先が build 中に出現したため上書きしない: {bdir}"
+        if _entry_lexists_at(root_fd, bdir_name):
+            bdir_fd = _open_checked_directory_at(
+                root_fd, bdir_name, label="legacy cache entry",
             )
-        os.rename(staging, bdir)
-        _fsync_dir(root)
-    except Exception:
-        if os.path.exists(staging):
+            try:
+                if _relative_entry_lexists(
+                        bdir_fd, binary_relpath, label="legacy cached binary"):
+                    _validate_legacy_admission_sidecar(
+                        bdir, admission=admission, build_context=build_context,
+                        source_evidence=source_evidence, directory_fd=bdir_fd,
+                    )
+                    binary_fd, _ = _open_regular_at(
+                        bdir_fd, binary_relpath, label=f"legacy cached binary {binary}",
+                    )
+                    try:
+                        _recheck_source_evidence(
+                            genome, ccbench_commit, sub, cxx, source_evidence,
+                            bdir, built_fresh=False,
+                        )
+                        _assert_trace_diff(
+                            genome, ccbench_commit, sub, cxx, bdir, built_fresh=False,
+                        )
+                        if not trace:
+                            _assert_no_trace_symbols(binary, binary_fd=binary_fd)
+                        bin_sha256 = _full_sha256_fd(binary_fd, binary)
+                    finally:
+                        os.close(binary_fd)
+                    return BuildResult(
+                        genome=genome, trace=trace, binary=binary,
+                        bin_sha256=bin_sha256, build_dir=bdir, cached=True,
+                        configure_cmd=cfg_str, build_cmd=build_str,
+                        configure_argv=tuple(cfg), build_argv=tuple(build_cmd),
+                        cache_root=os.path.abspath(root), ccbench_root=os.path.abspath(sub),
+                    )
+            finally:
+                os.close(bdir_fd)
+            _clear_stale_build_dir(bdir, binary)
+
+        nonce = secrets.token_hex(16)
+        staging_name = f"{bdir_name}.staging-{os.getpid()}-{nonce}"
+        clean_name = f".publish-{os.getpid()}-{nonce}"
+        staging = os.path.join(root, staging_name)
+        clean = os.path.join(root, clean_name)
+        staging_fd, staging_identity = _mkdir_open_at(
+            root_fd, staging_name, label="legacy staging",
+        )
+        staging_created = True
+        clean_created = False
+        clean_fd = -1
+        copied: Optional[_CopiedBinary] = None
+        bin_sha256 = ""
+        try:
+            staging_cfg = [
+                "cmake", "-S", sub, "-B", staging, "-DCMAKE_BUILD_TYPE=Release",
+                "-DENABLE_SANITIZER=OFF", f"-DCMAKE_C_COMPILER={cc}",
+                f"-DCMAKE_CXX_COMPILER={cxx}",
+            ] + defines
+            staging_build_cmd = [
+                "cmake", "--build", staging, "--target", target,
+                "-j", str(resolved_jobs),
+            ]
+            if site is None:
+                _run(staging_cfg, "configure")
+                _run(staging_build_cmd, "build")
+            else:
+                _run(staging_cfg, "configure", site=resolved_site)
+                _run(staging_build_cmd, "build", site=resolved_site)
+
+            clean_fd, clean_identity = _mkdir_open_at(
+                root_fd, clean_name, label="legacy clean publish candidate",
+            )
+            clean_created = True
+            _verify_directory_entry(
+                root_fd, staging_name, staging_fd, staging_identity,
+                label="legacy staging copy source",
+            )
+            copied = _secure_copy_binary(
+                staging_fd, clean_fd, binary_relpath, clean,
+            )
+            _recheck_source_evidence(
+                genome, ccbench_commit, sub, cxx, source_evidence,
+                staging, built_fresh=True,
+            )
+            _assert_trace_diff(
+                genome, ccbench_commit, sub, cxx, staging, built_fresh=True,
+            )
+            if not trace:
+                _assert_no_trace_symbols(binary, binary_fd=copied.destination_fd)
+            bin_sha256 = _full_sha256_fd(copied.destination_fd, binary)
+            os.fsync(copied.destination_fd)
+            copied.verify_destination_entry()
+            _write_fsynced_json_at(
+                clean_fd, _LEGACY_ADMISSION_SIDECAR,
+                {
+                    "schema_version": _LEGACY_ADMISSION_SCHEMA,
+                    "admission": admission.as_cache_identity(),
+                },
+            )
+            copied.fsync_directories()
+            os.fsync(clean_fd)
             _discard_build_dir(staging)
-        raise
-    return BuildResult(genome=genome, trace=trace, binary=binary,
-                       bin_sha256=bin_sha256, build_dir=bdir, cached=False,
-                       configure_cmd=" ".join(staging_cfg),
-                       build_cmd=" ".join(staging_build_cmd),
-                       configure_argv=tuple(staging_cfg),
-                       build_argv=tuple(staging_build_cmd),
-                       cache_root=os.path.abspath(root),
-                       ccbench_root=os.path.abspath(sub))
+            staging_created = False
+            copied.verify_destination_entry()
+            _verify_directory_entry(
+                root_fd, clean_name, clean_fd, clean_identity,
+                label="legacy clean publish candidate",
+            )
+            if _entry_lexists_at(root_fd, bdir_name):
+                raise BuildCacheError(
+                    f"legacy publish 先が build 中に出現したため上書きしない: {bdir}"
+                )
+            try:
+                os.rename(
+                    clean_name, bdir_name, src_dir_fd=root_fd, dst_dir_fd=root_fd,
+                )
+            except OSError as exc:
+                raise BuildCacheError(
+                    f"legacy clean candidate publish に失敗: {clean} -> {bdir}: {exc}"
+                ) from exc
+            clean_created = False
+            os.fsync(root_fd)
+        except Exception:
+            _discard_build_candidates(*(
+                path for created, path in (
+                    (staging_created, staging), (clean_created, clean),
+                ) if created
+            ))
+            raise
+        finally:
+            owned_fds = [staging_fd, clean_fd]
+            if copied is not None:
+                owned_fds = copied._owned_fds() + owned_fds
+            _close_fds_best_effort(owned_fds)
+
+        return BuildResult(
+            genome=genome, trace=trace, binary=binary,
+            bin_sha256=bin_sha256, build_dir=bdir, cached=False,
+            configure_cmd=" ".join(staging_cfg), build_cmd=" ".join(staging_build_cmd),
+            configure_argv=tuple(staging_cfg), build_argv=tuple(staging_build_cmd),
+            cache_root=os.path.abspath(root), ccbench_root=os.path.abspath(sub),
+        )
+    finally:
+        os.close(root_fd)
 
 
 def _recheck_source_evidence(
@@ -1068,8 +1781,22 @@ def _clear_stale_build_dir(bdir: str, binary: str) -> None:
     実障害)。正当な完成品 (binary あり) は呼び手の cache hit 経路が先に扱う — ここに来る
     既存 dir は不完全と確定しているので、破棄してから新規 configure する (fails-closed 側の
     回復。破棄の成否検査は _discard_build_dir と共通)。"""
-    if os.path.isdir(bdir) and not os.path.exists(binary):
-        _discard_build_dir(bdir)
+    if not os.path.lexists(bdir):
+        return
+    try:
+        info = os.stat(bdir, follow_symlinks=False)
+    except OSError as exc:
+        raise BuildCacheError(f"stale build dir を no-follow stat できない: {bdir}: {exc}") from exc
+    if not stat.S_ISDIR(info.st_mode):
+        raise BuildCacheError(f"stale build dir が symlink または非 directory: {bdir}")
+    bdir_fd = _open_directory_path_nofollow(bdir, label="stale build dir")
+    try:
+        relpath = os.path.relpath(binary, bdir)
+        if _relative_entry_lexists(bdir_fd, relpath, label="stale binary"):
+            return
+    finally:
+        os.close(bdir_fd)
+    _discard_build_dir(bdir)
 
 
 def _discard_build_dir(bdir: str) -> None:
@@ -1079,12 +1806,33 @@ def _discard_build_dir(bdir: str) -> None:
     バイナリが**次 run の cache hit で再照合されず再利用**される (再照合は『今の tree の
     resolve == expected』のみで残存バイナリの由来を見ない, 2026-07-03 敵対検証 low)。破棄
     失敗を明示例外にし、汚染の永続を沈黙させない。"""
+    if not os.path.lexists(bdir):
+        return
+    try:
+        info = os.stat(bdir, follow_symlinks=False)
+    except OSError as exc:
+        raise BuildCacheError(f"汚染 build dir を no-follow stat できない: {bdir}: {exc}") from exc
+    if not stat.S_ISDIR(info.st_mode):
+        raise BuildCacheError(f"汚染 build dir が symlink または非 directory: {bdir}")
     shutil.rmtree(bdir, ignore_errors=True)
-    if os.path.exists(bdir):
+    if os.path.lexists(bdir):
         raise RuntimeError(
             f"汚染 build dir を破棄できなかった ({bdir}) — 権限/使用中を疑え。残存すると "
             "次 run の cache hit で汚染バイナリが再利用される。手動で削除してから再実行すること "
             "(fails-closed)")
+
+
+def _discard_build_candidates(*paths: str) -> None:
+    """全 candidate の破棄を試み、1 件でも残れば cleanup failure として停止する。"""
+    failures = []
+    for path in paths:
+        try:
+            _discard_build_dir(path)
+        except Exception as exc:
+            failures.append((path, exc))
+    if failures:
+        detail = "; ".join(f"{path}: {exc}" for path, exc in failures)
+        raise BuildCacheError(f"build failure 後の candidate cleanup に失敗: {detail}") from failures[0][1]
 
 
 def _has_trace_symbols(nm_output: str) -> bool:
@@ -1092,7 +1840,7 @@ def _has_trace_symbols(nm_output: str) -> bool:
     return any("izanagi_trace" in ln.lower() for ln in nm_output.splitlines())
 
 
-def _assert_no_trace_symbols(binary: str) -> None:
+def _assert_no_trace_symbols(binary: str, *, binary_fd: Optional[int] = None) -> None:
     """perf (trace-disabled) build に trace シンボルが 1 つも無いことを assert (絶対規律1 の継続執行)。
 
     観測者効果分離は `#if TRACE` のソース層が一次防壁だが、誰かが `#ifdef TRACE` に書き戻す/
@@ -1101,16 +1849,20 @@ def _assert_no_trace_symbols(binary: str) -> None:
     環境では fails-closed で停止する — 「一次防壁の回帰」と「nm の欠如」が複合した瞬間だけ
     検査が沈黙するのは規律1/3 に反する (旧実装は silent pass だった、洗練検査 LOW)。
     限界: strip 済みバイナリはシンボル 0 で素通りする (ビルド直後の非 strip 前提)。"""
+    inspected = binary if binary_fd is None else f"/proc/self/fd/{binary_fd}"
+    run_kwargs: Dict[str, Any] = {"capture_output": True, "text": True}
+    if binary_fd is not None:
+        run_kwargs["pass_fds"] = (binary_fd,)
     try:
-        r = subprocess.run(["nm", "-C", binary], capture_output=True, text=True)
+        r = subprocess.run(["nm", "-C", inspected], **run_kwargs)
     except (OSError, subprocess.SubprocessError) as e:
         raise RuntimeError(
             f"規律1 検査不能: nm を起動できない ({e})。trace シンボル漏れを検査できない"
-            f"環境で perf build を採用しない (fails-closed)") from e
+            f"環境で perf build を採用しない (fails-closed): {binary}") from e
     if r.returncode != 0:
         raise RuntimeError(
             f"規律1 検査不能: nm が失敗 (rc={r.returncode}): {r.stderr[-200:]} "
-            f"(fails-closed で停止)")
+            f"(fails-closed で停止): {binary}")
     if _has_trace_symbols(r.stdout):
         raise RuntimeError(
             f"絶対規律1 違反: perf (trace-disabled) build に izanagi_trace シンボルが漏れている: "

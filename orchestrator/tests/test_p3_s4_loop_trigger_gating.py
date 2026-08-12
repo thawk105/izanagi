@@ -118,6 +118,12 @@ _T343_OTHER_CAMPAIGN_ID = (
 _T343_COMPUTE_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-9a92049d"
 )
+_T816_OTHER_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-03045c77"
+)
+_T816_COMPUTE_CAMPAIGN_ID = (
+    "p3-s8a-trigger-loop-s8a-trigger-autonomous-0f292633"
+)
 _T530_OTHER_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-25c37015"
 )
@@ -608,24 +614,29 @@ def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
         T._lookup = saved_site_lookup
     assert other_cfg is cfg
     assert str(ident.campaign_id(other_cfg)) == str(ident.campaign_id(cfg))
-    # T-671 で H が identity から外れ、current は旧 T343 値になる。
-    assert str(ident.campaign_id(other_cfg)) == _T343_OTHER_CAMPAIGN_ID
-    assert str(ident.campaign_id(compute_cfg)) == _T343_COMPUTE_CAMPAIGN_ID
-    assert str(ident.campaign_id(other_cfg)) != _T530_OTHER_CAMPAIGN_ID
-    assert str(ident.campaign_id(compute_cfg)) != _T530_COMPUTE_CAMPAIGN_ID
-    t343_compute = replace(
+    assert str(ident.campaign_id(other_cfg)) == _T816_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(compute_cfg)) == _T816_COMPUTE_CAMPAIGN_ID
+    assert str(ident.campaign_id(other_cfg)) not in {
+        _T343_OTHER_CAMPAIGN_ID,
+        _T530_OTHER_CAMPAIGN_ID,
+    }
+    assert str(ident.campaign_id(compute_cfg)) not in {
+        _T343_COMPUTE_CAMPAIGN_ID,
+        _T530_COMPUTE_CAMPAIGN_ID,
+    }
+    t816_compute = replace(
         unbound,
         search_config={
             **unbound.search_config,
             T._CAMPAIGN_ENV_KEY: T._SITE_ENV_TAGS[site_policy.PEGASUS_COMPUTE],
         },
     )
-    t343_compute_hash = hashlib.sha256(
-        ident.canonical_preimage(t343_compute).encode("utf-8")
+    t816_compute_hash = hashlib.sha256(
+        ident.canonical_preimage(t816_compute).encode("utf-8")
     ).hexdigest()[:8]
     assert (
-        f"{t343_compute.spec_slug}-{t343_compute.search_tag}-{t343_compute_hash}"
-        == _T343_COMPUTE_CAMPAIGN_ID
+        f"{t816_compute.spec_slug}-{t816_compute.search_tag}-{t816_compute_hash}"
+        == _T816_COMPUTE_CAMPAIGN_ID
     )
     assert _PRE_T343_OTHER_CAMPAIGN_ID == (
         "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
@@ -1822,7 +1833,7 @@ def test_default_cfg_wires_s2_verify_and_axis():
     assert cfg.search_config.get("axis") == T.MARKER_ID
     assert cfg.search_config.get("trigger_gate_binding_schema") == \
         TRIGGER_GATE_BINDING_SCHEMA
-    assert cfg.ccbench_commit == T.PIN == "d706650"
+    assert cfg.ccbench_commit == T.PIN == "511c953"
 
 
 def test_default_cfg_identity_distinct_from_sort():
