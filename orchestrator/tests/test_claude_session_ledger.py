@@ -696,7 +696,7 @@ def test_incomparable_usage_replicas_remain_fatal(
             [
                 _assistant(
                     request_id="req-incomparable",
-                    message_id="msg-incomparable",
+                    message_id="msg_incomparable",
                     usage=usage,
                 )
             ],
@@ -706,6 +706,7 @@ def test_incomparable_usage_replicas_remain_fatal(
 
     assert rc == 2
     assert "message_id_collision" in stderr
+    assert "fatal: message_id_collision: msg_incomparable: " in stderr
     assert report["root"]["model_calls"] == 0
     assert report["sidechains"]["model_calls"] == 0
 
@@ -723,7 +724,7 @@ def test_same_message_and_usage_with_different_request_ids_remains_fatal(
             [
                 _assistant(
                     request_id=request_id,
-                    message_id="msg-shared-but-requests-differ",
+                    message_id="msg_sharedButRequestsDiffer",
                     usage=usage,
                 )
             ],
@@ -733,6 +734,7 @@ def test_same_message_and_usage_with_different_request_ids_remains_fatal(
 
     assert rc == 2
     assert "message_id_collision" in stderr
+    assert "fatal: message_id_collision: msg_sharedButRequestsDiffer: " in stderr
     assert report["root"]["model_calls"] == 0
     assert report["sidechains"]["model_calls"] == 0
 
