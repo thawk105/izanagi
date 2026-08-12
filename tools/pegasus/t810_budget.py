@@ -19,11 +19,8 @@ RECEIPT_SCHEMA = "t810-budget-receipt/v1"
 MAX_NODE_SECONDS = 2**63 - 1
 ZERO_SHA256 = "0" * 64
 RUN_KINDS = ("builder", "liveness", "main")
-LIMITATIONS = frozenset({
-    "authorization-witness-trust-root-absent",
-    "guard-snapshot-to-release-race-not-eliminated",
-    "shared-mount-repository-reachability-not-eliminated",
-})
+LIMITATIONS = schema.LIMITATION_IDS
+FINALIZATION_WITNESS_SCHEMA = "t810-budget-finalization-witness/v1"
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -69,15 +66,24 @@ class BudgetReceipt:
     admitted: bool
     reason: str
     created_at: str
+    limitations: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        value = asdict(self)
+        value["limitations"] = list(value["limitations"])
+        return value
 
 
 @dataclass(frozen=True)
 class BudgetEvent:
     document: Mapping[str, Any]
     ledger_sha256_after: str
+
+
+@dataclass(frozen=True)
+class FinalizationWitness:
+    document: Mapping[str, Any]
+    sha256: str
 
 
 LockFactory = Callable[[Path], Any]
@@ -116,6 +122,12 @@ def _int(
         raise T810BudgetError(f"{name} must be an integer")
     if value < minimum or value > MAX_NODE_SECONDS:
         raise T810BudgetError(f"{name} is outside the admitted integer range")
+    return value
+
+
+def _bool(value: Any, name: str) -> bool:
+    if not isinstance(value, bool):
+        raise T810BudgetError(f"{name} must be a boolean")
     return value
 
 
@@ -397,15 +409,15 @@ def _flocked(path: Path) -> Iterator[BinaryIO]:
             handle.close()
 
 
-def _external_ledger_path(value: str | Path) -> Path:
-    path = Path(value)
-    if not path.is_absolute():
-        raise T810BudgetError("ledger path must be absolute")
-    repository = Path(__file__).resolve().parents[2]
-    resolved = path.resolve(strict=False)
-    if resolved == repository or repository in resolved.parents:
-        raise T810BudgetError("ledger path must be repository-external")
-    return resolved
+def _external_ledger_path(
+    value: str | Path, *, repository_roots: Any,
+) -> Path:
+    try:
+        return schema.assert_repository_external(
+            value, repository_roots=repository_roots,
+        )
+    except schema.T810SchemaError as exc:
+        raise T810BudgetError(f"ledger path must be repository-external: {exc}") from exc
 
 
 def _request(value: BudgetRequest | Mapping[str, Any]) -> BudgetRequest:
@@ -435,7 +447,12 @@ def _read_locked(handle: BinaryIO, policy: AdmissionPolicy) -> _LedgerState:
     return _parse_ledger(handle.read(), policy)
 
 
-def _append_locked(handle: BinaryIO, event: Mapping[str, Any]) -> bytes:
+def _append_locked(
+    authorization: schema.AuthorizationToken, handle: BinaryIO,
+    event: Mapping[str, Any],
+) -> bytes:
+    if not isinstance(authorization, schema.AuthorizationToken):
+        raise T810BudgetError("AuthorizationToken is required for ledger append")
     raw = schema.canonical_json_bytes(event) + b"\n"
     handle.seek(0, os.SEEK_END)
     if handle.write(raw) != len(raw):
@@ -462,18 +479,25 @@ def _denied_receipt(
         schema.canonical_sha256(policy.document["budget"]["estimates"]),
         str(ledger_path), ZERO_SHA256, ZERO_SHA256, reservation_id,
         request.run_kind, request.requested_attempts, estimate, 0, total, 0, total,
-        False, reason, created_at,
+        False, reason, created_at, tuple(sorted(LIMITATIONS)),
     )
 
 
 def reserve_budget(
-    request: BudgetRequest | Mapping[str, Any], *, policy: AdmissionPolicy,
+    request: BudgetRequest | Mapping[str, Any], authorization: schema.AuthorizationToken,
+    *, policy: AdmissionPolicy,
     ledger_path: str | Path, clock: Callable[[], str],
+    repository_roots: Any,
     lock_factory: LockFactory | None = None,
 ) -> BudgetReceipt:
     """Inside one lock: read, validate, check ``0 < required <= remaining``, append."""
+    if not isinstance(authorization, schema.AuthorizationToken):
+        raise T810BudgetError("AuthorizationToken is required for budget reservation")
     req = _request(request)
-    path = _external_ledger_path(ledger_path)
+    if (authorization.policy_sha256 != policy.sha256
+            or authorization.run_kind != req.run_kind):
+        raise T810BudgetError("AuthorizationToken binding mismatch")
+    path = _external_ledger_path(ledger_path, repository_roots=repository_roots)
     created_at = _str(clock(), "clock result")
     if policy.document["budget"]["status"] != "ratified":
         return _denied_receipt(req, policy, path, "budget-unratified", created_at)
@@ -519,6 +543,7 @@ def reserve_budget(
                 str(path), before, before, reservation_id, req.run_kind,
                 req.requested_attempts, estimate["node_seconds_per_attempt"], required,
                 total, state.counted, remaining, False, reason, created_at,
+                tuple(sorted(LIMITATIONS)),
             )
         previous = schema.canonical_sha256(state.records[-1])
         event = _validate_event({
@@ -537,7 +562,7 @@ def reserve_budget(
             "created_at": created_at, "previous_sha256": previous,
             "policy_sha256": policy.sha256,
         })
-        after_raw = _append_locked(handle, event)
+        after_raw = _append_locked(authorization, handle, event)
         after = schema.sha256_bytes(after_raw)
         return BudgetReceipt(
             RECEIPT_SCHEMA, req.launch_intent_sha256, policy.sha256,
@@ -545,6 +570,7 @@ def reserve_budget(
             str(path), before, after, reservation_id, req.run_kind,
             req.requested_attempts, estimate["node_seconds_per_attempt"], required,
             total, state.counted, remaining - required, True, "admitted", created_at,
+            tuple(sorted(LIMITATIONS)),
         )
 
 
@@ -556,20 +582,119 @@ _FINALIZATION = {
     "unused-retry": "released",
 }
 
+_WITNESS_FIELDS = {
+    "schema_version", "outcome", "reservation_id", "group_id", "run_kind",
+    "attempt", "launch_intent_sha256", "policy_sha256", "cancel_published",
+    "scheduler_reachability", "jobs",
+}
+_WITNESS_JOB_FIELDS = {
+    "reservation_id", "group_id", "run_kind", "attempt", "launch_intent_sha256",
+    "pbs_request_id", "job_name", "submission_accepted", "qdel_confirmed",
+    "start_observed",
+}
+
+
+def _validate_finalization_witness(value: Any) -> dict[str, Any]:
+    witness = _exact(value, _WITNESS_FIELDS, "finalization witness")
+    if witness["schema_version"] != FINALIZATION_WITNESS_SCHEMA:
+        raise T810BudgetError("finalization witness schema mismatch")
+    outcome = witness["outcome"]
+    if outcome not in _FINALIZATION:
+        raise T810BudgetError("finalization witness outcome is unknown")
+    for name in ("reservation_id", "group_id"):
+        _str(witness[name], f"finalization witness {name}")
+    if witness["run_kind"] not in RUN_KINDS:
+        raise T810BudgetError("finalization witness run_kind is invalid")
+    _int(witness["attempt"], "finalization witness attempt", minimum=1)
+    for name in ("launch_intent_sha256", "policy_sha256"):
+        _digest(witness[name], f"finalization witness {name}")
+    _bool(witness["cancel_published"], "finalization witness cancel_published")
+    if witness["scheduler_reachability"] not in {
+        "reachable", "unknown", "not-contacted",
+    }:
+        raise T810BudgetError("finalization witness scheduler_reachability is invalid")
+    if not isinstance(witness["jobs"], list):
+        raise T810BudgetError("finalization witness jobs must be a list")
+    jobs: list[dict[str, Any]] = []
+    request_ids: set[str] = set()
+    identity = {
+        "reservation_id": witness["reservation_id"],
+        "group_id": witness["group_id"],
+        "run_kind": witness["run_kind"],
+        "attempt": witness["attempt"],
+        "launch_intent_sha256": witness["launch_intent_sha256"],
+    }
+    for index, raw in enumerate(witness["jobs"]):
+        job = _exact(raw, _WITNESS_JOB_FIELDS, f"finalization witness jobs[{index}]")
+        if any(job[name] != expected for name, expected in identity.items()):
+            raise T810BudgetError("finalization witness job identity mismatch")
+        request_id = _str(job["pbs_request_id"], "witness job pbs_request_id")
+        _str(job["job_name"], "witness job job_name")
+        if request_id in request_ids:
+            raise T810BudgetError("duplicate finalization witness PBS request ID")
+        request_ids.add(request_id)
+        for name in ("submission_accepted", "qdel_confirmed", "start_observed"):
+            _bool(job[name], f"witness job {name}")
+        if job["qdel_confirmed"] and not job["submission_accepted"]:
+            raise T810BudgetError("qdel confirmation lacks accepted submission")
+        jobs.append(job)
+    witness["jobs"] = jobs
+
+    reachability = witness["scheduler_reachability"]
+    cancel = witness["cancel_published"]
+    if outcome == "scheduler-reachability-unknown":
+        valid = reachability == "unknown"
+    elif outcome == "submission-accepted":
+        valid = reachability == "reachable" and bool(jobs) and all(
+            job["submission_accepted"] for job in jobs
+        )
+    elif outcome == "pre-submission-aborted":
+        valid = reachability == "not-contacted" and cancel and not jobs
+    elif outcome == "qdel-confirmed-before-start":
+        valid = reachability == "reachable" and cancel and bool(jobs) and all(
+            job["submission_accepted"] and job["qdel_confirmed"]
+            and not job["start_observed"] for job in jobs
+        )
+    else:
+        valid = (
+            reachability == "not-contacted" and not cancel and not jobs
+            and witness["run_kind"] == "main" and witness["attempt"] == 2
+        )
+    if not valid:
+        raise T810BudgetError(f"finalization witness does not prove {outcome}")
+    return witness
+
+
+def load_finalization_witness(path: str | Path) -> FinalizationWitness:
+    """Load one exact outcome witness and bind its canonical digest."""
+    try:
+        value = schema.parse_json(Path(path).read_bytes())
+        document = _validate_finalization_witness(value)
+    except (OSError, schema.T810SchemaError) as exc:
+        raise T810BudgetError(f"cannot load finalization witness: {exc}") from exc
+    return FinalizationWitness(document, schema.canonical_sha256(document))
+
 
 def finalize_budget(
-    reservation_id: str, *, policy: AdmissionPolicy, ledger_path: str | Path,
-    outcome: str, witness_sha256: str, clock: Callable[[], str],
+    reservation_id: str, authorization: schema.AuthorizationToken, *,
+    policy: AdmissionPolicy, ledger_path: str | Path, outcome: str,
+    witness_path: str | Path, clock: Callable[[], str], repository_roots: Any,
     lock_factory: LockFactory | None = None,
 ) -> BudgetEvent:
     """Finalize one reservation exactly once using the frozen conservative table."""
+    if not isinstance(authorization, schema.AuthorizationToken):
+        raise T810BudgetError("AuthorizationToken is required for budget finalization")
     _str(reservation_id, "reservation_id")
     if outcome not in _FINALIZATION:
         raise T810BudgetError("unknown budget finalization outcome")
-    _digest(witness_sha256, "witness_sha256")
+    witness = load_finalization_witness(witness_path)
+    if witness.document["outcome"] != outcome:
+        raise T810BudgetError("finalization witness outcome mismatch")
+    if authorization.policy_sha256 != policy.sha256:
+        raise T810BudgetError("AuthorizationToken binding mismatch")
     if policy.document["budget"]["status"] != "ratified":
         raise T810BudgetError("budget is unratified")
-    path = _external_ledger_path(ledger_path)
+    path = _external_ledger_path(ledger_path, repository_roots=repository_roots)
     created_at = _str(clock(), "clock result")
     locker = lock_factory or _flocked
     with locker(path) as handle:
@@ -577,10 +702,18 @@ def finalize_budget(
         reserved = state.latest.get(reservation_id)
         if reserved is None or reserved["status"] != "reserved":
             raise T810BudgetError("finalize replay or unknown reservation")
-        if outcome == "unused-retry" and not (
-            reserved["run_kind"] == "main" and reserved["attempt"] == 2
-        ):
-            raise T810BudgetError("unused-retry requires the reserved main retry slot")
+        identity = {
+            "reservation_id": reservation_id,
+            "group_id": reserved["group_id"],
+            "run_kind": reserved["run_kind"],
+            "attempt": reserved["attempt"],
+            "launch_intent_sha256": reserved["launch_intent_sha256"],
+            "policy_sha256": policy.sha256,
+        }
+        if any(witness.document[name] != expected for name, expected in identity.items()):
+            raise T810BudgetError("finalization witness reservation identity mismatch")
+        if authorization.run_kind != reserved["run_kind"]:
+            raise T810BudgetError("AuthorizationToken binding mismatch")
         previous = schema.canonical_sha256(state.records[-1])
         event = dict(reserved)
         event.update({
@@ -591,9 +724,9 @@ def finalize_budget(
                 "previous_sha256": previous,
             }),
             "status": _FINALIZATION[outcome], "finalization_reason": outcome,
-            "witness_sha256": witness_sha256, "created_at": created_at,
+            "witness_sha256": witness.sha256, "created_at": created_at,
             "previous_sha256": previous,
         })
         validated = _validate_event(event)
-        after = schema.sha256_bytes(_append_locked(handle, validated))
+        after = schema.sha256_bytes(_append_locked(authorization, handle, validated))
         return BudgetEvent(validated, after)

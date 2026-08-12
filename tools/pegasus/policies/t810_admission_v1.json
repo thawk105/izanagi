@@ -68,8 +68,11 @@
     }
   },
   "limitations": [
-    "authorization-witness-trust-root-absent",
-    "guard-snapshot-to-release-race-not-eliminated",
-    "shared-mount-repository-reachability-not-eliminated"
+    "approval_receipt_trust_root_absent",
+    "budget_ledger_trust_root_absent",
+    "execution_mediation_incomplete",
+    "guard_snapshot_to_release_race_not_eliminated",
+    "repository_absence_not_proven_from_node",
+    "shared_mount_repository_reachability_not_eliminated"
   ]
 }

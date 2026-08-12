@@ -14,6 +14,14 @@ from tools.pegasus import t810_harness_schema as S
 FIXTURES = Path(__file__).parent / "fixtures" / "t810"
 H = "a" * 64
 PREREG = "b" * 64
+EXPECTED_LIMITATIONS = {
+    "shared_mount_repository_reachability_not_eliminated",
+    "execution_mediation_incomplete",
+    "guard_snapshot_to_release_race_not_eliminated",
+    "approval_receipt_trust_root_absent",
+    "repository_absence_not_proven_from_node",
+    "budget_ledger_trust_root_absent",
+}
 
 
 def _load(name: str):
@@ -74,6 +82,13 @@ def _witness(policy_sha256: str, run_kind: str = "main") -> dict:
         "policy_sha256": policy_sha256, "run_kinds": [run_kind],
         "issued_on": "2026-08-12", "nonce": "test-only-literal-witness",
     }
+
+
+def _token(policy_sha256: str, run_kind: str = "main") -> S.AuthorizationToken:
+    return S.verify_launch_authorization(
+        _witness(policy_sha256, run_kind), run_kind=run_kind,
+        preregistration_sha256=PREREG, policy_sha256=policy_sha256,
+    )
 
 
 def test_saved_qstat_q_h_r_and_wrapped_exec_host():
@@ -183,27 +198,29 @@ def test_guard_receipt_exact_fields_bind_intent_and_machine_limitations():
         "withdrawal_actions", "limitations", "created_at",
     }
     assert receipt["launch_intent_sha256"] == H
-    assert "snapshot-to-release-race-not-eliminated" in receipt["limitations"]
+    assert set(receipt["limitations"]) == EXPECTED_LIMITATIONS
     assert "group_manifest_sha256" not in receipt
 
 
 def _withdraw(
-    decision, transcripts, identities, *, witness=True, rc=0, events=None,
+    decision, transcripts, identities, *, authorization=True, rc=0, events=None,
 ):
     events = [] if events is None else events
 
-    def cancel():
+    def cancel(token):
+        assert isinstance(token, S.AuthorizationToken)
         events.append("cancel")
 
-    def scheduler(argv):
+    def scheduler(token, argv):
+        assert isinstance(token, S.AuthorizationToken)
         events.append(tuple(argv))
         return subprocess.CompletedProcess(argv, rc, "", "failure" if rc else "")
 
+    token = _token(decision.policy_sha256) if authorization is True else authorization
     receipt = G.withdraw_b_group(
-        decision, fresh_transcripts=transcripts, b_manifest_jobs=identities,
+        decision, token, fresh_transcripts=transcripts, b_manifest_jobs=identities,
         expected_owner="alice",
-        authorization_witness=_witness(decision.policy_sha256) if witness else None,
-        approval_id="human-approval", preregistration_sha256=PREREG,
+        preregistration_sha256=PREREG,
         run_kind="main", publish_cancel=cancel, scheduler_run=scheduler,
         created_at="2026-08-12T02:00:02Z",
     )
@@ -265,11 +282,14 @@ def test_nonzero_qdel_rc_is_not_a_successful_withdrawal():
     assert "qdel-failed" in receipt.reason_codes
 
 
-def test_qdel_requires_launch_authorization_witness_at_effect_entry():
+@pytest.mark.parametrize("invalid", [None, {}])
+def test_cancel_and_qdel_require_authorization_token_before_effect(invalid):
     identity = [_identity("81011.nqsv", "b-one")]
     transcript = _transcript("81011.nqsv", job_name="b-one", state="Q")
     decision = _evaluate([transcript], phase="pre-release", identities=identity)
-    receipt, events = _withdraw(decision, [transcript], identity, witness=False)
-    assert events == ["cancel"]
-    assert receipt.decision == "deny"
-    assert "launch-authorization-required" in receipt.reason_codes
+    events = []
+    with pytest.raises(G.T810GuardError, match="AuthorizationToken"):
+        _withdraw(
+            decision, [transcript], identity, authorization=invalid, events=events,
+        )
+    assert events == []

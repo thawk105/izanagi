@@ -12,11 +12,7 @@ from tools.pegasus import t810_harness_schema as schema
 GUARD_RECEIPT_SCHEMA = "t810-guard-receipt/v1"
 KNOWN_STATES = {"Q": "QUE", "H": "HLD", "R": "RUN"}
 PHASES = frozenset({"pre-submission", "pre-release"})
-LIMITATIONS = (
-    "authorization-witness-trust-root-absent",
-    "shared-mount-repository-reachability-not-eliminated",
-    "snapshot-to-release-race-not-eliminated",
-)
+LIMITATIONS = tuple(sorted(schema.LIMITATION_IDS))
 _CRITICAL = ("Job_Owner", "job_state", "Job_Name", "queue", "exec_host")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -391,49 +387,42 @@ def evaluate_parallel_guard(
     )
 
 
-def _verify_authorization(
-    witness: Mapping[str, Any] | None, *, approval_id: str,
-    preregistration_sha256: str, policy_sha256: str, run_kind: str,
-) -> Mapping[str, Any]:
-    if witness is None:
-        _fail("launch-authorization-required", "qdel requires an authorization witness")
-    try:
-        doc = schema.validate_launch_authorization(witness)
-    except schema.T810SchemaError as exc:
-        _fail("launch-authorization-invalid", str(exc))
+def _require_authorization(
+    authorization: schema.AuthorizationToken, *, preregistration_sha256: str,
+    policy_sha256: str, run_kind: str,
+) -> schema.AuthorizationToken:
+    if not isinstance(authorization, schema.AuthorizationToken):
+        _fail("launch-authorization-required", "AuthorizationToken is required")
     expected = {
-        "approval_id": approval_id,
         "preregistration_sha256": preregistration_sha256,
         "policy_sha256": policy_sha256,
+        "run_kind": run_kind,
     }
     for field, value in expected.items():
-        if doc[field] != value:
+        if getattr(authorization, field) != value:
             _fail("launch-authorization-mismatch", f"{field} mismatch")
-    if run_kind not in doc["run_kinds"]:
-        _fail("launch-authorization-mismatch", "run_kind is not authorized")
-    return doc
+    return authorization
 
 
 def withdraw_b_group(
-    decision: GuardDecision, *, fresh_transcripts: Sequence[Mapping[str, Any]],
+    decision: GuardDecision, authorization: schema.AuthorizationToken, *,
+    fresh_transcripts: Sequence[Mapping[str, Any]],
     b_manifest_jobs: Sequence[Mapping[str, Any]], expected_owner: str,
-    authorization_witness: Mapping[str, Any] | None, approval_id: str,
     preregistration_sha256: str, run_kind: str,
-    publish_cancel: Callable[[], None], scheduler_run: Callable[[Sequence[str]], Any],
+    publish_cancel: Callable[[schema.AuthorizationToken], None],
+    scheduler_run: Callable[[schema.AuthorizationToken, Sequence[str]], Any],
     created_at: str,
 ) -> GuardDecision:
     """Publish cancel, then qdel only exact QUE/HLD B identities via the seam."""
     if decision.phase != "pre-release":
         _fail("invalid-input", "B withdrawal is only valid in the pre-release phase")
+    token = _require_authorization(
+        authorization, preregistration_sha256=preregistration_sha256,
+        policy_sha256=decision.policy_sha256, run_kind=run_kind,
+    )
     identities = _manifest_identities(b_manifest_jobs)
-    publish_cancel()
-    # First effect-boundary check occurs after the cancel marker and before any qdel.
+    publish_cancel(token)
     try:
-        _verify_authorization(
-            authorization_witness, approval_id=approval_id,
-            preregistration_sha256=preregistration_sha256,
-            policy_sha256=decision.policy_sha256, run_kind=run_kind,
-        )
         jobs = parse_qstat_f_transcripts(fresh_transcripts, expected_owner=expected_owner)
     except T810GuardError as exc:
         withdrawal_reason = (
@@ -463,13 +452,7 @@ def withdraw_b_group(
         argv = ["qdel", request_id] if match else []
         rc: int | None = None
         if match:
-            # Revalidate at every scheduler-effect entry, not merely once per batch.
-            _verify_authorization(
-                authorization_witness, approval_id=approval_id,
-                preregistration_sha256=preregistration_sha256,
-                policy_sha256=decision.policy_sha256, run_kind=run_kind,
-            )
-            result = scheduler_run(argv)
+            result = scheduler_run(token, argv)
             if not isinstance(result, subprocess.CompletedProcess):
                 _fail("scheduler-result-invalid", "qdel seam returned the wrong type")
             rc = result.returncode
