@@ -74,46 +74,27 @@ supersession の見張りは検出のため現在を見る必要がある。**�
 構造的性質を検査する」** ([T-827] の `292151a5` がこの形)。番人の検出力を落とさずに
 脆さだけを外すので、次に D291 を参照する決定が入っても再発しない。
 
-**ユーザー裁定 (2026-08-12、逐語「既存の赤は免除リストに入れて」) により、既知赤 waiver W2 を
-新設して land した。** W1 (F96/F101) は `[T-407]` の land で失効済みで、直近の専用 wave
-(archive 395) が「赤いまま免除されているテストは 1 件も無い」ことを確定していたため、
-本 W2 が現時点で唯一の既知赤 waiver である。**F101 の恒久対応 (赤を観測したら停止判断の前に
-worklog を赤 node 名で検索して成立済み waiver を確認する) を親は当初実施しておらず、
-ユーザー指摘で是正した。F101 の同型再発である。**
+**ユーザー裁定 (2026-08-12、逐語「既存の赤は免除リストに入れて」) を受けて waiver 経路を採ったが、
+**同じ赤に対する既知赤 waiver W2 は別 wave が先に land しており、`docs/worklog.md` が正本である。**
+親は W2 を独立に新設する fragment を書いていたが、main 取り込みで重複が判明したので**定義節を撤去し、
+canonical W2 を参照する形へ差し替えた。** 二重定義を land させていない。
 
-### 既知赤 waiver W2 (本エントリが条件と失効の正本)
+**F101 の同型再発を起こした。** 恒久対応「赤を観測したら停止判断の前に worklog を赤 node 名で
+検索して成立済み waiver を確認する」を親は当初実施せず `DW-STOP` で停止した。ユーザー指摘で是正し、
+検索を実施した (検索語 `test_t793_report` / `D305` / `waiver`、その時点の main では 0 件)。
+**先行 wave も同じ検索で 0 件を得ており、両者が独立に W2 を作った。** 検索の実施だけでは
+並行 wave の未 land waiver は見えない、というのが今回の追加知見である。
 
-- **対象 node は次の 2 件ちょうど。** これ以外の赤には一切適用しない。
-  - `orchestrator/tests/test_t793_report.py::test_deny_only_report_contains_authority_and_both_submission_denials`
-  - `orchestrator/tests/test_t793_report.py::test_actual_head_d292_reference_is_reported_fail_closed`
-- **原因の釘付け**: 両 node は live な `docs/decisions.md` を読み、D291 を supersede する決定 ID が
-  `("D292",)` **ちょうど**であることを literal で固定している。2026-08-12 に D305 が land され
-  実際は `("D292", "D305")` になったため落ちる。**production の受理挙動は変わっていない。**
-- **適用の毎回検査 (すべて満たすときだけ適用)**:
-  1. 受入全走の赤が**上記 2 node ちょうど**であること。**他の赤が 1 件でもあれば適用せず停止する。**
-  2. 失敗理由が `assert ('D292', 'D305') == ('D292',)` 系の**期待値集合の差**であること。
-     他の理由 (import error、timeout、production の拒否挙動変化) なら適用しない。
-  3. 自 wave の差分が `orchestrator/tests/test_t793_report.py` と `docs/decisions.md` を
-     **触っていない**こと。触るなら自分の責任なので適用しない。
-- **失効**: 上記 2 node の期待値が是正された時点で**自動失効**する。失効後に本 waiver を
-  引いてはならない。
-- **並行セッション**: 同じ 4 条件を各セッションが自分で検査したうえでのみ適用してよい。
-  検査結果 (赤 node 名の集合と失敗理由) を worklog へ併記する (F101 の再発検知)。
-- **是正の担い手**: `test_t793_report.py` は T-139/公表層 wave の所有。凍結境界により
-  本 wave は直さない。**[T-827] に修正 commit `292151a5` が既にあり、land すれば W2 は自動失効する。**
+### 本 wave の W2 適用と、その後の失効
 
-### W2 の適用検査の結果 (条件 4 の併記義務)
-
-**W2 は 1 度適用したのち、land 前に失効した。経緯を両方残す。**
-
-**(i) 適用した走行 (tip `aed90106`)。** 4 条件すべて成立を実測で確認した。
+**(i) 適用した走行 (tip `aed90106`)。** canonical W2 の毎回検査に相当する 4 点を実測で確認した。
 
 | 条件 | 実測 |
 |---|---|
-| 1. 赤が対象 2 node ちょうど | **成立**。`nodeid=` の全数が当該 2 件のみ。**他の赤 0 件** |
-| 2. 失敗理由が期待値集合の差 | **成立**。`assert ('D292', 'D305') == ('D292',)` および `{'decision_ids': ['D292','D305']} != {'decision_ids': ['D292']}` |
-| 3. 自 wave が該当 file を触っていない | **成立**。`git diff --stat main HEAD -- orchestrator/tests/test_t793_report.py docs/decisions.md orchestrator/publication/` が**空** |
-| 4. 検査結果の併記 | 本表 |
+| 対象 node の同一性 | **成立**。`nodeid=` の全数が当該 2 件のみ。**他の赤 0 件** |
+| 原因の同一性 | **成立**。`assert ('D292', 'D305') == ('D292',)` および `{'decision_ids': ['D292','D305']} != {'decision_ids': ['D292']}` |
+| 帰属 | **成立**。`git diff --stat main HEAD -- orchestrator/tests/test_t793_report.py docs/decisions.md orchestrator/publication/` が**空** |
+| 記録義務 | 本表 |
 
 総数 = 2 failed / 9209 passed / 20 skipped。本 wave の対象 file は赤ゼロ。
 
@@ -122,11 +103,19 @@ main が 33 commit 進み、その差分が本 wave の所有 path (`test_s8b_fl
 重なったためである (別 wave `869a71bb` / `5256b96b` が同 file へ 335 行追加)。取り込んだところ、
 **同じ main に赤の修正 `ac994a33` が入っていた。** 期待値は完全一致をやめ
 「`"D292"` を含む」+「decision 番号の昇順・重複なし」という構造的性質の検査になっており、
-番人の検出力を落とさずに脆さだけを外す形である。**W2 の失効条件「対象 2 node の期待値が
-是正された時点で自動失効」に該当するので、本 land では W2 を引いていない。**
+番人の検出力を落とさずに脆さだけを外す形である。**canonical W2 の失効条件
+「`test_t793_report.py` の期待値が `D305` へ追随した時点で自動失効」に該当するので、
+本 land では W2 を引いていない。**
 
-→ **本 wave が land に使った受入は W2 抜きで判定した。** W2 の記録は、同型の赤に再び遭遇した
-セッションのための前例として残す (適用条件と失効条件はそのまま有効)。
+**この owned-path 検査が二重定義を止めた。** 検査が無ければ、別 wave の 335 行を含まない木で
+測った受入結果と、重複した W2 定義をそのまま land していた。
+
+**(iii) main 取り込み後の受入で別の赤 1 件が出たが、フレークだった。**
+`test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[oversize]` が
+`LOG_LIMIT` を期待して `SPAWN_FAILED` を得た (子 process の起動自体が失敗した形)。
+本 wave の差分から到達しない file なので `DW-O18` に従い単独再走したところ
+**7 passed / rc=0 で再現しなかった**。32 worker の高負荷下での資源枯渇と整合するので、
+実装差分へ帰属せず**フレークとして記録する**。同 node が繰り返し落ちるなら別途起票が要る。
 
 **セッション異常。** `dev_wave_wait.py producer` を背景 task で回すと、producer 生存中に
 待ち手だけが空出力で終了する事象が 5 度起きた。**実体を伴わない完了通知も多数観測した** —
