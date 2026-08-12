@@ -35,22 +35,6 @@ seq: 1
   「代理指標を根拠に着地/未着地を書いた報告」を機械では止められない。恒真な保証にしないため
   ここに明記する。lint 化の可否は裁定へ返す。
 
-### {{F:worktree-cwd-only-scan}}. worktree の占有判定が cwd だけを見て稼働中の worktree を残骸と誤った [手順漏れ]
+## supersede 追記
 
-- 事象: `.claude/commands/cleanup-branches.md` §2 は他セッション使用中の判定を
-  「`/proc/*/cwd` の readlink 走査で実測」と規定していた。2026-08-12 に並行セッションが本手順どおり
-  5 本 (`dev-wave-t139-land2-s2` / `t756-trace-v2` / `t786-docs-budget` / `t810-node-variance` /
-  `t812-lease-self-renew`) を残骸と判定して撤去したところ、直後に同 path が再作成され codex worker が
-  一斉起動した。こちらで独立に `/proc` を走査した実測では、**5 本とも cwd 走査のヒットが 0 件、
-  cmdline には 2〜4 件**あり (`codex_worker_launch.py` の argv に worktree の絶対 path)、
-  cwd だけを見る規定の手順では稼働中を稼働中と判定できないことが確定した。未コミット差分は
-  ゼロだったため作業自体の損失は無い。
-- 根本原因: worker は worktree を **argv で指すが cwd にはしない**ため、cwd だけが占有の代理指標に
-  なっていなかった。加えて launcher が周期投入するので、バッチの合間は滞在プロセスも HEAD 更新も
-  無く、規定の 2 条件 (滞在プロセスあり・HEAD 直近) がどちらも偽になる時間帯が定常的に存在する。
-  `ListAgents` にも対応セッションが出ないため、セッション一覧でも補えない。
-- 恒久対応: 同 §2 を `/proc/*/cwd` と `/proc/*/cmdline` の両方を走査する形へ是正した本 commit と、
-  memory `worktree-occupancy-needs-cmdline-scan`。
-- 再発検知: **機械検査は無い (prompt 規律)。** 撤去は不可逆に近く、再作成された live path を
-  再度消す事故は手順だけが防いでいる。占有走査を機械化する (削除前に cmdline 走査を強制する
-  checker) 可否は裁定へ返す。
+- F251 **supersede: 2026-08-12** — 恒久対応の D342 (生存判定に `/proc/*/cmdline` を含める) を入口へ反映した。`.claude/commands/cleanup-branches.md` §2 の使用中判定を `/proc/*/cwd` の readlink 走査だけから cwd と cmdline の両走査へ是正し、再発検知が求めていた「掃除手順の生存判定に cmdline 走査が含まれること」を手順側で満たした (branch `worktree-cleanup-branches-cherry-3stage`)。同事象を削除された側から観測した独立実測 (撤去された 5 本すべてで cwd 一致 0 件・cmdline 一致 2〜4 件) も F251 の実測と一致しており、新規 F は起票しない。機械強制の checker を作るかは裁定へ返す。

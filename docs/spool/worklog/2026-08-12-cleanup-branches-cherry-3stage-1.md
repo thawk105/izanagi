@@ -23,8 +23,10 @@ title: cleanup-branches 自己改善 — 取り残し判定と worktree 占有�
   報告したが、同義の規則が**別文言で** `docs/dev-wave/operations.md` に実在し、wave 自体は
   作り直した別 branch `worktree-dev-wave-t737-rebuild` から land 済みだった。逐語 grep が
   文言変更で外れたのが原因で、こちらで独立に裏を取って撤回した。
-- **自己改善 gate が発火し、{{F:cherry-path-existence}} と {{F:worktree-cwd-only-scan}} を起票して
-  command §1 / §2 を是正した。** 実測した誤判定は 4 種 — fold 済み fragment の不在を消失と誤る偽陽性、
+- **自己改善 gate が発火し、{{F:cherry-path-existence}} を起票して command §1 / §2 を是正した。**
+  占有判定の側は land 時の照合で **main 既着地の F251 + D342 と同一事象**と判明したため新規 F を
+  起票せず、F251 への supersede 追記 (D342 の入口反映) だけを残した。
+  実測した誤判定は 4 種 — fold 済み fragment の不在を消失と誤る偽陽性、
   path 実在を着地と誤る偽陰性、逐語 grep が文言変更と別 branch land を落とす偽陰性、そして
   `/proc/*/cwd` だけの占有走査が稼働中 worktree を残骸と誤る偽陰性。
 - **占有走査の欠陥は独立に実測した。** 稼働中の 5 worktree に対し **cwd 走査は 0 件、cmdline は
@@ -48,6 +50,28 @@ title: cleanup-branches 自己改善 — 取り残し判定と worktree 占有�
 - 棚卸しの実測: ローカル branch 120 本のうち 101 本が ahead=0、19 本が ahead>0。
   ahead=0 は tip が main の祖先であることと同値で取り残しは原理的に無く、
   `git branch --no-merged main` の母集合と ahead>0 は一致した。
+- **land は後続の別 wave が実施した (2026-08-12 23:48 JST 開始、ユーザー依頼)。** 本 branch は
+  `t952-residue-sweep` の分類表より後に作られたため群 A〜C のどこにも載らず、稼働 12 wave の
+  scope 外だった。起動時に `ListAgents` 14 peer・`git worktree list` 9 worktree・
+  `docs/handoff/` (README のみ) を実測し、担当の重複が無いことを確認して着手した。
+- **land 側は `+` 行を内容で判定した (本 branch 自身が是正した規律の自己適用)。** 実測は 3 点 —
+  (i) main の `.claude/commands/cleanup-branches.md` は旧文言 (`+` 行が真の取り残し /
+  `/proc/*/cwd` の readlink 走査) のまま、(ii) main の `CLEANUP_COMMAND_SHA256` は `a92d…` で
+  main 実ファイルの sha256 と一致し branch の `c133…` は未反映、(iii) 先行 wave の [T-951] は
+  別 branch `worktree-cleanup-submodule-recurrence` を扱っており本 branch を回収していない。
+  **path の有無ではなく本文と hash の一致で未着地を確定した。**
+- **重複を 1 件検出して起票を取り下げた。** branch の failures fragment 第 2 項
+  (worktree 占有判定) は、land 時点の main に既着地の **F251 + D342 と同一事象**である
+  (同じ 2026-08-12 の撤去を、削除された側と削除した側から観測したもの)。新規 F を重ねると
+  台帳が同じ物語を二重に持つため、**新規起票を取り下げて F251 への supersede 追記 1 行**
+  (D342 の入口反映を記録) に置き換えた。command §2 の是正そのものは F251 の再発検知
+  「掃除手順の生存判定に cmdline 走査が含まれること」を手順側で満たす。
+- **受入は免除しなかった。** 実装面 (`tools/check_docs.py` の pin と
+  `orchestrator/tests/test_check_docs.py`) を含むため、受入 lease を取得して全走した。
+  byte 予算は command 3973 bytes で、追記型 positive control が要求する実質上限 3983 を
+  10 bytes 下回ることを land 前に再実測した。**全走は記録 commit を含む最終 tip に対する 1 走**と
+  した (結果を本エントリへ書くには 2 走が要り、稼働 12 wave が争う lease 窓を二重に占有するため)。
+  合否と件数は land receipt と本 wave の報告に残す。
 
 ## 次の一手差分
 
@@ -57,7 +81,7 @@ title: cleanup-branches 自己改善 — 取り残し判定と worktree 占有�
   実測し、cleanup-branches §1 へ時間切れ時の指示を入れるか監査側を高速化するかを決める。
   900 秒で完走せず、rc=124 に対する手順が無い。
 - {{T:cleanup-occupancy-checker}} **P2・新規・要裁定**: worktree 削除前の占有走査
-  (cwd + cmdline) を機械強制する checker を作るかを決める。現状 {{F:worktree-cwd-only-scan}} の
-  恒久対応は prompt 規律だけで、撤去は不可逆に近い。
+  (cwd + cmdline) を機械強制する checker を作るかを決める。現状 F251 / D342 の恒久対応は
+  prompt 規律と施錠だけで、撤去は不可逆に近い。
 - {{T:codex-validator-heading}} **P3・新規**: codex 成果物の検証器が要求する `## 総括` 見出しを
   dev-wave の prompt 定型へ入れる。今回 1 投入 (64 秒・model call 6) を空費した。
