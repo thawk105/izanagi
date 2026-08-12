@@ -550,12 +550,19 @@ def test_verify_rejects_non_ancestor_head():
     assert "f" * 40 in str(excinfo.value)
 
 
-def test_verify_rejects_foreign_ccbench_pin():
+def test_verify_rejects_foreign_ccbench_pin(monkeypatch):
     _require_submodule_sources()
     doc = M.build_document()
     doc["ccbench_pin"] = "0" * 40
-    with pytest.raises(M.FreezeError) as excinfo:
-        M.verify_document(doc)
+    held_checks = M.verify_document(doc)
+    assert [marker["check_id"] for marker in held_checks] == [
+        "s1-known-axes.ccbench-submodule-head-pin",
+    ]
+    assert held_checks[0]["status"] == "held"
+    with monkeypatch.context() as released:
+        released.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(M.FreezeError) as excinfo:
+            M.verify_document(doc)
     assert str(excinfo.value).startswith("ccbench_pin 不一致")
     assert "0" * 40 in str(excinfo.value)
 

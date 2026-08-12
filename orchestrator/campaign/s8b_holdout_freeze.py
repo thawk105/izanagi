@@ -33,6 +33,7 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from . import t080_freeze_migration  # noqa: E402
+from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 
 SCRIPT_REL = "orchestrator/campaign/s8b_holdout_freeze.py"
 FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
@@ -851,7 +852,7 @@ def verify_document(
     root: Path = ROOT,
     files: Optional[Iterable[os.PathLike | str]] = None,
     current_head: Optional[str] = None,
-) -> None:
+) -> Tuple[Mapping[str, object], ...]:
     """source hash、未知性検索、binding の三境界を現物から再照合する。
 
     未知性の検査は二層に分ける: (1) スナップショット整合 = 記録済みフィールドから
@@ -871,10 +872,20 @@ def verify_document(
     if doc.get("what") != WHAT or doc.get("schema_version") != SCHEMA_VERSION:
         raise FreezeError("what/schema_version 不一致")
     head = doc.get("frozen_at_head")
-    _verify_source(doc, "design_source", root, DESIGN_REL)
-    _verify_source(doc, "known_axes_freeze", root, KNOWN_AXES_REL)
-    _verify_source(doc, "generator", root, SCRIPT_REL)
-    _verify_head(head, root, current_head)
+    held_checks = []
+    if _freeze_hold.HELD:
+        for field in ("design_source", "known_axes_freeze", "generator"):
+            held_checks.append(_freeze_hold.held_marker(
+                f"s8b-holdout.{field}-implementation-bytes",
+            ))
+        held_checks.append(_freeze_hold.held_marker(
+            "s8b-holdout.frozen-head-current-head",
+        ))
+    else:
+        _verify_source(doc, "design_source", root, DESIGN_REL)
+        _verify_source(doc, "known_axes_freeze", root, KNOWN_AXES_REL)
+        _verify_source(doc, "generator", root, SCRIPT_REL)
+        _verify_head(head, root, current_head)
 
     report = search_repository(root, files)
     _assert_search_pass(report)
@@ -986,6 +997,7 @@ def verify_document(
     if (not isinstance(positive_hits, int) or isinstance(positive_hits, bool)
             or positive_hits <= 0):
         raise FreezeError("positive_control.hit_count が 0 以下")
+    return tuple(held_checks)
 
 
 def verify(
@@ -999,8 +1011,8 @@ def verify(
     if not path.is_file():
         raise FreezeError(f"freeze が存在しない: {path}")
     doc = _load_json(path)
-    verify_document(doc, root=root, files=files, current_head=current_head)
-    return doc
+    held_checks = verify_document(doc, root=root, files=files, current_head=current_head)
+    return _freeze_hold.result_with_markers(doc, held_checks)
 
 
 def _read_regular_nofollow(path: Path) -> bytes:
@@ -1113,7 +1125,7 @@ def verify_cli_with_t080_receipt(path: Path = FREEZE_PATH, *, root: Path = ROOT)
     final_known = _read_regular_nofollow(root / migration.KNOWN_AXES_REL)
     if final_known != known_raw:
         raise FreezeError("T-080 adapter 検証中に known_axes bytes が変化")
-    return dict(document)
+    return _freeze_hold.result_with_markers(document, adapted.held_checks)
 
 
 def _validate_budget(budget: Mapping, *, holdout_ids: Sequence[str], label: str) -> Dict:
@@ -1573,8 +1585,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
             print(f"generated: {args.output}")
         elif args.command == "verify":
-            verify_cli_with_t080_receipt(args.path)
-            print(f"verified: {args.path}")
+            result = verify_cli_with_t080_receipt(args.path)
+            if result.held_checks:
+                print(json.dumps({
+                    "status": "held", "path": str(args.path),
+                    "held_checks": result.held_checks,
+                }, ensure_ascii=False, sort_keys=True))
+            else:
+                print(f"verified: {args.path}")
         else:
             generate_v2_g1_candidate(
                 floor_result_path=args.floor_result,

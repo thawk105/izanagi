@@ -13,8 +13,10 @@ sha256 は実物から採取して埋めた値であり、凍結ファイルの�
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import sys
+from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -22,6 +24,7 @@ _ROOT = os.path.dirname(_ORCH)
 
 sys.path.insert(0, os.path.dirname(_ORCH))
 from skiputil import Skip  # noqa: E402  (二重 runner 契約: _run が捕捉する)
+from orchestrator.campaign import freeze_verification_hold as HOLD  # noqa: E402
 
 # 凍結成果物の exact path (repo-relative) → sha256。実物から採取済み。
 # - s1-freeze 2 本 (known_axes は B-2 holdout freeze から直接参照される)
@@ -113,6 +116,40 @@ FROZEN_KEYSET_PROVISIONAL_82803D6D = frozenset({
     "output/s8b-freeze/selector-runs/raw_rr80_swapped.txt",
 })
 
+HELD_FROZEN_MANIFEST_KEYS = frozenset({
+    "output/s1-freeze/known_axes_freeze.json",
+    "output/s1-freeze/measurement_freeze.json",
+    "output/s8b-freeze/holdout_freeze.json",
+    "output/s8b-freeze/floor_protocol.json",
+})
+
+KEEP_FROZEN_MANIFEST_KEYS = frozenset({
+    "output/insights/2026-07-16_s8b-floor-protocol-package.md",
+    "output/insights/2026-07-16_s8b-floor-protocol-consultations.md",
+    "output/insights/2026-07-16_s8b-freeze-v2-design-material.md",
+    "output/insights/2026-07-16_s8b-freeze-consultations.md",
+    "output/insights/2026-07-16_s8b-ruling-prep-consultations.md",
+    "output/s8b-freeze/selector-runs/envelope_rr20_on.json",
+    "output/s8b-freeze/selector-runs/envelope_rr20_swapped.json",
+    "output/s8b-freeze/selector-runs/envelope_rr80_on.json",
+    "output/s8b-freeze/selector-runs/envelope_rr80_swapped.json",
+    "output/s8b-freeze/selector-runs/journal.jsonl",
+    "output/s8b-freeze/selector-runs/payload_rr20_on.json",
+    "output/s8b-freeze/selector-runs/payload_rr20_swapped.json",
+    "output/s8b-freeze/selector-runs/payload_rr80_on.json",
+    "output/s8b-freeze/selector-runs/payload_rr80_swapped.json",
+    "output/s8b-freeze/selector-runs/raw_rr20_on.txt",
+    "output/s8b-freeze/selector-runs/raw_rr20_swapped.txt",
+    "output/s8b-freeze/selector-runs/raw_rr80_on.txt",
+    "output/s8b-freeze/selector-runs/raw_rr80_swapped.txt",
+    "output/s8b-freeze/selector_predictions.json",
+})
+
+if (HELD_FROZEN_MANIFEST_KEYS & KEEP_FROZEN_MANIFEST_KEYS
+        or HELD_FROZEN_MANIFEST_KEYS | KEEP_FROZEN_MANIFEST_KEYS
+        != frozenset(FROZEN_MANIFEST)):
+    raise RuntimeError("FROZEN_MANIFEST の held/keep 分割が不完全")
+
 
 def _sha256(path: str) -> str:
     h = hashlib.sha256()
@@ -122,10 +159,17 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def test_frozen_artifacts_match_manifest():
-    """凍結成果物が manifest の sha256 と全件一致する (改変・移動・削除の検出)。"""
+def _frozen_artifact_check_result() -> dict:
+    """manifest 検査の held/failed 状態を機械可読に返す。"""
+    held_checks = []
+    if HOLD.HELD:
+        held_checks.append(HOLD.held_marker("frozen-artifacts.manifest-bytes"))
+        checked_keys = KEEP_FROZEN_MANIFEST_KEYS
+    else:
+        checked_keys = HELD_FROZEN_MANIFEST_KEYS | KEEP_FROZEN_MANIFEST_KEYS
     mismatches = []
-    for rel, expected in sorted(FROZEN_MANIFEST.items()):
+    for rel in sorted(checked_keys):
+        expected = FROZEN_MANIFEST[rel]
         abs_path = os.path.join(_ROOT, rel)
         if not os.path.isfile(abs_path):
             mismatches.append(f"{rel}: 不在")
@@ -133,7 +177,58 @@ def test_frozen_artifacts_match_manifest():
         actual = _sha256(abs_path)
         if actual != expected:
             mismatches.append(f"{rel}: expected={expected} actual={actual}")
-    assert not mismatches, "凍結成果物の sha256 不一致:\n" + "\n".join(mismatches)
+    return {
+        "status": "failed" if mismatches else ("held" if held_checks else "matched"),
+        "held_checks": held_checks,
+        "mismatches": mismatches,
+    }
+
+
+def test_frozen_artifacts_match_manifest():
+    """保留中は marker を出し、解除中だけ exact bytes を照合する。"""
+    result = _frozen_artifact_check_result()
+    if result["status"] == "held":
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        marker = result["held_checks"][0]
+        assert marker["status"] == "held"
+        assert marker["reason"]["decision"] == "freeze-verification-hold"
+        return
+    assert not result["mismatches"], (
+        "凍結成果物の sha256 不一致:\n" + "\n".join(result["mismatches"])
+    )
+
+
+def test_frozen_artifacts_manifest_positive_control_fires_when_released():
+    """HELD=False では従来の exact bytes mismatch が現に赤になる。"""
+    with mock.patch.object(HOLD, "HELD", False), mock.patch(
+        __name__ + "._sha256", return_value="0" * 64,
+    ):
+        result = _frozen_artifact_check_result()
+    assert result["status"] == "failed"
+    assert len(result["mismatches"]) == len(FROZEN_MANIFEST)
+    assert result["held_checks"] == []
+
+
+def test_frozen_artifacts_keep_positive_control_fires_during_hold():
+    """HELD=True でも盲検封印を含む keep 19 件の mismatch は赤になる。"""
+    with mock.patch.object(HOLD, "HELD", True), mock.patch(
+        __name__ + "._sha256", return_value="0" * 64,
+    ):
+        result = _frozen_artifact_check_result()
+    assert result["status"] == "failed"
+    assert len(result["mismatches"]) == len(KEEP_FROZEN_MANIFEST_KEYS) == 19
+    assert len(result["held_checks"]) == 1
+    assert all(
+        mismatch.split(":", 1)[0] in KEEP_FROZEN_MANIFEST_KEYS
+        for mismatch in result["mismatches"]
+    )
+
+
+def test_frozen_manifest_hold_keep_partition_is_exact():
+    assert not HELD_FROZEN_MANIFEST_KEYS & KEEP_FROZEN_MANIFEST_KEYS
+    assert HELD_FROZEN_MANIFEST_KEYS | KEEP_FROZEN_MANIFEST_KEYS == frozenset(
+        FROZEN_MANIFEST
+    )
 
 
 def test_manifest_shape_is_exact():
