@@ -71,7 +71,7 @@ from . import env_contract, ident, pin, wal                # noqa: E402
 from . import p3_s4_loop as L                              # noqa: E402
 from .artifact_admission import require_admitted_campaign # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
-                                      add_coder_build_authority_argument,
+                                      add_registered_coder_build_authority_argument,
                                       build_run_context)
 from .auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict,
@@ -399,7 +399,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 5 sort-strategy coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫→auditor gate の配線のみ確認")
-    add_coder_build_authority_argument(ap)
+    add_registered_coder_build_authority_argument(
+        ap,
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop_sort.main",
+    )
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",

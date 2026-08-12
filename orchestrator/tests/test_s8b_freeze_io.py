@@ -304,7 +304,8 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         )
 
     @contextlib.contextmanager
-    def fake_prepare(cell, ccbench_pin):
+    def fake_prepare(cell, ccbench_pin, *, cxx):
+        assert cxx == "fixture-cxx"
         cell_id = f"{cell['variant']['holdout_id']}::{cell['configuration']}"
         yield PreparedCell(genome=Genome("silo", {}), src_token=cell_id,
                            ccbench_dir="/fx/ccbench", cache_root="/fx/cache")

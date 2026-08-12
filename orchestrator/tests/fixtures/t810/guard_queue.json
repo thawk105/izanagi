@@ -1,0 +1,8 @@
+{
+  "schema_version": "t810-qstat-q-transcript/v1",
+  "captured_at": "2026-08-12T01:10:00Z",
+  "command_argv": ["qstat", "-Q"],
+  "rc": 0,
+  "stdout": "[EXECUTION QUEUE]\nQueueName SCH JSVs ENA STS PRI TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\ngen_S 0 0 ENA ACT 0 4 0 0 2 0 2 0 0 0 0 0 0 0\n<TOTAL> 0 0 0 0 0 4 0 0 2 0 2 0 0 0 0 0 0 0\n",
+  "stderr": ""
+}

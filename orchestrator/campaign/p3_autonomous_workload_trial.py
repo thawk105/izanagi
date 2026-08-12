@@ -89,7 +89,8 @@ from .build_admission import (  # noqa: E402
     BuildRunContext,
     CoderBuildAuthority,
     GeneratorId,
-    add_coder_build_authority_argument,
+    add_coder_build_authority_argument,  # compatibility export for unit fixtures
+    add_registered_coder_build_authority_argument,
     build_run_context,
 )
 
@@ -2257,7 +2258,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         default=False,
     )
-    add_coder_build_authority_argument(parser)
+    add_registered_coder_build_authority_argument(
+        parser,
+        coder_entrypoint_site=(
+            "orchestrator.campaign.p3_autonomous_workload_trial.main"
+        ),
+    )
     parser.add_argument("--claude-executable", default="claude")
     parser.add_argument(
         "--allow-pegasus-compute-transport",

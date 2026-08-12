@@ -1046,13 +1046,13 @@ def _project_scalepoint(scale_point) -> dict:
 @contextlib.contextmanager
 def _prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
-        ccbench_pin: str, prepare_fn):
+        ccbench_pin: str, cxx: str, prepare_fn):
     """共有 materializer の floor 境界 wrapper。identity 合成の MaterializationError だけを
     FloorCampaignError へ因果付き変換する。"""
     try:
         with prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
-                configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+                configuration_id=configuration_id, ccbench_pin=ccbench_pin, cxx=cxx,
                 prepare_fn=prepare_fn) as (identity, prepared):
             yield identity, prepared
     except MaterializationError as exc:
@@ -1192,7 +1192,7 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
         with _prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
-                prepare_fn=prepare_fn) as (identity, prepared):
+                cxx=cxx, prepare_fn=prepare_fn) as (identity, prepared):
             evidence = source_digest.resolve_evidence(
                 prepared.genome,
                 ccbench_pin,

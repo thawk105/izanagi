@@ -491,6 +491,12 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t141_region_profile.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/t810_budget.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_coordinator.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_guard.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_harness_schema.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_pbs_wrapper.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_runner_policy.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/validate_t810.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 
 - **この投影検査が保証しないこと。** 検査するのは正本と docs の間の (path, class, evidence) の

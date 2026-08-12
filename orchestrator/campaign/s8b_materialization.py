@@ -125,10 +125,10 @@ def binding_from_prepared(entry: Mapping, prepared: PreparedCell) -> dict:
 @contextlib.contextmanager
 def prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
-        ccbench_pin: str, prepare_fn):
+        ccbench_pin: str, cxx: str, prepare_fn):
     entry = binding_entry(freeze, holdout_id, configuration_id)
     cell = {"configuration": configuration_id, "variant": entry}
-    resource = prepare_fn(cell, ccbench_pin)
+    resource = prepare_fn(cell, ccbench_pin, cxx=cxx)
     manager = (resource if hasattr(resource, "__enter__") and hasattr(resource, "__exit__")
                else contextlib.nullcontext(resource))
     with manager as prepared:
@@ -136,11 +136,11 @@ def prepared_binding(
 
 
 def prepare_binding(
-        *, freeze, holdout_id, configuration_id, ccbench_pin,
+        *, freeze, holdout_id, configuration_id, ccbench_pin, cxx,
         prepare_fn=prepare_cell) -> dict:
     """freeze entry を S-1 materializer で実体化し、完全 binding identity を返す。"""
     with prepared_binding(
             freeze=freeze, holdout_id=holdout_id,
-            configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+            configuration_id=configuration_id, ccbench_pin=ccbench_pin, cxx=cxx,
             prepare_fn=prepare_fn) as (identity, _prepared):
         return identity

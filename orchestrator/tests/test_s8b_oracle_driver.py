@@ -1642,8 +1642,8 @@ def _prepare_factory(
     calls: list[dict] = []
 
     @contextlib.contextmanager
-    def fake_prepare(cell, ccbench_pin):
-        calls.append({"cell": cell, "ccbench_pin": ccbench_pin})
+    def fake_prepare(cell, ccbench_pin, *, cxx):
+        calls.append({"cell": cell, "ccbench_pin": ccbench_pin, "cxx": cxx})
         if fail_first and len(calls) == 1:
             raise OSError("transient checkout failure")
         entry = cell["variant"]
@@ -1688,7 +1688,8 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
             identity = s8b_materialization.prepare_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id,
-                ccbench_pin="fixture-pin", prepare_fn=prepare_fn,
+                ccbench_pin="fixture-pin", cxx="site-cxx",
+                prepare_fn=prepare_fn,
             )
             bindings.append({
                 "holdout_id": holdout_id,
@@ -3571,7 +3572,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
         @contextlib.contextmanager
-        def fake_prepare(cell, ccbench_pin):
+        def fake_prepare(cell, ccbench_pin, *, cxx):
             entry = cell["variant"]
             genome = Genome("silo", dict(entry["flags"]))
             token = "fixture-" + hashlib.sha256(
@@ -4639,6 +4640,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
     with driver._prepared_binding(
             freeze=freeze, holdout_id=holdout_id,
             configuration_id=configuration_id, ccbench_pin=pin,
+            cxx="g++-13",
             prepare_fn=driver.prepare_cell) as (identity, prepared), \
             mock.patch.object(pipeline.buildcache, "build_v2", recording_build_v2), \
             mock.patch.object(

@@ -261,7 +261,7 @@ def _valid_protocol_dict(**overrides) -> dict:
 # --------------------------------------------------------------------------- #
 
 @contextlib.contextmanager
-def _fake_prepare(cell, ccbench_pin):
+def _fake_prepare(cell, ccbench_pin, *, cxx):
     entry = cell["variant"]
     holdout_id = entry["holdout_id"]
     configuration_id = cell["configuration"]
@@ -766,7 +766,7 @@ def _make_real_freeze_prepare(
     calls = []
 
     @contextlib.contextmanager
-    def prepare(cell, observed_ccbench_pin):
+    def prepare(cell, observed_ccbench_pin, *, cxx):
         assert observed_ccbench_pin == ccbench_pin
         assert isinstance(cell, dict) and set(cell) == {"configuration", "variant"}
         configuration = cell["configuration"]
@@ -1119,6 +1119,7 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     compiler_calls = []
     binding_calls = []
+    prepare_cxx = []
     evidence_cxx = []
     build_tools = []
     expected_manifest = {"sentinel": {"generation": "current"}}
@@ -1137,6 +1138,12 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
             genome, commit, ccbench_dir=ccbench_dir, cxx=cxx,
         )
 
+    @contextlib.contextmanager
+    def prepare(cell, ccbench_pin, *, cxx):
+        prepare_cxx.append(cxx)
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            yield prepared
+
     fake_build = _make_fake_build(tmp_path / "bin")
 
     def build(genome, **kwargs):
@@ -1152,12 +1159,13 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
     monkeypatch.setattr(s8b_floor_campaign.source_digest, "resolve_evidence", evidence)
     built = s8b_floor_campaign.build_cells(
         freeze, cells, ccbench_pin="0" * 40,
-        out_root=tmp_path / "out", prepare_fn=_fake_prepare,
+        out_root=tmp_path / "out", prepare_fn=prepare,
         contract=contract, verified_calibration=verified, build_fn=build,
     )
     assert len(built) == 2
     assert compiler_calls == ["resolve"]
     assert binding_calls == [(verified, "site-cc", "site-cxx")]
+    assert prepare_cxx == ["site-cxx", "site-cxx"]
     assert evidence_cxx == ["site-cxx", "site-cxx"]
     assert build_tools == [
         ("site-cc", "site-cxx", expected_manifest),
@@ -1266,7 +1274,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
     fake_build = _make_fake_build(base / "ignored-build-root")
 
     @contextlib.contextmanager
-    def rooted_prepare(cell, ccbench_pin):
+    def rooted_prepare(cell, ccbench_pin, *, cxx):
         entry = cell["variant"]
         holdout_id = entry["holdout_id"]
         configuration_id = cell["configuration"]
@@ -3073,6 +3081,7 @@ def test_slow_real_prepare_cell_to_buildcache_canary_one_configuration(tmp_path)
     with s8b_floor_campaign._prepared_binding(
             freeze=freeze, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
+            cxx="g++-13",
             prepare_fn=s8b_floor_campaign.prepare_cell) as (identity, prepared):
         evidence = s8b_floor_campaign.source_digest.resolve_evidence(
             prepared.genome, pin, ccbench_dir=prepared.ccbench_dir,
@@ -3116,6 +3125,7 @@ def test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration(tmp_pa
     with s8b_floor_campaign._prepared_binding(
             freeze=freeze, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
+            cxx="g++-13",
             prepare_fn=s8b_floor_campaign.prepare_cell) as (identity, prepared):
         evidence = s8b_floor_campaign.source_digest.resolve_evidence(
             prepared.genome, pin, ccbench_dir=prepared.ccbench_dir,

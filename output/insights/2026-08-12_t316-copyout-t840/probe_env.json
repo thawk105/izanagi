@@ -1,0 +1,76 @@
+{
+  "flags": {
+    "O_CLOEXEC": true,
+    "O_DIRECTORY": true,
+    "O_EXCL": true,
+    "O_NOFOLLOW": true,
+    "O_NONBLOCK": true
+  },
+  "proc_self_fd": {
+    "exists": true,
+    "reopen_by_fd": true,
+    "reopen_by_fd_bytes": 3370
+  },
+  "python_version": "3.10.12",
+  "supports_dir_fd": [
+    "access",
+    "chmod",
+    "chown",
+    "link",
+    "mkdir",
+    "mkfifo",
+    "mknod",
+    "open",
+    "readlink",
+    "rename",
+    "rmdir",
+    "stat",
+    "symlink",
+    "unlink",
+    "utime"
+  ],
+  "supports_follow_symlinks": [
+    "access",
+    "chown",
+    "link",
+    "stat",
+    "utime"
+  ],
+  "surveys": [
+    {
+      "entry_kinds": {
+        "dir": 228,
+        "regular": 1446
+      },
+      "exists": true,
+      "root": "/work/1/SFC/tanab/dev-wave-jobs/t425-floor-scoping/scoping-out/build-variants",
+      "sample_binaries": [
+        {
+          "relpath": "silo_de747ae63c_t0/cc/silo/ycsb_silo.exe",
+          "size": 701840,
+          "st_mode_octal": "0o700",
+          "st_nlink": 1
+        },
+        {
+          "relpath": "silo_de747ae63c_t0/_deps/mimalloc-src/bin/minject32.exe",
+          "size": 20480,
+          "st_mode_octal": "0o600",
+          "st_nlink": 1
+        },
+        {
+          "relpath": "silo_de747ae63c_t0/_deps/mimalloc-src/bin/minject-arm64.exe",
+          "size": 23040,
+          "st_mode_octal": "0o600",
+          "st_nlink": 1
+        },
+        {
+          "relpath": "silo_de747ae63c_t0/_deps/mimalloc-src/bin/minject.exe",
+          "size": 24064,
+          "st_mode_octal": "0o600",
+          "st_nlink": 1
+        }
+      ],
+      "total_entries": 1674
+    }
+  ]
+}
