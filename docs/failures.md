@@ -6358,3 +6358,92 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 補足 (監査ログの質): 本件は **監査ログを汚す型の失敗**である。回避すると
   「waiver / known-violation で通した」記録が残り、監査を工数分析やプロセス改善に使うときの
   信号対雑音比を下げる。手順で発生させないことが対処であり、例外機構の常用ではない。
+
+### F258. 受入全走中に `git checkout` が SIGSEGV し fixture setup が偽の赤になる [計測汚染]
+
+- 事象: [T-925] の受入全走 2 走目で `test_codex_reasoning_ab.py` の 3 node が
+  **setup 段階**で error になった。逐語は
+  `ValidationError: command failed rc=-11: git checkout -B codex/dev-wave-t153e-t15423 <sha>`。
+  `rc=-11` は SIGSEGV。同じ木の 1 走目は `10,085 passed / 65 skipped` で緑、
+  2 走目との差分は**文書 2 ファイル** (worklog fragment と insights README) のみで、
+  テスト fixture の `git checkout` へは到達しえない。当該 3 node の単独再走は
+  `--force-dispatch` で `3 passed` (rc=0)。**再現せず、実装差分へ帰属しない。**
+- 根本原因: 未確定。並行 wave 4 本が同一 repo の object store を共有した状態で、
+  commit 時に git 自身が
+  `There are too many unreachable loose objects; run 'git prune'` と
+  `The last gc run reported the following` を警告しており、
+  `.git/worktrees/<wave>/gc.log` が残留して自動 gc が止まっていた。
+  object store 圧下での git の異常終了が疑われるが、SIGSEGV の直接原因は未特定。
+- 恒久対応: memory `no-concurrent-dispatch-during-acceptance` の対象を
+  「単独再走で消える偽の赤」の既知型として本エントリへ拡張する。
+  受入で `rc=-11` / SIGSEGV を見たら、実装差分へ帰属する前に
+  `DW-O18` の単独再走 (`--force-dispatch` 付き) で再現性を実測する。
+- 再発検知: 受入 log 中の `rc=-11` と `unreachable loose objects` 警告の同時出現。
+  機械検査は未実装 (本エントリ 1 例目のため `DW-G03` の独立 2 例を満たさない)。
+
+### F259. codex 子の Web 検索が evidence 検証を invalid にして成果物を全損させる [コンテキスト浪費]
+
+- 事象: 段 3 の敵対レンズ (sol) が 848 秒 · 43 model call を費やして完走したのに、
+  `dev_wave_codex.py` が rc=1 で不受理となり、出力 8,323 bytes が捨てられた。
+  `codex_exit_code=0`、`validator_rc=0`、成果物ファイルは健在で、NFC も正常だった。
+  受理を止めていたのは receipt の `evidence_status=invalid` である。
+- 根本原因: 子が `web_search` を使うと、Codex CLI 0.147.0 が `item.started` /
+  `item.completed` の `item` object に `id` を 2 回持つ event 行を stdout へ出す
+  (1 つ目は `item_40` のような item 番号、2 つ目は `exec-<uuid>` の実行 ID)。
+  `orchestrator/codex_roles/events.py` の `parse_jsonl` は重複 JSON key を拒否するため
+  `codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid=True` を立て、
+  `_evidence_status` が `invalid` を返して attempt が accepted にならない。
+  本 wave では 99 行中 22 行が該当した。
+- 恒久対応: memory `codex-web-search-invalidates-evidence` — 子 prompt に Web 検索の禁止を
+  絶対制約として書く。`DW-O02` への統合を試みたが、dev-wave docs の L1.5 予算に余白がなく
+  (71 bytes の追記で 93 bytes 超過を実測) 断念した。予算は上げず、安全義務の削除もしない。
+  **検証側を緩めない** — 重複 key の拒否は evidence の健全性検査であり、これを甘くする回避は
+  規律 2 に反する。
+- 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
+  `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
+  `web_search` 由来の重複 key 行を探す。
+
+### F260. codex 子の成果物が 1 文字の非 NFC で全損した [コンテキスト浪費]
+
+- 事象: 段 2 の plan 子が 29,958 bytes の正常な成果物を出し `codex_exit_code=0`・
+  `validator_rc=0` だったが、`accepted=false` で捨てられた。1,332 秒と 12 model call が無駄になった。
+  再投入した段 6 の fix 子も、別の理由 (下記) で 2 度目の全損を起こした。
+- 根本原因: `tools/codex_worker_launch.py` は stdout event と rollout の JSONL 各行が
+  Unicode NFC であることを要求する。**落ちるのは「結合文字がある」ときではなく、
+  「合成済み文字が存在するのに分解形で書かれた列」があるとき**である。22,474 文字の出力のうち
+  原因はただ 1 箇所、`G-bar` を `G`(U+0047) + `U+0304` で書いた列だった (合成形 `U+1E20` が存在)。
+  同じ出力の `N-bar` `H-bar` `D-bar` `x-bar` `v-hat` は合成形が無く分解形のままで NFC として
+  正当なので無害だった。**どの記号が地雷かは目視で区別できない。**
+  一次資料 (追補 A の a11/a12 節) がこの記法を使うため、その wave の子は全員再現する。
+- 恒久対応: 数式・統計記法を扱う wave では prompt 冒頭に「出力に Unicode 結合文字
+  (U+0300〜U+036F) を 1 文字も使うな。`G-bar` `v-hat` `^T` と ASCII で書け。仕様書の記法を
+  引用・再現するな」を置き、段 2・3・5・6 の**全部の子**へ入れる。**prompt 自身も rollout に
+  載る**ので投入前に prompt の NFC を検査する。memory `codex-output-must-be-nfc`。
+- **制約の書き方に二次の罠がある。** 「ASCII で書け」と広く書くと、子は必須の日本語見出し
+  `## 総括` を HTML 数値文字参照 (`&#32207;&#25324;`) へ変換し、`check_codex_output.py` が
+  `validator_rc=1` で落とす (本 wave で実測、これが 2 度目の全損)。制約は**数式・記号にだけ**
+  掛け、「日本語はそのまま書け。`## 総括` を実体参照にするな」を必ず併記する。
+- 再発検知: `rc=1` を見たら receipt の `attempts[0].evidence_status` を先に読む。
+  `invalid` なら NFC 側、`complete` かつ `validator_rc=1` なら書式側。原因行は
+  `attempt-0001.events.jsonl` の各行を `unicodedata.normalize('NFC', s) == s` で走査すると出る。
+
+### F261. PBS script の規約違反 4 点が静的レビューを通り抜けた [テスト代表性]
+
+- 事象: 実装子が書いた `tools/pegasus/t139_a12_stress_check.pbs` が、そのままでは本走に使えなかった。
+  段 3 の敵対相談 2 本と段 6 の敵対レビュー 2 本はいずれも検出せず、**親が実際に `qsub` して
+  初めて 4 点が判明**した。
+  (1) `#PBS -A SFC` 欠落 → `Please specify -A <Group>.` で拒否。
+  (2) `#PBS -l select=1:ncpus=60:mem=14gb` は NQSV の書式でない → `Request not queued.`。
+  (3) `#PBS -j oe` も拒否される → 他行を同一にした最小の対照実験で確定 (`-j o` は受理)。
+  (4) `python3` 直呼び — 計算ノードの `python3` は **3.9.13 (Intel) / numpy 1.21.4**、
+  `python3.10` が 3.10.12 / numpy 2.2.6 (probe 907280 で実測)。**このままなら正本の本走が
+  別 interpreter・別 numpy で回っていた。**
+- 根本原因: PBS script は「投入して初めて検証される」種類の成果物であり、静的レビューは
+  scheduler の受理述語を持たない。実装子も read-only レビュー子も job を投入できない
+  (sandbox が scheduler socket を拒む)。**投入は親にしかできず、親が投入するまで誰も検証しない。**
+- 恒久対応: PBS script を成果物に含む wave では、**親が段 6 の受入前に最小の対照 job を
+  実際に投入して directive の受理を確認する**。runbook の逐語 (`-A` / `-q` /
+  `-l elapstim_req` / `-j o` と interpreter 吸収) を prompt へ前渡しする。
+- 再発検知: `qsub` の `Request not queued. : <script>` と `Script file line <N>.` は
+  directive 不正の signature。job が走った場合も、job log の interpreter と library の版を
+  transcript へ記録して login 側と突き合わせる。
