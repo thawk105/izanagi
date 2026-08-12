@@ -941,3 +941,7 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"D:keep-gains-below-target":"D312","D:no-history-proportional-test-cost":"D311","D:optin-needs-dispatch-env-allowlist":"D314","D:t080-history-scan-batched":"D313"},"authored":"2026-08-12","content_sha256":"2756b2d21bc9b5862d3f195d8eeeb13860b0e78662db2ccfad1de2766eae98f1","seq":1,"wave":"dev-wave-t827-slow-tests"}
 - {"allocations":{"T:codex-sessions-history-scan":"[T-884]","T:decompose-batch-vs-optin":"[T-882]","T:preserve-git-clone-isolation-cost":"[T-885]","T:record-hostname-with-perf":"[T-883]"},"authored":"2026-08-12","content_sha256":"24f46555a9a878b0ec4c6bb4d829dbd122d7c73bf4733189ee443723b4c706d7","seq":2,"wave":"dev-wave-t827-slow-tests"}
+
+- {"allocations":{"T:main-red-t793-d305-supersession-pin":"[T-888]","T:rollout-lookup-remove-history-proportionality":"[T-886]","T:t201-d-xdist-group-reassessment":"[T-887]"},"authored":"2026-08-12","content_sha256":"c705715a424535ac0ff7053614089d3b03e500b0d880e0a69bc69f38928f1228","seq":1,"wave":"dev-wave-module-fixture-cost"}
+- {"allocations":{"D:session-meta-candidate-scan":"D315","D:supersession-pin-derivation":"D316"},"authored":"2026-08-12","content_sha256":"511d6f451d17f16769fee6354dbb31882b92f0f8921f8b1eb7b25aef2aeeb033","seq":2,"wave":"dev-wave-module-fixture-cost"}
+- {"allocations":{"F:expected-nodes-stale-after-fix":"F230"},"authored":"2026-08-12","content_sha256":"87abe876f610deab339450aa3394c67b7a38cd9c644a76ac46b7dea3876f6c06","seq":3,"wave":"dev-wave-module-fixture-cost"}
