@@ -1,0 +1,42 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "t904-drop-separator",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        object_id = _git(snapshot, \"hash-object\", \"--no-filters\", \"--\", relative).decode().strip()",
+          "new": "        object_id = _git(snapshot, \"hash-object\", \"--no-filters\", relative).decode().strip()"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_leading_dash_untracked_path_is_hashed_as_path",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_option_named_untracked_path_is_hashed_not_stdin"
+      ],
+      "hang_risk": false
+    },
+    {
+      "id": "t904-misplace-separator",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "        object_id = _git(snapshot, \"hash-object\", \"--no-filters\", \"--\", relative).decode().strip()",
+          "new": "        object_id = _git(snapshot, \"hash-object\", \"--\", \"--no-filters\", relative).decode().strip()"
+        }
+      ],
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_leading_dash_untracked_path_is_hashed_as_path",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_option_named_untracked_path_is_hashed_not_stdin"
+      ],
+      "hang_risk": false
+    }
+  ]
+}

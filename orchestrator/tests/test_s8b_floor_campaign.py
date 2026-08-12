@@ -325,13 +325,40 @@ def _durable_policy(out_root: Path):
     )
 
 
+def _perf_receipt(*, available=True):
+    events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+    return {
+        "schema": "izanagi-perf-preflight/v1",
+        "status": "available" if available else "unavailable",
+        "available": available,
+        "probe_argv": [
+            "perf", "stat", "-x,", "-o", "<tmp>/perf.csv",
+            "-e", ",".join(events), "--", "/bin/true",
+        ],
+        "rc": 0 if available else 2,
+        "parsed_events": events if available else [],
+        "reason": "available" if available else "nonzero-rc",
+        "stderr_sha256": hashlib.sha256(b"").hexdigest(),
+        "candidates": [],
+    }
+
+
+def _probe_error_perf_receipt():
+    receipt = _perf_receipt(available=False)
+    receipt.update({
+        "status": "probe_error", "rc": None,
+        "reason": "probe-timeout", "parsed_events": [],
+    })
+    return receipt
+
+
 def _cell_id_from_binary(binary: str) -> str:
     return Path(binary).parent.name.replace("__", "::")
 
 
 def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, probe_fn,
                   mode="pilot", resume_dir=None, sleep_fn=None, monotonic_fn=None,
-                  now_fn=None):
+                  now_fn=None, perf_preflight_fn=None):
     fake_build = _make_fake_build(build_root)
     entrypoint = (s8b_floor_campaign._run_campaign_core
                   if mode == "official" else s8b_floor_campaign.run_campaign)
@@ -353,6 +380,9 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
                 s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
                 mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build):
             return entrypoint(protocol, freeze_doc, **kwargs)
+    kwargs["perf_preflight_fn"] = (
+        perf_preflight_fn or (lambda **_kwargs: _perf_receipt())
+    )
     return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)
 
 
@@ -374,20 +404,22 @@ class _FakeScalePoint:
 
 
 def _shape_faithful_run_cmd(
-        binary, records, threads, workload, *, env_tag=ENV_TAG, extime_s=5) -> str:
+        binary, records, threads, workload, *, env_tag=ENV_TAG, extime_s=5,
+        use_perf=True) -> str:
     """production repro_command と同じ argv shape の runtime-path fake を返す。"""
     contract = ec.lookup(env_tag)
     argv = list(s8b_floor_campaign.build_portable_run_cmd(
         binary="output/fixture/bench", workload=workload, records=records,
         threads=threads, extime_s=extime_s, clocks_per_us=contract.clocks_per_us,
-        numactl=contract.numactl,
+        numactl=contract.numactl, use_perf=use_perf,
     ))
-    argv[argv.index("--") + 1] = str(binary)
+    binary_index = argv.index("--") + 1 if use_perf else len(contract.numactl)
+    argv[binary_index] = str(binary)
     return shlex.join(argv)
 
 
 def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_reps=None,
-                     reps_fn=None, env_tag=ENV_TAG, extime_s=5):
+                     reps_fn=None, env_tag=ENV_TAG, extime_s=5, use_perf=True):
     raise_for = set(raise_for)
     partial_for = set(partial_for)
     calls: list = []
@@ -409,7 +441,8 @@ def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_re
             return _FakeScalePoint(throughputs=list(values), notes=[],
                                    run_cmd=_shape_faithful_run_cmd(
                                        binary, records, threads, workload,
-                                       env_tag=env_tag, extime_s=extime_s))
+                                       env_tag=env_tag, extime_s=extime_s,
+                                       use_perf=use_perf))
         n = reps
         if cell_id in partial_for:
             n = partial_reps if partial_reps is not None else max(reps - 1, 0)
@@ -418,7 +451,7 @@ def _make_measure_fn(reps, value_fn, *, raise_for=(), partial_for=(), partial_re
             throughputs=[base] * n, notes=[],
             run_cmd=_shape_faithful_run_cmd(
                 binary, records, threads, workload,
-                env_tag=env_tag, extime_s=extime_s,
+                env_tag=env_tag, extime_s=extime_s, use_perf=use_perf,
             ),
         )
 
@@ -461,6 +494,263 @@ def test_measure_run_cmd_projection_removes_runtime_root_and_rejects_missing_tok
             workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
             protocol=protocol, contract=ec.lookup(ENV_TAG),
         )
+
+
+@pytest.mark.parametrize(
+    "receipt_available,raw_uses_perf",
+    [
+        pytest.param(False, True, id="unavailable-rejects-perf-shape"),
+        pytest.param(True, False, id="available-rejects-direct-shape"),
+    ],
+)
+def test_measure_run_cmd_rejects_shape_opposite_to_recorded_preflight(
+        tmp_path, monkeypatch, receipt_available, raw_uses_perf):
+    freeze = _freeze_document()
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze)))
+    cell = next(iter(_HOLDOUT_SHAPE.values()))
+    contract = ec.lookup(ENV_TAG)
+    runtime_binary = str(tmp_path / "bench")
+    portable_binary = "env/fixture/binaries/hash/bench"
+
+    def fixed_shape(binary, *, use_perf):
+        argv = list(contract.numactl)
+        if use_perf:
+            argv.extend([
+                "perf", "stat", "-e",
+                "LLC-load-misses,LLC-loads,instructions,cycles", "--",
+            ])
+        argv.extend([
+            binary,
+            f"-thread_num={cell['threads']}",
+            f"-ycsb_tuple_num={cell['records']}",
+            f"-extime={protocol['extime_s']}",
+            f"-clocks_per_us={contract.clocks_per_us}",
+        ])
+        argv.extend(f"-{key}={cell['ycsb'][key]}" for key in sorted(cell["ycsb"]))
+        return tuple(argv)
+
+    expected_uses_perf = receipt_available
+    portable = fixed_shape(portable_binary, use_perf=expected_uses_perf)
+    raw = shlex.join(fixed_shape(runtime_binary, use_perf=raw_uses_perf))
+
+    def fixed_portable_builder(**kwargs):
+        assert kwargs["use_perf"] is expected_uses_perf
+        return portable
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "build_portable_run_cmd", fixed_portable_builder,
+    )
+
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="不一致"):
+        s8b_floor_campaign._project_measure_run_cmd(
+            raw, runtime_binary=runtime_binary, portable_binary=portable_binary,
+            workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
+            protocol=protocol, contract=contract,
+            perf_preflight=_perf_receipt(available=receipt_available), mode="pilot",
+        )
+
+
+def test_measure_run_cmd_rejects_unavailable_receipt_in_official_mode(tmp_path):
+    freeze = _freeze_document()
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze)))
+    cell = next(iter(_HOLDOUT_SHAPE.values()))
+    contract = ec.lookup(ENV_TAG)
+    runtime_binary = str(tmp_path / "bench")
+    portable_binary = "env/fixture/binaries/hash/bench"
+    direct_raw = _shape_faithful_run_cmd(
+        runtime_binary, cell["records"], cell["threads"], cell["ycsb"],
+        use_perf=False,
+    )
+
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="official mode"):
+        s8b_floor_campaign._project_measure_run_cmd(
+            direct_raw, runtime_binary=runtime_binary, portable_binary=portable_binary,
+            workload=cell["ycsb"], records=cell["records"], threads=cell["threads"],
+            protocol=protocol, contract=contract,
+            perf_preflight=_perf_receipt(available=False),
+            mode="official",
+        )
+
+
+def test_perf_unavailable_continues_and_records_one_run_receipt(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    calls = []
+
+    def preflight(**kwargs):
+        calls.append(kwargs)
+        return _perf_receipt(available=False)
+
+    outcome = _run_campaign(
+        protocol, verified, out_root=tmp_path / "out", build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False),
+        probe_fn=lambda: (1, "", ""), perf_preflight_fn=preflight,
+    )
+    assert len(calls) == 1
+    assert calls[0]["perf_candidates"]
+    run_dir = Path(outcome["run_dir"])
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["perf_preflight"] == outcome["result"]["perf_preflight"]
+    assert manifest["perf_preflight"]["available"] is False
+    assert all(" perf " not in f" {record['run_cmd']} "
+               for record in outcome["result"]["sessions"])
+    receipt = outcome["result"]["perf_preflight"]
+    receipt_digest = hashlib.sha256(json.dumps(
+        receipt, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    perf_lines = [
+        line for line in (run_dir / "result.md").read_text(
+            encoding="utf-8").splitlines()
+        if line.startswith("- perf:")
+    ]
+    assert perf_lines == [
+        f"- perf: mode=disabled, reason=nonzero-rc, "
+        f"receipt_sha256=`{receipt_digest}`"
+    ]
+
+
+def test_perf_available_records_receipt_and_preserves_perf_shape(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    outcome = _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""),
+    )
+    receipt = outcome["result"]["perf_preflight"]
+    assert receipt["available"] is True
+    assert all(" perf " in f" {record['run_cmd']} "
+               for record in outcome["result"]["sessions"])
+    receipt_digest = hashlib.sha256(json.dumps(
+        receipt, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    run_dir = Path(outcome["run_dir"])
+    perf_lines = [
+        line for line in (run_dir / "result.md").read_text(
+            encoding="utf-8").splitlines()
+        if line.startswith("- perf:")
+    ]
+    assert perf_lines == [
+        f"- perf: mode=enabled, reason=available, "
+        f"receipt_sha256=`{receipt_digest}`"
+    ]
+
+
+def test_pilot_default_perf_preflight_delegate_is_resolved_once_at_call_time(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    seen = []
+
+    def preflight_spy(**kwargs):
+        seen.append(kwargs)
+        return _perf_receipt()
+
+    monkeypatch.setattr(
+        s8b_floor_campaign._perf_preflight,
+        "probe_perf_availability", preflight_spy,
+    )
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+        mode="pilot",
+        measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+        now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
+        process_identity_fn=_fixed_process, execution_receipt_fn=_fixed_receipt,
+        build_fn=_make_fake_build(tmp_path / "bin"),
+        durable_root_policy=_durable_policy(tmp_path / "out"),
+    )
+    assert outcome["status"] == "completed"
+    assert len(seen) == 1
+    assert seen[0]["perf_candidates"]
+
+
+def test_perf_probe_error_aborts_before_build_or_manifest(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="判定不能"):
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=_forbid_measure,
+            probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=lambda **_kwargs: _probe_error_perf_receipt(),
+        )
+    assert list(out_root.rglob("manifest.json")) == []
+    assert not (tmp_path / "bin").exists()
+
+
+def test_resume_reuses_manifest_perf_preflight_without_reprobing(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    calls = {"measure": 0, "preflight": 0}
+
+    def preflight(**_kwargs):
+        calls["preflight"] += 1
+        return _perf_receipt(available=False)
+
+    def crashing_measure(binary, records, threads, workload):
+        calls["measure"] += 1
+        if calls["measure"] == 2:
+            raise _SimulatedCrash("preflight resume fixture")
+        cell_id = _cell_id_from_binary(binary)
+        return _FakeScalePoint(
+            [_BASE_TPS[cell_id]] * 5, [],
+            _shape_faithful_run_cmd(
+                binary, records, threads, workload, use_perf=False),
+        )
+
+    with pytest.raises(_SimulatedCrash):
+        _run_campaign(
+            protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+            measure_fn=crashing_measure, probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=preflight,
+        )
+    run_dir = _only_run_dir(out_root)
+
+    def forbid_reprobe(**_kwargs):
+        raise AssertionError("既存 manifest resume で再 probe してはいけない")
+
+    outcome = _run_campaign(
+        protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid], use_perf=False),
+        probe_fn=lambda: (1, "", ""), resume_dir=run_dir,
+        perf_preflight_fn=forbid_reprobe,
+    )
+    assert calls["preflight"] == 1
+    assert outcome["result"]["perf_preflight"]["available"] is False
+
+
+def test_production_use_perf_keyword_call_sites_are_a_closed_set():
+    call_sites = []
+    for path in (ROOT / "orchestrator").rglob("*.py"):
+        if "tests" in path.parts:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if any(keyword.arg == "use_perf" for keyword in node.keywords):
+                call_sites.append((
+                    path.relative_to(ROOT).as_posix(), ast.unparse(node.func),
+                ))
+    assert sorted(call_sites) == [
+        ("orchestrator/calibrator/runner.py", "_build_cmd"),
+        ("orchestrator/calibrator/runner.py", "repro_command"),
+        ("orchestrator/campaign/s8b_floor_campaign.py", "build_portable_run_cmd"),
+        ("orchestrator/campaign/s8b_floor_campaign.py", "measure_point"),
+    ]
 
 
 def _read_journal_lines(journal_path: Path) -> list:
@@ -1606,6 +1896,60 @@ def test_load_resume_manifest_rejects_v1_schema(tmp_path):
             path, protocol_sha256="x", freeze_sha256="y", out_root=tmp_path)
 
 
+def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_path):
+    protocol_sha = "p" * 64
+    freeze_sha = "f" * 64
+    protocol = {
+        "freeze": {"path": "freeze.json", "sha256": freeze_sha},
+        "env_tag": "env-x", "ccbench_pin": "pin-x",
+        "stock_configuration": "stock", "schedule_algorithm": "algorithm-x",
+        "master_seed": "seed", "n_sessions": 1, "reps": 1, "extime_s": 1,
+        "session_cv_max": "0.1", "cell_cv_max": "0.1",
+    }
+    manifest = s8b_floor_campaign.assemble_manifest(
+        protocol=protocol, protocol_sha256=protocol_sha,
+        freeze_sha256=freeze_sha, cells=[], built={}, schedule=[],
+    )
+    path = tmp_path / "manifest.json"
+    raw = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+    path.write_bytes(raw)
+
+    loaded, _sha, _artifact, _runtime = s8b_floor_campaign._load_resume_manifest(
+        path, protocol_sha256=protocol_sha, freeze_sha256=freeze_sha,
+        out_root=tmp_path,
+    )
+    assert "perf_preflight" not in loaded
+    assert s8b_floor_campaign._assert_perf_mode("pilot", None) is True
+    assert path.read_bytes() == raw
+
+
+def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = s8b_floor_campaign.validate_protocol(
+        _protocol(freeze_sha=_freeze_sha(freeze)))
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=protocol["stock_configuration"],
+    )
+    outcome = _run_campaign(
+        protocol, verified, out_root=tmp_path / "out",
+        build_root=tmp_path / "bin",
+        measure_fn=_make_measure_fn(
+            reps=protocol["reps"], value_fn=lambda cid: _BASE_TPS[cid],
+        ),
+        probe_fn=lambda: (1, "", ""),
+    )
+    records = _read_journal_lines(Path(outcome["run_dir"]) / "journal.jsonl")
+
+    with pytest.raises(s8b_floor_campaign.CampaignAbort, match="official mode"):
+        s8b_floor_campaign.assemble_result(
+            protocol=protocol, mode="official", protocol_sha256="p" * 64,
+            freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+            cells=cells, binaries=outcome["result"]["binaries"], records=records,
+            perf_preflight=_perf_receipt(),
+        )
+
+
 # =========================================================================== #
 # 3. official mode は常に拒否 (§8 未裁定) — CLI + core 直接 (δ-3)               #
 # =========================================================================== #
@@ -1790,6 +2134,7 @@ def test_materializer_registry_covers_all_python_build_launches():
     ("after_certificate_issued_fn", lambda _path: None),
     ("durable_root_policy", s8b_floor_campaign.DurableRootPolicy(
         approved_roots=(ROOT.resolve(),), forbidden_roots=())),
+    ("perf_preflight_fn", lambda **_kwargs: _perf_receipt()),
 ])
 def test_public_official_rejects_each_nondefault_seam_before_side_effects(
         tmp_path, seam_name, seam_value):
@@ -1989,6 +2334,7 @@ def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
         s8b_floor_campaign.run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=measure,
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
             monotonic_fn=monotonic_fn, now_fn=lambda: _FIXED_NOW,
             repo_root=ctx["repo_root"], build_fn=_make_fake_build(tmp_path / "bin"),
@@ -2036,6 +2382,7 @@ def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_cl
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot",
             measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
             monotonic_fn=clock, now_fn=lambda: _FIXED_NOW,
             repo_root=ctx["repo_root"], build_fn=_make_fake_build(tmp_path / "bin"),
@@ -2065,6 +2412,7 @@ def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
     outcome = s8b_floor_campaign.run_campaign(
         ctx["protocol"], _verified_freeze(ctx["freeze"]),
         out_root=ctx["out_root"], mode="pilot", measure_fn=measure,
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
         probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
         monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
         repo_root=ctx["repo_root"], build_fn=_make_fake_build(tmp_path / "bin"),
@@ -2113,6 +2461,7 @@ def test_floor_legacy_build_fallback_hits_contract_provenance_assert(
         s8b_floor_campaign.run_campaign(
             ctx["protocol"], _verified_freeze(ctx["freeze"]),
             out_root=ctx["out_root"], mode="pilot", measure_fn=_forbid_measure,
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
             probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
             now_fn=lambda: _FIXED_NOW, repo_root=ctx["repo_root"],
             build_fn=legacy_fallback,
@@ -2140,11 +2489,15 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     seen = {}
 
     def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
+        use_perf = kw.get("use_perf", True)
         seen["clocks_per_us"] = clocks_per_us
         seen["numactl"] = kw.get("numactl")
+        seen["use_perf"] = use_perf
         return _FakeScalePoint(
             throughputs=[1000.0] * 5, notes=[],
-            run_cmd=_shape_faithful_run_cmd(binary, records, threads, kw["workload"]),
+            run_cmd=_shape_faithful_run_cmd(
+                binary, records, threads, kw["workload"], use_perf=use_perf,
+            ),
         )
 
     fake_build = _make_fake_build(tmp_path / "bin")
@@ -2153,11 +2506,44 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
         s8b_floor_campaign.run_campaign(
             protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
             measure_fn=None, probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
             now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
             durable_root_policy=_durable_policy(tmp_path / "out"),
         )
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)
+    assert seen["use_perf"] is True
+
+
+def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
+        tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    seen = []
+
+    def spy_measure_point(binary, records, threads, clocks_per_us, **kwargs):
+        use_perf = kwargs.get("use_perf", True)
+        seen.append(use_perf)
+        return _FakeScalePoint(
+            throughputs=[1000.0] * 5, notes=[],
+            run_cmd=_shape_faithful_run_cmd(
+                binary, records, threads, kwargs["workload"], use_perf=use_perf,
+            ),
+        )
+
+    fake_build = _make_fake_build(tmp_path / "bin")
+    with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+             mock.patch.object(s8b_floor_campaign, "measure_point", spy_measure_point):
+        outcome = s8b_floor_campaign.run_campaign(
+            protocol, _verified_freeze(freeze), out_root=tmp_path / "out",
+            mode="pilot", measure_fn=None, probe_fn=lambda: (1, "", ""),
+            prepare_fn=_fake_prepare,
+            perf_preflight_fn=lambda **_kwargs: _perf_receipt(available=False),
+            now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
+            durable_root_policy=_durable_policy(tmp_path / "out"),
+        )
+    assert outcome["status"] == "completed"
+    assert seen and set(seen) == {False}
 
 
 def test_floor_default_durable_policy_rejects_external_output_without_side_effects(tmp_path):
@@ -3735,6 +4121,7 @@ def test_pilot_does_not_apply_official_freeze_allowlist_scan(tmp_path):
     outcome = s8b_floor_campaign.run_campaign(
         protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
         measure_fn=_make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
         probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
         monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
         now_fn=lambda: _FIXED_NOW, host_provenance_fn=_fixed_host,
@@ -5247,6 +5634,7 @@ def test_current_admission_reuses_exact_contract_across_successful_run(
     outcome = s8b_floor_campaign.run_campaign(
         protocol, verified, out_root=tmp_path / "out", mode="pilot",
         measure_fn=measure_fn, probe_fn=lambda: (1, "", ""),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=_fake_prepare, now_fn=lambda: _FIXED_NOW,
         execution_receipt_fn=receipt_spy, build_fn=build_spy,

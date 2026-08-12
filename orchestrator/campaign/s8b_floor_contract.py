@@ -249,7 +249,7 @@ def project_protocol_for_floor_artifact(protocol: Mapping) -> dict:
 
 def build_portable_run_cmd(
         *, binary, workload, records, threads, extime_s, clocks_per_us,
-        numactl) -> tuple[str, ...]:
+        numactl, use_perf: bool = True) -> tuple[str, ...]:
     """検証・artifact 記録用の portable benchmark argv を決定論的に構築する。
 
     ``binary`` は out-root 相対の portable store path とし、runtime absolute path は
@@ -279,15 +279,21 @@ def build_portable_run_cmd(
     if not all(isinstance(token, str) and token and "\x00" not in token
                for token in numactl):
         raise FloorContractError("run_cmd.numactl に空または非 str token がある")
+    if type(use_perf) is not bool:
+        raise FloorContractError("run_cmd.use_perf が bool でない")
 
-    argv = [
-        *numactl,
-        "perf", "stat", "-e", ",".join(_RUN_CMD_PERF_EVENTS), "--", binary,
+    argv = [*numactl]
+    if use_perf:
+        argv.extend([
+            "perf", "stat", "-e", ",".join(_RUN_CMD_PERF_EVENTS), "--",
+        ])
+    argv.extend([
+        binary,
         f"-thread_num={threads}",
         f"-ycsb_tuple_num={records}",
         f"-extime={extime_s}",
         f"-clocks_per_us={clocks_per_us}",
-    ]
+    ])
     argv.extend(f"-{key}={workload[key]}" for key in sorted(workload))
     return tuple(argv)
 

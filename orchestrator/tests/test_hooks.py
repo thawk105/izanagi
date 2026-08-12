@@ -1732,6 +1732,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/probes/t503_restore_durability_recover.pbs": "unknown",
     "tools/pegasus/probes/t503_restore_durability_verdict.pbs": "unknown",
     "tools/pegasus/run_probe.py": "dispatch-required",
+    "tools/pegasus/run_t139_a12_stress_check.py": "dispatch-required",
     "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
     "tools/pegasus/smoke_probe.sh": "dispatch-required",
     "tools/pegasus/submit_certify.sh": "local-ok",
@@ -1739,6 +1740,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/submit_silo_ladder_rung1.sh": "local-ok",
     "tools/pegasus/submit_t126_qualification.sh": "unknown",
     "tools/pegasus/t126_qualification.sh": "dispatch-required",
+    "tools/pegasus/t139_a12_stress_check.pbs": "dispatch-required",
     "tools/pegasus/t141_region_profile.sh": "dispatch-required",
     "tools/pegasus/t810_budget.py": "unknown",
     "tools/pegasus/t810_coordinator.py": "unknown",
@@ -1905,6 +1907,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "primary_gate": "compute-node environment attestation",
         "evidence": "static semantic-site classification"
     },
+    "tools/pegasus/run_t139_a12_stress_check.py": {
+        "class": "dispatch-required",
+        "reason": "compute-side T139 A12 stress-check simulation runner",
+        "primary_gate": "compute allocation owned by t139_a12_stress_check.pbs",
+        "evidence": "compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker"
+    },
     "tools/pegasus/silo_ladder_rung1.sh": {
         "class": "dispatch-required",
         "reason": "PBS silo ladder job body",
@@ -1944,6 +1952,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
     "tools/pegasus/t126_qualification.sh": {
         "class": "dispatch-required",
         "reason": "PBS T126 qualification job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/t139_a12_stress_check.pbs": {
+        "class": "dispatch-required",
+        "reason": "PBS T139 A12 stress-check job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },

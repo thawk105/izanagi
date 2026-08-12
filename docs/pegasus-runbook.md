@@ -467,6 +467,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
+| `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t139_positive_control_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t139_positive_control_probe.sh` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t139_r4_env_probe.pbs` | `dispatch-required` | `static job-body classification` |
@@ -703,7 +705,10 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
   (certify が自動実行)
 - perf は dispatcher (/usr/bin/perf) がカーネル不一致で使えない。実体
   (/usr/lib/linux-tools/<版>/perf) を policy.json の候補から機能 smoke つきで選定し PATH 注入
-  する (ノードにより導入版が異なる: 実測では bnode 側 5.15.0-100/135、ログイン側 101/136/173)
+  する (ノードにより導入版が異なる: 実測では bnode 側 5.15.0-100/135、ログイン側 101/136/173)。
+  **床値 campaign (`floor_campaign.sh`) はこの選定をしない** — PATH の literal `perf` だけを
+  probe し、候補は receipt の evidence に留める。perf が使えなければ perf 無しで測る
+  (裁定 `perf-optional-measurement`、絶対 path 採用は F89 が未裁定)
 - /home (共有 FS) では renameat2(RENAME_NOREPLACE) が EINVAL — publish は link+unlink fallback
   (no-replace 意味論は不変)
 - PID namespace の host 判定は /proc/1/ns が非 root で読めないため /proc/2/comm==kthreadd 指標
