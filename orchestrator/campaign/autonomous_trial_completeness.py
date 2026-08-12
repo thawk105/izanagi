@@ -54,13 +54,33 @@ _ADMISSION_DECISION_KEYS = frozenset({
 })
 _ADMISSION_VALIDATOR_KEYS = frozenset({"identity", "sha256"})
 _ADMISSION_OVERLAY_KEYS = frozenset({"ledger_sha256", "record_key"})
-_LAUNCH_ADMISSION_KEYS = frozenset({
+_LAUNCH_ADMISSION_BASE_KEYS = frozenset({
     "mode", "certifying", "reason_code", "trial_id", "workloads",
     "binding", "activation_report_digest_sha256",
+})
+_LAUNCH_ADMISSION_KEYS = frozenset({
+    _LAUNCH_ADMISSION_BASE_KEYS,
+    _LAUNCH_ADMISSION_BASE_KEYS | {"origin_binding"},
 })
 _LAUNCH_BINDING_KEYS = frozenset({
     "manifest_sha256", "prereg_commit", "measurement_head", "trial_id",
     "arm", "holdout", "campaign_id", "workload", "ycsb_rratio",
+})
+_ORIGIN_BINDING_KEYS = frozenset({
+    "authority_blob_sha256", "source_closure_sha256", "origin_id", "cell_key",
+    "authority_workload", "axis_semantics_sha256", "verifier_policy_sha256",
+    "environment_contract_sha256", "campaign_id", "trial_workload",
+    "measurement_head", "store_scope", "issuer_seal",
+})
+_ORIGIN_WORKLOAD_KEYS = frozenset({"descriptor_sha256", "records", "threads"})
+_ORIGIN_TERMINAL_PROJECTION_KEYS = frozenset({
+    "schema_version", "reason_code", "formal_receipt_sha256",
+    "evidence_root_sha256", "authority_blob_sha256", "origin_id", "cell_key",
+    "terminal_payload_sha256",
+})
+_FORMAL_REASON_CODES = frozenset({
+    "FC01", "FC02", "FC03", "FC04", "FC05a", "FC05b", "FC05c", "FC06",
+    "FC07", "FC09", "FC10", "P6Unavailable",
 })
 
 
@@ -415,7 +435,7 @@ def _check_launch_admission_projection(
         gate="launch-admission",
         label="run-start.launch_admission",
     )
-    if set(report_admission) != _LAUNCH_ADMISSION_KEYS:
+    if frozenset(report_admission) not in _LAUNCH_ADMISSION_KEYS:
         _fail("launch-admission", "report launch_admission exact keys differ")
     if dict(start_admission) != dict(report_admission):
         _fail("launch-admission", "run-start/report launch_admission differs")
@@ -432,6 +452,60 @@ def _check_launch_admission_projection(
         _fail("launch-admission", "launch workloads differ from report")
     binding = report_admission.get("binding")
     activation_digest = report_admission.get("activation_report_digest_sha256")
+    origin_binding = None
+    if "origin_binding" in report_admission:
+        origin_binding = _mapping(
+            report_admission["origin_binding"],
+            gate="launch-admission",
+            label="launch_admission.origin_binding",
+        )
+        if frozenset(origin_binding) != _ORIGIN_BINDING_KEYS:
+            _fail("launch-admission", "origin binding exact keys differ")
+        authority_workload = _mapping(
+            origin_binding.get("authority_workload"),
+            gate="launch-admission",
+            label="origin_binding.authority_workload",
+        )
+        if frozenset(authority_workload) != _ORIGIN_WORKLOAD_KEYS:
+            _fail("launch-admission", "origin authority workload exact keys differ")
+        for field in (
+            "authority_blob_sha256", "source_closure_sha256",
+            "axis_semantics_sha256", "verifier_policy_sha256",
+            "environment_contract_sha256",
+        ):
+            value = origin_binding.get(field)
+            if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+                _fail("launch-admission", f"origin binding {field} is invalid")
+        descriptor_sha256 = authority_workload.get("descriptor_sha256")
+        if (
+            type(descriptor_sha256) is not str
+            or _SHA256_RE.fullmatch(descriptor_sha256) is None
+        ):
+            _fail("launch-admission", "origin authority descriptor is invalid")
+        for field in ("records", "threads"):
+            value = authority_workload.get(field)
+            if type(value) is not int or value < 1:
+                _fail("launch-admission", f"origin authority {field} is invalid")
+        measurement_head = origin_binding.get("measurement_head")
+        if (
+            type(measurement_head) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", measurement_head) is None
+        ):
+            _fail("launch-admission", "origin measurement_head is invalid")
+        for field in ("origin_id", "cell_key", "campaign_id", "trial_workload"):
+            value = origin_binding.get(field)
+            if type(value) is not str or not value:
+                _fail("launch-admission", f"origin binding {field} is invalid")
+        if (
+            origin_binding.get("store_scope") != "fixture"
+            or origin_binding.get("issuer_seal") != "launch-admission-gate/v1"
+        ):
+            _fail("launch-admission", "origin issuer projection is invalid")
+        if (
+            origin_binding.get("trial_workload")
+            not in report.get("workloads_requested", ())
+        ):
+            _fail("launch-admission", "origin workload differs from report")
     if mode == "registered-effective":
         binding = _mapping(
             binding, gate="launch-admission", label="launch_admission.binding",
@@ -447,13 +521,62 @@ def _check_launch_admission_projection(
             or _SHA256_RE.fullmatch(activation_digest) is None
         ):
             _fail("launch-admission", "registered launch projection is inconsistent")
+        if origin_binding is not None and (
+            origin_binding.get("campaign_id") != binding.get("campaign_id")
+            or origin_binding.get("trial_workload") != binding.get("workload")
+            or origin_binding.get("measurement_head")
+            != binding.get("measurement_head")
+        ):
+            _fail("launch-admission", "origin binding differs from launch binding")
     elif (
         report_admission.get("reason_code")
         != "explicit-unregistered-exploratory"
         or binding is not None
         or activation_digest is not None
+        or origin_binding is not None
     ):
         _fail("launch-admission", "exploratory launch projection is inconsistent")
+
+
+def _check_origin_terminal_projection(report: Mapping[str, Any]) -> None:
+    if "origin_terminal_projection" not in report:
+        return
+    projection = _mapping(
+        report["origin_terminal_projection"],
+        gate="origin-terminal-projection",
+        label="report.origin_terminal_projection",
+    )
+    if frozenset(projection) != _ORIGIN_TERMINAL_PROJECTION_KEYS:
+        _fail("origin-terminal-projection", "exact keys differ")
+    reason = projection.get("reason_code")
+    if reason not in _FORMAL_REASON_CODES:
+        _fail("origin-terminal-projection", "reason_code is outside the closed set")
+    rejected = reason != "P6Unavailable"
+    for field in ("formal_receipt_sha256", "evidence_root_sha256"):
+        value = projection.get(field)
+        if rejected:
+            if value is not None:
+                _fail(
+                    "origin-terminal-projection",
+                    f"rejected projection {field} must be null",
+                )
+        elif type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+            _fail(
+                "origin-terminal-projection",
+                f"P6Unavailable projection {field} is invalid",
+            )
+    for field in (
+        "authority_blob_sha256", "terminal_payload_sha256",
+    ):
+        value = projection.get(field)
+        if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+            _fail("origin-terminal-projection", f"{field} is invalid")
+    for field in ("origin_id", "cell_key"):
+        value = projection.get(field)
+        if type(value) is not str or not value:
+            _fail("origin-terminal-projection", f"{field} is invalid")
+    if projection.get("schema_version") != "OriginTerminalProjection/v1":
+        _fail("origin-terminal-projection", "schema_version is invalid")
 
 
 def _check_run_envelope(
@@ -964,6 +1087,7 @@ def assert_autonomous_trial_completeness(
     _check_run_envelope(
         report=report, events=events, attempt_journal=Path(attempt_journal),
     )
+    _check_origin_terminal_projection(report)
     raw_cells = _list(report.get("cells"), gate="report-shape", label="report.cells")
     cells = [
         _mapping(cell, gate="report-shape", label=f"cells[{index}]")
