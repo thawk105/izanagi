@@ -354,6 +354,29 @@ def test_value_side_dot_is_not_used_as_required_literal():
     assert result["conjunction_hits"] == ["dot-match.txt"]
 
 
+def test_single_axis_required_literal_excludes_value_side():
+    skew_value = _axis_value("rr80", "skew")
+    expressions = {"skew": _current_expressions()["skew"]}
+
+    literal = M._derive_required_literal(expressions)
+
+    assert literal == M.SKEW_KEY
+    assert skew_value not in literal
+
+
+def test_single_axis_dot_match_survives_required_literal_prefilter():
+    skew_value = _axis_value("rr80", "skew")
+    matching_value = skew_value.replace(".", "X", 1)
+    expressions = {"skew": _current_expressions()["skew"]}
+    text = M.concrete_axis_encodings("skew", matching_value)[0]
+
+    assert matching_value != skew_value
+    result = M._scan_one({"dot-match.txt": text}, "candidate", expressions)
+
+    assert result["per_axis_counts"] == {"skew": 1}
+    assert result["conjunction_hits"] == ["dot-match.txt"]
+
+
 def test_zero_positive_control_fails_closed(tmp_path):
     path = tmp_path / "irrelevant.txt"
     _write(path, "irrelevant\n")
