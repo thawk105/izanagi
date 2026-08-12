@@ -26,7 +26,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
-from . import model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
+from . import buildcache, model, pipeline, s8b_budget, s8b_run_marker, wal  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
     ReviewId,
@@ -622,14 +622,14 @@ def _gate_check_validated(
 @contextlib.contextmanager
 def _prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
-        ccbench_pin: str, prepare_fn):
+        ccbench_pin: str, cxx: str, prepare_fn):
     """共有 materializer の境界 wrapper。identity 合成の MaterializationError だけを
     OracleDriverError へ因果付き変換する (WAL・ログの reason 文字列を現行と一致させる)。
     consumer body から投げ返される他例外・cleanup 例外はそのまま透過させる。"""
     try:
         with _materialization_prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
-                configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+                configuration_id=configuration_id, ccbench_pin=ccbench_pin, cxx=cxx,
                 prepare_fn=prepare_fn) as (identity, prepared):
             yield identity, prepared
     except MaterializationError as exc:
@@ -1233,6 +1233,7 @@ def run_block(
     env_tag = run_contract["env_tag"]
     evaluate_fn = evaluate_fn or pipeline.evaluate
     prepare_fn = prepare_fn or prepare_cell
+    _, cxx = buildcache.compilers_for_current_site()
     # Human-reviewed admission の persistent receipt に generator id は入らない。run context
     # の閉じた registry member には S8b の直前 producer である S8a を用いる。
     build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
@@ -1397,7 +1398,7 @@ def run_block(
                         freeze=freeze, holdout_id=holdout_id,
                         configuration_id=configuration_id,
                         ccbench_pin=run_contract["ccbench_pin"],
-                        prepare_fn=prepare_fn) as (actual_binding, prepared):
+                        cxx=cxx, prepare_fn=prepare_fn) as (actual_binding, prepared):
                     expected_binding = _expected_binding(
                         manifest, holdout_id, configuration_id,
                     )

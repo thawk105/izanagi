@@ -1,0 +1,8 @@
+{
+  "schema_version": "t810-budget-ledger-genesis/v1",
+  "sequence": 0,
+  "event_id": "t810-admission-v1-genesis",
+  "status": "genesis",
+  "created_at": "2026-08-12T00:00:00Z",
+  "previous_sha256": null
+}
