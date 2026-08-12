@@ -1835,6 +1835,28 @@
   `test_all_repo_policy_reasoning_values_are_accepted[xhigh]`、
   `test_fake_stdout_matches_observed_cli_event_shape` で、述語系の失敗が移動し続けることをさらに裏付ける。
   恒久対応は [T-553] のままで本 wave では変えない。
+
+- **再発: 2026-08-12 (codex hook trust wave の変異 baseline 2 連続)** — 変異 harness の baseline が
+  2 走続けて落ち、いずれも production write 前に fail-closed で中止した (rc=2)。
+  1 走目は `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table`、
+  2 走目は同 file の `test_delayed_thread_and_rollout_are_read_from_byte_zero` で、
+  **失敗 node は既載どおり移動した**。述語は既載と同じ 2 本
+  (`failed_predicates=["process_group_residual","termination_verified"]`) で、
+  `codex_exit_code=0` / `validator_rc=0` / `evidence_status='complete'` /
+  `metering_status='complete'` はすべて正常、`wall_clock_s` も上限 3 秒に対し十分小さい
+  (0.168 秒 / 同系)。同 tip の単独再走は **143 passed / 6.33 秒 / rc=0** で再現しない。
+  **新しい情報が 2 つある。** (1) 既載の再発はいずれも `loadavg` の 1 分平均が 12〜15 台で
+  発火していたが、本件は **1 走目 `loadavg=(0.80, 0.17, 0.16)`、2 走目 `loadavg=(0.65, 2.10, 3.70)`**
+  と、**1 分平均が 1 未満の低負荷で 2 回とも発火した**。「瞬間高負荷でだけ出る」という
+  既載の示唆は成り立たない。(2) 既載の再発はすべて差分が launcher 実装へ到達しない wave
+  (docs のみ等) だったが、本件の差分は `codex_worker_launch.py` の `_attempt_loop` に
+  起動前検証を足しており、**到達しうる wave での初の発火**である。ただし当該差分は `Popen` の
+  **前**にしか触れておらず、失敗した 2 述語は子 process group の**終了確認**側であって経路が別である。
+  同 tip の単独走が緑であること、失敗 node が走ごとに移動すること、
+  同じ runner を並列度 `-n 8` へ下げた 3 走目は baseline PASSED で変異 3/3 KILLED になったことから、
+  `DW-O18` により本 wave の差分へ帰属しない。
+  **運用上の含意**: 変異 harness の baseline は既定の 48 worker では本フレークに当たりやすい。
+  並列度を下げた runner で走らせると通った。恒久対応は既載のままで本 wave では変えない
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -2998,6 +3020,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   攻撃者視点の指示が残っていた。**防御的 framing は冒頭だけでなく点検項目の動詞にも要る** —
   「構成せよ」でなく「取りこぼしている条件があれば指摘せよ」と書き、
   検査対象が自チームのコードであることを明示して再投入したら成功した。
+
+- **再発: 2026-08-12 (codex hook trust wave の段 3 レンズ A)** — 5 度目。`reasoning=max` の
+  consult 子が 10 model call・635 秒を使い、`turn.failed`
+  (`This content was flagged for possible cybersecurity risk`) で rc=1・出力 0 bytes になった。
+  **新しい情報は遮断の発生点である。** 既載の再発はいずれも依頼文・点検項目の動詞が原因で、
+  子は作業に入る前に拒否されていた。本件は events を見ると子の todo が 4 項目すべて `completed` で、
+  レンズの分析自体は完走している。遮断は**最終メッセージの生成時**に起きた — つまり
+  依頼だけでなく**子が書こうとした所見の中身**が引き金になりうる。
+  prompt には冒頭に防御目的を明記していたが、点検項目に「攻撃せよ」「突け」「構成せよ」が
+  残っていた (既載の対応を書き手が適用しそこねた)。
+  効いた対処は既載の 3 点に加えて **出力形式の明示的な制約**である。所見を
+  「検査 X は条件 Y のとき発火しない」「検証 Z の被覆は W までで、V は対象外」という
+  **被覆の記述**に限定し、「回避手順・攻撃手順・悪用の段取りを書いてはならない」と明記して
+  再投入したところ rc=0・13,661 bytes を得た。同じ深さの所見 (must-fix 相当 4 件) を返しており、
+  出力形式の制約は所見の質を落とさない。
+  恒久対応は memory `codex-adversarial-prompt-defensive-framing` の更新
+  (冒頭の framing・依頼の動詞に加えて、**所見の記述形式まで指定する**を追記)。
+  `docs/dev-wave/workers.md` の `DW-S03` へ書かない理由は既載のまま (byte 予算)
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -4999,6 +5039,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   merge 中止と lease 返却 / 走行前の behind 再検査と `git status --porcelain` 空検査) を必須とする。
   runbook §7.3 本文への明文化は head-of-line blocking と引き換えの設計択一のため裁定へ返す
 - 再発検知: 1 wave 内で lease の claim ログに behind 由来の返却が 2 回以上出たら同型
+- **supersede: 2026-08-12** — 恒久対応の安全配線 点 1「親が用意した message template へ SHA だけ差し込む」は実装しない。待ち手は `git merge --no-ff --no-commit` → `git commit -F` で merge commit を作るので、取り込んだ main SHA は second parent として commit object に不可変に記録される (実在 commit `ce46e128` の parents で実測)。message 本文への差し込みより強く、改竄もできない。
+- **supersede: 2026-08-12** — 点 2「provenance preflight」は `git commit --dry-run -F` と行頭 `AI-Agent:` の存在検査では満たさない。`docs/ai-provenance.md` が commit 前に要求するのは `tools/check_ai_provenance.py --message-file` の rc=0 であり、こちらだけが product/model/reasoning/role の順と許可値を検査する (実測 0.097 秒・local 実行・形式違反を実検出)。待ち手は `stage=merge-message-provenance` としてこれを merge の後に実行する — checker は `MERGE_HEAD` の有無で検査対象 path を変えるため、merge 前だと staged path が空になり検出力が落ちる。
+- **supersede: 2026-08-12** — 点 3 後半の述語は option なしの `git status --porcelain` ではなく `git status --porcelain --untracked-files=no --ignore-submodules=none` とする。untracked まで拒否すると、`.gitignore` に無い実在の floor 生成物 (`output/env/pegasus/floor/attempts/submissions/`、`.../job-staging/`) を持つ稼働中 wave の受入が claim 前に rc=2 で止まることを実測したためで、untracked の扱いは裁定へ返した。
+- **supersede: 2026-08-12** — この検査が保証するのは「`git status` を実行したその時点で tracked 木が HEAD と一致していた」ことだけである。20〜40 分走る受入 command の走行中に入った変更は覆わないので、受入結果に「投入の瞬間に一致した」とも「走行中ずっと一致していた」とも書かない。走行中まで覆う設計は裁定へ返した。
 
 ### F192. 受入 lease の待ち手が JSON 出力を平文パターンで照合し、取得済みの lease を 2 時間見落とした [手順漏れ] [恒真ゲート]
 
@@ -5916,3 +5960,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: brief に「canonical に無い」と書いた識別子を、同じ brief 内で全文検索する。
   実測節以外の出現が受理条件・権威主張の根拠になっていれば自己矛盾である。
   本 wave では段 2 と段 3 レンズ B が独立に指摘した。
+
+### F239. 段 6 fix 子の成果に `role=fix` と書いて provenance が赤 [手順漏れ]
+
+- 事象: 段 6 の fix 子 2 本の成果を統合する commit へ
+  `AI-Agent: ...; role=fix; scope=...` と書き、`check_ai_provenance.py` が rc=1 で
+  「AI-Agent の形式違反」+「実装面に Codex role=author がない」を出した。
+  `git commit --amend` で `role=author` へ直して rc=0。main は 1 bit も汚していない。
+- 根本原因: **dev-wave の段名と provenance の role 名が衝突している。**
+  段 6 の子は入口でも `tools/dev_wave_codex.py --stage fix` でも一貫して「fix 子」と呼ばれるが、
+  `docs/ai-provenance.md` の role 許可値は `author`/`reviewer`/`researcher`/`manager`/`integrator`
+  の 5 つで `fix` は無い。段名をそのまま role へ写すと必ず落ちる。
+  dev-wave 側の reference (`DW-O17`) へ 1 行足す案は L1.5 予算超過 (9700 > 9566 bytes) で
+  入らなかったため、台帳側へ記録する。
+- 恒久対応: 段 6 fix 子の成果を commit する直前に、trailer の role が
+  `docs/ai-provenance.md` の 5 値のいずれかであることを確認する。fix 子は実装面を書くので
+  `role=author` が正しい (段名ではなく寄与の種類で選ぶ)。
+- 再発検知: `check_ai_provenance.py` が commit 後に機械検出する (本件もこれで止まった)。
+  ただし検出は commit 後なので、amend が必要になる点は変わらない。

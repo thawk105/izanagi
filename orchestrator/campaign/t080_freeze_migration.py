@@ -994,13 +994,15 @@ def _any_history_touches_path(
 def _batched_history_touches_path(
     commits: Iterable[str], path: str, root: Path,
     duplicate_oid: Optional[str] = None,
+    *, detect_copies: bool = False,
 ) -> bool:
     """全 commit の raw diff を diff-tree 1 本で検査する (per-commit 起動なし)。
 
     ``--always`` で各入力 commit の marker を最低 1 件出し、``-m`` が差分の
     ある親ごとに反復する同一 marker は同じ commit group として照合する。
-    ``-m -r -M -C`` による M/D/R/C/T と destination OID による別 path
-    exact copy の意味論を保つ。``--find-copies-harder`` は使わない。
+    ``-m -r -M`` による M/D/R/T と destination OID による別 path
+    exact copy の意味論を保つ。外部辺だけ ``detect_copies=True`` で C も検出する。
+    ``--find-copies-harder`` は使わない。
     commit group の欠落・順序不一致・未知形式は fail-closed。
     """
     targets = tuple(sorted(commits))
@@ -1013,14 +1015,13 @@ def _batched_history_touches_path(
     except UnicodeError as exc:
         raise MigrationError("receipt.basis_invalid", "diff-tree path が UTF-8 でない") from exc
     stdin = "".join(f"{commit}\n" for commit in targets).encode("ascii", "strict")
-    out = _git(
-        [
-            "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
-            "-M", "-C", "--full-index", "--always", "-z",
-        ],
-        root,
-        stdin=stdin,
-    )
+    args = [
+        "diff-tree", "--stdin", "--root", "--raw", "-m", "-r", "-M",
+    ]
+    if detect_copies:
+        args.append("-C")
+    args.extend(("--full-index", "--always", "-z"))
+    out = _git(args, root, stdin=stdin)
     records = out.split(b"\0")
     if not records or records[-1] != b"":
         raise MigrationError("receipt.git_error", "batch diff-tree 出力の終端が不正")
@@ -1077,6 +1078,27 @@ def _batched_history_touches_path(
     if tuple(seen) != targets:
         raise MigrationError("receipt.git_error", "batch diff-tree 出力の件数が不一致")
     return touched
+
+
+def _descendant_history_touches_path(
+    graph: CommitGraph, descendants: frozenset[str], introduction: str,
+    path: str, root: Path, duplicate_oid: Optional[str] = None,
+) -> bool:
+    """descendant diff を通常辺と外部辺に分け、後者だけ copy を検出する。"""
+    targets = descendants - {introduction}
+    external_edge_commits = frozenset(
+        commit for commit in targets
+        if any(parent not in descendants for parent in graph.parents.get(commit, ()))
+    )
+    internal_commits = targets - external_edge_commits
+    internal_touched = _batched_history_touches_path(
+        internal_commits, path, root, duplicate_oid=duplicate_oid,
+    )
+    external_touched = _batched_history_touches_path(
+        external_edge_commits, path, root, duplicate_oid=duplicate_oid,
+        detect_copies=True,
+    )
+    return internal_touched or external_touched
 
 
 def _history_touches_path(
@@ -1973,9 +1995,9 @@ def inspect_receipt_history(
             _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
             issued_but_missing = True
             break
-    if _batched_history_touches_path(
-        (commit for commit in descendants if commit != introduction),
-        RECEIPT_REL, root, duplicate_oid=expected_oid,
+    if _descendant_history_touches_path(
+        graph, descendants, introduction, RECEIPT_REL, root,
+        duplicate_oid=expected_oid,
     ):
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
         issued_but_missing = True

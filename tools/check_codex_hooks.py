@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Mapping, NamedTuple, Sequence
+from typing import Any, Callable, Mapping, NamedTuple, Sequence
 
 
 REPO = Path(__file__).resolve().parent.parent
@@ -91,12 +91,17 @@ def validate_installation(root: Path) -> list[str]:
     """配線 drift を live 起動前に診断する。これ単独では green にならない。"""
     findings: list[str] = []
     config_path = root / ".codex" / "hooks.json"
-    wrapper = root / "hooks" / "codex_guard.sh"
+    hook_sources = (
+        root / "hooks" / "codex_guard.sh",
+        root / "hooks" / "guard_write.py",
+        root / "hooks" / "guard_bash.py",
+    )
     if not config_path.is_file() or config_path.is_symlink():
         findings.append(f"{config_path}: regular file ではない")
         return findings
-    if not wrapper.is_file() or wrapper.is_symlink():
-        findings.append(f"{wrapper}: regular file ではない")
+    for source in hook_sources:
+        if not source.is_file() or source.is_symlink():
+            findings.append(f"{source}: regular file ではない")
     try:
         document = json.loads(
             config_path.read_text(encoding="utf-8"),
@@ -161,32 +166,44 @@ def _version(path: Path) -> str:
 
 
 def build_codex_argv(codex: Path, cwd: Path, prompt: str) -> tuple[str, ...]:
-    """出荷 argv。trust/sandbox bypass は診断用にも混入させない。"""
+    """使い捨て probe 用 argv。exact 配線検証後の trust bypass は必須、sandbox bypass は禁止。"""
     return (
-        os.fspath(codex), "exec", "--json", "--ephemeral",
+        os.fspath(codex), "exec", TRUST_BYPASS_FLAG, "--json", "--ephemeral",
         "-s", "workspace-write", "-C", os.fspath(cwd), prompt,
     )
 
 
 def validate_production_argv(argv: Sequence[str], cwd: str) -> list[str]:
     findings: list[str] = []
-    for forbidden in (TRUST_BYPASS_FLAG, SANDBOX_BYPASS_FLAG):
-        if any(arg == forbidden or arg.startswith(forbidden + "=") for arg in argv):
-            findings.append(f"production argv に禁止 flag がある: {forbidden}")
+    option_argv = argv[:-1]
+    prompt = argv[-1] if argv else ""
+    trust_args = [
+        arg for arg in option_argv
+        if arg == TRUST_BYPASS_FLAG or arg.startswith(TRUST_BYPASS_FLAG + "=")
+    ]
+    if trust_args != [TRUST_BYPASS_FLAG]:
+        findings.append("probe argv の trust bypass が exact 1 件でない")
+    if any(
+        arg == SANDBOX_BYPASS_FLAG
+        or arg.startswith(SANDBOX_BYPASS_FLAG + "=")
+        for arg in option_argv
+    ) or SANDBOX_BYPASS_FLAG in prompt:
+        findings.append(f"probe argv に禁止 flag がある: {SANDBOX_BYPASS_FLAG}")
     if len(argv) < 2 or argv[1] != "exec":
-        findings.append("production argv が codex exec でない")
-    if "--json" not in argv or "--ephemeral" not in argv:
-        findings.append("production argv に --json/--ephemeral が揃っていない")
+        findings.append("probe argv が codex exec でない")
+    if "--json" not in option_argv or "--ephemeral" not in option_argv:
+        findings.append("probe argv に --json/--ephemeral が揃っていない")
     try:
-        sandbox_index = argv.index("-s")
-        cd_index = argv.index("-C")
+        sandbox_index = option_argv.index("-s")
+        cd_index = option_argv.index("-C")
     except ValueError:
-        findings.append("production argv に -s/-C が揃っていない")
+        findings.append("probe argv に -s/-C が揃っていない")
     else:
-        if sandbox_index + 1 >= len(argv) or argv[sandbox_index + 1] != "workspace-write":
-            findings.append("production argv が workspace-write でない")
-        if cd_index + 1 >= len(argv) or argv[cd_index + 1] != cwd:
-            findings.append("production argv の cwd が probe cwd と一致しない")
+        if (sandbox_index + 1 >= len(option_argv)
+                or option_argv[sandbox_index + 1] != "workspace-write"):
+            findings.append("probe argv が workspace-write でない")
+        if cd_index + 1 >= len(option_argv) or option_argv[cd_index + 1] != cwd:
+            findings.append("probe argv の cwd が probe cwd と一致しない")
     return findings
 
 
@@ -290,6 +307,20 @@ def _normal_shell_command(value: str) -> tuple[str, ...] | None:
         return None
 
 
+def _bash_command_matches(command: str, expected: str) -> bool:
+    expected_tokens = _normal_shell_command(expected)
+    tokens = _normal_shell_command(command)
+    if tokens == expected_tokens:
+        return True
+    return bool(
+        tokens is not None
+        and len(tokens) == 3
+        and tokens[0] == "/bin/bash"
+        and tokens[1] == "-lc"
+        and _normal_shell_command(tokens[2]) == expected_tokens
+    )
+
+
 def _started_attempt_id(
     event: Mapping[str, Any],
     expected: ProbeExpectation,
@@ -320,8 +351,7 @@ def _started_attempt_id(
         return None
     command = item.get("command")
     expected_command = _bash_probe_command(expected, protected=protected)
-    if (isinstance(command, str)
-            and _normal_shell_command(command) == _normal_shell_command(expected_command)):
+    if isinstance(command, str) and _bash_command_matches(command, expected_command):
         return item_id
     return None
 
@@ -340,27 +370,6 @@ def _started_tool_call_ids(events: Sequence[Mapping[str, Any]]) -> list[str]:
     return result
 
 
-def _protected_diagnostic(
-    events: Sequence[Mapping[str, Any]],
-    expected: ProbeExpectation,
-    protected_id: str,
-) -> str:
-    """path/nonce が exact な protected start と turn 完了の間だけを結合する。"""
-    start_index = next((
-        index for index, event in enumerate(events)
-        if _started_attempt_id(event, expected, protected=True) == protected_id
-    ), None)
-    if start_index is None:
-        return ""
-    completion_index = next((
-        index for index in range(start_index + 1, len(events))
-        if events[index].get("type") == "turn.completed"
-    ), None)
-    if completion_index is None:
-        return ""
-    return _diagnostic_text(events[start_index + 1:completion_index])
-
-
 def _completed_success(events: Sequence[Mapping[str, Any]], item_id: str) -> bool:
     for event in events:
         if event.get("type") != "item.completed":
@@ -372,34 +381,6 @@ def _completed_success(events: Sequence[Mapping[str, Any]], item_id: str) -> boo
             continue
         return True
     return False
-
-
-def _diagnostic_text(events: Sequence[Mapping[str, Any]]) -> str:
-    """agent final と tool command を除き、tool/error の結果文字列だけを集める。"""
-    chunks: list[str] = []
-    keys = frozenset({"aggregated_output", "error", "message", "output", "details"})
-
-    def visit(value: Any, key: str | None = None) -> None:
-        if isinstance(value, str):
-            if key in keys:
-                chunks.append(value)
-            return
-        if isinstance(value, list):
-            for child in value:
-                visit(child, key)
-            return
-        if not isinstance(value, dict):
-            return
-        if value.get("type") == "agent_message":
-            return
-        for child_key, child in value.items():
-            if child_key in {"command", "changes"}:
-                continue
-            visit(child, child_key)
-
-    for event in events:
-        visit(event)
-    return "\n".join(chunks)
 
 
 def evaluate_evidence(
@@ -421,7 +402,7 @@ def evaluate_evidence(
             findings.append(f"{tool}: expectation が無い")
             continue
         if argv is None:
-            findings.append(f"{tool}: production argv が無い")
+            findings.append(f"{tool}: probe argv が無い")
         else:
             findings.extend(
                 f"{tool}: {finding}"
@@ -451,13 +432,11 @@ def evaluate_evidence(
             findings.append(f"{tool}: allowed control の tool 試行が exact 1 件でない")
         elif not _completed_success(result.events, allowed_ids[0]):
             findings.append(f"{tool}: allowed control が成功完了していない")
-        if len(set(protected_ids)) != 1:
-            findings.append(f"{tool}: protected control の tool 試行が exact 1 件でない")
-        if allowed_ids and protected_ids and allowed_ids[0] == protected_ids[0]:
-            findings.append(f"{tool}: allowed/protected control が別 tool call でない")
-        expected_tool_ids = set(allowed_ids[:1] + protected_ids[:1])
+        if any(_completed_success(result.events, item_id) for item_id in set(protected_ids)):
+            findings.append(f"{tool}: protected control が成功完了した")
+        expected_tool_ids = set(allowed_ids[:1])
         started_tool_ids = _started_tool_call_ids(result.events)
-        if (len(started_tool_ids) != 2
+        if (len(started_tool_ids) != 1
                 or set(started_tool_ids) != expected_tool_ids):
             findings.append(f"{tool}: 予期しない tool call または exact command/path 差異がある")
 
@@ -466,13 +445,13 @@ def evaluate_evidence(
             findings.append(f"{tool}: allowed side effect の bytes が一致しない")
         if result.protected_exists:
             findings.append(f"{tool}: protected file が作成された")
-        diagnostic = (
-            _protected_diagnostic(result.events, expected, protected_ids[0])
-            if len(set(protected_ids)) == 1 else ""
-        )
-        if BLOCKED_MARKER not in diagnostic or HANDLER_MARKERS[tool] not in diagnostic:
-            findings.append(
-                f"{tool}: protected start 後・turn 完了前に handler 拒否証拠が無い")
+        if not (
+            result.stderr.count(BLOCKED_MARKER) == 1
+            and HANDLER_MARKERS[tool] in result.stderr
+            and expected.protected_marker in result.stderr
+            and expected.protected_rel in result.stderr
+        ):
+            findings.append(f"{tool}: stderr の protected 拒否証拠が整合しない")
     return findings
 
 
@@ -555,13 +534,24 @@ def _make_disposable_clone(source: Path, parent: Path) -> Path:
     return destination
 
 
-def check(root: Path, codex: Path, timeout: float) -> list[str]:
-    installation_findings = validate_installation(root)
+def check(
+    root: Path,
+    codex: Path,
+    timeout: float,
+    *,
+    clone_factory: Callable[[Path, Path], Path] = _make_disposable_clone,
+    probe_runner: Callable[..., ProbeResult] = run_probe,
+    validator: Callable[[Path], list[str]] = validate_installation,
+) -> list[str]:
+    installation_findings = validator(root)
     if installation_findings:
         return installation_findings
 
     with tempfile.TemporaryDirectory(prefix="izanagi-codex-hook-check-") as temp_name:
-        probe_repo = _make_disposable_clone(root, Path(temp_name))
+        probe_repo = clone_factory(root, Path(temp_name))
+        installation_findings = validator(probe_repo)
+        if installation_findings:
+            return installation_findings
         cwd = probe_repo / "sub" / "deeper"
         cwd.mkdir(parents=True)
         (
@@ -575,8 +565,17 @@ def check(root: Path, codex: Path, timeout: float) -> list[str]:
             tool: build_codex_argv(codex, cwd, _prompt(expectations[tool]))
             for tool in TOOLS
         }
+        argv_findings = [
+            f"{tool}: {finding}"
+            for tool in TOOLS
+            for finding in validate_production_argv(
+                argv_by_tool[tool], expectations[tool].cwd
+            )
+        ]
+        if argv_findings:
+            return argv_findings
         results = {
-            tool: run_probe(
+            tool: probe_runner(
                 tool,
                 argv_by_tool[tool],
                 expectations[tool],
