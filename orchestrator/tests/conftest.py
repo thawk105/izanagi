@@ -38,11 +38,40 @@ from typing import Callable, Iterable, Sequence
 
 import pytest
 
-from orchestrator.tests.growth_test_holds import (
-    GROWTH_TEST_HOLDS,
-    RUN_GROWTH_HELD_TESTS_ENV,
-    RUN_GROWTH_HELD_TESTS_TOKEN,
-)
+try:
+    from orchestrator.tests.growth_test_holds import (
+        GROWTH_TEST_HOLDS,
+        RUN_GROWTH_HELD_TESTS_ENV,
+        RUN_GROWTH_HELD_TESTS_TOKEN,
+    )
+except ModuleNotFoundError as exc:
+    # failure-digest の plain-import probe は repo root を sys.path へ足さずに
+    # この conftest だけを読む。pytest hook を使わないその経路では、保留機構の
+    # package import を遅延し、digest の fail-open 契約を保つ。
+    if exc.name != "orchestrator":
+        raise
+    GROWTH_TEST_HOLDS = None
+    RUN_GROWTH_HELD_TESTS_ENV = None
+    RUN_GROWTH_HELD_TESTS_TOKEN = None
+
+
+def _ensure_growth_test_holds_loaded() -> None:
+    """Load the hold contract before any pytest hook consumes it."""
+    global GROWTH_TEST_HOLDS
+    global RUN_GROWTH_HELD_TESTS_ENV
+    global RUN_GROWTH_HELD_TESTS_TOKEN
+
+    if GROWTH_TEST_HOLDS is not None:
+        return
+    from orchestrator.tests.growth_test_holds import (
+        GROWTH_TEST_HOLDS as holds,
+        RUN_GROWTH_HELD_TESTS_ENV as env_name,
+        RUN_GROWTH_HELD_TESTS_TOKEN as env_token,
+    )
+
+    GROWTH_TEST_HOLDS = holds
+    RUN_GROWTH_HELD_TESTS_ENV = env_name
+    RUN_GROWTH_HELD_TESTS_TOKEN = env_token
 
 
 @pytest.fixture
@@ -246,6 +275,9 @@ _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyarg
 
 
 def _growth_holds_opted_in() -> bool:
+    _ensure_growth_test_holds_loaded()
+    assert RUN_GROWTH_HELD_TESTS_ENV is not None
+    assert RUN_GROWTH_HELD_TESTS_TOKEN is not None
     value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)
     if value in (None, ""):
         return False

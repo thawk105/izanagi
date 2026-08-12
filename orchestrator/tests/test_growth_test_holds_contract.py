@@ -3,11 +3,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import orchestrator.tests.conftest as CONF
 from orchestrator.tests.growth_test_holds import (
@@ -299,3 +304,12 @@ def test_opt_in_changes_only_suite_identity_not_acceptance_shape(monkeypatch):
         RT._is_acceptance_run([]),
     )
     assert after == before
+
+
+def _run() -> int:
+    """Run fixture and parametrized nodes without a plain-runner false green."""
+    return int(pytest.main(["-q", str(Path(__file__).resolve())]))
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())
