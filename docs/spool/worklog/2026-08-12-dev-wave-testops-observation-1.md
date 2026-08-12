@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-12
 wave: dev-wave-testops-observation
 seq: 1
-title: TestOps 導入依頼は既存の task-run 台帳が契約どおり凍結された状態だと判明し実装しない裁定にした — 再開は D66 が予約したユーザー裁定事項 (docs のみ、実装差分ゼロ、branch worktree-dev-wave-testops-observation)
+title: TestOps 導入依頼は既存の task-run 台帳が契約どおり凍結された状態だと判明し実装しない裁定にした — 第 3 束裁定で Q1〜Q3 が確定し D316 が停止理由の赤を解消したので再開して land した (docs のみ、実装差分ゼロ、branch worktree-dev-wave-testops-observation)
 ---
 
 ## 本文
@@ -54,31 +54,34 @@ production 側は仕様どおりに動いている。D305 は D291 payload の t
 decision が増えるたびに再発する。**修正方針の択一 (pin を毎回更新するか、性質の表明に変えるか) は
 正しさゲートの厳しさに触れるため、本 wave では触らず所有 wave とユーザーへ返す。**
 
+**再開して land した (第 3 束裁定後).** ユーザー裁定 第 3 束で TestOps Q1〜Q3 = (a)(a)(a) が
+確定した — Q1 は有界の次世代 pilot として再開、Q2 は repo 外 (repo 兄弟) へ記録し改竄検出は
+主張しない、Q3 は被覆を `tools/run_tests.py` 経由のみとする。同裁定は本 wave を再開・land 可とした。
+停止理由だった main の赤はその後 D316 が解消していた — 当該 2 node を完全一致 pin から
+fail-closed な構造検査へ変えたためである。再開の precheck として main `6331284e` で
+`orchestrator/tests/test_t793_report.py` を単独実走し **9 passed (2.67 秒)** を実測し、
+blocker の消滅を確認してから worktree を復元した。したがって停止時に起票予定だった
+「D291 言及が増えるたび pin が壊れる」課題は、本 wave の land 時点では既に閉じており新規起票しない。
+
+`tools/check_wave_startup.py` は「HEAD == local main」の 1 項目だけ NG を返した。これは fresh
+worktree 生成用の条件であり、自 wave の commit を持つ branch を再開する場合は構造的に成立しない
+(同 checker の乖離報告自体は「local main との乖離なし (0 commit)」)。clean tree・operation 不在・
+submodule marker・外部 handoff の各項目はすべて緑。再開後の受入全走は本 fragment を含む tip で
+実走し、緑でなければ land しない。
+
 設計判断は {{D:testops-observation-frozen-pilot}}。
 
 ## 次の一手差分
 
 ### 新規
 
-- {{T:testops-observation-restart}} **P1・ユーザー裁定待ち**: テスト運用観測を再開するかを
-  3 点セットで裁定する。Q1 = 再開の可否と形 (有界の次世代 pilot / 無期限の常設計装 / 再開しない)、
-  Q2 = 記録先と改竄検出 anchor (repo 外の repo 兄弟 / repo 内 tracked / 両取り)、
-  Q3 = 被覆する実行経路の定義 (`tools/run_tests.py` 経由のみ / conftest 計装で全 pytest)。
-  親の推奨はいずれも第 1 案。選択肢の詳細と代償は
-  `output/insights/2026-08-12_testops-observation/verbatim/s4-ruling.md` §3。
-  裁定が (再開する) なら、同 insights が凍結した blocker 9 件と must-fix 11 件を閉じる plan v2 から
-  実装 wave を起こす。
-
-- {{T:d291-supersession-pin-breaks-main}} **P0・main が赤**: `docs/decisions.md` へ D291 に言及する
-  decision が増えるたびに `orchestrator/tests/test_t793_report.py` の 2 node が落ちる。
-  2026-08-12 の main `427da17c` で発火し、受入全走が 2 failed / 9123 passed になる。
-  **全 wave の受入が同じ場所で落ちるため優先度は最上位**。production
-  (`orchestrator/publication/report.py:75-80` の `_scan_d291_supersession`) は「後続 decision に
-  D291 が一度でも現れたら承認済みと断言しない」fail-closed 設計であり仕様どおりに動いている。
-  壊れているのは追記型台帳に完全一致を焼き付けたテスト側の期待値。修正は
-  (i) 新しい decision が入るたびに pin を更新する、(ii) 完全一致をやめて性質
-  (`status == possible_supersession` かつ D292 を含む) の表明にする、の択一で、
-  (ii) は検査の厳しさを下げる方向なので裁定を要する。所有は t793 系の wave。
+- {{T:testops-observation-restart}} **P1・新規**: 有界 pilot として task-run 観測を再開する実装
+  wave を起こす。第 3 束裁定で Q1〜Q3 = (a)(a)(a) が確定したので、裁定待ちではなく実装待ちである。
+  制約は 3 つ — 有界の次世代 pilot に限る (無期限の常設計装にしない)、記録先は repo 外の repo 兄弟で
+  改竄検出は主張しない、被覆は `tools/run_tests.py` 経由のみ (conftest 計装で全 pytest を覆わない)。
+  `output/insights/2026-08-12_testops-observation/` が凍結した blocker 9 件と must-fix 11 件を
+  閉じる plan v2 から起こす。規模は D205 / D220 の水準に触れうるので、着手前に見積りを実測で出す。
+  選択肢の詳細と代償は同 insights の `verbatim/s4-ruling.md` §3。
 
 - {{T:dev-wave-reference-budget-has-zero-headroom}} **P2・ユーザー裁定待ち**:
   `docs/dev-wave/**` の L1.5 unique footprint が予算 9566 bytes ちょうどで、余白が 1 byte も無い
