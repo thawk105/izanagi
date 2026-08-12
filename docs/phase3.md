@@ -611,6 +611,18 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-873] **authority への cxx version / cmake path / module_list / bytes hash 追加** — 理由: 裁定 2026-08-12 (同基準): 追加せず calibration の再発行も行わない。
 - [T-874] **束縛の producer 拡大** — 理由: 裁定 2026-08-12 (同基準): floor と silo ladder のまま他 producer へ広げない。
 
+- [T-899] pilot API の seam 注入産物への non-evidence 印 — 理由: 裁定 2026-08-12 (第 4 束、
+  推奨どおり見送り): pilot 産物は certified の受理集合に入らず (正規経路の検証を通らない
+  ことを実測済み)、W-2 は固定 CLI で seam を公開しない。防御的メタデータの新設は見送り側。
+  再訪条件 = seam 注入経路を使う pilot run の実走。
+- [T-903] 受入集合を強める 3 案 — 理由: 裁定 2026-08-12 (第 4 束、推奨どおり見送り):
+  実害・SURVIVED 未観測の型への受理集合変更はしない (「勝手に強めない」の維持)。
+  再訪条件 = 該当型の変異 SURVIVED または実害の観測。
+- [T-906] codex 防壁の防護範囲拡大 (launcher 以外の起動経路) — 理由: 裁定 2026-08-12
+  (第 4 束、推奨どおり scope 外宣言): read-only 固定経路と runtime blocked の死経路への
+  防護拡大は必要性未測定の堅牢化。再訪条件 = blocked 経路の解禁時または read-only 固定の
+  変更時に、防護を義務化して再訪する。
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
