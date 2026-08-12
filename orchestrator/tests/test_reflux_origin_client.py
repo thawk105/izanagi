@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import inspect
+import json
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -118,6 +120,16 @@ def _p6_result(
     input_state_commitment: str,
     decision: formal.AbortedOriginDecision,
 ) -> formal.P6Unavailable:
+    evidence_sha256s = ("3" * 64,)
+    evidence_root_sha256 = hashlib.sha256(
+        json.dumps(
+            list(evidence_sha256s),
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
     receipt = formal.FormalConsumerReceipt(
         operation_id=operation_id,
         authority_blob_sha256=capability.authority_blob_sha256,
@@ -126,8 +138,8 @@ def _p6_result(
         origin_id=capability.origin_id,
         input_state_commitment=input_state_commitment,
         origin_sealed_payload_sha256=decision.terminal_payload_sha256,
-        evidence_sha256s=(),
-        evidence_root_sha256="2" * 64,
+        evidence_sha256s=evidence_sha256s,
+        evidence_root_sha256=evidence_root_sha256,
         enforcement_arm="fixture-arm",
         generator_closure={},
         reason_code=formal.FormalReasonCode.P6_UNAVAILABLE,
@@ -412,6 +424,84 @@ def test_receipt_rejects_wrong_terminal_payload_digest(case: _Case) -> None:
             result=changed,
         )
     assert raised.value.reason_code is formal.FormalReceiptReason.PAYLOAD
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("formal_receipt_sha256", "0" * 64),
+        ("evidence_root_sha256", "f" * 64),
+    ],
+)
+def test_client_rederives_projection_evidence_references(
+    case: _Case, field: str, value: str
+) -> None:
+    snapshot = case.client.read_origin(case.capability)
+    result = _p6_result(
+        case.capability,
+        operation_id=f"wrong-projection-{field}",
+        input_state_commitment=snapshot.state_commitment,
+        decision=_decision(),
+    )
+    changed = dataclasses.replace(
+        result,
+        projection=dataclasses.replace(result.projection, **{field: value}),
+    )
+    with pytest.raises(
+        client_module.OriginLedgerClientError, match="inspected evidence"
+    ):
+        case.client.commit_formal_result(
+            case.capability,
+            operation_id=result.receipt.operation_id,
+            expected_state_commitment=snapshot.state_commitment,
+            result=changed,
+        )
+
+
+def test_client_rederives_receipt_evidence_root_from_digest_list(
+    case: _Case,
+) -> None:
+    snapshot = case.client.read_origin(case.capability)
+    result = _p6_result(
+        case.capability,
+        operation_id="wrong-receipt-evidence-root",
+        input_state_commitment=snapshot.state_commitment,
+        decision=_decision(),
+    )
+    original = result.receipt
+    receipt = formal.FormalConsumerReceipt(
+        operation_id=original.operation_id,
+        authority_blob_sha256=original.authority_blob_sha256,
+        source_closure_sha256=original.source_closure_sha256,
+        run_plan_sha256=original.run_plan_sha256,
+        origin_id=original.origin_id,
+        input_state_commitment=original.input_state_commitment,
+        origin_sealed_payload_sha256=original.origin_sealed_payload_sha256,
+        evidence_sha256s=original.evidence_sha256s,
+        evidence_root_sha256="f" * 64,
+        enforcement_arm=original.enforcement_arm,
+        generator_closure=original.generator_closure,
+        reason_code=original.reason_code,
+        _issuer=formal._RECEIPT_CONSTRUCTOR,
+    )
+    formal._ISSUED_RECEIPTS[receipt._seal] = formal.canonical_json_bytes(
+        formal.formal_consumer_receipt_record(receipt)
+    )
+    projection = dataclasses.replace(
+        result.projection,
+        formal_receipt_sha256=formal.formal_consumer_receipt_sha256(receipt),
+        evidence_root_sha256=receipt.evidence_root_sha256,
+    )
+    changed = dataclasses.replace(result, receipt=receipt, projection=projection)
+    with pytest.raises(
+        client_module.OriginLedgerClientError, match="inspected evidence"
+    ):
+        case.client.commit_formal_result(
+            case.capability,
+            operation_id=receipt.operation_id,
+            expected_state_commitment=snapshot.state_commitment,
+            result=changed,
+        )
 
 
 def test_formal_receipt_exact_replay_matches_ledger_replay(case: _Case) -> None:

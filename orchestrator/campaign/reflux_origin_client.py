@@ -14,6 +14,7 @@ operational assumption that callers do not invoke the ledger's private seams.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from types import MappingProxyType
@@ -21,6 +22,7 @@ from typing import Literal
 
 from . import reflux_origin_binding as binding
 from . import reflux_origin_ledger as ledger
+from .reflux_origin_artifacts import canonical_json_bytes
 
 
 __all__ = [
@@ -229,6 +231,19 @@ class OriginLedgerClient:
             or receipt.origin_id != value.origin_id
         ):
             _reject("formal receipt differs from the capability binding")
+        if receipt is not None:
+            formal_receipt_sha256 = formal.formal_consumer_receipt_sha256(receipt)
+            evidence_root_sha256 = hashlib.sha256(
+                canonical_json_bytes(list(receipt.evidence_sha256s))
+            ).hexdigest()
+            if (
+                receipt.evidence_root_sha256 != evidence_root_sha256
+                or result.projection.formal_receipt_sha256
+                != formal_receipt_sha256
+                or result.projection.evidence_root_sha256
+                != evidence_root_sha256
+            ):
+                _reject("formal result projection differs from inspected evidence")
         with ledger._locked(derived) as authority:
             _revalidate_current_authority(value, derived, authority)
             decision = (

@@ -39,6 +39,7 @@ from .reflux_origin_binding import (
     OriginBindingCapability,
     OriginBindingError,
     assert_issued_origin_binding_capability,
+    origin_binding_capability_record,
 )
 from .reflux_origin_topology import (
     RecoveryEnvelope,
@@ -553,6 +554,13 @@ def _validate_bindings(
         FormalReasonCode.FC03,
         run_plan.source_closure_sha256 == capability.source_closure_sha256,
     )
+    capability_sha256 = hashlib.sha256(
+        canonical_json_bytes(origin_binding_capability_record(capability))
+    ).hexdigest()
+    _require(
+        FormalReasonCode.FC03,
+        run_plan.origin_binding_capability_sha256 == capability_sha256,
+    )
     _require(
         FormalReasonCode.FC03,
         manifest.workload["descriptor_sha256"]
@@ -656,6 +664,46 @@ def _resolved_records(
     except ResultEvidenceError as exc:
         raise _ContractFailure(FormalReasonCode.FC05B) from exc
     return resolved
+
+
+def _validate_execution_provenance_bindings(
+    capability: OriginBindingCapability,
+    paired: Sequence[_MemberRecord],
+    resolved: Sequence[ResolvedResultEvidence],
+) -> None:
+    for item, resolved_item in zip(paired, resolved, strict=True):
+        record = item.record
+        provenance = resolved_item.execution_provenance
+        origin = record["origin_binding"]
+        trial = record["trial_binding"]
+        physical = record["physical_result"]
+        _require(
+            FormalReasonCode.FC03,
+            provenance["build_attempt_id"] == physical["build_attempt_id"],
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["campaign_id"]
+            == trial["campaign_id"]
+            == capability.campaign_id,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["workload"]
+            == origin["workload"]
+            == trial["workload"]
+            == capability.trial_workload,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["contract_sha256"]
+            == origin["environment_contract_sha256"]
+            == capability.environment_contract_sha256,
+        )
+        _require(
+            FormalReasonCode.FC03,
+            provenance["trigger_binding"] == record["trigger_binding"],
+        )
 
 
 def _wal_trigger(records: Sequence[dict]) -> object:
@@ -918,6 +966,7 @@ def evaluate_formal_origin(
         _validate_exact_rejected_classes(paired)
         _validate_member_mapping(paired)
         resolved = _resolved_records(paired, evidence_root=Path(evidence_root))
+        _validate_execution_provenance_bindings(capability, paired, resolved)
         _validate_bijection(paired, resolved)
         _validate_topology(paired, run_plan)
         ordered_verifiers = _verifier_policy(

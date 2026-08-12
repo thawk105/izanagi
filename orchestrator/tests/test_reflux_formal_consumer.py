@@ -5,7 +5,6 @@ import ast
 import copy
 import dataclasses
 import hashlib
-import inspect
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +17,22 @@ from orchestrator.campaign import reflux_origin_ledger as L
 from orchestrator.campaign import reflux_origin_topology as T
 from orchestrator.campaign import reflux_source_closure as S
 from orchestrator.tests import reflux_origin_fixture_builder as F
+
+
+WAVE_PRODUCTION_FILES = (
+    "reflux_origin_artifacts.py",
+    "reflux_source_closure.py",
+    "reflux_result_evidence.py",
+    "reflux_origin_topology.py",
+    "reflux_origin_binding.py",
+    "reflux_formal_consumer.py",
+    "reflux_origin_client.py",
+    "trial_registry.py",
+    "autonomous_trial_completeness.py",
+    "p3_autonomous_workload_trial.py",
+    "wal.py",
+    "s8b_descriptor.py",
+)
 
 
 def _canonical(value: object) -> bytes:
@@ -78,7 +93,30 @@ def _issued_closure() -> S.ValidatedSourceClosure:
     )
 
 
-def _run_plan() -> T.RecoveryEnvelope:
+def _capability_digest(capability: B.OriginBindingCapability) -> str:
+    record = {
+        "authority_blob_sha256": capability.authority_blob_sha256,
+        "source_closure_sha256": capability.source_closure_sha256,
+        "origin_id": capability.origin_id,
+        "cell_key": capability.cell_key,
+        "authority_workload": {
+            "descriptor_sha256": capability.authority_workload.descriptor_sha256,
+            "records": capability.authority_workload.records,
+            "threads": capability.authority_workload.threads,
+        },
+        "axis_semantics_sha256": capability.axis_semantics_sha256,
+        "verifier_policy_sha256": capability.verifier_policy_sha256,
+        "environment_contract_sha256": capability.environment_contract_sha256,
+        "campaign_id": capability.campaign_id,
+        "trial_workload": capability.trial_workload,
+        "measurement_head": capability.measurement_head,
+        "store_scope": capability.store_scope,
+        "issuer_seal": "launch-admission-gate/v1",
+    }
+    return _digest(_canonical(record))
+
+
+def _run_plan(capability: B.OriginBindingCapability) -> T.RecoveryEnvelope:
     raw = F.build_recovery_envelope_inputs()
     operations = T.EventOperationIds(**raw["event_operation_ids"])
     materials = tuple(
@@ -92,7 +130,7 @@ def _run_plan() -> T.RecoveryEnvelope:
         for index, item in enumerate(raw["members"])
     )
     return T.build_recovery_envelope(
-        capability_digest=raw["origin_binding_capability_sha256"],
+        capability_digest=_capability_digest(capability),
         source_closure_digest=raw["source_closure_sha256"],
         hypothesis_sha256=raw["hypothesis_sha256"],
         validation_plan_sha256=raw["validation_plan_sha256"],
@@ -201,11 +239,12 @@ def case(tmp_path: Path) -> _Case:
         reserved_member_row_count=None,
         reserved_query_ordinal_start=None,
     )
+    capability = _issued_capability()
     return _Case(
         fixture=fixture,
-        capability=_issued_capability(),
+        capability=capability,
         closure=_issued_closure(),
-        run_plan=_run_plan(),
+        run_plan=_run_plan(capability),
         records=records,
         raw_records=raw_records,
         batches=(batch,),
@@ -255,6 +294,18 @@ def _rewrite_wal(case: _Case, index: int, records: list[dict], *, attempt: str |
     projection_path.write_bytes(projection_raw)
     record["physical_result"]["build_attempt_id"] = selected_attempt
     record["evidence"]["ordered_wal_ref"]["sha256"] = _digest(projection_raw)
+    _set_record(case, index, record)
+
+
+def _rewrite_provenance(case: _Case, index: int, provenance: dict) -> None:
+    record = copy.deepcopy(case.records[index])
+    provenance_path = (
+        case.fixture.evidence_root
+        / record["evidence"]["execution_provenance_ref"]["path"]
+    )
+    raw = _canonical(provenance)
+    provenance_path.write_bytes(raw)
+    record["evidence"]["execution_provenance_ref"]["sha256"] = _digest(raw)
     _set_record(case, index, record)
 
 
@@ -328,6 +379,7 @@ def test_fc02_rejects_record_for_tombstone_member(case: _Case) -> None:
         ("cell", ("origin_binding", "cell_key")),
         ("authority", ("origin_binding", "authority_blob_sha256")),
         ("campaign", ("trial_binding", "campaign_id")),
+        ("origin-workload", ("origin_binding", "workload")),
         ("workload", ("trial_binding", "workload")),
         ("axis", ("origin_binding", "axis_semantics_sha256")),
         ("verifier", ("origin_binding", "verifier_policy_sha256")),
@@ -355,6 +407,64 @@ def test_fc03_rejects_launch_admission_conjunct(case: _Case) -> None:
         C.FormalReasonCode.FC03,
         launch_admission_record_sha256="e" * 64,
     )
+
+
+def test_fc03_rejects_run_plan_capability_digest_mismatch(case: _Case) -> None:
+    changed = dataclasses.replace(
+        case.run_plan, origin_binding_capability_sha256="e" * 64
+    )
+    _assert_reason(case, C.FormalReasonCode.FC03, run_plan=changed)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("build_attempt_id", "wrong-build-attempt"),
+        ("campaign_id", "wrong-campaign"),
+        ("workload", "wrong-workload"),
+        ("contract_sha256", "e" * 64),
+    ],
+)
+def test_fc03_rejects_each_execution_provenance_binding(
+    case: _Case, field: str, value: str
+) -> None:
+    path = (
+        case.fixture.evidence_root
+        / case.records[0]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(path.read_bytes())
+    provenance[field] = value
+    _rewrite_provenance(case, 0, provenance)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc03_rejects_execution_provenance_trigger_binding_mismatch(
+    case: _Case,
+) -> None:
+    path = (
+        case.fixture.evidence_root
+        / case.records[0]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(path.read_bytes())
+    provenance["trigger_binding"]["mask"] = 31
+    _rewrite_provenance(case, 0, provenance)
+    _assert_reason(case, C.FormalReasonCode.FC03)
+
+
+def test_fc05b_rejects_execution_provenance_without_receipt(case: _Case) -> None:
+    path = (
+        case.fixture.evidence_root
+        / case.records[0]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(path.read_bytes())
+    provenance.pop("execution_receipt_sha256")
+    _rewrite_provenance(case, 0, provenance)
+    _assert_reason(case, C.FormalReasonCode.FC05B)
+
+
+def test_fc05b_rejects_empty_execution_provenance(case: _Case) -> None:
+    _rewrite_provenance(case, 0, {})
+    _assert_reason(case, C.FormalReasonCode.FC05B)
 
 
 @pytest.mark.parametrize(
@@ -394,6 +504,13 @@ def test_fc05a_rejects_duplicate_build_attempt_id(case: _Case) -> None:
         .read_bytes()
     )["records"])
     _rewrite_wal(case, 1, wal, attempt=duplicate)
+    provenance_path = (
+        case.fixture.evidence_root
+        / case.records[1]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["build_attempt_id"] = duplicate
+    _rewrite_provenance(case, 1, provenance)
     _assert_reason(case, C.FormalReasonCode.FC05A)
 
 
@@ -437,6 +554,13 @@ def test_fc06_rejects_validation_mask_set_mismatch(case: _Case) -> None:
     wal = copy.deepcopy(json.loads(projection_path.read_bytes())["records"])
     wal[0]["trigger_binding"] = copy.deepcopy(record["trigger_binding"])
     _rewrite_wal(case, 1, wal)
+    provenance_path = (
+        case.fixture.evidence_root
+        / case.records[1]["evidence"]["execution_provenance_ref"]["path"]
+    )
+    provenance = json.loads(provenance_path.read_bytes())
+    provenance["trigger_binding"] = copy.deepcopy(record["trigger_binding"])
+    _rewrite_provenance(case, 1, provenance)
     _assert_reason(case, C.FormalReasonCode.FC06)
 
 
@@ -616,21 +740,28 @@ def test_receipt_exact_operation_replay_returns_cached_decision(case: _Case) -> 
 
 
 def test_receipt_same_operation_different_payload_is_rejected(case: _Case) -> None:
-    result = _evaluate(case)
-    assert type(result) is C.P6Unavailable
+    first_result = _evaluate(case)
+    second_snapshot = dataclasses.replace(case.snapshot, forfeited_queries=1)
+    second_result = _evaluate(case, origin_snapshot=second_snapshot)
+    assert type(first_result) is C.P6Unavailable
+    assert type(second_result) is C.P6Unavailable
+    assert first_result.receipt.operation_id == second_result.receipt.operation_id
+    assert (
+        first_result.receipt.origin_sealed_payload_sha256
+        != second_result.receipt.origin_sealed_payload_sha256
+    )
     C.consume_formal_consumer_receipt(
-        result.receipt,
+        first_result.receipt,
         operation_id=case.operation_id,
         input_state_commitment=case.snapshot.state_commitment,
-        decision=result.decision,
+        decision=first_result.decision,
     )
-    changed = dataclasses.replace(result.decision, sealed_queries=32)
     with pytest.raises(C.FormalReceiptError) as caught:
         C.consume_formal_consumer_receipt(
-            result.receipt,
+            second_result.receipt,
             operation_id=case.operation_id,
-            input_state_commitment=case.snapshot.state_commitment,
-            decision=changed,
+            input_state_commitment=second_snapshot.state_commitment,
+            decision=second_result.decision,
         )
     assert caught.value.reason_code is C.FormalReceiptReason.REPLAY
 
@@ -658,22 +789,33 @@ def test_terminal_projection_is_one_nested_key_with_closed_reason(case: _Case) -
 
 
 def test_consumer_source_has_no_nonaborted_construction_or_success_variant() -> None:
-    source = inspect.getsource(C)
-    tree = ast.parse(source)
-    assert "aborted=False" not in source
-    assert not any(
-        isinstance(node, ast.Call)
-        and any(
-            keyword.arg == "aborted"
-            and isinstance(keyword.value, ast.Constant)
-            and keyword.value.value is False
-            for keyword in node.keywords
+    assert len(WAVE_PRODUCTION_FILES) == 12
+    campaign_root = Path(C.__file__).resolve().parent
+    sources = {
+        name: (campaign_root / name).read_text(encoding="utf-8")
+        for name in WAVE_PRODUCTION_FILES
+    }
+    assert all((campaign_root / name).is_file() for name in WAVE_PRODUCTION_FILES)
+    for name, source in sources.items():
+        tree = ast.parse(source, filename=name)
+        assert not any(
+            isinstance(node, ast.Call)
+            and any(
+                keyword.arg == "aborted"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is False
+                for keyword in node.keywords
+            )
+            for node in ast.walk(tree)
         )
-        for node in ast.walk(tree)
+
+    consumer_tree = ast.parse(
+        sources["reflux_formal_consumer.py"],
+        filename="reflux_formal_consumer.py",
     )
     definitions = {
         node.name
-        for node in ast.walk(tree)
+        for node in ast.walk(consumer_tree)
         if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
     }
     assert "P6Derived" not in definitions

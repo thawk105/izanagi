@@ -71,6 +71,13 @@ def _rewrite_projection(root: Path, record: dict, projection: dict) -> None:
     record["evidence"]["ordered_wal_ref"]["sha256"] = _sha(raw)
 
 
+def _rewrite_provenance(root: Path, record: dict, provenance: dict) -> None:
+    raw = _independent_canonical(provenance)
+    path = root / record["evidence"]["execution_provenance_ref"]["path"]
+    path.write_bytes(raw)
+    record["evidence"]["execution_provenance_ref"]["sha256"] = _sha(raw)
+
+
 def test_exact_nine_key_schema_and_nested_cardinalities():
     record = build_result_evidence_record()
     assert set(record) == {
@@ -179,6 +186,25 @@ def test_content_addressed_resolver_rejects_sha256_mismatch(tmp_path):
     record = _resolution_tree(tmp_path)
     record["evidence"]["ordered_wal_ref"]["sha256"] = "0" * 64
     with pytest.raises(evidence.ResultEvidenceError, match="sha256 mismatch"):
+        evidence.resolve_result_evidence(record, evidence_root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "provenance",
+    [
+        {},
+        build_execution_provenance(execution_receipt_sha256=None),
+        build_execution_provenance(trigger_binding={}),
+        build_execution_provenance(schema_version="execution-provenance/v2"),
+    ],
+    ids=["empty", "missing-receipt", "missing-trigger", "wrong-version"],
+)
+def test_execution_provenance_is_closed_and_nonempty(tmp_path, provenance):
+    record = _resolution_tree(tmp_path)
+    if provenance.get("execution_receipt_sha256") is None:
+        provenance.pop("execution_receipt_sha256", None)
+    _rewrite_provenance(tmp_path, record, provenance)
+    with pytest.raises(evidence.ResultEvidenceError, match="execution provenance"):
         evidence.resolve_result_evidence(record, evidence_root=tmp_path)
 
 

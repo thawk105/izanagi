@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import base64
 import contextlib
 import dataclasses
 import gc
@@ -4628,7 +4629,11 @@ def _canonical_origin_test_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
-def _origin_recovery_envelope():
+def _origin_recovery_envelope(
+    *,
+    capability=None,
+    initial_expected_state_commitment: str | None = None,
+):
     raw = origin_fixtures.build_recovery_envelope_inputs()
     materials = tuple(
         reflux_origin_topology.MemberRecoveryMaterial(
@@ -4641,8 +4646,18 @@ def _origin_recovery_envelope():
         for index, item in enumerate(raw["members"])
     )
     return reflux_origin_topology.build_recovery_envelope(
-        capability_digest=raw["origin_binding_capability_sha256"],
-        source_closure_digest=raw["source_closure_sha256"],
+        capability_digest=(
+            raw["origin_binding_capability_sha256"]
+            if capability is None
+            else hashlib.sha256(_canonical_origin_test_bytes(
+                A.reflux_origin_binding.origin_binding_capability_record(capability)
+            )).hexdigest()
+        ),
+        source_closure_digest=(
+            raw["source_closure_sha256"]
+            if capability is None
+            else capability.source_closure_sha256
+        ),
         hypothesis_sha256=raw["hypothesis_sha256"],
         validation_plan_sha256=raw["validation_plan_sha256"],
         attempt_0_batch_id=raw["reserve_attempts"][0]["batch_id"],
@@ -4652,8 +4667,189 @@ def _origin_recovery_envelope():
         ),
         source_mask=7,
         member_materials=materials,
-        initial_expected_state_commitment=raw["expected_state_commitment"],
+        initial_expected_state_commitment=(
+            raw["expected_state_commitment"]
+            if initial_expected_state_commitment is None
+            else initial_expected_state_commitment
+        ),
     )
+
+
+def _origin_salted_commitment(salt: str, value: bytes) -> str:
+    return hashlib.sha256(bytes.fromhex(salt) + value).hexdigest()
+
+
+def _origin_candidate_commitment_bytes(
+    candidate: bytes, query_ordinal: int, replicate_ordinal: int,
+) -> bytes:
+    return b"izanagi-reflux-origin-batch-member/v1\0" + _canonical_origin_test_bytes({
+        "candidate_wire_b64": base64.b64encode(candidate).decode("ascii"),
+        "query_ordinal": query_ordinal,
+        "replicate_ordinal": replicate_ordinal,
+    })
+
+
+def _origin_result_commitment_bytes(outcome: str, evidence_sha256: str) -> bytes:
+    return b"izanagi-reflux-origin-result-evidence/v1\0" + (
+        _canonical_origin_test_bytes({
+            "evidence_sha256": evidence_sha256,
+            "outcome": outcome,
+        })
+    )
+
+
+def _align_origin_result_records(
+    frozen,
+    capability,
+    *,
+    launch_admission_record_sha256: str,
+) -> tuple[bytes, ...]:
+    aligned = []
+    for path in frozen.result_evidence_paths:
+        record = json.loads(path.read_bytes())
+        record["origin_binding"] = {
+            "authority_blob_sha256": capability.authority_blob_sha256,
+            "source_closure_sha256": capability.source_closure_sha256,
+            "origin_id": capability.origin_id,
+            "cell_key": capability.cell_key,
+            "workload": capability.trial_workload,
+            "axis_semantics_sha256": capability.axis_semantics_sha256,
+            "verifier_policy_sha256": capability.verifier_policy_sha256,
+            "environment_contract_sha256": capability.environment_contract_sha256,
+        }
+        record["trial_binding"] = {
+            "launch_admission_record_sha256": launch_admission_record_sha256,
+            "campaign_id": capability.campaign_id,
+            "workload": capability.trial_workload,
+        }
+        provenance_ref = record["evidence"]["execution_provenance_ref"]
+        provenance_path = frozen.evidence_root / provenance_ref["path"]
+        provenance = json.loads(provenance_path.read_bytes())
+        provenance.update({
+            "campaign_id": capability.campaign_id,
+            "workload": capability.trial_workload,
+            "contract_sha256": capability.environment_contract_sha256,
+        })
+        provenance_bytes = _canonical_origin_test_bytes(provenance)
+        provenance_path.write_bytes(provenance_bytes)
+        provenance_ref["sha256"] = hashlib.sha256(provenance_bytes).hexdigest()
+        raw = _canonical_origin_test_bytes(record)
+        path.write_bytes(raw)
+        aligned.append(raw)
+    return tuple(aligned)
+
+
+def _seal_origin_fixture_ledger(
+    client,
+    capability,
+    run_plan,
+    result_record_bytes: tuple[bytes, ...],
+) -> None:
+    records = {
+        record["ledger_member"]["query_ordinal"]: (record, raw)
+        for raw in result_record_bytes
+        for record in (json.loads(raw),)
+    }
+    assert tuple(sorted(records)) == tuple(range(33))
+    candidate_commitments = []
+    result_commitments = []
+    constraint_commitments = []
+    opened = []
+    for member in run_plan.members:
+        record, raw = records[member.query_ordinal]
+        candidate_bytes = member.candidate_wire.encode("ascii")
+        evidence_sha256 = hashlib.sha256(raw).hexdigest()
+        physical = record["physical_result"]
+        candidate_commitment = _origin_salted_commitment(
+            member.candidate_salt,
+            _origin_candidate_commitment_bytes(
+                candidate_bytes,
+                member.query_ordinal,
+                member.replicate_ordinal,
+            ),
+        )
+        result_commitment = _origin_salted_commitment(
+            member.result_evidence_salt,
+            _origin_result_commitment_bytes(
+                physical["outcome"], evidence_sha256
+            ),
+        )
+        constraint_sha256 = physical["constraint_sha256"]
+        constraint_commitment = _origin_salted_commitment(
+            member.constraint_salt,
+            constraint_sha256.encode("ascii"),
+        )
+        candidate_commitments.append(candidate_commitment)
+        result_commitments.append(result_commitment)
+        constraint_commitments.append(constraint_commitment)
+        opened.append(reflux_origin_ledger.OpenedBatchMember(
+            query_ordinal=member.query_ordinal,
+            replicate_ordinal=member.replicate_ordinal,
+            candidate_salt=member.candidate_salt,
+            candidate_bytes=candidate_bytes,
+            result_evidence_salt=member.result_evidence_salt,
+            outcome=physical["outcome"],
+            evidence_digest=reflux_origin_ledger.EvidenceDigest(evidence_sha256),
+            constraint_salt=member.constraint_salt,
+            constraint_sha256=constraint_sha256,
+        ))
+
+    attempt = run_plan.reserve_attempts[0]
+    snapshot = client.read_origin(capability)
+    receipt = client.reserve_batch(
+        capability,
+        operation_id=run_plan.event_operation_ids.reserve_attempt_0,
+        expected_state_commitment=snapshot.state_commitment,
+        reservation=reflux_origin_ledger.BatchReserved(
+            batch_id=attempt.batch_id,
+            iteration_index=attempt.iteration_index,
+            member_row_count=33,
+            query_ordinal_start=attempt.query_ordinal_start,
+        ),
+    )
+    receipt = client.commit_event(
+        capability,
+        operation_id=run_plan.event_operation_ids.batch_commit,
+        expected_state_commitment=receipt.current_state_commitment,
+        event=reflux_origin_ledger.BatchCommitted(
+            batch_id=attempt.batch_id,
+            iteration_index=attempt.iteration_index,
+            members=tuple(
+                reflux_origin_ledger.CommittedBatchMember(index, commitment)
+                for index, commitment in enumerate(candidate_commitments)
+            ),
+        ),
+    )
+    receipt = client.commit_event(
+        capability,
+        operation_id=run_plan.event_operation_ids.results_prepare,
+        expected_state_commitment=receipt.current_state_commitment,
+        event=reflux_origin_ledger.BatchResultsPrepared(
+            batch_id=attempt.batch_id,
+            members=tuple(
+                reflux_origin_ledger.PreparedBatchMember(
+                    index,
+                    candidate_commitments[index],
+                    result_commitments[index],
+                    constraint_commitments[index],
+                )
+                for index in range(33)
+            ),
+        ),
+    )
+    client.commit_event(
+        capability,
+        operation_id=run_plan.event_operation_ids.results_open,
+        expected_state_commitment=receipt.current_state_commitment,
+        event=reflux_origin_ledger.BatchSealed(
+            batch_id=attempt.batch_id,
+            members=tuple(opened),
+        ),
+    )
+    sealed = client.read_origin(capability)
+    assert sealed.phase == "IDLE"
+    assert sealed.sealed_queries == 33
+    assert len(client.read_sealed_batches(capability)) == 1
 
 
 def _origin_public_inputs(tmp_path, monkeypatch, registered):
@@ -4771,7 +4967,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         source_closure_bytes=source_bytes,
         provisioning_receipt=provisioning_receipt,
     )
-    producer = A.OriginProducerInputs(
+    provisional_producer = A.OriginProducerInputs(
         run_plan=_origin_recovery_envelope(),
         result_record_bytes=tuple(
             path.read_bytes() for path in frozen.result_evidence_paths
@@ -4786,6 +4982,49 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
             "generator_sha256": "a" * 64,
         },
         terminal_operation_id="public-origin-terminal",
+    )
+    fresh_admission = A._trial_launch_admission(
+        trial_manifest=registered.manifest_path,
+        trial_id=registered.trial_id,
+        workloads=["rr80"],
+        generations=1,
+        allow_unregistered_exploratory=False,
+        effective_preregistration=registered.capability,
+    )
+    preliminary_runtime = A._prepare_origin_trial_runtime(
+        admission=fresh_admission,
+        request=request,
+        producer_inputs=provisional_producer,
+        trial_id=registered.trial_id,
+        selected=["rr80"],
+        generations=1,
+        trial_manifest=registered.manifest_path,
+        effective_preregistration=registered.capability,
+        build_context=_no_build_context(),
+    )
+    result_record_bytes = _align_origin_result_records(
+        frozen,
+        preliminary_runtime.capability,
+        launch_admission_record_sha256=(
+            preliminary_runtime.launch_admission_record_sha256
+        ),
+    )
+    run_plan = _origin_recovery_envelope(
+        capability=preliminary_runtime.capability,
+        initial_expected_state_commitment=(
+            preliminary_runtime.initial_snapshot.state_commitment
+        ),
+    )
+    _seal_origin_fixture_ledger(
+        client,
+        preliminary_runtime.capability,
+        run_plan,
+        result_record_bytes,
+    )
+    producer = dataclasses.replace(
+        provisional_producer,
+        run_plan=run_plan,
+        result_record_bytes=result_record_bytes,
     )
     return request, producer
 
@@ -4873,6 +5112,12 @@ def test_origin_public_path_preserves_capability_identity_and_projects_terminal(
     )
     report = outcome.report
     assert "origin_terminal_projection" in report
+    projection = report["origin_terminal_projection"]
+    assert projection["reason_code"] == "P6Unavailable"
+    assert projection["reason_code"] != "FC01"
+    assert projection["formal_receipt_sha256"] is not None
+    assert projection["evidence_root_sha256"] is not None
+    assert request.client.read_origin(issued[0]).terminal_status == "aborted"
     lifecycle_rows = [
         json.loads(line)
         for line in (

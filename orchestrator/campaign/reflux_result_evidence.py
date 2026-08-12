@@ -121,6 +121,15 @@ _ORDERED_WAL_KEYS = frozenset({
     "build_attempt_id",
     "records",
 })
+_EXECUTION_PROVENANCE_KEYS = frozenset({
+    "schema_version",
+    "build_attempt_id",
+    "campaign_id",
+    "workload",
+    "contract_sha256",
+    "trigger_binding",
+    "execution_receipt_sha256",
+})
 
 
 class ResultEvidenceError(ValueError):
@@ -539,6 +548,49 @@ def _parse_canonical_object(raw_bytes: bytes, *, label: str) -> dict:
     return value
 
 
+def _validate_execution_provenance(value: object) -> dict:
+    provenance = _exact_object(
+        value, _EXECUTION_PROVENANCE_KEYS, label="execution provenance"
+    )
+    if provenance["schema_version"] != "execution-provenance/v1":
+        _fail("unsupported execution provenance schema_version")
+    for name in ("build_attempt_id", "campaign_id", "workload"):
+        _text(provenance[name], label=f"execution provenance.{name}")
+    _sha256(
+        provenance["contract_sha256"],
+        label="execution provenance.contract_sha256",
+    )
+    trigger = _exact_object(
+        provenance["trigger_binding"],
+        _TRIGGER_BINDING_KEYS,
+        label="execution provenance.trigger_binding",
+    )
+    mask = trigger["mask"]
+    if type(mask) is not int or not 0 <= mask < 32:
+        _fail(
+            "execution provenance.trigger_binding.mask must be an integer in [0, 31]"
+        )
+    wire = _text(
+        trigger["candidate_wire"],
+        label="execution provenance.trigger_binding.candidate_wire",
+    )
+    try:
+        wire.encode("ascii")
+    except UnicodeError as exc:
+        raise ResultEvidenceError(
+            "execution provenance.trigger_binding.candidate_wire must be ASCII"
+        ) from exc
+    _sha256(
+        trigger["trigger_gate_binding_commitment"],
+        label="execution provenance.trigger_binding.trigger_gate_binding_commitment",
+    )
+    _sha256(
+        provenance["execution_receipt_sha256"],
+        label="execution provenance.execution_receipt_sha256",
+    )
+    return json.loads(canonical_json_bytes(provenance).decode("utf-8"))
+
+
 def _projection_attempt_id(record: dict) -> object:
     if "build_attempt_id" in record:
         return record["build_attempt_id"]
@@ -638,8 +690,10 @@ def resolve_result_evidence(
         evidence_root=evidence_root,
         reference=evidence["execution_provenance_ref"],
     )
-    provenance = _parse_canonical_object(
-        provenance_ref.raw_bytes, label="execution provenance"
+    provenance = _validate_execution_provenance(
+        _parse_canonical_object(
+            provenance_ref.raw_bytes, label="execution provenance"
+        )
     )
     return ResolvedResultEvidence(
         record=value,
