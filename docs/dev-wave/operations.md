@@ -128,6 +128,7 @@ worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.p
 新規worktreeはsubmodule未初期化で非0になる。worktree内で`git submodule update --init`を実行して
 再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
 受入投入前に`git submodule update --recursive`で記録へ揃える。
+子を走らせるworktreeは`git worktree lock`する（cwd走査はlauncher型の子を検出しない）。
 
 ## DW-O23 — 並行 session の local main land
 
