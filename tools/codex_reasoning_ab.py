@@ -1327,7 +1327,7 @@ def _git_closure_reasons(
         path = snapshot / relative
         if not path.is_file():
             continue
-        object_id = _git(snapshot, "hash-object", "--no-filters", relative).decode().strip()
+        object_id = _git(snapshot, "hash-object", "--no-filters", "--", relative).decode().strip()
         probe = _run(("git", "cat-file", "-e", object_id), cwd=snapshot, check=False)
         if probe.returncode == 0:
             reasons.append(f"untracked artifact entered git object store: {relative}")

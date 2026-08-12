@@ -1,0 +1,501 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/66facf4c1338c4a4319f6655bef641a3/izdw-66facf4c13.o907940",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/66facf4c1338c4a4319f6655bef641a3/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n......                                                                   [100%]\n============================== 6 passed in 2.40s ===============================\n",
+      "stdout_sha256": "88c1d860393be8d8c02c5d7b12a055be96473d7b69c500255cce93c9d0eb5fbc"
+    },
+    "artifact_error": null,
+    "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+    "duration_s": 21.743,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0e8f4dc93eb7ed76ccc504497bf54ae3edddfda6c08ac4eb69dde505f889527b",
+    "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+    "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+    "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+    "status": "PASSED",
+    "test_output_sha256": "88c1d860393be8d8c02c5d7b12a055be96473d7b69c500255cce93c9d0eb5fbc",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+  },
+  "date": "2026-08-12T12:52:31.996449+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/3a969e8a1a9e41f0fbf3bcec659460c7/izdw-3a969e8a1a.o907941",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/3a969e8a1a9e41f0fbf3bcec659460c7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n...FFF                                                                   [100%]\n=================================== FAILURES ===================================\n_____________________ test_main_dispatches_human_and_json ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c89b42e860>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14c89b42d510>\n\n    def test_main_dispatches_human_and_json(monkeypatch, capsys):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        expected = hold_inventory()\n    \n        assert main([\"--format\", \"human\"]) == 0\n        human = capsys.readouterr().out\n        assert human == _expected_human(expected)\n    \n        assert main([\"--format\", \"json\"]) == 0\n        json_output = capsys.readouterr().out\n>       assert json.loads(json_output) == expected\n\norchestrator/tests/test_hold_inventory.py:499: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n/usr/lib/python3.10/json/decoder.py:337: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <json.decoder.JSONDecoder object at 0x14c89b950070>\ns = '現行 2 層の snapshot であり, 未知の保留層の自動発見は保証しない\\nschema: izanagi-hold-inventory/v1\\ncompleteness: registered-layers-only\\n\\nl...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\n'\nidx = 0\n\n    def raw_decode(self, s, idx=0):\n        \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n        a JSON document) and return a 2-tuple of the Python\n        representation and the index in ``s`` where the document ended.\n    \n        This can be used to decode a JSON document from a string that may\n        have extraneous data at the end.\n    \n        \"\"\"\n        try:\n            obj, end = self.scan_once(s, idx)\n        except StopIteration as err:\n>           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\n/usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n____________ test_output_does_not_claim_unknown_layer_completeness _____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1507a4571b40>\ncapsys = <_pytest.capture.CaptureFixture object at 0x1507a4571630>\n\n    def test_output_does_not_claim_unknown_layer_completeness(monkeypatch, capsys):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        assert main([\"--format\", \"human\"]) == 0\n        human = capsys.readouterr().out\n        assert \"registered-layers-only\" in human\n    \n        assert main([\"--format\", \"json\"]) == 0\n        json_output = capsys.readouterr().out\n        combined = (human + json_output).lower()\n        for forbidden_claim in (\n            \"all hold layers\",\n            \"automatic discovery of unknown hold layers is guaranteed\",\n            \"complete hold inventory\",\n            \"completeness-guaranteed\",\n            \"\\u5b8c\\u5168\\u6027\\u3092\\u4fdd\\u8a3c\",\n            \"\\u5168\\u4fdd\\u7559\\u5c64\",\n        ):\n            assert forbidden_claim not in combined\n>       assert json.loads(json_output)[\"completeness\"] == \"registered-layers-only\"\n\norchestrator/tests/test_hold_inventory.py:592: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n/usr/lib/python3.10/json/decoder.py:337: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <json.decoder.JSONDecoder object at 0x1507a4a94070>\ns = '現行 2 層の snapshot であり, 未知の保留層の自動発見は保証しない\\nschema: izanagi-hold-inventory/v1\\ncompleteness: registered-layers-only\\n\\nl...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\n'\nidx = 0\n\n    def raw_decode(self, s, idx=0):\n        \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n        a JSON document) and return a 2-tuple of the Python\n        representation and the index in ``s`` where the document ended.\n    \n        This can be used to decode a JSON document from a string that may\n        have extraneous data at the end.\n    \n        \"\"\"\n        try:\n            obj, end = self.scan_once(s, idx)\n        except StopIteration as err:\n>           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\n/usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n_________ test_script_and_module_entrypoints_match_without_pythonpath __________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_script_and_module_entrypoints_match_without_pythonpath():\n        repo_root = Path(__file__).resolve().parents[2]\n        env = os.environ.copy()\n        env.pop(\"PYTHONPATH\", None)\n        script = subprocess.run(\n            [sys.executable, \"tools/hold_inventory.py\", \"--format\", \"json\"],\n            cwd=repo_root,\n            env=env,\n            text=True,\n            capture_output=True,\n            check=False,\n        )\n        module = subprocess.run(\n            [sys.executable, \"-m\", \"tools.hold_inventory\", \"--format\", \"json\"],\n            cwd=repo_root,\n            env=env,\n            text=True,\n            capture_output=True,\n            check=False,\n        )\n        assert (script.returncode, script.stderr) == (0, \"\")\n        assert (module.returncode, module.stderr) == (0, \"\")\n        assert script.stdout == module.stdout\n>       assert json.loads(script.stdout) == hold_inventory()\n\norchestrator/tests/test_hold_inventory.py:571: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/json/__init__.py:346: in loads\n    return _default_decoder.decode(s)\n/usr/lib/python3.10/json/decoder.py:337: in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <json.decoder.JSONDecoder object at 0x14d849254070>\ns = '現行 2 層の snapshot であり, 未知の保留層の自動発見は保証しない\\nschema: izanagi-hold-inventory/v1\\ncompleteness: registered-layers-only\\n\\nl...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\n'\nidx = 0\n\n    def raw_decode(self, s, idx=0):\n        \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n        a JSON document) and return a 2-tuple of the Python\n        representation and the index in ``s`` where the document ended.\n    \n        This can be used to decode a JSON document from a string that may\n        have extraneous data at the end.\n    \n        \"\"\"\n        try:\n            obj, end = self.scan_once(s, idx)\n        except StopIteration as err:\n>           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\nE           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\n/usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\nFAILED orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\nFAILED orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath\n========================= 3 failed, 3 passed in 2.43s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2539 retained_bytes=2539 omitted_bytes=0 rendered_excerpt_bytes=2763 sha256=a434ca984389bf752ab91113abef3518716983fc225d6f327fa853a9f5f34c50\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1507a4571b40>\n> capsys = <_pytest.capture.CaptureFixture object at 0x1507a4571630>\n> \n>     def test_output_does_not_claim_unknown_layer_completeness(monkeypatch, capsys):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         assert main([\"--format\", \"human\"]) == 0\n>         human = capsys.readouterr().out\n>         assert \"registered-layers-only\" in human\n>     \n>         assert main([\"--format\", \"json\"]) == 0\n>         json_output = capsys.readouterr().out\n>         combined = (human + json_output).lower()\n>         for forbidden_claim in (\n>             \"all hold layers\",\n>             \"automatic discovery of unknown hold layers is guaranteed\",\n>             \"complete hold inventory\",\n>             \"completeness-guaranteed\",\n>             \"\\x5cu5b8c\\x5cu5168\\x5cu6027\\x5cu3092\\x5cu4fdd\\x5cu8a3c\",\n>             \"\\x5cu5168\\x5cu4fdd\\x5cu7559\\x5cu5c64\",\n>         ):\n>             assert forbidden_claim not in combined\n> >       assert json.loads(json_output)[\"completeness\"] == \"registered-layers-only\"\n> \n> orchestrator/tests/test_hold_inventory.py:592: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/json/__init__.py:346: in loads\n>     return _default_decoder.decode(s)\n> /usr/lib/python3.10/json/decoder.py:337: in decode\n>     obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <json.decoder.JSONDecoder object at 0x1507a4a94070>\n> s = '\\u73fe\\u884c 2 \\u5c64\\u306e snapshot \\u3067\\u3042\\u308a, \\u672a\\u77e5\\u306e\\u4fdd\\u7559\\u5c64\\u306e\\u81ea\\u52d5\\u767a\\u898b\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044\\x5cnschema: izanagi-hold-inventory/v1\\x5cncompleteness: registered-layers-only\\x5cn\\x5cnl...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\x5cn'\n> idx = 0\n> \n>     def raw_decode(self, s, idx=0):\n>         \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n>         a JSON document) and return a 2-tuple of the Python\n>         representation and the index in ``s`` where the document ended.\n>     \n>         This can be used to decode a JSON document from a string that may\n>         have extraneous data at the end.\n>     \n>         \"\"\"\n>         try:\n>             obj, end = self.scan_once(s, idx)\n>         except StopIteration as err:\n> >           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\n> E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n> \n> /usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2429 retained_bytes=2429 omitted_bytes=0 rendered_excerpt_bytes=2627 sha256=1711a7e3b6e9d0bffb46a91c8f4c00dd4eda051b3d60c8122287e455b072fd19\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_script_and_module_entrypoints_match_without_pythonpath():\n>         repo_root = Path(__file__).resolve().parents[2]\n>         env = os.environ.copy()\n>         env.pop(\"PYTHONPATH\", None)\n>         script = subprocess.run(\n>             [sys.executable, \"tools/hold_inventory.py\", \"--format\", \"json\"],\n>             cwd=repo_root,\n>             env=env,\n>             text=True,\n>             capture_output=True,\n>             check=False,\n>         )\n>         module = subprocess.run(\n>             [sys.executable, \"-m\", \"tools.hold_inventory\", \"--format\", \"json\"],\n>             cwd=repo_root,\n>             env=env,\n>             text=True,\n>             capture_output=True,\n>             check=False,\n>         )\n>         assert (script.returncode, script.stderr) == (0, \"\")\n>         assert (module.returncode, module.stderr) == (0, \"\")\n>         assert script.stdout == module.stdout\n> >       assert json.loads(script.stdout) == hold_inventory()\n> \n> orchestrator/tests/test_hold_inventory.py:571: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/json/__init__.py:346: in loads\n>     return _default_decoder.decode(s)\n> /usr/lib/python3.10/json/decoder.py:337: in decode\n>     obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <json.decoder.JSONDecoder object at 0x14d849254070>\n> s = '\\u73fe\\u884c 2 \\u5c64\\u306e snapshot \\u3067\\u3042\\u308a, \\u672a\\u77e5\\u306e\\u4fdd\\u7559\\u5c64\\u306e\\u81ea\\u52d5\\u767a\\u898b\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044\\x5cnschema: izanagi-hold-inventory/v1\\x5cncompleteness: registered-layers-only\\x5cn\\x5cnl...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\x5cn'\n> idx = 0\n> \n>     def raw_decode(self, s, idx=0):\n>         \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n>         a JSON document) and return a 2-tuple of the Python\n>         representation and the index in ``s`` where the document ended.\n>     \n>         This can be used to decode a JSON document from a string that may\n>         have extraneous data at the end.\n>     \n>         \"\"\"\n>         try:\n>             obj, end = self.scan_once(s, idx)\n>         except StopIteration as err:\n> >           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\n> E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n> \n> /usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=2114 retained_bytes=2114 omitted_bytes=0 rendered_excerpt_bytes=2292 sha256=5aa188f28ad1d48c1b96c61e643e5e524a513b0f7888057430ecf814d2da28d2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c89b42e860>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14c89b42d510>\n> \n>     def test_main_dispatches_human_and_json(monkeypatch, capsys):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         expected = hold_inventory()\n>     \n>         assert main([\"--format\", \"human\"]) == 0\n>         human = capsys.readouterr().out\n>         assert human == _expected_human(expected)\n>     \n>         assert main([\"--format\", \"json\"]) == 0\n>         json_output = capsys.readouterr().out\n> >       assert json.loads(json_output) == expected\n> \n> orchestrator/tests/test_hold_inventory.py:499: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/json/__init__.py:346: in loads\n>     return _default_decoder.decode(s)\n> /usr/lib/python3.10/json/decoder.py:337: in decode\n>     obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <json.decoder.JSONDecoder object at 0x14c89b950070>\n> s = '\\u73fe\\u884c 2 \\u5c64\\u306e snapshot \\u3067\\u3042\\u308a, \\u672a\\u77e5\\u306e\\u4fdd\\u7559\\u5c64\\u306e\\u81ea\\u52d5\\u767a\\u898b\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044\\x5cnschema: izanagi-hold-inventory/v1\\x5cncompleteness: registered-layers-only\\x5cn\\x5cnl...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\x5cn'\n> idx = 0\n> \n>     def raw_decode(self, s, idx=0):\n>         \"\"\"Decode a JSON document from ``s`` (a ``str`` beginning with\n>         a JSON document) and return a 2-tuple of the Python\n>         representation and the index in ``s`` where the document ended.\n>     \n>         This can be used to decode a JSON document from a string that may\n>         have extraneous data at the end.\n>     \n>         \"\"\"\n>         try:\n>             obj, end = self.scan_once(s, idx)\n>         except StopIteration as err:\n> >           raise JSONDecodeError(\"Expecting value\", s, err.value) from None\n> E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n> \n> /usr/lib/python3.10/json/decoder.py:355: JSONDecodeError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=7082 retained_bytes=7082 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9266 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "49d8db16bae624ff1fa20fa49d020f868b424bde4525316e00d877f92c468053"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+      "duration_s": 26.862,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness",
+        "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness",
+        "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath"
+      ],
+      "hang_risk": false,
+      "id": "M1-break-json-dispatch",
+      "injection_diff_sha256": "b4c69c476ffdf5ff795bbc07f1be9b098fa62cad43dd34fde4485ff075547de4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ac8508eff218d1a969afd0e00e11f821d00902c9a6e57a79a96a0334f11246c1",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "    if False:",
+          "old": "    if args.format == \"json\":"
+        }
+      ],
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "KILLED",
+      "test_output_sha256": "49d8db16bae624ff1fa20fa49d020f868b424bde4525316e00d877f92c468053",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/59ae8a2fe7583bb946906d11b9d3be3c/izdw-59ae8a2fe7.o907942",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/59ae8a2fe7583bb946906d11b9d3be3c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n..FFF.                                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_inventory_projects_exact_registered_source_sets _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15038cc11a80>\n\n    def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        inventory = hold_inventory()\n>       assert inventory == _expected_inventory()\nE       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'completeness': 'complete'} != {'completeness': 'registered-layers-only'}\nE         Use -v to get more diff\n\norchestrator/tests/test_hold_inventory.py:322: AssertionError\n____________ test_output_does_not_claim_unknown_layer_completeness _____________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c27de21cf0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14c27de217b0>\n\n    def test_output_does_not_claim_unknown_layer_completeness(monkeypatch, capsys):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        assert main([\"--format\", \"human\"]) == 0\n        human = capsys.readouterr().out\n>       assert \"registered-layers-only\" in human\nE       AssertionError: assert 'registered-layers-only' in '現行 2 層の snapshot であり, 未知の保留層の自動発見は保証しない\\nschema: izanagi-hold-inventory/v1\\ncompleteness: complete\\n\\nlayer: producti...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\n'\n\norchestrator/tests/test_hold_inventory.py:578: AssertionError\n_____________________ test_main_dispatches_human_and_json ______________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f6aeed5a80>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14f6aeed5480>\n\n    def test_main_dispatches_human_and_json(monkeypatch, capsys):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        expected = hold_inventory()\n    \n        assert main([\"--format\", \"human\"]) == 0\n        human = capsys.readouterr().out\n>       assert human == _expected_human(expected)\nE       AssertionError: assert '現行 2 層の snap..._note: None\\n' == '現行 2 層の snap..._note: None\\n'\nE         \nE         Skipping 78 identical leading characters in diff, use -v to show\nE         - leteness: registered-layers-only\nE         + leteness: complete\nE           \nE           layer: production\nE           configured_status: held...\nE         \nE         ...Full output truncated (67 lines hidden), use '-vv' to show\n\norchestrator/tests/test_hold_inventory.py:495: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\nFAILED orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\nFAILED orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\n========================= 3 failed, 3 passed in 2.43s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=1009 retained_bytes=1009 omitted_bytes=0 rendered_excerpt_bytes=1088 sha256=6a2630aec408a395cedc1e08cdaf7bc26b13df757faf16ba9299a43b7f334af2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f6aeed5a80>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14f6aeed5480>\n> \n>     def test_main_dispatches_human_and_json(monkeypatch, capsys):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         expected = hold_inventory()\n>     \n>         assert main([\"--format\", \"human\"]) == 0\n>         human = capsys.readouterr().out\n> >       assert human == _expected_human(expected)\n> E       AssertionError: assert '\\u73fe\\u884c 2 \\u5c64\\u306e snap..._note: None\\x5cn' == '\\u73fe\\u884c 2 \\u5c64\\u306e snap..._note: None\\x5cn'\n> E         \n> E         Skipping 78 identical leading characters in diff, use -v to show\n> E         - leteness: registered-layers-only\n> E         + leteness: complete\n> E           \n> E           layer: production\n> E           configured_status: held...\n> E         \n> E         ...Full output truncated (67 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_hold_inventory.py:495: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=894 retained_bytes=894 omitted_bytes=0 rendered_excerpt_bytes=1008 sha256=be7f1ff32944ffbaab25bc95715fb5786f8eab16f129534379a46f50ab45fbe7\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c27de21cf0>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14c27de217b0>\n> \n>     def test_output_does_not_claim_unknown_layer_completeness(monkeypatch, capsys):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         assert main([\"--format\", \"human\"]) == 0\n>         human = capsys.readouterr().out\n> >       assert \"registered-layers-only\" in human\n> E       AssertionError: assert 'registered-layers-only' in '\\u73fe\\u884c 2 \\u5c64\\u306e snapshot \\u3067\\u3042\\u308a, \\u672a\\u77e5\\u306e\\u4fdd\\u7559\\u5c64\\u306e\\u81ea\\u52d5\\u767a\\u898b\\u306f\\u4fdd\\u8a3c\\u3057\\u306a\\u3044\\x5cnschema: izanagi-hold-inventory/v1\\x5cncompleteness: complete\\x5cn\\x5cnlayer: producti...er-command-only | hold_axis: tracked_files | correctness_gate: True | observed_seconds: None | collateral_note: None\\x5cn'\n> \n> orchestrator/tests/test_hold_inventory.py:578: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=727 retained_bytes=727 omitted_bytes=0 rendered_excerpt_bytes=760 sha256=43927c6380f8bcaafa6e8896f6f07771794341190bf7fec45e6b749f0ef9b8ca\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15038cc11a80>\n> \n>     def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         inventory = hold_inventory()\n> >       assert inventory == _expected_inventory()\n> E       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'completeness': 'complete'} != {'completeness': 'registered-layers-only'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_hold_inventory.py:322: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2630 retained_bytes=2630 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4427 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ef9b5aae2909cb76b22efebfb5a1aa6aac90bee8c0dbad6c77eeeb5735155f37"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+      "duration_s": 26.863,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json"
+      ],
+      "hang_risk": false,
+      "id": "M2-weaken-completeness-literal",
+      "injection_diff_sha256": "01abc13357745399abf8cb296a4299651db55f1fcbe9986f35964903a6f73288",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cf472fced06478a17289867fe903e93602d4f140a44c5921b9bb63fc83837ef7",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "COMPLETENESS = \"complete\"",
+          "old": "COMPLETENESS = \"registered-layers-only\""
+        }
+      ],
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "KILLED",
+      "test_output_sha256": "ef9b5aae2909cb76b22efebfb5a1aa6aac90bee8c0dbad6c77eeeb5735155f37",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/29d2f7525968828f07a74b03e6a53869/izdw-29d2f75259.o907944",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/29d2f7525968828f07a74b03e6a53869/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_inventory_projects_exact_registered_source_sets _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14afe5db5a80>\n\n    def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        inventory = hold_inventory()\n>       assert inventory == _expected_inventory()\nE       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\nE         Use -v to get more diff\n\norchestrator/tests/test_hold_inventory.py:322: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\n========================= 1 failed, 5 passed in 2.52s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 rendered_excerpt_bytes=1190 sha256=71c7a3cb2d4ce51189edc9a626fe5ba6c2d291cf5be873c301401f0459a2b4e9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14afe5db5a80>\n> \n>     def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         inventory = hold_inventory()\n> >       assert inventory == _expected_inventory()\n> E       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_hold_inventory.py:322: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1912 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bcdf7a6c5ced85a4a796978e84a70e4549120ca72b8aeb9f4f364c44b554440c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+      "duration_s": 31.985,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "hang_risk": false,
+      "id": "M3-wrong-release-token",
+      "injection_diff_sha256": "f957d426e502f1c7412067ea6c104809ab28f31adb51043297a32206ecb057db",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4d6e0b2dc4eaaf274df74bda58f7882edb3042fbf07cb73b1396b2bb25a55f3c",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "            \"token\": \"wrong-token\",",
+          "old": "            \"token\": RUN_GROWTH_HELD_TESTS_TOKEN,"
+        }
+      ],
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "KILLED",
+      "test_output_sha256": "bcdf7a6c5ced85a4a796978e84a70e4549120ca72b8aeb9f4f364c44b554440c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/c4565573bc0cd0fd6ed8b8493d442853/izdw-c4565573bc.o907946",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/c4565573bc0cd0fd6ed8b8493d442853/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_inventory_projects_exact_registered_source_sets _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ad227e1a80>\n\n    def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        inventory = hold_inventory()\n>       assert inventory == _expected_inventory()\nE       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\nE         Use -v to get more diff\n\norchestrator/tests/test_hold_inventory.py:322: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\n========================= 1 failed, 5 passed in 2.48s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 rendered_excerpt_bytes=1190 sha256=3a70fe00d458148d4a6b54dc56bdceae3c78a0153967defc05b4ef7b8967e982\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ad227e1a80>\n> \n>     def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         inventory = hold_inventory()\n> >       assert inventory == _expected_inventory()\n> E       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_hold_inventory.py:322: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1912 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "697e4158521ee6e11f0c1c2cedf4f20b0612240ee38c299e5e6dac1b91f1dccd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+      "duration_s": 26.859,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "hang_risk": false,
+      "id": "M4-relax-release-condition",
+      "injection_diff_sha256": "02f3ba30cc8c782694d36d4bd7ce5e1061a1aeb11a9098b1b0fa1ebb23014e49",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b63c5da52ebf8090e6ea1f965cbfe4908a64ca872e883819496684c3c6e0b7e4",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "            \"condition\": \"automatic\",",
+          "old": "            \"condition\": RELEASE_EXPLICIT_USER_COMMAND_ONLY,"
+        }
+      ],
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "KILLED",
+      "test_output_sha256": "697e4158521ee6e11f0c1c2cedf4f20b0612240ee38c299e5e6dac1b91f1dccd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/1d02cca6909d7cc77bfe20ef34ee7917/izdw-1d02cca690.o907947",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/1d02cca6909d7cc77bfe20ef34ee7917/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n....F.                                                                   [100%]\n=================================== FAILURES ===================================\n_____________ test_inventory_projects_exact_registered_source_sets _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cbec4bda80>\n\n    def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        inventory = hold_inventory()\n>       assert inventory == _expected_inventory()\nE       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings 第 3 束', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\nE         Use -v to get more diff\n\norchestrator/tests/test_hold_inventory.py:322: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\n========================= 1 failed, 5 passed in 2.42s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 rendered_excerpt_bytes=1190 sha256=518899d58650b9a46b9901407b75822b0bd3096fe41f8b4d74f6b54a086ed53c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cbec4bda80>\n> \n>     def test_inventory_projects_exact_registered_source_sets(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         inventory = hold_inventory()\n> >       assert inventory == _expected_inventory()\n> E       AssertionError: assert {'schema': 'i...ling.', ...}]} == {'schema': 'i...ling.', ...}]}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]} != {'layers': [{'id': 'production', 'what': {'kind': 'check-id-set', 'check_ids': ['frozen-artifacts.manifest-bytes', 's1.....}, 'ruling': '2026-08-12 rulings \\u7b2c 3 \\u675f', 'reason': 'Repository-growth-proportional tests are held by ruling.', ...}]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_hold_inventory.py:322: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1145 retained_bytes=1145 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1912 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f7121e032348cf12125a75050383c887f719a7d754dfcfef0f727ab63ec2c21c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+      "duration_s": 26.942,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+      ],
+      "hang_risk": false,
+      "id": "M5-drop-plain-runner-bypass",
+      "injection_diff_sha256": "66129e01588b38c76e11cac78d3b28f4fe71aff80b81c9ce9d101481bde87df0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "640c402cc78a2cd8088ee9243782c1709ec94ce26a284bb0f62014b4bc0b6b22",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "            {\n                \"id\": \"unrelated-placeholder\",\n                \"classification\": \"known-unresolved-bypass\",\n                \"command_pattern\": \"python3 test_*.py\",\n                \"effect\": \"bypasses-test-hold\",\n                \"reason\": \"pytest conftest collection hook is not invoked\",\n                \"tracking\": \"T-930\",\n            },",
+          "old": "            {\n                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-unresolved-bypass\",\n                \"command_pattern\": \"python3 test_*.py\",\n                \"effect\": \"bypasses-test-hold\",\n                \"reason\": \"pytest conftest collection hook is not invoked\",\n                \"tracking\": \"T-930\",\n            },"
+        }
+      ],
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "KILLED",
+      "test_output_sha256": "f7121e032348cf12125a75050383c887f719a7d754dfcfef0f727ab63ec2c21c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/5a53bafaba4d09d8c8ed4babcd34be30/izdw-5a53bafaba.o907949",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/5a53bafaba4d09d8c8ed4babcd34be30/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [6 items]\n\n...FF.                                                                   [100%]\n=================================== FAILURES ===================================\n________________ test_effective_status_tracks_exact_test_opt_in ________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149eeb0658a0>\n\n    def test_effective_status_tracks_exact_test_opt_in(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        layers = _layers_by_id(hold_inventory())\n        assert layers[\"production\"][\"effective_status\"] == \"held\"\n        assert layers[\"test\"][\"configured_status\"] == \"held-by-default\"\n        assert layers[\"test\"][\"effective_status\"] == \"held\"\n    \n        monkeypatch.setenv(\n            \"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"explicit-user-command\",\n        )\n        layers = _layers_by_id(hold_inventory())\n>       assert layers[\"test\"][\"effective_status\"] == (\n            \"released-by-explicit-user-command\"\n        )\nE       AssertionError: assert 'held' == 'released-by-...-user-command'\nE         \nE         - released-by-explicit-user-command\nE         + held\n\norchestrator/tests/test_hold_inventory.py:514: AssertionError\n____________ test_effective_status_matches_suite_conftest_decision _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15009c6f9d80>\n\n    def test_effective_status_matches_suite_conftest_decision(monkeypatch):\n        monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n        assert suite_conftest._growth_holds_opted_in() is False\n        assert _layers_by_id(hold_inventory())[\"test\"][\"effective_status\"] == \"held\"\n    \n        monkeypatch.setenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"\")\n        assert suite_conftest._growth_holds_opted_in() is False\n        assert _layers_by_id(hold_inventory())[\"test\"][\"effective_status\"] == \"held\"\n    \n        monkeypatch.setenv(\n            \"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"explicit-user-command\",\n        )\n        assert suite_conftest._growth_holds_opted_in() is True\n>       assert _layers_by_id(hold_inventory())[\"test\"][\"effective_status\"] == (\n            \"released-by-explicit-user-command\"\n        )\nE       AssertionError: assert 'held' == 'released-by-...-user-command'\nE         \nE         - released-by-explicit-user-command\nE         + held\n\norchestrator/tests/test_hold_inventory.py:536: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in\nFAILED orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision\n========================= 2 failed, 4 passed in 2.45s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1161 retained_bytes=1161 omitted_bytes=0 rendered_excerpt_bytes=1214 sha256=311d569b23fe4731de5b21e5d6113a5d165bf6cbc6c799194d04ad62aef8b482\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15009c6f9d80>\n> \n>     def test_effective_status_matches_suite_conftest_decision(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         assert suite_conftest._growth_holds_opted_in() is False\n>         assert _layers_by_id(hold_inventory())[\"test\"][\"effective_status\"] == \"held\"\n>     \n>         monkeypatch.setenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"\")\n>         assert suite_conftest._growth_holds_opted_in() is False\n>         assert _layers_by_id(hold_inventory())[\"test\"][\"effective_status\"] == \"held\"\n>     \n>         monkeypatch.setenv(\n>             \"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"explicit-user-command\",\n>         )\n>         assert suite_conftest._growth_holds_opted_in() is True\n> >       assert _layers_by_id(hold_inventory())[\"test\"][\"effective_status\"] == (\n>             \"released-by-explicit-user-command\"\n>         )\n> E       AssertionError: assert 'held' == 'released-by-...-user-command'\n> E         \n> E         - released-by-explicit-user-command\n> E         + held\n> \n> orchestrator/tests/test_hold_inventory.py:536: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=995 retained_bytes=995 omitted_bytes=0 rendered_excerpt_bytes=1044 sha256=e1f6dcf785e302660d7c51c2d6142ac5b67bd32ba385db37d95183220798c295\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149eeb0658a0>\n> \n>     def test_effective_status_tracks_exact_test_opt_in(monkeypatch):\n>         monkeypatch.delenv(\"IZANAGI_RUN_GROWTH_HELD_TESTS\", raising=False)\n>         layers = _layers_by_id(hold_inventory())\n>         assert layers[\"production\"][\"effective_status\"] == \"held\"\n>         assert layers[\"test\"][\"configured_status\"] == \"held-by-default\"\n>         assert layers[\"test\"][\"effective_status\"] == \"held\"\n>     \n>         monkeypatch.setenv(\n>             \"IZANAGI_RUN_GROWTH_HELD_TESTS\", \"explicit-user-command\",\n>         )\n>         layers = _layers_by_id(hold_inventory())\n> >       assert layers[\"test\"][\"effective_status\"] == (\n>             \"released-by-explicit-user-command\"\n>         )\n> E       AssertionError: assert 'held' == 'released-by-...-user-command'\n> E         \n> E         - released-by-explicit-user-command\n> E         + held\n> \n> orchestrator/tests/test_hold_inventory.py:514: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2156 retained_bytes=2156 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3408 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1f2675b7de54e4b88d2c66da127ec8e443560f91281e0e142ca60974ff00f4b1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "328a44a1c45f1c438e40bc8b386b7c9e388d15d271d9e594e7831a27dcd64586",
+      "duration_s": 26.856,
+      "expected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision"
+      ],
+      "hang_risk": false,
+      "id": "M6-freeze-effective-status",
+      "injection_diff_sha256": "4f600516b73ce6314bb7d1d238a16e13ae70282764c1784af1b34ab12320fc17",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ae39014a618cd0328f1f1ed79e76a581f5f619dcc93c66978283c2721c078aee",
+      "replacements": [
+        {
+          "file": "tools/hold_inventory.py",
+          "new": "    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)\n    if True:\n        return \"held\"",
+          "old": "    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)\n    if value in (None, \"\"):\n        return \"held\""
+        }
+      ],
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "KILLED",
+      "test_output_sha256": "1f2675b7de54e4b88d2c66da127ec8e443560f91281e0e142ca60974ff00f4b1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/0ebfe603035d1b4a90ed3d86aa92bc9d/izdw-0ebfe60303.o907939",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/output/pegasus-dispatch/0ebfe603035d1b4a90ed3d86aa92bc9d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets\norchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json\norchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in\norchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision\norchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath\norchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness\n\n6 tests collected in 0.31s\n",
+        "stdout_sha256": "2aa3f6cae988234812ada51927a8834b4423e8ef8ac8f51aa37206db089fd55b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+        "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision",
+        "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath",
+        "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness"
+      ],
+      "duration_s": 21.749,
+      "rc": 0,
+      "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+      "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+      "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+      "status": "PASSED",
+      "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-break-json-dispatch": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+          "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness",
+          "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b4c69c476ffdf5ff795bbc07f1be9b098fa62cad43dd34fde4485ff075547de4",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "    if False:",
+            "old": "    if args.format == \"json\":"
+          }
+        ]
+      },
+      "M2-weaken-completeness-literal": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+          "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+          "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "01abc13357745399abf8cb296a4299651db55f1fcbe9986f35964903a6f73288",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "COMPLETENESS = \"complete\"",
+            "old": "COMPLETENESS = \"registered-layers-only\""
+          }
+        ]
+      },
+      "M3-wrong-release-token": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f957d426e502f1c7412067ea6c104809ab28f31adb51043297a32206ecb057db",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "            \"token\": \"wrong-token\",",
+            "old": "            \"token\": RUN_GROWTH_HELD_TESTS_TOKEN,"
+          }
+        ]
+      },
+      "M4-relax-release-condition": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "02f3ba30cc8c782694d36d4bd7ce5e1061a1aeb11a9098b1b0fa1ebb23014e49",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "            \"condition\": \"automatic\",",
+            "old": "            \"condition\": RELEASE_EXPLICIT_USER_COMMAND_ONLY,"
+          }
+        ]
+      },
+      "M5-drop-plain-runner-bypass": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "66129e01588b38c76e11cac78d3b28f4fe71aff80b81c9ce9d101481bde87df0",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "            {\n                \"id\": \"unrelated-placeholder\",\n                \"classification\": \"known-unresolved-bypass\",\n                \"command_pattern\": \"python3 test_*.py\",\n                \"effect\": \"bypasses-test-hold\",\n                \"reason\": \"pytest conftest collection hook is not invoked\",\n                \"tracking\": \"T-930\",\n            },",
+            "old": "            {\n                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-unresolved-bypass\",\n                \"command_pattern\": \"python3 test_*.py\",\n                \"effect\": \"bypasses-test-hold\",\n                \"reason\": \"pytest conftest collection hook is not invoked\",\n                \"tracking\": \"T-930\",\n            },"
+          }
+        ]
+      },
+      "M6-freeze-effective-status": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+          "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4f600516b73ce6314bb7d1d238a16e13ae70282764c1784af1b34ab12320fc17",
+        "replacements": [
+          {
+            "file": "tools/hold_inventory.py",
+            "new": "    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)\n    if True:\n        return \"held\"",
+            "old": "    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)\n    if value in (None, \"\"):\n        return \"held\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0e8f4dc93eb7ed76ccc504497bf54ae3edddfda6c08ac4eb69dde505f889527b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_hold_inventory.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "aaa4de0c77c9f617f535c837a117cb2f5109cff5",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_hold_inventory.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/tools/run_tests.py",
+    "entrypoint_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "93092501823880c52b3c53e0671f634401295eae",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "683c073d2398682d95d67b7d78d04763f769d1fa660e304708cf28e5393779a9",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "37b310528ce631c77bf26c0752f43bd6530fb6f50fa1143ce62bfe35bea99eab",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-freeze-hold-residual/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "2e6b72377cead3687b668b2de5a6b0eb8dc1706fc6806c3751615ccf87dcc7ab",
+  "updated_at": "2026-08-12T12:55:51.241069+00:00"
+}

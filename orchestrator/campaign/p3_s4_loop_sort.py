@@ -44,12 +44,11 @@ tools=[]) を使う。実 LLM (planner-v4/coder-v4-autonomous-sort/auditor/criti
 メインセッションが spawn する — 本モジュールは LLM を spawn しない (Model Y 設計、
 `p3_s4_loop.py` と同じ)。運用手順は `docs/phase3-s5-sort-runbook.md`。
 
-型14 (非 SWO comparator) への機械的プロパティテスト (ランダム WriteElement 列での
-SWO 公理サンプル検査) は、実装コストが本 driver 新設と同程度に大きいため、敵対レビュー
-2026-07-10 でユーザー確認の上**次善タスクとして繰延**した (D42 条件1のASan/UBSan
-driver化繰延と同型、規律5)。現状の防壁は auditor 静的目視 (型14) + 既存 timeout
-(`TRACE_TIMEOUT_S=120`/perf run の `timeout_s=120`、ハングを無限にしない defense-in-
-depth) の二層。
+型14 (非 SWO comparator) は、実 ``WriteElement<Tuple>`` と版固定 corpus を使う独立
+oracle で build 前に反例探索する。有限 corpus 上で SWO 公理の反例を探す gate であり、任意
+C++ の全入力に対する SWO の証明ではない。対象は coder 自律ループが合成する comparator
+であり、s6 sweep の列挙候補 (SWO-by-construction) は対象外。fairness (型15) の機械観測点は
+依然として未実装。
 """
 from __future__ import annotations
 
@@ -159,12 +158,74 @@ def _quarantine_and_audit(sub: str, coder: CoderProposalSort, auditor: AuditorVe
         diff_region=SOURCE_REL,
         template_diff_id=MARKER_ID,
     )
+    oracle_rejected = False
+    if combined.passed:
+        # Import block is owned by a concurrent wave.  Keep the oracle dependency
+        # local to the gate path and bind it to trusted post-materialization bytes.
+        from .diff_quarantine import DiffRejectSubtype
+        from .sort_swo_oracle import (
+            ORACLE_CONTRACT_ID,
+            OracleStatus,
+            SortSwoOracleResult,
+            SortSwoOracleUnavailable,
+            attempt_record,
+            check_materialized_sort_swo,
+            rejection_digest,
+            resolve_oracle_environment,
+        )
+        oracle_environment = resolve_oracle_environment(sub)
+        oracle = check_materialized_sort_swo(
+            _edited,
+            marker_id=MARKER_ID,
+            proposal_source=coder.implementation,
+            environment=oracle_environment,
+        )
+        if type(oracle) is not SortSwoOracleResult or type(oracle.status) is not OracleStatus:
+            raise TypeError("sort SWO oracle returned a non-contract result")
+        if oracle.contract_id != ORACLE_CONTRACT_ID:
+            raise TypeError("sort SWO oracle contract_id mismatch")
+        if oracle.status is OracleStatus.UNAVAILABLE:
+            if write:
+                from .model import STAGE_S1_SESSION
+                payload = attempt_record(oracle)
+                payload["genome"] = genome.canonical()
+                wal.log(
+                    layout, L.diffq_variant_id(genome, coder.implementation),
+                    STAGE_S1_SESSION, ENV_TAG, payload,
+                )
+            raise SortSwoOracleUnavailable(oracle)
+        if oracle.status is OracleStatus.REJECT:
+            assert oracle.finding is not None
+            digest = rejection_digest(
+                oracle, diff_region=SOURCE_REL, marker_id=MARKER_ID,
+            )
+            combined = DiffQuarantineResult(
+                passed=False,
+                subtype=DiffRejectSubtype.SORT_SWO_ORACLE,
+                reason=oracle.finding.reason_code,
+                digest=digest,
+                violations=[digest],
+            )
+            oracle_rejected = True
+        elif oracle.status is OracleStatus.PASS:
+            if write:
+                from .model import STAGE_S1_SESSION
+                payload = attempt_record(oracle)
+                payload["genome"] = genome.canonical()
+                wal.log(
+                    layout, L.diffq_variant_id(genome, coder.implementation),
+                    STAGE_S1_SESSION, ENV_TAG, payload,
+                )
+        else:
+            raise TypeError("sort SWO oracle returned an unknown status")
     if not combined.passed:
         v = L.record_diff_reject(
             layout, genome, coder.implementation, combined, env_tag=ENV_TAG,
         )
         L.project_whiteboard(state, planner, "rejected")
-        if combined is res:
+        if oracle_rejected:
+            log(f"  sort SWO oracle reject: {combined.reason}")
+        elif combined is res:
             log(f"  diff 検疫 reject: {combined.subtype} — {combined.reason}")
         else:
             log(f"  auditor gate reject (verdict={auditor.verdict}): "
@@ -189,17 +250,20 @@ def default_cfg(reflux: bool = True) -> CampaignConfig:
     sort-strategy 採用の根拠にした「S2 が実際に hot key 競合を踏む」という前提を
     この driver 自身で満たさないと D41 の条件付き採用の土台が崩れる (敵対レビュー
     2026-07-10 で必須修正と判定)。"""
+    from .sort_swo_oracle import ORACLE_CONTRACT_ID
+
     cfg = CampaignConfig(
         spec_slug="p3-s5-sort-loop", search_tag="s5-sort-autonomous",
         spec_content=("P3 後続段 5: sort-strategy (write_set 施錠順序 comparator) coder "
                       "自律ループ。planner が方向 (値なし) を提案し coder が勝ち筋を見ずに "
-                      "comparator コードを合成、diff 検疫 (4a 型) + auditor 機械 gate "
-                      "(D41 条件4) を通した hole 変異のみ build/verify(legacy+S2)/bench に "
+                      "comparator コードを合成、diff 検疫 (4a 型) + auditor 機械 gate + "
+                      "独立 SWO oracle を通した hole 変異のみ build/verify(legacy+S2)/bench に "
                       "進む。critic 帰属を次 iteration に還流 (LLM ablation の on アーム)"),
         ccbench_commit=PIN,
         search_config={"scale": "silo", "axis": MARKER_ID,
                        "reflux": "on" if reflux else "off",
                        "records": 100_000, "threads": 4,
+                       "sort_swo_oracle": ORACLE_CONTRACT_ID,
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_S2},
         trial="p3-s5-sort-loop")
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)

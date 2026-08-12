@@ -467,6 +467,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
+| `tools/pegasus/run_t139_a12_stress_check.py` | `dispatch-required` | `compute-node full run: 48 workers / 5.32 seconds; tens of MB per worker` |
+| `tools/pegasus/t139_a12_stress_check.pbs` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/probes/t139_positive_control_probe.pbs` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t139_positive_control_probe.sh` | `unknown` | `unmeasured probe artifact` |
 | `tools/pegasus/probes/t139_r4_env_probe.pbs` | `dispatch-required` | `static job-body classification` |

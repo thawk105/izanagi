@@ -147,7 +147,13 @@ def _durable_json(path: Path, value: Mapping[str, Any]) -> None:
         flags |= os.O_NOFOLLOW
     fd = os.open(path, flags, 0o600)
     try:
-        os.write(fd, data)
+        offset = 0
+        while offset < len(data):
+            written = os.write(fd, data[offset:])
+            if written <= 0:
+                raise SubmissionPreparationError(
+                    "submission write made no progress")
+            offset += written
         os.fsync(fd)
     finally:
         os.close(fd)
