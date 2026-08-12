@@ -61,6 +61,17 @@ dogfood として、段 3 の consult 子には `max_cli_reported_tokens = 2e6` 
 (既定 1e6 は実測で consult を 3 件殺している)。したがって本 wave 自身の 2 件は
 非既定層に入る。
 
+受入全走は 9,396 passed / 31 skipped / rc=0 (180.92 秒、計算ノード request 905938.nqsv)。
+
+段 8 は候補 2 件を裁定した。**候補 2 (待ち手の pid file) は refuted** — `DW-O01` は既に
+「`--pid-file` は producer script 自身が `echo $$` で書く」と明記しており、契約の欠落ではなく
+本 wave の投入 script が launcher 自身の pid を書いた自分の誤りだった。
+**候補 1 (receipt.json の所在が dev-wave 文書に無い) は real だが実装を見送った** —
+反映先の `DW-O02` は単節予算に余裕があるものの、`docs/dev-wave/**` の L1.5 層は
+**予算 9,566 bytes に対し実測 9,564 bytes で残余 2 bytes** しかなく、3 行の追記が
+9,837 bytes まで押し上げて check_docs が赤になった (編集は revert 済み、tree は clean)。
+自己改善契約は予算値の引き上げを通常の自己改善から除くため、裁定パッケージへ送る。
+
 ## 次の一手差分
 
 ### 更新
