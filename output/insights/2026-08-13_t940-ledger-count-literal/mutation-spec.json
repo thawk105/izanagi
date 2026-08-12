@@ -1,0 +1,161 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n)\n",
+     "new": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n    KnownViolationSpec(\n        \"0123456789abcdef0123456789abcdef01234567\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    KnownViolationSpec(\n        \"187fed698bcefb5e93bbad312e1323617fc368ce\",\n        MISSING_CODEX_AUTHOR,\n        _T886_MERGE_RULING,\n        note=(\n            \"本 wave と並行 wave が同じ 2 file（tools/codex_reasoning_ab.py、\"\n",
+     "new": "    KnownViolationSpec(\n        \"187fed698bcefb5e93bbad312e1323617fc368ce\",\n        MISSING_CODEX_AUTHOR,\n        _T886_MERGE_RULING,\n        note=(\n            \"本 wave と並行 wave が同じ 3 file（tools/codex_reasoning_ab.py、\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    KnownViolationSpec(\n        \"187fed698bcefb5e93bbad312e1323617fc368ce\",\n        MISSING_CODEX_AUTHOR,\n        _T886_MERGE_RULING,\n        note=(\n            \"本 wave と並行 wave が同じ 2 file（tools/codex_reasoning_ab.py、\"\n            \"orchestrator/tests/test_codex_reasoning_ab.py）を触った union merge；\"\n            \"`git diff-tree --cc` は空で merge 自体に新規著作なし；両側の実装面は\"\n            \"それぞれの wave で Codex `role=author` が書き監査済み\"\n        ),\n    ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n)\n",
+     "new": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n    KnownViolationSpec(\n        \"fedcba9876543210fedcba9876543210fedcba98\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n)\n"
+    },
+    {
+     "file": "orchestrator/tests/test_check_ai_provenance.py",
+     "old": "        (\"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\", \"missing-codex-author\", t316_ruling, t316_note, \"\"),\n    )\n",
+     "new": "        (\"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\", \"missing-codex-author\", t316_ruling, t316_note, \"\"),\n        (\"fedcba9876543210fedcba9876543210fedcba98\", \"missing-codex-author\", t316_ruling, t316_note, \"\"),\n    )\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_check_ai_provenance.py",
+     "old": "    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)\n",
+     "new": "    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 38\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_check_ai_provenance.py",
+     "old": "    assert observed == expected\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "        if spec.commit in registry:\n            raise RuntimeError(\n                \"known provenance violation registry has duplicate SHA: \"\n                f\"{spec.commit}\"\n            )\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "KNOWN_PROVENANCE_VIOLATIONS = (\n",
+     "new": "class _Len38Ledger(tuple):\n    def __len__(self):\n        return 38\n\n\nKNOWN_PROVENANCE_VIOLATIONS = _Len38Ledger((\n"
+    },
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n)\n",
+     "new": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n    KnownViolationSpec(\n        \"0123456789abcdef0123456789abcdef01234567\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries",
+    "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_notes_satisfy_descriptive_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "KNOWN_PROVENANCE_VIOLATIONS = (\n",
+     "new": "class _Len39Ledger(tuple):\n    def __len__(self):\n        return 39\n\n\nKNOWN_PROVENANCE_VIOLATIONS = _Len39Ledger((\n"
+    },
+    {
+     "file": "tools/check_ai_provenance.py",
+     "old": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n)\n",
+     "new": "    KnownViolationSpec(\n        \"8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e\",\n        MISSING_CODEX_AUTHOR,\n        _T316_GITLINK_RULING,\n        note=_T316_GITLINK_NOTE,\n    ),\n))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries",
+    "orchestrator/tests/test_check_ai_provenance.py::test_production_registry_notes_satisfy_descriptive_contract"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

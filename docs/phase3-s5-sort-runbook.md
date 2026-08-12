@@ -186,9 +186,12 @@ python3 -m orchestrator.campaign.p3_s4_loop_sort --run-iteration <scratch>/prop.
 - **型14 (非 SWO comparator) は独立 oracle が build 前に反例探索する** ([T-316] R2-b、
   `orchestrator/campaign/sort_swo_oracle.py`)。順序は hole 挿入 → diff 検疫 →
   auditor deny-only veto → **独立 SWO oracle** → build。gate は
-  `PASS` / `REJECT` / `UNAVAILABLE` の閉じた結果を返し、抽出・compile・timeout・protocol 異常・
-  観測された非決定性はすべて `REJECT` へ倒す (判定不能を合格にしない)。環境故障は候補へ帰属せず
-  `UNAVAILABLE` として attempt を止める。**有限 corpus 上で SWO 公理の反例を探す gate であり、
+  `PASS` / `REJECT` / `UNAVAILABLE` の閉じた結果を返し、抽出・候補 compile 失敗・CPU limit 超過・
+  観測された非決定性は `REJECT` へ倒す (判定不能を合格にしない)。環境故障は候補へ帰属せず
+  `UNAVAILABLE` として attempt を止める — 固定長 protocol の異常と compiler の起動・signal・
+  wall timeout はこちらであり、候補の finding にはならない。候補 compile が失敗したときは
+  trusted control を**事後にも** compile し、control も落ちれば `UNAVAILABLE` へ再分類する。
+  これは相関であって候補から独立した環境判定ではない (quota / cgroup / host 状態は共有)。**有限 corpus 上で SWO 公理の反例を探す gate であり、
   任意 C++ の全入力に対する SWO の証明ではない。** 対象は coder 自律ループが合成する comparator で、
   s6 sweep の列挙候補 (SWO-by-construction) は対象外。
   同一 process 内で任意 native comparator が観測経路へ干渉しうる残余は本 gate では閉じない

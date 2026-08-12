@@ -21,12 +21,14 @@
 列挙空間 = 構文契約 (hole が参照できる全メンバ storage_/key_/rcdptr_ × asc/desc ×
 辞書式順列 prefix) + 退化点 nosort。先頭キーが全順序 (key_ は (storage,key) 一意 +
 YCSB 単一 storage、rcdptr_ はポインタ一意) なら後続キー到達不能のため打ち切り。
-**全点 SWO (strict weak ordering、厳密弱順序) を構成的に保証** (キー比較の辞書式合成は
-SWO を保存、恒 false も valid な SWO)。非 SWO は D42 実測で write_set_.size()>=16 の
-ときハングし機械検査は未実装 —
-転写ミス由来の非 SWO への機械 backstop は (1) diff 検疫、(2) permutation 保存 assert
-(#if TRACE → verifier indeterminate)、(3) TRACE_TIMEOUT_S/perf timeout、(4) 本モジュール
-テストの Python 有限モデル SWO 総当たり検査 (test_s6_sort_sweep.py)。
+型 14 (非 SWO comparator) について、列挙候補は構成的に SWO を満たすよう生成する
+(SWO-by-construction: キー比較の辞書式合成は SWO を保存し、恒 false も valid な SWO)。
+転写ミス由来の非 SWO への機械 backstop は diff 検疫、permutation 保存 assert、
+本モジュールテストの Python 有限モデル SWO 総当たり検査 (test_s6_sort_sweep.py)。
+独立 SWO oracle (sort_swo_oracle) は versioned な有限 corpus 上の反例発見器であって
+全入力に対する strict weak ordering の証明ではなく、coder 自律ループが合成する comparator
+を対象とする経路で、s6 sweep からは呼ばれない。D42 実測では write_set_.size()>=16 の
+非 SWO comparator はハングしうる。
 
 auditor 段は持たない: auditor は LLM 生成物の reward hack の番人 (D38/D43) であり、
 本候補は信頼中核が構成原則から機械生成する (全文が本ソースから決定論的に導出され、

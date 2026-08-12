@@ -1,0 +1,38 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MUT-A",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "    return all(left[field] >= right[field] for field in USAGE_FIELDS)\n",
+          "new": "    return True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_claude_session_ledger.py::test_cross_bucket_replica_is_attributed_to_root_once"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/claude_session_ledger.py",
+          "old": "            and len(request_id_sets) == 1\n",
+          "new": "            and True\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

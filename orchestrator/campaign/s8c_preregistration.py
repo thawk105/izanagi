@@ -1286,23 +1286,29 @@ def _assert_history_transition(
         else:
             raise PreregistrationError("generation-transition", commit)
         return
-    if len(parent_states) == 2:
-        left, right = parent_states
-        if left == right:
-            if state != left:
-                raise PreregistrationError("merge-state", commit)
-            return
-        successor = (
-            left
-            if _is_successor(left, right)
-            else right
-            if _is_successor(right, left)
-            else None
-        )
-        if successor is None or state != successor:
-            raise PreregistrationError("merge-divergent-revision", commit)
+    unique_parents = set(parent_states)
+    if len(unique_parents) == 1:
+        parent = next(iter(unique_parents))
+        if state != parent:
+            raise PreregistrationError("merge-state", commit)
         return
-    raise PreregistrationError("octopus-merge", commit)
+
+    maximum_generation = max(
+        parent.tip_generation_number for parent in unique_parents
+    )
+    greatest_candidates = tuple(
+        parent
+        for parent in unique_parents
+        if parent.tip_generation_number == maximum_generation
+    )
+    if len(greatest_candidates) != 1:
+        raise PreregistrationError("merge-divergent-revision", commit)
+    greatest = greatest_candidates[0]
+    if any(
+        greatest != parent and not _is_successor(greatest, parent)
+        for parent in unique_parents
+    ) or state != greatest:
+        raise PreregistrationError("merge-divergent-revision", commit)
 
 
 def _mask_html_comments_outside_fences(lines: Sequence[str]) -> tuple[str, ...]:

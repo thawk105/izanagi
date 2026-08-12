@@ -76,9 +76,18 @@
   `codex_worker_ledger.py` = codex rollout ログから
   worker の session/stage/token/終了分類/retry を決定的に集計する read-only 台帳 (T-179) /
   `claude_session_ledger.py` = claude session transcript から model call と raw token 交通量を
-  母集団付きで集計する read-only 台帳 (D206。費用・課金・利用枠ではない) /
+  母集団付きで集計する read-only 台帳 (D206。費用・課金・利用枠ではない)。**同一の canonical
+  `message.id` は同一 model call とみなし、複数 transcript へ複製された replica を 1 回だけ計上する。**
+  この同一性公理は外部 transcript 側では検証できないので、証明できない replica 疑いは fail-closed に
+  倒す。dedup を経た report は `population.dedup_algorithm_version` を持ち、**版が違う report の
+  token 値を直接比較しない** /
   `collect_wave_usage.py` = 上記台帳を wave ごとに 1 件の typed artifact として repo 外へ
-  前向き収集する consumer (D220。operand と挙動の正本は同 tool の `--help`) /
+  前向き収集する consumer (D220。operand と挙動の正本は同 tool の `--help`)。
+  **先頭が `-` の project slug は `--project=<slug>` の等号形で渡す** (split 形は argparse が
+  option 名と解釈する)。rc は `0`=収集できた / `3`=ログインノードと確証できたため規律により
+  正当に走らなかった / `2`=argv 不正 / `1`=それ以外の故障。**収集は D220 により wave 完了 gate では
+  ないので、rc が 0 以外でも既に完了した wave を失敗へ戻さない** — 呼び手は rc と artifact の
+  `collection.status` を併読する /
   `plotting/` = campaign の論文品質作図、規約は `tools/plotting/FIGURE_CONVENTIONS.md`)
 - `hooks/` — 正しさの最小第二防壁 (guard_write / guard_bash) + 別系統のコンテキスト衛生
   (guard_read)。詳細は同 README

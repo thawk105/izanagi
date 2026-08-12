@@ -1028,6 +1028,70 @@ def _submodule_repositories(snapshot: Path) -> list[Path]:
     return _submodule_inventory(snapshot)[0]
 
 
+def _preflight_snapshot_relocation(base: Path) -> None:
+    base = base.resolve()
+    for repository in _submodule_repositories(base):
+        marker = repository / ".git"
+        try:
+            metadata = marker.lstat()
+        except OSError as exc:
+            raise ValidationError(
+                f"submodule git marker cannot be inspected: {marker}: {exc}",
+                RC_SNAPSHOT,
+            ) from exc
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+            raise ValidationError(
+                f"submodule git marker is not a regular file: {marker}",
+                RC_SNAPSHOT,
+            )
+        try:
+            raw_marker = marker.read_bytes()
+        except OSError as exc:
+            raise ValidationError(
+                f"submodule git marker cannot be read: {marker}: {exc}",
+                RC_SNAPSHOT,
+            ) from exc
+        prefix = b"gitdir: "
+        payload = (
+            raw_marker[len(prefix) :].strip()
+            if raw_marker.startswith(prefix)
+            else b""
+        )
+        if not payload or b"\n" in payload or b"\r" in payload:
+            raise ValidationError(
+                f"submodule git marker is malformed: {marker}", RC_SNAPSHOT
+            )
+        if Path(os.fsdecode(payload)).is_absolute():
+            raise ValidationError(
+                f"absolute submodule gitdir is not relocatable: {marker}",
+                RC_SNAPSHOT,
+            )
+
+        worktree = _run(
+            ("git", "config", "--get", "core.worktree"),
+            cwd=repository,
+            check=False,
+        )
+        if worktree.returncode == 1 and not worktree.stdout:
+            continue
+        if worktree.returncode != 0:
+            raise ValidationError(
+                f"submodule core.worktree cannot be inspected: {repository}",
+                RC_SNAPSHOT,
+            )
+        values = worktree.stdout.decode("utf-8").splitlines()
+        if len(values) != 1 or not values[0]:
+            raise ValidationError(
+                f"submodule core.worktree is malformed: {repository}",
+                RC_SNAPSHOT,
+            )
+        if Path(values[0]).is_absolute():
+            raise ValidationError(
+                f"absolute submodule core.worktree is not relocatable: {repository}",
+                RC_SNAPSHOT,
+            )
+
+
 def _seal_git_object_closure(snapshot: Path) -> None:
     repositories, _ = _submodule_inventory(snapshot)
     _seal_one_git_closure(snapshot, f"refs/heads/{BRANCH}")
@@ -1342,12 +1406,7 @@ def _git_closure_reasons(
     return reasons, manifests, submodules
 
 
-def build_snapshot(
-    repo: Path,
-    snapshot: Path,
-    sessions_root: Path,
-    case: str,
-) -> dict[str, Any]:
+def _resolve_snapshot_destination(repo: Path, snapshot: Path) -> tuple[Path, Path]:
     repo = repo.resolve()
     snapshot = snapshot.resolve()
     if snapshot.exists():
@@ -1356,20 +1415,30 @@ def build_snapshot(
         raise ValidationError(
             "snapshot must be outside the source repository", RC_SNAPSHOT
         )
+    return repo, snapshot
+
+
+def _prepare_snapshot_case(
+    repo: Path, sessions_root: Path, case: str
+) -> dict[str, bytes]:
     if case not in CASE_HASHES:
         raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
-    golden = (
+    return (
         derive_independent_golden(repo, sessions_root)
         if case == "POS"
         else {}
     )
+
+
+def _build_snapshot_base(repo: Path, base: Path) -> Path:
+    repo, base = _resolve_snapshot_destination(repo, base)
     parent = _git(repo, "rev-parse", f"{INTEGRATED_COMMIT}^").decode().strip()
     parents = _git(repo, "show", "-s", "--format=%P", INTEGRATED_COMMIT).decode().split()
     if parent != BASE_COMMIT or parents != [BASE_COMMIT]:
         raise ValidationError("integrated commit parent topology mismatch", RC_SNAPSHOT)
 
     completed = subprocess.run(
-        ["git", "clone", "--no-hardlinks", "--no-checkout", str(repo), str(snapshot)],
+        ["git", "clone", "--no-hardlinks", "--no-checkout", str(repo), str(base)],
         capture_output=True,
         check=False,
         env=_clean_environment({"HOME": "/nonexistent"}),
@@ -1380,26 +1449,91 @@ def build_snapshot(
             RC_SNAPSHOT,
         )
     try:
-        _git(snapshot, "checkout", "-B", BRANCH, BASE_COMMIT)
-        _init_submodules_from_local_source(repo, snapshot)
-        _seal_git_object_closure(snapshot)
+        _git(base, "checkout", "-B", BRANCH, BASE_COMMIT)
+        _init_submodules_from_local_source(repo, base)
+        _seal_git_object_closure(base)
         diff = _git(repo, "diff", "--binary", BASE_COMMIT, INTEGRATED_COMMIT, "--", *TRACKED_PATHS)
-        _run(("git", "apply", "--whitespace=nowarn", "-"), cwd=snapshot, input_bytes=diff)
-        if case == "POS":
-            for path, data in golden.items():
-                target = snapshot / path
-                target.write_bytes(data)
-                target.chmod(0o644)
-        for name in CASE_ARTIFACTS[case]:
-            relative = f"{ARTIFACT_DIR}/{name}"
-            target = snapshot / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(_git(repo, "show", f"{ARTIFACT_COMMIT}:{relative}"))
-            target.chmod(0o644)
-        return verify_snapshot(snapshot, case)
+        _run(("git", "apply", "--whitespace=nowarn", "-"), cwd=base, input_bytes=diff)
+        return base
     except Exception:
         # 作成途中の clone は診断用に残す。再実行時の上書きも禁止する。
         raise
+
+
+def _finish_snapshot_case(
+    repo: Path,
+    snapshot: Path,
+    case: str,
+    golden: Mapping[str, bytes],
+) -> dict[str, Any]:
+    if case == "POS":
+        for path, data in golden.items():
+            target = snapshot / path
+            target.write_bytes(data)
+            target.chmod(0o644)
+    for name in CASE_ARTIFACTS[case]:
+        relative = f"{ARTIFACT_DIR}/{name}"
+        target = snapshot / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(_git(repo, "show", f"{ARTIFACT_COMMIT}:{relative}"))
+        target.chmod(0o644)
+    return verify_snapshot(snapshot, case)
+
+
+def _derive_snapshot_from_base(
+    repo: Path,
+    base: Path,
+    snapshot: Path,
+    sessions_root: Path,
+    case: str,
+    *,
+    prepared_golden: Mapping[str, bytes] | None = None,
+    prepared_destination: tuple[Path, Path] | None = None,
+) -> dict[str, Any]:
+    if prepared_destination is None:
+        repo, snapshot = _resolve_snapshot_destination(repo, snapshot)
+    else:
+        prepared_repo, prepared_snapshot = prepared_destination
+        if repo.resolve() != prepared_repo or snapshot.resolve() != prepared_snapshot:
+            raise ValidationError(
+                "prepared snapshot destination does not match derivation",
+                RC_SNAPSHOT,
+            )
+        repo, snapshot = prepared_repo, prepared_snapshot
+    if case not in CASE_HASHES:
+        raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
+    golden = (
+        _prepare_snapshot_case(repo, sessions_root, case)
+        if prepared_golden is None
+        else prepared_golden
+    )
+    base = base.resolve()
+    if snapshot == base or base in snapshot.parents or snapshot in base.parents:
+        raise ValidationError(
+            "snapshot base and destination must be independent directories",
+            RC_SNAPSHOT,
+        )
+    _preflight_snapshot_relocation(base)
+    shutil.copytree(
+        base,
+        snapshot,
+        symlinks=True,
+        copy_function=shutil.copy2,
+    )
+    _preflight_snapshot_relocation(snapshot)
+    return _finish_snapshot_case(repo, snapshot, case, golden)
+
+
+def build_snapshot(
+    repo: Path,
+    snapshot: Path,
+    sessions_root: Path,
+    case: str,
+) -> dict[str, Any]:
+    repo, snapshot = _resolve_snapshot_destination(repo, snapshot)
+    golden = _prepare_snapshot_case(repo, sessions_root, case)
+    _build_snapshot_base(repo, snapshot)
+    return _finish_snapshot_case(repo, snapshot, case, golden)
 
 
 def _parse_numstat(raw: bytes) -> list[list[Any]]:

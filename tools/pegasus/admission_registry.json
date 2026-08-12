@@ -3,9 +3,9 @@
   "entries": {
     "tools/claude_session_ledger.py": {
       "class": "unknown",
-      "reason": "input caps and capped-input measurement are incomplete",
-      "primary_gate": "hook deny pending admission evidence",
-      "evidence": "unmeasured; unbounded input surfaces remain"
+      "reason": "inputs are hard-capped; isolated-scope and cap-boundary measurements are unavailable",
+      "primary_gate": "hook deny pending isolated-scope admission evidence",
+      "evidence": "compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB"
     },
     "tools/pegasus/certify_calibration.sh": {
       "class": "dispatch-required",

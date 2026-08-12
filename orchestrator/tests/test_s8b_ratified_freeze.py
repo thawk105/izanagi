@@ -449,6 +449,18 @@ class _EmitterScalePoint:
         self.throughputs = [1000.0] * 5
         self.notes = []
         self.run_cmd = run_cmd
+        self.rep_observations = [
+            {
+                "rep_index": index, "returncode": 0,
+                "counter_status": "complete", "missing_perf_events": [],
+                "perf_raw": {
+                    "LLC-load-misses": 1, "LLC-loads": 2,
+                    "instructions": 3, "cycles": 4,
+                },
+                "throughput": 1000.0,
+            }
+            for index in range(5)
+        ]
 
 
 def _emitter_measure(binary, records, threads, workload):

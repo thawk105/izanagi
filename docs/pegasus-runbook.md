@@ -348,11 +348,15 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | 足りない | 使える / 不明 | 計算ノードへ dispatch (従来経路) |
 | 足りない | 使えない | 取れるだけの枠で試み、当たったら**投げずに停止** |
 
-- **判定量 = user slice の raw `memory.current`。** 天井は 14 GiB
-  (`login_headroom.CEILING_BYTES`。数値はこの 1 箇所だけに置く)。**reclaim できる file cache を
-  差し引く案は採らない** — ユーザーが指した「合計」の再定義になるため。差し引けば実効許容量は
-  ほぼ倍になるが、それは別裁定が要る。
-- **1 コマンドへ渡す予算** = `min(4 GiB, 天井 − 現在使用量 − 生存中の予約 − 予備 2 GiB)`。
+- **判定量 = user slice の回収不能メモリ量。** 天井は 14 GiB
+  (`login_headroom.CEILING_BYTES`。数値はこの 1 箇所だけに置く)。
+  回収不能量 = 基準値 − clean file cache − 回収可能 slab で、clean file cache は `file` から
+  `shmem` / `file_dirty` / `file_writeback` / `unevictable` を引いた残り。基準値は
+  `memory.stat` の前後で読んだ `memory.current` の大きい方とし、差の結果は `anon + shmem` を
+  下回らせない。`slab_reclaimable` または `unevictable` が読めない環境と snapshot 不整合では
+  基準値そのもの (従来相当の保守判定) へ degrade する。**ファイルキャッシュが溢れることは
+  問題としない** (ユーザー裁定)。既存 5 キーが読めない観測失敗は従来どおり必ず dispatch。
+- **1 コマンドへ渡す予算** = `min(4 GiB, 天井 − 判定量 − 生存中の予約 − 予備 2 GiB)`。
   予備 2 GiB は**暫定値で実測根拠が無い**。予算が 1 GiB を割れば dispatch。
 - **予約台帳**は `/run/user/<uid>/izanagi-admission/` (repo 外・tmpfs)。同時要求は互いの予約を
   見て減額されるので、`現在使用量 + Σ予約` が天井を超えない。**repo へは実行状態を書かない**
@@ -457,7 +461,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 
 | path | class | evidence |
 |---|---|---|
-| `tools/claude_session_ledger.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/claude_session_ledger.py` | `unknown` | `compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB` |
 | `tools/pegasus/certify_calibration.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/collect_receipt.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/collect_t126_qualification.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
@@ -526,6 +530,20 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
     再提案には新しい実測が要る。
   - この手番が確定した帰結として、**hook 面で `systemd-run` 経由の綴りを塞いでも正規の測定面は
     失われない** ([T-518] (d) の閉じ方の入力。閉じるかどうかは [T-481] の族再設計で決める)。
+  - **2026-08-13 の委任と、そこで採られた非 canonical 測定 (前例にしない)。** ユーザーが実行場所分類の
+    **選択**を AI へ明示委任し (「あなたが適切なところを選んでください」)、その下で
+    `tools/claude_session_ledger.py` が計算ノードで測られた。計算ノードには per-job cgroup も cgroup
+    delegation も無く (`/proc/self/cgroup` が `0::/system.slice/nqs-jsv.service` の 1 行だけであることを
+    2 ノードで確認)、非 root では専有 scope を作れないため、採られたのは共有 service cgroup の
+    `memory.current` を busy sampling する delta 方式である。同居 job の充当変動が混入し、
+    実際に 1 走が負 delta になって無効化された。**この値は `local-ok` の根拠にならず、class は
+    `unknown` のまま**で、非 certifying であることを evidence 文字列自身に書いている。
+    **この測定は本節と D233 決定 4 の手番規定が禁じる形で得られたものである。** 本節はその禁止を
+    緩めない — 方式を問わず、AI セッション・子エージェント・自動化は分類の実測を自分で行わない。
+    委任の下で既に得られた当該 raw を evidence として残すかどうかを含め、**委任の射程は未裁定**であり、
+    裁定パッケージ (`output/insights/2026-08-13_exec-loc-and-usage-fixes/s4-rulings-package.md` の R-3)
+    でユーザー裁定を待つ。**この 1 件を「共有 cgroup 方式なら AI が測ってよい」という前例に
+    してはならない。** 本節を計算ノードで動く測定手順へ改訂する案も、依然として採らない。
 - **投げ先。** ログインノードから**自動**で計算ノードへ dispatch されるのは下表の exact task だけ
   である (D103 決定 2 / D105 決定 3 が enum を閉じている)。表に無い重い処理は自動化されていない
   ので、`qsub` / `qlogin` で自分で計算ノードを確保して走らせる。sanctioned な経路が無ければ

@@ -1,0 +1,7 @@
+usage: collect_wave_usage.py [-h] [--projects-root PROJECTS_ROOT]
+                             [--project SLUG] [--cwd-contains SUBSTR]
+                             [--cwd-under ABS_PATH] [--since ISO8601]
+                             [--until ISO8601] [--max-files N]
+                             [--include-sidechains] [--json] [--strict]
+collect_wave_usage.py: error: argument --project: expected one argument
+collect_wave_usage: error: collector rejected arguments with SystemExit(2)

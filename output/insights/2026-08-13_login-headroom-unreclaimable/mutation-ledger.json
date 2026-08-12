@@ -1,0 +1,778 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/c2185b9a4dae588c5155227ec9418d98/izdw-c2185b9a4d.o908433",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/c2185b9a4dae588c5155227ec9418d98/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.............                                                            [100%]\n============================= 85 passed in 10.88s ==============================\n",
+      "stdout_sha256": "e6ccb3adbc390977c9fe459dc6be236bd584067625397fef04d56706406d3a16"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+    "duration_s": 236.72,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "db7a84f9835c1bf72771ea0b695a9b032950f103f9db77763e6d620a7e331ea0",
+    "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+    "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+    "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+    "status": "PASSED",
+    "test_output_sha256": "e6ccb3adbc390977c9fe459dc6be236bd584067625397fef04d56706406d3a16",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+  },
+  "date": "2026-08-12T16:03:05.028280+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/f24705fefe57ae60307ffc588e067f9f/izdw-f24705fefe.o908436",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/f24705fefe57ae60307ffc588e067f9f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.......FFF...                                                            [100%]\n=================================== FAILURES ===================================\n_______ test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary _______\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_admit_and_reserve_use_unr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146f8d3ba260>\n\n    def test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary(\n        tmp_path,\n        monkeypatch,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 200,\n            current=900,\n            file=800,\n            shmem=0,\n            dirty=0,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n        assert observed.admission_bytes == 100\n        monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n    \n        admission, admit_reason = LH.admit(100, _base_dir=_ledger_base(tmp_path))\n        with LH.reserve(100, _base_dir=_ledger_base(tmp_path)) as reservation:\n>           assert reservation[0] is LH.Admission.LOCAL\nE           AssertionError: assert <Admission.DISPATCH: 'dispatch'> is <Admission.LOCAL: 'local'>\nE            +  where <Admission.LOCAL: 'local'> = <enum 'Admission'>.LOCAL\nE            +    where <enum 'Admission'> = LH.Admission\n\norchestrator/tests/test_login_headroom.py:844: AssertionError\n______ test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable] _______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_dirty_bytes_cross_admissi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150569164ca0>\ndirty = 0, expected = <Admission.LOCAL: 'local'>\n\n    @pytest.mark.parametrize(\n        (\"dirty\", \"expected\"),\n        [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],\n        ids=[\"dirty-unreclaimable\", \"clean-file-reclaimable\"],\n    )\n    def test_dirty_bytes_cross_admission_boundary(\n        tmp_path,\n        monkeypatch,\n        dirty,\n        expected,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 24576,\n            current=100000,\n            file=100000,\n            shmem=0,\n            dirty=dirty,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n        monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n    \n        admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n    \n>       assert admission is expected\nE       AssertionError: assert <Admission.DISPATCH: 'dispatch'> is <Admission.LOCAL: 'local'>\n\norchestrator/tests/test_login_headroom.py:911: AssertionError\n_____ test_missing_optional_stat_after_current_increase_falls_back_to_base _____\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_missing_optional_stat_aft0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1535b3302860>\n\n    def test_missing_optional_stat_after_current_increase_falls_back_to_base(\n        tmp_path,\n        monkeypatch,\n    ):\n        paths = _fake_cgroup(\n            tmp_path,\n            monkeypatch,\n            slice_current=100,\n            slice_max=LH.RESERVE_BYTES + 101,\n            memory_stat=_memory_stat(omit=\"slab_reclaimable\"),\n        )\n        real_read_at = LH._read_at\n        slice_currents = iter((100, 200))\n    \n        def increasing_current(directory_fd, name):\n            directory = Path(os.readlink(f\"/proc/self/fd/{directory_fd}\"))\n            if directory == paths[\"own\"] and name == \"memory.current\":\n                return f\"{next(slice_currents)}\\n\"\n            return real_read_at(directory_fd, name)\n    \n        monkeypatch.setattr(LH, \"_read_at\", increasing_current)\n        observed = LH.login_headroom()\n    \n        assert observed is not None\n        assert observed.memory_current_bytes == 100\n        assert observed.unreclaimable_base_bytes == 200\n        assert observed.unreclaimable_bytes is None\n        assert observed.admission_bytes == observed.unreclaimable_base_bytes\n        assert observed.memory_current_bytes + 1 + LH.RESERVE_BYTES == (\n            observed.effective_ceiling_bytes\n        )\n        assert observed.unreclaimable_base_bytes + 1 + LH.RESERVE_BYTES > (\n            observed.effective_ceiling_bytes\n        )\n        monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n    \n        admission, reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n    \n>       assert admission is LH.Admission.DISPATCH\nE       AssertionError: assert <Admission.LOCAL: 'local'> is <Admission.DISPATCH: 'dispatch'>\nE        +  where <Admission.DISPATCH: 'dispatch'> = <enum 'Admission'>.DISPATCH\nE        +    where <enum 'Admission'> = LH.Admission\n\norchestrator/tests/test_login_headroom.py:472: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary\nFAILED orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]\nFAILED orchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base\n======================== 3 failed, 82 passed in 14.55s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=2091 retained_bytes=2091 omitted_bytes=0 rendered_excerpt_bytes=2193 sha256=dc37272b690b69f6e5e43adf0a69a74f957a7cf6dd7a61aa9734feeb039b8f3c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_missing_optional_stat_aft0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1535b3302860>\n> \n>     def test_missing_optional_stat_after_current_increase_falls_back_to_base(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         paths = _fake_cgroup(\n>             tmp_path,\n>             monkeypatch,\n>             slice_current=100,\n>             slice_max=LH.RESERVE_BYTES + 101,\n>             memory_stat=_memory_stat(omit=\"slab_reclaimable\"),\n>         )\n>         real_read_at = LH._read_at\n>         slice_currents = iter((100, 200))\n>     \n>         def increasing_current(directory_fd, name):\n>             directory = Path(os.readlink(f\"/proc/self/fd/{directory_fd}\"))\n>             if directory == paths[\"own\"] and name == \"memory.current\":\n>                 return f\"{next(slice_currents)}\\x5cn\"\n>             return real_read_at(directory_fd, name)\n>     \n>         monkeypatch.setattr(LH, \"_read_at\", increasing_current)\n>         observed = LH.login_headroom()\n>     \n>         assert observed is not None\n>         assert observed.memory_current_bytes == 100\n>         assert observed.unreclaimable_base_bytes == 200\n>         assert observed.unreclaimable_bytes is None\n>         assert observed.admission_bytes == observed.unreclaimable_base_bytes\n>         assert observed.memory_current_bytes + 1 + LH.RESERVE_BYTES == (\n>             observed.effective_ceiling_bytes\n>         )\n>         assert observed.unreclaimable_base_bytes + 1 + LH.RESERVE_BYTES > (\n>             observed.effective_ceiling_bytes\n>         )\n>         monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n>     \n>         admission, reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n>     \n> >       assert admission is LH.Admission.DISPATCH\n> E       AssertionError: assert <Admission.LOCAL: 'local'> is <Admission.DISPATCH: 'dispatch'>\n> E        +  where <Admission.DISPATCH: 'dispatch'> = <enum 'Admission'>.DISPATCH\n> E        +    where <enum 'Admission'> = LH.Admission\n> \n> orchestrator/tests/test_login_headroom.py:472: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1216 retained_bytes=1216 omitted_bytes=0 rendered_excerpt_bytes=1277 sha256=59d2c166beba7685021b0c480df196acd6946890e8a44e110d5434265433190f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_admit_and_reserve_use_unr0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146f8d3ba260>\n> \n>     def test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 200,\n>             current=900,\n>             file=800,\n>             shmem=0,\n>             dirty=0,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n>         assert observed.admission_bytes == 100\n>         monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n>     \n>         admission, admit_reason = LH.admit(100, _base_dir=_ledger_base(tmp_path))\n>         with LH.reserve(100, _base_dir=_ledger_base(tmp_path)) as reservation:\n> >           assert reservation[0] is LH.Admission.LOCAL\n> E           AssertionError: assert <Admission.DISPATCH: 'dispatch'> is <Admission.LOCAL: 'local'>\n> E            +  where <Admission.LOCAL: 'local'> = <enum 'Admission'>.LOCAL\n> E            +    where <enum 'Admission'> = LH.Admission\n> \n> orchestrator/tests/test_login_headroom.py:844: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1199 retained_bytes=1199 omitted_bytes=0 rendered_excerpt_bytes=1270 sha256=efb36cd092e4edbf51a3f2f60e5095617c38da7faf90e732c035e284df8585ff\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_dirty_bytes_cross_admissi0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150569164ca0>\n> dirty = 0, expected = <Admission.LOCAL: 'local'>\n> \n>     @pytest.mark.parametrize(\n>         (\"dirty\", \"expected\"),\n>         [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],\n>         ids=[\"dirty-unreclaimable\", \"clean-file-reclaimable\"],\n>     )\n>     def test_dirty_bytes_cross_admission_boundary(\n>         tmp_path,\n>         monkeypatch,\n>         dirty,\n>         expected,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 24576,\n>             current=100000,\n>             file=100000,\n>             shmem=0,\n>             dirty=dirty,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n>         monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n>     \n>         admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n>     \n> >       assert admission is expected\n> E       AssertionError: assert <Admission.DISPATCH: 'dispatch'> is <Admission.LOCAL: 'local'>\n> \n> orchestrator/tests/test_login_headroom.py:911: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4506 retained_bytes=4506 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6376 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9066f2660c8da7a74566bb2737110c1ff4f117119989f38af409487321ce3261"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 241.797,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]",
+        "orchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]",
+        "orchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "13f6b2b5b5eeddfcfdaad5699a2b3cdc8b56babea2842a3cc60e97fd98aeaa66",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7ab87cc0d5d4fc341e044c6bd690a14c0f5ad5242ce292965925afa08f584cf5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "    required = observed.memory_current_bytes + reserved + estimate_bytes + RESERVE_BYTES",
+          "old": "    required = observed.admission_bytes + reserved + estimate_bytes + RESERVE_BYTES"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "9066f2660c8da7a74566bb2737110c1ff4f117119989f38af409487321ce3261",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/87ac97d93d4eb740742989c3b80bfc18/izdw-87ac97d93d.o908443",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/87ac97d93d4eb740742989c3b80bfc18/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.........F...                                                            [100%]\n=================================== FAILURES ===================================\n___________ test_grant_budget_uses_unreclaimable_bytes_for_available ___________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_grant_budget_uses_unrecla0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150d884693f0>\n\n    def test_grant_budget_uses_unreclaimable_bytes_for_available(\n        tmp_path,\n        monkeypatch,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 1000,\n            current=900,\n            file=800,\n            shmem=0,\n            dirty=0,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n        assert observed.admission_bytes == 100\n        monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n    \n        grant = LH.grant_budget(\n            max_bytes=1000,\n            min_bytes=1,\n            _base_dir=_ledger_base(tmp_path),\n        )\n    \n        assert grant.admission is LH.Admission.LOCAL\n>       assert grant.budget_bytes == 900\nE       AssertionError: assert 100 == 900\nE        +  where 100 = (<Admission.LOCAL: 'local'>, 100, 'ログインノードで 100 bytes の予算を予約しました（予約控除後の観測余裕=100 bytes、算出予算=100 bytes、現在使用量=900 bytes、回収不能量=100 bytes、判定占有量=100 bytes、実効天井=2147484648 bytes、生存中の予約=0 bytes）。').budget_bytes\n\norchestrator/tests/test_login_headroom.py:878: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available\n======================== 1 failed, 84 passed in 10.84s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1402 retained_bytes=1402 omitted_bytes=0 rendered_excerpt_bytes=1669 sha256=f68aa83d1584b0d7c5cfefa4ebdd022376f44bcdbf74b0e772704d119d09b6b7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_grant_budget_uses_unrecla0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x150d884693f0>\n> \n>     def test_grant_budget_uses_unreclaimable_bytes_for_available(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 1000,\n>             current=900,\n>             file=800,\n>             shmem=0,\n>             dirty=0,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n>         assert observed.admission_bytes == 100\n>         monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n>     \n>         grant = LH.grant_budget(\n>             max_bytes=1000,\n>             min_bytes=1,\n>             _base_dir=_ledger_base(tmp_path),\n>         )\n>     \n>         assert grant.admission is LH.Admission.LOCAL\n> >       assert grant.budget_bytes == 900\n> E       AssertionError: assert 100 == 900\n> E        +  where 100 = (<Admission.LOCAL: 'local'>, 100, '\\u30ed\\u30b0\\u30a4\\u30f3\\u30ce\\u30fc\\u30c9\\u3067 100 bytes \\u306e\\u4e88\\u7b97\\u3092\\u4e88\\u7d04\\u3057\\u307e\\u3057\\u305f\\uff08\\u4e88\\u7d04\\u63a7\\u9664\\u5f8c\\u306e\\u89b3\\u6e2c\\u4f59\\u88d5=100 bytes\\u3001\\u7b97\\u51fa\\u4e88\\u7b97=100 bytes\\u3001\\u73fe\\u5728\\u4f7f\\u7528\\u91cf=900 bytes\\u3001\\u56de\\u53ce\\u4e0d\\u80fd\\u91cf=100 bytes\\u3001\\u5224\\u5b9a\\u5360\\u6709\\u91cf=100 bytes\\u3001\\u5b9f\\u52b9\\u5929\\u4e95=2147484648 bytes\\u3001\\u751f\\u5b58\\u4e2d\\u306e\\u4e88\\u7d04=0 bytes\\uff09\\u3002').budget_bytes\n> \n> orchestrator/tests/test_login_headroom.py:878: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1402 retained_bytes=1402 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2395 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ee3d6d7026d175fb309594647d6ebc5e371d0ed955e8accf56934c32493a7c94"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 31.898,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "e176b69d72be808cd59323052a84ca9ed5b6a8b8e5463e8e8d870a9048851480",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8832456fc213b78ee9f8813d5c20ec42e1033a9e022dfd47ba74ba63e5d6d5c4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "                - observed.memory_current_bytes",
+          "old": "                - observed.admission_bytes"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "ee3d6d7026d175fb309594647d6ebc5e371d0ed955e8accf56934c32493a7c94",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/f9b2c7e2d085bdff08ff9057842c9008/izdw-f9b2c7e2d0.o908446",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/f9b2c7e2d085bdff08ff9057842c9008/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n...FFF.FF.F..                                                            [100%]\n=================================== FAILURES ===================================\n______ test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():\n        observed = _observation(\n            ceiling=2000,\n            current=1000,\n            anon=500,\n            file=500,\n            shmem=100,\n            dirty=60,\n            writeback=40,\n            unevictable=30,\n            slab=50,\n        )\n    \n        difference = observed.unreclaimable_base_bytes - (270 + 50)\n        floor = observed.anon_bytes + observed.shmem_bytes\n        assert difference == 680\n        assert difference >= floor\n>       assert observed.unreclaimable_bytes == 680\nE       AssertionError: assert 950 == 680\nE        +  where 950 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2000, effective_ceiling_b...es=500, shmem_bytes=100, file_dirty_bytes=60, file_writeback_bytes=40, slab_reclaimable_bytes=50, unevictable_bytes=30).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:328: AssertionError\n_____________ test_snapshot_inconsistency_degrades_conservatively ______________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_snapshot_inconsistency_de0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1468822aa890>\n\n    def test_snapshot_inconsistency_degrades_conservatively(tmp_path, monkeypatch):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 101,\n            current=100,\n            file=200,\n            shmem=0,\n            dirty=0,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n>       assert observed.unreclaimable_bytes is None\nE       AssertionError: assert 100 is None\nE        +  where 100 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147483749, effective_cei...le_bytes=200, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:488: AssertionError\n__________ test_anon_and_shmem_floor_handles_transient_clean_file_aba __________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14abfaa47970>\n\n    def test_anon_and_shmem_floor_handles_transient_clean_file_aba(\n        tmp_path,\n        monkeypatch,\n    ):\n        paths = _fake_cgroup(\n            tmp_path,\n            monkeypatch,\n            slice_current=1000,\n            slice_max=2000,\n        )\n        real_read_at = LH._read_at\n        slice_reads = []\n    \n        def transient_cache_between_current_reads(directory_fd, name):\n            directory = Path(os.readlink(f\"/proc/self/fd/{directory_fd}\"))\n            if directory == paths[\"own\"]:\n                slice_reads.append(name)\n                if name == \"memory.stat\":\n                    return _memory_stat(\n                        anon=800,\n                        file=1000,\n                        shmem=100,\n                        file_dirty=0,\n                        file_writeback=0,\n                        slab_reclaimable=0,\n                        unevictable=0,\n                    )\n            return real_read_at(directory_fd, name)\n    \n        monkeypatch.setattr(LH, \"_read_at\", transient_cache_between_current_reads)\n    \n        observed = LH.login_headroom()\n    \n        assert observed is not None\n        assert observed.memory_current_bytes == 1000\n        assert observed.unreclaimable_base_bytes == 1000\n        assert observed.unreclaimable_base_bytes - 900 == 100\n        assert observed.anon_bytes + observed.shmem_bytes == 900\n>       assert observed.unreclaimable_bytes == 900\nE       AssertionError: assert 1000 == 900\nE        +  where 1000 = LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0/cgroup/us...bytes=1000, shmem_bytes=100, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:371: AssertionError\n___________ test_grant_budget_uses_unreclaimable_bytes_for_available ___________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_grant_budget_uses_unrecla0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f137e4dd80>\n\n    def test_grant_budget_uses_unreclaimable_bytes_for_available(\n        tmp_path,\n        monkeypatch,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 1000,\n            current=900,\n            file=800,\n            shmem=0,\n            dirty=0,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n>       assert observed.admission_bytes == 100\nE       AssertionError: assert 900 == 100\nE        +  where 900 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147484648, effective_cei...le_bytes=800, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).admission_bytes\n\norchestrator/tests/test_login_headroom.py:868: AssertionError\n_______ test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary _______\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_admit_and_reserve_use_unr0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c273295f30>\n\n    def test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary(\n        tmp_path,\n        monkeypatch,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 200,\n            current=900,\n            file=800,\n            shmem=0,\n            dirty=0,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n>       assert observed.admission_bytes == 100\nE       AssertionError: assert 900 == 100\nE        +  where 900 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147483848, effective_cei...le_bytes=800, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).admission_bytes\n\norchestrator/tests/test_login_headroom.py:839: AssertionError\n______ test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable] _______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_dirty_bytes_cross_admissi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1539d048ba90>\ndirty = 0, expected = <Admission.LOCAL: 'local'>\n\n    @pytest.mark.parametrize(\n        (\"dirty\", \"expected\"),\n        [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],\n        ids=[\"dirty-unreclaimable\", \"clean-file-reclaimable\"],\n    )\n    def test_dirty_bytes_cross_admission_boundary(\n        tmp_path,\n        monkeypatch,\n        dirty,\n        expected,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 24576,\n            current=100000,\n            file=100000,\n            shmem=0,\n            dirty=dirty,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n        monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n    \n        admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n    \n>       assert admission is expected\nE       AssertionError: assert <Admission.DISPATCH: 'dispatch'> is <Admission.LOCAL: 'local'>\n\norchestrator/tests/test_login_headroom.py:911: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\nFAILED orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively\nFAILED orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba\nFAILED orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available\nFAILED orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary\nFAILED orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]\n======================== 6 failed, 79 passed in 10.78s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2048 retained_bytes=2048 omitted_bytes=0 rendered_excerpt_bytes=2145 sha256=a2591f75f4ddd8ad932ab1766394ba6efb0870316ec9e015a5435b9cf56d1cea\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14abfaa47970>\n> \n>     def test_anon_and_shmem_floor_handles_transient_clean_file_aba(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         paths = _fake_cgroup(\n>             tmp_path,\n>             monkeypatch,\n>             slice_current=1000,\n>             slice_max=2000,\n>         )\n>         real_read_at = LH._read_at\n>         slice_reads = []\n>     \n>         def transient_cache_between_current_reads(directory_fd, name):\n>             directory = Path(os.readlink(f\"/proc/self/fd/{directory_fd}\"))\n>             if directory == paths[\"own\"]:\n>                 slice_reads.append(name)\n>                 if name == \"memory.stat\":\n>                     return _memory_stat(\n>                         anon=800,\n>                         file=1000,\n>                         shmem=100,\n>                         file_dirty=0,\n>                         file_writeback=0,\n>                         slab_reclaimable=0,\n>                         unevictable=0,\n>                     )\n>             return real_read_at(directory_fd, name)\n>     \n>         monkeypatch.setattr(LH, \"_read_at\", transient_cache_between_current_reads)\n>     \n>         observed = LH.login_headroom()\n>     \n>         assert observed is not None\n>         assert observed.memory_current_bytes == 1000\n>         assert observed.unreclaimable_base_bytes == 1000\n>         assert observed.unreclaimable_base_bytes - 900 == 100\n>         assert observed.anon_bytes + observed.shmem_bytes == 900\n> >       assert observed.unreclaimable_bytes == 900\n> E       AssertionError: assert 1000 == 900\n> E        +  where 1000 = LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0/cgroup/us...bytes=1000, shmem_bytes=100, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:371: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1199 retained_bytes=1199 omitted_bytes=0 rendered_excerpt_bytes=1270 sha256=50a1d8dbbadde7235a2ad76f52188aa449b8e84d7d908bb46b8d7f99a1ff736e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_dirty_bytes_cross_admissi0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1539d048ba90>\n> dirty = 0, expected = <Admission.LOCAL: 'local'>\n> \n>     @pytest.mark.parametrize(\n>         (\"dirty\", \"expected\"),\n>         [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],\n>         ids=[\"dirty-unreclaimable\", \"clean-file-reclaimable\"],\n>     )\n>     def test_dirty_bytes_cross_admission_boundary(\n>         tmp_path,\n>         monkeypatch,\n>         dirty,\n>         expected,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 24576,\n>             current=100000,\n>             file=100000,\n>             shmem=0,\n>             dirty=dirty,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n>         monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n>     \n>         admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n>     \n> >       assert admission is expected\n> E       AssertionError: assert <Admission.DISPATCH: 'dispatch'> is <Admission.LOCAL: 'local'>\n> \n> orchestrator/tests/test_login_headroom.py:911: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1024 retained_bytes=1024 omitted_bytes=0 rendered_excerpt_bytes=1073 sha256=1961f0d128379a7178831aa9ce8662a59c1737efaabe2b3e2d6f8f1d62db013d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():\n>         observed = _observation(\n>             ceiling=2000,\n>             current=1000,\n>             anon=500,\n>             file=500,\n>             shmem=100,\n>             dirty=60,\n>             writeback=40,\n>             unevictable=30,\n>             slab=50,\n>         )\n>     \n>         difference = observed.unreclaimable_base_bytes - (270 + 50)\n>         floor = observed.anon_bytes + observed.shmem_bytes\n>         assert difference == 680\n>         assert difference >= floor\n> >       assert observed.unreclaimable_bytes == 680\n> E       AssertionError: assert 950 == 680\n> E        +  where 950 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2000, effective_ceiling_b...es=500, shmem_bytes=100, file_dirty_bytes=60, file_writeback_bytes=40, slab_reclaimable_bytes=50, unevictable_bytes=30).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:328: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1017 retained_bytes=1017 omitted_bytes=0 rendered_excerpt_bytes=1066 sha256=82d3719a653ccdc6a6820d304a5479089a288a32fc78825d0743fa059037dea8\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_admit_and_reserve_use_unr0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c273295f30>\n> \n>     def test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 200,\n>             current=900,\n>             file=800,\n>             shmem=0,\n>             dirty=0,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n> >       assert observed.admission_bytes == 100\n> E       AssertionError: assert 900 == 100\n> E        +  where 900 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147483848, effective_cei...le_bytes=800, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).admission_bytes\n> \n> orchestrator/tests/test_login_headroom.py:839: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1010 retained_bytes=1010 omitted_bytes=0 rendered_excerpt_bytes=1059 sha256=bf8a59fdfdf25fbf2d3139d80bfd20097fef5b0fad8803b3a0fdc0acacb97d93\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_grant_budget_uses_unrecla0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f137e4dd80>\n> \n>     def test_grant_budget_uses_unreclaimable_bytes_for_available(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 1000,\n>             current=900,\n>             file=800,\n>             shmem=0,\n>             dirty=0,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n> >       assert observed.admission_bytes == 100\n> E       AssertionError: assert 900 == 100\n> E        +  where 900 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147484648, effective_cei...le_bytes=800, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).admission_bytes\n> \n> orchestrator/tests/test_login_headroom.py:868: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=993 retained_bytes=993 omitted_bytes=0 rendered_excerpt_bytes=1036 sha256=5a263b036d907d77374ffb7940f2cf7409a767a01b542aa8d90f025834216868\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_snapshot_inconsistency_de0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1468822aa890>\n> \n>     def test_snapshot_inconsistency_degrades_conservatively(tmp_path, monkeypatch):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 101,\n>             current=100,\n>             file=200,\n>             shmem=0,\n>             dirty=0,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n> >       assert observed.unreclaimable_bytes is None\n> E       AssertionError: assert 100 is None\n> E        +  where 100 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147483749, effective_cei...le_bytes=200, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:488: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=7291 retained_bytes=7291 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10597 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "88ef6db6eddbf575cd745ac017872763127d82f0e5e8510d29c59d208cd9cdd0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 31.996,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+        "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba",
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available",
+        "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+        "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively",
+        "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available",
+        "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "954ecbc00946011db22290b763925e5075bc47c56239c4386f24fe1c25fbb658",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6ce9f4e5e1259340357af7fa733782a61397b78d76039a912444462901a0160e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "        reclaimable = self.slab_reclaimable_bytes",
+          "old": "        reclaimable = clean_file + self.slab_reclaimable_bytes"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "88ef6db6eddbf575cd745ac017872763127d82f0e5e8510d29c59d208cd9cdd0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/ece8e5e69f3b69ec2f126403d2cc7487/izdw-ece8e5e69f.o908448",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/ece8e5e69f3b69ec2f126403d2cc7487/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.......F..F..                                                            [100%]\n=================================== FAILURES ===================================\n______ test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():\n        observed = _observation(\n            ceiling=2000,\n            current=1000,\n            anon=500,\n            file=500,\n            shmem=100,\n            dirty=60,\n            writeback=40,\n            unevictable=30,\n            slab=50,\n        )\n    \n        difference = observed.unreclaimable_base_bytes - (270 + 50)\n        floor = observed.anon_bytes + observed.shmem_bytes\n        assert difference == 680\n        assert difference >= floor\n>       assert observed.unreclaimable_bytes == 680\nE       AssertionError: assert 600 == 680\nE        +  where 600 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2000, effective_ceiling_b...es=500, shmem_bytes=100, file_dirty_bytes=60, file_writeback_bytes=40, slab_reclaimable_bytes=50, unevictable_bytes=30).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:328: AssertionError\n________ test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable] ________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_dirty_bytes_cross_admissi0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147179265c90>\ndirty = 24576, expected = <Admission.DISPATCH: 'dispatch'>\n\n    @pytest.mark.parametrize(\n        (\"dirty\", \"expected\"),\n        [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],\n        ids=[\"dirty-unreclaimable\", \"clean-file-reclaimable\"],\n    )\n    def test_dirty_bytes_cross_admission_boundary(\n        tmp_path,\n        monkeypatch,\n        dirty,\n        expected,\n    ):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 24576,\n            current=100000,\n            file=100000,\n            shmem=0,\n            dirty=dirty,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n        monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n    \n        admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n    \n>       assert admission is expected\nE       AssertionError: assert <Admission.LOCAL: 'local'> is <Admission.DISPATCH: 'dispatch'>\n\norchestrator/tests/test_login_headroom.py:911: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\nFAILED orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]\n======================== 2 failed, 83 passed in 10.69s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1209 retained_bytes=1209 omitted_bytes=0 rendered_excerpt_bytes=1280 sha256=b775871da79310be92e67ff3679ab411dc7f93a3adc0cb58ccb8dfe4ad8ce760\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_dirty_bytes_cross_admissi0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147179265c90>\n> dirty = 24576, expected = <Admission.DISPATCH: 'dispatch'>\n> \n>     @pytest.mark.parametrize(\n>         (\"dirty\", \"expected\"),\n>         [(24576, LH.Admission.DISPATCH), (0, LH.Admission.LOCAL)],\n>         ids=[\"dirty-unreclaimable\", \"clean-file-reclaimable\"],\n>     )\n>     def test_dirty_bytes_cross_admission_boundary(\n>         tmp_path,\n>         monkeypatch,\n>         dirty,\n>         expected,\n>     ):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 24576,\n>             current=100000,\n>             file=100000,\n>             shmem=0,\n>             dirty=dirty,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n>         monkeypatch.setattr(LH, \"login_headroom\", lambda: observed)\n>     \n>         admission, _reason = LH.admit(1, _base_dir=_ledger_base(tmp_path))\n>     \n> >       assert admission is expected\n> E       AssertionError: assert <Admission.LOCAL: 'local'> is <Admission.DISPATCH: 'dispatch'>\n> \n> orchestrator/tests/test_login_headroom.py:911: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1024 retained_bytes=1024 omitted_bytes=0 rendered_excerpt_bytes=1073 sha256=42109c4409eec3b6bea01461b39ac4bd346af580d9633de646ffb2722a0c91ed\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():\n>         observed = _observation(\n>             ceiling=2000,\n>             current=1000,\n>             anon=500,\n>             file=500,\n>             shmem=100,\n>             dirty=60,\n>             writeback=40,\n>             unevictable=30,\n>             slab=50,\n>         )\n>     \n>         difference = observed.unreclaimable_base_bytes - (270 + 50)\n>         floor = observed.anon_bytes + observed.shmem_bytes\n>         assert difference == 680\n>         assert difference >= floor\n> >       assert observed.unreclaimable_bytes == 680\n> E       AssertionError: assert 600 == 680\n> E        +  where 600 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2000, effective_ceiling_b...es=500, shmem_bytes=100, file_dirty_bytes=60, file_writeback_bytes=40, slab_reclaimable_bytes=50, unevictable_bytes=30).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:328: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2233 retained_bytes=2233 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3536 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "61e5c8397fd387f44d9d6f739a0d19dfdf5287677caa0505bc0b0b8804186832"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 31.93,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "4f62d49566535fb3820afe1052a5e62cde086c7d7713e4b249d269cde6613360",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e833f4b6c789e0e98ce6efd1f15555c7c50d16f81753ced60e91d7a7856bc5e6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "            - self.unevictable_bytes,",
+          "old": "            - self.file_dirty_bytes\n            - self.file_writeback_bytes\n            - self.unevictable_bytes,"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "61e5c8397fd387f44d9d6f739a0d19dfdf5287677caa0505bc0b0b8804186832",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/71edf97662568d46c69bc277abacb36f/izdw-71edf97662.o908450",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/71edf97662568d46c69bc277abacb36f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.............                                                            [100%]\n============================= 85 passed in 14.88s ==============================\n",
+        "stdout_sha256": "2652222688a9ffc2090a465311096195a87fb91e8af758e37809d49d2a770219"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 241.868,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "911c03641c7b43174673a58580a647b7d0a52e58f61661dbf75eeea9c21cabbb",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "0e46b9c6aa4ee2bd0e160501d0011686127ad408ec7275c9e96eb41cf823dc69",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "    required = {\"anon\"}",
+          "old": "    required = {\"anon\", \"file\", \"shmem\", \"file_dirty\", \"file_writeback\"}"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "SURVIVED",
+      "test_output_sha256": "2652222688a9ffc2090a465311096195a87fb91e8af758e37809d49d2a770219",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/36bba8939e9708b5445318360a1691db/izdw-36bba8939e.o908462",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/36bba8939e9708b5445318360a1691db/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n........F....                                                            [100%]\n=================================== FAILURES ===================================\n_____________ test_snapshot_inconsistency_degrades_conservatively ______________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_snapshot_inconsistency_de0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e66a5be320>\n\n    def test_snapshot_inconsistency_degrades_conservatively(tmp_path, monkeypatch):\n        observed = _observation(\n            ceiling=LH.RESERVE_BYTES + 101,\n            current=100,\n            file=200,\n            shmem=0,\n            dirty=0,\n            writeback=0,\n            unevictable=0,\n            slab=0,\n        )\n>       assert observed.unreclaimable_bytes is None\nE       AssertionError: assert 0 is None\nE        +  where 0 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147483749, effective_cei...le_bytes=200, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:488: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively\n======================== 1 failed, 84 passed in 14.01s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=989 retained_bytes=989 omitted_bytes=0 rendered_excerpt_bytes=1032 sha256=e8267e3884cb357106d57f333f9f7ec90b6e819df9da3e88729be88c4d123fe9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_snapshot_inconsistency_de0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e66a5be320>\n> \n>     def test_snapshot_inconsistency_degrades_conservatively(tmp_path, monkeypatch):\n>         observed = _observation(\n>             ceiling=LH.RESERVE_BYTES + 101,\n>             current=100,\n>             file=200,\n>             shmem=0,\n>             dirty=0,\n>             writeback=0,\n>             unevictable=0,\n>             slab=0,\n>         )\n> >       assert observed.unreclaimable_bytes is None\n> E       AssertionError: assert 0 is None\n> E        +  where 0 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2147483749, effective_cei...le_bytes=200, shmem_bytes=0, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:488: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=989 retained_bytes=989 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1749 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d27e27c3f4ef0120293f3f24439c322959cc74dc4d8a88f851647eaf315cfb13"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 42.246,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "d5dc0f90f30aa9bcea418a81f92033a9b436abc687c2dfd077135aceab7c2b14",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e512f4cbc7cdd5f7f0291906f84719b6a81c254e49bad67c99b6a0cfeb822f6c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "        if reclaimable > self.unreclaimable_base_bytes:\n            return 0",
+          "old": "        if reclaimable > self.unreclaimable_base_bytes:\n            return None"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "d27e27c3f4ef0120293f3f24439c322959cc74dc4d8a88f851647eaf315cfb13",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/bd10198c79867785bdeee12ad30bfb1e/izdw-bd10198c79.o908464",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/bd10198c79867785bdeee12ad30bfb1e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.......F.....                                                            [100%]\n=================================== FAILURES ===================================\n______ test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab ______\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():\n        observed = _observation(\n            ceiling=2000,\n            current=1000,\n            anon=500,\n            file=500,\n            shmem=100,\n            dirty=60,\n            writeback=40,\n            unevictable=30,\n            slab=50,\n        )\n    \n        difference = observed.unreclaimable_base_bytes - (270 + 50)\n        floor = observed.anon_bytes + observed.shmem_bytes\n        assert difference == 680\n        assert difference >= floor\n>       assert observed.unreclaimable_bytes == 680\nE       AssertionError: assert 650 == 680\nE        +  where 650 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2000, effective_ceiling_b...es=500, shmem_bytes=100, file_dirty_bytes=60, file_writeback_bytes=40, slab_reclaimable_bytes=50, unevictable_bytes=30).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:328: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\n======================== 1 failed, 84 passed in 10.67s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1024 retained_bytes=1024 omitted_bytes=0 rendered_excerpt_bytes=1073 sha256=726e301348b4d1dd464695bf072f2c8a538007a53d99d2a393918018bdb10c64\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab():\n>         observed = _observation(\n>             ceiling=2000,\n>             current=1000,\n>             anon=500,\n>             file=500,\n>             shmem=100,\n>             dirty=60,\n>             writeback=40,\n>             unevictable=30,\n>             slab=50,\n>         )\n>     \n>         difference = observed.unreclaimable_base_bytes - (270 + 50)\n>         floor = observed.anon_bytes + observed.shmem_bytes\n>         assert difference == 680\n>         assert difference >= floor\n> >       assert observed.unreclaimable_bytes == 680\n> E       AssertionError: assert 650 == 680\n> E        +  where 650 = LoginHeadroom(cgroup_path=PosixPath('/fixture/user.slice/user-4242.slice'), memory_max_bytes=2000, effective_ceiling_b...es=500, shmem_bytes=100, file_dirty_bytes=60, file_writeback_bytes=40, slab_reclaimable_bytes=50, unevictable_bytes=30).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:328: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1024 retained_bytes=1024 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1810 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e14266d2aac4ff0b19bfb61fc90902a13f7622a089f160f88231cf7d85dbd013"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 32.008,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "1bf86dabaaf9d651941f10ff4832f6f362c22094f295665ea0bac5a812c0937d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "90fb4592b92d1888a1669d47c223d9c6a68ba77e27203959025f78e40efdd4be",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "            - self.file_writeback_bytes,",
+          "old": "            - self.file_writeback_bytes\n            - self.unevictable_bytes,"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "e14266d2aac4ff0b19bfb61fc90902a13f7622a089f160f88231cf7d85dbd013",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/8dd4d795debee5ca1da7e94a537dd506/izdw-8dd4d795de.o908465",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/8dd4d795debee5ca1da7e94a537dd506/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.........F...                                                            [100%]\n=================================== FAILURES ===================================\n__________ test_anon_and_shmem_floor_handles_transient_clean_file_aba __________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145e08df1300>\n\n    def test_anon_and_shmem_floor_handles_transient_clean_file_aba(\n        tmp_path,\n        monkeypatch,\n    ):\n        paths = _fake_cgroup(\n            tmp_path,\n            monkeypatch,\n            slice_current=1000,\n            slice_max=2000,\n        )\n        real_read_at = LH._read_at\n        slice_reads = []\n    \n        def transient_cache_between_current_reads(directory_fd, name):\n            directory = Path(os.readlink(f\"/proc/self/fd/{directory_fd}\"))\n            if directory == paths[\"own\"]:\n                slice_reads.append(name)\n                if name == \"memory.stat\":\n                    return _memory_stat(\n                        anon=800,\n                        file=1000,\n                        shmem=100,\n                        file_dirty=0,\n                        file_writeback=0,\n                        slab_reclaimable=0,\n                        unevictable=0,\n                    )\n            return real_read_at(directory_fd, name)\n    \n        monkeypatch.setattr(LH, \"_read_at\", transient_cache_between_current_reads)\n    \n        observed = LH.login_headroom()\n    \n        assert observed is not None\n        assert observed.memory_current_bytes == 1000\n        assert observed.unreclaimable_base_bytes == 1000\n        assert observed.unreclaimable_base_bytes - 900 == 100\n        assert observed.anon_bytes + observed.shmem_bytes == 900\n>       assert observed.unreclaimable_bytes == 900\nE       AssertionError: assert 100 == 900\nE        +  where 100 = LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0/cgroup/us...bytes=1000, shmem_bytes=100, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n\norchestrator/tests/test_login_headroom.py:371: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba\n======================== 1 failed, 84 passed in 14.15s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2046 retained_bytes=2046 omitted_bytes=0 rendered_excerpt_bytes=2143 sha256=34d03549f3bff8c3f3ac4976a119fd8bbf7f4778cc7ce18878d785f0a21fbf12\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145e08df1300>\n> \n>     def test_anon_and_shmem_floor_handles_transient_clean_file_aba(\n>         tmp_path,\n>         monkeypatch,\n>     ):\n>         paths = _fake_cgroup(\n>             tmp_path,\n>             monkeypatch,\n>             slice_current=1000,\n>             slice_max=2000,\n>         )\n>         real_read_at = LH._read_at\n>         slice_reads = []\n>     \n>         def transient_cache_between_current_reads(directory_fd, name):\n>             directory = Path(os.readlink(f\"/proc/self/fd/{directory_fd}\"))\n>             if directory == paths[\"own\"]:\n>                 slice_reads.append(name)\n>                 if name == \"memory.stat\":\n>                     return _memory_stat(\n>                         anon=800,\n>                         file=1000,\n>                         shmem=100,\n>                         file_dirty=0,\n>                         file_writeback=0,\n>                         slab_reclaimable=0,\n>                         unevictable=0,\n>                     )\n>             return real_read_at(directory_fd, name)\n>     \n>         monkeypatch.setattr(LH, \"_read_at\", transient_cache_between_current_reads)\n>     \n>         observed = LH.login_headroom()\n>     \n>         assert observed is not None\n>         assert observed.memory_current_bytes == 1000\n>         assert observed.unreclaimable_base_bytes == 1000\n>         assert observed.unreclaimable_base_bytes - 900 == 100\n>         assert observed.anon_bytes + observed.shmem_bytes == 900\n> >       assert observed.unreclaimable_bytes == 900\n> E       AssertionError: assert 100 == 900\n> E        +  where 100 = LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_anon_and_shmem_floor_hand0/cgroup/us...bytes=1000, shmem_bytes=100, file_dirty_bytes=0, file_writeback_bytes=0, slab_reclaimable_bytes=0, unevictable_bytes=0).unreclaimable_bytes\n> \n> orchestrator/tests/test_login_headroom.py:371: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2046 retained_bytes=2046 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2872 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7dcae14b87c0d92304bede200a48de1f89af8b340fb20ec7c15d288cd54716b5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 37.154,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "0b295bd469ab6835233420a5df648531de221ad0e481017970ee051f5cc313cb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "82e7741b90497643360b69d18a382bd906e573b40fa55e05671e053fe631b4ae",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "        return min(self.unreclaimable_base_bytes, value)",
+          "old": "        return min(self.unreclaimable_base_bytes, max(value, floor))"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "7dcae14b87c0d92304bede200a48de1f89af8b340fb20ec7c15d288cd54716b5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/281d58e5f46af915c1db477dae01a42c/izdw-281d58e5f4.o908466",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/281d58e5f46af915c1db477dae01a42c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [85 items]\n\n........................................................................ [ 84%]\n.........F...                                                            [100%]\n=================================== FAILURES ===================================\n______ test_every_observation_failure_is_none_and_dispatch[stat_missing] _______\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_every_observation_failure0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c8f69ca8c0>\nmutation = <function _stat_missing at 0x14c8f698b880>\n\n    @pytest.mark.parametrize(\n        \"mutation\",\n        [\n            _missing_current,\n            _missing_max,\n            _missing_stat,\n            _permission_error,\n            _io_error,\n            _decode_error,\n            _empty_value,\n            _multiple_tokens,\n            _non_decimal,\n            _negative,\n            _uint64_overflow,\n            _max_empty,\n            _max_multiple_tokens,\n            _max_non_decimal,\n            _max_negative,\n            _max_uint64_overflow,\n            _stat_missing,\n            _stat_duplicate,\n            _stat_multiple_tokens,\n            _stat_non_decimal,\n            _slice_max,\n            _uid_mismatch,\n            _proc_inconsistent,\n            _proc_empty,\n            _proc_multiple_unified,\n            _proc_decode_error,\n            _magic_mismatch,\n            _magic_io_error,\n        ],\n        ids=lambda mutation: mutation.__name__.removeprefix(\"_\"),\n    )\n    def test_every_observation_failure_is_none_and_dispatch(\n        tmp_path,\n        monkeypatch,\n        mutation,\n    ):\n        paths = _fake_cgroup(tmp_path, monkeypatch)\n        mutation(paths, monkeypatch)\n    \n>       assert LH.login_headroom() is None\nE       AssertionError: assert LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_every_observation_failure0/cgroup/u...ytes=2, shmem_bytes=3, file_dirty_bytes=4, file_writeback_bytes=0, slab_reclaimable_bytes=None, unevictable_bytes=None) is None\nE        +  where LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_every_observation_failure0/cgroup/u...ytes=2, shmem_bytes=3, file_dirty_bytes=4, file_writeback_bytes=0, slab_reclaimable_bytes=None, unevictable_bytes=None) = <function login_headroom at 0x14c8f6988f70>()\nE        +    where <function login_headroom at 0x14c8f6988f70> = LH.login_headroom\n\norchestrator/tests/test_login_headroom.py:758: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]\n======================== 1 failed, 84 passed in 10.92s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2215 retained_bytes=2215 omitted_bytes=0 rendered_excerpt_bytes=2324 sha256=5c9717dc1b0d98b1c93489d348865897e8164d761f2728f3819d3ef74cbde150\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_every_observation_failure0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c8f69ca8c0>\n> mutation = <function _stat_missing at 0x14c8f698b880>\n> \n>     @pytest.mark.parametrize(\n>         \"mutation\",\n>         [\n>             _missing_current,\n>             _missing_max,\n>             _missing_stat,\n>             _permission_error,\n>             _io_error,\n>             _decode_error,\n>             _empty_value,\n>             _multiple_tokens,\n>             _non_decimal,\n>             _negative,\n>             _uint64_overflow,\n>             _max_empty,\n>             _max_multiple_tokens,\n>             _max_non_decimal,\n>             _max_negative,\n>             _max_uint64_overflow,\n>             _stat_missing,\n>             _stat_duplicate,\n>             _stat_multiple_tokens,\n>             _stat_non_decimal,\n>             _slice_max,\n>             _uid_mismatch,\n>             _proc_inconsistent,\n>             _proc_empty,\n>             _proc_multiple_unified,\n>             _proc_decode_error,\n>             _magic_mismatch,\n>             _magic_io_error,\n>         ],\n>         ids=lambda mutation: mutation.__name__.removeprefix(\"_\"),\n>     )\n>     def test_every_observation_failure_is_none_and_dispatch(\n>         tmp_path,\n>         monkeypatch,\n>         mutation,\n>     ):\n>         paths = _fake_cgroup(tmp_path, monkeypatch)\n>         mutation(paths, monkeypatch)\n>     \n> >       assert LH.login_headroom() is None\n> E       AssertionError: assert LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_every_observation_failure0/cgroup/u...ytes=2, shmem_bytes=3, file_dirty_bytes=4, file_writeback_bytes=0, slab_reclaimable_bytes=None, unevictable_bytes=None) is None\n> E        +  where LoginHeadroom(cgroup_path=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_every_observation_failure0/cgroup/u...ytes=2, shmem_bytes=3, file_dirty_bytes=4, file_writeback_bytes=0, slab_reclaimable_bytes=None, unevictable_bytes=None) = <function login_headroom at 0x14c8f6988f70>()\n> E        +    where <function login_headroom at 0x14c8f6988f70> = LH.login_headroom\n> \n> orchestrator/tests/test_login_headroom.py:758: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2215 retained_bytes=2215 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3060 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fdbc8f61965a523ba71cf95a90bd46163942d965b92d2bd17ec054adc1f2d011"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f84778a94ff0057c139f9aaf55c894e3ab6c92214212adf6e6f7cc8c3304044c",
+      "duration_s": 32.026,
+      "expected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]"
+      ],
+      "hang_risk": false,
+      "id": "M5b",
+      "injection_diff_sha256": "dc066228dc3a7f5208044153a79cc8b97afb3e510f0262502a23f850dafd00f8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4fd18c04b0c4741a2200f8c94db8d7fcf615275486033488df6e0933ccde6fb9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "    required = {\"anon\"}",
+          "old": "    required = {\"anon\", \"file\", \"shmem\", \"file_dirty\", \"file_writeback\"}"
+        },
+        {
+          "file": "orchestrator/campaign/login_headroom.py",
+          "new": "            file_writeback_bytes=stats.get(\"file_writeback\", 0),",
+          "old": "            file_writeback_bytes=stats[\"file_writeback\"],"
+        }
+      ],
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "KILLED",
+      "test_output_sha256": "fdbc8f61965a523ba71cf95a90bd46163942d965b92d2bd17ec054adc1f2d011",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/90c37764676f9a44fd9953b2a503c125/izdw-90c3776467.o908432",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/output/pegasus-dispatch/90c37764676f9a44fd9953b2a503c125/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_login_headroom.py::test_reads_exact_user_slice_and_returns_every_observation_field\norchestrator/tests/test_login_headroom.py::test_missing_ancestor_memory_interfaces_are_treated_as_unlimited\norchestrator/tests/test_login_headroom.py::test_uses_raw_memory_current_not_anon_for_occupancy_and_admission\norchestrator/tests/test_login_headroom.py::test_unreclaimable_base_uses_maximum_of_both_current_reads[current-increased]\norchestrator/tests/test_login_headroom.py::test_unreclaimable_base_uses_maximum_of_both_current_reads[current-decreased]\norchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab\norchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba\norchestrator/tests/test_login_headroom.py::test_clean_file_is_clamped_at_zero_before_reclaimable_slab\norchestrator/tests/test_login_headroom.py::test_missing_optional_unreclaimable_stat_degrades_conservatively[slab_reclaimable]\norchestrator/tests/test_login_headroom.py::test_missing_optional_unreclaimable_stat_degrades_conservatively[unevictable]\norchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base\norchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively\norchestrator/tests/test_login_headroom.py::test_effective_ceiling_is_limited_by_each_ancestor_available_bytes[user-slice-parent]\norchestrator/tests/test_login_headroom.py::test_effective_ceiling_is_limited_by_each_ancestor_available_bytes[cgroup-root]\norchestrator/tests/test_login_headroom.py::test_cgroup_walk_uses_directory_fds_with_directory_and_nofollow_flags\norchestrator/tests/test_login_headroom.py::test_filesystem_magic_is_checked_on_root_and_actual_user_slice_directory\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[missing_current]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[missing_max]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[missing_stat]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[permission_error]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[io_error]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[decode_error]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[empty_value]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[multiple_tokens]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[non_decimal]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[negative]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[uint64_overflow]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_empty]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_multiple_tokens]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_non_decimal]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_negative]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_uint64_overflow]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_duplicate]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_multiple_tokens]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_non_decimal]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[slice_max]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[uid_mismatch]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_inconsistent]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_empty]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_multiple_unified]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_decode_error]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[magic_mismatch]\norchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[magic_io_error]\norchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[0]\norchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[-1]\norchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[True]\norchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[1]\norchestrator/tests/test_login_headroom.py::test_admission_accepts_exact_ceiling_boundary\norchestrator/tests/test_login_headroom.py::test_dispatch_reason_exposes_rejection_arithmetic\norchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary\norchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available\norchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]\norchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]\norchestrator/tests/test_login_headroom.py::test_grant_budget_is_capped_at_maximum_and_records_diagnostics\norchestrator/tests/test_login_headroom.py::test_grant_budget_dispatches_below_minimum\norchestrator/tests/test_login_headroom.py::test_grant_budget_subtracts_live_reservations\norchestrator/tests/test_login_headroom.py::test_grant_budget_decides_and_reserves_under_one_lock\norchestrator/tests/test_login_headroom.py::test_environment_cannot_override_production_ledger_namespace_but_private_argument_can\norchestrator/tests/test_login_headroom.py::test_second_concurrent_reservation_dispatches_when_live_sum_exceeds_ceiling\norchestrator/tests/test_login_headroom.py::test_dead_pid_reservation_is_recovered_before_admission\norchestrator/tests/test_login_headroom.py::test_legacy_schema_dead_pid_is_recovered_by_next_grant\norchestrator/tests/test_login_headroom.py::test_legacy_schema_live_pid_is_kept_and_charged_safely\norchestrator/tests/test_login_headroom.py::test_reservation_context_releases_record_when_body_raises\norchestrator/tests/test_login_headroom.py::test_reservation_context_releases_record_on_keyboard_interrupt\norchestrator/tests/test_login_headroom.py::test_ledger_directory_wrong_owner_or_mode_dispatches[wrong-owner]\norchestrator/tests/test_login_headroom.py::test_ledger_directory_wrong_owner_or_mode_dispatches[wrong-mode]\norchestrator/tests/test_login_headroom.py::test_ledger_directory_and_record_modes_are_private\norchestrator/tests/test_login_headroom.py::test_grant_handle_can_bind_scope_after_scope_path_is_known\norchestrator/tests/test_login_headroom.py::test_dead_pid_with_populated_scope_cgroup_keeps_reservation\norchestrator/tests/test_login_headroom.py::test_dead_pid_and_missing_scope_cgroup_reclaims_reservation\norchestrator/tests/test_login_headroom.py::test_pid_reuse_with_same_pid_and_different_starttime_reclaims_reservation\norchestrator/tests/test_login_headroom.py::test_ledger_lock_deadline_dispatches_without_hanging\norchestrator/tests/test_login_headroom.py::test_remembered_peak_larger_than_available_dispatches_immediately\norchestrator/tests/test_login_headroom.py::test_operation_without_remembered_peak_can_use_maximum_local_budget\norchestrator/tests/test_login_headroom.py::test_remembered_peak_narrows_budget_to_estimate_instead_of_all_available\norchestrator/tests/test_login_headroom.py::test_corrupt_peak_is_treated_as_no_record\norchestrator/tests/test_login_headroom.py::test_explicit_lease_release_failure_is_retained_in_reason\norchestrator/tests/test_login_headroom.py::test_corrupt_reservation_is_charged_safely_and_reported_without_crashing\norchestrator/tests/test_login_headroom.py::test_expired_corrupt_reservation_is_recovered_by_next_grant\norchestrator/tests/test_login_headroom.py::test_expired_corrupt_reservation_reclaim_failure_is_reported\norchestrator/tests/test_login_headroom.py::test_non_directory_private_ledger_base_dispatches\norchestrator/tests/test_login_headroom.py::test_ceiling_numeric_literal_occurs_only_in_login_headroom_module\norchestrator/tests/test_login_headroom.py::test_local_budget_constants_are_defined_only_in_login_headroom_leaf\norchestrator/tests/test_login_headroom.py::test_login_headroom_is_stdlib_only_and_defers_annotations\n\n85 tests collected in 0.32s\n",
+        "stdout_sha256": "388926614a63d72aefb85b31fb5d9a08ff53d073802756b43af57dea8e19b193"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_login_headroom.py::test_reads_exact_user_slice_and_returns_every_observation_field",
+        "orchestrator/tests/test_login_headroom.py::test_missing_ancestor_memory_interfaces_are_treated_as_unlimited",
+        "orchestrator/tests/test_login_headroom.py::test_uses_raw_memory_current_not_anon_for_occupancy_and_admission",
+        "orchestrator/tests/test_login_headroom.py::test_unreclaimable_base_uses_maximum_of_both_current_reads[current-increased]",
+        "orchestrator/tests/test_login_headroom.py::test_unreclaimable_base_uses_maximum_of_both_current_reads[current-decreased]",
+        "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+        "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba",
+        "orchestrator/tests/test_login_headroom.py::test_clean_file_is_clamped_at_zero_before_reclaimable_slab",
+        "orchestrator/tests/test_login_headroom.py::test_missing_optional_unreclaimable_stat_degrades_conservatively[slab_reclaimable]",
+        "orchestrator/tests/test_login_headroom.py::test_missing_optional_unreclaimable_stat_degrades_conservatively[unevictable]",
+        "orchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base",
+        "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively",
+        "orchestrator/tests/test_login_headroom.py::test_effective_ceiling_is_limited_by_each_ancestor_available_bytes[user-slice-parent]",
+        "orchestrator/tests/test_login_headroom.py::test_effective_ceiling_is_limited_by_each_ancestor_available_bytes[cgroup-root]",
+        "orchestrator/tests/test_login_headroom.py::test_cgroup_walk_uses_directory_fds_with_directory_and_nofollow_flags",
+        "orchestrator/tests/test_login_headroom.py::test_filesystem_magic_is_checked_on_root_and_actual_user_slice_directory",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[missing_current]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[missing_max]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[missing_stat]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[permission_error]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[io_error]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[decode_error]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[empty_value]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[multiple_tokens]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[non_decimal]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[negative]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[uint64_overflow]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_empty]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_multiple_tokens]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_non_decimal]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_negative]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[max_uint64_overflow]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_duplicate]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_multiple_tokens]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_non_decimal]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[slice_max]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[uid_mismatch]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_inconsistent]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_empty]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_multiple_unified]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[proc_decode_error]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[magic_mismatch]",
+        "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[magic_io_error]",
+        "orchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[0]",
+        "orchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[-1]",
+        "orchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[True]",
+        "orchestrator/tests/test_login_headroom.py::test_nonpositive_or_noninteger_estimate_dispatches_without_observation[1]",
+        "orchestrator/tests/test_login_headroom.py::test_admission_accepts_exact_ceiling_boundary",
+        "orchestrator/tests/test_login_headroom.py::test_dispatch_reason_exposes_rejection_arithmetic",
+        "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]",
+        "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_is_capped_at_maximum_and_records_diagnostics",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_dispatches_below_minimum",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_subtracts_live_reservations",
+        "orchestrator/tests/test_login_headroom.py::test_grant_budget_decides_and_reserves_under_one_lock",
+        "orchestrator/tests/test_login_headroom.py::test_environment_cannot_override_production_ledger_namespace_but_private_argument_can",
+        "orchestrator/tests/test_login_headroom.py::test_second_concurrent_reservation_dispatches_when_live_sum_exceeds_ceiling",
+        "orchestrator/tests/test_login_headroom.py::test_dead_pid_reservation_is_recovered_before_admission",
+        "orchestrator/tests/test_login_headroom.py::test_legacy_schema_dead_pid_is_recovered_by_next_grant",
+        "orchestrator/tests/test_login_headroom.py::test_legacy_schema_live_pid_is_kept_and_charged_safely",
+        "orchestrator/tests/test_login_headroom.py::test_reservation_context_releases_record_when_body_raises",
+        "orchestrator/tests/test_login_headroom.py::test_reservation_context_releases_record_on_keyboard_interrupt",
+        "orchestrator/tests/test_login_headroom.py::test_ledger_directory_wrong_owner_or_mode_dispatches[wrong-owner]",
+        "orchestrator/tests/test_login_headroom.py::test_ledger_directory_wrong_owner_or_mode_dispatches[wrong-mode]",
+        "orchestrator/tests/test_login_headroom.py::test_ledger_directory_and_record_modes_are_private",
+        "orchestrator/tests/test_login_headroom.py::test_grant_handle_can_bind_scope_after_scope_path_is_known",
+        "orchestrator/tests/test_login_headroom.py::test_dead_pid_with_populated_scope_cgroup_keeps_reservation",
+        "orchestrator/tests/test_login_headroom.py::test_dead_pid_and_missing_scope_cgroup_reclaims_reservation",
+        "orchestrator/tests/test_login_headroom.py::test_pid_reuse_with_same_pid_and_different_starttime_reclaims_reservation",
+        "orchestrator/tests/test_login_headroom.py::test_ledger_lock_deadline_dispatches_without_hanging",
+        "orchestrator/tests/test_login_headroom.py::test_remembered_peak_larger_than_available_dispatches_immediately",
+        "orchestrator/tests/test_login_headroom.py::test_operation_without_remembered_peak_can_use_maximum_local_budget",
+        "orchestrator/tests/test_login_headroom.py::test_remembered_peak_narrows_budget_to_estimate_instead_of_all_available",
+        "orchestrator/tests/test_login_headroom.py::test_corrupt_peak_is_treated_as_no_record",
+        "orchestrator/tests/test_login_headroom.py::test_explicit_lease_release_failure_is_retained_in_reason",
+        "orchestrator/tests/test_login_headroom.py::test_corrupt_reservation_is_charged_safely_and_reported_without_crashing",
+        "orchestrator/tests/test_login_headroom.py::test_expired_corrupt_reservation_is_recovered_by_next_grant",
+        "orchestrator/tests/test_login_headroom.py::test_expired_corrupt_reservation_reclaim_failure_is_reported",
+        "orchestrator/tests/test_login_headroom.py::test_non_directory_private_ledger_base_dispatches",
+        "orchestrator/tests/test_login_headroom.py::test_ceiling_numeric_literal_occurs_only_in_login_headroom_module",
+        "orchestrator/tests/test_login_headroom.py::test_local_budget_constants_are_defined_only_in_login_headroom_leaf",
+        "orchestrator/tests/test_login_headroom.py::test_login_headroom_is_stdlib_only_and_defers_annotations"
+      ],
+      "duration_s": 21.721,
+      "rc": 0,
+      "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+      "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+      "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+      "status": "PASSED",
+      "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+          "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]",
+          "orchestrator/tests/test_login_headroom.py::test_missing_optional_stat_after_current_increase_falls_back_to_base"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "13f6b2b5b5eeddfcfdaad5699a2b3cdc8b56babea2842a3cc60e97fd98aeaa66",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "    required = observed.memory_current_bytes + reserved + estimate_bytes + RESERVE_BYTES",
+            "old": "    required = observed.admission_bytes + reserved + estimate_bytes + RESERVE_BYTES"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e176b69d72be808cd59323052a84ca9ed5b6a8b8e5463e8e8d870a9048851480",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "                - observed.memory_current_bytes",
+            "old": "                - observed.admission_bytes"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_admit_and_reserve_use_unreclaimable_bytes_at_exact_boundary",
+          "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba",
+          "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+          "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[clean-file-reclaimable]",
+          "orchestrator/tests/test_login_headroom.py::test_grant_budget_uses_unreclaimable_bytes_for_available",
+          "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "954ecbc00946011db22290b763925e5075bc47c56239c4386f24fe1c25fbb658",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "        reclaimable = self.slab_reclaimable_bytes",
+            "old": "        reclaimable = clean_file + self.slab_reclaimable_bytes"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab",
+          "orchestrator/tests/test_login_headroom.py::test_dirty_bytes_cross_admission_boundary[dirty-unreclaimable]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4f62d49566535fb3820afe1052a5e62cde086c7d7713e4b249d269cde6613360",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "            - self.unevictable_bytes,",
+            "old": "            - self.file_dirty_bytes\n            - self.file_writeback_bytes\n            - self.unevictable_bytes,"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "911c03641c7b43174673a58580a647b7d0a52e58f61661dbf75eeea9c21cabbb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "    required = {\"anon\"}",
+            "old": "    required = {\"anon\", \"file\", \"shmem\", \"file_dirty\", \"file_writeback\"}"
+          }
+        ]
+      },
+      "M5b": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_every_observation_failure_is_none_and_dispatch[stat_missing]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dc066228dc3a7f5208044153a79cc8b97afb3e510f0262502a23f850dafd00f8",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "    required = {\"anon\"}",
+            "old": "    required = {\"anon\", \"file\", \"shmem\", \"file_dirty\", \"file_writeback\"}"
+          },
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "            file_writeback_bytes=stats.get(\"file_writeback\", 0),",
+            "old": "            file_writeback_bytes=stats[\"file_writeback\"],"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_snapshot_inconsistency_degrades_conservatively"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d5dc0f90f30aa9bcea418a81f92033a9b436abc687c2dfd077135aceab7c2b14",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "        if reclaimable > self.unreclaimable_base_bytes:\n            return 0",
+            "old": "        if reclaimable > self.unreclaimable_base_bytes:\n            return None"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_calculates_unreclaimable_from_clean_file_and_reclaimable_slab"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1bf86dabaaf9d651941f10ff4832f6f362c22094f295665ea0bac5a812c0937d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "            - self.file_writeback_bytes,",
+            "old": "            - self.file_writeback_bytes\n            - self.unevictable_bytes,"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_login_headroom.py::test_anon_and_shmem_floor_handles_transient_clean_file_aba"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0b295bd469ab6835233420a5df648531de221ad0e481017970ee051f5cc313cb",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/login_headroom.py",
+            "new": "        return min(self.unreclaimable_base_bytes, value)",
+            "old": "        return min(self.unreclaimable_base_bytes, max(value, floor))"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "db7a84f9835c1bf72771ea0b695a9b032950f103f9db77763e6d620a7e331ea0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_login_headroom.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "0738f7e9b8792ed0894adccf9417d330084f6b63",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_login_headroom.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/tools/run_tests.py",
+    "entrypoint_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b1e7d27d55f9cbd70db68673e1a991656003914b",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "48e1767f5d2c1de54944d6d544d9fcea9fea3c7917622f26ee1a691092f563fb",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0070987385a87c8a08ee1b0b1792fe63de6ccd9137a8e7443181692780e584aa",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-login-unreclaimable/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "37513b13edbac8286af42dc73c309c021d54503420966fb84a6fff9158c94f21",
+  "updated_at": "2026-08-12T16:19:20.932365+00:00"
+}

@@ -21,6 +21,7 @@ import contextlib
 import dataclasses
 import datetime as dt
 import hashlib
+import inspect
 import json
 import os
 import random
@@ -62,6 +63,7 @@ from orchestrator.campaign.p2_2 import ENV_TAG  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
@@ -397,10 +399,31 @@ def _fixture_floor_preflight(
 # --------------------------------------------------------------------------- #
 
 class _FakeScalePoint:
-    def __init__(self, throughputs, notes, run_cmd):
+    def __init__(self, throughputs, notes, run_cmd, *, rep_observations=None,
+                 reps=5, use_perf=None):
         self.throughputs = list(throughputs)
         self.notes = list(notes)
         self.run_cmd = run_cmd
+        if use_perf is None:
+            use_perf = " perf " in f" {run_cmd} "
+        if rep_observations is None:
+            raw_values = list(throughputs) + [None] * max(0, reps - len(throughputs))
+            perf_raw = (
+                {event: index + 1 for index, event in enumerate(
+                    s8b_floor_stats.PERF_EVENTS)}
+                if use_perf else
+                {event: None for event in s8b_floor_stats.PERF_EVENTS}
+            )
+            status = "complete" if use_perf else "not_required"
+            rep_observations = [
+                {
+                    "rep_index": index, "returncode": 0,
+                    "counter_status": status, "missing_perf_events": [],
+                    "perf_raw": dict(perf_raw), "throughput": raw_values[index],
+                }
+                for index in range(reps)
+            ]
+        self.rep_observations = list(rep_observations)
 
 
 def _shape_faithful_run_cmd(
@@ -732,14 +755,84 @@ def test_resume_reuses_manifest_perf_preflight_without_reprobing(tmp_path):
     assert outcome["result"]["perf_preflight"]["available"] is False
 
 
+def test_resume_allows_pre_measure_v2_journal_transition(tmp_path):
+    """P2: session-start/session のない v2 journal は過剰拒否しない。"""
+    records = [{
+        "event": "campaign-start", "schema": "s8b-floor-journal/v2",
+        "protocol_sha256": "p", "freeze_sha256": "f", "manifest_sha256": "m",
+    }]
+    result = s8b_floor_campaign._verify_resume_journal(
+        records, run_dir=tmp_path, mode="pilot",
+        schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
+        protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+        resume_state="M-running", expected_use_perf=True,
+    )
+    assert result is None
+    journal = tmp_path / "journal.jsonl"
+    journal.write_text(json.dumps(records[0]) + "\n", encoding="utf-8")
+    s8b_floor_campaign._transition_pre_measure_journal_to_v3(journal, records)
+    assert records[0]["schema"] == s8b_floor_campaign.JOURNAL_SCHEMA
+    assert json.loads(journal.read_text(encoding="utf-8"))["schema"] == \
+        s8b_floor_campaign.JOURNAL_SCHEMA
+
+
+@pytest.mark.parametrize("event", ["session-start", "session"])
+def test_resume_rejects_v2_once_measurement_event_exists(tmp_path, event):
+    records = [
+        {
+            "event": "campaign-start", "schema": "s8b-floor-journal/v2",
+            "protocol_sha256": "p", "freeze_sha256": "f", "manifest_sha256": "m",
+        },
+        {"event": event},
+    ]
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="証跡を復元不能"):
+        s8b_floor_campaign._verify_resume_journal(
+            records, run_dir=tmp_path, mode="pilot", schedule=[],
+            protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+            resume_state="M-running", expected_use_perf=True,
+        )
+
+
+def test_resume_v3_rejects_session_without_rep_integrity_evidence(tmp_path):
+    """M13: v3 session の observation 欠落を count 0 で補わない。"""
+    records = [
+        {
+            "event": "campaign-start", "schema": s8b_floor_campaign.JOURNAL_SCHEMA,
+            "protocol_sha256": "p", "freeze_sha256": "f", "manifest_sha256": "m",
+        },
+        {
+            "event": "session-start", "seq": 0, "kind": "planned",
+            "cell_id": "H::C", "round": 1, "retry_ordinal": None,
+            "attempt_id": "a", "trigger": None,
+        },
+        {
+            "event": "session", "seq": 0, "kind": "planned", "cell_id": "H::C",
+            "round": 1, "throughputs": [1, 1, 1, 1, 1], "reps_expected": 5,
+            "excluded_reason": None, "run_cmd": "bench",
+        },
+    ]
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="rep 証跡 key 欠損"):
+        s8b_floor_campaign._verify_resume_journal(
+            records, run_dir=tmp_path, mode="pilot",
+            schedule=[{"seq": 0, "round": 1, "cell_id": "H::C"}],
+            protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+            resume_state="M-running", expected_use_perf=True,
+        )
+
+
 def test_production_use_perf_keyword_call_sites_are_a_closed_set():
     call_sites = []
+    target_functions = {
+        "_build_cmd", "repro_command", "build_portable_run_cmd", "measure_point",
+    }
     for path in (ROOT / "orchestrator").rglob("*.py"):
         if "tests" in path.parts:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Name) or node.func.id not in target_functions:
                 continue
             if any(keyword.arg == "use_perf" for keyword in node.keywords):
                 call_sites.append((
@@ -2546,6 +2639,218 @@ def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
     assert seen and set(seen) == {False}
 
 
+@pytest.mark.parametrize("mutation", ["clean", "nonzero_rc", "missing_cycles", "no_perf"])
+def test_rep_integrity_positive_control_default_measure_point(tmp_path, monkeypatch, mutation):
+    """M1/M2/P3: default closure で中央 101 の資格だけを機械証跡から決める。"""
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    real_measure_point = calibrator_runner.measure_point
+    raw_tps = [100, 100, 101, 103, 103]
+    perf_values = {
+        "LLC-load-misses": 11, "LLC-loads": 22,
+        "instructions": 33, "cycles": 44,
+    }
+
+    def production_measure_point(*args, **kwargs):
+        rep = {"index": 0}
+
+        def fake_subprocess(argv, **_run_kwargs):
+            index = rep["index"]
+            rep["index"] += 1
+            lines = []
+            for event, value in perf_values.items():
+                token = "<not counted>" if (
+                    mutation == "missing_cycles" and index == 2 and event == "cycles"
+                ) else str(value)
+                lines.append(f"{token},,{event},0,100.00,,")
+            if "-o" in argv:
+                Path(argv[argv.index("-o") + 1]).write_text(
+                    "\n".join(lines) + "\n", encoding="utf-8",
+                )
+            stdout = (
+                "actual_extime:\t1\nabort_counts_:\t1\ncommit_counts_:\t9\n"
+                "maxrss:\t100 kB\nlatency[ns]:\t10\n"
+                f"throughput[tps]:\t{raw_tps[index]}\n"
+            )
+            return SimpleNamespace(
+                returncode=7 if mutation == "nonzero_rc" and index == 2 else 0,
+                stdout=stdout, stderr="",
+            )
+
+        return real_measure_point(*args, **kwargs, subprocess_runner=fake_subprocess)
+
+    fake_build = _make_fake_build(tmp_path / "bin")
+    monkeypatch.setattr(s8b_floor_campaign, "measure_point", production_measure_point)
+    monkeypatch.setattr(s8b_floor_campaign.buildcache, "build_v2", fake_build)
+    outcome = s8b_floor_campaign.run_campaign(
+        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
+        measure_fn=None, probe_fn=lambda: (1, "", ""), prepare_fn=_fake_prepare,
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(
+            available=(mutation != "no_perf")
+        ),
+        now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
+        durable_root_policy=_durable_policy(tmp_path / "out"),
+    )
+    session = outcome["result"]["sessions"][0]
+    journal_session = next(
+        row for row in _read_journal_lines(Path(outcome["run_dir"]) / "journal.jsonl")
+        if row.get("event") == "session"
+    )
+    assert journal_session["rep_observations"] == session["rep_observations"]
+    assert journal_session["rep_integrity_failures"] == session["rep_integrity_failures"]
+    assert [row["returncode"] for row in session["rep_observations"]] == (
+        [0, 0, 7, 0, 0] if mutation == "nonzero_rc" else [0, 0, 0, 0, 0]
+    )
+    assert session["rep_observations"][0]["perf_raw"] == (
+        {event: None for event in perf_values} if mutation == "no_perf" else perf_values
+    )
+    if mutation in {"clean", "no_perf"}:
+        assert session["throughputs"] == [100, 100, 101, 103, 103]
+        assert session["rep_integrity_failures"] == 0
+        assert session["session_median"] == 101
+        assert session["valid"] is True
+        assert 101 in outcome["result"]["cells"][session["cell_id"]]["medians"]
+        if mutation == "no_perf":
+            assert [row["counter_status"] for row in session["rep_observations"]] == [
+                "not_required", "not_required", "not_required", "not_required",
+                "not_required",
+            ]
+    else:
+        assert session["throughputs"] == [100, 100, 103, 103]
+        assert session["rep_integrity_failures"] == 1
+        assert session["session_median"] is None
+        assert session["valid"] is False
+        assert session["exclusion_class"] == "rep_integrity_failure"
+        assert 101 not in outcome["result"]["cells"][session["cell_id"]]["medians"]
+
+
+@pytest.mark.parametrize("missing_event", [
+    "LLC-load-misses", "LLC-loads", "instructions", "cycles",
+])
+def test_rep_integrity_missing_each_perf_event_excludes_session(missing_event):
+    """M4: 4 event のどれか 1 件でも欠ければ中央 rep は資格を失う。"""
+    observations = _FakeScalePoint(
+        [100, 100, 101, 103, 103], [], "numactl perf -- bench",
+    ).rep_observations
+    observations[2]["perf_raw"][missing_event] = None
+    observations[2]["missing_perf_events"] = [missing_event]
+    observations[2]["counter_status"] = "incomplete"
+    point = _FakeScalePoint(
+        [100, 100, 101, 103, 103], [], "numactl perf -- bench",
+        rep_observations=observations,
+    )
+    projected = s8b_floor_campaign._project_scalepoint(
+        point, reps=5, expected_use_perf=True,
+    )
+    assert projected["rep_integrity_failures"] == 1
+    assert projected["throughputs"] == [100, 100, 103, 103]
+
+
+def test_no_perf_rep_integrity_requires_zero_rc_and_marks_counters_not_required():
+    """P1: no-perf の counter は不要だが rc 0 は引き続き必須。"""
+    point = _FakeScalePoint(
+        [100, 100, 101, 103, 103], [], "numactl bench", use_perf=False,
+    )
+    projected = s8b_floor_campaign._project_scalepoint(
+        point, reps=5, expected_use_perf=False,
+    )
+    assert projected["rep_integrity_failures"] == 0
+    assert projected["throughputs"] == [100, 100, 101, 103, 103]
+    assert [row["counter_status"] for row in projected["rep_observations"]] == [
+        "not_required", "not_required", "not_required", "not_required", "not_required",
+    ]
+    projected["rep_observations"][2]["returncode"] = 9
+    point.rep_observations = projected["rep_observations"]
+    rejected = s8b_floor_campaign._project_scalepoint(
+        point, reps=5, expected_use_perf=False,
+    )
+    assert rejected["rep_integrity_failures"] == 1
+    assert rejected["throughputs"] == [100, 100, 103, 103]
+
+
+@pytest.mark.parametrize("state,expected_class", [
+    ("post_competing", "competing_process"),
+    ("launch", "launch_failure"),
+    ("integrity", "rep_integrity_failure"),
+])
+def test_rep_integrity_precedence_uses_completed_measure_evidence(
+        tmp_path, state, expected_class):
+    """M7: completed measure の competing/launch は証跡を保ち integrity より優先する。"""
+    cell_id = "rr79::stock_common"
+    cell = {
+        "cell_id": cell_id, "holdout_id": "rr79", "configuration_id": _STOCK,
+        "records": 730079, "threads": 17, "workload": _HOLDOUT_SHAPE["rr79"]["ycsb"],
+    }
+    binary = tmp_path / "bench"
+    binary.write_bytes(b"fixture")
+    digest = hashlib.sha256(b"fixture").hexdigest()
+    observations = _FakeScalePoint(
+        [100, 100, 101, 103, 103], [],
+        _shape_faithful_run_cmd(binary, cell["records"], cell["threads"], cell["workload"]),
+    ).rep_observations
+    observations[2]["returncode"] = 7
+    notes = ["5/5 reps failed to execute"] if state == "launch" else []
+    point = _FakeScalePoint(
+        [100, 100, 101, 103, 103], notes,
+        _shape_faithful_run_cmd(binary, cell["records"], cell["threads"], cell["workload"]),
+        rep_observations=observations,
+    )
+    probe_calls = {"n": 0}
+
+    def probe():
+        probe_calls["n"] += 1
+        if state == "post_competing" and probe_calls["n"] % 2 == 0:
+            return (0, "777 ycsb_fixture.exe\n", "")
+        return (1, "", "")
+
+    protocol = s8b_floor_campaign.validate_protocol(_valid_protocol_dict())
+    runner = s8b_floor_campaign._Runner(
+        protocol=protocol, contract=ec.lookup(ENV_TAG), cells=[cell],
+        cell_by_id={cell_id: cell},
+        binaries={cell_id: {"binary": str(binary), "binary_sha256": digest}},
+        artifact_binaries={cell_id: {"binary": "output/fixture/bench"}},
+        schedule=[], journal_path=tmp_path / f"{state}.jsonl",
+        measure_fn=lambda *args: point, probe_fn=probe, sleep_fn=lambda _s: None,
+        monotonic_fn=lambda: 0.0, now_fn=lambda: _FIXED_NOW,
+        protocol_sha256="p", freeze_sha256="f", manifest_sha256="m",
+        perf_preflight=_perf_receipt(), mode="pilot",
+    )
+    record = runner._run_session(
+        seq=0, round_no=1, cell_id=cell_id, kind="planned",
+        retry_ordinal=None, trigger=None,
+    )
+    assert record["exclusion_class"] == expected_class
+    assert record["rep_integrity_failures"] == 1
+    assert len(record["rep_observations"]) == 5
+    assert record["valid"] is False
+    assert record["session_median"] is None
+
+
+def test_rep_integrity_precedes_partial_in_runner_branch_order():
+    """M7: partial 分岐を rep integrity より前へ移す変異を構造的に殺す。"""
+    runner_class = ast.parse(inspect.getsource(s8b_floor_campaign._Runner)).body[0]
+    function = next(
+        node for node in runner_class.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_run_session"
+    )
+    precedence = next(
+        node for node in function.body
+        if isinstance(node, ast.If) and "probe_after" in ast.unparse(node.test)
+    )
+    tests = []
+    branch = precedence
+    while isinstance(branch, ast.If):
+        tests.append(ast.unparse(branch.test))
+        branch = branch.orelse[0] if len(branch.orelse) == 1 else None
+    integrity_index = next(
+        i for i, test in enumerate(tests) if "rep_integrity_failures" in test
+    )
+    assert all(
+        "_REASON_PARTIAL" not in test and "derived_reason is not None" not in test
+        for test in tests[:integrity_index]
+    )
+
+
 def test_floor_default_durable_policy_rejects_external_output_without_side_effects(tmp_path):
     freeze = _freeze_document()
     out_root = tmp_path / "outside-default-approval"
@@ -3373,7 +3678,9 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
         s8b_floor_campaign.validate_protocol(protocol),
         s8b_floor_campaign.enumerate_cells(freeze, stock_configuration=_STOCK),
     )
-    assert s8b_floor_stats.verify_floor_artifact(result, expected_protocol) == []
+    assert s8b_floor_stats.verify_floor_artifact(
+        result, expected_protocol, expected_use_perf=True,
+    ) == []
 
     for holdout_id in ("rr79", "rr23"):
         stock_id = f"{holdout_id}::{_STOCK}"
@@ -3390,7 +3697,9 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     # verify は expected_protocol を必須引数に取る (自己申告だけを信頼根にしない, α-3)。
     tampered = json.loads(json.dumps(result))
     tampered["floors"]["rr79"]["pairs"][_CONFIGS[0]] = 999999.0
-    assert s8b_floor_stats.verify_floor_artifact(tampered, expected_protocol)
+    assert s8b_floor_stats.verify_floor_artifact(
+        tampered, expected_protocol, expected_use_perf=True,
+    )
 
 
 def test_result_json_records_per_attempt_duration_and_no_absolute_monotonic(tmp_path):
@@ -6032,23 +6341,31 @@ def test_verify_floor_artifact_binaries_positive_and_negative():
     expected_binaries = {cid: rec["binary_sha256"]
                          for cid, rec in result["binaries"].items()}
     assert s8b_floor_stats.verify_floor_artifact(
-        result, expected_protocol, expected_binaries) == []
+        result, expected_protocol, expected_binaries,
+        expected_use_perf=True,
+    ) == []
 
     # 負例1: bin_hash_short を binary_sha256[:16] と食い違わせる。
     tampered = json.loads(json.dumps(result))
     any_cid = next(iter(tampered["binaries"]))
     tampered["binaries"][any_cid]["bin_hash_short"] = "deadbeefdeadbeef"
-    assert s8b_floor_stats.verify_floor_artifact(tampered, expected_protocol)
+    assert s8b_floor_stats.verify_floor_artifact(
+        tampered, expected_protocol, expected_use_perf=True,
+    )
 
     # 負例2: journal receipt (expected_binaries) と binary_sha256 が不一致。
     bad_receipts = dict(expected_binaries)
     bad_receipts[any_cid] = "f" * 64
-    assert s8b_floor_stats.verify_floor_artifact(result, expected_protocol, bad_receipts)
+    assert s8b_floor_stats.verify_floor_artifact(
+        result, expected_protocol, bad_receipts, expected_use_perf=True,
+    )
 
     # 負例3: binaries からセルを欠落させる (完全集合が崩れる)。
     dropped = json.loads(json.dumps(result))
     dropped["binaries"].pop(any_cid)
-    assert s8b_floor_stats.verify_floor_artifact(dropped, expected_protocol)
+    assert s8b_floor_stats.verify_floor_artifact(
+        dropped, expected_protocol, expected_use_perf=True,
+    )
 
 
 def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
