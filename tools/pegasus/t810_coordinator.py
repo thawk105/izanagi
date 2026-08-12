@@ -1208,14 +1208,20 @@ def _actual_slot_presence(prepared: PreparedGroup) -> dict[str, list[str]]:
     return result
 
 
-def _root_presence_valid(prepared: PreparedGroup, state: str) -> bool:
+def _expected_root_presence(prepared: PreparedGroup, state: str) -> list[str]:
     artifacts = prepared.preregistration.projection["artifacts"]
     expected_files = set(artifacts["root"]["always_files"])
     if state in {"valid", "terminal_reduced"}:
         expected_files.add(artifacts["root"]["conditional_estimate_file"])
     expected_directories = {f"slot-{index:02d}" for index in range(schema.NODE_COUNT)}
-    actual_files: set[str] = set()
-    actual_directories: set[str] = set()
+    return sorted(
+        [f"files/{name}" for name in expected_files]
+        + [f"directories/{name}" for name in expected_directories]
+    )
+
+
+def _actual_root_presence(prepared: PreparedGroup) -> list[str]:
+    actual: list[str] = []
     try:
         entries = list(prepared.output_root.iterdir())
     except OSError as exc:
@@ -1223,17 +1229,26 @@ def _root_presence_valid(prepared: PreparedGroup, state: str) -> bool:
     for entry in entries:
         info = entry.lstat()
         if entry.is_symlink():
-            return False
-        if stat.S_ISREG(info.st_mode):
-            actual_files.add(entry.name)
+            kind = "symlinks"
+        elif stat.S_ISREG(info.st_mode):
+            kind = "files"
         elif stat.S_ISDIR(info.st_mode):
-            actual_directories.add(entry.name)
+            kind = "directories"
         else:
-            return False
+            kind = "other"
+        actual.append(f"{kind}/{entry.name}")
     # terminal-state is the immediately following create-only publication.
     if not prepared.terminal_path.exists():
-        actual_files.add(prepared.terminal_path.name)
-    return actual_files == expected_files and actual_directories == expected_directories
+        actual.append(f"files/{prepared.terminal_path.name}")
+    return sorted(actual)
+
+
+def _add_root_presence(
+    prepared: PreparedGroup, state: str,
+    expected: dict[str, list[str]], actual: dict[str, list[str]],
+) -> None:
+    expected["group-root"] = _expected_root_presence(prepared, state)
+    actual["group-root"] = _actual_root_presence(prepared)
 
 
 def _terminal_limitations(prepared: PreparedGroup, receipts: Mapping[str, NodeReceipt]) -> list[str]:
@@ -1297,6 +1312,8 @@ def verify_completion(
         measurement = events.get("measurement")
         if terminal_payload["measurement_started"]:
             started.add(slot_id)
+        # A terminal_reduced dropout keeps its artifacts for presence auditing,
+        # but protocol section 5.4 excludes it from completed-job integrity.
         if terminal_payload["state"] != "valid":
             continue
         if measurement is None:
@@ -1340,16 +1357,15 @@ def verify_completion(
         prepared.preregistration, state, terminal_completed, set(receipts), started,
     )
     actual_presence = _actual_slot_presence(prepared)
-    presence_valid = (
-        expected_presence == actual_presence and _root_presence_valid(prepared, state)
-    )
+    _add_root_presence(prepared, state, expected_presence, actual_presence)
+    presence_valid = expected_presence == actual_presence
     if not presence_valid and state in {"valid", "terminal_reduced"}:
         state, reasons = "incomplete_after_start", {"presence_matrix_mismatch"}
         expected_presence = _presence_for_state(
             prepared.preregistration, state, completed, set(receipts), started,
         )
+        _add_root_presence(prepared, state, expected_presence, actual_presence)
         presence_valid = expected_presence == actual_presence
-        presence_valid = presence_valid and _root_presence_valid(prepared, state)
     slots = list(requests)
     value = {
         "schema_version": schema.TERMINAL_STATE_SCHEMA,
@@ -1418,6 +1434,7 @@ def _early_terminal(
     slots = [f"slot-{index:02d}" for index in range(schema.NODE_COUNT)]
     expected = _presence_for_state(prepared.preregistration, state, set(), set(receipts))
     actual = _actual_slot_presence(prepared)
+    _add_root_presence(prepared, state, expected, actual)
     receipt_map = {slot: receipts[slot].sha256 if slot in receipts else None for slot in slots}
     if state != "pre_release_invalid" and any(value is None for value in receipt_map.values()):
         _fail("post-release terminal state lacks an exact node receipt")
@@ -1429,7 +1446,7 @@ def _early_terminal(
         "start_spread_ns": spread_ns, "completed_slot_ids": [], "dropped_slot_ids": slots,
         "node_receipt_sha256_by_slot": receipt_map,
         "expected_presence": expected, "actual_presence": actual,
-        "presence_valid": expected == actual and _root_presence_valid(prepared, state),
+        "presence_valid": expected == actual,
         "pre_validator_receipt_sha256": pre_digest,
         "post_validator_receipt_sha256": post_digest,
         "retry_allowed": schema.retry_allowed(state, prepared.launch_intent["attempt_ordinal"]),

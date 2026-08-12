@@ -379,7 +379,10 @@ def _completion_receipts(prepared, prereg, *, dropped: set[str] | None = None) -
                 for round_id in range(1, S.ROUND_COUNT + 1)
             ]
             measurement = _node_event(prepared, slot, "measurement", {
-                "rounds": rounds, "benchmark_rc": 0, "binary_after_sha256": H,
+                "rounds": rounds, "benchmark_rc": 0,
+                "binary_after_sha256": prepared.launch_intent["slots"][index][
+                    "binary_sha256"
+                ],
                 "isolation_after": {"inventory_sha256": H, "competing_processes_sha256": H},
             }, sequence=2)
             measurement["previous_event_sha256"] = S.canonical_sha256(ack)
@@ -425,7 +428,10 @@ def _publish_fixture_phase(prepared, phase: str, release_sha: str) -> None:
                      "effective_clock": 2.0, "throughput": 3.0, "exit_code": 0}
                     for round_id in range(1, S.ROUND_COUNT + 1)
                 ],
-                "benchmark_rc": 0, "binary_after_sha256": H,
+                "benchmark_rc": 0,
+                "binary_after_sha256": prepared.launch_intent["slots"][index][
+                    "binary_sha256"
+                ],
                 "isolation_after": {"inventory_sha256": H, "competing_processes_sha256": H},
             }, sequence=2)
             measurement["previous_event_sha256"] = S.canonical_sha256(events[-1])

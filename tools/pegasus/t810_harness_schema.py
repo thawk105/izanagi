@@ -796,7 +796,11 @@ def validate_terminal_state(value: Any) -> Document:
         _hash(digest, f"$.node_receipt_sha256_by_slot.{slot}", nullable=state == "pre_release_invalid")
     matrices: dict[str, Document] = {}
     for field in ("expected_presence", "actual_presence"):
-        matrix = _object(doc[field], frozenset(expected_slots), f"$.{field}")
+        value = doc[field]
+        fields = frozenset(expected_slots)
+        if isinstance(value, Mapping) and "group-root" in value:
+            fields |= {"group-root"}
+        matrix = _object(value, fields, f"$.{field}")
         matrices[field] = matrix
         for slot, paths in matrix.items():
             values = _strings(paths, f"$.{field}.{slot}", unique=True)
