@@ -674,7 +674,7 @@ def test_tracked_python_coder_authority_ast_closure_is_exact():
 
 
 def test_low_level_issuer_allowlist_rejects_prefix_and_nested_paths():
-    """M11 reaches the real matcher; prefix matching makes both decoys fail."""
+    """M11 reaches the real matcher; neither direction of prefix matching is exact."""
 
     path = (
         "output/insights/2026-08-04_wave-a-campaign-transport-smoke/driver/"
@@ -688,6 +688,13 @@ def test_low_level_issuer_allowlist_rejects_prefix_and_nested_paths():
     calls, violations, stars = _audit_authority_source(path, source)
     assert violations == [] and stars == []
     assert _low_level_allowlist_violations(path, calls) == []
+
+    prefix_decoy = path.removesuffix(".py")
+    calls, violations, stars = _audit_authority_source(prefix_decoy, source)
+    assert violations == [] and stars == []
+    assert _low_level_allowlist_violations(prefix_decoy, calls) == [
+        (prefix_decoy, "main", _LOW_LEVEL_HELPER, 1, 0),
+    ]
 
     for decoy_path in (path + ".copy.py", path + "/nested.py"):
         calls, violations, stars = _audit_authority_source(decoy_path, source)

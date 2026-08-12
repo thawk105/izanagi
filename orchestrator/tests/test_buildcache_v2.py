@@ -1030,14 +1030,16 @@ def test_copyout_destination_swap_after_hash_is_rejected_on_same_fd(
         assert binary_fd is not None
         observed["nm"] = os.fstat(binary_fd).st_ino
 
-    real_hash = buildcache.full_sha256
+    real_hash = buildcache._full_sha256_fd
 
-    def swap_after_hash(path):
-        digest = real_hash(path)
-        observed["sha"] = os.stat(path).st_ino
-        clean_binary = next(
-            (tmp_path / "cache").rglob(".publish-*/cc/silo/ycsb_silo.exe")
-        )
+    def swap_after_hash(fd, path):
+        digest = real_hash(fd, path)
+        assert "sha" not in observed
+        observed["sha"] = os.fstat(fd).st_ino
+        observed["hashed_fd"] = fd
+        clean_binary = Path(os.readlink(f"/proc/self/fd/{fd}"))
+        assert clean_binary.name == "ycsb_silo.exe"
+        assert clean_binary.parent.parent.parent.name.startswith(".publish-")
         held_name = clean_binary.with_name("held-original")
         clean_binary.rename(held_name)
         clean_binary.write_bytes(b"replacement-path-bytes")
@@ -1047,13 +1049,13 @@ def test_copyout_destination_swap_after_hash_is_rejected_on_same_fd(
     real_fsync = buildcache.os.fsync
 
     def observe_fsync(fd):
-        info = os.fstat(fd)
-        if stat.S_ISREG(info.st_mode) and (info.st_mode & 0o777) == 0o500:
-            observed.setdefault("fsync", info.st_ino)
+        if fd == observed.get("hashed_fd"):
+            assert "fsync" not in observed
+            observed["fsync"] = os.fstat(fd).st_ino
         return real_fsync(fd)
 
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", observe_nm)
-    monkeypatch.setattr(buildcache, "full_sha256", swap_after_hash)
+    monkeypatch.setattr(buildcache, "_full_sha256_fd", swap_after_hash)
     monkeypatch.setattr(buildcache.os, "fsync", observe_fsync)
     with pytest.raises(buildcache.BuildCacheError, match="destination entry"):
         _call_copyout_api(tmp_path, api, trace=False)
