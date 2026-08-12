@@ -39,6 +39,16 @@ title: 起動 gate の再開モードは「新設」ではなく「無条件 byp
   `d1de13ad` により `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
   が決定的に落ちる。本 wave で一次確認した (`validate_condition_freeze_at`: `7c9ac465` GREEN /
   `d1de13ad` RED / `adf7997f` RED)。本 wave の差分からは到達しない。
+- **受入全走 (2 走目、tip `ee334a6a`) は 7 failed / 10282 passed / 65 skipped / 98.11 秒。**
+  既知赤 1 件に加え `orchestrator/tests/test_codex_worker_launch.py` の 6 件が落ちたが、
+  同 file の単独再走は **114 passed / rc=0** で再現しない。1 走目には無く、2 tip 間の差分にも
+  同 file・その依存の変更は無い (`git diff 1a306deb..ee334a6a -- tools/codex_worker_launch.py
+  orchestrator/tests/test_codex_worker_launch.py` = 空)。`DW-O18` に従い本 wave の差分へ帰属させず
+  フレークとして起票する。落ちた 6 件は `test_check_receipt_rechecks_all_manifest_header_fields`
+  の 2 parameter、`test_check_receipt_rejects_unknown_and_duplicate_fields`、
+  `test_docs_authority_alone_rejects_consistent_effort_mutation`、
+  `test_authority_bound_job_rejects_prior_invalid_attempt`、
+  `test_final_drain_actuals_are_rechecked_before_acceptance`。
 - **この既知赤を跨いで land した根拠は伝聞である。** 「既知の赤は受入をブロックしてはいけない」
   というユーザー裁定を独立した 2 セッション (`cleanup-branches-cherry-3stage` と T-930 wave) が
   逐語で伝えてきたが、起票控え
@@ -83,3 +93,9 @@ title: 起動 gate の再開モードは「新設」ではなく「無条件 byp
   (R-7) graft 検査・symbolic 検査・`rev-list` の間に TOCTOU があり、検査後に main が進むと
   「古い main を包含」で緑になりうる。R-5 と R-7 は同じ層 (caller 側で対象 main OID を束縛する)
   の設計で、まとめて裁定するのが自然である。
+- {{T:codex-worker-launch-acceptance-flake}} **P2・新規**: `test_codex_worker_launch.py` が受入全走で
+  非決定的に落ちる。2026-08-13 の受入 2 走目で 6 件が同時に落ち、同 file の単独再走は 114 passed /
+  rc=0 で再現しなかった。2 tip 間の差分に同 file・その依存の変更は無い。落ちたのは receipt /
+  manifest / docs authority を検査する node 群で、並行 wave の codex 子が共有する状態
+  (`~/.codex/sessions`、docs authority snapshot、receipt) との競合が疑われる。48 worker の xdist で
+  再現条件を切り分け、共有状態への依存を fixture 側で断つか、依存が本質なら受入での直列化を裁定する。
