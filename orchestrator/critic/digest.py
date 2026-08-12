@@ -17,6 +17,7 @@ critic は「生のカウンタでなく組み合わせて読み、特定の設�
 from __future__ import annotations
 
 import sys
+import types
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -199,6 +200,11 @@ class DiffQuarantineRejection:
     rule_id: str = ""
     category: str = ""
     finding_count: int = 0
+    oracle_finding: Dict = field(default_factory=dict)
+    materialized_hole_sha256: str = ""
+    proposal_sha256: str = ""
+    oracle_contract_id: str = ""
+    oracle_receipt: Dict = field(default_factory=dict)
     template_diff_id: str = ""
     variant: str = ""
     src_token: str = ""
@@ -210,6 +216,136 @@ _AXES = ["BACK_OFF", "no_wait", "WAL"]
 def _parse_flags(canonical: str) -> Dict[str, int]:
     body = canonical.split("|", 1)[1]
     return {k: int(v) for k, v in (kv.split("=") for kv in body.split(","))}
+
+
+_ORACLE_FINDING_KINDS = frozenset({
+    "axiom", "compile", "execution", "mutation", "nondeterministic",
+    "protocol", "structure", "timeout",
+})
+_ORACLE_AXIOMS = frozenset({
+    "irreflexive", "asymmetric", "transitive", "transitive-equivalence",
+})
+_ORACLE_MAPPING_TYPES = (dict, types.MappingProxyType)
+_ORACLE_SEQUENCE_TYPES = (list, tuple)
+
+
+def _is_oracle_mapping(value: object) -> bool:
+    return type(value) in _ORACLE_MAPPING_TYPES
+
+
+def _is_oracle_sequence(value: object) -> bool:
+    return type(value) in _ORACLE_SEQUENCE_TYPES
+
+
+def _mutable_oracle_projection(value: object) -> object:
+    if _is_oracle_mapping(value):
+        return {
+            key: _mutable_oracle_projection(item)
+            for key, item in value.items()
+        }
+    if _is_oracle_sequence(value):
+        return [_mutable_oracle_projection(item) for item in value]
+    return value
+
+
+def _hex64(value: object) -> str:
+    if (type(value) is str and len(value) == 64
+            and all(char in "0123456789abcdef" for char in value)):
+        return value
+    return ""
+
+
+def _valid_index_pair(value: object) -> bool:
+    return (
+        _is_oracle_mapping(value)
+        and set(value) == {"lhs_index", "rhs_index"}
+        and type(value.get("lhs_index")) is int
+        and type(value.get("rhs_index")) is int
+        and 0 <= value["lhs_index"] < 18
+        and 0 <= value["rhs_index"] < 18
+    )
+
+
+def _validated_oracle_finding(value: object) -> Dict:
+    if not _is_oracle_mapping(value):
+        return {}
+    kind = value.get("kind")
+    reason = value.get("reason_code")
+    corpus_id = value.get("corpus_id")
+    if (kind not in _ORACLE_FINDING_KINDS
+            or type(reason) is not str or not reason or len(reason) > 160
+            or type(corpus_id) is not str or not corpus_id or len(corpus_id) > 160):
+        return {}
+    order_id = value.get("order_id")
+    if order_id is not None and (type(order_id) is not int or order_id not in {0, 1, 2}):
+        return {}
+    pairs = value.get("input_pairs", [])
+    if (not _is_oracle_sequence(pairs) or len(pairs) > 8
+            or not all(_valid_index_pair(p) for p in pairs)):
+        return {}
+    if kind == "axiom":
+        counterexample = value.get("counterexample")
+        if (not _is_oracle_mapping(counterexample)
+                or set(counterexample) != {"axiom", "input_pairs"}
+                or counterexample.get("axiom") not in _ORACLE_AXIOMS
+                or not _is_oracle_sequence(counterexample.get("input_pairs"))
+                or not counterexample["input_pairs"]
+                or len(counterexample["input_pairs"]) > 8
+                or not all(_valid_index_pair(p) for p in counterexample["input_pairs"])):
+            return {}
+    elif "counterexample" in value:
+        return {}
+    diagnostic = value.get("compiler_diagnostic")
+    if diagnostic is not None:
+        if (not _is_oracle_mapping(diagnostic)
+                or set(diagnostic) != {"captured_bytes", "total_bytes", "sha256", "truncated"}
+                or type(diagnostic.get("captured_bytes")) is not int
+                or not 0 <= diagnostic["captured_bytes"] <= 16 * 1024
+                or type(diagnostic.get("total_bytes")) is not int
+                or diagnostic["total_bytes"] < diagnostic["captured_bytes"]
+                or not _hex64(diagnostic.get("sha256"))
+                or type(diagnostic.get("truncated")) is not bool):
+            return {}
+    observations = value.get("observations", [])
+    if not _is_oracle_sequence(observations) or len(observations) > 8:
+        return {}
+    return _mutable_oracle_projection(value)
+
+
+_ORACLE_RECEIPT_KEYS = frozenset({
+    "contract_id", "materialized_hole_sha256", "proposal_sha256",
+    "corpus_id", "corpus_version", "compiler_realpath", "compiler_version",
+    "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
+    "dependency_root_realpath", "dependency_config_sha256",
+})
+
+
+def _validated_oracle_receipt(
+    value: object, *, contract_id: str, materialized_hash: str, proposal_hash: str,
+) -> Dict:
+    if not _is_oracle_mapping(value) or frozenset(value) != _ORACLE_RECEIPT_KEYS:
+        return {}
+    if (value.get("contract_id") != contract_id
+            or value.get("materialized_hole_sha256") != materialized_hash
+            or value.get("proposal_sha256") != proposal_hash
+            or type(value.get("corpus_id")) is not str
+            or not value["corpus_id"]
+            or type(value.get("corpus_version")) is not int
+            or value["corpus_version"] < 1):
+        return {}
+    for field_name in (
+        "compile_flags_sha256", "tu_sha256", "tu_template_sha256",
+        "dependency_config_sha256",
+    ):
+        if not _hex64(value.get(field_name)):
+            return {}
+    for field_name in (
+        "compiler_realpath", "compiler_version", "dependency_root_realpath",
+    ):
+        field_value = value.get(field_name)
+        if type(field_value) is not str or not field_value or len(field_value) > 4096:
+            return {}
+    return _mutable_oracle_projection(value)
 
 
 def _validated_records(view: AdmittedCampaign):
@@ -398,6 +534,27 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
                 or not 1 <= finding_count <= MAX_HOLE_TOKENS
             ):
                 finding_count = 0
+            oracle_finding = dq.get("oracle_finding", {})
+            if dq.get("subtype") != "sort-swo-oracle":
+                oracle_finding = {}
+            else:
+                oracle_finding = _validated_oracle_finding(oracle_finding)
+            materialized_hash = dq.get("materialized_hole_sha256", "")
+            proposal_hash = dq.get("proposal_sha256", "")
+            materialized_hash = _hex64(materialized_hash)
+            proposal_hash = _hex64(proposal_hash)
+            oracle_contract_id = dq.get("oracle_contract_id", "")
+            if (type(oracle_contract_id) is not str
+                    or not oracle_contract_id.startswith("sort-swo-")
+                    or len(oracle_contract_id) > 256):
+                oracle_contract_id = ""
+            oracle_receipt = dq.get("oracle_receipt", {})
+            oracle_receipt = _validated_oracle_receipt(
+                oracle_receipt,
+                contract_id=oracle_contract_id,
+                materialized_hash=materialized_hash,
+                proposal_hash=proposal_hash,
+            )
             out.append(DiffQuarantineRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
                 subtype=dq.get("subtype", ""),
@@ -407,6 +564,11 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
                 rule_id=rule_id,
                 category=category,
                 finding_count=finding_count,
+                oracle_finding=oracle_finding,
+                materialized_hole_sha256=materialized_hash,
+                proposal_sha256=proposal_hash,
+                oracle_contract_id=oracle_contract_id,
+                oracle_receipt=dict(oracle_receipt),
                 template_diff_id=dq.get("template_diff_id", ""),
                 variant=r.variant, src_token=srctok_of.get(r.variant, "")))
     return out
@@ -731,7 +893,7 @@ def render_rejections(rejections: List[Rejection],
                  + (f" src_token={projected_src_token}" if projected_src_token else ""))
         L.append(f"  marker={dq.template_diff_id or '?'} / region={dq.diff_region or '?'}")
         L.append(f"  理由: {dq.reason or '(理由なし)'}")
-        if dq.evidence and (dq.subtype or "") != "host-effect":
+        if dq.evidence and (dq.subtype or "") not in {"host-effect", "sort-swo-oracle"}:
             L.append(f"  証拠: {dq.evidence}")
         if (dq.subtype or "") == "host-effect":
             if dq.rule_id:
@@ -742,6 +904,60 @@ def render_rejections(rejections: List[Rejection],
                 L.append(f"  finding_count={dq.finding_count}")
             L.append("  修正: 有限 lexical policy が報告した identifier / loop 形を除く。"
                      "通過は計算のみを意味せず、host 安全性を証明しない。")
+        elif (dq.subtype or "") == "sort-swo-oracle":
+            # Candidate stdout/stderr is never rendered or interpreted.  This
+            # branch consumes the trusted Python matrix check restored from WAL.
+            finding = dq.oracle_finding
+            kind = finding.get("kind", "") if type(finding) is dict else ""
+            corpus_id = finding.get("corpus_id", "?") if type(finding) is dict else "?"
+            order_id = finding.get("order_id") if type(finding) is dict else None
+            L.append(f"  oracle_contract_id={dq.oracle_contract_id or '?'}")
+            L.append(
+                f"  materialized_hole_sha256={dq.materialized_hole_sha256 or '?'} "
+                f"proposal_sha256={dq.proposal_sha256 or '?'}"
+            )
+            L.append(
+                f"  oracle_kind={kind or '?'} corpus_id={corpus_id}"
+                + (f" order_id={order_id}" if type(order_id) is int else "")
+            )
+            if kind == "axiom":
+                counterexample = finding.get("counterexample", {})
+                axiom = counterexample.get("axiom", "?")
+                pairs = counterexample.get("input_pairs", [])
+                rendered_pairs = [
+                    f"({pair['lhs_index']},{pair['rhs_index']})"
+                    for pair in pairs if _valid_index_pair(pair)
+                ]
+                L.append(f"  SWO公理={axiom} 反例pair={','.join(rendered_pairs) or '?'}")
+                L.append("  読み方: 固定 corpus relation matrix 上の SWO 公理反例。"
+                         "示された pair の comparator 関係を修正する。")
+            elif kind == "structure":
+                L.append("  読み方: oracle の単一・無修飾 sort 文という構造契約に不適合。")
+            elif kind == "compile":
+                diagnostic = finding.get("compiler_diagnostic", {})
+                diagnostic_hash = (diagnostic.get("sha256", "?")
+                                   if type(diagnostic) is dict else "?")
+                L.append(f"  compiler_diagnostic_sha256={diagnostic_hash}")
+                L.append("  読み方: trusted preflight 通過後、候補 TU の compile が失敗。"
+                         "診断本文は候補 bytes を含み得るため critic へ非表示。")
+            elif kind == "timeout":
+                L.append("  読み方: 候補へ機械帰属できる CPU limit 超過。wall timeout ではない。")
+            elif kind == "execution":
+                L.append("  読み方: 候補 comparator の例外または sort 呼出し契約違反。")
+            elif kind == "protocol":
+                L.append("  読み方: oracle 固定長 protocol の異常。候補 fitness へ帰属しない。")
+            elif kind == "nondeterministic":
+                pairs = finding.get("input_pairs", [])
+                rendered_pairs = [
+                    f"({pair['lhs_index']},{pair['rhs_index']})"
+                    for pair in pairs if _valid_index_pair(pair)
+                ]
+                L.append(f"  不変性違反pair={','.join(rendered_pairs) or '?'}")
+                L.append("  読み方: 同一 process 内の反復または fresh process 間で bool が不一致。")
+            elif kind == "mutation":
+                L.append("  読み方: comparator 呼出し前後で corpus の全 field snapshot が変化。")
+            else:
+                L.append("  読み方: oracle finding schema が不正または未知。受理判断へ使わない。")
         elif (dq.subtype or "").startswith("auditor-"):
             # 段5 sort-strategy の auditor gate reject (敵対レビュー 2026-07-10、
             # p3_s4_loop_sort._auditor_reject_result が同じ diff-quarantine 経路に相乗り)。
@@ -808,6 +1024,7 @@ def main(argv) -> int:
         lrs, other = load_liveness_rejections(view)
         parts.append(render_rejections(load_rejections(view), lrs, other,
                                        load_verify_abort_signals(view),
+                                       diff_rejections=load_diff_rejections(view),
                                        screen_rejections=load_screen_rejections(view),
                                        identity_projection=identity_projection))
         print("\n".join(parts))

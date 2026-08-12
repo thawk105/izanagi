@@ -17,6 +17,8 @@ import tempfile
 import time
 from unittest import mock
 
+import pytest
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
@@ -32,6 +34,37 @@ from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             
 from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                  # noqa: E402
 from orchestrator.critic.digest import IdentityProjection, load_diff_rejections  # noqa: E402
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
+
+
+def _oracle_receipt(oracle, materialized="1" * 64, proposal="2" * 64):
+    return oracle.OracleReceipt(
+        contract_id=oracle.ORACLE_CONTRACT_ID,
+        materialized_hole_sha256=materialized,
+        proposal_sha256=proposal,
+        corpus_id=oracle.CORPUS_ID,
+        corpus_version=oracle.CORPUS_VERSION,
+        compiler_realpath="/fixture/cxx",
+        compiler_version="fixture-cxx 1",
+        compile_flags_sha256=oracle.COMPILE_FLAGS_SHA256,
+        tu_sha256="3" * 64,
+        tu_template_sha256=oracle.TU_TEMPLATE_SHA256,
+        dependency_root_realpath="/fixture/dependency",
+        dependency_config_sha256="4" * 64,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_real_sort_swo_oracle(monkeypatch):
+    """Driver tests do not compile candidate C++; oracle E2E has a fixed fixture."""
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    passed = oracle.SortSwoOracleResult(
+        oracle.OracleStatus.PASS, "1" * 64, "2" * 64,
+        receipt=_oracle_receipt(oracle),
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: passed,
+    )
 
 # 実 transaction.cc の EVOLVE-BLOCK 骨格 (sort marker) を写した fixture。silo-sort-variant.patch
 # と同型 (hole = #if 枝全体、実テンプレ原文の `// coder 編集面` も回帰保存)。
@@ -137,6 +170,209 @@ def test_run_one_iteration_dry_pass_when_auditor_pass_and_digest_matches():
     gate = S._quarantine_and_audit(d, coder, auditor, _G, _tmp_layout("pass"), state,
                                    _planner(), write=False)
     assert gate is None
+
+
+def test_oracle_receives_materialized_source_and_separate_proposal(monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    d = _mk_template_dir()
+    digest = _digest_for(d)
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest=digest)
+    coder = S.CoderProposalSort(axis=S.MARKER_ID, implementation=_CLEAN_IMPL)
+    captured = {}
+
+    def check(materialized_source, **kwargs):
+        captured["materialized_source"] = materialized_source
+        captured.update(kwargs)
+        return oracle.SortSwoOracleResult(
+            oracle.OracleStatus.PASS, "3" * 64, "4" * 64,
+            receipt=_oracle_receipt(oracle, "3" * 64, "4" * 64),
+        )
+
+    monkeypatch.setattr(oracle, "check_materialized_sort_swo", check)
+    gate = S._quarantine_and_audit(
+        d, coder, auditor, _G, _tmp_layout("materialized"),
+        L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+    )
+    assert gate is None
+    assert "EVOLVE-BLOCK-BEGIN silo-writeset-sort" in captured["materialized_source"]
+    assert captured["proposal_source"] == _CLEAN_IMPL
+    assert captured["materialized_source"] != captured["proposal_source"]
+
+
+def test_oracle_unavailable_stops_attempt_instead_of_rejecting_candidate(monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    d = _mk_template_dir()
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
+    unavailable = oracle.SortSwoOracleResult(
+        oracle.OracleStatus.UNAVAILABLE, "5" * 64, "6" * 64,
+        infrastructure=oracle.OracleInfrastructureFailure(
+            oracle.INFRASTRUCTURE_REASON_CODE,
+            "fixture", "fixture-unavailable",
+        ),
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: unavailable,
+    )
+    layout = _tmp_layout("unavailable")
+    with pytest.raises(oracle.SortSwoOracleUnavailable):
+        S._quarantine_and_audit(
+            d, S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL), auditor,
+            _G, layout, L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+        )
+    assert wal.read_records(layout) == []
+
+
+def test_oracle_pass_and_unavailable_are_stored_as_separate_attempt_records(
+        monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    d = _mk_template_dir()
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
+    coder = S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL)
+    layout = _tmp_layout("attempt-records")
+    state = L.LoopState(start_ts=time.monotonic())
+
+    passed = oracle.SortSwoOracleResult(
+        oracle.OracleStatus.PASS, "a" * 64, "b" * 64,
+        receipt=_oracle_receipt(oracle, "a" * 64, "b" * 64),
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: passed,
+    )
+    assert S._quarantine_and_audit(
+        d, coder, auditor, _G, layout, state, _planner(), write=True,
+    ) is None
+    records = wal.read_records(layout)
+    assert len(records) == 1
+    assert records[0].payload["classification"] == "pass"
+    assert records[0].payload["oracle_receipt"] == passed.receipt.as_dict()
+
+    unavailable = oracle.SortSwoOracleResult(
+        oracle.OracleStatus.UNAVAILABLE, "c" * 64, "d" * 64,
+        infrastructure=oracle.OracleInfrastructureFailure(
+            oracle.INFRASTRUCTURE_REASON_CODE, "fixture", "fixture-unavailable",
+        ),
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: unavailable,
+    )
+    d_unavailable = _mk_template_dir()
+    unavailable_auditor = S.AuditorVerdict(
+        verdict="pass", diff_digest=_digest_for(d_unavailable),
+    )
+    with pytest.raises(oracle.SortSwoOracleUnavailable):
+        S._quarantine_and_audit(
+            d_unavailable, coder, unavailable_auditor, _G, layout, state,
+            _planner(), write=True,
+        )
+    records = wal.read_records(layout)
+    assert len(records) == 2
+    assert records[-1].payload["classification"] == "attempt-infra"
+    assert records[-1].payload["reason_code"] == oracle.INFRASTRUCTURE_REASON_CODE
+    assert "diff_quarantine" not in records[-1].payload
+
+
+def test_oracle_none_cannot_be_interpreted_as_pass(monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    d = _mk_template_dir()
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: None,
+    )
+    with pytest.raises(TypeError, match="non-contract"):
+        S._quarantine_and_audit(
+            d, S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL), auditor,
+            _G, _tmp_layout("none-not-pass"),
+            L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+        )
+
+
+def test_sort_driver_requires_exact_oracle_contract_id(monkeypatch):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    d = _mk_template_dir()
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest=_digest_for(d))
+    passed = oracle.SortSwoOracleResult(
+        oracle.OracleStatus.PASS, "1" * 64, "2" * 64,
+        receipt=_oracle_receipt(oracle),
+    )
+    object.__setattr__(passed, "contract_id", "sort-swo-wrong-contract")
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: passed,
+    )
+    with pytest.raises(TypeError, match="contract_id mismatch"):
+        S._quarantine_and_audit(
+            d, S.CoderProposalSort(S.MARKER_ID, _CLEAN_IMPL), auditor,
+            _G, _tmp_layout("contract-mismatch"),
+            L.LoopState(start_ts=time.monotonic()), _planner(), write=False,
+        )
+
+
+def test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic(monkeypatch):
+    import contextlib
+    from orchestrator.campaign import patchharness, sort_swo_oracle as oracle
+    from orchestrator.critic.digest import render_rejections
+
+    d = _mk_template_dir()
+    digest = _digest_for(d, _NON_SWO_IMPL)
+    auditor = S.AuditorVerdict(verdict="pass", diff_digest=digest)
+    coder = S.CoderProposalSort(axis=S.MARKER_ID, implementation=_NON_SWO_IMPL)
+    state = L.LoopState(start_ts=time.monotonic())
+    layout = _tmp_layout("oracle-reject")
+    finding = oracle.SortSwoFinding(
+        oracle.OracleRejectKind.AXIOM,
+        "swo-asymmetric",
+        oracle.SwoCounterexample(
+            oracle.SwoAxiom.ASYMMETRIC, ((0, 1), (1, 0)),
+        ),
+    )
+    rejected = oracle.SortSwoOracleResult(
+        oracle.OracleStatus.REJECT, "a" * 64, "b" * 64, finding,
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: rejected,
+    )
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *args, **kwargs: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        S, "exploration_campaign_layout", lambda _campaign_id: layout,
+    )
+    monkeypatch.setattr(
+        S, "run_campaign", lambda *args, **kwargs: pytest.fail(
+            "oracle reject 後に run_campaign へ到達した"
+        ),
+    )
+    context = S.build_run_context(generator_id=S.GeneratorId.BACKOFF_SWEEP)
+
+    result = S.run_one_iteration(
+        S.default_cfg(), S.default_perf(), _planner(), coder, auditor, state, d,
+        do_build=True, layout=layout, build_context=context,
+    )
+
+    assert result["outcome"] == "rejected"
+    assert result["digest"]["subtype"] == DiffRejectSubtype.SORT_SWO_ORACLE.value
+    loaded = load_diff_rejections(_critic_view(layout))
+    assert len(loaded) == 1
+    assert loaded[0].oracle_finding == finding.as_dict()
+    assert loaded[0].materialized_hole_sha256 == "a" * 64
+    assert loaded[0].proposal_sha256 == "b" * 64
+    assert loaded[0].oracle_contract_id == oracle.ORACLE_CONTRACT_ID
+    assert loaded[0].oracle_finding["counterexample"]["axiom"] == "asymmetric"
+    assert loaded[0].oracle_finding["counterexample"]["input_pairs"] == [
+        {"lhs_index": 0, "rhs_index": 1},
+        {"lhs_index": 1, "rhs_index": 0},
+    ]
+    rendered = render_rejections(
+        [], [], {}, None, diff_rejections=loaded,
+        identity_projection=IdentityProjection.RAW,
+    )
+    assert "SWO公理=asymmetric" in rendered
+    assert "反例pair=(0,1),(1,0)" in rendered
+    assert "フレーム/hole 逸脱" not in rendered.split("sort-swo-oracle")[-1]
 
 
 def test_sort_seam_rejects_measured_host_effects_and_never_writes_source():
@@ -418,6 +654,8 @@ def test_default_cfg_wires_s2_verify():
     search_config に legacy+s2 が明記されていること (敵対レビュー 2026-07-10)。"""
     cfg = S.default_cfg()
     assert cfg.search_config.get(SEARCH_CONFIG_VERIFY_KEY) == VERIFY_LEGACY_PLUS_S2
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
+    assert cfg.search_config.get("sort_swo_oracle") == ORACLE_CONTRACT_ID
 
 
 def test_default_cfg_axis_is_sort_marker():

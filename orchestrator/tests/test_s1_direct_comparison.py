@@ -372,6 +372,7 @@ def _capture_prepare_quarantine(
         tmp_path, monkeypatch, cell, implementation_key):
     from orchestrator.campaign import patchharness
     from orchestrator.campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import sort_swo_oracle as oracle
 
     expected = copy.deepcopy(cell)
     worktree = tmp_path / "worktree"
@@ -396,6 +397,27 @@ def _capture_prepare_quarantine(
         lambda *args, **kwargs: "fixture-source",
     )
     monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
+    receipt = oracle.OracleReceipt(
+        contract_id=oracle.ORACLE_CONTRACT_ID,
+        materialized_hole_sha256="1" * 64,
+        proposal_sha256="2" * 64,
+        corpus_id=oracle.CORPUS_ID,
+        corpus_version=oracle.CORPUS_VERSION,
+        compiler_realpath="/fixture/cxx",
+        compiler_version="fixture-cxx 1",
+        compile_flags_sha256=oracle.COMPILE_FLAGS_SHA256,
+        tu_sha256="3" * 64,
+        tu_template_sha256=oracle.TU_TEMPLATE_SHA256,
+        dependency_root_realpath="/fixture/dependency",
+        dependency_config_sha256="4" * 64,
+    )
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo",
+        lambda *args, **kwargs: oracle.SortSwoOracleResult(
+            oracle.OracleStatus.PASS, "1" * 64, "2" * 64,
+            receipt=receipt,
+        ),
+    )
 
     with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
         pass
@@ -827,6 +849,13 @@ def test_s1_v2_trial_does_not_reuse_v1_campaign_id():
     assert campaign_id != "s1-direct-develop-direct-comparison-7bccdf1a"
 
 
+def test_s1_search_identity_binds_exact_sort_swo_contract():
+    from orchestrator.campaign.sort_swo_oracle import ORACLE_CONTRACT_ID
+
+    cfg = S.config_for(_freeze(), "develop")
+    assert cfg.search_config["sort_swo_oracle"] == ORACLE_CONTRACT_ID
+
+
 def test_schedule_mutation_refused_and_deviation_recorded(tmp_path):
     document = _freeze()
     freeze_path = _write_freeze(tmp_path, document)
@@ -933,15 +962,65 @@ def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
     assert len(evaluate_calls) == 18
     layout = S.layout_for(_freeze(), "develop", output_root=str(tmp_path / "out"))
     events = S.read_session_ledger(layout)
-    assert S.validate_session_ledger(layout, S.schedule_for_role(_freeze(), "develop")) == 18
-    first_starts = [e for e in events if e.get("event") == "session-start"
-                    and e.get("schedule_index") == 0]
+    assert S.validate_session_ledger(
+        layout, S.schedule_for_role(_freeze(), "develop"),
+    ) == 18
+    first_starts = [
+        e for e in events
+        if e.get("event") == "session-start" and e.get("schedule_index") == 0
+    ]
     assert [e["attempt"] for e in first_starts] == [0, 1, 2]
-    assert len([e for e in events if e.get("event") == "retry"
-                and e.get("retry_of") == 0]) == 2
+    assert len([
+        e for e in events
+        if e.get("event") == "retry" and e.get("retry_of") == 0
+    ]) == 2
     budget = S.read_budget(tmp_path / "time_ledger.json")
-    assert len([e for e in budget["entries"]
-                if e["note"].startswith("machine-failure-retry:")]) == 2
+    assert len([
+        e for e in budget["entries"]
+        if e["note"].startswith("machine-failure-retry:")
+    ]) == 2
+
+
+def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_path):
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    prepare_calls = []
+
+    @contextlib.contextmanager
+    def unavailable_once(cell, pin):
+        prepare_calls.append(1)
+        if len(prepare_calls) == 1:
+            result = oracle.SortSwoOracleResult(
+                oracle.OracleStatus.UNAVAILABLE, "a" * 64, "b" * 64,
+                infrastructure=oracle.OracleInfrastructureFailure(
+                    oracle.INFRASTRUCTURE_REASON_CODE,
+                    "trusted-preflight-compile", "trusted-positive-tu-compile-failed",
+                ),
+            )
+            raise oracle.SortSwoOracleUnavailable(result)
+        yield S.PreparedCell(
+            Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache",
+        )
+
+    output_root = str(tmp_path / "out")
+    document = _freeze()
+    rc = S.run_role(
+        "develop", freeze_path=_write_freeze(tmp_path, document),
+        budget_path=tmp_path / "time_ledger.json", output_root=output_root,
+        verify_document=lambda doc: None, evaluate_fn=_green,
+        prepare_cell_fn=unavailable_once, single_tenant_fn=lambda: None,
+        monotonic=_Clock(), log=lambda msg: None,
+    )
+    assert rc == S.EXIT_OK
+    events = S.read_session_ledger(S.layout_for(document, "develop", output_root=output_root))
+    infra = [
+        event["sort_swo_oracle"] for event in events
+        if event.get("event") == "session-start"
+        and "sort_swo_oracle" in event
+    ]
+    assert len(infra) == 1
+    assert infra[0]["classification"] == "attempt-infra"
+    assert infra[0]["reason_code"] == oracle.INFRASTRUCTURE_REASON_CODE
 
 
 def test_prepare_freeze_contract_error_aborts_without_retry(tmp_path):
