@@ -172,6 +172,7 @@ _round_seed = _floor_contract._round_seed
 # driver が観測から分類する excluded_reason コード (stats の閉じた表と一致)。
 _REASON_COMPETING = "competing_process"          # preflight/post probe の競合
 _REASON_LAUNCH = "launch_failure"                # プロセス起動失敗 (全 rep 実行不能)
+_REASON_PARTIAL = "nonfinite_or_partial_output"
 
 _PORTABLE_BUILT_KEYS = frozenset({
     "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
@@ -858,6 +859,50 @@ def _read_journal(journal_path: Path) -> list[dict]:
     return records
 
 
+def _transition_pre_measure_journal_to_v3(
+        journal_path: Path, records: list[dict], *,
+        write_capability: Optional[WriteCapability] = None) -> None:
+    """測定 event のない v2 journal の schema 行だけを v3 へ原子的に遷移する。"""
+    if not any(
+            record.get("event") in {"launch-start", "campaign-start"}
+            and record.get("schema") == "s8b-floor-journal/v2"
+            for record in records):
+        return
+    if any(record.get("event") in {"session-start", "session"} for record in records):
+        raise FloorCampaignError("v2→v3 transition は測定開始後には実行できない")
+    targets = [
+        record for record in records
+        if record.get("event") in {"launch-start", "campaign-start"}
+        and record.get("schema") == "s8b-floor-journal/v2"
+    ]
+    if not targets:
+        return
+    transitioned = [dict(record) for record in records]
+    for record in transitioned:
+        if (record.get("event") in {"launch-start", "campaign-start"}
+                and record.get("schema") == "s8b-floor-journal/v2"):
+            record["schema"] = JOURNAL_SCHEMA
+    payload = b"".join(
+        (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+        for record in transitioned
+    )
+    tmp = journal_path.with_name(f".{journal_path.name}.v3-transition-{uuid.uuid4().hex}")
+    opener = (
+        open_with_write_capability(write_capability, tmp, "xb")
+        if write_capability is not None else open(tmp, "xb")
+    )
+    try:
+        with opener as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, journal_path)
+        records[:] = transitioned
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
 # --------------------------------------------------------------------------- #
 # strict single-tenant probe (規律4, runner の共有分類器を消費)                 #
 # --------------------------------------------------------------------------- #
@@ -898,7 +943,10 @@ def strict_probe(probe_fn: Callable[[], tuple[int, str, str]]) -> dict:
     except CompetingBenchProbeError as exc:
         raise CampaignAbort(
             f"strict probe が競合の有無を確定できない (fail-closed): {exc}") from exc
-    return {"rc": rc, "stdout": stdout, "stderr": stderr, "competing": competing}
+    return {
+        "rc": rc, "stdout": stdout, "stderr": stderr,
+        "competing": bool(competing),
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -1069,11 +1117,85 @@ def _count_exec_failures(notes) -> int:
     return 0
 
 
-def _project_scalepoint(scale_point) -> dict:
-    """ScalePoint を SessionRecord の計測フィールドへ射影する (throughputs / exec_failures)。"""
-    throughputs = [float(t) for t in (getattr(scale_point, "throughputs", None) or [])]
+def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> dict:
+    """rep 証跡から完備な rep の tps だけを統計入力へ射影する。"""
+    source_throughputs = list(getattr(scale_point, "throughputs", None) or [])
+    observations = getattr(scale_point, "rep_observations", None)
+    if not isinstance(observations, (list, tuple)) or len(observations) != reps:
+        # 証跡 carrier 欠落は成功既定にせず、全 logical rep を unknown/incomplete とする。
+        padded = source_throughputs[:reps] + [None] * max(0, reps - len(source_throughputs))
+        observations = [
+            {
+                "rep_index": index,
+                "returncode": None,
+                "counter_status": "incomplete" if expected_use_perf else "not_required",
+                "missing_perf_events": (
+                    list(s8b_floor_stats.PERF_EVENTS) if expected_use_perf else []
+                ),
+                "perf_raw": {event: None for event in s8b_floor_stats.PERF_EVENTS},
+                "throughput": padded[index],
+            }
+            for index in range(reps)
+        ]
+    else:
+        observations = [dict(observation) if isinstance(observation, Mapping) else {}
+                        for observation in observations]
+
+    observed_tps = [
+        observation.get("throughput") for observation in observations
+        if observation.get("throughput") is not None
+    ]
+    if observed_tps != source_throughputs:
+        raise CampaignAbort(
+            "ScalePoint.throughputs と rep_observations の raw throughput 列が不一致"
+        )
+
+    failures = 0
+    throughputs = []
+    for expected_index, observation in enumerate(observations):
+        perf_raw = observation.get("perf_raw")
+        raw_complete = (
+            isinstance(perf_raw, Mapping)
+            and set(perf_raw) == set(s8b_floor_stats.PERF_EVENTS)
+        )
+        missing = []
+        if raw_complete and expected_use_perf:
+            missing = [
+                event for event in s8b_floor_stats.PERF_EVENTS
+                if type(perf_raw[event]) is not int or perf_raw[event] < 0
+            ]
+        elif expected_use_perf:
+            missing = list(s8b_floor_stats.PERF_EVENTS)
+        derived_status = (
+            "not_required" if not expected_use_perf
+            else "complete" if not missing else "incomplete"
+        )
+        complete = (
+            set(observation) == {
+                "rep_index", "returncode", "counter_status", "missing_perf_events",
+                "perf_raw", "throughput",
+            }
+            and type(observation.get("rep_index")) is int
+            and observation["rep_index"] == expected_index
+            and type(observation.get("returncode")) is int
+            and observation["returncode"] == 0
+            and observation.get("counter_status") == derived_status
+            and observation.get("missing_perf_events") == missing
+            and raw_complete
+            and derived_status in {"complete", "not_required"}
+        )
+        if complete:
+            if observation.get("throughput") is not None:
+                throughputs.append(observation["throughput"])
+        else:
+            failures += 1
     exec_failures = _count_exec_failures(getattr(scale_point, "notes", None))
-    return {"throughputs": throughputs, "exec_failures": exec_failures}
+    return {
+        "throughputs": throughputs,
+        "exec_failures": exec_failures,
+        "rep_observations": observations,
+        "rep_integrity_failures": failures,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -2369,7 +2491,9 @@ class _Runner:
                 seq=seq, round_no=round_no, cell_id=cell_id, kind=kind,
                 retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger,
                 throughputs=[], exec_failures=0, excluded_reason=_REASON_COMPETING,
-                session_cv=None, duration_s=self._elapsed(start_mono),
+                rep_observations=[], rep_integrity_failures=None,
+                assessed_median=None, session_cv=None,
+                duration_s=self._elapsed(start_mono),
                 probe_before=probe_before, probe_after=None, run_cmd=None,
                 notes=["preflight probe 競合で計測をスキップ"],
                 binary_sha256_at_measure=measured_bin_sha,
@@ -2388,9 +2512,13 @@ class _Runner:
         probe_after = strict_probe(self.probe_fn)  # 検査不能 → CampaignAbort (finally 相当)
 
         if scale_point is not None:
-            projection = _project_scalepoint(scale_point)
+            projection = _project_scalepoint(
+                scale_point, reps=self.reps, expected_use_perf=self.use_perf,
+            )
             throughputs = projection["throughputs"]
             exec_failures = projection["exec_failures"]
+            rep_observations = projection["rep_observations"]
+            rep_integrity_failures = projection["rep_integrity_failures"]
             run_cmd = _project_measure_run_cmd(
                 getattr(scale_point, "run_cmd", None),
                 runtime_binary=binary,
@@ -2404,12 +2532,15 @@ class _Runner:
         else:
             throughputs = []
             exec_failures = self.reps
+            rep_observations = []
+            rep_integrity_failures = None
             run_cmd = None
             notes = [f"measure 失敗: {type(measure_error).__name__}: "
                      f"{str(measure_error)[:200]}"]
 
         # 生値から表示 CV / 必然理由を導出 (stats の単一純関数, α-8)。理由の precedence 決定に使う。
         session_cv: Optional[float] = None
+        assessed_median: Optional[float] = None
         derived_reason: Optional[str] = None
         if scale_point is not None:
             try:
@@ -2419,10 +2550,10 @@ class _Runner:
             except s8b_floor_stats.FloorStatsError as exc:
                 raise CampaignAbort(f"assess_session 内部不変条件破れ: {exc}") from exc
             session_cv = assessment.cv
+            assessed_median = assessment.median
             derived_reason = assessment.required_reason
 
-        # precedence (β-7): post-probe 競合 → competing / 全 rep 起動不能 → launch /
-        # 部分・非有限 → partial / 完全値 CV 超過 → performance / その他 valid。
+        # precedence: competing → launch → rep integrity → partial → performance → valid。
         if probe_after["competing"]:
             excluded_reason: Optional[str] = _REASON_COMPETING
         elif measure_error is not None:
@@ -2434,6 +2565,9 @@ class _Runner:
             # 無効になる (exec_failures != 0) ため、閉表の理由なしで invalid になる
             # 行を作らない (レビュー所見)。
             excluded_reason = _REASON_LAUNCH
+        elif (rep_integrity_failures and rep_integrity_failures > 0
+              and derived_reason == _REASON_PARTIAL):
+            excluded_reason = _REASON_PARTIAL
         else:
             excluded_reason = derived_reason  # None / partial / performance
 
@@ -2441,7 +2575,10 @@ class _Runner:
             seq=seq, round_no=round_no, cell_id=cell_id, kind=kind,
             retry_ordinal=retry_ordinal, attempt_id=attempt_id, trigger=trigger,
             throughputs=throughputs, exec_failures=exec_failures,
-            excluded_reason=excluded_reason, session_cv=session_cv,
+            rep_observations=rep_observations,
+            rep_integrity_failures=rep_integrity_failures,
+            excluded_reason=excluded_reason, assessed_median=assessed_median,
+            session_cv=session_cv,
             duration_s=self._elapsed(start_mono), probe_before=probe_before,
             probe_after=probe_after, run_cmd=run_cmd, notes=notes,
             binary_sha256_at_measure=measured_bin_sha,
@@ -2452,21 +2589,20 @@ class _Runner:
         return float(self.monotonic_fn() - start_mono)
 
     def _finish_session(self, *, seq, round_no, cell_id, kind, retry_ordinal, attempt_id,
-                        trigger, throughputs, exec_failures, excluded_reason, session_cv,
-                        duration_s, probe_before, probe_after, run_cmd, notes,
+                        trigger, throughputs, exec_failures, rep_observations,
+                        rep_integrity_failures, excluded_reason, assessed_median,
+                        session_cv, duration_s, probe_before, probe_after, run_cmd, notes,
                         binary_sha256_at_measure=None) -> dict:
         cell = self.cell_by_id[cell_id]
         reason = self._check_reason(excluded_reason) if excluded_reason is not None else None
-        rec = s8b_floor_stats.SessionRecord(
-            cell_id=cell_id, holdout_id=cell["holdout_id"],
-            configuration_id=cell["configuration_id"], seq=seq,
-            throughputs=tuple(throughputs), reps_expected=self.reps,
-            exec_failures=exec_failures, excluded_reason=reason, retry=(kind == "retry"),
-        )
-        median = s8b_floor_stats.session_median(
-            rec, reps=self.reps, session_cv_max=self.session_cv_max,
-        )
+        median = assessed_median if reason is None and exec_failures == 0 else None
         valid = median is not None
+        exclusion_class = (
+            reason if reason in {_REASON_COMPETING, _REASON_LAUNCH}
+            else s8b_floor_stats.REP_INTEGRITY_EXCLUSION_CLASS
+            if rep_integrity_failures is not None and rep_integrity_failures > 0
+            else reason
+        )
         record = {
             "event": "session", "kind": kind, "seq": seq, "round": round_no,
             "retry_ordinal": retry_ordinal, "attempt_id": attempt_id, "trigger": trigger,
@@ -2478,8 +2614,11 @@ class _Runner:
             "throughputs": list(throughputs), "reps_expected": self.reps,
             "exec_failures": exec_failures, "excluded_reason": reason,
             "retry": (kind == "retry"),
+            "rep_observations": [dict(observation) for observation in rep_observations],
+            "rep_integrity_failures": rep_integrity_failures,
             # --- driver の付帯情報 (verify は無視する) ---
             "session_median": median, "valid": valid, "session_cv": session_cv,
+            "exclusion_class": exclusion_class,
             "duration_s": duration_s, "run_cmd": run_cmd, "notes": list(notes or []),
             "probe_before": probe_before, "probe_after": probe_after,
             # binary receipt (C3-6): 実測直前に再計算した binary bytes の full sha256。
@@ -2656,16 +2795,13 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         records_by_cell[cell["cell_id"]] = []
     for raw in session_records:
         cell_id = raw["cell_id"]
-        records_by_cell.setdefault(cell_id, []).append(
-            s8b_floor_stats.SessionRecord(
-                cell_id=cell_id, holdout_id=raw["holdout_id"],
-                configuration_id=raw["configuration_id"], seq=int(raw["seq"]),
-                throughputs=tuple(raw["throughputs"]),
-                reps_expected=int(raw["reps_expected"]),
-                exec_failures=int(raw["exec_failures"]),
-                excluded_reason=raw["excluded_reason"], retry=bool(raw["retry"]),
-            )
-        )
+        try:
+            record = s8b_floor_stats._record_from_mapping(raw)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise FloorCampaignError(
+                f"session[{raw.get('seq')!r}] の型が不正: {exc}"
+            ) from exc
+        records_by_cell.setdefault(cell_id, []).append(record)
 
     # セル別統計 (s8b_floor_stats.cell_stats)。
     cell_stats_map: dict[str, object] = {}
@@ -2700,6 +2836,8 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
             "seq": r["seq"], "cell_id": r["cell_id"], "kind": r.get("kind"),
             "retry": r.get("retry"), "round": r.get("round"),
             "excluded_reason": r.get("excluded_reason"),
+            "exclusion_class": r.get("exclusion_class"),
+            "rep_integrity_failures": r.get("rep_integrity_failures"),
             "session_cv": r.get("session_cv"),
         }
         for r in session_records if not r.get("valid")
@@ -2710,6 +2848,8 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
             "seq": r["seq"], "cell_id": r["cell_id"], "kind": r.get("kind"),
             "round": r.get("round"), "retry_ordinal": r.get("retry_ordinal"),
             "valid": r.get("valid"), "excluded_reason": r.get("excluded_reason"),
+            "exclusion_class": r.get("exclusion_class"),
+            "rep_integrity_failures": r.get("rep_integrity_failures"),
             "session_cv": r.get("session_cv"), "session_median": r.get("session_median"),
             "duration_s": r.get("duration_s"),
         }
@@ -2844,7 +2984,7 @@ def _render_result_md(result: Mapping) -> str:
     excluded = result.get("excluded") or []
     reason_counts: dict[str, int] = {}
     for item in excluded:
-        reason = item.get("excluded_reason") or "(none)"
+        reason = item.get("exclusion_class") or item.get("excluded_reason") or "(none)"
         reason_counts[reason] = reason_counts.get(reason, 0) + 1
     if not reason_counts:
         lines.append("(なし)")
@@ -2863,7 +3003,8 @@ def _render_result_md(result: Mapping) -> str:
     for a in sorted(attempts, key=lambda x: x.get("seq", 0)):
         lines.append(
             f"| {a.get('seq')} | `{a.get('cell_id')}` | {a.get('kind')} | "
-            f"{a.get('round')} | {a.get('valid')} | {a.get('excluded_reason')} | "
+            f"{a.get('round')} | {a.get('valid')} | "
+            f"{a.get('exclusion_class') or a.get('excluded_reason')} | "
             f"{_fmt(a.get('session_cv'))} | {_fmt(a.get('session_median'))} | "
             f"{_fmt(a.get('duration_s'))} |"
         )
@@ -3381,6 +3522,10 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             resume_records, run_dir=run_dir, mode=mode, schedule=schedule,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
             manifest_sha256=manifest_sha256, resume_state=resume_state,
+            expected_use_perf=_assert_perf_mode(mode, perf_preflight_receipt),
+        )
+        _transition_pre_measure_journal_to_v3(
+            journal_path, resume_records, write_capability=run_write_capability,
         )
 
     if resume_state == "M-finalize-pending":
@@ -3398,6 +3543,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         problems = s8b_floor_stats.verify_floor_artifact(
             result, _expected_protocol(protocol, cells),
             expected_binaries=_journal_expected_binaries(resume_records),
+            expected_use_perf=_assert_perf_mode(mode, perf_preflight_receipt),
         )
         if problems:
             raise FloorCampaignError(
@@ -3416,16 +3562,17 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         numactl = list(contract.numactl)
 
         def measure_fn(binary, records, threads, workload):  # noqa: ANN001
+            rep_observations: list[dict] = []
             if use_perf:
                 return measure_point(
                     binary, records, threads, clocks_per_us,
                     extime=extime_s, reps=reps, workload=workload,
-                    numactl=numactl,
+                    numactl=numactl, rep_observations=rep_observations,
                 )
             return measure_point(
                 binary, records, threads, clocks_per_us,
                 extime=extime_s, reps=reps, workload=workload,
-                numactl=numactl, use_perf=False,
+                numactl=numactl, rep_observations=rep_observations, use_perf=False,
             )
 
     runner = _Runner(
@@ -3478,6 +3625,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     expected_binaries = _journal_expected_binaries(runner.records)
     problems = s8b_floor_stats.verify_floor_artifact(
         result, expected, expected_binaries=expected_binaries,
+        expected_use_perf=use_perf,
     )
     if problems:
         _journal_append(
@@ -3577,7 +3725,8 @@ def _verify_resume_binaries(built: Mapping) -> None:
 def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
                            schedule: list[dict], protocol_sha256: str,
                            freeze_sha256: str, manifest_sha256: Optional[str],
-                           resume_state: str = "M-running") -> Optional[str]:
+                           resume_state: str = "M-running",
+                           expected_use_perf: Optional[bool] = None) -> Optional[str]:
     """resume: journal を状態機械で全件検証する (β-6)。
 
     official は先頭 launch-start・certificate bytes/意味・campaign-start 束縛を検証する。
@@ -3592,13 +3741,21 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
     run_dir = Path(run_dir)
     starts = [r for r in records if r.get("event") == "campaign-start"]
     cs = starts[0] if starts else None
+    has_measurement = any(
+        record.get("event") in {"session-start", "session"} for record in records
+    )
     if resume_state in {"L", "M-prestart"}:
         if starts:
             raise FloorCampaignError(f"resume: {resume_state} に campaign-start がある")
     else:
         if len(starts) != 1:
             raise FloorCampaignError("resume: campaign-start はちょうど 1 件でなければならない")
-        if cs.get("schema") != JOURNAL_SCHEMA:
+        if cs.get("schema") == "s8b-floor-journal/v2":
+            if has_measurement:
+                raise FloorCampaignError(
+                    "resume: v2 journal に session-start/session があり rep 証跡を復元不能"
+                )
+        elif cs.get("schema") != JOURNAL_SCHEMA:
             raise FloorCampaignError(
                 f"resume: campaign-start.schema が {JOURNAL_SCHEMA} でない (旧版 journal を拒否)"
             )
@@ -3629,7 +3786,10 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
         launch = launch_starts[0]
         if not records or records[0].get("event") != "launch-start":
             raise FloorCampaignError("resume: official launch-start が journal 先頭でない")
-        if launch.get("schema") != JOURNAL_SCHEMA:
+        launch_schema_ok = launch.get("schema") == JOURNAL_SCHEMA or (
+            launch.get("schema") == "s8b-floor-journal/v2" and not has_measurement
+        )
+        if not launch_schema_ok:
             raise FloorCampaignError(
                 f"resume: launch-start.schema が {JOURNAL_SCHEMA} でない"
             )
@@ -3740,10 +3900,55 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             raise FloorCampaignError(f"resume: session-start の kind が未知: {kind!r}")
 
     for r in records:
-        if r.get("event") == "session" and r.get("seq") not in seen_seq:
+        if r.get("event") != "session":
+            continue
+        if r.get("seq") not in seen_seq:
             raise FloorCampaignError(
                 f"resume: session 完了 (seq {r.get('seq')}) に対応する start が無い"
             )
+        missing_evidence = [
+            key for key in ("rep_observations", "rep_integrity_failures", "exclusion_class")
+            if key not in r
+        ]
+        if missing_evidence:
+            raise FloorCampaignError(
+                f"resume: v3 session の rep 証跡 key 欠損: {missing_evidence}"
+            )
+        try:
+            s8b_floor_stats._record_from_mapping(r)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise FloorCampaignError(f"resume: session の型が不正: {exc}") from exc
+        exempt = s8b_floor_stats._rep_evidence_exemption_kind(r) is not None
+        derived_failures: Optional[int] = None
+        if not exempt:
+            if type(expected_use_perf) is not bool:
+                raise FloorCampaignError("resume: session 検査に expected_use_perf が無い")
+            reps_expected = r.get("reps_expected")
+            if type(reps_expected) is not int or reps_expected < 2:
+                raise FloorCampaignError("resume: reps_expected が exact int でない")
+            evidence_errors, derived_failures, qualified = \
+                s8b_floor_stats._derive_rep_integrity(
+                    r["rep_observations"], reps=reps_expected,
+                    expected_use_perf=expected_use_perf,
+                )
+            if evidence_errors:
+                raise FloorCampaignError(
+                    f"resume: rep_observations が不正: {evidence_errors[0]}"
+                )
+            if (type(r["rep_integrity_failures"]) is not int
+                    or r["rep_integrity_failures"] != derived_failures):
+                raise FloorCampaignError("resume: rep_integrity_failures が再導出値と不一致")
+            if tuple(r.get("throughputs", ())) != qualified:
+                raise FloorCampaignError("resume: qualified throughputs が rep 証跡と不一致")
+        expected_class = (
+            r.get("excluded_reason")
+            if r.get("excluded_reason") in {_REASON_COMPETING, _REASON_LAUNCH}
+            else s8b_floor_stats.REP_INTEGRITY_EXCLUSION_CLASS
+            if derived_failures is not None and derived_failures > 0
+            else r.get("excluded_reason")
+        )
+        if r["exclusion_class"] != expected_class:
+            raise FloorCampaignError("resume: exclusion_class が再導出値と不一致")
     return launch_certificate_sha256
 
 

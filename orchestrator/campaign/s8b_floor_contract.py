@@ -23,13 +23,14 @@ from typing import Optional
 from . import s8b_experiment_numbers as _experiment_numbers
 
 
-# 版名は一括 v2 改版し交差受理を拒否する。freeze schema は v1 freeze を読むため据置。
+# protocol/manifest は凍結 v2、rep 証跡を必須化した result/journal は v3。
+# freeze schema は v1 freeze を読むため据置。
 PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
 FREEZE_SCHEMA = "8b-holdout-freeze/v1"
 SCHEDULE_ALGORITHM = "round-permutation/v2"
-RESULT_SCHEMA = "s8b-floor-result/v2"
+RESULT_SCHEMA = "s8b-floor-result/v3"
 MANIFEST_SCHEMA = "s8b-floor-manifest/v2"
-JOURNAL_SCHEMA = "s8b-floor-journal/v2"
+JOURNAL_SCHEMA = "s8b-floor-journal/v3"
 FORMULA_ID = "s8b-floor-stats/v2"
 
 _PROTOCOL_KEYS = frozenset({

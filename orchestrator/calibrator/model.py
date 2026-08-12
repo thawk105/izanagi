@@ -71,6 +71,9 @@ class ScalePoint:
     abort_rate: Optional[float] = None    # abort/(commit+abort)。競合の捌き方が直接出る
     latency_ns: Optional[float] = None    # 平均トランザクションレイテンシ [ns]
     notes: List[str] = field(default_factory=list)   # rep 失敗等の構造化記録 (規律3)
+    # floor campaign が opt-in したときだけ持つ rep 単位の実行・counter 証跡。
+    # None は「呼び手が証跡収集を要求しなかった」を表し、空列を成功の既定値にしない。
+    rep_observations: Optional[List[Dict[str, object]]] = None
 
     @property
     def miss_rate(self) -> Optional[float]:
