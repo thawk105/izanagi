@@ -1,16 +1,25 @@
 #!/bin/bash
+#PBS -A SFC
 #PBS -N t139-a12
-#PBS -l select=1:ncpus=60:mem=14gb
-#PBS -l walltime=01:00:00
-#PBS -j oe
+#PBS -q gen_S
+#PBS -l elapstim_req=00:30:00
+#PBS -j o
 
 set -uo pipefail
 
 REPO_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-a12-stress-check
 OUTPUT_PATH=${T139_A12_OUTPUT:?Set T139_A12_OUTPUT to a new transcript path}
+PYTHON310=$(command -v python3.10) || {
+  echo "python3.10 is required" >&2
+  exit 1
+}
+SHIM_DIR=$(mktemp -d "${TMPDIR:-/tmp}/t139-a12-python.XXXXXX") || exit 1
+trap 'rm -rf -- "$SHIM_DIR"' EXIT
+ln -s "$PYTHON310" "$SHIM_DIR/python3" || exit 1
+export PATH="$SHIM_DIR:$PATH"
 
 cd "$REPO_ROOT"
-python3 tools/pegasus/run_t139_a12_stress_check.py \
+"$PYTHON310" tools/pegasus/run_t139_a12_stress_check.py \
   --mode full \
   --execution-path qsub_compute \
   --workers auto \
