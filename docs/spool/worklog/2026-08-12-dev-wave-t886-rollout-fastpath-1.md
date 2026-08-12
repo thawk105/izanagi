@@ -59,6 +59,12 @@ title: rollout 探索を SHA pin 付き label だけ名前 glob へ短絡した 
 - {{T:scan-session-rows-full-corpus-parse}} **P2・新規**: `_scan_session_rows` が
   全 corpus の全行を parse する。現在はテストが実 corpus を渡していないため律速ではないが、
   渡した瞬間に `_find_rollout` の旧経路より重くなる。
+- {{T:provenance-merge-combined-diff-exemption}} **P2・新規**: provenance checker の merge 判定を
+  path の積集合から内容へ寄せる。`git diff-tree --cc` が空の merge は 1 byte も書いていないので
+  実装面の著作なしとみなす案。**受理集合を広げる変更なので独立の敵対検証を受入条件とする。**
+  本 wave の 187fed69 と [T-720] の 3 件が同型で、いずれも「両 wave が同じ file を触った
+  union merge」という構造的理由だけで赤になった。この族が消える。
+  ユーザーは 2026-08-12 の裁定で当面 (a) 既知違反登録を選び、本案は後続へ回した。
 - {{T:rollout-lookup-true-proportionality}} **P2・新規**: 比例項の真の除去
   (session-id 索引または直接解決可能な path 契約)。本 wave は係数を下げただけで
   walk の線形項は残る。敵対レンズが「現案を採るなら主張を係数削減に限定せよ」と指摘した。
