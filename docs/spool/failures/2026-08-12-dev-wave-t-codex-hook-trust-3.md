@@ -8,6 +8,26 @@ seq: 3
 
 ## 再発
 
+### F102
+
+- **再発: 2026-08-12 (codex hook trust wave の段 3 レンズ A)** — 5 度目。`reasoning=max` の
+  consult 子が 10 model call・635 秒を使い、`turn.failed`
+  (`This content was flagged for possible cybersecurity risk`) で rc=1・出力 0 bytes になった。
+  **新しい情報は遮断の発生点である。** 既載の再発はいずれも依頼文・点検項目の動詞が原因で、
+  子は作業に入る前に拒否されていた。本件は events を見ると子の todo が 4 項目すべて `completed` で、
+  レンズの分析自体は完走している。遮断は**最終メッセージの生成時**に起きた — つまり
+  依頼だけでなく**子が書こうとした所見の中身**が引き金になりうる。
+  prompt には冒頭に防御目的を明記していたが、点検項目に「攻撃せよ」「突け」「構成せよ」が
+  残っていた (既載の対応を書き手が適用しそこねた)。
+  効いた対処は既載の 3 点に加えて **出力形式の明示的な制約**である。所見を
+  「検査 X は条件 Y のとき発火しない」「検証 Z の被覆は W までで、V は対象外」という
+  **被覆の記述**に限定し、「回避手順・攻撃手順・悪用の段取りを書いてはならない」と明記して
+  再投入したところ rc=0・13,661 bytes を得た。同じ深さの所見 (must-fix 相当 4 件) を返しており、
+  出力形式の制約は所見の質を落とさない。
+  恒久対応は memory `codex-adversarial-prompt-defensive-framing` の更新
+  (冒頭の framing・依頼の動詞に加えて、**所見の記述形式まで指定する**を追記)。
+  `docs/dev-wave/workers.md` の `DW-S03` へ書かない理由は既載のまま (byte 予算)
+
 ### F57
 
 - **再発: 2026-08-12 (codex hook trust wave の変異 baseline 2 連続)** — 変異 harness の baseline が
