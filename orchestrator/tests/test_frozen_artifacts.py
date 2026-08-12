@@ -37,9 +37,9 @@ from skiputil import Skip  # noqa: E402  (二重 runner 契約: _run が捕捉�
 #   の裁定根拠であり、F20 恒久対応で凍結族に属す)
 FROZEN_MANIFEST = {
     "output/s1-freeze/known_axes_freeze.json":
-        "7d6790d2b04dbce2786e3186adfaa04fb4058ae40e30aebcf7bc282b8857dc13",
+        "354f4b875a3c8106169252afc71cee1fd08df83b0f3024c72bda0a791e11f516",
     "output/s1-freeze/measurement_freeze.json":
-        "4d4fa53ff29ba554b36659b595c6cf1af00a4fa55ed2bfedabd09e0e323c325a",
+        "203de36b9749b9021d1b944d26fad4c8ed617a0fdd1438435cb67e90a0efcf7a",
     "output/s8b-freeze/holdout_freeze.json":
         "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
     "output/s8b-freeze/floor_protocol.json":

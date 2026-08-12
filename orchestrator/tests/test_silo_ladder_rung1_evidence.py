@@ -77,6 +77,9 @@ HISTORICAL_CCBENCH_PIN_FULL = "d706650cdb31e442bef45b9b4216951d4fb40969"
 HISTORICAL_LEDGER_SHA256 = (
     "34d6bfe7d81fcdb3381532ac1d6aadb3b70a20d56be027dd2f584b610cddf603"
 )
+EXPECTED_HISTORICAL_VERIFIER_MODULE_SHA256 = (
+    "e604cef0b06dc36dd8e236b8ade92eb452231a5f32b7926405b402f038e9d8a2"
+)
 
 
 def _sha256(raw: bytes) -> str:
@@ -1245,6 +1248,7 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
     }
     historical_sha256_by_key = {
         "driver": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],
+        "verifier_module": EXPECTED_HISTORICAL_VERIFIER_MODULE_SHA256,
         "policy": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
     }
     for key, relative in expected_bound_paths.items():

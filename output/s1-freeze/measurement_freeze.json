@@ -1,7 +1,7 @@
 {
   "what": "S-1 計測 freeze v2 (18セル・比較対・schedule・実装 hash)",
   "frozen_at_head": "2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
-  "ccbench_pin": "511c953",
+  "ccbench_pin": "d706650",
   "generator": {
     "path": "orchestrator/campaign/s1_measurement_freeze.py",
     "sha256": "a7c41a8175b2edeef9e6bb7b8ad4b36991668d709e6d1f5604cd80a81287d0fa"

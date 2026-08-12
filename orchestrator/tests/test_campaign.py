@@ -293,6 +293,7 @@ def _bound(cfg: CampaignConfig) -> CampaignConfig:
 
 _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-45ca7ab9"
 _T343_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-4347a1fd"
+_T816_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-27d737fd"
 _T530_REPRESENTATIVE_CAMPAIGN_ID = "readheavy-locont-fullsearch-cbddc476"
 _PRE_T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-4891e99f",
@@ -303,6 +304,11 @@ _T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-c7e53c07",
     "backoff-sweep-silo-balanced-sweep-09c1364f",
     "backoff-sweep-silo-read-heavy-sweep-adad17bc",
+})
+_T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-4fdedcc4",
+    "backoff-sweep-silo-balanced-sweep-920bb445",
+    "backoff-sweep-silo-read-heavy-sweep-ac548305",
 })
 _T816_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-172b45ad",
@@ -364,9 +370,12 @@ def test_campaign_id_binds_admission_policy():
     )
     current = str(ident.campaign_id(_cfg()))
     assert historical == _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID
-    # T-671 で H が identity から外れ、current は admission-policy 世代の ID に戻る。
-    assert current == _T343_REPRESENTATIVE_CAMPAIGN_ID
-    assert current not in {historical, _T530_REPRESENTATIVE_CAMPAIGN_ID}
+    assert current == _T816_REPRESENTATIVE_CAMPAIGN_ID
+    assert current not in {
+        historical,
+        _T343_REPRESENTATIVE_CAMPAIGN_ID,
+        _T530_REPRESENTATIVE_CAMPAIGN_ID,
+    }
 
 
 def test_environment_contract_binding_is_runtime_carrier_only():
@@ -559,10 +568,10 @@ def test_screening_search_config_omits_none_and_binds_current_admission_policy()
     search = {**base, **ident.screening_search_config(None)}
     assert search == base and "screening" not in search
     cfg = _cfg(search_config=search)
-    # T-671 では runtime authority H を hash しないため T343 identity が current。
-    assert str(ident.campaign_id(_bound(cfg))) == _T343_REPRESENTATIVE_CAMPAIGN_ID
+    assert str(ident.campaign_id(_bound(cfg))) == _T816_REPRESENTATIVE_CAMPAIGN_ID
     assert str(ident.campaign_id(_bound(cfg))) not in {
         _PRE_T343_REPRESENTATIVE_CAMPAIGN_ID,
+        _T343_REPRESENTATIVE_CAMPAIGN_ID,
         _T530_REPRESENTATIVE_CAMPAIGN_ID,
     }
 
@@ -633,7 +642,7 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     saved_lookup = ec.lookup
     ec.lookup = lambda _env_tag: _T530_CONTRACT
     try:
-        t343_backoff_cfgs = [
+        current_policy_kickoff_backoff_cfgs = [
             _bound(dataclasses.replace(
                 backoff_config(tag, workload), ccbench_commit="dff0f1e",
             ))
@@ -648,8 +657,17 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
         ]
     finally:
         ec.lookup = saved_lookup
-    t343_backoff = {str(ident.campaign_id(cfg)) for cfg in t343_backoff_cfgs}
-    assert t343_backoff == _T343_BACKOFF_CAMPAIGN_IDS
+    current_policy_kickoff_backoff = {
+        str(ident.campaign_id(cfg))
+        for cfg in current_policy_kickoff_backoff_cfgs
+    }
+    assert (
+        current_policy_kickoff_backoff
+        == _T816_POLICY_KICKOFF_BACKOFF_CAMPAIGN_IDS
+    )
+    assert current_policy_kickoff_backoff.isdisjoint(
+        _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
+    )
     current_backoff = {
         str(ident.campaign_id(cfg)) for cfg in current_backoff_cfgs
     }
@@ -6212,7 +6230,15 @@ def test_pipeline_tail_loss_witness_reaches_verifier():
     payload = wal.replay(lay)[r.variant].last_terminal.payload
     assert payload["reason"] == "indeterminate"
     expected_note = "commit witness mismatch: expected=2 observed=1 delta=-1"
-    assert payload["verify"]["integrity"]["notes"] == [expected_note]
+    framing_note = (
+        "1 txn framing violation(s) [missing-end×1] — declared R/W counts or "
+        "mandatory E boundary is broken (trace may omit dependency edges): "
+        "txn0 missing-end reads=0/0 writes=1/1"
+    )
+    assert payload["verify"]["integrity"]["notes"] == [
+        expected_note,
+        framing_note,
+    ]
     assert payload["verify"]["integrity"]["clean"] is False
     assert payload["verify"]["certified"] is False
     verify_records = [
@@ -8537,6 +8563,9 @@ _PRE_T343_GOLDEN_CK0 = {  # T-343 以前の歴史的 stock cache key
 _T343_GOLDEN_CK0 = {
     "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_d7eee324f7_t0",
 }
+_T816_GOLDEN_CK0 = {
+    "silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0": "silo_2b19d78065_t0",
+}
 
 
 def _ccbench_head_or_skip():
@@ -8641,8 +8670,11 @@ def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():
     current = buildcache.cache_key(
         g0, pin.KICKOFF_PIN_FULL, False, admission=stock_admission,
     )
-    assert current == _T343_GOLDEN_CK0[g0.canonical()]
-    assert current != _PRE_T343_GOLDEN_CK0[g0.canonical()]
+    assert current == _T816_GOLDEN_CK0[g0.canonical()]
+    assert current not in {
+        _PRE_T343_GOLDEN_CK0[g0.canonical()],
+        _T343_GOLDEN_CK0[g0.canonical()],
+    }
 
 
 def test_source_digest_parse_options_defaults():

@@ -142,7 +142,7 @@ PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
 
 | # | コマンド | 期待 |
 |---|---|---|
-| P1 | `git ls-tree HEAD external/ccbench` | `160000 commit d706650c…` |
+| P1 | `git ls-tree HEAD external/ccbench` | `160000 commit 511c9538…` (2026-08-12 [T-816] 手順 4 で前進。`d706650c…` 期の床値を歴史再開するなら、その旧 commit を明示 checkout する) |
 | P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `2 passed, 0 failed` / rc=0 |
 | P3 | 上記 gate-check | rc=2 かつ拒否 2 件 exact |
 | P4 | `qstat -u <user>` | T-139 の pilot / 本走 job が走っていない |

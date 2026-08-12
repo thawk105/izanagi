@@ -61,7 +61,7 @@ _CHARACTERIZATION_GENOME = (
 )
 _CHARACTERIZATION_PIN = "511c953"
 _ADMISSION_POLICY_SHA256 = (
-    "0473e9bee960f49e85b7175d92d7470ffb02db3c7ddfae85de4d197efcddebee"
+    "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
 )
 _PRE_T343_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8",

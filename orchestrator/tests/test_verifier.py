@@ -869,6 +869,25 @@ def test_unknown_tag_still_parse_error_after_a():
         shutil.rmtree(d, ignore_errors=True)
 
 
+def test_known_tag_prefixes_are_not_accepted_as_record_tags():
+    """既知 tag と同じ先頭文字でも、record tag の完全一致以外は拒否する。"""
+    import shutil
+    traces = (
+        "C 0 0 5 10 0 0\nEnd 0\n",
+        "Commit 0 0 5 10 0 0\nE 0\n",
+    )
+    for trace in traces:
+        d = _tmp_trace(trace)
+        try:
+            try:
+                verify_trace_dir(d)
+                assert False, "prefixed known tag must raise ParseError"
+            except ParseError as e:
+                assert "unknown record tag" in str(e)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 # ---- 既知偽陰性の characterization ----
 #
 # witness を渡す live 経路では FN-1 を分離する。一方、witness を省略できる optional

@@ -150,8 +150,16 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                 line = raw.rstrip("\n")
                 if not line:
                     continue
-                tag = line[0]
                 f = line.split()
+                if not f:
+                    raise ParseError(
+                        f"{path}:{lineno}: unknown record tag {line[0]!r}: {line!r}")
+                tag = f[0]
+                if not line.startswith(tag):
+                    # 先頭空白を許すと、従来 unknown だった record を split() が
+                    # 正規 tag へ変えて受理集合を広げるため、旧拒否挙動を保つ。
+                    raise ParseError(
+                        f"{path}:{lineno}: unknown record tag {line[0]!r}: {line!r}")
                 try:
                     if tag == "C":
                         # C <txid> <thid> <epoch> <tid> <read_count> <write_count>
