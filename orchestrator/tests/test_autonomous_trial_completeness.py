@@ -134,6 +134,23 @@ _T428_POLICY_BOUND_CAMPAIGN_IDS = {
         "p3-t178-ycsb-a-workload-conditioned-autonomous-b2c81ec8"
     ),
 }
+_CURRENT_POLICY_BOUND_CAMPAIGN_IDS = {
+    ("fixture-completeness", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e"
+    ),
+    ("fixture-completeness", "ycsb-b"): (
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-136086b0"
+    ),
+    ("fixture-completeness", "ycsb-c"): (
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-4ac6e6a4"
+    ),
+    ("trial-a", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-8671d0a1"
+    ),
+    ("trial-b", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-19143fe1"
+    ),
+}
 _T530_CONTRACT = A.env_contract.GENERATIONS["linux-baremetal"][0].contract
 _T530_LAYER3_CONTRACT = (
     env_contract.GENERATIONS["linux-baremetal"][0].contract
@@ -175,6 +192,23 @@ _T428_WORKLOAD_CAMPAIGN_EPOCHS = (
         "ycsb-c",
         "p3-t178-ycsb-c-workload-conditioned-autonomous-f967c773",
         "p3-t178-ycsb-c-workload-conditioned-autonomous-c3cccc72",
+    ),
+)
+_CURRENT_WORKLOAD_CAMPAIGN_EPOCHS = (
+    (
+        "ycsb-a",
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c",
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e",
+    ),
+    (
+        "ycsb-b",
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-1e4b78c7",
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-136086b0",
+    ),
+    (
+        "ycsb-c",
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-c3cccc72",
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-4ac6e6a4",
     ),
 )
 
@@ -1332,8 +1366,8 @@ def _layer3_campaign(
         campaign_cfg, _T530_LAYER3_CONTRACT,
     )
     campaign_id = str(ident.campaign_id(campaign_cfg))
-    # T-671 で H が identity から外れ、current は T428 policy-bound 値になる。
-    assert campaign_id == _T428_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
+    # T-671 で H が identity から外れ、current は policy-bound 値になる。
+    assert campaign_id == _CURRENT_POLICY_BOUND_CAMPAIGN_IDS[(trial_id, workload)]
     metadata["campaign_id"] = campaign_id
     metadata["campaign_root"] = str(output_root / "campaigns" / campaign_id)
     campaign = output_root / "campaigns" / campaign_id
@@ -1483,9 +1517,9 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(
     output_root, _campaign, _persisted_path, _persisted, cell = _layer3_campaign(
         tmp_path
     )
-    # T-671 で契約 H が identity から外れ、current golden は T428 値になる。
+    # T-671 で契約 H が identity から外れた current golden を独立に pin する。
     assert cell["campaign_id"] == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-67a4e01c"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e"
     )
     assert _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(
         "fixture-completeness", "ycsb-a",
@@ -1500,15 +1534,15 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(
 
 @pytest.mark.parametrize(
     "workload,old_campaign_id,new_campaign_id",
-    _T428_WORKLOAD_CAMPAIGN_EPOCHS,
+    _CURRENT_WORKLOAD_CAMPAIGN_EPOCHS,
 )
 def test_t428_workload_campaign_epoch_and_old_root_nonwrite(
     tmp_path, workload, old_campaign_id, new_campaign_id,
 ) -> None:
-    assert _T343_POLICY_BOUND_CAMPAIGN_IDS[
+    assert _T428_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ] == old_campaign_id
-    assert _T428_POLICY_BOUND_CAMPAIGN_IDS[
+    assert _CURRENT_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ] == new_campaign_id
     assert _t428_descriptor_campaign_id(
@@ -1520,7 +1554,7 @@ def test_t428_workload_campaign_epoch_and_old_root_nonwrite(
         tmp_path, workload=workload,
     )
     old_root = output_root / "campaigns" / old_campaign_id
-    current_campaign_id = _T428_POLICY_BOUND_CAMPAIGN_IDS[
+    current_campaign_id = _CURRENT_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ]
     assert campaign == output_root / "campaigns" / current_campaign_id

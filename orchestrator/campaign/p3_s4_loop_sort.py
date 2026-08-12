@@ -25,7 +25,7 @@ sort 戦略固有の設計 (敵対レビュー 2026-07-10、3レンズで確定)
     diff-quarantine reject と同じ WAL 経路 (`record_diff_reject`) に相乗りさせ、
     既存の consumer (`load_diff_rejections`/`render_rejections`) をそのまま使う
     (auditor.md 型5 「consumer 取り残し」を自ら再演しない)。
-  - PIN = `pin.CURRENT_PIN` (d706650、permutation 保存 assert 込み) — `p3_s4_loop.py`
+  - PIN = `pin.CURRENT_PIN` (511c953、permutation 保存 assert 込み) — `p3_s4_loop.py`
     自身は歴史的 driver として `PIN="028f34d"` を literal 保持したまま変更しない
     (`pin.py` の裁定)。PIN が異なるため共有 tree での `assert_pinned_clean` 衝突を
     避けるべく、`--isolate-worktree` 相当を**既定 ON** にする (`--no-isolate-worktree`
@@ -94,7 +94,7 @@ from ..critic.digest import load_diff_rejections                     # noqa: E40
 
 
 # ---- campaign 定数 (s5_permutation_coverage.py 様式。実走前に pin/env を確認する) ----
-PIN = pin.CURRENT_PIN                 # d706650 (izanagi-trace, permutation 保存 assert 込み)
+PIN = pin.CURRENT_PIN                 # 511c953 (izanagi-trace, permutation 保存 assert 込み)
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]

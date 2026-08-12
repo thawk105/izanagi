@@ -54,7 +54,7 @@ SCHEDULE_SCHEMA = "silo_ladder_rung1-schedule/v1"
 RAW_MANIFEST_SCHEMA = "silo_ladder_rung1-raw-manifest/v1"
 COMMAND_RECEIPT_SCHEMA = "silo_ladder_rung1-command-receipt/v1"
 ARTIFACT_ID = "silo_ladder_rung1"
-PIN = "d706650cdb31e442bef45b9b4216951d4fb40969"
+PIN = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 RUNG_MACRO = patch_contract.RUNG_MACRO
 REPORT_MACRO = patch_contract.REPORT_MACRO
 IDENTITY_SYMBOL = patch_contract.IDENTITY_SYMBOL
@@ -1135,6 +1135,7 @@ def _validate_correctness(leg: Mapping[str, Any]) -> list[EvidenceFailure]:
         and result["stats"]["txns"] > 0
         and result["stats"]["writes"] > 0
         and result["integrity"]["clean"] is True
+        and result["integrity"]["framing_violations"] == 0
         and result["integrity"]["write_intent_violations"] == 0
         and result["anomaly_count"] == 0
         and result["total_cycles"] == 0
@@ -1450,7 +1451,7 @@ def _validate_schema(document: Any) -> EvidenceFailure | None:
     if not _exact_keys(result["integrity"], {
         "clean", "orphan_reads", "version_dups", "dup_txids",
         "genesis_commits", "missing_txids", "write_version_mismatch",
-        "malformed_keys", "lock_coverage_violations",
+        "malformed_keys", "framing_violations", "lock_coverage_violations",
         "write_intent_violations", "permutation_violations", "notes",
     }):
         return EvidenceFailure("schema", "verifier integrity schema mismatch")

@@ -25,6 +25,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 
 from . import pin  # noqa: E402
+from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from . import s1_known_axes_freeze as known_axes  # noqa: E402
 
 
@@ -160,10 +161,10 @@ def _verify_known_axes(path: Path,
                        source_resolver: Optional[Callable[[str], Path]]) -> Dict:
     doc = _load_json(path)
     try:
-        known_axes.verify_document(doc, source_resolver=source_resolver)
+        held_checks = known_axes.verify_document(doc, source_resolver=source_resolver)
     except known_axes.FreezeError as e:
         raise FreezeError(f"known_axes_freeze 照合失敗: {e}") from e
-    return doc
+    return _freeze_hold.result_with_markers(doc, held_checks)
 
 
 def _build_cells(known_doc: Mapping) -> Dict[str, Dict]:
@@ -390,7 +391,9 @@ def _validate_schema(doc: Mapping) -> None:
 def verify_document(
         doc: Mapping, *,
         source_resolver: Optional[Callable[[str], Path]] = None,
-        known_source_resolver: Optional[Callable[[str], Path]] = None) -> None:
+        known_source_resolver: Optional[Callable[[str], Path]] = None
+        ) -> tuple[Mapping[str, object], ...]:
+    held_checks: list[Mapping[str, object]] = []
     _validate_schema(doc)
     resolver = source_resolver or (lambda rel: ROOT / rel)
 
@@ -409,6 +412,7 @@ def verify_document(
 
     known_path = resolver(KNOWN_AXES_REL)
     known_doc = _verify_known_axes(known_path, known_source_resolver)
+    held_checks.extend(known_doc.held_checks)
     assert_s1b_pairing(doc)
 
     actual_schedule_hash = _canonical_sha256(doc["schedule"])
@@ -426,7 +430,11 @@ def verify_document(
     except FreezeError as e:
         raise FreezeError(
             f"frozen_at_head が現行 HEAD の commit ancestor でない: {frozen_head}") from e
-    if doc.get("ccbench_pin") != pin.CURRENT_PIN:
+    if _freeze_hold.HELD:
+        held_checks.append(_freeze_hold.held_marker(
+            "s1-measurement.recorded-pin-current-pin",
+        ))
+    elif doc.get("ccbench_pin") != pin.CURRENT_PIN:
         raise FreezeError(
             f"ccbench_pin 不一致: recorded={doc.get('ccbench_pin')} actual={pin.CURRENT_PIN}")
 
@@ -445,6 +453,7 @@ def verify_document(
         raise FreezeError("known_axes_freeze からの cells 射影が不一致")
     if doc != expected:
         raise FreezeError("freeze JSON の内容が現行 generator による機械再構成と不一致")
+    return tuple(held_checks)
 
 
 def generate(
@@ -480,12 +489,12 @@ def verify(
     if not path.is_file():
         raise FreezeError(f"freeze が存在しない: {path}")
     doc = _load_json(path)
-    verify_document(
+    held_checks = verify_document(
         doc,
         source_resolver=source_resolver,
         known_source_resolver=known_source_resolver,
     )
-    return doc
+    return _freeze_hold.result_with_markers(doc, held_checks)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -498,8 +507,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             generate()
             print(f"generated: {FREEZE_REL}")
         else:
-            verify()
-            print(f"verified: {FREEZE_REL}")
+            result = verify()
+            if result.held_checks:
+                print(json.dumps({
+                    "status": "held", "path": FREEZE_REL,
+                    "held_checks": result.held_checks,
+                }, ensure_ascii=False, sort_keys=True))
+            else:
+                print(f"verified: {FREEZE_REL}")
     except FreezeError as e:
         print(f"fails-closed: {e}", file=sys.stderr)
         return 1

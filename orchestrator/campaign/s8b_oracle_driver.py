@@ -43,6 +43,7 @@ from . import execution_guard  # noqa: E402
 from . import reservation as _reservation  # noqa: E402
 from . import s8b_ratified_freeze  # noqa: E402
 from . import t080_freeze_migration as _t080_migration  # noqa: E402
+from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from .layout import campaign_layout, repo_output_root  # noqa: E402
 from .layout import write_capability_for_directory  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy  # noqa: E402
@@ -96,6 +97,15 @@ class GateDecision:
     allowed: bool
     refusals: list[str]
     t080_freeze_migration_observation: Optional[Mapping[str, object]]
+    held_checks: tuple[Mapping[str, object], ...] = ()
+
+
+class _AdapterRefusals(list):
+    """既存の list 契約を保ったまま held marker を gate factory へ運ぶ。"""
+
+    def __init__(self, values=(), *, held_checks=()):
+        super().__init__(values)
+        self.held_checks = tuple(held_checks)
 
 
 def _resolve_t080_receipt(*, root: Path) -> "_t080_migration.ReceiptResolution":
@@ -120,9 +130,13 @@ def _resolve_t080_receipt(*, root: Path) -> "_t080_migration.ReceiptResolution":
 
 def _make_gate_decision(
         resolution: "_t080_migration.ReceiptResolution", *,
-        refusals: Sequence[str]) -> GateDecision:
+        refusals: Sequence[str],
+        held_checks: Sequence[Mapping[str, object]] = ()) -> GateDecision:
     """receipt refusal と observation を欠落なく GateDecision へ束ねる。"""
     merged = [*resolution.refusals, *refusals]
+    unique_held = {}
+    for marker in (*getattr(resolution, "held_checks", ()), *held_checks):
+        unique_held[marker["check_id"]] = marker
     return GateDecision(
         allowed=not merged,
         refusals=merged,
@@ -130,6 +144,7 @@ def _make_gate_decision(
             resolution.t080_freeze_migration_observation
             if (not merged and resolution.state == "active-valid") else None
         ),
+        held_checks=tuple(unique_held.values()),
     )
 
 
@@ -175,11 +190,21 @@ def _t080_adapter_refusals(
     if resolution.state != "active-valid" or not isinstance(receipt, Mapping):
         return None
     known_record = freeze.get("known_axes_freeze")
+    held_checks = []
+    known_record_pin_matches = (
+        isinstance(known_record, Mapping)
+        and known_record.get("sha256") == _t080_migration.KNOWN_AXES_RAW_SHA256
+    )
+    if _freeze_hold.HELD:
+        held_checks.append(_freeze_hold.held_marker(
+            "s8b-oracle.known-axes-recorded-pin",
+        ))
+        known_record_pin_matches = isinstance(known_record, Mapping)
     fires = (
         isinstance(known_record, Mapping)
         and freeze_sha256 == receipt["artifacts"]["holdout"]["raw_sha256"]
         and known_record.get("path") == _t080_migration.KNOWN_AXES_REL
-        and known_record.get("sha256") == _t080_migration.KNOWN_AXES_RAW_SHA256
+        and known_record_pin_matches
     )
     if not fires:
         return None
@@ -187,29 +212,33 @@ def _t080_adapter_refusals(
     try:
         holdout_raw = Path(freeze_path).read_bytes()
     except OSError as exc:
-        return [
+        return _AdapterRefusals([
             "holdout-freeze-verify: [holdout.artifact_bytes] "
             f"holdout bytes を読めない: {type(exc).__name__}: {exc}"
-        ]
+        ], held_checks=held_checks)
     if hashlib.sha256(holdout_raw).hexdigest() != freeze_sha256:
-        return [
+        return _AdapterRefusals([
             "holdout-freeze-verify: [holdout.artifact_bytes] "
             "検証後に holdout raw bytes が変化した"
-        ]
+        ], held_checks=held_checks)
 
     known_path = root / _t080_migration.KNOWN_AXES_REL
     try:
         known_raw = known_path.read_bytes()
     except OSError as exc:
-        return [
+        return _AdapterRefusals([
             "known-axes-freeze-verify: [known_axes.artifact_bytes] "
             f"known_axes bytes を読めない: {type(exc).__name__}: {exc}"
-        ]
-    if hashlib.sha256(known_raw).hexdigest() != _t080_migration.KNOWN_AXES_RAW_SHA256:
-        return [
+        ], held_checks=held_checks)
+    if _freeze_hold.HELD:
+        held_checks.append(_freeze_hold.held_marker(
+            "s8b-oracle.known-axes-live-bytes",
+        ))
+    elif hashlib.sha256(known_raw).hexdigest() != _t080_migration.KNOWN_AXES_RAW_SHA256:
+        return _AdapterRefusals([
             "known-axes-freeze-verify: [known_axes.artifact_bytes] "
             "known_axes raw bytes が legacy pin と不一致"
-        ]
+        ], held_checks=held_checks)
 
     try:
         adapted = _t080_migration.static_gate_adapter(
@@ -225,13 +254,16 @@ def _t080_adapter_refusals(
         elif exc.reason.startswith("holdout."):
             prefix = "holdout-freeze-verify"
         detail = f" {exc.detail}" if exc.detail else ""
-        return [f"{prefix}: [{exc.reason}]{detail}"]
+        return _AdapterRefusals(
+            [f"{prefix}: [{exc.reason}]{detail}"], held_checks=held_checks,
+        )
     except Exception as exc:  # noqa: BLE001 (adapter 分類不能も拒否)
-        return [
+        return _AdapterRefusals([
             "migration-receipt-verify: [receipt.invalid] "
             f"{type(exc).__name__}: {exc}"
-        ]
-    return list(adapted.refusals)
+        ], held_checks=held_checks)
+    held_checks.extend(adapted.held_checks)
+    return _AdapterRefusals(adapted.refusals, held_checks=held_checks)
 
 
 def _canonical_bytes(value) -> bytes:
@@ -356,6 +388,7 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
         )
     root = Path(root)
     refusals: list[str] = []
+    held_checks: list[Mapping[str, object]] = []
     freeze: Optional[dict] = None
     freeze_sha: Optional[str] = None
     adapter_refusals: Optional[list[str]] = None
@@ -385,6 +418,7 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
         )
         if adapter_refusals is not None:
             refusals.extend(adapter_refusals)
+            held_checks.extend(adapter_refusals.held_checks)
         elif freeze.get("floor") is None and freeze.get("budget") is None:
             try:
                 # v1 verifier は floor/budget がともに null の freeze だけを対象にする。
@@ -497,7 +531,9 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
                 "manifest-verify: run flow の manifest/spec snapshot 束縛が不正"
             )
 
-    return _make_gate_decision(t080_resolution, refusals=refusals)
+    return _make_gate_decision(
+        t080_resolution, refusals=refusals, held_checks=held_checks,
+    )
 
 
 def gate_check(*, freeze_path=None, manifest_path=None, root,

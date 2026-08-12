@@ -32,7 +32,7 @@ sort 版との構造差 (新テンプレの形):
 
 planner-v4 は無改変で再利用 (`L.PlannerProposal`)。direction/magnitude は抽象シグナル
 のまま (機序含みの解釈をメインセッションが注入しない、D43)。PIN は sort driver と同一
-(d706650) だが backoff driver (028f34d literal) と異なるため worktree 隔離は既定 ON を
+(511c953) だが backoff driver (028f34d literal) と異なるため worktree 隔離は既定 ON を
 踏襲。運用手順は `docs/phase3-s8a-trigger-runbook.md`。
 """
 from __future__ import annotations

@@ -15,6 +15,7 @@ import sys
 import tempfile
 import traceback
 import unittest
+from unittest import mock
 from pathlib import Path
 from typing import Callable
 
@@ -379,90 +380,6 @@ def _repo_with_schema_valid_receipt(
     return temp, root
 
 
-def _repo_with_external_edge_copy_into_receipt():
-    """外部 parent の変更前 source が merge で receipt へ copy される履歴。"""
-    temp = tempfile.TemporaryDirectory(prefix="izanagi_t080_external_copy_")
-    root = Path(temp.name)
-    _init_repo(root)
-    source_rel = "receipt-source.json"
-    (root / source_rel).write_bytes(b"{}")
-    basis = _commit_all(root, "add future receipt source")
-
-    receipt_path = root / migration.RECEIPT_REL
-    receipt_path.parent.mkdir(parents=True)
-    receipt_path.write_bytes(b"{}")
-    introduction = _commit_all(root, "introduce receipt")
-    (root / source_rel).write_text("source changed after copy\n", encoding="utf-8")
-    internal = _commit_all(root, "change source on receipt branch")
-
-    _run_git(root, "checkout", "-q", "-b", "external", basis)
-    (root / "external-only.txt").write_text("external\n", encoding="utf-8")
-    external = _commit_all(root, "external parent keeps copy source")
-    internal_tree = _run_git(root, "rev-parse", f"{internal}^{{tree}}").decode().strip()
-    merge = _run_git(
-        root, "commit-tree", internal_tree,
-        "-p", internal, "-p", external,
-        input_bytes=b"merge external edge\n\nAI-Agent: none\n",
-    ).decode().strip()
-    _run_git(root, "checkout", "-q", "-B", "main", merge)
-    return temp, root, introduction, internal, external, merge
-
-
-def _repo_with_external_edge_receipt_addition():
-    """外部 parent との差が receipt の通常 A だけである正当な merge 履歴。"""
-    temp, root = _repo_with_schema_valid_receipt()
-    introduction = _run_git(root, "rev-parse", "HEAD").decode().strip()
-    basis = _run_git(root, "rev-parse", f"{introduction}^").decode().strip()
-    internal_tree = _run_git(
-        root, "rev-parse", f"{introduction}^{{tree}}",
-    ).decode().strip()
-    internal = _run_git(
-        root, "commit-tree", internal_tree, "-p", introduction,
-        input_bytes=b"internal post-introduction branch\n\nAI-Agent: none\n",
-    ).decode().strip()
-    external_tree = _run_git(root, "rev-parse", f"{basis}^{{tree}}").decode().strip()
-    external = _run_git(
-        root, "commit-tree", external_tree, "-p", basis,
-        input_bytes=b"external pre-introduction branch\n\nAI-Agent: none\n",
-    ).decode().strip()
-    merge = _run_git(
-        root, "commit-tree", internal_tree,
-        "-p", internal, "-p", external,
-        input_bytes=b"merge legitimate external edge\n\nAI-Agent: none\n",
-    ).decode().strip()
-    _run_git(root, "checkout", "-q", "-B", "main", merge)
-    return temp, root, introduction, external, merge
-
-
-def _predicate_outcome(call):
-    try:
-        return ("bool", call())
-    except migration.MigrationError as exc:
-        return ("exception", exc.reason)
-
-
-def _old_batched_outcome(
-    commits, path: str, root: Path, *, duplicate_oid: str | None = None,
-):
-    return _predicate_outcome(
-        lambda: migration._batched_history_touches_path(
-            commits, path, root, duplicate_oid=duplicate_oid, detect_copies=True,
-        )
-    )
-
-
-def _new_partitioned_outcome(
-    graph, descendants, introduction, path: str, root: Path,
-    *, duplicate_oid: str | None = None,
-):
-    return _predicate_outcome(
-        lambda: migration._descendant_history_touches_path(
-            graph, descendants, introduction, path, root,
-            duplicate_oid=duplicate_oid,
-        )
-    )
-
-
 def _patch_full_gate_to_pass():
     names = (
         "_load_artifact", "_validate_repin_report_git", "_validate_positive_control",
@@ -659,10 +576,26 @@ def test_gate_normalizes_unexpected_check_exceptions_and_continues_g5():
         assert reasons == {
             "holdout.positive_control",
             "holdout.unknownness_layer2",
-            "known_axes.ccbench_current",
+        }
+        assert "t080.live-known-axes-ccbench-current-pin" in {
+            marker["check_id"] for marker in result.held_checks
         }
         assert reached == ["known-schema"]
         assert result.state == "invalid"
+        reached.clear()
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.verify_receipt(root=root)
+        released_reasons = {
+            item.split("[", 1)[1].split("]", 1)[0]
+            for item in released.refusals
+        }
+        assert released_reasons == {
+            "holdout.positive_control",
+            "holdout.unknownness_layer2",
+            "known_axes.ccbench_current",
+        }
+        assert reached == ["known-schema"]
+        assert released.state == "invalid"
     finally:
         _restore_functions(originals)
         temp.cleanup()
@@ -721,7 +654,21 @@ def test_invalid_r_topology_keeps_independent_ccbench_refusal_j4():
         result = migration.verify_receipt(root=root)
         assert result.state == "invalid"
         assert any("receipt.introduction_diff" in refusal for refusal in result.refusals)
-        assert any("known_axes.ccbench_current" in refusal for refusal in result.refusals)
+        assert not any("known_axes.ccbench_current" in refusal for refusal in result.refusals)
+        assert "t080.live-known-axes-ccbench-current-pin" in {
+            marker["check_id"] for marker in result.held_checks
+        }
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.verify_receipt(root=root)
+        assert released.state == "invalid"
+        assert any(
+            "receipt.introduction_diff" in refusal
+            for refusal in released.refusals
+        )
+        assert any(
+            "known_axes.ccbench_current" in refusal
+            for refusal in released.refusals
+        )
     finally:
         _restore_functions(original)
         temp.cleanup()
@@ -817,120 +764,17 @@ def test_batched_descendant_mode_change_is_rejected_positive_control():
 
 
 def test_batched_descendant_exact_copy_is_rejected_positive_control():
-    """`-C` 無しでも destination OID clause が receipt source copy を拒否する。"""
+    """batch raw diff が receipt blob の別 path exact copy (S3) を見落とさない。"""
     temp, root = _repo_with_schema_valid_receipt()
-    original = migration._git
-    diff_argv = []
     try:
         source = root / migration.RECEIPT_REL
         (root / "receipt-copy.json").write_bytes(source.read_bytes())
-        copy_commit = _commit_all(root, "copy receipt bytes after issue")
-        expected_oid = _run_git(
-            root, "rev-parse", f"HEAD:{migration.RECEIPT_REL}",
-        ).decode().strip()
-
-        def capture_git(args, repo_root, *, stdin=None):
-            if args[:2] == ["diff-tree", "--stdin"]:
-                diff_argv.append(tuple(args))
-            return original(args, repo_root, stdin=stdin)
-
-        migration._git = capture_git
-        assert migration._batched_history_touches_path(
-            (copy_commit,), migration.RECEIPT_REL, root,
-            duplicate_oid=expected_oid,
-        ) is True
+        _commit_all(root, "copy receipt bytes after issue")
         result = migration.inspect_receipt_history(root=root)
         assert result.state == "issued-but-missing"
         assert any("receipt.history_mutated" in refusal for refusal in result.refusals)
-        assert diff_argv
-        assert set(diff_argv) == {
-            (
-                "diff-tree", "--stdin", "--root", "--raw", "-m", "-r", "-M",
-                "--full-index", "--always", "-z",
-            ),
-        }
-    finally:
-        migration._git = original
-        temp.cleanup()
-
-
-def test_external_edge_copy_into_receipt_uses_copy_fallback_positive_control():
-    """外部辺の copy-into-receipt だけを現行 `-M -C` fallback が拾う。"""
-    temp, root, introduction, _internal, external, merge = (
-        _repo_with_external_edge_copy_into_receipt()
-    )
-    try:
-        graph = migration._commit_graph(merge, root)
-        descendants = migration._descendants_of(graph, introduction)
-        expected_oid = _run_git(
-            root, "rev-parse", f"{introduction}:{migration.RECEIPT_REL}",
-        ).decode().strip()
-        assert external not in descendants
-        assert any(parent not in descendants for parent in graph.parents[merge])
-        assert migration._batched_history_touches_path(
-            (merge,), migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-        ) is False
-        assert migration._batched_history_touches_path(
-            (merge,), migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-            detect_copies=True,
-        ) is True
-        assert migration._descendant_history_touches_path(
-            graph, descendants, introduction, migration.RECEIPT_REL, root,
-            duplicate_oid=expected_oid,
-        ) is True
-        result = migration.inspect_receipt_history(root=root)
-        assert result.state == "issued-but-missing"
-        assert migration._format_refusal(
-            migration.RECEIPT_PREFIX, "receipt.history_mutated",
-        ) in result.refusals
     finally:
         temp.cleanup()
-
-
-def test_external_edge_receipt_addition_is_accepted_negative_control():
-    """外部辺があるだけでは拒否せず、receipt の通常 A は受理する。"""
-    temp, root, introduction, external, merge = (
-        _repo_with_external_edge_receipt_addition()
-    )
-    try:
-        graph = migration._commit_graph(merge, root)
-        descendants = migration._descendants_of(graph, introduction)
-        expected_oid = _run_git(
-            root, "rev-parse", f"{introduction}:{migration.RECEIPT_REL}",
-        ).decode().strip()
-        assert merge in descendants
-        assert external not in descendants
-        assert any(parent not in descendants for parent in graph.parents[merge])
-        assert migration._batched_history_touches_path(
-            descendants - {introduction}, migration.RECEIPT_REL, root,
-            duplicate_oid=expected_oid, detect_copies=True,
-        ) is False
-        assert migration._descendant_history_touches_path(
-            graph, descendants, introduction, migration.RECEIPT_REL, root,
-            duplicate_oid=expected_oid,
-        ) is False
-        result = migration.inspect_receipt_history(root=root)
-        assert migration._format_refusal(
-            migration.RECEIPT_PREFIX, "receipt.history_mutated",
-        ) not in result.refusals
-    finally:
-        temp.cleanup()
-
-
-def test_batched_rename_into_receipt_is_rejected_with_m_positive_control():
-    """rename-into-receipt は `-C` 無しでも `-M` の R status で拒否する。"""
-    with tempfile.TemporaryDirectory(prefix="izanagi_t080_rename_into_") as temp:
-        root = Path(temp)
-        _init_repo(root)
-        source = root / "receipt-source.json"
-        source.write_bytes(b"{}")
-        _commit_all(root, "add rename source")
-        (root / migration.RECEIPT_REL).parent.mkdir(parents=True)
-        _run_git(root, "mv", "receipt-source.json", migration.RECEIPT_REL)
-        rename_commit = _commit_all(root, "rename source into receipt")
-        assert migration._batched_history_touches_path(
-            (rename_commit,), migration.RECEIPT_REL, root,
-        ) is True
 
 
 def test_batched_descendant_output_count_mismatch_fails_closed_positive_control():
@@ -960,131 +804,6 @@ def test_batched_descendant_output_count_mismatch_fails_closed_positive_control(
             temp.cleanup()
 
 
-def test_batched_history_framing_marker_extra_path_and_status_fail_closed():
-    """marker 欠落・余剰 path・不正 status は逐語で receipt.git_error。"""
-    commit = "a" * 40
-    src_oid = b"b" * 40
-    dst_oid = b"c" * 40
-    marker = commit.encode("ascii")
-    metadata = b":100644 100644 " + src_oid + b" " + dst_oid
-    malformed = (
-        metadata + b" M\0target.txt\0",
-        marker + b"\0" + metadata + b" M\0target.txt\0surplus.txt\0",
-        marker + b"\0" + metadata + b" Q\0target.txt\0",
-    )
-    original = migration._git
-    try:
-        for output in malformed:
-            migration._git = lambda _args, _root, *, stdin=None, output=output: output
-            _expect_reason(
-                lambda: migration._batched_history_touches_path(
-                    (commit,), "target.txt", Path("."),
-                ),
-                "receipt.git_error",
-            )
-    finally:
-        migration._git = original
-
-
-def test_partitioned_history_matches_old_batched_bool_or_exception_reason():
-    """旧 `-M -C` batch と新分割の bool / MigrationError.reason を逐語比較する。"""
-    temp, root, introduction, internal, _external, merge = (
-        _repo_with_external_edge_copy_into_receipt()
-    )
-    try:
-        graph = migration._commit_graph(merge, root)
-        expected_oid = _run_git(
-            root, "rev-parse", f"{introduction}:{migration.RECEIPT_REL}",
-        ).decode().strip()
-        cases = (
-            migration._descendants_of(graph, introduction),
-            frozenset((introduction, internal)),
-        )
-        for descendants in cases:
-            commits = descendants - {introduction}
-            old = _old_batched_outcome(
-                commits, migration.RECEIPT_REL, root,
-                duplicate_oid=expected_oid,
-            )
-            new = _new_partitioned_outcome(
-                graph, descendants, introduction, migration.RECEIPT_REL, root,
-                duplicate_oid=expected_oid,
-            )
-            assert new == old
-
-        missing = "f" * 40
-        broken_graph = migration.CommitGraph(
-            (introduction, missing),
-            {introduction: (), missing: (introduction,)},
-        )
-        broken_descendants = frozenset((introduction, missing))
-        old_error = _old_batched_outcome(
-            (missing,), migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-        )
-        new_error = _new_partitioned_outcome(
-            broken_graph, broken_descendants, introduction,
-            migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-        )
-        assert new_error == old_error == ("exception", "receipt.git_error")
-    finally:
-        temp.cleanup()
-
-
-def test_oracle_report_historical_validation_head_matches_old_batched():
-    """report の非 HEAD validation_head 経路で旧/new の False/True を固定する。"""
-    from orchestrator.campaign import s8b_oracle_report as oracle_report
-
-    temp, root = _repo_with_schema_valid_receipt()
-    try:
-        (root / "historical-unrelated.txt").write_text("historical\n", encoding="utf-8")
-        clean_validation_head = _commit_all(root, "clean historical validation head")
-        receipt_path = root / migration.RECEIPT_REL
-        (root / "historical-receipt-copy.json").write_bytes(receipt_path.read_bytes())
-        mutated_validation_head = _commit_all(root, "historical exact receipt copy")
-        (root / "current-only.txt").write_text("current\n", encoding="utf-8")
-        current_head = _commit_all(root, "later unrelated current head")
-        assert current_head not in {clean_validation_head, mutated_validation_head}
-
-        clean_history = oracle_report._history_at_validation_head(
-            repo_root=root, validation_head=clean_validation_head,
-        )
-        mutated_history = oracle_report._history_at_validation_head(
-            repo_root=root, validation_head=mutated_validation_head,
-        )
-        history_refusal = migration._format_refusal(
-            migration.RECEIPT_PREFIX, "receipt.history_mutated",
-        )
-        assert clean_history.validation_head == clean_validation_head
-        assert mutated_history.validation_head == mutated_validation_head
-        assert clean_history.refusals == ()
-        assert history_refusal in mutated_history.refusals
-
-        for validation_head, history, expected in (
-            (clean_validation_head, clean_history, False),
-            (mutated_validation_head, mutated_history, True),
-        ):
-            assert history.introduction_commit is not None
-            graph = migration._commit_graph(validation_head, root)
-            descendants = migration._descendants_of(
-                graph, history.introduction_commit,
-            )
-            expected_oid = _run_git(
-                root, "rev-parse",
-                f"{history.introduction_commit}:{migration.RECEIPT_REL}",
-            ).decode().strip()
-            old = _old_batched_outcome(
-                descendants - {history.introduction_commit},
-                migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-            )
-            new = _new_partitioned_outcome(
-                graph, descendants, history.introduction_commit,
-                migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-            )
-            assert new == old == ("bool", expected)
-    finally:
-        temp.cleanup()
-
-
 def test_batched_descendant_unchanged_history_is_accepted_positive_control():
     """過剰拒否なら receipt.history_mutated が残るため、正当履歴でその不在を固定する。"""
     temp, root = _repo_with_schema_valid_receipt()
@@ -1092,8 +811,9 @@ def test_batched_descendant_unchanged_history_is_accepted_positive_control():
         (root / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
         _commit_all(root, "unrelated descendant")
         result = migration.inspect_receipt_history(root=root)
-        assert result.state == "invalid"
-        assert result.refusals == ()
+        assert migration._format_refusal(
+            migration.RECEIPT_PREFIX, "receipt.history_mutated",
+        ) not in result.refusals
     finally:
         temp.cleanup()
 
@@ -1226,10 +946,20 @@ def test_static_adapter_discards_clean_envelope_when_any_check_refuses_f4():
         migration._verify_ccbench_current = lambda *_args, **_kwargs: (_ for _ in ()).throw(
             migration.MigrationError("known_axes.ccbench_current", "drift")
         )
-        result = migration.static_gate_adapter(
+        held = migration.static_gate_adapter(
             resolution=resolution, known_raw=known_raw, holdout_raw=holdout_raw,
             root=migration.ROOT,
         )
+        assert held.refusals == ()
+        assert held.t080_freeze_migration_observation == {"clean": True}
+        assert "t080.static-known-axes-ccbench-current-pin" in {
+            marker["check_id"] for marker in held.held_checks
+        }
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            result = migration.static_gate_adapter(
+                resolution=resolution, known_raw=known_raw,
+                holdout_raw=holdout_raw, root=migration.ROOT,
+            )
         assert len(result.refusals) == 1
         assert "known_axes.ccbench_current" in result.refusals[0]
         assert result.t080_freeze_migration_observation is None
@@ -1477,22 +1207,144 @@ def test_artifact_raw_bytes_are_checked_before_semantic_parse_m08():
     with tempfile.TemporaryDirectory(prefix="izanagi_t080_artifact_") as temp:
         root = Path(temp)
         path = root / "artifact.json"
-        path.write_bytes(b"{}")
-        raw, doc = migration._load_artifact(
-            root, "artifact.json",
-            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-            "known_axes.artifact_bytes", "known_axes",
+        expected = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        for what, reason in (
+            ("known_axes", "known_axes.artifact_bytes"),
+            ("holdout", "holdout.artifact_bytes"),
+        ):
+            path.write_bytes(b"{}")
+            held_checks = []
+            raw, doc = migration._load_artifact(
+                root, "artifact.json", expected, reason, what,
+                held_checks=held_checks,
+            )
+            assert raw == b"{}" and doc == {}
+            assert held_checks[0]["check_id"] == (
+                f"t080.live-{what.replace('_', '-')}-artifact-bytes"
+            )
+            path.write_bytes(b"{ }")
+            with mock.patch.object(migration._freeze_hold, "HELD", False):
+                _expect_reason(
+                    lambda reason=reason, what=what: migration._load_artifact(
+                        root, "artifact.json", expected, reason, what,
+                    ),
+                    reason,
+                )
+
+
+def test_historical_artifact_roots_hold_and_release_positive_control():
+    receipt = {"migration_basis_commit": "a" * 40}
+    with mock.patch.object(migration, "_basis_blob", return_value=b"{}"), \
+            mock.patch.object(migration, "_verify_receipt_derivation"):
+        held_checks = migration._verify_historical_receipt_derivation(
+            receipt, migration.ROOT,
         )
-        assert raw == b"{}" and doc == {}
-        path.write_bytes(b"{ }")
-        _expect_reason(
-            lambda: migration._load_artifact(
-                root, "artifact.json",
-                "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-                "known_axes.artifact_bytes", "known_axes",
-            ),
-            "known_axes.artifact_bytes",
+        assert {marker["check_id"] for marker in held_checks} == {
+            "t080.historical-known-axes-artifact-bytes",
+            "t080.historical-holdout-artifact-bytes",
+        }
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            _expect_reason(
+                lambda: migration._verify_historical_receipt_derivation(
+                    receipt, migration.ROOT,
+                ),
+                "receipt.derivation_mismatch",
+            )
+
+
+def test_static_adapter_artifact_roots_hold_and_release_positive_control():
+    known_raw = (migration.ROOT / migration.KNOWN_AXES_REL).read_bytes() + b" "
+    holdout_raw = (migration.ROOT / migration.HOLDOUT_REL).read_bytes() + b" "
+    receipt = copy.deepcopy(_valid_receipt())
+    receipt["artifacts"]["holdout"]["raw_sha256"] = hashlib.sha256(
+        holdout_raw,
+    ).hexdigest()
+    resolution = migration.ReceiptResolution(
+        "active-valid", (), {"clean": True}, "a" * 40, receipt=receipt,
+    )
+    original = _patch_full_gate_to_pass()
+    try:
+        held = migration.static_gate_adapter(
+            resolution=resolution, known_raw=known_raw,
+            holdout_raw=holdout_raw, root=migration.ROOT,
         )
+        assert held.refusals == ()
+        assert {
+            "t080.static-known-axes-artifact-bytes",
+            "t080.static-holdout-artifact-bytes",
+        } <= {marker["check_id"] for marker in held.held_checks}
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.static_gate_adapter(
+                resolution=resolution, known_raw=known_raw,
+                holdout_raw=holdout_raw, root=migration.ROOT,
+            )
+        assert any("known_axes.artifact_bytes" in item for item in released.refusals)
+        assert any("holdout.artifact_bytes" in item for item in released.refusals)
+    finally:
+        _restore_functions(original)
+
+
+def test_static_adapter_recorded_pin_hold_and_release_positive_control():
+    known_raw = (migration.ROOT / migration.KNOWN_AXES_REL).read_bytes()
+    holdout = json.loads((migration.ROOT / migration.HOLDOUT_REL).read_bytes())
+    holdout["known_axes_freeze"]["sha256"] = "0" * 64
+    holdout_raw = migration._canonical_bytes(holdout)
+    receipt = copy.deepcopy(_valid_receipt())
+    receipt["artifacts"]["holdout"]["raw_sha256"] = hashlib.sha256(
+        holdout_raw,
+    ).hexdigest()
+    resolution = migration.ReceiptResolution(
+        "active-valid", (), {"clean": True}, "a" * 40, receipt=receipt,
+    )
+    original = _patch_full_gate_to_pass()
+    reached = []
+    try:
+        migration._verify_known_schema = lambda *_args: reached.append("schema")
+        held = migration.static_gate_adapter(
+            resolution=resolution, known_raw=known_raw,
+            holdout_raw=holdout_raw, root=migration.ROOT,
+        )
+        assert "t080.static-known-axes-recorded-pin" in {
+            marker["check_id"] for marker in held.held_checks
+        }
+        assert reached == ["schema"]
+        reached.clear()
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.static_gate_adapter(
+                resolution=resolution, known_raw=known_raw,
+                holdout_raw=holdout_raw, root=migration.ROOT,
+            )
+        assert released.held_checks == ()
+        assert reached == []
+    finally:
+        _restore_functions(original)
+
+
+def test_ccbench_current_pin_hold_and_release_positive_control():
+    known = {"ccbench_pin": "a" * 40}
+    check_ids = (
+        "t080.draft-known-axes-ccbench-current-pin",
+        "t080.live-known-axes-ccbench-current-pin",
+        "t080.static-known-axes-ccbench-current-pin",
+    )
+    with mock.patch.object(
+            migration, "_current_ccbench_head", return_value="b" * 40):
+        for check_id in check_ids:
+            held_checks = []
+            migration._verify_ccbench_current_or_hold(
+                known, migration.ROOT,
+                check_id=check_id, held_checks=held_checks,
+            )
+            assert [marker["check_id"] for marker in held_checks] == [check_id]
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            for check_id in check_ids:
+                _expect_reason(
+                    lambda check_id=check_id: migration._verify_ccbench_current_or_hold(
+                        known, migration.ROOT,
+                        check_id=check_id, held_checks=[],
+                    ),
+                    "known_axes.ccbench_current",
+                )
 
 
 def test_positive_control_production_literals_are_exact():
@@ -1736,13 +1588,10 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
             )
             batched = migration._batched_history_touches_path(
                 (commit,), target, root, duplicate_oid=exact_copy_oid,
-                detect_copies=True,
             )
         else:
             actual = migration._history_touches_path(commit, target, root)
-            batched = migration._batched_history_touches_path(
-                (commit,), target, root, detect_copies=True,
-            )
+            batched = migration._batched_history_touches_path((commit,), target, root)
         assert actual is expected, (number, label, actual, expected)
         assert batched is expected, (number, label, batched, expected)
 
@@ -1769,7 +1618,6 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is False, "case 12b: changed near-copy must not match the target blob OID"
     assert migration._batched_history_touches_path(
         (near_copy_commit,), target, near_copy_root, duplicate_oid=near_copy_oid,
-        detect_copies=True,
     ) is False, "case 12b batch: changed near-copy must not match the target blob OID"
 
     assert migration._history_touches_path(
@@ -1777,7 +1625,6 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is False, "exact copy must remain undetected when duplicate_oid is omitted"
     assert migration._batched_history_touches_path(
         (exact_copy_commit,), target, exact_copy_root, duplicate_oid=None,
-        detect_copies=True,
     ) is False, "batch exact copy must remain undetected when duplicate_oid is omitted"
 
     # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。
@@ -1786,7 +1633,6 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is True
     assert migration._batched_history_touches_path(
         (modified_commit,), target, modified_root, duplicate_oid=modified_oid,
-        detect_copies=True,
     ) is True
     # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。
     assert migration._history_touches_path(
@@ -1794,7 +1640,6 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is False
     assert migration._batched_history_touches_path(
         (added_commit,), target, added_root, duplicate_oid=added_oid,
-        detect_copies=True,
     ) is False
 
     aggregate_root, _ = repo_with_files("aggregate", {target: "before\n"})

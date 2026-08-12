@@ -359,13 +359,23 @@ trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Sil
 確定後、si は `si_commit` の write install 直後に emit)。出力する**形式**は verifier
 (`orchestrator/verifier/`) の入力契約なのでここに記録する。
 
-per-thread ファイル `trace_<thid>.log`、1イベント1行。1 trx の records は連続 (C → その R/W 行):
+per-thread ファイル `trace_<thid>.log`、1イベント1行。1 trx の records は連続し、
+**`C` で開き `E` で閉じる**:
 
 ```
-C <txid> <thid> <epoch> <tid>             committed txn。<epoch>,<tid> = commit順 = この trx が産んだ版ID
+C <txid> <thid> <epoch> <tid> <read_count> <write_count>
+                                          committed txn。<epoch>,<tid> = commit順 = この trx が産んだ版ID。
+                                          末尾 2 個は、この trx が続けて emit する R 行数と W 行数の宣言。
 R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版 (ver_epoch,ver_tid)
 W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版 = この trx の commit (epoch,tid)
+E <txid>                                  txn 終端。C の宣言件数と実件数が一致することの照合点
 ```
+
+**これが trace v2 であり、現行 verifier が受理する唯一の形式である** ([T-816]、2026-08-12)。
+`C` が 5 token の旧形式 (v1、`E` 行なし) は拒否する — 途中で切れた trace を
+「欠落なし」と誤って certified にする偽陰性 (FN-2) を閉じるため。
+v1 期に凍結された証拠 (`output/env/pegasus/silo_ladder_rung1/` の raw bundle) は
+bytes を保存したまま再検証を退役した。
 
 このほかに `#if TRACE` の検査 assert が emit する行がある: `X` (lock 被覆違反、D38)・
 `P` (permutation 保存違反、D41)・`A` (abort 要因、D48)・`I` (write-intent 被覆違反、[T-152] —
