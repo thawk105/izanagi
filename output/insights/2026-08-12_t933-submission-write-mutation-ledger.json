@@ -1,0 +1,298 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/ae974c2d26e9e43c581f2e462ced9b6c/izdw-ae974c2d26.o907779",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/ae974c2d26e9e43c581f2e462ced9b6c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n..                                                                       [100%]\n============================== 2 passed in 2.60s ===============================\n",
+      "stdout_sha256": "30e322239db7a1da79406d2311308e93016e78551b7c2d11eab0c7f39ee974a6"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6dfce805d90873cc18649d4522be2b7fd80e91fbdcd4e078f48a75a9419fc683",
+    "duration_s": 26.768,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0b49240501b2fd8cd9ba5f9a56d7794484b41e52c60d5e58bb6a87aafc5efde0",
+    "repo_head": "322277e45cbc08343c8ce9bf36fb01dd1f353420",
+    "runner_sha256": "eaef22db8dbab679707f73c00e70f1e6e79361573b0d1253227fb6023e707dff",
+    "spec_sha256": "ae8c93632a28d49e3558a1e29c034cb6d48db5b6a372b8065ea28e5558ed7f6c",
+    "status": "PASSED",
+    "test_output_sha256": "30e322239db7a1da79406d2311308e93016e78551b7c2d11eab0c7f39ee974a6",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6ac3285f4461d3cb2d27ff2937b248ca546cd8d9a59922f870f6284481adbde1"
+  },
+  "date": "2026-08-12T12:34:13.102475+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/fe15d78fd42759633077bcbea28fe80b/izdw-fe15d78fd4.o907781",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/fe15d78fd42759633077bcbea28fe80b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\nFF                                                                       [100%]\n=================================== FAILURES ===================================\n_____________ test_submission_durable_json_completes_partial_write _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15126152cf10>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_submission_durable_json_c0')\n\n    def test_submission_durable_json_completes_partial_write(monkeypatch, tmp_path):\n        from orchestrator.qualification import submission\n    \n        expected = b'{\"payload\":\"partial-write\"}\\n'\n        write_results = []\n        real_os = submission.os\n    \n        class OsProxy:\n            def __getattr__(self, name):\n                return getattr(real_os, name)\n    \n        def partial_write(fd, data):\n            requested = len(data)\n            written = real_os.write(fd, data[:min(3, requested)])\n            write_results.append((requested, written))\n            return written\n    \n        target = tmp_path / \"submission.json\"\n        proxy = OsProxy()\n        proxy.write = partial_write\n        with monkeypatch.context() as patch:\n            patch.setattr(submission, \"os\", proxy)\n            submission._durable_json(target, {\"payload\": \"partial-write\"})\n    \n>       assert target.read_bytes() == expected\nE       assert b'{\"p' == b'{\"payload\":...ial-write\"}\\n'\nE         \nE         Use -v to get more diff\n\norchestrator/tests/test_t126_pegasus_tools.py:5948: AssertionError\n_______________ test_submission_durable_json_rejects_zero_write ________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ed9c3d6080>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_submission_durable_json_r0')\n\n    def test_submission_durable_json_rejects_zero_write(monkeypatch, tmp_path):\n        from orchestrator.qualification import submission\n    \n        real_os = submission.os\n        write_calls = 0\n    \n        class OsProxy:\n            def __getattr__(self, name):\n                return getattr(real_os, name)\n    \n        def zero_write(_fd, _data):\n            nonlocal write_calls\n            write_calls += 1\n            if write_calls > 1:\n                pytest.fail(\"submission retried after a zero-byte write\")\n            return 0\n    \n        target = tmp_path / \"submission.json\"\n        proxy = OsProxy()\n        proxy.write = zero_write\n        with monkeypatch.context() as patch:\n            patch.setattr(submission, \"os\", proxy)\n>           with pytest.raises(submission.SubmissionPreparationError):\nE           Failed: DID NOT RAISE SubmissionPreparationError\n\norchestrator/tests/test_t126_pegasus_tools.py:5974: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write\n============================== 2 failed in 2.62s ===============================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1319 retained_bytes=1319 omitted_bytes=0 rendered_excerpt_bytes=1396 sha256=c3c6e223326d8ebc498f4c690cc345c3e074bd417b7c2ce89e142c7673feb173\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15126152cf10>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_submission_durable_json_c0')\n> \n>     def test_submission_durable_json_completes_partial_write(monkeypatch, tmp_path):\n>         from orchestrator.qualification import submission\n>     \n>         expected = b'{\"payload\":\"partial-write\"}\\x5cn'\n>         write_results = []\n>         real_os = submission.os\n>     \n>         class OsProxy:\n>             def __getattr__(self, name):\n>                 return getattr(real_os, name)\n>     \n>         def partial_write(fd, data):\n>             requested = len(data)\n>             written = real_os.write(fd, data[:min(3, requested)])\n>             write_results.append((requested, written))\n>             return written\n>     \n>         target = tmp_path / \"submission.json\"\n>         proxy = OsProxy()\n>         proxy.write = partial_write\n>         with monkeypatch.context() as patch:\n>             patch.setattr(submission, \"os\", proxy)\n>             submission._durable_json(target, {\"payload\": \"partial-write\"})\n>     \n> >       assert target.read_bytes() == expected\n> E       assert b'{\"p' == b'{\"payload\":...ial-write\"}\\x5cn'\n> E         \n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t126_pegasus_tools.py:5948: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1158 retained_bytes=1158 omitted_bytes=0 rendered_excerpt_bytes=1221 sha256=26970060096947f426604fa77f6a9eaee37aed53c906a4e3cd406bbbf7f000a8\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ed9c3d6080>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_submission_durable_json_r0')\n> \n>     def test_submission_durable_json_rejects_zero_write(monkeypatch, tmp_path):\n>         from orchestrator.qualification import submission\n>     \n>         real_os = submission.os\n>         write_calls = 0\n>     \n>         class OsProxy:\n>             def __getattr__(self, name):\n>                 return getattr(real_os, name)\n>     \n>         def zero_write(_fd, _data):\n>             nonlocal write_calls\n>             write_calls += 1\n>             if write_calls > 1:\n>                 pytest.fail(\"submission retried after a zero-byte write\")\n>             return 0\n>     \n>         target = tmp_path / \"submission.json\"\n>         proxy = OsProxy()\n>         proxy.write = zero_write\n>         with monkeypatch.context() as patch:\n>             patch.setattr(submission, \"os\", proxy)\n> >           with pytest.raises(submission.SubmissionPreparationError):\n> E           Failed: DID NOT RAISE SubmissionPreparationError\n> \n> orchestrator/tests/test_t126_pegasus_tools.py:5974: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2477 retained_bytes=2477 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3777 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b2f61f49942c30a7a44fa490dbfbec0f27714916009570d52ed0229a8540d9d0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6dfce805d90873cc18649d4522be2b7fd80e91fbdcd4e078f48a75a9419fc683",
+      "duration_s": 26.775,
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "648f72967acac4ae7176cb25d221cd2ae01d8f47b3b4dbccd5227dc405304c19",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3c0e3b9439cd1ba22ab3159c400e9c481a95fe6fe2b6b53666a11dceed72f906",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/submission.py",
+          "new": "        os.write(fd, data)\n        os.fsync(fd)\n",
+          "old": "        offset = 0\n        while offset < len(data):\n            written = os.write(fd, data[offset:])\n            if written <= 0:\n                raise SubmissionPreparationError(\n                    \"submission write made no progress\")\n            offset += written\n        os.fsync(fd)\n"
+        }
+      ],
+      "repo_head": "322277e45cbc08343c8ce9bf36fb01dd1f353420",
+      "runner_sha256": "eaef22db8dbab679707f73c00e70f1e6e79361573b0d1253227fb6023e707dff",
+      "spec_sha256": "ae8c93632a28d49e3558a1e29c034cb6d48db5b6a372b8065ea28e5558ed7f6c",
+      "status": "KILLED",
+      "test_output_sha256": "b2f61f49942c30a7a44fa490dbfbec0f27714916009570d52ed0229a8540d9d0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ac3285f4461d3cb2d27ff2937b248ca546cd8d9a59922f870f6284481adbde1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/7c92cf9de0ebe2966da03829ebcb6fab/izdw-7c92cf9de0.o907783",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/7c92cf9de0ebe2966da03829ebcb6fab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n_______________ test_submission_durable_json_rejects_zero_write ________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145f026261d0>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_submission_durable_json_r0')\n\n    def test_submission_durable_json_rejects_zero_write(monkeypatch, tmp_path):\n        from orchestrator.qualification import submission\n    \n        real_os = submission.os\n        write_calls = 0\n    \n        class OsProxy:\n            def __getattr__(self, name):\n                return getattr(real_os, name)\n    \n        def zero_write(_fd, _data):\n            nonlocal write_calls\n            write_calls += 1\n            if write_calls > 1:\n                pytest.fail(\"submission retried after a zero-byte write\")\n            return 0\n    \n        target = tmp_path / \"submission.json\"\n        proxy = OsProxy()\n        proxy.write = zero_write\n        with monkeypatch.context() as patch:\n            patch.setattr(submission, \"os\", proxy)\n            with pytest.raises(submission.SubmissionPreparationError):\n>               submission._durable_json(target, {\"payload\": \"zero-write\"})\n\norchestrator/tests/test_t126_pegasus_tools.py:5975: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/qualification/submission.py:152: in _durable_json\n    written = os.write(fd, data[offset:])\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n_fd = 13, _data = b'{\"payload\":\"zero-write\"}\\n'\n\n    def zero_write(_fd, _data):\n        nonlocal write_calls\n        write_calls += 1\n        if write_calls > 1:\n>           pytest.fail(\"submission retried after a zero-byte write\")\nE           Failed: submission retried after a zero-byte write\n\norchestrator/tests/test_t126_pegasus_tools.py:5966: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write\n========================= 1 failed, 1 passed in 2.64s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1791 retained_bytes=1791 omitted_bytes=0 rendered_excerpt_bytes=1887 sha256=302ff07cf92550c0900f372d576f94b1bf5059423adf8f0b714af1954e5f5146\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145f026261d0>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_submission_durable_json_r0')\n> \n>     def test_submission_durable_json_rejects_zero_write(monkeypatch, tmp_path):\n>         from orchestrator.qualification import submission\n>     \n>         real_os = submission.os\n>         write_calls = 0\n>     \n>         class OsProxy:\n>             def __getattr__(self, name):\n>                 return getattr(real_os, name)\n>     \n>         def zero_write(_fd, _data):\n>             nonlocal write_calls\n>             write_calls += 1\n>             if write_calls > 1:\n>                 pytest.fail(\"submission retried after a zero-byte write\")\n>             return 0\n>     \n>         target = tmp_path / \"submission.json\"\n>         proxy = OsProxy()\n>         proxy.write = zero_write\n>         with monkeypatch.context() as patch:\n>             patch.setattr(submission, \"os\", proxy)\n>             with pytest.raises(submission.SubmissionPreparationError):\n> >               submission._durable_json(target, {\"payload\": \"zero-write\"})\n> \n> orchestrator/tests/test_t126_pegasus_tools.py:5975: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/qualification/submission.py:152: in _durable_json\n>     written = os.write(fd, data[offset:])\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> _fd = 13, _data = b'{\"payload\":\"zero-write\"}\\x5cn'\n> \n>     def zero_write(_fd, _data):\n>         nonlocal write_calls\n>         write_calls += 1\n>         if write_calls > 1:\n> >           pytest.fail(\"submission retried after a zero-byte write\")\n> E           Failed: submission retried after a zero-byte write\n> \n> orchestrator/tests/test_t126_pegasus_tools.py:5966: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1791 retained_bytes=1791 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2608 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "838d7c22a42c1d9bc0aee21f5e0543bd3db8077ca771c717bb484ccc89cb222d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6dfce805d90873cc18649d4522be2b7fd80e91fbdcd4e078f48a75a9419fc683",
+      "duration_s": 26.749,
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "99b8b0a4f5856e9b01810a9746be66fc74a0bb86158cf9ed7a5b6858d2ca7a3a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dcdea5aa50c1fc25edf5184d7cbf205da3479c2e0d42a0ef888dd0f82404e14c",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/submission.py",
+          "new": "            written = os.write(fd, data[offset:])\n            offset += written\n",
+          "old": "            written = os.write(fd, data[offset:])\n            if written <= 0:\n                raise SubmissionPreparationError(\n                    \"submission write made no progress\")\n            offset += written\n"
+        }
+      ],
+      "repo_head": "322277e45cbc08343c8ce9bf36fb01dd1f353420",
+      "runner_sha256": "eaef22db8dbab679707f73c00e70f1e6e79361573b0d1253227fb6023e707dff",
+      "spec_sha256": "ae8c93632a28d49e3558a1e29c034cb6d48db5b6a372b8065ea28e5558ed7f6c",
+      "status": "KILLED",
+      "test_output_sha256": "838d7c22a42c1d9bc0aee21f5e0543bd3db8077ca771c717bb484ccc89cb222d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ac3285f4461d3cb2d27ff2937b248ca546cd8d9a59922f870f6284481adbde1"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/0f828f9cea9b44942b76587cc2ca579d/izdw-0f828f9cea.o907785",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/0f828f9cea9b44942b76587cc2ca579d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n..                                                                       [100%]\n============================== 2 passed in 2.62s ===============================\n",
+        "stdout_sha256": "a645874b48623195d87f72744180355844c368380ae2f1536119eb7d039c759a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "6dfce805d90873cc18649d4522be2b7fd80e91fbdcd4e078f48a75a9419fc683",
+      "duration_s": 26.766,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M03",
+      "injection_diff_sha256": "c2984a2818c2632618ac0fd305693a8e5c2545ed45fde37f8200dd746771be5e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "def2078e455b164e6001fafabcee829af75d1aa8322dc9f8d7496975246cc60a",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/submission.py",
+          "new": "            chunk = data[offset:]\n            written = os.write(fd, chunk)\n",
+          "old": "            written = os.write(fd, data[offset:])\n"
+        }
+      ],
+      "repo_head": "322277e45cbc08343c8ce9bf36fb01dd1f353420",
+      "runner_sha256": "eaef22db8dbab679707f73c00e70f1e6e79361573b0d1253227fb6023e707dff",
+      "spec_sha256": "ae8c93632a28d49e3558a1e29c034cb6d48db5b6a372b8065ea28e5558ed7f6c",
+      "status": "SURVIVED",
+      "test_output_sha256": "a645874b48623195d87f72744180355844c368380ae2f1536119eb7d039c759a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6ac3285f4461d3cb2d27ff2937b248ca546cd8d9a59922f870f6284481adbde1"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/f6eb2cfc0cc7a5a3df5ddab5dfa88928/izdw-f6eb2cfc0c.o907776",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/output/pegasus-dispatch/f6eb2cfc0cc7a5a3df5ddab5dfa88928/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write\norchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write\n\n2 tests collected in 0.32s\n",
+        "stdout_sha256": "5c71a38c82056f0ecc4d2a60394dd4fd31ed707a5feade8519070f8e24dfc8a8"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+      ],
+      "duration_s": 21.711,
+      "rc": 0,
+      "repo_head": "322277e45cbc08343c8ce9bf36fb01dd1f353420",
+      "runner_sha256": "eaef22db8dbab679707f73c00e70f1e6e79361573b0d1253227fb6023e707dff",
+      "spec_sha256": "ae8c93632a28d49e3558a1e29c034cb6d48db5b6a372b8065ea28e5558ed7f6c",
+      "status": "PASSED",
+      "tool_sha256": "6ac3285f4461d3cb2d27ff2937b248ca546cd8d9a59922f870f6284481adbde1"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "648f72967acac4ae7176cb25d221cd2ae01d8f47b3b4dbccd5227dc405304c19",
+        "replacements": [
+          {
+            "file": "orchestrator/qualification/submission.py",
+            "new": "        os.write(fd, data)\n        os.fsync(fd)\n",
+            "old": "        offset = 0\n        while offset < len(data):\n            written = os.write(fd, data[offset:])\n            if written <= 0:\n                raise SubmissionPreparationError(\n                    \"submission write made no progress\")\n            offset += written\n        os.fsync(fd)\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "99b8b0a4f5856e9b01810a9746be66fc74a0bb86158cf9ed7a5b6858d2ca7a3a",
+        "replacements": [
+          {
+            "file": "orchestrator/qualification/submission.py",
+            "new": "            written = os.write(fd, data[offset:])\n            offset += written\n",
+            "old": "            written = os.write(fd, data[offset:])\n            if written <= 0:\n                raise SubmissionPreparationError(\n                    \"submission write made no progress\")\n            offset += written\n"
+          }
+        ]
+      },
+      "M03": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "c2984a2818c2632618ac0fd305693a8e5c2545ed45fde37f8200dd746771be5e",
+        "replacements": [
+          {
+            "file": "orchestrator/qualification/submission.py",
+            "new": "            chunk = data[offset:]\n            written = os.write(fd, chunk)\n",
+            "old": "            written = os.write(fd, data[offset:])\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0b49240501b2fd8cd9ba5f9a56d7794484b41e52c60d5e58bb6a87aafc5efde0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+      "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "322277e45cbc08343c8ce9bf36fb01dd1f353420",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+      "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/tools/run_tests.py",
+    "entrypoint_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "5a627ce9119386f3e7ed8f60ac8e09e0cd7bbe82",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "eaef22db8dbab679707f73c00e70f1e6e79361573b0d1253227fb6023e707dff",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ae8c93632a28d49e3558a1e29c034cb6d48db5b6a372b8065ea28e5558ed7f6c",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t933-submission-write/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "6ac3285f4461d3cb2d27ff2937b248ca546cd8d9a59922f870f6284481adbde1",
+  "updated_at": "2026-08-12T12:36:05.418949+00:00"
+}

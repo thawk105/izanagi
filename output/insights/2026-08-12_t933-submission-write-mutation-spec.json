@@ -1,0 +1,55 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/submission.py",
+     "old": "        offset = 0\n        while offset < len(data):\n            written = os.write(fd, data[offset:])\n            if written <= 0:\n                raise SubmissionPreparationError(\n                    \"submission write made no progress\")\n            offset += written\n        os.fsync(fd)\n",
+     "new": "        os.write(fd, data)\n        os.fsync(fd)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_completes_partial_write",
+    "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/submission.py",
+     "old": "            written = os.write(fd, data[offset:])\n            if written <= 0:\n                raise SubmissionPreparationError(\n                    \"submission write made no progress\")\n            offset += written\n",
+     "new": "            written = os.write(fd, data[offset:])\n            offset += written\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t126_pegasus_tools.py::test_submission_durable_json_rejects_zero_write"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/qualification/submission.py",
+     "old": "            written = os.write(fd, data[offset:])\n",
+     "new": "            chunk = data[offset:]\n            written = os.write(fd, chunk)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
