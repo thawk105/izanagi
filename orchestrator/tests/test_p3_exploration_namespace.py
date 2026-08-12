@@ -26,6 +26,7 @@ from orchestrator.campaign import p3_autonomous_workload_trial as AUTONOMOUS    
 from orchestrator.campaign import p3_kickoff as KICKOFF                          # noqa: E402
 from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
+from orchestrator.campaign import sort_swo_oracle as SWO                         # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
 from orchestrator.campaign import p3_s4_red as RED                               # noqa: E402
 from orchestrator.campaign.build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
@@ -50,6 +51,23 @@ _AUTHORITY = _PARSER.parse_args(["--allow-coder-derived-build"]).coder_build_aut
 _CODER_CONTEXT = build_run_context(
     generator_id=GeneratorId.BACKOFF_SWEEP, coder_authority=_AUTHORITY,
 )
+
+
+@pytest.fixture(autouse=True)
+def _stub_real_sort_swo_oracle(monkeypatch):
+    receipt = SWO.OracleReceipt(
+        SWO.ORACLE_CONTRACT_ID, "1" * 64, "2" * 64,
+        SWO.CORPUS_ID, SWO.CORPUS_VERSION,
+        "/fixture/cxx", "fixture-cxx 1", SWO.COMPILE_FLAGS_SHA256,
+        "3" * 64, SWO.TU_TEMPLATE_SHA256,
+        "/fixture/dependency", "4" * 64,
+    )
+    passed = SWO.SortSwoOracleResult(
+        SWO.OracleStatus.PASS, "1" * 64, "2" * 64, receipt=receipt,
+    )
+    monkeypatch.setattr(
+        SWO, "check_materialized_sort_swo", lambda *_a, **_k: passed,
+    )
 
 
 @pytest.mark.parametrize(

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -837,6 +838,142 @@ def test_projected_candidate_label_is_never_rendered_as_variant_field():
     )
     assert out.count(f"candidate_label={projected}") == 4
     assert f"variant={projected}" not in out
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("structure", "単一・無修飾 sort 文"),
+        ("compile", "候補 TU の compile が失敗"),
+        ("timeout", "CPU limit 超過"),
+        ("execution", "候補 comparator の例外"),
+        ("protocol", "固定長 protocol の異常"),
+        ("nondeterministic", "fresh process 間で bool が不一致"),
+        ("mutation", "全 field snapshot が変化"),
+    ],
+)
+def test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering(kind, expected):
+    finding = {
+        "kind": kind,
+        "reason_code": f"fixture-{kind}",
+        "corpus_id": "sort-swo-corpus-v1/corpus-0",
+        "order_id": 1,
+    }
+    if kind == "compile":
+        finding["compiler_diagnostic"] = {
+            "captured_bytes": 10,
+            "total_bytes": 20,
+            "sha256": "d" * 64,
+            "truncated": True,
+        }
+    if kind == "nondeterministic":
+        finding["input_pairs"] = [{"lhs_index": 1, "rhs_index": 2}]
+    out = render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="sort-swo-oracle",
+            reason=f"fixture-{kind}", oracle_finding=finding,
+            materialized_hole_sha256="a" * 64,
+            proposal_sha256="b" * 64,
+            oracle_contract_id="sort-swo-fixture-contract",
+        )],
+    )
+    assert f"oracle_kind={kind}" in out
+    assert expected in out
+    assert "SWO公理=" not in out
+    assert "comparator を SWO" not in out
+    assert "oracle_contract_id=sort-swo-fixture-contract" in out
+    assert f"materialized_hole_sha256={'a' * 64}" in out
+
+
+def test_sort_swo_axiom_kind_alone_renders_axiom_and_counterexample():
+    out = render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="sort-swo-oracle", reason="swo-asymmetric",
+            oracle_finding={
+                "kind": "axiom", "reason_code": "swo-asymmetric",
+                "corpus_id": "sort-swo-corpus-v1/corpus-1", "order_id": 2,
+                "counterexample": {
+                    "axiom": "asymmetric",
+                    "input_pairs": [
+                        {"lhs_index": 3, "rhs_index": 4},
+                        {"lhs_index": 4, "rhs_index": 3},
+                    ],
+                },
+            },
+            materialized_hole_sha256="a" * 64,
+            proposal_sha256="b" * 64,
+            oracle_contract_id="sort-swo-fixture-contract",
+        )],
+    )
+    assert "SWO公理=asymmetric 反例pair=(3,4),(4,3)" in out
+    assert "示された pair の comparator 関係を修正する" in out
+
+
+def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection():
+    lay = _tmp_layout()
+    attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="swo")
+    materialized_hash = "a" * 64
+    proposal_hash = "b" * 64
+    finding = {
+        "kind": "axiom",
+        "reason_code": "swo-asymmetric",
+        "corpus_id": "sort-swo-corpus-v1/corpus-1",
+        "order_id": 2,
+        "input_pairs": [{"lhs_index": 3, "rhs_index": 4}],
+        "counterexample": {
+            "axiom": "asymmetric",
+            "input_pairs": [
+                {"lhs_index": 3, "rhs_index": 4},
+                {"lhs_index": 4, "rhs_index": 3},
+            ],
+        },
+        "observations": ["fixed-corpus relation matrix"],
+    }
+    receipt = {
+        "contract_id": "sort-swo-fixture-contract",
+        "materialized_hole_sha256": materialized_hash,
+        "proposal_sha256": proposal_hash,
+        "corpus_id": "sort-swo-corpus-v1/corpus-1",
+        "corpus_version": 1,
+        "compiler_realpath": "/usr/bin/c++",
+        "compiler_version": "fixture-c++ 1.0",
+        "compile_flags_sha256": "c" * 64,
+        "tu_sha256": "d" * 64,
+        "tu_template_sha256": "e" * 64,
+        "dependency_root_realpath": "/fixture/dependency-root",
+        "dependency_config_sha256": "f" * 64,
+    }
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "diff-quarantine",
+        "diff_quarantine": {
+            "subtype": "sort-swo-oracle",
+            "reason": "swo-asymmetric",
+            "oracle_finding": finding,
+            "materialized_hole_sha256": materialized_hash,
+            "proposal_sha256": proposal_hash,
+            "oracle_contract_id": receipt["contract_id"],
+            "oracle_receipt": receipt,
+        },
+    })
+
+    view = _view(lay)
+    projected = next(record for record in view.records if record.stage == STAGE_ABORT)
+    projected_finding = projected.payload["diff_quarantine"]["oracle_finding"]
+    assert type(projected_finding) is MappingProxyType
+    assert type(projected_finding["input_pairs"]) is tuple
+    assert type(projected_finding["counterexample"]) is MappingProxyType
+    assert type(projected_finding["counterexample"]["input_pairs"]) is tuple
+    assert type(projected.payload["diff_quarantine"]["oracle_receipt"]) is MappingProxyType
+
+    loaded = load_diff_rejections(view)
+    assert len(loaded) == 1
+    assert loaded[0].oracle_finding == finding
+    assert loaded[0].oracle_receipt == receipt
+    assert type(loaded[0].oracle_finding) is dict
+    assert type(loaded[0].oracle_finding["input_pairs"]) is list
+    assert type(loaded[0].oracle_finding["counterexample"]) is dict
+    assert type(loaded[0].oracle_finding["counterexample"]["input_pairs"]) is list
+    assert type(loaded[0].oracle_receipt) is dict
 
 
 def test_synthetic_rejection_heading_has_closed_origin_not_workload_provenance():

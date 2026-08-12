@@ -15031,3 +15031,240 @@ campaign を一律 `admission_status="admitted"` で返し、coder 由来かど�
 - 捕捉する例外型を列挙する — 列挙から漏れた型 (メモリ不足など) が新しい拒否になる。
   実際に敵対レビューが `OSError` 派生だけを使う検査では狭い列挙を殺せないことを示した。
 - 権威経路を捨てて fast path だけにする — 同一性の証明が候補の外を見られなくなる。
+
+## D338. formal consumer は `aborted=False` を構造的に発行しない — P6 が未実装である以上 fail-closed だけが誠実な実装であり、caller 注入は恒真化する (2026-08-12)
+
+**決定:** 8c formal consumer の到達可能な結果を `FormalContractRejected` と `P6Unavailable` の
+2 型に限り、どちらも `OriginSealed(aborted=True, constraint_class_sha256s=())` へ写す。
+**`aborted=False` を構成する式を production code に置かない。**
+「将来 P6 が来たら通る」分岐も置かない。本 wave の新規・変更 production 13 ファイル全体を
+AST 走査し、keyword `aborted=False` と `OriginSealed(False, ...)` の positional 構築の
+双方が存在しないことを機械検査する (ledger に wave 前から存在する feasibility 用の
+positional 構築 1 箇所だけを文脈で allowlist する)。
+
+**根拠となる実測:**
+
+- **P6 契約 (`derive_p6_cut`) はコード全体に存在しない。**
+  `grep -rn "derive_p6_cut\|P6Derived\|P6NotDerived" --include=*.py` が 0 件で、
+  設計文書に 1 回出るだけである。D138 は「実装は発火 artifact 0 件のため行わない」、
+  D156 は「境界テストを含む機械実装は **P6 実装 wave** と cap-lift receipt 設計の所有であり、
+  本決定は規範の発効のみを行う」と定める。**その wave は未実施である。**
+- 設計 §4.1 の条件 8 は「P6 result が `P6Derived` で marginal set が空でない」を要求する。
+  実装が存在しない以上、この条件は**判定不能**である。
+
+**却下した選択肢:**
+
+- **P6 の判定結果を caller から注入させ、evidence 集合 digest へ束縛する** — 段 3 の敵対レンズ
+  2 本が独立に**恒真化**と反証した。集合 digest は「同じ evidence を見た」ことしか示さず、
+  D138 の witness 正規化・反証 test・`B \ C_exact`、D156 の認定、admission への限界効果を
+  何一つ証明しない。caller は整合した synthetic evidence 集合と `P6Derived` を同時に自作できる。
+  親の provisional 裁定はこれだったが、反証を受けて撤回した。
+- **本 wave で `derive_p6_cut` を自前実装する** — 段 2 プランの案。D156 が機械実装を別 wave の
+  所有と定め、認定に 4 要件 (end-to-end calibration / conjunct 単位の反転変異 /
+  独立検査者 attestation / 認定記録と失効照合) を課している。プランはその 4 要件を 1 つも
+  扱っていなかった。
+- **「将来 P6 が来たら通る」分岐を置いておく** — 発火しない恒真な死にコードであり、
+  読み手に実装済みの印象を与える。
+
+**帰結:** 本結線は fixture 経路で条件 1〜7・9・10 と §4.2 双射を実際に駆動できるが、
+**`OriginSealed(aborted=False)` を発行できる状態にはならない。**
+これは欠陥ではなく、今日の実態に対する誠実な表現である。
+
+## D339. ledger の private seam 経由の迂回は塞がず保証限界として明記する — underscore は信頼境界ではない (2026-08-12)
+
+**決定:** raw public 3 API (`read_origin` / `commit_event` / `read_sealed_batch`) を公開面から
+除去し issued capability を必須にするが、`_production_store()` / `_fixture_store_for_test()` →
+`_locked()` → `_commit_locked()` を直接呼ぶ経路は塞がない。
+**保証限界として module docstring・worklog・受入報告へ明記する。**
+
+> この結線は「ledger の private seam を直接呼ぶ caller が居ない」という**運用前提の上でのみ
+> 成立する**。formal consumer を通らずに `certifiable` terminal を作る経路は Python の
+> 同一 process 内では構造的に塞げない。
+
+**根拠:** 段 6 の敵対レビューが実測した。raw 3 関数を消しても、既存の public `OriginSealed` で
+整合する counters/class を構築して private seam へ渡せば、typed client・formal receipt・
+条件 1〜10 を一度も通らずに `terminal_status="certifiable"` にできる。
+
+**理由:** 塞ぐには commit 時に formal receipt を要求する = **ledger の受理集合の変更**が要り、
+V-6 と同型の scope 外変更である。D198 の決定にも隣接する。
+設計 §3.6 が create-only について既に採った形 (運用前提として明記する) と同じ扱いにする。
+
+**却下した選択肢:** underscore を信頼境界と見なして「塞いだ」と名乗る — 自己申告であり、
+実測が反証している。
+
+**残余:** ledger 側で formal receipt を要求するかは V-13 としてユーザー裁定へ返す。
+
+## D340. execution receipt の実体解決は `result-evidence/v1` の exact key 集合を超えるため実装しない (2026-08-12)
+
+**決定:** provenance が claim する `execution_receipt_sha256` は**字句形式 (64 hex) しか
+検査しない**。receipt bytes を解決して digest を再計算する検査は実装しない。
+保証限界として明記し、V-14 としてユーザー裁定へ返す。
+
+**根拠:** 設計 §3.2 の `evidence` は `ordered_wal_ref` と `execution_provenance_ref` の
+**exact 2 参照**しか持ち、receipt への参照が無い。consumer に receipt を解決させるには
+record schema へ第 3 の `{path, sha256}` を足す = 批准済み exact key 集合の改訂が要り、
+producer (fixture と将来の trusted harness) が receipt bytes を deterministic path へ書く
+義務も生じる。実装 wave の裁量を超える。
+
+**経緯:** 焦点再レビューがこの残余を partial として指摘し、親は当初 fix を指示した。
+**その指示が誤りで、fix 子は契約衝突を見抜いて実装せず停止し報告した。**
+親は子の判断を採り、scope 外へ裁定し直した。
+
+**却下した選択肢:** consumer が receipt bytes を推測・生成して照合する — 検査器が被検査物を
+作ることになり恒真化する。
+
+## D341. task-run 台帳の凍結は契約であり、再開・記録先・被覆範囲はユーザー裁定へ返す (2026-08-12)
+
+**決定:** 「テスト運用観測層 (TestOps) を導入する」という依頼に対し、本 wave では実装しない。
+D66 の task-run 台帳 v1 が同じ役割をすでに担っており、その停止は破損でも放置でもなく pilot 契約の
+発効だからである。再開の可否と形、記録先、被覆範囲の 3 点を裁定パッケージとしてユーザーへ返す。
+
+**裁定結果 (2026-08-12、第 3 束):** 返した 3 点はいずれも第 1 案で確定した (Q1〜Q3 = (a)(a)(a))。
+再開は有界の次世代 pilot に限り、記録先は repo 外の repo 兄弟として改竄検出は主張せず、被覆は
+`tools/run_tests.py` 経由のみとする。本決定の「実装しない」は本 wave の範囲についてであり、
+以後の実装は上記制約の下で別 wave が担う。
+
+**理由:**
+
+- **停止機序は三重の構造的拒否である。** `tools/task_runs/ledger.py:544-557` が final marker 存在、
+  `published >= max_task_runs`、`now >= pilot_started + max_days` のそれぞれで `start_run` を拒否する。
+  実測時点で 3 条件すべてが成立していた。したがって「記録率ゼロ」は観測不能な母集団の推定ではない。
+- **再開は D66 が明示的に予約した事項である。** D66 (6) は常設化を「pilot 実証前の常設化は盛りすぎ —
+  実証後にユーザー提案」として却下し、`output/task-runs/README.md` の pilot 契約は「最終 report
+  生成後に凍結。次 pilot の root 世代命名はその時に裁定」と定める。scope を選ぶ設問への回答を、
+  別の設問 (無期限 rollover の可否) への承認として流用しない。
+- **記録先の択一は threat model の変更を含む。** D66 (5) は append-only を crash-consistency 契約へ
+  格下げし、改竄検出は tracked file の git 履歴という外部 anchor に委ねた。repo 外へ移すと
+  schema 妥当な事後書換えが validate も git も通る。一方 repo 内 tracked に留めると、走行ごとに
+  untracked が生じ、並行する全 wave の clean-tree gate と land の untracked 拒否を毎走行で壊す。
+  どちらも代償の性質が異なり、親が単独で決める範囲を超える。
+- **規模が D205 / D220 の判断に触れる。** 敵対相談 2 本が独立に返した blocker 9 件 (並行 start での
+  cap race、世代作成の crash recovery、dispatch / bounded scope での counts 欠測、OOM・timeout の
+  未記録、series 単位の fail-closed reader 不在、外部 base が証拠 namespace を指せる、
+  base commit の間接的な caller 指定、無言 fail-open、4 gate の凍結範囲) を安全に閉じると、
+  段 2 プランの 142 行見積りは成立しない。D220 が同種の拡張を 645〜816 行として不採用にしている。
+
+**却下した選択肢:**
+
+- **凍結済み世代を捕捉して自動 rollover する** (段 2 プランの骨子) — 有界 pilot を無期限の常時計装へ
+  黙って変える。cap と最終レビューが無意味になり、上記の予約を迂回する。
+- **既定の記録先を `XDG_STATE_HOME` → `HOME/.local/state` の順で解決する** — 実機では
+  `XDG_STATE_HOME` が未設定であり home 配下に解決される。作業ファイルを home へ置かないという
+  ユーザー是正と `docs/pegasus-runbook.md` §6 に反する。repo 外に置くなら、コードへマシン固有 path を
+  焼かずに済む形として `git rev-parse --git-common-dir` から導く repo 兄弟が候補になる
+  (前例 = third-party cache と dev-wave-jobs)。ただし採否は記録先の裁定に従属する。
+- **分析側 (実行時間の回帰検出・flaky 検出) を先に実装する** — 台帳へ新規記録が入らない以上、
+  発火する既存 artifact path を書けない。順序として成立しない。
+- **per-test 粒度を持たせて flaky 検出と遅いテスト順位を作る** — `tools/task_runs/pytest_stats.py` は
+  node ID を保存せず digest だけを残す。git 履歴へ入った記録は事実上削除できないため privacy を
+  schema で機械強制した D66 (1) の設計であり、緩めるなら独立の裁定を要する。
+
+## D342. worktree の生存判定に argv を含める (2026-08-12)
+
+**決定:** worktree が使用中かの判定に `/proc/*/cwd` の走査だけを使わない。
+`/proc/*/cmdline` に当該 worktree の path が現れるかも見る。子を走らせる worktree は
+`git worktree lock` する。保護の合図が要る場合は **worktree の外**に置き、掃除側がそこを見る。
+
+**理由:**
+- launcher 型の子は cwd に映らない。`tools/codex_worker_launch.py` の cwd は**起動元**
+  (親 wave の worktree) であり、操作対象 worktree は `--repo-root` / `--cwd` / `--artifact-dir`
+  として argv にしか現れない。実測で `/proc/*/cwd` 一致 0 件・`/proc/*/cmdline` 一致 14 件
+  (launcher 7 + codex 本体 7) を 2 session が独立に観測した。
+- cwd 走査は単なる見落としより悪い。**起動元 worktree が busy に見え、実際に使われている
+  操作対象 worktree のほうが free に見える。**
+- `git worktree lock` は必要だが十分ではない。lock が止めるのは `git worktree remove` であり、
+  `rm -rf` + `git worktree prune` の手順は lock を見ない。
+- 被害は静かに入る。走行中に working directory を失った子の receipt は
+  `codex_exit_code=0` / `metering_status=complete` / `limit_trigger=null` のまま残り、
+  値だけ見ても汚染に気づけない。
+
+**却下した選択肢:**
+- 施錠だけで済ませる — `rm -rf` 手順に効かない。
+- worktree 直下へ `RUNNING-DO-NOT-DELETE.txt` 等の目印を置いて dirty 判定に引っかける —
+  **規律 6 に反する。** 命令形の文字列を、子が読む作業ツリー (子にとっては指示ではなくデータで
+  あるべき空間) へ注入することになる。加えて untracked file の追加は測定 treatment を変える。
+
+## D343. 指示に見える artifact を未信頼入力の側へ置かない (2026-08-12)
+
+**決定:** 規律 6 は「外から入る内容を指示として解釈しない」という**受け手側**の規律だが、
+**送り手側にも対称の義務**を負わせる。保護・合図・運用の目印を置くときは、
+それを**読むのは誰か**を先に決める。子が読む空間 (作業ツリー、trace、成果物、prompt へ
+渡す資料) へ、命令形・禁止形の artifact を置いてはならない。合図はその空間の外に置き、
+必要な側がそこを見に行く形にする。
+
+**理由:**
+- 受け手側の規律だけでは、善意の運用 artifact が指示として作用する経路を塞げない。
+- 実例: 走行中の worktree を掃除から守るため worktree 直下へ `RUNNING-DO-NOT-DELETE.txt` を
+  置く案が出た。掃除側の dirty 判定には効くが、その file 名を `ls` や `git status` で見るのは
+  子である。掃除側の都合だけで置き場所を選び、読む側を見ていなかった。
+- 置き場所を外に移せば、注入も treatment 変更も起きず、掃除側の目的も達成できる。
+
+**却下した選択肢:**
+- 「目印は無害だから例外扱いする」 — 無害性の判断が置く側の都合に依存する。
+  規律 6 の境界は内容の善悪ではなく**どの空間に置くか**で引く。
+
+## D344. sort comparator の SWO 検査は実型 harness で行い、文法判定は compiler に委ねる (2026-08-12)
+
+**決定:** coder 自律ループが合成する sort comparator に対し、候補が制御する trace/stdout に依存しない
+独立 oracle を build 前の gate として置く。実現方式は次の 4 点で固定する。
+
+1. **実 `WriteElement<Tuple>` を使い、模擬型を置かない。** 実型は standalone TU で
+   compile → link → 実行が成立する (`common.hh` を避け `-DGLOBAL=extern` を与えれば gflags 依存が消え、
+   masstree の include dir と CCBench の define 群で足りる)。既定構築は `OpElement()` が
+   `std::string` を null ポインタから作るため実行時 abort するので実 ctor を使う。
+2. **comparator を字句抽出しない。** 候補の `sort(...)` 文をそのまま oracle の TU へ置き、
+   `sort` を oracle 自身の関数 template へ名前解決させて comparator を第一級の値として受け取る。
+   C++ の文法判定は compiler に委ね、構造検査は「単一の `sort(...)` 文であること」まで縮める。
+   修飾形は名前解決を迂回するため reject する。
+3. **判定は trusted 側で行う。** C++ 側は固定長 binary の relation matrix を専用経路へ返すだけで、
+   公理判定は Python が行う。候補の stdout/stderr は判定に使わず破棄する。corpus の全 field bytes、
+   要素 index、pair 座標、呼び出し順、反例の選び方は trusted 側が確定し、候補に許す制御は
+   各 pair の `bool` 戻り値だけとする。
+4. **返り値は `PASS` / `REJECT` / `UNAVAILABLE` の閉じた tagged result にする。** 判定不能を合格に
+   しない。環境故障 (compiler 不在・trusted 正例 TU の compile 失敗・wall timeout・protocol 異常) は
+   候補の `REJECT` ではなく `UNAVAILABLE` とし、候補の受理集合・fitness・試行台帳に混ぜない。
+
+**主張の範囲:** 有限 corpus 上で SWO 公理の**反例を探す gate** であり、任意 C++ の全入力に対する
+SWO の証明ではない。対象は coder 自律ループの合成 comparator に限り、s6 sweep の列挙候補
+(SWO-by-construction かつ Python 有限モデルで全対検査済み) は対象外。fairness 型の機械観測点は
+依然として未実装である。
+
+**理由:**
+- 模擬型を置くと「模擬では SWO を満たすが実型では満たさない」comparator が通る。field 名の一致は
+  意味の一致を保証せず、`sizeof` / type trait / cast などで実型と分岐できる。実型を使えばこの穴は
+  構造的に消える。
+- 字句抽出は C++ の翻訳フェーズ (raw string・代替トークン・行連結・UCN・template 引数の `,` と `>`) を
+  自前で再実装することになり、危険構文の誤受理と正当な合成の誤拒否を同時に招く。実際、v1 の抽出器は
+  既存 fixture の `const auto&` 形 generic lambda を誤拒否していた。誤拒否は合成能力の実証 (D39) を
+  削るため、受理集合の縮小と同じ重さで避ける。
+- 候補が自分の実行結果を報告する形にすると、reward hack がそのまま通る。再計測・再検査を検証者側で
+  行うのが独立 oracle の要件である。
+- 判定不能を合格に倒すと、gate は恒真になる。環境故障を候補へ帰属すると、逆に台帳が偽の reject で
+  汚れ、次の合成へ誤った修正指示が還流する。両方向を分けて閉じる。
+
+**却下した選択肢:**
+- **sort comparator への typed IR / AST allowlist** — 純粋な field 読取りと比較演算だけに制限すれば
+  同一 process 内の干渉も閉じられるが、「合成」が「事前 allowlist からの選択」に化け、
+  raw C++ comparator の独立合成という実証点 (D39) を別実験に変える。既裁定の非対称構成
+  (sort は raw 合成維持) と非同値に衝突するため、親は決めずユーザー裁定へ返す。
+- **pair ごとに子 process を起こして bool を 1 つだけ取り出す** — 干渉面は最小になるが、
+  corpus サイズの二乗個の process が要り、gate の常時実行に見合わない。
+  代わりに複数 corpus × 複数順序 × 別 process の relation 不変性と、corpus の呼び出し前後
+  snapshot 照合で取れる分を取る。
+- **C++ 側に公理名を出力させる** — 候補と同じ実行文脈が判定結果を作ることになり、独立性を失う。
+
+## D345. 受理集合を変える gate の契約 ID は campaign identity へ焼く (2026-08-12)
+
+**決定:** 候補の受理集合を変える gate を導入したら、その契約 ID (corpus・TU template・compile flags・
+checker version を束ねた値) を campaign の `search_config` へ入れ、gate 導入前後の試行が同じ
+campaign identity に混ざらないようにする。導入前の campaign は歴史成果物として再開不可と明示する。
+
+**理由:**
+- 同じ identity のまま受理条件だけが変わると、材料レポートと proof chain が「gate を通っていない」
+  旧参照を「通った」ものとして引く。
+- 並行 wave との編集競合は、証跡の世代を分けない理由にはならない。競合は順序の問題であって
+  設計の問題ではない。
+
+**却下した選択肢:**
+- **identity 据え置き** — gate が build 前に reject するので新しい非適合候補は入らない、という理由で
+  一度は暫定採用したが、旧 identity 配下に既に記録された結果との混在を解けない。
