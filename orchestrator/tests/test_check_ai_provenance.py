@@ -1325,7 +1325,7 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     assert "違反なし" in capsys.readouterr().out
 
 
-def test_known_violation_ledger_is_exactly_thirty_eight_literal_entries():
+def test_known_violation_ledger_matches_literal_entries():
     malformed_value = (
         "product=claude; model=claude-opus-5[1m]; reasoning=high; "
         "role=orchestrator"
@@ -1445,9 +1445,9 @@ def test_known_violation_ledger_is_exactly_thirty_eight_literal_entries():
         ("c96803854911dd989954c20d0955ad423e7d1207", "missing-codex-author", dw8c_ruling, dw8c_retry_note, ""),
         ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author", t316_ruling, t316_note, ""),
     )
-    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 38
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
-    assert len({row[0] for row in expected}) == 38
+    assert len({row[0] for row in expected}) == len(expected)
     assert provenance._LEDGER_FINDING_KINDS == frozenset({
         "missing-ai-agent", "missing-codex-author", "malformed-ai-agent",
     })
@@ -1911,7 +1911,7 @@ def test_registry_rejects_non_descriptive_required_note_rc2(
 def test_production_registry_notes_satisfy_descriptive_contract():
     registry = provenance._known_violation_registry()
 
-    assert len(registry) == 38
+    assert len(registry) == len(provenance.KNOWN_PROVENANCE_VIOLATIONS)
     assert tuple(registry.values()) == provenance.KNOWN_PROVENANCE_VIOLATIONS
 
 

@@ -12,8 +12,8 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
   main..<b>` (ahead) / `<b>..main` (behind) を出す
 - 各 worktree の `git status --short` を確認する (未コミット差分の有無)
 - ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは取り残しを判定できない
-  (rebase / cherry-pick 経由は ahead>0 のまま残る)。`+` 行が真の取り残しで、ファイルが main に
-  無ければ取り込み漏れとして §5 で報告する
+  (rebase / cherry-pick 経由は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
+  (spool の不在は fold で正常)。未着地なら §5 で報告する
 - `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>`
   rc0削除/1§5報告・救出判断/2実行不能・削除停止。抑止行も rc0 で §5 へ
 
@@ -22,8 +22,8 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
   -d が拒否したら取り込み漏れの兆候なので止まって報告)
 - worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのもののみ。
-  他セッション使用中の可能性 (自分が作っていない・最近更新) は推測せず `/proc/*/cwd` の
-  readlink 走査で実測し、滞在プロセスあり・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
+  他セッション使用中の可能性 (自分が作っていない・最近更新) は推測せず `/proc/*/cwd` と
+  `/proc/*/cmdline` の走査で実測し、滞在プロセスあり・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
 - 自分がその worktree の中で作業している場合は、先に main checkout 側へ抜けてから操作する
 
 ## 3. worktree の削除手順 (F26)

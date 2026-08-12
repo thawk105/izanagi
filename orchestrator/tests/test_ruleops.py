@@ -3450,3 +3450,7 @@ def test_real_checkout_independent_maximum_package_and_runner_preflight(
         "[T-726] の epoch 時限措置が予算 (外側 60 秒の 75%) を使い切った。"
         "恒久案の再裁定へ戻すこと"
     )
+
+
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="none")
