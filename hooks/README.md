@@ -58,8 +58,15 @@ launcher だけなら受入が閉じない (D294 の却下理由がそのまま�
   (Codex は `.codex/hooks.json` を cwd の project root 基準で解決するため、ここが食い違うと
   検証した file と実行される file が別物になる)。`git` 不在・非 0・timeout は fail-closed。
 - `.codex/hooks.json` が regular non-symlink で、PreToolUse の配線が exact 一致すること。
-- `hooks/codex_guard.sh` / `hooks/guard_write.py` / `hooks/guard_bash.py` が regular non-symlink で
-  実在すること。
+- **防壁本体 5 本の bytes が、検証対象 repo の同一 HEAD commit の blob と SHA-256 で一致すること。**
+  対象は `hooks/codex_guard.sh` / `hooks/guard_write.py` / `hooks/guard_bash.py` と、
+  `guard_bash.py` が import 時に compile/exec する `tools/pegasus_admission_registry.py`、
+  その loader が sanctioned path 集合を導く `tools/pegasus/admission_registry.json` である
+  (registry の読み込み失敗は静的 fallback 集合へ落ちるため、guard 3 本だけの pin では実効ポリシーが
+  pin の外に残る)。各対象は regular non-symlink・全 path component が非 symlink・canonical root 配下・
+  0 byte でないことも要求する。**HEAD OID は 1 回だけ取得して 5 本すべてへ再利用する。**
+  比較不能 (git 不在・非 0・timeout・OID 形式不正・blob 不在・decode 失敗・読み取り例外) は
+  すべて fail-closed で、警告のみ・環境変数・flag による逃がし道は無い。
 
 checker は使い捨て clone を作った**後**に同じ検証を再実行し、argv 検証も live 実行の前に通す。
 
@@ -71,17 +78,29 @@ side effect が無い」** までである。hook に拒否された tool 呼び
 rc=0 を「Codex の persisted trust が正常」とは記録しない — 意味が違う。
 
 **launcher 側に live attestation は無い。** launcher が言えるのは「起動直前に配線が exact で、
-top-level が一致した」までで、実際に hook が発火したことは測っていない。
+top-level が一致し、防壁本体 5 本が当該 repo の HEAD blob と bytes 一致した」までで、
+実際に hook が発火したことも、worker が検証した bytes を使ったことも測っていない。
+
+**bytes pin は改変検出器であって封じ込め境界ではない。** 期待値の権威は検証対象 repo の
+local commit graph であり、独立 trust root ではない。防壁の正当な編集は commit すれば緑へ戻る
+一方、**未 commit のまま防壁を編集した worktree では codex 子が起動できない** — 実装を統合
+commit してからレビュー子を起動する運用が前提である。
 
 **検証していないもの (残余リスク)。**
 
-- `codex_guard.sh` / `guard_*.py` の **bytes / hash は検証していない**。regular file としての実在
-  までである。workspace-write の子が guard 本体を書き換えた場合、以後の起動前検証は検出しない。
-- 検証から `Popen` までは原子的でない (TOCTOU の窓が残る)。
+- **pin の権威は local HEAD であり、独立 trust root ではない。** 防壁を含む commit が HEAD を
+  動かせば期待値も動く。`git commit` は guard_bash の許可集合に入っているため、
+  pin は「宣言なしの改変」を検出するが「改変の承認」や「防壁の意味的安全性」は検証しない。
+- **検査実装自身 (`check_codex_hooks.py` / `codex_worker_launch.py`) と git executable の bytes は
+  検証していない。** 保証は「信頼済みの validator と host git が既にロードされている」ところから先。
+- 検証から `Popen` までは原子的でない (TOCTOU の窓が残る)。worker 存続中の再検証も行わない。
 - user / global config、Codex の設定探索、CLI flag の semantics は検証範囲外。
 - `tools/codex_reasoning_ab.py` の直接起動経路 (`-s read-only` 固定) と、
   `tools/run_codex_role.py` → `orchestrator/codex_roles/launcher.py` の経路 (現状 runtime blocked) は
   **本節の防壁の外**である。「repo の Codex 起動を防護した」とは書けない。
+- `.claude/settings.json` が `guard_write.py` / `guard_bash.py` を直接起動する **Claude 側の経路には
+  bytes pin が無い**。pin は codex 起動前検証だけに効く。`guard_read.py` / `guard_agent.py` は
+  Codex の `.codex/hooks.json` から呼ばれないため pin 対象外である。
 - `~/.codex/config.toml` へ worktree パスの信頼を機械追記する運用は**採らない**
   (ユーザーの個人 config を機械が書き換えるため)。
 

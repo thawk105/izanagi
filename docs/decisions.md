@@ -15268,3 +15268,70 @@ campaign identity に混ざらないようにする。導入前の campaign は�
 **却下した選択肢:**
 - **identity 据え置き** — gate が build 前に reject するので新しい非適合候補は入らない、という理由で
   一度は暫定採用したが、旧 identity 配下に既に記録された結果との混在を解けない。
+
+## D346. 防壁本体の bytes pin は local HEAD blob を権威とする改変検出器にする (2026-08-12)
+
+**決定:** codex の起動前検証 (`validate_installation`) は、防壁の transitive trust set 5 本
+(`hooks/codex_guard.sh`, `hooks/guard_write.py`, `hooks/guard_bash.py`,
+`tools/pegasus_admission_registry.py`, `tools/pegasus/admission_registry.json`) の working bytes を、
+**検証対象 repo の同一 HEAD commit の blob** と SHA-256 で照合し、不一致・比較不能・0 byte・
+symlink component・repo 外解決をすべて fail-closed にする。逃がし道 (flag・環境変数・警告化) は
+作らない。**この機構は改変検出器であって封じ込め境界ではなく、独立 trust root は作らない。**
+docs では検証した範囲だけを主張し、残余リスク (HEAD の co-mutability、TOCTOU、
+被覆外の起動経路、検査実装自身の trust root) を列挙する。
+
+**理由:**
+- 防壁本体が書き換えられても以後の起動前検証が素通しする穴を、実編集で実測した (findings 0 件)。
+- pin 対象を guard 3 本に限ると実効ポリシーが pin 外に残る。`guard_bash` は import 時に
+  admission registry の source を compile/exec し、失敗時は静的 fallback 集合へ落ちるためである。
+- 期待値の権威を local HEAD に置くと、保守コストが 0 で、正当な guard 編集は commit により
+  自己修復し、故障が当該 worktree に局所化する。
+- repo 内のどの trust root も repo へ書ける主体には可変であり、独立性を得るには新機構が要る。
+  粗い provenance 基準 (2026-08-12) に照らし、その新設は既定で見送り側とする。
+
+**却下した選択肢:**
+- repo 内または worktree 外の manifest に digest を宣言する — 期待値が版管理とレビューの外へ出る。
+  guard の正当編集ごとに手更新が必要で、忘れると全 worktree の codex 起動が止まる大域故障を持つ。
+  fresh clone や別マシンでは manifest 不在で全停止する。
+- wave が凍結した authority commit を launcher へ渡す — dev-wave が渡す base commit は起動時の
+  HEAD そのものであり、独立した権威にならないことを実測した。
+- hardlink 検査 (`st_nlink == 1`) を足す — 検査後の改変は scope 外の TOCTOU に吸収され、
+  偽陽性源になる。
+- `.codex/hooks.json` 自体の bytes pin を足す — parse 後の exact 構造一致が既に意味を固定しており、
+  保守コストだけが増える。
+
+## D347. 保留の統合一覧は完全性を名乗らず、登録済み層の snapshot と自己申告する (2026-08-12)
+
+**決定:** 恒久保留を横断して読む統合 inventory (`tools/hold_inventory.py`) は、
+**未知の保留層を自動発見しない**ことを機械可読に自己申告する。
+`completeness` field を `"registered-layers-only"` に固定し、見出し・docstring・human 出力にも
+同じ制限を書く。契約テストは「完全性を主張する文言が出力に無い」ことを**禁止語の羅列ではなく
+構造**で検査する — human は独立な期待 line sequence との exact 比較、JSON は top-level と
+全 nested object の key 集合の exact 固定とし、source から導けない値はメタテスト側の
+canonical literal で固定する。
+
+また、保留状態は次の 3 つを分けて出す。
+
+- `configured_status` — 台帳がどう定義しているか
+- `effective_status` — 今この環境・この runner で実際に保留されるか
+- `bypass_surface` — 保留を迂回しうる経路 (未解決のものは未解決と明示する)
+
+**理由:**
+- 敵対レビュー 2 本が独立に「source を import して source と比べる契約では、
+  新しい保留層が増えた壊れ方は原理的に捕まらない」と示した。捕まえられない保証を
+  名乗ると、利用者は不完全な一覧を完全版として参照する。
+- 一方のレビューは**禁止語に当たらない完全性主張文を実際に書いて素通りを実証**した。
+  blacklist は保証手段にならない。構造で縛るしかない。
+- 恒久保留の解除がユーザーの明示命令のみである以上、「今なにが止まっているか」の一覧は
+  ユーザーの判断入力そのものである。**嘘をつくくらいなら範囲を狭く名乗る方が正直で、
+  範囲を広げるときも機械的に検査できる。**
+- `effective_status` を無条件に `held` と出すと嘘になる経路が実在する
+  (素の runner、`--noconftest`、suite 下を指す `--confcutdir`、test 関数の直接呼び出し、
+  `PYTEST_ADDOPTS` transport)。前提を書かずに status だけ出してはならない。
+
+**却下した選択肢:**
+- 全 hold provider に登録を強制する canonical provider registry を新設する — 未登録機構を
+  拒否できる唯一の形だが、production 側の機構すべてに登録義務を課す横断変更になる。
+  保留一覧という読み取り専用の目的に対して過大で、本 wave の scope を超える。
+- 禁止語 blacklist だけで過剰保証を防ぐ — 回避文言が実際に書けることを実証済み。
+- 完全性を名乗って運用で担保する — 保証の主体が機械でなくなる。

@@ -1,0 +1,109 @@
+{
+ "estimated_run_seconds": 60,
+ "hang_timeout_seconds": 600,
+ "timeout_seconds": 600,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+    "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness",
+    "orchestrator/tests/test_hold_inventory.py::test_script_and_module_entrypoints_match_without_pythonpath"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1-break-json-dispatch",
+   "replacements": [
+    {
+     "file": "tools/hold_inventory.py",
+     "new": "    if False:",
+     "old": "    if args.format == \"json\":"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+    "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json",
+    "orchestrator/tests/test_hold_inventory.py::test_output_does_not_claim_unknown_layer_completeness"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2-weaken-completeness-literal",
+   "replacements": [
+    {
+     "file": "tools/hold_inventory.py",
+     "new": "COMPLETENESS = \"complete\"",
+     "old": "COMPLETENESS = \"registered-layers-only\""
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3-wrong-release-token",
+   "replacements": [
+    {
+     "file": "tools/hold_inventory.py",
+     "new": "            \"token\": \"wrong-token\",",
+     "old": "            \"token\": RUN_GROWTH_HELD_TESTS_TOKEN,"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4-relax-release-condition",
+   "replacements": [
+    {
+     "file": "tools/hold_inventory.py",
+     "new": "            \"condition\": \"automatic\",",
+     "old": "            \"condition\": RELEASE_EXPLICIT_USER_COMMAND_ONLY,"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5-drop-plain-runner-bypass",
+   "replacements": [
+    {
+     "file": "tools/hold_inventory.py",
+     "new": "            {\n                \"id\": \"unrelated-placeholder\",\n                \"classification\": \"known-unresolved-bypass\",\n                \"command_pattern\": \"python3 test_*.py\",\n                \"effect\": \"bypasses-test-hold\",\n                \"reason\": \"pytest conftest collection hook is not invoked\",\n                \"tracking\": \"T-930\",\n            },",
+     "old": "            {\n                \"id\": \"plain-python-runner\",\n                \"classification\": \"known-unresolved-bypass\",\n                \"command_pattern\": \"python3 test_*.py\",\n                \"effect\": \"bypasses-test-hold\",\n                \"reason\": \"pytest conftest collection hook is not invoked\",\n                \"tracking\": \"T-930\",\n            },"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hold_inventory.py::test_effective_status_tracks_exact_test_opt_in",
+    "orchestrator/tests/test_hold_inventory.py::test_effective_status_matches_suite_conftest_decision"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M6-freeze-effective-status",
+   "replacements": [
+    {
+     "file": "tools/hold_inventory.py",
+     "new": "    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)\n    if True:\n        return \"held\"",
+     "old": "    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)\n    if value in (None, \"\"):\n        return \"held\""
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1"
+}

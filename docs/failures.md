@@ -1872,6 +1872,15 @@
   複数 wave、codex 子も並走) 点が既載の「負荷が高いときに発火する」観察と整合する。
   直前の走行 (同一 wave、記録 commit 前の tip) では **9452 passed / 31 skipped / 0 failed** で
   緑だったので、同一実装で緑・赤の両方を観測している。
+
+- **再発: 2026-08-12** — [T-905] の変異本走で M2 の失敗 node へ
+  `test_all_v3_stages_reject_prior_invalid_attempt[author-None]` が 1 件混ざり、
+  期待 node の完全一致が崩れて MISMATCH になった (`receipt["attempts"][-1]["accepted"]` が False)。
+  M2 は pin 集合から 1 path を外す変異で検査を緩める向きであり、当該 node への因果経路が無い。
+  M2 単独再走では期待 6 node と完全一致で KILLED、混入 node は再現せず帰属から外した。
+  変異走 (48 worker) で launcher の receipt 系 node が 1 件混ざる形は
+  worklog (476) の M3 に続く独立 2 例目である。恒久対応は F57 既載のとおり失敗 artifact 保存による
+  原因分離であり、本 wave では変えない。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -6349,3 +6358,47 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 補足 (監査ログの質): 本件は **監査ログを汚す型の失敗**である。回避すると
   「waiver / known-violation で通した」記録が残り、監査を工数分析やプロセス改善に使うときの
   信号対雑音比を下げる。手順で発生させないことが対処であり、例外機構の常用ではない。
+
+### F258. 受入全走中に `git checkout` が SIGSEGV し fixture setup が偽の赤になる [計測汚染]
+
+- 事象: [T-925] の受入全走 2 走目で `test_codex_reasoning_ab.py` の 3 node が
+  **setup 段階**で error になった。逐語は
+  `ValidationError: command failed rc=-11: git checkout -B codex/dev-wave-t153e-t15423 <sha>`。
+  `rc=-11` は SIGSEGV。同じ木の 1 走目は `10,085 passed / 65 skipped` で緑、
+  2 走目との差分は**文書 2 ファイル** (worklog fragment と insights README) のみで、
+  テスト fixture の `git checkout` へは到達しえない。当該 3 node の単独再走は
+  `--force-dispatch` で `3 passed` (rc=0)。**再現せず、実装差分へ帰属しない。**
+- 根本原因: 未確定。並行 wave 4 本が同一 repo の object store を共有した状態で、
+  commit 時に git 自身が
+  `There are too many unreachable loose objects; run 'git prune'` と
+  `The last gc run reported the following` を警告しており、
+  `.git/worktrees/<wave>/gc.log` が残留して自動 gc が止まっていた。
+  object store 圧下での git の異常終了が疑われるが、SIGSEGV の直接原因は未特定。
+- 恒久対応: memory `no-concurrent-dispatch-during-acceptance` の対象を
+  「単独再走で消える偽の赤」の既知型として本エントリへ拡張する。
+  受入で `rc=-11` / SIGSEGV を見たら、実装差分へ帰属する前に
+  `DW-O18` の単独再走 (`--force-dispatch` 付き) で再現性を実測する。
+- 再発検知: 受入 log 中の `rc=-11` と `unreachable loose objects` 警告の同時出現。
+  機械検査は未実装 (本エントリ 1 例目のため `DW-G03` の独立 2 例を満たさない)。
+
+### F259. codex 子の Web 検索が evidence 検証を invalid にして成果物を全損させる [コンテキスト浪費]
+
+- 事象: 段 3 の敵対レンズ (sol) が 848 秒 · 43 model call を費やして完走したのに、
+  `dev_wave_codex.py` が rc=1 で不受理となり、出力 8,323 bytes が捨てられた。
+  `codex_exit_code=0`、`validator_rc=0`、成果物ファイルは健在で、NFC も正常だった。
+  受理を止めていたのは receipt の `evidence_status=invalid` である。
+- 根本原因: 子が `web_search` を使うと、Codex CLI 0.147.0 が `item.started` /
+  `item.completed` の `item` object に `id` を 2 回持つ event 行を stdout へ出す
+  (1 つ目は `item_40` のような item 番号、2 つ目は `exec-<uuid>` の実行 ID)。
+  `orchestrator/codex_roles/events.py` の `parse_jsonl` は重複 JSON key を拒否するため
+  `codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid=True` を立て、
+  `_evidence_status` が `invalid` を返して attempt が accepted にならない。
+  本 wave では 99 行中 22 行が該当した。
+- 恒久対応: memory `codex-web-search-invalidates-evidence` — 子 prompt に Web 検索の禁止を
+  絶対制約として書く。`DW-O02` への統合を試みたが、dev-wave docs の L1.5 予算に余白がなく
+  (71 bytes の追記で 93 bytes 超過を実測) 断念した。予算は上げず、安全義務の削除もしない。
+  **検証側を緩めない** — 重複 key の拒否は evidence の健全性検査であり、これを甘くする回避は
+  規律 2 に反する。
+- 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
+  `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
+  `web_search` 由来の重複 key 行を探す。

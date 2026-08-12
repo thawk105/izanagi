@@ -29,6 +29,13 @@ _EXPECTED_HANDLER_MARKERS = {
     "apply_patch": "[guard_write] 拒否:",
     "Bash": "[guard_bash] 拒否:",
 }
+_EXPECTED_PINNED_GUARD_PATHS = (
+    Path("hooks/codex_guard.sh"),
+    Path("hooks/guard_write.py"),
+    Path("hooks/guard_bash.py"),
+    Path("tools/pegasus_admission_registry.py"),
+    Path("tools/pegasus/admission_registry.json"),
+)
 
 
 def _expectations():
@@ -443,10 +450,59 @@ def test_config_preflight_cannot_be_replaced_by_live_evidence():
     assert _rc(expected, argv, results, config_valid=False) != 0
 
 
+def _prepare_committed_installation(root: Path) -> Path:
+    CH._project_current_files(_REPO, root)
+    subprocess.run(["git", "-C", os.fspath(root), "init", "-q"], check=True)
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "config", "user.name", "hook-test"],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", os.fspath(root), "config", "user.email",
+            "hook-test@example.invalid",
+        ],
+        check=True,
+    )
+    subprocess.run(["git", "-C", os.fspath(root), "add", "."], check=True)
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "commit", "-qm", "hook fixture"],
+        check=True,
+    )
+    return root
+
+
+def _successful_git_runner(root: Path, calls: list[tuple[list[str], dict]]):
+    oid = "0123456789abcdef0123456789abcdef01234567"
+
+    def runner(argv, **kwargs):
+        calls.append((list(argv), kwargs))
+        arguments = tuple(argv[3:])
+        if arguments == ("rev-parse", "--show-toplevel"):
+            stdout = os.fsencode(root) + b"\n"
+        elif arguments == ("rev-parse", "--verify", "HEAD^{commit}"):
+            stdout = oid.encode("ascii") + b"\n"
+        else:
+            assert arguments[:2] == ("cat-file", "blob")
+            object_name = arguments[2]
+            actual_oid, relative = object_name.split(":", 1)
+            assert actual_oid == oid
+            stdout = (root / relative).read_bytes()
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr=b"")
+
+    return runner
+
+
+def test_pinned_guard_paths_are_exact_and_independent_of_copy_paths():
+    assert CH._PINNED_GUARD_PATHS == _EXPECTED_PINNED_GUARD_PATHS
+    assert CH._PINNED_GUARD_PATHS is not CH._COPY_PATHS
+    assert CH._GIT_RUNNER is subprocess.run
+
+
 def test_installation_requires_all_hook_sources_as_regular_files():
     with tempfile.TemporaryDirectory(prefix="codex-hook-install-test-") as name:
         root = Path(name) / "repo"
-        CH._project_current_files(_REPO, root)
+        _prepare_committed_installation(root)
         assert CH.validate_installation(root) == []
         for relative in (
             Path("hooks/codex_guard.sh"),
@@ -468,6 +524,303 @@ def test_installation_requires_all_hook_sources_as_regular_files():
             )
             target.unlink()
             target.write_bytes((_REPO / relative).read_bytes())
+
+
+def test_clean_committed_installation_is_accepted(tmp_path: Path):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    assert CH.validate_installation(root) == []
+
+
+def test_non_repo_installation_fails_closed(tmp_path: Path):
+    root = tmp_path / "repo"
+    CH._project_current_files(_REPO, root)
+    findings = CH.validate_installation(root)
+    assert findings
+    assert any("show-toplevel" in finding for finding in findings)
+
+
+@pytest.mark.parametrize("relative", _EXPECTED_PINNED_GUARD_PATHS)
+def test_installation_rejects_each_pinned_guard_bytes_drift(
+    tmp_path: Path, relative: Path,
+):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    with (root / relative).open("ab") as stream:
+        stream.write(b"\n# inert bytes drift\n")
+    findings = CH.validate_installation(root)
+    assert any(
+        relative.as_posix() in finding and "HEAD blob" in finding
+        for finding in findings
+    )
+
+
+def test_installation_rejects_committed_zero_byte_target(tmp_path: Path):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    relative = Path("hooks/guard_write.py")
+    (root / relative).write_bytes(b"")
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "add", relative.as_posix()], check=True
+    )
+    subprocess.run(
+        ["git", "-C", os.fspath(root), "commit", "-qm", "empty guard"],
+        check=True,
+    )
+    findings = CH.validate_installation(root)
+    assert any(relative.as_posix() in finding and "0 byte" in finding for finding in findings)
+
+
+def test_installation_git_runner_binds_exact_argv_environment_and_head_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo").resolve()
+    calls: list[tuple[list[str], dict]] = []
+    monkeypatch.setenv("GIT_DIR", "/decoy/git-dir")
+    monkeypatch.setenv("GIT_WORK_TREE", "/decoy/work-tree")
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", "/decoy/objects")
+    monkeypatch.setattr(CH, "_GIT_RUNNER", _successful_git_runner(root, calls))
+
+    assert CH.validate_installation(root) == []
+    assert len(calls) == 2 + len(_EXPECTED_PINNED_GUARD_PATHS)
+    git = Path(shutil.which("git") or pytest.fail("git が必要")).resolve()
+    for argv, kwargs in calls:
+        assert argv[:3] == [os.fspath(git), "-C", os.fspath(root)]
+        assert kwargs["shell"] is False
+        assert kwargs["stdin"] is subprocess.DEVNULL
+        assert kwargs["stdout"] is subprocess.PIPE
+        assert kwargs["stderr"] is subprocess.PIPE
+        assert kwargs["text"] is False
+        assert kwargs["timeout"] == 5
+        assert kwargs["check"] is False
+        git_environment = {
+            name: value
+            for name, value in kwargs["env"].items()
+            if name.startswith("GIT_")
+        }
+        assert git_environment == {
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_OPTIONAL_LOCKS": "0",
+        }
+
+    argument_calls = [tuple(argv[3:]) for argv, _kwargs in calls]
+    assert argument_calls.count(
+        ("rev-parse", "--verify", "HEAD^{commit}")
+    ) == 1
+    oid = "0123456789abcdef0123456789abcdef01234567"
+    assert argument_calls[2:] == [
+        ("cat-file", "blob", f"{oid}:{relative.as_posix()}")
+        for relative in _EXPECTED_PINNED_GUARD_PATHS
+    ]
+
+
+def test_installation_ignores_inherited_git_repository_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    monkeypatch.setenv("GIT_DIR", "/decoy/git-dir")
+    monkeypatch.setenv("GIT_WORK_TREE", "/decoy/work-tree")
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", "/decoy/objects")
+    assert CH.validate_installation(root) == []
+
+
+def test_installation_fails_closed_when_git_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    monkeypatch.setattr(CH.shutil, "which", lambda _name: None)
+    findings = CH.validate_installation(root)
+    assert findings == ["git executable が見つからない"]
+
+
+@pytest.mark.parametrize(
+    ("failure_call", "failure_kind"),
+    (
+        ("top", "nonzero"),
+        ("head", "nonzero"),
+        ("blob", "nonzero"),
+        ("top", "timeout"),
+        ("head", "timeout"),
+        ("blob", "timeout"),
+    ),
+)
+def test_installation_git_call_failure_is_finding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_call: str,
+    failure_kind: str,
+):
+    root = _prepare_committed_installation(tmp_path / "repo").resolve()
+    successful = _successful_git_runner(root, [])
+
+    def runner(argv, **kwargs):
+        arguments = tuple(argv[3:])
+        call_kind = (
+            "top" if arguments == ("rev-parse", "--show-toplevel")
+            else "head" if arguments == ("rev-parse", "--verify", "HEAD^{commit}")
+            else "blob"
+        )
+        if call_kind == failure_call:
+            if failure_kind == "timeout":
+                raise subprocess.TimeoutExpired(argv, 5)
+            return subprocess.CompletedProcess(argv, 9, stdout=b"", stderr=b"ignored")
+        return successful(argv, **kwargs)
+
+    monkeypatch.setattr(CH, "_GIT_RUNNER", runner)
+    findings = CH.validate_installation(root)
+    assert findings
+    expected = "timeout" if failure_kind == "timeout" else "rc=9"
+    assert any(expected in finding for finding in findings)
+
+
+def test_installation_git_runner_exception_is_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo")
+
+    def fail(_argv, **_kwargs):
+        raise OSError("exec failed")
+
+    monkeypatch.setattr(CH, "_GIT_RUNNER", fail)
+    findings = CH.validate_installation(root)
+    assert any("起動できない" in finding and "exec failed" in finding for finding in findings)
+
+
+@pytest.mark.parametrize(
+    "top_stdout",
+    (b"relative/repo\n", b"/one\n/two\n", b"\xff\n"),
+    ids=("relative", "multiple-lines", "non-utf8"),
+)
+def test_installation_rejects_invalid_git_top_level(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, top_stdout: bytes,
+):
+    root = _prepare_committed_installation(tmp_path / "repo").resolve()
+    successful = _successful_git_runner(root, [])
+
+    def runner(argv, **kwargs):
+        if tuple(argv[3:]) == ("rev-parse", "--show-toplevel"):
+            return subprocess.CompletedProcess(argv, 0, stdout=top_stdout, stderr=b"")
+        return successful(argv, **kwargs)
+
+    monkeypatch.setattr(CH, "_GIT_RUNNER", runner)
+    assert CH.validate_installation(root)
+
+
+@pytest.mark.parametrize(
+    "oid_stdout",
+    (b"ABCDEF0123456789abcdef0123456789abcdef01\n", b"abc123\n", b"\xff\n"),
+    ids=("uppercase", "short", "non-utf8"),
+)
+def test_installation_rejects_invalid_head_oid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, oid_stdout: bytes,
+):
+    root = _prepare_committed_installation(tmp_path / "repo").resolve()
+    successful = _successful_git_runner(root, [])
+
+    def runner(argv, **kwargs):
+        if tuple(argv[3:]) == ("rev-parse", "--verify", "HEAD^{commit}"):
+            return subprocess.CompletedProcess(argv, 0, stdout=oid_stdout, stderr=b"")
+        return successful(argv, **kwargs)
+
+    monkeypatch.setattr(CH, "_GIT_RUNNER", runner)
+    assert CH.validate_installation(root)
+
+
+def test_installation_rejects_missing_head_blob(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo").resolve()
+    missing = Path("tools/pegasus/admission_registry.json")
+    successful = _successful_git_runner(root, [])
+
+    def runner(argv, **kwargs):
+        if tuple(argv[3:])[-1].endswith(":" + missing.as_posix()):
+            return subprocess.CompletedProcess(argv, 128, stdout=b"", stderr=b"ignored")
+        return successful(argv, **kwargs)
+
+    monkeypatch.setattr(CH, "_GIT_RUNNER", runner)
+    findings = CH.validate_installation(root)
+    assert any(missing.as_posix() in finding and "rc=128" in finding for finding in findings)
+
+
+def test_installation_hashes_blob_stdout_as_raw_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo").resolve()
+    target = Path("hooks/guard_write.py")
+    successful = _successful_git_runner(root, [])
+
+    def runner(argv, **kwargs):
+        if tuple(argv[3:])[-1].endswith(":" + target.as_posix()):
+            return subprocess.CompletedProcess(argv, 0, stdout=b"\xff\x00", stderr=b"")
+        return successful(argv, **kwargs)
+
+    monkeypatch.setattr(CH, "_GIT_RUNNER", runner)
+    findings = CH.validate_installation(root)
+    assert any(target.as_posix() in finding and "drift" in finding for finding in findings)
+    assert not any(target.as_posix() in finding and "UTF-8" in finding for finding in findings)
+
+
+def test_installation_rejects_pinned_parent_symlink_outside_repo(tmp_path: Path):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    original = root / "tools" / "pegasus"
+    saved = root / "tools" / "pegasus-original"
+    outside = tmp_path / "outside-pegasus"
+    outside.mkdir()
+    shutil.copy2(original / "admission_registry.json", outside / "admission_registry.json")
+    original.rename(saved)
+    original.symlink_to(outside, target_is_directory=True)
+    findings = CH.validate_installation(root)
+    relative = Path("tools/pegasus/admission_registry.json")
+    assert any(relative.as_posix() in finding and "symlink" in finding for finding in findings)
+
+
+def test_installation_read_error_is_finding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    target = root / "hooks" / "guard_bash.py"
+    real_sha256 = CH._sha256
+
+    def fail_target(path: Path):
+        if path == target:
+            raise PermissionError("denied")
+        return real_sha256(path)
+
+    monkeypatch.setattr(CH, "_sha256", fail_target)
+    findings = CH.validate_installation(root)
+    assert any(
+        "hooks/guard_bash.py" in finding and "working bytes" in finding
+        for finding in findings
+    )
+
+
+def test_installation_still_rejects_exact_pretooluse_wiring_drift(tmp_path: Path):
+    root = _prepare_committed_installation(tmp_path / "repo")
+    config = root / ".codex" / "hooks.json"
+    document = json.loads(config.read_text(encoding="utf-8"))
+    document["hooks"]["PreToolUse"][0]["matcher"] = "^decoy$"
+    config.write_text(json.dumps(document), encoding="utf-8")
+    findings = CH.validate_installation(root)
+    assert any("exact PreToolUse 配線から drift" in finding for finding in findings)
+
+
+def test_disposable_clone_rejects_projected_guard_bytes_drift(tmp_path: Path):
+    root = _prepare_committed_installation(tmp_path / "source")
+    run_calls = []
+
+    def clone_with_drift(source: Path, parent: Path) -> Path:
+        clone = CH._make_disposable_clone(source, parent)
+        with (clone / "hooks" / "guard_bash.py").open("ab") as stream:
+            stream.write(b"\n# projected drift\n")
+        return clone
+
+    findings = CH.check(
+        root,
+        Path("/opt/codex"),
+        1,
+        clone_factory=clone_with_drift,
+        probe_runner=lambda *args, **kwargs: run_calls.append((args, kwargs)),
+    )
+    assert any("hooks/guard_bash.py" in finding and "HEAD blob" in finding for finding in findings)
+    assert not run_calls
 
 
 def test_codex_guard_maps_only_zero_and_two_to_themselves():
