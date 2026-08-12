@@ -134,6 +134,45 @@ def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
     )
 
 
+def _fixture_toolchain_binding(verified_calibration, *, cc, cxx):
+    """登録 receipt と一致済みの gate 結果を模す process-safe fake。"""
+    assert isinstance(
+        verified_calibration, s8b_floor_campaign.env_attestation.VerifiedCalibration,
+    )
+    return {
+        "cc": {
+            "requested": cc,
+            "realpath": f"/fixture/toolchain/{cc}",
+            "version_first_line": "fixture cc version",
+            "version": "fixture cc version\nfixture cc detail",
+        },
+        "cxx": {
+            "requested": cxx,
+            "realpath": f"/fixture/toolchain/{cxx}",
+            "version_first_line": "fixture cxx version",
+            "version": "fixture cxx version\nfixture cxx detail",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": "/fixture/toolchain/cmake",
+            "version_first_line": "cmake version fixture",
+            "version": "cmake version fixture\nfixture cmake detail",
+        },
+    }
+
+
+@pytest.fixture(autouse=True)
+def _bind_current_toolchain_for_existing_campaign_tests(monkeypatch, request):
+    """既存 campaign fixture を、登録 receipt と一致済みの private gate 結果へ束縛する。"""
+    if (request.node.cls is not None
+            and request.node.cls.__name__ == "TestFloorToolchainBinding"):
+        return
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_bind_current_toolchain", _fixture_toolchain_binding,
+    )
+
+
 def _holdout_entries(holdout_id: str) -> dict:
     entries = {}
     for i, cfg in enumerate(_CONFIGS):
@@ -238,7 +277,7 @@ def _make_fake_build(build_root: Path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
                    timeout_s=None, admission=None, build_context=None,
-                   source_evidence=None):
+                   source_evidence=None, expected_toolchain_manifest=None):
         del jobs
         assert admission is not None
         assert admission.provenance_class is BuildProvenance.HUMAN_REVIEWED
@@ -251,6 +290,7 @@ def _make_fake_build(build_root: Path):
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
         assert ccbench_dir, "prepare_cell の隔離 ccbench_dir を build_v2 へ渡す"
         assert timeout_s == 900, "floor v2 build hard timeout を固定する"
+        assert expected_toolchain_manifest is not None
         effective_ccbench = ccbench_dir or "/fixture/ccbench"
         # production と同じく渡された cache_root 配下に実体を置き、command には実 root を
         # 埋め込む（portable projection が未結線でも通る fake にしない）。
@@ -748,13 +788,16 @@ def _observed(profile):
     return env_attestation.normalize_observed_profile(raw)
 
 
-def _install_required_contract(tmp_path: Path, monkeypatch):
+def _install_required_contract(
+        tmp_path: Path, monkeypatch, *, calibration_transform=None):
     """production calibration/v2 reader + issuer を通す required env fixture。"""
     repo_root = tmp_path / "required-repo"
     repo_root.mkdir()
     document = _valid_calibration_v2_document()
     # U-2/U-3 による current admission の正当な縮小: required fixture は policy と一致させる。
     document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
+    if calibration_transform is not None:
+        calibration_transform(document)
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -804,6 +847,291 @@ def _install_required_contract(tmp_path: Path, monkeypatch):
         "out_root": tmp_path / "required-out",
         "binding_values": binding_values,
     }
+
+
+def _install_toolchain_bound_required_contract(
+        tmp_path, monkeypatch, *, build_argv=None,
+        compiler_version="registered-cc Vendor 1.0\nCopyright stable",
+        cmake_version="registered-cmake version 3.25.0\nCopyright stable"):
+    def transform(document):
+        receipt = document["acquisition_receipt"]
+        receipt["toolchain"].update({
+            "compiler_path": "/tool/cc",
+            "compiler_version": compiler_version,
+            "cmake_version": cmake_version,
+        })
+        receipt["ccbench"]["build_argv"] = (
+            list(build_argv) if build_argv is not None else [
+                "cmake",
+                "-DCMAKE_C_COMPILER=/tool/cc",
+                "-DCMAKE_CXX_COMPILER=/tool/cxx",
+            ])
+
+    return _install_required_contract(
+        tmp_path, monkeypatch, calibration_transform=transform,
+    )
+
+
+def _matching_floor_observations():
+    return {
+        "cc": s8b_floor_campaign._ObservedFloorTool(
+            requested="site-cc", realpath="/tool/cc",
+            version_first_line="live-cc Vendor 1.0",
+            version="live-cc Vendor 1.0\nCopyright stable",
+        ),
+        "cxx": s8b_floor_campaign._ObservedFloorTool(
+            requested="site-cxx", realpath="/tool/cxx",
+            version_first_line="live-cxx Vendor 1.0",
+            version="live-cxx Vendor 1.0\nCopyright stable",
+        ),
+        "cmake": s8b_floor_campaign._ObservedFloorTool(
+            requested="cmake", realpath="/tool/cmake",
+            version_first_line="live-cmake version 3.25.0",
+            version="live-cmake version 3.25.0\nCopyright stable",
+        ),
+    }
+
+
+class TestFloorToolchainBinding:
+    """共通 fake を外し、private 観測 seam への注入値だけで gate を検査する。"""
+
+    def test_live_observer_keeps_stdout_and_stderr_full_text(
+            self, monkeypatch):
+        monkeypatch.setattr(
+            s8b_floor_campaign.shutil, "which", lambda _requested: "/tool/cc",
+        )
+        monkeypatch.setattr(s8b_floor_campaign.os.path, "isfile", lambda _path: True)
+        monkeypatch.setattr(s8b_floor_campaign.os, "access", lambda _path, _mode: True)
+        monkeypatch.setattr(
+            s8b_floor_campaign.subprocess, "run",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                returncode=0,
+                stdout="live-cc Vendor 1.0\nCopyright stdout\n",
+                stderr="Copyright stderr\n",
+            ),
+        )
+        observed = s8b_floor_campaign._observe_floor_tool("site-cc", "cc")
+        assert observed.version_first_line == "live-cc Vendor 1.0"
+        assert observed.version == (
+            "live-cc Vendor 1.0\nCopyright stdout\nCopyright stderr"
+        )
+
+    def test_binding_accepts_full_bodies_and_returns_same_observation_manifest(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        verified = ctx["verified"]
+        observations = _matching_floor_observations()
+        calls = []
+
+        def observe(requested, role):
+            calls.append((requested, role))
+            return observations[role]
+
+        monkeypatch.setattr(s8b_floor_campaign, "_observe_floor_tool", observe)
+        manifest = s8b_floor_campaign._bind_current_toolchain(
+            verified, cc="site-cc", cxx="site-cxx",
+        )
+        assert calls == [
+            ("site-cc", "cc"), ("site-cxx", "cxx"), ("cmake", "cmake"),
+        ]
+        assert manifest == {
+            "cc": {
+                "requested": "site-cc",
+                "realpath": "/tool/cc",
+                "version_first_line": "live-cc Vendor 1.0",
+                "version": "live-cc Vendor 1.0\nCopyright stable",
+            },
+            "cxx": {
+                "requested": "site-cxx",
+                "realpath": "/tool/cxx",
+                "version_first_line": "live-cxx Vendor 1.0",
+                "version": "live-cxx Vendor 1.0\nCopyright stable",
+            },
+            "cmake": {
+                "requested": "cmake",
+                "realpath": "/tool/cmake",
+                "version_first_line": "live-cmake version 3.25.0",
+                "version": "live-cmake version 3.25.0\nCopyright stable",
+            },
+        }
+
+    def test_binding_rejects_drift_only_below_version_first_line(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        verified = ctx["verified"]
+        observations = _matching_floor_observations()
+        observations["cc"] = dataclasses.replace(
+            observations["cc"],
+            version="live-cc Vendor 1.0\nCopyright changed",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                verified, cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cc_realpath_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cc"] = dataclasses.replace(
+            observations["cc"], realpath="/other/cc",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cxx_version_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cxx"] = dataclasses.replace(
+            observations["cxx"],
+            version="live-cxx Vendor 2.0\nCopyright stable",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cmake_version_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cmake"] = dataclasses.replace(
+            observations["cmake"],
+            version="live-cmake version 3.25.0\nCopyright changed",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    @pytest.mark.parametrize("build_argv", [
+        ["cmake", "-DCMAKE_CXX_COMPILER=/tool/cxx"],
+        [
+            "cmake",
+            "-DCMAKE_C_COMPILER=/tool/cc",
+            "-DCMAKE_C_COMPILER=/other/cc",
+            "-DCMAKE_CXX_COMPILER=/tool/cxx",
+        ],
+    ])
+    def test_binding_rejects_missing_or_duplicate_compiler_definition(
+            self, tmp_path, monkeypatch, build_argv):
+        ctx = _install_toolchain_bound_required_contract(
+            tmp_path, monkeypatch, build_argv=build_argv,
+        )
+        verified = ctx["verified"]
+        observations = _matching_floor_observations()
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                verified, cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_receiptless_calibration_without_tool_probe(
+            self, monkeypatch):
+        verified = s8b_floor_campaign.env_attestation.VerifiedCalibration(
+            schema_version=s8b_floor_campaign.env_attestation.LEGACY_SCHEMA_VERSION,
+            sha256="a" * 64,
+            calibration=None,
+            attestation_profile_sha256=None,
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda *_args, **_kwargs: pytest.fail("receipt 不在時に tool を読まない"),
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="acquisition receipt がない"):
+            s8b_floor_campaign._bind_current_toolchain(
+                verified, cc="site-cc", cxx="site-cxx",
+            )
+
+
+def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=_STOCK,
+    )[:2]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    compiler_calls = []
+    binding_calls = []
+    evidence_cxx = []
+    build_tools = []
+    expected_manifest = {"sentinel": {"generation": "current"}}
+
+    def compilers():
+        compiler_calls.append("resolve")
+        return "site-cc", "site-cxx"
+
+    def bind(candidate, *, cc, cxx):
+        binding_calls.append((candidate, cc, cxx))
+        return expected_manifest
+
+    def evidence(genome, commit, *, ccbench_dir, cxx):
+        evidence_cxx.append(cxx)
+        return _fixture_source_evidence(
+            genome, commit, ccbench_dir=ccbench_dir, cxx=cxx,
+        )
+
+    fake_build = _make_fake_build(tmp_path / "bin")
+
+    def build(genome, **kwargs):
+        build_tools.append((
+            kwargs["cc"], kwargs["cxx"], kwargs["expected_toolchain_manifest"],
+        ))
+        return fake_build(genome, **kwargs)
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "compilers_for_current_site", compilers,
+    )
+    monkeypatch.setattr(s8b_floor_campaign, "_bind_current_toolchain", bind)
+    monkeypatch.setattr(s8b_floor_campaign.source_digest, "resolve_evidence", evidence)
+    built = s8b_floor_campaign.build_cells(
+        freeze, cells, ccbench_pin="0" * 40,
+        out_root=tmp_path / "out", prepare_fn=_fake_prepare,
+        contract=contract, verified_calibration=verified, build_fn=build,
+    )
+    assert len(built) == 2
+    assert compiler_calls == ["resolve"]
+    assert binding_calls == [(verified, "site-cc", "site-cxx")]
+    assert evidence_cxx == ["site-cxx", "site-cxx"]
+    assert build_tools == [
+        ("site-cc", "site-cxx", expected_manifest),
+        ("site-cc", "site-cxx", expected_manifest),
+    ]
 
 
 def _provision_claim_root(ctx) -> Path:
@@ -922,6 +1250,10 @@ def _deterministic_official_artifacts(base: Path) -> dict:
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
             mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+            mock.patch.object(
+                s8b_floor_campaign, "_bind_current_toolchain",
+                _fixture_toolchain_binding,
+            ), \
             mock.patch.object(
                 s8b_floor_campaign.source_digest, "resolve_evidence",
                 _fixture_source_evidence,
@@ -1381,7 +1713,7 @@ def test_materializer_registry_covers_all_python_build_launches():
                 seen_gateways.add(site)
                 if is_floor_materializer_call:
                     keywords = static_keyword_names(call, owner)
-                    if not required <= keywords:
+                    if not (required | {"expected_toolchain_manifest"}) <= keywords:
                         missing_admission.append(
                             f"{relative}:{call.lineno}:{qualified}"
                         )

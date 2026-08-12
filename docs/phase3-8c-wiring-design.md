@@ -232,6 +232,29 @@ honest な consumer は hash と terminal WAL を検査したうえで受理し�
 - 材料レポートは「ledger が受理した」を**物理実行の証明として書いてはならない** (§10)。
 - 権限分離を作るか否かは §11 の裁定項目 (V-10) とする。
 
+### 3.7 evidence bytes の解決 — content-addressed resolver
+
+§4.1 の条件 1 は「raw digest が ledger の値と一致する」を要求するが、その bytes を
+**どう取得するか**は本設計の他の節が決めていなかった。ここで閉じる。
+
+**consumer は content-addressed resolver で解決する。** `evidence.ordered_wal_ref` /
+`execution_provenance_ref` の `{path, sha256}` について、`path` から取得した bytes の
+sha256 を再計算し、record の `sha256` と一致しないものを **resolver 段で拒否する**。
+一致した bytes だけが §4.1 の条件 1・7 と §4.2 の双射判定の入力になる。
+
+**発行者権威に裏打ちされた evidence receipt は作らない。** 受領証方式は「その受領証を
+発行できるのは誰か」という trust root を新設する。権威は origin binding capability と
+ledger の commitment 束縛が既に担っており、受領証は新しい事実を 1 つも足さない。
+
+**ledger の分界は不変。** ledger は `EvidenceDigest` を dereference しない (§3.1)。
+解決するのは formal consumer だけである。
+
+**保証の上限。** content-addressed 解決が示すのは「取得した bytes は record が claim した
+bytes である」だけであり、その bytes が物理実行に対応することは示さない。
+それは §4.2 の双射条件が担う。resolver を物理実行の証明として名乗ってはならない。
+また §3.6 の運用前提 (evidence root へ書けるのは trusted harness だけ) はここでも解けない —
+偽の bytes と整合する digest を同じ書き手が置けば、再計算は一致する。
+
 ---
 
 ## 4. formal consumer と origin terminal
