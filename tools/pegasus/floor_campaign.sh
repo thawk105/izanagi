@@ -965,6 +965,128 @@ driver_rc=0
 exec {DRIVER_STDOUT_FD}>&-
 exec {DRIVER_STDERR_FD}>&-
 
+floor_result_failed=0
+if [[ "$driver_rc" -eq 0 ]]; then
+  floor_result_rc=0
+  "$PY" -I -B - "$ATTEMPT_DIR/floor-driver.stdout" "$REPO_ROOT/output" \
+    "$REPO_ROOT" "$REPO_ROOT/$PROTOCOL_PATH" <<'PY' || floor_result_rc=$?
+import json
+import math
+import os
+import sys
+from pathlib import Path
+
+
+def no_duplicates(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON key")
+        value[key] = item
+    return value
+
+
+def reject_constant(token):
+    raise ValueError(f"non-finite JSON constant: {token}")
+
+
+def load_strict(path):
+    with path.open(encoding="utf-8") as handle:
+        return json.load(
+            handle,
+            object_pairs_hook=no_duplicates,
+            parse_constant=reject_constant,
+        )
+
+
+def finite_real(value):
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+try:
+    summary_path = Path(sys.argv[1])
+    output_root = Path(sys.argv[2]).resolve(strict=True)
+    repo_root = Path(sys.argv[3]).resolve(strict=True)
+    protocol_path = Path(sys.argv[4]).resolve(strict=True)
+    if os.path.commonpath((str(repo_root), str(protocol_path))) != str(repo_root):
+        raise ValueError("protocol is outside the fixed repository root")
+    protocol = load_strict(protocol_path)
+    freeze_ref = protocol.get("freeze") if isinstance(protocol, dict) else None
+    stock = protocol.get("stock_configuration") if isinstance(protocol, dict) else None
+    if (not isinstance(freeze_ref, dict)
+            or not isinstance(freeze_ref.get("path"), str)
+            or not isinstance(stock, str) or not stock):
+        raise ValueError("protocol freeze/stock binding is invalid")
+    freeze_path = (repo_root / freeze_ref["path"]).resolve(strict=True)
+    if os.path.commonpath((str(repo_root), str(freeze_path))) != str(repo_root):
+        raise ValueError("freeze is outside the fixed repository root")
+    freeze = load_strict(freeze_path)
+    expected_holdouts = freeze.get("holdouts") if isinstance(freeze, dict) else None
+    if not isinstance(expected_holdouts, dict) or not expected_holdouts:
+        raise ValueError("freeze holdouts are missing or invalid")
+    expected_pairs = {}
+    for holdout_id, holdout in expected_holdouts.items():
+        binding = holdout.get("variant_binding") if isinstance(holdout, dict) else None
+        entries = binding.get("entries") if isinstance(binding, dict) else None
+        if (not isinstance(holdout_id, str) or not holdout_id
+                or not isinstance(entries, dict) or stock not in entries):
+            raise ValueError(f"{holdout_id!r}: freeze configurations are invalid")
+        expected_pairs[holdout_id] = set(entries) - {stock}
+        if (not expected_pairs[holdout_id]
+                or not all(isinstance(item, str) and item
+                           for item in expected_pairs[holdout_id])):
+            raise ValueError(f"{holdout_id}: no required pair configurations")
+    summary = load_strict(summary_path)
+    if (not isinstance(summary, dict)
+            or set(summary) != {"status", "run_dir"}
+            or summary.get("status") != "completed"
+            or not isinstance(summary.get("run_dir"), str)):
+        raise ValueError("driver summary is not one completed run")
+    run_dir = Path(summary["run_dir"])
+    resolved_run_dir = run_dir.resolve(strict=True)
+    if (not run_dir.is_absolute()
+            or os.path.commonpath((str(output_root), str(resolved_run_dir)))
+            != str(output_root)):
+        raise ValueError("run_dir is outside the fixed output root")
+    result_path = resolved_run_dir / "result.json"
+    if result_path.is_symlink() or not result_path.is_file():
+        raise ValueError("result.json is missing, non-regular, or a symlink")
+    result = load_strict(result_path)
+    holdouts = result.get("holdouts") if isinstance(result, dict) else None
+    floors = result.get("floors") if isinstance(result, dict) else None
+    if (not isinstance(holdouts, list) or not holdouts
+            or not all(isinstance(item, str) and item for item in holdouts)
+            or len(set(holdouts)) != len(holdouts)
+            or set(holdouts) != set(expected_holdouts)
+            or not isinstance(floors, dict)
+            or set(floors) != set(expected_holdouts)):
+        raise ValueError("holdout/floors closed set is invalid")
+    for holdout_id in holdouts:
+        floor = floors[holdout_id]
+        if not isinstance(floor, dict):
+            raise ValueError(f"{holdout_id}: floor is not an object")
+        for field in ("scale_ref", "scalar_alt"):
+            if not finite_real(floor.get(field)):
+                raise ValueError(f"{holdout_id}.{field} is not a finite real")
+        pairs = floor.get("pairs")
+        if (not isinstance(pairs, dict)
+                or set(pairs) != expected_pairs[holdout_id]
+                or not all(isinstance(key, str) and key for key in pairs)
+                or not all(finite_real(value) for value in pairs.values())):
+            raise ValueError(f"{holdout_id}.pairs is not a finite-real mapping")
+except (OSError, UnicodeError, ValueError, TypeError, OverflowError,
+        json.JSONDecodeError) as exc:
+    print(f"floor result metrics validation failed: {exc}", file=sys.stderr)
+    raise SystemExit(3)
+PY
+  if [[ "$floor_result_rc" -ne 0 ]]; then
+    driver_rc=$floor_result_rc
+    floor_result_failed=1
+    write_failure "$driver_rc" floor_result_metrics \
+      "pilot floor result is missing finite W-2 floor metrics"
+  fi
+fi
+
 # 出典: certify_calibration.sh:734-762 @ e9b6f69
 job_result_writer_rc=0
 "$PY" -I -B - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$driver_rc" \
@@ -1006,7 +1128,7 @@ PY
 if [[ "$job_result_writer_rc" -ne 0 ]]; then
   write_failure "$job_result_writer_rc" job_result "cannot write floor job result create-only"
 fi
-if [[ "$driver_rc" -ne 0 ]]; then
+if [[ "$driver_rc" -ne 0 && "$floor_result_failed" -eq 0 ]]; then
   write_failure "$driver_rc" floor_driver "pilot floor driver returned nonzero"
 fi
 exit "$driver_rc"
