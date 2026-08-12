@@ -6176,3 +6176,58 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   今回の正しい変異は、判定を分岐の**手前**へ持ち出して pin 無しでも実行されるようにする形だった。
 - 再発検知: 変異が SURVIVED になったとき、まず「変異位置に到達したか」を疑う。
   到達していなければ等価変異ではなく登録の誤りである。
+
+### F248. 生きた台帳の件数を literal 固定した検査が、承認済みの追加で受入を止めた [恒真ゲート] [誤前提]
+
+- 事象: ユーザー裁定で `KNOWN_PROVENANCE_VIOLATIONS` へ entry を 1 件足したところ、
+  件数を **34 で literal 固定**していた検査 2 本が受入全走で赤になった
+  (`2 failed / 9781 passed`)。片方は**関数名にも件数が入っていた**
+  (`..._is_exactly_thirty_four_literal_entries`)。production は正しく、テストの期待値が古い。
+  受入全走 1 回と受入 lease 1 サイクルを空費した。
+- 根本原因: 台帳は**承認のたびに必ず伸びる生きた量**であり、件数の完全一致を固定すると
+  「正常に伸びたこと」を赤として報告する。D316 が別の台帳
+  (`docs/decisions.md` の supersession 走査) で同じ構造を裁定済みだが、
+  **provenance 台帳側には適用されていなかった。**
+- **これは D316 の 2 例目である。** 異なる producer / consumer で独立に再現したため、
+  `DW-G03` の族一般化条件が成立する。台帳を literal で固定する検査は族として見直す。
+- 恒久対応: **未実施。** 検出力の本体 (entry の内容一致) を保ったまま件数固定だけを外す形は
+  正しさゲートの受理集合を変えるため、独立の敵対検証つきで裁定へ返す
+  ([T-940])。当面は追加のたびに件数と literal を
+  同じ変更単位で更新する。
+- 再発検知: 台帳へ entry を足す変更で受入が赤になり、赤の nodeid が件数 assert を含むこと。
+  **追加前に `grep -rn "== <現件数>" <対象 test>` で件数 pin を網羅すれば手前で出せる。**
+
+### F249. main 取り込みが submodule pointer を変えても working tree が追随せず、受入が起動前に止まった [手順漏れ]
+
+- 事象: 受入全走が `stage=prerun-clean rc=70` で停止した。`git status` は
+  ` M external/ccbench` を示し、working tree は `d706650c`、index の記録は `511c9538` だった。
+  wave 開始時に `git submodule update --init --recursive` を実行済みで、その後の main 取り込みが
+  pointer を進めていた。**走行前に止まったので損失は小さいが、lease 待ちを 1 周やり直した。**
+- 根本原因: `git merge` は superproject が記録する submodule commit を更新するが、
+  **submodule の working tree を checkout し直さない**。初期化だけを手順に書いていたため、
+  取り込みのたびに drift しうることが手順から抜けていた。
+- 恒久対応: `DW-O20` に「取り込み後・受入投入前に `git submodule update --recursive` で
+  記録へ揃える」を追加した。`deinit` は使わない方針は不変。
+- 再発検知: 受入が `prerun-clean` で止まり `git status` に ` M <submodule path>` が出ること。
+
+### F250. 背景 job の完了通知が出力ゼロのまま「完了 exit 0」で返る [偽完了] [手順漏れ]
+
+- 事象: dev-wave の待ち手を背景 Bash (`run_in_background`) で起動すると、**待たずに
+  「完了・exit code 0」の通知が出力ファイル空のまま返る**事例を 1 セッション中に 5 回超観測した。
+  `Monitor` へ切り替えても、`.done` も成果物も存在しないのに
+  `SETTLED rc=0 bytes=2637` のような**実測値らしき数値を含む早すぎるイベント**が混じった。
+  偽完了を信じた結果、子が編集中の tree を 2 回測って「まだ赤」と誤読しかけた。
+- 根本原因: 背景実行の通知経路が producer の実状態と束縛されていない。
+  待ち手自体は健全である — 同じ呼び出しを**前景**で走らせると
+  `timeout 70 python3 tools/dev_wave_wait.py producer ... --max-wait-seconds 60` が
+  60 秒待って `rc=70` (timeout) を正しく返した。
+- 恒久対応: 完了判定を **3 点照合**に固定する — (1) `.done` が存在し exit code を持つ、
+  (2) 成果物が存在し**非空**、(3) producer が **pid file の pid** で死亡している。
+  長時間の待ちは**前景の bounded wait** を既定とし、
+  `timeout 560 python3 tools/dev_wave_wait.py producer --done-file ... --artifact-file ...
+  --pid-file ... --max-wait-seconds 540` を Bash の 10 分上限内で区切って繰り返す。
+  背景通知は「見に行く契機」にはしてよいが**判定の根拠にしてはならない**。
+  実体は `tools/dev_wave_wait.py` の producer 待ちと `DW-O01` の
+  「完了は `.done` と exit code だけで判定し、grep も通知も判定にしない」である。
+- 再発検知: 待ち手が返った直後に 3 点照合を行い、`.done` 不在または成果物が空または
+  producer 生存のいずれかなら**何もせず待ち直す**。本 wave では毎回これで弾き実害ゼロだった。

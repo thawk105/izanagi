@@ -1,0 +1,33 @@
+{
+  "entries": {
+    "build_authority_manifest": {
+      "byte_length": 1512,
+      "canonical_sha256": "006b05079fe8c73bc379945446766c729672fcf1a01cdc298f1cbf8ab3ccf162"
+    },
+    "build_execution_provenance": {
+      "byte_length": 484,
+      "canonical_sha256": "5916e641dc7e183a13a910cd36307e89551efe061efa1fc6c980ea3111754283"
+    },
+    "build_launch_admission_inputs": {
+      "byte_length": 962,
+      "canonical_sha256": "caece59c4092933460a7844f14430bd3a3957957747552bff90483c6eb676133"
+    },
+    "build_ordered_wal_projection": {
+      "byte_length": 700,
+      "canonical_sha256": "a389e665c493b73972565289e07dd5a657e58e9a712719fff181b0a484024732"
+    },
+    "build_recovery_envelope_inputs": {
+      "byte_length": 14909,
+      "canonical_sha256": "c0e4c5a93f99607ac2b2a1e94fdfd13f19ab662e3079438c3b3a3ddf902971d6"
+    },
+    "build_result_evidence_record": {
+      "byte_length": 1848,
+      "canonical_sha256": "c5566c7a4e83c9c63b5042b4af8388470d9332bef0919aecfb4e789c35d3b74d"
+    },
+    "build_source_closure_record": {
+      "byte_length": 1697,
+      "canonical_sha256": "e1565c1b62e9dd940fcce62cdccbc5f8c55eede8cbe5c3902f51855430c155b1"
+    }
+  },
+  "schema_version": "izanagi-reflux-fixture-baseline/v1"
+}

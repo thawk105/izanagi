@@ -21,7 +21,7 @@ import tempfile
 import threading
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -33,6 +33,10 @@ from .autonomous_trial_completeness import (
 )
 from . import s8c_preregistration
 from . import s8c_acceptance_receipt
+
+if TYPE_CHECKING:
+    from .reflux_formal_consumer import OriginTerminalProjection
+    from .reflux_origin_binding import OriginBindingCapability
 
 
 
@@ -68,9 +72,37 @@ _LIFECYCLE_START_KEYS = frozenset({
     "manifest_sha256", "measurement_head", "activation_report_digest_sha256",
     "launch_admission_sha256",
 })
-_LIFECYCLE_TERMINAL_KEYS = frozenset({
+_LIFECYCLE_TERMINAL_BASE_KEYS = frozenset({
     "schema_version", "event", "trial_id", "terminal_status",
     "report_sha256", "attempt_journal_sha256",
+})
+_LIFECYCLE_TERMINAL_KEYS = frozenset({
+    _LIFECYCLE_TERMINAL_BASE_KEYS,
+    _LIFECYCLE_TERMINAL_BASE_KEYS | {"origin_terminal_projection"},
+})
+_ORIGIN_BINDING_KEYS = frozenset({
+    "authority_blob_sha256", "source_closure_sha256", "origin_id", "cell_key",
+    "authority_workload", "axis_semantics_sha256", "verifier_policy_sha256",
+    "environment_contract_sha256", "campaign_id", "trial_workload",
+    "measurement_head", "store_scope", "issuer_seal",
+})
+_LAUNCH_ADMISSION_BASE_KEYS = frozenset({
+    "mode", "certifying", "reason_code", "trial_id", "workloads", "binding",
+    "activation_report_digest_sha256",
+})
+_LAUNCH_ADMISSION_KEYS = frozenset({
+    _LAUNCH_ADMISSION_BASE_KEYS,
+    _LAUNCH_ADMISSION_BASE_KEYS | {"origin_binding"},
+})
+_ORIGIN_WORKLOAD_KEYS = frozenset({"descriptor_sha256", "records", "threads"})
+_ORIGIN_TERMINAL_PROJECTION_KEYS = frozenset({
+    "schema_version", "reason_code", "formal_receipt_sha256",
+    "evidence_root_sha256", "authority_blob_sha256", "origin_id", "cell_key",
+    "terminal_payload_sha256",
+})
+_FORMAL_REASON_CODES = frozenset({
+    "FC01", "FC02", "FC03", "FC04", "FC05a", "FC05b", "FC05c", "FC06",
+    "FC07", "FC09", "FC10", "P6Unavailable",
 })
 _GIT_ENV_ALLOW = frozenset({
     "LANG",
@@ -170,6 +202,7 @@ class _TrialLifecycleCapabilityState:
     run_root: str
     start_row_sha256: str
     launch_admission_sha256: str
+    origin_binding: OriginBindingCapability | None
     consumed: bool = False
 
 
@@ -317,6 +350,92 @@ def _exact_keys(value: Mapping[str, Any], expected: frozenset[str], *, label: st
         missing = sorted(expected - actual)
         unknown = sorted(actual - expected)
         _fail("schema", f"{label} key set differs: missing={missing}, unknown={unknown}")
+
+
+def _validate_origin_binding_record(
+    record: object,
+    *,
+    trial: TrialSpec | None = None,
+    measurement_head: str | None = None,
+    gate: str,
+) -> dict[str, Any]:
+    if not isinstance(record, Mapping):
+        _fail(gate, "origin_binding must be a non-null object")
+    if frozenset(record) != _ORIGIN_BINDING_KEYS:
+        _fail(gate, "origin_binding exact keys differ")
+    workload = record.get("authority_workload")
+    if not isinstance(workload, Mapping) or frozenset(workload) != _ORIGIN_WORKLOAD_KEYS:
+        _fail(gate, "origin authority_workload exact keys differ")
+    for field in (
+        "authority_blob_sha256", "source_closure_sha256",
+        "axis_semantics_sha256", "verifier_policy_sha256",
+        "environment_contract_sha256",
+    ):
+        value = record.get(field)
+        if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+            _fail(gate, f"origin_binding {field} is invalid")
+    descriptor = workload.get("descriptor_sha256")
+    if type(descriptor) is not str or _SHA256_RE.fullmatch(descriptor) is None:
+        _fail(gate, "origin authority descriptor is invalid")
+    for field in ("records", "threads"):
+        value = workload.get(field)
+        if type(value) is not int or value < 1:
+            _fail(gate, f"origin authority {field} is invalid")
+    for field in ("origin_id", "cell_key", "campaign_id", "trial_workload"):
+        value = record.get(field)
+        if type(value) is not str or not value:
+            _fail(gate, f"origin_binding {field} is invalid")
+    commit = record.get("measurement_head")
+    if type(commit) is not str or _COMMIT_RE.fullmatch(commit) is None:
+        _fail(gate, "origin_binding measurement_head is invalid")
+    if (
+        record.get("store_scope") != "fixture"
+        or record.get("issuer_seal") != "launch-admission-gate/v1"
+    ):
+        _fail(gate, "origin_binding issuer projection is invalid")
+    if trial is not None:
+        expected_workload = HOLDOUT_BINDINGS[trial.holdout]["workload"]
+        if (
+            record.get("campaign_id") != trial.campaign_id
+            or record.get("trial_workload") != expected_workload
+        ):
+            _fail(gate, "origin_binding differs from the registered trial")
+    if measurement_head is not None and commit != measurement_head:
+        _fail(gate, "origin_binding measurement_head differs from the report")
+    return dict(record)
+
+
+def _validate_origin_terminal_projection(
+    value: object,
+    *,
+    gate: str,
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        _fail(gate, "origin_terminal_projection must be an object")
+    if frozenset(value) != _ORIGIN_TERMINAL_PROJECTION_KEYS:
+        _fail(gate, "origin_terminal_projection exact keys differ")
+    reason = value.get("reason_code")
+    if reason not in _FORMAL_REASON_CODES:
+        _fail(gate, "origin terminal reason_code is outside the closed set")
+    rejected = reason != "P6Unavailable"
+    for field in ("formal_receipt_sha256", "evidence_root_sha256"):
+        digest = value.get(field)
+        if rejected:
+            if digest is not None:
+                _fail(gate, f"rejected origin terminal {field} must be null")
+        elif type(digest) is not str or _SHA256_RE.fullmatch(digest) is None:
+            _fail(gate, f"P6Unavailable origin terminal {field} is invalid")
+    for field in ("authority_blob_sha256", "terminal_payload_sha256"):
+        digest = value.get(field)
+        if type(digest) is not str or _SHA256_RE.fullmatch(digest) is None:
+            _fail(gate, f"origin terminal {field} is invalid")
+    for field in ("origin_id", "cell_key"):
+        token = value.get(field)
+        if type(token) is not str or not token:
+            _fail(gate, f"origin terminal {field} is invalid")
+    if value.get("schema_version") != "OriginTerminalProjection/v1":
+        _fail(gate, "origin terminal schema_version is invalid")
+    return dict(value)
 
 
 def _parse_trials(
@@ -1288,8 +1407,10 @@ def assert_issued_trial_launch_admission(
 
 def launch_admission_record(
     admission: TrialLaunchAdmission,
+    *,
+    origin_binding: OriginBindingCapability | None = None,
 ) -> dict[str, Any]:
-    """Return the exact JSON record shared by run-start and terminal report."""
+    """Return the shared exact record, omitting unissued origin projection."""
     assert_issued_trial_launch_admission(admission)
     binding = admission.binding
     binding_record = None
@@ -1302,7 +1423,7 @@ def launch_admission_record(
                 "ycsb_rratio",
             )
         }
-    return {
+    record = {
         "mode": admission.mode,
         "certifying": admission.certifying,
         "reason_code": admission.reason_code,
@@ -1313,6 +1434,25 @@ def launch_admission_record(
             admission.activation_report_digest_sha256
         ),
     }
+    if origin_binding is not None:
+        from . import reflux_origin_binding
+
+        origin_record = (
+            reflux_origin_binding.origin_binding_capability_record(origin_binding)
+        )
+        if (
+            binding is None
+            or admission.mode != "registered-effective"
+            or origin_record["campaign_id"] != binding.campaign_id
+            or origin_record["trial_workload"] != binding.workload
+            or origin_record["measurement_head"] != binding.measurement_head
+        ):
+            _fail(
+                "launch-admission",
+                "origin capability differs from the registered launch binding",
+            )
+        record["origin_binding"] = origin_record
+    return record
 
 
 def assert_rederived_launch_admission(
@@ -1325,6 +1465,7 @@ def assert_rederived_launch_admission(
     allow_unregistered_exploratory: bool,
     repository_root: Path,
     registry_path: Path,
+    origin_binding: OriginBindingCapability | None = None,
 ) -> None:
     """Require a supplied admission to equal a fresh public-gate derivation."""
     assert_issued_trial_launch_admission(admission)
@@ -1347,7 +1488,11 @@ def assert_rederived_launch_admission(
             repository_root=repository_root,
             registry_path=registry_path,
         )
-    if launch_admission_record(admission) != launch_admission_record(derived):
+    if launch_admission_record(
+        admission, origin_binding=origin_binding,
+    ) != launch_admission_record(
+        derived, origin_binding=origin_binding,
+    ):
         _fail("launch-admission", "supplied admission differs from fresh derivation")
 
 
@@ -1371,7 +1516,11 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
         if event == "start":
             _exact_keys(value, _LIFECYCLE_START_KEYS, label=f"lifecycle line {lineno}")
         elif event == "terminal":
-            _exact_keys(value, _LIFECYCLE_TERMINAL_KEYS, label=f"lifecycle line {lineno}")
+            if frozenset(value) not in _LIFECYCLE_TERMINAL_KEYS:
+                _fail(
+                    "lifecycle-schema",
+                    f"lifecycle line {lineno} terminal exact keys differ",
+                )
         else:
             _fail("lifecycle-schema", f"lifecycle line {lineno} has unknown event")
         trial_id = value.get("trial_id")
@@ -1408,6 +1557,11 @@ def _load_lifecycle_rows(data: bytes) -> tuple[dict[str, Any], ...]:
                     not isinstance(raw, str) or _SHA256_RE.fullmatch(raw) is None
                 ):
                     _fail("lifecycle-schema", f"terminal {field} is invalid")
+            if "origin_terminal_projection" in value:
+                _validate_origin_terminal_projection(
+                    value["origin_terminal_projection"],
+                    gate="lifecycle-schema",
+                )
         rows.append(dict(value))
     return tuple(rows)
 
@@ -1532,6 +1686,7 @@ def record_trial_start_once(
     repository_root: Path,
     registry_path: Path = DEFAULT_REGISTRY_PATH,
     lifecycle_path: Path = DEFAULT_LIFECYCLE_PATH,
+    origin_binding: OriginBindingCapability | None = None,
 ) -> TrialLifecycleToken:
     """Atomically record one formal start in a single shared lifecycle ledger.
 
@@ -1548,12 +1703,15 @@ def record_trial_start_once(
         allow_unregistered_exploratory=False,
         repository_root=repository_root,
         registry_path=registry_path,
+        origin_binding=origin_binding,
     )
     if admission.mode != "registered-effective" or admission.binding is None:
         _fail("lifecycle-start", "only registered-effective admission may start")
     binding = admission.binding
     admission_sha256 = hashlib.sha256(
-        _canonical_json_bytes(launch_admission_record(admission))
+        _canonical_json_bytes(
+            launch_admission_record(admission, origin_binding=origin_binding)
+        )
     ).hexdigest()
     row = {
         "schema_version": LIFECYCLE_SCHEMA_VERSION,
@@ -1598,6 +1756,7 @@ def record_trial_start_once(
             run_root=row["run_root"],
             start_row_sha256=token.start_row_sha256,
             launch_admission_sha256=admission_sha256,
+            origin_binding=origin_binding,
         )
         return payload, (token, state)
 
@@ -1617,8 +1776,9 @@ def record_trial_terminal(
     token: TrialLifecycleToken,
     *,
     terminal_status: str,
+    origin_terminal_projection: OriginTerminalProjection | None = None,
 ) -> None:
-    """Consume one exact start capability and derive terminal hashes internally."""
+    """Consume one start token and append the optional formal projection."""
     if (
         type(token) is not TrialLifecycleToken
         or token._seal is not _TRIAL_LIFECYCLE_TOKEN_SEAL
@@ -1626,6 +1786,15 @@ def record_trial_terminal(
         _fail("lifecycle-token", "token was not issued by record_trial_start_once")
     if terminal_status not in {"complete", "partial", "indeterminate"}:
         _fail("lifecycle-terminal", "terminal_status is outside the closed set")
+    projection_record = None
+    if origin_terminal_projection is not None:
+        from . import reflux_formal_consumer
+
+        projection_record = (
+            reflux_formal_consumer.origin_terminal_projection_record(
+                origin_terminal_projection
+            )
+        )
     with _TRIAL_LIFECYCLE_CAPABILITIES_LOCK:
         state = _TRIAL_LIFECYCLE_CAPABILITIES.get(id(token))
         if state is None or state.token is not token:
@@ -1635,6 +1804,26 @@ def record_trial_terminal(
             )
         if state.consumed:
             _fail("lifecycle-token", "lifecycle capability was already consumed")
+        if (state.origin_binding is None) != (projection_record is None):
+            _fail(
+                "lifecycle-origin",
+                "origin binding and terminal projection presence differ",
+            )
+        if state.origin_binding is not None:
+            from . import reflux_origin_binding
+
+            origin_record = reflux_origin_binding.origin_binding_capability_record(
+                state.origin_binding
+            )
+            terminal_record = projection_record["origin_terminal_projection"]
+            if any(
+                terminal_record[field] != origin_record[field]
+                for field in ("authority_blob_sha256", "origin_id", "cell_key")
+            ):
+                _fail(
+                    "lifecycle-origin",
+                    "terminal projection differs from the start origin binding",
+                )
         state.consumed = True
 
     if terminal_status == "indeterminate":
@@ -1662,6 +1851,8 @@ def record_trial_terminal(
         "report_sha256": report_sha256,
         "attempt_journal_sha256": attempt_journal_sha256,
     }
+    if projection_record is not None:
+        row.update(projection_record)
     payload = _canonical_json_bytes(row) + b"\n"
 
     def append_terminal(rows):
@@ -2057,6 +2248,29 @@ def _receipt_lifecycle_snapshot(
                 f"trial {trial.trial_id!r} start row differs from accepted bytes",
             )
         terminal = terminals[0]
+        report_has_origin = "origin_terminal_projection" in item.report
+        terminal_has_origin = "origin_terminal_projection" in terminal
+        if report_has_origin != terminal_has_origin:
+            _fail(
+                "acceptance-lifecycle",
+                f"trial {trial.trial_id!r} origin terminal projection presence differs",
+            )
+        if report_has_origin:
+            report_projection = _validate_origin_terminal_projection(
+                item.report["origin_terminal_projection"],
+                gate="acceptance-lifecycle",
+            )
+            lifecycle_projection = _validate_origin_terminal_projection(
+                terminal["origin_terminal_projection"],
+                gate="acceptance-lifecycle",
+            )
+            if _canonical_json_bytes(report_projection) != _canonical_json_bytes(
+                lifecycle_projection
+            ):
+                _fail(
+                    "acceptance-lifecycle",
+                    f"trial {trial.trial_id!r} origin terminal projection differs",
+                )
         if (
             terminal["terminal_status"] != accepted.status
             or terminal["report_sha256"]
@@ -2079,6 +2293,7 @@ def _expected_registered_launch_admission_record(
     trial: TrialSpec,
     measurement_head: str,
     activation_report_digest_sha256: str,
+    origin_binding_record: object | None = None,
 ) -> dict[str, Any]:
     workload = HOLDOUT_BINDINGS[trial.holdout]["workload"]
     manifest = load_trial_manifest(manifest_path)
@@ -2121,7 +2336,7 @@ def _expected_registered_launch_admission_record(
         "workload": workload,
         "ycsb_rratio": HOLDOUT_BINDINGS[trial.holdout]["ycsb_rratio"],
     }
-    return {
+    record = {
         "mode": "registered-effective",
         "certifying": False,
         "reason_code": "registered-effective-non-certifying",
@@ -2130,6 +2345,14 @@ def _expected_registered_launch_admission_record(
         "binding": binding,
         "activation_report_digest_sha256": activation_report_digest_sha256,
     }
+    if origin_binding_record is not None:
+        record["origin_binding"] = _validate_origin_binding_record(
+            origin_binding_record,
+            trial=trial,
+            measurement_head=measurement_head,
+            gate="acceptance-launch-admission",
+        )
+    return record
 
 
 def _exclusive_create_acceptance_receipt(
@@ -2282,6 +2505,19 @@ def assert_trial_registry_acceptance(
                     "acceptance-launch-admission",
                     "report and run-start launch_admission must exist and match exactly",
                 )
+            if frozenset(report_admission) not in _LAUNCH_ADMISSION_KEYS:
+                _fail(
+                    "acceptance-launch-admission",
+                    "launch_admission exact keys are not the closed 7/8 alternatives",
+                )
+            origin_binding_record = None
+            if "origin_binding" in report_admission:
+                origin_binding_record = _validate_origin_binding_record(
+                    report_admission["origin_binding"],
+                    trial=trial,
+                    measurement_head=measurement_head,
+                    gate="acceptance-launch-admission",
+                )
             expected_admission = _expected_registered_launch_admission_record(
                 manifest_path=Path(manifest_path),
                 registry_path=Path(registry_path),
@@ -2291,12 +2527,34 @@ def assert_trial_registry_acceptance(
                 activation_report_digest_sha256=(
                     effective_preregistration.report_digest_sha256
                 ),
+                origin_binding_record=origin_binding_record,
             )
             if dict(report_admission) != expected_admission:
                 _fail(
                     "acceptance-launch-admission",
                     "launch_admission differs from the accepted binding derivation",
                 )
+            has_terminal_projection = "origin_terminal_projection" in report
+            if (origin_binding_record is None) != (not has_terminal_projection):
+                _fail(
+                    "acceptance-origin",
+                    "origin binding and terminal projection presence differ",
+                )
+            if origin_binding_record is not None:
+                terminal_projection = _validate_origin_terminal_projection(
+                    report["origin_terminal_projection"],
+                    gate="acceptance-origin",
+                )
+                if any(
+                    terminal_projection[field] != origin_binding_record[field]
+                    for field in (
+                        "authority_blob_sha256", "origin_id", "cell_key",
+                    )
+                ):
+                    _fail(
+                        "acceptance-origin",
+                        "terminal projection differs from launch origin binding",
+                    )
             historical_manifest = _blob_at_commit(
                 root, commit_id=measurement_head, relative_path=manifest_relative,
             )
@@ -2381,7 +2639,7 @@ def assert_trial_registry_acceptance(
             _resolved_journal, journal_relative = _repo_relative(
                 item.journal_path, root, label="attempt journal",
             )
-            receipt_trials.append({
+            receipt_trial = {
                 "trial_id": trial.trial_id,
                 "arm": trial.arm,
                 "holdout": trial.holdout,
@@ -2394,7 +2652,15 @@ def assert_trial_registry_acceptance(
                 "attempt_journal_sha256": hashlib.sha256(
                     item.journal_bytes
                 ).hexdigest(),
-            })
+            }
+            if "origin_terminal_projection" in item.report:
+                receipt_trial["origin_terminal_projection"] = (
+                    _validate_origin_terminal_projection(
+                        item.report["origin_terminal_projection"],
+                        gate="acceptance-trial-projection",
+                    )
+                )
+            receipt_trials.append(receipt_trial)
         reason_codes = sorted(
             s8c_acceptance_receipt.MANDATORY_NON_CERTIFYING_REASONS
         )
