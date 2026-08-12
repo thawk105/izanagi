@@ -4,8 +4,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
-from pathlib import PurePosixPath
+from dataclasses import InitVar, dataclass
+from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 from typing import Any, Mapping, TypeAlias
 
@@ -32,6 +34,14 @@ RUN_KINDS = frozenset({"builder", "liveness", "main"})
 TERMINAL_STATES = frozenset({
     "pre_release_invalid", "post_release_pre_measurement_invalid",
     "incomplete_after_start", "terminal_reduced", "valid",
+})
+LIMITATION_IDS: frozenset[str] = frozenset({
+    "shared_mount_repository_reachability_not_eliminated",
+    "execution_mediation_incomplete",
+    "guard_snapshot_to_release_race_not_eliminated",
+    "approval_receipt_trust_root_absent",
+    "repository_absence_not_proven_from_node",
+    "budget_ledger_trust_root_absent",
 })
 
 _PRE = "pre_release"
@@ -72,6 +82,24 @@ _SLOT = re.compile(r"slot-[0-9]{2}\Z")
 
 class T810SchemaError(ValueError):
     """A single fail-closed T-810 schema violation."""
+
+
+_AUTHORIZATION_TOKEN_SENTINEL = object()
+
+
+@dataclass(frozen=True)
+class AuthorizationToken:
+    """Capability produced only after an exact launch-authorization check."""
+
+    document: Mapping[str, Any]
+    run_kind: str
+    preregistration_sha256: str
+    policy_sha256: str
+    _sentinel: InitVar[object]
+
+    def __post_init__(self, _sentinel: object) -> None:
+        if _sentinel is not _AUTHORIZATION_TOKEN_SENTINEL:
+            _fail("$", "AuthorizationToken is verifier-constructed only")
 
 
 def _fail(path: str, reason: str) -> None:
@@ -241,6 +269,15 @@ def _reasons(value: Any, path: str) -> list[str]:
     return values
 
 
+def validate_limitation_ids(value: Any, path: str = "$.limitations") -> list[str]:
+    """Validate a unique list drawn only from the frozen limitation vocabulary."""
+    values = _strings(value, path, unique=True)
+    for index, limitation_id in enumerate(values):
+        if limitation_id not in LIMITATION_IDS:
+            _fail(f"{path}[{index}]", "unknown limitation id")
+    return values
+
+
 def _schema(document: Document, literal: str, path: str = "$") -> None:
     if document["schema_version"] != literal:
         _fail(f"{path}.schema_version", "schema literal mismatch")
@@ -250,6 +287,8 @@ _SLOT_FIELDS = frozenset({
     "slot_id", "logical_request_id", "job_name", "qsub_argv", "wrapper_argv",
     "pbs_stdout_path", "pbs_stderr_path", "binary_source_path", "binary_sha256",
     "wrapper_path", "wrapper_sha256", "runner_policy_path", "runner_policy_sha256",
+    "expected_dependency_manifest_sha256", "expected_module_list_sha256",
+    "expected_numa_nodes", "script_path",
 })
 _INTENT_FIELDS = frozenset({
     "schema_version", "group_id", "run_kind", "attempt_ordinal", "policy_sha256",
@@ -269,8 +308,9 @@ def validate_launch_intent(value: Any) -> Document:
         _fail("$.attempt_ordinal", "must be exact int 1 or 2")
     for field in ("policy_sha256", "preregistration_sha256"):
         _hash(doc[field], f"$.{field}")
-    for field in ("node_count", "round_count"):
-        _integer(doc[field], f"$.{field}", minimum=1)
+    for field, expected in (("node_count", NODE_COUNT), ("round_count", ROUND_COUNT)):
+        if isinstance(doc[field], bool) or doc[field] != expected:
+            _fail(f"$.{field}", f"must be exact int {expected}")
     for field, expected in (("ready_timeout_seconds", READY_TIMEOUT_SECONDS),
                             ("start_spread_max_ns", START_SPREAD_MAX_NS)):
         if isinstance(doc[field], bool) or doc[field] != expected:
@@ -292,14 +332,21 @@ def validate_launch_intent(value: Any) -> Document:
             if item in unique[field]:
                 _fail(f"{path}.{field}", "duplicate value")
             unique[field].add(item)
-        for field in ("pbs_stdout_path", "pbs_stderr_path", "binary_source_path", "wrapper_path", "runner_policy_path"):
+        for field in (
+            "pbs_stdout_path", "pbs_stderr_path", "binary_source_path", "wrapper_path",
+            "runner_policy_path", "script_path",
+        ):
             item = _path(slot[field], f"{path}.{field}")
             if field in unique:
                 if item in unique[field]:
                     _fail(f"{path}.{field}", "duplicate value")
                 unique[field].add(item)
-        for field in ("binary_sha256", "wrapper_sha256", "runner_policy_sha256"):
+        for field in (
+            "binary_sha256", "wrapper_sha256", "runner_policy_sha256",
+            "expected_dependency_manifest_sha256", "expected_module_list_sha256",
+        ):
             _hash(slot[field], f"{path}.{field}")
+        _integer(slot["expected_numa_nodes"], f"{path}.expected_numa_nodes", minimum=1)
         qsub = _argv(slot["qsub_argv"], f"{path}.qsub_argv")
         wrapper = _argv(slot["wrapper_argv"], f"{path}.wrapper_argv")
         if len(wrapper) < 2 or wrapper[:2] != ["python3.10", slot["wrapper_path"]]:
@@ -332,6 +379,62 @@ def validate_launch_authorization(value: Any) -> Document:
     return doc
 
 
+def verify_launch_authorization(
+    document: Any,
+    *,
+    run_kind: str,
+    preregistration_sha256: str,
+    policy_sha256: str,
+) -> AuthorizationToken:
+    """Return the sole effect capability after validating all bound digests."""
+    doc = validate_launch_authorization(document)
+    _literal(run_kind, RUN_KINDS, "$.run_kind")
+    _hash(preregistration_sha256, "$.preregistration_sha256")
+    _hash(policy_sha256, "$.policy_sha256")
+    if doc["preregistration_sha256"] != preregistration_sha256:
+        _fail("$.preregistration_sha256", "authorization binding mismatch")
+    if doc["policy_sha256"] != policy_sha256:
+        _fail("$.policy_sha256", "authorization binding mismatch")
+    if run_kind not in doc["run_kinds"]:
+        _fail("$.run_kinds", "authorization does not include run_kind")
+    return AuthorizationToken(
+        MappingProxyType(doc), run_kind, preregistration_sha256, policy_sha256,
+        _AUTHORIZATION_TOKEN_SENTINEL,
+    )
+
+
+def assert_repository_external(
+    path: str | os.PathLike[str], *, repository_roots: Any,
+) -> Path:
+    """Return an absolute real path only when it is outside every worktree root."""
+    try:
+        candidate = Path(os.fspath(path))
+    except TypeError:
+        _fail("$.path", "not a filesystem path")
+    if not candidate.is_absolute():
+        _fail("$.path", "must be absolute")
+    if isinstance(repository_roots, (str, bytes, os.PathLike)):
+        _fail("$.repository_roots", "must be a collection of repository roots")
+    try:
+        raw_roots = list(repository_roots)
+    except TypeError:
+        _fail("$.repository_roots", "must be a collection of repository roots")
+    if not raw_roots:
+        _fail("$.repository_roots", "must not be empty")
+    resolved = candidate.resolve(strict=False)
+    for index, raw_root in enumerate(raw_roots):
+        try:
+            root = Path(os.fspath(raw_root))
+        except TypeError:
+            _fail(f"$.repository_roots[{index}]", "not a filesystem path")
+        if not root.is_absolute():
+            _fail(f"$.repository_roots[{index}]", "must be absolute")
+        root = root.resolve(strict=False)
+        if resolved == root or root in resolved.parents:
+            _fail("$.path", "must be outside every repository worktree")
+    return resolved
+
+
 _MANIFEST_FIELDS = frozenset({
     "schema_version", "group_id", "created_at", "launch_intent_sha256",
     "guard_receipt_sha256", "budget_receipt_sha256", "release_token_commitment",
@@ -354,15 +457,14 @@ _REQUEST_FIELDS = frozenset({
 })
 
 
-def validate_submission_receipt(value: Any, *, expected_node_count: int = NODE_COUNT) -> Document:
+def validate_submission_receipt(value: Any) -> Document:
     doc = _object(value, frozenset({"schema_version", "group_manifest_sha256", "created_at", "requests"}), "$")
     _schema(doc, SUBMISSION_RECEIPT_SCHEMA)
     _hash(doc["group_manifest_sha256"], "$.group_manifest_sha256")
     _string(doc["created_at"], "$.created_at")
     requests = doc["requests"]
-    _integer(expected_node_count, "$.expected_node_count", minimum=1)
-    if not isinstance(requests, list) or len(requests) != expected_node_count:
-        _fail("$.requests", f"must contain exactly {expected_node_count} entries")
+    if not isinstance(requests, list) or len(requests) != NODE_COUNT:
+        _fail("$.requests", f"must contain exactly {NODE_COUNT} entries")
     pbs_ids: set[str] = set()
     for index, raw in enumerate(requests):
         path = f"$.requests[{index}]"
@@ -419,10 +521,7 @@ _NODE_FIELDS = frozenset({
     "previous_event_sha256", "limitations", "payload",
 })
 _HARDWARE_FIELDS = frozenset({"cpu_model", "physical_cores", "hyperthreading", "memory", "numa_nodes", "cache", "frequency_policy"})
-_LIMITATION_FIELDS = frozenset({
-    "shared_mount_repository_reachability_not_eliminated",
-    "execution_mediation_incomplete",
-})
+_LIMITATION_FIELDS = LIMITATION_IDS
 _PROCESS_FIELDS = frozenset({"pid", "uid", "cpu_affinity", "command"})
 _PROCESS_OBSERVATION_FIELDS = _PROCESS_FIELDS - {"pid"}
 
@@ -541,15 +640,10 @@ def validate_node_event(value: Any) -> Document:
     limitations = _object(doc["limitations"], _LIMITATION_FIELDS, "$.limitations")
     for field in limitations:
         _boolean(limitations[field], f"$.limitations.{field}")
-    event = _literal(doc["event"], frozenset({"preflight", "ready", "start_ack", "measurement", "terminal"}), "$.event")
+    event = _literal(doc["event"], frozenset({"preflight", "start_ack", "measurement", "terminal"}), "$.event")
     payload_path = "$.payload"
     if event == "preflight":
         _preflight(doc["payload"], payload_path)
-    elif event == "ready":
-        item = _object(doc["payload"], frozenset({"preflight_event_sha256", "ready", "reason_codes"}), payload_path)
-        _hash(item["preflight_event_sha256"], f"{payload_path}.preflight_event_sha256")
-        _boolean(item["ready"], f"{payload_path}.ready")
-        _reasons(item["reason_codes"], f"{payload_path}.reason_codes")
     elif event == "start_ack":
         item = _object(doc["payload"], frozenset({
             "release_marker_sha256", "cancel_marker_absent", "ack_nonce",
@@ -570,9 +664,19 @@ def validate_node_event(value: Any) -> Document:
         _isolation(item["isolation_after"], f"{payload_path}.isolation_after")
     else:
         item = _object(doc["payload"], frozenset({"state", "reason_codes", "measurement_started", "completed_rounds"}), payload_path)
-        _literal(item["state"], TERMINAL_STATES, f"{payload_path}.state")
-        _reasons(item["reason_codes"], f"{payload_path}.reason_codes")
-        _boolean(item["measurement_started"], f"{payload_path}.measurement_started")
+        state = _literal(item["state"], TERMINAL_STATES, f"{payload_path}.state")
+        reasons = _reasons(item["reason_codes"], f"{payload_path}.reason_codes")
+        if not reasons:
+            _fail(f"{payload_path}.reason_codes", "must contain at least one reason")
+        boundary = (_PRE if state == "pre_release_invalid" else _POST
+                    if state == "post_release_pre_measurement_invalid" else _STARTED)
+        if any(classify_terminal_state(boundary, reason) != state for reason in reasons):
+            _fail(f"{payload_path}.reason_codes", "contains a reason not classified to state")
+        measurement_started = _boolean(
+            item["measurement_started"], f"{payload_path}.measurement_started",
+        )
+        if state in {"pre_release_invalid", "post_release_pre_measurement_invalid"} and measurement_started:
+            _fail(f"{payload_path}.measurement_started", "forbidden before measurement start")
         _integer(item["completed_rounds"], f"{payload_path}.completed_rounds")
     return doc
 
@@ -643,11 +747,11 @@ _TERMINAL_FIELDS = frozenset({
     "reason_codes", "release_event_sha256", "start_spread_ns", "completed_slot_ids",
     "dropped_slot_ids", "node_receipt_sha256_by_slot", "expected_presence",
     "actual_presence", "presence_valid", "pre_validator_receipt_sha256",
-    "post_validator_receipt_sha256", "retry_allowed",
+    "post_validator_receipt_sha256", "retry_allowed", "limitations",
 })
 
 
-def validate_terminal_state(value: Any, *, expected_node_count: int = NODE_COUNT) -> Document:
+def validate_terminal_state(value: Any) -> Document:
     doc = _object(value, _TERMINAL_FIELDS, "$")
     _schema(doc, TERMINAL_STATE_SCHEMA)
     _hash(doc["group_manifest_sha256"], "$.group_manifest_sha256")
@@ -674,19 +778,18 @@ def validate_terminal_state(value: Any, *, expected_node_count: int = NODE_COUNT
         _fail("$.start_spread_ns", "does not exceed frozen maximum")
     completed = _strings(doc["completed_slot_ids"], "$.completed_slot_ids", unique=True)
     dropped = _strings(doc["dropped_slot_ids"], "$.dropped_slot_ids", unique=True)
-    _integer(expected_node_count, "$.expected_node_count", minimum=1)
     all_slots = completed + dropped
-    expected_slots = [f"slot-{index:02d}" for index in range(expected_node_count)]
-    if sorted(all_slots) != expected_slots or len(all_slots) != expected_node_count:
+    expected_slots = [f"slot-{index:02d}" for index in range(NODE_COUNT)]
+    if sorted(all_slots) != expected_slots or len(all_slots) != NODE_COUNT:
         _fail("$.completed_slot_ids", "completed/dropped are not an exact slot partition")
     if state in {"pre_release_invalid", "post_release_pre_measurement_invalid"} and completed:
         _fail("$.completed_slot_ids", "completion forbidden before measurement_start")
-    if state == "valid" and (len(completed) != expected_node_count or dropped):
+    if state == "valid" and (len(completed) != NODE_COUNT or dropped):
         _fail("$.completed_slot_ids", "valid requires all jobs complete")
-    if state == "terminal_reduced" and (len(completed) != expected_node_count - 1 or len(dropped) != 1):
+    if state == "terminal_reduced" and (len(completed) != NODE_COUNT - 1 or len(dropped) != 1):
         _fail("$.completed_slot_ids", "terminal_reduced requires exactly N-1 complete")
     integrity_reasons = {"completed_rounds_missing", "binary_after_hash_mismatch", "post_inventory_mismatch", "presence_matrix_mismatch"}
-    if state == "incomplete_after_start" and len(completed) > expected_node_count - 2 and not integrity_reasons.intersection(reasons):
+    if state == "incomplete_after_start" and len(completed) > NODE_COUNT - 2 and not integrity_reasons.intersection(reasons):
         _fail("$.completed_slot_ids", "state requires <= N-2 complete or completed-job integrity failure")
     receipt_map = _object(doc["node_receipt_sha256_by_slot"], frozenset(expected_slots), "$.node_receipt_sha256_by_slot")
     for slot, digest in receipt_map.items():
@@ -704,11 +807,14 @@ def validate_terminal_state(value: Any, *, expected_node_count: int = NODE_COUNT
     _boolean(doc["presence_valid"], "$.presence_valid")
     if doc["presence_valid"] != actual_valid:
         _fail("$.presence_valid", "does not match exact evaluated presence")
+    if state in {"valid", "terminal_reduced"} and not actual_valid:
+        _fail("$.presence_valid", "successful terminal state requires exact presence")
     _hash(doc["pre_validator_receipt_sha256"], "$.pre_validator_receipt_sha256")
     _hash(doc["post_validator_receipt_sha256"], "$.post_validator_receipt_sha256")
     _boolean(doc["retry_allowed"], "$.retry_allowed")
     if doc["retry_allowed"] != retry_allowed(state, ordinal):
         _fail("$.retry_allowed", "does not match frozen retry rule")
+    validate_limitation_ids(doc["limitations"])
     return doc
 
 

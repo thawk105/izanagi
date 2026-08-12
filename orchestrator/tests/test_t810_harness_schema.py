@@ -18,6 +18,9 @@ def _intent() -> dict:
             "binary_sha256": H, "wrapper_path": "/var/tmp/t810/package/wrapper.py",
             "wrapper_sha256": H, "runner_policy_path": "/var/tmp/t810/package/policy.py",
             "runner_policy_sha256": H,
+            "expected_dependency_manifest_sha256": H,
+            "expected_module_list_sha256": H, "expected_numa_nodes": 4,
+            "script_path": f"/var/tmp/t810/work/slot-{index:02d}/job.pbs",
         })
     return {
         "schema_version": S.LAUNCH_INTENT_SCHEMA, "group_id": "group-1",
@@ -54,6 +57,10 @@ def _node(event: str, payload: dict) -> dict:
         "limitations": {
             "shared_mount_repository_reachability_not_eliminated": True,
             "execution_mediation_incomplete": True,
+            "guard_snapshot_to_release_race_not_eliminated": True,
+            "approval_receipt_trust_root_absent": True,
+            "repository_absence_not_proven_from_node": True,
+            "budget_ledger_trust_root_absent": True,
         },
         "payload": payload,
     }
@@ -100,6 +107,14 @@ def _terminal(state: str = "valid", ordinal: int = 1) -> dict:
         "pre_validator_receipt_sha256": H,
         "post_validator_receipt_sha256": H,
         "retry_allowed": state == "pre_release_invalid" and ordinal == 1,
+        "limitations": [
+            "approval_receipt_trust_root_absent",
+            "budget_ledger_trust_root_absent",
+            "execution_mediation_incomplete",
+            "guard_snapshot_to_release_race_not_eliminated",
+            "repository_absence_not_proven_from_node",
+            "shared_mount_repository_reachability_not_eliminated",
+        ],
     }
 
 def test_positive_dag_documents_and_scheduler_schemas() -> None:
@@ -136,7 +151,6 @@ def test_positive_node_event_payloads() -> None:
                "effective_clock": 2.1, "throughput": 3.2, "exit_code": 0}]
     payloads = {
         "preflight": _preflight(),
-        "ready": {"preflight_event_sha256": H, "ready": True, "reason_codes": []},
         "start_ack": {"release_marker_sha256": H, "cancel_marker_absent": True,
                       "ack_nonce": "ack", "pre_measurement_process_scan": {
                           "competing_processes": [{"pid": 12, "uid": 1000,
@@ -210,7 +224,31 @@ def test_legacy_kebab_ack_reason_codes_are_rejected(reason: str) -> None:
         S.classify_terminal_state("post_release_pre_measurement", reason)
 
 def test_frozen_state_classification_all_rows() -> None:
-    for (boundary, reason), state in S.BOUNDARY_REASON_TO_STATE.items():
+    expected = {
+        **{("pre_release", reason): "pre_release_invalid" for reason in (
+            "ready_timeout", "hostname_count_mismatch", "duplicate_hostname",
+            "unapproved_hostname", "hostname_mismatch", "binary_copy_hash_mismatch",
+            "quiet_gate_failed", "submission_argv_mismatch", "pre_inventory_mismatch",
+            "submission_failed", "guard_denied", "budget_denied", "preflight_failed",
+        )},
+        **{("post_release_pre_measurement", reason): "post_release_pre_measurement_invalid"
+           for reason in (
+               "start_spread_exceeded", "cancel_marker_observed",
+               "dependency_manifest_mismatch", "module_list_mismatch",
+               "trace_symbols_present", "numa_nodes_mismatch", "release_marker_mismatch",
+               "ack_missing", "ack_unknown_slot", "ack_duplicate",
+               "competing_process_detected", "process_observation_unreadable",
+           )},
+        **{("after_measurement_start", reason): "incomplete_after_start" for reason in (
+            "insufficient_completions", "completed_rounds_missing",
+            "binary_after_hash_mismatch", "post_inventory_mismatch",
+            "presence_matrix_mismatch",
+        )},
+        ("after_measurement_start", "single_job_dropped"): "terminal_reduced",
+        ("after_measurement_start", "all_jobs_complete"): "valid",
+    }
+    assert dict(S.BOUNDARY_REASON_TO_STATE) == expected
+    for (boundary, reason), state in expected.items():
         assert S.classify_terminal_state(boundary, reason) == state
     with pytest.raises(S.T810SchemaError, match=r"\$\.reason_code"):
         S.classify_terminal_state("pre_release", "trace_symbols_present")
@@ -239,6 +277,64 @@ def test_launch_authorization_exact_rejections(mutation: str) -> None:
     else: value["run_kinds"] = ["main", "main"]
     with pytest.raises(S.T810SchemaError, match=r"^\$"):
         S.validate_launch_authorization(value)
+
+
+def test_authorization_token_is_verifier_only_and_exactly_bound() -> None:
+    token = S.verify_launch_authorization(
+        _launch_authorization(), run_kind="liveness",
+        preregistration_sha256=H, policy_sha256=H,
+    )
+    assert isinstance(token, S.AuthorizationToken)
+    with pytest.raises(S.T810SchemaError, match="verifier-constructed"):
+        S.AuthorizationToken({}, "liveness", H, H, object())
+    with pytest.raises(S.T810SchemaError, match="does not include"):
+        document = _launch_authorization()
+        document["run_kinds"] = ["liveness"]
+        S.verify_launch_authorization(
+            document, run_kind="main",
+            preregistration_sha256=H, policy_sha256=H,
+        )
+
+
+def test_repository_external_checks_every_independent_root(tmp_path) -> None:
+    main = tmp_path / "main"
+    sibling = tmp_path / "worktrees" / "sibling"
+    outside = tmp_path / "external"
+    assert S.assert_repository_external(
+        outside, repository_roots={main, sibling},
+    ) == outside.resolve()
+    for forbidden in (main / "output", sibling / "output"):
+        with pytest.raises(S.T810SchemaError, match="outside every repository"):
+            S.assert_repository_external(forbidden, repository_roots={main, sibling})
+
+
+def test_limitation_ids_are_the_independent_frozen_six() -> None:
+    expected = {
+        "shared_mount_repository_reachability_not_eliminated",
+        "execution_mediation_incomplete",
+        "guard_snapshot_to_release_race_not_eliminated",
+        "approval_receipt_trust_root_absent",
+        "repository_absence_not_proven_from_node",
+        "budget_ledger_trust_root_absent",
+    }
+    assert S.LIMITATION_IDS == expected
+    with pytest.raises(S.T810SchemaError, match="unknown limitation"):
+        S.validate_limitation_ids(["not-in-protocol"])
+
+
+def test_ready_event_surface_is_removed() -> None:
+    with pytest.raises(S.T810SchemaError, match="unknown literal"):
+        S.validate_node_event(_node("ready", {
+            "preflight_event_sha256": H, "ready": True, "reason_codes": [],
+        }))
+
+
+def test_success_terminal_requires_true_presence() -> None:
+    value = _terminal("valid")
+    value["actual_presence"]["slot-00"] = []
+    value["presence_valid"] = False
+    with pytest.raises(S.T810SchemaError, match="requires exact presence"):
+        S.validate_terminal_state(value)
 
 @pytest.mark.parametrize("argv", [[], ["qsub", 1]])
 def test_observed_submission_argv_rejects_empty_or_non_string(argv: list) -> None:
