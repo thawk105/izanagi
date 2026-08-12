@@ -62,6 +62,12 @@ title: 測定装置の staged file identity を実体へ束縛し統合経路を
   t921-perf-preflight wave でも独立に記録されており、これで独立 2 例目である。
 - **編集面の重複はゼロだった。** 起動時にユーザー指定で稼働 worktree 20 本を全数走査し、
   `tools/pegasus/t810_*.py` を触る wave が 1 本も無いことを実測してから実装に入った。
+- **受入全走 1 回目は自分の差分が到達しない 2 件で赤くなった。**
+  `test_codex_worker_launch.py` の 2 nodeid で、失敗述語は
+  `process_group_residual` / `termination_verified`。**同 file 単独の再走は 114 passed / rc=0** で
+  再現せず、`DW-O18` に従い実装差分へ帰属しない外乱と判定した。
+  共有機で他 wave が codex 子を走らせている時間帯に受入を投入すると起きる既知の型である。
+  lease は失敗時に解放されるため取り直した。
 - D328 (凍結チェーン検証の保留) との衝突判定: **保留対象外**。保留 check_id 21 件は
   すべて s8b / known-axes / t080 の測定 provenance 系で t810 の実行認可を含まず、
   D328 本文が admission と信頼境界を対象外と明記している。対象 module は
