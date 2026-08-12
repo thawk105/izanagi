@@ -307,10 +307,30 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   Codex 側も `.codex/hooks.json` は配線済みだが (「Codex へ配線済」節)、`output/s8b-freeze` への Bash
   直接書き込みが防護ツリー外である点は Claude と同じで、ここは開いたままである。AI 偽装を脅威モデル内で
   塞ぐには allowlist 鍵署名への再裁定が要る (C1-11 の should-fix、F6 代替案 b)。
-- **ハーネス自身は防護対象外**: 防護ツリーは `output/campaigns`・`output/exploration/campaigns`・
-  `external/ccbench` (と marker 1 file) のみで、一次防壁の
-  コード・hook 自身・`.claude/settings.json` への書き込みはどの hook も守らない。緩和は規律6 の監査 + 人間の
-  コミットレビュー (機械防壁を自己参照で増やすと規律5 と衝突)。
+- **hook 自身は保護対象だが、封じられるのは直接操作だけ** ([T-956])。`hooks/` 配下は subtree 全体が
+  guard_write (Write/Edit/MultiEdit/NotebookEdit/apply_patch の全 directive) と guard_bash
+  (書き込み・削除・移動) の拒否対象である。拡張子の列挙ではなく subtree 全体なので、
+  `__pycache__/` の `.pyc` と、guard を `python3 <script>` で起動したときに `sys.path[0]` へ
+  入る同名 module (`hooks/json.pyc` / `hooks/json.so`) も含む。**唯一の例外は exact
+  `hooks/README.md`** で、lexical と canonical の両側が README を指し、現物が regular file・
+  final component が symlink でない・`st_nlink == 1` の場合だけ Write 系ツールで更新できる
+  (この文書自身がその経路で更新される)。**Bash 側には例外を置かない** — 例外に当たると
+  「保護対象に触れた」判定が消えて未知 writer が通り、同一コマンド内の置換→書込みも成立するため。
+  閉じるのは信頼済み PreToolUse が観測する直接操作だけであり、次は依然として外にある:
+  script file 越し・変数展開・`python3 -c`・persistent shell・IDE・cron・別 process、
+  path literal を持たない Git 操作 (`git checkout -- .` / `merge` / `reset --hard` / `stash pop`)、
+  read-only allowlist に残る実 writer (`awk` の出力 redirection・`sed -n 'w'`・
+  `git diff --output=`・`sort -T`・`find -fls`・`xxd -r`。これは WAL 等の既存保護対象にも
+  同じく成立する既存欠陥)、`.codex/hooks.json` / `.claude/settings.json` の設定面、
+  有効化前から置かれていた artifact。**「完全ロック」ではない。**
+- **guard 自身の保守境界** ([T-956])。`codex_guard.sh` は tool call ごとに guard を読み直すため、
+  hooks/ へ判定を入れた瞬間から同一 worktree での再編集は自分自身に拒否される (構文エラーでも
+  同じ — 壊れた guard は rc≠0/2 が 2 へ正規化されて全拒否になる)。さらに
+  `check_codex_hooks.validate_installation` が working bytes と HEAD blob の一致を要求するので、
+  **guard を未 commit で変更している間は Codex 子を 1 本も起動できない**。guard を直すには
+  有効化前の commit から作り直し、統合 commit を作ってから次の子を起動する。
+  `.claude/settings.json` と一次防壁のコードは従来どおり防護対象外で、緩和は規律6 の監査 +
+  人間のコミットレビュー。
 
 ## テスト
 
