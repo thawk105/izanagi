@@ -111,6 +111,7 @@ class PreparedCell:
     src_token: str
     ccbench_dir: str
     cache_root: str
+    oracle_attempt: Optional[Dict] = None
 
 
 def _iso_now() -> str:
@@ -224,6 +225,7 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
         raise DriverError("freeze の ccbench_pin/schedule_hash が文字列でない")
     verify_mode = (pipeline.VERIFY_LEGACY_PLUS_S2
                    if role == "develop" else pipeline.LEGACY_TAG)
+    from .sort_swo_oracle import ORACLE_CONTRACT_ID
     cfg = CampaignConfig(
         spec_slug=f"s1-direct-{role}", search_tag="direct-comparison",
         spec_content=("S-1 登録追試の計測実行系。freeze の18セルと固定 schedule を "
@@ -233,6 +235,7 @@ def config_for(document: Mapping, role: str) -> CampaignConfig:
             "campaign_role": role,
             "schedule_hash": schedule_hash,
             "verify": verify_mode,
+            "sort_swo_oracle": ORACLE_CONTRACT_ID,
         },
         # v1 は prepare_cell 実体化バグを含む実行系で走ったため identity を分離する。
         trial="s1-direct-v2",
@@ -527,6 +530,7 @@ def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
         quarantine_implementation: Optional[str] = None
         marker_id = source_rel = quarantine_patch_path = None
         patch_only_path = None
+        oracle_attempt: Optional[Dict] = None
         if configuration in {"system_gate", "ident_all"}:
             quarantine_implementation = variant.get("gate_predicate")
             if (not isinstance(quarantine_implementation, str)
@@ -568,6 +572,39 @@ def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
             if not result.passed:
                 raise DriverError(
                     f"freeze variant の diff 検疫不通過: {configuration}: {result.reason}")
+            if configuration == "sort_best":
+                from .sort_swo_oracle import (
+                    ORACLE_CONTRACT_ID,
+                    OracleStatus,
+                    SortSwoOracleResult,
+                    SortSwoOracleUnavailable,
+                    attempt_record,
+                    check_materialized_sort_swo,
+                    resolve_oracle_environment,
+                )
+                oracle_environment = resolve_oracle_environment(sub)
+                oracle = check_materialized_sort_swo(
+                    _edited,
+                    marker_id=marker_id,
+                    proposal_source=quarantine_implementation,
+                    environment=oracle_environment,
+                )
+                if (type(oracle) is not SortSwoOracleResult
+                        or type(oracle.status) is not OracleStatus):
+                    raise DriverError("sort_best SWO oracle が閉じた契約外の値を返した")
+                if oracle.contract_id != ORACLE_CONTRACT_ID:
+                    raise DriverError("sort_best SWO oracle contract_id が不一致")
+                if oracle.status is OracleStatus.UNAVAILABLE:
+                    raise SortSwoOracleUnavailable(oracle)
+                if oracle.status is OracleStatus.REJECT:
+                    assert oracle.finding is not None
+                    raise DriverError(
+                        f"sort_best comparator が SWO oracle 不通過: "
+                        f"{oracle.finding.reason_code}"
+                    )
+                if oracle.status is not OracleStatus.PASS:
+                    raise DriverError("sort_best SWO oracle が未知 status を返した")
+                oracle_attempt = attempt_record(oracle)
         elif patch_only_path is not None:
             stack.enter_context(patchharness.applied(
                 str(patch_only_path), ccbench_pin, ccbench_dir=sub))
@@ -576,8 +613,11 @@ def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
         src_token = source_digest.resolve(
             genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,
         )
-        yield PreparedCell(genome=genome, src_token=src_token,
-                           ccbench_dir=sub, cache_root=cache_root)
+        yield PreparedCell(
+            genome=genome, src_token=src_token,
+            ccbench_dir=sub, cache_root=cache_root,
+            oracle_attempt=oracle_attempt,
+        )
 
 
 def _abort_payload(layout: CampaignLayout, variant: str) -> Dict:
@@ -611,7 +651,9 @@ def _is_transient_prepare_failure(exc: BaseException) -> bool:
     seen = set()
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if isinstance(current, (OSError, subprocess.SubprocessError)):
+        from .sort_swo_oracle import SortSwoOracleUnavailable
+        if isinstance(current, (OSError, subprocess.SubprocessError,
+                                SortSwoOracleUnavailable)):
             return True
         current = current.__cause__ or current.__context__
     return False
@@ -804,7 +846,11 @@ def run_role(
 
                     # variant_id は evaluate 直前に確定し、session-start を必ず先行耐久化する。
                     variant = pipeline.variant_id(prepared.genome, prepared.src_token)
-                    _append_event(layout, _base_event(item, variant, attempt))
+                    start_event = _base_event(item, variant, attempt)
+                    if prepared.oracle_attempt is not None:
+                        start_event["sort_swo_oracle"] = prepared.oracle_attempt
+                        start_event["freeze_cell_id"] = item.freeze_cell_id
+                    _append_event(layout, start_event)
                     session_started = True
                     kwargs = dict(
                         numactl=NUMACTL,
@@ -843,7 +889,12 @@ def run_role(
                     # evaluate 後の cleanup 失敗は COMMIT の重複を避けるため再試行しない。
                     raise
                 # prepare 未到達 attempt も start/result を対にし、再開照合で欠落させない。
-                _append_event(layout, _base_event(item, variant, attempt))
+                start_event = _base_event(item, variant, attempt)
+                from .sort_swo_oracle import SortSwoOracleUnavailable, attempt_record
+                if isinstance(exc, SortSwoOracleUnavailable) and exc.result is not None:
+                    start_event["sort_swo_oracle"] = attempt_record(exc.result)
+                    start_event["freeze_cell_id"] = item.freeze_cell_id
+                _append_event(layout, start_event)
                 status, reason = "retryable", f"prepare {type(exc).__name__}: {exc}"
 
             wall_s = monotonic() - attempt_started

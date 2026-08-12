@@ -79,6 +79,8 @@
   再発にあたる。本 wave が同じ機械化を production 9 行で実装して反証した。
   検出は段 3 の敵対レビュー 2 本のうち 1 本が独立に一次資料へ当たったことによる。
   古くなった記述そのものは F173 の supersede 追記で明示する。
+
+- **再発: 2026-08-12** — handoff の worktree 作成時刻を記帳時刻 (20:23) で書き、実際の dir mtime (20:18:15〜20:21:28) と最大 5 分ずれた。並行 session の撤去前実測の指摘で訂正。時刻の一次資料は記帳ではなく filesystem 側にある。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1870,6 +1872,15 @@
   複数 wave、codex 子も並走) 点が既載の「負荷が高いときに発火する」観察と整合する。
   直前の走行 (同一 wave、記録 commit 前の tip) では **9452 passed / 31 skipped / 0 failed** で
   緑だったので、同一実装で緑・赤の両方を観測している。
+
+- **再発: 2026-08-12** — [T-905] の変異本走で M2 の失敗 node へ
+  `test_all_v3_stages_reject_prior_invalid_attempt[author-None]` が 1 件混ざり、
+  期待 node の完全一致が崩れて MISMATCH になった (`receipt["attempts"][-1]["accepted"]` が False)。
+  M2 は pin 集合から 1 path を外す変異で検査を緩める向きであり、当該 node への因果経路が無い。
+  M2 単独再走では期待 6 node と完全一致で KILLED、混入 node は再現せず帰属から外した。
+  変異走 (48 worker) で launcher の receipt 系 node が 1 件混ざる形は
+  worklog (476) の M3 に続く独立 2 例目である。恒久対応は F57 既載のとおり失敗 artifact 保存による
+  原因分離であり、本 wave では変えない。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -3051,6 +3062,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応は memory `codex-adversarial-prompt-defensive-framing` の更新
   (冒頭の framing・依頼の動詞に加えて、**所見の記述形式まで指定する**を追記)。
   `docs/dev-wave/workers.md` の `DW-S03` へ書かない理由は既載のまま (byte 予算)
+
+- **再発: 2026-08-12** — 敵対子が最終出力生成の段で上流分類器に遮断された
+  (F256 に詳細)。既存の恒久対応
+  「防御目的を明記する」だけでは不足で、**攻撃成果物の作成を求めないこと**まで射程を広げる必要がある。
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -6231,3 +6246,159 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「完了は `.done` と exit code だけで判定し、grep も通知も判定にしない」である。
 - 再発検知: 待ち手が返った直後に 3 点照合を行い、`.done` 不在または成果物が空または
   producer 生存のいずれかなら**何もせず待ち直す**。本 wave では毎回これで弾き実害ゼロだった。
+
+### F251. 走行中の worktree が掃除の生存判定をすり抜けて削除された [計測汚染] [手順漏れ]
+
+- 事象: 2026-08-12 20:57:55 JST、並行 session の worktree 掃除が、本 wave が測定 fixture として
+  作った `.claude/worktrees/` 配下の 5 本を**子 7 走が使用中に削除**した。7 走中 6 走が走行中に
+  working directory を失い、測定が無効になった (削除前に完了した 1 走のみ無傷)。
+  施錠して再走した第 2 走と比較すると、**汚染は消費量を系統的に下振れさせていた**
+  (7 cell 中 6 cell で第 2 走の `model_calls` が大きい。最大 65 → 128 の 2.0 倍)。
+  気づかず報告していれば資源上限を実際より低く見積もる提案になっていた。
+- 根本原因: 2 層ある。
+  (1) 生成側 — detached HEAD・未施錠・main の祖先・dirty ゼロは残骸の 4 条件をすべて満たす。
+  (2) **検出側 (本命)** — 掃除の生存判定 `/proc/*/cwd` 全走査は launcher 型の子を構造的に
+  検出できない。`tools/codex_worker_launch.py` の cwd は**起動元** (親 wave の worktree) であり、
+  操作対象 worktree は `--repo-root` / `--cwd` / `--artifact-dir` として **argv にしか現れない**。
+  実測 (2026-08-12 21:28、稼働中の 7 走): `/proc/*/cwd` 一致 **0 件**、
+  `/proc/*/cmdline` 一致 **14 件** (launcher 7 + codex 本体 7)。削除した session の同時刻観測と独立に一致。
+  **`git worktree lock` は必要だが十分ではない** — lock が止めるのは `git worktree remove` であり、
+  実際に使われた `rm -rf` + `git worktree prune` は lock を見ない。
+- 恒久対応: D342 — 生存判定に `/proc/*/cmdline` を含める。
+  併せて子を走らせる worktree は `git worktree lock` する。保護の合図は **worktree の外**に置き、
+  掃除側がそこを見る形にする (worktree 内へ命令形の目印 file を置くのは規律 6 に反する。下記参照)。
+- 再発検知: 掃除手順の生存判定に cmdline 走査が含まれることの検査。加えて、
+  **汚染は receipt からは見えない** — 汚染 6 走の receipt は `codex_exit_code=0` /
+  `metering_status=complete` / `evidence_status=complete` / `limit_trigger=null` のまま残った。
+  検出できたのは rollout 逐語の `exec_command failed for '/bin/bash -lc pwd': ... Rejected(...)` と
+  `rg: external/ccbench/common/runner.cc: No such file or directory` (いずれも 11:57:5xZ) だけである。
+  **工数・資源の集計前に rollout の失敗行を必ず見る。**
+
+### F252. 汚染判定器が sandbox の方針拒否を誤検知した [計測汚染]
+
+- 事象: 上記の汚染を検出する判定器で `Rejected(...)` を徴候に使ったところ、第 2 走の 1 cell を
+  汚染と誤判定した。実体は `rejected: rm -f style commands are not permitted. Use a safer approach`
+  という **read-only sandbox の方針拒否**で、working directory の消失ではなかった。
+  誤検知のまま進めれば、有効な測定 1 件を捨てて sweep 発火条件 (iii) の判定を誤っていた。
+- 根本原因: 「失敗語が出た」を汚染の徴候にしたため、正常運用で出る拒否と区別できなかった。
+- 恒久対応: 判定を **`pwd` 自体の失敗**と **worktree 配下の file 消失**に限定する
+  (F251 の再発検知手段と同じ実体)。
+- 再発検知: 判定器が hit したら**逐語を出して中身を読む**まで判定を確定しない。
+
+### F253. 打ち切られた job の prompt bytes が job dir に残っていなかった [手順漏れ]
+
+- 事象: 追走対象 5 件のうち 1 件 (`dev-wave-t786-docs-budget` の plan) の prompt が、
+  同 job dir 内 93 file を全 hash しても存在しなかった。同一 wave の後続 plan 投入が
+  prompt file を上書きしたためと考えられる。codex rollout jsonl から復元して初めて
+  receipt の `prompt_sha256` (`33599e9c...`) と一致した。
+- 根本原因: prompt file は上書きされうるが、receipt はその sha256 しか持たない。
+  bytes の保全先が rollout しかない場合がある。
+- 恒久対応: 再現・追走の一次資料として **rollout jsonl を receipt と対で扱う**
+  (`docs/README.md` の地図に receipt の所在を記載済み。rollout path は receipt の
+  `attempts[].rollouts[].path` にある)。
+- 再発検知: 追走・再現の前に prompt bytes の sha256 一致を確認し、不在なら rollout から復元する。
+
+### F254. dry-run 生成 argv をそのまま走らせると起動前に停止した [手順漏れ]
+
+- 事象: `tools/dev_wave_codex.py --dry-run` が出した argv をそのまま
+  `codex_worker_launch.py run` へ渡したところ、7 走とも rc=2 で起動前停止した
+  (`NG: parent directory が存在しない`)。dry-run は directory を作らないが launcher は
+  artifact-dir の親の実在を要求する。
+- 根本原因: dry-run と実投入で directory 作成の責務が分かれていることが argv からは分からない。
+- 恒久対応: dry-run argv を再利用する運転側で、`--artifact-dir` / `--receipt` / `--manifest` の
+  親 directory を先に作る。
+- 再発検知: 投入前に rc=2 で止まるため実害は無い (本件も空費ゼロ)。手順として明記する。
+
+### F255. admitted view の不変射影が読み手の厳密型検査を黙って全滅させた [恒真ゲート] [consumer 取り残し]
+
+- 事象: 新設 gate の構造化理由 (公理名・反例対・receipt) が critic へ**一切届いていなかった**。
+  reject の件数と subtype は出るため、静的レビュー 3 本 (敵対 2 + 焦点 1) と実装子・fix 子 2 巡が
+  いずれも見落とした。検出したのは統合テスト 1 本だけで、その赤も
+  `assert {} == {...}` としか出ないため原因は自明でなかった。
+- 根本原因: `artifact_admission._deep_immutable` が admitted campaign view を作るときに
+  入れ子 `dict` を `MappingProxyType` へ、`list` を `tuple` へ射影する。一方 critic 側の新規 validator は
+  `type(value) is not dict` / `type(pairs) is not list` の**厳密型一致**で書かれており、
+  射影後の値をすべて「不正」と判定して `{}` に潰していた。**fail-closed に見えて実際は
+  診断が消えるだけ**なので、規律 3 が禁じる「謳うだけで働かない片肺」になっていた。
+- 恒久対応: 受理する具体型を**明示列挙**する (`dict` と `MappingProxyType`、`list` と `tuple`)。
+  `isinstance(x, Mapping)` へ丸ごと緩めない (str や任意実装まで通るため)。キー集合・長さ上限・
+  値域・hash 検証は一切緩めない。
+- 再発検知: **WAL → admitted 不変射影 → loader → renderer を実際に通す**回帰テスト。
+  素の `dict` を loader へ直接渡すテストでは、この欠陥は永久に捕まらない。
+
+### F256. 敵対 prompt が「回避できるコードを書け」と求めて上流分類器に遮断された [子の空振り]
+
+- 事象: 段 3 の敵対レンズ 1 本が最終出力生成の直前で
+  `This content was flagged for possible cybersecurity risk` を返し、`rc=1` / 成果物 0 bytes で終了した。
+  model call は 6 回消費済み、wall 229 秒。レンズ 1 本分の検証が丸ごと失われた。
+- 根本原因: prompt 冒頭に**防御目的は明記していた**が、本文で
+  「見逃せる comparator を具体的な C++ 式で 1 つ以上書け」「候補が fd に書ける経路を検討せよ」と
+  **攻撃成果物そのものの作成**を求めていた。防御目的の宣言だけでは分類器を通らない。
+- 恒久対応: 攻撃成果物を要求せず、**テスト設計として**求める
+  (「目撃できない違反族を分類し、テストの負例として登録すべき代表形を挙げよ」)。
+  検証の深さは落とさずに、成果物の性格を「回避コード」から「被覆の穴と負例候補」へ移す。
+- 再発検知: 再投入は**新しい artifact 名**で行い、`rc=1` は receipt の
+  `attempt output` と `validator_rc` を読んでから原因を分類する。
+
+### F257. merge が submodule gitlink を古い側で確定させ、是正 commit が provenance で land を止めた [手順漏れ] [監査ログ汚染]
+
+- 事象: local main 取り込みの merge 後、受入全走で s1/s8b/real-repo 系が 30 件級で赤になった
+  (「ccbench worktree HEAD が `pin.CURRENT_PIN` を prefix に持たない」)。自分の差分が到達しない
+  ファイル群なので原因が見えにくい。是正のため gitlink を main 側 pin へ進める単独 commit を作ったが、
+  `check_ai_provenance` が `external/` を実装面 prefix として扱うため
+  **「実装面に Codex `role=author` がない」で新規違反**になり、`DW-O25` の全史 provenance 関門
+  (rc=29) で land が止まった。
+- 根本原因: merge 競合解決の `git add -A` は、**submodule の未解決 gitlink を作業ツリー側
+  (= 古い pin) で確定させる**。main だけが gitlink を進めていても、この一手で main の変更が消える。
+  そのうえ後追いの単独是正 commit は「誰も書いていない実装面変更」になり、**真の trailer を
+  書く手段が無い** (Codex 著者行は虚偽、`AI-Agent: none` も虚偽、waiver は人間の批准が要る)。
+- 恒久対応: `DW-O17` に「commit 前に `git ls-tree main <sub>` と突き合わせ **merge commit の中で**
+  main 側 pin へ揃える」を追加した。後追い commit にしない。
+- 再発検知: 受入全走で pin 不一致型の赤が出たら、まず gitlink と `pin.CURRENT_PIN` を突き合わせる。
+- 補足 (監査ログの質): 本件は **監査ログを汚す型の失敗**である。回避すると
+  「waiver / known-violation で通した」記録が残り、監査を工数分析やプロセス改善に使うときの
+  信号対雑音比を下げる。手順で発生させないことが対処であり、例外機構の常用ではない。
+
+### F258. 受入全走中に `git checkout` が SIGSEGV し fixture setup が偽の赤になる [計測汚染]
+
+- 事象: [T-925] の受入全走 2 走目で `test_codex_reasoning_ab.py` の 3 node が
+  **setup 段階**で error になった。逐語は
+  `ValidationError: command failed rc=-11: git checkout -B codex/dev-wave-t153e-t15423 <sha>`。
+  `rc=-11` は SIGSEGV。同じ木の 1 走目は `10,085 passed / 65 skipped` で緑、
+  2 走目との差分は**文書 2 ファイル** (worklog fragment と insights README) のみで、
+  テスト fixture の `git checkout` へは到達しえない。当該 3 node の単独再走は
+  `--force-dispatch` で `3 passed` (rc=0)。**再現せず、実装差分へ帰属しない。**
+- 根本原因: 未確定。並行 wave 4 本が同一 repo の object store を共有した状態で、
+  commit 時に git 自身が
+  `There are too many unreachable loose objects; run 'git prune'` と
+  `The last gc run reported the following` を警告しており、
+  `.git/worktrees/<wave>/gc.log` が残留して自動 gc が止まっていた。
+  object store 圧下での git の異常終了が疑われるが、SIGSEGV の直接原因は未特定。
+- 恒久対応: memory `no-concurrent-dispatch-during-acceptance` の対象を
+  「単独再走で消える偽の赤」の既知型として本エントリへ拡張する。
+  受入で `rc=-11` / SIGSEGV を見たら、実装差分へ帰属する前に
+  `DW-O18` の単独再走 (`--force-dispatch` 付き) で再現性を実測する。
+- 再発検知: 受入 log 中の `rc=-11` と `unreachable loose objects` 警告の同時出現。
+  機械検査は未実装 (本エントリ 1 例目のため `DW-G03` の独立 2 例を満たさない)。
+
+### F259. codex 子の Web 検索が evidence 検証を invalid にして成果物を全損させる [コンテキスト浪費]
+
+- 事象: 段 3 の敵対レンズ (sol) が 848 秒 · 43 model call を費やして完走したのに、
+  `dev_wave_codex.py` が rc=1 で不受理となり、出力 8,323 bytes が捨てられた。
+  `codex_exit_code=0`、`validator_rc=0`、成果物ファイルは健在で、NFC も正常だった。
+  受理を止めていたのは receipt の `evidence_status=invalid` である。
+- 根本原因: 子が `web_search` を使うと、Codex CLI 0.147.0 が `item.started` /
+  `item.completed` の `item` object に `id` を 2 回持つ event 行を stdout へ出す
+  (1 つ目は `item_40` のような item 番号、2 つ目は `exec-<uuid>` の実行 ID)。
+  `orchestrator/codex_roles/events.py` の `parse_jsonl` は重複 JSON key を拒否するため
+  `codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid=True` を立て、
+  `_evidence_status` が `invalid` を返して attempt が accepted にならない。
+  本 wave では 99 行中 22 行が該当した。
+- 恒久対応: memory `codex-web-search-invalidates-evidence` — 子 prompt に Web 検索の禁止を
+  絶対制約として書く。`DW-O02` への統合を試みたが、dev-wave docs の L1.5 予算に余白がなく
+  (71 bytes の追記で 93 bytes 超過を実測) 断念した。予算は上げず、安全義務の削除もしない。
+  **検証側を緩めない** — 重複 key の拒否は evidence の健全性検査であり、これを甘くする回避は
+  規律 2 に反する。
+- 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
+  `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
+  `web_search` 由来の重複 key 行を探す。
