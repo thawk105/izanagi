@@ -1325,7 +1325,7 @@ def test_message_file_accepts_contiguous_cab_without_policy_history(
     assert "違反なし" in capsys.readouterr().out
 
 
-def test_known_violation_ledger_is_exactly_thirty_five_literal_entries():
+def test_known_violation_ledger_is_exactly_thirty_seven_literal_entries():
     malformed_value = (
         "product=claude; model=claude-opus-5[1m]; reasoning=high; "
         "role=orchestrator"
@@ -1354,6 +1354,25 @@ def test_known_violation_ledger_is_exactly_thirty_five_literal_entries():
         "orchestrator/tests/test_codex_reasoning_ab.py）を触った union merge；"
         "`git diff-tree --cc` は空で merge 自体に新規著作なし；両側の実装面は"
         "それぞれの wave で Codex `role=author` が書き監査済み"
+    )
+    dw8c_ruling = (
+        "2026-08-12 dev-wave-8c-formal-consumer-wiring land 前裁定 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    dw8c_acceptance_note = (
+        "受入 lease 内で `dev_wave_wait.py acceptance --merge-message-file` が自動生成した"
+        "merge；`orchestrator/campaign/p3_autonomous_workload_trial.py` の 3 方向結合結果が"
+        "両親のどちらとも異なり（親 1 比 +8/-2 行）、checker が実装面著作と判定；"
+        "wave 側は Codex `role=author`、main 側は各 wave land 時に監査済みで merge 自体に"
+        "新規著作なし；親作成 merge のため Codex 著者とは記さない"
+    )
+    dw8c_retry_note = (
+        "land 再試行前に local main を取り込んだ merge；実装面で両側が触ったのは"
+        "`orchestrator/tests/test_autonomous_trial_completeness.py` と "
+        "`orchestrator/tests/test_p3_autonomous_workload_trial.py` の 2 file のみで、結果は"
+        "両側の変更の和集合；競合なし・競合解決による新規著作なし；wave 側は Codex "
+        "`role=author`、main 側は各 wave land 時に監査済み；親作成 merge のため Codex "
+        "著者とは記さない"
     )
     observed = tuple(
         (
@@ -1413,10 +1432,12 @@ def test_known_violation_ledger_is_exactly_thirty_five_literal_entries():
         ("d72c18cdd3c81278e844b4fd15e9682e98e62c20", "missing-codex-author", t720_ruling, t720_note, ""),
         ("668f4dfe1026a4ad5e7603e8161b1f3166ce589c", "missing-codex-author", t720_ruling, t720_note, ""),
         ("187fed698bcefb5e93bbad312e1323617fc368ce", "missing-codex-author", t886_ruling, t886_note, ""),
+        ("9408fb4ae8f999c7c0d6ced735335c9da97e35a4", "missing-codex-author", dw8c_ruling, dw8c_acceptance_note, ""),
+        ("c96803854911dd989954c20d0955ad423e7d1207", "missing-codex-author", dw8c_ruling, dw8c_retry_note, ""),
     )
-    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 35
+    assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == 37
     assert observed == expected
-    assert len({row[0] for row in expected}) == 35
+    assert len({row[0] for row in expected}) == 37
     assert provenance._LEDGER_FINDING_KINDS == frozenset({
         "missing-ai-agent", "missing-codex-author", "malformed-ai-agent",
     })
@@ -1878,7 +1899,7 @@ def test_registry_rejects_non_descriptive_required_note_rc2(
 def test_production_registry_notes_satisfy_descriptive_contract():
     registry = provenance._known_violation_registry()
 
-    assert len(registry) == 35
+    assert len(registry) == 37
     assert tuple(registry.values()) == provenance.KNOWN_PROVENANCE_VIOLATIONS
 
 
