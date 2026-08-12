@@ -87,7 +87,7 @@ main 自身の赤**で、`git diff main...HEAD` は本 wave の 2 ファイル�
 `test_t793_report.py` と `docs/decisions.md` はいずれも main と byte 一致である。
 他 wave の所有 path なので本 wave では直さない。
 
-**免除でなくテスト側を直した (ユーザー裁定 2026-08-12)。**
+**免除でなくテスト側を直す裁定を得たが、実装は先行 land した wave のものを採った。**
 はじめ「main由来の赤なら免除リストに入れて」との指示を受け、F101 の恒久対応どおり
 停止判断の前に waiver 検索を実施した
 (`grep -n "test_t793_report\|waiver" docs/worklog.md` → 0 件。W1 (F96/F101) は
@@ -95,8 +95,23 @@ main 自身の赤**で、`git diff main...HEAD` は本 wave の 2 ファイル�
 W1 形式だけだったので、同形の W2 を起草した。
 そのうえで「テスト側の期待値が誤っている」ことを報告したところ、
 **ユーザーが「じゃぁテスト側を直して」と裁定した**ため W2 は起草段階で取り下げ、
-恒久ルール (2026-08-11)「テストがおかしければテストを直す」に沿って是正した。
-是正内容は {{D:supersession-pin-derivation}} を参照。
+恒久ルール (2026-08-11)「テストがおかしければテストを直す」に沿って是正実装を作り、
+計算ノードで 39 passed を実測した。
+
+**ただし同じ赤に対し 3 wave が並行して同型の修正に到達していた。** [T-827]、[T-860]、本 wave が
+それぞれ独立に「literal 完全一致をやめ、`status` exact + `"D292" in decision_ids` +
+構造健全性に置き換える」という同じ結論へ達した ([T-860] は最終的に当該 file へ触れず離脱)。
+セッション間で**「先に land した方を採用し、もう一方は取り下げる」**と合意し、
+[T-827] が先に land したため**本 wave は自分の実装を取り下げて main の形を採用した**。
+形の妥当性と、採ってはいけない代替案 (期待値を `("D292","D305")` へ書き換える /
+waiver で迂回する / テスト側で期待集合を再導出する) は {{D:supersession-pin-derivation}} に残す。
+
+**副次的に他 wave の誤帰属を 1 件訂正した。** [T-827] は 87 秒の主犯を
+`git clone --no-hardlinks` (repo の `.git` が 258MB) と推定していたが、本 wave の cProfile 実測
+(`_find_rollout` 74.62s / 67%、`json.loads` 3,030,525 回、`select.poll` は 33.84s) と
+POS/NEG 差 50.8s が `derive_independent_golden` である事実で否定され、先方が撤回・記録訂正した。
+`--no-hardlinks` と object closure 封印は `test_git_answer_object_reinjection_is_rejected` 等の
+検証対象なので触らない、という結論も共有した。
 
 **恒久ルールへの含意 (最重要)。** `_find_rollout` の走査量は `~/.codex/sessions` の
 ファイル数に比例し、この archive は **codex を使うほど増える**。実測増加率は
