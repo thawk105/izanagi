@@ -458,7 +458,54 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
     candidate_finding = O.SortSwoFinding(
         O.OracleRejectKind.COMPILE, "candidate-compile-failed",
     )
-    results = iter(((None, False), (candidate_finding, False)))
+    results = iter((
+        (None, False),
+        (candidate_finding, False),
+        (None, False),
+    ))
+    compile_calls = 0
+    real_unlink = Path.unlink
+
+    def fail_candidate_cleanup(path, *args, **kwargs):
+        if path.name == "oracle.cpp":
+            raise OSError("candidate cleanup unavailable")
+        return real_unlink(path, *args, **kwargs)
+
+    def compile_with_successful_postflight(*args, **kwargs):
+        nonlocal compile_calls
+        compile_calls += 1
+        return next(results)
+
+    monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
+    monkeypatch.setattr(O, "_compile", compile_with_successful_postflight)
+    monkeypatch.setattr(O, "_evaluate_executable", lambda executable: None)
+    monkeypatch.setattr(O, "_compiler_version", lambda compiler: "fixture-cxx 1")
+
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
+    )
+
+    assert result.status is O.OracleStatus.REJECT
+    assert result.receipt is not None
+    assert result.finding is candidate_finding
+    assert result.infrastructure is None
+    assert compile_calls == 3
+
+
+def test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence(
+        monkeypatch):
+    candidate_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    postflight_finding = O.SortSwoFinding(
+        O.OracleRejectKind.COMPILE, "candidate-compile-failed",
+    )
+    results = iter((
+        (None, False),
+        (candidate_finding, False),
+        (postflight_finding, False),
+    ))
     real_unlink = Path.unlink
 
     def fail_candidate_cleanup(path, *args, **kwargs):
@@ -475,12 +522,21 @@ def test_candidate_artifact_cleanup_failure_preserves_receipt(monkeypatch):
         _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
         proposal_source=_CLEAN_IMPL, environment=_ENVIRONMENT,
     )
+    attempt = O.attempt_record(result)
 
     assert result.status is O.OracleStatus.UNAVAILABLE
     assert result.receipt is not None
     assert result.infrastructure is not None
     assert result.infrastructure.phase == "trusted-postflight-compile"
+    assert result.infrastructure.detail_code == (
+        "trusted-positive-tu-postflight-compile-failed-"
+        "after-candidate-cleanup-failed"
+    )
     assert result.candidate_compile_finding is candidate_finding
+    assert attempt["infrastructure"]["detail_code"] == (
+        "trusted-positive-tu-postflight-compile-failed-"
+        "after-candidate-cleanup-failed"
+    )
 
 
 def test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable(

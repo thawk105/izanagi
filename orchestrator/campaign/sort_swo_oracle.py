@@ -61,6 +61,9 @@ _TRUSTED_CONTROL_STATEMENT = (
 _TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE = (
     "trusted-positive-tu-postflight-compile-failed"
 )
+_TRUSTED_POSTFLIGHT_COMPILE_WITH_CANDIDATE_CLEANUP_DETAIL_CODE = (
+    "trusted-positive-tu-postflight-compile-failed-after-candidate-cleanup-failed"
+)
 
 _COMPILE_FLAGS = (
     "-std=c++17", "-O1",
@@ -1207,9 +1210,11 @@ def check_materialized_sort_swo(
     """Check the exact post-materialization sort hole with a closed result.
 
     A postflight failure establishes only that the trusted control also failed
-    after the candidate compile.  Candidate compile artifacts are removed and
-    the postflight uses a fresh temporary directory, but filesystem quota,
-    cgroup resources, and host state remain shared; this is correlation, not a
+    after the candidate compile.  Candidate compile artifact removal is
+    attempted before postflight.  Cleanup failure does not skip postflight: it
+    runs in a fresh temporary directory, and classification proceeds from the
+    postflight and candidate compile results.  Filesystem quota, cgroup
+    resources, and host state remain shared; this is correlation, not a
     candidate-independent environment diagnosis.
     """
     proposal_hash = _sha256(proposal_source)
@@ -1312,15 +1317,6 @@ def check_materialized_sort_swo(
                         artifact.unlink(missing_ok=True)
                     except OSError:
                         candidate_cleanup_failed = True
-                if candidate_cleanup_failed:
-                    return _unavailable_result(
-                        materialized_hash,
-                        proposal_hash,
-                        phase="trusted-postflight-compile",
-                        detail_code=_TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE,
-                        receipt=receipt,
-                        candidate_compile_finding=finding,
-                    )
                 postflight_finding = None
                 postflight_unavailable = False
                 postflight_io_failed = False
@@ -1368,7 +1364,11 @@ def check_materialized_sort_swo(
                         materialized_hash,
                         proposal_hash,
                         phase="trusted-postflight-compile",
-                        detail_code=_TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE,
+                        detail_code=(
+                            _TRUSTED_POSTFLIGHT_COMPILE_WITH_CANDIDATE_CLEANUP_DETAIL_CODE
+                            if candidate_cleanup_failed
+                            else _TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE
+                        ),
                         receipt=receipt,
                         diagnostic=(
                             None if postflight_finding is None
