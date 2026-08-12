@@ -16,7 +16,10 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import p3_autonomous_workload_trial as producer
+from orchestrator.campaign import reflux_formal_consumer as formal
+from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import trial_registry as R
+from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
 
 
 _SOURCE_REPO = Path(__file__).resolve().parents[2]
@@ -221,12 +224,14 @@ def _fixture_launch_admission(
     trial: R.TrialSpec,
     manifest: R.TrialManifest,
     measurement_head: str,
+    *,
+    origin_binding_record: dict | None = None,
 ) -> dict:
     workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
     activation_digest = R.s8c_preregistration._construct_effective(
         _effective_report(manifest)
     ).report_digest_sha256
-    return {
+    record = {
         "mode": "registered-effective",
         "certifying": False,
         "reason_code": "registered-effective-non-certifying",
@@ -245,6 +250,81 @@ def _fixture_launch_admission(
         },
         "activation_report_digest_sha256": activation_digest,
     }
+    if origin_binding_record is not None:
+        record["origin_binding"] = copy.deepcopy(origin_binding_record)
+    return record
+
+
+def _fixture_origin_binding(
+    trial: R.TrialSpec,
+    measurement_head: str,
+) -> dict:
+    workload = R.HOLDOUT_BINDINGS[trial.holdout]["workload"]
+    return origin_fixtures.build_launch_admission_inputs(
+        campaign_id=trial.campaign_id,
+        trial_workload=workload,
+        measurement_head=measurement_head,
+        issuer_seal="launch-admission-gate/v1",
+    )
+
+
+def _issued_origin_binding(
+    trial: R.TrialSpec,
+    measurement_head: str,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    origin_binding_record: dict | None = None,
+) -> origin_binding.OriginBindingCapability:
+    wire = (
+        _fixture_origin_binding(trial, measurement_head)
+        if origin_binding_record is None
+        else origin_binding_record
+    )
+    seal = object()
+    capability = origin_binding.OriginBindingCapability(
+        authority_blob_sha256=wire["authority_blob_sha256"],
+        source_closure_sha256=wire["source_closure_sha256"],
+        origin_id=wire["origin_id"],
+        cell_key=wire["cell_key"],
+        authority_workload=origin_binding.AuthorityWorkload(
+            **wire["authority_workload"],
+        ),
+        axis_semantics_sha256=wire["axis_semantics_sha256"],
+        verifier_policy_sha256=wire["verifier_policy_sha256"],
+        environment_contract_sha256=wire["environment_contract_sha256"],
+        campaign_id=wire["campaign_id"],
+        trial_workload=wire["trial_workload"],
+        measurement_head=wire["measurement_head"],
+        store_scope="fixture",
+        _seal=seal,
+    )
+    monkeypatch.setitem(
+        origin_binding._ISSUED_CAPABILITY_FIELDS,
+        seal,
+        origin_binding._capability_fields(capability),
+    )
+    return capability
+
+
+def _origin_terminal_projection(
+    *,
+    rejected: bool,
+    origin_binding_record: dict,
+) -> formal.OriginTerminalProjection:
+    return formal.OriginTerminalProjection(
+        schema_version=formal.ORIGIN_TERMINAL_PROJECTION_SCHEMA_VERSION,
+        reason_code=(
+            formal.FormalReasonCode.FC01
+            if rejected
+            else formal.FormalReasonCode.P6_UNAVAILABLE
+        ),
+        formal_receipt_sha256=None if rejected else "7" * 64,
+        evidence_root_sha256=None if rejected else "8" * 64,
+        authority_blob_sha256=origin_binding_record["authority_blob_sha256"],
+        origin_id=origin_binding_record["origin_id"],
+        cell_key=origin_binding_record["cell_key"],
+        terminal_payload_sha256="9" * 64,
+    )
 
 
 def _complete_report(
@@ -459,6 +539,123 @@ def test_p5_six_complete_terminal_reports_pass_acceptance(tmp_path: Path) -> Non
     assert summary.certifying is False
     assert summary.arm_binding == "declared-only"
     assert {trial.status for trial in summary.trials} == {"complete"}
+    receipt_bytes = (repo / summary.receipt_path).read_bytes()
+    receipt = json.loads(receipt_bytes)
+    assert receipt_bytes == _canonical(receipt) + b"\n"
+    reports_by_id = {
+        json.loads(path.read_bytes())["trial_id"]: path for path in reports
+    }
+    expected_trials = []
+    for trial in sorted(manifest.trials, key=lambda item: item.trial_id):
+        report_path = reports_by_id[trial.trial_id]
+        report_bytes = report_path.read_bytes()
+        report = json.loads(report_bytes)
+        journal_path = report_path.with_name("attempts.jsonl")
+        journal_bytes = journal_path.read_bytes()
+        expected_trials.append({
+            "trial_id": trial.trial_id,
+            "arm": trial.arm,
+            "holdout": trial.holdout,
+            "campaign_id": trial.campaign_id,
+            "status": report["status"],
+            "measurement_head": report["measurement_head"],
+            "report_path": report_path.relative_to(repo).as_posix(),
+            "report_sha256": hashlib.sha256(report_bytes).hexdigest(),
+            "attempt_journal_path": journal_path.relative_to(repo).as_posix(),
+            "attempt_journal_sha256": hashlib.sha256(journal_bytes).hexdigest(),
+        })
+    lifecycle_bytes = (repo / R.DEFAULT_LIFECYCLE_PATH).read_bytes()
+    registry_bytes = registry.read_bytes()
+    first_report = json.loads(reports[0].read_bytes())
+    expected_receipt = {
+        "schema_version": "p3-8c-trial-acceptance-receipt/v1",
+        "manifest_path": manifest_path.relative_to(repo).as_posix(),
+        "manifest_sha256": manifest.sha256,
+        "prereg_commit": manifest.prereg_commit,
+        "activation_report_digest_sha256": first_report[
+            "launch_admission"
+        ]["activation_report_digest_sha256"],
+        "registry_path": registry.relative_to(repo).as_posix(),
+        "registry_blob_sha256": hashlib.sha256(registry_bytes).hexdigest(),
+        "registry_introduction_commit": _head(repo),
+        "lifecycle_path": R.DEFAULT_LIFECYCLE_PATH.as_posix(),
+        "lifecycle_prefix_bytes": len(lifecycle_bytes),
+        "lifecycle_prefix_sha256": hashlib.sha256(lifecycle_bytes).hexdigest(),
+        "certifying": False,
+        "non_certifying_reason_codes": [
+            "c02-arm-binding-unproven",
+            "t468-approval-authority-absent",
+        ],
+        "trials": expected_trials,
+    }
+    # No volatile leaf is omitted: commit-dependent leaves are rederived from
+    # the fixture repository and every key, leaf, and trial-array position is
+    # compared.
+    assert receipt == expected_receipt
+
+
+@pytest.mark.parametrize("rejected", [True, False])
+def test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries(
+    tmp_path: Path,
+    rejected: bool,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    manifest_by_id = {trial.trial_id: trial for trial in manifest.trials}
+    expected_by_id: dict[str, dict] = {}
+    for report_path in reports:
+        events, report = _load_report_bundle(report_path)
+        trial = manifest_by_id[report["trial_id"]]
+        binding_record = _fixture_origin_binding(trial, report["measurement_head"])
+        for target in (events[0], report):
+            target["launch_admission"]["origin_binding"] = copy.deepcopy(
+                binding_record
+            )
+        projection = formal.origin_terminal_projection_record(
+            _origin_terminal_projection(
+                rejected=rejected,
+                origin_binding_record=binding_record,
+            )
+        )
+        report.update(copy.deepcopy(projection))
+        expected_by_id[trial.trial_id] = projection
+        _persist(report_path.parent, events, report)
+
+    summary = _accept(
+        manifest_path=manifest_path,
+        report_paths=reports,
+        repository_root=repo,
+        registry_path=registry,
+    )
+    receipt = json.loads((repo / summary.receipt_path).read_bytes())
+    lifecycle = [
+        json.loads(line)
+        for line in (repo / R.DEFAULT_LIFECYCLE_PATH).read_bytes().splitlines()
+    ]
+    terminals = {
+        row["trial_id"]: row for row in lifecycle if row["event"] == "terminal"
+    }
+    for receipt_trial in receipt["trials"]:
+        trial_id = receipt_trial["trial_id"]
+        expected = expected_by_id[trial_id]
+        expected_bytes = _canonical(expected)
+        assert _canonical({
+            "origin_terminal_projection": terminals[trial_id][
+                "origin_terminal_projection"
+            ],
+        }) == expected_bytes
+        assert _canonical({
+            "origin_terminal_projection": receipt_trial[
+                "origin_terminal_projection"
+            ],
+        }) == expected_bytes
+        if rejected:
+            assert receipt_trial["origin_terminal_projection"][
+                "formal_receipt_sha256"
+            ] is None
+            assert receipt_trial["origin_terminal_projection"][
+                "evidence_root_sha256"
+            ] is None
 
 
 @pytest.mark.parametrize("mutation", ["missing-report", "run-start-mismatch"])
@@ -483,6 +680,39 @@ def test_acceptance_independently_requires_exact_rederived_launch_admission(
         events[0]["launch_admission"]["trial_id"] = "foreign-trial"
     _persist(reports[0].parent, events, report)
     monkeypatch.setattr(R, "assert_autonomous_trial_completeness", lambda **_kwargs: None)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[acceptance-launch-admission\] ",
+    ):
+        R.assert_trial_registry_acceptance(
+            effective_preregistration=capability,
+            manifest_path=manifest_path,
+            report_paths=reports,
+            repository_root=repo,
+            registry_path=registry,
+            lifecycle_path=lifecycle,
+        )
+
+
+@pytest.mark.parametrize("origin_binding_record", [None, {"unexpected": True}])
+def test_acceptance_rejects_null_or_open_origin_binding_projection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    origin_binding_record: object,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    reports = _reports(repo / "reports", manifest, _head(repo), complete=True)
+    capability = _effective_capability(manifest, monkeypatch)
+    events, report = _load_report_bundle(reports[0])
+    for target in (events[0], report):
+        target["launch_admission"]["origin_binding"] = copy.deepcopy(
+            origin_binding_record
+        )
+    _persist(reports[0].parent, events, report)
+    lifecycle = _write_acceptance_lifecycle(
+        repo, manifest, reports, capability.report_digest_sha256,
+    )
+    monkeypatch.setattr(R, "assert_autonomous_trial_completeness", lambda **_kw: None)
     with pytest.raises(
         R.TrialRegistryError,
         match=r"\[acceptance-launch-admission\] ",
@@ -719,7 +949,7 @@ def _write_acceptance_lifecycle(
         if trial.trial_id == omit_terminal_trial_id:
             continue
         journal = path.with_name("attempts.jsonl")
-        rows.append({
+        terminal = {
             "schema_version": R.LIFECYCLE_SCHEMA_VERSION,
             "event": "terminal",
             "trial_id": trial.trial_id,
@@ -732,7 +962,12 @@ def _write_acceptance_lifecycle(
                 hashlib.sha256(journal.read_bytes()).hexdigest()
                 if journal.is_file() else "b" * 64
             ),
-        })
+        }
+        if "origin_terminal_projection" in report:
+            terminal["origin_terminal_projection"] = copy.deepcopy(
+                report["origin_terminal_projection"]
+            )
+        rows.append(terminal)
     lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
     lifecycle.parent.mkdir(parents=True, exist_ok=True)
     lifecycle.write_bytes(b"".join(_canonical(row) + b"\n" for row in rows))
@@ -845,6 +1080,96 @@ def test_explicit_non_holdout_exploration_is_sealed_and_non_certifying(
     forged = dataclasses.replace(admission, _seal=object())
     with pytest.raises(R.TrialRegistryError, match=r"\[launch-admission\] "):
         R.assert_issued_trial_launch_admission(forged)
+
+
+def test_originless_launch_record_and_canonical_bytes_are_exactly_unchanged(
+    tmp_path: Path,
+) -> None:
+    repo, _head_commit = _init_repo(tmp_path)
+    admission = R.admit_unregistered_exploratory(
+        trial_id="explicit-exploration",
+        workloads=["ycsb-a"],
+        allow_unregistered_exploratory=True,
+        repository_root=repo,
+        registry_path=repo / R.DEFAULT_REGISTRY_PATH,
+    )
+    expected = {
+        "mode": "explicit-unregistered-exploratory",
+        "certifying": False,
+        "reason_code": "explicit-unregistered-exploratory",
+        "trial_id": "explicit-exploration",
+        "workloads": ["ycsb-a"],
+        "binding": None,
+        "activation_report_digest_sha256": None,
+    }
+    default_record = R.launch_admission_record(admission)
+    explicit_originless = R.launch_admission_record(
+        admission,
+        origin_binding=None,
+    )
+    assert default_record == expected == explicit_originless
+    assert _canonical(default_record) == _canonical(expected)
+    assert hashlib.sha256(_canonical(default_record)).hexdigest() == hashlib.sha256(
+        _canonical(expected)
+    ).hexdigest()
+    assert "origin_binding" not in default_record
+
+
+def test_launch_record_projects_the_same_issued_capability_object(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    capability = _issued_origin_binding(trial, _head(repo), monkeypatch)
+    seen: list[object] = []
+    original = origin_binding.origin_binding_capability_record
+
+    def capture(value):
+        seen.append(value)
+        return original(value)
+
+    monkeypatch.setattr(
+        origin_binding,
+        "origin_binding_capability_record",
+        capture,
+    )
+    R.assert_rederived_launch_admission(
+        admission,
+        effective_preregistration=_effective_capability(manifest, monkeypatch),
+        manifest_path=manifest_path,
+        trial_id=trial.trial_id,
+        workloads=[R.HOLDOUT_BINDINGS[trial.holdout]["workload"]],
+        allow_unregistered_exploratory=False,
+        repository_root=repo,
+        registry_path=registry,
+        origin_binding=capability,
+    )
+    record = R.launch_admission_record(
+        admission,
+        origin_binding=capability,
+    )
+    assert seen and all(value is capability for value in seen)
+    assert record["origin_binding"] == _fixture_origin_binding(trial, _head(repo))
+
+
+def test_launch_record_rejects_an_issued_capability_for_another_trial(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    foreign = _issued_origin_binding(manifest.trials[1], _head(repo), monkeypatch)
+    with pytest.raises(
+        R.TrialRegistryError,
+        match=r"\[launch-admission\] origin capability differs ",
+    ):
+        R.launch_admission_record(admission, origin_binding=foreign)
 
 
 @pytest.mark.parametrize(
@@ -1105,6 +1430,21 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
     assert [row["event"] for row in rows] == [
         "start", "start", "terminal", "terminal",
     ]
+    assert rows[0] == {
+        "schema_version": R.LIFECYCLE_SCHEMA_VERSION,
+        "event": "start",
+        "trial_id": admission.trial_id,
+        "run_root": str((repo / "run-one").resolve()),
+        "mode": "registered-effective",
+        "manifest_sha256": admission.binding.manifest_sha256,
+        "measurement_head": admission.binding.measurement_head,
+        "activation_report_digest_sha256": (
+            admission.activation_report_digest_sha256
+        ),
+        "launch_admission_sha256": hashlib.sha256(
+            _canonical(R.launch_admission_record(admission))
+        ).hexdigest(),
+    }
     first_terminal = next(
         row for row in rows
         if row["event"] == "terminal" and row["trial_id"] == first.trial_id
@@ -1115,6 +1455,73 @@ def test_registered_admission_and_lifecycle_are_non_certifying_and_start_once(
     assert first_terminal["attempt_journal_sha256"] == hashlib.sha256(
         journal_bytes
     ).hexdigest()
+    assert first_terminal == {
+        "schema_version": R.LIFECYCLE_SCHEMA_VERSION,
+        "event": "terminal",
+        "trial_id": first.trial_id,
+        "terminal_status": "complete",
+        "report_sha256": hashlib.sha256(report_bytes).hexdigest(),
+        "attempt_journal_sha256": hashlib.sha256(journal_bytes).hexdigest(),
+    }
+
+
+@pytest.mark.parametrize("rejected", [True, False])
+def test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    rejected: bool,
+) -> None:
+    repo, manifest_path, registry, manifest = _registered_repo(tmp_path)
+    trial = manifest.trials[0]
+    admission = _registered_admission(
+        repo, manifest_path, registry, manifest, monkeypatch,
+    )
+    binding_record = _fixture_origin_binding(trial, _head(repo))
+    capability = _issued_origin_binding(
+        trial,
+        _head(repo),
+        monkeypatch,
+        origin_binding_record=binding_record,
+    )
+    lifecycle = repo / R.DEFAULT_LIFECYCLE_PATH
+    token = R.record_trial_start_once(
+        admission=admission,
+        effective_preregistration=_effective_capability(manifest, monkeypatch),
+        manifest_path=manifest_path,
+        run_root=repo / "origin-run",
+        repository_root=repo,
+        registry_path=registry,
+        lifecycle_path=lifecycle,
+        origin_binding=capability,
+    )
+    projection = _origin_terminal_projection(
+        rejected=rejected,
+        origin_binding_record=binding_record,
+    )
+    R.record_trial_terminal(
+        token,
+        terminal_status="indeterminate",
+        origin_terminal_projection=projection,
+    )
+    rows = [json.loads(line) for line in lifecycle.read_bytes().splitlines()]
+    start, terminal = rows
+    expected_admission = R.launch_admission_record(
+        admission,
+        origin_binding=capability,
+    )
+    assert start["launch_admission_sha256"] == hashlib.sha256(
+        _canonical(expected_admission)
+    ).hexdigest()
+    assert _canonical({
+        "origin_terminal_projection": terminal["origin_terminal_projection"],
+    }) == _canonical(formal.origin_terminal_projection_record(projection))
+    if rejected:
+        assert terminal["origin_terminal_projection"][
+            "formal_receipt_sha256"
+        ] is None
+        assert terminal["origin_terminal_projection"][
+            "evidence_root_sha256"
+        ] is None
 
 
 def test_lifecycle_updates_take_exclusive_flock_and_fsync(

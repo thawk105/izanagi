@@ -33,7 +33,7 @@ FORBIDDEN_KEY_TOKENS = (
 _SCHEMA_PATH = Path(__file__).resolve().with_name("s8b_descriptor_schema.json")
 
 
-def _canonical_bytes(value: Any) -> bytes:
+def canonical_descriptor_bytes(value: Any) -> bytes:
     try:
         encoded = json.dumps(
             value, sort_keys=True, ensure_ascii=False, separators=(",", ":")
@@ -199,8 +199,8 @@ def projection_record(search_config, descriptor) -> dict:
         raise DescriptorError("descriptor schema を読めない: %s" % _SCHEMA_PATH) from exc
     return {
         "projection_version": PROJECTION_VERSION,
-        "input_sha256": hashlib.sha256(_canonical_bytes(search_config)).hexdigest(),
-        "output_sha256": hashlib.sha256(_canonical_bytes(descriptor)).hexdigest(),
+        "input_sha256": hashlib.sha256(canonical_descriptor_bytes(search_config)).hexdigest(),
+        "output_sha256": hashlib.sha256(canonical_descriptor_bytes(descriptor)).hexdigest(),
         "schema_sha256": hashlib.sha256(schema_bytes).hexdigest(),
     }
 

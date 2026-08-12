@@ -389,6 +389,64 @@ def _launch_admission(workloads: list[str]) -> dict:
     }
 
 
+def _origin_binding(*, workload: str = "ycsb-a") -> dict:
+    return {
+        "authority_blob_sha256": "1" * 64,
+        "source_closure_sha256": "2" * 64,
+        "origin_id": "fixture-origin",
+        "cell_key": "fixture-cell",
+        "authority_workload": {
+            "descriptor_sha256": "3" * 64,
+            "records": 1000,
+            "threads": 4,
+        },
+        "axis_semantics_sha256": "4" * 64,
+        "verifier_policy_sha256": "5" * 64,
+        "environment_contract_sha256": "6" * 64,
+        "campaign_id": "fixture-campaign",
+        "trial_workload": workload,
+        "measurement_head": "7" * 40,
+        "store_scope": "fixture",
+        "issuer_seal": "launch-admission-gate/v1",
+    }
+
+
+def _origin_bound_launch_admission() -> dict:
+    return {
+        "mode": "registered-effective",
+        "certifying": False,
+        "reason_code": "registered-effective-non-certifying",
+        "trial_id": "fixture-completeness",
+        "workloads": ["ycsb-a"],
+        "binding": {
+            "manifest_sha256": "b" * 64,
+            "prereg_commit": "c" * 40,
+            "measurement_head": "7" * 40,
+            "trial_id": "fixture-completeness",
+            "arm": "on",
+            "holdout": "H1",
+            "campaign_id": "fixture-campaign",
+            "workload": "ycsb-a",
+            "ycsb_rratio": "70",
+        },
+        "activation_report_digest_sha256": "d" * 64,
+        "origin_binding": _origin_binding(),
+    }
+
+
+def _origin_terminal_projection(*, rejected: bool) -> dict:
+    return {
+        "schema_version": "OriginTerminalProjection/v1",
+        "reason_code": "FC01" if rejected else "P6Unavailable",
+        "formal_receipt_sha256": None if rejected else "8" * 64,
+        "evidence_root_sha256": None if rejected else "9" * 64,
+        "authority_blob_sha256": "1" * 64,
+        "origin_id": "fixture-origin",
+        "cell_key": "fixture-cell",
+        "terminal_payload_sha256": "a" * 64,
+    }
+
+
 def _finish(run: Path, status: str, seq: int) -> dict:
     return {
         "event": "run-finish",
@@ -1222,6 +1280,81 @@ def test_launch_admission_is_required_and_exact_between_start_and_report(
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=r"\[launch-admission\] ",
+    ):
+        _verify(run, report)
+
+
+def test_launch_admission_keys_are_closed_seven_or_eight_key_alternatives(
+    tmp_path: Path,
+) -> None:
+    base_keys = frozenset(_launch_admission(["ycsb-a"]))
+    assert C._LAUNCH_ADMISSION_KEYS == frozenset({
+        base_keys,
+        base_keys | {"origin_binding"},
+    })
+
+    run, events, report = _complete_trial(tmp_path)
+    launch_admission = _origin_bound_launch_admission()
+    events[0]["launch_admission"] = copy.deepcopy(launch_admission)
+    report["launch_admission"] = copy.deepcopy(launch_admission)
+    _persist(run, events, report)
+    _verify(run, report)
+
+
+@pytest.mark.parametrize("value", [None, {"unexpected": True}])
+def test_origin_binding_null_or_unknown_shape_is_rejected(
+    tmp_path: Path,
+    value: object,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    events[0]["launch_admission"]["origin_binding"] = copy.deepcopy(value)
+    report["launch_admission"]["origin_binding"] = copy.deepcopy(value)
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[launch-admission\] ",
+    ):
+        _verify(run, report)
+
+
+def test_launch_admission_unknown_top_level_key_remains_rejected(
+    tmp_path: Path,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    events[0]["launch_admission"]["future_key"] = "not-admitted"
+    report["launch_admission"]["future_key"] = "not-admitted"
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[launch-admission\] report launch_admission exact keys differ$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize("rejected", [True, False])
+def test_origin_terminal_projection_has_the_formal_consumer_shape(
+    tmp_path: Path,
+    rejected: bool,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    report["origin_terminal_projection"] = _origin_terminal_projection(
+        rejected=rejected,
+    )
+    _persist(run, events, report)
+    _verify(run, report)
+
+
+def test_rejected_origin_terminal_projection_rejects_non_null_receipt(
+    tmp_path: Path,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    projection = _origin_terminal_projection(rejected=True)
+    projection["formal_receipt_sha256"] = "8" * 64
+    report["origin_terminal_projection"] = projection
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[origin-terminal-projection\] ",
     ):
         _verify(run, report)
 
