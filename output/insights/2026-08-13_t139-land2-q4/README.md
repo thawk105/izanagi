@@ -19,7 +19,7 @@ Q4 = 「投入の実務経路 (`submit_pilot`・PBS driver・collector) + D292 �
 | `verbatim/s3-lensA.md` | 段 3 レンズ A「正しさ境界」— **NO-GO**、所見 A-01〜A-12 |
 | `verbatim/s3-lensB.md` | 段 3 レンズ B「整合・実効性・発火点」— **NO-GO**、所見 B-01〜B-15 |
 | `verbatim/s4-adjudication.md` | 段 4 裁定 — real/refuted 22 件、親 brief の訂正 5 件、変異免除の根拠 |
-| `package.md` | 裁定パッケージ **K1〜K4** (ユーザー手番) |
+| `package.md` | 裁定パッケージ **K1〜K5** (ユーザー手番) |
 
 ## 先行 wave の閂 2 件は解消していた (これは前進である)
 
