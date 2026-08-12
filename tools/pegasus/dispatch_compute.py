@@ -60,6 +60,8 @@ TASKS = {
             "PYTEST_ADDOPTS",
             "IZANAGI_TEST_NPROC",
             "IZANAGI_TEST_TRIGGER",
+            # T-080 E2E の opt-in を計算ノードへ伝える。
+            "IZANAGI_T080_E2E",
         }),
         probe_imports=("pytest", "xdist", "packaging"),
     ),
