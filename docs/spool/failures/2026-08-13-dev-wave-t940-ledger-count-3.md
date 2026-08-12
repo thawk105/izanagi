@@ -18,11 +18,13 @@ seq: 3
   `tools/codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid` を立てて
   `_evidence_status` が `invalid` を返した。既知の「Web 検索で全損」とは別経路であり、
   親の prompt には出力量の制約が無かった。
-- 恒久対応: `docs/dev-wave/operations.md` の `DW-O05` (read-only codex) へ、子 prompt に
-  出力量上限 (200 行 / 20 KB) と `-l` / `-c` 先行の検索作法を書く定型を入れる。
-  **その定型は「推奨であって停止条件ではない、超えたら絞り直して必ず成果物を出せ」と明記する** —
+- 恒久対応: 親の memory `codex-large-output-breaks-evidence` (2026-08-13 作成、`MEMORY.md` に登録)。
+  子 prompt へ出力量の目安 (200 行 / 20 KB) と `-l` / `-c` 先行の検索作法を書き、
+  **「推奨であって停止条件ではない、超えたら絞り直して必ず成果物を出せ」と明記する**ことを義務づける。
   本 wave の 3 回目の投入は、親が「超えると全損する」とだけ書いたために子が停止条件と解釈し、
   229 bytes の中止宣言だけ出して降りた (証拠経路は正常だったのに成果物ゼロ)。
+  `docs/dev-wave/operations.md` の `DW-O05` へ入れる案は L1.5 の byte 予算に余白が無く
+  (追記後 9803 bytes > 予算 9566 bytes) 入らなかった。予算は上げない (T-127 裁定)。
 - 再発検知: 待ち手 rc=70 を見たら receipt の `evidence_status` を先に読み、`invalid` なら
   events.jsonl の最大行長と JSON parse 失敗行を数える。本 wave で使った診断は
   1 行ずつ `parse_jsonl` に通して失敗行と byte 数を出すだけの 20 行スクリプトである。
