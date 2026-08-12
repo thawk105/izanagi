@@ -7,6 +7,7 @@ primary endpoint は arm 情報を隠した親の意味裁定である。
 from __future__ import annotations
 
 import argparse
+import glob
 import hashlib
 import importlib.util
 import json
@@ -228,6 +229,29 @@ def _json_lines(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return rows, issues
 
 
+def _session_meta_rows(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        stream = path.open("rb")
+    except OSError:
+        return rows
+    with stream:
+        for line in stream:
+            if not (
+                b'"session_meta"' in line
+                or b"\\u00" in line  # ASCII character JSON Unicode escape
+                or b"\x00" in line  # UTF-16/UTF-32 accepted by json.loads
+            ):
+                continue
+            try:
+                value = json.loads(line)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if isinstance(value, dict) and value.get("type") == "session_meta":
+                rows.append(value)
+    return rows
+
+
 def _run(
     argv: Sequence[str],
     *,
@@ -256,19 +280,59 @@ def _git(repo: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
     return _run(("git", *args), cwd=repo, input_bytes=input_bytes).stdout
 
 
-def _find_rollout(sessions_root: Path, session_id: str) -> Path:
+def _rollout_matches_session(path: Path, session_id: str) -> bool:
+    for row in _session_meta_rows(path):
+        if row.get("type") != "session_meta":
+            continue
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        if payload.get("id") == session_id or payload.get("session_id") == session_id:
+            return True
+    return False
+
+
+def _find_rollout(
+    sessions_root: Path,
+    session_id: str,
+    *,
+    pinned_label: str | None = None,
+) -> Path:
+    eligible = (
+        pinned_label is not None
+        and SESSION_IDS.get(pinned_label) == session_id
+        and pinned_label in ROLLOUT_SHA256
+    )
+    if eligible:
+        candidate: Path | None = None
+        try:
+            assert pinned_label is not None
+            separators = (os.sep,) if os.altsep is None else (os.sep, os.altsep)
+            if not any(separator in session_id for separator in separators):
+                escaped = glob.escape(session_id)
+                candidates = sorted(
+                    sessions_root.rglob(f"rollout-*-{escaped}.jsonl"),
+                    key=os.fspath,
+                )
+                if len(candidates) == 1:
+                    candidate = candidates[0]
+        except Exception:
+            pass
+
+        if candidate is not None and _rollout_matches_session(candidate, session_id):
+            try:
+                resolved = candidate.resolve()
+                assert pinned_label is not None
+                _verify_rollout_sha(resolved, pinned_label)
+            except Exception:
+                pass
+            else:
+                return resolved
+
     matches: list[Path] = []
     for path in sorted(sessions_root.rglob("rollout-*.jsonl"), key=os.fspath):
-        rows, _ = _json_lines(path)
-        for row in rows:
-            if row.get("type") != "session_meta":
-                continue
-            payload = row.get("payload")
-            if not isinstance(payload, dict):
-                continue
-            if payload.get("id") == session_id or payload.get("session_id") == session_id:
-                matches.append(path.resolve())
-                break
+        if _rollout_matches_session(path, session_id):
+            matches.append(path.resolve())
     if len(matches) != 1:
         raise ValidationError(
             f"session {session_id} rollout count is {len(matches)}, expected 1",
@@ -560,7 +624,11 @@ def derive_independent_golden(
     verify_source_sha: bool = True,
 ) -> dict[str, bytes]:
     paths = {
-        label: _find_rollout(sessions_root, SESSION_IDS[label])
+        label: _find_rollout(
+            sessions_root,
+            SESSION_IDS[label],
+            pinned_label=label,
+        )
         for label in ("author", "fix1", "fix2")
     }
     if verify_source_sha:
@@ -1011,11 +1079,25 @@ def _metadata_manifest(root: Path) -> list[dict[str, Any]]:
 
 
 def _filesystem_file_set(snapshot: Path) -> set[str]:
+    """Return non-directory paths observed in a static snapshot tree.
+
+    The walk is not atomic if the filesystem changes while it is in progress,
+    matching the existing ``Path.rglob`` behavior.  Parent resolution remains
+    per path, so its call order and exception surface are unchanged; only the
+    pure root-``.git`` containment decision is memoized for resolved parents.
+    """
     found: set[str] = set()
     root_git = (snapshot / ".git").resolve()
+    parent_is_root_git: dict[Path, bool] = {}
     for path in snapshot.rglob("*"):
         resolved_parent = path.parent.resolve()
-        if resolved_parent == root_git or root_git in resolved_parent.parents:
+        is_root_git = parent_is_root_git.get(resolved_parent)
+        if is_root_git is None:
+            is_root_git = (
+                resolved_parent == root_git or root_git in resolved_parent.parents
+            )
+            parent_is_root_git[resolved_parent] = is_root_git
+        if is_root_git:
             continue
         metadata = path.lstat()
         if not stat.S_ISDIR(metadata.st_mode):
@@ -1539,7 +1621,11 @@ def render_prompt(
 ) -> tuple[bytes, dict[str, Any]]:
     if case not in ("POS", "NEG"):
         raise ValidationError(f"unknown case: {case}", RC_SNAPSHOT)
-    rollout = _find_rollout(sessions_root, SESSION_IDS[case])
+    rollout = _find_rollout(
+        sessions_root,
+        SESSION_IDS[case],
+        pinned_label=case,
+    )
     if verify_source:
         _verify_rollout_sha(rollout, case)
     message = extract_user_message(rollout)

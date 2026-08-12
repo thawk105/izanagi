@@ -183,14 +183,16 @@ def _cell() -> PreparedCell:
 def test_prepared_binding_contextmanager_branch():
     """prepare_fn が contextmanager を返す分岐。"""
     @contextlib.contextmanager
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         assert cell == {"configuration": "stock", "variant": _ENTRY}
         assert ccbench_pin == "pin-1"
+        assert cxx == "site-cxx"
         yield _cell()
 
     with M.prepared_binding(
             freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-            ccbench_pin="pin-1", prepare_fn=prepare_fn) as (identity, prepared):
+            ccbench_pin="pin-1", cxx="site-cxx",
+            prepare_fn=prepare_fn) as (identity, prepared):
         assert identity["binding_sha256"] == (
             "e1df79581e810cefd9981e4fee13629cf29b2b299ccef7d018e6941092b7a23c"
         )
@@ -199,12 +201,13 @@ def test_prepared_binding_contextmanager_branch():
 
 def test_prepared_binding_raw_value_branch():
     """prepare_fn が素の値 (contextmanager でない) を返す分岐 → nullcontext 包み。"""
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         return _cell()
 
     with M.prepared_binding(
             freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-            ccbench_pin="pin-1", prepare_fn=prepare_fn) as (identity, prepared):
+            ccbench_pin="pin-1", cxx="site-cxx",
+            prepare_fn=prepare_fn) as (identity, prepared):
         assert identity["variant_id"] == "bf5fcd7a997a"
         assert isinstance(prepared, PreparedCell)
 
@@ -239,12 +242,13 @@ class _AliveManager:
 def test_prepared_binding_manager_alive_during_consumer_and_exits_once():
     mgr = _AliveManager(_cell())
 
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         return mgr
 
     with M.prepared_binding(
             freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-            ccbench_pin="pin-1", prepare_fn=prepare_fn) as (_identity, _prepared):
+            ccbench_pin="pin-1", cxx="site-cxx",
+            prepare_fn=prepare_fn) as (_identity, _prepared):
         # consumer 実行中は manager が生存している。
         assert mgr.alive is True
         assert mgr.exit_count == 0
@@ -259,13 +263,14 @@ def test_prepared_binding_cleanup_on_identity_synthesis_exception():
     # prepare_fn が PreparedCell でない資源を返すと binding_from_prepared が失敗する。
     mgr = _AliveManager({"not": "a prepared cell"})
 
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         return mgr
 
     with pytest.raises(M.MaterializationError):
         with M.prepared_binding(
                 freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-                ccbench_pin="pin-1", prepare_fn=prepare_fn):
+                ccbench_pin="pin-1", cxx="site-cxx",
+                prepare_fn=prepare_fn):
             pytest.fail("identity 合成失敗で body に入ってはならない")
     # 例外経路でも exit が呼ばれている (cleanup)。
     assert mgr.exit_count == 1
@@ -277,13 +282,14 @@ def test_prepared_binding_cleanup_exception_not_swallowed():
     boom = RuntimeError("cleanup failed")
     mgr = _AliveManager(_cell(), exit_raises=boom)
 
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         return mgr
 
     with pytest.raises(RuntimeError, match="cleanup failed"):
         with M.prepared_binding(
                 freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-                ccbench_pin="pin-1", prepare_fn=prepare_fn):
+                ccbench_pin="pin-1", cxx="site-cxx",
+                prepare_fn=prepare_fn):
             pass
     assert mgr.exit_count == 1
 
@@ -460,7 +466,7 @@ def test_floor_manifest_golden_stable():
     ]
 
     @contextlib.contextmanager
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         entry = cell["variant"]
         genome = Genome("silo", dict(entry["flags"]))
         token = "stock" if entry["configuration"] == "stock" \
@@ -469,6 +475,32 @@ def test_floor_manifest_golden_stable():
                            ccbench_dir="/tmp/cc", cache_root="/tmp/ca")
 
     contract = ec.lookup("linux-baremetal")
+    verified_calibration = floor.env_attestation.load_verified_calibration(
+        contract, ROOT,
+    )
+
+    def fixture_toolchain_binding(candidate, *, cc, cxx):
+        assert candidate is verified_calibration
+        return {
+            "cc": {
+                "requested": cc,
+                "realpath": f"/fixture/toolchain/{cc}",
+                "version_first_line": "fixture cc version",
+                "version": "fixture cc version\nfixture cc detail",
+            },
+            "cxx": {
+                "requested": cxx,
+                "realpath": f"/fixture/toolchain/{cxx}",
+                "version_first_line": "fixture cxx version",
+                "version": "fixture cxx version\nfixture cxx detail",
+            },
+            "cmake": {
+                "requested": "cmake",
+                "realpath": "/fixture/toolchain/cmake",
+                "version_first_line": "cmake version fixture",
+                "version": "cmake version fixture\nfixture cmake detail",
+            },
+        }
 
     def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
         source_sha = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
@@ -490,11 +522,14 @@ def test_floor_manifest_golden_stable():
                 genome.canonical(), kw["contract"].contract_sha256)), \
             mock.patch.object(
                 floor.source_digest, "resolve_evidence", fixture_evidence,
+            ), \
+            mock.patch.object(
+                floor, "_bind_current_toolchain", fixture_toolchain_binding,
             ):
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
             out_root=Path("/tmp/out"), prepare_fn=prepare_fn,
-            contract=contract)
+            contract=contract, verified_calibration=verified_calibration)
     for record in built.values():
         record["store_path"] = "/tmp/out/store/" + record["binary_sha256"]
     built = floor.project_built_records(built, out_root=Path("/tmp/out"))
@@ -535,13 +570,14 @@ def test_floor_manifest_golden_stable():
 def test_oracle_boundary_converts_to_oracle_driver_error():
     from orchestrator.campaign import s8b_oracle_driver as driver
 
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         return {"not": "a prepared cell"}  # binding_from_prepared が拒否する
 
     with pytest.raises(driver.OracleDriverError) as excinfo:
         with driver._prepared_binding(
                 freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-                ccbench_pin="pin-1", prepare_fn=prepare_fn):
+                ccbench_pin="pin-1", cxx="site-cxx",
+                prepare_fn=prepare_fn):
             pass
     # reason 文字列は現行と一致 (WAL に載る), 因果は MaterializationError。
     assert str(excinfo.value) == "prepare_fn の戻り値が PreparedCell でない"
@@ -551,13 +587,14 @@ def test_oracle_boundary_converts_to_oracle_driver_error():
 def test_floor_boundary_converts_to_floor_campaign_error():
     from orchestrator.campaign import s8b_floor_campaign as floor
 
-    def prepare_fn(cell, ccbench_pin):
+    def prepare_fn(cell, ccbench_pin, *, cxx):
         return {"not": "a prepared cell"}
 
     with pytest.raises(floor.FloorCampaignError) as excinfo:
         with floor._prepared_binding(
                 freeze=_FREEZE, holdout_id="H1", configuration_id="stock",
-                ccbench_pin="pin-1", prepare_fn=prepare_fn):
+                ccbench_pin="pin-1", cxx="site-cxx",
+                prepare_fn=prepare_fn):
             pass
     assert str(excinfo.value) == "prepare_fn の戻り値が PreparedCell でない"
     assert isinstance(excinfo.value.__cause__, M.MaterializationError)

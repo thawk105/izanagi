@@ -3,7 +3,8 @@
 
 入力形式 (patches/README.md / include/trace.hh と一致):
   per-thread ファイル `trace_<thid>.log`、1イベント1行。
-    C <txid> <thid> <epoch> <tid>             committed txn。版ID=(epoch,tid)=commit順
+    C <txid> <thid> <epoch> <tid> <read_count> <write_count>
+                                                committed txn。版ID=(epoch,tid)=commit順
     R <txid> <key_hex> <ver_epoch> <ver_tid>  read。見た版
     W <txid> <key_hex> <op> <epoch> <tid>     write。op∈{U,I,D}。新版=この trx の commit
     X <txid> <key_hex> <reason>               lock 被覆違反 (writePhase の #if TRACE assert。D38)
@@ -14,10 +15,13 @@
                                                validationPhase は writePhase の txid 採番より
                                                前に走り、abort する trx でも起こりうるため
                                                txn 文脈と無関係に独立して出現しうる
+    E <txid>                                  txn frame の必須終端
 
-1 trx の C/R/W 行は **同一ファイル内で連続** (1 worker が trx を逐次実行し、
-writePhase 内で C→R…→W… を一括 emit するため)。C 行が trx の区切り。
+1 trx の C/R/W/X/I/E 行は **同一ファイル内で連続** (1 worker が trx を逐次実行し、
+writePhase 内で C→R…→W…→E を一括 emit するため)。C/E が txn frame の境界。
 txid はグローバル単調なので、ファイルをまたいで txid で束ねられる。
+宣言された read/write 件数は R/W 行だけを数えて照合する。X/I は違反記録、P/A は
+txid 非相関の記録なので件数へ含めない。全ての C frame は一致する E を必須とする。
 
 trace-hook が構造的に保証する不変条件は、破れを ParseIssues に収集して
 integrity へ配線する (辺が落ちて cycle を隠す部分 trace を認証しない、絶対規律2):
@@ -32,7 +36,7 @@ import glob
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from .model import Read, Txn, Write
 
@@ -41,6 +45,23 @@ _KEY_RE = re.compile(r"^(?:[0-9a-f]{2})+$")   # 小文字 hex・偶数長 (trace
 
 class ParseError(Exception):
     pass
+
+
+TxnFramingViolationKind = Literal[
+    "count-mismatch", "missing-end", "duplicate-end",
+]
+
+
+@dataclass(frozen=True)
+class TxnFramingViolation:
+    """C/E frame と宣言 R/W 件数の構造化された integrity 違反。"""
+
+    kind: TxnFramingViolationKind
+    txid: int
+    expected_reads: int | None = None
+    observed_reads: int | None = None
+    expected_writes: int | None = None
+    observed_writes: int | None = None
 
 
 @dataclass
@@ -56,6 +77,7 @@ class ParseIssues:
     malformed_key_sample: List[str] = field(default_factory=list)      # 違反 key の見本
     missing_txids: int = 0                                    # txid 欠番の個数
     missing_sample: List[int] = field(default_factory=list)   # 欠番の見本 (先頭数個)
+    framing_violations: List[TxnFramingViolation] = field(default_factory=list)
     # X 行 = writePhase の lock 被覆 assert が emit した違反 (D38)。(txid, key, reason)。
     # reason ∈ {not-locked-at-entry (獲得欠落), lock-lost-before-write (保持破れ)}。
     # これは trace-hook の問題でなく variant の CC 正しさ違反 (torn read 窓) で、
@@ -86,22 +108,86 @@ def _check_key(key: str, issues: ParseIssues) -> None:
             issues.malformed_key_sample.append(key)
 
 
+def _record_count_mismatch(
+        current: Txn, expected_reads: int, expected_writes: int,
+        issues: ParseIssues,
+) -> None:
+    observed_reads = len(current.reads)
+    observed_writes = len(current.writes)
+    if observed_reads != expected_reads or observed_writes != expected_writes:
+        issues.framing_violations.append(TxnFramingViolation(
+            kind="count-mismatch",
+            txid=current.txid,
+            expected_reads=expected_reads,
+            observed_reads=observed_reads,
+            expected_writes=expected_writes,
+            observed_writes=observed_writes,
+        ))
+
+
+def _record_missing_end(
+        current: Txn, expected_reads: int, expected_writes: int,
+        issues: ParseIssues,
+) -> None:
+    issues.framing_violations.append(TxnFramingViolation(
+        kind="missing-end",
+        txid=current.txid,
+        expected_reads=expected_reads,
+        observed_reads=len(current.reads),
+        expected_writes=expected_writes,
+        observed_writes=len(current.writes),
+    ))
+
+
 def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
-    """1 ファイルをパースして txns に追記する。C 行ごとに current を切り替え。"""
+    """1 ファイルをパースして txns に追記する。C/E で frame を管理する。"""
     current: Txn | None = None
+    expected_reads = expected_writes = 0
+    last_closed_txid: int | None = None
     with open(path, "r", encoding="ascii") as fh:
         try:
             for lineno, raw in enumerate(fh, 1):
                 line = raw.rstrip("\n")
                 if not line:
                     continue
-                tag = line[0]
                 f = line.split()
+                if not f:
+                    raise ParseError(
+                        f"{path}:{lineno}: unknown record tag {line[0]!r}: {line!r}")
+                tag = f[0]
+                if not line.startswith(tag):
+                    # 先頭空白を許すと、従来 unknown だった record を split() が
+                    # 正規 tag へ変えて受理集合を広げるため、旧拒否挙動を保つ。
+                    raise ParseError(
+                        f"{path}:{lineno}: unknown record tag {line[0]!r}: {line!r}")
                 try:
                     if tag == "C":
-                        # C <txid> <thid> <epoch> <tid>
-                        _, txid, thid, epoch, tid = f
+                        # C <txid> <thid> <epoch> <tid> <read_count> <write_count>
+                        if len(f) == 5:
+                            raise ParseError(
+                                f"{path}:{lineno}: trace v1 C record is not supported; "
+                                "expected 7 fields including read/write counts")
+                        if len(f) != 7:
+                            raise ParseError(
+                                f"{path}:{lineno}: malformed C record: expected exactly "
+                                f"7 fields, got {len(f)}: {line!r}")
+                        _, txid, thid, epoch, tid, read_count, write_count = f
                         txid_i = int(txid)
+                        read_count_i = int(read_count)
+                        write_count_i = int(write_count)
+                        if txid_i < 0:
+                            raise ParseError(
+                                f"{path}:{lineno}: txid must be a non-negative integer: "
+                                f"{txid_i}")
+                        if read_count_i < 0 or write_count_i < 0:
+                            raise ParseError(
+                                f"{path}:{lineno}: declared read/write counts must be "
+                                f"non-negative: reads={read_count_i} writes={write_count_i}")
+                        if current is not None:
+                            _record_count_mismatch(
+                                current, expected_reads, expected_writes, issues)
+                            _record_missing_end(
+                                current, expected_reads, expected_writes, issues)
                         if txid_i in txns:
                             # 同一 txid の二度目の C — データ健全性違反 (txid は大域一意のはず)。
                             # 下の代入で最初の trx の R/W は失われる (last-wins)。これを dup_txids に
@@ -114,6 +200,9 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                             commit=(int(epoch), int(tid)),
                         )
                         txns[txid_i] = current
+                        expected_reads = read_count_i
+                        expected_writes = write_count_i
+                        last_closed_txid = None
                     elif tag == "R":
                         # R <txid> <key_hex> <ver_epoch> <ver_tid>
                         _, txid, key, ve, vt = f
@@ -151,6 +240,34 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         _check_key(key, issues)
                         issues.write_intent_violations.append(
                             (current.txid, key, reason))
+                    elif tag == "E":
+                        # E <txid>。直前の正常 close と同じ txid の E だけは
+                        # structured duplicate-end として収集し、それ以外は拒否する。
+                        if len(f) != 2:
+                            raise ParseError(
+                                f"{path}:{lineno}: malformed E record: expected exactly "
+                                f"2 fields, got {len(f)}: {line!r}")
+                        _, txid = f
+                        txid_i = int(txid)
+                        if current is None:
+                            if last_closed_txid == txid_i:
+                                issues.framing_violations.append(
+                                    TxnFramingViolation(
+                                        kind="duplicate-end", txid=txid_i))
+                                # さらに E が続いても「直前の正常 close」ではない。
+                                last_closed_txid = None
+                                continue
+                            raise ParseError(
+                                f"{path}:{lineno}: E for txid {txid_i} has no matching "
+                                "open txn")
+                        if txid_i != current.txid:
+                            raise ParseError(
+                                f"{path}:{lineno}: E txid {txid_i} does not match open "
+                                f"txn {current.txid}")
+                        _record_count_mismatch(
+                            current, expected_reads, expected_writes, issues)
+                        last_closed_txid = current.txid
+                        current = None
                     elif tag == "P":
                         # P <reason>  permutation 保存違反 (validationPhase の
                         # #if TRACE assert が emit、D41)。X と異なり txid を
@@ -160,6 +277,8 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         # ない、current が None でも受理する)。
                         _, reason = f
                         issues.permutation_violations.append(reason)
+                        if current is None:
+                            last_closed_txid = None
                     elif tag == "A":
                         # A <reason>  abort 要因の記録 (段 8a、D48 positive
                         # control の計装 patch が abort() 冒頭で emit)。abort
@@ -170,12 +289,19 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
                         _, reason = f
                         issues.abort_reasons[reason] = (
                             issues.abort_reasons.get(reason, 0) + 1)
+                        if current is None:
+                            last_closed_txid = None
                     else:
                         raise ParseError(
                             f"{path}:{lineno}: unknown record tag {tag!r}: {line!r}")
                 except ValueError as e:
                     raise ParseError(
                         f"{path}:{lineno}: malformed line {line!r}: {e}") from e
+            if current is not None:
+                _record_count_mismatch(
+                    current, expected_reads, expected_writes, issues)
+                _record_missing_end(
+                    current, expected_reads, expected_writes, issues)
         except UnicodeDecodeError as e:
             # encoding="ascii" のデコードは行イテレーション時に発生し、上の行単位
             # try の外。生の UnicodeDecodeError を漏らすと呼び手の ParseError 隔離
@@ -186,19 +312,20 @@ def _parse_file(path: str, txns: Dict[int, Txn], issues: ParseIssues) -> None:
 def _expect(current: Txn | None, txid: str, path: str, lineno: int) -> None:
     if current is None:
         raise ParseError(
-            f"{path}:{lineno}: R/W/X/I before any C (txid={txid})")
+            f"{path}:{lineno}: R/W/X/I outside an open C/E frame (txid={txid})")
     if int(txid) != current.txid:
         # 連続性の前提が破れている (トレースの破損か、別 trx の行が割り込んだ)。
         raise ParseError(
             f"{path}:{lineno}: txid {txid} does not match open txn "
-            f"{current.txid} (C/R/W/X/I must be contiguous per txn)")
+            f"{current.txid} (C/R/W/X/I must be inside one contiguous C/E frame)")
 
 
 def parse_trace_dir(trace_dir: str) -> tuple[List[Txn], ParseIssues]:
     """trace_*.log を全て読み、committed txn のリストを返す。
 
     返り値: (txns, issues)。txns は txid 昇順。issues はパース段で見つけた
-    trace 健全性の問題 (dup txid / W 版不一致 / key 形式違反 / txid 欠番)。
+    trace 健全性の問題 (framing / dup txid / W 版不一致 / key 形式違反 /
+    txid 欠番)。
     """
     if not os.path.isdir(trace_dir):
         raise ParseError(f"not a directory: {trace_dir}")

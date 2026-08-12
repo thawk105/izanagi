@@ -187,7 +187,7 @@ def test_qualification_stock_source_reaches_build_with_exact_class(
         }, extime=3, reps=5,
     )
     stock = campaign_fixtures._source_evidence(
-        genome, "d706650", source_root=str(tmp_path / "clean-stock-source"),
+        genome, "511c953", source_root=str(tmp_path / "clean-stock-source"),
     )
     seen = []
 
@@ -201,6 +201,8 @@ def test_qualification_stock_source_reaches_build_with_exact_class(
         raise RuntimeError("stop after stock admission")
 
     monkeypatch.setattr(pipeline.buildcache, "build_v2", stop_at_build)
+    # resolve_evidence seam は下の任意 token を読まず、stock evidence の commit だけが
+    # build_admission.CURRENT_PIN 比較へ届く。
     result = pipeline.evaluate(
         genome, layout, "pegasus", "d706650", perf, 2100, numactl=(),
         extra_correctness=[

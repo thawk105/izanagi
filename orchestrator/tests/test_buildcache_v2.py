@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import textwrap
@@ -40,6 +41,11 @@ from orchestrator.campaign.env_contract import (  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+
+
+_REQUIRED_SECURE_DIR_FD_FUNCTIONS = (
+    "open", "stat", "mkdir", "rename", "unlink", "rmdir",
+)
 
 
 def _source_evidence(genome: Genome, commit: str, source_root: str) -> SourceEvidence:
@@ -149,6 +155,16 @@ def _write_tool(path: Path, first_line: str) -> None:
     path.chmod(0o755)
 
 
+def _write_multiline_tool(path: Path, lines: tuple[str, ...]) -> None:
+    arguments = " ".join(json.dumps(line) for line in lines)
+    path.write_text(
+        "#!/bin/sh\n"
+        f"printf '%s\\n' {arguments}\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
 def _install_toolchain(tmp_path: Path, monkeypatch, *, cxx_version: str = "cxx version A") -> Path:
     bindir = tmp_path / "tools"
     bindir.mkdir(exist_ok=True)
@@ -157,6 +173,29 @@ def _install_toolchain(tmp_path: Path, monkeypatch, *, cxx_version: str = "cxx v
     _write_tool(bindir / "cmake", "cmake version A")
     monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
     return bindir
+
+
+def _expected_toolchain_manifest(bindir: Path) -> dict[str, object]:
+    return {
+        "cc": {
+            "requested": "test-cc",
+            "realpath": str((bindir / "test-cc").resolve()),
+            "version_first_line": "cc version A",
+            "version": "cc version A",
+        },
+        "cxx": {
+            "requested": "test-cxx",
+            "realpath": str((bindir / "test-cxx").resolve()),
+            "version_first_line": "cxx version A",
+            "version": "cxx version A",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": str((bindir / "cmake").resolve()),
+            "version_first_line": "cmake version A",
+            "version": "cmake version A",
+        },
+    }
 
 
 def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-binary") -> None:
@@ -192,7 +231,8 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
-           dependency_prefix: str = "", site: str | None = None):
+           dependency_prefix: str = "", site: str | None = None,
+           expected_toolchain_manifest=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     context, evidence, admission = _admission_bundle(
@@ -216,10 +256,73 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["dependency_prefix"] = dependency_prefix
     if site is not None:
         kwargs["site"] = site
+    if expected_toolchain_manifest is not None:
+        kwargs["expected_toolchain_manifest"] = expected_toolchain_manifest
     return buildcache.build_v2(
         genome,
         **kwargs,
     )
+
+
+def _call_copyout_api(tmp_path: Path, api: str, *, trace: bool = True):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    if api == "v2":
+        return _build(tmp_path, _contract(1), trace=trace)
+    context, evidence, admission = _admission_bundle(
+        genome, "a" * 40, str(tmp_path / "ccbench"),
+    )
+    return buildcache.build(
+        genome, "a" * 40, trace,
+        cache_root=str(tmp_path / "cache"), admission=admission,
+        build_context=context, source_evidence=evidence,
+    )
+
+
+def _install_staging_artifacts(monkeypatch, *, leaf_kind: str, payload: bytes):
+    calls = []
+
+    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        calls.append(what)
+        if what != "build":
+            return
+        staging = Path(cmd[cmd.index("--build") + 1])
+        binary = staging / "cc" / "silo" / "ycsb_silo.exe"
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        (staging / "CMakeCache.txt").write_text("untrusted-cache\n", encoding="utf-8")
+        obj = staging / "objects" / "variant.o"
+        obj.parent.mkdir()
+        obj.write_bytes(b"untrusted-object")
+        (staging / "completion.json").write_text('{"forged":true}\n', encoding="utf-8")
+        (staging / "admission.json").write_text('{"forged":true}\n', encoding="utf-8")
+        (staging / "ignored-link").symlink_to("CMakeCache.txt")
+        os.mkfifo(staging / "ignored-fifo")
+        if leaf_kind == "regular":
+            binary.write_bytes(payload)
+        elif leaf_kind == "symlink":
+            target = staging / "unallowlisted-real-binary"
+            target.write_bytes(payload)
+            binary.symlink_to(target)
+        elif leaf_kind == "fifo":
+            os.mkfifo(binary)
+        elif leaf_kind == "directory":
+            binary.mkdir()
+        elif leaf_kind == "hardlink":
+            target = staging / "unallowlisted-hardlink-target"
+            target.write_bytes(payload)
+            os.link(target, binary)
+        else:  # pragma: no cover - test helper contract
+            raise AssertionError(leaf_kind)
+
+    monkeypatch.setattr(buildcache, "_run", fake_run)
+    return calls
+
+
+def _published_non_directory_members(root: Path) -> set[str]:
+    return {
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if not path.is_dir()
+    }
 
 
 def test_v2_custom_ccbench_tree_drives_commit_allowlist_identity_and_trace_checks(
@@ -364,6 +467,57 @@ def test_v2_toolchain_version_change_is_cache_miss(tmp_path, monkeypatch):
     second = _build(tmp_path, _contract(1))
     assert not second.cached
     assert first.build_dir != second.build_dir
+
+
+def test_v2_expected_toolchain_manifest_exact_match_is_accepted(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    result = _build(
+        tmp_path, _contract(1),
+        expected_toolchain_manifest=_expected_toolchain_manifest(bindir),
+    )
+    assert not result.cached
+
+
+def test_v2_expected_toolchain_manifest_mismatch_refuses_before_cache_claim(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected = _expected_toolchain_manifest(bindir)
+    expected["cc"] = dict(expected["cc"], version_first_line="cc version stale")
+    with pytest.raises(buildcache.BuildCacheError, match="caller の事前観測"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=expected,
+        )
+    assert not (tmp_path / "cache").exists()
+
+
+def test_v2_expected_toolchain_version_lower_line_drift_refuses_before_cache_claim(
+        tmp_path, monkeypatch):
+    bindir = _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _write_multiline_tool(
+        bindir / "test-cc", ("cc version A", "Copyright stable"),
+    )
+    expected = _expected_toolchain_manifest(bindir)
+    expected["cc"] = dict(
+        expected["cc"], version="cc version A\nCopyright stable",
+    )
+    _write_multiline_tool(
+        bindir / "test-cc", ("cc version A", "Copyright changed"),
+    )
+    observed = subprocess.run(
+        [bindir / "test-cc", "--version"], capture_output=True, text=True, check=True,
+    )
+    assert (observed.stdout + observed.stderr).strip() == "cc version A\nCopyright changed"
+    with pytest.raises(buildcache.BuildCacheError, match="version 全文"):
+        _build(
+            tmp_path, _contract(1),
+            expected_toolchain_manifest=expected,
+        )
+    assert not (tmp_path / "cache").exists()
 
 
 def test_m7_v2_actual_site_change_is_cache_miss(tmp_path, monkeypatch):
@@ -663,6 +817,7 @@ def test_v2_missing_manifest_and_binary_mismatch_fail_closed(tmp_path, monkeypat
 
     # 別 contract で正常 entry を作り、manifest が束縛した binary bytes だけを壊す。
     second = _build(tmp_path, _contract(2))
+    Path(second.binary).chmod(0o700)  # same-UID owner は publish 後も chmod できる残余。
     Path(second.binary).write_bytes(b"tampered")
     with pytest.raises(buildcache.BuildCacheError, match="sha256"):
         _build(tmp_path, _contract(2))
@@ -755,7 +910,686 @@ def test_v2_manifest_records_complete_identity(tmp_path, monkeypatch):
     }
     assert len(manifest["preimage"]["toolchain_manifest_sha256"]) == 64
     assert manifest["toolchain"]["cxx"]["version_first_line"] == "cxx version A"
+    assert all(
+        set(entry) == {"requested", "realpath", "version_first_line"}
+        for entry in manifest["toolchain"].values()
+    )
     assert manifest["binary"]["sha256"] == hashlib.sha256(b"manifest-payload").hexdigest()
+
+
+@pytest.mark.parametrize("api,metadata", [("legacy", "admission.json"), ("v2", "completion.json")])
+def test_copyout_fresh_publishes_exact_host_set_and_hit_is_executable(
+        tmp_path, monkeypatch, api, metadata):
+    """M6/M12/M13: extras stay untrusted; a normal nlink=1 binary remains accepted."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    payload = b"#!/bin/sh\nexit 0\n"
+    _fake_build_environment(monkeypatch, tmp_path, payload=payload)
+    calls = _install_staging_artifacts(
+        monkeypatch, leaf_kind="regular", payload=payload,
+    )
+    fresh = _call_copyout_api(tmp_path, api)
+    hit = _call_copyout_api(tmp_path, api)
+
+    final_root = Path(fresh.build_dir)
+    expected_binary = "cc/silo/ycsb_silo.exe"
+    assert _published_non_directory_members(final_root) == {expected_binary, metadata}
+    assert Path(fresh.binary).read_bytes() == payload
+    independent = hashlib.sha256(payload).hexdigest()
+    assert fresh.bin_sha256 == independent == hit.bin_sha256
+    assert json.loads((final_root / metadata).read_text(encoding="utf-8")) != {"forged": True}
+    stat_mode = Path(fresh.binary).stat().st_mode & 0o777
+    assert stat_mode == 0o500
+    executed = subprocess.run(
+        [fresh.binary], capture_output=True, check=False, timeout=5,
+    )
+    assert executed.returncode == 0
+    assert not fresh.cached and hit.cached
+    assert calls == ["configure", "build"]
+
+
+@pytest.mark.parametrize("api,metadata", [("legacy", "admission.json"), ("v2", "completion.json")])
+def test_m6_host_metadata_never_uses_staging_bytes(
+        tmp_path, monkeypatch, api, metadata):
+    """M6 single-reason anchor: only the forged metadata byte source differs."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+
+    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        if what == "build":
+            staging = Path(cmd[cmd.index("--build") + 1])
+            binary = staging / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"metadata-source-anchor")
+            (staging / metadata).write_text('{"forged":true}\n', encoding="utf-8")
+
+    monkeypatch.setattr(buildcache, "_run", fake_run)
+    result = _call_copyout_api(tmp_path, api)
+    actual = json.loads((Path(result.build_dir) / metadata).read_text(encoding="utf-8"))
+    assert actual != {"forged": True}
+
+
+def test_m13_v2_rejects_non_allowlisted_member_in_clean_candidate(tmp_path, monkeypatch):
+    """M13: one non-allowlisted member copied into clean is the single failure reason."""
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+
+    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        if what == "build":
+            staging = Path(cmd[cmd.index("--build") + 1])
+            binary = staging / "cc" / "silo" / "ycsb_silo.exe"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"m13-anchor")
+            (staging / "CMakeCache.txt").write_bytes(b"cache")
+
+    monkeypatch.setattr(buildcache, "_run", fake_run)
+    result = _call_copyout_api(tmp_path, "v2")
+    assert _published_non_directory_members(Path(result.build_dir)) == {
+        "cc/silo/ycsb_silo.exe", "completion.json",
+    }
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+@pytest.mark.parametrize("leaf_kind", ["symlink", "fifo", "directory", "hardlink"])
+def test_copyout_rejects_unsafe_allowlisted_leaf_without_completed_entry(
+        tmp_path, monkeypatch, api, leaf_kind):
+    """M1/M2/M3: M2 evidence is FIFO only; directory read(EISDIR) can pre-empt it."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    calls = _install_staging_artifacts(
+        monkeypatch, leaf_kind=leaf_kind, payload=b"unsafe-leaf",
+    )
+    with pytest.raises((buildcache.BuildError, buildcache.BuildCacheError)):
+        _call_copyout_api(tmp_path, api)
+    assert calls == ["configure", "build"]
+    assert not list((tmp_path / "cache").rglob("*staging-*"))
+    assert not list((tmp_path / "cache").rglob(".publish-*"))
+    if api == "v2":
+        parent = next((tmp_path / "cache" / "contracts").iterdir())
+        assert len(list(parent.glob("*.building"))) == 1
+        assert not [path for path in parent.iterdir() if not path.name.endswith(".building")]
+    else:
+        assert not [path for path in (tmp_path / "cache").iterdir() if path.name.startswith("silo_")]
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_copyout_destination_swap_after_hash_is_rejected_on_same_fd(
+        tmp_path, monkeypatch, api):
+    """M5: disabling verify_destination_entry alone lets the post-hash swap survive."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _install_staging_artifacts(
+        monkeypatch, leaf_kind="regular", payload=b"#!/bin/sh\nexit 0\n",
+    )
+    observed = {}
+
+    def observe_nm(binary, *, binary_fd=None):
+        assert binary_fd is not None
+        observed["nm"] = os.fstat(binary_fd).st_ino
+
+    real_hash = buildcache._full_sha256_fd
+
+    def swap_after_hash(fd, path):
+        digest = real_hash(fd, path)
+        assert "sha" not in observed
+        observed["sha"] = os.fstat(fd).st_ino
+        observed["hashed_fd"] = fd
+        clean_binary = Path(os.readlink(f"/proc/self/fd/{fd}"))
+        assert clean_binary.name == "ycsb_silo.exe"
+        assert clean_binary.parent.parent.parent.name.startswith(".publish-")
+        held_name = clean_binary.with_name("held-original")
+        clean_binary.rename(held_name)
+        clean_binary.write_bytes(b"replacement-path-bytes")
+        clean_binary.chmod(0o500)
+        return digest
+
+    real_fsync = buildcache.os.fsync
+
+    def observe_fsync(fd):
+        if fd == observed.get("hashed_fd"):
+            assert "fsync" not in observed
+            observed["fsync"] = os.fstat(fd).st_ino
+        return real_fsync(fd)
+
+    monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", observe_nm)
+    monkeypatch.setattr(buildcache, "_full_sha256_fd", swap_after_hash)
+    monkeypatch.setattr(buildcache.os, "fsync", observe_fsync)
+    with pytest.raises(buildcache.BuildCacheError, match="destination entry"):
+        _call_copyout_api(tmp_path, api, trace=False)
+    assert observed["nm"] == observed["sha"] == observed["fsync"]
+    assert not list((tmp_path / "cache").rglob(".publish-*"))
+    assert not list((tmp_path / "cache").rglob("ycsb_silo.exe"))
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_copyout_sha_fd_inode_is_the_published_binary_inode(
+        tmp_path, monkeypatch, api):
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _install_staging_artifacts(
+        monkeypatch, leaf_kind="regular", payload=b"published-inode",
+    )
+    observed = []
+    real_hash = buildcache._full_sha256_fd
+
+    def observe_hash(fd, path):
+        observed.append(os.fstat(fd).st_ino)
+        return real_hash(fd, path)
+
+    monkeypatch.setattr(buildcache, "_full_sha256_fd", observe_hash)
+    result = _call_copyout_api(tmp_path, api)
+    assert observed == [Path(result.binary).stat().st_ino]
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_cache_hit_keeps_legacy_extra_member_compatibility(tmp_path, monkeypatch, api):
+    """A-6 residual; this compatibility test is not fresh-gate call-site evidence."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    fresh = _call_copyout_api(tmp_path, api)
+    (Path(fresh.build_dir) / "old-extra-member").write_bytes(b"legacy-extra")
+    hit = _call_copyout_api(tmp_path, api)
+    assert hit.cached
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+@pytest.mark.parametrize("attack", ["binary-intermediate", "metadata"])
+def test_cache_hit_rejects_symlinked_member_without_running_build(
+        tmp_path, monkeypatch, api, attack):
+    """M8 uses binary-intermediate; legacy swaps only after its lexists precheck."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _call_copyout_api(tmp_path, api)
+    bdir = Path(first.build_dir)
+    swapped = False
+    if attack == "binary-intermediate":
+        def swap_intermediate():
+            nonlocal swapped
+            real_cc = bdir / "cc.real"
+            (bdir / "cc").rename(real_cc)
+            (bdir / "cc").symlink_to(real_cc, target_is_directory=True)
+            swapped = True
+
+        if api == "legacy":
+            real_lexists = buildcache._relative_entry_lexists
+
+            def lexists_then_swap(root_fd, relpath, *, label):
+                exists = real_lexists(root_fd, relpath, label=label)
+                if exists and not swapped:
+                    swap_intermediate()
+                return exists
+
+            monkeypatch.setattr(
+                buildcache, "_relative_entry_lexists", lexists_then_swap,
+            )
+        else:
+            swap_intermediate()
+    else:
+        metadata = bdir / ("completion.json" if api == "v2" else "admission.json")
+        real_metadata = metadata.with_suffix(".real")
+        metadata.rename(real_metadata)
+        metadata.symlink_to(real_metadata)
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    error_match = (
+        "no-follow open"
+        if api == "legacy" and attack == "binary-intermediate" else None
+    )
+    with pytest.raises(buildcache.BuildCacheError, match=error_match):
+        _call_copyout_api(tmp_path, api)
+    if attack == "binary-intermediate":
+        assert swapped
+    assert build_calls == []
+
+
+def test_legacy_hit_rejects_broken_binary_leaf_symlink_without_build(
+        tmp_path, monkeypatch):
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _call_copyout_api(tmp_path, "legacy")
+    binary = Path(first.binary)
+    binary.unlink()
+    binary.symlink_to(binary.with_name("missing-target"))
+    build_calls = []
+    monkeypatch.setattr(
+        buildcache, "_run", lambda *args, **kwargs: build_calls.append((args, kwargs)),
+    )
+    with pytest.raises(buildcache.BuildCacheError):
+        _call_copyout_api(tmp_path, "legacy")
+    assert build_calls == []
+
+
+@pytest.mark.parametrize("entry_kind", ["symlink", "file"])
+def test_clear_stale_build_dir_rejects_symlink_and_non_directory(
+        tmp_path, entry_kind):
+    """Helper contract only; this is not proof that a production call-site invokes it."""
+    bdir = tmp_path / "cache-entry"
+    if entry_kind == "symlink":
+        target = tmp_path / "target"
+        target.mkdir()
+        bdir.symlink_to(target, target_is_directory=True)
+    else:
+        bdir.write_bytes(b"not-a-directory")
+    with pytest.raises(buildcache.BuildCacheError, match="symlink|非 directory"):
+        buildcache._clear_stale_build_dir(
+            str(bdir), str(bdir / "cc" / "silo" / "ycsb_silo.exe"),
+        )
+    assert bdir.exists() or bdir.is_symlink()
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_copyout_gate_order_is_exact_through_rename(tmp_path, monkeypatch, api):
+    """Auxiliary exact-order evidence, not evidence from a real C++ publish path."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _install_staging_artifacts(
+        monkeypatch, leaf_kind="regular", payload=b"#!/bin/sh\nexit 0\n",
+    )
+    events = []
+    monkeypatch.setattr(buildcache, "_recheck_source_evidence", lambda *a, **k: events.append("recheck"))
+    monkeypatch.setattr(buildcache, "_assert_trace_diff", lambda *a, **k: events.append("trace-diff"))
+    monkeypatch.setattr(
+        buildcache, "_assert_no_trace_symbols",
+        lambda *a, **k: events.append("nm"),
+    )
+    real_hash = buildcache._full_sha256_fd
+
+    def observed_hash(fd, path):
+        events.append("sha")
+        return real_hash(fd, path)
+
+    real_fsync = buildcache.os.fsync
+
+    def observed_fsync(fd):
+        info = os.fstat(fd)
+        if (stat.S_ISREG(info.st_mode) and (info.st_mode & 0o777) == 0o500
+                and "fsync" not in events):
+            events.append("fsync")
+        return real_fsync(fd)
+
+    real_rename = buildcache.os.rename
+
+    def observed_rename(src, dst, *args, **kwargs):
+        if str(src).startswith(".publish-"):
+            events.append("rename")
+        return real_rename(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(buildcache, "_full_sha256_fd", observed_hash)
+    monkeypatch.setattr(buildcache.os, "fsync", observed_fsync)
+    monkeypatch.setattr(buildcache.os, "rename", observed_rename)
+    _call_copyout_api(tmp_path, api, trace=False)
+    assert events == ["recheck", "trace-diff", "nm", "sha", "fsync", "rename"]
+
+
+def test_no_trace_symbols_uses_held_fd_and_keeps_path_compatibility(
+        tmp_path, monkeypatch):
+    """Helper contract only; production call-site firing is covered separately."""
+    binary = tmp_path / "display-binary"
+    binary.write_bytes(b"bytes")
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(buildcache.subprocess, "run", fake_run)
+    fd = os.open(binary, os.O_RDONLY)
+    try:
+        buildcache._assert_no_trace_symbols(str(binary), binary_fd=fd)
+    finally:
+        os.close(fd)
+    buildcache._assert_no_trace_symbols(str(binary))
+    assert calls[0][0] == ["nm", "-C", f"/proc/self/fd/{fd}"]
+    assert calls[0][1]["pass_fds"] == (fd,)
+    assert calls[1][0] == ["nm", "-C", str(binary)]
+    assert "pass_fds" not in calls[1][1]
+
+
+@pytest.mark.parametrize("constant", buildcache._SECURE_FLAG_NAMES)
+def test_secure_copyout_environment_contract_missing_constant_fails_closed(
+        monkeypatch, constant):
+    """M7 helper contract; alone this is not production call-site firing evidence."""
+    monkeypatch.delattr(buildcache.os, constant)
+    with pytest.raises(buildcache.BuildCacheError, match="constant"):
+        buildcache._require_secure_fs_contract()
+
+
+@pytest.mark.parametrize("set_name", ["supports_dir_fd", "supports_follow_symlinks"])
+def test_secure_copyout_environment_contract_missing_capability_set_fails_closed(
+        monkeypatch, set_name):
+    """M7 helper contract: a missing capability set is rejected at preflight."""
+    monkeypatch.delattr(buildcache.os, set_name)
+    with pytest.raises(buildcache.BuildCacheError, match="capability set"):
+        buildcache._require_secure_fs_contract()
+
+
+def test_secure_copyout_required_dir_fd_functions_match_literal_contract():
+    """M7: production cannot shrink the independently fixed six-member test set."""
+    assert buildcache._SECURE_DIR_FD_FUNCTIONS == _REQUIRED_SECURE_DIR_FD_FUNCTIONS
+
+
+@pytest.mark.parametrize("function_name", _REQUIRED_SECURE_DIR_FD_FUNCTIONS)
+def test_secure_copyout_environment_contract_missing_dir_fd_member_fails_closed(
+        monkeypatch, function_name):
+    """M7 single-reason anchor: removing one dir_fd membership is sufficient."""
+    original = set(buildcache.os.supports_dir_fd)
+    required = buildcache._ORIGINAL_SECURE_DIR_FD_CALLABLES[function_name]
+    assert required in original
+    monkeypatch.setattr(buildcache.os, "supports_dir_fd", original - {required})
+    with pytest.raises(buildcache.BuildCacheError, match=function_name):
+        buildcache._require_secure_fs_contract()
+
+
+def test_secure_copyout_environment_contract_missing_follow_symlinks_member_fails_closed(
+        monkeypatch):
+    """M7 single-reason anchor: stat follow_symlinks membership is mandatory."""
+    original = set(buildcache.os.supports_follow_symlinks)
+    assert buildcache._ORIGINAL_OS_STAT in original
+    monkeypatch.setattr(
+        buildcache.os, "supports_follow_symlinks",
+        original - {buildcache._ORIGINAL_OS_STAT},
+    )
+    with pytest.raises(buildcache.BuildCacheError, match="follow_symlinks=False"):
+        buildcache._require_secure_fs_contract()
+
+
+def test_secure_copyout_environment_contract_missing_proc_self_fd_fails_closed(
+        monkeypatch):
+    """M7 single-reason anchor: held-fd reopen requires usable /proc/self/fd."""
+    monkeypatch.setattr(buildcache, "_PROC_SELF_FD_AVAILABLE", False)
+    with pytest.raises(buildcache.BuildCacheError, match="/proc/self/fd"):
+        buildcache._require_secure_fs_contract()
+
+
+@pytest.mark.parametrize("function_name", _REQUIRED_SECURE_DIR_FD_FUNCTIONS)
+def test_secure_copyout_environment_contract_accepts_delegate_wrappers(
+        monkeypatch, function_name):
+    """Capability is an import-time platform fact, not current callable identity."""
+    original = getattr(buildcache.os, function_name)
+
+    def delegate(*args, **kwargs):
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(buildcache.os, function_name, delegate)
+    buildcache._require_secure_fs_contract()
+
+
+def test_close_fds_best_effort_closes_all_and_reraises_first_error(monkeypatch):
+    """F-1: later fd closes run even when earlier close calls report errors."""
+    baseline = len(os.listdir("/proc/self/fd"))
+    fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(3)]
+    real_close = buildcache.os.close
+    calls = []
+
+    def close_then_report_error(fd):
+        real_close(fd)
+        calls.append(fd)
+        if len(calls) in {1, 2}:
+            raise OSError(f"injected-close-{len(calls)}")
+
+    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
+    with pytest.raises(OSError, match="injected-close-1"):
+        buildcache._close_fds_best_effort(fds)
+    assert calls == fds
+    assert len(os.listdir("/proc/self/fd")) == baseline
+
+
+def test_copied_binary_close_error_does_not_leak_later_fds(tmp_path, monkeypatch):
+    """F-1: _CopiedBinary.close owns every fd until all close attempts finish."""
+    baseline = len(os.listdir("/proc/self/fd"))
+    source_fd = os.open(os.devnull, os.O_RDONLY)
+    destination_fd = os.open(os.devnull, os.O_RDONLY)
+    first_dir_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    copied = buildcache._CopiedBinary(
+        source_fd=source_fd,
+        destination_fd=destination_fd,
+        destination_parent_fd=parent_fd,
+        destination_name="unused",
+        directory_fds=[first_dir_fd, parent_fd],
+        destination_path="unused",
+    )
+    expected = copied._owned_fds()
+    real_close = buildcache.os.close
+    calls = []
+
+    def close_then_report_error(fd):
+        real_close(fd)
+        calls.append(fd)
+        if len(calls) == 1:
+            raise OSError("injected-copied-close")
+
+    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
+    with pytest.raises(OSError, match="injected-copied-close"):
+        copied.close()
+    assert calls == expected
+    assert len(os.listdir("/proc/self/fd")) == baseline
+
+
+def test_directory_traversal_close_error_does_not_lose_child_fd(tmp_path, monkeypatch):
+    """F-1: child ownership is registered before its parent close can fail."""
+    baseline = len(os.listdir("/proc/self/fd"))
+    real_close = buildcache.os.close
+    injected = False
+
+    def close_then_report_error(fd):
+        nonlocal injected
+        real_close(fd)
+        if not injected:
+            injected = True
+            raise OSError("injected-traversal-close")
+
+    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
+    with pytest.raises(OSError, match="injected-traversal-close"):
+        buildcache._open_or_create_directory_path(str(tmp_path / "child"))
+    assert len(os.listdir("/proc/self/fd")) == baseline
+
+
+@pytest.mark.parametrize("opener_name", ["_open_regular_at", "_open_source_regular_at"])
+def test_leaf_open_parent_close_error_does_not_lose_leaf_fd(
+        tmp_path, monkeypatch, opener_name):
+    """G-1: leaf ownership transfers only after auxiliary parent fds close."""
+    leaf = tmp_path / "leaf"
+    leaf.write_bytes(b"leaf")
+    root_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    baseline = len(os.listdir("/proc/self/fd"))
+    real_close = buildcache.os.close
+    injected = False
+
+    def close_then_report_error(fd):
+        nonlocal injected
+        real_close(fd)
+        if not injected:
+            injected = True
+            raise OSError("injected-leaf-parent-close")
+
+    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
+    try:
+        opener = getattr(buildcache, opener_name)
+        with pytest.raises(OSError, match="injected-leaf-parent-close"):
+            opener(root_fd, "leaf", label="test leaf")
+        assert injected
+        assert len(os.listdir("/proc/self/fd")) == baseline
+    finally:
+        real_close(root_fd)
+
+
+def test_v2_validation_parent_close_error_does_not_lose_result_fd(
+        tmp_path, monkeypatch):
+    """G-1: a planned v2-hit result fd returns to cleanup if bdir close fails."""
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    first = _call_copyout_api(tmp_path, "v2")
+    bdir_identity = buildcache._stat_identity(os.stat(first.build_dir))
+    baseline = len(os.listdir("/proc/self/fd"))
+    real_open_regular = buildcache._open_regular_at
+    real_close = buildcache.os.close
+    binary_opened = False
+    injected = False
+
+    def observe_binary_open(root_fd, relpath, *, label):
+        nonlocal binary_opened
+        result = real_open_regular(root_fd, relpath, label=label)
+        if label.startswith("v2 cached binary "):
+            binary_opened = True
+        return result
+
+    def close_then_report_error(fd):
+        nonlocal injected
+        is_bdir = buildcache._stat_identity(os.fstat(fd)) == bdir_identity
+        real_close(fd)
+        if binary_opened and is_bdir and not injected:
+            injected = True
+            raise OSError("injected-v2-bdir-close")
+
+    monkeypatch.setattr(buildcache, "_open_regular_at", observe_binary_open)
+    monkeypatch.setattr(buildcache.os, "close", close_then_report_error)
+    with pytest.raises(OSError, match="injected-v2-bdir-close"):
+        _call_copyout_api(tmp_path, "v2")
+    assert injected
+    assert len(os.listdir("/proc/self/fd")) == baseline
+
+
+def test_mkdir_open_at_removes_created_entry_when_post_mkdir_step_fails(
+        tmp_path, monkeypatch):
+    """F-6: caller never loses cleanup ownership of a half-created directory."""
+    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    baseline = len(os.listdir("/proc/self/fd"))
+
+    def fail_fchmod(fd, mode):
+        raise OSError("injected-fchmod")
+
+    monkeypatch.setattr(buildcache.os, "fchmod", fail_fchmod)
+    try:
+        with pytest.raises(buildcache.BuildCacheError, match="injected-fchmod"):
+            buildcache._mkdir_open_at(parent_fd, "half-created", label="test directory")
+        assert not (tmp_path / "half-created").exists()
+        assert len(os.listdir("/proc/self/fd")) == baseline
+    finally:
+        os.close(parent_fd)
+
+
+def test_mkdir_open_at_reports_original_and_rmdir_cleanup_failures(
+        tmp_path, monkeypatch):
+    """G-4: a leftover nonce candidate is surfaced with both failure causes."""
+    parent_fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+
+    def fail_fchmod(fd, mode):
+        raise OSError("injected-fchmod")
+
+    def fail_rmdir(name, *, dir_fd):
+        raise OSError("injected-rmdir")
+
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(buildcache.os, "fchmod", fail_fchmod)
+            patch.setattr(buildcache.os, "rmdir", fail_rmdir)
+            with pytest.raises(buildcache.BuildCacheError) as raised:
+                buildcache._mkdir_open_at(
+                    parent_fd, "leftover", label="test directory",
+                )
+        message = str(raised.value)
+        assert "injected-fchmod" in message
+        assert "cleanup 失敗" in message
+        assert "injected-rmdir" in message
+        assert (tmp_path / "leftover").is_dir()
+    finally:
+        os.close(parent_fd)
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_gate_failure_discards_staging_and_clean_but_v2_keeps_claim(
+        tmp_path, monkeypatch, api):
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    _install_staging_artifacts(
+        monkeypatch, leaf_kind="regular", payload=b"gate-failure",
+    )
+    monkeypatch.setattr(
+        buildcache, "_recheck_source_evidence",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("gate failure")),
+    )
+    with pytest.raises(RuntimeError, match="gate failure"):
+        _call_copyout_api(tmp_path, api)
+    assert not list((tmp_path / "cache").rglob("*staging-*"))
+    assert not list((tmp_path / "cache").rglob(".publish-*"))
+    if api == "v2":
+        parent = next((tmp_path / "cache" / "contracts").iterdir())
+        assert len(list(parent.glob("*.building"))) == 1
+        assert not [path for path in parent.iterdir() if not path.name.endswith(".building")]
+    else:
+        assert not [path for path in (tmp_path / "cache").iterdir() if path.name.startswith("silo_")]
+
+
+@pytest.mark.parametrize("api", ["legacy", "v2"])
+def test_copyout_rejects_staging_entry_swap_while_retaining_held_fd(
+        tmp_path, monkeypatch, api):
+    """F-3: parent/name must still identify the held staging fd before copy-out."""
+    if api == "v2":
+        _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+
+    def swap_staging_after_build(cmd, what, timeout_s=None, *, site=None, env=None):
+        if what != "build":
+            return
+        staging = Path(cmd[cmd.index("--build") + 1])
+        binary = staging / "cc" / "silo" / "ycsb_silo.exe"
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        binary.write_bytes(b"held-staging-binary")
+        detached = staging.with_name(staging.name + ".detached")
+        staging.rename(detached)
+        replacement = staging / "cc" / "silo" / "ycsb_silo.exe"
+        replacement.parent.mkdir(parents=True)
+        replacement.write_bytes(b"replacement-staging-binary")
+
+    monkeypatch.setattr(buildcache, "_run", swap_staging_after_build)
+    with pytest.raises(buildcache.BuildCacheError, match="staging copy source identity"):
+        _call_copyout_api(tmp_path, api)
+    assert not list((tmp_path / "cache").rglob(".publish-*"))
+    assert not list((tmp_path / "cache").rglob("completion.json"))
+    assert not list((tmp_path / "cache").rglob("admission.json"))
+
+
+def test_clean_parent_creation_rejects_symlink_component(tmp_path):
+    """M4: destination parents are mkdirat/openat components, never path-based makedirs."""
+    staging = tmp_path / "staging"
+    source = staging / "cc" / "silo" / "ycsb_silo.exe"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"binary")
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (clean / "cc").symlink_to(outside, target_is_directory=True)
+    clean_fd = os.open(clean, os.O_RDONLY | os.O_DIRECTORY)
+    staging_fd = os.open(staging, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(buildcache.BuildCacheError, match="no-follow open"):
+            buildcache._secure_copy_binary(
+                staging_fd, clean_fd, "cc/silo/ycsb_silo.exe", str(clean),
+            )
+    finally:
+        os.close(staging_fd)
+        os.close(clean_fd)
+    assert list(outside.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "relpath", ["", "/absolute", "a//b", "a/./b", "a/../b", "a\\b", "a\x00b"],
+)
+def test_secure_copyout_rejects_invalid_relative_paths(relpath):
+    """Helper contract only; this is not proof that a production call-site invokes it."""
+    with pytest.raises(buildcache.BuildCacheError):
+        buildcache._validated_relpath(relpath)
 
 
 _CHILD = r"""

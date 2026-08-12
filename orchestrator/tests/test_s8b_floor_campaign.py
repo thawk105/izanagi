@@ -105,7 +105,6 @@ _BASE_TPS = {
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
 
-
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
     del cxx
     source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
@@ -132,6 +131,45 @@ def _synthetic_source_evidence_for_materializer_seams(monkeypatch, request):
 
     monkeypatch.setattr(
         s8b_floor_campaign.source_digest, "resolve_evidence", _fixture_source_evidence,
+    )
+
+
+def _fixture_toolchain_binding(verified_calibration, *, cc, cxx):
+    """登録 receipt と一致済みの gate 結果を模す process-safe fake。"""
+    assert isinstance(
+        verified_calibration, s8b_floor_campaign.env_attestation.VerifiedCalibration,
+    )
+    return {
+        "cc": {
+            "requested": cc,
+            "realpath": f"/fixture/toolchain/{cc}",
+            "version_first_line": "fixture cc version",
+            "version": "fixture cc version\nfixture cc detail",
+        },
+        "cxx": {
+            "requested": cxx,
+            "realpath": f"/fixture/toolchain/{cxx}",
+            "version_first_line": "fixture cxx version",
+            "version": "fixture cxx version\nfixture cxx detail",
+        },
+        "cmake": {
+            "requested": "cmake",
+            "realpath": "/fixture/toolchain/cmake",
+            "version_first_line": "cmake version fixture",
+            "version": "cmake version fixture\nfixture cmake detail",
+        },
+    }
+
+
+@pytest.fixture(autouse=True)
+def _bind_current_toolchain_for_existing_campaign_tests(monkeypatch, request):
+    """既存 campaign fixture を、登録 receipt と一致済みの private gate 結果へ束縛する。"""
+    if (request.node.cls is not None
+            and request.node.cls.__name__ == "TestFloorToolchainBinding"):
+        return
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_bind_current_toolchain", _fixture_toolchain_binding,
     )
 
 
@@ -223,7 +261,7 @@ def _valid_protocol_dict(**overrides) -> dict:
 # --------------------------------------------------------------------------- #
 
 @contextlib.contextmanager
-def _fake_prepare(cell, ccbench_pin):
+def _fake_prepare(cell, ccbench_pin, *, cxx):
     entry = cell["variant"]
     holdout_id = entry["holdout_id"]
     configuration_id = cell["configuration"]
@@ -239,7 +277,7 @@ def _make_fake_build(build_root: Path):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
                    timeout_s=None, admission=None, build_context=None,
-                   source_evidence=None):
+                   source_evidence=None, expected_toolchain_manifest=None):
         del jobs
         assert admission is not None
         assert admission.provenance_class is BuildProvenance.HUMAN_REVIEWED
@@ -252,6 +290,7 @@ def _make_fake_build(build_root: Path):
         assert trace is False, "floor 計測は trace-disabled build (規律1)"
         assert ccbench_dir, "prepare_cell の隔離 ccbench_dir を build_v2 へ渡す"
         assert timeout_s == 900, "floor v2 build hard timeout を固定する"
+        assert expected_toolchain_manifest is not None
         effective_ccbench = ccbench_dir or "/fixture/ccbench"
         # production と同じく渡された cache_root 配下に実体を置き、command には実 root を
         # 埋め込む（portable projection が未結線でも通る fake にしない）。
@@ -429,9 +468,61 @@ def _read_journal_lines(journal_path: Path) -> list:
            .splitlines() if line.strip()]
 
 
-def _real_output_snapshot() -> tuple:
-    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。"""
-    output = ROOT / "output"
+def _walk_entries(output: Path) -> list[tuple]:
+    """``rglob`` と同じ entry 集合を symlink 非追跡で列挙する。"""
+    entries = []
+    stack = [str(output)]
+    base = str(output)
+    while stack:
+        current = stack.pop()
+        with os.scandir(current) as iterator:
+            items = list(iterator)
+        for entry in items:
+            rel = os.path.relpath(entry.path, base).replace(os.sep, "/")
+            if entry.is_symlink():
+                entries.append(("symlink", rel, entry.path))
+            elif entry.is_dir(follow_symlinks=False):
+                entries.append(("dir", rel, entry.path))
+                stack.append(entry.path)
+            elif entry.is_file(follow_symlinks=False):
+                entries.append(("file", rel, entry.path))
+    return entries
+
+
+def _digest(abspath: str) -> str:
+    with open(abspath, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+
+# 32-worker 実測の file wall は base 42.19s / 4 thread 51.57s / 1 thread 41.78s。
+# critical path も 39.34s → 48.9s → 39.19s であり、disk 競合下では逐次 digest が最速だった。
+def _real_output_snapshot(output: Path = ROOT / "output") -> tuple:
+    """統合テストが実 repo の output/ を一切変えないことを bytes まで固定する。
+
+    旧実装との等価性は、安定しており、root と全 directory が読める通常 POSIX tree
+    を定義域とする。
+    """
+    if not output.exists():
+        return ()
+    entries = _walk_entries(output)
+    files = [(rel, abspath) for kind, rel, abspath in entries if kind == "file"]
+    digest_by_rel = {}
+    for rel, abspath in files:
+        digest_by_rel[rel] = _digest(abspath)
+    snapshot = []
+    for kind, rel, abspath in entries:
+        if kind == "symlink":
+            snapshot.append(("symlink", rel, Path(abspath).readlink().as_posix()))
+        elif kind == "file":
+            snapshot.append(("file", rel, digest_by_rel[rel]))
+        else:
+            snapshot.append(("dir", rel))
+    snapshot.sort(key=lambda row: row[1])
+    return tuple(snapshot)
+
+
+def _real_output_snapshot_reference(output: Path = ROOT / "output") -> tuple:
+    """並列版の独立 oracle として保持する旧 ``Path.rglob`` 実装。"""
     if not output.exists():
         return ()
     snapshot = []
@@ -444,6 +535,97 @@ def _real_output_snapshot() -> tuple:
         elif path.is_dir():
             snapshot.append(("dir", rel))
     return tuple(snapshot)
+
+
+def test_real_output_snapshot_matches_reference_and_is_deterministic(tmp_path):
+    output = tmp_path / "snapshot"
+    (output / "empty-dir").mkdir(parents=True)
+    (output / "nested" / "deep" / "level-3").mkdir(parents=True)
+    (output / "same-size-a").mkdir()
+    (output / "same-size-b").mkdir()
+    (output / "regular.txt").write_bytes(b"regular contents")
+    (output / "empty.bin").write_bytes(b"")
+    (output / "same-size-a" / "same.bin").write_bytes(b"ABCD")
+    (output / "same-size-b" / "same.bin").write_bytes(b"WXYZ")
+    (output / "nested" / "deep" / "level-3" / "leaf.bin").write_bytes(b"leaf")
+    (output / "file-link").symlink_to("regular.txt")
+    (output / "dir-link").symlink_to("nested", target_is_directory=True)
+
+    actual = _real_output_snapshot(output)
+    assert actual == _real_output_snapshot_reference(output)
+    assert actual == tuple(sorted(actual, key=lambda row: row[1]))
+
+
+def test_real_output_snapshot_default_root_reobserves_dependencies(monkeypatch):
+    module = sys.modules[__name__]
+    observations = [
+        [("file", "first.bin", "/synthetic/first"),
+         ("dir", "first-empty", "/synthetic/first-empty")],
+        [("file", "second.bin", "/synthetic/second")],
+    ]
+    digests = {
+        "/synthetic/first": "first-digest",
+        "/synthetic/second": "second-digest",
+    }
+    walk_calls = []
+    digest_calls = []
+
+    def synthetic_walk(output):
+        assert output == ROOT / "output"
+        walk_calls.append(output)
+        return observations[len(walk_calls) - 1]
+
+    def synthetic_digest(abspath):
+        digest_calls.append(abspath)
+        return digests[abspath]
+
+    monkeypatch.setattr(module, "_walk_entries", synthetic_walk)
+    monkeypatch.setattr(module, "_digest", synthetic_digest)
+
+    assert _real_output_snapshot() == (
+        ("dir", "first-empty"),
+        ("file", "first.bin", "first-digest"),
+    )
+    assert _real_output_snapshot() == (
+        ("file", "second.bin", "second-digest"),
+    )
+    assert walk_calls == [ROOT / "output", ROOT / "output"]
+    assert digest_calls == ["/synthetic/first", "/synthetic/second"]
+
+
+def test_real_output_snapshot_propagates_digest_failure(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot"
+    output.mkdir()
+    missing = output / "missing.bin"
+    monkeypatch.setattr(
+        sys.modules[__name__], "_walk_entries",
+        lambda _output: [("file", "missing.bin", str(missing))],
+    )
+
+    with pytest.raises(OSError):
+        _real_output_snapshot(output)
+
+
+def test_real_output_snapshot_reference_is_independent(tmp_path, monkeypatch):
+    output = tmp_path / "snapshot"
+    (output / "a-empty").mkdir(parents=True)
+    (output / "b-file.bin").write_bytes(b"reference payload")
+    (output / "c-link").symlink_to("b-file.bin")
+    expected = (
+        ("dir", "a-empty"),
+        ("file", "b-file.bin", hashlib.sha256(b"reference payload").hexdigest()),
+        ("symlink", "c-link", "b-file.bin"),
+    )
+
+    def poison(*_args, **_kwargs):
+        raise AssertionError("optimized snapshot dependency was called")
+
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "_real_output_snapshot", poison)
+    monkeypatch.setattr(module, "_walk_entries", poison)
+    monkeypatch.setattr(module, "_digest", poison)
+
+    assert _real_output_snapshot_reference(output) == expected
 
 
 def _tree_snapshot(root: Path) -> tuple:
@@ -468,7 +650,38 @@ def _git_stdout(root: Path, *args: str) -> str:
     ).stdout
 
 
-def _clone_committed_head_with_ccbench(destination: Path, *, ccbench_pin: str) -> Path:
+def _assert_sealed_protocol_ccbench_pin(
+        source_submodule: Path, ccbench_pin: str,
+        held_checks: list[dict[str, object]]) -> None:
+    current_head = _git_stdout(source_submodule, "rev-parse", "HEAD").strip()
+    if s8b_floor_campaign._freeze_hold.HELD:
+        held_checks.append(s8b_floor_campaign._freeze_hold.held_marker(
+            "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+        ))
+    else:
+        assert current_head == ccbench_pin
+
+
+def test_sealed_protocol_ccbench_pin_hold_and_release_positive_control():
+    sealed_pin = "d706650cdb31e442bef45b9b4216951d4fb40969"
+    current_head = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+    held_checks = []
+    with mock.patch.object(
+            sys.modules[__name__], "_git_stdout", return_value=current_head):
+        _assert_sealed_protocol_ccbench_pin(Path("unused"), sealed_pin, held_checks)
+        assert [marker["check_id"] for marker in held_checks] == [
+            "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+        ]
+        with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
+            with pytest.raises(AssertionError):
+                _assert_sealed_protocol_ccbench_pin(
+                    Path("unused"), sealed_pin, held_checks=[],
+                )
+
+
+def _clone_committed_head_with_ccbench(
+        destination: Path, *, ccbench_pin: str,
+        held_checks: list[dict[str, object]]) -> Path:
     """ネットワークを使わず、committed HEAD と初期化済み submodule を複製する。"""
     subprocess.run(
         ["git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(destination)],
@@ -476,7 +689,7 @@ def _clone_committed_head_with_ccbench(destination: Path, *, ccbench_pin: str) -
     )
     source_submodule = ROOT / "external" / "ccbench"
     assert source_submodule.is_dir()
-    assert _git_stdout(source_submodule, "rev-parse", "HEAD").strip() == ccbench_pin
+    _assert_sealed_protocol_ccbench_pin(source_submodule, ccbench_pin, held_checks)
     cloned_submodule = destination / "external" / "ccbench"
     subprocess.run(
         [
@@ -553,7 +766,7 @@ def _make_real_freeze_prepare(
     calls = []
 
     @contextlib.contextmanager
-    def prepare(cell, observed_ccbench_pin):
+    def prepare(cell, observed_ccbench_pin, *, cxx):
         assert observed_ccbench_pin == ccbench_pin
         assert isinstance(cell, dict) and set(cell) == {"configuration", "variant"}
         configuration = cell["configuration"]
@@ -606,13 +819,16 @@ def _observed(profile):
     return env_attestation.normalize_observed_profile(raw)
 
 
-def _install_required_contract(tmp_path: Path, monkeypatch):
+def _install_required_contract(
+        tmp_path: Path, monkeypatch, *, calibration_transform=None):
     """production calibration/v2 reader + issuer を通す required env fixture。"""
     repo_root = tmp_path / "required-repo"
     repo_root.mkdir()
     document = _valid_calibration_v2_document()
     # U-2/U-3 による current admission の正当な縮小: required fixture は policy と一致させる。
     document["attestation_profile"]["effective_clock"]["tolerance_pct"] = 2.0
+    if calibration_transform is not None:
+        calibration_transform(document)
     raw = json.dumps(
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -662,6 +878,299 @@ def _install_required_contract(tmp_path: Path, monkeypatch):
         "out_root": tmp_path / "required-out",
         "binding_values": binding_values,
     }
+
+
+def _install_toolchain_bound_required_contract(
+        tmp_path, monkeypatch, *, build_argv=None,
+        compiler_version="registered-cc Vendor 1.0\nCopyright stable",
+        cmake_version="registered-cmake version 3.25.0\nCopyright stable"):
+    def transform(document):
+        receipt = document["acquisition_receipt"]
+        receipt["toolchain"].update({
+            "compiler_path": "/tool/cc",
+            "compiler_version": compiler_version,
+            "cmake_version": cmake_version,
+        })
+        receipt["ccbench"]["build_argv"] = (
+            list(build_argv) if build_argv is not None else [
+                "cmake",
+                "-DCMAKE_C_COMPILER=/tool/cc",
+                "-DCMAKE_CXX_COMPILER=/tool/cxx",
+            ])
+
+    return _install_required_contract(
+        tmp_path, monkeypatch, calibration_transform=transform,
+    )
+
+
+def _matching_floor_observations():
+    return {
+        "cc": s8b_floor_campaign._ObservedFloorTool(
+            requested="site-cc", realpath="/tool/cc",
+            version_first_line="live-cc Vendor 1.0",
+            version="live-cc Vendor 1.0\nCopyright stable",
+        ),
+        "cxx": s8b_floor_campaign._ObservedFloorTool(
+            requested="site-cxx", realpath="/tool/cxx",
+            version_first_line="live-cxx Vendor 1.0",
+            version="live-cxx Vendor 1.0\nCopyright stable",
+        ),
+        "cmake": s8b_floor_campaign._ObservedFloorTool(
+            requested="cmake", realpath="/tool/cmake",
+            version_first_line="live-cmake version 3.25.0",
+            version="live-cmake version 3.25.0\nCopyright stable",
+        ),
+    }
+
+
+class TestFloorToolchainBinding:
+    """共通 fake を外し、private 観測 seam への注入値だけで gate を検査する。"""
+
+    def test_live_observer_keeps_stdout_and_stderr_full_text(
+            self, monkeypatch):
+        monkeypatch.setattr(
+            s8b_floor_campaign.shutil, "which", lambda _requested: "/tool/cc",
+        )
+        monkeypatch.setattr(s8b_floor_campaign.os.path, "isfile", lambda _path: True)
+        monkeypatch.setattr(s8b_floor_campaign.os, "access", lambda _path, _mode: True)
+        monkeypatch.setattr(
+            s8b_floor_campaign.subprocess, "run",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                returncode=0,
+                stdout="live-cc Vendor 1.0\nCopyright stdout\n",
+                stderr="Copyright stderr\n",
+            ),
+        )
+        observed = s8b_floor_campaign._observe_floor_tool("site-cc", "cc")
+        assert observed.version_first_line == "live-cc Vendor 1.0"
+        assert observed.version == (
+            "live-cc Vendor 1.0\nCopyright stdout\nCopyright stderr"
+        )
+
+    def test_binding_accepts_full_bodies_and_returns_same_observation_manifest(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        verified = ctx["verified"]
+        observations = _matching_floor_observations()
+        calls = []
+
+        def observe(requested, role):
+            calls.append((requested, role))
+            return observations[role]
+
+        monkeypatch.setattr(s8b_floor_campaign, "_observe_floor_tool", observe)
+        manifest = s8b_floor_campaign._bind_current_toolchain(
+            verified, cc="site-cc", cxx="site-cxx",
+        )
+        assert calls == [
+            ("site-cc", "cc"), ("site-cxx", "cxx"), ("cmake", "cmake"),
+        ]
+        assert manifest == {
+            "cc": {
+                "requested": "site-cc",
+                "realpath": "/tool/cc",
+                "version_first_line": "live-cc Vendor 1.0",
+                "version": "live-cc Vendor 1.0\nCopyright stable",
+            },
+            "cxx": {
+                "requested": "site-cxx",
+                "realpath": "/tool/cxx",
+                "version_first_line": "live-cxx Vendor 1.0",
+                "version": "live-cxx Vendor 1.0\nCopyright stable",
+            },
+            "cmake": {
+                "requested": "cmake",
+                "realpath": "/tool/cmake",
+                "version_first_line": "live-cmake version 3.25.0",
+                "version": "live-cmake version 3.25.0\nCopyright stable",
+            },
+        }
+
+    def test_binding_rejects_drift_only_below_version_first_line(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        verified = ctx["verified"]
+        observations = _matching_floor_observations()
+        observations["cc"] = dataclasses.replace(
+            observations["cc"],
+            version="live-cc Vendor 1.0\nCopyright changed",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                verified, cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cc_realpath_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cc"] = dataclasses.replace(
+            observations["cc"], realpath="/other/cc",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cxx_version_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cxx"] = dataclasses.replace(
+            observations["cxx"],
+            version="live-cxx Vendor 2.0\nCopyright stable",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_live_cmake_version_projection_drift(
+            self, tmp_path, monkeypatch):
+        ctx = _install_toolchain_bound_required_contract(tmp_path, monkeypatch)
+        observations = _matching_floor_observations()
+        observations["cmake"] = dataclasses.replace(
+            observations["cmake"],
+            version="live-cmake version 3.25.0\nCopyright changed",
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                ctx["verified"], cc="site-cc", cxx="site-cxx",
+            )
+
+    @pytest.mark.parametrize("build_argv", [
+        ["cmake", "-DCMAKE_CXX_COMPILER=/tool/cxx"],
+        [
+            "cmake",
+            "-DCMAKE_C_COMPILER=/tool/cc",
+            "-DCMAKE_C_COMPILER=/other/cc",
+            "-DCMAKE_CXX_COMPILER=/tool/cxx",
+        ],
+    ])
+    def test_binding_rejects_missing_or_duplicate_compiler_definition(
+            self, tmp_path, monkeypatch, build_argv):
+        ctx = _install_toolchain_bound_required_contract(
+            tmp_path, monkeypatch, build_argv=build_argv,
+        )
+        verified = ctx["verified"]
+        observations = _matching_floor_observations()
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda _requested, role: observations[role],
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="registered calibration receipt と不一致"):
+            s8b_floor_campaign._bind_current_toolchain(
+                verified, cc="site-cc", cxx="site-cxx",
+            )
+
+    def test_binding_rejects_receiptless_calibration_without_tool_probe(
+            self, monkeypatch):
+        verified = s8b_floor_campaign.env_attestation.VerifiedCalibration(
+            schema_version=s8b_floor_campaign.env_attestation.LEGACY_SCHEMA_VERSION,
+            sha256="a" * 64,
+            calibration=None,
+            attestation_profile_sha256=None,
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_observe_floor_tool",
+            lambda *_args, **_kwargs: pytest.fail("receipt 不在時に tool を読まない"),
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="acquisition receipt がない"):
+            s8b_floor_campaign._bind_current_toolchain(
+                verified, cc="site-cc", cxx="site-cxx",
+            )
+
+
+def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=_STOCK,
+    )[:2]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    compiler_calls = []
+    binding_calls = []
+    prepare_cxx = []
+    evidence_cxx = []
+    build_tools = []
+    expected_manifest = {"sentinel": {"generation": "current"}}
+
+    def compilers():
+        compiler_calls.append("resolve")
+        return "site-cc", "site-cxx"
+
+    def bind(candidate, *, cc, cxx):
+        binding_calls.append((candidate, cc, cxx))
+        return expected_manifest
+
+    def evidence(genome, commit, *, ccbench_dir, cxx):
+        evidence_cxx.append(cxx)
+        return _fixture_source_evidence(
+            genome, commit, ccbench_dir=ccbench_dir, cxx=cxx,
+        )
+
+    @contextlib.contextmanager
+    def prepare(cell, ccbench_pin, *, cxx):
+        prepare_cxx.append(cxx)
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            yield prepared
+
+    fake_build = _make_fake_build(tmp_path / "bin")
+
+    def build(genome, **kwargs):
+        build_tools.append((
+            kwargs["cc"], kwargs["cxx"], kwargs["expected_toolchain_manifest"],
+        ))
+        return fake_build(genome, **kwargs)
+
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "compilers_for_current_site", compilers,
+    )
+    monkeypatch.setattr(s8b_floor_campaign, "_bind_current_toolchain", bind)
+    monkeypatch.setattr(s8b_floor_campaign.source_digest, "resolve_evidence", evidence)
+    built = s8b_floor_campaign.build_cells(
+        freeze, cells, ccbench_pin="0" * 40,
+        out_root=tmp_path / "out", prepare_fn=prepare,
+        contract=contract, verified_calibration=verified, build_fn=build,
+    )
+    assert len(built) == 2
+    assert compiler_calls == ["resolve"]
+    assert binding_calls == [(verified, "site-cc", "site-cxx")]
+    assert prepare_cxx == ["site-cxx", "site-cxx"]
+    assert evidence_cxx == ["site-cxx", "site-cxx"]
+    assert build_tools == [
+        ("site-cc", "site-cxx", expected_manifest),
+        ("site-cc", "site-cxx", expected_manifest),
+    ]
 
 
 def _provision_claim_root(ctx) -> Path:
@@ -765,7 +1274,7 @@ def _deterministic_official_artifacts(base: Path) -> dict:
     fake_build = _make_fake_build(base / "ignored-build-root")
 
     @contextlib.contextmanager
-    def rooted_prepare(cell, ccbench_pin):
+    def rooted_prepare(cell, ccbench_pin, *, cxx):
         entry = cell["variant"]
         holdout_id = entry["holdout_id"]
         configuration_id = cell["configuration"]
@@ -780,6 +1289,10 @@ def _deterministic_official_artifacts(base: Path) -> dict:
     with mock.patch.object(
             s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
             mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+            mock.patch.object(
+                s8b_floor_campaign, "_bind_current_toolchain",
+                _fixture_toolchain_binding,
+            ), \
             mock.patch.object(
                 s8b_floor_campaign.source_digest, "resolve_evidence",
                 _fixture_source_evidence,
@@ -1239,7 +1752,7 @@ def test_materializer_registry_covers_all_python_build_launches():
                 seen_gateways.add(site)
                 if is_floor_materializer_call:
                     keywords = static_keyword_names(call, owner)
-                    if not required <= keywords:
+                    if not (required | {"expected_toolchain_manifest"}) <= keywords:
                         missing_admission.append(
                             f"{relative}:{call.lineno}:{qualified}"
                         )
@@ -2568,6 +3081,7 @@ def test_slow_real_prepare_cell_to_buildcache_canary_one_configuration(tmp_path)
     with s8b_floor_campaign._prepared_binding(
             freeze=freeze, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
+            cxx="g++-13",
             prepare_fn=s8b_floor_campaign.prepare_cell) as (identity, prepared):
         evidence = s8b_floor_campaign.source_digest.resolve_evidence(
             prepared.genome, pin, ccbench_dir=prepared.ccbench_dir,
@@ -2611,6 +3125,7 @@ def test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration(tmp_pa
     with s8b_floor_campaign._prepared_binding(
             freeze=freeze, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], ccbench_pin=pin,
+            cxx="g++-13",
             prepare_fn=s8b_floor_campaign.prepare_cell) as (identity, prepared):
         evidence = s8b_floor_campaign.source_digest.resolve_evidence(
             prepared.genome, pin, ccbench_dir=prepared.ccbench_dir,
@@ -3069,6 +3584,46 @@ def test_floor_preflight_allowlist_hashes_verified_prediction_and_selector_run_f
     assert read_counts[prediction_path] == 1
     assert read_counts[journal_path] == 1
     assert all(not rel.endswith("/") for rel in allowlist)
+    assert {marker["check_id"] for marker in allowlist.held_checks} == {
+        "s8b-floor.protocol-bytes-expected-pin",
+    }
+
+
+def test_floor_protocol_expected_pin_hold_and_release_positive_control(tmp_path):
+    freeze_rel, freeze_sha, _protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path,
+    )
+    held = s8b_floor_campaign._floor_preflight_freeze_allowlist(
+        tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+        protocol_sha256="0" * 64,
+    )
+    assert "s8b-floor.protocol-bytes-expected-pin" in {
+        marker["check_id"] for marker in held.held_checks
+    }
+    with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="floor protocol bytes sha256 が expected と不一致"):
+            s8b_floor_campaign._floor_preflight_freeze_allowlist(
+                tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+                protocol_sha256="0" * 64,
+            )
+
+
+def test_floor_protocol_head_bytes_positive_control_fires_during_hold(tmp_path):
+    freeze_rel, freeze_sha, _protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path,
+    )
+    protocol_path = tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_path.write_bytes(protocol_path.read_bytes() + b" ")
+    drifted_sha = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="pre_oracle_head/worktree で不一致"):
+        s8b_floor_campaign._floor_preflight_freeze_allowlist(
+            tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+            protocol_sha256=drifted_sha,
+        )
 
 
 def test_floor_preflight_requires_prediction_before_allowlist(tmp_path):
@@ -3253,9 +3808,14 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
     )
 
+    held_checks = []
     clone_root = _clone_committed_head_with_ccbench(
         tmp_path / "committed-head", ccbench_pin=ccbench_pin,
+        held_checks=held_checks,
     )
+    assert {marker["check_id"] for marker in held_checks} == {
+        "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+    }
     out_root = tmp_path / "campaign-output"
     claim_root = out_root / "claims"
     build_workspace = tmp_path / "prepared-build-workspace"
@@ -3286,7 +3846,23 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     gitlink_fields = _git_stdout(
         clone_root, "ls-tree", "HEAD", "external/ccbench",
     ).split()
-    assert gitlink_fields[:3] == ["160000", "commit", ccbench_pin]
+
+    def verify_sealed_gitlink_identity():
+        if s8b_floor_campaign._freeze_hold.HELD:
+            return s8b_floor_campaign._freeze_hold.held_marker(
+                "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+            )
+        assert gitlink_fields[:3] == ["160000", "commit", ccbench_pin]
+        return None
+
+    held_gitlink = verify_sealed_gitlink_identity()
+    assert held_gitlink is not None
+    assert held_gitlink["check_id"] == (
+        "s8b-floor.sealed-protocol-ccbench-pin-current-head"
+    )
+    with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
+        with pytest.raises(AssertionError):
+            verify_sealed_gitlink_identity()
     assert _git_stdout(
         clone_root / "external" / "ccbench", "rev-parse", "HEAD",
     ).strip() == ccbench_pin

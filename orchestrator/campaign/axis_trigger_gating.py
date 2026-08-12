@@ -23,8 +23,9 @@ from . import pin
 MARKER_ID = "silo-backoff-trigger-gating"
 SOURCE_REL = "cc/silo/transaction.cc"
 TEMPLATE_PATCH = "silo-backoff-trigger-gating-variant.patch"
+PREDICATE_HOLE_INDENT = "  "
 FLAG = "BACKOFF_TRIGGER_GATING"          # cmake CACHE = CCBENCH_BACKOFF_TRIGGER_GATING
-PIN = pin.CURRENT_PIN                    # d706650 — 骨格は patch のみ (PIN 前進なし、D48 決定 2)
+PIN = pin.CURRENT_PIN                    # 511c953 — 骨格は patch のみ (PIN 前進なし、D48 決定 2)
 
 # hole は `#if BACK_OFF` ブロック内に居るため BACK_OFF=1 の明示が必須 (D48/F6 —
 # Options.cmake の CACHE 既定への暗黙依存を避ける、D43 と同じ理由)。

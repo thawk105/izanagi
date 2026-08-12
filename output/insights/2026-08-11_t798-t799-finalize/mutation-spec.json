@@ -1,0 +1,178 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60.0,
+  "timeout_seconds": 2400.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    _fsync_directories({(repo / rel).parent for rel in plan.gc_paths})\n    status = \"resumed\" if state_exists or resumed else \"applied\"",
+          "new": "    _fsync_directories({(repo / rel).parent for rel in plan.gc_paths})\n    state_path.unlink()\n    status = \"resumed\" if state_exists or resumed else \"applied\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_accepts_only_explicit_exact_complete_active_transaction",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_failure_supersede_inside_lock",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_folds_rotation_inside_lock",
+        "orchestrator/tests/test_spool_fold.py::test_apply_keeps_applied_state_and_fsyncs_every_gc_parent",
+        "orchestrator/tests/test_spool_fold.py::test_changed_content_cannot_reuse_folded_symbol_identity",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_uses_explicit_prior_across_ordinal_gap",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix",
+        "orchestrator/tests/test_spool_fold.py::test_discover_requires_exact_expected_id_complete_targets_and_absent_gc",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments",
+        "orchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets",
+        "orchestrator/tests/test_spool_fold.py::test_mark_and_finalize_require_commit_identity_and_phase",
+        "orchestrator/tests/test_spool_fold.py::test_n12_second_fold_after_gc_is_noop",
+        "orchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_between_two_new_entries_preserves_compact_chain",
+        "orchestrator/tests/test_spool_fold.py::test_two_worklog_fragments_use_immediate_prior_ordinals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        \"input_closure_sha256\": input_closure_sha256,",
+          "new": "        \"input_closure_sha256\": \"\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_transaction_id_binds_origin_closure_and_before_exists"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if head != plan.origin.tested_tip:\n        raise TransactionError(\"apply HEAD が origin.tested_tip と不一致\")",
+          "new": "    if False:\n        raise TransactionError(\"apply HEAD が origin.tested_tip と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_resume_rejects_head_advanced_after_state_write"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    except BaseException as exc:  # SystemExit / KeyboardInterrupt も fail-closed。",
+          "new": "    except Exception as exc:  # SystemExit / KeyboardInterrupt も fail-closed。"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_load_rotate_limit_wraps_baseexceptions_and_restores_import_state"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "RECEIPT_V2_FIELDS = frozenset({\n    \"allocations\", \"authored\", \"base\", \"content_sha256\", \"seq\",\n    \"tested_tip\", \"wave\", \"wave_ref\",\n})",
+          "new": "RECEIPT_V2_FIELDS = frozenset({\n    \"allocations\", \"authored\", \"content_sha256\", \"seq\", \"wave\",\n})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract",
+        "orchestrator/tests/test_check_docs.py::test_normative_exact_section_pins_accept_real_repo",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean",
+        "orchestrator/tests/test_check_docs.py::test_spool_guard_accepts_only_explicit_exact_complete_active_transaction",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_fold_resync_reaches_no_fold_and_declared_fold_consumers",
+        "orchestrator/tests/test_spool_fold.py::test_changed_content_cannot_reuse_folded_symbol_identity",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_uses_explicit_prior_across_ordinal_gap",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix",
+        "orchestrator/tests/test_spool_fold.py::test_discover_requires_exact_expected_id_complete_targets_and_absent_gc",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments",
+        "orchestrator/tests/test_spool_fold.py::test_n12_second_fold_after_gc_is_noop",
+        "orchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt",
+        "orchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
+        "orchestrator/tests/test_spool_fold.py::test_receipt_parser_enforces_positional_v2_cutover",
+        "orchestrator/tests/test_spool_fold.py::test_receipt_v2_contains_independently_observed_git_values",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_between_two_new_entries_preserves_compact_chain",
+        "orchestrator/tests/test_spool_fold.py::test_two_worklog_fragments_use_immediate_prior_ordinals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "                        any(state != \"after\" for state in target_states.values())\n                        or any(state != \"missing\" for state in gc_states.values())\n",
+          "new": "                        any(state != \"after\" for state in target_states.values())\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_discover_requires_exact_expected_id_complete_targets_and_absent_gc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "        if set(actual) != expected_paths:\n            raise TransactionError(\"fold commit diff path 集合が state と不一致\")",
+          "new": "        if False:\n            raise TransactionError(\"fold commit diff path 集合が state と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_extra_state_external_path"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06B",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "old": "                        any(state != \"after\" for state in target_states.values())\n                        or any(state != \"missing\" for state in gc_states.values())\n",
+          "new": "                        any(state != \"after\" for state in target_states.values())\n"
+        },
+        {
+          "file": "tools/spool_fold.py",
+          "old": "    if any(state != \"missing\" for state in gc_states.values()):\n        raise TransactionError(\"fold GC path が残存する\")",
+          "new": "    if False:\n        raise TransactionError(\"fold GC path が残存する\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_discover_requires_exact_expected_id_complete_targets_and_absent_gc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

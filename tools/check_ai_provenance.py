@@ -182,6 +182,7 @@ _T659_PROBE_RULING = (
 _T720_MERGE_RULING = (
     "2026-08-10 [T-720] 受入後の land 前裁定 (ユーザー選択 (a))"
 )
+_T886_MERGE_RULING = "worklog(t886) 2026-08-12 dev-wave 段 7"
 _T720_MERGE_NOTE = (
     "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
     "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
@@ -507,6 +508,17 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T720_MERGE_RULING,
         note=_T720_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "187fed698bcefb5e93bbad312e1323617fc368ce",
+        MISSING_CODEX_AUTHOR,
+        _T886_MERGE_RULING,
+        note=(
+            "本 wave と並行 wave が同じ 2 file（tools/codex_reasoning_ab.py、"
+            "orchestrator/tests/test_codex_reasoning_ab.py）を触った union merge；"
+            "`git diff-tree --cc` は空で merge 自体に新規著作なし；両側の実装面は"
+            "それぞれの wave で Codex `role=author` が書き監査済み"
+        ),
     ),
 )
 

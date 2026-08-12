@@ -14,13 +14,14 @@
 from __future__ import annotations
 
 import ast
+import argparse
 import hashlib
 import importlib.util
 import re
 import stat
 import sys
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +32,13 @@ from dev_waves.launch_authority import (
 )
 
 REPO = Path(__file__).resolve().parent.parent
+
+# spool_fold の allocator と同じ canonical decision heading。番号直後の `.` は必須。
+DECISION_ID_RE = re.compile(r"^## D(?P<number>[1-9][0-9]*)\.", re.MULTILINE)
+DECISION_HEADING_CANDIDATE_RE = re.compile(
+    r"^## D(?P<number>[0-9]+)(?P<suffix>[^\n]*)$",
+    re.MULTILINE,
+)
 
 # living docs = 現在の状態・設計を主張する文書。ここに可変状態の再掲と行番号参照を禁止する。
 # 対象外 = 追記型の日誌・記録 (書いた時点で凍結): worklog / decisions / insights / paper-story /
@@ -839,7 +847,11 @@ def _safe_read_text(
         return None
 
 
-def _check_spool_guard(findings: list[str]) -> None:
+def _check_spool_guard(
+    findings: list[str],
+    *,
+    expected_transaction_id: str | None = None,
+) -> None:
     """spool schema/参照検査を fail-closed で finding 化する。"""
 
     source = REPO / "tools" / "spool_fold.py"
@@ -871,8 +883,13 @@ def _check_spool_guard(findings: list[str]) -> None:
             sys.modules[module_name] = previous_module
 
     try:
+        validator_kwargs = (
+            {"expected_transaction_id": expected_transaction_id}
+            if expected_transaction_id is not None
+            else {}
+        )
         issues = sorted(
-            validate_spool_tree(REPO),
+            validate_spool_tree(REPO, **validator_kwargs),
             key=lambda issue: (
                 issue.path,
                 issue.line,
@@ -4808,12 +4825,26 @@ def _handoff_schema_warnings(lines: list[str]) -> list[str]:
     return msgs
 
 
-def main() -> int:
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="docs の一貫性 lint")
+    parser.add_argument(
+        "--expect-active-transaction",
+        metavar="ID",
+        help="land 中に限り、complete な active fold transaction の exact ID を宣言する",
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(()) if argv is None else _parser().parse_args(argv)
     findings: list[str] = []
     warnings: list[str] = []
 
     guard_unreadable = _check_command_docs_guard(findings)
-    _check_spool_guard(findings)
+    _check_spool_guard(
+        findings,
+        expected_transaction_id=args.expect_active_transaction,
+    )
 
     current_pin = _current_pin(findings)
     if current_pin is None:
@@ -4833,10 +4864,17 @@ def main() -> int:
         "D 見出し重複検査と living docs の D 参照実在性検査を停止",
     )
     d_heads = (
-        re.findall(r"^## D(\d+)\b", decisions_text, re.MULTILINE)
+        [match.group("number") for match in DECISION_ID_RE.finditer(decisions_text)]
         if decisions_text is not None
         else []
     )
+    if decisions_text is not None:
+        for match in DECISION_HEADING_CANDIDATE_RE.finditer(decisions_text):
+            if DECISION_ID_RE.match(match.group(0)) is None:
+                findings.append(
+                    "docs/decisions.md: canonical D 見出しは "
+                    f"`## D{match.group('number')}.` で始める"
+                )
     dups = {n for n in d_heads if d_heads.count(n) > 1}
     for n in sorted(dups, key=int):
         findings.append(f"docs/decisions.md: D{n} の見出しが重複 — grep index が壊れる")
@@ -5021,4 +5059,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

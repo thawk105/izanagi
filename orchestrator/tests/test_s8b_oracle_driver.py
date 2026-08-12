@@ -458,6 +458,18 @@ def _copy_t080_migration_basis_file(root: Path, relative: str, basis: str) -> No
 
 
 _T080_E2E_BASE_CACHE: dict[tuple, tuple[Path, dict]] = {}
+_T080_E2E_OPT_IN_ENV = "IZANAGI_T080_E2E"
+
+
+def _t080_stub_free_e2e_should_skip() -> bool:
+    """T-080 stub-free E2E は明示 opt-in (`=1`) のときだけ実行する。"""
+    return os.environ.get(_T080_E2E_OPT_IN_ENV) != "1"
+
+
+_T080_STUB_FREE_E2E_OPT_IN = pytest.mark.skipif(
+    _t080_stub_free_e2e_should_skip(),
+    reason="set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests",
+)
 
 
 def _run_git_bytes(root: Path, *args: str) -> bytes:
@@ -592,6 +604,77 @@ def _t080_stub_free_e2e_repo(
     root = tmp_path / base_root.name
     shutil.copytree(base_root, root, symlinks=True)
     return root, root / migration.RECEIPT_REL, copy.deepcopy(document)
+
+
+def test_t080_stub_free_e2e_opt_in_gate_b5(monkeypatch):
+    """既定 skip と明示 opt-in の両向きを固定する。"""
+    assert _T080_E2E_OPT_IN_ENV == "IZANAGI_T080_E2E"
+    assert _T080_STUB_FREE_E2E_OPT_IN.mark.args == (
+        os.environ.get("IZANAGI_T080_E2E") != "1",
+    )
+    assert _T080_STUB_FREE_E2E_OPT_IN.mark.kwargs["reason"] == (
+        "set IZANAGI_T080_E2E=1 to run the T-080 stub-free E2E tests"
+    )
+    monkeypatch.delenv("IZANAGI_T080_E2E", raising=False)
+    assert _t080_stub_free_e2e_should_skip() is True
+    monkeypatch.setenv("IZANAGI_T080_E2E", "1")
+    assert _t080_stub_free_e2e_should_skip() is False
+
+
+def test_t080_stub_free_e2e_opt_in_decorator_exact_consumers_and_nodeids_b5():
+    """重い helper の全 consumer だけを opt-in にし、展開後 11 nodeid を固定する。"""
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    expected_consumers = {
+        "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5": 1,
+        "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5": 4,
+        "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5": 1,
+        "test_t080_full_valid_history_defects_have_one_baseline_reason_f28": 3,
+        "test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28": 1,
+        "test_never_issued_generator_tamper_reaches_public_driver_gate_g7": 1,
+    }
+
+    helper_consumers = {
+        name
+        for name, function in functions.items()
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_t080_stub_free_e2e_repo"
+            for node in ast.walk(function)
+        )
+    }
+    decorated = {
+        name
+        for name, function in functions.items()
+        if any(
+            isinstance(decorator, ast.Name)
+            and decorator.id == "_T080_STUB_FREE_E2E_OPT_IN"
+            for decorator in function.decorator_list
+        )
+    }
+
+    assert helper_consumers == set(expected_consumers)
+    assert decorated == set(expected_consumers)
+
+    expanded_nodeids = {}
+    for name in sorted(helper_consumers):
+        count = 1
+        for decorator in functions[name].decorator_list:
+            if (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and decorator.func.attr == "parametrize"
+            ):
+                parameters = ast.literal_eval(decorator.args[1])
+                count *= len(parameters)
+        expanded_nodeids[name] = count
+    assert expanded_nodeids == expected_consumers
+    assert sum(expanded_nodeids.values()) == 11
 
 
 def _build_t080_stub_free_e2e_repo(
@@ -937,6 +1020,7 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
         _copy_git_visible_output(root, tmp_path / "missing-tracked-output")
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     root, _receipt_path, document = _t080_stub_free_e2e_repo(
         tmp_path, distinct_basis_blob=True,
@@ -1010,6 +1094,7 @@ def test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5(tmp_path):
     )
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -1050,6 +1135,27 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
             encoding="utf-8",
         )
     result = migration.verify_receipt(root=root)
+    if defect in {"known-artifact", "holdout-artifact"}:
+        assert result.state == "active-valid", result.refusals
+        assert result.refusals == ()
+        expected_check_id = (
+            "t080.live-known-axes-artifact-bytes"
+            if defect == "known-artifact"
+            else "t080.live-holdout-artifact-bytes"
+        )
+        assert expected_check_id in {
+            marker["check_id"] for marker in result.held_checks
+        }
+        with mock.patch.object(migration._freeze_hold, "HELD", False):
+            released = migration.verify_receipt(root=root)
+        assert released.state == "invalid"
+        assert len(released.refusals) == 1, released.refusals
+        assert released.refusals[0].startswith(
+            (migration.KNOWN_PREFIX if expected_reason.startswith("known_axes.")
+             else migration.HOLDOUT_PREFIX)
+            + f": [{expected_reason}]"
+        )
+        return
     assert result.state == "invalid"
     assert len(result.refusals) == 1, result.refusals
     assert result.refusals[0].startswith(
@@ -1060,6 +1166,7 @@ def test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5(
     assert result.t080_freeze_migration_observation is None
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5(tmp_path):
     root, _receipt_path, receipt = _t080_stub_free_e2e_repo(tmp_path)
     known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
@@ -1165,20 +1272,126 @@ def test_t080_static_adapter_rejects_noncanonical_known_predicate_as_schema():
             _validate_positive_control=mock.DEFAULT,
             _verify_known_pairing=mock.DEFAULT,
             _verify_holdout_live_scan=mock.DEFAULT):
-        result = migration.static_gate_adapter(
+        held = migration.static_gate_adapter(
             resolution=resolution,
             known_raw=known_raw,
             holdout_raw=holdout_raw,
             root=ROOT,
         )
 
-    _assert_exact_refusals(result.refusals, {
+    _assert_exact_refusals(held.refusals, {
+        "known-axes-freeze-verify: [known_axes.schema] "
+        "entries.balanced.system_gate.gate_predicate が正準集合外",
+    })
+    assert "t080.static-known-axes-artifact-bytes" in {
+        marker["check_id"] for marker in held.held_checks
+    }
+
+    with mock.patch.multiple(
+            migration,
+            _verify_known_closure=mock.DEFAULT,
+            _verify_holdout_closure=mock.DEFAULT,
+            _verify_metadata_closure=mock.DEFAULT,
+            _verify_reconstruction_static=mock.DEFAULT,
+            _verify_ccbench_current=mock.DEFAULT,
+            _verify_ccbench_basis_from_receipt=mock.DEFAULT,
+            _validate_positive_control=mock.DEFAULT,
+            _verify_known_pairing=mock.DEFAULT,
+            _verify_holdout_live_scan=mock.DEFAULT), \
+            mock.patch.object(migration._freeze_hold, "HELD", False):
+        released = migration.static_gate_adapter(
+            resolution=resolution,
+            known_raw=known_raw,
+            holdout_raw=holdout_raw,
+            root=ROOT,
+        )
+    _assert_exact_refusals(released.refusals, {
         "known-axes-freeze-verify: [known_axes.artifact_bytes]",
         "known-axes-freeze-verify: [known_axes.schema] "
         "entries.balanced.system_gate.gate_predicate が正準集合外",
     })
 
 
+def test_oracle_recorded_known_pin_hold_and_release_positive_control(tmp_path):
+    root = tmp_path
+    holdout_raw = (ROOT / migration.HOLDOUT_REL).read_bytes()
+    known_raw = (ROOT / migration.KNOWN_AXES_REL).read_bytes()
+    freeze = json.loads(holdout_raw)
+    freeze["known_axes_freeze"]["sha256"] = "0" * 64
+    freeze_path = root / migration.HOLDOUT_REL
+    known_path = root / migration.KNOWN_AXES_REL
+    freeze_path.parent.mkdir(parents=True)
+    known_path.parent.mkdir(parents=True)
+    freeze_path.write_bytes(holdout_raw)
+    known_path.write_bytes(known_raw)
+    receipt = _t080_receipt_document("a" * 40)
+    receipt["artifacts"]["holdout"]["raw_sha256"] = hashlib.sha256(
+        holdout_raw,
+    ).hexdigest()
+    resolution = migration.ReceiptResolution(
+        "active-valid", (), {}, "a" * 40, receipt=receipt,
+    )
+    adapted = migration.AdapterResult((), {})
+    with mock.patch.object(migration, "static_gate_adapter", return_value=adapted):
+        held = driver._t080_adapter_refusals(
+            resolution=resolution, freeze=freeze,
+            freeze_sha256=hashlib.sha256(holdout_raw).hexdigest(),
+            freeze_path=freeze_path, root=root,
+        )
+        assert held is not None
+        assert "s8b-oracle.known-axes-recorded-pin" in {
+            marker["check_id"] for marker in held.held_checks
+        }
+        with mock.patch.object(driver._freeze_hold, "HELD", False):
+            assert driver._t080_adapter_refusals(
+                resolution=resolution, freeze=freeze,
+                freeze_sha256=hashlib.sha256(holdout_raw).hexdigest(),
+                freeze_path=freeze_path, root=root,
+            ) is None
+
+
+def test_oracle_live_known_bytes_hold_and_release_positive_control(tmp_path):
+    root = tmp_path
+    holdout_raw = (ROOT / migration.HOLDOUT_REL).read_bytes()
+    known_raw = (ROOT / migration.KNOWN_AXES_REL).read_bytes() + b" "
+    freeze = json.loads(holdout_raw)
+    freeze_path = root / migration.HOLDOUT_REL
+    known_path = root / migration.KNOWN_AXES_REL
+    freeze_path.parent.mkdir(parents=True)
+    known_path.parent.mkdir(parents=True)
+    freeze_path.write_bytes(holdout_raw)
+    known_path.write_bytes(known_raw)
+    receipt = _t080_receipt_document("a" * 40)
+    receipt["artifacts"]["holdout"]["raw_sha256"] = hashlib.sha256(
+        holdout_raw,
+    ).hexdigest()
+    resolution = migration.ReceiptResolution(
+        "active-valid", (), {}, "a" * 40, receipt=receipt,
+    )
+    adapted = migration.AdapterResult((), {})
+    with mock.patch.object(migration, "static_gate_adapter", return_value=adapted):
+        held = driver._t080_adapter_refusals(
+            resolution=resolution, freeze=freeze,
+            freeze_sha256=hashlib.sha256(holdout_raw).hexdigest(),
+            freeze_path=freeze_path, root=root,
+        )
+        assert held == []
+        assert "s8b-oracle.known-axes-live-bytes" in {
+            marker["check_id"] for marker in held.held_checks
+        }
+        with mock.patch.object(driver._freeze_hold, "HELD", False):
+            released = driver._t080_adapter_refusals(
+                resolution=resolution, freeze=freeze,
+                freeze_sha256=hashlib.sha256(holdout_raw).hexdigest(),
+                freeze_path=freeze_path, root=root,
+            )
+        assert released == [
+            "known-axes-freeze-verify: [known_axes.artifact_bytes] "
+            "known_axes raw bytes が legacy pin と不一致"
+        ]
+
+
+@_T080_STUB_FREE_E2E_OPT_IN
 @pytest.mark.parametrize(
     "defect, expected_reason",
     [
@@ -1213,6 +1426,7 @@ def test_t080_full_valid_history_defects_have_one_baseline_reason_f28(
     assert result.t080_freeze_migration_observation is None
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28(tmp_path):
     root, receipt_path, _document = _t080_stub_free_e2e_repo(tmp_path)
     receipt_path.unlink()
@@ -1428,8 +1642,8 @@ def _prepare_factory(
     calls: list[dict] = []
 
     @contextlib.contextmanager
-    def fake_prepare(cell, ccbench_pin):
-        calls.append({"cell": cell, "ccbench_pin": ccbench_pin})
+    def fake_prepare(cell, ccbench_pin, *, cxx):
+        calls.append({"cell": cell, "ccbench_pin": ccbench_pin, "cxx": cxx})
         if fail_first and len(calls) == 1:
             raise OSError("transient checkout failure")
         entry = cell["variant"]
@@ -1474,7 +1688,8 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
             identity = s8b_materialization.prepare_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id,
-                ccbench_pin="fixture-pin", prepare_fn=prepare_fn,
+                ccbench_pin="fixture-pin", cxx="site-cxx",
+                prepare_fn=prepare_fn,
             )
             bindings.append({
                 "holdout_id": holdout_id,
@@ -3179,6 +3394,7 @@ def test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7(tmp_pa
     )
 
 
+@_T080_STUB_FREE_E2E_OPT_IN
 def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
     root, _receipt_path, _document = _t080_stub_free_e2e_repo(
         tmp_path, issue_receipt=False,
@@ -3356,7 +3572,7 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
         @contextlib.contextmanager
-        def fake_prepare(cell, ccbench_pin):
+        def fake_prepare(cell, ccbench_pin, *, cxx):
             entry = cell["variant"]
             genome = Genome("silo", dict(entry["flags"]))
             token = "fixture-" + hashlib.sha256(
@@ -4424,6 +4640,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
     with driver._prepared_binding(
             freeze=freeze, holdout_id=holdout_id,
             configuration_id=configuration_id, ccbench_pin=pin,
+            cxx="g++-13",
             prepare_fn=driver.prepare_cell) as (identity, prepared), \
             mock.patch.object(pipeline.buildcache, "build_v2", recording_build_v2), \
             mock.patch.object(

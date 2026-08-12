@@ -176,6 +176,8 @@ def test_committed_policy_matches_independent_literal_hash_and_registry() -> Non
             "tools/pegasus/policies/calibration_v1.json",
             "tools/pegasus/policies/floor_v1.json",
             "tools/pegasus/policies/t316_sandbox_backend_v1.json",
+            "tools/pegasus/policies/t810_admission_v1.json",
+            "tools/pegasus/policies/t810_prereg_v1.json",
             "tools/pegasus/policies/transport_v1.json",
             "tools/pegasus/policy.json",
         ],

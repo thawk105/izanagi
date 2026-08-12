@@ -1,0 +1,24 @@
+{
+  "estimated_run_seconds": 90,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_toolchain_binding.py::test_floor_predicate_rejects_receipt_body_drift_with_live_versions_aligned"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M03",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/toolchain_binding.py",
+          "new": "            and tool_version_body(receipt_cc_version).splitlines()[0]  # type: ignore[arg-type]\n            == tool_version_body(live_cc_version).splitlines()[0]\n",
+          "old": "            and tool_version_body(receipt_cc_version)  # type: ignore[arg-type]\n            == tool_version_body(live_cc_version)\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1200
+}

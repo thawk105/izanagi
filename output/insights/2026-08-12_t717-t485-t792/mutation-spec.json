@@ -1,0 +1,68 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "DEFAULT_WALLTIME = \"01:00:00\"",
+          "new": "DEFAULT_WALLTIME = \"00:20:00\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_default_walltime_preserves_acceptance_runtime_margin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/dispatch_compute.py",
+          "old": "\"-l\", f\"elapstim_req={walltime}\",",
+          "new": "\"-l\", \"elapstim_req=00:40:00\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_dispatch_state_machine_returns_child_rc_after_accounting",
+        "orchestrator/tests/test_pegasus_dispatch_compute.py::test_walltime_override_is_bound_to_pbs_and_total_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    from orchestrator.tests import repo_tree_util\n    from orchestrator.tests import test_s8b_protocol_builder as sut",
+          "new": "    from tests import repo_tree_util\n    from tests import test_s8b_protocol_builder as sut"
+        },
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    from orchestrator.tests import test_s8b_binding_driftguards as driftguard_tests\n    from orchestrator.tests import test_s8b_oracle_driver as driver_tests",
+          "new": "    from tests import test_s8b_binding_driftguards as driftguard_tests\n    from tests import test_s8b_oracle_driver as driver_tests"
+        },
+        {
+          "file": "orchestrator/tests/test_s8b_protocol_builder.py",
+          "old": "from orchestrator.tests import repo_tree_util  # noqa: E402\nfrom orchestrator.tests.skiputil import Skip, skip  # noqa: E402",
+          "new": "from tests import repo_tree_util  # noqa: E402\nfrom tests.skiputil import Skip, skip  # noqa: E402"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+        "orchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

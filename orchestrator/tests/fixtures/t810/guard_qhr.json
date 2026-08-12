@@ -1,0 +1,29 @@
+[
+  {
+    "schema_version": "t810-qstat-f-transcript/v1",
+    "captured_at": "2026-08-12T01:00:00Z",
+    "request_id": "81001.nqsv",
+    "command_argv": ["qstat", "-f", "81001.nqsv"],
+    "rc": 0,
+    "stdout": "Job Id: 81001.nqsv\n    Job_Name = t810-q\n    Job_Owner = alice@nqsv\n    job_state = Q\n    queue = gen_S\n    exec_host = --\n    resources_used.cput = 00:00:00\n",
+    "stderr": ""
+  },
+  {
+    "schema_version": "t810-qstat-f-transcript/v1",
+    "captured_at": "2026-08-12T01:00:01Z",
+    "request_id": "81002.nqsv",
+    "command_argv": ["qstat", "-f", "81002.nqsv"],
+    "rc": 0,
+    "stdout": "Job Id: 81002.nqsv\n    Job_Name = t810-h\n    Job_Owner = alice@nqsv\n    job_state = H\n    queue = gen_S\n    exec_host = --\n",
+    "stderr": ""
+  },
+  {
+    "schema_version": "t810-qstat-f-transcript/v1",
+    "captured_at": "2026-08-12T01:00:02Z",
+    "request_id": "81003.nqsv",
+    "command_argv": ["qstat", "-f", "81003.nqsv"],
+    "rc": 0,
+    "stdout": "Job Id: 81003.nqsv\n    Job_Name = t810-r\n    Job_Owner = alice@nqsv\n    job_state = R\n    queue = gen_S\n    exec_host = node01/0+node01/1+\n        node01/2\n",
+    "stderr": ""
+  }
+]

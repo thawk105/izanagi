@@ -454,6 +454,65 @@ def test_attest_and_build_receipt_uses_production_comparator_and_v2_validator():
     )
 
 
+def test_attest_and_build_receipt_accepts_and_records_method_only_drift():
+    contract, verified = _required_binding()
+    expected = verified.attestation_profile
+    observed = _observed(dataclasses.replace(
+        expected,
+        effective_clock=dataclasses.replace(
+            expected.effective_clock, method="improved-probe-method",
+        ),
+    ))
+
+    receipt = eg.attest_and_build_receipt(
+        contract, verified, probe_fn=lambda: observed,
+        now_fn=lambda: "2026-08-12T00:00:00Z",
+    )
+    method = next(
+        item for item in receipt["comparisons"]
+        if item["field"] == "effective_clock.method"
+    )
+
+    assert method["expected"] == expected.effective_clock.method
+    assert method["observed"] == "improved-probe-method"
+    assert method["verdict"] == "pass"
+    assert eg.receipt_matches_contract(
+        receipt,
+        env_tag=contract.env_tag,
+        contract_sha256=contract.contract_sha256,
+        attestation_mode="required",
+        verified_calibration=verified,
+    )
+
+
+def test_method_nonbinding_does_not_relax_clock_samples_or_governor():
+    contract, verified = _required_binding()
+    expected = verified.attestation_profile
+    clock_mutations = (
+        ("effective_clock.samples_mhz", {"samples_mhz": [3000.0]}),
+        ("effective_clock.governor", {"governor": "powersave"}),
+    )
+
+    for field, values in clock_mutations:
+        observed = _observed(dataclasses.replace(
+            expected,
+            effective_clock=dataclasses.replace(
+                expected.effective_clock,
+                method="improved-probe-method",
+                **values,
+            ),
+        ))
+        try:
+            eg.attest_and_build_receipt(
+                contract, verified, probe_fn=lambda: observed,
+                now_fn=lambda: "2026-08-12T00:00:00Z",
+            )
+        except eg.ExecutionGuardError as exc:
+            assert field in str(exc)
+        else:
+            raise AssertionError(f"method drift hid binding failure: {field}")
+
+
 def test_attest_and_build_receipt_rejects_mismatch_through_production_comparator():
     """This becomes red if compare_profiles is mutated to return all-pass."""
     contract, verified = _required_binding()

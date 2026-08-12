@@ -491,6 +491,13 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_t126_qualification.sh` | `unknown` | `unmeasured; preflight input surfaces remain` |
 | `tools/pegasus/t126_qualification.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/t141_region_profile.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/t810_budget.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_coordinator.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_guard.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_harness_schema.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_pbs_wrapper.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/t810_runner_policy.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
+| `tools/pegasus/validate_t810.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 
 - **この投影検査が保証しないこと。** 検査するのは正本と docs の間の (path, class, evidence) の
   一致だけである。`reason` / `primary_gate` の散文が正本と食い違っても検出しない ([T-522] で
@@ -790,8 +797,16 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、
   失敗しても保持したまま返して親の終端 release に委ねる (下の「自己保持」を見よ)。
 - 主な rc: `2` = 起動前の入力・tree identity 不正、`70` = fail-closed (進行不可。lease 未取得、
-  Git 失敗、再検査で先行が残る、自己保持なのに進めない 等)、`74` = cleanup (merge abort /
-  release) の完了を確認できない、それ以外の非 0 = 受入 command の rc。
+  Git 失敗、再検査で先行が残る、自己保持なのに進めない、**投入直前に木が汚れている
+  (`prerun-clean`)**、**message の provenance preflight が非 0 (`merge-message-provenance`)** 等)、
+  `74` = cleanup (merge abort / release) の完了を確認できない、それ以外の非 0 = 受入 command の rc。
+  **`prerun-clean` と `merge-message-provenance` の rc=70 は lease 取得後の fail-closed 失敗**で、
+  `ACQUIRED` なら release、`HELD_SELF` なら保持する。検査を通っただけでは成功ではなく、
+  受入 command が rc=0 になるまで lease は保持される。
+- **`release` の「確実さ」の限界。** 待ち手は SIGTERM / SIGHUP / SIGINT を捕捉して cleanup へ
+  倒すが、**SIGKILL と host 停止は捕捉できない** (shell の `trap` でも同じ)。これらと、
+  cleanup 開始直後に 2 発目の signal が入る狭い窓では lease が残留し、TTL 2,400 秒で失効するまで
+  回収されない (裁定パッケージへ返却済み)。
 - **`--max-wait-seconds` の既定は 7,200 秒で、混雑時はこれを使い切って `claim-timeout` の rc=70 で
   返る** (2026-08-11 実測: 7,200 秒待って取得できず、解放は直後だった)。並行 wave が多い時間帯は
   明示的に延ばす。rc=70 で戻ったら lease 状態を見て、free ならそのまま取り直す — 窓は数分で
@@ -808,16 +823,39 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   `|| true` で潰さない、複合条件を 1 行にまとめない。これらはいずれも赤を緑に見せる。
 - claim の前に tree identity を検査する — git worktree の中であること、HEAD が detached で
   ないこと、`git rev-parse --show-toplevel` が起動 cwd と一致すること、branch 名が wave slug で
-  終わること、tracked に未 commit の変更が無いこと。自動 merge/commit が別 checkout へ
-  入るのを止めるためである。
+  終わること、木が clean であること。自動 merge/commit が別 checkout へ入るのを止めるためである。
+  **clean の述語は `git status --porcelain --untracked-files=no --ignore-submodules=none` の
+  stdout が空**である ([T-725])。`--ignore-submodules=none` は `tools/run_tests.py` と
+  `tools/dev_wave_land.py` に揃えたもので、**submodule の dirt を拒否する** — land が既に
+  submodule dirt を拒否する以上、受入側で拒否しても新たに止まる wave はない。汚れていれば
+  **claim せず rc=2** で返るので **lease を消費しない**。
+  **untracked は拒否しない。** F191 の逐語は option なしの `git status --porcelain` だが、
+  untracked まで拒否すると `output/env/pegasus/floor/attempts/submissions/` と
+  `.../job-staging/` のように **`.gitignore` に無い実在の生成物**を持つ wave の受入が
+  claim 前に止まる (2026-08-12 実測)。これらを commit すべきか repo 外へ出すべきかは
+  未裁定なので、untracked の扱いは裁定パッケージへ返した (F191 点 3 の erratum)。
 - **受理 (`acquired` / `held-self`) の直後に待ち手自身が local main を取り直して取り込む
   ([T-732] 裁定 (a) の正本)。**
   待っている間に先行 holder が land するので、`claim` 時の `main_sha` は取得時点の main では
   ない。取り込まずに走らせると land 対象 tip が main の子孫でなくなり、全走をやり直すことになる。
   順序は `git rev-parse main` → `git rev-list --count HEAD..main` → (非 0 のときだけ)
   **所有実装面の overlap 判定** → `git merge --no-ff --no-commit main` →
-  `git commit --dry-run -F` → `git commit -F` → 作成 commit の SHA を固定して message の
-  trailer を確認 → `HEAD..main` の再検査、である。
+  `python3 tools/check_ai_provenance.py --message-file <message>` →
+  `git commit --dry-run -F` → `git commit -F` →
+  作成 commit の SHA を固定して message の trailer を確認 → `HEAD..main` の再検査、である。
+  **provenance preflight (`--message-file`) は `docs/ai-provenance.md` が commit 前に要求する
+  正本の検査**であり、`git commit --dry-run` では代替できない ([T-725])。`AI-Agent:` 行の
+  存在だけを見る検査は形式違反 (product/model/reasoning/role の順・許可値) を通してしまい、
+  land 時の全史監査まで赤が遅れて受入 1 走と lease 窓を失う。
+  **checker は merge の後に置く。** checker は `MERGE_HEAD` の有無で検査対象 path を変え、
+  merge 後なら prospective parents を使って merge 固有の実装面 path まで見るためである。
+  merge 前に置くと staged path が空になり、その検出力が落ちる。非 0 なら
+  `stage=merge-message-provenance` の rc=70 で、`merge --abort` してから lease を返す
+  (`merge_pending` は merge の前に立つのでこの経路に正しく載る)。
+  取り込んだ main SHA は**作成された merge commit の second parent が記録する**ので、
+  message 本文へ SHA を差し込む必要はない (F191 点 1 の erratum)。
+  **`--merge-message-file` は repo の外 (`dev-wave-jobs/<wave>/` 等) へ置く。**
+  repo 内に置くと、その message file 自身が tree を汚す。
   **`--ff-only` と `--no-edit` は使わない** (wave branch が自前 commit を持つと fast-forward
   できず `Not possible to fast-forward` で止まる)。中断は `git merge --abort` → `release` の順。
 - **merge の前に所有実装面の overlap を見る。** `git diff --name-only HEAD...main` の結果に
@@ -826,7 +864,36 @@ script が担う判定は次のとおりで、**同じ内容を別 shell loop �
   `role=author` を要求するが、trailer を固定した待ち手の message file では条件を満たせない。
   待ち手が判定しなければ無審査の merge commit ができ、land の provenance 監査まで赤にならない。
   本 wave が触った実装面 path は `--owned-path` で外から渡す (repo へ固定値を焼かない)。
+- **`HEAD..main` の再検査の後、受入 command 投入の直前に、木が clean であることを
+  もう一度単独で確認する** (`stage=prerun-clean`、[T-725] = F191 の安全配線 点 3 の後半)。
+  述語は claim 前の tree identity 検査と**一字一句同じ**で、stdout が空であることだけを
+  成功条件にする (rc だけを見ると clean も dirty も 0 なので恒真になる)。
+  **`behind` が 0 の経路にも無条件で適用する。**
+  claim 前の検査結果を保存して使い回さず、投入直前に必ず新しく実行する。
+  `behind` が非 0 でも merge 後に clean とは限らない — `git merge --no-ff --no-commit` と
+  `git commit` が commit するのは index であって、merge と衝突しない未 stage の tracked 編集は
+  そのまま残るからである。
+  **この検査が保証するのは「`git status` を実行したその時点で tracked 木が HEAD と一致していた」
+  ことだけである。** status の完了から受入 command の process 起動までにも隙があり、
+  **走行中に入った変更は覆わない**。したがって受入結果に「投入の瞬間に一致した」とも
+  「走行中ずっと一致していた」とも書かない。走行中まで覆う設計は裁定パッケージへ返した。
+- **待機中に親が同じ worktree へ書かない。** `CLAUDE.md` の「作業の進め方 9」は長時間待機中に
+  文書を進めよと指示するが、その書き先を受入対象の worktree にすると `prerun-clean` が
+  正しく赤になる。待機中の文書は **repo 外 (`dev-wave-jobs/`) か別 worktree** へ書き、
+  受入に含める変更は**待機を始める前に commit しておく**。これは operator の規律であって
+  機械保証ではない。
+- **段 7 の記録と最終受入の順序。** land は wave HEAD と `tested_tip` の exact 一致を要求するので、
+  `docs/spool/` の fragment は**最終受入より前に commit する**。順序は
+  「fragment 作成 → `check_docs.py` と `spool_fold.py --dry-run` → `git commit` →
+  **最終受入** → tested tip 固定 → land」である。受入の後に記録を足すと land が rc=23 で拒否し、
+  受入 1 走が無駄になる。
+- **この契約が効くのは、新しい main を取り込んだ待ち手 process を起動し直した走行からである。**
+  既に起動済みの待ち手はロード済みのコードで走り続けるので、走行中に新 main を merge しても
+  新しい検査は発火しない。稼働中 wave では「取り込み → 待ち手を起動し直す」まで済ませて
+  はじめてこの契約下の受入と数える。
 - 待ちの周期は 30〜120 秒 (既定 30 秒)、claim loop の全体上限は既定 7200 秒である。
+  T-694 が求めた「周期固定」は、**300 秒 (待ち札 TTL) を超える周期を rc=2 で起動前に落とす**
+  この policy range で充足している。
 - `claim` が構造化された `held` / `queued` / `held-self` を返した時点で「この呼出しが lease を
   作った可能性」は消えるので、**その後の失敗では release しない**。`release` の権限証明は
   wave slug の digest だけであり、同一 slug の別 invocation が保持中の lease を消してしまう

@@ -18,7 +18,8 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from orchestrator.campaign import reservation, s8b_floor_campaign
+from orchestrator.campaign import floor_liveness, reservation, s8b_floor_campaign
+from orchestrator.qualification import artifacts
 
 
 TOOL_DIR = REPO / "tools" / "pegasus"
@@ -983,19 +984,65 @@ def test_floor_job_exports_exact_reservation_fields() -> None:
     assert actual == set(reservation._ENV_FIELDS.values())
 
 
-def test_floor_job_invokes_fixed_official_cli_without_bypass() -> None:
+def test_floor_job_invokes_fixed_pilot_cli_without_bypass(tmp_path: Path) -> None:
     source = JOB.read_text(encoding="utf-8")
-    start = source.index('PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"')
-    end = source.index("# 出典: certify_calibration.sh:734-762", start)
-    invocation = source[start:end]
-    assert (
-        '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"'
-        in invocation
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    argv_record = tmp_path / "driver-argv.json"
+    driver.write_text(
+        "import json\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        f"Path({str(argv_record)!r}).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n",
+        encoding="utf-8",
     )
-    assert "--mode official" in invocation
-    assert '--protocol "$REPO_ROOT/$PROTOCOL_PATH"' in invocation
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "IZANAGI_FLOOR_MODE=pilot",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "write_failure() { return 0; }",
+            "",
+        ]
+    )
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    actual_argv = json.loads(argv_record.read_text(encoding="utf-8"))
+    assert actual_argv == [
+        "--mode",
+        "pilot",
+        "--protocol",
+        str(repo / "output" / "s8b-freeze" / "floor_protocol.json"),
+    ]
+
+    source_tokens = shlex.split(source, comments=True, posix=True)
+    driver_path = "orchestrator/campaign/s8b_floor_campaign.py"
+    driver_tokens = [
+        token
+        for token in source_tokens
+        if token == driver_path or token.endswith("/" + driver_path)
+    ]
+    assert len(driver_tokens) == 1
+    assert source_tokens.count("--mode") == 1
+    source_mode_index = source_tokens.index("--mode")
+    assert source_tokens[source_mode_index + 1] == "pilot"
+    assert "--mode official" not in source
     assert "--resume" not in source
-    assert "pilot" not in source.lower()
     assert "eval " not in source
 
 
@@ -1014,7 +1061,10 @@ def test_submit_floor_qsub_exports_nonce_only() -> None:
     match = re.search(r'^export_spec="([^"]+)"$', source, re.MULTILINE)
     assert match is not None
     assert match.group(1) == "IZANAGI_SUBMISSION_NONCE=$NONCE"
-    assert 'qsub_cmd=(qsub -v "$export_spec" "$JOB_SCRIPT")' in source
+    assert (
+        'qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR"\n'
+        '  -v "$export_spec" "$JOB_SCRIPT"'
+    ) in source
     assert "IZANAGI_RESERVATION_" not in match.group(1)
 
 
@@ -1156,20 +1206,279 @@ def test_submit_floor_non_dry_run_success_writes_real_submission_record(
     )
     assert receipt["dry_run"] is False
     assert receipt["job_id"] == "98765.nqsv"
+    assert artifacts.load_json_strict(submission / "submit-receipt.json") == receipt
     qsub_args = [
         item.decode("utf-8")
         for item in qsub_args_path.read_bytes().split(b"\0")
         if item
     ]
     assert qsub_args == [
+        "-o",
+        str(submission / "scheduler.stdout"),
+        "-e",
+        str(submission / "scheduler.stderr"),
         "-v",
         "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"],
         str(repo / "tools" / "pegasus" / "floor_campaign.sh"),
     ]
+    for option in ("-o", "-e"):
+        scheduler_path = Path(qsub_args[qsub_args.index(option) + 1])
+        assert scheduler_path.parent == submission
+        assert scheduler_path.is_relative_to(repo / "output")
+        assert scheduler_path.suffix in {".stdout", ".stderr"}
     assert qsub_cwd_path.read_text(encoding="utf-8").strip() == str(repo)
     claims = repo / "output" / "claims"
     assert claims.is_dir() and not claims.is_symlink()
     assert stat.S_IMODE(claims.stat().st_mode) == 0o700
+
+
+def test_floor_submit_receipt_pretty_json_is_rejected_by_strict_loader(
+    tmp_path: Path,
+) -> None:
+    _repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    pretty = tmp_path / "pretty-submit-receipt.json"
+    pretty.write_text(
+        json.dumps(receipt, ensure_ascii=True, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        artifacts.QualificationArtifactError,
+        match="not canonical",
+    ):
+        artifacts.load_json_strict(pretty)
+
+
+def _qstat_result(
+    request_id: str,
+    *,
+    state: str | None = None,
+    present: bool = True,
+    rc: int = 0,
+    stderr: str = "",
+) -> subprocess.CompletedProcess[str]:
+    stdout = (
+        f"Request ID: {request_id}\nRequest State = {state}\n"
+        if present
+        else f"Batch Request: {request_id} does not exist on nqsv.\n"
+    )
+    return subprocess.CompletedProcess(
+        ["qstat", "-f", request_id], rc, stdout, stderr,
+    )
+
+
+def test_floor_liveness_classifies_queue_wait_without_success_claim(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], state="QUE",
+        ),
+    )
+
+    assert result["classification"] == "queue-waiting"
+    assert result["scheduler_state"] == "QUE"
+    assert result["request_disappeared_is_success"] is False
+
+
+def test_floor_liveness_requires_bound_compute_marker_for_running(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt_path = submission / "submit-receipt.json"
+    receipt = artifacts.load_json_strict(receipt_path)
+    staging = (
+        repo / "output/env/pegasus/floor/job-staging"
+        / ("0:" + receipt["job_id"])
+    )
+    staging.mkdir(parents=True)
+    (staging / "submit-receipt.json").write_bytes(receipt_path.read_bytes())
+    (staging / "hostname.stdout").write_text("bnode314\n", encoding="utf-8")
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], state="RUN",
+        ),
+    )
+
+    assert result["classification"] == "running"
+    assert result["compute_marker"] == {
+        "path": str(staging / "hostname.stdout"),
+        "present": True,
+        "valid": True,
+        "hostname": "bnode314",
+        "receipt_bound": True,
+    }
+
+
+def test_floor_liveness_disappearance_is_terminal_not_success_and_reads_stderr(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    (submission / "scheduler.stderr").write_text(
+        '{"gate":"admission","reason":"floor receipt strict read failed"}\n',
+        encoding="utf-8",
+    )
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+
+    assert result["classification"] == "finished"
+    assert result["request_disappeared"] is True
+    assert result["job_success"] is None
+    assert result["request_disappeared_is_success"] is False
+    assert result["evidence"] == [{
+        "path": str(submission / "scheduler.stderr"),
+        "kind": "structured-stderr",
+        "fields": {
+            "gate": "admission",
+            "reason": "floor receipt strict read failed",
+        },
+        "accounting_present": False,
+    }]
+
+
+def test_floor_liveness_nonzero_unknown_job_is_also_finished(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False, rc=153,
+            stderr="Unknown Job Id",
+        ),
+    )
+
+    assert result["classification"] == "finished"
+    assert result["request_disappeared"] is True
+    assert result["job_success"] is None
+
+
+def test_floor_liveness_terminal_reads_job_staging_failure_json(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    staging = (
+        repo / "output/env/pegasus/floor/job-staging"
+        / ("0:" + receipt["job_id"])
+    )
+    staging.mkdir(parents=True)
+    (staging / "failure.json").write_text(
+        json.dumps({
+            "schema_version": "pegasus-job-failure/v1",
+            "pbs_jobid": "0:" + receipt["job_id"],
+            "rc": 2,
+            "stage": "floor_driver",
+            "message": "pilot floor driver returned nonzero",
+            "recorded_epoch": 1,
+        }, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=5,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], present=False,
+        ),
+    )
+
+    assert result["classification"] == "finished"
+    assert result["evidence"][0] == {
+        "path": str(staging / "failure.json"),
+        "kind": "failure-json",
+        "fields": {
+            "stage": "floor_driver",
+            "message": "pilot floor driver returned nonzero",
+            "rc": 2,
+        },
+    }
+
+
+def test_floor_liveness_running_without_marker_times_out_indeterminate(
+    tmp_path: Path,
+) -> None:
+    repo, submission, _qsub_args, _qsub_cwd = _successful_submission(tmp_path)
+    receipt = artifacts.load_json_strict(submission / "submit-receipt.json")
+    now = [0.0]
+
+    def clock() -> float:
+        return now[0]
+
+    def sleep(seconds: float) -> None:
+        now[0] += seconds
+
+    result = floor_liveness.classify(
+        receipt["job_id"],
+        receipt["nonce"],
+        timeout_s=2,
+        poll_interval_s=1,
+        repo_root=repo,
+        run_command=lambda _command, **_kwargs: _qstat_result(
+            receipt["job_id"], state="RUN",
+        ),
+        clock=clock,
+        sleep=sleep,
+    )
+
+    assert result["classification"] == "indeterminate"
+    assert result["reason"] == "overall timeout expired before a conclusive state"
+    assert result["last_qstat"]["state"] == "RUN"
+    assert result["last_qstat"]["compute_marker"] == {
+        "present": False,
+        "valid": False,
+    }
+
+
+def test_floor_liveness_cli_finished_is_nonzero(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        floor_liveness,
+        "classify",
+        lambda *_args, **_kwargs: {
+            "schema_version": "pegasus-floor-liveness/v1",
+            "classification": "finished",
+        },
+    )
+
+    rc = floor_liveness.main([
+        "98765.nqsv",
+        "a" * 32,
+        "--timeout-seconds",
+        "5",
+    ])
+
+    assert rc == 3
+    assert json.loads(capsys.readouterr().out)["classification"] == "finished"
 
 
 def test_submit_floor_second_dry_run_uses_distinct_create_only_nonce(
@@ -1661,7 +1970,7 @@ def test_floor_driver_failure_propagates_rc(
         "schema_version": "pegasus-floor-job-result/v1",
         "pbs_jobid": "0:fixture.nqsv",
         "driver_rc": driver_rc,
-        "mode": "official",
+        "mode": "pilot",
         "protocol_path": "output/s8b-freeze/floor_protocol.json",
         "source_commit": "a" * 40,
         "job_script_sha256": "b" * 64,
@@ -1677,8 +1986,8 @@ def test_floor_driver_failure_propagates_rc(
     if driver_rc == 0:
         assert not failure_call.exists()
     else:
-        assert failure_call.read_text(encoding="utf-8").startswith(
-            f"{driver_rc}|floor_driver|"
+        assert failure_call.read_text(encoding="utf-8") == (
+            f"{driver_rc}|floor_driver|pilot floor driver returned nonzero\n"
         )
 
 
@@ -1779,6 +2088,62 @@ def test_floor_job_result_writer_failure_preserves_driver_rc(
     failures = failure_call.read_text(encoding="utf-8").splitlines()
     assert failures[0].split("|", 2)[:2] == ["1", "job_result"]
     assert failures[1].split("|", 2)[:2] == ["7", "floor_driver"]
+
+
+def test_floor_job_result_writer_failure_with_successful_driver_keeps_rc_zero(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    sentinel = '{"preexisting": true}\n'
+    (attempt / "job-result.json").write_text(sentinel, encoding="utf-8")
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "failure_written=0",
+            "",
+        ]
+    )
+    source = JOB.read_text(encoding="utf-8")
+    writer_start = source.index("write_failure() {")
+    writer_end = source.index("write_interpreter_failure()", writer_start)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            prefix + source[writer_start:writer_end] + _driver_tail(),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    # この rc=0 は裁定待ちの既知の穴であり、望ましい挙動として承認したものではない。
+    # production の exit code は本 wave では変えない。
+    assert result.returncode == 0, result.stderr
+    assert (attempt / "job-result.json").read_text(encoding="utf-8") == sentinel
+    failure = json.loads((attempt / "failure.json").read_text(encoding="utf-8"))
+    assert failure == {
+        "schema_version": "pegasus-job-failure/v1",
+        "pbs_jobid": "0:fixture.nqsv",
+        "rc": 1,
+        "stage": "job_result",
+        "message": "cannot write floor job result create-only",
+        "recorded_epoch": failure["recorded_epoch"],
+    }
+    assert type(failure["recorded_epoch"]) is int and failure["recorded_epoch"] > 0
 
 
 def _run() -> int:

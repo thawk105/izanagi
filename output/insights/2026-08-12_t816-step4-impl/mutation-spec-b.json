@@ -1,0 +1,52 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M3-missing-end-not-recorded-rereg",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_characterization_txn_tail_loss_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_cycle_verdict_takes_priority_over_framing_violation",
+        "orchestrator/tests/test_verifier.py::test_missing_end_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_new_commit_before_end_records_missing_end"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/parse.py",
+          "old": "    issues.framing_violations.append(TxnFramingViolation(\n        kind=\"missing-end\",\n",
+          "new": "    if True:\n        return\n    issues.framing_violations.append(TxnFramingViolation(\n        kind=\"missing-end\",\n"
+        }
+      ]
+    },
+    {
+      "id": "M7-positive-control-zero-count-frame-over-rejected-rereg",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_verifier.py::test_duplicate_end_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_end_record_requires_exactly_two_fields",
+        "orchestrator/tests/test_verifier.py::test_end_txid_mismatch_is_parse_error",
+        "orchestrator/tests/test_verifier.py::test_known_tag_prefixes_are_not_accepted_as_record_tags",
+        "orchestrator/tests/test_verifier.py::test_missing_end_is_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_new_commit_before_end_records_missing_end",
+        "orchestrator/tests/test_verifier.py::test_non_immediate_duplicate_end_remains_parse_error",
+        "orchestrator/tests/test_verifier.py::test_write_intent_unknown_reason_counted_and_indeterminate",
+        "orchestrator/tests/test_verifier.py::test_x_and_i_records_do_not_count_as_reads_or_writes",
+        "orchestrator/tests/test_verifier.py::test_zero_read_zero_write_frame_is_valid"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/verifier/parse.py",
+          "old": "                        if read_count_i < 0 or write_count_i < 0:\n",
+          "new": "                        if read_count_i < 0 or write_count_i < 0 or (\n                                read_count_i == 0 and write_count_i == 0):\n"
+        }
+      ]
+    }
+  ]
+}

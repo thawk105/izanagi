@@ -25,12 +25,70 @@ cwd にできる)。`delete` と `move` の元は symlink entry を消すので 
 `.codex/hooks.json` は guard を直接呼ばず、`0` と `2` 以外をすべて `2` へ写す `hooks/codex_guard.sh` を
 経由し、bootstrap 自体も解決できなければ `exit 2` とする。
 
-**配線しただけでは守られない。** 信頼登録の無い hook は無警告で無視される。承認はユーザーが対話 Codex で
-行う。発火しているかは `python3 tools/check_codex_hooks.py` で実測する — 設定の存在や JSON 妥当性では
+**配線しただけでは守られない。** 信頼登録の無い hook は無警告で無視される。発火しているかは
+`python3 tools/check_codex_hooks.py` で実測する — 設定の存在や JSON 妥当性では
 緑にせず、allowed control と protected control を両方測り、`apply_patch` と `Bash` の双方が発火しなければ
 非 0 とする。認証・枠・timeout・tool 未試行も非 0 で、`skip` で緑にしない。
 計算ノードは直接の外部通信ができず Codex CLI の到達性も未実測のため、この gate は**ログインノードの
-手動 gate** とし、受入全走へは自動登録しない。
+手動 gate** とし、受入全走へは自動登録しない。信頼の扱いは次節を正本とする。
+
+## Codex hook trust と自動化時の bypass 契約
+
+**trust は hooks.json の絶対パス単位で永続化される。** 承認結果は `~/.codex/config.toml` の
+`[hooks.state]` に `<hooks.json の絶対パス>:pre_tool_use:<index>:<index>` を key として記録される。
+したがって **main checkout の承認は worktree・使い捨て clone・temp path へ継承されない。**
+信頼の無いパスの hook を Codex は**黙って外す** (エラーも警告も出ない)。
+`--ephemeral` は hook の無効化を意味しない — 信頼済みパスなら ephemeral でも発火する。
+
+この機序により、承認済みの main checkout だけが守られ、**dev-wave の codex 子 (worktree で走る) と
+checker の probe (使い捨て clone で走る) は hook 無しで走っていた**。checker は構造的に rc=0 に
+なれなかった。
+
+**対処は両経路への明示 bypass である。** `tools/check_codex_hooks.py` の probe argv と
+`tools/codex_worker_launch.py` の worker argv は、いずれも `--dangerously-bypass-hook-trust` を
+option 領域に exact 1 件持つ。**sandbox bypass (`--dangerously-bypass-approvals-and-sandbox`) は
+両経路で禁止のまま**で、argv 検査は prompt 内の substring も拒否する。
+片方だけに入れてはならない — checker だけなら本番の worker が未防護のまま gate が緑になり、
+launcher だけなら受入が閉じない (D294 の却下理由がそのまま実現する)。
+
+**bypass の前に何を検証しているか。** launcher は **retry ごとに `Popen` の直前**で次を検証し、
+いずれかが赤なら `LaunchError` で**起動を拒否する。flag 無し起動への fallback は無い**。
+
+- `git -C <cwd> rev-parse --show-toplevel` が `--repo-root` と一致すること
+  (Codex は `.codex/hooks.json` を cwd の project root 基準で解決するため、ここが食い違うと
+  検証した file と実行される file が別物になる)。`git` 不在・非 0・timeout は fail-closed。
+- `.codex/hooks.json` が regular non-symlink で、PreToolUse の配線が exact 一致すること。
+- `hooks/codex_guard.sh` / `hooks/guard_write.py` / `hooks/guard_bash.py` が regular non-symlink で
+  実在すること。
+
+checker は使い捨て clone を作った**後**に同じ検証を再実行し、argv 検証も live 実行の前に通す。
+
+**checker rc=0 が保証する範囲 (過大に読まない)。** 保証は
+**「bypass 下で、その clone の配線について、一致する拒否証拠が stderr にあり、保護対象の
+side effect が無い」** までである。hook に拒否された tool 呼び出しは JSON event を一切生成せず、
+拒否文は stderr にのみ出るため、証拠は stderr から取る (拒否文 + handler 名 + probe ごとの nonce +
+相対 path が揃い、拒否 marker の出現が exact 1)。**protected を exact 1 回試したことの証明ではない。**
+rc=0 を「Codex の persisted trust が正常」とは記録しない — 意味が違う。
+
+**launcher 側に live attestation は無い。** launcher が言えるのは「起動直前に配線が exact で、
+top-level が一致した」までで、実際に hook が発火したことは測っていない。
+
+**検証していないもの (残余リスク)。**
+
+- `codex_guard.sh` / `guard_*.py` の **bytes / hash は検証していない**。regular file としての実在
+  までである。workspace-write の子が guard 本体を書き換えた場合、以後の起動前検証は検出しない。
+- 検証から `Popen` までは原子的でない (TOCTOU の窓が残る)。
+- user / global config、Codex の設定探索、CLI flag の semantics は検証範囲外。
+- `tools/codex_reasoning_ab.py` の直接起動経路 (`-s read-only` 固定) と、
+  `tools/run_codex_role.py` → `orchestrator/codex_roles/launcher.py` の経路 (現状 runtime blocked) は
+  **本節の防壁の外**である。「repo の Codex 起動を防護した」とは書けない。
+- `~/.codex/config.toml` へ worktree パスの信頼を機械追記する運用は**採らない**
+  (ユーザーの個人 config を機械が書き換えるため)。
+
+**受入の記録は 3 項目に分ける。** (1) 静的配線検証の結果、(2) bypass 下の live hook 発火の実測
+(`check_codex_hooks.py` の rc)、(3) 実 worker が同じ hook source を使う配線であることの根拠。
+checker は pytest 全走に内包せず、**全走と直列**に走らせる (全走の隣で live codex を起動すると
+既知の偽赤が出る)。
 
 **閉じた面と開いたままの面を混同しない。** 本配線が閉じたのは Codex の `apply_patch` 経由の直接書き込みと、
 Claude と同じ既知限界つきの Bash 経由である。**MCP / apps / plugins / `SubagentStart` の子の書込み面、
@@ -227,8 +285,9 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
 - **s8b-freeze は認証防壁ではない**: `output/s8b-freeze/` の Write 拒否は誤操作抑止のみ。Bash 経由の書き込み
   (`echo > output/s8b-freeze/...`) は guard_bash の防護ツリー外で通る (現状 guard_bash は campaign/ccbench
   のみ防護)。approval/active/revocation の真正性は hook でなく `s8b_ratified_freeze` の Git attestation が担う。
-  Codex 側は hook 未配線 (`.codex/hooks.json` 不在)。AI 偽装を脅威モデル内で塞ぐには allowlist 鍵署名への
-  再裁定が要る (C1-11 の should-fix、F6 代替案 b)。
+  Codex 側も `.codex/hooks.json` は配線済みだが (「Codex へ配線済」節)、`output/s8b-freeze` への Bash
+  直接書き込みが防護ツリー外である点は Claude と同じで、ここは開いたままである。AI 偽装を脅威モデル内で
+  塞ぐには allowlist 鍵署名への再裁定が要る (C1-11 の should-fix、F6 代替案 b)。
 - **ハーネス自身は防護対象外**: 防護ツリーは `output/campaigns`・`output/exploration/campaigns`・
   `external/ccbench` (と marker 1 file) のみで、一次防壁の
   コード・hook 自身・`.claude/settings.json` への書き込みはどの hook も守らない。緩和は規律6 の監査 + 人間の

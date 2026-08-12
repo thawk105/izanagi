@@ -1740,6 +1740,13 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/submit_t126_qualification.sh": "unknown",
     "tools/pegasus/t126_qualification.sh": "dispatch-required",
     "tools/pegasus/t141_region_profile.sh": "dispatch-required",
+    "tools/pegasus/t810_budget.py": "unknown",
+    "tools/pegasus/t810_coordinator.py": "unknown",
+    "tools/pegasus/t810_guard.py": "unknown",
+    "tools/pegasus/t810_harness_schema.py": "unknown",
+    "tools/pegasus/t810_pbs_wrapper.py": "unknown",
+    "tools/pegasus/t810_runner_policy.py": "unknown",
+    "tools/pegasus/validate_t810.py": "unknown",
 }
 _PEGASUS_EXPECTED_ENTRIES = {
     "tools/claude_session_ledger.py": {
@@ -1945,6 +1952,48 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "PBS T141 profiling job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
+    },
+    "tools/pegasus/t810_budget.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/t810_coordinator.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/t810_guard.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/t810_harness_schema.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/t810_pbs_wrapper.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/t810_runner_policy.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
+    },
+    "tools/pegasus/validate_t810.py": {
+        "class": "unknown",
+        "reason": "input caps and capped-input measurement are incomplete",
+        "primary_gate": "hook deny pending admission evidence",
+        "evidence": "unmeasured; unbounded input surfaces remain"
     }
 }
 

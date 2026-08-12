@@ -269,7 +269,7 @@ def test_generate_refuses_overwrite_and_requires_confirmation(tmp_path):
         M.main(["generate", "--confirmed-at", "date"])
 
 
-def test_verify_rejects_source_hash_and_binding_tamper(tmp_path):
+def test_verify_rejects_source_hash_and_binding_tamper(tmp_path, monkeypatch):
     root, files, head = _synthetic_freeze_root(tmp_path)
     freeze = tmp_path / "freeze.json"
     doc = M.generate(
@@ -282,8 +282,14 @@ def test_verify_rejects_source_hash_and_binding_tamper(tmp_path):
     hash_tamper["design_source"]["sha256"] = "0" * 64
     hash_path = tmp_path / "hash-tamper.json"
     hash_path.write_text(json.dumps(hash_tamper), encoding="utf-8")
-    with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
-        M.verify(hash_path, root=root, files=files, current_head=head)
+    held_result = M.verify(hash_path, root=root, files=files, current_head=head)
+    assert "s8b-holdout.design_source-implementation-bytes" in {
+        marker["check_id"] for marker in held_result.held_checks
+    }
+    with monkeypatch.context() as released:
+        released.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
+            M.verify(hash_path, root=root, files=files, current_head=head)
 
     binding_tamper = copy.deepcopy(doc)
     binding_tamper["holdouts"]["rr80"]["variant_binding"]["entries"][
@@ -293,6 +299,56 @@ def test_verify_rejects_source_hash_and_binding_tamper(tmp_path):
     binding_path.write_text(json.dumps(binding_tamper), encoding="utf-8")
     with pytest.raises(M.FreezeError, match="variant_binding 不一致"):
         M.verify(binding_path, root=root, files=files, current_head=head)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["design_source", "known_axes_freeze", "generator"],
+)
+def test_source_identity_hold_and_release_positive_controls(
+        tmp_path, monkeypatch, field):
+    root, files, head = _synthetic_freeze_root(tmp_path)
+    freeze = tmp_path / "freeze.json"
+    doc = M.generate(
+        confirmed_by="reviewer", confirmed_at="date", output_path=freeze,
+        root=root, files=files, frozen_at_head=head,
+    )
+    doc[field]["sha256"] = "0" * 64
+    freeze.write_text(json.dumps(doc), encoding="utf-8")
+
+    held_result = M.verify(freeze, root=root, files=files, current_head=head)
+    assert f"s8b-holdout.{field}-implementation-bytes" in {
+        marker["check_id"] for marker in held_result.held_checks
+    }
+    with monkeypatch.context() as released:
+        released.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(M.FreezeError, match=rf"{field} sha256 不一致"):
+            M.verify(freeze, root=root, files=files, current_head=head)
+
+
+def test_head_identity_hold_and_release_positive_control(tmp_path, monkeypatch):
+    root, files, head = _synthetic_freeze_root(tmp_path)
+    freeze = tmp_path / "freeze.json"
+    M.generate(
+        confirmed_by="reviewer", confirmed_at="date", output_path=freeze,
+        root=root, files=files, frozen_at_head=head,
+    )
+    foreign_head = "f" * 40
+    held_result = M.verify(
+        freeze, root=root, files=files, current_head=foreign_head,
+    )
+    assert "s8b-holdout.frozen-head-current-head" in {
+        marker["check_id"] for marker in held_result.held_checks
+    }
+    with monkeypatch.context() as released:
+        released.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(
+                M.FreezeError,
+                match=(
+                    rf"^frozen_at_head 不一致: recorded={head} "
+                    rf"current={foreign_head}$"
+                )):
+            M.verify(freeze, root=root, files=files, current_head=foreign_head)
 
 
 def test_verify_tolerates_per_axis_drift_and_rejects_snapshot_tamper(tmp_path):
@@ -443,7 +499,7 @@ def test_exempt_none_preserves_v1_prefix_report_bytes(tmp_path):
     assert default_report["holdouts"]["rr80"]["conjunction_hits"] == []
 
 
-def test_verify_rejects_active_generation_worktree_drift(tmp_path):
+def test_verify_rejects_active_generation_worktree_drift(tmp_path, monkeypatch):
     # v1 単一 filename freeze は唯一の発効中 (active) 世代。生成後に設計本文を worktree で
     # 改変すると、frozen_at_head 時点の blob が recorded sha256 と一致していても、verify は
     # worktree 完全一致を要求して拒否する (active 世代のドリフト検知)。blob 救済は世代別
@@ -466,8 +522,14 @@ def test_verify_rejects_active_generation_worktree_drift(tmp_path):
         "-c", "commit.gpgsign=false", "commit", "-aqm", "gen2",
     )
     assert M._sha256(root / M.DESIGN_REL) != doc["design_source"]["sha256"]
-    with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
-        M.verify(freeze, root=root, files=files)
+    held_result = M.verify(freeze, root=root, files=files)
+    assert "s8b-holdout.design_source-implementation-bytes" in {
+        marker["check_id"] for marker in held_result.held_checks
+    }
+    with monkeypatch.context() as released:
+        released.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
+            M.verify(freeze, root=root, files=files)
 
 
 def test_verify_rejects_unratified_generation_documents(tmp_path):
@@ -512,11 +574,18 @@ def _t080_artifact_root(tmp_path: Path) -> tuple[Path, Path, Path]:
     return root, holdout, known
 
 
-def test_verify_cli_accepts_active_t080_receipt_exact_match(capsys):
+def test_verify_cli_accepts_active_t080_receipt_exact_match(capsys, monkeypatch):
+    monkeypatch.setattr(M._freeze_hold, "_EMITTED_MARKERS", set())
     assert M.main(["verify"]) == 0
     captured = capsys.readouterr()
-    assert f"verified: {M.FREEZE_PATH}" in captured.out
-    assert captured.err == ""
+    assert '"status": "held"' in captured.out
+    assert '"decision": "freeze-verification-hold"' in captured.out
+    marker_lines = captured.err.splitlines()
+    assert marker_lines
+    assert all(
+        line.startswith(f"{M._freeze_hold.MARKER_PREFIX} ")
+        for line in marker_lines
+    )
 
 
 def test_verify_direct_cli_accepts_active_t080_receipt_exact_match():
@@ -526,8 +595,14 @@ def test_verify_direct_cli_accepts_active_t080_receipt_exact_match():
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert f"verified: {M.FREEZE_PATH}" in completed.stdout
-    assert completed.stderr == ""
+    assert '"status": "held"' in completed.stdout
+    assert '"decision": "freeze-verification-hold"' in completed.stdout
+    marker_lines = completed.stderr.splitlines()
+    assert marker_lines
+    assert all(
+        line.startswith(f"{M._freeze_hold.MARKER_PREFIX} ")
+        for line in marker_lines
+    )
 
 
 def test_verify_cli_active_receipt_hash_mismatch_is_immediate_red(
@@ -686,8 +761,14 @@ def test_verify_cli_never_issued_delegates_to_legacy_verify_and_keeps_drift_red(
         lambda **_kwargs: pytest.fail("never-issued で adapter を呼んだ"),
     )
 
-    with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
-        M.verify_cli_with_t080_receipt(path, root=root)
+    held_result = M.verify_cli_with_t080_receipt(path, root=root)
+    assert "s8b-holdout.design_source-implementation-bytes" in {
+        marker["check_id"] for marker in held_result.held_checks
+    }
+    with monkeypatch.context() as released:
+        released.setattr(M._freeze_hold, "HELD", False)
+        with pytest.raises(M.FreezeError, match="design_source sha256 不一致"):
+            M.verify_cli_with_t080_receipt(path, root=root)
 
 
 def test_read_regular_nofollow_rejects_symlink(tmp_path):
