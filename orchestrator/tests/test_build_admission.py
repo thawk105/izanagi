@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import builtins
 import hashlib
 import json
 import os
@@ -17,6 +19,13 @@ ORCHESTRATOR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import source_digest  # noqa: E402
+from orchestrator.campaign.axis_trigger_gating import (  # noqa: E402
+    FROZEN_TEMPLATE_BLOCK_BYTES,
+    FROZEN_TEMPLATE_HOLE_BYTES,
+    MARKER_ID as TRIGGER_MARKER_ID,
+    PREDICATE_HOLE_INDENT as TRIGGER_PREDICATE_HOLE_INDENT,
+    SOURCE_REL as TRIGGER_SOURCE_REL,
+)
 from orchestrator.campaign.build_admission import (  # noqa: E402
     ADMISSION_SCHEMA,
     REVIEW_RECEIPT_SCHEMA,
@@ -35,6 +44,7 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 )
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
+from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate  # noqa: E402
 from orchestrator.campaign.source_digest import (  # noqa: E402
     SOURCE_EVIDENCE_SCHEMA,
     STOCK,
@@ -96,6 +106,32 @@ def _parser_authority():
     parser = argparse.ArgumentParser()
     add_coder_build_authority_argument(parser)
     return parser.parse_args(["--allow-coder-derived-build"]).coder_build_authority
+
+
+def _canonical_trigger_hole(mask: int) -> bytes:
+    return (
+        TRIGGER_PREDICATE_HOLE_INDENT + emit_predicate(TriggerGateIR(mask))
+    ).encode("utf-8")
+
+
+def _trigger_block_with_hole(hole: bytes) -> bytes:
+    assert FROZEN_TEMPLATE_BLOCK_BYTES.count(FROZEN_TEMPLATE_HOLE_BYTES) == 1
+    return FROZEN_TEMPLATE_BLOCK_BYTES.replace(FROZEN_TEMPLATE_HOLE_BYTES, hole)
+
+
+def _trigger_source_bytes(block: bytes) -> bytes:
+    marker_explanation = (
+        b"// explanation mentions " + TRIGGER_MARKER_ID.encode("ascii") + b" only\n"
+    )
+    return marker_explanation + block + b"int izanagi_after_block = 0;\n"
+
+
+def _write_trigger_source(tmp_path: Path, raw: bytes) -> tuple[SourceEvidence, Path]:
+    root = tmp_path / "ccbench"
+    target = root / TRIGGER_SOURCE_REL
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(raw)
+    return _source(root=str(root)), target
 
 
 def test_direct_constructor_is_not_an_admission_path():
@@ -246,6 +282,323 @@ def test_receipt_validation_binds_source_root():
             expected_policy=context.policy,
             expected_source=_source(root="/different/ccbench"),
         )
+
+
+@pytest.mark.parametrize("mask", [0, 31], ids=["mask-0", "mask-31"])
+def test_trigger_axis_semantic_admission_accepts_exact_emitter_bytes_without_binding(
+    tmp_path: Path, mask: int,
+):
+    block = _trigger_block_with_hole(_canonical_trigger_hole(mask))
+    source, _ = _write_trigger_source(tmp_path, _trigger_source_bytes(block))
+    admission = derive_build_admission(_context(), source)
+    assert admission.provenance is BuildProvenance.STOCK_BASELINE
+
+
+def test_trigger_axis_semantic_admission_accepts_pristine_frozen_block(tmp_path: Path):
+    source, _ = _write_trigger_source(
+        tmp_path, _trigger_source_bytes(FROZEN_TEMPLATE_BLOCK_BYTES)
+    )
+    assert derive_build_admission(_context(), source).provenance is (
+        BuildProvenance.STOCK_BASELINE
+    )
+
+
+_BEGIN_LINE = b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+_END_LINE = b"  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+_N11_EXTRA_IF = b"#if 1\n  izanagi_gate_pass = false;\n#endif\n"
+_N14_NESTED = (
+    b"  // EVOLVE-BLOCK-BEGIN other-trigger-axis\n"
+    b"#if 1\n#else\n#endif\n"
+    b"  // EVOLVE-BLOCK-END other-trigger-axis\n"
+)
+_LOWERCASE_SECOND_BLOCK = FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+    b"EVOLVE-BLOCK-BEGIN", b"evolve-block-begin"
+).replace(b"EVOLVE-BLOCK-END", b"evolve-block-end")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    _BEGIN_LINE, b"\t// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
+                )
+            ),
+            id="N01-marker-prefix",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    b"EVOLVE-BLOCK-", b"evolve-block-"
+                )
+            ),
+            id="N02-marker-case",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    b"silo-backoff-trigger-gating",
+                    b"silo-backoff-trigger-gating-shadow",
+                )
+            ),
+            id="N04-marker-id-variant",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    _BEGIN_LINE, _BEGIN_LINE[:-1] + b"\r\n"
+                )
+            ),
+            id="N05-mixed-newline",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(_BEGIN_LINE, b"").replace(
+                    _END_LINE, b""
+                )
+            ),
+            id="N08-markers-deleted",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    b"#if BACKOFF_TRIGGER_GATING\n", b"#if 0\n"
+                )
+            ),
+            id="N09-disabled-if",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    b"#if BACKOFF_TRIGGER_GATING\n", b"#ifdef OTHER_MACRO\n"
+                )
+            ),
+            id="N10-other-ifdef",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    b"#endif\n" + _END_LINE, b"#endif\n" + _N11_EXTRA_IF + _END_LINE
+                )
+            ),
+            id="N11-extra-if-block",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES + _LOWERCASE_SECOND_BLOCK
+            ),
+            id="N13-second-case-varied-block",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES.replace(
+                    b"#if BACKOFF_TRIGGER_GATING\n",
+                    _N14_NESTED + b"#if BACKOFF_TRIGGER_GATING\n",
+                )
+            ),
+            id="N14-nested-block",
+        ),
+        pytest.param(
+            _trigger_source_bytes(
+                FROZEN_TEMPLATE_BLOCK_BYTES + FROZEN_TEMPLATE_BLOCK_BYTES
+            ),
+            id="N15-duplicate-block",
+        ),
+        pytest.param(
+            _trigger_source_bytes(_END_LINE + _BEGIN_LINE),
+            id="N16-reversed-directives",
+        ),
+    ],
+)
+def test_trigger_axis_semantic_admission_rejects_frame_mutations(
+    tmp_path: Path, raw: bytes,
+):
+    source, _ = _write_trigger_source(tmp_path, raw)
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        derive_build_admission(_context(), source)
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        pytest.param(
+            FROZEN_TEMPLATE_BLOCK_BYTES.replace(b"\n", b"\r\n"), id="crlf"
+        ),
+        pytest.param(
+            FROZEN_TEMPLATE_BLOCK_BYTES.replace(b"\n", b"\r"), id="cr-only"
+        ),
+        pytest.param(
+            _trigger_block_with_hole(b"\t" + _canonical_trigger_hole(0)[2:]),
+            id="tab-indent",
+        ),
+        pytest.param(
+            _trigger_block_with_hole(b" " + _canonical_trigger_hole(0)),
+            id="outer-leading-space",
+        ),
+        pytest.param(
+            _trigger_block_with_hole(_canonical_trigger_hole(0) + b" "),
+            id="outer-trailing-space",
+        ),
+        pytest.param(_trigger_block_with_hole(b""), id="empty-hole"),
+        pytest.param(
+            _trigger_block_with_hole(
+                _canonical_trigger_hole(0) + b"\n" + _canonical_trigger_hole(31)
+            ),
+            id="multiple-hole-lines",
+        ),
+        pytest.param(
+            _trigger_block_with_hole(b"  izanagi_gate_pass = (true);"),
+            id="non-emitter-spelling",
+        ),
+    ],
+)
+def test_trigger_axis_semantic_admission_rejects_noncanonical_block(
+    tmp_path: Path, block: bytes,
+):
+    source, _ = _write_trigger_source(tmp_path, _trigger_source_bytes(block))
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        derive_build_admission(_context(), source)
+
+
+@pytest.mark.parametrize("case", ["missing-root", "missing-source", "marker-absent"])
+def test_trigger_axis_semantic_admission_is_noop_without_axis(tmp_path: Path, case: str):
+    if case == "missing-root":
+        source = _source(root=str(tmp_path / "absent"))
+    else:
+        root = tmp_path / "ccbench"
+        root.mkdir()
+        source = _source(root=str(root))
+        if case == "marker-absent":
+            target = root / TRIGGER_SOURCE_REL
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"int stock_source = 0;\n")
+    assert derive_build_admission(_context(), source).provenance is (
+        BuildProvenance.STOCK_BASELINE
+    )
+
+
+def test_trigger_axis_semantic_admission_rejects_non_enoent_read_failure(tmp_path: Path):
+    root = tmp_path / "ccbench"
+    target = root / TRIGGER_SOURCE_REL
+    target.mkdir(parents=True)
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        derive_build_admission(_context(), _source(root=str(root)))
+
+
+def test_trigger_axis_semantic_admission_reads_source_bytes_once(
+    tmp_path: Path, monkeypatch,
+):
+    source, target = _write_trigger_source(
+        tmp_path, _trigger_source_bytes(FROZEN_TEMPLATE_BLOCK_BYTES)
+    )
+    real_open = builtins.open
+    reads = []
+
+    def counting_open(path, *args, **kwargs):
+        if os.fspath(path) == os.fspath(target):
+            reads.append((args, kwargs))
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", counting_open)
+    derive_build_admission(_context(), source)
+    assert len(reads) == 1
+
+
+def test_runtime_admission_rechecks_trigger_axis_while_receipt_replay_does_not(
+    tmp_path: Path,
+):
+    source, target = _write_trigger_source(
+        tmp_path,
+        _trigger_source_bytes(
+            _trigger_block_with_hole(_canonical_trigger_hole(31))
+        ),
+    )
+    context = _context()
+    admission = derive_build_admission(context, source)
+    body = admission.as_wal_receipt()
+    expected_keys = {
+        "schema", "class", "policy_sha256", "source", "generator_id", "review_id",
+        "input_sha256", "generator_receipt", "review_receipt", "authority_kind",
+        "receipt_sha256",
+    }
+    target.write_bytes(
+        _trigger_source_bytes(
+            _trigger_block_with_hole(_canonical_trigger_hole(31) + b" ")
+        )
+    )
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        require_build_admission(
+            admission, expected_policy=context.policy, expected_source=source
+        )
+    assert validate_build_admission_receipt(
+        body, expected_policy=context.policy, expected_source=source
+    ) == body
+    assert set(body) == expected_keys
+
+
+def test_trigger_axis_semantic_validator_precedes_class_selection(tmp_path: Path):
+    """診断順序だけを pin し、gate 単独変異の kill 証拠には数えない。"""
+
+    source, _ = _write_trigger_source(
+        tmp_path,
+        _trigger_source_bytes(
+            _trigger_block_with_hole(_canonical_trigger_hole(0) + b" ")
+        ),
+    )
+    source = _source(root=source.source_root, token=_SHA_C, clean=False)
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        derive_build_admission(_context(), source)
+
+
+def test_frozen_trigger_block_matches_template_patch_bytes():
+    patch_path = ORCHESTRATOR.parent / "patches" / "silo-backoff-trigger-gating-variant.patch"
+    patch_lines = patch_path.read_bytes().splitlines(keepends=True)
+    start = patch_lines.index(b"+" + _BEGIN_LINE)
+    stop = patch_lines.index(b"+" + _END_LINE, start)
+    reconstructed = b"".join(
+        line[1:] for line in patch_lines[start:stop + 1] if line[:1] in (b"+", b" ")
+    )
+    assert reconstructed == FROZEN_TEMPLATE_BLOCK_BYTES
+
+
+def test_trigger_axis_import_and_gateway_call_constraints():
+    axis_path = ORCHESTRATOR / "campaign" / "axis_trigger_gating.py"
+    axis_tree = ast.parse(axis_path.read_text(encoding="utf-8"))
+    forbidden_import_reads = {
+        "open", "read_bytes", "read_text", "read", "parse_template_file"
+    }
+    assert not {
+        call.func.id if isinstance(call.func, ast.Name) else call.func.attr
+        for call in ast.walk(axis_tree)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, (ast.Name, ast.Attribute))
+        and (
+            (isinstance(call.func, ast.Name) and call.func.id in forbidden_import_reads)
+            or (
+                isinstance(call.func, ast.Attribute)
+                and call.func.attr in forbidden_import_reads
+            )
+        )
+    }
+
+    admission_path = ORCHESTRATOR / "campaign" / "build_admission.py"
+    admission_tree = ast.parse(admission_path.read_text(encoding="utf-8"))
+    functions = {
+        node.name: node for node in admission_tree.body if isinstance(node, ast.FunctionDef)
+    }
+
+    def semantic_calls(function_name: str) -> int:
+        return sum(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_require_materialized_trigger_axis_predicate"
+            for node in ast.walk(functions[function_name])
+        )
+
+    assert semantic_calls("derive_build_admission") == 1
+    assert semantic_calls("require_build_admission") == 1
+    assert semantic_calls("validate_build_admission_receipt") == 0
 
 
 def test_resolve_evidence_captures_one_status_snapshot_and_tracked_diff(monkeypatch):
