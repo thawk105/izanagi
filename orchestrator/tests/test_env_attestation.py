@@ -1356,5 +1356,9 @@ def test_grandfathered_sha_is_module_constant_without_env_literal():
     assert "linux-baremetal" not in source
 
 
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="pytest-delegating")
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

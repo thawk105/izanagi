@@ -1,8 +1,14 @@
 """Non-tautological contract tests for repository-growth test holds."""
 from __future__ import annotations
 
+import ast
 import hashlib
+import importlib
+import inspect
 import json
+import os
+import re
+import subprocess
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -20,7 +26,10 @@ from orchestrator.tests.growth_test_holds import (
     RUN_GROWTH_HELD_TESTS_ENV,
     RUN_GROWTH_HELD_TESTS_TOKEN,
     GrowthTestHold,
+    GrowthTestHoldBypassRefused,
+    _wrap_held_function,
     _validate_hold_rows,
+    enforce_held_functions,
     growth_test_hold_inventory,
     growth_test_hold_key_digest,
 )
@@ -304,6 +313,477 @@ def test_opt_in_changes_only_suite_identity_not_acceptance_shape(monkeypatch):
         RT._is_acceptance_run([]),
     )
     assert after == before
+
+
+def _held_filenames() -> tuple[str, ...]:
+    return tuple(sorted({node_id.split("::", 1)[0] for node_id in GROWTH_TEST_HOLDS}))
+
+
+def _is_main_guard(node: ast.stmt) -> bool:
+    if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
+        return False
+    comparison = node.test
+    return (
+        isinstance(comparison.left, ast.Name)
+        and comparison.left.id == "__name__"
+        and len(comparison.ops) == 1
+        and isinstance(comparison.ops[0], ast.Eq)
+        and len(comparison.comparators) == 1
+        and isinstance(comparison.comparators[0], ast.Constant)
+        and comparison.comparators[0].value == "__main__"
+    )
+
+
+def _plain_runner_for_tree(tree: ast.Module) -> str:
+    main_guards = [node for node in tree.body if _is_main_guard(node)]
+    if not main_guards:
+        return "none"
+    if len(main_guards) != 1 or not main_guards[0].body:
+        return "manual"
+
+    terminal = main_guards[0].body[-1]
+    exit_call = None
+    if (
+        isinstance(terminal, ast.Raise)
+        and isinstance(terminal.exc, ast.Call)
+        and isinstance(terminal.exc.func, ast.Name)
+        and terminal.exc.func.id == "SystemExit"
+        and len(terminal.exc.args) == 1
+        and not terminal.exc.keywords
+    ):
+        exit_call = terminal.exc
+    elif (
+        isinstance(terminal, ast.Expr)
+        and isinstance(terminal.value, ast.Call)
+        and isinstance(terminal.value.func, ast.Attribute)
+        and isinstance(terminal.value.func.value, ast.Name)
+        and terminal.value.func.value.id == "sys"
+        and terminal.value.func.attr == "exit"
+        and len(terminal.value.args) == 1
+        and not terminal.value.keywords
+    ):
+        exit_call = terminal.value
+
+    delegated = exit_call.args[0] if exit_call is not None else None
+    return (
+        "pytest-delegating"
+        if isinstance(delegated, ast.Call)
+        and isinstance(delegated.func, ast.Attribute)
+        and isinstance(delegated.func.value, ast.Name)
+        and delegated.func.value.id == "pytest"
+        and delegated.func.attr == "main"
+        else "manual"
+    )
+
+
+def _guard_binding_errors(source: str, filename: str) -> tuple[str, ...]:
+    tree = ast.parse(source, filename=filename)
+    imports = [
+        alias
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.module == "orchestrator.tests.growth_test_holds"
+        for alias in node.names
+        if alias.name == "enforce_held_functions" and alias.asname is None
+    ]
+    all_calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "enforce_held_functions"
+    ]
+    top_level_calls = [
+        node.value
+        for node in tree.body
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "enforce_held_functions"
+    ]
+    errors = []
+    if len(imports) != 1:
+        errors.append(f"import count is {len(imports)}, expected 1")
+    if len(all_calls) != 1:
+        errors.append(f"call count is {len(all_calls)}, expected 1")
+    if len(top_level_calls) != 1:
+        errors.append(f"top-level call count is {len(top_level_calls)}, expected 1")
+        return tuple(errors)
+
+    call = top_level_calls[0]
+    globals_call = call.args[0] if call.args else None
+    runner_keywords = [
+        keyword for keyword in call.keywords if keyword.arg == "plain_runner"
+    ]
+    declared_runner = (
+        runner_keywords[0].value.value
+        if len(runner_keywords) == 1
+        and isinstance(runner_keywords[0].value, ast.Constant)
+        and isinstance(runner_keywords[0].value.value, str)
+        else None
+    )
+    exact_arguments = (
+        len(call.args) == 2
+        and len(call.keywords) == 1
+        and declared_runner in {"pytest-delegating", "manual", "none"}
+        and isinstance(globals_call, ast.Call)
+        and isinstance(globals_call.func, ast.Name)
+        and globals_call.func.id == "globals"
+        and not globals_call.args
+        and not globals_call.keywords
+        and isinstance(call.args[1], ast.Name)
+        and call.args[1].id == "__file__"
+    )
+    if not exact_arguments:
+        errors.append(
+            "call must declare enforce_held_functions(globals(), __file__, "
+            "plain_runner=<pytest-delegating|manual|none>)"
+        )
+
+    test_definitions = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name.startswith("test_")
+    ]
+    if test_definitions and call.lineno <= max(
+        node.end_lineno or node.lineno for node in test_definitions
+    ):
+        errors.append("call must follow every top-level test definition")
+    main_guards = [node for node in tree.body if _is_main_guard(node)]
+    if main_guards and call.lineno >= min(node.lineno for node in main_guards):
+        errors.append("call must precede the __main__ guard")
+    expected_runner = _plain_runner_for_tree(tree)
+    if declared_runner != expected_runner:
+        errors.append(
+            f"plain_runner {declared_runner!r} does not match AST runner "
+            f"{expected_runner!r}"
+        )
+    return tuple(errors)
+
+
+def _clean_subprocess_env(*, opt_in: bool = False) -> dict[str, str]:
+    env = os.environ.copy()
+    env.pop("PYTEST_ADDOPTS", None)
+    env.pop("IZANAGI_RUN_GROWTH_HELD_TESTS", None)
+    if opt_in:
+        env["IZANAGI_RUN_GROWTH_HELD_TESTS"] = "explicit-user-command"
+    return env
+
+
+def _run_subprocess(
+    argv: list[str],
+    *,
+    opt_in: bool = False,
+    timeout: float = 10.0,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        argv,
+        cwd=ROOT,
+        env=_clean_subprocess_env(opt_in=opt_in),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def _combined_output(result: subprocess.CompletedProcess[str]) -> str:
+    return result.stdout + result.stderr
+
+
+def test_every_held_module_has_exact_top_level_guard_binding():
+    assert _held_filenames() == (
+        "test_campaign_import_invariant.py",
+        "test_codex_reasoning_ab.py",
+        "test_env_attestation.py",
+        "test_ruleops.py",
+        "test_s8b_binding_driftguards.py",
+        "test_s8b_holdout_freeze.py",
+        "test_s8b_oracle_driver.py",
+        "test_s8b_repo_scan_invariant.py",
+    )
+    for filename in _held_filenames():
+        path = Path(__file__).resolve().parent / filename
+        assert path.is_file(), filename
+        assert _guard_binding_errors(path.read_text(encoding="utf-8"), filename) == ()
+
+
+def test_guard_binding_negative_control_detects_removed_call():
+    filename = "test_s8b_repo_scan_invariant.py"
+    path = Path(__file__).resolve().parent / filename
+    valid_source = path.read_text(encoding="utf-8")
+    assert _guard_binding_errors(valid_source, filename) == ()
+    removed_source = valid_source.replace(
+        'enforce_held_functions(globals(), __file__, plain_runner="manual")\n',
+        "",
+        1,
+    )
+    assert removed_source != valid_source
+    assert _guard_binding_errors(removed_source, filename) != ()
+
+    delegating_filename = "test_env_attestation.py"
+    delegating_path = Path(__file__).resolve().parent / delegating_filename
+    delegating_source = delegating_path.read_text(encoding="utf-8")
+    mismatched_source = delegating_source.replace(
+        'plain_runner="pytest-delegating"', 'plain_runner="manual"', 1,
+    )
+    assert mismatched_source != delegating_source
+    assert "does not match AST runner" in " ".join(
+        _guard_binding_errors(mismatched_source, delegating_filename)
+    )
+
+
+@pytest.mark.parametrize(
+    "main_body",
+    [
+        "    if False:\n        pytest.main([__file__])\n    sys.exit(_run())\n",
+        "    def delegate():\n        return pytest.main([__file__])\n    sys.exit(_run())\n",
+        "    sys.exit(getattr(pytest, 'main')([__file__]))\n",
+        "    sys.exit(pytest_entry([__file__]))\n",
+    ],
+)
+def test_plain_runner_ast_rejects_nonterminal_or_indirect_pytest_calls(main_body):
+    source = "if __name__ == '__main__':\n" + main_body
+    assert _plain_runner_for_tree(ast.parse(source)) == "manual"
+
+
+def test_all_registered_nodes_are_call_time_wrapped(monkeypatch):
+    monkeypatch.delenv("IZANAGI_RUN_GROWTH_HELD_TESTS", raising=False)
+    for node_id in GROWTH_TEST_HOLDS:
+        filename, function_name = node_id.split("::", 1)
+        module = importlib.import_module(f"orchestrator.tests.{filename[:-3]}")
+        function = getattr(module, function_name)
+        assert hasattr(function, "__wrapped__"), node_id
+        with pytest.raises(GrowthTestHoldBypassRefused) as caught:
+            function()
+        message = str(caught.value)
+        assert message.startswith("IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 ")
+        payload = json.loads(message.split(" ", 1)[1])
+        assert payload == {
+            "node_id": node_id,
+            "release_env": "IZANAGI_RUN_GROWTH_HELD_TESTS",
+            "release_token": "explicit-user-command",
+        }
+
+
+def test_enforcement_rejects_misplacement_and_missing_functions():
+    with pytest.raises(ValueError, match="no growth-test holds registered"):
+        enforce_held_functions({}, "test_not_held.py", plain_runner="none")
+    with pytest.raises(ValueError, match="held functions missing"):
+        enforce_held_functions(
+            {}, "test_s8b_repo_scan_invariant.py", plain_runner="manual",
+        )
+    function_name = "test_real_repository_scan_matches_known_hits_and_has_positive_control"
+    with pytest.raises(ValueError, match="held names are not callable"):
+        enforce_held_functions(
+            {function_name: object()},
+            "test_s8b_repo_scan_invariant.py",
+            plain_runner="manual",
+        )
+
+
+def test_refusal_diagnostic_is_canonical_ascii_json(monkeypatch):
+    monkeypatch.delenv("IZANAGI_RUN_GROWTH_HELD_TESTS", raising=False)
+    wrapped = _wrap_held_function(lambda: None, "test_日.py::test_name")
+    with pytest.raises(GrowthTestHoldBypassRefused) as caught:
+        wrapped()
+    assert str(caught.value) == (
+        "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 "
+        '{"node_id":"test_\\u65e5.py::test_name",'
+        '"release_env":"IZANAGI_RUN_GROWTH_HELD_TESTS",'
+        '"release_token":"explicit-user-command"}'
+    )
+
+
+def test_exact_token_is_the_only_release_for_lightweight_body(monkeypatch):
+    calls = []
+
+    def lightweight_body(value):
+        calls.append(value)
+        return value + 1
+
+    lightweight_body.pytestmark = [pytest.mark.parametrize("value", [7])]
+    original_signature = inspect.signature(lightweight_body)
+    function_name = "test_real_repository_scan_matches_known_hits_and_has_positive_control"
+    namespace = {function_name: lightweight_body}
+    monkeypatch.setenv("IZANAGI_RUN_GROWTH_HELD_TESTS", "explicit-user-command")
+    assert enforce_held_functions(
+        namespace,
+        "test_s8b_repo_scan_invariant.py",
+        plain_runner="manual",
+    ) == (function_name,)
+    wrapped = namespace[function_name]
+    assert inspect.signature(wrapped) == original_signature
+    assert wrapped.pytestmark == lightweight_body.pytestmark
+
+    for refused_value in ("", "explicit-user-command-typo"):
+        monkeypatch.setenv("IZANAGI_RUN_GROWTH_HELD_TESTS", refused_value)
+        with pytest.raises(
+            GrowthTestHoldBypassRefused,
+            match="^IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 ",
+        ):
+            wrapped(7)
+    assert calls == []
+
+    monkeypatch.setenv("IZANAGI_RUN_GROWTH_HELD_TESTS", "explicit-user-command")
+    assert wrapped(7) == 8
+    assert calls == [7]
+
+
+def test_opt_in_runs_held_fixture_and_parametrize_shape(tmp_path):
+    synthetic = tmp_path / "test_s8b_repo_scan_invariant.py"
+    synthetic.write_text(
+        "import pytest\n"
+        "from orchestrator.tests.growth_test_holds import enforce_held_functions\n\n"
+        "@pytest.fixture\n"
+        "def fixture_value():\n"
+        "    return 40\n\n"
+        "@pytest.mark.parametrize('offset', [1, 2])\n"
+        "def test_real_repository_scan_matches_known_hits_and_has_positive_control("
+        "fixture_value, offset):\n"
+        "    assert fixture_value + offset in (41, 42)\n\n"
+        "enforce_held_functions(globals(), __file__, plain_runner='none')\n",
+        encoding="utf-8",
+    )
+    result = _run_subprocess(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--noconftest",
+            "-p",
+            "no:cacheprovider",
+            "-q",
+            str(synthetic),
+        ],
+        opt_in=True,
+    )
+    output = _combined_output(result)
+    assert result.returncode == 0, output
+    assert "2 passed" in output
+
+
+def test_noconftest_bypass_is_refused_before_held_body():
+    result = _run_subprocess([
+        sys.executable,
+        "-m",
+        "pytest",
+        "--noconftest",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "orchestrator/tests/test_campaign_import_invariant.py::"
+        "test_repository_scan_set_is_nonempty_and_contains_sentinels",
+    ])
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "1 failed" not in output
+    assert "passed" not in output
+
+
+@pytest.mark.parametrize(
+    "release_value",
+    ["explicit-typo", "explicit-user-command-extra"],
+)
+def test_import_guard_rejects_nonempty_nonexact_release_token(release_value):
+    env = _clean_subprocess_env()
+    env["IZANAGI_RUN_GROWTH_HELD_TESTS"] = release_value
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import orchestrator.tests.test_s8b_repo_scan_invariant",
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10.0,
+        check=False,
+    )
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "PASS " not in output
+    assert "passed" not in output
+
+
+def test_plain_runner_bypass_is_refused_before_held_body():
+    result = _run_subprocess([
+        sys.executable,
+        "orchestrator/tests/test_campaign_import_invariant.py",
+    ])
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+    assert "PASS " not in output
+    assert "passed" not in output
+
+
+def test_imported_conftest_does_not_enable_runpy_bypass():
+    result = _run_subprocess([
+        sys.executable,
+        "-c",
+        (
+            "import orchestrator.tests.conftest; import runpy; "
+            "runpy.run_path("
+            "'orchestrator/tests/test_s8b_repo_scan_invariant.py', "
+            "run_name='__main__')"
+        ),
+    ])
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+
+
+def test_direct_import_and_call_bypass_is_refused():
+    result = _run_subprocess([
+        sys.executable,
+        "-c",
+        (
+            "import os; "
+            "os.environ['IZANAGI_RUN_GROWTH_HELD_TESTS']='explicit-user-command'; "
+            "from orchestrator.tests.test_s8b_repo_scan_invariant import "
+            "test_real_repository_scan_matches_known_hits_and_has_positive_control "
+            "as held; "
+            "os.environ.pop('IZANAGI_RUN_GROWTH_HELD_TESTS'); held()"
+        ),
+    ])
+    output = _combined_output(result)
+    assert result.returncode != 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" in output
+
+
+def test_regular_pytest_path_keeps_single_hold_skip():
+    result = _run_subprocess([
+        sys.executable,
+        "-m",
+        "pytest",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "orchestrator/tests/test_s8b_repo_scan_invariant.py::"
+        "test_real_repository_scan_matches_known_hits_and_has_positive_control",
+    ])
+    output = _combined_output(result)
+    assert result.returncode == 0, output
+    assert "1 skipped" in output
+    assert "IZANAGI_GROWTH_HOLD_V1" in output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" not in output
+
+
+def test_plain_pytest_delegating_runner_is_not_over_rejected():
+    result = _run_subprocess([
+        sys.executable,
+        "orchestrator/tests/test_env_attestation.py",
+    ])
+    output = _combined_output(result)
+    assert result.returncode == 0, output
+    assert "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1" not in output
+    assert "1 skipped" in output
+    passed = re.search(r"(?m)(\d+) passed(?:,| in )", output)
+    assert passed is not None, output
+    assert int(passed.group(1)) >= 1
 
 
 def _run() -> int:

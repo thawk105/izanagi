@@ -4,10 +4,12 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 from dataclasses import asdict, dataclass
+from functools import wraps
 from types import MappingProxyType
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Literal, Mapping, MutableMapping
 
 
 RELEASE_EXPLICIT_USER_COMMAND_ONLY = "explicit-user-command-only"
@@ -205,6 +207,98 @@ def _validate_hold_rows(
 
 
 GROWTH_TEST_HOLDS = _validate_hold_rows(_HOLD_ROWS)
+
+
+class GrowthTestHoldBypassRefused(RuntimeError):
+    """A held test function was called without the explicit release token."""
+
+
+PlainRunner = Literal["pytest-delegating", "manual", "none"]
+_PLAIN_RUNNERS = frozenset({"pytest-delegating", "manual", "none"})
+_ENFORCING_PYTEST_CONFIG_IDS: set[int] = set()
+
+
+def mark_pytest_session_enforcing(config: object) -> None:
+    """Record that ``config`` owns the canonical hold collection enforcement."""
+    _ENFORCING_PYTEST_CONFIG_IDS.add(id(config))
+
+
+def unmark_pytest_session_enforcing(config: object) -> None:
+    """Drop the enforcement record for a completed pytest configuration."""
+    _ENFORCING_PYTEST_CONFIG_IDS.discard(id(config))
+
+
+def _refusal_message(node_id: str) -> str:
+    payload = {
+        "node_id": node_id,
+        "release_env": RUN_GROWTH_HELD_TESTS_ENV,
+        "release_token": RUN_GROWTH_HELD_TESTS_TOKEN,
+    }
+    return "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 " + json.dumps(
+        payload,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def _wrap_held_function(function: Callable, node_id: str) -> Callable:
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) != RUN_GROWTH_HELD_TESTS_TOKEN:
+            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))
+        return function(*args, **kwargs)
+
+    return wrapped
+
+
+def enforce_held_functions(
+    namespace: MutableMapping[str, object],
+    module_file: str | os.PathLike[str],
+    *,
+    plain_runner: PlainRunner,
+) -> tuple[str, ...]:
+    """Bind held call guards and reject imports outside an enforcing runner."""
+    if plain_runner not in _PLAIN_RUNNERS:
+        raise ValueError(f"invalid growth-test plain runner: {plain_runner!r}")
+    filename = os.path.basename(os.fspath(module_file))
+    held_nodes = sorted(
+        node_id for node_id in GROWTH_TEST_HOLDS
+        if node_id.split("::", 1)[0] == filename
+    )
+    if not held_nodes:
+        raise ValueError(f"no growth-test holds registered for {filename!r}")
+
+    function_names = tuple(node_id.split("::", 1)[1] for node_id in held_nodes)
+    missing = tuple(name for name in function_names if name not in namespace)
+    if missing:
+        raise ValueError(
+            f"growth-test held functions missing from {filename!r}: {missing!r}"
+        )
+    noncallable = tuple(
+        name for name in function_names if not callable(namespace[name])
+    )
+    if noncallable:
+        raise ValueError(
+            f"growth-test held names are not callable in {filename!r}: {noncallable!r}"
+        )
+
+    for node_id, function_name in zip(held_nodes, function_names, strict=True):
+        namespace[function_name] = _wrap_held_function(
+            namespace[function_name],  # type: ignore[arg-type]
+            node_id,
+        )
+
+    if _ENFORCING_PYTEST_CONFIG_IDS:
+        return function_names
+    if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) == RUN_GROWTH_HELD_TESTS_TOKEN:
+        return function_names
+    if (
+        namespace.get("__name__") == "__main__"
+        and plain_runner == "pytest-delegating"
+    ):
+        return function_names
+    raise GrowthTestHoldBypassRefused(_refusal_message(f"{filename}::*"))
 
 
 def growth_test_hold_key_digest(keys: Iterable[str]) -> str:

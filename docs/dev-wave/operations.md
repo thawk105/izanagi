@@ -127,8 +127,9 @@ file 集合を列挙するメタテストも焦点走に含める。並行 wave 
 
 専用handoffはworktree外（背景jobはrepo外）に置き、untracked handoffを残してgateを走らせない。
 cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
-worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.py`（背景jobは
-`--external-handoff <handoff>`付き）を実行し、非0なら停止する。HEAD差は`--ff-only`だけで揃える（F48）。
+worktreeを流用しない。作成直後は`tools/check_wave_startup.py`、再開直後は`--mode resume`付きで
+実行し（背景jobは`--external-handoff <handoff>`も）、非0なら停止する。resumeも
+branch・clean tree・main包含を要求。HEAD差は`--ff-only`で揃える（F48）。
 新規worktreeはsubmodule未初期化で非0になる。worktree内で`git submodule update --init`を実行して
 再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
 受入投入前に`git submodule update --recursive`で記録へ揃える。

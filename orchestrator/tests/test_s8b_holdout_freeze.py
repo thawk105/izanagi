@@ -1564,3 +1564,7 @@ def test_v2_candidate_cli_surface_has_no_approval_or_root_arguments():
                 forbidden, "value",
             ])
         assert caught.value.code == 2
+
+
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="none")
