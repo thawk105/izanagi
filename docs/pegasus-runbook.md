@@ -787,9 +787,29 @@ export IZANAGI_WAVE_LEASE_DIR=/work/1/SFC/tanab/dev-wave-jobs/land-lease
 W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
 python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   --merge-message-file <merge 用 message file> \
+  --receipt-file <repo 外の job directory>/acceptance-receipt.json \
   -- python3 tools/run_tests.py
 ```
 
+- **`--receipt-file` は必須である ([T-908])。** 待ち手経由の受入だけが権威ある dev-wave 受入で
+  あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。
+  path は **repo 外の絶対 path**・親 directory 既存・target 未存在でなければ claim 前に rc=2。
+  receipt は child rc=0・走行後 clean・index flag 検査通過・走行前後の fingerprint 一致・
+  lease の TTL 残量と所有の再確認がすべて成立したときだけ発行される。発行は temp へ書いて
+  fsync → 再確認 → `os.rename` の二段階で、**final path の存在だけが「待ち手が成功終端まで
+  到達した」証拠**である。予約 temp 名前空間の path を land へ渡しても rc=23 で拒否される。
+- **投入前に `git submodule update --recursive` を実行する。** 未初期化 (`-`) の submodule が
+  あると claim 前に `preflight-submodule-ready` で rc=2 になる。これは、受入 command 自身が
+  submodule を初期化して走行後 fingerprint を変え、緑なのに receipt が出せなくなる罠を
+  静かに踏まないための fail-closed である。
+- **`PYTEST_ADDOPTS` / `PYTEST_PLUGINS` を設定したまま投入しない。** claim 前に rc=2 で止まる。
+  `IZANAGI_TASK_RUN_ID` を使う場合は `IZANAGI_TASK_RUNS_ROOT` を **repo 外**へ向ける
+  (repo 内 root は claim 前に rc=2。走行中に tracked な台帳へ追記して走行後検査を
+  真に赤くするため)。
+- **走行後にも検査がある ([T-907])。** 受入 command が返った後、child rc を評価する前に
+  `postrun-clean` / index flag / fingerprint 比較を行う。**child rc が非 0 でも必ず走り**、
+  木が変わっていれば rc=70 が child rc に優先する。20〜40 分の走行中に木が変わった受入は
+  権威を持たない。
 - **受入 command は `--` の後ろへ裸形で渡す。** `-q` / `-rf` などを足すと
   `tools/run_tests.py` の acceptance shape 判定が False になり、受入専用の事前検査が
   黙って無効化される (`_is_acceptance_run` の default-deny に落ちる)。報告用の整形が要るなら
@@ -968,9 +988,21 @@ python3 tools/dev_wave_wait.py producer \
   照合した peer へ 1 度だけ送る。
 
 ```
-python3 tools/dev_wave_land.py ... > land-result.json    # rc と JSON を保存する
-python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json land-result.json
+J=<repo 外の job directory>
+python3 tools/dev_wave_land.py ... \
+  --acceptance-wave "$W" --acceptance-receipt "$J/acceptance-receipt.json" \
+  > "$J/land-result.json"                                # rc と JSON を保存する
+python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json "$J/land-result.json"
 ```
+
+- **`--acceptance-wave` / `--acceptance-receipt` は必須である ([T-908])。** 省略すると
+  argparse の rc=2、receipt が欠落・不正なら rc=23 (`acceptance-receipt-rejected`) で
+  **main は 1 bit も変わらない**。`already-landed` 経路も valid な receipt 無しでは成功しない。
+  bypass flag も環境変数の逃がし道も無い。
+- **land 結果 JSON は repo 外へ書く。** wave の cwd へリダイレクトすると、land 起動前に
+  repo 内 untracked file を作ってしまう。
+- **旧待ち手で受入済み・未 land の wave は receipt を持たない。** 互換 bypass は作らないので、
+  新しい待ち手で受入を 1 走やり直す必要がある。これは裁定 [T-908] (a) を機械で担保する費用である。
 
 - 取り残した lease は TTL (既定 2400 秒) で自然失効する。失効までの間は他 wave の受入投入が
   止まるので、release を忘れないこと。**受入を 2 度走らせると 2 走で TTL を超える** (1 走

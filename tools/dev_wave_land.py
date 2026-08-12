@@ -20,7 +20,7 @@ import stat
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Sequence
 
@@ -55,7 +55,40 @@ RC_FOLD_FINALIZE_FAILED = 30
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
 _MAX_METADATA_BYTES = 16 * 1024
+_MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+_HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
+_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v1"
+_ACCEPTANCE_AUTHORITY_KIND = "dev-wave-wait-acceptance"
+_RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
+_ACCEPTANCE_RECEIPT_FIELDS = frozenset({
+    "schema_version",
+    "authority_kind",
+    "acceptance_wave",
+    "lease_holder",
+    "tested_tip",
+    "argv",
+    "resolved_runner_path",
+    "child_rc",
+    "pre_fingerprint",
+    "post_fingerprint",
+    "waiter_blob_sha",
+    "env_projection",
+})
+_FINGERPRINT_FIELDS = frozenset({
+    "digest",
+    "head_sha",
+    "status_bytes",
+    "diff_bytes",
+    "submodule_status_bytes",
+})
+_ENV_PROJECTION_FIELDS = frozenset({
+    "PYTEST_ADDOPTS",
+    "PYTEST_PLUGINS",
+    "IZANAGI_TASK_RUN_ID",
+    "IZANAGI_TASK_RUNS_ROOT",
+})
 _SAFE_ADMIN_RE = re.compile(rb"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 _SAFE_CHILD_RE = re.compile(rb"(?!\.{1,2}\Z)[^/\x00]{1,128}\Z")
 _CONTROL_CONTAINERS = (b".claude/worktrees", b".codex/worktrees")
@@ -83,6 +116,8 @@ class LandRequest:
     tested_main_sha: str
     tested_wave_tip_sha: str
     audited_commits: tuple[str, ...]
+    acceptance_wave: str
+    acceptance_receipt: Path
 
 
 @dataclass(frozen=True)
@@ -94,6 +129,7 @@ class LandResult:
     main_after: str | None = None
     wave_tip: str | None = None
     fold_commit_sha: str | None = None
+    acceptance_receipt_sha256: str | None = None
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -103,6 +139,7 @@ class LandResult:
             "main_after": self.main_after,
             "wave_tip": self.wave_tip,
             "fold_commit_sha": self.fold_commit_sha,
+            "acceptance_receipt_sha256": self.acceptance_receipt_sha256,
         }
 
 
@@ -389,6 +426,140 @@ def _read_regular_at(
         return b"".join(chunks), opened
     finally:
         os.close(fd)
+
+
+def _no_duplicate_json_keys(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate key")
+        value[key] = item
+    return value
+
+
+def _acceptance_rejected() -> _Reject:
+    return _Reject(RC_AUDIT, "acceptance-receipt-rejected")
+
+
+def _read_acceptance_receipt(path: Path) -> bytes:
+    try:
+        if not path.is_absolute() or path.name.startswith(_RECEIPT_TEMP_PREFIX):
+            raise ValueError("receipt path must be absolute")
+        parent_fd = _open_dir(path.parent, "acceptance receipt parent")
+        try:
+            raw, _ = _read_regular_at(
+                parent_fd,
+                os.fsencode(path.name),
+                "acceptance receipt",
+                rc=RC_AUDIT,
+                limit=_MAX_ACCEPTANCE_RECEIPT_BYTES,
+            )
+        finally:
+            os.close(parent_fd)
+        return raw
+    except (OSError, UnicodeError, ValueError, TypeError, _Reject):
+        raise _acceptance_rejected() from None
+
+
+def _receipt_object(raw: bytes) -> dict[str, object]:
+    try:
+        value = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_no_duplicate_json_keys,
+        )
+    except (json.JSONDecodeError, UnicodeError, ValueError, RecursionError):
+        raise _acceptance_rejected() from None
+    if not isinstance(value, dict) or set(value) != _ACCEPTANCE_RECEIPT_FIELDS:
+        raise _acceptance_rejected()
+    return value
+
+
+def _valid_fingerprint(value: object, tested_tip: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and set(value) == _FINGERPRINT_FIELDS
+        and isinstance(value.get("digest"), str)
+        and _SHA256_RE.fullmatch(value["digest"]) is not None
+        and value.get("head_sha") == tested_tip
+        and type(value.get("status_bytes")) is int
+        and value["status_bytes"] == 0
+        and type(value.get("diff_bytes")) is int
+        and value["diff_bytes"] == 0
+        and type(value.get("submodule_status_bytes")) is int
+        and value["submodule_status_bytes"] >= 0
+    )
+
+
+def _verify_acceptance_receipt(
+    repository: _Repository,
+    *,
+    receipt_path: Path,
+    acceptance_wave: str,
+    tested_tip: str,
+) -> str:
+    raw = _read_acceptance_receipt(receipt_path)
+    receipt = _receipt_object(raw)
+    try:
+        expected_holder = hashlib.sha256(acceptance_wave.encode("utf-8")).hexdigest()[:12]
+    except UnicodeError:
+        raise _acceptance_rejected() from None
+    pre = receipt.get("pre_fingerprint")
+    post = receipt.get("post_fingerprint")
+    env_projection = receipt.get("env_projection")
+    argv = receipt.get("argv")
+    if not (
+        receipt.get("schema_version") == _ACCEPTANCE_RECEIPT_SCHEMA
+        and receipt.get("authority_kind") == _ACCEPTANCE_AUTHORITY_KIND
+        and receipt.get("acceptance_wave") == acceptance_wave
+        and isinstance(receipt.get("lease_holder"), str)
+        and _HOLDER_RE.fullmatch(receipt["lease_holder"]) is not None
+        and receipt["lease_holder"] == expected_holder
+        and receipt.get("tested_tip") == tested_tip
+        and argv == ["python3", "tools/run_tests.py"]
+        and receipt.get("resolved_runner_path") == "tools/run_tests.py"
+        and type(receipt.get("child_rc")) is int
+        and receipt["child_rc"] == 0
+        and _valid_fingerprint(pre, tested_tip)
+        and post == pre
+        and isinstance(env_projection, dict)
+        and set(env_projection) == _ENV_PROJECTION_FIELDS
+        and all(
+            value is None or isinstance(value, str)
+            for value in env_projection.values()
+        )
+        and not env_projection["PYTEST_ADDOPTS"]
+        and not env_projection["PYTEST_PLUGINS"]
+    ):
+        raise _acceptance_rejected()
+    waiter_result = _git(
+        repository.wave,
+        "rev-parse",
+        f"{tested_tip}:tools/dev_wave_wait.py",
+    )
+    try:
+        waiter_blob = waiter_result.stdout.decode("ascii").strip()
+    except UnicodeError:
+        raise _acceptance_rejected() from None
+    runner_blob = _git(
+        repository.wave,
+        "cat-file",
+        "-e",
+        f"{tested_tip}:tools/run_tests.py",
+    )
+    if (
+        waiter_result.returncode != 0
+        or _SHA_RE.fullmatch(waiter_blob) is None
+        or runner_blob.returncode != 0
+        or receipt.get("waiter_blob_sha") != waiter_blob
+    ):
+        raise _acceptance_rejected()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _with_acceptance_digest(result: LandResult, digest: str) -> LandResult:
+    return replace(result, acceptance_receipt_sha256=digest)
 
 
 def _canonical_absolute(path: Path, label: str) -> Path:
@@ -2255,6 +2426,13 @@ def land(request: LandRequest) -> LandResult:
     repository: _Repository | None = None
     main_before: str | None = None
     tested_tip: str | None = None
+    acceptance_receipt_sha256: str | None = None
+
+    def finish(result: LandResult) -> LandResult:
+        if acceptance_receipt_sha256 is None:
+            return result
+        return _with_acceptance_digest(result, acceptance_receipt_sha256)
+
     try:
         tested_main = _sha(request.tested_main_sha, "tested main")
         tested_tip = _sha(request.tested_wave_tip_sha, "tested wave tip")
@@ -2282,7 +2460,7 @@ def land(request: LandRequest) -> LandResult:
                 reported_main_before=main_before,
             )
             if isinstance(preflight, LandResult):
-                return preflight
+                return finish(preflight)
             main_before = preflight.locked_main
             if preflight.locked_main != tested_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
@@ -2291,14 +2469,14 @@ def land(request: LandRequest) -> LandResult:
                 receipt = _audit_provenance_history(repository)
                 lock_fd = _acquire_land_lock(repository)
                 if lock_fd is None:
-                    return LandResult(
+                    return finish(LandResult(
                         RC_LOCK_BUSY,
                         "lock-busy",
                         "another cooperative land operation holds the common lock",
                         None,
                         None,
                         tested_tip,
-                    )
+                    ))
                 refreshed_control = _control_snapshot(repository)
                 if refreshed_control != preflight.control:
                     raise _Reject(
@@ -2336,7 +2514,7 @@ def land(request: LandRequest) -> LandResult:
                     reported_main_before=main_before,
                 )
                 if isinstance(preflight, LandResult):
-                    return preflight
+                    return finish(preflight)
                 if preflight.fingerprint != initial_fingerprint:
                     raise _Reject(
                         RC_PROVENANCE,
@@ -2345,6 +2523,12 @@ def land(request: LandRequest) -> LandResult:
                     )
                 _verify_provenance_receipt(repository, receipt, tested_tip)
                 main_before = preflight.locked_main
+            acceptance_receipt_sha256 = _verify_acceptance_receipt(
+                repository,
+                receipt_path=request.acceptance_receipt,
+                acceptance_wave=request.acceptance_wave,
+                tested_tip=tested_tip,
+            )
             fold = preflight.fold
             active_plan = preflight.active_plan
             control = preflight.control
@@ -2359,7 +2543,7 @@ def land(request: LandRequest) -> LandResult:
                 state_path = fold._state_path(repository.main)
                 origin = getattr(active_plan, "origin", None)
                 if getattr(origin, "kind", None) == "standalone":
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_RECOVERY_FAILED,
                         "fold-recovery-failed",
                         "standalone-origin fold transaction cannot be auto-recovered; "
@@ -2368,7 +2552,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
                 try:
                     if origin is None or origin.kind != "land":
                         raise RuntimeError("stored fold origin is not land")
@@ -2392,16 +2576,16 @@ def land(request: LandRequest) -> LandResult:
                     if set(pending_before) - set(fold_paths):
                         raise RuntimeError("stored fold plan does not cover every pending fragment candidate")
                 except (Exception, KeyboardInterrupt) as exc:
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_RECOVERY_FAILED,
                         "fold-recovery-failed",
                         f"stored fold transaction preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
                 if locked_main != tested_tip:
-                    return _finalize_recovered_fold_commit(
+                    return finish(_finalize_recovered_fold_commit(
                         repository,
                         fold=fold,
                         plan=active_plan,
@@ -2410,16 +2594,16 @@ def land(request: LandRequest) -> LandResult:
                         tested_tip=tested_tip,
                         landed_commits=audited,
                         wave_ref=wave_ref,
-                    )
+                    ))
                 if getattr(active_plan, "phase", None) != "applied":
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_RECOVERY_FAILED,
                         "fold-recovery-failed",
                         "shape A requires an applied transaction at origin.tested_tip",
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
                 try:
                     index_tree = _fold_ref_tree(repository, origin.rollback_ref)
                     # tracked before-state は stored rollback ref の tree から復元する。
@@ -2430,14 +2614,14 @@ def land(request: LandRequest) -> LandResult:
                         if not getattr(target, "before_exists", True)
                     )
                 except (Exception, KeyboardInterrupt) as exc:
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_RECOVERY_FAILED,
                         "fold-recovery-failed",
                         f"stored fold rollback preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
                 recovery = LandResult(
                     RC_OK,
                     "already-landed",
@@ -2446,7 +2630,7 @@ def land(request: LandRequest) -> LandResult:
                     locked_main,
                     tested_tip,
                 )
-                return _fold_main_locked(
+                return finish(_fold_main_locked(
                     repository,
                     recovery,
                     fold=fold,
@@ -2459,7 +2643,7 @@ def land(request: LandRequest) -> LandResult:
                     snapshots=recovery_snapshots,
                     index_tree=index_tree,
                     state_path=state_path,
-                )
+                ))
 
             fold_date = _land_fold_date()
             try:
@@ -2483,14 +2667,14 @@ def land(request: LandRequest) -> LandResult:
                 if set(pending_candidate) - set(fold_paths):
                     raise RuntimeError("fold plan does not cover every pending fragment candidate")
             except (Exception, KeyboardInterrupt) as exc:
-                return LandResult(
+                return finish(LandResult(
                     RC_FOLD_FAILED,
                     "fold-failed",
                     f"candidate fold planning failed: {type(exc).__name__}: {exc}",
                     main_before,
                     locked_main,
                     tested_tip,
-                )
+                ))
 
             fold_collision_paths = tuple(os.fsencode(path) for path in fold_paths)
             if fold_collision_paths:
@@ -2508,14 +2692,14 @@ def land(request: LandRequest) -> LandResult:
                     wave_tip=tested_tip,
                 )
                 if not declared.ok:
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_FAILED,
                         "fold-failed",
                         f"declared no-fold shape rejected: {declared.detail}",
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
             if locked_main == tested_tip:
                 if gitlinks_changed and not _gitlinks_synchronized(
                     repository,
@@ -2523,7 +2707,7 @@ def land(request: LandRequest) -> LandResult:
                     target_gitlinks,
                     target_normal_entries,
                 ):
-                    return LandResult(
+                    return finish(LandResult(
                         RC_LANDED_POSTCONDITION_FAILED,
                         "landed-postcondition-failed",
                         "main is at a gitlink-changing tested tip; D16 post-land "
@@ -2531,7 +2715,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
                 already_landed = LandResult(
                     RC_OK,
                     "already-landed",
@@ -2541,21 +2725,21 @@ def land(request: LandRequest) -> LandResult:
                     tested_tip,
                 )
                 if getattr(plan, "status", None) == "noop":
-                    return already_landed
+                    return finish(already_landed)
                 try:
                     snapshots = _snapshot_fold_paths(repository.main, fold_paths)
                     index_tree = _fold_index_tree(repository)
                     state_path = fold._state_path(repository.main)
                 except (Exception, KeyboardInterrupt) as exc:
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_FAILED,
                         "fold-failed",
                         f"fold preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
-                return _fold_main_locked(
+                    ))
+                return finish(_fold_main_locked(
                     repository,
                     already_landed,
                     fold=fold,
@@ -2568,7 +2752,7 @@ def land(request: LandRequest) -> LandResult:
                     snapshots=snapshots,
                     index_tree=index_tree,
                     state_path=state_path,
-                )
+                ))
             _verify_target_collisions(
                 repository,
                 current=locked_main,
@@ -2589,14 +2773,14 @@ def land(request: LandRequest) -> LandResult:
                     index_tree = _fold_index_tree(repository)
                     state_path = fold._state_path(repository.main)
                 except (Exception, KeyboardInterrupt) as exc:
-                    return LandResult(
+                    return finish(LandResult(
                         RC_FOLD_FAILED,
                         "fold-failed",
                         f"fold preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
                         tested_tip,
-                    )
+                    ))
             merge = _git(
                 repository.main,
                 "merge", "--ff-only", "--no-stat", "--no-progress", tested_tip,
@@ -2611,11 +2795,11 @@ def land(request: LandRequest) -> LandResult:
                 gitlinks_changed=gitlinks_changed,
             )
             if merged.rc != RC_OK:
-                return merged
+                return finish(merged)
             if getattr(plan, "status", None) == "noop":
-                return merged
+                return finish(merged)
             assert index_tree is not None and state_path is not None
-            return _fold_main_locked(
+            return finish(_fold_main_locked(
                 repository,
                 merged,
                 fold=fold,
@@ -2628,19 +2812,19 @@ def land(request: LandRequest) -> LandResult:
                 snapshots=snapshots,
                 index_tree=index_tree,
                 state_path=state_path,
-            )
+            ))
         finally:
             if lock_fd is not None and lock_fd >= 0:
                 os.close(lock_fd)
     except _Reject as exc:
-        return LandResult(
+        return finish(LandResult(
             exc.rc,
             "rejected",
             exc.reason,
             main_before,
             main_before,
             tested_tip,
-        )
+        ))
     finally:
         if repository is not None:
             repository.close()
@@ -2654,6 +2838,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--wave-worktree", type=Path, required=True)
     parser.add_argument("--tested-main-sha", required=True)
     parser.add_argument("--tested-wave-tip-sha", required=True)
+    parser.add_argument("--acceptance-wave", required=True)
+    parser.add_argument("--acceptance-receipt", type=Path, required=True)
     parser.add_argument(
         "--audited-commit",
         action="append",
@@ -2671,6 +2857,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         tested_main_sha=args.tested_main_sha,
         tested_wave_tip_sha=args.tested_wave_tip_sha,
         audited_commits=tuple(args.audited_commit),
+        acceptance_wave=args.acceptance_wave,
+        acceptance_receipt=args.acceptance_receipt,
     ))
     print(json.dumps(result.as_json(), ensure_ascii=False, sort_keys=True))
     return result.rc
