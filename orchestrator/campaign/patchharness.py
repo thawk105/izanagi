@@ -269,12 +269,57 @@ def _default_ccbench_dir() -> str:
     return os.path.join(repo, "external", "ccbench")
 
 
+def _read_only_git_env() -> dict[str, str]:
+    """Git repository 指定を親から継承しない read-only probe 用 env。"""
+    env = os.environ.copy()
+    for name in (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        env.pop(name, None)
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    return env
+
+
+def _git_repository_identity(path: str) -> tuple[str, tuple[int, int]]:
+    """path が属する repository の common-dir を canonical path と inode で返す。"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--path-format=absolute",
+             "--git-common-dir"],
+            capture_output=True, text=True, env=_read_only_git_env(),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(
+            f"patchharness: Git repository identity を解決できない ({path}: {exc}) — "
+            "pytest guard は fails-closed"
+        ) from exc
+    common_dir = result.stdout.strip()
+    if result.returncode != 0 or not common_dir or "\n" in common_dir:
+        raise RuntimeError(
+            "patchharness: Git repository identity を解決できない "
+            f"({path}, rc={result.returncode}) — pytest guard は fails-closed"
+        )
+    canonical = os.path.realpath(common_dir)
+    try:
+        stat_result = os.stat(canonical)
+    except OSError as exc:
+        raise RuntimeError(
+            f"patchharness: Git common-dir を確認できない ({canonical}: {exc}) — "
+            "pytest guard は fails-closed"
+        ) from exc
+    return canonical, (stat_result.st_dev, stat_result.st_ino)
+
+
 def _guard_real_shared_checkout(base: str) -> None:
     """pytest 内の未登録 node による実共有 submodule checkout を拒否する。"""
     current = _PYTEST_NODE.get()
     if current is None:
         return
-    if os.path.realpath(base) != os.path.realpath(_default_ccbench_dir()):
+    candidate_path, candidate_inode = _git_repository_identity(base)
+    default_path, default_inode = _git_repository_identity(_default_ccbench_dir())
+    if candidate_path != default_path and candidate_inode != default_inode:
         return
     node_id, real_repo_serial = current
     if not real_repo_serial:

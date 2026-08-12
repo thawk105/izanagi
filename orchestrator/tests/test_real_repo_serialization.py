@@ -581,6 +581,23 @@ def _assert_fixture_closure_complete(
 ) -> None:
     """正本を seed とする共有 fixture consumer 閉包が欠けていないことを検査する。"""
     consumers = _fixture_consumers_from_report(report)
+    assert consumers, "fixture consumer 導出結果が空 — detector 退行の疑い"
+    for filename, fixture_name in (
+        ("test_s1_measurement_freeze.py", "real_known_axes_doc"),
+        ("test_codex_reasoning_ab.py", "benchmark_snapshots"),
+    ):
+        literal = f"{filename}::{fixture_name}[module]"
+        matches = [
+            nodes for fixture, nodes in consumers.items()
+            if fixture.endswith(literal)
+        ]
+        assert len(matches) == 1, (
+            f"既知の共有 fixture literal が導出結果に一意に実在しない: {literal!r}"
+        )
+        assert len(matches[0]) >= 2, (
+            f"既知の共有 fixture consumer が 2 未満: {literal!r} "
+            f"consumers={sorted(matches[0])!r}"
+        )
     seeded = {
         fixture for fixture, nodes in consumers.items()
         if nodes & set(canonical_nodes)
@@ -751,6 +768,22 @@ def test_real_repo_group_collection_exactly_matches_canonical_nodes():
         )
     else:
         raise AssertionError("最初の consumer しか保存しない偽 report を拒否しなかった")
+
+    # detector 自身の control: 全 item の closure と集約を空へ壊した偽 report でも、
+    # 既知 fixture の独立 control が必ず赤になることを示す。
+    empty_report = json.loads(json.dumps(report))
+    for entry in empty_report:
+        entry["fixture_closure"] = []
+        if "fixture_consumers" in entry:
+            entry["fixture_consumers"] = {}
+    try:
+        _assert_fixture_closure_complete(empty_report, golden)
+    except AssertionError as exc:
+        assert "導出結果が空" in str(exc), (
+            f"空 closure control が意図した不変条件で赤にならなかった: {exc}"
+        )
+    else:
+        raise AssertionError("全 item の空 closure 退行を拒否しなかった")
 
     nodeids = [entry["nodeid"] for entry in report]
     assert len(nodeids) == len(set(nodeids)), (
