@@ -286,6 +286,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    gate 3 点 (contention 再現・trace 規模・赤検出力) all_pass。pipeline 配線 (D36 決定 4) は段 5 で完了。
    正本 = D36・`output/env/linux-baremetal/calibration/s2_verify_t48_skew0p9_rr50_rmw0.json`・
    `orchestrator/campaign/s2_verify_calibration.py`。
+   **2026-08-12 [T-816]**: 同 driver は自分の歴史 pin (`dff0f1e`、trace v2 以前) から build するため
+   出力は v1 形式であり、trace v2 専用化した現行 verifier では correctness leg を再現できない。
+   driver と校正値は歴史記録として据え置く (再現するなら trace 形式を v2 へ上げた再 build が要る)。
 2. **(完了 2026-07-06) S4 load_rejections consumer 実体化** — LivenessRejection 別型 / render_rejections
    (verdict 軸 3 形状) / verify abort 率シグナル / critic.md 消費規定 / integrity-class positive control。
    赤 2 本実走で「赤 → 構造化 → critic が読んで方向を返す」まで実証 (実証の線引き: 「還流」= 次 variant
@@ -603,7 +606,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-781] **official 受理集合と proof chain 拡張 (Q1〜Q4)** — 理由: 裁定 2026-08-11 (全問 (a)): 実装なしで保留終端。official は空集合維持、User Attributes は認可に使わない、proof chain 拡張は先送り維持 (D86(5))、[T-139]・A 系列の後まで保留。D86 は 1 項も覆さない。再訪条件 = queue の `qattach` 無効化、または lineage を閉じる設計の登場。材料 = `output/insights/2026-08-11_t781-spool-feasibility/package.md`。
 - [T-802] **dry-run の no-write 検査を Git 管理 bytes へ拡大** — 理由: 裁定 2026-08-11 (b): 広げない (index stat cache 等は正当な操作でも変わり誤検知検査になる)。守るべき実体は現検査が覆う。再訪条件 = dry-run 起因の汚染の実害 1 件。
 - [T-807] **旧 writer の任意 path 受理を狭める** — 理由: 裁定 2026-08-11 (c): 狭めない。失敗様態は `namespace-dirty` の fail-closed 拒否で、原因ファイルの除去で復旧でき外部入力からは到達しない。再訪条件 = `namespace-dirty` の実発生 1 件。
-- [T-837] **`c9c1a9c` の乗せ直し** — 理由: 裁定 2026-08-12: [T-816] Q1/Q2 の裁定により乗せ直しを省略し `511c9538` へ直接前進する。Q1 (a) の旧裁定は上書きされた。残るユーザー手番なし。
+- [T-837] **`c9c1a9c` の乗せ直し** — 理由: 裁定 2026-08-12: [T-816] Q1/Q2 の裁定により乗せ直しを省略し、`pin.CURRENT_PIN` (値の正本は `orchestrator/campaign/pin.py`) が指す commit へ直接前進する。Q1 (a) の旧裁定は上書きされた。残るユーザー手番なし。2026-08-12 [T-816] 手順 4 で前進済み。
 - [T-858] **consumer pin の全称保証** — 理由: 裁定 2026-08-12 (b): 限定 AST inventory + 敵対レビューの併用を続け全称保証は主張しない。再訪条件 = loader-only sink の実増加。
 - [T-864] **blob authority (canonical decision) の機械可読 target schema 必須化** — 理由: 裁定 2026-08-12 (同基準): 必須化しない。現行 marker gate が `approved_blobs:` 形式だけを拒否できる状態のままとする。**marker gate の保証範囲の限界記録は [T-793] R4 が行う** (同項は active)。
 - [T-868] **承認 receipt の署名と外部 trust root** — 理由: 裁定 2026-08-12 (同基準): 署名方式と trust root は設けない。自己発行可能な性質は `/limitations/approval_receipt_trust_root_absent` の機械可読宣言で明示したまま受容する。再訪条件 = 外部公開時。
@@ -611,6 +614,24 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-872] **成果物への binding report** — 理由: 裁定 2026-08-12 (同基準): manifest / result に binding report は載せない。exact-key consumer の改修も行わない。
 - [T-873] **authority への cxx version / cmake path / module_list / bytes hash 追加** — 理由: 裁定 2026-08-12 (同基準): 追加せず calibration の再発行も行わない。
 - [T-874] **束縛の producer 拡大** — 理由: 裁定 2026-08-12 (同基準): floor と silo ladder のまま他 producer へ広げない。
+
+- [T-899] pilot API の seam 注入産物への non-evidence 印 — 理由: 裁定 2026-08-12 (第 4 束、
+  推奨どおり見送り): pilot 産物は certified の受理集合に入らず (正規経路の検証を通らない
+  ことを実測済み)、W-2 は固定 CLI で seam を公開しない。防御的メタデータの新設は見送り側。
+  再訪条件 = seam 注入経路を使う pilot run の実走。
+- [T-903] 受入集合を強める 3 案 — 理由: 裁定 2026-08-12 (第 4 束、推奨どおり見送り):
+  実害・SURVIVED 未観測の型への受理集合変更はしない (「勝手に強めない」の維持)。
+  再訪条件 = 該当型の変異 SURVIVED または実害の観測。
+- [T-906] codex 防壁の防護範囲拡大 (launcher 以外の起動経路) — 理由: 裁定 2026-08-12
+  (第 4 束、推奨どおり scope 外宣言): read-only 固定経路と runtime blocked の死経路への
+  防護拡大は必要性未測定の堅牢化。再訪条件 = blocked 経路の解禁時または read-only 固定の
+  変更時に、防護を義務化して再訪する。
+
+- [T-900] cmake の realpath 束縛 (toolchain 束縛が cc/cxx は realpath 照合、cmake は
+  version body のみ) — 理由: 裁定 2026-08-12 (第 3 束、推奨どおり見送り): bytes 級
+  provenance 機構の新設は既定で見送り (2026-08-12 粗い provenance 基準、一次控え
+  `rulings-inbox/2026-08-12-coarse-provenance-45rulings.md`)。当面は W-2 の記録済み
+  `cmake.path` を親が照合する運用で埋める。再訪条件なし。
 
 ### 研究・計測系
 
@@ -649,6 +670,11 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-645] **NQSV / PBS 証拠による計算ノード判定の分類条件化** — 理由: 裁定 2026-08-08: 行わない。権威は bnode hostname と affinity のまま。再訪条件 = 誤検出の実測 (CI・別施設ホスト名での実害)。
 - [T-647] **bench なし correctness-only COMMIT の計測契約束縛** — 理由: 裁定 2026-08-08: 束縛の対象と数えない。numactl 等は宣言値に留まると正直に記録する現状を正とする。
 - [T-676] **launcher テストの時間予算の据え置き** — 理由: 裁定 2026-08-09: 実負荷 artifact 1 件が取れるまで変更しない。[T-663] の計装が次回再発時に失敗署名を自己申告するので、それを根拠にパッケージで再提示する。根拠なき受理緩和はしない。
+
+- [T-901] 床値 run の途中死に対する正式な救出経路 — 理由: 裁定 2026-08-12 (第 3 束、
+  推奨どおり): run_dir を使う resume は source / receipt / PBS job binding を含む別設計で
+  あり mode 変更に混ぜない。当面は新規 job で最初から再実行する。再訪条件 = 途中死による
+  再実行コストが実害として観測されたとき。
 
 ### プロセス文書系
 

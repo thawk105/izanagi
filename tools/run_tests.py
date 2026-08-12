@@ -46,7 +46,7 @@ from contextvars import ContextVar
 from enum import Enum
 from importlib import metadata
 from pathlib import Path
-from typing import NamedTuple, Optional, Sequence
+from typing import Mapping, NamedTuple, Optional, Sequence
 
 from packaging.version import InvalidVersion, Version
 
@@ -66,6 +66,8 @@ _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _TEST_TRIGGER_ENV = "IZANAGI_TEST_TRIGGER"
+_RUN_GROWTH_HELD_TESTS_ENV = "IZANAGI_RUN_GROWTH_HELD_TESTS"
+_RUN_GROWTH_HELD_TESTS_TOKEN = "explicit-user-command"
 _TRIGGERS = frozenset({
     "baseline", "after-change", "after-failure", "final", "review-fix",
     "unspecified",
@@ -782,12 +784,14 @@ def _normalized_fingerprint_args(args: Sequence[str]) -> list[str]:
 
 def _suite_identity(
     args: Sequence[str], pytest_addopts: Optional[str] = None,
+    *, run_growth_held_tests: bool = False,
 ) -> tuple[str, str]:
     """Derive a privacy-safe suite kind/ID from wrapper inputs only."""
 
     addopts = os.environ.get("PYTEST_ADDOPTS") if pytest_addopts is None else pytest_addopts
+    suffix = "-growth-held-opt-in" if run_growth_held_tests else ""
     if _is_full_suite(args, addopts):
-        return "full", "pytest-orchestrator-full"
+        return "full", f"pytest-orchestrator-full{suffix}"
     projection = {
         "args": _normalized_fingerprint_args(args),
         # Selection text is reduced to a digest before entering the projection.
@@ -797,7 +801,11 @@ def _suite_identity(
         ),
     }
     raw = json.dumps(projection, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return "targeted", f"pytest-targeted-{hashlib.sha256(raw).hexdigest()[:12]}"
+    return "targeted", f"pytest-targeted-{hashlib.sha256(raw).hexdigest()[:12]}{suffix}"
+
+
+def _growth_held_tests_opted_in(environ: Mapping[str, str]) -> bool:
+    return environ.get(_RUN_GROWTH_HELD_TESTS_ENV) == _RUN_GROWTH_HELD_TESTS_TOKEN
 
 
 def _private_sidecar() -> tuple[Path, Path]:
@@ -845,7 +853,10 @@ def _record_task_run(
 def _call_and_record(cmd: Sequence[str], args: Sequence[str], task_run_id: str) -> int:
     recording_ready = True
     try:
-        suite_kind, suite_id = _suite_identity(args)
+        suite_kind, suite_id = _suite_identity(
+            args,
+            run_growth_held_tests=_growth_held_tests_opted_in(os.environ),
+        )
     except Exception:
         recording_ready = False
         suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
@@ -956,7 +967,10 @@ def _dispatch_and_record(
 
     recording_ready = True
     try:
-        suite_kind, suite_id = _suite_identity(args)
+        suite_kind, suite_id = _suite_identity(
+            args,
+            run_growth_held_tests=_growth_held_tests_opted_in(environ),
+        )
     except Exception:
         recording_ready = False
         suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"
@@ -1490,7 +1504,10 @@ def _run_bounded_scope_and_record(
 
     recording_ready = True
     try:
-        suite_kind, suite_id = _suite_identity(args)
+        suite_kind, suite_id = _suite_identity(
+            args,
+            run_growth_held_tests=_growth_held_tests_opted_in(os.environ),
+        )
     except Exception:
         recording_ready = False
         suite_kind, suite_id = "targeted", "pytest-targeted-unavailable"

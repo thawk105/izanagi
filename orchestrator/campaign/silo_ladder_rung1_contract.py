@@ -540,7 +540,7 @@ def _check_ledger_consistency(
         "path": PATCH_PATH,
         "patch_sha256": hashlib.sha256(patch_text.encode("utf-8")).hexdigest(),
         "base_repo": "external/ccbench",
-        "base_commit": "d706650cdb31e442bef45b9b4216951d4fb40969",
+        "base_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
         "classification": "d18-type4",
         "evaluation_role": "ability_probe",
         "ability_probe": True,

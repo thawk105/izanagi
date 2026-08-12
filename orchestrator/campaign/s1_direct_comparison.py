@@ -30,7 +30,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
-from . import env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
+from . import buildcache, env_contract, ident, source_digest, trigger_gate_binding, wal  # noqa: E402
 from .layout import CampaignLayout, campaign_layout, repo_output_root  # noqa: E402
 from .model import CampaignConfig, Genome, STAGE_S1_SESSION  # noqa: E402
 from .pipeline import EvalResult, PerfConfig  # noqa: E402
@@ -498,7 +498,7 @@ def _session_wall_upper_bound_s(role: str) -> float:
 
 
 @contextlib.contextmanager
-def prepare_cell(cell: Mapping, ccbench_pin: str):
+def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
     """freeze variant の flags/code を使い、使い捨て worktree に該当点を実体化する。"""
     from . import patchharness
     from . import p3_s4_loop as loop_axis
@@ -610,7 +610,9 @@ def prepare_cell(cell: Mapping, ccbench_pin: str):
                 str(patch_only_path), ccbench_pin, ccbench_dir=sub))
         # The materializer boundary re-resolves and validates full SourceEvidence.
         # Preparation only needs the stable variant token for scheduling/identity.
-        src_token = source_digest.resolve(genome, ccbench_pin, ccbench_dir=sub)
+        src_token = source_digest.resolve(
+            genome, ccbench_pin, ccbench_dir=sub, cxx=cxx,
+        )
         yield PreparedCell(
             genome=genome, src_token=src_token,
             ccbench_dir=sub, cache_root=cache_root,
@@ -694,6 +696,7 @@ def run_role(
         clocks_per_us=CLOCKS_PER_US,
         numactl=NUMACTL,
     )
+    _, cxx = buildcache.compilers_for_current_site()
     cfg = ident.bind_admission_policy(config_for(document, role), build_context.policy)
     cfg = ident.bind_environment_contract(cfg, authorized_contract)
     layout = campaign_layout(str(ident.campaign_id(cfg)), output_root=output_root)
@@ -818,7 +821,8 @@ def run_role(
             variant = f"prepare-failure-{index}-{attempt}"
             session_started = False
             try:
-                with prepare_cell_fn(item.cell, cfg.ccbench_commit) as prepared:
+                with prepare_cell_fn(
+                        item.cell, cfg.ccbench_commit, cxx=cxx) as prepared:
                     review_input_sha = hashlib.sha256(
                         json.dumps(item.cell, sort_keys=True, separators=(",", ":"),
                                    ensure_ascii=True).encode("utf-8")

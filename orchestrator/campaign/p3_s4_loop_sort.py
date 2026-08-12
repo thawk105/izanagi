@@ -25,7 +25,7 @@ sort 戦略固有の設計 (敵対レビュー 2026-07-10、3レンズで確定)
     diff-quarantine reject と同じ WAL 経路 (`record_diff_reject`) に相乗りさせ、
     既存の consumer (`load_diff_rejections`/`render_rejections`) をそのまま使う
     (auditor.md 型5 「consumer 取り残し」を自ら再演しない)。
-  - PIN = `pin.CURRENT_PIN` (d706650、permutation 保存 assert 込み) — `p3_s4_loop.py`
+  - PIN = `pin.CURRENT_PIN` (511c953、permutation 保存 assert 込み) — `p3_s4_loop.py`
     自身は歴史的 driver として `PIN="028f34d"` を literal 保持したまま変更しない
     (`pin.py` の裁定)。PIN が異なるため共有 tree での `assert_pinned_clean` 衝突を
     避けるべく、`--isolate-worktree` 相当を**既定 ON** にする (`--no-isolate-worktree`
@@ -70,7 +70,7 @@ from . import env_contract, ident, pin, wal                # noqa: E402
 from . import p3_s4_loop as L                              # noqa: E402
 from .artifact_admission import require_admitted_campaign # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
-                                      add_coder_build_authority_argument,
+                                      add_registered_coder_build_authority_argument,
                                       build_run_context)
 from .auditor_gate import (AuditorGateFailure,            # noqa: E402
                                    AuditorVerdict,
@@ -93,7 +93,7 @@ from ..critic.digest import load_diff_rejections                     # noqa: E40
 
 
 # ---- campaign 定数 (s5_permutation_coverage.py 様式。実走前に pin/env を確認する) ----
-PIN = pin.CURRENT_PIN                 # d706650 (izanagi-trace, permutation 保存 assert 込み)
+PIN = pin.CURRENT_PIN                 # 511c953 (izanagi-trace, permutation 保存 assert 込み)
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]
@@ -463,7 +463,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 5 sort-strategy coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫→auditor gate の配線のみ確認")
-    add_coder_build_authority_argument(ap)
+    add_registered_coder_build_authority_argument(
+        ap,
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop_sort.main",
+    )
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
                     help="critic 還流 on/off (LLM ablation の対照アーム)")
     ap.add_argument("--run-iteration", metavar="PROPOSAL.json",

@@ -62,6 +62,8 @@ TASKS = {
             "IZANAGI_TEST_TRIGGER",
             # T-080 E2E の opt-in を計算ノードへ伝える。
             "IZANAGI_T080_E2E",
+            # 成長比例テストの明示 opt-in を計算ノードへ伝える。
+            "IZANAGI_RUN_GROWTH_HELD_TESTS",
         }),
         probe_imports=("pytest", "xdist", "packaging"),
     ),

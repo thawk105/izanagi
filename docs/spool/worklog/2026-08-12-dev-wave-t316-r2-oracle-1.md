@@ -103,7 +103,7 @@ title: [T-316] R2-b の独立 SWO oracle を実装した — 実型 harness + �
   const 参照化・corpus snapshot 不変検査・複数 corpus × 複数順序 × 別 process の relation 不変性で
   塞がるため。(b) を採ると D39 の実証点を削る代償が大きい。
   実装段の他の残余は {{T:sort-swo-oracle-residuals}} へ分離した。
-  base: 844a9c2f956ae14211e707afe0b8767a52845ca8fe59c5b7cb1b0169691a0f6f
+  base: b80aae9ee303b6fb9e49b75c7b875d83ce6268f49cd9a6f88031e8708d35329b
 
 ### 新規
 

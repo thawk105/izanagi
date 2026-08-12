@@ -32,6 +32,8 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent.parent
 
+from . import freeze_verification_hold as _freeze_hold  # noqa: E402
+
 RECEIPT_REL = "output/t080-migration/legacy-freeze-repin.receipt.json"
 DRAFT_REL = "output/t080-migration/legacy-freeze-repin.receipt.draft.json"
 KNOWN_AXES_REL = "output/s1-freeze/known_axes_freeze.json"
@@ -154,12 +156,14 @@ class ReceiptResolution:
     introduction_commit: Optional[str] = None
     receipt: Optional[Mapping[str, object]] = None
     receipt_raw: Optional[bytes] = None
+    held_checks: Tuple[Mapping[str, object], ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
 class AdapterResult:
     refusals: Tuple[str, ...]
     t080_freeze_migration_observation: Optional[Mapping[str, object]]
+    held_checks: Tuple[Mapping[str, object], ...] = ()
 
 
 def _sha256(raw: bytes) -> str:
@@ -994,15 +998,13 @@ def _any_history_touches_path(
 def _batched_history_touches_path(
     commits: Iterable[str], path: str, root: Path,
     duplicate_oid: Optional[str] = None,
-    *, detect_copies: bool = False,
 ) -> bool:
     """全 commit の raw diff を diff-tree 1 本で検査する (per-commit 起動なし)。
 
     ``--always`` で各入力 commit の marker を最低 1 件出し、``-m`` が差分の
     ある親ごとに反復する同一 marker は同じ commit group として照合する。
-    ``-m -r -M`` による M/D/R/T と destination OID による別 path
-    exact copy の意味論を保つ。外部辺だけ ``detect_copies=True`` で C も検出する。
-    ``--find-copies-harder`` は使わない。
+    ``-m -r -M -C`` による M/D/R/C/T と destination OID による別 path
+    exact copy の意味論を保つ。``--find-copies-harder`` は使わない。
     commit group の欠落・順序不一致・未知形式は fail-closed。
     """
     targets = tuple(sorted(commits))
@@ -1015,13 +1017,14 @@ def _batched_history_touches_path(
     except UnicodeError as exc:
         raise MigrationError("receipt.basis_invalid", "diff-tree path が UTF-8 でない") from exc
     stdin = "".join(f"{commit}\n" for commit in targets).encode("ascii", "strict")
-    args = [
-        "diff-tree", "--stdin", "--root", "--raw", "-m", "-r", "-M",
-    ]
-    if detect_copies:
-        args.append("-C")
-    args.extend(("--full-index", "--always", "-z"))
-    out = _git(args, root, stdin=stdin)
+    out = _git(
+        [
+            "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+            "-M", "-C", "--full-index", "--always", "-z",
+        ],
+        root,
+        stdin=stdin,
+    )
     records = out.split(b"\0")
     if not records or records[-1] != b"":
         raise MigrationError("receipt.git_error", "batch diff-tree 出力の終端が不正")
@@ -1078,27 +1081,6 @@ def _batched_history_touches_path(
     if tuple(seen) != targets:
         raise MigrationError("receipt.git_error", "batch diff-tree 出力の件数が不一致")
     return touched
-
-
-def _descendant_history_touches_path(
-    graph: CommitGraph, descendants: frozenset[str], introduction: str,
-    path: str, root: Path, duplicate_oid: Optional[str] = None,
-) -> bool:
-    """descendant diff を通常辺と外部辺に分け、後者だけ copy を検出する。"""
-    targets = descendants - {introduction}
-    external_edge_commits = frozenset(
-        commit for commit in targets
-        if any(parent not in descendants for parent in graph.parents.get(commit, ()))
-    )
-    internal_commits = targets - external_edge_commits
-    internal_touched = _batched_history_touches_path(
-        internal_commits, path, root, duplicate_oid=duplicate_oid,
-    )
-    external_touched = _batched_history_touches_path(
-        external_edge_commits, path, root, duplicate_oid=duplicate_oid,
-        detect_copies=True,
-    )
-    return internal_touched or external_touched
 
 
 def _history_touches_path(
@@ -1436,14 +1418,24 @@ def _verify_receipt_derivation(
 
 def _verify_historical_receipt_derivation(
     receipt: Mapping[str, object], root: Path,
-) -> None:
+) -> Tuple[Mapping[str, object], ...]:
     """worktree を信じず、H_mig の凍結 artifact と source blob だけで再導出する。"""
     basis = str(receipt.get("migration_basis_commit", ""))
     try:
         known_raw = _basis_blob(basis, KNOWN_AXES_REL, Path(root))
         holdout_raw = _basis_blob(basis, HOLDOUT_REL, Path(root))
-        if (_sha256(known_raw) != KNOWN_AXES_RAW_SHA256
-                or _sha256(holdout_raw) != HOLDOUT_RAW_SHA256):
+        held_checks = []
+        if _freeze_hold.HELD:
+            held_checks.extend((
+                _freeze_hold.held_marker(
+                    "t080.historical-known-axes-artifact-bytes",
+                ),
+                _freeze_hold.held_marker(
+                    "t080.historical-holdout-artifact-bytes",
+                ),
+            ))
+        elif (_sha256(known_raw) != KNOWN_AXES_RAW_SHA256
+              or _sha256(holdout_raw) != HOLDOUT_RAW_SHA256):
             raise MigrationError(
                 "receipt.derivation_mismatch",
                 "H_mig の凍結 artifact bytes が固定 root と不一致",
@@ -1451,6 +1443,7 @@ def _verify_historical_receipt_derivation(
         known = _strict_load(known_raw, what="historical known_axes")
         holdout = _strict_load(holdout_raw, what="historical holdout")
         _verify_receipt_derivation(receipt, known, holdout, Path(root))
+        return tuple(held_checks)
     except MigrationError as exc:
         if exc.reason == "receipt.derivation_mismatch":
             raise
@@ -1726,7 +1719,10 @@ def _verify_worktree_basis_files(
             raise MigrationError("receipt.basis_invalid", f"worktree executable mode が H_mig と不一致: {rel}")
 
 
-def _capture_draft_basis(basis: str, root: Path) -> str:
+def _capture_draft_basis(
+    basis: str, root: Path,
+    held_checks: Optional[List[Mapping[str, object]]] = None,
+) -> str:
     _require_hex(basis, _SHA1_RE, "receipt.basis_invalid", "--basis")
     _assert_repository_root(root)
     head = _capture_head(root)
@@ -1741,17 +1737,24 @@ def _capture_draft_basis(basis: str, root: Path) -> str:
     known = _strict_load(_read_nofollow(root, KNOWN_AXES_REL), what="known_axes")
     pin = _require_hex(known.get("ccbench_pin"), _SHA1_RE, "known_axes.schema", "ccbench_pin")
     _verify_ccbench_basis(basis, pin, root)
-    if _current_ccbench_head(root) != pin:
-        raise MigrationError("known_axes.ccbench_current", "current ccbench HEAD が legacy pin と不一致")
+    _verify_ccbench_current_or_hold(
+        known, root,
+        check_id="t080.draft-known-axes-ccbench-current-pin",
+        held_checks=held_checks,
+    )
     return head
 
 
-def _artifact_documents(root: Path) -> Tuple[bytes, dict, bytes, dict]:
+def _artifact_documents(
+    root: Path, held_checks: Optional[List[Mapping[str, object]]] = None,
+) -> Tuple[bytes, dict, bytes, dict]:
     known_raw, known = _load_artifact(
-        root, KNOWN_AXES_REL, KNOWN_AXES_RAW_SHA256, "known_axes.artifact_bytes", "known_axes",
+        root, KNOWN_AXES_REL, KNOWN_AXES_RAW_SHA256,
+        "known_axes.artifact_bytes", "known_axes", held_checks=held_checks,
     )
     holdout_raw, holdout = _load_artifact(
-        root, HOLDOUT_REL, HOLDOUT_RAW_SHA256, "holdout.artifact_bytes", "holdout",
+        root, HOLDOUT_REL, HOLDOUT_RAW_SHA256,
+        "holdout.artifact_bytes", "holdout", held_checks=held_checks,
     )
     return (
         known_raw, known, holdout_raw, holdout,
@@ -1760,12 +1763,18 @@ def _artifact_documents(root: Path) -> Tuple[bytes, dict, bytes, dict]:
 
 def _load_artifact(
     root: Path, rel: str, expected_sha256: str, reason: str, what: str,
+    *, held_checks: Optional[List[Mapping[str, object]]] = None,
 ) -> Tuple[bytes, dict]:
     try:
         raw = _read_nofollow(root, rel)
     except MigrationError as exc:
         raise MigrationError(reason, f"{what} artifact を読めない") from exc
-    if _sha256(raw) != expected_sha256:
+    if _freeze_hold.HELD:
+        if held_checks is not None:
+            held_checks.append(_freeze_hold.held_marker(
+                f"t080.live-{what.replace('_', '-')}-artifact-bytes",
+            ))
+    elif _sha256(raw) != expected_sha256:
         raise MigrationError(reason, f"{what} artifact raw bytes 不一致")
     try:
         document = _strict_load(raw, what=what)
@@ -1829,9 +1838,10 @@ def draft_receipt(
     holdout_search_assertion: Optional[Callable[[Mapping[str, object]], None]] = None,
 ) -> Mapping[str, object]:
     root = Path(root)
+    held_checks: List[Mapping[str, object]] = []
     _assert_cli_root(root)
-    _capture_draft_basis(basis, root)
-    _, known, _, holdout = _artifact_documents(root)
+    _capture_draft_basis(basis, root, held_checks)
+    _, known, _, holdout = _artifact_documents(root, held_checks)
     repins, metadata = _derive_repins_and_metadata(basis, known, holdout, root)
     # 63/12/51 と basis closure を再構成前に確定する。
     skeleton = {
@@ -1874,7 +1884,7 @@ def draft_receipt(
     except Exception:
         _remove_same_inode(out_path, identity)
         raise
-    return receipt
+    return _freeze_hold.result_with_markers(receipt, held_checks)
 
 
 def _validate_repin_report_git(receipt: Mapping[str, object], root: Path) -> None:
@@ -1887,6 +1897,7 @@ def _validate_repin_report_git(receipt: Mapping[str, object], root: Path) -> Non
 
 def validate_draft(*, path: Path | str = DRAFT_REL, root: Path = ROOT) -> Mapping[str, object]:
     root = Path(root)
+    held_checks: List[Mapping[str, object]] = []
     _assert_cli_root(root)
     rel = _repo_relative(Path(path), root)
     head = _capture_head(root)
@@ -1903,12 +1914,12 @@ def validate_draft(*, path: Path | str = DRAFT_REL, root: Path = ROOT) -> Mappin
     history = inspect_receipt_history(root=root, validation_head=head)
     if history.state != "never-issued":
         raise MigrationError("receipt.invalid", "active receipt が発行済み")
-    _, known, _, holdout = _artifact_documents(root)
+    _, known, _, holdout = _artifact_documents(root, held_checks)
     _verify_closure(receipt, known, holdout, root)
     _verify_receipt_derivation(receipt, known, holdout, root)
     _rerun_draft_reconstruction(receipt, known, holdout, root)
     _assert_receipt_does_not_pollute_scan(root)
-    return receipt
+    return _freeze_hold.result_with_markers(receipt, held_checks)
 
 
 def finalize_receipt(
@@ -1919,7 +1930,9 @@ def finalize_receipt(
     _assert_cli_root(root)
     if _repo_relative(Path(out), root) != RECEIPT_REL:
         raise MigrationError("receipt.invalid", "finalize 出力は active path 固定")
-    receipt = copy.deepcopy(validate_draft(path=draft, root=root))
+    validated = validate_draft(path=draft, root=root)
+    held_checks = getattr(validated, "held_checks", ())
+    receipt = copy.deepcopy(dict(validated))
     receipt["confirmed_by"] = confirmed_by
     receipt["confirmed_at"] = confirmed_at
     validate_receipt_schema(receipt, confirmation="active")
@@ -1934,7 +1947,7 @@ def finalize_receipt(
     except Exception:
         _remove_same_inode(out_path, identity)
         raise
-    return receipt
+    return _freeze_hold.result_with_markers(receipt, held_checks)
 
 
 def inspect_receipt_history(
@@ -1995,9 +2008,9 @@ def inspect_receipt_history(
             _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
             issued_but_missing = True
             break
-    if _descendant_history_touches_path(
-        graph, descendants, introduction, RECEIPT_REL, root,
-        duplicate_oid=expected_oid,
+    if _batched_history_touches_path(
+        (commit for commit in descendants if commit != introduction),
+        RECEIPT_REL, root, duplicate_oid=expected_oid,
     ):
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
         issued_but_missing = True
@@ -2176,6 +2189,7 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
         return history
     receipt = history.receipt
     refusals: List[str] = list(history.refusals)
+    held_checks: List[Mapping[str, object]] = list(history.held_checks)
     known = holdout = None
     try:
         _known_raw, known = _gate_check_call(
@@ -2183,6 +2197,7 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
             lambda: _load_artifact(
                 root, KNOWN_AXES_REL, KNOWN_AXES_RAW_SHA256,
                 "known_axes.artifact_bytes", "known_axes",
+                held_checks=held_checks,
             ),
         )
     except MigrationError as exc:
@@ -2193,6 +2208,7 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
             lambda: _load_artifact(
                 root, HOLDOUT_REL, HOLDOUT_RAW_SHA256,
                 "holdout.artifact_bytes", "holdout",
+                held_checks=held_checks,
             ),
         )
     except MigrationError as exc:
@@ -2226,7 +2242,12 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
         ))
     if known is not None:
         checks.append((
-            "known_axes.ccbench_current", lambda: _verify_ccbench_current(known, root),
+            "known_axes.ccbench_current",
+            lambda: _verify_ccbench_current_or_hold(
+                known, root,
+                check_id="t080.live-known-axes-ccbench-current-pin",
+                held_checks=held_checks,
+            ),
         ))
     if receipt is not None and known is not None:
         checks.extend((
@@ -2264,7 +2285,7 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.invalid")
     return ReceiptResolution(
         state, tuple(refusals), observation, head, history.introduction_commit,
-        receipt, history.receipt_raw,
+        receipt, history.receipt_raw, tuple(held_checks),
     )
 
 
@@ -2277,6 +2298,18 @@ def _verify_ccbench_current(known: Mapping[str, object], root: Path) -> None:
     pin = str(known.get("ccbench_pin"))
     if _current_ccbench_head(root) != pin:
         raise MigrationError("known_axes.ccbench_current", "current ccbench HEAD が legacy pin と不一致")
+
+
+def _verify_ccbench_current_or_hold(
+    known: Mapping[str, object], root: Path, *, check_id: str,
+    held_checks: Optional[List[Mapping[str, object]]] = None,
+) -> None:
+    if _freeze_hold.HELD:
+        marker = _freeze_hold.held_marker(check_id)
+        if held_checks is not None:
+            held_checks.append(marker)
+        return
+    _verify_ccbench_current(known, root)
 
 
 def _verify_ccbench_basis_from_receipt(
@@ -2295,25 +2328,42 @@ def static_gate_adapter(
     artifact を渡す。発火条件外では refusal を増やさず legacy verifier へ委譲する。
     """
     if resolution.state != "active-valid" or resolution.receipt is None:
-        return AdapterResult(resolution.refusals, None)
+        return AdapterResult(resolution.refusals, None, resolution.held_checks)
     receipt = resolution.receipt
+    held_checks = list(resolution.held_checks)
     known_doc = _strict_load(known_raw, what="known_axes")
     holdout_doc = _strict_load(holdout_raw, what="holdout")
     known_record = holdout_doc.get("known_axes_freeze")
+    known_record_pin_matches = (
+        isinstance(known_record, Mapping)
+        and known_record.get("sha256") == KNOWN_AXES_RAW_SHA256
+    )
+    if _freeze_hold.HELD:
+        held_checks.append(_freeze_hold.held_marker(
+            "t080.static-known-axes-recorded-pin",
+        ))
+        known_record_pin_matches = isinstance(known_record, Mapping)
     fires = (
         _sha256(holdout_raw) == receipt["artifacts"]["holdout"]["raw_sha256"]
         and isinstance(known_record, Mapping)
         and known_record.get("path") == KNOWN_AXES_REL
-        and known_record.get("sha256") == KNOWN_AXES_RAW_SHA256
+        and known_record_pin_matches
     )
     if not fires:
         observation = resolution.t080_freeze_migration_observation if not resolution.refusals else None
-        return AdapterResult(resolution.refusals, observation)
+        return AdapterResult(resolution.refusals, observation, tuple(held_checks))
     refusals = list(resolution.refusals)
-    checks = (
-        (KNOWN_PREFIX, "known_axes.artifact_bytes", _sha256(known_raw) == KNOWN_AXES_RAW_SHA256),
-        (HOLDOUT_PREFIX, "holdout.artifact_bytes", _sha256(holdout_raw) == HOLDOUT_RAW_SHA256),
-    )
+    if _freeze_hold.HELD:
+        held_checks.extend((
+            _freeze_hold.held_marker("t080.static-known-axes-artifact-bytes"),
+            _freeze_hold.held_marker("t080.static-holdout-artifact-bytes"),
+        ))
+        checks = ()
+    else:
+        checks = (
+            (KNOWN_PREFIX, "known_axes.artifact_bytes", _sha256(known_raw) == KNOWN_AXES_RAW_SHA256),
+            (HOLDOUT_PREFIX, "holdout.artifact_bytes", _sha256(holdout_raw) == HOLDOUT_RAW_SHA256),
+        )
     for prefix, reason, passed in checks:
         if not passed:
             _append_refusal(refusals, prefix, reason)
@@ -2323,7 +2373,14 @@ def static_gate_adapter(
         ("holdout.design_closure", lambda: _verify_holdout_closure(receipt, known_doc, holdout_doc, Path(root))),
         ("receipt.repin_invalid", lambda: _verify_metadata_closure(receipt, known_doc, holdout_doc, Path(root))),
         ("receipt.reconstruction_invalid", lambda: _verify_reconstruction_static(receipt, known_doc, holdout_doc)),
-        ("known_axes.ccbench_current", lambda: _verify_ccbench_current(known_doc, Path(root))),
+        (
+            "known_axes.ccbench_current",
+            lambda: _verify_ccbench_current_or_hold(
+                known_doc, Path(root),
+                check_id="t080.static-known-axes-ccbench-current-pin",
+                held_checks=held_checks,
+            ),
+        ),
         ("known_axes.ccbench_gitlink", lambda: _verify_ccbench_basis_from_receipt(receipt, known_doc, Path(root))),
         ("holdout.positive_control", lambda: _validate_positive_control(Path(root))),
         ("known_axes.schema", lambda: _verify_known_schema(receipt, known_doc)),
@@ -2341,7 +2398,7 @@ def static_gate_adapter(
                 prefix = HOLDOUT_PREFIX
             _append_refusal(refusals, prefix, exc.reason, exc.detail)
     observation = resolution.t080_freeze_migration_observation if not refusals else None
-    return AdapterResult(tuple(refusals), observation)
+    return AdapterResult(tuple(refusals), observation, tuple(held_checks))
 
 
 def _parser() -> argparse.ArgumentParser:

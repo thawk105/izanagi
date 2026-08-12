@@ -68,8 +68,11 @@
 
 ### 1.2 かつての前提の欠落 — Pegasus に固定要求の compiler が無い (**解決済み**)
 
-> **現況 (2026-08-11 以降)。** 固定要求は撤廃され、compiler は site 解決になった —
+> **現況 (2026-08-12 訂正)。** 固定要求は撤廃され、compiler は site 解決になった —
 > `buildcache.compilers_for_current_site` が Pegasus compute では `gcc` / `g++` を選ぶ。
+> **ただし 2026-08-12 の実投入まで、実体化経路 (`prepare_cell` → `source_digest.resolve`) だけが
+> 既定値 `g++-13` のまま取り残されていた。** 現在は `cxx` を必須引数として通してある。
+> 「解決済み」を build 経路だけで判断しない。
 > 認可の根拠は registered calibration の `acquisition_receipt` との束縛検査であり、
 > **build 前に fail-closed で照合する** (§5 R-4 が正本)。
 > **以下は欠落が判明した当時 (2026-08-10) の記述であり、現況ではない。**
@@ -148,7 +151,7 @@ PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
 
 | # | コマンド | 期待 |
 |---|---|---|
-| P1 | `git ls-tree HEAD external/ccbench` | `160000 commit d706650c…` |
+| P1 | `git ls-tree HEAD external/ccbench` | `160000 commit 511c9538…` (2026-08-12 [T-816] 手順 4 で前進。`d706650c…` 期の床値を歴史再開するなら、その旧 commit を明示 checkout する) |
 | P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `2 passed, 0 failed` / rc=0 |
 | P3 | 上記 gate-check | rc=2 かつ拒否 2 件 exact |
 | P4 | `qstat -u <user>` | T-139 の pilot / 本走 job が走っていない |
@@ -195,6 +198,13 @@ official mode の guard は変更していない (受理集合は空のまま)�
 - **R-4 (B) の toolchain 束縛検査は実装済み** ([T-747]、worklog 455)。
   **pilot でも無条件に発火する** — `build_cells` が `_bind_current_toolchain` を呼ぶ経路に
   mode 分岐は無い。**拒否されたらそれは正しい fail-closed であり、緩めて通してはならない** (§5 R-4)。
+- **実投入で判明した停止点 (2026-08-12)。** 投入経路の欠陥 4 件は修正済みで、
+  admission・attestation・toolchain 束縛・実体化はすべて通過する。
+  **残る停止点は測定そのもの** — 計算ノードに現行 kernel 用の perf が無く、
+  `perf stat` の下で走る測定が 1 点も取れない (8/8 ノードで実測)。
+  **これは環境手番であり、perf を外す回避は採らない。**
+  campaign は `driver_rc=0` / `status: completed` を返しつつ床値が全 null になるので、
+  **rc だけで成功と判定してはならない。** `floors` が実数を持つことまで確かめる。
 - 投入手順は次の順で行う。**順序を崩さない。**
   1. pilot 経路と docs の**全 tracked 変更を commit する** (未 commit の変更があると
      `submit_floor.sh` の drift 検査が qsub 前に rc=2 で止める)

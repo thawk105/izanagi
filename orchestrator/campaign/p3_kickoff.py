@@ -33,7 +33,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import env_contract, ident, wal                     # noqa: E402
 from .build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
-                                      add_coder_build_authority_argument,
+                                      add_registered_coder_build_authority_argument,
                                       build_run_context)
 from .layout import exploration_campaign_layout           # noqa: E402
 from .loop import run_campaign                            # noqa: E402
@@ -88,7 +88,10 @@ def _perf() -> PerfConfig:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="P3 coder wiring kickoff")
-    add_coder_build_authority_argument(parser)
+    add_registered_coder_build_authority_argument(
+        parser,
+        coder_entrypoint_site="orchestrator.campaign.p3_kickoff.main",
+    )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     if args.coder_build_authority is None:
         raise BuildAdmissionError("--allow-coder-derived-build の明示 opt-in が必要")

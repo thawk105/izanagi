@@ -128,6 +128,10 @@ class Integrity:
     lock_coverage_violations と同じ理由で indeterminate に倒す — sort が破れると
     lock 獲得順序の前提自体が崩れ、その後の trace 版 stamp が信用できない。cycle は
     生まない。検出源は validationPhase の #if TRACE assert が emit する P 行。
+
+    **framing_violations:** C が宣言した R/W 件数と実行数の不一致、または必須 E の
+    欠落・重複を示す。frame が壊れた trace は R/W 辺が欠落している可能性があるため、
+    DSG が acyclic でも serializable を認証しない。
     """
     orphan_reads: int = 0       # 非 genesis なのに producer の write が無い read
     version_dups: int = 0       # 同一 (key, ver) を異なる trx が産んだ
@@ -136,6 +140,7 @@ class Integrity:
     missing_txids: int = 0      # txid の欠番 (密連番保証の破れ = trx 丸ごと欠落)
     write_version_mismatch: int = 0  # W 行の版が C 行 commit と不一致の trx
     malformed_keys: int = 0     # key が小文字 hex 形式でない (表現揺れは競合辺を消す)
+    framing_violations: int = 0  # C/E frame の件数・終端 integrity 違反
     lock_coverage_violations: int = 0  # X 行の件数 (writePhase で lock 被覆が破れた write。D38)
     write_intent_violations: int = 0  # I 行の件数 (write_set_ と API write intent の被覆破れ。T-152)
     permutation_violations: int = 0  # P 行の件数 (validationPhase の sort が要素を欠落/複製。D41)
@@ -155,7 +160,8 @@ class Integrity:
         return (self.orphan_reads == 0 and self.version_dups == 0
                 and self.dup_txids == 0 and self.genesis_commits == 0
                 and self.missing_txids == 0 and self.write_version_mismatch == 0
-                and self.malformed_keys == 0 and self.lock_coverage_violations == 0
+                and self.malformed_keys == 0 and self.framing_violations == 0
+                and self.lock_coverage_violations == 0
                 and self.write_intent_violations == 0
                 and self.permutation_violations == 0
                 and commit_witness_clean)
