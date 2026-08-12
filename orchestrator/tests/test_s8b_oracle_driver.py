@@ -4926,3 +4926,7 @@ def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
                      evaluate_fn, out_root=out_root, tmp_path=tmp_path)
     outcomes = [e["outcome"] for e in result["events"] if e["event"] == "trial-result"]
     assert outcomes and set(outcomes) == {"binary-mismatch"}, result
+
+
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="none")
