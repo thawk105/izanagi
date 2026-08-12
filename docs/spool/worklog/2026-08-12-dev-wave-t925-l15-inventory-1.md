@@ -47,9 +47,18 @@ title: [T-925] docs/dev-wave 予算棚卸し — 削除可能な節は 1 件も�
 - **受入の要否判定 (docs-only)**: 免除しない。判定手順 =
   `grep -rln "output/insights\|docs/spool" orchestrator/tests/*.py` で変更面を読む test file を
   列挙し、`test_check_docs.py` ほか **10 file が実在**したため免除条件を満たさないと判定した
-  (証拠なしの免除をしない)。受入全走を実走し **10,085 passed / 65 skipped、rc=0** (tested tip
-  `e7a9c8fb`、lease 保持のまま記録追記後に再走)。`python3 tools/check_docs.py` も rc=0 (違反なし)。
+  (証拠なしの免除をしない)。`python3 tools/check_docs.py` は rc=0 (違反なし)。
   変異 matrix は `DW-S04` の免除条件「『実装しない』裁定済みかつ実装差分ゼロ」に該当し免除。
+- **受入全走の実測 3 走**: 1 走目 (tip `e7a9c8fb`) = **10,085 passed / 65 skipped、rc=0**。
+  記録追記後の 2 走目 (tip `864d923d`) = `test_codex_reasoning_ab.py` の 3 node が **setup で
+  error**、逐語は `rc=-11: git checkout -B codex/... ` (SIGSEGV)。1 走目との差分は文書 2 ファイルだけで
+  fixture の `git checkout` に到達しえない。当該 3 node の単独再走 (`--force-dispatch`) は
+  **3 passed、rc=0** で**再現せず**、`DW-O18` に従い実装差分へ帰属しない。
+  新規失敗型として {{F:git-segv-false-red-in-acceptance}} に起票した。
+  並行 wave 4 本と object store 圧 (`unreachable loose objects` 警告、残留 `gc.log`) が状況証拠。
+- **受入 lease の実測**: 1 走目の緑の後も lease は保持されたが、
+  記録追記と単独再走の間に **TTL 2400 秒が満了**し他 wave が取得した。
+  待ち 4 本の混雑下では「緑 → 記録追記 → 再走」の 1 サイクルが TTL に収まらないことがある。
 - **工数**: codex 子 3 本 (段 2 プラン 1 本 `reasoning=max`、段 3 敵対 2 本並列 `reasoning=max`、
   lane sol / luna)。段 2 は artifact-root の親 directory 未作成で 1 度 rc=2 (起動前終了、成果物ゼロ)。
   `DW-O01` の「既存 `.done` は消さず再利用せず再投入を止める」に従い新 artifact 名で再投入した。
