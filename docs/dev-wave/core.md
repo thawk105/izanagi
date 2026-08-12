@@ -64,7 +64,7 @@ field から取り、既存 docs は一次資料と一致するまで根拠に�
 
 ## DW-G05 — 成果物影響
 
-段 1 の scope とレビューの must-fix には、実装しない場合に成果物（certified 選択、
+段 1 の scope とレビューの must-fix には、それを実装しない・放置した場合に成果物（certified 選択、
 レポート、台帳）のどの値・受理集合・参照がどう変わるかを 1 行で必ず書く。
 書けない must-fix は nit/backlog とし、追加 review wave を起動しない。
 段 1 で書けなければ `DW-G02` に従い、子を起動せずその場で 1 cycle 後へ送る。
@@ -78,7 +78,7 @@ gate の禁止は署名で書き、通る正例を 1 つ添える。
 
 「実装しない」と裁定済みで実装差分ゼロの wave だけ変異 matrix を免除する。受入全走は免除せず、
 実 repo を読むテストは段 7 の記録前に実走し、結果を worklog へ書く。
-段 4 直前に裁定 inbox を再走査し、wave 開始後に更新された控えを増分裁定として取り込む。
+段 4 直前に裁定 inbox を再走査し、wave 開始後の更新を取り込む。
 
 承認済み裁定は裁定時の未見事実でだけ止め、裁定文・worklog に未記録か確認する。親は不採用にせず、
 新事実を添えてユーザー再裁定待ちへ戻す。実装方向まで裁定済みなら、コードで代案の等価性を
@@ -94,7 +94,7 @@ canonical への追記・採番・ローテーションは段 9 の land が loc
 凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
 erratum とする（D88）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
 復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
-docs commit 後に repo scan invariant と影響テストを再走する（F34）。受入・検査は実測前に
+docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
 欄を作らず未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
 hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界は `CLAUDE.md` と
 `docs/ai-provenance.md` を正本とする。
@@ -109,7 +109,7 @@ hash 自己参照は禁止（F36）。AI provenance、worklog、push の境界�
 全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
 `tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。
 `DW-O23` の成功結果以外は `DW-STOP` に従い、main HEAD と既存 branch を報告する。
-段 9 後に `tools/collect_wave_usage.py` を実行する。
+段 9 後に `tools/collect_wave_usage.py` を実行。
 
 ## DW-CTX — fresh context と外部 supervisor
 

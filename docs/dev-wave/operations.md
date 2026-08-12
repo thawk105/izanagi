@@ -127,6 +127,7 @@ file 集合を列挙するメタテストも焦点走に含める。並行 wave 
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
 使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
 全 registered worktree の外に置く。
+期待 node を直して再走するときは `--out` を別 path にする（既存 out は rc=2 で拒否される）。
 
 ## DW-O20 — clean-tree gate
 
