@@ -1,0 +1,532 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/f4b7c111bd6d46b0d4807e3560dd46de/izdw-f4b7c111bd.o908091",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/f4b7c111bd6d46b0d4807e3560dd46de/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n........................................                                 [100%]\n============================== 40 passed in 2.92s ==============================\n",
+      "stdout_sha256": "482ae5c8232fc5522e0361e1652d5143218c279d74046598acd5c3bfca09d846"
+    },
+    "artifact_error": null,
+    "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+    "duration_s": 26.801,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "9cdb06a7da95c0f7ae8653f215cbf24208e6e0da86b244381b56cf8763b40ace",
+    "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+    "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+    "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+    "status": "PASSED",
+    "test_output_sha256": "482ae5c8232fc5522e0361e1652d5143218c279d74046598acd5c3bfca09d846",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+  },
+  "date": "2026-08-12T14:23:43.362231+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/29a47ed63842f00ffff6d2972543acfd/izdw-29a47ed638.o908095",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/29a47ed63842f00ffff6d2972543acfd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n.....................................FF.                                 [100%]\n=================================== FAILURES ===================================\n_________ test_scheduler_adapter_rejects_wrapper_changed_after_prepare _________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_scheduler_adapter_rejects0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f7210ea440>\n\n    def test_scheduler_adapter_rejects_wrapper_changed_after_prepare(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _, _, prepared, _, _ = _prepared(tmp_path)\n        slot = prepared.launch_intent[\"slots\"][0]\n        Path(slot[\"wrapper_path\"]).write_bytes(b\"tampered-after-prepare\")\n        monkeypatch.setattr(\n            C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n        )\n        with pytest.raises(C.T810CoordinatorError, match=\"declared SHA-256\"):\n>           C._subprocess_scheduler(\n                prepared.authorization, prepared, slot[\"qsub_argv\"],\n                cwd=str(prepared.work_root), env={},\n            )\n\norchestrator/tests/test_t810_coordinator.py:821: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/t810_coordinator.py:1706: in _subprocess_scheduler\n    return subprocess.run(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (['qsub', '-A', 'project', '-q', 'queue', '-b', ...],)\nkwargs = {'cwd': '/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_scheduler_adapter_rejects0/work', 'env': {}, 'text': True, 'capture_output': True, ...}\n\n>       C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n    )\nE   Failed: qsub effect reached\n\norchestrator/tests/test_t810_coordinator.py:818: Failed\n___ test_generated_script_rejects_self_consistent_evil_wrapper_before_effect ___\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a5a7ef13c0>\n\n    def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _, _, prepared, _, _ = _prepared(tmp_path)\n        slot = prepared.launch_intent[\"slots\"][0]\n        evil = tmp_path / \"evil.py\"\n        evil.write_bytes(b\"raise SystemExit('scheduler must not execute this')\\n\")\n        slot[\"wrapper_path\"] = str(evil)\n        slot[\"wrapper_sha256\"] = hashlib.sha256(evil.read_bytes()).hexdigest()\n        slot[\"wrapper_argv\"][1] = str(evil)\n        Path(slot[\"script_path\"]).write_bytes(C._canonical_job_script(slot))\n        command = Path(slot[\"script_path\"]).read_text(encoding=\"utf-8\").splitlines()[-1]\n        evil_argv = shlex.split(command.removeprefix(\"exec \"))\n        assert evil_argv[:3] == [\"python3.10\", str(evil), \"--request\"]\n        assert Path(evil_argv[3]).name == \"wrapper-request.json\"\n        monkeypatch.setattr(\n            C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n        )\n        with pytest.raises(C.T810CoordinatorError, match=\"shipped wrapper bytes\"):\n>           C._subprocess_scheduler(\n                prepared.authorization, prepared, slot[\"qsub_argv\"],\n                cwd=str(prepared.work_root), env={},\n            )\n\norchestrator/tests/test_t810_coordinator.py:1023: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/t810_coordinator.py:1706: in _subprocess_scheduler\n    return subprocess.run(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (['qsub', '-A', 'project', '-q', 'queue', '-b', ...],)\nkwargs = {'cwd': '/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0/work', 'env': {}, 'text': True, 'capture_output': True, ...}\n\n>       C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n    )\nE   Failed: qsub effect reached\n\norchestrator/tests/test_t810_coordinator.py:1020: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare\nFAILED orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect\n========================= 2 failed, 38 passed in 2.94s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2216 retained_bytes=2216 omitted_bytes=0 rendered_excerpt_bytes=2306 sha256=21e648bcde22f3eb3bf1b9da7232f5d8d9be9fe816315492a0ddffa35c294e66\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a5a7ef13c0>\n> \n>     def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _, _, prepared, _, _ = _prepared(tmp_path)\n>         slot = prepared.launch_intent[\"slots\"][0]\n>         evil = tmp_path / \"evil.py\"\n>         evil.write_bytes(b\"raise SystemExit('scheduler must not execute this')\\x5cn\")\n>         slot[\"wrapper_path\"] = str(evil)\n>         slot[\"wrapper_sha256\"] = hashlib.sha256(evil.read_bytes()).hexdigest()\n>         slot[\"wrapper_argv\"][1] = str(evil)\n>         Path(slot[\"script_path\"]).write_bytes(C._canonical_job_script(slot))\n>         command = Path(slot[\"script_path\"]).read_text(encoding=\"utf-8\").splitlines()[-1]\n>         evil_argv = shlex.split(command.removeprefix(\"exec \"))\n>         assert evil_argv[:3] == [\"python3.10\", str(evil), \"--request\"]\n>         assert Path(evil_argv[3]).name == \"wrapper-request.json\"\n>         monkeypatch.setattr(\n>             C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n>         )\n>         with pytest.raises(C.T810CoordinatorError, match=\"shipped wrapper bytes\"):\n> >           C._subprocess_scheduler(\n>                 prepared.authorization, prepared, slot[\"qsub_argv\"],\n>                 cwd=str(prepared.work_root), env={},\n>             )\n> \n> orchestrator/tests/test_t810_coordinator.py:1023: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/pegasus/t810_coordinator.py:1706: in _subprocess_scheduler\n>     return subprocess.run(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (['qsub', '-A', 'project', '-q', 'queue', '-b', ...],)\n> kwargs = {'cwd': '/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0/work', 'env': {}, 'text': True, 'capture_output': True, ...}\n> \n> >       C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n>     )\n> E   Failed: qsub effect reached\n> \n> orchestrator/tests/test_t810_coordinator.py:1020: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=1623 retained_bytes=1623 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=82ecc1bcf4589330859e072e0a9ce93ae6a4113d763d770c261567b1af939b95\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_scheduler_adapter_rejects0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f7210ea440>\n> \n>     def test_scheduler_adapter_rejects_wrapper_changed_after_prepare(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _, _, prepared, _, _ = _prepared(tmp_path)\n>         slot = prepared.launch_intent[\"slots\"][0]\n>         Path(slot[\"wrapper_path\"]).write_bytes(b\"tampered-after-prepare\")\n>         monkeypatch.setattr(\n>             C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n>         )\n>         with pytest.raises(C.T810CoordinatorError, match=\"declared SHA-256\"):\n> >           C._subprocess_scheduler(\n>                 prepared.authorization, prepared, slot[\"qsub_argv\"],\n>                 cwd=str(prepared.work_root), env={},\n>             )\n> \n> orchestrator/tests/test_t810_coordinator.py:821: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/pegasus/t810_coordinator.py:1706: in _subprocess_scheduler\n>     return subprocess.run(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (['qsub', '-A', 'project', '-q', 'queue', '-b', ...],)\n> kwargs = {'cwd': '/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_scheduler_adapter_rejects0/work', 'env': {}, 'text': True, 'capture_output': True, ...}\n> \n> >       C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n>     )\n> E   Failed: qsub effect reached\n> \n> orchestrator/tests/test_t810_coordinator.py:818: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3839 retained_bytes=3839 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5189 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d68f6ab705298a145206b84d0ddb41446c96d75d20e5a94f1ff0180d70366da4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+      "duration_s": 26.904,
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "af1304bb9e26a65a4d43253fbaeb6c573c28e06fea2a75d3bc2427d3e655a65f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "33d595679ee60fda2826ee85428e76669908054f518f7b8000b7623166da3641",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "new": "    _assert_canonical_job_script(selected)\n",
+          "old": "    _assert_canonical_job_script(selected)\n    _assert_staged_file_identities(selected)\n"
+        }
+      ],
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "KILLED",
+      "test_output_sha256": "d68f6ab705298a145206b84d0ddb41446c96d75d20e5a94f1ff0180d70366da4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/8374aaea73f84091b9a4787b1be424cc/izdw-8374aaea73.o908096",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/8374aaea73f84091b9a4787b1be424cc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n.....................................FF.                                 [100%]\n=================================== FAILURES ===================================\n___ test_generated_script_rejects_self_consistent_evil_wrapper_before_effect ___\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ab980b5f30>\n\n    def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _, _, prepared, _, _ = _prepared(tmp_path)\n        slot = prepared.launch_intent[\"slots\"][0]\n        evil = tmp_path / \"evil.py\"\n        evil.write_bytes(b\"raise SystemExit('scheduler must not execute this')\\n\")\n        slot[\"wrapper_path\"] = str(evil)\n        slot[\"wrapper_sha256\"] = hashlib.sha256(evil.read_bytes()).hexdigest()\n        slot[\"wrapper_argv\"][1] = str(evil)\n        Path(slot[\"script_path\"]).write_bytes(C._canonical_job_script(slot))\n        command = Path(slot[\"script_path\"]).read_text(encoding=\"utf-8\").splitlines()[-1]\n        evil_argv = shlex.split(command.removeprefix(\"exec \"))\n        assert evil_argv[:3] == [\"python3.10\", str(evil), \"--request\"]\n        assert Path(evil_argv[3]).name == \"wrapper-request.json\"\n        monkeypatch.setattr(\n            C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n        )\n        with pytest.raises(C.T810CoordinatorError, match=\"shipped wrapper bytes\"):\n>           C._subprocess_scheduler(\n                prepared.authorization, prepared, slot[\"qsub_argv\"],\n                cwd=str(prepared.work_root), env={},\n            )\n\norchestrator/tests/test_t810_coordinator.py:1023: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/t810_coordinator.py:1705: in _subprocess_scheduler\n    return subprocess.run(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (['qsub', '-A', 'project', '-q', 'queue', '-b', ...],)\nkwargs = {'cwd': '/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0/work', 'env': {}, 'text': True, 'capture_output': True, ...}\n\n>       C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n    )\nE   Failed: qsub effect reached\n\norchestrator/tests/test_t810_coordinator.py:1020: Failed\n____ test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change _____\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_staged_wrapper_accepts_sh0')\n\n    def test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change(\n        tmp_path: Path,\n    ) -> None:\n        prereg = _preregistration()\n        accepted = _config(tmp_path / \"accepted\")\n        prepared = C.prepare_group(\n            accepted, prereg, _token(accepted, prereg),\n            repository_roots={tmp_path / \"caller-repository\"},\n        )\n        assert prepared.launch_intent[\"slots\"][0][\"wrapper_sha256\"] == hashlib.sha256(\n            (Path(C.__file__).resolve().parent / \"t810_pbs_wrapper.py\").read_bytes()\n        ).hexdigest()\n    \n        config = _config(tmp_path / \"rejected\")\n        wrapper = Path(config[\"launch_intent\"][\"slots\"][0][\"wrapper_path\"])\n        changed = bytearray(wrapper.read_bytes())\n        changed[-1] ^= 1\n        wrapper.write_bytes(changed)\n        wrapper_sha256 = hashlib.sha256(wrapper.read_bytes()).hexdigest()\n        for slot in config[\"launch_intent\"][\"slots\"]:\n            slot[\"wrapper_sha256\"] = wrapper_sha256\n        intent_sha256 = S.canonical_sha256(config[\"launch_intent\"])\n        for field in (\"guard_receipt_path\", \"budget_receipt_path\"):\n            path = Path(config[field])\n            receipt = json.loads(path.read_text(encoding=\"utf-8\"))\n            receipt[\"launch_intent_sha256\"] = intent_sha256\n            _write(path, receipt)\n>       with pytest.raises(C.T810CoordinatorError, match=\"shipped wrapper bytes\"):\nE       Failed: DID NOT RAISE T810CoordinatorError\n\norchestrator/tests/test_t810_coordinator.py:854: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect\nFAILED orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change\n========================= 2 failed, 38 passed in 2.99s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2216 retained_bytes=2216 omitted_bytes=0 rendered_excerpt_bytes=2306 sha256=205eeb9e4bb3a232bae5bd9afe975e7edc94b054f20ba8ac69cbbb9eabbb8bc6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ab980b5f30>\n> \n>     def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _, _, prepared, _, _ = _prepared(tmp_path)\n>         slot = prepared.launch_intent[\"slots\"][0]\n>         evil = tmp_path / \"evil.py\"\n>         evil.write_bytes(b\"raise SystemExit('scheduler must not execute this')\\x5cn\")\n>         slot[\"wrapper_path\"] = str(evil)\n>         slot[\"wrapper_sha256\"] = hashlib.sha256(evil.read_bytes()).hexdigest()\n>         slot[\"wrapper_argv\"][1] = str(evil)\n>         Path(slot[\"script_path\"]).write_bytes(C._canonical_job_script(slot))\n>         command = Path(slot[\"script_path\"]).read_text(encoding=\"utf-8\").splitlines()[-1]\n>         evil_argv = shlex.split(command.removeprefix(\"exec \"))\n>         assert evil_argv[:3] == [\"python3.10\", str(evil), \"--request\"]\n>         assert Path(evil_argv[3]).name == \"wrapper-request.json\"\n>         monkeypatch.setattr(\n>             C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n>         )\n>         with pytest.raises(C.T810CoordinatorError, match=\"shipped wrapper bytes\"):\n> >           C._subprocess_scheduler(\n>                 prepared.authorization, prepared, slot[\"qsub_argv\"],\n>                 cwd=str(prepared.work_root), env={},\n>             )\n> \n> orchestrator/tests/test_t810_coordinator.py:1023: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/pegasus/t810_coordinator.py:1705: in _subprocess_scheduler\n>     return subprocess.run(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (['qsub', '-A', 'project', '-q', 'queue', '-b', ...],)\n> kwargs = {'cwd': '/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_generated_script_rejects_0/work', 'env': {}, 'text': True, 'capture_output': True, ...}\n> \n> >       C.subprocess, \"run\", lambda *args, **kwargs: pytest.fail(\"qsub effect reached\"),\n>     )\n> E   Failed: qsub effect reached\n> \n> orchestrator/tests/test_t810_coordinator.py:1020: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1656 retained_bytes=1656 omitted_bytes=0 rendered_excerpt_bytes=1727 sha256=350d211d4703429b4b805f16d5060a7bb2c62e81e25740481bd87b371e979c93\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_staged_wrapper_accepts_sh0')\n> \n>     def test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change(\n>         tmp_path: Path,\n>     ) -> None:\n>         prereg = _preregistration()\n>         accepted = _config(tmp_path / \"accepted\")\n>         prepared = C.prepare_group(\n>             accepted, prereg, _token(accepted, prereg),\n>             repository_roots={tmp_path / \"caller-repository\"},\n>         )\n>         assert prepared.launch_intent[\"slots\"][0][\"wrapper_sha256\"] == hashlib.sha256(\n>             (Path(C.__file__).resolve().parent / \"t810_pbs_wrapper.py\").read_bytes()\n>         ).hexdigest()\n>     \n>         config = _config(tmp_path / \"rejected\")\n>         wrapper = Path(config[\"launch_intent\"][\"slots\"][0][\"wrapper_path\"])\n>         changed = bytearray(wrapper.read_bytes())\n>         changed[-1] ^= 1\n>         wrapper.write_bytes(changed)\n>         wrapper_sha256 = hashlib.sha256(wrapper.read_bytes()).hexdigest()\n>         for slot in config[\"launch_intent\"][\"slots\"]:\n>             slot[\"wrapper_sha256\"] = wrapper_sha256\n>         intent_sha256 = S.canonical_sha256(config[\"launch_intent\"])\n>         for field in (\"guard_receipt_path\", \"budget_receipt_path\"):\n>             path = Path(config[field])\n>             receipt = json.loads(path.read_text(encoding=\"utf-8\"))\n>             receipt[\"launch_intent_sha256\"] = intent_sha256\n>             _write(path, receipt)\n> >       with pytest.raises(C.T810CoordinatorError, match=\"shipped wrapper bytes\"):\n> E       Failed: DID NOT RAISE T810CoordinatorError\n> \n> orchestrator/tests/test_t810_coordinator.py:854: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3872 retained_bytes=3872 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5233 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9891013a983758c7b6ad46880e9804d0f26bbd5a5f4c829a025ae1e9ef26cd03"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+      "duration_s": 27.011,
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect",
+        "orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "bc546aef242954fa0ce070f6b210f20068364ce1a44c3d85d7c2af867652b069",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8bbfedcf07e57208e853643fb07dec4c2df72eb638046e05f1b14899e5ff7146",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "new": "",
+          "old": "    if wrapper_sha256 != schema.sha256_bytes(shipped_raw):\n        _fail(\"staged wrapper does not match the shipped wrapper bytes\")\n"
+        }
+      ],
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "KILLED",
+      "test_output_sha256": "9891013a983758c7b6ad46880e9804d0f26bbd5a5f4c829a025ae1e9ef26cd03",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/478fc706c2a4e48f769633c20719fdd4/izdw-478fc706c2.o908098",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/478fc706c2a4e48f769633c20719fdd4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n.........F..............................                                 [100%]\n=================================== FAILURES ===================================\n_ test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_prepare_group_rejects_sel0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f474611d50>\n\n    def test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        prereg = _preregistration()\n        config = _config(tmp_path / \"config\")\n        foreign_repository = tmp_path / \"foreign-repository\"\n        subprocess.run(\n            [\"git\", \"init\", \"-q\", str(foreign_repository)],\n            check=True,\n        )\n        foreign_identity = resolve_git_identity(foreign_repository.resolve())\n        config[\"validator_kwargs\"][\"repo_root\"] = foreign_identity.repo_realpath\n        config[\"validator_kwargs\"][\"approved_git_identity\"] = {\n            \"repo_realpath\": foreign_identity.repo_realpath,\n            \"git_dir_realpath\": foreign_identity.git_dir_realpath,\n            \"common_dir_realpath\": foreign_identity.common_dir_realpath,\n        }\n        config[\"validator_kwargs\"][\"approved_git_identity_sha256\"] = (\n            git_identity_digest(foreign_identity)\n        )\n        _rebind_work_root(\n            config, Path(C.__file__).resolve().parents[2] / \"orchestrator\",\n        )\n    \n        def forbidden_mkdir(*args, **kwargs):\n            pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n    \n        monkeypatch.setattr(Path, \"mkdir\", forbidden_mkdir)\n        with pytest.raises(C.T810CoordinatorError, match=\"work_root is not repository-external\"):\n>           C.prepare_group(\n                config, prereg, _token(config, prereg),\n                repository_roots={foreign_repository},\n            )\n\norchestrator/tests/test_t810_coordinator.py:908: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/t810_coordinator.py:713: in prepare_group\n    work_root = _ensure_external_root(token, Path(intent[\"work_root\"]), \"work_root\", repository_roots=roots)\ntools/pegasus/t810_coordinator.py:625: in _ensure_external_root\n    resolved.mkdir(parents=True, exist_ok=True)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/orchestrator'),)\nkwargs = {'parents': True, 'exist_ok': True}\n\n    def forbidden_mkdir(*args, **kwargs):\n>       pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\nE       Failed: mkdir reached before the live repository anchor rejected work_root\n\norchestrator/tests/test_t810_coordinator.py:904: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir\n========================= 1 failed, 39 passed in 2.78s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=2702 retained_bytes=2702 omitted_bytes=0 rendered_excerpt_bytes=2813 sha256=3856be55ad326b96df243c20dbd7e5a6119f204f85f9ebc972e9609ec20a025d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_prepare_group_rejects_sel0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f474611d50>\n> \n>     def test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         prereg = _preregistration()\n>         config = _config(tmp_path / \"config\")\n>         foreign_repository = tmp_path / \"foreign-repository\"\n>         subprocess.run(\n>             [\"git\", \"init\", \"-q\", str(foreign_repository)],\n>             check=True,\n>         )\n>         foreign_identity = resolve_git_identity(foreign_repository.resolve())\n>         config[\"validator_kwargs\"][\"repo_root\"] = foreign_identity.repo_realpath\n>         config[\"validator_kwargs\"][\"approved_git_identity\"] = {\n>             \"repo_realpath\": foreign_identity.repo_realpath,\n>             \"git_dir_realpath\": foreign_identity.git_dir_realpath,\n>             \"common_dir_realpath\": foreign_identity.common_dir_realpath,\n>         }\n>         config[\"validator_kwargs\"][\"approved_git_identity_sha256\"] = (\n>             git_identity_digest(foreign_identity)\n>         )\n>         _rebind_work_root(\n>             config, Path(C.__file__).resolve().parents[2] / \"orchestrator\",\n>         )\n>     \n>         def forbidden_mkdir(*args, **kwargs):\n>             pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n>     \n>         monkeypatch.setattr(Path, \"mkdir\", forbidden_mkdir)\n>         with pytest.raises(C.T810CoordinatorError, match=\"work_root is not repository-external\"):\n> >           C.prepare_group(\n>                 config, prereg, _token(config, prereg),\n>                 repository_roots={foreign_repository},\n>             )\n> \n> orchestrator/tests/test_t810_coordinator.py:908: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/pegasus/t810_coordinator.py:713: in prepare_group\n>     work_root = _ensure_external_root(token, Path(intent[\"work_root\"]), \"work_root\", repository_roots=roots)\n> tools/pegasus/t810_coordinator.py:625: in _ensure_external_root\n>     resolved.mkdir(parents=True, exist_ok=True)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/orchestrator'),)\n> kwargs = {'parents': True, 'exist_ok': True}\n> \n>     def forbidden_mkdir(*args, **kwargs):\n> >       pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n> E       Failed: mkdir reached before the live repository anchor rejected work_root\n> \n> orchestrator/tests/test_t810_coordinator.py:904: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2702 retained_bytes=2702 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3566 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "73ffb6a8afa1f75c3e335d94b173425418b4161624da88a41084b9df6d79cd41"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+      "duration_s": 26.927,
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "9e9f750fd3e873b3f83a201e74561ecfbe5b933d8e779c33724cd18186701113",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f171756a9562488dea4422e277b18914cf064d48b8ab81b20816cca5de955f80",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "new": "        coordinator_identity = document[\"validator_kwargs\"][\"approved_git_identity\"]\n",
+          "old": "        coordinator_identity = resolve_git_identity(Path(__file__).resolve().parents[2])\n"
+        }
+      ],
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "KILLED",
+      "test_output_sha256": "73ffb6a8afa1f75c3e335d94b173425418b4161624da88a41084b9df6d79cd41",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/3103d554353774d72d022f605c11ba2f/izdw-3103d55435.o908100",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/3103d554353774d72d022f605c11ba2f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n.....F.F..............................F.                                 [100%]\n=================================== FAILURES ===================================\n_______ test_prepare_group_rejects_forged_git_identity_before_any_mkdir ________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_prepare_group_rejects_for0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f2940fd300>\n\n    def test_prepare_group_rejects_forged_git_identity_before_any_mkdir(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        prereg = _preregistration()\n        config = _config(tmp_path)\n        _rebind_work_root(config, Path(C.__file__).resolve().parents[2] / \"orchestrator\")\n    \n        def forbidden_mkdir(*args, **kwargs):\n            pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n    \n        monkeypatch.setattr(Path, \"mkdir\", forbidden_mkdir)\n        with pytest.raises(C.T810CoordinatorError, match=\"work_root is not repository-external\"):\n>           C.prepare_group(\n                config, prereg, _token(config, prereg),\n                repository_roots={tmp_path / \"forged-caller-repository\"},\n            )\n\norchestrator/tests/test_t810_coordinator.py:873: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/t810_coordinator.py:710: in prepare_group\n    work_root = _ensure_external_root(token, Path(intent[\"work_root\"]), \"work_root\", repository_roots=roots)\ntools/pegasus/t810_coordinator.py:625: in _ensure_external_root\n    resolved.mkdir(parents=True, exist_ok=True)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/orchestrator'),)\nkwargs = {'parents': True, 'exist_ok': True}\n\n    def forbidden_mkdir(*args, **kwargs):\n>       pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\nE       Failed: mkdir reached before the live repository anchor rejected work_root\n\norchestrator/tests/test_t810_coordinator.py:869: Failed\n_ test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir _\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_prepare_group_rejects_sel0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153e735d2740>\n\n    def test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        prereg = _preregistration()\n        config = _config(tmp_path / \"config\")\n        foreign_repository = tmp_path / \"foreign-repository\"\n        subprocess.run(\n            [\"git\", \"init\", \"-q\", str(foreign_repository)],\n            check=True,\n        )\n        foreign_identity = resolve_git_identity(foreign_repository.resolve())\n        config[\"validator_kwargs\"][\"repo_root\"] = foreign_identity.repo_realpath\n        config[\"validator_kwargs\"][\"approved_git_identity\"] = {\n            \"repo_realpath\": foreign_identity.repo_realpath,\n            \"git_dir_realpath\": foreign_identity.git_dir_realpath,\n            \"common_dir_realpath\": foreign_identity.common_dir_realpath,\n        }\n        config[\"validator_kwargs\"][\"approved_git_identity_sha256\"] = (\n            git_identity_digest(foreign_identity)\n        )\n        _rebind_work_root(\n            config, Path(C.__file__).resolve().parents[2] / \"orchestrator\",\n        )\n    \n        def forbidden_mkdir(*args, **kwargs):\n            pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n    \n        monkeypatch.setattr(Path, \"mkdir\", forbidden_mkdir)\n        with pytest.raises(C.T810CoordinatorError, match=\"work_root is not repository-external\"):\n>           C.prepare_group(\n                config, prereg, _token(config, prereg),\n                repository_roots={foreign_repository},\n            )\n\norchestrator/tests/test_t810_coordinator.py:908: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/t810_coordinator.py:710: in prepare_group\n    work_root = _ensure_external_root(token, Path(intent[\"work_root\"]), \"work_root\", repository_roots=roots)\ntools/pegasus/t810_coordinator.py:625: in _ensure_external_root\n    resolved.mkdir(parents=True, exist_ok=True)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargs = (PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/orchestrator'),)\nkwargs = {'parents': True, 'exist_ok': True}\n\n    def forbidden_mkdir(*args, **kwargs):\n>       pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\nE       Failed: mkdir reached before the live repository anchor rejected work_root\n\norchestrator/tests/test_t810_coordinator.py:904: Failed\n__________ test_prepare_group_accepts_external_root_with_anchor_union __________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0')\n\n    def test_prepare_group_accepts_external_root_with_anchor_union(tmp_path: Path) -> None:\n        prereg = _preregistration()\n        config = _config(tmp_path / \"accepted\")\n        caller_repository = tmp_path / \"unrelated-caller-repository\"\n        caller_repository.mkdir()\n        prepared = C.prepare_group(\n            config, prereg, _token(config, prereg),\n            repository_roots={caller_repository},\n        )\n        assert prepared.work_root == (tmp_path / \"accepted/work\").resolve()\n>       assert Path(C.__file__).resolve().parents[2] in prepared.repository_roots\nE       AssertionError: assert PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath') in frozenset({PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0/unrelated-caller-repository')})\nE        +  where frozenset({PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0/unrelated-caller-repository')}) = PreparedGroup(preregistration=VerifiedT810Preregistration(sha256='3052af20993481730a826ce08ee26289948f29836d43afb2d7c7...osixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0/accepted/work/control/cancel.json')).repository_roots\n\norchestrator/tests/test_t810_coordinator.py:924: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir\nFAILED orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir\nFAILED orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union\n========================= 3 failed, 37 passed in 2.94s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=2702 retained_bytes=2702 omitted_bytes=0 rendered_excerpt_bytes=2813 sha256=4f12799563b24b5d4e0af55cd322a12b09f6ed1e572e3a31230badba0babe878\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_prepare_group_rejects_sel0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153e735d2740>\n> \n>     def test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         prereg = _preregistration()\n>         config = _config(tmp_path / \"config\")\n>         foreign_repository = tmp_path / \"foreign-repository\"\n>         subprocess.run(\n>             [\"git\", \"init\", \"-q\", str(foreign_repository)],\n>             check=True,\n>         )\n>         foreign_identity = resolve_git_identity(foreign_repository.resolve())\n>         config[\"validator_kwargs\"][\"repo_root\"] = foreign_identity.repo_realpath\n>         config[\"validator_kwargs\"][\"approved_git_identity\"] = {\n>             \"repo_realpath\": foreign_identity.repo_realpath,\n>             \"git_dir_realpath\": foreign_identity.git_dir_realpath,\n>             \"common_dir_realpath\": foreign_identity.common_dir_realpath,\n>         }\n>         config[\"validator_kwargs\"][\"approved_git_identity_sha256\"] = (\n>             git_identity_digest(foreign_identity)\n>         )\n>         _rebind_work_root(\n>             config, Path(C.__file__).resolve().parents[2] / \"orchestrator\",\n>         )\n>     \n>         def forbidden_mkdir(*args, **kwargs):\n>             pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n>     \n>         monkeypatch.setattr(Path, \"mkdir\", forbidden_mkdir)\n>         with pytest.raises(C.T810CoordinatorError, match=\"work_root is not repository-external\"):\n> >           C.prepare_group(\n>                 config, prereg, _token(config, prereg),\n>                 repository_roots={foreign_repository},\n>             )\n> \n> orchestrator/tests/test_t810_coordinator.py:908: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/pegasus/t810_coordinator.py:710: in prepare_group\n>     work_root = _ensure_external_root(token, Path(intent[\"work_root\"]), \"work_root\", repository_roots=roots)\n> tools/pegasus/t810_coordinator.py:625: in _ensure_external_root\n>     resolved.mkdir(parents=True, exist_ok=True)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/orchestrator'),)\n> kwargs = {'parents': True, 'exist_ok': True}\n> \n>     def forbidden_mkdir(*args, **kwargs):\n> >       pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n> E       Failed: mkdir reached before the live repository anchor rejected work_root\n> \n> orchestrator/tests/test_t810_coordinator.py:904: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1926 retained_bytes=1926 omitted_bytes=0 rendered_excerpt_bytes=2003 sha256=996e4172dbdb309efdd905ab4c8f87135e9453135369aaf47563935afc12599a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_prepare_group_rejects_for0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f2940fd300>\n> \n>     def test_prepare_group_rejects_forged_git_identity_before_any_mkdir(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         prereg = _preregistration()\n>         config = _config(tmp_path)\n>         _rebind_work_root(config, Path(C.__file__).resolve().parents[2] / \"orchestrator\")\n>     \n>         def forbidden_mkdir(*args, **kwargs):\n>             pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n>     \n>         monkeypatch.setattr(Path, \"mkdir\", forbidden_mkdir)\n>         with pytest.raises(C.T810CoordinatorError, match=\"work_root is not repository-external\"):\n> >           C.prepare_group(\n>                 config, prereg, _token(config, prereg),\n>                 repository_roots={tmp_path / \"forged-caller-repository\"},\n>             )\n> \n> orchestrator/tests/test_t810_coordinator.py:873: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/pegasus/t810_coordinator.py:710: in prepare_group\n>     work_root = _ensure_external_root(token, Path(intent[\"work_root\"]), \"work_root\", repository_roots=roots)\n> tools/pegasus/t810_coordinator.py:625: in _ensure_external_root\n>     resolved.mkdir(parents=True, exist_ok=True)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> args = (PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/orchestrator'),)\n> kwargs = {'parents': True, 'exist_ok': True}\n> \n>     def forbidden_mkdir(*args, **kwargs):\n> >       pytest.fail(\"mkdir reached before the live repository anchor rejected work_root\")\n> E       Failed: mkdir reached before the live repository anchor rejected work_root\n> \n> orchestrator/tests/test_t810_coordinator.py:869: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1450 retained_bytes=1450 omitted_bytes=0 rendered_excerpt_bytes=1489 sha256=b4b4110a201278b9260f2bd74de18c525e75e37acc8c97bbc04242b08edb1b2c\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0')\n> \n>     def test_prepare_group_accepts_external_root_with_anchor_union(tmp_path: Path) -> None:\n>         prereg = _preregistration()\n>         config = _config(tmp_path / \"accepted\")\n>         caller_repository = tmp_path / \"unrelated-caller-repository\"\n>         caller_repository.mkdir()\n>         prepared = C.prepare_group(\n>             config, prereg, _token(config, prereg),\n>             repository_roots={caller_repository},\n>         )\n>         assert prepared.work_root == (tmp_path / \"accepted/work\").resolve()\n> >       assert Path(C.__file__).resolve().parents[2] in prepared.repository_roots\n> E       AssertionError: assert PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath') in frozenset({PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0/unrelated-caller-repository')})\n> E        +  where frozenset({PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0/unrelated-caller-repository')}) = PreparedGroup(preregistration=VerifiedT810Preregistration(sha256='3052af20993481730a826ce08ee26289948f29836d43afb2d7c7...osixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_prepare_group_accepts_ext0/accepted/work/control/cancel.json')).repository_roots\n> \n> orchestrator/tests/test_t810_coordinator.py:924: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=6078 retained_bytes=6078 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7951 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f79a011b7d3c25300763fc5a2fec6ac70e8790a0ab394cf9dbbb0d4ce18f92a9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+      "duration_s": 26.876,
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "a82bbdd609a3c8702cc1b1c60d05c18c64bcac2e1c431133b0c74b6c7f919b7d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4652d68fc1a7880186cf822561e7a482133fa930db19a0b2fe74e9ace65f4f39",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "new": "    roots = frozenset(caller_roots)\n",
+          "old": "    roots = frozenset({\n        *repository_roots_from_git_identity(coordinator_identity),\n        *caller_roots,\n    })\n"
+        }
+      ],
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "KILLED",
+      "test_output_sha256": "f79a011b7d3c25300763fc5a2fec6ac70e8790a0ab394cf9dbbb0d4ce18f92a9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/78302bad8a42fc5cea64cf186024d6f2/izdw-78302bad8a.o908102",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/78302bad8a42fc5cea64cf186024d6f2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n....F...................................                                 [100%]\n=================================== FAILURES ===================================\n___________ test_declared_identity_rejects_file_swapped_during_read ____________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_declared_identity_rejects0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154170ab9b10>\n\n    def test_declared_identity_rejects_file_swapped_during_read(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        target = tmp_path / \"identity-target\"\n        original = b\"before-read\"\n        replacement = b\"after-read!\"\n        assert len(original) == len(replacement)\n        target.write_bytes(original)\n        declared_sha256 = hashlib.sha256(original).hexdigest()\n        real_read = C.os.read\n        changed = False\n    \n        def swapping_read(fd: int, count: int) -> bytes:\n            nonlocal changed\n            chunk = real_read(fd, count)\n            if chunk and not changed:\n                changed = True\n                before = target.stat()\n                target.write_bytes(replacement)\n                os.utime(\n                    target,\n                    ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000),\n                )\n            return chunk\n    \n        monkeypatch.setattr(C.os, \"read\", swapping_read)\n>       with pytest.raises(C.T810CoordinatorError, match=\"changed while reading\"):\nE       Failed: DID NOT RAISE T810CoordinatorError\n\norchestrator/tests/test_t810_coordinator.py:956: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read\n========================= 1 failed, 39 passed in 2.86s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1394 retained_bytes=1394 omitted_bytes=0 rendered_excerpt_bytes=1465 sha256=4a1eab4d556c55b79f16d7064b37beece5e89b9d18bad7f89f4af68d497b9122\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_declared_identity_rejects0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154170ab9b10>\n> \n>     def test_declared_identity_rejects_file_swapped_during_read(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         target = tmp_path / \"identity-target\"\n>         original = b\"before-read\"\n>         replacement = b\"after-read!\"\n>         assert len(original) == len(replacement)\n>         target.write_bytes(original)\n>         declared_sha256 = hashlib.sha256(original).hexdigest()\n>         real_read = C.os.read\n>         changed = False\n>     \n>         def swapping_read(fd: int, count: int) -> bytes:\n>             nonlocal changed\n>             chunk = real_read(fd, count)\n>             if chunk and not changed:\n>                 changed = True\n>                 before = target.stat()\n>                 target.write_bytes(replacement)\n>                 os.utime(\n>                     target,\n>                     ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000),\n>                 )\n>             return chunk\n>     \n>         monkeypatch.setattr(C.os, \"read\", swapping_read)\n> >       with pytest.raises(C.T810CoordinatorError, match=\"changed while reading\"):\n> E       Failed: DID NOT RAISE T810CoordinatorError\n> \n> orchestrator/tests/test_t810_coordinator.py:956: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1394 retained_bytes=1394 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2193 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a78dde2150901e16e49a7a63b8ff50c30e1a233af3fc00262dcb3eabb1f9331c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+      "duration_s": 26.744,
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "34cec2baa6d63d313bb1e64dee713715b23bbd227869f67f4173338ab57576fd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fb5c8282da9c670c6bb49250d180fac854ce63c2b1c3eee78651c90423770ad3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "new": "",
+          "old": "        after = os.fstat(fd)\n        if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (\n            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns,\n        ):\n            _fail(f\"{name} changed while reading\")\n"
+        }
+      ],
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "KILLED",
+      "test_output_sha256": "a78dde2150901e16e49a7a63b8ff50c30e1a233af3fc00262dcb3eabb1f9331c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/69b98399ab245cc92163e9958d4e9b91/izdw-69b98399ab.o908104",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/69b98399ab245cc92163e9958d4e9b91/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [40 items]\n\n....F...................................                                 [100%]\n=================================== FAILURES ===================================\n_______ test_git_common_dir_preserves_missing_registered_worktree_claim ________\n[gw38] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_git_common_dir_preserves_0')\n\n    def test_git_common_dir_preserves_missing_registered_worktree_claim(\n        tmp_path: Path,\n    ) -> None:\n        main = tmp_path / \"main\"\n        common = main / \".git\"\n        stale = common / \"worktrees\" / \"stale\"\n        stale.mkdir(parents=True)\n        (stale / \"gitdir\").write_text(\n            str(tmp_path / \"removed-worktree\" / \".git\") + \"\\n\", encoding=\"utf-8\",\n        )\n    \n        roots = C.repository_roots_from_git_identity(\n            GitIdentity(str(main), str(common), str(common)),\n        )\n    \n>       assert roots == frozenset({\n            main.resolve(), (tmp_path / \"removed-worktree\").resolve(strict=False),\n        })\nE       AssertionError: assert frozenset({Po...ves_0/main')}) == frozenset({Po...d-worktree')})\nE         \nE         Extra items in the right set:\nE         PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_git_common_dir_preserves_0/removed-worktree')\nE         Use -v to get more diff\n\norchestrator/tests/test_t810_coordinator.py:1099: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim\n========================= 1 failed, 39 passed in 2.89s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1159 retained_bytes=1159 omitted_bytes=0 rendered_excerpt_bytes=1221 sha256=f317cb76110d3369cb9cd393a0c988b61048f831db158c9d484ea3a6083c6e66\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_git_common_dir_preserves_0')\n> \n>     def test_git_common_dir_preserves_missing_registered_worktree_claim(\n>         tmp_path: Path,\n>     ) -> None:\n>         main = tmp_path / \"main\"\n>         common = main / \".git\"\n>         stale = common / \"worktrees\" / \"stale\"\n>         stale.mkdir(parents=True)\n>         (stale / \"gitdir\").write_text(\n>             str(tmp_path / \"removed-worktree\" / \".git\") + \"\\x5cn\", encoding=\"utf-8\",\n>         )\n>     \n>         roots = C.repository_roots_from_git_identity(\n>             GitIdentity(str(main), str(common), str(common)),\n>         )\n>     \n> >       assert roots == frozenset({\n>             main.resolve(), (tmp_path / \"removed-worktree\").resolve(strict=False),\n>         })\n> E       AssertionError: assert frozenset({Po...ves_0/main')}) == frozenset({Po...d-worktree')})\n> E         \n> E         Extra items in the right set:\n> E         PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_git_common_dir_preserves_0/removed-worktree')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t810_coordinator.py:1099: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1159 retained_bytes=1159 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1957 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1264b4726e766602cbab9d0e1111b48481340da331078b743293ba733866b7bf"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "21d5f237da9574207a496fd107658c0e56d7030dd33b61b36c44470a8e4964ff",
+      "duration_s": 26.878,
+      "expected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "adb95323c1ea4a34b4112272d007df60763c72f9c5bff7d796723c014981be73",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4bc894914a4fd38d1b98481afb21c330e71021a4e55060b416626b582875f19d",
+      "replacements": [
+        {
+          "file": "tools/pegasus/t810_coordinator.py",
+          "new": "            except FileNotFoundError:\n                continue\n",
+          "old": "            except FileNotFoundError:\n                try:\n                    registered = Path(registered_text).resolve(strict=False)\n                except OSError as exc:\n                    raise T810CoordinatorError(\n                        \"cannot resolve registered worktree\"\n                    ) from exc\n"
+        }
+      ],
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "KILLED",
+      "test_output_sha256": "1264b4726e766602cbab9d0e1111b48481340da331078b743293ba733866b7bf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/66a4227553e14411cdfc613ce7efd9f6/izdw-66a4227553.o908090",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/output/pegasus-dispatch/66a4227553e14411cdfc613ce7efd9f6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified\norchestrator/tests/test_t810_coordinator.py::test_cli_and_effect_entries_deny_missing_or_wrong_witness\norchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[duplicate_host-duplicate_hostname]\norchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[binary-binary_copy_hash_mismatch]\norchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[argv-submission_argv_mismatch]\norchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[quiet-quiet_gate_failed]\norchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[repo_positive-preflight_failed]\norchestrator/tests/test_t810_coordinator.py::test_canonical_wrapper_preflight_passes_ready_barrier\norchestrator/tests/test_t810_coordinator.py::test_submission_must_be_complete_before_barrier_and_timeout_boundary\norchestrator/tests/test_t810_coordinator.py::test_release_commitment_cancel_recheck_and_create_only\norchestrator/tests/test_t810_coordinator.py::test_start_spread_boundary_uses_only_coordinator_receipt_times[4999999999-True]\norchestrator/tests/test_t810_coordinator.py::test_start_spread_boundary_uses_only_coordinator_receipt_times[5000000000-True]\norchestrator/tests/test_t810_coordinator.py::test_start_spread_boundary_uses_only_coordinator_receipt_times[5000000001-False]\norchestrator/tests/test_t810_coordinator.py::test_ack_marker_mismatch_duplicate_unknown_and_missing_are_rejected\norchestrator/tests/test_t810_coordinator.py::test_start_ack_recomputes_pre_measurement_process_scan\norchestrator/tests/test_t810_coordinator.py::test_completion_state_rows_and_exact_n_receipts[0-valid]\norchestrator/tests/test_t810_coordinator.py::test_completion_state_rows_and_exact_n_receipts[1-terminal_reduced]\norchestrator/tests/test_t810_coordinator.py::test_completion_state_rows_and_exact_n_receipts[2-incomplete_after_start]\norchestrator/tests/test_t810_coordinator.py::test_completion_rejects_orphan_unknown_duplicate_and_receiptless_submission\norchestrator/tests/test_t810_coordinator.py::test_frozen_boundary_reason_table_and_retry_rows_are_all_used\norchestrator/tests/test_t810_coordinator.py::test_node_receipt_hash_chain_and_actual_bytes_digest_are_enforced\norchestrator/tests/test_t810_coordinator.py::test_terminal_state_two_precedes_twelve_completion_reduction\norchestrator/tests/test_t810_coordinator.py::test_config_decoder_is_exact_and_restores_path_and_git_identity\norchestrator/tests/test_t810_coordinator.py::test_wait_for_node_files_uses_injected_clock_and_sleep\norchestrator/tests/test_t810_coordinator.py::test_subprocess_and_publication_effects_reject_raw_dict_token\norchestrator/tests/test_t810_coordinator.py::test_arbitrary_qsub_is_rejected_before_scheduler_effect\norchestrator/tests/test_t810_coordinator.py::test_modified_pbs_script_is_rejected_at_scheduler_effect\norchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare\norchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change\norchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir\norchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir\norchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union\norchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read\norchestrator/tests/test_t810_coordinator.py::test_generated_script_executes_staged_wrapper_cli\norchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect\norchestrator/tests/test_t810_coordinator.py::test_terminal_reduced_checks_preserved_dropped_slot_presence\norchestrator/tests/test_t810_coordinator.py::test_guard_and_budget_receipts_are_typed_and_digest_bound\norchestrator/tests/test_t810_coordinator.py::test_git_common_dir_derives_main_and_sibling_worktree_roots\norchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim\norchestrator/tests/test_t810_coordinator.py::test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg\n\n40 tests collected in 0.32s\n",
+        "stdout_sha256": "96952000e11a0b2a8e48762f4f406413e051a79c048e0ec283003d8eb4e8d220"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified",
+        "orchestrator/tests/test_t810_coordinator.py::test_cli_and_effect_entries_deny_missing_or_wrong_witness",
+        "orchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[duplicate_host-duplicate_hostname]",
+        "orchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[binary-binary_copy_hash_mismatch]",
+        "orchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[argv-submission_argv_mismatch]",
+        "orchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[quiet-quiet_gate_failed]",
+        "orchestrator/tests/test_t810_coordinator.py::test_ready_barrier_recomputes_raw_evidence[repo_positive-preflight_failed]",
+        "orchestrator/tests/test_t810_coordinator.py::test_canonical_wrapper_preflight_passes_ready_barrier",
+        "orchestrator/tests/test_t810_coordinator.py::test_submission_must_be_complete_before_barrier_and_timeout_boundary",
+        "orchestrator/tests/test_t810_coordinator.py::test_release_commitment_cancel_recheck_and_create_only",
+        "orchestrator/tests/test_t810_coordinator.py::test_start_spread_boundary_uses_only_coordinator_receipt_times[4999999999-True]",
+        "orchestrator/tests/test_t810_coordinator.py::test_start_spread_boundary_uses_only_coordinator_receipt_times[5000000000-True]",
+        "orchestrator/tests/test_t810_coordinator.py::test_start_spread_boundary_uses_only_coordinator_receipt_times[5000000001-False]",
+        "orchestrator/tests/test_t810_coordinator.py::test_ack_marker_mismatch_duplicate_unknown_and_missing_are_rejected",
+        "orchestrator/tests/test_t810_coordinator.py::test_start_ack_recomputes_pre_measurement_process_scan",
+        "orchestrator/tests/test_t810_coordinator.py::test_completion_state_rows_and_exact_n_receipts[0-valid]",
+        "orchestrator/tests/test_t810_coordinator.py::test_completion_state_rows_and_exact_n_receipts[1-terminal_reduced]",
+        "orchestrator/tests/test_t810_coordinator.py::test_completion_state_rows_and_exact_n_receipts[2-incomplete_after_start]",
+        "orchestrator/tests/test_t810_coordinator.py::test_completion_rejects_orphan_unknown_duplicate_and_receiptless_submission",
+        "orchestrator/tests/test_t810_coordinator.py::test_frozen_boundary_reason_table_and_retry_rows_are_all_used",
+        "orchestrator/tests/test_t810_coordinator.py::test_node_receipt_hash_chain_and_actual_bytes_digest_are_enforced",
+        "orchestrator/tests/test_t810_coordinator.py::test_terminal_state_two_precedes_twelve_completion_reduction",
+        "orchestrator/tests/test_t810_coordinator.py::test_config_decoder_is_exact_and_restores_path_and_git_identity",
+        "orchestrator/tests/test_t810_coordinator.py::test_wait_for_node_files_uses_injected_clock_and_sleep",
+        "orchestrator/tests/test_t810_coordinator.py::test_subprocess_and_publication_effects_reject_raw_dict_token",
+        "orchestrator/tests/test_t810_coordinator.py::test_arbitrary_qsub_is_rejected_before_scheduler_effect",
+        "orchestrator/tests/test_t810_coordinator.py::test_modified_pbs_script_is_rejected_at_scheduler_effect",
+        "orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare",
+        "orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir",
+        "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
+        "orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_executes_staged_wrapper_cli",
+        "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect",
+        "orchestrator/tests/test_t810_coordinator.py::test_terminal_reduced_checks_preserved_dropped_slot_presence",
+        "orchestrator/tests/test_t810_coordinator.py::test_guard_and_budget_receipts_are_typed_and_digest_bound",
+        "orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_derives_main_and_sibling_worktree_roots",
+        "orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim",
+        "orchestrator/tests/test_t810_coordinator.py::test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg"
+      ],
+      "duration_s": 26.692,
+      "rc": 0,
+      "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+      "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+      "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+      "status": "PASSED",
+      "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t810_coordinator.py::test_scheduler_adapter_rejects_wrapper_changed_after_prepare",
+          "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "af1304bb9e26a65a4d43253fbaeb6c573c28e06fea2a75d3bc2427d3e655a65f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/t810_coordinator.py",
+            "new": "    _assert_canonical_job_script(selected)\n",
+            "old": "    _assert_canonical_job_script(selected)\n    _assert_staged_file_identities(selected)\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t810_coordinator.py::test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change",
+          "orchestrator/tests/test_t810_coordinator.py::test_generated_script_rejects_self_consistent_evil_wrapper_before_effect"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bc546aef242954fa0ce070f6b210f20068364ce1a44c3d85d7c2af867652b069",
+        "replacements": [
+          {
+            "file": "tools/pegasus/t810_coordinator.py",
+            "new": "",
+            "old": "    if wrapper_sha256 != schema.sha256_bytes(shipped_raw):\n        _fail(\"staged wrapper does not match the shipped wrapper bytes\")\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9e9f750fd3e873b3f83a201e74561ecfbe5b933d8e779c33724cd18186701113",
+        "replacements": [
+          {
+            "file": "tools/pegasus/t810_coordinator.py",
+            "new": "        coordinator_identity = document[\"validator_kwargs\"][\"approved_git_identity\"]\n",
+            "old": "        coordinator_identity = resolve_git_identity(Path(__file__).resolve().parents[2])\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_accepts_external_root_with_anchor_union",
+          "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_forged_git_identity_before_any_mkdir",
+          "orchestrator/tests/test_t810_coordinator.py::test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a82bbdd609a3c8702cc1b1c60d05c18c64bcac2e1c431133b0c74b6c7f919b7d",
+        "replacements": [
+          {
+            "file": "tools/pegasus/t810_coordinator.py",
+            "new": "    roots = frozenset(caller_roots)\n",
+            "old": "    roots = frozenset({\n        *repository_roots_from_git_identity(coordinator_identity),\n        *caller_roots,\n    })\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t810_coordinator.py::test_declared_identity_rejects_file_swapped_during_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "34cec2baa6d63d313bb1e64dee713715b23bbd227869f67f4173338ab57576fd",
+        "replacements": [
+          {
+            "file": "tools/pegasus/t810_coordinator.py",
+            "new": "",
+            "old": "        after = os.fstat(fd)\n        if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (\n            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns,\n        ):\n            _fail(f\"{name} changed while reading\")\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t810_coordinator.py::test_git_common_dir_preserves_missing_registered_worktree_claim"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "adb95323c1ea4a34b4112272d007df60763c72f9c5bff7d796723c014981be73",
+        "replacements": [
+          {
+            "file": "tools/pegasus/t810_coordinator.py",
+            "new": "            except FileNotFoundError:\n                continue\n",
+            "old": "            except FileNotFoundError:\n                try:\n                    registered = Path(registered_text).resolve(strict=False)\n                except OSError as exc:\n                    raise T810CoordinatorError(\n                        \"cannot resolve registered worktree\"\n                    ) from exc\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "9cdb06a7da95c0f7ae8653f215cbf24208e6e0da86b244381b56cf8763b40ace",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_t810_coordinator.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "af3892ad9e3010c29f9b4c877ee1954ea156838c",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_t810_coordinator.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/tools/run_tests.py",
+    "entrypoint_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "0ff4e7d9f215f67d617a33df9caba638a809d3f756eb2791da541342c220a1c2",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a729d79eeea39c65f7dbbe3ae4e297a421a0b2bc",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "71a23bd43432093a58ff8f33843241b324481fa291e0e5afa867077cd3a4d1b5",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f5d89f7078b6993e70ef1a883b7dabe8a796e17c6b8113bc0f85808addf9c37e",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t922-measure-happypath/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "85933ad3d9ad775d75bf42f90943e8b772696034f89a7ad2d1d958beb3a27977",
+  "updated_at": "2026-08-12T14:27:04.523965+00:00"
+}
