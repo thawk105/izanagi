@@ -50,8 +50,21 @@ title: [T-983] は起票の 2 時間後に別 wave が実装し land 済みだ�
   `s8c_preregistration.py` が親 3 つ以上を拒否するため、**履歴に焼き付いた決定的な赤**であり
   再走では消えない。本 wave の差分は `docs/spool/` の fragment 2 本だけで、この検査が読む git 履歴に
   影響しないことを差分一覧で確認した。**ユーザー裁定 (2026-08-13、本 wave へ直接): 既知赤として land
-  してよい。** 記録後に main `01487bb4` を取り込み、同じ受入を merge 後の tip で再走してから land した
-  (再走の値は本 fragment より後に確定するため、ここには書かない — 実測値は上の 1 走のもの)。
+  してよい。**
+- **受入 2 走目 (tip `8556d843` / main `01487bb4`、156.76 秒) = 5 failed / 10235 passed / 65 skipped。**
+  増えた 4 件はすべて `test_codex_worker_launch.py` で、失敗理由はいずれも
+  `codex_exit_code=-9` (起動した子 process が SIGKILL された、wall_clock は 4 件とも約 1.15 秒)。
+  **単独再走で 4 件とも緑** (`4 passed in 5.68s`、rc=0) だったため、`DW-O18` に従い実装差分へ帰属せず
+  **全走時のみ出るフレーク**として扱う。到達性の事実として、本 wave が取り込んだ main の 9 commit は
+  docs と `output/insights/` だけでコード変更ゼロ、本 wave 自身の差分も `docs/spool/` の 2 本のみで、
+  どちらからもこの 4 node へ到達しない。**同族のフレークは並行 wave も観測している** —
+  land wave 側は `test_inconsistent_metering_is_not_accepted` を「単独再走で緑になる、codex 子を
+  並行で走らせる wave で出やすい」と報告した。負荷の高い全走で子 process が SIGKILL されるという
+  同じ症状であり、`test_codex_worker_launch.py` の subprocess 系 node に共通する族と見てよい。
+  **恒久対応は本 wave の scope 外**として次の一手へ残さず、観測事実として本エントリに置く。
+- 最終 tip は本記録を含む commit で、その tip でもう一度受入を走らせてから land した。
+  **3 走目の値は本 fragment より後に確定するため、ここには書かない** (記録は tested tip の内側に
+  なければならず、自分の走行結果を自分に書くことはできない)。上の 2 走が実測値の正本である。
 - **同型の再発を台帳へ挙げた** (F35 の再発として記録)。
   起票側 (`/rulings`) に既決照合の防壁が無いという F35 の既知の穴が、そのまま 2 度目を生んだ。
 - **段 8 自己改善 = 候補 1 件、routing 先は failures のみ。** 候補は「裁定の起票から wave 投入までの
