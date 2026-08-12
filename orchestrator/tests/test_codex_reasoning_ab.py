@@ -138,6 +138,81 @@ def _descriptor(path: Path, root: Path) -> dict[str, str]:
     }
 
 
+def _index_semantics(
+    snapshot: Path,
+) -> dict[str, list[tuple[str, str, str, str, str]]]:
+    """Compare index entries and ls-files flags, but not index extensions."""
+    snapshot = snapshot.resolve()
+    repositories = [snapshot, *TOOL._submodule_repositories(snapshot)]
+    semantics: dict[str, list[tuple[str, str, str, str, str]]] = {}
+    for repository in repositories:
+        entries: list[tuple[str, str, str, str, str]] = []
+        raw = TOOL._git(repository, "ls-files", "--stage", "-v", "-z")
+        for record in raw.split(b"\0"):
+            if not record:
+                continue
+            metadata, separator, path_bytes = record.partition(b"\t")
+            assert separator == b"\t"
+            flag, mode, object_id, stage = metadata.split(b" ")
+            assert len(flag) == 1
+            relative = os.fsdecode(path_bytes)
+            assert mode.decode("ascii") in {
+                "100644",
+                "100755",
+                "120000",
+                "160000",
+            }
+            assert stage.isdigit()
+            entries.append(
+                (
+                    mode.decode("ascii"),
+                    object_id.decode("ascii"),
+                    stage.decode("ascii"),
+                    relative,
+                    flag.decode("ascii"),
+                )
+            )
+        label = (
+            "."
+            if repository == snapshot
+            else repository.relative_to(snapshot).as_posix()
+        )
+        semantics[label] = entries
+    return semantics
+
+
+def _assert_relocated_submodules(snapshot: Path) -> None:
+    snapshot = snapshot.resolve()
+    repositories = TOOL._submodule_repositories(snapshot)
+    assert [
+        repository.relative_to(snapshot).as_posix()
+        for repository in repositories
+    ] == ["deps/child", "deps/child/third_party/grandchild"]
+    for repository in repositories:
+        marker = repository / ".git"
+        metadata = marker.lstat()
+        assert stat.S_ISREG(metadata.st_mode)
+        assert not stat.S_ISLNK(metadata.st_mode)
+        raw_marker = marker.read_bytes()
+        assert raw_marker.startswith(b"gitdir: ")
+        marker_value = os.fsdecode(raw_marker.removeprefix(b"gitdir: ").strip())
+        assert not Path(marker_value).is_absolute()
+        git_dir = (marker.parent / marker_value).resolve()
+        assert git_dir == TOOL._git_dir(repository)
+        assert git_dir == snapshot or snapshot in git_dir.parents
+
+        worktree = TOOL._run(
+            ("git", "config", "--get", "core.worktree"),
+            cwd=repository,
+            check=False,
+        )
+        assert worktree.returncode == 0
+        worktree_value = worktree.stdout.decode("utf-8").strip()
+        assert worktree_value
+        assert not Path(worktree_value).is_absolute()
+        assert (git_dir / worktree_value).resolve() == repository.resolve()
+
+
 def _long_output(decision: str = "NO-GO") -> str:
     return (
         "検査本文。" * 160
@@ -277,10 +352,37 @@ def benchmark_snapshots(tmp_path_factory: pytest.TempPathFactory) -> dict[str, A
     if not _HISTORICAL_SESSIONS.is_dir():
         pytest.skip("historical rollout root is unavailable")
     root = tmp_path_factory.mktemp("t181-benchmark")
-    result: dict[str, Any] = {"root": root}
+    base = root / "base"
+    destinations = {case: root / case.lower() for case in ("POS", "NEG")}
+    TOOL._resolve_snapshot_destination(_ROOT, base)
+    resolved_destinations = {
+        case: TOOL._resolve_snapshot_destination(_ROOT, snapshot)
+        for case, snapshot in destinations.items()
+    }
+    prepared = {
+        case: TOOL._prepare_snapshot_case(_ROOT, _HISTORICAL_SESSIONS, case)
+        for case in ("POS", "NEG")
+    }
+
+    TOOL._build_snapshot_base(_ROOT, base)
+    base_manifests = {"initial": TOOL._metadata_manifest(base)}
+    result: dict[str, Any] = {
+        "root": root,
+        "_base": base,
+        "_base_manifests": base_manifests,
+    }
     for case in ("POS", "NEG"):
-        snapshot = root / case.lower()
-        oracle = TOOL.build_snapshot(_ROOT, snapshot, _HISTORICAL_SESSIONS, case)
+        snapshot = destinations[case]
+        oracle = TOOL._derive_snapshot_from_base(
+            _ROOT,
+            base,
+            snapshot,
+            _HISTORICAL_SESSIONS,
+            case,
+            prepared_golden=prepared[case],
+            prepared_destination=resolved_destinations[case],
+        )
+        base_manifests[f"after_{case.lower()}"] = TOOL._metadata_manifest(base)
         oracle_path = _canonical(root / f"{case.lower()}-oracle.json", oracle)
         prompt, prompt_receipt = TOOL.render_prompt(
             _HISTORICAL_SESSIONS, case, snapshot
@@ -1032,8 +1134,24 @@ def test_m3_focus_artifact_directions(
 def test_snapshot_submodule_object_store_is_recursive(
     tmp_path: Path, benchmark_snapshots: dict[str, Any]
 ) -> None:
+    base = benchmark_snapshots["_base"]
+    base_manifests = benchmark_snapshots["_base_manifests"]
+    assert base_manifests["initial"] == base_manifests["after_pos"]
+    assert base_manifests["initial"] == base_manifests["after_neg"]
+    base_index = _index_semantics(base)
+    for case in ("POS", "NEG"):
+        assert _index_semantics(benchmark_snapshots[case]["snapshot"]) == base_index
+
     snapshot = tmp_path / "snapshot"
-    shutil.copytree(benchmark_snapshots["POS"]["snapshot"], snapshot)
+    shutil.copytree(
+        benchmark_snapshots["POS"]["snapshot"],
+        snapshot,
+        symlinks=True,
+        copy_function=shutil.copy2,
+    )
+    clean_oracle = TOOL.verify_snapshot(snapshot, "POS")
+    assert clean_oracle["case"] == "POS"
+    assert _index_semantics(snapshot) == base_index
     submodules = TOOL._submodule_repositories(snapshot)
     assert submodules
     git_dir = TOOL._git_dir(submodules[0])
@@ -1255,6 +1373,340 @@ def test_m9_filesystem_file_set_skips_root_git_before_lstat(
 
     assert TOOL._filesystem_file_set(snapshot) == {"visible"}
     assert poison_lstat_calls == 0
+
+
+def _synthetic_relocatable_nested_snapshot(tmp_path: Path) -> Path:
+    def initialize(repository: Path, filename: str) -> None:
+        repository.mkdir()
+        subprocess.run(
+            ["git", "init"], cwd=repository, check=True, capture_output=True
+        )
+        (repository / filename).write_text(filename + "\n", encoding="utf-8")
+        subprocess.run(["git", "add", filename], cwd=repository, check=True)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=T181",
+                "-c",
+                "user.email=t181@example.invalid",
+                "commit",
+                "-m",
+                filename,
+            ],
+            cwd=repository,
+            check=True,
+            capture_output=True,
+        )
+
+    def add_submodule(repository: Path, source: Path, relative: str) -> None:
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "protocol.file.allow=always",
+                "submodule",
+                "add",
+                os.fspath(source),
+                relative,
+            ],
+            cwd=repository,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=T181",
+                "-c",
+                "user.email=t181@example.invalid",
+                "commit",
+                "-m",
+                f"add {relative}",
+            ],
+            cwd=repository,
+            check=True,
+            capture_output=True,
+        )
+
+    grandchild = tmp_path / "grandchild-source"
+    initialize(grandchild, "grandchild.txt")
+    child = tmp_path / "child-source"
+    initialize(child, "child.txt")
+    add_submodule(child, grandchild, "third_party/grandchild")
+    snapshot = tmp_path / "base"
+    initialize(snapshot, "root.txt")
+    add_submodule(snapshot, child, "deps/child")
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "update",
+            "--init",
+            "--recursive",
+        ],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-M", TOOL.BRANCH],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+    (snapshot / "mode-probe").write_bytes(b"mode\n")
+    (snapshot / "mode-probe").chmod(0o750)
+    (snapshot / "symlink-probe").symlink_to("root.txt")
+    return snapshot
+
+
+def test_shared_base_copy_preserves_metadata_and_relocates_submodules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = _synthetic_relocatable_nested_snapshot(tmp_path)
+    derived = tmp_path / "derived"
+    child = base / "deps/child"
+    subprocess.run(
+        ["git", "update-index", "--skip-worktree", "root.txt"],
+        cwd=base,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "update-index", "--assume-unchanged", "child.txt"],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    base_manifest_before = TOOL._metadata_manifest(base)
+    base_paths_before = {
+        path.relative_to(base).as_posix() for path in base.rglob("*")
+    }
+    assert base_paths_before
+    base_index = _index_semantics(base)
+    assert {
+        relative: flag
+        for *_, relative, flag in base_index["."]
+    }["root.txt"] == "S"
+    assert {
+        relative: flag
+        for *_, relative, flag in base_index["deps/child"]
+    }["child.txt"].islower()
+    observed = False
+
+    def inspect_copy(
+        repo: Path,
+        snapshot: Path,
+        case: str,
+        golden: dict[str, bytes],
+    ) -> dict[str, Any]:
+        nonlocal observed
+        assert repo == base.resolve()
+        assert snapshot == derived.resolve()
+        assert case == "NEG"
+        assert golden == {}
+        assert TOOL._metadata_manifest(snapshot) == base_manifest_before
+        assert _index_semantics(snapshot) == base_index
+        _assert_relocated_submodules(snapshot)
+        observed = True
+        return {"copied": True}
+
+    monkeypatch.setattr(TOOL, "_finish_snapshot_case", inspect_copy)
+    assert TOOL._derive_snapshot_from_base(
+        base,
+        base,
+        derived,
+        tmp_path,
+        "NEG",
+        prepared_golden={},
+    ) == {"copied": True}
+    assert observed is True
+    assert TOOL._metadata_manifest(base) == base_manifest_before
+    assert derived.is_dir()
+    derived_paths = {
+        path.relative_to(derived).as_posix() for path in derived.rglob("*")
+    }
+    assert derived_paths
+    assert derived_paths == base_paths_before
+
+    base_inodes = {
+        (path.lstat().st_dev, path.lstat().st_ino)
+        for path in base.rglob("*")
+        if stat.S_ISREG(path.lstat().st_mode)
+    }
+    derived_inodes = {
+        (path.lstat().st_dev, path.lstat().st_ino)
+        for path in derived.rglob("*")
+        if stat.S_ISREG(path.lstat().st_mode)
+    }
+    assert base_inodes.isdisjoint(derived_inodes)
+
+
+def test_build_snapshot_public_path_delegates_in_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = (tmp_path / "repo").resolve()
+    snapshot = (tmp_path / "snapshot").resolve()
+    sessions_root = tmp_path / "sessions"
+    golden = {"golden.txt": b"golden\n"}
+    result = {"public": True}
+    calls: list[tuple[Any, ...]] = []
+
+    def resolve(candidate_repo: Path, candidate_snapshot: Path) -> tuple[Path, Path]:
+        calls.append(("resolve", candidate_repo, candidate_snapshot))
+        return repo, snapshot
+
+    def prepare(
+        candidate_repo: Path, candidate_sessions: Path, case: str
+    ) -> dict[str, bytes]:
+        calls.append(("prepare", candidate_repo, candidate_sessions, case))
+        return golden
+
+    def build(candidate_repo: Path, candidate_snapshot: Path) -> Path:
+        calls.append(("build", candidate_repo, candidate_snapshot))
+        return candidate_snapshot
+
+    def finish(
+        candidate_repo: Path,
+        candidate_snapshot: Path,
+        case: str,
+        candidate_golden: dict[str, bytes],
+    ) -> dict[str, bool]:
+        calls.append(
+            (
+                "finish",
+                candidate_repo,
+                candidate_snapshot,
+                case,
+                candidate_golden,
+            )
+        )
+        return result
+
+    monkeypatch.setattr(TOOL, "_resolve_snapshot_destination", resolve)
+    monkeypatch.setattr(TOOL, "_prepare_snapshot_case", prepare)
+    monkeypatch.setattr(TOOL, "_build_snapshot_base", build)
+    monkeypatch.setattr(TOOL, "_finish_snapshot_case", finish)
+
+    assert TOOL.build_snapshot(repo, snapshot, sessions_root, "POS") is result
+    assert calls == [
+        ("resolve", repo, snapshot),
+        ("prepare", repo, sessions_root, "POS"),
+        ("build", repo, snapshot),
+        ("finish", repo, snapshot, "POS", golden),
+    ]
+
+
+@pytest.mark.parametrize(
+    "submodule_relative",
+    ["deps/child", "deps/child/third_party/grandchild"],
+)
+def test_snapshot_relocation_preflight_rejects_absolute_gitdir(
+    tmp_path: Path, submodule_relative: str,
+) -> None:
+    base = _synthetic_relocatable_nested_snapshot(tmp_path)
+    TOOL._preflight_snapshot_relocation(base)
+    submodule = base / submodule_relative
+    git_dir = TOOL._git_dir(submodule)
+    (submodule / ".git").write_text(
+        f"gitdir: {git_dir}\n", encoding="utf-8"
+    )
+
+    with pytest.raises(
+        TOOL.ValidationError, match="absolute submodule gitdir"
+    ) as caught:
+        TOOL._preflight_snapshot_relocation(base)
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+
+
+@pytest.mark.parametrize(
+    "submodule_relative",
+    ["deps/child", "deps/child/third_party/grandchild"],
+)
+def test_snapshot_relocation_preflight_rejects_absolute_core_worktree(
+    tmp_path: Path, submodule_relative: str,
+) -> None:
+    base = _synthetic_relocatable_nested_snapshot(tmp_path)
+    TOOL._preflight_snapshot_relocation(base)
+    submodule = base / submodule_relative
+    git_dir = TOOL._git_dir(submodule)
+    subprocess.run(
+        [
+            "git",
+            "config",
+            "--file",
+            os.fspath(git_dir / "config"),
+            "core.worktree",
+            os.fspath(submodule.resolve()),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(
+        TOOL.ValidationError, match="absolute submodule core.worktree"
+    ) as caught:
+        TOOL._preflight_snapshot_relocation(base)
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+
+
+def test_derived_preflight_rejects_path_dependent_absolute_core_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = _synthetic_relocatable_nested_snapshot(tmp_path)
+    derived = tmp_path / "derived"
+    submodule_relative = Path("deps/child")
+    submodule = base / submodule_relative
+    git_dir = TOOL._git_dir(submodule)
+    derived_git_dir = derived / git_dir.relative_to(base)
+    included = git_dir / "derived-only.conf"
+    subprocess.run(
+        [
+            "git",
+            "config",
+            "--file",
+            os.fspath(included),
+            "core.worktree",
+            os.fspath((derived / submodule_relative).resolve()),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "config",
+            "--file",
+            os.fspath(git_dir / "config"),
+            f"includeIf.gitdir:{derived_git_dir}.path",
+            included.name,
+        ],
+        check=True,
+        capture_output=True,
+    )
+    TOOL._preflight_snapshot_relocation(base)
+    monkeypatch.setattr(
+        TOOL,
+        "_finish_snapshot_case",
+        lambda *_args: pytest.fail("derived preflight did not reject the snapshot"),
+    )
+
+    with pytest.raises(
+        TOOL.ValidationError, match="absolute submodule core.worktree"
+    ) as caught:
+        TOOL._derive_snapshot_from_base(
+            base,
+            base,
+            derived,
+            tmp_path,
+            "NEG",
+            prepared_golden={},
+        )
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
 
 
 def _synthetic_nested_submodule_snapshot(
