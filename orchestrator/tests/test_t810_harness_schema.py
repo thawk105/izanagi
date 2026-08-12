@@ -1,5 +1,6 @@
 from __future__ import annotations
 from copy import deepcopy
+import sys
 import pytest
 from tools.pegasus import t810_harness_schema as S
 H = "a" * 64
@@ -443,3 +444,7 @@ def test_canonical_digest_is_stable_and_bool_is_not_number() -> None:
     node["payload"]["quiet_samples"][0]["load_average_1m"] = True
     with pytest.raises(S.T810SchemaError, match="load_average_1m"):
         S.validate_node_event(node)
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

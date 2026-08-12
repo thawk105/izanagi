@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 import pytest
 
@@ -653,3 +654,7 @@ def test_ast_tripwire_allows_subprocess_only_in_fixed_policy_runner():
     source = module_paths["wrapper"].read_text(encoding="utf-8")
     assert source.count("measurement_run(") == 1
     assert source.count("measurement_run=runner_policy.run_allowed_measurement") == 1
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

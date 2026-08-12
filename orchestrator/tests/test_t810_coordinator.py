@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import shlex
 import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -884,3 +885,7 @@ def test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg
     acks_recorded = [event for event in events if event["event"] == "start_ack_received"]
     assert len(acks_recorded) == S.NODE_COUNT
     assert max(event["details"]["latency_ns"] for event in acks_recorded) == S.START_SPREAD_MAX_NS
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

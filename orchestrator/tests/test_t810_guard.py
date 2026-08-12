@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 import pytest
 
@@ -293,3 +294,7 @@ def test_cancel_and_qdel_require_authorization_token_before_effect(invalid):
             decision, [transcript], identity, authorization=invalid, events=events,
         )
     assert events == []
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

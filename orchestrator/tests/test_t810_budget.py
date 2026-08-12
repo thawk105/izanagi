@@ -5,6 +5,7 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
+import sys
 import threading
 
 import pytest
@@ -476,3 +477,7 @@ def test_finalization_requires_authorization_token_before_ledger_effect(tmp_path
             clock=lambda: "2026-08-12T03:13:00Z", repository_roots={REPO},
         )
     assert ledger.read_bytes() == before
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))

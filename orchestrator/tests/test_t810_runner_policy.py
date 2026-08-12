@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import sys
 
 import pytest
 
@@ -196,3 +197,7 @@ def test_runner_policy_rejects_unknown_and_missing_policy_fields(tmp_path):
             policy[field] = value
         with pytest.raises(R.T810RunnerPolicyError, match="unknown or missing"):
             R.validate_measurement_argv(policy, executable, CANONICAL_ARGV)
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__]))
