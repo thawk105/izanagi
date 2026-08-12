@@ -42,6 +42,7 @@ from orchestrator.codex_roles.events import (  # noqa: E402
     parse_jsonl,
     strict_json_loads,
 )
+from tools import check_codex_hooks as _hook_checker  # noqa: E402
 from tools import check_codex_output as _validator  # noqa: E402
 from tools.dev_waves.effort_levels import CODEX_REASONING_EFFORTS  # noqa: E402
 from tools.dev_waves.launch_authority import (  # noqa: E402
@@ -266,6 +267,40 @@ _MANIFEST_ENTRY_FIELDS_V2 = frozenset(
 
 class LaunchError(RuntimeError):
     """Launcher integrity error (CLI rc=2)."""
+
+
+def _require_attempt_hook_installation(repo_root: Path, cwd: Path) -> None:
+    """Codex が解決する project root と検証済み hook 配線を起動直前に束縛する。"""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", os.fspath(cwd), "rev-parse", "--show-toplevel"],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5,
+        )
+        top_level_lines = completed.stdout.splitlines()
+        if (
+            completed.returncode != 0
+            or len(top_level_lines) != 1
+            or not top_level_lines[0]
+            or not Path(top_level_lines[0]).is_absolute()
+            or Path(top_level_lines[0]).resolve() != repo_root.resolve()
+        ):
+            raise LaunchError(
+                "Codex cwd の git top-level が --repo-root と一致しない"
+            )
+        findings = _hook_checker.validate_installation(repo_root)
+    except LaunchError:
+        raise
+    except Exception as exc:
+        raise LaunchError(f"Codex hook 起動前検証に失敗: {exc}") from exc
+    if findings:
+        raise LaunchError(
+            "Codex hook 配線の exact 検証に失敗: " + "; ".join(findings)
+        )
 
 
 class AttemptLoopError(LaunchError):
@@ -1293,6 +1328,7 @@ def _attempt_loop(
     argv = [
         os.fspath(codex_path),
         "exec",
+        _hook_checker.TRUST_BYPASS_FLAG,
         "--json",
         "-m",
         requirement.model,
@@ -1364,6 +1400,15 @@ def _attempt_loop(
 
     try:
         try:
+            _require_attempt_hook_installation(args.repo_root, args.cwd)
+            if (
+                Decimal(_monotonic_ns() - job_started_ns)
+                / Decimal(1_000_000_000)
+                >= args.max_wall_clock_s
+            ):
+                raise LaunchError(
+                    "Codex 起動前検証後に max_wall_clock_s へ到達した"
+                )
             process = subprocess.Popen(
                 argv,
                 stdin=subprocess.DEVNULL,
@@ -1486,9 +1531,11 @@ def _attempt_loop(
         os.fsync(stderr_handle.fileno())
         stderr_handle.close()
     if caught is not None and process is None:
-        if isinstance(caught, LaunchError):
-            raise caught
-        raise LaunchError(f"attempt 起動前に失敗: {caught}") from caught
+        if isinstance(caught, Exception):
+            if isinstance(caught, LaunchError):
+                raise caught
+            raise LaunchError(f"attempt 起動前に失敗: {caught}") from caught
+        raise caught
     assert process is not None
     wall_clock_s = Decimal(_monotonic_ns() - state.started_ns) / Decimal(
         1_000_000_000
@@ -2202,7 +2249,7 @@ def _run(args: argparse.Namespace) -> int:
             pass
         if isinstance(exc, (LaunchError, OSError, ValueError)):
             raise
-        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        if not isinstance(exc, Exception):
             raise
         raise LaunchError(f"run 最終化に失敗: {exc}") from exc
 
