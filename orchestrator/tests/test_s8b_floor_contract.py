@@ -211,6 +211,29 @@ def test_portable_run_cmd_has_canonical_workload_order_and_exact_prefix():
     assert argv[-2:] == ("-field-a=value-a", "-field-z=value-z")
 
 
+def test_portable_run_cmd_without_perf_has_one_exact_direct_shape():
+    argv = s8b_floor_contract.build_portable_run_cmd(
+        binary="output/store/hash/bench", workload={"field-z": "value-z"},
+        records=100, threads=2, extime_s=3, clocks_per_us=1800,
+        numactl=("numactl", "--interleave=all"), use_perf=False,
+    )
+    assert argv == (
+        "numactl", "--interleave=all", "output/store/hash/bench",
+        "-thread_num=2", "-ycsb_tuple_num=100", "-extime=3",
+        "-clocks_per_us=1800", "-field-z=value-z",
+    )
+
+
+@pytest.mark.parametrize("value", [0, 1, None, "false"])
+def test_portable_run_cmd_rejects_non_bool_use_perf(value):
+    with pytest.raises(s8b_floor_contract.FloorContractError, match="use_perf"):
+        s8b_floor_contract.build_portable_run_cmd(
+            binary="output/store/hash/bench", workload={"field": "value"},
+            records=1, threads=1, extime_s=1, clocks_per_us=1,
+            numactl=(), use_perf=value,
+        )
+
+
 @pytest.mark.parametrize("binary", ["/runtime/bench", "output/../bench", "output\\bench"])
 def test_portable_run_cmd_rejects_nonportable_binary(binary):
     with pytest.raises(s8b_floor_contract.FloorContractError, match="portable"):

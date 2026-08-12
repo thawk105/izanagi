@@ -38,6 +38,14 @@ _COPY_PATHS = (
     Path("tools/pegasus_admission_registry.py"),
     Path("tools/pegasus/admission_registry.json"),
 )
+_PINNED_GUARD_PATHS = (
+    Path("hooks/codex_guard.sh"),
+    Path("hooks/guard_write.py"),
+    Path("hooks/guard_bash.py"),
+    Path("tools/pegasus_admission_registry.py"),
+    Path("tools/pegasus/admission_registry.json"),
+)
+_GIT_RUNNER = subprocess.run
 _EXPECTED_COMMANDS = {
     "apply_patch": (
         'R="$(git rev-parse --show-toplevel 2>/dev/null)"; '
@@ -91,17 +99,9 @@ def validate_installation(root: Path) -> list[str]:
     """配線 drift を live 起動前に診断する。これ単独では green にならない。"""
     findings: list[str] = []
     config_path = root / ".codex" / "hooks.json"
-    hook_sources = (
-        root / "hooks" / "codex_guard.sh",
-        root / "hooks" / "guard_write.py",
-        root / "hooks" / "guard_bash.py",
-    )
     if not config_path.is_file() or config_path.is_symlink():
         findings.append(f"{config_path}: regular file ではない")
         return findings
-    for source in hook_sources:
-        if not source.is_file() or source.is_symlink():
-            findings.append(f"{source}: regular file ではない")
     try:
         document = json.loads(
             config_path.read_text(encoding="utf-8"),
@@ -126,6 +126,7 @@ def validate_installation(root: Path) -> list[str]:
     }
     if document != expected:
         findings.append(f"{config_path}: exact PreToolUse 配線から drift")
+    findings.extend(_validate_pinned_guard_bytes(root))
     return findings
 
 
@@ -146,6 +147,215 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _git_environment() -> dict[str, str]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith("GIT_")
+    }
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    environment["GIT_OPTIONAL_LOCKS"] = "0"
+    return environment
+
+
+def _run_git_raw(
+    git: Path,
+    root: Path,
+    arguments: Sequence[str],
+    *,
+    operation: str,
+    environment: Mapping[str, str],
+) -> tuple[bytes | None, str | None]:
+    argv = [os.fspath(git), "-C", os.fspath(root), *arguments]
+    try:
+        completed = _GIT_RUNNER(
+            argv,
+            shell=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=False,
+            timeout=5,
+            check=False,
+            env=dict(environment),
+        )
+    except subprocess.TimeoutExpired:
+        return None, f"git {operation} が timeout"
+    except Exception as exc:
+        return None, f"git {operation} を起動できない: {exc}"
+    try:
+        returncode = completed.returncode
+        stdout = completed.stdout
+    except Exception as exc:
+        return None, f"git {operation} の結果を読めない: {exc}"
+    if returncode != 0:
+        return None, f"git {operation} が失敗: rc={returncode}"
+    if not isinstance(stdout, bytes):
+        return None, f"git {operation} の stdout が raw bytes でない"
+    return stdout, None
+
+
+def _strict_git_line(raw: bytes, operation: str) -> tuple[str | None, str | None]:
+    try:
+        decoded = raw.decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        return None, f"git {operation} の stdout を UTF-8 で読めない: {exc}"
+    lines = decoded.splitlines()
+    if len(lines) != 1 or not lines[0]:
+        return None, f"git {operation} の stdout が exact 1 行でない"
+    return lines[0], None
+
+
+def _head_blob_sha256(
+    canonical_root: Path,
+    relatives: Sequence[Path],
+) -> tuple[dict[Path, str], list[str]]:
+    findings: list[str] = []
+    try:
+        selected = shutil.which("git")
+    except Exception as exc:
+        return {}, [f"git executable を探索できない: {exc}"]
+    if not selected:
+        return {}, ["git executable が見つからない"]
+    try:
+        git = Path(selected).resolve(strict=True)
+        metadata = git.stat()
+    except Exception as exc:
+        return {}, [f"git executable を検証できない: {exc}"]
+    try:
+        executable = os.access(git, os.X_OK)
+    except Exception as exc:
+        return {}, [f"git executable の実行権限を検証できない: {exc}"]
+    if not stat.S_ISREG(metadata.st_mode) or not executable:
+        return {}, [f"git executable が実行可能 regular file ではない: {git}"]
+
+    environment = _git_environment()
+    top_raw, finding = _run_git_raw(
+        git,
+        canonical_root,
+        ("rev-parse", "--show-toplevel"),
+        operation="rev-parse --show-toplevel",
+        environment=environment,
+    )
+    if finding:
+        return {}, [finding]
+    assert top_raw is not None
+    top_value, finding = _strict_git_line(top_raw, "rev-parse --show-toplevel")
+    if finding:
+        return {}, [finding]
+    assert top_value is not None
+    top_path = Path(top_value)
+    if not top_path.is_absolute():
+        return {}, ["git rev-parse --show-toplevel が絶対 path でない"]
+    try:
+        resolved_top = top_path.resolve(strict=True)
+    except Exception as exc:
+        return {}, [f"git top-level を解決できない: {exc}"]
+    if resolved_top != canonical_root:
+        return {}, ["git top-level が検証対象 root と一致しない"]
+
+    oid_raw, finding = _run_git_raw(
+        git,
+        canonical_root,
+        ("rev-parse", "--verify", "HEAD^{commit}"),
+        operation="rev-parse --verify HEAD^{commit}",
+        environment=environment,
+    )
+    if finding:
+        return {}, [finding]
+    assert oid_raw is not None
+    oid, finding = _strict_git_line(oid_raw, "rev-parse --verify HEAD^{commit}")
+    if finding:
+        return {}, [finding]
+    assert oid is not None
+    if len(oid) not in (40, 64) or any(
+        character not in "0123456789abcdef" for character in oid
+    ):
+        return {}, ["git HEAD OID が lowercase hex 40/64 桁でない"]
+
+    digests: dict[Path, str] = {}
+    for relative in relatives:
+        operation = f"cat-file blob {relative.as_posix()}"
+        blob, finding = _run_git_raw(
+            git,
+            canonical_root,
+            ("cat-file", "blob", f"{oid}:{relative.as_posix()}"),
+            operation=operation,
+            environment=environment,
+        )
+        if finding:
+            findings.append(finding)
+            continue
+        assert blob is not None
+        digests[relative] = hashlib.sha256(blob).hexdigest()
+    return digests, findings
+
+
+def _validate_pinned_guard_bytes(root: Path) -> list[str]:
+    findings: list[str] = []
+    try:
+        canonical_root = root.resolve(strict=True)
+    except Exception as exc:
+        return [f"{root}: canonical root を解決できない: {exc}"]
+    if not canonical_root.is_dir():
+        return [f"{root}: canonical root が directory でない"]
+
+    working_digests: dict[Path, str] = {}
+    for relative in _PINNED_GUARD_PATHS:
+        source = canonical_root / relative
+        cursor = canonical_root
+        metadata = None
+        invalid = False
+        for component in relative.parts:
+            cursor /= component
+            try:
+                metadata = cursor.lstat()
+            except Exception as exc:
+                findings.append(f"{relative}: path component を lstat できない: {exc}")
+                invalid = True
+                break
+            if stat.S_ISLNK(metadata.st_mode):
+                findings.append(f"{relative}: path component が symlink: {cursor}")
+                invalid = True
+                break
+        if invalid:
+            continue
+        assert metadata is not None
+        if not stat.S_ISREG(metadata.st_mode):
+            findings.append(f"{relative}: regular file ではない")
+            continue
+        if metadata.st_size == 0:
+            findings.append(f"{relative}: 0 byte file は許可しない")
+            continue
+        try:
+            resolved_source = source.resolve(strict=True)
+            resolved_relative = resolved_source.relative_to(canonical_root)
+        except Exception as exc:
+            findings.append(f"{relative}: canonical root 配下へ解決できない: {exc}")
+            continue
+        if resolved_relative != relative or resolved_source != source:
+            findings.append(f"{relative}: lexical path と canonical path が一致しない")
+            continue
+        try:
+            working_digests[relative] = _sha256(source)
+        except Exception as exc:
+            findings.append(f"{relative}: working bytes を読めない: {exc}")
+
+    blob_digests, git_findings = _head_blob_sha256(
+        canonical_root, tuple(working_digests)
+    )
+    findings.extend(git_findings)
+    for relative, working_digest in working_digests.items():
+        blob_digest = blob_digests.get(relative)
+        if blob_digest is None:
+            if not git_findings:
+                findings.append(f"{relative}: HEAD blob と比較できない")
+            continue
+        if working_digest != blob_digest:
+            findings.append(f"{relative}: working bytes が HEAD blob から drift")
+    return findings
 
 
 def _version(path: Path) -> str:

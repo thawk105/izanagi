@@ -92,11 +92,14 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で
 ## DW-O17 — commit trailer
 
 trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--dry-run -F`単独rc=0
-→`commit -F`→既定full-history監査とする。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
+→`commit -F`→既定full-history監査。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
 →`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
-→`commit -F`→full監査とする。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
-含むときは両commitを含むrangeかfull監査だけを権威とする。検査rcをパイプに通さず、赤なら止める（F37）。
+→`commit -F`→full監査。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
+含むときは両commitを含むrangeかfull監査だけが権威。検査rcをパイプに通さず、赤なら止める（F37）。
 実装面pathが両親と異なればCodex`role=author`へ。
+競合解決の`git add -A`はsubmoduleの未解決gitlinkを古い作業ツリー側で確定させる。`git ls-tree main
+<sub>`と突き合わせ**merge commit内で**main側pinへ揃える。後追い単独commitは実装面判定で書けない
+Codex著者行を要求されlandが止まる。
 
 ## DW-O18 — 親のテスト cwd
 
@@ -105,7 +108,8 @@ file 選択走は `from tests import` の import path を確立してから走�
 差分が到達しえないファイルで出た赤は、単独再走で再現性を実測してから扱う。
 再現しなければ実装差分へ帰属せず、フレークとして新規所見に起票する。
 測定値は測った checkout を併記する（F41）。変更した test file は、受入全走の前に別 process の
-単独走で 1 度確認する。全走の緑はその file 単独の緑を含意しない。並行 wave が自分の編集 file を
+単独走で 1 度確認する。全走の緑はその file 単独の緑を含意しない。新規 test file を足す走は、
+file 集合を列挙するメタテストも焦点走に含める。並行 wave が自分の編集 file を
 所有する wave では main を取り込んだ木で行う。既に回す走行へ相乗りさせ、受入の後へ足さない。
 
 ## DW-O19 — tracked file の一時変異
@@ -128,6 +132,7 @@ worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.p
 新規worktreeはsubmodule未初期化で非0になる。worktree内で`git submodule update --init`を実行して
 再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
 受入投入前に`git submodule update --recursive`で記録へ揃える。
+子を走らせるworktreeは`git worktree lock`する（cwd走査はlauncher型の子を検出しない）。
 
 ## DW-O23 — 並行 session の local main land
 

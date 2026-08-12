@@ -336,6 +336,20 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
 
     seen = {}
 
+    def fixture_perf_preflight(**_kwargs):
+        events = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]
+        return {
+            "schema": "izanagi-perf-preflight/v1", "status": "available",
+            "available": True,
+            "probe_argv": [
+                "perf", "stat", "-x,", "-o", "<tmp>/perf.csv",
+                "-e", ",".join(events), "--", "/bin/true",
+            ],
+            "rc": 0, "parsed_events": events, "reason": "available",
+            "stderr_sha256": hashlib.sha256(b"").hexdigest(),
+            "candidates": [],
+        }
+
     def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
         source_sha = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
         return floor.source_digest.SourceEvidence(
@@ -374,6 +388,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
          mock.patch.object(floor, "measure_point", spy_measure_point):
         floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",
                            measure_fn=None, probe_fn=lambda: (1, "", ""),
+                           perf_preflight_fn=fixture_perf_preflight,
                            prepare_fn=fake_prepare, now_fn=lambda: __import__("datetime")
                            .datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
                            monotonic_fn=lambda: 0.0,
