@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 import difflib
 import hashlib
 import importlib.util
@@ -1556,7 +1558,8 @@ def test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact(tmp
     body = _supersede("実 canonical の空行なし境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((1, body),)))
     expected = _splice_exact(before, ((boundary.start(), f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path) -> None:
@@ -1571,7 +1574,8 @@ def test_failure_supersede_real_f196_f197_boundary_is_byte_exact(tmp_path: Path)
     body = _supersede("実 canonical の F196/F197 境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((196, body),)))
     expected = _splice_exact(before, ((boundary.start() - 1, f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) -> None:
@@ -1586,7 +1590,8 @@ def test_failure_supersede_real_final_entry_eof_is_byte_exact(tmp_path: Path) ->
     body = _supersede("実 canonical の EOF 境界。")
     _fragment(repo, "failures", _failure_body(supersedes=((number, body),)))
     expected = _splice_exact(before, ((len(before), f"- {body}\n".encode()),))
-    assert _failures_after(repo) == expected
+    with _fixture_tools_imports(repo):
+        assert _failures_after(repo) == expected
 
 
 def test_n11_existing_canonical_bytes_are_only_appended_or_inserted(tmp_path: Path) -> None:
@@ -2940,6 +2945,27 @@ def _real_entry(ordinal: int) -> str:
     return matches[0]
 
 
+@contextmanager
+def _fixture_tools_imports(repo: Path) -> Iterator[None]:
+    original_path = sys.path[:]
+    original_modules = {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "dev_waves" or name.startswith("dev_waves.")
+    }
+    try:
+        for name in original_modules:
+            sys.modules.pop(name, None)
+        sys.path.insert(0, str(repo / "tools"))
+        yield
+    finally:
+        sys.path[:] = original_path
+        for name in tuple(sys.modules):
+            if name == "dev_waves" or name.startswith("dev_waves."):
+                sys.modules.pop(name, None)
+        sys.modules.update(original_modules)
+
+
 def _copy_real_canonical_family(tmp_path: Path) -> Path:
     checkout = Path(__file__).resolve().parents[2]
     repo = tmp_path / "real-canonical"
@@ -2958,12 +2984,85 @@ def _copy_real_canonical_family(tmp_path: Path) -> Path:
     )
     sources = [checkout / rel for rel in fixed_paths]
     sources.extend(sorted((checkout / "docs/archive").glob("worklog-*.md")))
+    sources.extend(
+        source
+        for source in sorted((checkout / "tools/dev_waves").rglob("*"))
+        if source.is_file() and "__pycache__" not in source.parts and source.suffix != ".pyc"
+    )
     for source in sources:
         destination = repo / source.relative_to(checkout)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, destination)
         assert destination.read_bytes() == source.read_bytes()
     return repo
+
+
+def _loaded_dev_waves_modules() -> dict[str, object]:
+    return {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "dev_waves" or name.startswith("dev_waves.")
+    }
+
+
+def _assert_dev_waves_modules_restored(expected: dict[str, object]) -> None:
+    actual = _loaded_dev_waves_modules()
+    assert actual.keys() == expected.keys()
+    for name, original_module in expected.items():
+        assert actual[name] is original_module
+
+
+def test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions(
+    tmp_path: Path,
+) -> None:
+    repo = _copy_real_canonical_family(tmp_path)
+    probe_name = "dev_waves._fixture_tools_imports_positive_control"
+    _write(
+        repo / "tools/dev_waves/_fixture_tools_imports_positive_control.py",
+        "FIXTURE_ONLY = True\n",
+    )
+
+    with _fixture_tools_imports(ROOT):
+        preloaded = importlib.import_module("dev_waves.launch_authority")
+        path_before = sys.path[:]
+        modules_before = _loaded_dev_waves_modules()
+        assert modules_before["dev_waves.launch_authority"] is preloaded
+        assert probe_name not in modules_before
+
+        with _fixture_tools_imports(repo):
+            fixture_module = importlib.import_module("dev_waves.launch_authority")
+            module_file = Path(fixture_module.__file__).resolve()
+            assert repo.resolve() in module_file.parents
+            assert module_file.relative_to(repo.resolve()) == Path(
+                "tools/dev_waves/launch_authority.py"
+            )
+            assert fixture_module is not preloaded
+            importlib.import_module(probe_name)
+            assert probe_name in sys.modules
+
+        assert sys.path == path_before
+        _assert_dev_waves_modules_restored(modules_before)
+        assert sys.modules["dev_waves.launch_authority"] is preloaded
+
+        marker = RuntimeError("fixture import context exception probe")
+        try:
+            with _fixture_tools_imports(repo):
+                fixture_module = importlib.import_module(
+                    "dev_waves.launch_authority"
+                )
+                module_file = Path(fixture_module.__file__).resolve()
+                assert repo.resolve() in module_file.parents
+                importlib.import_module(probe_name)
+                assert probe_name in sys.modules
+                raise marker
+        except RuntimeError as raised:
+            assert raised is marker
+        else:
+            raise AssertionError("_fixture_tools_imports が区間内の例外を握り潰した")
+
+        assert sys.path == path_before
+        _assert_dev_waves_modules_restored(modules_before)
+        assert sys.modules["dev_waves.launch_authority"] is preloaded
 
 
 def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path: Path) -> None:
@@ -2989,7 +3088,8 @@ def test_n37_real_repo_canonical_family_requires_archive_active_history(tmp_path
         title="実 canonical family smoke",
     )
 
-    plan = spool_fold.plan_fold(repo, fold_date=fold_date)
+    with _fixture_tools_imports(repo):
+        plan = spool_fold.plan_fold(repo, fold_date=fold_date)
 
     assert plan.status == "planned"
     assert len(plan.fragments) == 1
