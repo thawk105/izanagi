@@ -1704,5 +1704,9 @@ def _run() -> int:
     return 1 if failed else 0
 
 
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="manual")
+
+
 if __name__ == "__main__":
     sys.exit(_run())
