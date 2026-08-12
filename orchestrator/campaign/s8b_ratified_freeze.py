@@ -214,10 +214,12 @@ _RESULT_CELL_KEYS = frozenset({
 _RESULT_FLOOR_KEYS = frozenset({"pairs", "scalar_alt", "scale_ref", "diagnostics"})
 _EXCLUDED_KEYS = frozenset({
     "seq", "cell_id", "kind", "retry", "round", "excluded_reason", "session_cv",
+    "exclusion_class", "rep_integrity_failures",
 })
 _ATTEMPT_KEYS = frozenset({
     "seq", "cell_id", "kind", "round", "retry_ordinal", "valid", "excluded_reason",
-    "session_cv", "session_median", "duration_s",
+    "exclusion_class", "rep_integrity_failures", "session_cv", "session_median",
+    "duration_s",
 })
 
 _JOURNAL_KEYS = {
@@ -243,6 +245,7 @@ _JOURNAL_KEYS = {
         "event", "kind", "seq", "round", "retry_ordinal", "attempt_id", "trigger",
         "cell_id", "holdout_id", "configuration_id", "records", "threads", "workload",
         "throughputs", "reps_expected", "exec_failures", "excluded_reason", "retry",
+        "rep_observations", "rep_integrity_failures", "exclusion_class",
         "session_median", "valid", "session_cv", "duration_s", "run_cmd", "notes",
         "probe_before", "probe_after", "binary_sha256_at_measure",
     }),
@@ -1946,7 +1949,7 @@ def _validate_journal(
     if launch[0][1]["schema"] != _floor_contract.JOURNAL_SCHEMA \
             or campaign["schema"] != _floor_contract.JOURNAL_SCHEMA:
         raise RatifiedFreezeError(
-            "journal-state-invalid", "journal schema が v2 でない", cause="journal-schema",
+            "journal-state-invalid", "journal schema が v3 でない", cause="journal-schema",
         )
 
     cell_by_id = {cell["cell_id"]: cell for cell in cells}
@@ -2157,7 +2160,7 @@ def _validate_result(
     _exact_keys(document, _RESULT_KEYS, reason="floor-artifact-invalid", label="result")
     if document["schema"] != _floor_contract.RESULT_SCHEMA:
         raise RatifiedFreezeError(
-            "floor-artifact-invalid", "result.schema が v2 でない", cause="result-schema",
+            "floor-artifact-invalid", "result.schema が v3 でない", cause="result-schema",
         )
     _exact_keys(
         document["config"], _RESULT_CONFIG_KEYS, reason="floor-artifact-invalid",
@@ -2210,6 +2213,7 @@ def _validate_result(
     expected_protocol["expected_cells"] = _floor_contract.expected_cells_from_cells(cells)
     problems = _floor_stats.verify_floor_artifact(
         document, expected_protocol, expected_binaries=journal["receipts"],
+        expected_use_perf=True,
     )
     if problems:
         raise RatifiedFreezeError(
@@ -2223,6 +2227,8 @@ def _validate_result(
             "seq": r["seq"], "cell_id": r["cell_id"], "kind": r["kind"],
             "retry": r["retry"], "round": r["round"],
             "excluded_reason": r["excluded_reason"], "session_cv": r["session_cv"],
+            "exclusion_class": r["exclusion_class"],
+            "rep_integrity_failures": r["rep_integrity_failures"],
         }
         for r in sessions if not r["valid"]
     ]
@@ -2231,6 +2237,8 @@ def _validate_result(
             "seq": r["seq"], "cell_id": r["cell_id"], "kind": r["kind"],
             "round": r["round"], "retry_ordinal": r["retry_ordinal"],
             "valid": r["valid"], "excluded_reason": r["excluded_reason"],
+            "exclusion_class": r["exclusion_class"],
+            "rep_integrity_failures": r["rep_integrity_failures"],
             "session_cv": r["session_cv"], "session_median": r["session_median"],
             "duration_s": r["duration_s"],
         }

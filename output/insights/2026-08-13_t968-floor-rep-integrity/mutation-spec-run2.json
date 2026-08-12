@@ -1,0 +1,197 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 45.0,
+  "timeout_seconds": 2400.0,
+  "hang_timeout_seconds": 600.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        if complete:\n            if observation.get(\"throughput\") is not None:\n                throughputs.append(observation[\"throughput\"])\n        else:\n            failures += 1\n",
+          "new": "        if True:\n            if observation.get(\"throughput\") is not None:\n                throughputs.append(observation[\"throughput\"])\n        else:\n            failures += 1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_no_perf_rep_integrity_requires_zero_rc_and_marks_counters_not_required",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[LLC-load-misses]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[LLC-loads]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[instructions]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[missing_cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[nonzero_rc]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_precedence_uses_completed_measure_evidence[integrity-rep_integrity_failure]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_precedence_uses_completed_measure_evidence[launch-launch_failure]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_precedence_uses_completed_measure_evidence[post_competing-competing_process]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                assessment = s8b_floor_stats.assess_session(\n                    throughputs, reps=self.reps, session_cv_max=self.session_cv_max,\n                )\n",
+          "new": "                assessment = s8b_floor_stats.assess_session(\n                    throughputs, reps=max(2, len(throughputs)), session_cv_max=self.session_cv_max,\n                )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[missing_cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[nonzero_rc]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_precedence_uses_completed_measure_evidence[integrity-rep_integrity_failure]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_does_not_reissue_retry_slot_after_retry_start_crash",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_retry_sequence_is_metamorphic_to_other_cells_values",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_stock_flaky_nulls_entire_holdout_including_scale_ref"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            and derived_status in {\"complete\", \"not_required\"}\n",
+          "new": "            and derived_status in {\"complete\", \"not_required\", \"incomplete\"}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[LLC-load-misses]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[LLC-loads]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_missing_each_perf_event_excludes_session[instructions]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[missing_cycles]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "            if type(value) is not int or value < 0:\n                raw_missing.append(event)\n",
+          "new": "            if type(value) is not int:\n                raw_missing.append(event)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_negative_perf_counter"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        complete = (\n            not bad\n            and returncode is not None and returncode == 0\n            and status == derived_status\n            and derived_status in {\"complete\", \"not_required\"}\n        )\n",
+          "new": "        complete = True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[missing_cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[nonzero_rc]",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_integrity_violation_with_valid_claim"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        derived_status = (\n            \"not_required\" if not expected_use_perf\n            else \"complete\" if not derived_missing else \"incomplete\"\n        )\n",
+          "new": "        derived_status = \"not_required\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_binary_receipt_recorded_in_session_journal",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_content_addressed_store_create_only",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_create_only_rejects_overwrite_journal_appends",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_current_admission_reuses_exact_contract_across_successful_run",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_deterministic_artifacts_across_roots_and_subprocess_environments",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_each_determinism_seam_reaches_its_expected_json_pointer",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_end_to_end_golden_floor_values_and_tamper_detection",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_resume_rejects_tampered_published_result",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_resume_rejects_tampered_staged_result",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_journal_manifest_and_binary_store_open_through_capability",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_manifest_binary_sha256_matches_real_file_bytes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_idempotent_finalization_after_result_json_crash",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_m_prestart_resume_starts_runner_fresh_without_resume_start",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_machine_anomaly_valid_cell_but_pair_null",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_fn_default_uses_contract_clocks_and_numactl",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_new_seam_defaults_delegate_to_production_functions",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_build_failure_leaves_durable_launch_start",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_fresh_issues_certificate_and_binds_wall_ledger",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_result_rejects_perf_preflight_receipt_fail_closed",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_validates_certificate_and_completes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_perf_available_records_receipt_and_preserves_perf_shape",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_performance_anomaly_invalidates_session_and_nulls_pair",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_default_perf_preflight_delegate_is_resolved_once_at_call_time",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_does_not_apply_official_freeze_allowlist_scan",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_path_has_no_launch_certificate_changes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[clean]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[missing_cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[nonzero_rc]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_mode_happy_path_pins_journal_claim_and_receipt_shape",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_result_json_records_per_attempt_duration_and_no_absolute_monotonic",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_does_not_reissue_retry_slot_after_retry_start_crash",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_forward_only_skips_completed_and_crashed_seqs",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_rejects_tampered_binary_but_succeeds_when_untampered",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_under_unchanged_current_contract_generation_completes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_retry_sequence_is_metamorphic_to_other_cells_values",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_stock_flaky_nulls_entire_holdout_including_scale_ref",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[result-write-after]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[self-check-after]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[terminal-after]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[terminal-before]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_verify_floor_artifact_binaries_positive_and_negative",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_accepts_consistent_artifact",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_accepts_zero_perf_counters",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_detects_cell_stat_tamper",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_detects_diagnostics_cells_tamper_and_injected_key",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_detects_diagnostics_machine_anomaly_tamper",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_detects_tampered_floor_pair",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_exempt_session_exclusion_class_tamper[competing]",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_exempt_session_exclusion_class_tamper[launch]",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_extra_key_in_floors_entry",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_false_rep_integrity_exclusion",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_ghost_holdout_floor",
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_missing_holdout_cell"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_stats.py",
+          "old": "        returncode_is_exact_int = type(returncode) is int\n",
+          "new": "        returncode_is_exact_int = isinstance(returncode, int)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_stats.py::test_verify_rejects_bool_in_rep_observation[returncode-False]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

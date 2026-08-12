@@ -403,7 +403,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "cc3eff8cc6ebebe07b5014c79b2a24aee4a67ab4a55f391e38a9ac82d68ed116"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "a92d960c4da65a199b39a50c43d64f5ab66fccbb19205f25c5d87db47a4722e3"
+    "c13394954952a344c9086c93db102cd9b45765a04285ac8e835b15b3552db3e4"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -470,8 +470,8 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
   main..<b>` (ahead) / `<b>..main` (behind) を出す
 - 各 worktree の `git status --short` を確認する (未コミット差分の有無)
 - ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは取り残しを判定できない
-  (rebase / cherry-pick 経由は ahead>0 のまま残る)。`+` 行が真の取り残しで、ファイルが main に
-  無ければ取り込み漏れとして §5 で報告する
+  (rebase / cherry-pick 経由は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
+  (spool の不在は fold で正常)。未着地なら §5 で報告する
 - `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>`
   rc0削除/1§5報告・救出判断/2実行不能・削除停止。抑止行も rc0 で §5 へ
 
@@ -480,8 +480,8 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
   -d が拒否したら取り込み漏れの兆候なので止まって報告)
 - worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのもののみ。
-  他セッション使用中の可能性 (自分が作っていない・最近更新) は推測せず `/proc/*/cwd` の
-  readlink 走査で実測し、滞在プロセスあり・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
+  他セッション使用中の可能性 (自分が作っていない・最近更新) は推測せず `/proc/*/cwd` と
+  `/proc/*/cmdline` の走査で実測し、滞在プロセスあり・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
 - 自分がその worktree の中で作業している場合は、先に main checkout 側へ抜けてから操作する
 
 ## 3. worktree の削除手順 (F26)
@@ -2135,17 +2135,18 @@ def test_dev_wave_layer_budget_contract_is_literal():
         *(('docs/dev-wave/workers.md', f'DW-S0{i}') for i in (2, 3)),
         *(('docs/dev-wave/workers.md', f'DW-S0{i}-{suffix}')
           for i in (5, 6) for suffix in ('A', 'B', 'C')),
-        *(('docs/dev-wave/mutation.md', f'DW-M{i:02d}') for i in range(2, 9)),
+        *(('docs/dev-wave/mutation.md', f'DW-M{i:02d}')
+          for i in (2, 3, 4, 5, 6, 8)),
         *(('docs/dev-wave/operations.md', section)
-          for section in ('DW-O01', 'DW-O02', 'DW-O03', 'DW-O05', 'DW-O13')),
+          for section in ('DW-O01', 'DW-O02', 'DW-O05')),
     }
     assert l2 == {
-        ('docs/dev-wave/operations.md', section)
-        for section in (
-            'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10', 'DW-O11',
-            'DW-O12', 'DW-O14', 'DW-O16', 'DW-O17', 'DW-O18', 'DW-O19',
-            'DW-O20', 'DW-O25',
-        )
+        ('docs/dev-wave/mutation.md', 'DW-M07'),
+        *(('docs/dev-wave/operations.md', section) for section in (
+            'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
+            'DW-O11', 'DW-O12', 'DW-O13', 'DW-O14', 'DW-O16', 'DW-O17',
+            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25',
+        )),
     }
 
 
@@ -2571,17 +2572,18 @@ _TEST_DEV_WAVE_LAYERS = {
         *(('docs/dev-wave/workers.md', f'DW-S0{i}') for i in (2, 3)),
         *(('docs/dev-wave/workers.md', f'DW-S0{i}-{suffix}')
           for i in (5, 6) for suffix in ('A', 'B', 'C')),
-        *(('docs/dev-wave/mutation.md', f'DW-M{i:02d}') for i in range(2, 9)),
+        *(('docs/dev-wave/mutation.md', f'DW-M{i:02d}')
+          for i in (2, 3, 4, 5, 6, 8)),
         *(('docs/dev-wave/operations.md', section)
-          for section in ('DW-O01', 'DW-O02', 'DW-O03', 'DW-O05', 'DW-O13')),
+          for section in ('DW-O01', 'DW-O02', 'DW-O05')),
     },
     "L2": {
-        ('docs/dev-wave/operations.md', section)
-        for section in (
-            'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10', 'DW-O11',
-            'DW-O12', 'DW-O14', 'DW-O16', 'DW-O17', 'DW-O18', 'DW-O19',
-            'DW-O20', 'DW-O25',
-        )
+        ('docs/dev-wave/mutation.md', 'DW-M07'),
+        *(('docs/dev-wave/operations.md', section) for section in (
+            'DW-O03', 'DW-O04', 'DW-O06', 'DW-O08', 'DW-O09', 'DW-O10',
+            'DW-O11', 'DW-O12', 'DW-O13', 'DW-O14', 'DW-O16', 'DW-O17',
+            'DW-O18', 'DW-O19', 'DW-O20', 'DW-O25',
+        )),
     },
 }
 _OLD_DEV_WAVE_FILE_CAPS = {
@@ -5295,13 +5297,43 @@ def _mutate_command_guard(root: str, case: str) -> None:
             and "`docs/dev-wave/operations.md`" in line,
             lambda line: "",
         )
-    elif case == "stage3_o13_deleted":
+    elif case == "stage2_o03_readded":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 2 preflight |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: line.replace(
+                "`DW-O02`, `DW-O05`", "`DW-O02`, `DW-O03`, `DW-O05`", 1
+            ),
+        )
+    elif case == "stage3_o03_readded":
         _rewrite_matching_lines(
             root,
             ".claude/commands/dev-wave.md",
             lambda line: line.startswith("| 段 3 preflight |")
             and "`docs/dev-wave/operations.md`" in line,
-            lambda line: line.replace(", `DW-O13`", ""),
+            lambda line: line.replace(
+                "`DW-O02`, `DW-O05`", "`DW-O02`, `DW-O03`, `DW-O05`", 1
+            ),
+        )
+    elif case == "stage3_o13_readded":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 3 preflight |")
+            and "`docs/dev-wave/operations.md`" in line,
+            lambda line: line.replace("`DW-O05`", "`DW-O05`, `DW-O13`", 1),
+        )
+    elif case == "stage6_m07_readded":
+        _rewrite_matching_lines(
+            root,
+            ".claude/commands/dev-wave.md",
+            lambda line: line.startswith("| 段 6 |")
+            and "`docs/dev-wave/mutation.md`" in line,
+            lambda line: line.replace(
+                "`DW-M06`, `DW-M08`", "`DW-M06`, `DW-M07`, `DW-M08`", 1
+            ),
         )
     elif case == "stage6_s05_inheritance_deleted":
         _rewrite_matching_lines(
@@ -5732,7 +5764,10 @@ _COMMAND_GUARD_CASES = [
     "reference_section_deleted",
     "reference_section_duplicated",
     "stage2_operations_deleted",
-    "stage3_o13_deleted",
+    "stage2_o03_readded",
+    "stage3_o03_readded",
+    "stage3_o13_readded",
+    "stage6_m07_readded",
     "stage6_s05_inheritance_deleted",
     "stage6_all_operations_deleted",
     "stage6_o25_deleted",
@@ -5820,7 +5855,10 @@ _COMMAND_GUARD_NEEDLES = {
     "reference_section_deleted": "H2 見出し DW-M05 が 0 件",
     "reference_section_duplicated": "H2 見出し DW-M05 が 2 件",
     "stage2_operations_deleted": "段 dispatch '段 2 preflight' の U edge が契約と不一致",
-    "stage3_o13_deleted": "段 dispatch '段 3 preflight' の U edge が契約と不一致",
+    "stage2_o03_readded": "段 dispatch '段 2 preflight' の U edge が契約と不一致",
+    "stage3_o03_readded": "段 dispatch '段 3 preflight' の U edge が契約と不一致",
+    "stage3_o13_readded": "段 dispatch '段 3 preflight' の U edge が契約と不一致",
+    "stage6_m07_readded": "段 dispatch '段 6' の U edge が契約と不一致",
     "stage6_s05_inheritance_deleted": "段 dispatch '段 6' の U edge が契約と不一致",
     "stage6_all_operations_deleted": "段 dispatch '段 6' の C edge が契約と不一致",
     "stage6_o25_deleted": "段 dispatch '段 6' の C edge が契約と不一致",
@@ -5908,13 +5946,17 @@ def test_dev_wave_waiter_consumer_pins_accept_current_docs_contract():
 
 
 def test_command_guard_case_registration_is_complete():
-    """条件 24/25 と新節 pin の case 実在、guard 登録表の key 一致を固定する。"""
+    """条件 24/25、L2 再追加、新節 pin と guard 登録表を固定する。"""
 
     case_keys = set(_COMMAND_GUARD_CASES)
     assert "condition_waiter_deleted" in case_keys
     assert {
         "condition_25_deleted",
         "condition_25_trigger_broadened",
+        "stage2_o03_readded",
+        "stage3_o03_readded",
+        "stage3_o13_readded",
+        "stage6_m07_readded",
         "stage6_o25_deleted",
         "o25_contract_weakened",
         "o25_before_o01",

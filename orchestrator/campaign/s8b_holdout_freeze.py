@@ -1356,7 +1356,7 @@ def _validate_floor_inputs(
         raise FreezeError("floor result.configurations が v1 configuration 集合と不一致")
     expected_protocol = s8b_floor_contract.project_protocol_for_floor_artifact(protocol)
     expected_protocol["expected_cells"] = expected_cells
-    problems = s8b_floor_stats.verify_floor_artifact(result, expected_protocol)
+    problems = s8b_floor_stats.verify_floor_artifact(result, expected_protocol, expected_use_perf=True)
     if problems:
         raise FreezeError(f"floor result の統計検証に失敗: {'; '.join(problems)}")
 

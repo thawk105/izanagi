@@ -40,6 +40,7 @@ def _git_env() -> dict[str, str]:
         if not key.startswith("GIT_") or key in _ALLOWED_GIT_ENV
     }
     env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_NO_REPLACE_OBJECTS"] = "1"
     return env
 
 
@@ -109,6 +110,70 @@ def _git_path(repo: Path, name: str) -> tuple[Path | None, str | None]:
     if result.returncode != 0:
         return None, _git_failure(f"git state {name}", result)
     return Path(result.stdout), None
+
+
+def _check_no_grafts(repo: Path) -> list[str]:
+    common_dir = _git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common_dir.returncode != 0:
+        return [_git_failure("git common directory", common_dir)]
+    if not common_dir.stdout:
+        return ["git common directory が空: repository metadata を修復する"]
+    common_dir_path = Path(common_dir.stdout)
+    if not common_dir_path.is_absolute():
+        return [
+            f"git common directory が絶対 path でない ({common_dir.stdout}): "
+            "repository metadata を修復する"
+        ]
+    grafts = common_dir_path / "info" / "grafts"
+    try:
+        grafts.lstat()
+    except FileNotFoundError:
+        return []
+    except OSError as exc:
+        return [
+            f"legacy graft metadata を検査できない ({exc}): "
+            "git metadata の path・権限を修復する"
+        ]
+    return [
+        "legacy graft metadata exists (info/grafts): "
+        "graft を除去し raw commit history を確認してから再実行する"
+    ]
+
+
+def _check_main_is_direct_ref(repo: Path) -> list[str]:
+    symbolic_main = _git(repo, "symbolic-ref", "--quiet", _MAIN_REF)
+    if symbolic_main.returncode == 0:
+        return [
+            f"local main is a symbolic ref ({_MAIN_REF}): direct ref に修復して再実行する"
+        ]
+    if symbolic_main.returncode != 1:
+        return [_git_failure("local main symbolic-ref", symbolic_main)]
+    return []
+
+
+def _check_head_contains_main(repo: Path) -> list[str]:
+    """raw commit graph で HEAD が direct local main を包含することを検査する。"""
+    failures = _check_no_grafts(repo)
+
+    result = _git(repo, "rev-list", "--count", f"HEAD..{_MAIN_REF}")
+    if result.returncode != 0:
+        failures.append(
+            "HEAD/local main containment: git の読み取りに失敗 "
+            f"({_one_line(result.stderr)}): HEAD と {_MAIN_REF} の実在・履歴を確認する"
+        )
+        return failures
+    count = result.stdout
+    if not count or not count.isascii() or not count.isdecimal():
+        failures.append(
+            "HEAD/local main containment: rev-list の出力が非負の ASCII 整数でない "
+            f"({_one_line(count)}): git repository を確認する"
+        )
+    elif count != "0":
+        failures.append(
+            f"HEAD does not contain local main ({count} commit behind): "
+            "local main を取り込み、clean tree にしてから --mode resume を再実行する"
+        )
+    return failures
 
 
 def _check_no_operation_in_progress(repo: Path) -> list[str]:
@@ -271,10 +336,16 @@ def check_repository(
     failures: list[str] = []
     if mode == "fresh":
         failures.extend(_check_head_matches_main(repo))
-        failures.extend(_check_fresh_branch(repo))
+    elif mode == "resume":
+        failures.extend(_check_head_contains_main(repo))
+    else:
+        failures.append(
+            f"unsupported startup mode {mode!r}: fresh または resume を明示する"
+        )
+    failures.extend(_check_main_is_direct_ref(repo))
+    failures.extend(_check_fresh_branch(repo))
     failures.extend(_check_no_operation_in_progress(repo))
-    if mode == "fresh":
-        failures.extend(_check_clean_tree(repo))
+    failures.extend(_check_clean_tree(repo))
     failures.extend(_check_submodule_marker(repo))
     if forbid_worktree_handoff or external_handoff is not None:
         failures.extend(_check_worktree_handoff(repo))
@@ -287,20 +358,24 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "dev-wave worktree の開始条件を passive に検査する。"
-            "qsub の有効性・投入先資源は scope 外。"
+            "解決後の repo path を使う。qsub の有効性・投入先資源は scope 外。"
+            "wave identity・branch 所有・--repo の同一性は認証しない。"
         )
     )
     parser.add_argument(
         "--repo",
         type=Path,
         default=Path.cwd(),
-        help="検査する repository root (既定: current working directory)",
+        help="検査する repository root (既定: current working directory を実行時に解決)",
     )
     parser.add_argument(
         "--mode",
         choices=("fresh", "resume"),
         default="fresh",
-        help="fresh は全開始条件、resume は進行状態・submodule・handoff だけを検査",
+        help=(
+            "fresh は HEAD==main、resume は HEAD が direct main を包含することを要求し、"
+            "その他の開始条件は共通"
+        ),
     )
     parser.add_argument(
         "--forbid-worktree-handoff",
@@ -318,11 +393,19 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    repo = args.repo.resolve()
     # 可視化は検査結果に依らず必ず先に出す (rc には一切影響させない)。
     # flush は stdout が pipe のとき NG 行 (stderr) との前後関係を保つため。
-    print(f"INFO: {describe_main_divergence(args.repo)}", flush=True)
+    try:
+        divergence = describe_main_divergence(repo)
+    except Exception as exc:
+        divergence = (
+            f"local main との乖離を取得できない ({_one_line(str(exc))}): "
+            "可視化のみ省略し検査は続行する"
+        )
+    print(f"INFO: {divergence}", flush=True)
     failures = check_repository(
-        args.repo,
+        repo,
         mode=args.mode,
         forbid_worktree_handoff=args.forbid_worktree_handoff,
         external_handoff=args.external_handoff,
@@ -331,7 +414,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         for failure in failures:
             print(f"NG: {failure}", file=sys.stderr)
         return 1
-    print(f"OK: wave startup checks passed ({args.mode})")
+    print(
+        "OK: wave startup checks passed "
+        f"({args.mode}; repo={repo}; "
+        "wave identity・branch 所有・--repo の同一性は認証しない)"
+    )
     return 0
 
 

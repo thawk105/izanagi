@@ -1,0 +1,146 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    \"test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible\",\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    \"test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    \"test_codex_reasoning_ab.py::test_m3_snapshot_mode_change\",\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    \"test_codex_reasoning_ab.py::test_m3_snapshot_mode_change\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "                    return sorted(closure)\n",
+          "new": "                    return []\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "                            consumers.setdefault(fixture, set()).add(\n                                entry[\"canonical_node\"]\n                            )\n",
+          "new": "                            consumers.setdefault(fixture, set())\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/patchharness.py",
+          "old": "    candidate_path, candidate_inode = _git_repository_identity(base)\n    default_path, default_inode = _git_repository_identity(_default_ccbench_dir())\n    if candidate_path != default_path and candidate_inode != default_inode:\n        return\n",
+          "new": "    if os.path.realpath(base) != os.path.realpath(_default_ccbench_dir()):\n        return\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_patchharness_real_shared_checkout_guard_is_pytest_only_and_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/repo_tree_util.py",
+          "old": "        env.pop(name, None)\n    env[\"GIT_OPTIONAL_LOCKS\"] = \"0\"\n    return env\n",
+          "new": "        env.pop(name, None)\n    return env\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_protocol_builder.py::test_repo_status_scrubs_git_environment_and_disables_optional_locks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        env.pop(name, None)\n    env[\"GIT_OPTIONAL_LOCKS\"] = \"0\"\n    return env\n",
+          "new": "        env.pop(name, None)\n    return env\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_status_scrubs_git_environment_and_disables_optional_locks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "old": "        \"GIT_DIR\", \"GIT_INDEX_FILE\", \"GIT_WORK_TREE\", \"GIT_COMMON_DIR\",\n",
+          "new": "        \"GIT_INDEX_FILE\", \"GIT_WORK_TREE\", \"GIT_COMMON_DIR\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_status_scrubs_git_environment_and_disables_optional_locks"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
