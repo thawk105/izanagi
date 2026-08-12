@@ -49,8 +49,15 @@ seq: 2
   **wave 側では解消できない。** 背景 job は `DW-O20` により `--external-handoff` が必須で、
   この flag は同検査を必ず起動するので、**landed handoff が 1 つ残っている限り
   以後の背景 job wave はすべて起動時 rc=1 になる。**
-- 恒久対応: 未実施。{{T:startup-check-excludes-tracked-handoff}} として起票し、
-  checker 側で tracked file を除外する案を親推奨として裁定へ返した (package の R4)。
+- **独立 2 例目 (同日 08:08 JST)**: 本 wave が 07:32 JST に踏んだ直後、別セッションが同じ赤に当たり、
+  main で直接 `docs/handoff/2026-08-13-known-red-octopus.md` を撤去した (`a3168d85`)。
+  commit message も「新規の背景 wave をすべて起動不能にする」「land 経路では撤去できない (rc=21)
+  ため main で直接撤去する」と同じ診断に達している。
+  **40 分以内に独立 2 セッションが踏んだため、`DW-G03` の独立 2 例が成立する。**
+- 恒久対応: 未実施。`a3168d85` は当該 file を消しただけで **checker は直っていない**。
+  land は handoff の追加を許すので、次に wave が handoff を land した時点で同じ赤が再発する。
+  {{T:startup-check-excludes-tracked-handoff}} として起票し、checker 側で tracked file を
+  除外する案を親推奨として裁定へ返した (package の R4)。
 - 再発検知: `git ls-files docs/handoff/` が README.md 以外を返すこと。
 
 ## 再発

@@ -184,9 +184,13 @@ lease を広げても支配的な寄与を掴めない一方、wave の並列性
   ただし **launcher parser の既定は触らない**ことを起票時の制約に含める。
 - **R3:** O3 / O4 / O5 / O6 の採否。**親推奨: O3 却下・O4 は理由 field のみ・O5 は運用緩和に留める・
   O6 は可 (政策テストの仮想化と integration test の実プロセス維持を分ける)。**
-- **R4 (本件と別):** `docs/handoff/2026-08-13-known-red-octopus.md` が main に **tracked** で残り、
-  `tools/check_wave_startup.py` の `_check_worktree_handoff` は tracked/untracked を区別しない。
-  そのため **`--external-handoff` を必須とする背景 job の wave はすべて起動時 rc=1 になる。**
+- **R4 (本件と別):** `tools/check_wave_startup.py` の `_check_worktree_handoff` は
+  tracked/untracked を区別しないため、main に handoff が landed していると
+  **`--external-handoff` を必須とする背景 job の wave はすべて起動時 rc=1 になる。**
   land は handoff 削除を拒む (rc=21) ので wave 側では解消できない。
-  **親推奨: checker 側で tracked file を除外する。** (人間が main から撤去する案もあるが、
-  同じことが再発するので機械側で閉じるほうがよい。)
+  **本 wave が 2026-08-13 07:32 JST に踏み、その 36 分後に別セッションが独立に同じ赤へ当たって
+  main で直接 `docs/handoff/2026-08-13-known-red-octopus.md` を撤去した** (`a3168d85`、08:08 JST)。
+  **`DW-G03` の独立 2 例が成立している。**
+  ただし撤去されたのは file だけで **checker は直っていない**。land は handoff の追加を許すので、
+  次に wave が handoff を land した時点で同じ赤が再発する。
+  **親推奨: checker 側で tracked file を除外して機械側で閉じる。**

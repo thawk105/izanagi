@@ -45,6 +45,9 @@ title: 受入全走フレーク (F57 族) の機序を特定した — 予算の
 - **限界。** 併発 worktree の多くが既に撤去され dispatch receipt が残らないため、
   クラスタ横断の同時実行数は事後再構成できなかった (残存 log の完了時刻の重なりまで)。
 - 起動時に {{F:landed-handoff-blocks-startup-check}} を踏んだ。記録のうえ続行した。
+  **本 wave が 07:32 JST に踏んだ 36 分後、別セッションが独立に同じ赤へ当たり、main で直接
+  当該 handoff を撤去している** (`a3168d85`、08:08 JST)。`DW-G03` の独立 2 例が成立するが、
+  撤去は file 側だけで checker は直っていないため、次に wave が handoff を land すれば再発する。
 
 ## 次の一手差分
 
