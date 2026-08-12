@@ -14682,3 +14682,127 @@ mode を環境変数・argv・`eval` から受け取る口を作らない。offi
 - 逐語の行 exact 一致 — 整形変更で落ち、かつ後続 assert が論理的に従属して恒真になる。
 - 実 argv 検査だけ — 実行されない第 2 起動と、区間外の記述を検出できない。
 - 検査を marker 区間に限る — 区間外に置くだけで回避できる。
+
+## D325. 検出力を足す走行は、新しい走行としてではなく既に回す走行の形を変えて足す (2026-08-12)
+
+**決定:** 「全走では緑・焦点走では赤」型を塞ぐ焦点走は、受入の後段に走行を 1 本足す形では
+実装しない。親がテストを走らせる直前の規定 (`DW-O18`) を強め、**変更した test file は
+受入全走の前に別 process の単独走で 1 度確認する**ことを義務にする。既に回す走行へ相乗りさせ、
+受入の後へ走行を足さない。全走の緑はその file 単独の緑を含意しない、を同節に明記する。
+
+**理由:**
+- Pegasus では実行を伴う焦点走は必ず計算ノードへ dispatch される (`run_tests.py` の dispatch
+  免除集合は非実行 flag だけ)。実測で login 往復 26.8〜32.0 秒、job 内 5〜16 秒であり、
+  「1 本足す」は無条件に閾値 10 秒を超える固定費になる。
+- 段 6 の fix 巡回で親はどのみちテストを走らせる。義務を「その走行のうち 1 本を単独走にせよ」に
+  落とせば、検出力は同じで追加 dispatch は原則 0 本になる。
+- 焦点走のコストは file 依存で尾が重い (file 別直列時間の p50 1.17s に対し p90 31.9s、
+  max 1330.8s、179 file 中 33 file が 10 秒以上)。固定費として一律に足すと、
+  重い file を触った wave ほど二重に払う。
+
+**却下した選択肢:**
+- 段 6 受入へ焦点走を 1 本足す — 実測が閾値を超えたため裁定どおり不採用。走行時間が
+  wave 数に比例して増え、恒久ルール「開発するほどテストが遅くなる構造を作らない」に抵触する。
+- 受入と同一 job へ畳んで dispatch 往復を消す — `run_tests.py` の改修が要るうえ、
+  畳んでも job 内 5〜16 秒で閾値を割らない。往復の除去は本件とは別に評価する。
+- 現状維持 — 部分走・焦点走を回した作業者だけが踏み続け、全走の緑が「その file が単独で
+  健全である」ことを意味しない状態が残る。同型が独立 2 例出ている。
+
+## D326. codex の hook 信頼は probe と本番の双方で明示 bypass し、その手前に fail-closed の配線検証を置く (2026-08-12)
+
+**決定:** `tools/check_codex_hooks.py` の probe argv と `tools/codex_worker_launch.py` の worker argv の
+**双方**へ `--dangerously-bypass-hook-trust` を option 領域に exact 1 件置く。その直前に配線の exact
+検証を通し、赤なら起動しない。**flag 無し起動への fallback は作らない。**
+sandbox bypass の禁止は不変で、argv 検査は prompt 内の substring も拒否する。
+flag の検査は **prompt を除いた option 領域だけ**を見る — argv 全体を数えると、prompt に flag の
+文字列を置くだけで検査を通せる。
+
+これは D294 の却下選択肢「trust bypass を gate に使う」を supersede する。
+**supersede が成立する条件は、checker と launcher を同時に land することである。** 片方だけでは
+D294 の却下理由がそのまま実現する — checker だけなら本番の worker は未防護のまま gate が緑になり、
+launcher だけなら受入が閉じない。D294 の他の内容 (判定核の共有、`codex_guard.sh` 経由の
+fail-closed 化、閉じた面と開いた面の区別) は変更しない。
+
+worker 側の検証は **retry ごとに `Popen` の直前**で行い、次をすべて満たさなければ `LaunchError` とする。
+
+- `git -C <cwd> rev-parse --show-toplevel` が単一行・非空・絶対 path で、`--repo-root` に一致する。
+  codex は `.codex/hooks.json` を cwd の project root 基準で解決するため、ここが食い違うと
+  検証した file と実行される file が別物になる。`git` 不在・非 0・timeout は fail-closed。
+- `.codex/hooks.json` が regular non-symlink で、PreToolUse の配線が exact 一致する。
+- `hooks/codex_guard.sh` / `hooks/guard_write.py` / `hooks/guard_bash.py` が regular non-symlink で実在する。
+
+検証後にも累積 wall-clock を再確認し、期限超過なら起動しない。
+
+**保証の範囲を過大に書かない。** checker の rc=0 が言えるのは「bypass 下で、その clone の配線について、
+一致する拒否証拠が stderr にあり、保護対象の side effect が無い」までである。**protected を exact 1 回
+試したことの証明ではない。** worker 側は static preflight だけで live attestation を持たない。
+guard 本体の bytes / hash、検証から `Popen` までの TOCTOU、user / global config、CLI semantics は
+検証範囲外である。`tools/codex_reasoning_ab.py` と `orchestrator/codex_roles/launcher.py` の
+直接起動経路も本決定の外にある。
+
+**理由:**
+- 信頼は hooks.json の絶対パス単位で永続化され、main checkout の承認は worktree にも使い捨て clone にも
+  継承されない。信頼の無いパスの hook を codex は無警告で外す。この機序により dev-wave の codex 子は
+  hook 無しで走っており、checker は構造的に rc=0 になれなかった (実測)。
+- flag の但し書きは「hook source を自前で検証済みの自動化向け」であり、検証を先に置けば条件に沿う。
+  ただし現在の検証は配線までで guard bytes は見ていないため、docs では「bytes 検証済み」と書かない。
+- 両経路へ同時に入れることで probe と本番が同じ前提で走り、gate が本番を代表する。
+
+**却下した選択肢:**
+- checker だけに flag を入れる — 本番が未防護のまま gate が緑になる。D294 の却下理由そのもの。
+- worktree のパスの信頼を `~/.codex/config.toml` へ機械追記する — ユーザーの個人 config を機械が
+  書き換えることになり、wave ごとに肥大する。
+- 検証が赤のとき flag 無しで起動する fallback を持つ — 黙って hook が外れる現状の再生産になる。
+- probe を実 repo で行う — 保護対象への書込み試行を実 tree で繰り返すことになる。
+
+## D327. hook 拒否の証拠は event 列でなく stderr の nonce 一致で取る (2026-08-12)
+
+**決定:** `check_codex_hooks.py` の protected control の判定を、event 列の
+「`item.started` が exact 1 件あり、その start から `turn.completed` までの間に拒否文がある」から、
+**stderr の逐語一致**へ移す。受理条件は、拒否 marker と handler marker と probe ごとの nonce と
+相対 path が stderr に揃い、拒否 marker の出現が exact 1 で、保護対象の side effect が無いこと。
+protected 側の `item.started` は 0 件を正とし、存在する場合は成功完了していないことを要求する。
+
+codex が Bash command を報告する形は、**素の形と、実測された `/bin/bash -lc "<inner>"` の
+exact 2 形だけ**を受理する。共通形へは畳まない — 畳むと outer executable・option・arity の区別が
+失われ、受理集合が意図せず広がる。
+
+**理由:**
+- hook に拒否された tool 呼び出しは JSON event を一切生成しない (router の段で弾かれる)。拒否文は
+  stderr にのみ出る。従来のモデルは、**hook が正しく効くほど赤になる**構造だった (実測)。
+- nonce と相対 path は probe ごとに生成されるため、protected を試していなければ stderr に現れない。
+  「未試行なのに緑」は排除される。
+- ただし stderr は process-wide で、event ID・時系列との結合が無い。試行回数の完全な束縛はできない。
+  拒否 marker の出現回数を exact 1 に縛って可能な範囲まで戻し、保証文はそこまでに下げる。
+
+**却下した選択肢:**
+- event 列の要求を残したまま flag だけ足す — 拒否された呼び出しは event を作らないので緑にならない。
+- 拒否証拠を marker の存在だけで判定する — nonce と path が無いと、別 probe の拒否文や無関係な
+  出力で緑になりうる。
+- wrapper と素の command を共通形へ正規化する — outer の差を検査できなくなる。
+
+## D328. 実装と測定を束縛する凍結検証はしばらく保留する (2026-08-12)
+
+**決定:** 「この実装でこの性能を測定した」ことを bytes/pin の完全一致で機械検証する
+凍結チェーン (known-axes freeze の submodule HEAD==pin 照合、移行受領証の fails-closed 連鎖、
+holdout freeze の実装 bytes 完全一致検証、frozen-artifacts manifest 検査、protocol の pin seal
+検証) は、ユーザーの明示命令があるまで**保留**する。削除ではなく可視な skip 印 + 機械可読な
+理由で保留し、凍結記録・凍結 bytes 自体は書き換えずに残す。粗い provenance
+(生成物 + 概ねの時期) の記録は続ける。**保留の対象は実装↔測定の同一性検証に限る** —
+正しさゲート (verifier / admission / 変異検査)、観測者効果の分離 (規律 1)、防壁の
+自己完全性検査 (信頼境界、規律 6) は対象外で不変。
+
+**理由:**
+- 2026-08-12 ユーザー裁定 (authority: user、rulings 第 4 束、逐語の要旨): 厳格な同一性
+  チェック機構はしばらく不要。開発の遅延とテスト時間の源泉になっている一方、研究開発が
+  ゴールへ進んでいない。roadmap (CC 自動合成が主目的) を忘れるな。
+- 凍結検証は部品の版上げのたびに fail-closed 32 件と「凍結証拠の書き換え or 再測定」の択一を
+  生み (2026-08-12 実測)、受入の床にファイル数比例の走査 (約 24 秒) を残していた。
+- 論文主張に要る provenance は「生成物 + 概ねの時期」の粒度で足りる (2026-08-12 既裁定の
+  粗い provenance 基準)。検証を保留しても、この粒度の記録は失われない。
+
+**却下した選択肢:**
+- 凍結証拠 bytes の機械的再発行 — 書き換えの連鎖と前例化を招く。保留すれば書き換え自体が不要。
+- 再測定による再発行 — 同じ結論に計算ノード時間を払う。
+- 検証条件の緩和 (HEAD 照合を記録照合へ弱める等) — gate を弱い形で残すより、保留として
+  明示する方が正直で、復活も機械的にできる。
