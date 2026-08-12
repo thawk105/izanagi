@@ -12,6 +12,9 @@ prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再�
 完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
 採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
 `<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
+`--artifact-root` は `<root>/<wave>/` しか作らず、`<root>` 未作成は rc=2。投入前に作る。
+`--max-*` は非権威の運用既定で caller が上げてよい。重い巡は所要 model call と token を見積もる。
+中断子の部分成果物は未完了と明記して保全し、次の子へ監査させる。
 
 ## DW-O02 — job artifact
 
@@ -19,7 +22,8 @@ prompt、log、patch はすべて wave 専用 subdirectory に置き、job tmp �
 artifact と共有しない。専用場所を確保できなければ作成を止める。
 親 brief と前段の子成果物は同 subdirectory のファイルへ置き、prompt へ全文複製せず絶対パスで
 読ませる。その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と
-数えない。
+数えない。必読資料は job dir へ取り出して渡す（repo 内 path は worktree の遅れで fail-closed する）。
+出力へ結合文字 U+0300〜U+036F を使わせない。
 
 ## DW-O03 — 防護パスを含む prompt
 
@@ -34,7 +38,8 @@ heredoc と command substitution を併用してはならない。
 ## DW-O05 — read-only codex
 
 書込可能 tmp がないため pytest 緑を要求せず静的検査でよいと明記する。
-テスト実測は親が行い、子の非実走を緑と記録しない。
+テスト実測は親が行い、子の非実走を緑と記録しない。予算が尽きそうなら途中結論を出力形式どおり
+書いて終われ、も入れる（無出力が最悪）。
 
 ## DW-O06 — submodule 系 real-repo test
 
