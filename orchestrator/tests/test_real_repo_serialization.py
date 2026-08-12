@@ -823,8 +823,8 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier():
 def test_protocol_builder_repo_tree_guard_is_wired_to_real_root():
     """SUT が repo-tree helper を実 ROOT に結線していることを実行時に監査する。"""
     _require_pytest()
-    from tests import repo_tree_util
-    from tests import test_s8b_protocol_builder as sut
+    from orchestrator.tests import repo_tree_util
+    from orchestrator.tests import test_s8b_protocol_builder as sut
 
     helper_calls = []
     builder_actions = []
@@ -906,8 +906,8 @@ def test_ratified_memo_has_a_real_resolution_payer():
     移る退行 (= 実履歴走査が node 順序次第でしか走らなくなる) を殺す。
     """
     _require_pytest()
-    from tests import test_s8b_binding_driftguards as driftguard_tests
-    from tests import test_s8b_oracle_driver as driver_tests
+    from orchestrator.tests import test_s8b_binding_driftguards as driftguard_tests
+    from orchestrator.tests import test_s8b_oracle_driver as driver_tests
 
     payer = driver_tests.test_nonnull_floor_without_active_generation_is_refused
     payer_source = inspect.getsource(payer)
