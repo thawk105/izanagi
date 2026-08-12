@@ -174,7 +174,8 @@ REAL_REPO_SERIAL_NODES = frozenset({
     # snapshot を取るため、writer の patch 窓と同じ競合面にある (D63 列挙漏れの補完)。
     "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
 
-    # 実 external/ccbench に patch を apply/revert する writer。
+    # 実資源依存の reader。現行 test は applied() を nullcontext へ差し替えるが、
+    # over-approximation として実 repo 直列群に残置する。
     "test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls",
     "test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint",
@@ -214,6 +215,36 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict",
     "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics",
 
+    # module fixture が実共有 submodule source を読むため、その全 consumer を閉じる。
+    "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control",
+
+    # prepare_cell が実共有 submodule の linked-worktree 管理領域を更新する writer。
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
+    "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
+    "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+
+    # module fixture が実 repo を clone し、実 submodule を local source として読む reader。
+    "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
+    "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
+    "test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure",
+    "test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested",
+    "test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent",
+    "test_codex_reasoning_ab.py::test_m3_snapshot_mode_change",
+    "test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required",
+    "test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing",
+    "test_codex_reasoning_ab.py::test_m3_focus_artifact_directions",
+    "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive",
+    "test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected",
+    "test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected",
+    "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+    "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
+    "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
+    "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",
+    "test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation",
+
+    # helper が実親 repo と実共有 submodule を clone source として直接読む reader。
+    "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+
     # root=実 repo の oracle gate が known-axes verify を間接呼出しする reader。
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
@@ -239,8 +270,7 @@ REAL_REPO_EXECUTION_PRIORITY = (
 # - test_s1_measurement_freeze.py のうち fixture 非利用 3 node (AST import 検査 +
 #   hermetic seam 2 件) は実 repo / 共有 submodule を読まない。fixture 消費 node は
 #   [T-066] echo 除去後は実材料 reader なので上記に列挙済み。
-# - test_campaign.py::test_patchharness_* は tmp repo、slow oracle canary は
-#   patchharness の隔離 worktree を使い、共有 submodule worktree を patch しない。
+# - test_campaign.py::test_patchharness_* は tmp repo だけを対象にする。
 # - source_digest allowlist は subprocess を fake 化しており、lock-path gate は実 output
 #   だけを読む。実 output / snapshot 系もこの reader/writer 競合面には含めない。
 
@@ -281,6 +311,7 @@ def _real_repo_node_id(item) -> str:
 
 
 _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
+_REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
 
 
@@ -362,6 +393,7 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         node_id = _real_repo_node_id(item)
         if node_id in REAL_REPO_SERIAL_NODES:
+            setattr(item, _REAL_REPO_SERIAL_NODE_ATTR, node_id)
             # xdist は複数 group 名を結合するため、二個目は足さない。
             if not list(item.iter_markers(name="xdist_group")):
                 item.add_marker(pytest.mark.xdist_group("real-repo"))
@@ -398,6 +430,17 @@ def pytest_collection_modifyitems(config, items):
                 f"growth-test hold keys missing from complete collection: {missing!r}"
             )
     yield
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_protocol(item, nextitem):
+    """setup から teardown まで、正本由来の実資源アクセス印を伝播する。"""
+    from orchestrator.campaign import patchharness
+
+    node_id = _real_repo_node_id(item)
+    stamped = getattr(item, _REAL_REPO_SERIAL_NODE_ATTR, None) == node_id
+    with patchharness._pytest_node_context(node_id, stamped):
+        return (yield)
 
 
 def _prioritize_real_repo_items(items) -> None:
