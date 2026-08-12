@@ -34,6 +34,23 @@ _MESSAGE = Path("/message.txt")
 _VALIDATED_MESSAGE = Path("/validated-message.txt")
 _COMMAND = ("harmless-command", "--flag")
 _RELEASE_JSON = json.dumps({"state": "released"})
+_LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
+_STATUS_ARGV = (
+    "git", "status", "--porcelain", "--untracked-files=no",
+    "--ignore-submodules=none",
+)
+
+
+def _provenance_argv(
+    repo: Path = _REPO,
+    message: Path = _VALIDATED_MESSAGE,
+) -> tuple[str, ...]:
+    return (
+        sys.executable,
+        str(repo / "tools" / "check_ai_provenance.py"),
+        "--message-file",
+        str(message),
+    )
 
 
 def _stat_text(pid: int, start_time: int) -> str:
@@ -175,8 +192,24 @@ def _preflight(fake: _FakeEffects) -> None:
         DW._CommandResult(0, f"feature-{_WAVE}\n"),
     )
     fake.expect_run(
-        ("git", "status", "--porcelain", "--untracked-files=no"),
+        _STATUS_ARGV,
         DW._CommandResult(0, ""),
+    )
+
+
+def _prerun_status(
+    fake: _FakeEffects,
+    *,
+    stdout: str = "",
+    returncode: int = 0,
+) -> None:
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(returncode, stdout))
+
+
+def _provenance(fake: _FakeEffects, result: object = None) -> None:
+    fake.expect_run(
+        _provenance_argv(),
+        DW._CommandResult(0) if result is None else result,
     )
 
 
@@ -184,7 +217,7 @@ _PREFLIGHT_EVENTS = [
     ("run", ("git", "rev-parse", "--is-inside-work-tree"), _REPO, True),
     ("run", ("git", "rev-parse", "--show-toplevel"), _REPO, True),
     ("run", ("git", "symbolic-ref", "--quiet", "--short", "HEAD"), _REPO, True),
-    ("run", ("git", "status", "--porcelain", "--untracked-files=no"), _REPO, True),
+    ("run", _STATUS_ARGV, _REPO, True),
 ]
 
 
@@ -241,6 +274,21 @@ def _lease_marker(tmp_path: Path) -> tuple[Path, Path, tuple[int, bytes]]:
     os.utime(lease_path, ns=(1_900_000_000_000_000_000,) * 2)
     before = (lease_path.stat().st_mtime_ns, lease_path.read_bytes())
     return lease_dir, lease_path, before
+
+
+def _write_test_provenance_checker(repo: Path) -> None:
+    checker = repo / "tools" / "check_ai_provenance.py"
+    checker.write_text(
+        "import argparse\n"
+        "from pathlib import Path\n"
+        "parser=argparse.ArgumentParser()\n"
+        "parser.add_argument('--message-file', type=Path, required=True)\n"
+        "args=parser.parse_args()\n"
+        "expected='AI-Agent: product=codex; model=gpt-5; reasoning=high; "
+        "role=author'\n"
+        "raise SystemExit(0 if expected in args.message_file.read_text() else 1)\n",
+        encoding="utf-8",
+    )
 
 
 def _release(fake: _FakeEffects, result: object = None) -> None:
@@ -316,6 +364,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         command_result: object = None,
         postclaim_rc: int = 0,
         merge_result: object = None,
+        provenance_result: object = None,
         lease_dir: Path = _LEASE,
         remove_lease_on_release: bool = False,
     ) -> None:
@@ -335,6 +384,11 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self.merge_result = (
             DW._CommandResult(0) if merge_result is None else merge_result
         )
+        self.provenance_result = (
+            DW._CommandResult(0)
+            if provenance_result is None
+            else provenance_result
+        )
         self.lease_dir = lease_dir
         self.remove_lease_on_release = remove_lease_on_release
         self.claims = 0
@@ -351,7 +405,10 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             return DW._CommandResult(0, str(_REPO) + "\n")
         if actual == ("git", "symbolic-ref", "--quiet", "--short", "HEAD"):
             return DW._CommandResult(0, self.branch + "\n")
-        if actual == ("git", "status", "--porcelain", "--untracked-files=no"):
+        if actual in {
+            _STATUS_ARGV,
+            _LEGACY_STATUS_ARGV,
+        }:
             return DW._CommandResult(0, "")
         if actual == ("git", "rev-parse", "main"):
             self.main_reads += 1
@@ -368,6 +425,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             return DW._CommandResult(0, self.changed_paths)
         if actual == ("git", "merge", "--no-ff", "--no-commit", "main"):
             return self.merge_result
+        if actual == _provenance_argv():
+            return self.provenance_result
         if actual in {
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
@@ -402,6 +461,26 @@ class _RoutingAcceptanceEffects(_FakeEffects):
     def read_text(self, path: Path) -> str:
         self.events.append(("read_text", path))
         return self.message
+
+
+class _SubmoduleDirtyAcceptanceEffects(_RoutingAcceptanceEffects):
+    def __init__(self, *, dirty_status_call: int) -> None:
+        super().__init__(behind=[0, 0])
+        self.dirty_status_call = dirty_status_call
+        self.status_reads = 0
+
+    def run(self, argv: object, cwd: Path, capture: bool) -> object:
+        actual = tuple(argv)
+        if actual in {_STATUS_ARGV, _LEGACY_STATUS_ARGV}:
+            self.events.append(("run", actual, cwd, capture))
+            self.status_reads += 1
+            if (
+                actual == _STATUS_ARGV
+                and self.status_reads == self.dirty_status_call
+            ):
+                return DW._CommandResult(0, " m external/ccbench\n")
+            return DW._CommandResult(0, "")
+        return super().run(argv, cwd, capture)
 
 
 def test_pid_probe_calls_kill_zero_for_exact_pid(
@@ -864,7 +943,7 @@ def test_acceptance_ignores_acquired_outside_top_level_state() -> None:
                 return DW._CommandResult(0, str(_REPO) + "\n")
             if actual == ("git", "symbolic-ref", "--quiet", "--short", "HEAD"):
                 return DW._CommandResult(0, f"feature-{_WAVE}\n")
-            if actual == ("git", "status", "--porcelain", "--untracked-files=no"):
+            if actual == _STATUS_ARGV:
                 return DW._CommandResult(0, "")
             if actual == ("git", "rev-parse", "main"):
                 return DW._CommandResult(0, _SHA_A + "\n")
@@ -943,6 +1022,7 @@ def test_held_and_queued_refresh_main_before_every_claim() -> None:
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_C + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
     outcome = _run_acceptance(fake)
     assert outcome.rc == 0
@@ -964,6 +1044,7 @@ def test_acquired_reloads_main_before_behind_check() -> None:
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
     outcome = _run_acceptance(fake)
     assert outcome.rc == 0
@@ -1137,6 +1218,7 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
         in {
             ("git", "diff", "--name-only", "HEAD...main"),
             ("git", "merge", "--no-ff", "--no-commit", "main"),
+            _provenance_argv(),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
             _COMMAND,
@@ -1145,6 +1227,7 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
     assert selected_calls == [
         ("git", "diff", "--name-only", "HEAD...main"),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
+        _provenance_argv(),
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
         ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
         _COMMAND,
@@ -1175,6 +1258,7 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
         and event[1]
         in {
             ("git", "merge", "--no-ff", "--no-commit", "main"),
+            _provenance_argv(),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
             _COMMAND,
@@ -1182,6 +1266,7 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
     ]
     assert selected_calls == [
         ("git", "merge", "--no-ff", "--no-commit", "main"),
+        _provenance_argv(),
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
         ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
         _COMMAND,
@@ -1216,6 +1301,7 @@ def test_merge_sequence_and_postcheck_are_exact(capsys: pytest.CaptureFixture[st
     fake.is_file_queue.append((_MESSAGE, True))
     fake.read_text_queue.append((_MESSAGE, "merge\n\nAI-Agent: codex\n"))
     fake.expect_run(("git", "merge", "--no-ff", "--no-commit", "main"))
+    _provenance(fake)
     fake.expect_run(("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "commit", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n"))
@@ -1225,6 +1311,7 @@ def test_merge_sequence_and_postcheck_are_exact(capsys: pytest.CaptureFixture[st
     )
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
 
     outcome = _run_acceptance(fake, message=_MESSAGE)
@@ -1259,12 +1346,14 @@ _STAGES = (
     "postclaim-rev-parse",
     "behind-count",
     "merge",
+    "merge-message-provenance",
     "commit-dry-run",
     "commit",
     "commit-rev-parse",
     "commit-message-postcheck",
     "postcheck",
     "commit-head-postcheck",
+    "prerun-clean",
 )
 
 
@@ -1293,8 +1382,9 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             DW._CommandResult(9) if stage == "behind-count" else DW._CommandResult(0, "1\n"),
         )
     merge_stages = {
-        "merge", "commit-dry-run", "commit", "commit-rev-parse",
-        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "merge", "merge-message-provenance", "commit-dry-run", "commit",
+        "commit-rev-parse", "commit-message-postcheck", "postcheck",
+        "commit-head-postcheck", "prerun-clean",
     }
     if stage in merge_stages:
         fake.is_file_queue.extend([(_MESSAGE, True), (_MESSAGE, True)])
@@ -1304,8 +1394,20 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             DW._CommandResult(9) if stage == "merge" else DW._CommandResult(0),
         )
     if stage in {
+        "merge-message-provenance", "commit-dry-run", "commit",
+        "commit-rev-parse", "commit-message-postcheck", "postcheck",
+        "commit-head-postcheck", "prerun-clean",
+    }:
+        _provenance(
+            fake,
+            DW._CommandResult(9)
+            if stage == "merge-message-provenance"
+            else DW._CommandResult(0),
+        )
+    if stage in {
         "commit-dry-run", "commit", "commit-rev-parse",
         "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
     }:
         fake.expect_run(
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
@@ -1313,7 +1415,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
         )
     if stage in {
         "commit", "commit-rev-parse", "commit-message-postcheck", "postcheck",
-        "commit-head-postcheck",
+        "commit-head-postcheck", "prerun-clean",
     }:
         fake.expect_run(
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
@@ -1321,28 +1423,40 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
         )
     if stage in {
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
-        "commit-head-postcheck",
+        "commit-head-postcheck", "prerun-clean",
     }:
         fake.expect_run(
             ("git", "rev-parse", "HEAD"),
             DW._CommandResult(9) if stage == "commit-rev-parse"
             else DW._CommandResult(0, _SHA_C + "\n"),
         )
-    if stage in {"commit-message-postcheck", "postcheck", "commit-head-postcheck"}:
+    if stage in {
+        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
+    }:
         fake.expect_run(
             ("git", "log", "-1", "--format=%B", _SHA_C),
             DW._CommandResult(9) if stage == "commit-message-postcheck"
             else DW._CommandResult(0, "merge\nAI-Agent: codex\n"),
         )
-    if stage in {"postcheck", "commit-head-postcheck"}:
+    if stage in {"postcheck", "commit-head-postcheck", "prerun-clean"}:
         fake.expect_run(
             ("git", "rev-list", "--count", "HEAD..main"),
             DW._CommandResult(9) if stage == "postcheck"
             else DW._CommandResult(0, "0\n"),
         )
-    if stage == "commit-head-postcheck":
-        fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(9))
-    if stage in {"merge", "commit-dry-run", "commit"}:
+    if stage in {"commit-head-postcheck", "prerun-clean"}:
+        fake.expect_run(
+            ("git", "rev-parse", "HEAD"),
+            DW._CommandResult(9)
+            if stage == "commit-head-postcheck"
+            else DW._CommandResult(0, _SHA_C + "\n"),
+        )
+    if stage == "prerun-clean":
+        _prerun_status(fake, returncode=9)
+    if stage in {
+        "merge", "merge-message-provenance", "commit-dry-run", "commit",
+    }:
         _abort_clean(fake)
     if stage != "preclaim-rev-parse":
         _release(fake)
@@ -1350,6 +1464,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
     outcome = _run_acceptance(fake, message=_MESSAGE if stage in merge_stages else None)
 
     assert outcome.rc == 70
+    assert outcome.stage == stage
     expected = [*_PREFLIGHT_EVENTS]
     if stage in merge_stages:
         expected.append(("is_file", _MESSAGE))
@@ -1382,42 +1497,460 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ]
         )
     if stage in {
+        "merge-message-provenance", "commit-dry-run", "commit",
+        "commit-rev-parse", "commit-message-postcheck", "postcheck",
+        "commit-head-postcheck", "prerun-clean",
+    }:
+        expected.append(("run", _provenance_argv(), _REPO, True))
+    if stage in {
         "commit-dry-run", "commit", "commit-rev-parse",
         "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
     }:
         expected.append(
             ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)), _REPO, True)
         )
     if stage in {
         "commit", "commit-rev-parse", "commit-message-postcheck", "postcheck",
-        "commit-head-postcheck",
+        "commit-head-postcheck", "prerun-clean",
     }:
         expected.append(
             ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE)), _REPO, True)
         )
     if stage in {
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
-        "commit-head-postcheck",
+        "commit-head-postcheck", "prerun-clean",
     }:
         expected.append(("run", ("git", "rev-parse", "HEAD"), _REPO, True))
-    if stage in {"commit-message-postcheck", "postcheck", "commit-head-postcheck"}:
+    if stage in {
+        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
+    }:
         expected.append(
             ("run", ("git", "log", "-1", "--format=%B", _SHA_C), _REPO, True)
         )
-    if stage in {"postcheck", "commit-head-postcheck"}:
+    if stage in {"postcheck", "commit-head-postcheck", "prerun-clean"}:
         expected.append(
             ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True)
         )
-    if stage == "commit-head-postcheck":
+    if stage in {"commit-head-postcheck", "prerun-clean"}:
         expected.append(("run", ("git", "rev-parse", "HEAD"), _REPO, True))
+    if stage == "prerun-clean":
+        expected.append(("run", _STATUS_ARGV, _REPO, True))
     if stage in merge_stages:
         expected.append(("unlink", _VALIDATED_MESSAGE))
-    if stage in {"merge", "commit-dry-run", "commit"}:
+    if stage in {
+        "merge", "merge-message-provenance", "commit-dry-run", "commit",
+    }:
         expected.extend(_ABORT_CLEAN_EVENTS)
     if stage != "preclaim-rev-parse":
         expected.append(("run", _helper("release"), _REPO, True))
     assert fake.events == expected
     fake.assert_drained()
+
+
+def test_prerun_clean_allows_acceptance_submission_without_release() -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _acquired(fake)
+    fake.expect_run(
+        ("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n")
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    _prerun_status(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 0
+    fake.assert_drained(
+        [
+            *_PREFLIGHT_EVENTS,
+            ("monotonic",),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            ("monotonic",),
+            ("run", _helper("claim", _SHA_A), _REPO, True),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("run", _STATUS_ARGV, _REPO, True),
+            ("run", _COMMAND, _REPO, False),
+            ("monotonic",),
+        ]
+    )
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+
+
+def test_prerun_tracked_dirty_blocks_submission_and_releases(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _acquired(fake)
+    fake.expect_run(
+        ("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n")
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    _prerun_status(fake, stdout=" M tracked.py\n")
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "prerun-clean"
+    assert outcome.source_rc is None
+    assert "tracked.py" in capsys.readouterr().err
+    fake.assert_drained(
+        [
+            *_PREFLIGHT_EVENTS,
+            ("monotonic",),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            ("monotonic",),
+            ("run", _helper("claim", _SHA_A), _REPO, True),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("run", _STATUS_ARGV, _REPO, True),
+            ("run", _helper("release"), _REPO, True),
+        ]
+    )
+    assert not any(
+        event[0] == "run" and event[1] == _COMMAND for event in fake.events
+    )
+
+
+def test_prerun_submodule_dirty_blocks_submission_and_releases() -> None:
+    fake = _SubmoduleDirtyAcceptanceEffects(dirty_status_call=2)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "prerun-clean"
+    assert outcome.source_rc is None
+    assert fake.status_reads == 2
+    assert fake.claims == 1
+    assert fake.submissions == 0
+    assert fake.releases == 1
+    assert fake.behind == []
+    fake.assert_drained(
+        [
+            *_PREFLIGHT_EVENTS,
+            ("monotonic",),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            ("monotonic",),
+            ("run", _helper("claim", _SHA_A), _REPO, True),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("run", _STATUS_ARGV, _REPO, True),
+            ("run", _helper("release"), _REPO, True),
+        ]
+    )
+
+
+def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    fake.is_file_queue.append((_MESSAGE, True))
+    _acquired(fake)
+    fake.expect_run(
+        ("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n")
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "1\n"),
+    )
+    fake.is_file_queue.append((_MESSAGE, True))
+    fake.read_text_queue.append(
+        (_MESSAGE, "merge\n\nAI-Agent: product=codex; model=gpt-5; "
+         "reasoning=high; role=author\n")
+    )
+    fake.expect_run(("git", "merge", "--no-ff", "--no-commit", "main"))
+    _provenance(fake)
+    fake.expect_run(
+        ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE))
+    )
+    fake.expect_run(("git", "commit", "-F", str(_VALIDATED_MESSAGE)))
+    fake.expect_run(
+        ("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n")
+    )
+    fake.expect_run(
+        ("git", "log", "-1", "--format=%B", _SHA_C),
+        DW._CommandResult(
+            0,
+            "merge\n\nAI-Agent: product=codex; model=gpt-5; "
+            "reasoning=high; role=author\n",
+        ),
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n")
+    )
+    _prerun_status(fake, stdout=" M postmerge.py\n")
+    _release(fake)
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "prerun-clean"
+    assert outcome.source_rc is None
+    expected_message = (
+        b"merge\n\nAI-Agent: product=codex; model=gpt-5; "
+        b"reasoning=high; role=author\n"
+    )
+    fake.assert_drained(
+        [
+            *_PREFLIGHT_EVENTS,
+            ("is_file", _MESSAGE),
+            ("monotonic",),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            ("monotonic",),
+            ("run", _helper("claim", _SHA_A), _REPO, True),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("is_file", _MESSAGE),
+            ("read_text", _MESSAGE),
+            ("write_temp", expected_message),
+            (
+                "run",
+                ("git", "merge", "--no-ff", "--no-commit", "main"),
+                _REPO,
+                True,
+            ),
+            ("run", _provenance_argv(), _REPO, True),
+            (
+                "run",
+                ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+                _REPO,
+                True,
+            ),
+            (
+                "run",
+                ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+                _REPO,
+                True,
+            ),
+            ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
+            (
+                "run",
+                ("git", "log", "-1", "--format=%B", _SHA_C),
+                _REPO,
+                True,
+            ),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
+            ("run", _STATUS_ARGV, _REPO, True),
+            ("unlink", _VALIDATED_MESSAGE),
+            ("run", _helper("release"), _REPO, True),
+        ]
+    )
+    assert not any(
+        event[0] == "run" and event[1] == _COMMAND for event in fake.events
+    )
+
+
+def test_held_self_prerun_dirty_blocks_without_releasing_lease() -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _claim(fake, _SHA_A, _held_self_payload())
+    fake.expect_run(
+        ("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n")
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    _prerun_status(fake, stdout=" M retained.py\n")
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "prerun-clean"
+    assert outcome.source_rc is None
+    fake.assert_drained(
+        [
+            *_PREFLIGHT_EVENTS,
+            ("monotonic",),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            ("monotonic",),
+            ("run", _helper("claim", _SHA_A), _REPO, True),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("run", _STATUS_ARGV, _REPO, True),
+        ]
+    )
+    assert not any(
+        event[0] == "run" and event[1] in {_COMMAND, _helper("release")}
+        for event in fake.events
+    )
+
+
+def test_malformed_ai_agent_message_fails_provenance_before_commit() -> None:
+    message = "merge\n\nAI-Agent: codex\n"
+    assert DW._message_has_ai_agent(message)
+    fake = _RoutingAcceptanceEffects(
+        behind=[1, 0],
+        message=message,
+        head_shas=[_SHA_C, _SHA_C],
+        provenance_result=DW._CommandResult(9),
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "merge-message-provenance"
+    assert outcome.source_rc == 9
+    assert fake.claims == 1
+    assert fake.submissions == 0
+    assert fake.releases == 1
+    assert (
+        "run",
+        ("git", "merge", "--abort"),
+        _REPO,
+        True,
+    ) in fake.events
+    assert not any(
+        event[0] == "run"
+        and event[1]
+        in {
+            ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+            ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _COMMAND,
+        }
+        for event in fake.events
+    )
+    fake.assert_drained(
+        [
+            *_PREFLIGHT_EVENTS,
+            ("is_file", _MESSAGE),
+            ("monotonic",),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            ("monotonic",),
+            ("run", _helper("claim", _SHA_A), _REPO, True),
+            ("run", ("git", "rev-parse", "main"), _REPO, True),
+            (
+                "run",
+                ("git", "rev-list", "--count", "HEAD..main"),
+                _REPO,
+                True,
+            ),
+            ("is_file", _MESSAGE),
+            ("read_text", _MESSAGE),
+            ("write_temp", message.encode("utf-8")),
+            (
+                "run",
+                ("git", "merge", "--no-ff", "--no-commit", "main"),
+                _REPO,
+                True,
+            ),
+            ("run", _provenance_argv(), _REPO, True),
+            ("unlink", _VALIDATED_MESSAGE),
+            *_ABORT_CLEAN_EVENTS,
+            ("run", _helper("release"), _REPO, True),
+        ]
+    )
+
+
+def test_preflight_submodule_dirty_rejects_before_claim() -> None:
+    fake = _SubmoduleDirtyAcceptanceEffects(dirty_status_call=1)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 2
+    assert outcome.stage == "preflight-clean"
+    assert outcome.source_rc is None
+    assert fake.status_reads == 1
+    assert fake.claims == 0
+    assert fake.submissions == 0
+    assert fake.releases == 0
+    fake.assert_drained(
+        [
+            ("run", ("git", "rev-parse", "--is-inside-work-tree"), _REPO, True),
+            ("run", ("git", "rev-parse", "--show-toplevel"), _REPO, True),
+            (
+                "run",
+                ("git", "symbolic-ref", "--quiet", "--short", "HEAD"),
+                _REPO,
+                True,
+            ),
+            ("run", _STATUS_ARGV, _REPO, True),
+        ]
+    )
 
 
 def test_merge_failure_aborts_before_release() -> None:
@@ -1549,6 +2082,7 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(23), capture=False)
     _release(fake)
     outcome = _run_acceptance(fake)
@@ -1562,6 +2096,7 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
+        ("run", _STATUS_ARGV, _REPO, True),
         ("run", _COMMAND, _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
@@ -1625,6 +2160,7 @@ def test_release_failure_overrides_primary_result() -> None:
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(5), capture=False)
     _release(fake, DW._CommandResult(0, '{"state":"unavailable"}'))
     outcome = _run_acceptance(fake)
@@ -1638,6 +2174,7 @@ def test_release_failure_overrides_primary_result() -> None:
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
+        ("run", _STATUS_ARGV, _REPO, True),
         ("run", _COMMAND, _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
@@ -1656,6 +2193,7 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(5), capture=False)
     _release(fake, release_result)
 
@@ -1671,6 +2209,7 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
+        ("run", _STATUS_ARGV, _REPO, True),
         ("run", _COMMAND, _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
@@ -1805,6 +2344,66 @@ def test_default_run_sanitizes_git_and_bounds_only_stages(
     assert group_kills == [(4321, signal.SIGKILL)]
 
 
+def test_provenance_checker_is_sanitized_bounded_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    popen_calls: list[tuple[list[str], dict[str, object]]] = []
+    group_kills: list[tuple[int, int]] = []
+
+    class Process:
+        pid = 5432
+        returncode = 0
+
+        def __init__(self) -> None:
+            self.communicate_calls: list[object] = []
+
+        def communicate(self, timeout: object = None) -> tuple[str, str]:
+            self.communicate_calls.append(timeout)
+            if len(self.communicate_calls) == 1:
+                raise subprocess.TimeoutExpired(_provenance_argv(), timeout)
+            self.returncode = -signal.SIGKILL
+            return "", ""
+
+        def kill(self) -> None:
+            self.returncode = -signal.SIGKILL
+
+        def wait(self, timeout: object = None) -> int:
+            del timeout
+            return self.returncode
+
+    process = Process()
+
+    def recording_popen(argv: list[str], **kwargs: object) -> Process:
+        popen_calls.append((argv, kwargs))
+        return process
+
+    for key in DW._GIT_ENV_KEYS:
+        monkeypatch.setenv(key, f"bad-{key}")
+    monkeypatch.setattr(DW.subprocess, "Popen", recording_popen)
+    monkeypatch.setattr(
+        DW.os, "killpg", lambda pid, signum: group_kills.append((pid, signum))
+    )
+
+    with pytest.raises(DW._StageFailure) as exc_info:
+        DW._run_capture(
+            DW._default_effects(),
+            _provenance_argv(),
+            _REPO,
+            "merge-message-provenance",
+        )
+
+    assert exc_info.value.outcome.rc == 70
+    assert exc_info.value.outcome.stage == "merge-message-provenance"
+    assert exc_info.value.outcome.source_rc is None
+    assert len(popen_calls) == 1
+    checker_argv, checker_kwargs = popen_calls[0]
+    assert checker_argv == list(_provenance_argv())
+    assert checker_kwargs["start_new_session"] is True
+    assert all(key not in checker_kwargs["env"] for key in DW._GIT_ENV_KEYS)
+    assert process.communicate_calls == [300, 5]
+    assert group_kills == [(5432, signal.SIGKILL)]
+
+
 @pytest.mark.parametrize(
     "case", ["missing-delimiter", "empty-command", "poll-29", "poll-121", "default-30"],
 )
@@ -1870,7 +2469,7 @@ def test_identity_preflight_rejects_before_claim(
     if failed_stage != "preflight-toplevel":
         fake.expect_run(("git", "symbolic-ref", "--quiet", "--short", "HEAD"), DW._CommandResult(0, branch + "\n"))
     if failed_stage == "preflight-clean":
-        fake.expect_run(("git", "status", "--porcelain", "--untracked-files=no"), DW._CommandResult(0, status))
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, status))
     outcome = _run_acceptance(fake)
     assert outcome.rc == 2
     assert outcome.stage == failed_stage
@@ -1884,7 +2483,7 @@ def test_identity_preflight_rejects_before_claim(
         )
     if failed_stage == "preflight-clean":
         expected.append(
-            ("run", ("git", "status", "--porcelain", "--untracked-files=no"), _REPO, True)
+            ("run", _STATUS_ARGV, _REPO, True)
         )
     assert fake.events == expected
     fake.assert_drained()
@@ -1949,6 +2548,7 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "1\n"))
     fake.read_text_queue.append((_MESSAGE, "merge\nAI-Agent: codex\n"))
     fake.expect_run(("git", "merge", "--no-ff", "--no-commit", "main"))
+    _provenance(fake)
     fake.expect_run(("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "commit", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n"))
@@ -1975,6 +2575,7 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
         ("read_text", _MESSAGE),
         ("write_temp", b"merge\nAI-Agent: codex\n"),
         ("run", ("git", "merge", "--no-ff", "--no-commit", "main"), _REPO, True),
+        ("run", _provenance_argv(), _REPO, True),
         ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)), _REPO, True),
         ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE)), _REPO, True),
         ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
@@ -2045,6 +2646,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
     restored_handler_calls: list[int] = []
     restore_calls = 0
@@ -2088,6 +2690,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
+        ("run", _STATUS_ARGV, _REPO, True),
         ("run", _COMMAND, _REPO, False),
         ("monotonic",),
     ]
@@ -2177,6 +2780,176 @@ def test_second_signal_is_deferred_until_cleanup_completes(
     fake.assert_drained()
 
 
+def test_real_git_dirty_after_claim_blocks_acceptance_command(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo-dirty"
+    lease = tmp_path / "lease-dirty"
+    repo.mkdir()
+    lease.mkdir()
+    tools = repo / "tools"
+    tools.mkdir()
+    real_helper = tools / "wave_land_window_real.py"
+    shutil.copy2(_LEASE_HELPER, real_helper)
+    helper = tools / "wave_land_window.py"
+    helper.write_text(
+        "import subprocess,sys\n"
+        "from pathlib import Path\n"
+        "real=Path(__file__).with_name('wave_land_window_real.py')\n"
+        "result=subprocess.run([sys.executable,str(real),*sys.argv[1:]],"
+        "capture_output=True,text=True)\n"
+        "if len(sys.argv)>1 and sys.argv[1]=='claim' and result.returncode==0:\n"
+        "    (Path(__file__).resolve().parents[1]/'tracked.txt').write_text("
+        "'dirty after claim\\n',encoding='utf-8')\n"
+        "sys.stdout.write(result.stdout)\n"
+        "sys.stderr.write(result.stderr)\n"
+        "raise SystemExit(result.returncode)\n",
+        encoding="utf-8",
+    )
+    git_env = {
+        **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True,
+            env=git_env,
+        )
+
+    git("init", "-b", "main")
+    tracked = repo / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/wave_land_window_real.py",
+    )
+    git("commit", "-m", "base")
+    git("checkout", "-b", "worktree-dirty-real")
+    sentinel = "REAL-DIRTY-COMMAND-SENTINEL"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_TOOL),
+            "acceptance",
+            "--wave",
+            "dirty-real",
+            "--lease-dir",
+            str(lease),
+            "--",
+            sys.executable,
+            "-c",
+            f"print({sentinel!r})",
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=git_env,
+    )
+
+    assert result.returncode == 70
+    assert "error: stage=prerun-clean rc=70" in result.stderr
+    assert "tracked.txt" in result.stderr
+    assert sentinel not in result.stdout
+    assert not (lease / "acceptance.lease").exists()
+
+
+def test_real_git_production_provenance_rejects_malformed_merge_message(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo-production-provenance"
+    lease = tmp_path / "lease-production-provenance"
+    repo.mkdir()
+    lease.mkdir()
+    tools = repo / "tools"
+    tools.mkdir()
+    shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    shutil.copy2(_ROOT / "tools" / "check_ai_provenance.py", tools)
+    campaign = repo / "orchestrator" / "campaign"
+    campaign.mkdir(parents=True)
+    shutil.copy2(_ROOT / "orchestrator" / "campaign" / "__init__.py", campaign)
+    shutil.copy2(_ROOT / "orchestrator" / "campaign" / "site_policy.py", campaign)
+    git_env = {
+        **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True,
+            env=git_env,
+        )
+
+    git("init", "-b", "main")
+    tracked = repo / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    git("add", "tracked.txt", "tools", "orchestrator")
+    git("commit", "-m", "base")
+    base_sha = git("rev-parse", "HEAD").stdout.strip()
+    git("checkout", "-b", "worktree-production-provenance")
+    git("checkout", "main")
+    tracked.write_text("main advanced\n", encoding="utf-8")
+    git("add", "tracked.txt")
+    git("commit", "-m", "advance main")
+    git("checkout", "worktree-production-provenance")
+    message = tmp_path / "malformed-merge-message.txt"
+    message.write_text("merge main\n\nAI-Agent: codex\n", encoding="utf-8")
+    sentinel = "PRODUCTION-PROVENANCE-COMMAND-SENTINEL"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_TOOL),
+            "acceptance",
+            "--wave",
+            "production-provenance",
+            "--lease-dir",
+            str(lease),
+            "--merge-message-file",
+            str(message),
+            "--",
+            sys.executable,
+            "-c",
+            f"print({sentinel!r})",
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=git_env,
+    )
+
+    assert result.returncode == 70
+    assert "error: stage=merge-message-provenance rc=70 source_rc=1" in result.stderr
+    assert sentinel not in result.stdout
+    assert git("rev-parse", "HEAD").stdout.strip() == base_sha
+    assert git("rev-list", "--count", "HEAD..main").stdout.strip() == "1"
+    assert git(
+        "status", "--porcelain", "--untracked-files=no",
+        "--ignore-submodules=none",
+    ).stdout == ""
+    merge_head = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=git_env,
+    )
+    assert merge_head.returncode == 1
+    assert not (lease / "acceptance.lease").exists()
+
+
 def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     lease = tmp_path / "lease"
@@ -2185,6 +2958,7 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     tools = repo / "tools"
     tools.mkdir()
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    _write_test_provenance_checker(repo)
 
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
@@ -2203,16 +2977,25 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     git("init", "-b", "main")
     tracked = repo / "tracked.txt"
     tracked.write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-integration")
     git("checkout", "main")
     tracked.write_text("main advanced\n", encoding="utf-8")
-    git("add", "tracked.txt")
+    git("add", "tracked.txt", "tools/wave_land_window.py")
     git("commit", "-m", "advance main")
     git("checkout", "worktree-integration")
     message = tmp_path / "merge-message.txt"
-    message.write_text("merge main\n\nAI-Agent: codex\n", encoding="utf-8")
+    message.write_text(
+        "merge main\n\nAI-Agent: product=codex; model=gpt-5; "
+        "reasoning=high; role=author\n",
+        encoding="utf-8",
+    )
 
     child = (
         "import pathlib,sys; "
@@ -2249,7 +3032,9 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     assert "lease is held" in result.stdout
     assert "CHILD-STDOUT-SENTINEL" in result.stdout
     assert "CHILD-STDERR-SENTINEL" in result.stderr
-    assert "AI-Agent: codex" in git("log", "-1", "--format=%B", "HEAD").stdout
+    assert "AI-Agent: product=codex" in git(
+        "log", "-1", "--format=%B", "HEAD"
+    ).stdout
     assert git("rev-list", "--count", "HEAD..main").stdout.strip() == "0"
     assert (lease / "acceptance.lease").is_file()
     released = subprocess.run(
@@ -2301,7 +3086,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt")
+    git("add", "tracked.txt", "tools/wave_land_window.py")
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-deadlock")
     main_sha = git("rev-parse", "main")
@@ -2383,7 +3168,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt")
+    git("add", "tracked.txt", "tools/wave_land_window.py")
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal")
     signal_child = (
@@ -2439,7 +3224,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt")
+    git("add", "tracked.txt", "tools/wave_land_window.py")
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal-success")
     runner = tmp_path / "success-boundary.py"

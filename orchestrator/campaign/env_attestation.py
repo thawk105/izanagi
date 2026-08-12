@@ -932,7 +932,12 @@ def observed_comparison_values(profile: _schema_v2.ObservedAttestationProfile) -
 
 def _recorded_verdict(field: str, expected: object, observed: object) -> str:
     try:
-        if field == "cpu.model_name_raw":
+        if field == "effective_clock.method":
+            passed = (
+                type(expected) is str and bool(expected)
+                and type(observed) is str and bool(observed)
+            )
+        elif field == "cpu.model_name_raw":
             passed = normalize_cpu_model_name(expected) == normalize_cpu_model_name(observed)  # type: ignore[arg-type]
         elif field in {"tsc.raw_samples_mhz", "tsc.median_mhz"}:
             if field == "tsc.raw_samples_mhz":

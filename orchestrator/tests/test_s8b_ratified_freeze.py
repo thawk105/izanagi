@@ -396,7 +396,8 @@ def _fixture_observe_floor_tool(requested: str, role: str):
 
 
 @contextlib.contextmanager
-def _fixed_prepare(cell, ccbench_pin):
+def _fixed_prepare(cell, ccbench_pin, *, cxx):
+    assert cxx == "fixture-cxx"
     entry = cell["variant"]
     configuration = cell["configuration"]
     flags = dict(entry.get("flags", {}))

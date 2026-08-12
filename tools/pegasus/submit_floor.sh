@@ -409,7 +409,18 @@ provision_claim_root || exit 2
 
 # 出典: submit_certify.sh:170-237 @ e9b6f69
 export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"
-qsub_cmd=(qsub -v "$export_spec" "$JOB_SCRIPT")
+SCHEDULER_STDOUT="$SUBMISSION_DIR/scheduler.stdout"
+SCHEDULER_STDERR="$SUBMISSION_DIR/scheduler.stderr"
+for scheduler_path in "$SCHEDULER_STDOUT" "$SCHEDULER_STDERR"; do
+  if ! assert_safe_output_path "$scheduler_path"; then
+    echo "unsafe scheduler output path or containment: $scheduler_path" >&2
+    exit 2
+  fi
+done
+qsub_cmd=(
+  qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR"
+  -v "$export_spec" "$JOB_SCRIPT"
+)
 printf 'qsub command:'
 printf ' %q' "${qsub_cmd[@]}"
 printf '\n'
@@ -473,7 +484,14 @@ payload = {
     "dry_run": pre["dry_run"],
 }
 with open(target, "x", encoding="utf-8") as handle:
-    json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    json.dump(
+        payload,
+        handle,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
     handle.write("\n")
 PY
 
