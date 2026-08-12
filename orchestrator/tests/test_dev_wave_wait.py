@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+import hashlib
 import importlib.util
 import json
 import os
@@ -32,13 +33,25 @@ _REPO = Path("/repo")
 _LEASE = Path("/lease")
 _MESSAGE = Path("/message.txt")
 _VALIDATED_MESSAGE = Path("/validated-message.txt")
+_RECEIPT = Path("/receipts/acceptance.json")
+_RECEIPT_TEMP = Path("/receipts/.dev-wave-acceptance-receipt-test.tmp")
 _COMMAND = ("harmless-command", "--flag")
+_HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
+_WAITER_BLOB = "d" * 40
 _RELEASE_JSON = json.dumps({"state": "released"})
 _LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
 _STATUS_ARGV = (
-    "git", "status", "--porcelain", "--untracked-files=no",
+    "git", "status", "--porcelain", "--untracked-files=all",
     "--ignore-submodules=none",
 )
+_INDEX_FLAGS_ARGV = ("git", "ls-files", "-v", "-z")
+_SUBMODULE_INDEX_FLAGS_ARGV = (
+    "git", "submodule", "foreach", "--recursive", "--quiet",
+    "git ls-files -v -z",
+)
+_DIFF_ARGV = ("git", "diff", "--binary", "--no-ext-diff", "HEAD", "--")
+_SUBMODULE_STATUS_ARGV = ("git", "submodule", "status", "--recursive")
+_SUBMODULE_READY_ARGV = _SUBMODULE_STATUS_ARGV
 
 
 def _provenance_argv(
@@ -68,6 +81,14 @@ class _FakeEffects:
         self.monotonic_queue: list[float] = []
         self.env: dict[str, str] = {}
         self.temp_path = _VALIDATED_MESSAGE
+        self.existing_paths: set[Path] = set()
+        self.directories: set[Path] = {_RECEIPT.parent}
+        self.receipt_temp_result: object = _RECEIPT_TEMP
+        self.rename_result: object = None
+        self.receipt_content: bytes | None = None
+        self.receipt_published = False
+        self.last_claim_main_sha: str | None = None
+        self.final_claim_age_seconds = 0
 
     @property
     def effects(self) -> object:
@@ -82,6 +103,11 @@ class _FakeEffects:
             monotonic=self.monotonic,
             write_temp=self.write_temp,
             unlink=self.unlink,
+            path_exists=self.path_exists,
+            is_dir=self.is_dir,
+            resolve_path=self.resolve_path,
+            write_receipt_temp=self.write_receipt_temp,
+            rename=self.rename,
         )
 
     def expect_run(
@@ -90,10 +116,63 @@ class _FakeEffects:
         result: object = None,
         *,
         capture: bool = True,
+        unchanged_postrun: bool = True,
     ) -> None:
         if result is None:
             result = DW._CommandResult(0)
+        if len(argv) >= 5 and argv[2] == "claim" and argv[-2] == "--main-sha":
+            self.last_claim_main_sha = argv[-1]
         self.run_queue.append((argv, capture, result))
+        if (
+            argv == _COMMAND
+            and unchanged_postrun
+            and not isinstance(result, BaseException)
+        ):
+            assert self.last_claim_main_sha is not None
+            confirmed_main_sha = self.last_claim_main_sha
+            postrun = [
+                    (_STATUS_ARGV, True, DW._CommandResult(0, "")),
+                    (_INDEX_FLAGS_ARGV, True, DW._CommandResult(0, "")),
+                    (_SUBMODULE_INDEX_FLAGS_ARGV, True, DW._CommandResult(0, "")),
+                    (
+                        ("git", "rev-parse", "HEAD"),
+                        True,
+                        DW._CommandResult(0, _SHA_A + "\n"),
+                    ),
+                    (_DIFF_ARGV, True, DW._CommandResult(0, "")),
+                    (_SUBMODULE_STATUS_ARGV, True, DW._CommandResult(0, "")),
+            ]
+            if result.returncode == 0:
+                postrun.extend(
+                    [
+                    (
+                        (
+                            "git",
+                            "rev-parse",
+                            f"{_SHA_A}:tools/dev_wave_wait.py",
+                        ),
+                        True,
+                        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+                    ),
+                    (
+                        ("git", "rev-parse", "main"),
+                        True,
+                        DW._CommandResult(0, confirmed_main_sha + "\n"),
+                    ),
+                    (
+                        _helper("claim", confirmed_main_sha),
+                        True,
+                        DW._CommandResult(
+                            0,
+                            _held_self_payload(
+                                main_sha=confirmed_main_sha,
+                                age_seconds=self.final_claim_age_seconds,
+                            ),
+                        ),
+                    ),
+                    ]
+                )
+            self.run_queue.extend(postrun)
 
     def run(self, argv: object, cwd: Path, capture: bool) -> object:
         actual = tuple(argv)
@@ -134,7 +213,6 @@ class _FakeEffects:
         return str(result)
 
     def getenv(self, name: str) -> str | None:
-        self.events.append(("getenv", name))
         return self.env.get(name)
 
     def monotonic(self) -> float:
@@ -147,6 +225,31 @@ class _FakeEffects:
 
     def unlink(self, path: Path) -> None:
         self.events.append(("unlink", path))
+
+    def path_exists(self, path: Path) -> bool:
+        return path in self.existing_paths
+
+    def is_dir(self, path: Path) -> bool:
+        return path in self.directories
+
+    def resolve_path(self, path: Path) -> Path:
+        if path.is_absolute():
+            return Path(os.path.normpath(path))
+        return Path(os.path.normpath(_REPO / path))
+
+    def write_receipt_temp(self, final_path: Path, content: bytes) -> Path:
+        self.events.append(("write_receipt_temp", final_path))
+        self.receipt_content = content
+        if isinstance(self.receipt_temp_result, BaseException):
+            raise self.receipt_temp_result
+        return self.receipt_temp_result
+
+    def rename(self, source: Path, target: Path) -> None:
+        self.events.append(("rename", source, target))
+        if isinstance(self.rename_result, BaseException):
+            raise self.rename_result
+        self.receipt_published = True
+        self.existing_paths.add(target)
 
     def assert_drained(
         self, expected_events: list[tuple[object, ...]] | None = None
@@ -195,6 +298,9 @@ def _preflight(fake: _FakeEffects) -> None:
         _STATUS_ARGV,
         DW._CommandResult(0, ""),
     )
+    fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_SUBMODULE_READY_ARGV, DW._CommandResult(0, ""))
 
 
 def _prerun_status(
@@ -204,6 +310,21 @@ def _prerun_status(
     returncode: int = 0,
 ) -> None:
     fake.expect_run(_STATUS_ARGV, DW._CommandResult(returncode, stdout))
+    if returncode == 0 and not stdout:
+        _fingerprint(fake)
+
+
+def _fingerprint(fake: _FakeEffects, head: str = _SHA_A) -> None:
+    fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(0, head + "\n"))
+    fake.expect_run(_DIFF_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_SUBMODULE_STATUS_ARGV, DW._CommandResult(0, ""))
+
+
+def _postrun_integrity(fake: _FakeEffects, head: str = _SHA_A) -> None:
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    _fingerprint(fake, head)
 
 
 def _provenance(fake: _FakeEffects, result: object = None) -> None:
@@ -218,6 +339,20 @@ _PREFLIGHT_EVENTS = [
     ("run", ("git", "rev-parse", "--show-toplevel"), _REPO, True),
     ("run", ("git", "symbolic-ref", "--quiet", "--short", "HEAD"), _REPO, True),
     ("run", _STATUS_ARGV, _REPO, True),
+    ("run", _INDEX_FLAGS_ARGV, _REPO, True),
+    ("run", _SUBMODULE_INDEX_FLAGS_ARGV, _REPO, True),
+    ("run", _SUBMODULE_READY_ARGV, _REPO, True),
+]
+_FINGERPRINT_EVENTS = [
+    ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
+    ("run", _DIFF_ARGV, _REPO, True),
+    ("run", _SUBMODULE_STATUS_ARGV, _REPO, True),
+]
+_POSTRUN_INTEGRITY_EVENTS = [
+    ("run", _STATUS_ARGV, _REPO, True),
+    ("run", _INDEX_FLAGS_ARGV, _REPO, True),
+    ("run", _SUBMODULE_INDEX_FLAGS_ARGV, _REPO, True),
+    *_FINGERPRINT_EVENTS,
 ]
 
 
@@ -230,7 +365,7 @@ def _acquired_payload(*, main_sha: str = _SHA_A) -> str:
     return json.dumps(
         {
             "state": "acquired",
-            "holder": "0123456789ab",
+            "holder": _HOLDER,
             "holder_self": True,
             "main_sha": main_sha,
             "age_seconds": 0,
@@ -246,7 +381,7 @@ def _acquired(fake: _FakeEffects, sha: str = _SHA_A) -> None:
 def _held_self_payload(**overrides: object) -> str:
     payload: dict[str, object] = {
         "state": "held-self",
-        "holder": "0123456789ab",
+        "holder": _HOLDER,
         "holder_self": True,
         "main_sha": _SHA_A,
         "age_seconds": 0,
@@ -256,6 +391,20 @@ def _held_self_payload(**overrides: object) -> str:
     return json.dumps(payload)
 
 
+_SUCCESS_RECEIPT_EVENTS = [
+    (
+        "run",
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        _REPO,
+        True,
+    ),
+    ("write_receipt_temp", _RECEIPT),
+    ("run", ("git", "rev-parse", "main"), _REPO, True),
+    ("run", _helper("claim", _SHA_A), _REPO, True),
+    ("rename", _RECEIPT_TEMP, _RECEIPT),
+]
+
+
 def _lease_marker(tmp_path: Path) -> tuple[Path, Path, tuple[int, bytes]]:
     lease_dir = tmp_path / "lease"
     lease_dir.mkdir()
@@ -263,7 +412,7 @@ def _lease_marker(tmp_path: Path) -> tuple[Path, Path, tuple[int, bytes]]:
     lease_path.write_text(
         json.dumps(
             {
-                "holder": "0123456789ab",
+                "holder": _HOLDER,
                 "main_sha": _SHA_A,
                 "ttl": 2400,
             }
@@ -289,6 +438,60 @@ def _write_test_provenance_checker(repo: Path) -> None:
         "raise SystemExit(0 if expected in args.message_file.read_text() else 1)\n",
         encoding="utf-8",
     )
+
+
+def _real_waiter_repo(
+    tmp_path: Path,
+    *,
+    wave: str,
+) -> tuple[Path, Path, dict[str, str]]:
+    repo = tmp_path / f"repo-{wave}"
+    lease = tmp_path / f"lease-{wave}"
+    repo.mkdir()
+    lease.mkdir()
+    tools = repo / "tools"
+    tools.mkdir()
+    shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
+    shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    (tools / "run_tests.py").write_text(
+        "raise SystemExit(0)\n",
+        encoding="utf-8",
+    )
+    env = {
+        **{
+            key: value
+            for key, value in os.environ.items()
+            if key not in DW._GIT_ENV_KEYS
+            and key not in {
+                "PYTEST_ADDOPTS",
+                "PYTEST_PLUGINS",
+                "IZANAGI_TASK_RUN_ID",
+                "IZANAGI_TASK_RUNS_ROOT",
+            }
+        },
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    git("init", "-b", "main")
+    git("add", "tools")
+    git("commit", "-m", "base")
+    git("checkout", "-b", f"worktree-{wave}")
+    return repo, lease, env
 
 
 def _release(fake: _FakeEffects, result: object = None) -> None:
@@ -337,6 +540,8 @@ def _run_acceptance(
     max_wait: int = 7200,
     owned_paths: tuple[Path, ...] = (),
     lease_dir: Path = _LEASE,
+    lifecycle: object = None,
+    receipt_file: Path = _RECEIPT,
 ) -> object:
     return DW.run_acceptance(
         wave=_WAVE,
@@ -347,8 +552,36 @@ def _run_acceptance(
         command=_COMMAND,
         repo=_REPO,
         effects=fake.effects,
+        receipt_file=receipt_file,
         owned_paths=owned_paths,
+        lifecycle=lifecycle,
     )
+
+
+def _queue_clean_acceptance_prefix(
+    fake: _FakeEffects,
+    *,
+    claim_payload: str | None = None,
+) -> None:
+    _preflight(fake)
+    _claim(
+        fake,
+        _SHA_A,
+        _acquired_payload() if claim_payload is None else claim_payload,
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    _prerun_status(fake)
 
 
 class _RoutingAcceptanceEffects(_FakeEffects):
@@ -373,6 +606,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self.behind = list([0] if behind is None else behind)
         self.message = message
         self.head_shas = list([] if head_shas is None else head_shas)
+        self.last_head_sha = self.head_shas[-1] if self.head_shas else _SHA_A
         self.changed_paths = changed_paths
         self.claim_payload = (
             _acquired_payload() if claim_payload is None else claim_payload
@@ -410,6 +644,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             _LEGACY_STATUS_ARGV,
         }:
             return DW._CommandResult(0, "")
+        if actual in {_INDEX_FLAGS_ARGV, _SUBMODULE_INDEX_FLAGS_ARGV}:
+            return DW._CommandResult(0, "")
         if actual == ("git", "rev-parse", "main"):
             self.main_reads += 1
             if self.main_reads == 2 and self.postclaim_rc != 0:
@@ -417,7 +653,12 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             return DW._CommandResult(0, _SHA_A + "\n")
         if actual == _helper("claim", _SHA_A, lease_dir=self.lease_dir):
             self.claims += 1
-            return DW._CommandResult(0, self.claim_payload)
+            if self.claims == 1:
+                return DW._CommandResult(0, self.claim_payload)
+            return DW._CommandResult(
+                0,
+                _held_self_payload(main_sha=_SHA_A),
+            )
         if actual == ("git", "rev-list", "--count", "HEAD..main"):
             assert self.behind
             return DW._CommandResult(0, f"{self.behind.pop(0)}\n")
@@ -433,8 +674,27 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         }:
             return DW._CommandResult(0)
         if actual == ("git", "rev-parse", "HEAD"):
-            assert self.head_shas
-            return DW._CommandResult(0, self.head_shas.pop(0) + "\n")
+            if self.head_shas:
+                self.last_head_sha = self.head_shas.pop(0)
+            return DW._CommandResult(0, self.last_head_sha + "\n")
+        if actual == (
+            "git",
+            "rev-parse",
+            f"{self.last_head_sha}:tools/dev_wave_wait.py",
+        ):
+            return DW._CommandResult(0, _WAITER_BLOB + "\n")
+        if actual == _helper(
+            "claim",
+            self.last_head_sha,
+            lease_dir=self.lease_dir,
+        ):
+            self.claims += 1
+            return DW._CommandResult(
+                0,
+                _held_self_payload(main_sha=self.last_head_sha),
+            )
+        if actual in {_DIFF_ARGV, _SUBMODULE_STATUS_ARGV}:
+            return DW._CommandResult(0, "")
         if actual[:4] == ("git", "log", "-1", "--format=%B"):
             return DW._CommandResult(0, self.message)
         if actual == _COMMAND:
@@ -481,6 +741,799 @@ class _SubmoduleDirtyAcceptanceEffects(_RoutingAcceptanceEffects):
                 return DW._CommandResult(0, " m external/ccbench\n")
             return DW._CommandResult(0, "")
         return super().run(argv, cwd, capture)
+
+
+def test_floor_job_staging_is_ignored_while_submissions_remain_tracked() -> None:
+    lines = (_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    staging_pattern = "output/env/pegasus/floor/job-staging/"
+    predecessor = "output/env/pegasus/silo_ladder_rung1/job-staging/"
+    assert lines.count(staging_pattern) == 1
+    assert lines.index(staging_pattern) == lines.index(predecessor) + 1
+    assert [line for line in lines if "output/env/pegasus/floor/" in line] == [
+        staging_pattern
+    ]
+
+    representative_relative = (
+        staging_pattern + "0:873200.nqsv/hostname.stdout"
+    )
+    staging = subprocess.run(
+        ["git", "check-ignore", "--no-index", "-q", "--", representative_relative],
+        cwd=_ROOT,
+        check=False,
+    )
+    submissions = subprocess.run(
+        [
+            "git", "check-ignore", "--no-index", "-q", "--",
+            "output/env/pegasus/floor/attempts/submissions/probe",
+        ],
+        cwd=_ROOT,
+        check=False,
+    )
+    tracked_submissions = subprocess.run(
+        [
+            "git", "ls-files", "--",
+            "output/env/pegasus/floor/attempts/submissions",
+        ],
+        cwd=_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    tracked_staging = subprocess.run(
+        ["git", "ls-files", "--", staging_pattern],
+        cwd=_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert staging.returncode == 0
+    assert submissions.returncode == 1
+    assert tracked_staging.returncode == 0
+    assert tracked_staging.stdout == ""
+    assert tracked_submissions.returncode == 0
+    assert tracked_submissions.stdout
+
+
+@pytest.mark.parametrize(
+    ("prefix", "entry"),
+    [("-", "external/uninitialized"), ("U", "external/conflicted")],
+    ids=("uninitialized", "conflict"),
+)
+def test_submodule_not_ready_is_rejected_before_claim(
+    prefix: str,
+    entry: str,
+) -> None:
+    fake = _FakeEffects()
+    fake.expect_run(
+        ("git", "rev-parse", "--is-inside-work-tree"),
+        DW._CommandResult(0, "true\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "--show-toplevel"),
+        DW._CommandResult(0, str(_REPO) + "\n"),
+    )
+    fake.expect_run(
+        ("git", "symbolic-ref", "--quiet", "--short", "HEAD"),
+        DW._CommandResult(0, f"feature-{_WAVE}\n"),
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(
+        _SUBMODULE_READY_ARGV,
+        DW._CommandResult(0, f"{prefix}{_SHA_A} {entry}\n"),
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(2, "preflight-submodule-ready")
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_preflight_untracked_dirty_rejects_before_claim(tmp_path: Path) -> None:
+    wave = "real-untracked"
+    repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+    (repo / "untracked.py").write_text("foreign\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "tools" / "dev_wave_wait.py"),
+            "acceptance",
+            "--wave",
+            wave,
+            "--lease-dir",
+            str(lease),
+            "--receipt-file",
+            str(tmp_path / "untracked-receipt.json"),
+            "--",
+            "python3",
+            "tools/run_tests.py",
+        ],
+        cwd=repo,
+        env=env,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "stage=preflight-clean rc=2" in completed.stderr
+    assert not (lease / "acceptance.lease").exists()
+    assert not (tmp_path / "untracked-receipt.json").exists()
+
+
+def test_prerun_untracked_dirty_blocks_submission_and_releases() -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    _acquired(fake)
+    fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_A + "\n"))
+    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
+    _prerun_status(fake, stdout="?? untracked.py\n")
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "prerun-clean"
+    assert not any(event[0] == "run" and event[1] == _COMMAND for event in fake.events)
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("tag", ["S", "h"], ids=("skip-worktree", "assume-unchanged"))
+@pytest.mark.parametrize("source", ["root", "submodule"])
+@pytest.mark.parametrize("phase", ["preflight", "postrun"])
+def test_index_flags_fail_closed_before_claim_and_after_run(
+    tag: str,
+    source: str,
+    phase: str,
+) -> None:
+    fake = _FakeEffects()
+    flagged = f"{tag} hidden.py\0"
+    if phase == "preflight":
+        fake.expect_run(
+            ("git", "rev-parse", "--is-inside-work-tree"),
+            DW._CommandResult(0, "true\n"),
+        )
+        fake.expect_run(
+            ("git", "rev-parse", "--show-toplevel"),
+            DW._CommandResult(0, str(_REPO) + "\n"),
+        )
+        fake.expect_run(
+            ("git", "symbolic-ref", "--quiet", "--short", "HEAD"),
+            DW._CommandResult(0, f"feature-{_WAVE}\n"),
+        )
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(
+            _INDEX_FLAGS_ARGV,
+            DW._CommandResult(0, flagged if source == "root" else ""),
+        )
+        if source == "submodule":
+            fake.expect_run(
+                _SUBMODULE_INDEX_FLAGS_ARGV,
+                DW._CommandResult(0, flagged),
+            )
+    else:
+        _queue_clean_acceptance_prefix(fake)
+        fake.expect_run(
+            _COMMAND,
+            DW._CommandResult(0),
+            capture=False,
+            unchanged_postrun=False,
+        )
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(
+            _INDEX_FLAGS_ARGV,
+            DW._CommandResult(0, flagged if source == "root" else ""),
+        )
+        if source == "submodule":
+            fake.expect_run(
+                _SUBMODULE_INDEX_FLAGS_ARGV,
+                DW._CommandResult(0, flagged),
+            )
+        _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == f"{phase}-index-flags"
+    if phase == "preflight":
+        assert not any(
+            event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+            for event in fake.events
+        )
+        assert not any(
+            event[0] == "run" and event[1] == _COMMAND
+            for event in fake.events
+        )
+    else:
+        assert ("run", _COMMAND, _REPO, False) in fake.events
+        assert ("run", _helper("release"), _REPO, True) in fake.events
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("kind", "status"),
+    [
+        ("tracked", " M tracked.py\n"),
+        ("untracked", "?? untracked.py\n"),
+        ("submodule", " m external/ccbench\n"),
+    ],
+)
+def test_postrun_dirty_fails_closed_and_releases(
+    kind: str,
+    status: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    del kind
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, status))
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "postrun-clean"
+    child_index = fake.events.index(("run", _COMMAND, _REPO, False))
+    assert child_index < fake.events.index(
+        ("run", _STATUS_ARGV, _REPO, True),
+        child_index + 1,
+    )
+    assert status.strip() in capsys.readouterr().err
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    fake.assert_drained()
+
+
+def test_postrun_clean_head_change_fails_fingerprint_and_releases() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake, _SHA_B)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "postrun-fingerprint"
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("component", ["diff", "submodule-status"])
+def test_postrun_fingerprint_binds_diff_and_submodule_status(
+    component: str,
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+    fake.expect_run(
+        ("git", "rev-parse", "HEAD"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        _DIFF_ARGV,
+        DW._CommandResult(0, "binary patch\n" if component == "diff" else ""),
+    )
+    fake.expect_run(
+        _SUBMODULE_STATUS_ARGV,
+        DW._CommandResult(
+            0,
+            f" {_SHA_B} external/ccbench\n"
+            if component == "submodule-status"
+            else "",
+        ),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "postrun-fingerprint"
+    fake.assert_drained()
+
+
+def test_fingerprint_length_framing_disambiguates_concatenated_inputs() -> None:
+    first = _FakeEffects()
+    first.expect_run(
+        ("git", "rev-parse", "HEAD"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    first.expect_run(_DIFF_ARGV, DW._CommandResult(0, "bc"))
+    first.expect_run(_SUBMODULE_STATUS_ARGV, DW._CommandResult(0, ""))
+    second = _FakeEffects()
+    second.expect_run(
+        ("git", "rev-parse", "HEAD"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    second.expect_run(_DIFF_ARGV, DW._CommandResult(0, "c"))
+    second.expect_run(_SUBMODULE_STATUS_ARGV, DW._CommandResult(0, ""))
+
+    first_fingerprint = DW._tree_fingerprint(
+        first.effects,
+        _REPO,
+        "fingerprint-test",
+        "a",
+    )
+    second_fingerprint = DW._tree_fingerprint(
+        second.effects,
+        _REPO,
+        "fingerprint-test",
+        "ab",
+    )
+
+    assert first_fingerprint.digest != second_fingerprint.digest
+    assert first_fingerprint.status_bytes == 1
+    assert second_fingerprint.status_bytes == 2
+    first.assert_drained()
+    second.assert_drained()
+
+
+@pytest.mark.parametrize("phase", ["prerun", "postrun"])
+def test_fingerprint_git_command_failure_fails_closed_and_releases(
+    phase: str,
+) -> None:
+    fake = _FakeEffects()
+    if phase == "prerun":
+        _preflight(fake)
+        _acquired(fake)
+        fake.expect_run(
+            ("git", "rev-parse", "main"),
+            DW._CommandResult(0, _SHA_A + "\n"),
+        )
+        fake.expect_run(
+            ("git", "rev-list", "--count", "HEAD..main"),
+            DW._CommandResult(0, "0\n"),
+        )
+        fake.expect_run(
+            ("git", "rev-list", "--count", "HEAD..main"),
+            DW._CommandResult(0, "0\n"),
+        )
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(9))
+    else:
+        _queue_clean_acceptance_prefix(fake)
+        fake.expect_run(
+            _COMMAND,
+            DW._CommandResult(0),
+            capture=False,
+            unchanged_postrun=False,
+        )
+        fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
+        fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(9))
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == f"{phase}-fingerprint"
+    assert outcome.source_rc == 9
+    fake.assert_drained()
+
+
+def test_nonzero_child_is_postchecked_before_propagation() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(23), capture=False)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 23
+    assert outcome.stage == "acceptance-command"
+    child_index = fake.events.index(("run", _COMMAND, _REPO, False))
+    release_index = fake.events.index(("run", _helper("release"), _REPO, True))
+    assert ("run", _INDEX_FLAGS_ARGV, _REPO, True) in fake.events[child_index:release_index]
+    fake.assert_drained()
+
+
+def test_postrun_dirty_overrides_nonzero_child_rc() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(23),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, "?? child-output\n"))
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "postrun-clean"
+    fake.assert_drained()
+
+
+def test_held_self_postrun_dirty_retains_lease() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake, claim_payload=_held_self_payload())
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    fake.expect_run(_STATUS_ARGV, DW._CommandResult(0, " M tracked.py\n"))
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "postrun-clean"
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_unchanged_postrun_fingerprint_allows_success_and_retains_lease() -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome.rc == 0
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
+) -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome.rc == 0
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    assert lifecycle.receipt_published is True
+    assert fake.receipt_published is True
+    receipt = json.loads(fake.receipt_content)
+    assert set(receipt) == {
+        "schema_version", "authority_kind", "acceptance_wave", "lease_holder",
+        "tested_tip", "argv", "resolved_runner_path", "child_rc",
+        "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
+        "env_projection",
+    }
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v1"
+    assert receipt["authority_kind"] == "dev-wave-wait-acceptance"
+    assert receipt["acceptance_wave"] == _WAVE
+    assert receipt["lease_holder"] == _HOLDER
+    assert receipt["tested_tip"] == _SHA_A
+    assert receipt["argv"] == list(_COMMAND)
+    assert receipt["resolved_runner_path"] == "--flag"
+    assert receipt["child_rc"] == 0
+    assert receipt["pre_fingerprint"] == receipt["post_fingerprint"]
+    assert receipt["pre_fingerprint"]["head_sha"] == _SHA_A
+    assert receipt["waiter_blob_sha"] == _WAITER_BLOB
+    assert receipt["env_projection"] == {
+        "PYTEST_ADDOPTS": None,
+        "PYTEST_PLUGINS": None,
+        "IZANAGI_TASK_RUN_ID": None,
+        "IZANAGI_TASK_RUNS_ROOT": None,
+    }
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize("child_rc", [1, 23], ids=("one", "audit-shaped"))
+def test_failed_acceptance_never_publishes_receipt(child_rc: int) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(child_rc), capture=False)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == child_rc
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    fake.assert_drained()
+
+
+def test_receipt_publish_failure_is_fail_closed_and_releases() -> None:
+    fake = _FakeEffects()
+    fake.rename_result = OSError("rename failed")
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    assert ("run", _helper("release"), _REPO, True) in fake.events
+    fake.assert_drained()
+
+
+def test_receipt_requires_sufficient_lease_ttl_and_releases() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(
+            0,
+            _held_self_payload(age_seconds=2101),
+        ),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    assert fake.receipt_content is not None
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+def test_receipt_reconfirms_same_lease_holder_before_publish() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(0, json.dumps({"state": "held"})),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    assert fake.receipt_content is not None
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+def test_held_self_reacquired_before_receipt_is_released_once() -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(
+        fake,
+        claim_payload=_held_self_payload(),
+    )
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(
+        _helper("claim", _SHA_A),
+        DW._CommandResult(0, _acquired_payload()),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    assert fake.events.count(("run", _helper("release"), _REPO, True)) == 1
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+def test_signal_before_receipt_publish_leaves_no_final_and_releases() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._SignalReceived(signal.SIGTERM),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(143, "signal-15")
+    assert fake.receipt_published is False
+    assert _RECEIPT not in fake.existing_paths
+    assert fake.events.index(("write_receipt_temp", _RECEIPT)) < max(
+        index
+        for index, event in enumerate(fake.events)
+        if event == ("run", ("git", "rev-parse", "main"), _REPO, True)
+    )
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+def test_signal_after_receipt_publish_does_not_reverse_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+    real_sigmask = DW.signal.pthread_sigmask
+
+    def delayed_signal(how: int, signals: object):
+        if how == signal.SIG_SETMASK:
+            raise DW._SignalReceived(signal.SIGTERM)
+        return real_sigmask(how, signals)
+
+    monkeypatch.setattr(DW.signal, "pthread_sigmask", delayed_signal)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome.rc == 0
+    assert lifecycle.receipt_published is True
+    assert fake.receipt_published is True
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["inside-repo", "existing", "missing-parent", "reserved-temp-name"],
+)
+def test_receipt_path_rejected_before_claim(case: str) -> None:
+    fake = _FakeEffects()
+    _preflight(fake)
+    if case == "inside-repo":
+        receipt = _REPO / "receipt.json"
+    elif case == "reserved-temp-name":
+        receipt = _RECEIPT.parent / ".dev-wave-acceptance-receipt-final.json"
+    else:
+        receipt = _RECEIPT
+    if case == "existing":
+        fake.existing_paths.add(receipt)
+    if case == "missing-parent":
+        fake.directories.clear()
+
+    outcome = _run_acceptance(fake, receipt_file=receipt)
+
+    assert outcome == DW._Outcome(2, "acceptance-receipt-preflight")
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("PYTEST_ADDOPTS", "-k nothing"),
+        ("PYTEST_PLUGINS", "foreign_plugin"),
+        ("IZANAGI_TASK_RUN_ID", "run-inside-repo"),
+    ],
+)
+def test_acceptance_environment_rejected_before_claim(key: str, value: str) -> None:
+    fake = _FakeEffects()
+    fake.env[key] = value
+    _preflight(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(2, "acceptance-env-preflight")
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_real_pytest_addopts_is_rejected_before_claim(tmp_path: Path) -> None:
+    wave = "real-env-closed"
+    repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+    env["PYTEST_ADDOPTS"] = "-k nothing"
+    receipt = tmp_path / "env-receipt.json"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "tools" / "dev_wave_wait.py"),
+            "acceptance",
+            "--wave",
+            wave,
+            "--lease-dir",
+            str(lease),
+            "--receipt-file",
+            str(receipt),
+            "--",
+            "python3",
+            "tools/run_tests.py",
+        ],
+        cwd=repo,
+        env=env,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "stage=acceptance-env-preflight rc=2" in completed.stderr
+    assert not (lease / "acceptance.lease").exists()
+    assert not receipt.exists()
 
 
 def test_pid_probe_calls_kill_zero_for_exact_pid(
@@ -749,7 +1802,7 @@ def test_acceptance_held_self_runs_command_without_polling(age_seconds: int) -> 
     outcome = _run_acceptance(fake)
 
     assert outcome.rc == 0
-    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
     assert fake.events.count(("sleep", 30)) == 0
     assert not any(
         event[0] == "run" and event[1] == _helper("release")
@@ -781,7 +1834,7 @@ def test_claim_once_real_acquired_payload_grants_acquired_ownership() -> None:
     )
     lifecycle = DW._AcceptanceLifecycle()
 
-    state = DW._claim_once(
+    claim = DW._claim_once(
         fake.effects,
         _REPO,
         _LEASE,
@@ -790,7 +1843,7 @@ def test_claim_once_real_acquired_payload_grants_acquired_ownership() -> None:
         lifecycle,
     )
 
-    assert state == "acquired"
+    assert claim == DW._ClaimContext("acquired", _HOLDER, _SHA_A, 0)
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
     fake.assert_drained()
 
@@ -804,7 +1857,7 @@ def test_acceptance_legacy_self_held_fails_closed_without_polling() -> None:
         json.dumps(
             {
                 "state": "held",
-                "holder": "0123456789ab",
+                "holder": _HOLDER,
                 "holder_self": True,
                 "age_seconds": 1,
                 "source": {"status": "ok", "reason": None},
@@ -879,7 +1932,7 @@ def test_public_main_self_renew_failure_reports_reason_without_poll_or_release(
         json.dumps(
             {
                 "state": "unavailable",
-                "holder": "0123456789ab",
+                "holder": _HOLDER,
                 "holder_self": True,
                 "main_sha": _SHA_A,
                 "age_seconds": 17,
@@ -898,6 +1951,8 @@ def test_public_main_self_renew_failure_reports_reason_without_poll_or_release(
             _WAVE,
             "--lease-dir",
             str(_LEASE),
+            "--receipt-file",
+            str(_RECEIPT),
             "--",
             *_COMMAND,
         ],
@@ -945,6 +2000,8 @@ def test_acceptance_ignores_acquired_outside_top_level_state() -> None:
                 return DW._CommandResult(0, f"feature-{_WAVE}\n")
             if actual == _STATUS_ARGV:
                 return DW._CommandResult(0, "")
+            if actual in {_INDEX_FLAGS_ARGV, _SUBMODULE_INDEX_FLAGS_ARGV}:
+                return DW._CommandResult(0, "")
             if actual == ("git", "rev-parse", "main"):
                 return DW._CommandResult(0, _SHA_A + "\n")
             if actual == _helper("claim", _SHA_A):
@@ -971,9 +2028,9 @@ def test_claim_once_uses_only_exact_top_level_state() -> None:
     )
     fake.expect_run(_helper("claim", _SHA_A), DW._CommandResult(0, payload))
 
-    state = DW._claim_once(fake.effects, _REPO, _LEASE, _WAVE, _SHA_A)
+    claim = DW._claim_once(fake.effects, _REPO, _LEASE, _WAVE, _SHA_A)
 
-    assert state == "held"
+    assert claim.state == "held"
     assert fake.events == [("run", _helper("claim", _SHA_A), _REPO, True)]
     fake.assert_drained()
 
@@ -1031,7 +2088,7 @@ def test_held_and_queued_refresh_main_before_every_claim() -> None:
         for event in fake.events
         if event[0] == "run" and len(event[1]) > 2 and event[1][2] == "claim"
     ]
-    assert claim_shas == [_SHA_A, _SHA_B, _SHA_C]
+    assert claim_shas == [_SHA_A, _SHA_B, _SHA_C, _SHA_C]
     assert fake.events.count(("sleep", 30)) == 2
     assert not any(event[0] == "run" and event[1] == _helper("release") for event in fake.events)
     fake.assert_drained()
@@ -1052,7 +2109,8 @@ def test_acquired_reloads_main_before_behind_check() -> None:
         event for event in fake.events
         if event[0] == "run" and event[1] == ("git", "rev-parse", "main")
     ]
-    assert len(rev_parse_outputs) == 2
+    # postclaim、behind 検査、rename 直前の再確認で main を計 3 回読む。
+    assert len(rev_parse_outputs) == 3
     fake.assert_drained()
 
 
@@ -1209,7 +2267,7 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
     )
 
     assert outcome.rc == 0
-    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
     selected_calls = [
         event[1]
         for event in fake.events
@@ -1245,7 +2303,7 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
     outcome = _run_acceptance(fake, message=_MESSAGE)
 
     assert outcome.rc == 0
-    assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 0)
+    assert (fake.claims, fake.submissions, fake.releases) == (2, 1, 0)
     assert not any(
         event[0] == "run"
         and event[1] == ("git", "diff", "--name-only", "HEAD...main")
@@ -1293,7 +2351,8 @@ def test_missing_message_preflight_does_not_release_foreign_lease() -> None:
 def test_merge_sequence_and_postcheck_are_exact(capsys: pytest.CaptureFixture[str]) -> None:
     fake = _FakeEffects()
     _preflight(fake)
-    fake.monotonic_queue[:] = [0.0, 100.0, 130.0]
+    fake.monotonic_queue[:] = [0.0, 100.0]
+    fake.final_claim_age_seconds = 30
     fake.is_file_queue.append((_MESSAGE, True))
     _acquired(fake)
     fake.expect_run(("git", "rev-parse", "main"), DW._CommandResult(0, _SHA_B + "\n"))
@@ -1591,8 +2650,10 @@ def test_prerun_clean_allows_acceptance_submission_without_release() -> None:
                 True,
             ),
             ("run", _STATUS_ARGV, _REPO, True),
+            *_FINGERPRINT_EVENTS,
             ("run", _COMMAND, _REPO, False),
-            ("monotonic",),
+            *_POSTRUN_INTEGRITY_EVENTS,
+            *_SUCCESS_RECEIPT_EVENTS,
         ]
     )
     assert not any(
@@ -2097,7 +3158,9 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
+        *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
+        *_POSTRUN_INTEGRITY_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -2125,6 +3188,10 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             is_file=effects.is_file, read_text=effects.read_text,
             getenv=effects.getenv, monotonic=effects.monotonic,
             write_temp=effects.write_temp, unlink=effects.unlink,
+            path_exists=effects.path_exists, is_dir=effects.is_dir,
+            resolve_path=effects.resolve_path,
+            write_receipt_temp=effects.write_receipt_temp,
+            rename=effects.rename,
         )
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
@@ -2132,7 +3199,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
         outcome = DW.run_acceptance(
             wave=_WAVE, lease_dir=_LEASE, merge_message_file=None,
             poll_seconds=30, max_wait_seconds=7200, command=_COMMAND,
-            repo=_REPO, effects=effects,
+            repo=_REPO, effects=effects, receipt_file=_RECEIPT,
         )
     assert outcome.rc == (130 if kind == "keyboard-interrupt" else 70)
     expected = [
@@ -2175,7 +3242,9 @@ def test_release_failure_overrides_primary_result() -> None:
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
+        *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
+        *_POSTRUN_INTEGRITY_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -2210,7 +3279,9 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
+        *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
+        *_POSTRUN_INTEGRITY_EVENTS,
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -2278,6 +3349,12 @@ def test_merge_abort_requires_clean_repository_postcondition(dirty: str) -> None
 def test_default_run_sanitizes_git_and_bounds_only_stages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    assert {
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+        "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_NOSYSTEM",
+    } <= DW._GIT_ENV_KEYS
     popen_calls: list[tuple[list[str], dict[str, object]]] = []
     run_calls: list[tuple[list[str], dict[str, object]]] = []
     group_kills: list[tuple[int, int]] = []
@@ -2408,7 +3485,10 @@ def test_provenance_checker_is_sanitized_bounded_stage(
     "case", ["missing-delimiter", "empty-command", "poll-29", "poll-121", "default-30"],
 )
 def test_acceptance_cli_contract(case: str) -> None:
-    base = ["acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE)]
+    base = [
+        "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
+        "--receipt-file", str(_RECEIPT),
+    ]
     if case == "missing-delimiter":
         argv = base + ["harmless"]
     elif case == "empty-command":
@@ -2438,6 +3518,8 @@ def test_acceptance_owned_path_is_repeatable() -> None:
             _WAVE,
             "--lease-dir",
             str(_LEASE),
+            "--receipt-file",
+            str(_RECEIPT),
             "--owned-path",
             "./docs/x.md",
             "--owned-path",
@@ -2450,6 +3532,20 @@ def test_acceptance_owned_path_is_repeatable() -> None:
     assert command == "acceptance"
     assert args.owned_path == [Path("docs/x.md"), Path("tools")]
     assert child == ["harmless"]
+
+
+def test_acceptance_cli_requires_receipt_file() -> None:
+    with pytest.raises(DW._StageFailure) as raised:
+        DW._parse_cli([
+            "acceptance",
+            "--wave",
+            _WAVE,
+            "--lease-dir",
+            str(_LEASE),
+            "--",
+            "harmless",
+        ])
+    assert raised.value.outcome == DW._Outcome(2, "cli-usage")
 
 
 @pytest.mark.parametrize(
@@ -2669,6 +3765,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
         rc = DW.main(
             [
                 "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
+                "--receipt-file", str(_RECEIPT),
                 "--", *_COMMAND,
             ],
             effects=fake.effects,
@@ -2678,7 +3775,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
     finally:
         signal.signal(signal.SIGTERM, original)
 
-    assert rc == 143
+    assert rc == 0
     assert restore_calls == 2
     assert restored_handler_calls == [signal.SIGTERM]
     assert fake.events == [
@@ -2691,8 +3788,10 @@ def test_signal_after_core_success_uses_restored_real_handler(
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
+        *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
-        ("monotonic",),
+        *_POSTRUN_INTEGRITY_EVENTS,
+        *_SUCCESS_RECEIPT_EVENTS,
     ]
     fake.assert_drained()
 
@@ -2721,6 +3820,7 @@ def test_public_main_failure_restores_handler_without_release() -> None:
         rc = DW.main(
             [
                 "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
+                "--receipt-file", str(_RECEIPT),
                 "--", *_COMMAND,
             ],
             effects=fake.effects,
@@ -2842,6 +3942,8 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
             "dirty-real",
             "--lease-dir",
             str(lease),
+            "--receipt-file",
+            str(tmp_path / "dirty-receipt.json"),
             "--",
             sys.executable,
             "-c",
@@ -2871,6 +3973,7 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     tools = repo / "tools"
     tools.mkdir()
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_ROOT / "tools" / "check_ai_provenance.py", tools)
     campaign = repo / "orchestrator" / "campaign"
     campaign.mkdir(parents=True)
@@ -2917,6 +4020,8 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
             str(lease),
             "--merge-message-file",
             str(message),
+            "--receipt-file",
+            str(tmp_path / "provenance-receipt.json"),
             "--",
             sys.executable,
             "-c",
@@ -2958,6 +4063,7 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     tools = repo / "tools"
     tools.mkdir()
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     _write_test_provenance_checker(repo)
 
     git_env = {
@@ -2981,6 +4087,7 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
         "add",
         "tracked.txt",
         "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
         "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")
@@ -3015,6 +4122,8 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
             "integration",
             "--merge-message-file",
             str(message),
+            "--receipt-file",
+            str(tmp_path / "integration-receipt.json"),
             "--",
             sys.executable,
             "-c",
@@ -3066,6 +4175,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     (repo / "tools").mkdir()
     helper = repo / "tools" / "wave_land_window.py"
     shutil.copy2(_LEASE_HELPER, helper)
+    shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -3086,7 +4196,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py")
+    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-deadlock")
     main_sha = git("rev-parse", "main")
@@ -3126,6 +4236,8 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
             str(lease_dir),
             "--max-wait-seconds",
             "1",
+            "--receipt-file",
+            str(tmp_path / "second-receipt.json"),
             "--",
             sys.executable,
             "-c",
@@ -3152,6 +4264,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
     lease.mkdir()
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
+    shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -3168,7 +4281,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py")
+    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal")
     signal_child = (
@@ -3183,6 +4296,8 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
             "acceptance",
             "--wave",
             "signal",
+            "--receipt-file",
+            str(tmp_path / "signal-receipt.json"),
             "--",
             sys.executable,
             "-c",
@@ -3208,6 +4323,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     lease.mkdir()
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
+    shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -3224,7 +4340,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py")
+    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal-success")
     runner = tmp_path / "success-boundary.py"
@@ -3237,7 +4353,8 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "spec.loader.exec_module(module)\n"
         "received=[]\n"
         "signal.signal(signal.SIGTERM, lambda n, f: received.append(n))\n"
-        "rc=module.main(['acceptance','--wave','signal-success','--',"
+        "rc=module.main(['acceptance','--wave','signal-success',"
+        "'--receipt-file',sys.argv[3],'--',"
         "sys.executable,'-c','raise SystemExit(0)'], repo=Path(sys.argv[2]))\n"
         "os.kill(os.getpid(), signal.SIGTERM)\n"
         "print(f'RESTORED={received} RC={rc}')\n"
@@ -3246,7 +4363,13 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     )
 
     result = subprocess.run(
-        [sys.executable, str(runner), str(_TOOL), str(repo)],
+        [
+            sys.executable,
+            str(runner),
+            str(_TOOL),
+            str(repo),
+            str(tmp_path / "signal-success-receipt.json"),
+        ],
         cwd=repo,
         capture_output=True,
         text=True,
