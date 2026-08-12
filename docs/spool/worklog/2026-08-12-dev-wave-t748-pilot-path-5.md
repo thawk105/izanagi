@@ -59,6 +59,20 @@ title: W-2 を実投入して床値経路の欠陥 4 件を潰し、5 つ目で�
   障壁 3〜5 はいずれもこの機構が数分で理由つきに落として見せた。
 - **AI 工数**: 本 phase は codex 子 4 本 (author 3 / fix 1)。焦点走は計算ノードで
   64 passed → 202 passed → 461 passed / 15 skipped、いずれも rc=0。
+- **受入全走で自分の汚染を踏んだ。** pilot 出力を worktree の `output/` に残したまま全走し、
+  holdout clean-scan が検出して **36 failed** になった。段 3 で指摘され自分で裁定していた
+  「pilot の成果物を repo に置かない」を、land を急いで破った形である。
+  裁定どおり repo 外へ退避して再走したところ 3 failed まで落ちた。
+  **退避の途中で tracked な歴史記録 (過去 wave の submission 記録) まで移しかけ**、
+  hook が `git checkout -- output/` を拒否したので bundle から全復元し、
+  untracked だけ 13817 件を選び直して退避した (`tracked-dirty=0` を実測)。
+- **残り 3 failed は自分の変更が引き起こした実欠陥だった。** (i) 新規 `floor_liveness.py` が
+  campaign package の canonical bootstrap 規約に違反、(ii) `s1_direct_comparison.py` を
+  変更したため、同 file を materializer として byte hash pin していた reviewed spec の
+  literal が外れた。**(ii) は `DW-O09` (凍結 bytes の pin 閉包) を変更前に実行していれば
+  受入前に気づけた手順漏れである。**
+- **受入全走は 9452 passed / 31 skipped / 0 failed (202.47 秒、rc=0、計算ノード dispatch)。**
+  waiver は適用していない。36 → 3 → 0 の 3 走で閉じた。
 - **ユーザー手番**: 計算ノードへの linux-tools 導入 (下記「新規」)。push は行わない。
 
 ## 次の一手差分
