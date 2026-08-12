@@ -31,14 +31,19 @@ def _fold_decisions_blob() -> bytes:
 
 
 def test_deny_only_report_contains_authority_and_both_submission_denials() -> None:
+    """D292 membership preserves detection while allowing later decisions."""
+
     rendered = approval_report_to_dict(REPOSITORY_ROOT)
     assert rendered["submission_authority"] == "not_granted"
     assert rendered["pilot_submission"] == "forbidden"
     assert rendered["main_submission"] == "forbidden"
-    assert rendered["supersession_scan"] == {
-        "status": "possible_supersession",
-        "decision_ids": ["D292"],
-    }
+    supersession_scan = rendered["supersession_scan"]
+    assert supersession_scan["status"] == "possible_supersession"
+    decision_ids = supersession_scan["decision_ids"]
+    assert "D292" in decision_ids
+    assert decision_ids == sorted(
+        set(decision_ids), key=lambda decision_id: int(decision_id[1:])
+    )
     assert set(rendered["roles"]) == {"publication_core", "source_addendum_b"}
     for role in rendered["roles"].values():
         assert role["approval_status"] == "not_asserted_after_supersession"
@@ -58,10 +63,18 @@ def test_authority_none_is_bound_to_d291_without_rewriting_documents() -> None:
 
 
 def test_actual_head_d292_reference_is_reported_fail_closed() -> None:
+    """Exact status and D292 membership catch both required mutations."""
+
     decisions = (REPOSITORY_ROOT / "docs" / "decisions.md").read_bytes()
     scan = _scan_d291_supersession(decisions)
     assert scan.status == "possible_supersession"
-    assert scan.decision_ids == ("D292",)
+    assert "D292" in scan.decision_ids
+    assert scan.decision_ids == tuple(
+        sorted(
+            set(scan.decision_ids),
+            key=lambda decision_id: int(decision_id[1:]),
+        )
+    )
 
 
 def test_later_explicit_supersession_stops_current_approval_assertion() -> None:
