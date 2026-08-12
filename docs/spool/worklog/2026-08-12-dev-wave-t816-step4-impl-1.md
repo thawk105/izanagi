@@ -58,12 +58,7 @@ codex author が書いた実装と同じ統合 commit に含めて回避した�
   trace v2 専用化、framing integrity、負 txid 拒否、record 種別の完全一致、
   凍結 v1 証拠の trace 再検証の退役。凍結 bytes は不変。
   remaining: none
-  base: b816bc25de6823056cebd695618a8dfd586370c92e9875455350d28c6aec35e5
-
-- [T-837] 乗せ直しを省略して `511c9538` へ直接前進する裁定を実装で消化した。
-  `c9c1a9c` への乗せ直しは行っていない。残るユーザー手番なし。
-  remaining: none
-  base: b2898a746276a7ca47f1f495614f56a116695208fd2851bac05d2f3b7dd08a8d
+  base: 9f7a085030bd26aa99323a37d6e0b1ae02e5ac75c1e3481a275a8f408f140da0
 
 - [T-838] hard block の実体 (凍結 v1 raw trace と歴史 pin 再現経路) は [T-816] Q1 の裁定へ吸収され、
   本 wave で処理した。凍結 raw bundle は bytes 据置で trace 再検証を退役、歴史再現 driver
