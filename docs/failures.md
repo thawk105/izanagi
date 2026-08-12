@@ -1857,6 +1857,19 @@
   `DW-O18` により本 wave の差分へ帰属しない。
   **運用上の含意**: 変異 harness の baseline は既定の 48 worker では本フレークに当たりやすい。
   並列度を下げた runner で走らせると通った。恒久対応は既載のままで本 wave では変えない
+
+- **再発: 2026-08-12 ([T-748] 受入全走)。** 記録込みの最終 tip での全走で
+  `test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted` が
+  1 件落ちた。述語は既載と同じ 2 本
+  (`failed_predicates=["process_group_residual","termination_verified"]`)、
+  `launcher_rc=1` / `stop_reason='max_attempts'`。
+  **同一 checkout の単独再走は 1 passed / 2.84 秒 / rc=0 で再現しない。**
+  本 wave の差分は floor 投入経路・attestation・materializer の cxx 伝播であり、
+  launcher 実装にも同 test file にも到達しえないので `DW-O18` により帰属しない。
+  本 wave の状況として、**並行 wave が同時に多数走っていた** (受入 lease の待ち行列に
+  複数 wave、codex 子も並走) 点が既載の「負荷が高いときに発火する」観察と整合する。
+  直前の走行 (同一 wave、記録 commit 前の tip) では **9452 passed / 31 skipped / 0 failed** で
+  緑だったので、同一実装で緑・赤の両方を観測している。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -6010,3 +6023,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 保留を伴う wave の敵対レビューに「保留対象と対象外が同じ関数に同居していないか」を
   必須レンズとして置く。本件は段 3 の read-only 敵対子 1 本 (正しさ境界レンズ) が 5 件すべてを
   静的検査だけで捕捉した。親の brief と段 2 プランはどちらも見落としていた。
+
+### F241. 計算ノードに現行 kernel 用 perf が無く、測定が全滅する [ドリフト]
+
+- 事象: 床値 campaign が `status: "completed"` / `driver_rc: 0` で返るのに、
+  **120 回の測定試行が全て `launch_failure` (1 回 0.17 秒)、床値は全 null** になった。
+  実際の理由は `ccbench produced no metrics. rc=2
+  stderr=WARNING: perf not found for kernel 5.15.0-173`。
+  計測は `perf stat` の下で行う契約なので、perf が起動しなければ 1 点も測れない。
+- 根本原因: 計算ノードの kernel は `5.15.0-173-generic` だが、`/usr/lib/linux-tools/` には
+  `5.15.0-100-generic` と `5.15.0-135-generic` しか無い。**kernel 更新に linux-tools が
+  追随していない。** 実 campaign 2 ノード (bnode049 / bnode130) と probe 6 ノード
+  (bnode013 / 021 / 023 / 027 / 031 / 032) の **8/8 で `perf stat` が rc=2**。
+  login ノードは kernel `5.15.0-186-generic` で tools は 101/136/173 — 自ノード用が無い。
+  第 1 世代 calibration は 2026-07 に bnode011 (同じ kernel 5.15.0-173) で perf 込みで
+  取得できているため、**その後の環境更新で欠けた**。
+- 恒久対応: 環境側 (管理者手番) に linux-tools を入れてもらう以外に道はない。
+  **perf を外す回避を採ってはならない** — production command が測定契約に焼き込まれており
+  (`s8b_floor_contract` が perf event 集合ごと記録する)、登録済み calibration も
+  perf 込みで取得されている。外せば公正が崩れ、過去の値と比較できなくなる。
+- 再発検知: 測定を始める前に perf の可用性を確かめる preflight を置くこと
+  (現状 attestation は CPU・cache・クロックを照合するが「測定器が動くか」を見ないため、
+  12 セル分の build を終えてから 120 回続けて失敗する)。
+  **`driver_rc` と `status` だけを見て成功と判定しない** — 成果物の `floors` が
+  実数を持つことまで確かめる。本件は rc=0 で 2 回返っている。
