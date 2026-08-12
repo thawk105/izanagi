@@ -1096,6 +1096,8 @@ def _prepare_authority_repo(path: Path) -> tuple[Path, str]:
         Path("hooks/codex_guard.sh"),
         Path("hooks/guard_write.py"),
         Path("hooks/guard_bash.py"),
+        Path("tools/pegasus_admission_registry.py"),
+        Path("tools/pegasus/admission_registry.json"),
     ):
         destination = root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -1110,7 +1112,7 @@ def _prepare_authority_repo(path: Path) -> tuple[Path, str]:
         check=True,
     )
     subprocess.run(
-        ["git", "-C", os.fspath(root), "add", "docs", ".codex", "hooks"],
+        ["git", "-C", os.fspath(root), "add", "docs", ".codex", "hooks", "tools"],
         check=True,
     )
     subprocess.run(
@@ -1989,6 +1991,72 @@ def test_codex_argv_has_exact_trust_bypass_without_sandbox_bypass(
     assert argv.count(_EXPECTED_TRUST_BYPASS_FLAG) == 1
     assert LAUNCHER._hook_checker.SANDBOX_BYPASS_FLAG not in argv
     assert argv[argv.index("-s") + 1] == "read-only"
+
+
+def test_clean_committed_hook_fixture_allows_launcher_to_spawn(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, commit = _prepare_authority_repo(tmp_path / "authority-repo")
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        repo_root=repo,
+        cwd=repo,
+        base_commit=commit,
+    )
+    env["FAKE_MODE"] = "normal"
+    assert _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=0
+    ) == 0
+    assert paths["counter"].read_text(encoding="ascii") == "1"
+
+
+def test_guard_bytes_mismatch_is_launch_error(tmp_path: Path) -> None:
+    repo, _commit = _prepare_authority_repo(tmp_path / "authority-repo")
+    relative = Path("tools/pegasus/admission_registry.json")
+    with (repo / relative).open("ab") as stream:
+        stream.write(b"\n ")
+    with pytest.raises(
+        LAUNCHER.LaunchError,
+        match=r"tools/pegasus/admission_registry\.json.*HEAD blob",
+    ):
+        LAUNCHER._require_attempt_hook_installation(repo, repo)
+
+
+def test_guard_bytes_mismatch_prevents_codex_popen(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, commit = _prepare_authority_repo(tmp_path / "authority-repo")
+    relative = Path("hooks/guard_bash.py")
+    with (repo / relative).open("ab") as stream:
+        stream.write(b"\n# inert drift\n")
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(
+        tmp_path,
+        fake=fake,
+        repo_root=repo,
+        cwd=repo,
+        base_commit=commit,
+    )
+    env["FAKE_MODE"] = "normal"
+    real_popen = subprocess.Popen
+    codex_spawns = []
+
+    def popen_spy(argv, *args, **kwargs):
+        if kwargs.get("start_new_session") is True:
+            codex_spawns.append(list(argv))
+        return real_popen(argv, *args, **kwargs)
+
+    monkeypatch.setattr(LAUNCHER.subprocess, "Popen", popen_spy)
+    assert _run_main_in_process(
+        command, env, monkeypatch, paths=paths, expected_returncode=2
+    ) == 2
+    receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+    assert receipt["outcome"] == "launcher_error"
+    assert receipt["attempts"] == []
+    assert codex_spawns == []
+    assert not paths["pid_dir"].exists()
 
 
 def test_hook_preflight_rejection_prevents_codex_exec_marker(
