@@ -92,11 +92,14 @@ NO-GO が続く場合は fix を重ねず 3 巡を上限とし、親が変異で
 ## DW-O17 — commit trailer
 
 trailer は`docs/ai-provenance.md`に従う（F25）。通常commitはmessage file→`--dry-run -F`単独rc=0
-→`commit -F`→既定full-history監査とする。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
+→`commit -F`→既定full-history監査。mergeは`OLD_HEAD`を保存し、fast-forwardならincoming監査
 →`--ff-only`→full監査、merge commitなら`merge --no-ff --no-commit <tip>`→競合解消→同じpreflight
-→`commit -F`→full監査とする。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
-含むときは両commitを含むrangeかfull監査だけを権威とする。検査rcをパイプに通さず、赤なら止める（F37）。
+→`commit -F`→full監査。自動message/`--no-edit`は禁止。`OLD_HEAD..HEAD`は補助で、correctionを
+含むときは両commitを含むrangeかfull監査だけが権威。検査rcをパイプに通さず、赤なら止める（F37）。
 実装面pathが両親と異なればCodex`role=author`へ。
+競合解決の`git add -A`はsubmoduleの未解決gitlinkを古い作業ツリー側で確定させる。`git ls-tree main
+<sub>`と突き合わせ**merge commit内で**main側pinへ揃える。後追い単独commitは実装面判定で書けない
+Codex著者行を要求されlandが止まる。
 
 ## DW-O18 — 親のテスト cwd
 

@@ -39,6 +39,25 @@ seq: 3
 - 再発検知: 再投入は**新しい artifact 名**で行い、`rc=1` は receipt の
   `attempt output` と `validator_rc` を読んでから原因を分類する。
 
+### {{F:merge-submodule-gitlink-blocks-land}}. merge が submodule gitlink を古い側で確定させ、是正 commit が provenance で land を止めた [手順漏れ] [監査ログ汚染]
+
+- 事象: local main 取り込みの merge 後、受入全走で s1/s8b/real-repo 系が 30 件級で赤になった
+  (「ccbench worktree HEAD が `pin.CURRENT_PIN` を prefix に持たない」)。自分の差分が到達しない
+  ファイル群なので原因が見えにくい。是正のため gitlink を main 側 pin へ進める単独 commit を作ったが、
+  `check_ai_provenance` が `external/` を実装面 prefix として扱うため
+  **「実装面に Codex `role=author` がない」で新規違反**になり、`DW-O25` の全史 provenance 関門
+  (rc=29) で land が止まった。
+- 根本原因: merge 競合解決の `git add -A` は、**submodule の未解決 gitlink を作業ツリー側
+  (= 古い pin) で確定させる**。main だけが gitlink を進めていても、この一手で main の変更が消える。
+  そのうえ後追いの単独是正 commit は「誰も書いていない実装面変更」になり、**真の trailer を
+  書く手段が無い** (Codex 著者行は虚偽、`AI-Agent: none` も虚偽、waiver は人間の批准が要る)。
+- 恒久対応: `DW-O17` に「commit 前に `git ls-tree main <sub>` と突き合わせ **merge commit の中で**
+  main 側 pin へ揃える」を追加した。後追い commit にしない。
+- 再発検知: 受入全走で pin 不一致型の赤が出たら、まず gitlink と `pin.CURRENT_PIN` を突き合わせる。
+- 補足 (監査ログの質): 本件は **監査ログを汚す型の失敗**である。回避すると
+  「waiver / known-violation で通した」記録が残り、監査を工数分析やプロセス改善に使うときの
+  信号対雑音比を下げる。手順で発生させないことが対処であり、例外機構の常用ではない。
+
 ## 再発
 
 ### F102
