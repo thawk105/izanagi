@@ -1,0 +1,90 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "        with open(source_path, \"rb\") as stream:\n            raw_source = stream.read()\n        raw_lines = []\n        line_start = 0\n        for newline in re.finditer(br\"\\r\\n?|\\n\", raw_source):\n            payload = raw_source[line_start:newline.start()]\n            # Keep CR in the physical-line payload even though it delimits a\n            # line for the parser's universal-newline line numbering.\n            if newline.group(0).startswith(b\"\\r\"):\n                payload += b\"\\r\"\n            raw_lines.append(payload)\n            line_start = newline.end()\n        raw_lines.append(raw_source[line_start:])\n        hole_lines = None if marker is None else tuple(\n            raw_lines[marker.hole_first - 1:marker.hole_last]\n        )\n        expected = (\n            TRIGGER_PREDICATE_HOLE_INDENT\n            + emit_predicate(TriggerGateIR(binding.mask))\n        ).encode(\"utf-8\")",
+          "new": "        hole_lines = None if marker is None else tuple(marker.hole_text.values())\n        expected = emit_predicate(TriggerGateIR(binding.mask)).strip().encode(\"utf-8\")"
+        },
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "            or hole_lines[0] != expected):",
+          "new": "            or hole_lines[0].strip().encode(\"utf-8\") != expected):"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_outer_spaces",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_leading_tab",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_leading_vertical_tab",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_leading_form_feed",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_leading_non_breaking_space",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_leading_ideographic_space",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_trailing_space",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_four_space_indent",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_crlf_line_ending",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_cr_only_line_ending"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/axis_trigger_gating.py",
+          "old": "PREDICATE_HOLE_INDENT = \"  \"",
+          "new": "PREDICATE_HOLE_INDENT = \"    \""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_trigger_predicate_hole_indent_matches_template_patch_bytes",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_four_space_indent",
+        "orchestrator/tests/test_campaign.py::test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_builds",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_crossed_materialized_predicate_and_mask"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "        with open(source_path, \"rb\") as stream:\n            raw_source = stream.read()\n        raw_lines = []\n        line_start = 0\n        for newline in re.finditer(br\"\\r\\n?|\\n\", raw_source):\n            payload = raw_source[line_start:newline.start()]\n            # Keep CR in the physical-line payload even though it delimits a\n            # line for the parser's universal-newline line numbering.\n            if newline.group(0).startswith(b\"\\r\"):\n                payload += b\"\\r\"\n            raw_lines.append(payload)\n            line_start = newline.end()\n        raw_lines.append(raw_source[line_start:])\n        hole_lines = None if marker is None else tuple(\n            raw_lines[marker.hole_first - 1:marker.hole_last]\n        )\n        expected = (\n            TRIGGER_PREDICATE_HOLE_INDENT\n            + emit_predicate(TriggerGateIR(binding.mask))\n        ).encode(\"utf-8\")",
+          "new": "        hole_lines = None if marker is None else tuple(marker.hole_text.values())\n        expected = (\n            TRIGGER_PREDICATE_HOLE_INDENT\n            + emit_predicate(TriggerGateIR(binding.mask))\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_crlf_line_ending",
+        "orchestrator/tests/test_campaign.py::test_trigger_binding_rejects_materialized_predicate_with_cr_only_line_ending"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-trigger-gating-variant.patch",
+          "old": "+  izanagi_gate_pass = true;",
+          "new": "+    izanagi_gate_pass = true;"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_trigger_predicate_hole_indent_matches_template_patch_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

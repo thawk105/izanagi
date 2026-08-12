@@ -139,6 +139,16 @@
   概念枠が正確でも定量はほぼ捏造 — 採用前の一次記録突き合わせを必須とする (規律 6 の適用)
 - 再発検知: 定量記述を含む生成文書の provenance 確認をレビュー観点に含める
 
+
+- **再発: 2026-08-12** — 生成文書の定量ではなく、**敵対相談子が根拠として挙げた file path が
+  実在しなかった**形。段 3 の子が `experiments/phase3-benchmark/scripts/floor_campaign.sh` を
+  2 箇所で行番号つきに引用したが、repo 内に同名 script は `tools/pegasus/floor_campaign.sh` の
+  1 本しか無い (親が `find` で実測)。**引用先が実在しないだけで、主張の内容は実体側で裏が取れた**ため
+  結論は維持したが、突き合わせをしなければ捏造を根拠に採用していた。
+  **恒久対応は F8 と同じで足りる** — 採用前に一次資料と突き合わせる規律が、
+  定量値だけでなく**子が挙げた file:line 引用にも同じく効く**。
+  本 wave の追加事実は、**正しい結論に誤った引用が付く**ため引用の実在検査を
+  結論の妥当性判定と分けて行う必要がある点である。
 ### F9. check_docs の恒真化 — 実在しないファイルを黙って skip [恒真ゲート]
 - 事象: check_docs の LIVING_DOCS が実在しない related-work.md を指し、黙って skip して
   いた (lint が発火しない = 恒真な保証。2026-07-11 監査で発覚)
@@ -392,6 +402,17 @@
   (実測 = 8012 passed / 20 skipped / 511.08 秒 / rc=0)。**恒久対応は既存の `DW-O01` で足りる。**
   本 wave の追加事実は、**偽完了が同一 wave 内で反復し、待ち手を張り直すたびに再発する**点である
   — 1 度弾いたから以後は正しい、とは扱えない。
+
+- **再発: 2026-08-12** — **偽 green を返したのが通知ではなく待ち手自身**という新しい形。
+  段 6 fix の待ち手 (`tools/dev_wave_wait.py producer`) を背景で起動したところ、
+  **`.done` も成果物も存在せず producer (pid 1559257) も生存したまま rc=0 で返り、
+  stdout は空**だった。張り直しても同じ形で即座に返った。
+  同じ argv を**前景で走らせると `error: stage=producer-timeout rc=70` を正しく返す**ことを実測しており、
+  背景実行時だけ無音で終わる。**恒久対応は既存の `DW-O01` で足りる** —
+  完了判定を成果物実在・`.done` の exit code・producer の死の 3 点照合に限る規律が、
+  待ち手の rc が偽である場合にも例外なく効いた。本 wave の追加事実は
+  **「待ち手の rc も判定に使えない」**点で、以後の待ちは `.done` 出現と producer 死を
+  直接見る条件ループへ切り替えた。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -1814,6 +1835,28 @@
   `test_all_repo_policy_reasoning_values_are_accepted[xhigh]`、
   `test_fake_stdout_matches_observed_cli_event_shape` で、述語系の失敗が移動し続けることをさらに裏付ける。
   恒久対応は [T-553] のままで本 wave では変えない。
+
+- **再発: 2026-08-12 (codex hook trust wave の変異 baseline 2 連続)** — 変異 harness の baseline が
+  2 走続けて落ち、いずれも production write 前に fail-closed で中止した (rc=2)。
+  1 走目は `test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table`、
+  2 走目は同 file の `test_delayed_thread_and_rollout_are_read_from_byte_zero` で、
+  **失敗 node は既載どおり移動した**。述語は既載と同じ 2 本
+  (`failed_predicates=["process_group_residual","termination_verified"]`) で、
+  `codex_exit_code=0` / `validator_rc=0` / `evidence_status='complete'` /
+  `metering_status='complete'` はすべて正常、`wall_clock_s` も上限 3 秒に対し十分小さい
+  (0.168 秒 / 同系)。同 tip の単独再走は **143 passed / 6.33 秒 / rc=0** で再現しない。
+  **新しい情報が 2 つある。** (1) 既載の再発はいずれも `loadavg` の 1 分平均が 12〜15 台で
+  発火していたが、本件は **1 走目 `loadavg=(0.80, 0.17, 0.16)`、2 走目 `loadavg=(0.65, 2.10, 3.70)`**
+  と、**1 分平均が 1 未満の低負荷で 2 回とも発火した**。「瞬間高負荷でだけ出る」という
+  既載の示唆は成り立たない。(2) 既載の再発はすべて差分が launcher 実装へ到達しない wave
+  (docs のみ等) だったが、本件の差分は `codex_worker_launch.py` の `_attempt_loop` に
+  起動前検証を足しており、**到達しうる wave での初の発火**である。ただし当該差分は `Popen` の
+  **前**にしか触れておらず、失敗した 2 述語は子 process group の**終了確認**側であって経路が別である。
+  同 tip の単独走が緑であること、失敗 node が走ごとに移動すること、
+  同じ runner を並列度 `-n 8` へ下げた 3 走目は baseline PASSED で変異 3/3 KILLED になったことから、
+  `DW-O18` により本 wave の差分へ帰属しない。
+  **運用上の含意**: 変異 harness の baseline は既定の 48 worker では本フレークに当たりやすい。
+  並列度を下げた runner で走らせると通った。恒久対応は既載のままで本 wave では変えない
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -2977,6 +3020,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   攻撃者視点の指示が残っていた。**防御的 framing は冒頭だけでなく点検項目の動詞にも要る** —
   「構成せよ」でなく「取りこぼしている条件があれば指摘せよ」と書き、
   検査対象が自チームのコードであることを明示して再投入したら成功した。
+
+- **再発: 2026-08-12 (codex hook trust wave の段 3 レンズ A)** — 5 度目。`reasoning=max` の
+  consult 子が 10 model call・635 秒を使い、`turn.failed`
+  (`This content was flagged for possible cybersecurity risk`) で rc=1・出力 0 bytes になった。
+  **新しい情報は遮断の発生点である。** 既載の再発はいずれも依頼文・点検項目の動詞が原因で、
+  子は作業に入る前に拒否されていた。本件は events を見ると子の todo が 4 項目すべて `completed` で、
+  レンズの分析自体は完走している。遮断は**最終メッセージの生成時**に起きた — つまり
+  依頼だけでなく**子が書こうとした所見の中身**が引き金になりうる。
+  prompt には冒頭に防御目的を明記していたが、点検項目に「攻撃せよ」「突け」「構成せよ」が
+  残っていた (既載の対応を書き手が適用しそこねた)。
+  効いた対処は既載の 3 点に加えて **出力形式の明示的な制約**である。所見を
+  「検査 X は条件 Y のとき発火しない」「検証 Z の被覆は W までで、V は対象外」という
+  **被覆の記述**に限定し、「回避手順・攻撃手順・悪用の段取りを書いてはならない」と明記して
+  再投入したところ rc=0・13,661 bytes を得た。同じ深さの所見 (must-fix 相当 4 件) を返しており、
+  出力形式の制約は所見の質を落とさない。
+  恒久対応は memory `codex-adversarial-prompt-defensive-framing` の更新
+  (冒頭の framing・依頼の動詞に加えて、**所見の記述形式まで指定する**を追記)。
+  `docs/dev-wave/workers.md` の `DW-S03` へ書かない理由は既載のまま (byte 予算)
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -3553,6 +3614,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異の期待 node と実測 node の突き合わせ。この wave では独立 golden を 3 テストが
   共有する変異が MISMATCH として出て、冗長 gate であることが判明した。
 
+
+- **再発: 2026-08-11** — 負例が gate を分離していない事象が、fixture 側ではなく
+  **assertion 側**で再発した。`extensions.partialClone` の拒否 gate は
+  `pytest.raises(..., match="partial clone")` で照合していたが、production は同じ関数内で
+  隣接する 2 つの `raise` を持ち、片方は「partial clone repository は受理しない」、
+  もう片方は「partial clone 設定を検査できない」である。**部分一致の `match` は両方に当たる。**
+  そのため 1 つ目の分岐を殺す変異を入れても、2 つ目が発火して同じ test が緑のまま通り、
+  変異は SURVIVED した。F126 は「狙った検査以外でも**拒否される**入力」(false KILL) だったが、
+  本件は「狙った検査以外の**拒否も受理する**照合」(gate が一度も検査されていない) である。
+  レンズ 2 本の静的レビューは検出できず、変異検査だけが見つけた。
+  対応は照合を拒否理由の完全一致 (`^...$`) へ厳格化することで、production は無変更。
+  同型の緩い照合を点検し、隣接する「検査できない / 解決できない」例外まで拾いうる
+  6 nodeid を同時に厳格化した。
 ### F127. 検査を private へ切り出した fix が、委譲そのものを未固定にした [恒真ゲート] [変異帰属]
 
 - 事象: F126 の是正で public validator を
@@ -5772,3 +5846,131 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (memory `fold-dryrun-before-acceptance` の既存義務が本件も覆う)。
 - 再発検知: `--dry-run` の rc。交差があれば `transition-target` で非 0 になる。
   本 wave では 13 項の `更新` block を外したうえで rc=0 を実測した。
+
+### F234. 実装前の段 4 で登録した変異が実効 gate に当たらない [恒真ゲート]
+
+- 事象: 段 4 で事前登録した 10 変異のうち **7 件**が、段 6 のレビューで
+  mask (前後層が同じ入力を先に拒否) / equivalent (受理集合が動かない) /
+  テスト自身を弱めるだけで production の状態が変わらない / 受理集合でなく内部表現の assert が
+  赤くなるだけ、と判定された。単独 KILL を書けたのは 3 件だけだった。
+- 根本原因: `DW-M01` は「各変異は位置に加え、同じ入力を拒否する層が前後に無いこと、無効化時の
+  赤理由が一つに絞れることを**コードで確認する**」と定めるが、**実装は段 5 で生まれる**ため
+  段 4 の時点では確認対象のコードが存在しない。親は段 2 プランの設計から変異位置を書いた。
+- 恒久対応: 実装が段 5 で生まれる wave では、**段 4 の変異登録を暫定とし、段 6 の fix 子へ
+  「その検査を消したとき赤くなる nodeid を名指しせよ」と要求して再導出する**。
+  本 wave の段 6 fix prompt 3 本がこの形を持ち、`verbatim/s6-fix2d.md` /
+  `s6-fix2e.md` / `s6-fix2f.md` の「変異 gate」節が実体である。
+  再導出後の spec で 9/9 KILLED・期待 node 完全一致を実測した。
+- 再発検知: 変異 harness の MISMATCH。期待 node が実効 gate に当たっていなければ
+  過少・過剰申告として `matches_expectation=false` になる。
+
+### F235. 所有分割の副作用で同型欠陥が別ファイルに残る [手順漏れ]
+
+- 事象: `BlobRef` の digest 比較が `str` subclass で迂回できる欠陥を lane B が塞いだが、
+  **同型の欠陥が `ComposedCore.require_sha256()` に残った**。合成後 digest の比較が文字列比較のままで、
+  `__ne__` が常に `False` を返す 64 桁 hex の subclass を渡すと不一致でも正常終了する
+  (段 6 レビュー C が実行で確認)。
+- 根本原因: 段 5 の所有分割で `blobref.py` は lane B、`erratum.py` は lane A が持ち、
+  **lane B は同型欠陥を見つけても隣のファイルを編集できず、lane A は自分の担当所見でなかった**。
+  親の段 4 裁定も欠陥を 1 ファイルの問題として記述していた。
+- 恒久対応: **欠陥の型 (「検査済み値を subclass で置き換えて比較を恒偽化する」) で repo を
+  全数検索してから lane を切る**。本 wave では段 6 の敵対レビュー 2 本を差分全体へ当てることで
+  検出した (`DW-S06-A` の「異なるレンズの敵対レビューを必ず 2 本並列」)。
+  レビュー対象を lane 単位でなく**統合 commit 全体**にすることがこの検出の条件である。
+- 再発検知: 段 6 レビュー prompt に「同型の迂回が他ファイルに残っていないか」を明示的に含める。
+  本 wave の `verbatim/s6-revC2.md` の担当項 1 がその形である。
+
+### F236. 裁定待ちの実体が未 land branch にしか無く、収集の母集合から丸ごと落ちた [手順漏れ] [ドリフト]
+
+- 事象: [T-139] land 2 session 2 が 2026-08-11 に裁定 5 問 (Q1〜Q5) を返したが、
+  2026-08-12 の /rulings 12 束に T-139 は含まれず、canonical worklog (451) の `[T-139]` は
+  (450) からの carry stub のままだった。session 3 は「未実装層を進める」指示で起動したが、
+  命名された 5 層すべてが未裁定 Q1/Q2 の下流であり、着手不能と判定して停止した。
+- 根本原因: 裁定パッケージ (`output/insights/2026-08-11_t139-manifest-land2-s2/package.md`) と
+  それを指す worklog fragment の `更新` が、**未 land branch 上にしか存在しない**
+  (`git cat-file -e main:<path>` が fatal)。**wave 側の記録は正しく書かれていた** —
+  session 1 の fragment は `[T-139]` を `更新` して「ユーザー裁定 Q1〜Q4 待ち」と明記している。
+  落ちたのは収集側の**母集合**であって wave の記録ではない。canonical worklog + `docs/archive/`
+  だけを走査する限り、branch 上の fragment には grep も carry 鎖解決 script も到達できず、
+  canonical の `[T-139]` は carry stub のままである。
+  S6 (a) の「最終的に 1 回だけ land する」がこの不可視を構造化する —
+  裁定が来るまで land できず、land できないため裁定待ちが見えない。
+  F213 は収集**語**の穴だが、本件は収集**母集合**の穴で型が違う。
+- 恒久対応: memory `pending-rulings-need-inbox-copy-and-ledger-update` (裁定パッケージを返して
+  land しない wave は、fragment の `更新` だけで足りたと見なさず、`dev-wave-jobs/rulings-inbox/`
+  へ repo 外の控えを置く)。本 session は控え
+  `2026-08-12-t139-land2-s2-five-rulings.md` を作成した。共有 command への明文化は
+  `docs/dev-wave/**` の byte 予算に当たるため、Q6 としてユーザー裁定へ返した。
+- 再発検知: land しないと判明した session は、段 9 の前に inbox に当該 wave の控えがあることを
+  照合する。fragment の `更新` の存在は**この検査の代替にならない** (本件で実際に存在した)。
+
+### F237. 承認済み文書の「どこまで承認済みか」が同じ field の中で節の粒度に割れており、導出規則の凍結を serialization の凍結と読み違えた [誤前提] [ドリフト]
+
+- 事象: [T-139] land 2 session 4 の親が段 1 の実測として
+  「`a09` の schedule は承認済み文書で完全に凍結されている」と結論し、逐語 seed
+  (`7df15572…`)・導出式 `key(j, w, p)`・preimage の byte grammar・tie-break を根拠に
+  「独立再導出は承認済み仕様の実装であって機構の新設ではない」と一般化して、
+  段 3 の敵対レンズへ**攻撃対象の実測値として前渡しした**。
+  段 3 レンズ A がこれを半分誤りと判定した。追補 A `a09` が凍結しているのは**導出規則まで**で、
+  schedule 表の **serialization (canonical TSV・header・157 行・並び順) は
+  `record-items-v2.md` §10 が「承認済み文書から一意には導けない選択」として明示した
+  未承認閉包 8 件の第 4 番**である。
+- 根本原因: 承認範囲を **field 名の粒度**で確認した。`a09` という 1 つの field の中に、
+  承認済みの部分 (導出規則) と未承認閉包 (serialization) が同居していた。
+  `a09` の節は「canonical bytes の SHA-256 を受領証へ記録する」と要求するだけで
+  serialization を定めておらず、それを定めたのは**別文書の別節** (§10) である。
+  親は `a09` の節だけを読み、§10 の閉包表と突き合わせなかった。
+  実害は設計判断に直結した — この誤前提のままなら、PBS driver が canonical schedule digest を
+  名乗る実装を承認済み仕様の実装として通し、**Q1/Q2 が「機構を新設しない」と見送った当の閉包を
+  再導入していた**。
+- 恒久対応: 承認済み文書に依拠して「これは新設ではなく既承認仕様の実装だ」と主張するときは、
+  当該 field の節だけでなく、**同じ成果物の「未承認閉包」「本書が新設した閉包」「本書が保証しない
+  こと」に相当する節を必ず突き合わせる**。izanagi では `record-items-v2.md` §10 と
+  追補 A 末尾の「本書が主張しないこと」がその節に当たる。
+  検出は本 wave では段 3 の敵対レンズが担った (親の実測値とその一般化を攻撃対象に含める
+  `DW-S03` の規定が機能した実例)。
+- 再発検知: 「承認済み仕様の実装であって新設ではない」という主張を brief に書いた wave は、
+  段 3 のレンズ prompt にその主張を**攻撃対象の実測値として明示的に載せる**。
+  載せた主張が「当該 field の節だけを根拠にしている」なら、レンズは同じ成果物の未承認閉包表を
+  突き合わせて反証できる。本 wave はこの経路で検出した。
+
+### F238. 自分で「canonical に存在しない」と測った decision を、同じ brief の別の節で受理条件の根拠として引いた [誤前提]
+
+- 事象: 同 session の段 1 brief は、実測節に
+  「canonical `docs/decisions.md` は D319 まで。解除 decision も
+  粗い provenance 標準の decision も canonical に無い (grep 実測)」と書きながら、
+  provisional 裁定 (P5) では「粗い provenance はその同じ decision が
+  **既に認めた水準**である」と書いた。段 2 のプラン起草と段 3 レンズ B が独立に自己矛盾を指摘した。
+- 根本原因: 裁定の**内容**(ユーザーが「見送る」と決めた) と、その裁定が**canonical 台帳へ
+  fold された状態**を同一視した。ユーザー裁定は成立していたが、それを記録する decision は
+  未 land branch 上にしかなく、canonical には無い。D292 が「wave の自己申告・manifest の宣言・
+  handoff の記載では解除しない」と定めるのと同じ区別である。
+  実害は proof chain の権威主張に直結した — 「粗い provenance で足りる」と canonical decision が
+  認めていない状態で、collector 出力を材料レポートの proof chain に使えると読む余地を作った。
+- 恒久対応: brief で「既決により X してよい」と書くときは、その既決が
+  **canonical 台帳に fold 済みか、未 land の控えに留まるか**を明示する。
+  後者なら、根拠として使えるのは「その wave が何を実装しないか」の**scope 決定まで**であって、
+  成果物の**受理条件・権威主張**には使えない。
+  なお本件は F1 (既存 docs を一次資料と一致するまで根拠にしない) とは型が違う —
+  一次資料は正しく読めており、**同一 brief 内での前提の取り違え**である。
+- 再発検知: brief に「canonical に無い」と書いた識別子を、同じ brief 内で全文検索する。
+  実測節以外の出現が受理条件・権威主張の根拠になっていれば自己矛盾である。
+  本 wave では段 2 と段 3 レンズ B が独立に指摘した。
+
+### F239. 段 6 fix 子の成果に `role=fix` と書いて provenance が赤 [手順漏れ]
+
+- 事象: 段 6 の fix 子 2 本の成果を統合する commit へ
+  `AI-Agent: ...; role=fix; scope=...` と書き、`check_ai_provenance.py` が rc=1 で
+  「AI-Agent の形式違反」+「実装面に Codex role=author がない」を出した。
+  `git commit --amend` で `role=author` へ直して rc=0。main は 1 bit も汚していない。
+- 根本原因: **dev-wave の段名と provenance の role 名が衝突している。**
+  段 6 の子は入口でも `tools/dev_wave_codex.py --stage fix` でも一貫して「fix 子」と呼ばれるが、
+  `docs/ai-provenance.md` の role 許可値は `author`/`reviewer`/`researcher`/`manager`/`integrator`
+  の 5 つで `fix` は無い。段名をそのまま role へ写すと必ず落ちる。
+  dev-wave 側の reference (`DW-O17`) へ 1 行足す案は L1.5 予算超過 (9700 > 9566 bytes) で
+  入らなかったため、台帳側へ記録する。
+- 恒久対応: 段 6 fix 子の成果を commit する直前に、trailer の role が
+  `docs/ai-provenance.md` の 5 値のいずれかであることを確認する。fix 子は実装面を書くので
+  `role=author` が正しい (段名ではなく寄与の種類で選ぶ)。
+- 再発検知: `check_ai_provenance.py` が commit 後に機械検出する (本件もこれで止まった)。
+  ただし検出は commit 後なので、amend が必要になる点は変わらない。
