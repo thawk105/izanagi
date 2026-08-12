@@ -196,7 +196,8 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_build_admission.py::test_trigger_axis_semantic_admission_accepts_pristine_frozen_block"
+        "orchestrator/tests/test_build_admission.py::test_trigger_axis_semantic_admission_accepts_pristine_frozen_block",
+        "orchestrator/tests/test_build_admission.py::test_trigger_axis_semantic_admission_reads_source_bytes_once"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
