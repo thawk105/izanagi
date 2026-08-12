@@ -52,6 +52,16 @@ title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の�
   (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。毎回「成果物実在 + `.done` + producer 死」の 3 点照合で
   検知して張り直したため進行には影響しなかったが、これは本 wave の主題 (受入 gate の
   fail-closed 化) と同型の欠陥である。{{T:waiter-producer-completion-fail-open}} へ起票した。
+- **段 8 の自己改善候補は 4 件で、routing 先は 2 つに分かれた。** 待ち手の fail-open は
+  同型再発なので新規 F を作らず F24 へ追記した。残る 3 件 —
+  (i) 逐次 2 単位の段 5 は単位 1 を commit してから単位 2 を投入する、
+  (ii) 同一ファイルへ大きく積む author 単位は `--max-model-calls` の既定 100 では足りない、
+  (iii) 後続段の必読には「存在が保証される成果物」だけを挙げる (SIGTERM で死んだ子の報告を
+  必読にすると後続が連鎖 fail-closed する。本 wave の段 6 レビュー 2 本が実際にこれで空振りした) —
+  は `docs/dev-wave/**` の既存 leaf 節へ統合すべきだが、**収容余地が無いことを byte で実測した**
+  (上記のとおり L1 は 229 bytes 超過、L2 は pin + 単節上限、command は余白 0)。
+  予算は上げない方針なので、本項の実測として残し、収容は
+  {{T:dev-wave-docs-land-receipt-contract}} と併せて裁定する。
 - **段 5 の子が 1 本 model call 上限 (既定 100) で SIGTERM され、完了報告を残さず落ちた。**
   単位 2 は待ち手 +503 / land +259 / テスト +1,189 行の規模だった。単位 1 を commit せずに
   単位 2 を積んだため、同じ未 commit 差分に両者が混ざって切り分け不能になった。
