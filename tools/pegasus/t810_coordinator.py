@@ -492,29 +492,34 @@ def evaluate_start_acks(
     for raw, received_ns in ack_events:
         slot_id = raw.get("slot_id") if isinstance(raw, Mapping) else None
         if slot_id not in requests:
-            reasons.add("ack-unknown-slot")
+            reasons.add("ack_unknown_slot")
             continue
         if slot_id in seen:
-            reasons.add("ack-duplicate")
+            reasons.add("ack_duplicate")
             continue
         seen.add(slot_id)
         try:
             event = _bound_node_event(prepared, raw, requests[slot_id], "start_ack")
         except (schema.T810SchemaError, T810CoordinatorError):
-            reasons.add("release-marker-mismatch")
+            reasons.add("release_marker_mismatch")
             continue
         if isinstance(received_ns, bool) or not isinstance(received_ns, int) or received_ns < release_published_ns:
-            reasons.add("release-marker-mismatch")
+            reasons.add("release_marker_mismatch")
             continue
         payload = event["payload"]
         if payload["release_marker_sha256"] != release_marker_sha256:
-            reasons.add("release-marker-mismatch")
+            reasons.add("release_marker_mismatch")
         if not payload["cancel_marker_absent"]:
             reasons.add("cancel_marker_observed")
+        process_scan = payload["pre_measurement_process_scan"]
+        if process_scan["competing_processes"]:
+            reasons.add("competing_process_detected")
+        if process_scan["unreadable"]:
+            reasons.add("process_observation_unreadable")
         latencies[slot_id] = received_ns - release_published_ns
         digests[slot_id] = schema.canonical_sha256(event)
     if len(seen) != len(requests):
-        reasons.add("ack-missing")
+        reasons.add("ack_missing")
     spread = max(latencies.values(), default=0)
     if spread > schema.START_SPREAD_MAX_NS:
         reasons.add("start_spread_exceeded")

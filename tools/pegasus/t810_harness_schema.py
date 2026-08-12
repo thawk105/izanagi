@@ -48,8 +48,9 @@ _STATE_ROWS = {
     (_POST, reason): "post_release_pre_measurement_invalid" for reason in (
         "start_spread_exceeded", "cancel_marker_observed",
         "dependency_manifest_mismatch", "module_list_mismatch",
-        "trace_symbols_present", "numa_nodes_mismatch", "release-marker-mismatch",
-        "ack-missing", "ack-unknown-slot", "ack-duplicate",
+        "trace_symbols_present", "numa_nodes_mismatch", "release_marker_mismatch",
+        "ack_missing", "ack_unknown_slot", "ack_duplicate",
+        "competing_process_detected", "process_observation_unreadable",
     )
 } | {
     (_STARTED, reason): "incomplete_after_start" for reason in (
@@ -415,15 +416,56 @@ def validate_control_marker(
 _NODE_FIELDS = frozenset({
     "schema_version", "group_manifest_sha256", "group_id", "slot_id",
     "logical_request_id", "pbs_request_id", "sequence", "event", "observed_at",
-    "previous_event_sha256", "payload",
+    "previous_event_sha256", "limitations", "payload",
 })
 _HARDWARE_FIELDS = frozenset({"cpu_model", "physical_cores", "hyperthreading", "memory", "numa_nodes", "cache", "frequency_policy"})
+_LIMITATION_FIELDS = frozenset({
+    "shared_mount_repository_reachability_not_eliminated",
+    "execution_mediation_incomplete",
+})
+_PROCESS_FIELDS = frozenset({"pid", "uid", "cpu_affinity", "command"})
+_PROCESS_OBSERVATION_FIELDS = _PROCESS_FIELDS - {"pid"}
 
 
 def _isolation(value: Any, path: str) -> None:
     item = _object(value, frozenset({"inventory_sha256", "competing_processes_sha256"}), path)
     _hash(item["inventory_sha256"], f"{path}.inventory_sha256")
     _hash(item["competing_processes_sha256"], f"{path}.competing_processes_sha256")
+
+
+def _processes(value: Any, path: str) -> None:
+    if not isinstance(value, list):
+        _fail(path, "not a list")
+    for index, raw in enumerate(value):
+        pp = f"{path}[{index}]"
+        process = _object(raw, _PROCESS_FIELDS, pp)
+        _integer(process["pid"], f"{pp}.pid", minimum=1)
+        if process["uid"] is not None:
+            _integer(process["uid"], f"{pp}.uid")
+        if process["cpu_affinity"] is not None:
+            if not isinstance(process["cpu_affinity"], list):
+                _fail(f"{pp}.cpu_affinity", "not a list or null")
+            for cpu_index, cpu in enumerate(process["cpu_affinity"]):
+                _integer(cpu, f"{pp}.cpu_affinity[{cpu_index}]")
+        _string(process["command"], f"{pp}.command")
+
+
+def _process_scan(value: Any, path: str) -> None:
+    item = _object(value, frozenset({"competing_processes", "unreadable"}), path)
+    _processes(item["competing_processes"], f"{path}.competing_processes")
+    unreadable = item["unreadable"]
+    if not isinstance(unreadable, list):
+        _fail(f"{path}.unreadable", "not a list")
+    for index, raw in enumerate(unreadable):
+        up = f"{path}.unreadable[{index}]"
+        record = _object(raw, frozenset({"pid", "fields"}), up)
+        _integer(record["pid"], f"{up}.pid", minimum=1)
+        fields = _strings(record["fields"], f"{up}.fields", unique=True)
+        if not fields:
+            _fail(f"{up}.fields", "must contain at least one field")
+        for field_index, field in enumerate(fields):
+            if field not in _PROCESS_OBSERVATION_FIELDS:
+                _fail(f"{up}.fields[{field_index}]", "unknown process field")
 
 
 def _preflight(value: Any, path: str) -> None:
@@ -447,22 +489,7 @@ def _preflight(value: Any, path: str) -> None:
     interpreter = _object(item["interpreter"], frozenset({"executable", "version"}), f"{path}.interpreter")
     _path(interpreter["executable"], f"{path}.interpreter.executable")
     _string(interpreter["version"], f"{path}.interpreter.version")
-    processes = item["competing_processes"]
-    if not isinstance(processes, list):
-        _fail(f"{path}.competing_processes", "not a list")
-    process_fields = frozenset({"pid", "uid", "cpu_affinity", "command"})
-    for index, raw in enumerate(processes):
-        pp = f"{path}.competing_processes[{index}]"
-        process = _object(raw, process_fields, pp)
-        _integer(process["pid"], f"{pp}.pid", minimum=1)
-        if process["uid"] is not None:
-            _integer(process["uid"], f"{pp}.uid")
-        if process["cpu_affinity"] is not None:
-            if not isinstance(process["cpu_affinity"], list):
-                _fail(f"{pp}.cpu_affinity", "not a list or null")
-            for cpu_index, cpu in enumerate(process["cpu_affinity"]):
-                _integer(cpu, f"{pp}.cpu_affinity[{cpu_index}]")
-        _string(process["command"], f"{pp}.command")
+    _processes(item["competing_processes"], f"{path}.competing_processes")
     samples = item["quiet_samples"]
     if not isinstance(samples, list) or not samples:
         _fail(f"{path}.quiet_samples", "not a non-empty list")
@@ -511,6 +538,9 @@ def validate_node_event(value: Any) -> Document:
     _hash(doc["previous_event_sha256"], "$.previous_event_sha256", nullable=True)
     if (sequence == 0) != (doc["previous_event_sha256"] is None):
         _fail("$.previous_event_sha256", "null iff sequence is zero")
+    limitations = _object(doc["limitations"], _LIMITATION_FIELDS, "$.limitations")
+    for field in limitations:
+        _boolean(limitations[field], f"$.limitations.{field}")
     event = _literal(doc["event"], frozenset({"preflight", "ready", "start_ack", "measurement", "terminal"}), "$.event")
     payload_path = "$.payload"
     if event == "preflight":
@@ -521,10 +551,17 @@ def validate_node_event(value: Any) -> Document:
         _boolean(item["ready"], f"{payload_path}.ready")
         _reasons(item["reason_codes"], f"{payload_path}.reason_codes")
     elif event == "start_ack":
-        item = _object(doc["payload"], frozenset({"release_marker_sha256", "cancel_marker_absent", "ack_nonce"}), payload_path)
+        item = _object(doc["payload"], frozenset({
+            "release_marker_sha256", "cancel_marker_absent", "ack_nonce",
+            "pre_measurement_process_scan",
+        }), payload_path)
         _hash(item["release_marker_sha256"], f"{payload_path}.release_marker_sha256")
         _boolean(item["cancel_marker_absent"], f"{payload_path}.cancel_marker_absent")
         _string(item["ack_nonce"], f"{payload_path}.ack_nonce")
+        _process_scan(
+            item["pre_measurement_process_scan"],
+            f"{payload_path}.pre_measurement_process_scan",
+        )
     elif event == "measurement":
         item = _object(doc["payload"], frozenset({"rounds", "benchmark_rc", "binary_after_sha256", "isolation_after"}), payload_path)
         _rounds(item["rounds"], f"{payload_path}.rounds")

@@ -51,6 +51,10 @@ def _node(event: str, payload: dict) -> dict:
         "group_id": "group-1", "slot_id": "slot-00", "logical_request_id": "logical-0",
         "pbs_request_id": "123.server", "sequence": 0, "event": event,
         "observed_at": "2026-08-12T00:00:02Z", "previous_event_sha256": None,
+        "limitations": {
+            "shared_mount_repository_reachability_not_eliminated": True,
+            "execution_mediation_incomplete": True,
+        },
         "payload": payload,
     }
 
@@ -80,7 +84,7 @@ def _terminal(state: str = "valid", ordinal: int = 1) -> dict:
     elif state == "pre_release_invalid":
         completed, dropped, reason = [], slots, "ready_timeout"
     elif state == "post_release_pre_measurement_invalid":
-        completed, dropped, reason = [], slots, "ack-missing"
+        completed, dropped, reason = [], slots, "ack_missing"
     expected = {slot: [f"nodes/{slot}.json"] for slot in slots}
     actual = deepcopy(expected)
     if state == "terminal_reduced":
@@ -133,7 +137,14 @@ def test_positive_node_event_payloads() -> None:
     payloads = {
         "preflight": _preflight(),
         "ready": {"preflight_event_sha256": H, "ready": True, "reason_codes": []},
-        "start_ack": {"release_marker_sha256": H, "cancel_marker_absent": True, "ack_nonce": "ack"},
+        "start_ack": {"release_marker_sha256": H, "cancel_marker_absent": True,
+                      "ack_nonce": "ack", "pre_measurement_process_scan": {
+                          "competing_processes": [{"pid": 12, "uid": 1000,
+                                                   "cpu_affinity": [0, 1],
+                                                   "command": "worker"}],
+                          "unreadable": [{"pid": 13,
+                                          "fields": ["uid", "cpu_affinity"]}],
+                      }},
         "measurement": {"rounds": rounds, "benchmark_rc": 0, "binary_after_sha256": H,
                         "isolation_after": isolation},
         "terminal": {"state": "valid", "reason_codes": ["all_jobs_complete"],
@@ -176,15 +187,27 @@ def test_post_validator_receipt_is_required_for_pre_release_invalid() -> None:
         S.validate_terminal_state(value)
 
 @pytest.mark.parametrize("reason", [
-    "release-marker-mismatch", "ack-missing", "ack-unknown-slot", "ack-duplicate",
+    "release_marker_mismatch", "ack_missing", "ack_unknown_slot", "ack_duplicate",
+    "competing_process_detected", "process_observation_unreadable",
 ])
-def test_ack_reason_codes_are_post_release_only(reason: str) -> None:
+def test_post_release_reason_codes_are_post_release_only(reason: str) -> None:
     value = _terminal("post_release_pre_measurement_invalid")
     value["reason_codes"] = [reason]
     S.validate_terminal_state(value)
     assert S.classify_terminal_state("post_release_pre_measurement", reason) == value["state"]
     with pytest.raises(S.T810SchemaError, match=r"\$\.reason_code"):
         S.classify_terminal_state("pre_release", reason)
+
+
+@pytest.mark.parametrize("reason", [
+    "-".join(("release", "marker", "mismatch")),
+    "-".join(("ack", "missing")),
+    "-".join(("ack", "unknown", "slot")),
+    "-".join(("ack", "duplicate")),
+])
+def test_legacy_kebab_ack_reason_codes_are_rejected(reason: str) -> None:
+    with pytest.raises(S.T810SchemaError, match=r"\$\.reason_code"):
+        S.classify_terminal_state("post_release_pre_measurement", reason)
 
 def test_frozen_state_classification_all_rows() -> None:
     for (boundary, reason), state in S.BOUNDARY_REASON_TO_STATE.items():
@@ -230,6 +253,48 @@ def test_legacy_submission_argv_match_is_an_unknown_field() -> None:
     with pytest.raises(S.T810SchemaError, match=r"submission_argv_match: unknown field"):
         S.validate_node_event(value)
 
+
+@pytest.mark.parametrize("mutation", ["missing_envelope", "missing", "unknown", "non_bool"])
+def test_node_event_limitations_are_exact_booleans(mutation: str) -> None:
+    value = _node("preflight", _preflight())
+    if mutation == "missing_envelope":
+        del value["limitations"]
+    elif mutation == "missing":
+        del value["limitations"]["execution_mediation_incomplete"]
+    elif mutation == "unknown":
+        value["limitations"]["other"] = False
+    else:
+        value["limitations"]["execution_mediation_incomplete"] = 1
+    with pytest.raises(S.T810SchemaError, match="limitations"):
+        S.validate_node_event(value)
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing", "unknown", "process_shape", "unreadable_shape", "empty_fields",
+    "unknown_field",
+])
+def test_pre_measurement_process_scan_rejects_invalid_evidence(mutation: str) -> None:
+    payload = {
+        "release_marker_sha256": H, "cancel_marker_absent": True, "ack_nonce": "ack",
+        "pre_measurement_process_scan": {"competing_processes": [], "unreadable": []},
+    }
+    value = _node("start_ack", payload)
+    scan = payload["pre_measurement_process_scan"]
+    if mutation == "missing":
+        del payload["pre_measurement_process_scan"]
+    elif mutation == "unknown":
+        scan["extra"] = []
+    elif mutation == "process_shape":
+        scan["competing_processes"] = [{"pid": 1}]
+    elif mutation == "unreadable_shape":
+        scan["unreadable"] = [{"pid": 1, "fields": ["uid"], "extra": True}]
+    elif mutation == "empty_fields":
+        scan["unreadable"] = [{"pid": 1, "fields": []}]
+    else:
+        scan["unreadable"] = [{"pid": 1, "fields": ["status"]}]
+    with pytest.raises(S.T810SchemaError, match="pre_measurement_process_scan"):
+        S.validate_node_event(value)
+
 @pytest.mark.parametrize(("field", "invalid"), [("accepted", 1), ("reason_codes", [1])])
 def test_start_ack_received_rejects_invalid_decision_details(field: str, invalid: object) -> None:
     details = {"receipt_sha256": H, "received_monotonic_ns": 20, "latency_ns": 10,
@@ -245,7 +310,7 @@ def test_start_ack_received_rejects_invalid_decision_details(field: str, invalid
 @pytest.mark.parametrize("field", ["accepted", "reason_codes"])
 def test_start_ack_received_requires_decision_details(field: str) -> None:
     details = {"receipt_sha256": H, "received_monotonic_ns": 20, "latency_ns": 10,
-               "accepted": False, "reason_codes": ["ack-duplicate"]}
+               "accepted": False, "reason_codes": ["ack_duplicate"]}
     del details[field]
     value = {"schema_version": S.COORDINATOR_EVENT_SCHEMA, "group_manifest_sha256": H,
              "sequence": 0, "event": "start_ack_received", "wall_time": "now",

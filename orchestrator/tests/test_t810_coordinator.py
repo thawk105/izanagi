@@ -161,7 +161,12 @@ def _node_event(prepared, slot_id: str, event: str, payload: dict, sequence: int
         "logical_request_id": f"logical-{index:02d}",
         "pbs_request_id": f"810{index:02d}.server", "sequence": sequence,
         "event": event, "observed_at": "2026-08-12T00:00:03Z",
-        "previous_event_sha256": None if sequence == 0 else H, "payload": payload,
+        "previous_event_sha256": None if sequence == 0 else H,
+        "limitations": {
+            "shared_mount_repository_reachability_not_eliminated": True,
+            "execution_mediation_incomplete": True,
+        },
+        "payload": payload,
     }
 def _ready_events(prepared) -> list[dict]:
     events = []
@@ -203,6 +208,9 @@ def _ack_events(prepared, release_sha: str) -> list[dict]:
         _node_event(prepared, f"slot-{index:02d}", "start_ack", {
             "release_marker_sha256": release_sha, "cancel_marker_absent": True,
             "ack_nonce": f"ack-{index:02d}",
+            "pre_measurement_process_scan": {
+                "competing_processes": [], "unreadable": [],
+            },
         })
         for index in range(S.NODE_COUNT)
     ]
@@ -356,7 +364,27 @@ def test_ack_marker_mismatch_duplicate_unknown_and_missing_are_rejected(tmp_path
         [(event, 100) for event in events[:-1] + [duplicate, unknown]],
         release_marker_sha256=release_sha, release_published_ns=100,
     )
-    assert {"release-marker-mismatch", "ack-duplicate", "ack-unknown-slot", "ack-missing"} <= set(decision.reason_codes)
+    assert {"release_marker_mismatch", "ack_duplicate", "ack_unknown_slot", "ack_missing"} <= set(decision.reason_codes)
+
+
+def test_start_ack_recomputes_pre_measurement_process_scan(tmp_path: Path) -> None:
+    _, _, prepared, _, _ = _prepared(tmp_path)
+    release_sha = _release_sha(prepared)
+    events = _ack_events(prepared, release_sha)
+    events[0]["payload"]["pre_measurement_process_scan"]["competing_processes"] = [{
+        "pid": 12, "uid": 1000, "cpu_affinity": [0], "command": "worker",
+    }]
+    events[1]["payload"]["pre_measurement_process_scan"]["unreadable"] = [{
+        "pid": 13, "fields": ["uid", "cpu_affinity"],
+    }]
+    decision = C.evaluate_start_acks(
+        prepared, [(event, 100) for event in events],
+        release_marker_sha256=release_sha, release_published_ns=100,
+    )
+    assert decision.accepted is False
+    assert {"competing_process_detected", "process_observation_unreadable"} <= set(
+        decision.reason_codes
+    )
 @pytest.mark.parametrize(
     ("drop_count", "state"),
     [(0, "valid"), (1, "terminal_reduced"), (2, "incomplete_after_start")],
