@@ -11,6 +11,10 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "orchestrator.campaign"
+
 from ..qualification import artifacts
 from tools.pegasus import dispatch_compute
 
