@@ -42,9 +42,23 @@ title: [T-983] は起票の 2 時間後に別 wave が実装し land 済みだ�
   `docs/decisions.md` を触るものは無かった。scope の切り直しは重複ではなく既着地を理由に行った。
 - **敵対レビュー 2 本と変異 matrix は実施していない。** 投入裁定は「防壁変更につき敵対レビュー 2 本」を
   求めていたが、本 wave の実装差分はゼロで防壁を 1 bit も変えていない。変異 matrix の免除は
-  `DW-S04` の「実装差分ゼロの wave」条項による。受入全走は免除せず実走した。
+  `DW-S04` の「実装差分ゼロの wave」条項による。
+- **受入全走は免除せず実走した。実測 = 1 failed / 10239 passed / 65 skipped、130.52 秒**
+  (2026-08-13 01:13 JST、tip `538af3a5` / main `adf7997f`)。**赤 1 件は main 由来の既知赤**で、
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain` が
+  `PreregistrationError: [octopus-merge] d1de13ad` を送出したもの。`d1de13ad` は親 4 つの merge で
+  `s8c_preregistration.py` が親 3 つ以上を拒否するため、**履歴に焼き付いた決定的な赤**であり
+  再走では消えない。本 wave の差分は `docs/spool/` の fragment 2 本だけで、この検査が読む git 履歴に
+  影響しないことを差分一覧で確認した。**ユーザー裁定 (2026-08-13、本 wave へ直接): 既知赤として land
+  してよい。** 記録後に main `01487bb4` を取り込み、同じ受入を merge 後の tip で再走してから land した
+  (再走の値は本 fragment より後に確定するため、ここには書かない — 実測値は上の 1 走のもの)。
 - **同型の再発を台帳へ挙げた** (F35 の再発として記録)。
   起票側 (`/rulings`) に既決照合の防壁が無いという F35 の既知の穴が、そのまま 2 度目を生んだ。
+- **段 8 自己改善 = 候補 1 件、routing 先は failures のみ。** 候補は「裁定の起票から wave 投入までの
+  時間差で、別 wave が同じ scope を land しうる」。dev-wave 側は `DW-S01` の前提実測が実際に本件を
+  止めており欠落は無いため、入口・`docs/dev-wave/` の reference はいずれも編集しない。起票側
+  (`/rulings`) の照合義務は F35 が既に「byte 予算の都合で書く場所が無く独立審査へ回した」と
+  記録済みであり、本 wave は予算に触れない (自己改善契約の「予算の変更は実装せず裁定パッケージへ」)。
 
 ## 次の一手差分
 
