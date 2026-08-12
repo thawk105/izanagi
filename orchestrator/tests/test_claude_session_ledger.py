@@ -49,7 +49,7 @@ def _usage(
 def _assistant(
     *,
     request_id: str | None = "req-1",
-    message_id: str = "msg-1",
+    message_id: str | None = "msg-1",
     timestamp: str | None = "2026-01-10T00:00:00Z",
     cwd: str | None = "/synthetic/izanagi",
     usage: Any = None,
@@ -57,9 +57,9 @@ def _assistant(
     tools: tuple[str, ...] = (),
     parent_uuid: str | None = None,
     agent_id: str | None = None,
+    record_uuid: str | None = None,
 ) -> dict[str, Any]:
     message: dict[str, Any] = {
-        "id": message_id,
         "type": "message",
         "model": model,
         "content": [
@@ -72,6 +72,8 @@ def _assistant(
             for tool_id in tools
         ],
     }
+    if message_id is not None:
+        message["id"] = message_id
     if usage is not None:
         message["usage"] = usage
     record: dict[str, Any] = {"type": "assistant", "message": message}
@@ -85,6 +87,8 @@ def _assistant(
         record["parentUuid"] = parent_uuid
     if agent_id is not None:
         record["agentId"] = agent_id
+    if record_uuid is not None:
+        record["uuid"] = record_uuid
     return record
 
 
@@ -508,6 +512,115 @@ def test_replicated_message_id_with_identical_usage_counts_once(
     assert sidechains["output_tokens"] == 428
 
 
+@pytest.mark.parametrize(
+    ("message_id", "expected"),
+    [
+        ("", False),
+        ("x", False),
+        ("msg_" + "A" * 252, True),
+        ("msg_" + "A" * 253, False),
+        ("msg_メッセージ", False),
+        ("msg_has space", False),
+        ("msg_has\ncontrol", False),
+    ],
+)
+def test_canonical_message_id_validator_boundaries(
+    message_id: str, expected: bool
+) -> None:
+    assert len(message_id) in {0, 1, 256, 257} or not expected
+    assert LEDGER._is_canonical_message_id(message_id) is expected
+
+
+def test_noncanonical_message_id_connection_reports_message_id_collision(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"noncanonical-{index}.jsonl",
+            [
+                _assistant(
+                    request_id=None,
+                    message_id="x",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert set(report["issues"]) == {"message_id_collision"}
+    assert report["root"]["model_calls"] == 0
+
+
+def test_message_only_and_request_only_replicas_do_not_double_count(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=11, cache_creation=22, input_tokens=33, output=44)
+    records = (
+        _assistant(
+            request_id=None,
+            message_id="msg_ExactClone1",
+            usage=usage,
+            record_uuid="82bb7044-10da-4c59-b4c3-04cf84d030a8",
+        ),
+        _assistant(
+            request_id="req-exact-clone",
+            message_id=None,
+            usage=usage,
+            record_uuid="82bb7044-10da-4c59-b4c3-04cf84d030a8",
+        ),
+    )
+    records[0]["message"]["content"] = [{"type": "text", "text": "é"}]
+    records[1]["message"]["content"] = [{"type": "text", "text": "e\N{COMBINING ACUTE ACCENT}"}]
+    for index, record in enumerate(records):
+        _write_jsonl(projects, "project-a", f"clone-{index}.jsonl", [record])
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["raw_input_tokens"] == 11 + 22 + 33
+    assert report["root"]["output_tokens"] == 44
+
+
+def test_shared_record_uuid_without_exact_clone_evidence_fails_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    records = (
+        _assistant(
+            request_id=None,
+            message_id="msg_SuspectedClone1",
+            usage=usage,
+            record_uuid="398955f1-bbf7-471a-8057-80ae4042edcf",
+        ),
+        _assistant(
+            request_id="req-suspected-clone",
+            message_id=None,
+            usage=usage,
+            tools=("different-content",),
+            record_uuid="398955f1-bbf7-471a-8057-80ae4042edcf",
+        ),
+    )
+    for index, record in enumerate(records):
+        _write_jsonl(projects, "project-a", f"suspect-{index}.jsonl", [record])
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["root"]["model_calls"] == 0
+
+
 def test_partial_snapshot_replica_uses_dominating_usage(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -689,7 +802,7 @@ def test_replica_resolution_is_input_order_independent(
             [
                 _assistant(
                     request_id="req-order",
-                    message_id="msg-order",
+                    message_id="msg_Order1",
                     usage=_usage(
                         cache_read=31900,
                         cache_creation=3770,
@@ -852,7 +965,7 @@ def test_cross_bucket_replica_is_attributed_to_root_once(
             [
                 _assistant(
                     request_id="req-cross-bucket",
-                    message_id="msg-cross-bucket",
+                    message_id="msg_CrossBucket1",
                     usage=_usage(
                         cache_read=1,
                         cache_creation=2,
@@ -872,6 +985,113 @@ def test_cross_bucket_replica_is_attributed_to_root_once(
     assert report["sidechains"]["model_calls"] == 0
 
 
+def test_cross_file_replica_with_divergent_cwd_selection_fails_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index, cwd in enumerate(("/wave", "/outside")):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"selector-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-selector",
+                    message_id="msg_Selector1",
+                    cwd=cwd,
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--cwd-under", "/wave")
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert set(report["issues"]) == {"message_id_collision"}
+    assert report["root"]["model_calls"] == 0
+
+
+def test_cross_file_replica_with_equal_selector_identity_counts_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"selector-equal-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-selector-equal",
+                    message_id="msg_SelectorEqual1",
+                    cwd="/wave",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(
+        capsys, projects, "--cwd-under", "/wave", "--strict"
+    )
+
+    assert rc == 0
+    assert stderr == ""
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["output_tokens"] == 4
+
+
+def test_root_root_streaming_replicas_count_once_without_collisions(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    for relative in ("root-a.jsonl", "root-b.jsonl"):
+        _write_jsonl(
+            projects,
+            "project-a",
+            relative,
+            [
+                _assistant(
+                    request_id="req-root-replica",
+                    message_id="msg_011CdZC72rNdSAUyWUbUWFjp",
+                    timestamp="2026-01-10T00:00:00Z",
+                    usage=_usage(
+                        cache_read=10,
+                        cache_creation=20,
+                        input_tokens=2,
+                        output=3,
+                    ),
+                    tools=("tool-prefix",),
+                ),
+                _assistant(
+                    request_id="req-root-replica",
+                    message_id="msg_011CdZC72rNdSAUyWUbUWFjp",
+                    timestamp="2026-01-10T00:00:01Z",
+                    usage=_usage(
+                        cache_read=10,
+                        cache_creation=20,
+                        input_tokens=2,
+                        output=30,
+                    ),
+                    tools=("tool-prefix", "tool-terminal"),
+                ),
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    assert "message_id_collision" not in report["issues"]
+    assert "request_id_collision" not in report["issues"]
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["tool_calls"] == 2
+    assert report["root"]["output_tokens"] == 30
+    assert report["sidechains"]["model_calls"] == 0
+
+
 def test_request_collision_invalidates_representative_and_all_replicas(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -885,7 +1105,7 @@ def test_request_collision_invalidates_representative_and_all_replicas(
             [
                 _assistant(
                     request_id="req-reused",
-                    message_id="msg-replica",
+                    message_id="msg_RequestReplica1",
                     usage=usage,
                 )
             ],
@@ -897,7 +1117,7 @@ def test_request_collision_invalidates_representative_and_all_replicas(
         [
             _assistant(
                 request_id="req-reused",
-                message_id="msg-distinct-call",
+                message_id="msg_DistinctCall1",
                 usage=usage,
             )
         ],

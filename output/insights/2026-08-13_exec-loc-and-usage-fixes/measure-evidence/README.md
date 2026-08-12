@@ -28,6 +28,27 @@ worklog fragment (branch worktree-rulings8-20260813、commit 8dbdadb7) の一次
   する delta 方式。同居 job の充当変動が混入する (実際に 1 走で delta が負になり無効化した)。
   registry へ反映する際は evidence にこの方法論の差を明記すること。
 
+## erratum (2026-08-13 02:4x JST、反映 wave `dev-wave-exec-loc-and-usage-fixes` が追記)
+
+**本 README の原文は上に保存してあるが、次の 3 点が誤りである。** 反映先の registry と runbook は
+訂正後の値を使っている。原文を書き換えず、ここで訂正する。
+
+1. **見出しの「§7.0 実測」は誤り。** 採られた方式は共有 service cgroup の delta sampling であり、
+   §7.0 が定める専有 scope 手順ではない。正しくは**非 canonical な補助観測**である。
+2. **「判定」節の `local-ok 相当` と数値は誤り。**
+   - 最大 delta は `842317824 − 821682176 = 20,635,648 bytes`。これは **19.7 MiB** であって
+     20.6 MiB ではない (20.6 は MB 値)。
+   - margin 込みは **147.7 MiB** であって約 149 MiB ではない。
+   - 結論は `local-ok 相当` ではなく **`unknown` 据置**である。§7.0 の canonical 手順を満たさず、
+     本番 helper が渡す `--max-files=1000` の cap 境界も測っていない。
+3. **「有効 5 走」の意味。** ledger は 6 走すべてが command `rc=2` (当時の
+   `message_id_collision` 誤判定) で終了している。5 は「成功した走」ではなく
+   **「正の delta を得たメモリ sample の数」**である。走査自体は完走しているので
+   メモリ観測としては有効だが、「5 valid runs」と読んではならない。
+
+補足: 測定 commit は `04d85f93`。report は既定 cap により **1,045 file 中 25 file・4,728,545 bytes**
+だけを読み、`limit_reached=true` だった。母集団の総量は約 1.40 GB。
+
 ## 消してよいか
 
 registry 反映 wave が evidence として参照し終えるまで残す。raw の peak/base/rc/stdout が

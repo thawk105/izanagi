@@ -1248,14 +1248,14 @@ def test_admission_non_pegasus_registry_entry_requires_projection_only():
         "class": "unknown",
         "reason": "inputs are hard-capped; isolated-scope and cap-boundary measurements are unavailable",
         "primary_gate": "hook deny pending isolated-scope admission evidence",
-        "evidence": "compute-node shared-service cgroup delta sampling (not runbook 7.0 isolated-scope evidence); default --json argv over 25 files; 5 valid runs, max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 negative-delta run excluded",
+        "evidence": "compute-node shared-service cgroup delta sampling at commit 04d85f93 (not runbook 7.0 isolated-scope evidence; non-certifying); default --json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB",
     }
     row = (
         f"| `{path}` | `unknown` | "
-        "`compute-node shared-service cgroup delta sampling (not runbook 7.0 "
-        "isolated-scope evidence); default --json argv over 25 files; 5 valid runs, "
-        "max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 negative-delta "
-        "run excluded` |"
+        "`compute-node shared-service cgroup delta sampling at commit 04d85f93 "
+        "(not runbook 7.0 isolated-scope evidence; non-certifying); default --json "
+        "argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 positive-delta "
+        "samples of 6, all command rc=2; max +19.7 MiB, +128 MiB margin = 147.7 MiB` |"
     )
     try:
         def add_entry(document):
@@ -1269,10 +1269,11 @@ def test_admission_non_pegasus_registry_entry_requires_projection_only():
         detail = (
             "runbook §7.0 投影表が registry と集合完全一致しない — "
             "registry_only=[('tools/claude_session_ledger.py', 'unknown', "
-            "'compute-node shared-service cgroup delta sampling (not runbook 7.0 "
-            "isolated-scope evidence); default --json argv over 25 files; 5 valid "
-            "runs, max +19.7 MiB, certified 147.7 MiB with +128 MiB margin; 1 "
-            "negative-delta run excluded')], runbook_only=[]"
+            "'compute-node shared-service cgroup delta sampling at commit 04d85f93 "
+            "(not runbook 7.0 isolated-scope evidence; non-certifying); default "
+            "--json argv, 25 of 1045 files read, 4728545 bytes, limit_reached; 5 "
+            "positive-delta samples of 6, all command rc=2; max +19.7 MiB, +128 "
+            "MiB margin = 147.7 MiB')], runbook_only=[]"
         )
         _assert_admission_exact(root, detail)
 

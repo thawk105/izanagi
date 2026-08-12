@@ -71,8 +71,12 @@ resolver は 3 相とし、**全検証が終わるまで representative map も 
      あれば緩和対象外 (B4)。
   2. すべての member が終端 usage を持つ。
   3. **usage dominance**: ある member の終端 usage vector が、他の全 member の終端 usage vector を
-     `USAGE_FIELDS` の全 field で `>=` する。**支配 member が一意に決まらない (incomparable) 場合は
+     `USAGE_FIELDS` の全 field で `>=` する。**支配 candidate が 1 つも存在しない (incomparable) 場合は
      従来どおり `message_id_collision` を立てて fatal** (A2 の置換)。
+     **[erratum 2026-08-13 段 6]** 本項の初版は「支配 member が一意に決まらなければ fatal」と書いたが、
+     これは誤り。等値 replica は全 member が相互に支配するため candidate が複数になる。
+     正しくは「**支配 candidate が存在しなければ fatal。複数 candidate が同値なら決定的に tie-break**」
+     である。実装はこの正しい形になっており、実測群 1 (等値 4 replica) を受理する。
   4. terminal model が全 member で一致する。
   5. tool identity 集合が、支配 member の集合に対して他 member が部分集合である
      (部分 snapshot と整合する)。

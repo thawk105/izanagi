@@ -17,9 +17,13 @@ try:
     # script 経由の補助 import が source tree に bytecode を残すことも避ける。
     sys.dont_write_bytecode = True
     import argparse
+    import hashlib
     import json
     import os
+    import re
     import stat as stat_module
+    import unicodedata
+    import uuid as uuid_module
     from dataclasses import dataclass
     from datetime import datetime, timezone
     from pathlib import Path
@@ -40,6 +44,7 @@ MAX_DISCOVERY_ENTRIES = 100_000
 MAX_ISSUE_DETAILS = 100
 MAX_CANONICAL_MESSAGE_ID_LENGTH = 256
 DEDUP_ALGORITHM_VERSION = "canonical_message_id_usage_dominance_v1"
+_CANONICAL_MESSAGE_ID = re.compile(r"msg_[A-Za-z0-9]+\Z")
 
 USAGE_FIELDS = (
     "cache_read_input_tokens",
@@ -434,11 +439,60 @@ def _new_request(path: str, sidechain: bool) -> dict[str, Any]:
         "message_ids": set(),
         "tools": set(),
         "member_anomaly": False,
+        "assistant_records": 0,
+        "clone_evidence": [],
+        "clone_evidence_complete": True,
+        "record_uuid_digests": {},
     }
 
 
 def _is_canonical_message_id(value: str) -> bool:
-    return bool(value) and value.isascii() and len(value) <= MAX_CANONICAL_MESSAGE_ID_LENGTH
+    return bool(
+        value
+        and value.isascii()
+        and len(value) <= MAX_CANONICAL_MESSAGE_ID_LENGTH
+        and _CANONICAL_MESSAGE_ID.fullmatch(value)
+    )
+
+
+def _normalized_json_digest(value: Any) -> str | None:
+    """JSON 値の全 string を NFC 化した canonical digest を返す。"""
+
+    def normalize(item: Any) -> Any:
+        if isinstance(item, str):
+            return unicodedata.normalize("NFC", item)
+        if isinstance(item, list):
+            return [normalize(child) for child in item]
+        if isinstance(item, dict):
+            normalized = {}
+            for key, child in item.items():
+                normalized_key = normalize(key)
+                if normalized_key in normalized:
+                    raise ValueError("NFC-normalized object keys collide")
+                normalized[normalized_key] = normalize(child)
+            return normalized
+        return item
+
+    try:
+        encoded = json.dumps(
+            normalize(value),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _is_canonical_record_uuid(value: Any) -> bool:
+    if not isinstance(value, str) or not value or not value.isascii():
+        return False
+    try:
+        return str(uuid_module.UUID(value)) == value
+    except (ValueError, AttributeError):
+        return False
 
 
 def _request_identity(
@@ -674,6 +728,30 @@ def _stream_file(
                 continue
 
             request = state["requests"][canonical]
+            request["assistant_records"] += 1
+            record_uuid = record.get("uuid")
+            content_digest = _normalized_json_digest(content)
+            usage_digest = _normalized_json_digest(message.get("usage"))
+            model_for_evidence = message.get("model")
+            if not isinstance(model_for_evidence, str):
+                model_for_evidence = ""
+            if (
+                _is_canonical_record_uuid(record_uuid)
+                and content_digest is not None
+                and usage_digest is not None
+            ):
+                evidence = (
+                    record_uuid,
+                    content_digest,
+                    usage_digest,
+                    model_for_evidence,
+                )
+                request["clone_evidence"].append(evidence)
+                request["record_uuid_digests"].setdefault(record_uuid, set()).add(
+                    content_digest
+                )
+            else:
+                request["clone_evidence_complete"] = False
             if meta["invalid_timestamp"]:
                 request["member_anomaly"] = True
             previous_meta = request["last_stream_meta"]
@@ -833,8 +911,12 @@ def _resolve_cross_file_replicas(
     issues: dict[str, list[str]],
     *,
     member_anomalies: set[tuple[str, int]],
+    cwd_filters: list[str],
+    cwd_under: str | None,
+    since: datetime | None,
+    until: datetime | None,
 ) -> None:
-    """相 2 を読み取り専用で完了し、相 3 で解決結果を一括適用する。"""
+    """final representative map と final invalid set は相 3 まで書かない。"""
     canonicals = set(state["requests"])
     planned_representatives = {canonical: canonical for canonical in canonicals}
     planned_invalid = set(state["identity_conflicts"])
@@ -842,9 +924,75 @@ def _resolve_cross_file_replicas(
         canonical: state["requests"][canonical]["sidechain"]
         for canonical in canonicals
     }
-    components = {canonical: {canonical} for canonical in canonicals}
+    parent = {canonical: canonical for canonical in canonicals}
 
-    # 相 2a: message.id 群を検証する。ここでは state へ一切書かない。
+    def find(canonical: tuple[str, int]) -> tuple[str, int]:
+        while parent[canonical] != canonical:
+            parent[canonical] = parent[parent[canonical]]
+            canonical = parent[canonical]
+        return canonical
+
+    def union(group: tuple[tuple[str, int], ...]) -> None:
+        root = find(group[0])
+        for canonical in group[1:]:
+            other = find(canonical)
+            if other != root:
+                parent[other] = root
+
+    def selector_verdicts(group: tuple[tuple[str, int], ...]) -> set[bool]:
+        return {
+            _selected(
+                state["requests"][canonical]["terminal_meta"],
+                cwd_filters=cwd_filters,
+                cwd_under=cwd_under,
+                since=since,
+                until=until,
+            )
+            for canonical in group
+        }
+
+    def candidates_for(
+        group: tuple[tuple[str, int], ...]
+    ) -> list[tuple[str, int]]:
+        candidates: list[tuple[str, int]] = []
+        for candidate in group:
+            candidate_request = state["requests"][candidate]
+            candidate_usage = candidate_request["terminal_usage"]
+            if candidate_usage is None:
+                continue
+            dominates_group = True
+            for other in group:
+                other_request = state["requests"][other]
+                other_usage = other_request["terminal_usage"]
+                if (
+                    other_usage is None
+                    or not _dominates(candidate_usage, other_usage)
+                    or not other_request["tools"].issubset(
+                        candidate_request["tools"]
+                    )
+                ):
+                    dominates_group = False
+                    break
+            if dominates_group:
+                candidates.append(candidate)
+        return candidates
+
+    def common_structure_is_valid(group: tuple[tuple[str, int], ...]) -> bool:
+        requests = [state["requests"][canonical] for canonical in group]
+        models = {request["terminal_model"] for request in requests}
+        return bool(
+            all(
+                request["terminal_has_usage"]
+                and request["terminal_usage"] is not None
+                for request in requests
+            )
+            and len(models) == 1
+            and not any(canonical in member_anomalies for canonical in group)
+            and len(selector_verdicts(group)) == 1
+            and candidates_for(group)
+        )
+
+    # 相 2a: canonical message.id を共有する replica edge を検証する。
     for (kind, value), raw_group in sorted(state["raw_aliases"].items()):
         if kind != "message.id":
             continue
@@ -854,37 +1002,13 @@ def _resolve_cross_file_replicas(
             continue
         requests = [state["requests"][canonical] for canonical in group]
         request_id_sets = {frozenset(request["request_ids"]) for request in requests}
-        models = {request["terminal_model"] for request in requests}
-        locally_clean = not any(canonical in member_anomalies for canonical in group)
         structurally_valid = bool(
             _is_canonical_message_id(value)
             and all(request["message_ids"] == {value} for request in requests)
             and len(request_id_sets) == 1
-            and all(
-                request["terminal_has_usage"]
-                and request["terminal_usage"] is not None
-                for request in requests
-            )
-            and len(models) == 1
-            and locally_clean
+            and common_structure_is_valid(group)
         )
-        candidates: list[tuple[str, int]] = []
-        if structurally_valid:
-            for candidate in group:
-                candidate_request = state["requests"][candidate]
-                candidate_usage = candidate_request["terminal_usage"]
-                if all(
-                    _dominates(
-                        candidate_usage,
-                        state["requests"][other]["terminal_usage"],
-                    )
-                    and state["requests"][other]["tools"].issubset(
-                        candidate_request["tools"]
-                    )
-                    for other in group
-                ):
-                    candidates.append(candidate)
-        if not candidates:
+        if not structurally_valid:
             _issue(
                 issues,
                 "message_id_collision",
@@ -892,25 +1016,104 @@ def _resolve_cross_file_replicas(
             )
             planned_invalid.update(group)
             continue
+        union(group)
 
+    # 相 2b: shared alias がなくても完全一致する record clone を検証する。
+    uuid_members: dict[str, set[tuple[str, int]]] = {}
+    clone_groups: dict[tuple[tuple[str, str, str, str], ...], set[tuple[str, int]]] = {}
+    for canonical in sorted(canonicals):
+        request = state["requests"][canonical]
+        for record_uuid in request["record_uuid_digests"]:
+            uuid_members.setdefault(record_uuid, set()).add(canonical)
+        if (
+            request["clone_evidence_complete"]
+            and request["clone_evidence"]
+            and len(request["clone_evidence"]) == request["assistant_records"]
+        ):
+            key = tuple(request["clone_evidence"])
+            clone_groups.setdefault(key, set()).add(canonical)
+
+    for record_uuid, raw_group in sorted(uuid_members.items()):
+        group = tuple(sorted(raw_group))
+        if len({canonical[0] for canonical in group}) <= 1:
+            continue
+        evidence_sets = {
+            tuple(state["requests"][canonical]["clone_evidence"])
+            if state["requests"][canonical]["clone_evidence_complete"]
+            else ()
+            for canonical in group
+        }
+        if len(evidence_sets) != 1 or not next(iter(evidence_sets)):
+            _issue(
+                issues,
+                "message_id_collision",
+                f"record uuid {record_uuid}: "
+                f"{', '.join(sorted(canonical[0] for canonical in group))}",
+            )
+            planned_invalid.update(group)
+
+    for evidence, raw_group in sorted(clone_groups.items()):
+        group = tuple(sorted(raw_group))
+        provenances = {canonical[0] for canonical in group}
+        if len(provenances) <= 1:
+            continue
+        requests = [state["requests"][canonical] for canonical in group]
+        message_ids = set().union(*(request["message_ids"] for request in requests))
+        request_ids = set().union(*(request["request_ids"] for request in requests))
+        structurally_valid = bool(
+            len(message_ids) <= 1
+            and len(request_ids) <= 1
+            and all(_is_canonical_message_id(value) for value in message_ids)
+            and common_structure_is_valid(group)
+        )
+        if not structurally_valid:
+            _issue(
+                issues,
+                "message_id_collision",
+                f"record clone {evidence[0][0]}: {', '.join(sorted(provenances))}",
+            )
+            planned_invalid.update(group)
+            continue
+        union(group)
+
+    # 検証済み edge の connected component ごとに代表を一度だけ計画する。
+    component_groups: dict[tuple[str, int], set[tuple[str, int]]] = {}
+    for canonical in sorted(canonicals):
+        component_groups.setdefault(find(canonical), set()).add(canonical)
+    components = {canonical: {canonical} for canonical in canonicals}
+    for raw_group in component_groups.values():
+        if len(raw_group) <= 1:
+            continue
+        group = tuple(sorted(raw_group))
+        candidates = candidates_for(group) if common_structure_is_valid(group) else []
+        if not candidates:
+            _issue(
+                issues,
+                "message_id_collision",
+                "replica component: "
+                + ", ".join(sorted(canonical[0] for canonical in group)),
+            )
+            planned_invalid.update(group)
+            continue
         representative = min(
             candidates, key=lambda canonical: _replica_preference(canonical, state)
         )
-        component = set(group)
-        components[representative] = component
+        components[representative] = set(group)
         planned_sidechain[representative] = all(
             state["requests"][canonical]["sidechain"] for canonical in group
         )
         for canonical in group:
             planned_representatives[canonical] = representative
 
-    # 相 2b: message representative へ写像した後の requestId 再利用を検証する。
+    # 相 2c: message representative へ写像した後の requestId 再利用を検証する。
     for (kind, value), raw_group in sorted(state["raw_aliases"].items()):
         if kind != "requestId":
             continue
         group = tuple(sorted(raw_group))
         provenances = {canonical[0] for canonical in group}
         if len(provenances) <= 1:
+            continue
+        if all(canonical in planned_invalid for canonical in group):
             continue
         mapped = {planned_representatives[canonical] for canonical in group}
         if len(mapped) <= 1:
@@ -922,12 +1125,11 @@ def _resolve_cross_file_replicas(
         )
         for representative in mapped:
             planned_invalid.update(components[representative])
-        planned_invalid.update(group)
 
     # 相 3: 全群の検証後に初めて representative map と invalid 集合を書く。
-    for canonical, representative in planned_representatives.items():
-        if representative in planned_invalid:
-            planned_invalid.update(components[representative])
+    for component in components.values():
+        if component.intersection(planned_invalid):
+            planned_invalid.update(component)
     state["representatives"] = planned_representatives
     state["representative_sidechain"] = planned_sidechain
     state["invalid_requests"] = planned_invalid
@@ -1203,6 +1405,10 @@ def collect_report(argv: Sequence[str] | None = None) -> CollectionResult:
             state,
             issues,
             member_anomalies=member_anomalies,
+            cwd_filters=args.cwd_contains,
+            cwd_under=args.cwd_under,
+            since=since,
+            until=until,
         )
         for canonical in sorted(state["requests"]):
             representative = state["representatives"][canonical]
