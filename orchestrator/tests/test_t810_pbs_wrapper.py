@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from collections import deque
+from copy import deepcopy
 from dataclasses import replace
 import hashlib
 import json
@@ -109,6 +110,9 @@ def test_intent_manifest_producer_binds_prereg_policy_request_and_publication(tm
     source = package / "CCBench-Silo"
     source.write_bytes(b"production-route-fixture")
     source.chmod(0o700)
+    wrapper = package / "wrapper.py"
+    wrapper.write_bytes(Path(W.__file__).read_bytes())
+    wrapper_sha256 = _sha(wrapper)
     dependency = package / "dependencies.json"
     dependency.write_bytes(b"dependencies")
     interpreter = tmp_path / "python3.10"
@@ -134,7 +138,7 @@ def test_intent_manifest_producer_binds_prereg_policy_request_and_publication(tm
             "pbs_stdout_path": str(slot_output / "pbs.stdout.log"),
             "pbs_stderr_path": str(slot_output / "pbs.stderr.log"),
             "binary_source_path": str(source), "binary_sha256": _sha(source),
-            "wrapper_path": str(package / "wrapper.py"), "wrapper_sha256": H,
+            "wrapper_path": str(wrapper), "wrapper_sha256": wrapper_sha256,
             "runner_policy_path": str(package / f"runner-policy-{index:02d}.json"),
             "runner_policy_sha256": policy_sha,
             "expected_dependency_manifest_sha256": _sha(dependency),
@@ -175,6 +179,20 @@ def test_intent_manifest_producer_binds_prereg_policy_request_and_publication(tm
     assert request.runner_policy_sha256 == slots[0]["runner_policy_sha256"]
     assert not hasattr(request, "canonical_benchmark_argv")
     assert not hasattr(request, "expected_binary_sha256")
+    wrong_wrapper = deepcopy(intent)
+    wrong_wrapper["slots"][0]["wrapper_sha256"] = H
+    with pytest.raises(W.T810WrapperError, match="declared SHA-256"):
+        W.publish_wrapper_request(
+            wrong_wrapper, manifest, prereg, token, slot_id="slot-00",
+            dependency_manifest_path=dependency, interpreter_realpath=interpreter,
+        )
+    wrong_binary = deepcopy(intent)
+    wrong_binary["slots"][0]["binary_sha256"] = H
+    with pytest.raises(W.T810WrapperError, match="declared SHA-256"):
+        W.publish_wrapper_request(
+            wrong_binary, manifest, prereg, token, slot_id="slot-00",
+            dependency_manifest_path=dependency, interpreter_realpath=interpreter,
+        )
     published = W.publish_wrapper_request(
         intent, manifest, prereg, token, slot_id="slot-00",
         dependency_manifest_path=dependency, interpreter_realpath=interpreter,
@@ -274,6 +292,9 @@ def _request(tmp_path: Path, *, expected_hash: str | None = None) -> W.WrapperRe
     source = package / "CCBench-Silo"
     source.write_bytes(b"benchmark-fixture")
     source.chmod(0o700)
+    wrapper = package / "wrapper.py"
+    wrapper.write_bytes(Path(W.__file__).read_bytes())
+    wrapper_sha256 = _sha(wrapper)
     runner_policy_path = package / "runner-policy.json"
     policy = R.build_runner_policy(
         _preregistration(), executable_sha256=expected_hash or _sha(source),
@@ -302,7 +323,7 @@ def _request(tmp_path: Path, *, expected_hash: str | None = None) -> W.WrapperRe
             "pbs_stderr_path": str(slot_output / "pbs.stderr.log"),
             "binary_source_path": str(source),
             "binary_sha256": expected_hash or _sha(source),
-            "wrapper_path": str(package / "wrapper.py"), "wrapper_sha256": H,
+            "wrapper_path": str(wrapper), "wrapper_sha256": wrapper_sha256,
             "runner_policy_path": str(runner_policy_path),
             "runner_policy_sha256": S.canonical_sha256(policy),
             "expected_dependency_manifest_sha256": _sha(dependency),
