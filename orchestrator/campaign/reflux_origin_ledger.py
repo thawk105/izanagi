@@ -65,9 +65,6 @@ __all__ = [
     "canonical_manifest_bytes",
     "derive_origin_id",
     "derive_cell_key",
-    "read_origin",
-    "commit_event",
-    "read_sealed_batch",
     "RefluxOriginLedgerError",
 ]
 
@@ -3449,37 +3446,3 @@ def _read_sealed_batch_locked(
     if batch is None:
         _fail("batch is not sealed")
     return batch
-
-
-def read_origin(origin_id: str) -> OriginSnapshot:
-    """Read the committed snapshot under the same global flock as writers."""
-    store = _production_store()
-    with _locked(store) as authority:
-        return _read_origin_locked(store, authority, origin_id)
-
-
-def commit_event(
-    origin_id: str,
-    *,
-    operation_id: str,
-    expected_state_commitment: str,
-    event: OriginEvent,
-) -> EventReceipt:
-    """Commit one public event by CAS on the global authority state."""
-    store = _production_store()
-    with _locked(store) as authority:
-        return _commit_locked(
-            store,
-            authority,
-            origin_id=origin_id,
-            operation_id=operation_id,
-            expected_state_commitment=expected_state_commitment,
-            event=event,
-        )
-
-
-def read_sealed_batch(origin_id: str, batch_id: str) -> SealedBatch:
-    """Return revealed results only after a committed batch seal."""
-    store = _production_store()
-    with _locked(store) as authority:
-        return _read_sealed_batch_locked(store, authority, origin_id, batch_id)

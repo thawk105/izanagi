@@ -124,6 +124,7 @@ allowlist に載っている」かのいずれかでなければならない。�
 以下は pytest fixture / parametrize に依存する、または `__main__` を持たない意図的な
 pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑ではなく設計上の非対象)。
 自走 harness を後から足したらこの一覧から外すこと (メタテストが陳腐化を検出する)。
+本 wave の `test_reflux_*.py` 9 本は pytest fixture (`tmp_path` / `monkeypatch` / autouse) または parametrize に依存するため pytest 専用とする。
 
 <!-- PYTEST_ONLY_ALLOWLIST_START -->
 - test_auditor_gate.py
@@ -134,6 +135,15 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_env_contract.py
 - test_layer3_report.py
 - test_profiler_directive.py
+- test_reflux_formal_consumer.py
+- test_reflux_origin_artifacts.py
+- test_reflux_origin_binding.py
+- test_reflux_origin_client.py
+- test_reflux_origin_fixture_builder.py
+- test_reflux_origin_topology.py
+- test_reflux_originless_compatibility.py
+- test_reflux_result_evidence.py
+- test_reflux_source_closure.py
 - test_ruleops.py
 - test_s1_direct_comparison.py
 - test_s1_measurement_freeze.py
