@@ -916,6 +916,19 @@
   安全義務を削るのは自己改善契約が禁じるため、**予算増額か reference 新設かを独立審査**にする
   ([T-127])。それまで `/rulings` の既決照合は本項を読むことでのみ担保される (機械防壁なし)
 
+
+- **再発: 2026-08-13** — `/rulings` が **既に実装され land 済みの作業を「新規・未実装」として起票**し、
+  ユーザーがその起票資料で実装 wave を投入した。起票資料
+  `rulings-inbox/2026-08-12-codex-hook-trust-wave.md` は 2026-08-12 12:56 執筆、実装 commit は
+  同日 14:52 (branch `worktree-dev-wave-t-codex-hook-trust`、archive worklog エントリ (476))。
+  起票が先で実装が後という順序のため、起票時点では誤りではない。**誤りは起票の後に生じ、
+  投入までの約 12 時間、誰も main を再照合しなかった**ことにある。結果として起票資料と
+  `[T-983]` の本文は「checker は構造的に rc=0 になれない」という**既に反証された機序**を
+  投入時まで主張し続けた (実測 rc=0、2026-08-13 01:00 JST、main tip `adf7997f`)。
+  検出は dev-wave 段 1 の前提実測 (`DW-S01`) で、実装子を 1 本も起動する前に止まった。
+  本件は F35 の既知の構造的穴 —「恒久対応 1 は `DW-S01` にしか入っておらず `/rulings` の
+  収集手順は射程外」— の 2 度目の顕在化であり、**起票から投入までの時間差**という新しい面を足す。
+  `DW-S01` は投入後の防壁として今回も機能したが、投入前 (起票資料の鮮度) には効かない。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -6566,3 +6579,54 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: land 前に `git rev-list --reverse <tested-main>..<tip>` の各 commit について、親が 2 つ
   以上あるなら少なくとも 1 つが `git merge-base --is-ancestor <parent> <tested-main>` を満たすことを
   確認する。満たさない commit が 1 つでもあれば land は必ず止まる。
+
+### F267. 子の大出力 command が evidence を全損させる [証拠破損] [工数喪失]
+
+- 事象: 段 3 のレンズ B が 2 回連続で `evidence_status=invalid` となり、待ち手が rc=70
+  (成果物欠落) で止まった。`codex_exit_code=0`、`validator_rc=0`、成果物 12 KB で子は正しく
+  完走していたにもかかわらず、成果物が丸ごと破棄された。2 回で約 39 分と 78,000 output token を失った。
+- 根本原因: 子が repo 全体に対して内容付きの `git grep -n` を無限定で流し、約 1 MB の
+  `aggregated_output` を 1 件の event に載せた。events.jsonl の該当行が JSON として閉じず、
+  `tools/codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid` を立てて
+  `_evidence_status` が `invalid` を返した。既知の「Web 検索で全損」とは別経路であり、
+  親の prompt には出力量の制約が無かった。
+- 恒久対応: 親の memory `codex-large-output-breaks-evidence` (2026-08-13 作成、`MEMORY.md` に登録)。
+  子 prompt へ出力量の目安 (200 行 / 20 KB) と `-l` / `-c` 先行の検索作法を書き、
+  **「推奨であって停止条件ではない、超えたら絞り直して必ず成果物を出せ」と明記する**ことを義務づける。
+  本 wave の 3 回目の投入は、親が「超えると全損する」とだけ書いたために子が停止条件と解釈し、
+  229 bytes の中止宣言だけ出して降りた (証拠経路は正常だったのに成果物ゼロ)。
+  `docs/dev-wave/operations.md` の `DW-O05` へ入れる案は L1.5 の byte 予算に余白が無く
+  (追記後 9803 bytes > 予算 9566 bytes) 入らなかった。予算は上げない (T-127 裁定)。
+- 再発検知: 待ち手 rc=70 を見たら receipt の `evidence_status` を先に読み、`invalid` なら
+  events.jsonl の最大行長と JSON parse 失敗行を数える。本 wave で使った診断は
+  1 行ずつ `parse_jsonl` に通して失敗行と byte 数を出すだけの 20 行スクリプトである。
+
+### F268. 待ち手が producer 生存中に rc=0 で即時返却した [手順漏れ]
+
+- 事象: `tools/dev_wave_wait.py producer` が、`.done` も成果物も存在せず producer が生きている
+  状態で **rc=0・出力空**のまま返った。本 wave で 2 回 (段 6 焦点再レビュー、変異 harvest 走)。
+  いずれも producer 起動の 2〜3 秒後に待ち手を張った直後で、実際の完了はその 7〜12 分後だった。
+- 根本原因: 未特定。`.done` 不在での早期返却経路がある。再現条件は producer 起動直後の待機開始と
+  相関して見えるが、本 wave では原因追跡まで行っていない (実測 2 例のみ)。
+- 恒久対応: **待ち手の rc=0 を完了判定に使わない。** 完了は「成果物実在 + `.done` の存在 +
+  producer の死」の 3 点照合で判定し、揃っていなければ待ち手を張り直す。
+  待ち手を落とすときも producer を殺さない。
+- 再発検知: 3 点照合を通らない完了申告は、その場で偽完了として扱う。本 wave では 2 回とも
+  この照合が偽完了を捕まえ、張り直した待ち手が正しい完了時刻を拾った。
+
+### F269. 4 親の merge が受入全走を恒久的に赤にした [手順漏れ]
+
+- 事象: 2026-08-13 00:45:56 に main へ入った merge `d1de13ad`「Merge 3 rulings branches into
+  land wave」が**親 4 つの octopus merge** だったため、
+  `test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  が恒久的に赤になった。単独再走でも再現し、複数の並行 wave が同時に踏んだ。
+- 根本原因: `orchestrator/campaign/s8c_preregistration.py:1305` の `_assert_history_transition`
+  は親 0 / 1 / 2 の遷移だけを定義し、3 親以上を `PreregistrationError("octopus-merge")` で
+  拒否する。**この契約が「repo 履歴に octopus merge を作ってはいけない」という運用制約を
+  含意していることが、merge を作る側の手順のどこにも書かれていなかった。**
+- 恒久対応: branch を束ねるときは 2 親の merge を繰り返す。3 親以上の merge を作らない。
+  既に入った分は当座 (a) 既知赤運用とし、履歴契約の拡張可否は未裁定として rulings へ残した
+  (一次控え `rulings-inbox/2026-08-13-known-red-octopus-merge.md`)。
+- 再発検知: 受入全走。ただし**発生から検知まで全 wave が赤を踏む**ため、merge を作る手前で
+  親数を見るのが本筋である。既知赤の機械可読な登録機構は repo に存在しない (実測) ので、
+  当面は台帳の記録と周知で運用する。
