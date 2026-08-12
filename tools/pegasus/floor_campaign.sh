@@ -959,7 +959,7 @@ fi
 printf '%s\n' "launch-attempted" >"$ATTEMPT_DIR/floor-driver.launch-attempted"
 driver_rc=0
 "$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py" \
-  --mode official \
+  --mode pilot \
   --protocol "$REPO_ROOT/$PROTOCOL_PATH" \
   >&"$DRIVER_STDOUT_FD" 2>&"$DRIVER_STDERR_FD" || driver_rc=$?
 exec {DRIVER_STDOUT_FD}>&-
@@ -990,7 +990,7 @@ payload = {
     "schema_version": "pegasus-floor-job-result/v1",
     "pbs_jobid": job_id,
     "driver_rc": int(driver_rc),
-    "mode": "official",
+    "mode": "pilot",
     "protocol_path": protocol_path,
     "source_commit": source_commit,
     "job_script_sha256": job_script_sha256,
@@ -1007,6 +1007,6 @@ if [[ "$job_result_writer_rc" -ne 0 ]]; then
   write_failure "$job_result_writer_rc" job_result "cannot write floor job result create-only"
 fi
 if [[ "$driver_rc" -ne 0 ]]; then
-  write_failure "$driver_rc" floor_driver "official floor driver returned nonzero"
+  write_failure "$driver_rc" floor_driver "pilot floor driver returned nonzero"
 fi
 exit "$driver_rc"

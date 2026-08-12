@@ -104,8 +104,9 @@ cwd を必ず repo root にする。nested subprocess の import path による�
 file 選択走は `from tests import` の import path を確立してから走らせる (未確立の赤は偽赤)。
 差分が到達しえないファイルで出た赤は、単独再走で再現性を実測してから扱う。
 再現しなければ実装差分へ帰属せず、フレークとして新規所見に起票する。
-測定値は測った checkout を併記する（F41）。並行 wave が自分の編集 file を所有すると判明している
-wave では、受入全走の前に main を取り込んだ木で焦点 node を 1 度走らせる。
+測定値は測った checkout を併記する（F41）。変更した test file は、受入全走の前に別 process の
+単独走で 1 度確認する。全走の緑はその file 単独の緑を含意しない。並行 wave が自分の編集 file を
+所有する wave では main を取り込んだ木で行う。既に回す走行へ相乗りさせ、受入の後へ足さない。
 
 ## DW-O19 — tracked file の一時変異
 
