@@ -146,7 +146,7 @@ def _write_freeze(tmp_path: Path, document: dict | None = None) -> Path:
 
 
 @contextlib.contextmanager
-def _prepared(cell, pin):
+def _prepared(cell, pin, *, cxx):
     yield S.PreparedCell(
         Genome("silo", {"BACK_OFF": 1}), "stock", "/ccbench", "/cache",
     )
@@ -339,7 +339,9 @@ def test_prepare_backoff_fixed_best_preserves_evolve_block(tmp_path, monkeypatch
         "variant": {"backoff_us": 5, "flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 5}},
     }
 
-    with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969") as prepared:
+    with S.prepare_cell(
+            cell, "d706650cdb31e442bef45b9b4216951d4fb40969",
+            cxx="g++-13") as prepared:
         assert prepared.genome.flags["BACKOFF_FIXED"] == 5
         content = backoff.read_text(encoding="utf-8")
         assert "EVOLVE-BLOCK-BEGIN silo-backoff-magnitude" in content
@@ -364,7 +366,9 @@ def test_prepare_backoff_fixed_best_refuses_flag_value_mismatch(tmp_path, monkey
     }
 
     with pytest.raises(S.DriverError, match="backoff_us と flags.BACKOFF_FIXED が不一致"):
-        with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
+        with S.prepare_cell(
+                cell, "d706650cdb31e442bef45b9b4216951d4fb40969",
+                cxx="g++-13"):
             pass
 
 
@@ -397,7 +401,9 @@ def _capture_prepare_quarantine(
     )
     monkeypatch.setattr(loop_axis, "quarantine", fake_quarantine)
 
-    with S.prepare_cell(cell, "d706650cdb31e442bef45b9b4216951d4fb40969"):
+    with S.prepare_cell(
+            cell, "d706650cdb31e442bef45b9b4216951d4fb40969",
+            cxx="g++-13"):
         pass
 
     assert len(calls) == 1
@@ -460,9 +466,58 @@ def test_prepare_flags_only_configurations_do_not_patch_or_quarantine(
     flags = {"BACK_OFF": 1, "WAL": 0}
     cell = {"configuration": configuration, "variant": {"flags": flags}}
 
-    with S.prepare_cell(cell, "fixture-pin") as prepared:
+    with S.prepare_cell(cell, "fixture-pin", cxx="site-cxx") as prepared:
         assert prepared.genome == Genome("silo", flags)
         assert prepared.src_token == "fixture-source"
+
+
+def test_prepare_cell_passes_site_cxx_to_source_digest(tmp_path, monkeypatch):
+    from orchestrator.campaign import patchharness
+
+    worktree = tmp_path / "worktree"
+    observed = []
+
+    def resolve(genome, ccbench_pin, *, ccbench_dir, cxx):
+        observed.append((genome, ccbench_pin, ccbench_dir, cxx))
+        return "fixture-source"
+
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(S.source_digest, "resolve", resolve)
+    flags = {"BACK_OFF": 1, "WAL": 0}
+    cell = {"configuration": "stock_common", "variant": {"flags": flags}}
+
+    with S.prepare_cell(cell, "fixture-pin", cxx="site-cxx") as prepared:
+        assert prepared.src_token == "fixture-source"
+
+    assert observed == [(
+        Genome("silo", flags), "fixture-pin", str(worktree), "site-cxx",
+    )]
+
+
+def test_prepare_cell_refuses_missing_cxx_instead_of_falling_back(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import patchharness
+
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        S.source_digest, "resolve",
+        lambda *args, cxx="g++-13", **kwargs: "fixture-source",
+    )
+    cell = {
+        "configuration": "stock_common",
+        "variant": {"flags": {"BACK_OFF": 1, "WAL": 0}},
+    }
+
+    with pytest.raises(TypeError, match="cxx"):
+        with S.prepare_cell(cell, "fixture-pin"):
+            pass
 
 
 @pytest.mark.parametrize(
@@ -481,7 +536,7 @@ def test_prepare_rejects_multiple_unknown_configurations_before_checkout(
         "variant": {"flags": {"BACK_OFF": 1}},
     }
     with pytest.raises(S.DriverError) as excinfo:
-        with S.prepare_cell(cell, "fixture-pin"):
+        with S.prepare_cell(cell, "fixture-pin", cxx="site-cxx"):
             pass
     assert str(excinfo.value) == f"未知の freeze configuration: {configuration!r}"
 
@@ -504,7 +559,7 @@ def test_prepare_rejects_configuration_added_only_to_producer_domain(
     with pytest.raises(S.DriverError) as excinfo:
         with S.prepare_cell(
                 {"configuration": added, "variant": {"flags": {"BACK_OFF": 1}}},
-                "fixture-pin"):
+                "fixture-pin", cxx="site-cxx"):
             pass
     assert str(excinfo.value) == f"未知の freeze configuration: {added!r}"
 
@@ -539,7 +594,7 @@ def test_fresh_prepare_rejects_configuration_added_only_to_producer_domain(
                         "configuration": added,
                         "variant": {"flags": {"BACK_OFF": 1}},
                     },
-                    "fixture-pin"):
+                    "fixture-pin", cxx="site-cxx"):
                 pass
         assert str(excinfo.value) == (
             f"未知の freeze configuration: {added!r}"
@@ -657,7 +712,8 @@ def test_prepare_rejects_noncanonical_freeze_predicate(tmp_path, monkeypatch):
     with pytest.raises(S.DriverError) as excinfo:
         with S.prepare_cell(
                 _gate_cell("system_gate", predicate),
-                "d706650cdb31e442bef45b9b4216951d4fb40969"):
+                "d706650cdb31e442bef45b9b4216951d4fb40969",
+                cxx="g++-13"):
             pass
 
     assert str(excinfo.value) == "freeze gate_predicate が正準集合外"
@@ -685,7 +741,8 @@ def test_prepare_rejects_noncanonical_predicate_with_real_quarantine(
     with pytest.raises(S.DriverError):
         with S.prepare_cell(
                 _gate_cell("system_gate", predicate),
-                "d706650cdb31e442bef45b9b4216951d4fb40969"):
+                "d706650cdb31e442bef45b9b4216951d4fb40969",
+                cxx="g++-13"):
             pass
 
 
@@ -911,7 +968,7 @@ def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
     evaluate_calls = []
 
     @contextlib.contextmanager
-    def flaky_prepare(cell, pin):
+    def flaky_prepare(cell, pin, *, cxx):
         prepare_calls.append(1)
         if len(prepare_calls) <= 2:
             raise OSError("temporary checkout failure")
@@ -949,7 +1006,7 @@ def test_prepare_freeze_contract_error_aborts_without_retry(tmp_path):
     evaluate_calls = []
 
     @contextlib.contextmanager
-    def invalid_prepare(cell, pin):
+    def invalid_prepare(cell, pin, *, cxx):
         prepare_calls.append(1)
         raise S.DriverError("freeze gate_predicate が構文契約違反")
         yield  # pragma: no cover

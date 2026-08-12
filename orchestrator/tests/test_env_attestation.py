@@ -788,7 +788,6 @@ def _replace_clock(profile, **values):
     ("effective_clock.samples_mhz", lambda p: _replace_clock(
         p, samples_mhz=[3000.0, 3010.0, 2990.0],
     )),
-    ("effective_clock.method", lambda p: _replace_clock(p, method="different-method")),
     ("effective_clock.governor", lambda p: _replace_clock(p, governor="powersave")),
     ("visibility.hidepid", lambda p: dataclasses.replace(
         p, visibility=dataclasses.replace(p.visibility, hidepid="2"),
@@ -806,6 +805,28 @@ def test_compare_profiles_reports_each_field_mismatch(field, mutate):
     )
     failures = {item["field"] for item in comparisons if item["verdict"] == "fail"}
     assert field in failures
+
+
+def test_compare_profiles_records_but_does_not_judge_effective_clock_method():
+    expected = _profile()
+    observed = _observed_comparison_fixture(
+        _replace_clock(expected, method="improved-probe-method"),
+    )
+
+    comparisons = ea.compare_profiles(expected, observed, now_fn=lambda: "now")
+    method = next(
+        item for item in comparisons
+        if item["field"] == "effective_clock.method"
+    )
+
+    # 2026-08-12 user ruling: acquisition-tool names remain provenance, not a gate.
+    assert method == {
+        "field": "effective_clock.method",
+        "expected": expected.effective_clock.method,
+        "observed": "improved-probe-method",
+        "verdict": "pass",
+    }
+    assert all(item["verdict"] == "pass" for item in comparisons)
 
 
 def test_compare_profiles_normalizes_raw_name_and_applies_expected_clock_tolerance():
