@@ -4,16 +4,20 @@ import argparse
 import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from orchestrator.preregistration import stress_check_simulation as sim
 from tools.pegasus import run_t139_a12_stress_check as cli
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 FORBIDDEN_D264_NAMES = (
     "resolve_effective_preregistration",
     "PreregBinding",
@@ -621,3 +625,7 @@ def test_transcript_hash_fields_are_recomputation_aids_not_acceptance(tmp_path):
         assert "not an acceptance condition" in descriptions[name]
     assert result.transcript["source_commit"]["value"] is None
     assert result.transcript["result_sha256"]["value"]
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main(["-q", __file__]))
