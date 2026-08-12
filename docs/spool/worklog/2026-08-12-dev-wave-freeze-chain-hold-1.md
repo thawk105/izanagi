@@ -58,8 +58,14 @@ title: bytes 級 provenance 番人の棚卸しで保留対象は 4 function に�
 - **`-p no:xdist` は使えない。** `tools/run_tests.py` が注入する `-n <N> --dist loadgroup` が
   pytest から unrecognized になり **rc=4 で走行ゼロ**になる (request `906469.nqsv`、6 秒で END)。
   直列化は **`-n 0`** で行う (xdist を生かしたまま worker 0 = in-process 直列)。
-- **本 wave の変更は `docs/spool/` 配下の fragment のみ** (判定手順 = `git diff --name-only main` が
-  `docs/spool/` 配下だけを示す)。実装面ゼロ、変異 matrix は `DW-S04` により免除。
+- **受入の判定 (docs-only、免除でなく実走)。** 変更は `docs/spool/` の fragment と
+  `output/insights/` のみ (判定手順 = `git diff --name-only main` が 2 者だけを示す)。実装面ゼロ、
+  変異 matrix は `DW-S04` により免除。実 repo を読む docs 不変条件 node が実在するため免除せず、
+  `test_check_docs.py::test_real_repo_clean` /
+  `::test_dev_wave_model_pins_accept_current_docs_contract` /
+  `::test_normative_exact_section_pins_accept_real_repo` を計算ノードで焦点走し **3 passed / 11.70 秒**
+  を実測した (受入形ではない)。`tools/check_docs.py` rc=0、`tools/spool_fold.py --dry-run` rc=0
+  (`planned`)、`tools/check_ai_provenance.py` 全史 rc=0 (2,851 件・新規違反なし)。
 
 ## 次の一手差分
 
@@ -89,8 +95,15 @@ title: bytes 級 provenance 番人の棚卸しで保留対象は 4 function に�
   generator pin (`SCRIPT_REL` の bytes 完全一致) であり、**t816 の保留が入った時点でこの阻害要因が
   消える**。3 軸 × 4 候補の走査は 1 パスへ畳めるはずで、保証 (holdout hit 0 + rr50 陽性対照非 0) を
   1 つも落とさずに済む。**前提 = t816 の保留 land。**
-- {{T:brief-anchor-table-single-source}} **P3・新規**: 親 brief で「分類文」と「実アンカー表」を
-  二重管理しない契約を `DW-S01` か `DW-O02` へ 1 文足す。**独立 2 例** — (i) 本 wave の brief が
-  誤った入口を分類文へ書き段 3 が捕捉、(ii) t816 wave の prompt 冒頭の分類文に、実アンカー表から
-  外した対象が残っていた (実害前に発見)。**子は分類文の方を広く読む**。対策案は
-  「アンカー表が正本と明記」より「分類文を置かずアンカー表だけを渡す」が有力 (t816 も後者に賛成)。
+- {{T:brief-anchor-table-single-source}} **P3・新規・予算不足で自動是正を断念、裁定へ返す**:
+  親 brief で「分類文」と「実アンカー表」を二重管理しない契約を `DW-O02` へ 1 文足す。
+  **独立 2 例** — (i) 本 wave の brief が誤った入口 (`test_protocol_builder_repo_tree_guard_...`) を
+  分類文へ書き段 3 が捕捉、(ii) t816 wave の prompt 冒頭の分類文に、実アンカー表から外した対象
+  (`test_frozen_artifacts.py`) が残っていた (実害前に発見)。**子は分類文の方を広く読む**。
+  対策案は「アンカー表が正本と明記」より「分類文を置かずアンカー表だけを渡す」が有力
+  (t816 も後者に賛成)。**段 8 で実際に `DW-O02` へ追記を試み、予算で撥ねられた** — 最短形
+  (1 行 99 bytes) でも L1.5 unique footprint が 9,693 bytes となり予算 9,566 bytes を 127 bytes
+  超える。**現在の余白は約 3 bytes。** 自己改善契約「予算に収まらなければ…意味等価にできなければ
+  変更を止めてユーザー裁定へ返す」に従い断念した。**予算値の引き上げは提案しない** — 択一は
+  (a) L1.5 集合内の陳腐化した節を 1 つ retire して空ける、(b) この契約を諦める、
+  (c) `DW-S01` 側 (別予算) へ置く。
