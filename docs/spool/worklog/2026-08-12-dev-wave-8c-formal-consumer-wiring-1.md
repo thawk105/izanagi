@@ -61,6 +61,20 @@ title: 8c formal consumer の contract を fixture 経路で実装した — abo
   §5.3 の run 分離 / §3.6 の evidence writer の真正性 / private seam 経由の迂回
   ({{D:private-seam-not-a-trust-boundary}}) / execution receipt の実在と内容
   ({{D:receipt-resolution-out-of-scope}})。
+- **受入全走は 3 走を要し、単独走では出なかった実害を 2 件捕まえた。**
+  1 走目は **37 failed**。本 wave 由来は 2 件で、(a) 追加した `"ycsb_rratio": "80"` が
+  `test_autonomous_trial_completeness.py` 既存の skew `0.9` / rmw `0` と連言を成し、
+  **rr80 holdout の知識が wave ファイルへ漏れる**のを防ぐ s8c 事前登録不変検査に hit した。
+  (b) 移送した防壁テストが temp repo へ copy する module 一覧に、段 6 fix1 で client が
+  import するようになった `reflux_origin_artifacts` が無く `ModuleNotFoundError` になった。
+  **残り 35 件は (a) の連鎖**で、working tree を走査する凍結検査が軒並み落ちていた。
+  (a) は検索式・`HOLDOUTS`・freeze 側に一切触れず fixture の read ratio を非 holdout の
+  `"70"` へ変えて解消した。2 走目は **1 failed / 9,942 passed** で、
+  新設 test module 9 本が「素の runner で 0 件実行の偽緑になりうる」gate に掛かった。
+  9 本は fixture・`tmp_path`・`monkeypatch`・`parametrize` へ実依存する pytest 専用なので、
+  形だけの `_run()` を足さず README の allowlist へ理由付きで記載した
+  (形だけの自走 harness はこの gate が防ぐ恒真化そのものである)。
+  **3 走目 (tip `52f64478`) が 9,943 passed / 31 skipped / 184.52 秒で rc=0。**
 - **erratum:** commit `1cd991c2` の subject が `Wire the origin binding into the 8c bounded
   MVP through a public fixture path` で、裁定が禁じた「結線した」に相当する。履歴は書き換えない。
   本 wave の名乗りは上記の上限が正本であり、当該 subject は過大である。
