@@ -1283,6 +1283,231 @@ def test_git_answer_object_reinjection_is_rejected(
         TOOL.verify_snapshot(snapshot, "NEG")
 
 
+def test_find_rollout_session_meta_encoding_and_payload_field_equivalence(
+    tmp_path: Path,
+) -> None:
+    session_id = "target-session"
+    literal = (
+        '{"type":"session_meta","payload":'
+        '{"id":"target-session","session_id":"target-session"}}'
+    )
+    escaped_type = "".join(f"\\u00{ord(char):02x}" for char in "session_meta")
+    variants = {
+        "literal": literal.encode(),
+        "unicode-escape": (
+            f'{{"type":"{escaped_type}","payload":{{"id":"{session_id}"}}}}'
+        ).encode(),
+        "utf16-le": b"\xff\xfe" + literal.encode("utf-16-le"),
+        "utf16-be": b"\xfe\xff" + literal.encode("utf-16-be"),
+        "utf32-le": b"\xff\xfe\x00\x00" + literal.encode("utf-32-le"),
+        "utf32-be": b"\x00\x00\xfe\xff" + literal.encode("utf-32-be"),
+        "reordered-keys": (
+            b'{"payload":{"session_id":"target-session"},'
+            b'"type":"session_meta"}'
+        ),
+        "id-only": b'{"type":"session_meta","payload":{"id":"target-session"}}',
+        "session-id-only": (
+            b'{"type":"session_meta",'
+            b'"payload":{"session_id":"target-session"}}'
+        ),
+        "distinct-fields": (
+            b'{"type":"session_meta",'
+            b'"payload":{"id":"other","session_id":"target-session"}}'
+        ),
+    }
+
+    for name, content in variants.items():
+        sessions_root = tmp_path / name
+        sessions_root.mkdir()
+        rollout = sessions_root / f"rollout-{name}.jsonl"
+        rollout.write_bytes(content)
+
+        assert TOOL._find_rollout(sessions_root, session_id) == rollout.resolve(), name
+
+
+def test_find_rollout_checks_later_session_meta_in_same_file(tmp_path: Path) -> None:
+    rollout = tmp_path / "rollout-multiple-meta.jsonl"
+    rollout.write_bytes(
+        b'{"type":"session_meta","payload":{"id":"unrelated"}}\n'
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n'
+    )
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
+def test_find_rollout_preserves_zero_and_duplicate_failure(tmp_path: Path) -> None:
+    session_id = "target-session"
+    for match_count in (0, 2):
+        sessions_root = tmp_path / f"matches-{match_count}"
+        sessions_root.mkdir()
+        for index in range(match_count):
+            (sessions_root / f"rollout-{index}.jsonl").write_bytes(
+                b'{"type":"session_meta","payload":{"id":"target-session"}}'
+            )
+
+        expected = (
+            f"session {session_id} rollout count is {match_count}, expected 1"
+        )
+        with pytest.raises(TOOL.ValidationError) as excinfo:
+            TOOL._find_rollout(sessions_root, session_id)
+        assert str(excinfo.value) == expected, match_count
+        assert excinfo.value.rc == 21, match_count
+
+
+def test_find_rollout_session_meta_scanner_ignores_decode_errors_and_non_objects(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "rollout-decoys.jsonl").write_bytes(
+        b'{"type":"session_meta",}\n'
+        b'{"type":"session_meta","payload":{}}\xff\n'
+        b'"session_meta"\n'
+    )
+    rollout = tmp_path / "rollout-target.jsonl"
+    rollout.write_bytes(
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n'
+    )
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
+def test_find_rollout_session_meta_scanner_parses_only_candidates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    candidate_lines = (
+        b'{"type":"event_msg","payload":{"note":"session_meta"}}\n',
+        b'{"type":"event_msg","payload":{"note":"\\u0061"}}\n',
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n',
+        b"\x00\n",
+        b'{"type":"session_meta",}\n',
+    )
+    rollout = tmp_path / "rollout-candidates.jsonl"
+    rollout.write_bytes(
+        b'{"type":"event_msg","payload":{"note":"ordinary"}}\n' * 1000
+        + b"".join(candidate_lines)
+    )
+    real_loads = TOOL.json.loads
+    parse_count = 0
+
+    def counted_loads(line: bytes) -> Any:
+        nonlocal parse_count
+        parse_count += 1
+        return real_loads(line)
+
+    monkeypatch.setattr(TOOL.json, "loads", counted_loads)
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+    assert parse_count == len(candidate_lines)
+
+
+def test_find_rollout_session_meta_scanner_propagates_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "rollout-candidate.jsonl").write_bytes(
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n'
+    )
+
+    def raise_value_error(_: bytes) -> Any:
+        raise ValueError("candidate sentinel")
+
+    monkeypatch.setattr(TOOL.json, "loads", raise_value_error)
+
+    with pytest.raises(ValueError, match="candidate sentinel"):
+        TOOL._find_rollout(tmp_path, "target-session")
+
+
+@pytest.mark.parametrize(
+    "escape_index",
+    range(len("session_meta")),
+    ids=[f"{index}-{char}" for index, char in enumerate("session_meta")],
+)
+def test_find_rollout_session_meta_single_escape_variants(
+    tmp_path: Path, escape_index: int
+) -> None:
+    type_name = "session_meta"
+    escaped_type = (
+        type_name[:escape_index]
+        + f"\\u00{ord(type_name[escape_index]):02x}"
+        + type_name[escape_index + 1 :]
+    )
+    rollout = tmp_path / f"rollout-single-escape-{escape_index}.jsonl"
+    rollout.write_bytes(
+        (
+            f'{{"type":"{escaped_type}",'
+            '"payload":{"id":"target-session"}}'
+        ).encode()
+    )
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
+@pytest.mark.parametrize(
+    ("variant", "encoding"),
+    (
+        ("utf16-le", "utf-16-le"),
+        ("utf16-be", "utf-16-be"),
+        ("utf32-le", "utf-32-le"),
+        ("utf32-be", "utf-32-be"),
+    ),
+)
+def test_find_rollout_session_meta_bomless_utf_variants(
+    tmp_path: Path, variant: str, encoding: str
+) -> None:
+    content = (
+        '{"type":"session_meta","payload":{"id":"target-session"}}'
+    ).encode(encoding)
+    rollout = tmp_path / f"rollout-bomless-{variant}.jsonl"
+    rollout.write_bytes(content)
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
+def test_find_rollout_continues_after_bad_candidate_in_same_file(
+    tmp_path: Path,
+) -> None:
+    rollout = tmp_path / "rollout-same-file.jsonl"
+    rollout.write_bytes(
+        b'{"type":"session_meta",}\n'
+        b'{"type":"session_meta","payload":{}}\xff\n'
+        b'"session_meta"\n'
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n'
+    )
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
+def test_find_rollout_ignores_unreadable_file_before_match(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unreadable = tmp_path / "rollout-0-unreadable.jsonl"
+    unreadable.write_bytes(b'{"type":"session_meta"}\n')
+    rollout = tmp_path / "rollout-9-target.jsonl"
+    rollout.write_bytes(
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n'
+    )
+    real_open = Path.open
+
+    def selective_open(path: Path, *args: Any, **kwargs: Any) -> Any:
+        mode = args[0] if args else kwargs.get("mode", "r")
+        if path == unreadable and mode == "rb":
+            raise PermissionError("unreadable rollout sentinel")
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", selective_open)
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
+def test_find_rollout_ignores_empty_and_blank_rollouts(tmp_path: Path) -> None:
+    (tmp_path / "rollout-0-empty.jsonl").write_bytes(b"")
+    (tmp_path / "rollout-1-blank.jsonl").write_bytes(b"\n\r\n\n")
+    rollout = tmp_path / "rollout-9-target.jsonl"
+    rollout.write_bytes(
+        b'{"type":"session_meta","payload":{"id":"target-session"}}\n'
+    )
+
+    assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
+
+
 @pytest.mark.parametrize("replacement_count", [0, 9, 10])
 def test_prompt_replacement_count_zero_expected_and_excess(
     replacement_count: int,

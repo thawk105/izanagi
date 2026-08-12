@@ -228,6 +228,29 @@ def _json_lines(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return rows, issues
 
 
+def _session_meta_rows(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        stream = path.open("rb")
+    except OSError:
+        return rows
+    with stream:
+        for line in stream:
+            if not (
+                b'"session_meta"' in line
+                or b"\\u00" in line  # ASCII character JSON Unicode escape
+                or b"\x00" in line  # UTF-16/UTF-32 accepted by json.loads
+            ):
+                continue
+            try:
+                value = json.loads(line)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if isinstance(value, dict) and value.get("type") == "session_meta":
+                rows.append(value)
+    return rows
+
+
 def _run(
     argv: Sequence[str],
     *,
@@ -259,7 +282,7 @@ def _git(repo: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
 def _find_rollout(sessions_root: Path, session_id: str) -> Path:
     matches: list[Path] = []
     for path in sorted(sessions_root.rglob("rollout-*.jsonl"), key=os.fspath):
-        rows, _ = _json_lines(path)
+        rows = _session_meta_rows(path)
         for row in rows:
             if row.get("type") != "session_meta":
                 continue
