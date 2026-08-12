@@ -28,6 +28,7 @@ _ORCHESTRATOR = _HERE.parent
 sys.path.insert(0, os.fspath(_ORCHESTRATOR.parent))
 
 from orchestrator.campaign import reflux_origin_ledger as ledger  # noqa: E402
+from orchestrator.campaign import reflux_origin_client as origin_client  # noqa: E402
 
 
 FORMULA = "q-lower-bound/base+perRound*R+Emin/v1"
@@ -977,9 +978,22 @@ def test_v04_global_flock_race_reentry_and_public_signature(tmp_path: Path) -> N
         with Raises("reentry"):
             with ledger._locked(store):
                 pass
-    for function in (ledger.read_origin, ledger.commit_event, ledger.read_sealed_batch):
+    public_client_calls = (
+        origin_client.OriginLedgerClient,
+        origin_client.OriginLedgerClient.production,
+        origin_client.OriginLedgerClient.for_fixture_repository,
+        origin_client.OriginLedgerClient.read_origin,
+        origin_client.OriginLedgerClient.reserve_batch,
+        origin_client.OriginLedgerClient.commit_event,
+        origin_client.OriginLedgerClient.read_sealed_batch,
+        origin_client.OriginLedgerClient.read_sealed_batches,
+        origin_client.OriginLedgerClient.commit_formal_result,
+    )
+    for function in public_client_calls:
         parameters = inspect.signature(function).parameters
         assert not ({"root", "path", "store", "repository_root", "ledger_root"} & set(parameters))
+    for raw_name in ("read_origin", "commit_event", "read_sealed_batch"):
+        assert not hasattr(ledger, raw_name)
     first = _manifest_object(series="series-a", descriptor=_h("4"))
     second = _manifest_object(series="series-b", descriptor=_h("d"))
     two_repo, two_origins = _repo(tmp_path / "two-cells", [first, second])
@@ -1765,6 +1779,7 @@ def test_v12_production_path_in_subprocess_temp_repository(tmp_path: Path) -> No
     repo.mkdir()
     for relative in (
         "orchestrator/campaign/__init__.py",
+        "orchestrator/campaign/reflux_origin_client.py",
         "orchestrator/campaign/reflux_origin_ledger.py",
         "orchestrator/campaign/reflux_ir.py",
         "orchestrator/campaign/axis_trigger_gating.py",
@@ -1782,15 +1797,35 @@ def test_v12_production_path_in_subprocess_temp_repository(tmp_path: Path) -> No
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "production fixture")
     origin = _independent_origin(raw)
+    authority_sha256 = hashlib.sha256(_authority_bytes([raw])).hexdigest()
+    cell_key = _independent_cell(raw)
     script = f"""
 import sys
+import types
 sys.path.insert(0,{os.fspath(repo)!r})
 from orchestrator.campaign import reflux_origin_ledger as l
 l._fixture_store_for_test({os.fspath(repo)!r},'HEAD')
+binding=types.ModuleType('orchestrator.campaign.reflux_origin_binding')
+class OriginBindingCapability:
+    pass
+binding.OriginBindingCapability=OriginBindingCapability
+binding.assert_issued_origin_binding_capability=lambda value:value
+sys.modules[binding.__name__]=binding
+from orchestrator.campaign import reflux_origin_client as c
+cap=OriginBindingCapability()
+cap.authority_blob_sha256={authority_sha256!r}
+cap.origin_id={origin!r}
+cap.cell_key={cell_key!r}
+cap.authority_workload=types.SimpleNamespace(
+    descriptor_sha256={'4' * 64!r}, records=100003, threads=7)
+cap.axis_semantics_sha256={'5' * 64!r}
+cap.verifier_policy_sha256={'6' * 64!r}
+cap.environment_contract_sha256={'7' * 64!r}
+cap.store_scope='production'
 def forbidden_hook(label):
     raise RuntimeError('fixture hook reached production path')
 l._FAULT_HOOK=forbidden_hook
-s=l.read_origin({origin!r})
+s=c.OriginLedgerClient.production().read_origin(cap)
 assert s.origin_id=={origin!r}
 print(s.phase)
 """
