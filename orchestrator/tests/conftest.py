@@ -38,6 +38,12 @@ from typing import Callable, Iterable, Sequence
 
 import pytest
 
+from orchestrator.tests.growth_test_holds import (
+    GROWTH_TEST_HOLDS,
+    RUN_GROWTH_HELD_TESTS_ENV,
+    RUN_GROWTH_HELD_TESTS_TOKEN,
+)
+
 
 @pytest.fixture
 def _detect_site_under_test():
@@ -235,17 +241,121 @@ def _real_repo_node_id(item) -> str:
     return f"{os.path.basename(str(item.path))}::{function}"
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_collection_modifyitems(items) -> None:
-    """正本 node に real-repo group を一度だけ付ける。"""
+_GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
+_COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
+
+
+def _growth_holds_opted_in() -> bool:
+    value = os.environ.get(RUN_GROWTH_HELD_TESTS_ENV)
+    if value in (None, ""):
+        return False
+    if value != RUN_GROWTH_HELD_TESTS_TOKEN:
+        raise pytest.UsageError(
+            f"{RUN_GROWTH_HELD_TESTS_ENV} must be exactly "
+            f"{RUN_GROWTH_HELD_TESTS_TOKEN!r}, empty, or unset"
+        )
+    return True
+
+
+def _growth_hold_reason(node_id, hold) -> str:
+    payload = {
+        "correctness_gate": hold.correctness_gate,
+        "hold_axis": hold.hold_axis,
+        "node_id": node_id,
+        "reason": hold.reason,
+        "release_condition": hold.release_condition,
+        "ruling": hold.ruling,
+    }
+    return "IZANAGI_GROWTH_HOLD_V1 " + json.dumps(
+        payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+    )
+
+
+def _note_growth_hold(config, node_id: str) -> None:
+    held = getattr(config, _GROWTH_HOLD_IDS_ATTR, None)
+    if held is None:
+        held = set()
+        setattr(config, _GROWTH_HOLD_IDS_ATTR, held)
+    held.add(node_id)
+
+
+def _growth_hold_id_from_nodeid(nodeid: str) -> str | None:
+    parts = nodeid.split("::")
+    if len(parts) < 2:
+        return None
+    function = parts[1].split("[", 1)[0]
+    return f"{os.path.basename(parts[0])}::{function}"
+
+
+def _is_complete_growth_hold_collection(config) -> bool:
+    numprocesses = getattr(getattr(config, "option", None), "numprocesses", None)
+    if (
+        not hasattr(config, "workerinput")
+        and numprocesses not in (None, 0, "0")
+    ):
+        # xdist controller does not own the workers' complete item collection.
+        return False
+    if len(config.args) != 1:
+        return False
+    try:
+        target = Path(config.args[0]).resolve(strict=False)
+        suite_root = Path(__file__).resolve().parent
+    except (OSError, TypeError, ValueError):
+        return False
+    if target != suite_root:
+        return False
+    argv = tuple(getattr(config.invocation_params, "args", ()))
+    return not any(
+        token.split("=", 1)[0] in _COLLECTION_NARROWING_OPTIONS
+        for token in argv
+    )
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    """Attach serial/hold metadata before selection hooks can narrow items."""
+    opted_in = _growth_holds_opted_in()
+    seen_hold_ids: set[str] = set()
+    source_paths: dict[str, set[str]] = {}
     for item in items:
-        if _real_repo_node_id(item) not in REAL_REPO_SERIAL_NODES:
+        node_id = _real_repo_node_id(item)
+        if node_id in REAL_REPO_SERIAL_NODES:
+            # xdist は複数 group 名を結合するため、二個目は足さない。
+            if not list(item.iter_markers(name="xdist_group")):
+                item.add_marker(pytest.mark.xdist_group("real-repo"))
+
+        hold = GROWTH_TEST_HOLDS.get(node_id)
+        if hold is None:
             continue
-        # xdist は複数 group 名を結合するため、二個目を足すと別 group になり排他が壊れる。
-        # 既存 marker があれば上書きせず、収集監査の完全一致を赤くして人間へ返す。
-        if list(item.iter_markers(name="xdist_group")):
-            continue
-        item.add_marker(pytest.mark.xdist_group("real-repo"))
+        seen_hold_ids.add(node_id)
+        source_paths.setdefault(node_id, set()).add(str(Path(item.path).resolve()))
+        _note_growth_hold(config, node_id)
+        if not opted_in:
+            item.add_marker(
+                pytest.mark.skip(reason=_growth_hold_reason(node_id, hold)),
+                append=False,
+            )
+        item.user_properties.extend((
+            ("growth_hold_node_id", node_id),
+            ("growth_hold_axis", hold.hold_axis),
+            ("growth_hold_correctness_gate", hold.correctness_gate),
+            ("growth_hold_release_condition", hold.release_condition),
+        ))
+
+    ambiguous = {
+        node_id: sorted(paths)
+        for node_id, paths in source_paths.items()
+        if len(paths) > 1
+    }
+    if ambiguous:
+        raise pytest.UsageError(f"ambiguous growth-test hold keys: {ambiguous!r}")
+    if _is_complete_growth_hold_collection(config):
+        missing = sorted(set(GROWTH_TEST_HOLDS) - seen_hold_ids)
+        if missing:
+            raise pytest.UsageError(
+                f"growth-test hold keys missing from complete collection: {missing!r}"
+            )
+    yield
 
 
 def _prioritize_real_repo_items(items) -> None:
@@ -285,6 +395,10 @@ def pytest_collection_finish(session) -> None:
 @pytest.hookimpl(optionalhook=True)
 def pytest_xdist_node_collection_finished(node, ids) -> None:
     """Collect controller-visible node IDs without persisting their names."""
+    for nodeid in ids:
+        hold_id = _growth_hold_id_from_nodeid(nodeid)
+        if hold_id in GROWTH_TEST_HOLDS:
+            _note_growth_hold(node.config, hold_id)
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -297,6 +411,20 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
 
 def pytest_sessionfinish(session, exitstatus) -> None:
     """Create the private aggregate sidecar on the controller only."""
+    if not hasattr(session.config, "workerinput"):
+        terminal = session.config.pluginmanager.get_plugin("terminalreporter")
+        held_ids = sorted(getattr(session.config, _GROWTH_HOLD_IDS_ATTR, ()))
+        if terminal is not None and held_ids:
+            opted_in = _growth_holds_opted_in()
+            summary = json.dumps({
+                "collected_hold_functions": len(held_ids),
+                "opted_in": opted_in,
+            }, separators=(",", ":"), sort_keys=True)
+            terminal.write_line(f"IZANAGI_GROWTH_HOLD_SUMMARY_V1 {summary}")
+            for node_id in held_ids:
+                terminal.write_line(_growth_hold_reason(
+                    node_id, GROWTH_TEST_HOLDS[node_id],
+                ))
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -348,6 +476,7 @@ _FAILURE_REPORTS: list[_StashedFailure] = []
 
 
 def pytest_configure(config) -> None:
+    _growth_holds_opted_in()
     _FAILURE_REPORTS.clear()
 
 
