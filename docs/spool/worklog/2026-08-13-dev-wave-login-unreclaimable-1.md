@@ -60,6 +60,17 @@ M1 / M3 / M4 は期待 node 集合が不完全 (実測は 3 / 6 / 2 node) で MI
 選ぶようになるためで、実際に本 wave の再走 1 回が rc=16 になった。恒久対応は F155 既載の
 `--force-dispatch` のままとし、新しい機構は作らない。
 
+**受入全走 = 1 failed / 10,253 passed / 65 skipped (117.10 秒、計算ノード 48 worker)。
+赤 1 件は既知赤で、本 wave の差分に帰属しない。** node は
+`test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`、
+例外は `PreregistrationError("octopus-merge", d1de13ad)`。原因 commit `d1de13ad` は **main 側の
+親 4 つ octopus merge** (`git rev-list --parents -n 1` で親 4 を実測) で、本 wave の 3 commit とは
+無関係である。2026-08-13 01:05 JST のユーザー裁定
+(控え `rulings-inbox/2026-08-13-known-red-octopus-merge.md`) が
+「受入全走がこの 1 件だけで赤になる場合、既知赤として扱い land してよい」と確定しており、
+本走はその条件 (赤はこの 1 件のみ) を満たす。同裁定の恒久修正は並行 wave
+`dev-wave-known-red-octopus` が所有する。
+
 **この wave の実装タスクは rulings 第 6 束 (branch `worktree-rulings7-20260812`) 側の fragment が
 placeholder として保持している。** 他 wave の slug は参照できないため本 fragment では完了扱いに
 せず、当該 branch が land する際に済みとして畳むこと。
