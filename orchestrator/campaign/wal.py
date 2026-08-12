@@ -161,6 +161,23 @@ class WalTailRepairResult:
     receipt_path: Optional[str]
 
 
+@dataclass(frozen=True)
+class OrderedAttemptFrame:
+    """One physical WAL frame belonging to a build attempt.
+
+    ``byte_start`` and ``byte_end`` are offsets in ``layout.wal_file`` and
+    include the frame's terminating LF.  ``raw_bytes`` is therefore exactly
+    ``source_wal_bytes[byte_start:byte_end]`` rather than a reserialization of
+    :attr:`record`.
+    """
+
+    line_number: int
+    byte_start: int
+    byte_end: int
+    raw_bytes: bytes
+    record: WalRecord
+
+
 def _reject_duplicate_keys(pairs):
     value = {}
     for key, item in pairs:
@@ -685,6 +702,48 @@ def read_records(layout: CampaignLayout) -> List[WalRecord]:
     """WAL を全レコード読む。最終行の crash prefix は従来どおり捨てる。"""
     records, _ = read_records_checked(layout)
     return records
+
+
+def ordered_attempt_frames(
+        layout: CampaignLayout, build_attempt_id: str,
+) -> tuple[OrderedAttemptFrame, ...]:
+    """Return physical frames and byte offsets for one exact attempt.
+
+    Unlike :func:`records_by_stage`, this API neither projects by stage nor
+    applies last-wins semantics.  A truncated tail is rejected because its
+    byte range cannot be frozen as complete result evidence.
+    """
+
+    if type(build_attempt_id) is not str or not build_attempt_id:
+        raise TypeError("build_attempt_id must be a non-empty str")
+    if not os.path.exists(layout.wal_file):
+        return ()
+
+    selected: list[OrderedAttemptFrame] = []
+    byte_start = 0
+    for line_number, frame, _is_last, terminated in _iter_binary_frames(
+            layout.wal_file):
+        byte_end = byte_start + len(frame)
+        if not terminated:
+            raise WalFramingError(
+                "WAL line %d is not newline-terminated" % line_number
+            )
+        try:
+            record = _line_to_record(frame.decode("utf-8"))
+        except UnicodeDecodeError as exc:
+            raise WalLineError(
+                "WAL line %d is not valid UTF-8" % line_number
+            ) from exc
+        if record.payload.get("build_attempt_id") == build_attempt_id:
+            selected.append(OrderedAttemptFrame(
+                line_number=line_number,
+                byte_start=byte_start,
+                byte_end=byte_end,
+                raw_bytes=frame,
+                record=record,
+            ))
+        byte_start = byte_end
+    return tuple(selected)
 
 
 def _lock_declares_admission_policy(lock_value: object) -> bool:
