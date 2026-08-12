@@ -15524,3 +15524,137 @@ perf 依存の量 (cache miss 率等) はその環境では取得しないと明
 - `memory.current` のままの現状維持 — 過小許可の実害をユーザーが指摘した。
 - システム全体の `MemAvailable` — user slice の予算管理と粒度が合わず、他ユーザーの
   変動を自分の判定に混ぜてしまう。
+
+## D355. 8b oracle の durable 発行判断は schema version の択一ではなく lifecycle state machine の問題である (2026-08-13)
+
+**決定:** `output/s8b-oracle-spec/` と `output/s8b-oracle-manifest-candidates/` へ durable artifact を
+発行する判断を、「D302 の schema version 据え置きを解除するか再発行するか」という択一として扱わない。
+`orchestrator/tests/test_s8b_oracle_manifest_contract.py` の zero-file assertion は
+schema version で分岐しないため、どちらを選んでも同じ検査が落ちる。
+**schema version は、schema object に実際の field / 意味の差分が生じたときだけ、
+変更した側だけを上げる。** 現時点では reviewed spec 側も official manifest 側も v1 据え置きとする。
+
+真の問いは「未承認状態の zero-file 条件を保ったまま、承認済み状態だけを受理する lifecycle
+state machine をどう設計し、それを runtime のどこへ接続するか」である。
+この置換は受理集合を真に広げる (0 件 ⊊ 承認された 1 件) ため、実装者の裁量ではなく
+ユーザーの明示裁定として記録されなければならない。**本 wave は裁定材料の提示に留め、実装しない。**
+
+**理由:**
+- 現行 test は JSON を parse せず、2 directory 配下の `is_file()` が真な entry の件数だけを見る。
+  schema literal を変えても受理集合は 1 bit も動かない。
+- durable artifact が 0 件である以上、v1 bytes を読んでいる consumer は存在しない。
+  守るべき互換性が無い状態で version を上げると、spec SHA・manifest SHA・manifest ID・
+  driver の claim identity・golden・consumer 定数が一斉に変わるだけで、
+  certified 選択も受理集合も変わらない。
+- D302 が直接論じているのは official manifest schema であり、
+  却下選択肢の「durable 発行後にこの決定を変えるなら再発行が要る」は
+  **D302 の意味を変える場合**の条件である。最初の v1 artifact を発行すること自体は再発行理由でない。
+- 段 2 プラン子は選択肢 A を「受理集合を広げるから規律 2 と両立しない」として却下したが、
+  同じプランが「B でも zero-file assertion は落ちる」と認めている。
+  受理集合の包含で形式化すると `E ⊊ A` かつ `E ⊊ B` であり、
+  差が schema literal だけなら規律 2 の観点で A と B の強さは同じである。
+  この否認は段 3 の敵対 2 本と親の独立実測が独立に一致した。
+
+**却下した選択肢:**
+- **reviewed spec と official manifest の協調 v2 再発行** — 上記のとおり受理集合を変えず、
+  参照値だけを一斉に変える。実利が無い。
+- **contract test を「非空でもよい」へ緩める** — 未検証 durable artifact を受け入れる方向へ
+  受理集合を広げる。規律 2 違反。
+- **contract test を削除・skip する** — 同上。
+
+## D356. oracle spec の人間承認は現状 機械強制されていないと明記する (2026-08-13)
+
+**決定:** 現行の `APPROVED_SPEC_SHA256` 方式も、receipt を追加する方式も、
+**同じ実装担当 (AI を含む) が bytes・hash・receipt・pin をすべて作成でき、
+値の一致検査はすべて通る。** したがって、これらの機構について
+**「人間承認を機械確認した」と書いてはならない。** 書けるのは
+「人間が staged diff を review した」までである。
+機械強制するには AI が書けない外部 trust root (allowlist key による detached signature、
+または allowlist 済み署名 commit) が要る。その導入是非はユーザー裁定事項とし、本 wave では実装しない。
+
+**理由:**
+- `_load_approved_spec_bytes` は pin と disk bytes の一致だけを見る。git provenance を見ない。
+  `_assert_user_commit` は freeze v2 の record 専用で、oracle spec 経路からは呼ばれない。
+- `_assert_user_commit` を spec 経路へ足しても人間性は証明できない。
+  逐語 `AI-Agent: none` は commit message の文字列であり、誰でも書ける。
+  履歴 topology の defense-in-depth としては有用だが、単独で承認の証明にはならない。
+- T-810 事前登録は先例にならない。その artifact 自身が
+  `limitations.approval_receipt_trust_root_absent = True` と `protocol.run_authorized = False` を
+  宣言し、`request_t810_launch` には正例が構造的に存在しない (常に例外送出)。
+  すなわち「trust root が無いことを明記した休眠 seal」であって、動いている承認機構ではない。
+- D302 は「hash は識別子にすぎず、承認は内容の再導出を伴う」としている。
+  内容束縛の層 (`verify_manifest` の再導出比較) は健全であり、恒真ではない。
+  欠けているのは内容束縛ではなく**承認者の同一性**である。
+
+**却下した選択肢:**
+- **receipt を足せば人間承認を表現できるとする** — receipt も同じ担当が作れる。
+  信頼根を持たない receipt は authority ではない。
+- **staged diff の人間 review を機械強制と同一視する** — 手続きであって runtime 表現ではない。
+
+## D357. 受入 wall の主張は反復走の中央値で行う (2026-08-13)
+
+**決定:** 受入全走の所要を根拠にして律速を同定したり改善を主張したりするときは、
+**同一 tip・同一条件で 3 走以上を逐次に取り、中央値で述べる。** 1 走同士の差が
+10% 未満なら「変化なし」と扱い、改善としても退行としても記録しない。
+測定中は自分の他 job を同時に走らせない (dispatch receipt と共有ファイルシステムの双方で干渉する)。
+
+**理由:**
+- 同一 tip・逐次・条件交互の sweep で、同一条件の 2 走が 99.30 秒と 117.80 秒 (19% 差) まで開いた。
+  受入 wall の観測域は 99.3〜117.8 秒 (±9%) である。
+- この幅は、これまで 1 走の値で行ってきた律速同定・改善主張の解像度を上回る。
+- 48 worker で観測される node 所要は競合で膨らむ。同一 suite の node 秒合計は
+  worker 12 / 24 / 32 / 48 本で 1,542 / 2,261 / 2,828 / 3,344 秒と単調に増える。
+  **node 秒は仕事量の代理にならない。**
+
+**却下した選択肢:**
+- 1 走のまま報告して「参考値」と注記する — 実際には設計択一の根拠に使われてきたので不十分。
+- job Elapse で代用する — job 側の設定・収集時間を含み、pytest wall と別量である。
+
+## D358. real-repo の排他は単一 worker 直列化のまま維持する (2026-08-13)
+
+**決定:** D63 の `real-repo` loadgroup を、プロセス間 reader/writer ロックへ置き換えない。
+排他機構の変更で受入を速くする路線を閉じる。
+
+**理由:**
+- 直列 group を丸ごと無効化した診断走行 (`--dist load`) の wall は 116.63 秒で、
+  予測された約 80 秒には遠く及ばなかった。**置き換えの最良ケースに利得が無い。**
+- 「現行の対象 node は全て reader」という前提が成立しない。`git status` を
+  `GIT_OPTIONAL_LOCKS=0` なしで呼ぶ経路が複数あり、read-only に見える node も
+  git の optional index lock を書く。同 repo 内の別経路はこの抑止が必要だと明記しており、
+  1 箇所は実際に抑止している。
+- 排他の閉包そのものが未確定である。正本リストの外に、module fixture 経由で実材料を読む node と、
+  実 git object を書く node が実在する。**閉包が確定していない排他を差し替えてはならない。**
+
+**却下した選択肢:**
+- reader を共有ロックで並列化する — 上記のとおり reader 判定が成立しない。
+- group を file 単位へ割る — 排他を保つには結局ロックが要るうえ、module fixture の
+  worker 跨ぎ重複支払いを増やす。
+- worker 数を throughput の頂点へ下げる — 24 / 32 / 48 本の差は run 間変動に埋もれた。
+
+## D359. 台帳件数の pin は絶対値でなく期待表の長さで書く (2026-08-13)
+
+**決定:** 既知違反台帳 (`KNOWN_PROVENANCE_VIOLATIONS`) の件数を検査する assert は、絶対値の
+literal ではなく、同じテスト内の期待表または台帳自身から導いた長さで書く。具体的には
+`len(台帳) == len(expected)`、`len({row[0] for row in expected}) == len(expected)`、
+`len(registry) == len(台帳)` の 3 形とする。承認済み entry の追加で更新が要るのは期待表だけになり、
+検出力は絶対値 literal と入力ごとに同一に保たれる。
+
+**理由:**
+- 絶対値 literal は「承認された違反が台帳へ入る」という正常な運用のたびに受入を赤にする。
+  検出力の本体は entry 内容の完全一致であり、件数の絶対値ではない。
+- **件数の検査そのものを削除してはならない。** 内容完全一致 (`observed == expected`) は
+  期待表と、台帳を**反復して**作った投影との比較である。この比較は長さの一致を含意するが、
+  それは反復が容器の申告する件数と一致する場合に限る。`tuple` 派生型で `len()` は正直に返しつつ
+  反復だけを呼び手によって変える容器を置くと、内容 oracle は欺けるが件数 assert は欺けない。
+  実測 (in-memory probe) では、件数 assert を削除した形は未承認 entry を 1 件抱えたまま
+  内容完全一致・SHA 一意性・registry の件数と値 tuple・実在 commit 検査のすべてを緑で通った。
+- 動的な形はこの検出を保ったまま絶対値を消す。両立するので、どちらかを諦める必要はない。
+
+**却下した選択肢:**
+- 件数 assert の削除 — 上記のとおり検出力の純減であり、受理集合を承認済み entry の件数変化を
+  超えて広げる。
+- 容器・spec・全 field の exact type 固定 (`type(...) is tuple` 等) — 動的な件数検査が同じ攻撃を
+  型検査なしで捕まえるため、本件では不要。型検査でしか捕まらない形 (件数が同じまま `str` 派生型で
+  SHA をすり替える) は件数 literal を持つ形でも捕まっていない別の穴であり、別途起票する。
+- 台帳の内容一致検査を「期待表の部分集合であること」へ緩める形 — 未承認 entry の混入を
+  受理してしまう。正しさゲートの受理集合を広げてよいのは承認済み entry の件数変化だけである。
