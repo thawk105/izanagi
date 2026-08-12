@@ -189,6 +189,17 @@ _T720_MERGE_NOTE = (
     "新規著作なし；親作成 merge のため Codex 著者とは記さない；横断統一 wave 固有"
     "（通常 merge 例 fbc95b2f は片親と一致）"
 )
+_DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING = (
+    "2026-08-12 dev-wave-8c-formal-consumer-wiring land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
+_DEV_WAVE_8C_ACCEPTANCE_MERGE_NOTE = (
+    "受入 lease 内で `dev_wave_wait.py acceptance --merge-message-file` が自動生成した merge；"
+    "`p3_autonomous_workload_trial.py` の 3 方向結合結果が両親のどちらとも異なるため"
+    " checker が実装面著作と判定；wave 側の当該 file は Codex `role=author` 済みで、"
+    "main 側は各 wave land 時に監査済みであり、merge 自体に新規の人間・AI 著作なし"
+    "（差分は git の結合が生成）；親作成 merge のため Codex 著者とは記さない"
+)
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
     "role=orchestrator"
@@ -507,6 +518,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T720_MERGE_RULING,
         note=_T720_MERGE_NOTE,
+    ),
+    KnownViolationSpec(
+        "9408fb4ae8f999c7c0d6ced735335c9da97e35a4",
+        MISSING_CODEX_AUTHOR,
+        _DEV_WAVE_8C_ACCEPTANCE_MERGE_RULING,
+        note=_DEV_WAVE_8C_ACCEPTANCE_MERGE_NOTE,
     ),
 )
 
