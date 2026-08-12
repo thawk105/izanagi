@@ -693,7 +693,7 @@ def test_floor_job_hardens_interpreter() -> None:
     assert '"$PY" -I -B --version' in source
     assert '"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"' in source
     assert "-E -s -B" not in source
-    assert source.count('"$PY" -I -B') == 14
+    assert source.count('"$PY" -I -B') == 15
     assert len(re.findall(r"(?<![A-Za-z0-9_])python3(?=\s)", submit)) == 5
     assert submit.count("python3 -I -B") == 5
     assert re.search(r"(?<![A-Za-z0-9_])python3\s+(?!-I -B)", submit) is None
@@ -994,7 +994,8 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(tmp_path: Path) -> Non
         "import json\n"
         "import sys\n"
         "from pathlib import Path\n"
-        f"Path({str(argv_record)!r}).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n",
+        f"Path({str(argv_record)!r}).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n"
+        + _floor_driver_stub_source(),
         encoding="utf-8",
     )
     attempt = tmp_path / "attempt"
@@ -1012,6 +1013,7 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(tmp_path: Path) -> Non
             f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
             f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
             "REQUESTED_S=36000",
+            "export STUB_DRIVER_RC=0",
             "write_failure() { return 0; }",
             "",
         ]
@@ -1871,6 +1873,70 @@ def _driver_tail() -> str:
     return source[source.index('PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"') :]
 
 
+def _floor_driver_stub_source(*, invalid_metric: str | None = None) -> str:
+    invalid_assignment = ""
+    if invalid_metric == "holdout_missing":
+        invalid_assignment = (
+            'result["holdouts"] = []\n'
+            'result["floors"] = {}\n'
+        )
+    elif invalid_metric == "pair_missing":
+        invalid_assignment = 'result["floors"]["rr79"]["pairs"] = {}\n'
+    elif invalid_metric == "pairs":
+        invalid_assignment = (
+            'result["floors"]["rr79"]["pairs"] = {"candidate": None}\n'
+        )
+    elif invalid_metric == "nonfinite":
+        invalid_assignment = (
+            'result["floors"]["rr79"]["scale_ref"] = float("nan")\n'
+        )
+    elif invalid_metric is not None:
+        invalid_assignment = (
+            f'result["floors"]["rr79"][{invalid_metric!r}] = None\n'
+        )
+    return (
+        "import json\n"
+        "import os\n"
+        "from pathlib import Path\n"
+        "rc = int(os.environ['STUB_DRIVER_RC'])\n"
+        "if rc == 0:\n"
+        "    repo = Path(__file__).resolve().parents[2]\n"
+        "    freeze_dir = repo / 'output' / 's8b-freeze'\n"
+        "    freeze_dir.mkdir(parents=True)\n"
+        "    freeze = {\n"
+        "        'holdouts': {'rr79': {\n"
+        "            'variant_binding': {'entries': {\n"
+        "                'stock_common': {}, 'candidate': {},\n"
+        "            }},\n"
+        "        }},\n"
+        "    }\n"
+        "    (freeze_dir / 'holdout_freeze.json').write_text(\n"
+        "        json.dumps(freeze), encoding='utf-8')\n"
+        "    protocol = {\n"
+        "        'freeze': {'path': 'output/s8b-freeze/holdout_freeze.json'},\n"
+        "        'stock_configuration': 'stock_common',\n"
+        "    }\n"
+        "    (freeze_dir / 'floor_protocol.json').write_text(\n"
+        "        json.dumps(protocol), encoding='utf-8')\n"
+        "    run_dir = repo / 'output' / 'fixture-run'\n"
+        "    run_dir.mkdir(parents=True)\n"
+        "    result = {\n"
+        "        'holdouts': ['rr79'],\n"
+        "        'floors': {'rr79': {\n"
+        "            'scale_ref': 1000.0,\n"
+        "            'scalar_alt': 30.0,\n"
+        "            'pairs': {'candidate': 30.0},\n"
+        "        }},\n"
+        "    }\n"
+        + ("".join(f"    {line}\n" for line in invalid_assignment.splitlines())
+           if invalid_assignment else "")
+        + "    (run_dir / 'result.json').write_text(\n"
+        "        json.dumps(result), encoding='utf-8')\n"
+        "    print(json.dumps({'status': 'completed', 'run_dir': str(run_dir)}))\n"
+        "raise SystemExit(rc)\n"
+    )
+
+
 def _reservation_writer_fragment() -> str:
     source = JOB.read_text(encoding="utf-8")
     start = source.index(
@@ -1932,10 +1998,7 @@ def test_floor_driver_failure_propagates_rc(
     repo = tmp_path / "repo"
     driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
     driver.parent.mkdir(parents=True)
-    driver.write_text(
-        "import os\nraise SystemExit(int(os.environ['STUB_DRIVER_RC']))\n",
-        encoding="utf-8",
-    )
+    driver.write_text(_floor_driver_stub_source(), encoding="utf-8")
     attempt = tmp_path / "attempt"
     attempt.mkdir()
     failure_call = attempt / "failure-call.txt"
@@ -1989,6 +2052,61 @@ def test_floor_driver_failure_propagates_rc(
         assert failure_call.read_text(encoding="utf-8") == (
             f"{driver_rc}|floor_driver|pilot floor driver returned nonzero\n"
         )
+
+
+@pytest.mark.parametrize(
+    "invalid_metric", [
+        "scale_ref", "scalar_alt", "pairs", "nonfinite",
+        "holdout_missing", "pair_missing",
+    ],
+)
+def test_floor_driver_zero_rc_rejects_missing_w2_floor_metric(
+    tmp_path: Path, invalid_metric: str
+) -> None:
+    repo = tmp_path / "repo"
+    driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
+    driver.parent.mkdir(parents=True)
+    driver.write_text(
+        _floor_driver_stub_source(invalid_metric=invalid_metric), encoding="utf-8",
+    )
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    failure_call = attempt / "failure-call.txt"
+    prefix = "\n".join(
+        [
+            "set -Eeuo pipefail",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
+            f"PY={shlex.quote(sys.executable)}",
+            "PBS_JOBID=0:fixture.nqsv",
+            f"CURRENT_COMMIT={'a' * 40}",
+            f"JOB_SCRIPT_SHA256={'b' * 64}",
+            f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
+            f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
+            "REQUESTED_S=36000",
+            "export STUB_DRIVER_RC=0",
+            "write_failure() {",
+            f"  printf '%s|%s|%s\\n' \"$1\" \"$2\" \"$3\" > {shlex.quote(str(failure_call))}",
+            "}",
+            "",
+        ]
+    )
+
+    result = subprocess.run(
+        ["bash", "-c", prefix + _driver_tail()],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 3, result.stderr
+    job_result = json.loads(
+        (attempt / "job-result.json").read_text(encoding="utf-8")
+    )
+    assert job_result["driver_rc"] == 3
+    assert failure_call.read_text(encoding="utf-8") == (
+        "3|floor_result_metrics|"
+        "pilot floor result is missing finite W-2 floor metrics\n"
+    )
 
 
 def test_floor_driver_fd_setup_failure_does_not_mark_launch(
@@ -2096,7 +2214,7 @@ def test_floor_job_result_writer_failure_with_successful_driver_keeps_rc_zero(
     repo = tmp_path / "repo"
     driver = repo / "orchestrator" / "campaign" / "s8b_floor_campaign.py"
     driver.parent.mkdir(parents=True)
-    driver.write_text("raise SystemExit(0)\n", encoding="utf-8")
+    driver.write_text(_floor_driver_stub_source(), encoding="utf-8")
     attempt = tmp_path / "attempt"
     attempt.mkdir()
     sentinel = '{"preexisting": true}\n'
@@ -2113,6 +2231,7 @@ def test_floor_job_result_writer_failure_with_successful_driver_keeps_rc_zero(
             f"EXECUTING_SCRIPT_SHA256={'c' * 64}",
             f"IZANAGI_SUBMISSION_NONCE={'d' * 32}",
             "REQUESTED_S=36000",
+            "export STUB_DRIVER_RC=0",
             "failure_written=0",
             "",
         ]

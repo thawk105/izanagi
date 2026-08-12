@@ -350,6 +350,12 @@ def publish_wrapper_request(
     if len(matches) != 1:
         raise T810WrapperError("wrapper request slot is not unique in launch intent")
     slot = matches[0]
+    from tools.pegasus import t810_coordinator as coordinator
+
+    try:
+        coordinator._assert_staged_file_identities(slot)
+    except coordinator.T810CoordinatorError as exc:
+        raise T810WrapperError(str(exc)) from exc
     request = build_wrapper_request(
         intent, group_manifest, preregistration, verified, slot_id=slot_id,
         pbs_request_id="runtime-unbound", assigned_hostname="runtime-unbound",

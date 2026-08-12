@@ -2003,6 +2003,22 @@
   入口 `.claude/commands/cleanup-branches.md` §3 へのポインタ追記は byte 上限
   4000 に対し実測 headroom 41 で入らず、同ファイルの編集を既に所有する [T-208] へ合流させた
 
+
+- **再発: 2026-08-12** — 同型が **codex 子の側**で起き、敵対レンズ 1 本が丸ごと失われた。
+  段 3 の read-only 子が攻撃例の bytes の hash を実際に計算して示すために
+  `python3 - <<'PY' ... Path('tools/pegasus/t810_pbs_wrapper.py') ... PY` を組み立て、
+  `guard_bash` が「Pegasus unknown 実行体」として rc=2 で拒否した。子は回復せず
+  codex が rc=1 / output 0 bytes で終了し、model_calls 45・約 1,080 秒を空費した。
+  拒否されたのが書き込みでなく**読み取り専用の hash 計算**である点まで F63 と同じで、
+  **防壁は設計どおり働いたが、子に通る書き方が prompt へ書かれていなかった。**
+  親側の同型 (login で `perf stat` を probe できず実測が計算ノード job まで遅れる) が
+  同日 20:39 に別 wave で独立に記録されており、親子で独立 2 例になった。
+  恒久対応は read-only 子の prompt 定型 —「防護パスを含む shell を書くな・読取ツールで読め・
+  hash の実値計算は結論に不要」の 3 点。再投入で回収できた。
+  **`docs/dev-wave/operations.md` の `DW-O05` へ 1 行足す形は機械拒否された** —
+  `check_docs.py` が `L1.5 unique footprint 9682 bytes > 予算 9566 bytes` で赤になり撤回した。
+  予算引き上げは自己改善に含めないため恒久化は本記録に留める。
+  同じ理由での自己改善停止はこれで**独立 3 例目**である。
 ### F64. 死んだ session の孤児待機ループが worktree を「使用中」に見せ、掃除を 3 周止めた [恒真ゲート] [手順漏れ]
 - 事象: `.claude/worktrees/dev-wave-t181-reasoning-ab` が (76) → (79) → (83) の 3 回連続で
   「滞在プロセスあり」として残置され、毎回ユーザー引き渡しへ回された。実測すると滞在の実体は
@@ -6358,3 +6374,195 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 補足 (監査ログの質): 本件は **監査ログを汚す型の失敗**である。回避すると
   「waiver / known-violation で通した」記録が残り、監査を工数分析やプロセス改善に使うときの
   信号対雑音比を下げる。手順で発生させないことが対処であり、例外機構の常用ではない。
+
+### F258. 受入全走中に `git checkout` が SIGSEGV し fixture setup が偽の赤になる [計測汚染]
+
+- 事象: [T-925] の受入全走 2 走目で `test_codex_reasoning_ab.py` の 3 node が
+  **setup 段階**で error になった。逐語は
+  `ValidationError: command failed rc=-11: git checkout -B codex/dev-wave-t153e-t15423 <sha>`。
+  `rc=-11` は SIGSEGV。同じ木の 1 走目は `10,085 passed / 65 skipped` で緑、
+  2 走目との差分は**文書 2 ファイル** (worklog fragment と insights README) のみで、
+  テスト fixture の `git checkout` へは到達しえない。当該 3 node の単独再走は
+  `--force-dispatch` で `3 passed` (rc=0)。**再現せず、実装差分へ帰属しない。**
+- 根本原因: 未確定。並行 wave 4 本が同一 repo の object store を共有した状態で、
+  commit 時に git 自身が
+  `There are too many unreachable loose objects; run 'git prune'` と
+  `The last gc run reported the following` を警告しており、
+  `.git/worktrees/<wave>/gc.log` が残留して自動 gc が止まっていた。
+  object store 圧下での git の異常終了が疑われるが、SIGSEGV の直接原因は未特定。
+- 恒久対応: memory `no-concurrent-dispatch-during-acceptance` の対象を
+  「単独再走で消える偽の赤」の既知型として本エントリへ拡張する。
+  受入で `rc=-11` / SIGSEGV を見たら、実装差分へ帰属する前に
+  `DW-O18` の単独再走 (`--force-dispatch` 付き) で再現性を実測する。
+- 再発検知: 受入 log 中の `rc=-11` と `unreachable loose objects` 警告の同時出現。
+  機械検査は未実装 (本エントリ 1 例目のため `DW-G03` の独立 2 例を満たさない)。
+
+### F259. codex 子の Web 検索が evidence 検証を invalid にして成果物を全損させる [コンテキスト浪費]
+
+- 事象: 段 3 の敵対レンズ (sol) が 848 秒 · 43 model call を費やして完走したのに、
+  `dev_wave_codex.py` が rc=1 で不受理となり、出力 8,323 bytes が捨てられた。
+  `codex_exit_code=0`、`validator_rc=0`、成果物ファイルは健在で、NFC も正常だった。
+  受理を止めていたのは receipt の `evidence_status=invalid` である。
+- 根本原因: 子が `web_search` を使うと、Codex CLI 0.147.0 が `item.started` /
+  `item.completed` の `item` object に `id` を 2 回持つ event 行を stdout へ出す
+  (1 つ目は `item_40` のような item 番号、2 つ目は `exec-<uuid>` の実行 ID)。
+  `orchestrator/codex_roles/events.py` の `parse_jsonl` は重複 JSON key を拒否するため
+  `codex_worker_launch.py` の `_drain_stdout` が `stdout_invalid=True` を立て、
+  `_evidence_status` が `invalid` を返して attempt が accepted にならない。
+  本 wave では 99 行中 22 行が該当した。
+- 恒久対応: memory `codex-web-search-invalidates-evidence` — 子 prompt に Web 検索の禁止を
+  絶対制約として書く。`DW-O02` への統合を試みたが、dev-wave docs の L1.5 予算に余白がなく
+  (71 bytes の追記で 93 bytes 超過を実測) 断念した。予算は上げず、安全義務の削除もしない。
+  **検証側を緩めない** — 重複 key の拒否は evidence の健全性検査であり、これを甘くする回避は
+  規律 2 に反する。
+- 再発検知: 不受理時は receipt の `attempts[].evidence_status` を読む。
+  `invalid` かつ `codex_exit_code=0` なら stdout の event 行を `parse_jsonl` へ通し直し、
+  `web_search` 由来の重複 key 行を探す。
+
+### F260. codex 子の成果物が 1 文字の非 NFC で全損した [コンテキスト浪費]
+
+- 事象: 段 2 の plan 子が 29,958 bytes の正常な成果物を出し `codex_exit_code=0`・
+  `validator_rc=0` だったが、`accepted=false` で捨てられた。1,332 秒と 12 model call が無駄になった。
+  再投入した段 6 の fix 子も、別の理由 (下記) で 2 度目の全損を起こした。
+- 根本原因: `tools/codex_worker_launch.py` は stdout event と rollout の JSONL 各行が
+  Unicode NFC であることを要求する。**落ちるのは「結合文字がある」ときではなく、
+  「合成済み文字が存在するのに分解形で書かれた列」があるとき**である。22,474 文字の出力のうち
+  原因はただ 1 箇所、`G-bar` を `G`(U+0047) + `U+0304` で書いた列だった (合成形 `U+1E20` が存在)。
+  同じ出力の `N-bar` `H-bar` `D-bar` `x-bar` `v-hat` は合成形が無く分解形のままで NFC として
+  正当なので無害だった。**どの記号が地雷かは目視で区別できない。**
+  一次資料 (追補 A の a11/a12 節) がこの記法を使うため、その wave の子は全員再現する。
+- 恒久対応: 数式・統計記法を扱う wave では prompt 冒頭に「出力に Unicode 結合文字
+  (U+0300〜U+036F) を 1 文字も使うな。`G-bar` `v-hat` `^T` と ASCII で書け。仕様書の記法を
+  引用・再現するな」を置き、段 2・3・5・6 の**全部の子**へ入れる。**prompt 自身も rollout に
+  載る**ので投入前に prompt の NFC を検査する。memory `codex-output-must-be-nfc`。
+- **制約の書き方に二次の罠がある。** 「ASCII で書け」と広く書くと、子は必須の日本語見出し
+  `## 総括` を HTML 数値文字参照 (`&#32207;&#25324;`) へ変換し、`check_codex_output.py` が
+  `validator_rc=1` で落とす (本 wave で実測、これが 2 度目の全損)。制約は**数式・記号にだけ**
+  掛け、「日本語はそのまま書け。`## 総括` を実体参照にするな」を必ず併記する。
+- 再発検知: `rc=1` を見たら receipt の `attempts[0].evidence_status` を先に読む。
+  `invalid` なら NFC 側、`complete` かつ `validator_rc=1` なら書式側。原因行は
+  `attempt-0001.events.jsonl` の各行を `unicodedata.normalize('NFC', s) == s` で走査すると出る。
+
+### F261. PBS script の規約違反 4 点が静的レビューを通り抜けた [テスト代表性]
+
+- 事象: 実装子が書いた `tools/pegasus/t139_a12_stress_check.pbs` が、そのままでは本走に使えなかった。
+  段 3 の敵対相談 2 本と段 6 の敵対レビュー 2 本はいずれも検出せず、**親が実際に `qsub` して
+  初めて 4 点が判明**した。
+  (1) `#PBS -A SFC` 欠落 → `Please specify -A <Group>.` で拒否。
+  (2) `#PBS -l select=1:ncpus=60:mem=14gb` は NQSV の書式でない → `Request not queued.`。
+  (3) `#PBS -j oe` も拒否される → 他行を同一にした最小の対照実験で確定 (`-j o` は受理)。
+  (4) `python3` 直呼び — 計算ノードの `python3` は **3.9.13 (Intel) / numpy 1.21.4**、
+  `python3.10` が 3.10.12 / numpy 2.2.6 (probe 907280 で実測)。**このままなら正本の本走が
+  別 interpreter・別 numpy で回っていた。**
+- 根本原因: PBS script は「投入して初めて検証される」種類の成果物であり、静的レビューは
+  scheduler の受理述語を持たない。実装子も read-only レビュー子も job を投入できない
+  (sandbox が scheduler socket を拒む)。**投入は親にしかできず、親が投入するまで誰も検証しない。**
+- 恒久対応: PBS script を成果物に含む wave では、**親が段 6 の受入前に最小の対照 job を
+  実際に投入して directive の受理を確認する**。runbook の逐語 (`-A` / `-q` /
+  `-l elapstim_req` / `-j o` と interpreter 吸収) を prompt へ前渡しする。
+- 再発検知: `qsub` の `Request not queued. : <script>` と `Script file line <N>.` は
+  directive 不正の signature。job が走った場合も、job log の interpreter と library の版を
+  transcript へ記録して login 側と突き合わせる。
+
+### F262. 焦点再レビューの must-fix が台帳へ写されるとき 1 件落ちた [手順漏れ]
+
+- 事象: 段 6 焦点再レビューの逐語
+  (`output/insights/2026-08-12_t810-harness-s2/verbatim/s6-focus.md`) は
+  must-fix を **7 件**挙げていたが、台帳の後続タスク項へ写されたのは **6 件**だった。
+  落ちたのは「node の repo_absence 4 boolean 固定と ready barrier の判定が非互換で、
+  正規 wrapper の preflight が必ず拒否される」という **blocker** で、
+  しかもそれは残り 1 件目 (正例経路を通す) の**達成条件**だった。
+  後続 wave が段 1 で現行 main を測り直した結果その 1 件は既に閉じていたため、実害は出ていない。
+- 根本原因: 焦点再レビューは所見対応表と must-fix 一覧という 2 つのリストを持つ。
+  台帳へ写す作業に**件数の照合が無く**、写した側だけを見ても欠落が分からない。
+  `DW-O16` は「所見ごとの closed / partial / regressed 対応表を要求する」までしか定めておらず、
+  **その表から台帳への転記が完全であること**を要求していない。
+- 恒久対応: 焦点再レビューの must-fix を台帳へ写すときは、**逐語の件数と台帳の件数を突き合わせ、
+  一致しなければ写した側を直す**。後続 wave が起票内容を実行するときは逐語を一次資料として開き、
+  台帳の要約だけを根拠にしない (memory `primary-source-includes-failures-ledger` の規律を
+  焦点レビューへ広げる)。
+- 再発検知: 逐語と台帳の件数照合 (目視)。機械化は未実装で、
+  逐語の must-fix 見出しが定型でないため lint 化には形式の固定が要る。
+
+### F263. codex 子が正常終了しても web_search を使うと成果物が全損する [観測系の欠落] [恒真ゲート]
+
+- 事象: 段 3 の敵対レンズ 1 本が独立に 2 回失われた。いずれも
+  `codex_exit_code=0` / `validator_rc=0` / `termination_verified=true` /
+  `process_group_residual=0` / `limit_trigger=null` / model call と wall-clock は上限内で、
+  成果物 (17,321 bytes と 17,595 bytes) も完全かつ NFC 正規化済み・`## 総括` 付きだった。
+  それでも `evidence_status=invalid` で `accepted=false` になり、`-o` の出力 path には
+  何も書かれなかった (`output_sha256=null`)。合計 2,668 秒と input 9.2M token 相当を空費した。
+- 根本原因: `tools/codex_worker_launch.py` の `_drain_stdout` が stdout event 行を厳格に検査し、
+  失敗すると `stdout_invalid` を立てる。`_evidence_status` はそれを `invalid` にし、
+  受理条件が `complete` を要求するため attempt ごと落ちる。
+  **拒否されていたのは Codex CLI が出す `web_search` の `item.started` event で、
+  同一 object 内に `"id"` が 2 つある** (`"id":"item_32"` と `"id":"exec-..."`)。
+  厳格 parser は `JSON key が重複` で拒否する。10 行中 12 行が該当した走もある。
+  同時刻の別 lane は web_search を使わず、最大行 1,098,349 bytes でも `complete` だった
+  (行長上限 4 MiB は無関係)。
+- 恒久対応: 当面の回避は prompt に「Web 検索を使うな」を明記し、判断根拠を repo 内一次資料と
+  親の実測に限定すること (3 度目の投入はこれで rc=0)。恒久側は
+  D351 とは独立の裁定事項として
+  worklog の新規項目へ起票した (`evidence_status=invalid` の理由を receipt へ書く、
+  consult / review 段で web_search を既定無効にする、stdout event の重複キー扱いを分離する、の 3 案)。
+  **`tools/` の実装面なので Codex `role=author` が要る。**
+- 再発検知: 受理条件は既に fail-closed である。欠けているのは**理由の記録**で、
+  現状 receipt には「どの行のどの検査で落ちたか」が一切残らない。上記 3 案のうち
+  「理由を receipt へ書く」はどの案を採っても要る。
+
+### F264. 多軸で書いたテストが値側 literal の検査を恒真にした [恒真ゲート] [検査漏れ]
+
+- 事象: 三軸検索の前置フィルタで「値側を必要条件 literal の導出に使わない」ことを固定したはずの
+  テストが、**恒真だった**。`keys.append(key)` を `keys.append(key + "=" + value)` にする
+  1 行変異が、既存テスト 105 件を 1 本も発火させずに生存した (rc=0、失敗 node ゼロ)。
+  静的レビュー 6 本 (起草 + 段 3 の 2 本 + 段 6 の 2 本 + 親) が全て見落とし、変異だけが見つけた。
+- 根本原因: 既存テストがすべて**多軸**で書かれていた。軸ごとに値が違うため、
+  値を混ぜても最長共通部分文字列が結局 key 側へ戻り、導出結果が変異前後で一致する。
+  実害が出るのは**単軸**のときで、値の任意 1 文字メタ文字に一致する text が
+  正規表現には一致するのに必要 literal を含まず、正しい hit が捨てられる。
+- 恒久対応: 単軸 `expressions` を使う検査 2 件を追加し、変異 matrix の本走で
+  当該変異が 2 node で KILLED になることを固定した (10/10 期待どおり)。
+- 再発検知: 変異 matrix の当該 entry が恒久の positive control として残る。
+  同型 (多軸の共通部分文字列が単軸固有の欠陥を隠す) を疑う場合は、
+  **軸数を最小にした経路を必ず 1 本置く**。
+
+### F265. 既 fold の fragment を wave 側で削除して land が rc=26 で止まった — fold の dry-run は緑のまま [手順漏れ]
+
+- 事象: 古い 3 branch の裁定 fragment を land する wave で、`spool_fold.py --dry-run` が
+  `receipt-replay` を出した既 fold の fragment 2 本を `git rm` して独立 commit にした。
+  dry-run はその後 rc=0 (`status=planned`) になり、`check_docs.py` も rc=0 だったが、
+  `dev_wave_land.py` が `rc=26` `status=fold-failed`
+  `reason=landed-fold-owned-path` で拒否した。main は 1 bit も動いていない。
+- 根本原因: **fragment path の削除は fold だけの署名**であり、land は landed 区間の各 commit を
+  `_landed_fold_output_path` で検査して弾く (F82 が定めた署名 2 条件の片方)。gate は正しく発火した。
+  誤りは wave 側にあり、「不要な fragment を消す」という発想そのものが fold の役を奪っていた。
+  `spool_fold.py --dry-run` は fold の意味論 (replay・遷移対象・base) だけを見て git 履歴の署名は
+  見ないため、**dry-run の緑は land の緑を含意しない**。この非含意が見えにくさの本体である。
+- 恒久対応: 不要な fragment は削除せず**最初から持ち込まない**。branch を main から作り直し、
+  `git merge --no-ff --no-commit <branch>` の後 commit 前に `git rm` して、除外を merge commit 自身の
+  中で完結させる。land の `_landed_commit_diff` は親が 2 つで trusted が 1 つの commit では
+  trusted な main 側の親とだけ差分を取るため、merge commit の差分は「追加のみ」になり通る。
+- 再発検知: land 前に `git diff --name-status <tested-main>..<tip>` を取り、`D` で始まる行の path が
+  `docs/spool/**` の fragment に当たらないことを確認する (当たれば rc=26 が確定しているので
+  land を投入しない)。`docs/spool/FOLDED.md` の `M` も同じ扱い。ただしこの累積差分検査は
+  必要条件でしかない — 同 land が commit 単位でも検査するため、F266 の
+  条件も併せて満たす必要がある。
+
+### F266. 古い branch を順に merge すると 2 本目以降で land が止まる — 親が 1 つも trusted でない merge は両親と差分を取る [受理集合の過剰縮小]
+
+- 事象: 古い 3 branch を main 基点の wave branch へ**順に** merge したところ、1 本目の merge commit は
+  通り、2 本目と 3 本目が `landed-fold-owned-path` で違反になった。違反内容は
+  `M docs/spool/FOLDED.md`。累積差分 (`main..tip`) は追加のみで、`FOLDED.md` は 1 byte も変わって
+  いない。land は `rc=26` で 2 度止まった。
+- 根本原因: `_landed_commit_diff` は merge commit の親のうち **tested main の祖先であるもの**を
+  trusted とし、trusted がちょうど 1 つのときだけその親との差分に絞る。順に merge すると 2 本目以降は
+  第 1 親が自分の直前 commit (main の祖先でない)、第 2 親が古い branch tip (同じく祖先でない) となり
+  **trusted が 0 個**になる。この場合は両親と差分を取るため、古い branch 基点以降に main で起きた
+  fold の署名を wave の変更として読んでしまう。F82 の 3 度目の再発で `trusted_main_cutoff` が
+  入ったが、救われるのは trusted が 1 つ以上ある形だけで、trusted 0 の連鎖 merge は残っていた。
+- 恒久対応: 複数の古い branch を取り込む wave は、**main から 1 つの merge commit で同時に取り込む**
+  (`git merge --no-ff --no-commit <b1> <b2> <b3>`)。main を唯一の trusted な親とする形にすれば
+  差分は追加のみになる。fragment の除外・編集も同じ commit の中で済ませる。
+- 再発検知: land 前に `git rev-list --reverse <tested-main>..<tip>` の各 commit について、親が 2 つ
+  以上あるなら少なくとも 1 つが `git merge-base --is-ancestor <parent> <tested-main>` を満たすことを
+  確認する。満たさない commit が 1 つでもあれば land は必ず止まる。
