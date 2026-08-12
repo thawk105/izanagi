@@ -14369,3 +14369,156 @@ skip されたままだった。`dispatch_compute` の `request_env` が allowli
 - CLI flag による opt-in — `run_tests.py` に flag を足すと `_is_acceptance_run` が False になり、
   受入形の事前検査が黙って発火しなくなる。
 - allowlist を「全通し」に変える — 親だけが所有する台帳状態が計算ノードへ漏れる。
+
+## D315. rollout の session 解決は候補行だけを parse し、同一性の錨は SHA pin に置く (2026-08-12)
+
+**決定:** `tools/codex_reasoning_ab.py` の `_find_rollout` は、`_json_lines` による全行 parse を
+やめ、専用 scanner `_session_meta_rows` が供給する `session_meta` 行だけを見る。候補判定は
+
+    b'"session_meta"' in line          # UTF-8 literal
+    or b"\\u00" in line                # ASCII 文字の JSON Unicode escape
+    or b"\x00" in line                 # json.loads が受理する UTF-16 / UTF-32
+
+の論理和とする。`_json_lines` 本体、`len(matches) != 1` の 5 行と rc、
+`payload.id` / `payload.session_id` の OR 条件、`sorted(rglob(...))` の全ファイル走査、
+`path.resolve()`、ファイルごとの `break` は不変に保つ。
+
+**決定 (2): 候補外行の非捕捉例外が消えることを認める。** 現行は全行を parse するため、
+`payload` に巨大整数を含む**非対象行**で `ValueError` (int 変換上限) が伝播して停止する。
+候補行だけを parse するとこの偶発停止を失う。**候補行側の例外境界は現行と同一に保つ**
+(`JSONDecodeError` と `UnicodeDecodeError` だけを握り潰し、`except Exception` へ広げない)。
+
+**理由:**
+- 遅さの主因がここにあることを一次資料と profile で確定した。構築 1 回 111.63s のうち
+  `_find_rollout` が 74.62s (67%)、`json.loads` は 3,030,525 回で 51.04s。
+  606,027 行 × 5 走査 = 3,030,135 が profile 実測とほぼ一致し、機序の同定が数値で成立した。
+- 対象行抽出の同一性を独立 2 経路で実証した。実 corpus 全 2,799 ファイル / 606,027 行の
+  突き合わせで不一致 0 (`json.loads` は 99.54% 削減)。敵対レンズの符号化網羅解析
+  (literal / `\u00XX` / BOM / CR / UTF-16LE,BE / UTF-32LE,BE / surrogate / `\/` / 大文字 `\U`) は
+  「正常 decode される対象行の false negative は構成不能」と結論した。DW-G03 の独立 2 例が成立する。
+- **失われるのは設計された検査ではない。** 停止していたのは無関係な行の病的 bytes による
+  偶発例外であり、返す path は 1 bit も変わらない。同一性の錨は `ROLLOUT_SHA256` であり、
+  `_find_rollout` の 5 呼出はいずれも直後に `_verify_rollout_sha` を走らせる。
+- 効果は実装前に paired で確定した。順序 ACB / BCA の 2 走で構築 1 回 87.58 / 86.94s →
+  52.74 / 52.94s = **39.1〜39.8%**。走間変動 1.75s の 1 桁上。
+  受入全走では同 fixture が 14 worker で構築されるため約 475s の work が消える。
+- 変異 9 件が全件 KILLED (MISMATCH 0 / SURVIVED 0)。述語の各分岐の削除・特定 escape 値への
+  縮小・例外捕捉の拡大・ID の OR 縮約・ファイル内 `break` の早期化・malformed 行での打切り・
+  `OSError` 捕捉の削除が、いずれも機械的に検出される。
+
+**却下した選択肢:**
+- **走査結果の memo 化** — root 単位 index は path 一覧を signature にしても
+  同一 path の書換・追記を検出できない。実際に本 wave の作業中だけで rollout が
+  2799 → 2806 → 2813 と増え、対象 root を不変と扱えないことが実測された。
+  追加効果は 17% にとどまり、stale の穴と釣り合わない。
+- **利用テストの xdist group 化** — 構築回数そのものを 14 → 1 にできるが、
+  過去のユーザー裁定と衝突するため再裁定を要する。鎖長の見積りも未確立である。
+- **POS/NEG fixture の遅延分割** — 片側だけを使うのは利用 17 本中 5 本で、効果が小さい。
+- **本番 clone の軽量化** (`--no-hardlinks` の除去、object closure 封印の省略) —
+  これらは検証している安全性質そのものであり、速度のために触らない。
+
+**残る比例コスト:** 本決定は走査の係数を下げるが、**比例そのものは消さない**。
+`~/.codex/sessions` は codex を使うほど増え、実測増加率は約 106 files/day、約 26 日で倍である。
+比例除去は別タスクとしてユーザー裁定へ返した。
+
+## D316. 生きた台帳に対する検査は、伸びる集合を literal で固定せず fail-closed 方向だけを釘付けする (2026-08-12)
+
+**決定:** `orchestrator/tests/test_t793_report.py` のうち**実 HEAD の `docs/decisions.md` を読む
+2 node** は、D291 supersession 走査が返す decision ID 集合の**完全一致を検査しない**。
+代わりに次を検査する。
+
+- `status == "possible_supersession"` (gate が fail-closed に発火すること)
+- `"D292" in decision_ids` (既知の実参照を取りこぼさないことの positive control)
+- `decision_ids` の構造健全性 (非空・重複なし・番号の昇順)
+
+**凍結 blob を使う 5 node (合成 `D999` を足すもの) は完全一致のまま変更しない。**
+これらは実 HEAD に依存しないので腐らず、集合の完全一致という検出力の本体はここに残る。
+
+**実装は本 wave のものではない。** 同じ赤に対し 3 wave が並行して同型の修正に到達し、
+セッション間で「先に land した方を採用し、もう一方は取り下げる」と合意した。
+[T-827] が先に land したため、**本 wave は自分の修正を取り下げて main の形を採用した**。
+本 D は、その形が正しい理由と、採ってはいけない代替案を台帳へ残すために書く。
+
+**理由:**
+- `_scan_d291_supersession` は自然言語から supersession と単なる参照を区別できないため、
+  「D291 より後の decision section に `D291` が一度でも現れたら承認済みと断言しない」という
+  **意図的に保守的な fail-closed 走査**である。よって返る ID 集合は、D291 に言及する決定が
+  増えれば必ず増える**生きた量**であり、literal で固定すると書いた瞬間から腐る。
+- 実害が出た。無関係な wave が D305 を land しただけで当該 2 node が赤になり、
+  **受入全走を経由する全 wave の land が止まった**。テストは production の欠陥を捕らえたのではなく、
+  台帳が正常に伸びたことを赤としていた。
+- **緩めた方向が安全である。** ID が増える方向は gate をより保守的にするだけで承認を緩めない。
+  危険なのは ID が減る / 空になる方向で、それは `status` と `"D292" in ...` が捕まえる。
+- 期待値を `("D292", "D305")` へ書き換える案は採らない。次に D291 を参照する決定が入った時点で
+  同じ停止が再発し、**修正のたびに全 wave を止める構造が残る**ため。
+
+**却下した選択肢:**
+- **既知赤 waiver (W1 形式) の新設** — 起草まで行ったがユーザー裁定で取り下げた。
+  waiver は赤を残したまま迂回する形であり、恒久ルール「テストがおかしければテストを直す」に反する。
+  しかも本件の集合は今後も伸び続けるので、waiver は事実上恒久化する。
+- **期待集合をテスト側で再導出する** — production の走査を再実装することになり、恒真な検査になる。
+
+**残る検出力の欠落:** 実 HEAD に対しては「余計な ID が増えていないこと」を検査しなくなる。
+これは gate を厳しくする方向の変化しか見逃さないので受理する。
+厳密な集合検査が要る場合は、凍結 blob 側 5 node に合成 decision を足して固定する。
+
+## D317. fold の復旧判定は phase でなく commit identity を権威にする (2026-08-12)
+
+**決定:** transaction state の `phase` は lifecycle の marker に留め、**復旧時に「この fold は
+commit 済みか」を決める権威は fold commit の identity** とする。identity は次の 5 条件の
+完全一致で判定する — 単一 parent が `origin.tested_tip` であること、author header が
+`<固定 identity> <unix timestamp> <±hhmm>` の厳密形であること、commit message の bytes が
+固定文言と一致すること、親との diff が state から導いた期待集合と **path 集合・status・mode・
+新 blob OID まで完全一致**すること、既存の宣言 fold 形状検査が受理すること。
+
+**理由:**
+- `git commit` の成功と phase の書換えは別の filesystem operation なので、その間で死ぬと
+  「`phase=applied` なのに main は fold commit」という相が必ず残る。phase を権威にすると、
+  この相は受理表の外側になり復旧できない。
+- 上の 5 条件が成り立つなら fold は実際に commit されている。**phase field は検証可能な事実を
+  1 つも足していない。** tree が phase と矛盾するとき phase を信じる方が危険である。
+- 逆に identity 検査を持たずに phase だけを緩めると、path 形状しか見ない既存の宣言検査では
+  mode を変えた手動 commit すら受理してしまう (実装前の敵対レビューが構成した)。
+
+**却下した選択肢:**
+- **phase を権威にし、`phase=committed` だけを受理する** — commit と phase 書換えの間の窓が
+  復旧不能のまま残る。
+- **commit 前に phase を `committed` にしておく** — 窓が「committed と宣言したが commit していない」
+  側へ移るだけで、鏡像の問題になる。
+- **commit message へ transaction ID を書いて束縛する** — 固定 message 契約と宣言 fold 検査へ
+  波及するため、本 wave では採らず独立項へ切り出した。
+
+## D318. 追記専用台帳の schema 拡張は位置的 cutover で強制する (2026-08-12)
+
+**決定:** 追記しかされない耐久 receipt (`docs/spool/FOLDED.md`) の record schema を拡張するとき、
+parser は**旧 exact 集合と新 exact 集合の 2 つだけ**を受理し、**新 record が 1 つ現れたら
+それ以降の record は新 exact 集合を必須**とする。第三の集合と、混在後の旧集合は拒否する。
+
+**理由:**
+- 既存 record を書き換えられない (履歴である) ため、旧集合の受理は避けられない。
+- しかし「新 field を個別に optional として読む」形にすると、**cutover 後に書かれた record が
+  新 field 無しで正式集合へ入れてしまう** — 検査が黙って無効になる fail-open である。
+- 位置的 cutover は file の中身だけで判定でき、外部の marker も時刻も要らず、単調である。
+
+**却下した選択肢:**
+- **新 field を optional にして「有れば検査する」** — 上記の fail-open。
+- **旧 record を一括で backfill する** — 値を推測することになり、耐久記録を捏造する。
+- **schema version 行を file 冒頭へ置く** — 追記専用の形を壊し、既存 consumer 全部に波及する。
+
+## D319. 採番を伴う transaction は入力 closure を束縛する (2026-08-12)
+
+**決定:** 台帳の採番を含む transaction は、HEAD や target だけでなく**その計画が実際に読んだ
+入力の closure** (canonical 台帳・archive・fragment・rotation 閾値・**採番と rendering を行う
+engine 自身の bytes**) の hash を束縛し、mutation 前に再計算して照合する。
+
+**理由:**
+- 採番の入力には target でないものが含まれる (archive 台帳、見送り台帳、閾値定数)。
+  target の before/after だけを束縛しても、**採番の入力が変わったことは検出できない**。
+  実際に、archive を変えてから resume させて重複 ID を作れることが前 wave で実測された。
+- HEAD の束縛だけでは足りない。同一 commit 内で入力を変えた場合や、HEAD を動かさない writer に
+  効かないうえ、**engine の未 commit な書換え**は HEAD を 1 bit も動かさずに採番を変えられる。
+
+**却下した選択肢:**
+- **HEAD だけを束縛する** — 上記の 2 経路に効かない。
+- **申告値 (caller が渡した値) を束縛する** — 束縛したことにならない。各値は束縛前に実体と照合する。
+- **入力ごとに個別の検査を足す** — 入力が増えるたびに検査を足し忘れる。closure は集合で閉じる。

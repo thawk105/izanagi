@@ -83,8 +83,22 @@ def _plan_with_marker_only_in_after_bytes(repo: Path, marker: bytes):
         altered_target if target.path == "docs/decisions.md" else target
         for target in plan.targets
     )
+    transaction_id = spool_fold._plan_transaction_id(
+        plan.fold_date,
+        plan.origin,
+        plan.input_closure_sha256,
+        plan.fragments,
+        plan.gc_paths,
+        plan.projected_worklog_bytes,
+        plan.rotation_path,
+        altered_targets,
+    )
     assert marker_path.name.encode("utf-8") not in fragment.read_bytes()
-    return dataclasses.replace(plan, targets=altered_targets)
+    return dataclasses.replace(
+        plan,
+        transaction_id=transaction_id,
+        targets=altered_targets,
+    )
 
 
 def test_p2_draft_markers_outside_approved_blobs_do_not_stop_fold() -> None:

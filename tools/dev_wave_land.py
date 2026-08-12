@@ -50,6 +50,7 @@ RC_FOLD_FAILED = 26
 RC_FOLD_RECOVERY_FAILED = 27
 RC_FOLD_ROLLBACK_FAILED = 28
 RC_PROVENANCE = 29
+RC_FOLD_FINALIZE_FAILED = 30
 
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
@@ -1329,7 +1330,7 @@ def _locked_preflight(
     target_normal_entries = _normal_entry_paths(repository.wave, tested_tip)
     gitlinks_changed = base_gitlinks != target_gitlinks
     locked_main, wave_ref = _verify_heads(repository, tested_tip)
-    if not _main_is_allowed(
+    if active_plan is None and not _main_is_allowed(
         repository, locked_main, tested_main, tested_tip, audited
     ):
         return LandResult(
@@ -1742,6 +1743,26 @@ def _fold_index_tree(repository: _Repository) -> str:
     )
 
 
+def _fold_ref_tree(repository: _Repository, revision: str) -> str:
+    return _decode_sha(
+        _require_git(
+            _git(repository.main, "rev-parse", "--verify", f"{revision}^{{tree}}"),
+            "fold rollback ref tree",
+            RC_FOLD_RECOVERY_FAILED,
+        ),
+        "fold rollback ref tree",
+        RC_FOLD_RECOVERY_FAILED,
+    )
+
+
+def _fsync_directory(path: Path) -> None:
+    directory_fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
 def _rollback_fold(
     repository: _Repository,
     *,
@@ -1750,6 +1771,7 @@ def _rollback_fold(
     index_tree: str,
     snapshots: Sequence[_PathSnapshot],
     state_path: Path,
+    expected_transaction_id: str,
 ) -> list[str]:
     failures: list[str] = []
     try:
@@ -1785,14 +1807,32 @@ def _rollback_fold(
             metadata = state_path.lstat()
             if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
                 failures.append("fold transaction state is symlink/non-regular")
-            elif not failures:
-                state_path.unlink()
+            else:
+                try:
+                    state = json.loads(state_path.read_bytes().decode("utf-8", errors="strict"))
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    failures.append(
+                        "fold transaction state transaction_id cannot be verified "
+                        f"({type(exc).__name__}: {exc})"
+                    )
+                else:
+                    observed_transaction_id = (
+                        state.get("transaction_id") if type(state) is dict else None
+                    )
+                    if observed_transaction_id != expected_transaction_id:
+                        failures.append(
+                            "fold transaction state transaction_id does not match "
+                            "the rollback plan; state preserved"
+                        )
+                    elif not failures:
+                        state_path.unlink()
+                        _fsync_directory(state_path.parent)
     except (OSError, RuntimeError, _Reject) as exc:
         failures.append(f"fold rollback raised {type(exc).__name__}: {exc}")
     return failures
 
 
-def _validate_generated_docs(repository: _Repository) -> None:
+def _validate_generated_docs(repository: _Repository, plan: object) -> None:
     """apply 済み・未 commit の canonical を既存 docs gate で検査する。"""
 
     checker = repository.main / "tools" / "check_docs.py"
@@ -1801,7 +1841,12 @@ def _validate_generated_docs(repository: _Repository) -> None:
     env = _git_env()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     completed = subprocess.run(
-        [sys.executable, str(checker)],
+        [
+            sys.executable,
+            str(checker),
+            "--expect-active-transaction",
+            getattr(plan, "transaction_id"),
+        ],
         cwd=repository.main,
         env=env,
         stdin=subprocess.DEVNULL,
@@ -1834,6 +1879,53 @@ def _preflight_fold_message(repository: _Repository, message_path: Path) -> None
     if completed.returncode != 0:
         detail = _detail(completed.stderr) or _detail(completed.stdout) or "no detail"
         raise RuntimeError(f"fold commit message preflight failed ({detail})")
+
+
+def _verify_fold_postconditions(
+    repository: _Repository,
+    *,
+    fold_commit: str,
+    expected_parent: str,
+    trusted_main_cutoff_sha: str,
+    tested_tip: str,
+    landed_commits: Sequence[str],
+    wave_ref: str,
+) -> None:
+    parent = _decode_sha(
+        _require_git(
+            _git(repository.main, "rev-parse", "--verify", f"{fold_commit}^"),
+            "fold commit parent",
+            RC_FOLD_FAILED,
+        ),
+        "fold commit parent",
+        RC_FOLD_FAILED,
+    )
+    if parent != expected_parent:
+        raise RuntimeError("fold commit parent is not the ff-only result")
+    if _symbolic_head(repository.main, "main post-fold") != "refs/heads/main":
+        raise RuntimeError("main symbolic HEAD moved during fold")
+    if _ref_sha(repository.main, "refs/heads/main", "main post-fold ref") != fold_commit:
+        raise RuntimeError("main ref does not equal fold commit")
+    if _head(repository.wave, "wave post-fold") != tested_tip:
+        raise RuntimeError("wave HEAD moved during fold")
+    if _symbolic_head(repository.wave, "wave post-fold") != wave_ref:
+        raise RuntimeError("wave symbolic ref moved during fold")
+    if _ref_sha(repository.wave, wave_ref, "wave post-fold ref") != tested_tip:
+        raise RuntimeError("wave ref moved during fold")
+    _verify_main_no_tracked_dirt(repository)
+    _verify_wave_clean(repository)
+    if _pending_spool_paths(repository.main):
+        raise RuntimeError("pending fragments reappeared after fold commit")
+    declared = verify_declared_fold_commit(
+        repository.main,
+        fold_commit_sha=fold_commit,
+        trusted_main_cutoff_sha=trusted_main_cutoff_sha,
+        landed_main_sha=fold_commit,
+        landed_commits=landed_commits,
+        wave_tip=tested_tip,
+    )
+    if not declared.ok:
+        raise RuntimeError(f"declared fold shape rejected: {declared.detail}")
 
 
 def _fold_main_locked(
@@ -1870,7 +1962,7 @@ def _fold_main_locked(
             return successful_land
         fold_paths = _fold_plan_paths(plan)
         fold.apply_fold(repository.main, plan)
-        _validate_generated_docs(repository)
+        _validate_generated_docs(repository, plan)
         pending_after = _pending_spool_paths(repository.main)
         if pending_after:
             raise RuntimeError(
@@ -1918,42 +2010,21 @@ def _fold_main_locked(
                 f"fold commit failed ({_detail(commit.stderr) or 'no detail'})"
             )
         fold_commit = _head(repository.main, "main post-fold")
-        parent = _decode_sha(
-            _require_git(
-                _git(repository.main, "rev-parse", "--verify", f"{fold_commit}^"),
-                "fold commit parent",
-                RC_FOLD_FAILED,
-            ),
-            "fold commit parent",
-            RC_FOLD_FAILED,
-        )
-        if parent != fold_base:
-            raise RuntimeError("fold commit parent is not the ff-only result")
-        if _symbolic_head(repository.main, "main post-fold") != "refs/heads/main":
-            raise RuntimeError("main symbolic HEAD moved during fold")
-        if _ref_sha(repository.main, "refs/heads/main", "main post-fold ref") != fold_commit:
-            raise RuntimeError("main ref does not equal fold commit")
-        if _head(repository.wave, "wave post-fold") != tested_tip:
-            raise RuntimeError("wave HEAD moved during fold")
-        if _symbolic_head(repository.wave, "wave post-fold") != wave_ref:
-            raise RuntimeError("wave symbolic ref moved during fold")
-        if _ref_sha(repository.wave, wave_ref, "wave post-fold ref") != tested_tip:
-            raise RuntimeError("wave ref moved during fold")
-        _verify_main_no_tracked_dirt(repository)
-        _verify_wave_clean(repository)
-        if _pending_spool_paths(repository.main):
-            raise RuntimeError("pending fragments reappeared after fold commit")
-        declared = verify_declared_fold_commit(
+        plan = fold.mark_fold_committed(
             repository.main,
-            fold_commit_sha=fold_commit,
-            trusted_main_cutoff_sha=trusted_main_cutoff_sha,
-            landed_main_sha=fold_commit,
-            landed_commits=landed_commits,
-            wave_tip=tested_tip,
+            plan,
+            fold_commit=fold_commit,
         )
-        if not declared.ok:
-            raise RuntimeError(f"declared fold shape rejected: {declared.detail}")
-        return LandResult(
+        _verify_fold_postconditions(
+            repository,
+            fold_commit=fold_commit,
+            expected_parent=fold_base,
+            trusted_main_cutoff_sha=trusted_main_cutoff_sha,
+            tested_tip=tested_tip,
+            landed_commits=landed_commits,
+            wave_ref=wave_ref,
+        )
+        successful_fold = LandResult(
             RC_OK,
             "landed",
             "main fast-forwarded to the tested wave tip and folded pending fragments",
@@ -1970,6 +2041,7 @@ def _fold_main_locked(
             index_tree=index_tree,
             snapshots=snapshots,
             state_path=state_path,
+            expected_transaction_id=getattr(plan, "transaction_id"),
         )
         try:
             main_after = _head(repository.main, "main after fold failure")
@@ -2001,6 +2073,89 @@ def _fold_main_locked(
                 message_path.unlink()
             except FileNotFoundError:
                 pass
+    try:
+        fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)
+    except (Exception, KeyboardInterrupt) as exc:
+        return LandResult(
+            RC_FOLD_FINALIZE_FAILED,
+            "fold-finalize-failed",
+            f"fold finalize failed after verified commit: {type(exc).__name__}: {exc}",
+            successful_land.main_before,
+            fold_commit,
+            tested_tip,
+            fold_commit,
+        )
+    return successful_fold
+
+
+def _finalize_recovered_fold_commit(
+    repository: _Repository,
+    *,
+    fold: object,
+    plan: object,
+    fold_commit: str,
+    main_before: str | None,
+    tested_tip: str,
+    landed_commits: Sequence[str],
+    wave_ref: str,
+) -> LandResult:
+    """検証済みの形 B を再 apply / 再 commit せず完遂する。"""
+
+    try:
+        fold.verify_fold_commit_identity(
+            repository.main,
+            plan,
+            fold_commit=fold_commit,
+        )
+        phase = getattr(plan, "phase", None)
+        if phase == "applied":
+            plan = fold.mark_fold_committed(
+                repository.main,
+                plan,
+                fold_commit=fold_commit,
+            )
+        elif phase != "committed":
+            raise RuntimeError(f"stored fold transaction phase is not recoverable: {phase!r}")
+        origin = getattr(plan, "origin")
+        _verify_fold_postconditions(
+            repository,
+            fold_commit=fold_commit,
+            expected_parent=origin.tested_tip,
+            trusted_main_cutoff_sha=origin.trusted_main_cutoff,
+            tested_tip=tested_tip,
+            landed_commits=landed_commits,
+            wave_ref=wave_ref,
+        )
+    except (Exception, KeyboardInterrupt) as exc:
+        return LandResult(
+            RC_FOLD_RECOVERY_FAILED,
+            "fold-recovery-failed",
+            f"stored fold commit recovery failed: {type(exc).__name__}: {exc}",
+            main_before,
+            fold_commit,
+            tested_tip,
+        )
+    try:
+        fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)
+    except (Exception, KeyboardInterrupt) as exc:
+        return LandResult(
+            RC_FOLD_FINALIZE_FAILED,
+            "fold-finalize-failed",
+            f"fold finalize failed after verified commit: {type(exc).__name__}: {exc}",
+            main_before,
+            fold_commit,
+            tested_tip,
+            fold_commit,
+        )
+    return LandResult(
+        RC_OK,
+        "landed",
+        "verified active fold commit finalized without reapplying or recommitting",
+        main_before,
+        fold_commit,
+        tested_tip,
+        fold_commit,
+    )
 
 
 def _postcondition(
@@ -2129,7 +2284,7 @@ def land(request: LandRequest) -> LandResult:
             if isinstance(preflight, LandResult):
                 return preflight
             main_before = preflight.locked_main
-            if preflight.locked_main != tested_tip:
+            if preflight.locked_main != tested_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
                 os.close(lock_fd)
                 lock_fd = -1
@@ -2201,41 +2356,84 @@ def land(request: LandRequest) -> LandResult:
             locked_main = preflight.locked_main
             wave_ref = preflight.wave_ref
             if active_plan is not None:
-                if locked_main != tested_tip:
+                state_path = fold._state_path(repository.main)
+                origin = getattr(active_plan, "origin", None)
+                if getattr(origin, "kind", None) == "standalone":
                     return LandResult(
                         RC_FOLD_RECOVERY_FAILED,
                         "fold-recovery-failed",
-                        "active fold transaction requires main at the tested wave tip",
+                        "standalone-origin fold transaction cannot be auto-recovered; "
+                        f"state={state_path.absolute()}; "
+                        "lock-aware finalize command は未実装",
                         main_before,
                         locked_main,
                         tested_tip,
                     )
                 try:
-                    layout_issues = fold.validate_spool_layout(repository.main)
-                    if layout_issues:
+                    if origin is None or origin.kind != "land":
+                        raise RuntimeError("stored fold origin is not land")
+                    if origin.wave_ref != wave_ref:
+                        raise RuntimeError("stored fold origin wave_ref does not match the request")
+                    if origin.tested_tip != tested_tip:
+                        raise RuntimeError("stored fold origin tested_tip does not match the request")
+                    transaction_id = getattr(active_plan, "transaction_id", None)
+                    complete_issues = fold.validate_spool_tree(
+                        repository.main,
+                        expected_transaction_id=transaction_id,
+                    )
+                    if complete_issues:
                         raise RuntimeError(
-                            "active transaction spool layout invalid: "
-                            + "; ".join(issue.message for issue in layout_issues)
+                            "active transaction complete shape invalid: "
+                            + "; ".join(issue.message for issue in complete_issues)
                         )
                     fold_paths = _fold_plan_paths(active_plan)
                     _verify_supervised_fragment_wave(wave_ref, active_plan)
                     pending_before = _pending_spool_paths(repository.main)
                     if set(pending_before) - set(fold_paths):
                         raise RuntimeError("stored fold plan does not cover every pending fragment candidate")
-                    index_tree = _fold_index_tree(repository)
-                    # tracked before-state は tested_tip の tree から復元できる。plan が新設する
-                    # path だけを明示して、resume 後の検査失敗でも untracked 残骸を残さない。
-                    recovery_snapshots = tuple(
-                        _PathSnapshot(target.path, False, b"", 0)
-                        for target in getattr(active_plan, "targets", ())
-                        if not getattr(target, "before_exists", True)
-                    )
-                    state_path = fold._state_path(repository.main)
                 except (Exception, KeyboardInterrupt) as exc:
                     return LandResult(
                         RC_FOLD_RECOVERY_FAILED,
                         "fold-recovery-failed",
                         f"stored fold transaction preflight failed: {type(exc).__name__}: {exc}",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
+                if locked_main != tested_tip:
+                    return _finalize_recovered_fold_commit(
+                        repository,
+                        fold=fold,
+                        plan=active_plan,
+                        fold_commit=locked_main,
+                        main_before=main_before,
+                        tested_tip=tested_tip,
+                        landed_commits=audited,
+                        wave_ref=wave_ref,
+                    )
+                if getattr(active_plan, "phase", None) != "applied":
+                    return LandResult(
+                        RC_FOLD_RECOVERY_FAILED,
+                        "fold-recovery-failed",
+                        "shape A requires an applied transaction at origin.tested_tip",
+                        main_before,
+                        locked_main,
+                        tested_tip,
+                    )
+                try:
+                    index_tree = _fold_ref_tree(repository, origin.rollback_ref)
+                    # tracked before-state は stored rollback ref の tree から復元する。
+                    # plan が新設する path だけを snapshot し、untracked 残骸を残さない。
+                    recovery_snapshots = tuple(
+                        _PathSnapshot(target.path, False, b"", 0)
+                        for target in getattr(active_plan, "targets", ())
+                        if not getattr(target, "before_exists", True)
+                    )
+                except (Exception, KeyboardInterrupt) as exc:
+                    return LandResult(
+                        RC_FOLD_RECOVERY_FAILED,
+                        "fold-recovery-failed",
+                        f"stored fold rollback preflight failed: {type(exc).__name__}: {exc}",
                         main_before,
                         locked_main,
                         tested_tip,
@@ -2253,11 +2451,11 @@ def land(request: LandRequest) -> LandResult:
                     recovery,
                     fold=fold,
                     plan=active_plan,
-                    trusted_main_cutoff_sha=tested_main,
+                    trusted_main_cutoff_sha=origin.trusted_main_cutoff,
                     tested_tip=tested_tip,
                     landed_commits=audited,
                     wave_ref=wave_ref,
-                    rollback_ref=tested_tip,
+                    rollback_ref=origin.rollback_ref,
                     snapshots=recovery_snapshots,
                     index_tree=index_tree,
                     state_path=state_path,
@@ -2265,7 +2463,20 @@ def land(request: LandRequest) -> LandResult:
 
             fold_date = _land_fold_date()
             try:
-                plan = fold.plan_fold(repository.wave, fold_date=fold_date)
+                origin = fold.FoldOrigin(
+                    kind="land",
+                    base=locked_main,
+                    tested_tip=tested_tip,
+                    wave_ref=wave_ref,
+                    rollback_ref=locked_main,
+                    trusted_main_cutoff=tested_main,
+                    audited_digest=fold.audited_commit_digest(tuple(audited)),
+                )
+                plan = fold.plan_fold(
+                    repository.wave,
+                    fold_date=fold_date,
+                    origin=origin,
+                )
                 fold_paths = _fold_plan_paths(plan)
                 _verify_supervised_fragment_wave(wave_ref, plan)
                 pending_candidate = _pending_spool_paths(repository.wave)
