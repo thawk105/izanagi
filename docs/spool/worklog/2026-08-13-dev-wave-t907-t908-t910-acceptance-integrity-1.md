@@ -47,9 +47,9 @@ title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の�
   ユーザーの既裁定に従い上限は上げず、運用の正本である `docs/pegasus-runbook.md` §7.3 だけを
   更新した。`DW-O23` 側の欠落で起きるのは rc=2 の明示的な失敗であって静かな誤結果ではない。
   収容先は {{T:dev-wave-docs-land-receipt-contract}} へ起票した。
-- **`tools/dev_wave_wait.py producer` の fail-open を 4 回実測した。** 投入直後に張った
+- **`tools/dev_wave_wait.py producer` の fail-open を 5 回実測した。** 投入直後に張った
   待ち手が、`.done` も成果物も無く producer が生存しているのに出力ゼロ・rc=0 で即座に返る
-  (02:44 / 03:12 / 03:55 / 03:58 JST)。毎回「成果物実在 + `.done` + producer 死」の 3 点照合で
+  (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。毎回「成果物実在 + `.done` + producer 死」の 3 点照合で
   検知して張り直したため進行には影響しなかったが、これは本 wave の主題 (受入 gate の
   fail-closed 化) と同型の欠陥である。{{T:waiter-producer-completion-fail-open}} へ起票した。
 - **段 5 の子が 1 本 model call 上限 (既定 100) で SIGTERM され、完了報告を残さず落ちた。**
@@ -59,31 +59,44 @@ title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の�
 - **検査結果。** 焦点走 269 passed / 1 failed (`test_exploration_external_root_keeps_wave_clean`
   = [T-892]、焦点走限定・本差分と無関係)。provenance 全史監査 3,074 件・新規違反なし。
   `check_docs` 違反なし。
+- **受入全走 = 1 failed / 10,363 passed / 65 skipped** (115.84 秒、tested tip `dbf32a64`、
+  待ち手経由、2026-08-13 04:19 JST)。唯一の赤は
+  `orchestrator/tests/test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`
+  で、**main 単独で決定的に再現する**ことを親が独立に実測した
+  (`validate_condition_freeze_at(repo, d864fd4b)` → `PreregistrationError [octopus-merge] d1de13ad`)。
+  本 wave の差分とは無関係である。
+- **本 wave は land しない。** 受入 command が rc≠0 だったため、裁定どおり **receipt は
+  発行されなかった** (gate は設計どおり動作した)。しかしこれにより、
+  **[T-908] (a) の実装と 2026-08-13 の既知赤裁定が両立しないことが実証された** —
+  main に既知赤がある間、どの wave も receipt を作れず land できなくなる。
+  これは第 8 束の [T-908] 裁定時点で未見の相互作用なので、`DW-S04` に従い親は不採用にせず
+  ユーザー再裁定へ戻す。詳細と選択肢は {{T:acceptance-receipt-vs-known-red}}。
+  lease は待ち手が終端で release 済み (lease directory が空であることを実測)。
 
 ## 次の一手差分
 
-### 完了
+### 更新
 
-- [T-907] 受入 command の走行後に `postrun-clean` / index flag 検査 / 走行前後の tree
+- [T-907] **P2・実装済み・land 待ち (2026-08-13)**: 走行後に `postrun-clean` / index flag 検査 / 走行前後の tree
   fingerprint 比較を足した。child rc が非 0 でも必ず走り、木が変わっていれば rc=70 が
   child rc に優先する。fingerprint は HEAD SHA / clean status / binary diff / recursive
   submodule status を label と byte 長つきで SHA-256 に入れた自己完結実装。
-  remaining: none
-  base: 7ba4fc1d1aa5a91a7e70e6d2ce8c1ea7bbb1861bd1c1fb7c5002aa07a711fb90
-- [T-908] 待ち手経由だけを権威ある dev-wave 受入と定義した。待ち手が repo 外へ closed JSON の
-  receipt を発行し、`tools/dev_wave_land.py` が必須 consumer として検証する。欠落・不正・
-  予約 temp 名前空間・束縛不一致は rc=23 で main を 1 bit も変えず拒否し、`already-landed` も
-  通さない。逃がし道は作っていない。`run_tests.py` 側への同等 gate は裁定どおり不実装。
-  remaining: none
-  base: 2669abec60592af887e3f817cc40a267349f1a2c3b81b86dddb64a063679e8f2
-- [T-910] `output/env/pegasus/floor/job-staging/` を ignore し 88 file を index から外した
-  (disk bytes は全 file sha256 一致で保持)。`attempts/submissions/` の 51 file は tracked のまま
-  (index は byte 単位で不変)。受入の clean 述語を `--untracked-files=all` へ強めた。
-  remaining: none
-  base: ad682e9c86434ff627c7b8085c31098a7f5a5526d3b033efda35492bdf7b7e76
-
-### 更新
-
+  変異で単一理由の KILLED を確認済み。land は {{T:acceptance-receipt-vs-known-red}} の裁定待ち。
+  base: 9eb93a3c673bdff1c5eb8413ca68df4c3d3ab45fd70c3c320ceaebb2b0032bf5
+- [T-908] **P2・実装済み・land 待ち (2026-08-13)**: 待ち手経由だけを権威ある dev-wave 受入と
+  定義した。待ち手が repo 外へ closed JSON の receipt を発行し、`tools/dev_wave_land.py` が
+  必須 consumer として検証する。欠落・不正・予約 temp 名前空間・束縛不一致は rc=23 で main を
+  1 bit も変えず拒否し、`already-landed` も通さない。逃がし道は作っていない。
+  `run_tests.py` 側への同等 gate は裁定どおり不実装。
+  **受入で gate が設計どおり発火して receipt が出ず、既知赤裁定との非両立が実証された** —
+  land は {{T:acceptance-receipt-vs-known-red}} の裁定待ち。
+  base: f2aaabe1257417ddc985a8b083c8e18732fc500be10d7d9bd40879cbb46b104e
+- [T-910] **P2・実装済み・land 待ち (2026-08-13)**: `output/env/pegasus/floor/job-staging/` を
+  ignore し 88 file を index から外した (disk bytes は全 file sha256 一致で保持)。
+  `attempts/submissions/` の 51 file は tracked のまま (index は byte 単位で不変)。
+  受入の clean 述語を `--untracked-files=all` へ強めた。
+  land は {{T:acceptance-receipt-vs-known-red}} の裁定待ち。
+  base: 531003015c3ad665b6bf7a01a038e50074f9ebc9b2c32bfba20305895f298e1c
 - [T-892] **P3・優先度を上げる (2026-08-13 実測)**: 本 wave の変異 1 巡目で、
   この赤が **baseline を FAILED にして harness の production write を止めた**。
   起票文が予告した「変異 harness の baseline が緑にならず部分集合の変異検査が原理的に
@@ -92,9 +105,26 @@ title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の�
 
 ### 新規
 
+- {{T:acceptance-receipt-vs-known-red}} **P1・新規・ユーザー裁定待ち (2026-08-13 実測)**:
+  **[T-908] (a) の実装と 2026-08-13 の既知赤裁定が両立しない。** 前者は「受入 command が
+  rc=0 でなければ receipt を出さない、逃がし道を作らない」で、後者は「既知の赤で受入を
+  止めてはいけない、記録に残して land してよい」である。main tip に既知赤がある間
+  (`test_s8c_preregistration_invariant.py::test_candidate_freeze_matches_contract_and_generation_chain`、
+  4 親 octopus merge `d1de13ad` 由来、`d864fd4b` 単独で決定的に再現)、
+  **どの wave も receipt を作れず land できなくなる**。本 wave の受入
+  (1 failed / 10,363 passed / 65 skipped) がこれを実証した。
+  選択肢: (a) 既知赤を解消する修正 (`_assert_history_transition` の n 親一般化) を先に land し、
+  receipt 契約はそのまま発効させる。(b) 批准済み既知赤 nodeid の registry を作り、
+  失敗集合がその部分集合なら receipt を発行して**赤の nodeid を receipt へ明記**する
+  (未知の赤は従来どおり fail-closed、CLI flag は作らない)。(c) [T-908] の land 必須化を
+  取り下げ、待ち手 receipt の発行だけを実装して consumer は後続裁定へ送る。
+  **親の推奨は (b)** — (a) は既知赤が再発するたびに fleet が止まる構造を残し、
+  (c) は「記録不可」が機械で担保されない。(b) は fail-closed を保ったまま、
+  批准という人間の判断を機械が読める形に落とす。
+  成果物影響 = 未裁定のままだと本 wave の 3 件が land できず、受入 integrity の穴が開いたまま残る。
 - {{T:waiter-producer-completion-fail-open}} **P2・新規**: `tools/dev_wave_wait.py producer` が、
   `.done` も成果物も存在せず producer が生存している状態で、出力ゼロ・rc=0 で即座に返る
-  ことがある。2026-08-13 に 4 回実測 (02:44 / 03:12 / 03:55 / 03:58 JST)。
+  ことがある。2026-08-13 に 5 回実測 (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。
   親が 3 点照合 (成果物実在 + `.done` + producer 死) で検知して張り直したため実害は出ていないが、
   待ち手を信じる呼び手は「子が成功した」と誤認する。成果物影響 = 子の成果物なしで次段へ進み、
   context 無しの出力をレビュー結果と数える経路が開く。
