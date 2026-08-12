@@ -1,7 +1,7 @@
 {
   "purpose": "段 8a D 偵察の必須前提 (a): 要因別 abort 頻度の事前実測。characterization であり性能計測ではない — 性能数値なし。trace I/O 下の分布につき相対分布は参考値、不感判定 (=0) のみ設計入力 (構造的性質で trace I/O に不変)。",
   "env_tag": "linux-baremetal",
-  "ccbench_commit": "d706650",
+  "ccbench_commit": "511c953",
   "genome": "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0",
   "clocks_per_us": 1800,
   "records": 1000000,

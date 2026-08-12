@@ -48,7 +48,7 @@ _G_FLOOR = 0.05
 _GOLDEN_BYTES = (
     b'{"allowed_excluded_reasons":["competing_process","launch_failure",'
     b'"nonfinite_or_partial_output","performance_anomaly"],'
-    b'"ccbench_pin":"d706650cdb31e442bef45b9b4216951d4fb40969",'
+    b'"ccbench_pin":"511c9538e4e8efa54b45cda62e72389ed3b706ec",'
     b'"cell_cv_max":"0.15",'
     b'"contract_sha256":"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7",'
     b'"env_tag":"linux-baremetal","extime_s":5,"formula":"s8b-floor-stats/v2",'
@@ -60,7 +60,7 @@ _GOLDEN_BYTES = (
     b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
     b'"wired_min_rel_floor":0.05}'
 )
-_GOLDEN_SHA = "03b7393a00f4e161475fa7142e0c4ed58a4d83d46bd653d3133a6de5b5bd3f9f"
+_GOLDEN_SHA = "32e306c1e009adf03eabcbb314bb3542d7c76e892462213d759660c618e7dc4d"
 
 
 def _requires_repo() -> None:
@@ -115,7 +115,7 @@ def test_approved_constants_protocol_bytes_match_parent_precalculation():
         wired_min_rel_floor=s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR,
     )
     assert len(built.canonical_bytes) == 774
-    assert built.sha256 == "261cec1c7f423b3eebff41ee716d2bfe2c6fa9a10a9dd86d91eaf71612e74aac"
+    assert built.sha256 == "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a"
 
 
 def test_builder_rejects_holdout_conjunction_in_master_seed():

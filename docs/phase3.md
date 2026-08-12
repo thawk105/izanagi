@@ -283,6 +283,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    gate 3 点 (contention 再現・trace 規模・赤検出力) all_pass。pipeline 配線 (D36 決定 4) は段 5 で完了。
    正本 = D36・`output/env/linux-baremetal/calibration/s2_verify_t48_skew0p9_rr50_rmw0.json`・
    `orchestrator/campaign/s2_verify_calibration.py`。
+   **2026-08-12 [T-816]**: 同 driver は自分の歴史 pin (`dff0f1e`、trace v2 以前) から build するため
+   出力は v1 形式であり、trace v2 専用化した現行 verifier では correctness leg を再現できない。
+   driver と校正値は歴史記録として据え置く (再現するなら trace 形式を v2 へ上げた再 build が要る)。
 2. **(完了 2026-07-06) S4 load_rejections consumer 実体化** — LivenessRejection 別型 / render_rejections
    (verdict 軸 3 形状) / verify abort 率シグナル / critic.md 消費規定 / integrity-class positive control。
    赤 2 本実走で「赤 → 構造化 → critic が読んで方向を返す」まで実証 (実証の線引き: 「還流」= 次 variant

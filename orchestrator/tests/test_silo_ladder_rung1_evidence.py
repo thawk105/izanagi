@@ -42,8 +42,6 @@ from orchestrator.campaign.silo_ladder_rung1 import (  # noqa: E402
     validate_compile_argv,
     validate_nqsv_accounting_epilogue,
 )
-from orchestrator.verifier.core import verify_trace_dir  # noqa: E402
-from orchestrator.verifier.report import result_to_dict  # noqa: E402
 
 
 EVIDENCE = (
@@ -74,6 +72,10 @@ HISTORICAL_SILO_EVIDENCE_IDENTITY = (
     "e0e3779e67b3c67deacf7ea5bb2165aace4909d25e423f3e8df5c9a55fa5a3c2",
     "753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49",
     "92affaabf723d83c10731a9b506aceb346e3652a8aeedcba85d48f52a31355f8",
+)
+HISTORICAL_CCBENCH_PIN_FULL = "d706650cdb31e442bef45b9b4216951d4fb40969"
+HISTORICAL_LEDGER_SHA256 = (
+    "34d6bfe7d81fcdb3381532ac1d6aadb3b70a20d56be027dd2f584b610cddf603"
 )
 
 
@@ -1041,27 +1043,20 @@ def _assert_raw_correctness(
     )
     assert len(trace_paths) == 4
     summaries = []
-    with tempfile.TemporaryDirectory(prefix="rung1-evidence-traces-") as temp:
-        trace_root = Path(temp)
-        for path in trace_paths:
-            name = Path(path).name
-            raw = raw_by_path[path]
-            (trace_root / name).write_bytes(raw)
-            lines = raw.decode("utf-8").splitlines()
-            summaries.append({
-                "path": name,
-                "commits": sum(line.startswith("C ") for line in lines),
-                "non_insert_write_witness": any(
-                    len(parts := line.split()) == 6
-                    and parts[0] == "W"
-                    and parts[3] in {"U", "D"}
-                    for line in lines
-                ),
-            })
-        recomputed = result_to_dict(verify_trace_dir(str(trace_root)))
-    recorded_result = correctness["verifier"]["results"][0]
-    recomputed["trace_dir"] = recorded_result["trace_dir"]
-    assert recomputed == recorded_result
+    for path in trace_paths:
+        name = Path(path).name
+        lines = raw_by_path[path].decode("utf-8").splitlines()
+        summaries.append({
+            "path": name,
+            "commits": sum(line.startswith("C ") for line in lines),
+            "non_insert_write_witness": any(
+                len(parts := line.split()) == 6
+                and parts[0] == "W"
+                and parts[3] in {"U", "D"}
+                for line in lines
+            ),
+        })
+    # 2026-08-12 [T-816] trace v2 専用化により、この凍結 bundle (d706650 期・v1) の trace 再検証は退役。bytes と記録済み verifier 結果は不変。
     assert summaries == correctness["trace_files"]
     build = correctness["build"]
     for path in ("binary.nm.txt", "transaction.nm.txt", "binary.readelf.txt"):
@@ -1239,7 +1234,8 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
     assert binding["patch"]["path"] == entry["path"]
     assert patch_sha == binding["patch"]["sha256"] == entry["patch_sha256"]
     assert binding["ledger"]["path"] == "patches/ledger.json"
-    assert binding["ledger"]["sha256"] == _sha256(LEDGER.read_bytes())
+    assert binding["ledger"]["sha256"] == HISTORICAL_LEDGER_SHA256
+    assert binding["ledger"]["sha256"] != _sha256(LEDGER.read_bytes())
     expected_bound_paths = {
         "driver": "orchestrator/campaign/silo_ladder_rung1.py",
         "pbs_job": "tools/pegasus/silo_ladder_rung1.sh",
@@ -1266,7 +1262,9 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
 
     pin = binding["ccbench_pin_full"]
     assert isinstance(pin, str) and HEX40.fullmatch(pin)
-    assert pin == PIN == entry["base_commit"]
+    assert pin == HISTORICAL_CCBENCH_PIN_FULL
+    assert PIN == entry["base_commit"]
+    assert pin != PIN
     # 意図的に `git rev-parse HEAD` は参照しない。content/pin receipt のみへ束縛する。
 
     activation = evidence["activation_contract"]

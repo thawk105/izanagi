@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """段 5 driver: write_set permutation-preservation assert の機械 gate (D41 決定2)。
 
-validationPhase の #if TRACE assert (izanagi-trace d706650) が「歯を持つ」ことを
+validationPhase の #if TRACE assert (izanagi-trace 511c953) が「歯を持つ」ことを
 positive control で機械実証する。s3_lock_coverage.py (D38, lock 被覆 assert) と
 対称の様式 — こちらは sort が write_set_ の要素を欠落/複製させていないかを検査する。
 
@@ -19,7 +19,7 @@ D41 の新規死角1 (非 strict-weak-order comparator の std::sort UB) は「c
 
 裸マクロ (IZANAGI_BREAK_PERMUTATION*) は CCBENCH_ 名前空間外ゆえ pipeline からは
 定義不能 = この driver + 手動 -D でのみビルド (s3_lock_coverage.py と同じ理由)。
-PIN = pin.CURRENT_PIN (d706650、permutation 保存 assert 込み)。実行は直列 (単一
+PIN = pin.CURRENT_PIN (511c953、permutation 保存 assert 込み)。実行は直列 (単一
 テナント確認済み前提)。fitness は測らない (正しさ検証のみ)。
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ from .patchharness import applied, assert_pinned_clean         # noqa: E402
 from .materializer_admission import non_admissible_materializer  # noqa: E402
 
 
-PIN = pin.CURRENT_PIN                    # d706650 (izanagi-trace, permutation 保存 assert 込み)
+PIN = pin.CURRENT_PIN                    # 511c953 (izanagi-trace, permutation 保存 assert 込み)
 ENV_TAG = "linux-baremetal"
 CLK = 2100
 RUN_TIMEOUT_S = 120.0

@@ -1,7 +1,7 @@
 {
   "what": "S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)",
   "frozen_at_head": "2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1",
-  "ccbench_pin": "d706650cdb31e442bef45b9b4216951d4fb40969",
+  "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
   "generator": {
     "path": "orchestrator/campaign/s1_known_axes_freeze.py",
     "sha256": "1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0"

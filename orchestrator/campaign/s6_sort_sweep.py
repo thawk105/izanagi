@@ -74,7 +74,7 @@ from .pipeline import (SEARCH_CONFIG_VERIFY_KEY,          # noqa: E402
                                VERIFY_LEGACY_PLUS_S2, PerfConfig, variant_id)
 
 
-PIN = pin.CURRENT_PIN                 # d706650 (sort 軸系 driver と同一 pin)
+PIN = pin.CURRENT_PIN                 # 511c953 (sort 軸系 driver と同一 pin)
 ENV_TAG = "linux-baremetal"
 CLK = 1800
 NUMA = ["numactl", "--interleave=all"]

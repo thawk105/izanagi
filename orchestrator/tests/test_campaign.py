@@ -304,6 +304,11 @@ _T343_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-balanced-sweep-09c1364f",
     "backoff-sweep-silo-read-heavy-sweep-adad17bc",
 })
+_T816_BACKOFF_CAMPAIGN_IDS = frozenset({
+    "backoff-sweep-silo-write-heavy-sweep-172b45ad",
+    "backoff-sweep-silo-balanced-sweep-2899b6a7",
+    "backoff-sweep-silo-read-heavy-sweep-57160b6c",
+})
 _T530_BACKOFF_CAMPAIGN_IDS = frozenset({
     "backoff-sweep-silo-write-heavy-sweep-d0589634",
     "backoff-sweep-silo-balanced-sweep-255794e7",
@@ -316,6 +321,10 @@ _PRE_T343_S6_CAMPAIGN_IDS = frozenset({
 _T343_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-c5a978ca",
     "p3-s6-sort-sweep-write-heavy-sweep-dde984c3",
+})
+_T816_S6_CAMPAIGN_IDS = frozenset({
+    "p3-s6-sort-sweep-balanced-sweep-36c93671",
+    "p3-s6-sort-sweep-write-heavy-sweep-e6174b76",
 })
 _T530_S6_CAMPAIGN_IDS = frozenset({
     "p3-s6-sort-sweep-balanced-sweep-cc0921a0",
@@ -624,10 +633,14 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
     saved_lookup = ec.lookup
     ec.lookup = lambda _env_tag: _T530_CONTRACT
     try:
-        backoff_cfgs = [
+        t343_backoff_cfgs = [
             _bound(dataclasses.replace(
                 backoff_config(tag, workload), ccbench_commit="dff0f1e",
             ))
+            for tag, workload in BACKOFF_WORKLOADS
+        ]
+        current_backoff_cfgs = [
+            _bound(backoff_config(tag, workload))
             for tag, workload in BACKOFF_WORKLOADS
         ]
         s6_cfgs = [
@@ -635,10 +648,15 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
         ]
     finally:
         ec.lookup = saved_lookup
-    current_backoff = {str(ident.campaign_id(cfg)) for cfg in backoff_cfgs}
-    # T-671 で H が preimage から消え、current は T343 値になる。
-    assert current_backoff == _T343_BACKOFF_CAMPAIGN_IDS
-    assert current_backoff.isdisjoint(_T530_BACKOFF_CAMPAIGN_IDS)
+    t343_backoff = {str(ident.campaign_id(cfg)) for cfg in t343_backoff_cfgs}
+    assert t343_backoff == _T343_BACKOFF_CAMPAIGN_IDS
+    current_backoff = {
+        str(ident.campaign_id(cfg)) for cfg in current_backoff_cfgs
+    }
+    assert current_backoff == _T816_BACKOFF_CAMPAIGN_IDS
+    assert current_backoff.isdisjoint(
+        _T343_BACKOFF_CAMPAIGN_IDS | _T530_BACKOFF_CAMPAIGN_IDS
+    )
 
     historical_s6 = set()
     for tag in ("balanced", "write-heavy"):
@@ -665,11 +683,11 @@ def test_screening_none_keeps_representative_legacy_campaign_ids_unchanged():
             },
         ))
     assert historical_s6 == _PRE_T343_S6_CAMPAIGN_IDS
-    # 同じ理由で S6 current も T530 H 込み値ではなく T343 値になる。
+    # T-816 pin 前進後の current は歴史的 T343/T530 集合と分離する。
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs} == \
-        _T343_S6_CAMPAIGN_IDS
+        _T816_S6_CAMPAIGN_IDS
     assert {str(ident.campaign_id(cfg)) for cfg in s6_cfgs}.isdisjoint(
-        _T530_S6_CAMPAIGN_IDS
+        _T343_S6_CAMPAIGN_IDS | _T530_S6_CAMPAIGN_IDS
     )
 
 
@@ -6012,9 +6030,10 @@ def test_pipeline_write_intent_violation_aborts_without_commit():
     """I 行入り trace は実 parser/verifier を通って correctness gate で reject される。
     cycle ではないため serializable=True のまま indeterminate、fitness/COMMIT は無し。"""
     trace_content = (
-        "C 0 0 5 10\n"
+        "C 0 0 5 10 0 1\n"
         "W 0 aa U 5 10\n"
         "I 0 aa write-set-entry-without-intent\n"
+        "E 0\n"
     )
     i_rows = [line for line in trace_content.splitlines() if line.startswith("I ")]
     assert i_rows == ["I 0 aa write-set-entry-without-intent"]  # DW-M03: 単一理由
@@ -6183,7 +6202,7 @@ def test_pipeline_preexisting_trace_rejects_with_structured_wal():
 
 def test_pipeline_tail_loss_witness_reaches_verifier():
     lay = _tmp_layout()
-    trace = "C 0 0 1 1\nW 0 aa U 1 1\n"
+    trace = "C 0 0 1 1 0 1\nW 0 aa U 1 1\n"
     r, calls = _eval(
         lay, do_bench=False, trace_content=trace,
         ncommit=1, commit_witness=2,
@@ -6317,7 +6336,7 @@ def test_run_trace_rejects_non_ycsb_binary_before_subprocess():
 def test_run_trace_rejects_preexisting_trace_files_before_subprocess():
     tdir = _tmpdir("izanagi_runtrace_stale_")
     with open(os.path.join(tdir, "trace_0.log"), "w", encoding="ascii") as stream:
-        stream.write("C 0 0 1 1\n")
+        stream.write("C 0 0 1 1 0 0\nE 0\n")
     calls = []
 
     def subprocess_spy(*args, **kwargs):

@@ -38,6 +38,7 @@ def test_green_fixtures():
         res = _verify(name)
         assert res.serializable, f"{name} should be serializable: {res.anomalies}"
         assert not res.anomalies, f"{name} unexpected anomalies"
+        assert res.integrity.framing_violations == 0
 
 
 def test_g4_has_rw_edge_but_no_cycle():
@@ -182,6 +183,7 @@ def test_parser_groups_by_txid_across_files():
     assert issues.missing_txids == 0
     assert issues.write_version_mismatches == []
     assert issues.malformed_keys == 0
+    assert issues.framing_violations == []
     assert len(txns) == 2
     by = {t.txid: t for t in txns}
     assert by[0].commit == (1, 1) and len(by[0].writes) == 1
@@ -204,14 +206,267 @@ def _tmp_trace(*files: str) -> str:
     return d
 
 
+_V2_FIXTURE_FILES = (
+    "g1_serial/trace_0.log",
+    "g2_rmw_chain/trace_0.log",
+    "g3_readonly/trace_0.log",
+    "g3_readonly/trace_1.log",
+    "g4_rw_no_cycle/trace_0.log",
+    "integrity_orphan/trace_0.log",
+    "m1_commit_at_genesis/trace_0.log",
+    "m2_version_dup/trace_0.log",
+    "p1_phantom_skew/trace_0.log",
+    "p1_phantom_skew/trace_1.log",
+    "r1_write_skew/trace_0.log",
+    "r2_lost_update/trace_0.log",
+    "r2_lost_update/trace_1.log",
+    "r3_cycle3/trace_0.log",
+    "r4_mixed_cycle/trace_0.log",
+    "r5_nonlatest_transitive/trace_0.log",
+)
+
+
+def test_all_v2_fixture_files_have_clean_framing():
+    actual = []
+    for root, _dirs, files in os.walk(FIX):
+        for filename in files:
+            if filename.startswith("trace_") and filename.endswith(".log"):
+                actual.append(os.path.relpath(os.path.join(root, filename), FIX))
+    assert tuple(sorted(actual)) == _V2_FIXTURE_FILES
+    for dirname in sorted({os.path.dirname(path) for path in _V2_FIXTURE_FILES}):
+        res = _verify(dirname)
+        assert res.integrity.framing_violations == 0, (
+            dirname, res.integrity.notes)
+
+
+def test_v1_c_record_is_rejected():
+    """5-field C は意図的に残す唯一の v1 literal。専用 ParseError にする。"""
+    import shutil
+    d = _tmp_trace("C 0 0 1 1\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "trace v1 C record must be rejected"
+        except ParseError as exc:
+            assert "trace v1 C record is not supported" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_c_record_requires_exactly_seven_fields():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 0 0 extra\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "C with extra fields must be rejected"
+        except ParseError as exc:
+            assert "expected exactly 7 fields" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_negative_txid_is_rejected_before_gap_math_can_cancel_it():
+    """{-1, 1} は旧 max(txid)+1-len(txns) だと欠番を相殺できた。構文で拒否する。"""
+    import shutil
+    d = _tmp_trace(
+        "C -1 0 1 1 0 0\nE -1\n"
+        "C 1 0 1 2 0 0\nE 1\n")
+    try:
+        try:
+            verify_trace_dir(d)
+            assert False, "negative txid must be rejected"
+        except ParseError as exc:
+            assert "txid must be a non-negative integer" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_negative_declared_counts_are_rejected():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 -1 0\nE 0\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "negative declared count must be rejected"
+        except ParseError as exc:
+            assert "declared read/write counts must be non-negative" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_declared_read_and_write_counts_must_match():
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 1 0\nE 0\n",   # read だけ不足
+        "C 1 1 1 2 0 1\nE 1\n",   # write だけ不足
+    )
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert [v.kind for v in issues.framing_violations] == [
+            "count-mismatch", "count-mismatch",
+        ]
+        first, second = issues.framing_violations
+        assert (first.expected_reads, first.observed_reads) == (1, 0)
+        assert (first.expected_writes, first.observed_writes) == (0, 0)
+        assert (second.expected_reads, second.observed_reads) == (0, 0)
+        assert (second.expected_writes, second.observed_writes) == (1, 0)
+        res = verify_trace_dir(d)
+        assert res.integrity.framing_violations == 2
+        assert res.serializable is True
+        assert res.verdict == "indeterminate"
+        assert res.certified is False
+        assert result_to_dict(res)["integrity"]["framing_violations"] == 2
+        assert "framing_violations=2" in render_text(res)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_missing_end_is_indeterminate():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 0 0\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert [v.kind for v in issues.framing_violations] == ["missing-end"]
+        res = verify_trace_dir(d)
+        assert res.integrity.framing_violations == 1
+        assert res.serializable is True
+        assert res.verdict == "indeterminate"
+        assert res.certified is False
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_duplicate_end_is_indeterminate():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 0 0\nE 0\nE 0\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert [v.kind for v in issues.framing_violations] == ["duplicate-end"]
+        res = verify_trace_dir(d)
+        assert res.n_txns == 1
+        assert res.integrity.framing_violations == 1
+        assert res.verdict == "indeterminate"
+        assert res.certified is False
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_end_txid_mismatch_is_parse_error():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 0 0\nE 1\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "mismatched E txid must be rejected"
+        except ParseError as exc:
+            assert "E txid 1 does not match open txn 0" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_end_record_requires_exactly_two_fields():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 0 0\nE 0 extra\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "E with extra fields must be rejected"
+        except ParseError as exc:
+            assert "expected exactly 2 fields" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_new_commit_before_end_records_missing_end():
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 0 0\n"
+        "C 1 0 1 2 0 0\nE 1\n")
+    try:
+        _txns, issues = parse_trace_dir(d)
+        assert [(v.kind, v.txid) for v in issues.framing_violations] == [
+            ("missing-end", 0),
+        ]
+        res = verify_trace_dir(d)
+        assert res.n_txns == 2
+        assert res.integrity.framing_violations == 1
+        assert res.verdict == "indeterminate"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_non_immediate_duplicate_end_remains_parse_error():
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 0 0\nE 0\n"
+        "C 1 0 1 2 0 0\nE 1\n"
+        "E 0\n")
+    try:
+        try:
+            parse_trace_dir(d)
+            assert False, "non-immediate duplicate E must remain ParseError"
+        except ParseError as exc:
+            assert "E for txid 0 has no matching open txn" in str(exc)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_zero_read_zero_write_frame_is_valid():
+    import shutil
+    d = _tmp_trace("C 0 0 1 1 0 0\nE 0\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.integrity.framing_violations == 0
+        assert res.integrity.clean()
+        assert res.verdict == "serializable"
+        assert res.certified
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_x_and_i_records_do_not_count_as_reads_or_writes():
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 0 0\n"
+        "X 0 aa not-locked-at-entry\n"
+        "I 0 aa write-set-entry-without-intent\n"
+        "E 0\n")
+    try:
+        txns, issues = parse_trace_dir(d)
+        assert len(txns) == 1
+        assert txns[0].reads == [] and txns[0].writes == []
+        assert issues.framing_violations == []
+        res = verify_trace_dir(d)
+        assert res.integrity.framing_violations == 0
+        assert res.n_reads == 0 and res.n_writes == 0
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_cycle_verdict_takes_priority_over_framing_violation():
+    import shutil
+    d = _tmp_trace(
+        "C 0 0 1 1 1 1\nR 0 aa 1 0\nW 0 bb U 1 1\nE 0\n"
+        "C 1 0 1 2 1 1\nR 1 bb 1 0\nW 1 aa U 1 2\n")
+    try:
+        res = verify_trace_dir(d)
+        assert res.serializable is False
+        assert res.integrity.framing_violations == 1
+        assert res.verdict == "non-serializable"
+        assert res.certified is False
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def test_missing_txid_gap_indeterminate():
     """txid 欠番 = trx 丸ごと欠落 (thread の trace ファイル欠落等) は認証しない。
 
     write-skew の片側 trace ファイルを丸ごと除去すると cycle が消えて serializable に
     見える (実証済み偽陰性)。txid 密連番保証の破れとして indeterminate に倒す。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nW 0 aa U 1 1\n",
-                   "C 2 1 1 2\nW 2 bb U 1 2\n")     # txid 1 が欠番
+    d = _tmp_trace("C 0 0 1 1 0 1\nW 0 aa U 1 1\nE 0\n",
+                   "C 2 1 1 2 0 1\nW 2 bb U 1 2\nE 2\n")  # txid 1 が欠番
     try:
         res = verify_trace_dir(d)
         assert res.integrity.missing_txids == 1
@@ -229,7 +484,7 @@ def test_write_version_mismatch_indeterminate():
     blind write の ww 順序ずれは orphan_reads に乗らないため、この照合が無いと
     cycle を見逃しうる (Phase 3 の合成 CC の trace 口への防壁)。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nW 0 aa U 999 888\n")
+    d = _tmp_trace("C 0 0 1 1 0 1\nW 0 aa U 999 888\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.write_version_mismatch == 1
@@ -244,7 +499,7 @@ def test_malformed_key_indeterminate():
     """key の表現揺れ (大文字 hex 等) は同一キーを別キーに見せ競合辺を黙って消すため
     認証しない (片側 key を AA にすると辺 0 本で緑になる実証済み偽陰性)。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nW 0 AA U 1 1\n")
+    d = _tmp_trace("C 0 0 1 1 0 1\nW 0 AA U 1 1\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.malformed_keys == 1
@@ -258,7 +513,7 @@ def test_commit_below_genesis_indeterminate():
     """genesis 番兵 (1,0) 未満の commit (epoch=0 等) も非物理として認証しない
     (ちょうど (1,0) だけでなく辞書順で下も弾く)。"""
     import shutil
-    d = _tmp_trace("C 0 0 0 5\nW 0 aa U 0 5\n")
+    d = _tmp_trace("C 0 0 0 5 0 1\nW 0 aa U 0 5\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.genesis_commits == 1
@@ -271,10 +526,12 @@ def test_commit_below_genesis_indeterminate():
 def test_dup_txid_indeterminate():
     """同一 txid の C 行 2 回 (txid 発番の破れ) は認証しない。last-wins で最初の trx の
     R/W が失われ、落ちた辺が cycle を隠して false-green になるため indeterminate に
-    倒す。integrity 7 条件のうち唯一 verdict 級 positive control が無かった穴を閉じる
+    倒す。既存 integrity 条件のうち唯一 verdict 級 positive control が無かった穴を閉じる
     (S4 consumer 段の敵対検証 fixture-1)。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nW 0 aa U 1 1\nC 0 0 1 2\nW 0 aa U 1 2\n")
+    d = _tmp_trace(
+        "C 0 0 1 1 0 1\nW 0 aa U 1 1\nE 0\n"
+        "C 0 0 1 2 0 1\nW 0 aa U 1 2\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.dup_txids == 1
@@ -300,7 +557,9 @@ def test_lock_coverage_violation_indeterminate():
     'integrity 同型かつ non-serializable' は機構的に両立不能なので indeterminate に確定。"""
     import shutil
     # 1 txn が lock を持たずに key aa を書いた (それ自体は cycle を生まない serializable)。
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nX 0 aa not-locked-at-entry\n")
+    d = _tmp_trace(
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
+        "X 0 aa not-locked-at-entry\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.lock_coverage_violations == 1
@@ -318,7 +577,7 @@ def test_lock_coverage_control_serializable():
     """X 行の無い同じ形は serializable/certified (非恒真の基底 = assert は正しいコード
     で沈黙する)。lockskip fixture との唯一の差が X 行であることを示す negative control。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace("C 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.lock_coverage_violations == 0
@@ -332,8 +591,10 @@ def test_lock_coverage_reasons_parsed():
     """2 reason (獲得欠落 not-locked-at-entry / 保持破れ lock-lost-before-write) が
     parse され、件数と (txid,key,reason) 見本が issues に載る (critic の読み分け素材)。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nX 0 aa not-locked-at-entry\n"
-                   "X 0 aa lock-lost-before-write\n")
+    d = _tmp_trace(
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
+        "X 0 aa not-locked-at-entry\n"
+        "X 0 aa lock-lost-before-write\nE 0\n")
     try:
         _txns, issues = parse_trace_dir(d)
         assert len(issues.lock_coverage_violations) == 2
@@ -351,7 +612,9 @@ def test_lock_coverage_reasons_parsed():
 def test_lock_coverage_malformed_key_flagged():
     """X 行の key も hex 形式検査を通す (表現揺れは帰属を汚すため、規律3)。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nX 0 AA not-locked-at-entry\n")
+    d = _tmp_trace(
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
+        "X 0 AA not-locked-at-entry\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.lock_coverage_violations == 1
@@ -371,8 +634,8 @@ def test_write_intent_violation_indeterminate_and_reports_json_text():
     JSON と text の両 report surface に同じ固定件数が出ることも一緒に固定する。"""
     import shutil
     d = _tmp_trace(
-        "C 0 0 5 10\nW 0 aa U 5 10\n"
-        "I 0 aa write-set-entry-without-intent\n")
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
+        "I 0 aa write-set-entry-without-intent\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.write_intent_violations == 1
@@ -390,7 +653,7 @@ def test_write_intent_violation_indeterminate_and_reports_json_text():
 def test_write_intent_control_serializable():
     """I 行の無い同じ形は clean/serializable/certified のまま (過剰拒否の正対照)。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace("C 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.write_intent_violations == 0
@@ -406,9 +669,9 @@ def test_write_intent_reasons_parsed_and_summarized():
     """契約上の 2 reason を (txid,key,reason) で保持し、件数内訳と見本を notes に出す。"""
     import shutil
     d = _tmp_trace(
-        "C 0 0 5 10\nW 0 aa U 5 10\n"
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
         "I 0 aa write-set-entry-without-intent\n"
-        "I 0 bb intent-missing-from-write-set\n")
+        "I 0 bb intent-missing-from-write-set\nE 0\n")
     try:
         _txns, issues = parse_trace_dir(d)
         assert issues.write_intent_violations == [
@@ -429,8 +692,8 @@ def test_write_intent_malformed_key_flagged():
     """I 行の key も X と同じ小文字偶数長 hex 検査を通す。"""
     import shutil
     d = _tmp_trace(
-        "C 0 0 5 10\nW 0 aa U 5 10\n"
-        "I 0 AA write-set-entry-without-intent\n")
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
+        "I 0 AA write-set-entry-without-intent\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.write_intent_violations == 1
@@ -444,15 +707,15 @@ def test_write_intent_txid_must_match_open_txn():
     """I は P と違って txid 相関型であり、別 txn への誤帰属を _expect が拒否する。"""
     import shutil
     d = _tmp_trace(
-        "C 0 0 5 10\nW 0 aa U 5 10\n"
-        "I 1 aa write-set-entry-without-intent\n")
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\n"
+        "I 1 aa write-set-entry-without-intent\nE 0\n")
     try:
         try:
             parse_trace_dir(d)
             assert False, "mismatched I txid は ParseError でなければならない"
         except ParseError as exc:
             assert "txid 1 does not match open txn 0" in str(exc)
-            assert "C/R/W/X/I must be contiguous" in str(exc)
+            assert "C/R/W/X/I must be inside one contiguous C/E frame" in str(exc)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -460,7 +723,7 @@ def test_write_intent_txid_must_match_open_txn():
 def test_write_intent_unknown_reason_counted_and_indeterminate():
     """未知の非空 reason も I 違反として保持し、分類シグナルを失わない。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nI 0 aa invented-reason\n")
+    d = _tmp_trace("C 0 0 5 10 0 0\nI 0 aa invented-reason\nE 0\n")
     try:
         _txns, issues = parse_trace_dir(d)
         assert issues.write_intent_violations == [
@@ -493,7 +756,7 @@ def test_permutation_violation_indeterminate():
     """P 行 (permutation 保存違反) は verdict を indeterminate に倒す。txid を持たない
     ので txn ブロックの外 (C 行の前) に単独で出現しても正しくパースされる。"""
     import shutil
-    d = _tmp_trace("P size-changed\nC 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace("P size-changed\nC 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.permutation_violations == 1
@@ -511,7 +774,7 @@ def test_permutation_violation_control_serializable():
     """P 行の無い同じ形は serializable/certified (非恒真の基底 = assert は正しい sort
     で沈黙する)。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace("C 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.permutation_violations == 0
@@ -524,7 +787,9 @@ def test_permutation_violation_control_serializable():
 def test_permutation_violation_reasons_parsed():
     """2 reason (size-changed / rcdptr-set-changed) が parse され件数が issues に載る。"""
     import shutil
-    d = _tmp_trace("P size-changed\nP rcdptr-set-changed\nC 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace(
+        "P size-changed\nP rcdptr-set-changed\n"
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         _txns, issues = parse_trace_dir(d)
         assert len(issues.permutation_violations) == 2
@@ -542,7 +807,10 @@ def test_permutation_violation_between_txn_blocks():
     独立して出現しうる (validationPhase は txn 単位でなくワーカーのタイムライン上の
     任意の点で走るため)。txid 相関検査 (_expect) を通らないことの確認。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\nP rcdptr-set-changed\nC 1 0 5 11\nW 1 bb U 5 11\n")
+    d = _tmp_trace(
+        "C 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n"
+        "P rcdptr-set-changed\n"
+        "C 1 0 5 11 0 1\nW 1 bb U 5 11\nE 1\n")
     try:
         res = verify_trace_dir(d)
         assert res.integrity.permutation_violations == 1
@@ -560,8 +828,9 @@ def test_abort_reason_tally_parsed_not_verdict():
     受理される。要因別カウントが VerifyResult.abort_reasons と JSON stats に載る
     (coverage driver の整合検査入力、D48 必須条件 3)。"""
     import shutil
-    d = _tmp_trace("A lock-conflict\nC 0 0 5 10\nW 0 aa U 5 10\n"
-                   "A lock-conflict\nA readvali-tid\n")
+    d = _tmp_trace(
+        "A lock-conflict\nC 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n"
+        "A lock-conflict\nA readvali-tid\n")
     try:
         res = verify_trace_dir(d)
         assert res.abort_reasons == {"lock-conflict": 2, "readvali-tid": 1}
@@ -577,7 +846,7 @@ def test_abort_reason_tally_parsed_not_verdict():
 def test_abort_reason_absent_is_empty():
     """A 行の無い通常 trace では abort_reasons は空 dict (通常 verify の出力不変性)。"""
     import shutil
-    d = _tmp_trace("C 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace("C 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         res = verify_trace_dir(d)
         assert res.abort_reasons == {}
@@ -589,7 +858,7 @@ def test_abort_reason_absent_is_empty():
 def test_unknown_tag_still_parse_error_after_a():
     """A タグを足しても未知タグの fails-closed (ParseError) は不変 (規律2)。"""
     import shutil
-    d = _tmp_trace("Z bogus\nC 0 0 5 10\nW 0 aa U 5 10\n")
+    d = _tmp_trace("Z bogus\nC 0 0 5 10 0 1\nW 0 aa U 5 10\nE 0\n")
     try:
         try:
             verify_trace_dir(d)
@@ -603,14 +872,14 @@ def test_unknown_tag_still_parse_error_after_a():
 # ---- 既知偽陰性の characterization ----
 #
 # witness を渡す live 経路では FN-1 を分離する。一方、witness を省略できる optional
-# API は後方互換のため旧挙動を維持し、FN-1 が残ることを意図的に固定する。
-# FN-2 (C 行は残るが trx 尾部の R/W が消える) は submodule 権限外のまま残す。
+# API には末尾 txid 全体が消える FN-1 だけが残る。FN-2 (C 行は残るが trx 尾部の
+# R/W/E が消える) は v2 の件数・終端 framing で分離する。
 
 def test_characterization_tail_txid_gap_is_false_green():
     """witness を渡さない optional API では FN-1 が残る (意図した後方互換)。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
-                   "W 0 0000000000000002 U 1 1\n")   # r1 から txid 1 を尾部切り
+    d = _tmp_trace("C 0 0 1 1 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\nE 0\n")  # txid 1 を丸ごと切る
     try:
         res = verify_trace_dir(d)
         assert res.integrity.missing_txids == 0      # 末尾欠番は欠番に数えられない
@@ -625,8 +894,8 @@ def test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness():
     欠番検査は expected = max(txid)+1 で数えるため、write-skew (r1) の txid 1 側を
     丸ごと落としても missing_txids は 0 のまま。commit witness だけが FN-1 を分離する。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
-                   "W 0 0000000000000002 U 1 1\n")   # r1 から txid 1 を尾部切り
+    d = _tmp_trace("C 0 0 1 1 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\nE 0\n")  # txid 1 を丸ごと切る
     try:
         res = verify_trace_dir(d, expected_commits=2)
         assert res.integrity.missing_txids == 0      # 末尾欠番は欠番に数えられない
@@ -639,28 +908,30 @@ def test_characterization_tail_txid_gap_is_indeterminate_with_commit_witness():
         shutil.rmtree(d, ignore_errors=True)
 
 
-def test_characterization_txn_tail_loss_is_false_green():
-    """FN-1 は witness で分離済みだが、FN-2 は submodule 権限外で残る。
+def test_characterization_txn_tail_loss_is_indeterminate():
+    """v2 framing は C が残る trx 尾部欠落 (FN-2) を認証しない。
 
-    trx 尾部欠落 (C 行だけ残り R/W 行が消失) は検出されない。現 trace 形式は C 行に
-    R/W 件数を持たないため、R/W ゼロの trx と切り詰められた trx を区別できない —
-    write-skew (r1) の txid 1 の R/W を落とすと辺が消えて certified serializable。"""
+    write-skew (r1) の txid 1 の R/W/E を落とすと DSG の cycle 自体は消えるが、
+    count-mismatch と missing-end が欠落を構造化して indeterminate に倒す。"""
     import shutil
-    d = _tmp_trace("C 0 0 1 1\nR 0 0000000000000001 1 0\n"
-                   "W 0 0000000000000002 U 1 1\n"
-                   "C 1 0 1 2\n")                    # txid 1 は C 行のみ (R/W 消失)
+    d = _tmp_trace("C 0 0 1 1 1 1\nR 0 0000000000000001 1 0\n"
+                   "W 0 0000000000000002 U 1 1\nE 0\n"
+                   "C 1 0 1 2 1 1\n")              # txid 1 の R/W/E が消失
     try:
         res = verify_trace_dir(d)
         assert res.integrity.missing_txids == 0      # 欠番はない (txid は連続)
-        assert res.certified, "偽陰性が塞がれた? → 本テストを反転し S1 台帳を閉じよ"
+        assert res.serializable is True
+        assert res.integrity.framing_violations == 2
+        assert res.verdict == "indeterminate"
+        assert res.certified is False
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
 
 def _complete_two_file_trace() -> str:
     return _tmp_trace(
-        "C 0 0 1 1\nW 0 aa U 1 1\n",
-        "C 1 1 1 2\nW 1 bb U 1 2\n",
+        "C 0 0 1 1 0 1\nW 0 aa U 1 1\nE 0\n",
+        "C 1 1 1 2 0 1\nW 1 bb U 1 2\nE 1\n",
     )
 
 
@@ -786,6 +1057,7 @@ def test_result_to_dict_without_commit_witness_matches_frozen_json_bytes():
     "missing_txids": 0,
     "write_version_mismatch": 0,
     "malformed_keys": 0,
+    "framing_violations": 0,
     "lock_coverage_violations": 0,
     "write_intent_violations": 0,
     "permutation_violations": 0,
@@ -801,8 +1073,8 @@ def test_result_to_dict_without_commit_witness_matches_frozen_json_bytes():
 def test_matching_commit_witness_does_not_mask_existing_integrity_failure():
     import shutil
     d = _tmp_trace(
-        "C 0 0 1 1\nW 0 aa U 1 1\n",
-        "C 2 1 1 2\nW 2 bb U 1 2\n",
+        "C 0 0 1 1 0 1\nW 0 aa U 1 1\nE 0\n",
+        "C 2 1 1 2 0 1\nW 2 bb U 1 2\nE 2\n",
     )
     try:
         res = verify_trace_dir(d, expected_commits=2)
@@ -890,7 +1162,7 @@ def test_nonascii_wrapped_as_parse_error():
     import tempfile
     d = tempfile.mkdtemp(prefix="izanagi_trace_")
     with open(os.path.join(d, "trace_0.log"), "wb") as f:
-        f.write(b"C 0 0 1 1\n\xff\xfe garbage\n")
+        f.write(b"C 0 0 1 1 0 0\nE 0\n\xff\xfe garbage\n")
     try:
         try:
             verify_trace_dir(d)

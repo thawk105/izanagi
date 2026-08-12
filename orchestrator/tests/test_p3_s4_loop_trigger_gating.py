@@ -1822,7 +1822,7 @@ def test_default_cfg_wires_s2_verify_and_axis():
     assert cfg.search_config.get("axis") == T.MARKER_ID
     assert cfg.search_config.get("trigger_gate_binding_schema") == \
         TRIGGER_GATE_BINDING_SCHEMA
-    assert cfg.ccbench_commit == T.PIN == "d706650"
+    assert cfg.ccbench_commit == T.PIN == "511c953"
 
 
 def test_default_cfg_identity_distinct_from_sort():

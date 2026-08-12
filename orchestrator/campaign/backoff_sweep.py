@@ -43,7 +43,7 @@ from .loop import CampaignSummary                       # noqa: E402
 from .pipeline import SCREEN_REJECTION_REASON, variant_id  # noqa: E402
 
 
-CCBENCH_COMMIT = pin.CURRENT_PIN      # d706650 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
+CCBENCH_COMMIT = pin.CURRENT_PIN      # 511c953 — literal 保持をやめ pin 正本へ (between_run_floor と同型)
 
 # 全 genome 共通の base = 高 abort 域の勝者構成 L-W0 (no-wait-locking / WAL 無)。
 _BASE = {"NO_WAIT_LOCKING_IN_VALIDATION": 1, "NO_WAIT_OF_TICTOC": 0, "WAL": 0}
