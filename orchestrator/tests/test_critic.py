@@ -6,6 +6,7 @@ pytest でも 素の `python orchestrator/tests/test_critic.py` でも走る。
 from __future__ import annotations
 
 import atexit
+import copy
 import hashlib
 import os
 import shutil
@@ -36,6 +37,7 @@ from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        #
                             STAGE_COMMIT, STAGE_VERIFY_DONE,
                             CampaignConfig, Genome)
 from orchestrator.campaign.pin import CURRENT_PIN                              # noqa: E402
+from orchestrator.campaign.sort_swo_oracle import CORPUS_ID                   # noqa: E402
 from orchestrator.campaign.source_digest import (                              # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
@@ -43,6 +45,7 @@ from orchestrator.campaign.source_digest import (                              #
 from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection,  # noqa: E402
                            IdentityProjection, LivenessRejection,
                            Rejection, VerifyAbortSignal,
+                           _validated_oracle_finding,
                            build_digest, load_diff_rejections,
                            load_liveness_rejections, load_rejections,
                            load_screen_rejections, load_verify_abort_signals,
@@ -60,6 +63,89 @@ def render_rejections(*args, **kwargs):
     """既存 renderer 期待値は明示 raw 診断として維持する。"""
     kwargs["identity_projection"] = IdentityProjection.RAW
     return _render_rejections(*args, **kwargs)
+
+
+_INVALID_ORACLE_FINDING = {
+    "anomaly_code": "sort-swo-oracle-finding-schema-invalid",
+}
+
+
+def _oracle_diagnostic():
+    return {
+        "captured_bytes": 10,
+        "total_bytes": 20,
+        "sha256": "d" * 64,
+        "truncated": True,
+    }
+
+
+def _valid_oracle_findings():
+    corpus = f"{CORPUS_ID}/corpus-0"
+    pair = {"lhs_index": 1, "rhs_index": 2}
+    return {
+        "axiom": {
+            "kind": "axiom",
+            "reason_code": "swo-asymmetric",
+            "corpus_id": corpus,
+            "order_id": 0,
+            "counterexample": {
+                "axiom": "asymmetric",
+                "input_pairs": [pair, {"lhs_index": 2, "rhs_index": 1}],
+            },
+        },
+        "compile": {
+            "kind": "compile",
+            "reason_code": "candidate-compile-failed",
+            "corpus_id": CORPUS_ID,
+            "compiler_diagnostic": _oracle_diagnostic(),
+        },
+        "execution": {
+            "kind": "execution",
+            "reason_code": "candidate-comparator-threw",
+            "corpus_id": corpus,
+            "order_id": 1,
+        },
+        "mutation": {
+            "kind": "mutation",
+            "reason_code": "corpus-mutated-by-comparator",
+            "corpus_id": corpus,
+            "order_id": 1,
+            "input_pairs": [pair],
+            "observations": [{"point": "after-call", "changed": True}],
+        },
+        "nondeterministic": {
+            "kind": "nondeterministic",
+            "reason_code": "relation-varies-within-process",
+            "corpus_id": corpus,
+            "order_id": 1,
+            "input_pairs": [pair],
+            "observations": [
+                {
+                    "point": "first-pass",
+                    "lhs_index": 1,
+                    "rhs_index": 2,
+                    "value": True,
+                },
+                {
+                    "point": "second-pass-after-other-pairs",
+                    "lhs_index": 1,
+                    "rhs_index": 2,
+                    "value": False,
+                },
+            ],
+        },
+        "structure": {
+            "kind": "structure",
+            "reason_code": "materialized-marker-invalid",
+            "corpus_id": CORPUS_ID,
+        },
+        "timeout": {
+            "kind": "timeout",
+            "reason_code": "candidate-compile-cpu-limit-exceeded",
+            "corpus_id": CORPUS_ID,
+            "compiler_diagnostic": _oracle_diagnostic(),
+        },
+    }
 
 
 def _tmp_layout():
@@ -840,6 +926,136 @@ def test_projected_candidate_label_is_never_rendered_as_variant_field():
     assert f"variant={projected}" not in out
 
 
+def test_oracle_finding_accepts_exact_producer_keysets():
+    findings = _valid_oracle_findings()
+    findings["timeout-run"] = {
+        "kind": "timeout",
+        "reason_code": "candidate-run-cpu-limit-exceeded",
+        "corpus_id": f"{CORPUS_ID}/corpus-1",
+        "order_id": 2,
+    }
+    for finding in findings.values():
+        assert _validated_oracle_finding(finding) == finding
+
+
+def test_oracle_finding_rejects_unknown_key_for_every_kind():
+    for finding in _valid_oracle_findings().values():
+        finding["unknown_key"] = "must-not-be-projected"
+        assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+def test_oracle_finding_rejects_unknown_reason_code_for_every_kind():
+    for finding in _valid_oracle_findings().values():
+        finding["reason_code"] = "unknown-reason-code"
+        assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+def test_oracle_finding_rejects_non_canonical_corpus_id():
+    for corpus_id in (
+        "arbitrary-corpus",
+        f"{CORPUS_ID}/corpus-2",
+        f"{CORPUS_ID}/corpus-0/suffix",
+    ):
+        finding = _valid_oracle_findings()["structure"]
+        finding["corpus_id"] = corpus_id
+        assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+def test_oracle_finding_rejects_protocol_kind():
+    finding = {
+        "kind": "protocol",
+        "reason_code": "record-size-mismatch",
+        "corpus_id": CORPUS_ID,
+    }
+    assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+def test_oracle_finding_accepts_real_producer_mutation_finding():
+    finding = _valid_oracle_findings()["mutation"]
+    assert finding == {
+        "kind": "mutation",
+        "reason_code": "corpus-mutated-by-comparator",
+        "corpus_id": f"{CORPUS_ID}/corpus-0",
+        "order_id": 1,
+        "input_pairs": [{"lhs_index": 1, "rhs_index": 2}],
+        "observations": [{"point": "after-call", "changed": True}],
+    }
+    assert _validated_oracle_finding(finding) == finding
+
+
+def test_oracle_finding_accepts_real_producer_nondeterministic_finding():
+    within_process = _valid_oracle_findings()["nondeterministic"]
+    across_process = {
+        "kind": "nondeterministic",
+        "reason_code": "relation-varies-across-process-order",
+        "corpus_id": f"{CORPUS_ID}/corpus-0",
+        "order_id": 0,
+        "input_pairs": [{"lhs_index": 1, "rhs_index": 2}],
+        "observations": [
+            {
+                "point": "fresh-process",
+                "order_id": order_id,
+                "lhs_index": 1,
+                "rhs_index": 2,
+                "value": value,
+            }
+            for order_id, value in ((0, True), (1, False), (2, True))
+        ],
+    }
+    assert _validated_oracle_finding(within_process) == within_process
+    assert _validated_oracle_finding(across_process) == across_process
+
+
+def test_oracle_finding_rejects_invalid_observation_schema():
+    invalid_observations = (
+        [],
+        [{"point": "after-call"}] * 9,
+        ["after-call"],
+        [{}],
+        [{"point": "after-call", **{f"key-{index}": index for index in range(8)}}],
+        [{"point": "after-call", 1: "non-string-key"}],
+        [{"point": "after-call", "": True}],
+        [{"point": "after-call", "é" * 33: True}],
+        [{"point": "after-call", "value": 1.0}],
+        [{"point": "after-call", "value": None}],
+        [{"point": "after-call", "value": {"nested": True}}],
+        [{"point": "after-call", "value": [True]}],
+        [{"point": "after-call", "value": "é" * 81}],
+        [{"point": "unknown-producer-point", "value": True}],
+        [{"point": ["after-call"], "value": True}],
+        [{"point": "after-call", "value": "\ud800"}],
+    )
+    for observations in invalid_observations:
+        finding = copy.deepcopy(_valid_oracle_findings()["mutation"])
+        finding["observations"] = observations
+        assert _validated_oracle_finding(finding) == _INVALID_ORACLE_FINDING
+
+
+def test_invalid_oracle_finding_renders_only_fixed_anomaly_code():
+    lay = _tmp_layout()
+    attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="swo")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "diff-quarantine",
+        "diff_quarantine": {
+            "subtype": "sort-swo-oracle",
+            "reason": "fixed-outer-reason",
+            "oracle_finding": {
+                "kind": "UNTRUSTED-KIND",
+                "reason_code": "UNTRUSTED-REASON",
+                "corpus_id": "UNTRUSTED-CORPUS",
+            },
+        },
+    })
+
+    loaded = load_diff_rejections(_view(lay))
+    assert loaded[0].oracle_finding == _INVALID_ORACLE_FINDING
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert "oracle_anomaly=sort-swo-oracle-finding-schema-invalid" in rendered
+    assert "UNTRUSTED-KIND" not in rendered
+    assert "UNTRUSTED-REASON" not in rendered
+    assert "UNTRUSTED-CORPUS" not in rendered
+
+
 @pytest.mark.parametrize(
     ("kind", "expected"),
     [
@@ -919,7 +1135,6 @@ def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection()
         "reason_code": "swo-asymmetric",
         "corpus_id": "sort-swo-corpus-v1/corpus-1",
         "order_id": 2,
-        "input_pairs": [{"lhs_index": 3, "rhs_index": 4}],
         "counterexample": {
             "axiom": "asymmetric",
             "input_pairs": [
@@ -927,7 +1142,6 @@ def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection()
                 {"lhs_index": 4, "rhs_index": 3},
             ],
         },
-        "observations": ["fixed-corpus relation matrix"],
     }
     receipt = {
         "contract_id": "sort-swo-fixture-contract",
@@ -960,7 +1174,6 @@ def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection()
     projected = next(record for record in view.records if record.stage == STAGE_ABORT)
     projected_finding = projected.payload["diff_quarantine"]["oracle_finding"]
     assert type(projected_finding) is MappingProxyType
-    assert type(projected_finding["input_pairs"]) is tuple
     assert type(projected_finding["counterexample"]) is MappingProxyType
     assert type(projected_finding["counterexample"]["input_pairs"]) is tuple
     assert type(projected.payload["diff_quarantine"]["oracle_receipt"]) is MappingProxyType
@@ -970,7 +1183,6 @@ def test_sort_swo_oracle_payload_roundtrips_from_admitted_immutable_projection()
     assert loaded[0].oracle_finding == finding
     assert loaded[0].oracle_receipt == receipt
     assert type(loaded[0].oracle_finding) is dict
-    assert type(loaded[0].oracle_finding["input_pairs"]) is list
     assert type(loaded[0].oracle_finding["counterexample"]) is dict
     assert type(loaded[0].oracle_finding["counterexample"]["input_pairs"]) is list
     assert type(loaded[0].oracle_receipt) is dict

@@ -38,6 +38,7 @@ from orchestrator.campaign.layout import CampaignLayout            # noqa: E402
 from orchestrator.campaign.model import (                          # noqa: E402
     STAGE_ABORT, STAGE_BENCH_DONE, STAGE_BUILD_START, STAGE_COMMIT,
     STAGE_VERIFY_DONE)
+from orchestrator.campaign.sort_swo_oracle import CORPUS_ID        # noqa: E402
 from .identity_projection import IdentityProjection                # noqa: E402
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
@@ -218,13 +219,88 @@ def _parse_flags(canonical: str) -> Dict[str, int]:
     return {k: int(v) for k, v in (kv.split("=") for kv in body.split(","))}
 
 
-_ORACLE_FINDING_KINDS = frozenset({
-    "axiom", "compile", "execution", "mutation", "nondeterministic",
-    "protocol", "structure", "timeout",
-})
+_ORACLE_FINDING_BASE_KEYS = frozenset({"kind", "reason_code", "corpus_id"})
+_ORACLE_FINDING_EXACT_KEYSETS = {
+    "axiom": frozenset({
+        _ORACLE_FINDING_BASE_KEYS | {"order_id", "counterexample"},
+    }),
+    "compile": frozenset({
+        _ORACLE_FINDING_BASE_KEYS | {"compiler_diagnostic"},
+    }),
+    "execution": frozenset({
+        _ORACLE_FINDING_BASE_KEYS | {"order_id"},
+    }),
+    "mutation": frozenset({
+        _ORACLE_FINDING_BASE_KEYS
+        | {"order_id", "input_pairs", "observations"},
+    }),
+    "nondeterministic": frozenset({
+        _ORACLE_FINDING_BASE_KEYS
+        | {"order_id", "input_pairs", "observations"},
+    }),
+    "structure": frozenset({_ORACLE_FINDING_BASE_KEYS}),
+    "timeout": frozenset({
+        _ORACLE_FINDING_BASE_KEYS | {"compiler_diagnostic"},
+        _ORACLE_FINDING_BASE_KEYS | {"order_id"},
+    }),
+}
+_ORACLE_FINDING_KINDS = frozenset(_ORACLE_FINDING_EXACT_KEYSETS)
+_ORACLE_FINDING_REASON_CODES = {
+    "axiom": frozenset({
+        "swo-irreflexive",
+        "swo-asymmetric",
+        "swo-transitive",
+        "swo-transitive-equivalence",
+    }),
+    "compile": frozenset({
+        "compiler-launch-unavailable",
+        "compiler-signal-unavailable",
+        "candidate-compile-failed",
+    }),
+    "execution": frozenset({
+        "candidate-sort-call-contract-violation",
+        "candidate-comparator-threw",
+        "candidate-sort-not-called",
+    }),
+    "mutation": frozenset({"corpus-mutated-by-comparator"}),
+    "nondeterministic": frozenset({
+        "relation-varies-within-process",
+        "relation-varies-across-process-order",
+    }),
+    "structure": frozenset({
+        "materialized-marker-invalid",
+        "statement-too-large",
+        "qualified-or-non-sort-callee",
+        "sort-call-missing-open-paren",
+        "unterminated-comment",
+        "unterminated-literal",
+        "unbalanced-sort-call",
+        "not-a-single-sort-statement",
+    }),
+    "timeout": frozenset({
+        "compile-wall-timeout",
+        "candidate-compile-cpu-limit-exceeded",
+        "candidate-run-cpu-limit-exceeded",
+    }),
+}
 _ORACLE_AXIOMS = frozenset({
     "irreflexive", "asymmetric", "transitive", "transitive-equivalence",
 })
+_ORACLE_CORPUS_IDS = frozenset({
+    CORPUS_ID,
+    *(f"{CORPUS_ID}/corpus-{corpus}" for corpus in (0, 1)),
+})
+_ORACLE_OBSERVATION_POINTS = frozenset({
+    "after-call",
+    "first-pass",
+    "second-pass-after-other-pairs",
+    "fresh-process",
+})
+_ORACLE_OBSERVATION_MAX_ITEMS = 8
+_ORACLE_OBSERVATION_MAX_KEYS = 8
+_ORACLE_OBSERVATION_KEY_MAX_BYTES = 64
+_ORACLE_OBSERVATION_STRING_MAX_BYTES = 160
+_ORACLE_FINDING_ANOMALY_CODE = "sort-swo-oracle-finding-schema-invalid"
 _ORACLE_MAPPING_TYPES = (dict, types.MappingProxyType)
 _ORACLE_SEQUENCE_TYPES = (list, tuple)
 
@@ -266,23 +342,60 @@ def _valid_index_pair(value: object) -> bool:
     )
 
 
+def _is_bounded_utf8(value: object, *, minimum: int, maximum: int) -> bool:
+    if type(value) is not str:
+        return False
+    try:
+        size = len(value.encode("utf-8"))
+    except UnicodeEncodeError:
+        return False
+    return minimum <= size <= maximum
+
+
+def _valid_oracle_observation(value: object) -> bool:
+    if (not _is_oracle_mapping(value)
+            or not 1 <= len(value) <= _ORACLE_OBSERVATION_MAX_KEYS):
+        return False
+    for key, item in value.items():
+        if not _is_bounded_utf8(
+                key, minimum=1, maximum=_ORACLE_OBSERVATION_KEY_MAX_BYTES):
+            return False
+        if type(item) is str:
+            if not _is_bounded_utf8(
+                    item, minimum=0,
+                    maximum=_ORACLE_OBSERVATION_STRING_MAX_BYTES):
+                return False
+        elif type(item) not in {int, bool}:
+            return False
+    point = value.get("point")
+    return type(point) is str and point in _ORACLE_OBSERVATION_POINTS
+
+
+def _invalid_oracle_finding() -> Dict:
+    return {"anomaly_code": _ORACLE_FINDING_ANOMALY_CODE}
+
+
 def _validated_oracle_finding(value: object) -> Dict:
     if not _is_oracle_mapping(value):
-        return {}
+        return _invalid_oracle_finding()
     kind = value.get("kind")
     reason = value.get("reason_code")
     corpus_id = value.get("corpus_id")
-    if (kind not in _ORACLE_FINDING_KINDS
-            or type(reason) is not str or not reason or len(reason) > 160
-            or type(corpus_id) is not str or not corpus_id or len(corpus_id) > 160):
-        return {}
+    if (type(kind) is not str or kind not in _ORACLE_FINDING_KINDS
+            or frozenset(value) not in _ORACLE_FINDING_EXACT_KEYSETS[kind]
+            or type(reason) is not str
+            or reason not in _ORACLE_FINDING_REASON_CODES[kind]
+            or type(corpus_id) is not str
+            or corpus_id not in _ORACLE_CORPUS_IDS):
+        return _invalid_oracle_finding()
     order_id = value.get("order_id")
     if order_id is not None and (type(order_id) is not int or order_id not in {0, 1, 2}):
-        return {}
-    pairs = value.get("input_pairs", [])
-    if (not _is_oracle_sequence(pairs) or len(pairs) > 8
-            or not all(_valid_index_pair(p) for p in pairs)):
-        return {}
+        return _invalid_oracle_finding()
+    if "input_pairs" in value:
+        pairs = value["input_pairs"]
+        if (not _is_oracle_sequence(pairs) or not 1 <= len(pairs) <= 8
+                or not all(_valid_index_pair(p) for p in pairs)):
+            return _invalid_oracle_finding()
     if kind == "axiom":
         counterexample = value.get("counterexample")
         if (not _is_oracle_mapping(counterexample)
@@ -292,9 +405,7 @@ def _validated_oracle_finding(value: object) -> Dict:
                 or not counterexample["input_pairs"]
                 or len(counterexample["input_pairs"]) > 8
                 or not all(_valid_index_pair(p) for p in counterexample["input_pairs"])):
-            return {}
-    elif "counterexample" in value:
-        return {}
+            return _invalid_oracle_finding()
     diagnostic = value.get("compiler_diagnostic")
     if diagnostic is not None:
         if (not _is_oracle_mapping(diagnostic)
@@ -305,10 +416,13 @@ def _validated_oracle_finding(value: object) -> Dict:
                 or diagnostic["total_bytes"] < diagnostic["captured_bytes"]
                 or not _hex64(diagnostic.get("sha256"))
                 or type(diagnostic.get("truncated")) is not bool):
-            return {}
-    observations = value.get("observations", [])
-    if not _is_oracle_sequence(observations) or len(observations) > 8:
-        return {}
+            return _invalid_oracle_finding()
+    if "observations" in value:
+        observations = value["observations"]
+        if (not _is_oracle_sequence(observations)
+                or not 1 <= len(observations) <= _ORACLE_OBSERVATION_MAX_ITEMS
+                or not all(_valid_oracle_observation(item) for item in observations)):
+            return _invalid_oracle_finding()
     return _mutable_oracle_projection(value)
 
 
@@ -908,6 +1022,11 @@ def render_rejections(rejections: List[Rejection],
             # Candidate stdout/stderr is never rendered or interpreted.  This
             # branch consumes the trusted Python matrix check restored from WAL.
             finding = dq.oracle_finding
+            if (type(finding) is dict
+                    and finding.get("anomaly_code") == _ORACLE_FINDING_ANOMALY_CODE):
+                L.append(f"  oracle_anomaly={_ORACLE_FINDING_ANOMALY_CODE}")
+                L.append("")
+                continue
             kind = finding.get("kind", "") if type(finding) is dict else ""
             corpus_id = finding.get("corpus_id", "?") if type(finding) is dict else "?"
             order_id = finding.get("order_id") if type(finding) is dict else None
