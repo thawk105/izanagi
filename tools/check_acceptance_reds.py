@@ -458,6 +458,7 @@ def _default_node_runner(
     command = [
         sys.executable,
         str(worktree / "tools" / "run_tests.py"),
+        "--force-dispatch",
         "-p",
         "no:cacheprovider",
         nodeid,
@@ -482,6 +483,7 @@ def _default_collection_runner(
     command = [
         sys.executable,
         str(worktree / "tools" / "run_tests.py"),
+        "--force-dispatch",
         "-p",
         "no:cacheprovider",
         "--collect-only",

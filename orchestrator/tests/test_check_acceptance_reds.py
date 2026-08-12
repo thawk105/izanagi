@@ -871,7 +871,7 @@ def test_receipt_binds_log_hash_and_tested_main(
     assert receipt.read_bytes() == canonical
 
 
-def test_default_seam_invokes_real_runner_command(
+def test_default_seam_forces_dispatch_for_collection_and_rerun(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
     repo, tested_main, probe_root = committed_repo
@@ -883,11 +883,11 @@ def test_default_seam_invokes_real_runner_command(
     def command_runner(command: Sequence[str], **kwargs):
         values = list(command)
         if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            observed.append(values)
             if "--collect-only" in values:
                 return subprocess.CompletedProcess(
                     values, 0, _NON_ATTRIBUTABLE + "\n", ""
                 )
-            observed.append(values)
             return subprocess.CompletedProcess(values, 1, None, None)
         return subprocess.run(values, **kwargs)
 
@@ -896,8 +896,25 @@ def test_default_seam_invokes_real_runner_command(
         repo_root=repo,
         command_runner=command_runner,
     ) == 0
-    assert len(observed) == 1
-    assert observed[0][-1] == _NON_ATTRIBUTABLE
+    assert len(observed) == 2
+    collection, rerun = observed
+    assert collection[0] == sys.executable
+    assert collection[1] == rerun[1]
+    assert Path(collection[1]).parts[-2:] == ("tools", "run_tests.py")
+    assert collection[2:] == [
+        "--force-dispatch",
+        "-p",
+        "no:cacheprovider",
+        "--collect-only",
+        "-q",
+        "orchestrator/tests/test_example.py",
+    ]
+    assert rerun[2:] == [
+        "--force-dispatch",
+        "-p",
+        "no:cacheprovider",
+        _NON_ATTRIBUTABLE,
+    ]
 
 
 def test_xdist_group_suffix_is_removed_only_from_rerun_selector(
