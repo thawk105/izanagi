@@ -1872,6 +1872,15 @@
   複数 wave、codex 子も並走) 点が既載の「負荷が高いときに発火する」観察と整合する。
   直前の走行 (同一 wave、記録 commit 前の tip) では **9452 passed / 31 skipped / 0 failed** で
   緑だったので、同一実装で緑・赤の両方を観測している。
+
+- **再発: 2026-08-12** — [T-905] の変異本走で M2 の失敗 node へ
+  `test_all_v3_stages_reject_prior_invalid_attempt[author-None]` が 1 件混ざり、
+  期待 node の完全一致が崩れて MISMATCH になった (`receipt["attempts"][-1]["accepted"]` が False)。
+  M2 は pin 集合から 1 path を外す変異で検査を緩める向きであり、当該 node への因果経路が無い。
+  M2 単独再走では期待 6 node と完全一致で KILLED、混入 node は再現せず帰属から外した。
+  変異走 (48 worker) で launcher の receipt 系 node が 1 件混ざる形は
+  worklog (476) の M3 に続く独立 2 例目である。恒久対応は F57 既載のとおり失敗 artifact 保存による
+  原因分離であり、本 wave では変えない。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
