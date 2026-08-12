@@ -45,10 +45,6 @@ title: 45 件を一括裁定した — 論文主張は生成物と概ねの時�
   `511c9538` へ直接前進する ([T-837] Q1 (a) を本裁定が上書き)。
   正本 = `output/insights/2026-08-12_t816-step4-blockers/README.md`
   base: b816bc25de6823056cebd695618a8dfd586370c92e9875455350d28c6aec35e5
-- [T-837] **P1・裁定済み (2026-08-12 /rulings) → 乗せ直し不要で終端**: [T-816] Q1/Q2 の裁定により
-  `c9c1a9c` の乗せ直しを省略し `511c9538` へ直接前進する。Q1 (a) 旧裁定は上書きされた。
-  残るユーザー手番なし。
-  base: b2898a746276a7ca47f1f495614f56a116695208fd2851bac05d2f3b7dd08a8d
 - [T-793] **P2・裁定済み (2026-08-12 /rulings) → R3/R4 のみ実施、R1/R2 は保留終端**: R3 (公表 core v2
   §8.1 の偽命題の訂正) と R4 (marker gate の保証範囲の記録。書式の規範化は [T-864] と同梱せず
   記録のみ) は実施する。R1 (source 側の本走 gate) と R2 ((i) の原子性・`(root, ordinal)` 一意性・
@@ -66,25 +62,6 @@ title: 45 件を一括裁定した — 論文主張は生成物と概ねの時�
   ([T-781] Q1 は不変)。`eligible_for_refreeze=False` も緩めない — W-2 床値は pilot 計測として実測し
   insight に記録する (再凍結への昇格は別裁定)。
   base: ce926217ac02c9d7ffbd6809c2040c6d362483973fcbf76dad615eec25fea047
-- [T-871] **P1・裁定済み (2026-08-12 /rulings、{{D:coarse-provenance-standard}}) → 見送りで終端**:
-  S-3 (a) の attempt 実測値の脚は実装しない。再訪条件 = 外部公開で証跡提示が必要になったとき。
-  base: bfbad7f7691f0934bb7d6682269f803a8c0b18c40358946cd086608fa22ff417
-- [T-872] **P1・裁定済み (2026-08-12 /rulings、同基準) → 見送りで終端**: 成果物への binding report は
-  載せない。exact-key consumer の改修も行わない。
-  base: 2d637491aad8d3f972b6a3cdbeba691353b6ba2a370d6a1242bab39e587ecb5e
-- [T-873] **P2・裁定済み (2026-08-12 /rulings、同基準) → 見送りで終端**: cxx version / cmake path /
-  module_list / bytes hash の authority への追加と calibration 再発行はしない。
-  base: 2fcb30a43b3982ddd82c80fc457a216e357651f8f0fd74a55214c002f5b59feb
-- [T-874] **P2・裁定済み (2026-08-12 /rulings、同基準) → 見送りで終端**: 束縛は floor と silo ladder の
-  まま他 producer へ広げない。
-  base: 1ac3494639b161bdae76bf65b4c130e0df1505c5520dfb56edff790943a7e833
-- [T-868] **P2・裁定済み (2026-08-12 /rulings、同基準) → 受容で終端**: 承認 receipt への署名と外部
-  trust root は導入しない。`/limitations/approval_receipt_trust_root_absent` の機械可読宣言を正とする。
-  再訪条件 = 外部公開時。
-  base: c065034873a3a3fb4b88ac04d12ef47f76d9b2ede3afd1eaea97bcf12e25b022
-- [T-864] **P3・裁定済み (2026-08-12 /rulings、同基準) → 終端**: canonical decision への機械可読
-  target schema の必須化はしない。marker gate の保証範囲の限界記録は [T-793] R4 が行う。
-  base: 95689764fe4547fc3bb9587248b498f5ecbb606ffdbbcf142e562806d0734975
 - [T-316] **P1・裁定済み (2026-08-12 /rulings、R-1 = (b)+(c)) → 実装 wave 起票可 (Codex author)**:
   build 段防壁は (b) build 出力 copy-out の厳格化を次 wave で実装し、(c) land 済み lexical 効果 gate を
   defense-in-depth として併置する。(a) DSL/IR 化は不採用 (sort の raw 経路が残る)。[T-840] の機械隔離を
@@ -162,20 +139,9 @@ title: 45 件を一括裁定した — 論文主張は生成物と概ねの時�
 - [T-875] **P2・裁定済み (2026-08-12 /rulings) → ツール側へ移管**: 段別 argv 契約の検証は launcher が
   投入前に `--dry-run` 相当を自動実行して弾く形にする。`DW-O01` への追記はしない ([T-508] (b))。
   base: c85a3ce5f2d98c8ec0cde26556dad70bb82edaaf3804397e48aca6a695dec167
-- [T-687] **P2・裁定済み (2026-08-12 /rulings) → 受容で終端**: xdist internal error / pre-item crash の
-  診断項目は増やさず、既存 xdist summary を正本と定める (プロトタイプ基準)。
-  base: 1c660b7356efd005d449ca77a87e0d82b214c0e6055e299b0fa34c0d9a7d7800
 - [T-688] **P2・裁定済み (2026-08-12 /rulings) → 採用**: job wrapper 側に durable checkpoint /
   partial-log path を作り、SIGKILL・OOM・walltime 打ち切り・起動前 rc=16 の診断ゼロを塞ぐ。
   base: 48ba5381386362866ef87fef6b93b3d926cd4157c11b4285aff66801d0fdc098
-- [T-689] **P3・裁定済み (2026-08-12 /rulings) → 受容で終端**: best-effort の中継を正とする。
-  耐久経路も手順追記もしない (プロトタイプ基準)。
-  base: 4ad28a9e1d3776f2a7e7fc45d23cfabdc103febdc834333ae04668fd49df751c
-- [T-691] **P3・裁定済み (2026-08-12 /rulings) → 受容で終端**: failure stash の module global は
-  現状維持 (経路実在未確認、回帰 pin 維持)。
-  base: d400efb23d24d22fab3aaed240d0781ab9432d0e601b6b09cf00cd1e239f75f4
-- [T-679] **P3・裁定済み (2026-08-12 /rulings) → 受容で終端**: 早期 receipt は置かない (プロトタイプ基準)。
-  base: b8b4adc48ef32477e35daa2b6755b65357fcb5fa49c2cc6c68bcb699cb395513
 - [T-680] **P3・裁定済み (2026-08-12 /rulings) → 表現規約を採用**: 不在の証明はしない。記録は
   「N 回連続緑。不在は主張しない」の正直形に固定する (規律 3 整合)。
   base: 5eb7616e739fa590fd24f0eaad91fabf55ce58d100b39684e76d877d1220d523
@@ -192,10 +158,6 @@ title: 45 件を一括裁定した — 論文主張は生成物と概ねの時�
 - [T-511] **P3・裁定済み (2026-08-12 /rulings) → 規定追加**: runbook §7.0 へ初回走行の規定 (未計測
   script の 1 走目は保守的見積りで計算ノードへ) を足す。汎用 dispatch task は作らない。
   base: cf9405e559f2e8f6ca97e1a76e311bc1d796c74b26537579aee3fb0a8621cde0
-- [T-751] **P2・裁定済み (2026-08-12 /rulings、{{D:coarse-provenance-standard}}) → 見送りで終端**:
-  窓限定の現状を受容し checkpoint 連鎖は作らない。再訪条件 = 外部公開で監査地平の提示が必要に
-  なったとき。
-  base: 35eac470e2a682f0f72cde2e23ca721f94f4f979e3c392904067fd8e1d16dc16
 - [T-777] **P3・裁定済み (2026-08-12 /rulings) → lint の結線のみ採用**: 住所構造 lint を受入経路で
   走らせる形だけ入れる。偽 edge (Markdown 意味解釈) の対処は却下維持 (`DW-G03` 独立 2 例まで)。
   base: 4b12c21687406a005b088f0acc61e0fd30dfbddfba150fa913f9cbc379967533
@@ -203,8 +165,3 @@ title: 45 件を一括裁定した — 論文主張は生成物と概ねの時�
   形の裁定パッケージにしてから再提出する ([T-674] 所有)。{{D:coarse-provenance-standard}} により
   provenance 専用の問は落ちる見込み。
   base: a9828a01828870e125f1ebd57d87ea9eef3550947b02d30e2821d6602b5887d6
-- [T-499] **P2・裁定済み (2026-08-12 /rulings) → 仕分け wave 起票可**: 三値分類の基準に
-  {{D:coarse-provenance-standard}} を適用する (provenance 系の項は既定で見送り側へ)。129 件 +
-  本裁定で終端化した項の退役実務 (見送り台帳への移動) も同 wave が担う。凍結手番系のユーザー操作は
-  仕分けで「使う機構」が確定した後にまとめて 1 回とする。
-  base: 9ee8836756032443f71ad4d54d5d66e124e66b98c8061a5e8c8cf7828d903fc7
