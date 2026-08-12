@@ -408,6 +408,32 @@ def _repo_with_external_edge_copy_into_receipt():
     return temp, root, introduction, internal, external, merge
 
 
+def _repo_with_external_edge_receipt_addition():
+    """外部 parent との差が receipt の通常 A だけである正当な merge 履歴。"""
+    temp, root = _repo_with_schema_valid_receipt()
+    introduction = _run_git(root, "rev-parse", "HEAD").decode().strip()
+    basis = _run_git(root, "rev-parse", f"{introduction}^").decode().strip()
+    internal_tree = _run_git(
+        root, "rev-parse", f"{introduction}^{{tree}}",
+    ).decode().strip()
+    internal = _run_git(
+        root, "commit-tree", internal_tree, "-p", introduction,
+        input_bytes=b"internal post-introduction branch\n\nAI-Agent: none\n",
+    ).decode().strip()
+    external_tree = _run_git(root, "rev-parse", f"{basis}^{{tree}}").decode().strip()
+    external = _run_git(
+        root, "commit-tree", external_tree, "-p", basis,
+        input_bytes=b"external pre-introduction branch\n\nAI-Agent: none\n",
+    ).decode().strip()
+    merge = _run_git(
+        root, "commit-tree", internal_tree,
+        "-p", internal, "-p", external,
+        input_bytes=b"merge legitimate external edge\n\nAI-Agent: none\n",
+    ).decode().strip()
+    _run_git(root, "checkout", "-q", "-B", "main", merge)
+    return temp, root, introduction, external, merge
+
+
 def _predicate_outcome(call):
     try:
         return ("bool", call())
@@ -861,6 +887,36 @@ def test_external_edge_copy_into_receipt_uses_copy_fallback_positive_control():
         temp.cleanup()
 
 
+def test_external_edge_receipt_addition_is_accepted_negative_control():
+    """外部辺があるだけでは拒否せず、receipt の通常 A は受理する。"""
+    temp, root, introduction, external, merge = (
+        _repo_with_external_edge_receipt_addition()
+    )
+    try:
+        graph = migration._commit_graph(merge, root)
+        descendants = migration._descendants_of(graph, introduction)
+        expected_oid = _run_git(
+            root, "rev-parse", f"{introduction}:{migration.RECEIPT_REL}",
+        ).decode().strip()
+        assert merge in descendants
+        assert external not in descendants
+        assert any(parent not in descendants for parent in graph.parents[merge])
+        assert migration._batched_history_touches_path(
+            descendants - {introduction}, migration.RECEIPT_REL, root,
+            duplicate_oid=expected_oid, detect_copies=True,
+        ) is False
+        assert migration._descendant_history_touches_path(
+            graph, descendants, introduction, migration.RECEIPT_REL, root,
+            duplicate_oid=expected_oid,
+        ) is False
+        result = migration.inspect_receipt_history(root=root)
+        assert migration._format_refusal(
+            migration.RECEIPT_PREFIX, "receipt.history_mutated",
+        ) not in result.refusals
+    finally:
+        temp.cleanup()
+
+
 def test_batched_rename_into_receipt_is_rejected_with_m_positive_control():
     """rename-into-receipt は `-C` 無しでも `-M` の R status で拒否する。"""
     with tempfile.TemporaryDirectory(prefix="izanagi_t080_rename_into_") as temp:
@@ -975,40 +1031,56 @@ def test_partitioned_history_matches_old_batched_bool_or_exception_reason():
 
 
 def test_oracle_report_historical_validation_head_matches_old_batched():
-    """report の非 HEAD validation_head 経路でも旧/new 履歴述語を一致させる。"""
+    """report の非 HEAD validation_head 経路で旧/new の False/True を固定する。"""
     from orchestrator.campaign import s8b_oracle_report as oracle_report
 
     temp, root = _repo_with_schema_valid_receipt()
     try:
         (root / "historical-unrelated.txt").write_text("historical\n", encoding="utf-8")
-        validation_head = _commit_all(root, "historical validation head")
+        clean_validation_head = _commit_all(root, "clean historical validation head")
         receipt_path = root / migration.RECEIPT_REL
-        receipt_path.write_bytes(b'{"later":"mutation"}')
-        current_head = _commit_all(root, "later receipt mutation")
-        assert current_head != validation_head
+        (root / "historical-receipt-copy.json").write_bytes(receipt_path.read_bytes())
+        mutated_validation_head = _commit_all(root, "historical exact receipt copy")
+        (root / "current-only.txt").write_text("current\n", encoding="utf-8")
+        current_head = _commit_all(root, "later unrelated current head")
+        assert current_head not in {clean_validation_head, mutated_validation_head}
 
-        history = oracle_report._history_at_validation_head(
-            repo_root=root, validation_head=validation_head,
+        clean_history = oracle_report._history_at_validation_head(
+            repo_root=root, validation_head=clean_validation_head,
         )
-        assert history.validation_head == validation_head
-        assert history.refusals == ()
-        assert history.introduction_commit is not None
+        mutated_history = oracle_report._history_at_validation_head(
+            repo_root=root, validation_head=mutated_validation_head,
+        )
+        history_refusal = migration._format_refusal(
+            migration.RECEIPT_PREFIX, "receipt.history_mutated",
+        )
+        assert clean_history.validation_head == clean_validation_head
+        assert mutated_history.validation_head == mutated_validation_head
+        assert clean_history.refusals == ()
+        assert history_refusal in mutated_history.refusals
 
-        graph = migration._commit_graph(validation_head, root)
-        descendants = migration._descendants_of(graph, history.introduction_commit)
-        expected_oid = _run_git(
-            root, "rev-parse",
-            f"{history.introduction_commit}:{migration.RECEIPT_REL}",
-        ).decode().strip()
-        old = _old_batched_outcome(
-            descendants - {history.introduction_commit},
-            migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-        )
-        new = _new_partitioned_outcome(
-            graph, descendants, history.introduction_commit,
-            migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
-        )
-        assert new == old == ("bool", False)
+        for validation_head, history, expected in (
+            (clean_validation_head, clean_history, False),
+            (mutated_validation_head, mutated_history, True),
+        ):
+            assert history.introduction_commit is not None
+            graph = migration._commit_graph(validation_head, root)
+            descendants = migration._descendants_of(
+                graph, history.introduction_commit,
+            )
+            expected_oid = _run_git(
+                root, "rev-parse",
+                f"{history.introduction_commit}:{migration.RECEIPT_REL}",
+            ).decode().strip()
+            old = _old_batched_outcome(
+                descendants - {history.introduction_commit},
+                migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
+            )
+            new = _new_partitioned_outcome(
+                graph, descendants, history.introduction_commit,
+                migration.RECEIPT_REL, root, duplicate_oid=expected_oid,
+            )
+            assert new == old == ("bool", expected)
     finally:
         temp.cleanup()
 
@@ -1664,10 +1736,13 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
             )
             batched = migration._batched_history_touches_path(
                 (commit,), target, root, duplicate_oid=exact_copy_oid,
+                detect_copies=True,
             )
         else:
             actual = migration._history_touches_path(commit, target, root)
-            batched = migration._batched_history_touches_path((commit,), target, root)
+            batched = migration._batched_history_touches_path(
+                (commit,), target, root, detect_copies=True,
+            )
         assert actual is expected, (number, label, actual, expected)
         assert batched is expected, (number, label, batched, expected)
 
@@ -1694,6 +1769,7 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is False, "case 12b: changed near-copy must not match the target blob OID"
     assert migration._batched_history_touches_path(
         (near_copy_commit,), target, near_copy_root, duplicate_oid=near_copy_oid,
+        detect_copies=True,
     ) is False, "case 12b batch: changed near-copy must not match the target blob OID"
 
     assert migration._history_touches_path(
@@ -1701,6 +1777,7 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is False, "exact copy must remain undetected when duplicate_oid is omitted"
     assert migration._batched_history_touches_path(
         (exact_copy_commit,), target, exact_copy_root, duplicate_oid=None,
+        detect_copies=True,
     ) is False, "batch exact copy must remain undetected when duplicate_oid is omitted"
 
     # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。
@@ -1709,6 +1786,7 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is True
     assert migration._batched_history_touches_path(
         (modified_commit,), target, modified_root, duplicate_oid=modified_oid,
+        detect_copies=True,
     ) is True
     # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。
     assert migration._history_touches_path(
@@ -1716,6 +1794,7 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     ) is False
     assert migration._batched_history_touches_path(
         (added_commit,), target, added_root, duplicate_oid=added_oid,
+        detect_copies=True,
     ) is False
 
     aggregate_root, _ = repo_with_files("aggregate", {target: "before\n"})

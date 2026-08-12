@@ -1114,12 +1114,13 @@ def test_m10_filesystem_file_set_boundary_matrix_matches_rglob_reference(
     assert "directory-link/inside.txt" not in actual
 
 
-def test_filesystem_file_set_memoizes_each_lexical_parent_per_call(
+def test_filesystem_file_set_resolves_each_path_parent_per_call(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     snapshot = tmp_path / "snapshot"
     parent = snapshot / "parent"
     parent.mkdir(parents=True)
+    (snapshot / "empty").mkdir()
     (parent / "first").write_text("first\n", encoding="utf-8")
     (parent / "second").write_text("second\n", encoding="utf-8")
     resolve_calls: dict[Path, int] = {}
@@ -1133,9 +1134,43 @@ def test_filesystem_file_set_memoizes_each_lexical_parent_per_call(
 
     expected = {"parent/first", "parent/second"}
     assert TOOL._filesystem_file_set(snapshot) == expected
-    assert TOOL._filesystem_file_set(snapshot) == expected
     assert resolve_calls[parent] == 2
     assert resolve_calls[snapshot] == 2
+
+
+def test_filesystem_file_set_memoizes_resolved_parent_decision_per_call(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    resolved_parent = snapshot / "resolved-parent"
+    resolved_parent.mkdir(parents=True)
+    alias = snapshot / "alias"
+    alias.symlink_to(resolved_parent, target_is_directory=True)
+    first = resolved_parent / "first"
+    second = alias / "second"
+    first.write_text("first\n", encoding="utf-8")
+    second.write_text("second\n", encoding="utf-8")
+    selected_paths = (first, second)
+    original_rglob = Path.rglob
+    original_parents = Path.parents
+    decision_calls: dict[Path, int] = {}
+
+    def selected_rglob(path: Path, pattern: str):
+        if path == snapshot and pattern == "*":
+            return iter(selected_paths)
+        return original_rglob(path, pattern)
+
+    def counted_parents(path: Path):
+        decision_calls[path] = decision_calls.get(path, 0) + 1
+        return original_parents.__get__(path, type(path))
+
+    monkeypatch.setattr(Path, "rglob", selected_rglob)
+    monkeypatch.setattr(Path, "parents", property(counted_parents))
+
+    expected = {"resolved-parent/first", "alias/second"}
+    assert TOOL._filesystem_file_set(snapshot) == expected
+    assert TOOL._filesystem_file_set(snapshot) == expected
+    assert decision_calls[resolved_parent.resolve()] == 2
 
 
 @pytest.mark.parametrize(
@@ -1150,44 +1185,51 @@ def test_filesystem_file_set_parent_resolve_errors_propagate_per_call(
     parent = snapshot / "parent"
     parent.mkdir(parents=True)
     (parent / "first").write_text("first\n", encoding="utf-8")
+    (parent / "second").write_text("second\n", encoding="utf-8")
     original_resolve = Path.resolve
-    failures = 0
+    parent_resolve_calls = 0
 
     def failing_resolve(path: Path, strict: bool = False) -> Path:
-        nonlocal failures
+        nonlocal parent_resolve_calls
         if path == parent:
-            failures += 1
-            raise error_type("parent resolve failed")
+            parent_resolve_calls += 1
+            if parent_resolve_calls == 2:
+                raise error_type("parent resolve failed")
         return original_resolve(path, strict=strict)
 
     monkeypatch.setattr(Path, "resolve", failing_resolve)
 
-    for _ in range(2):
-        with pytest.raises(error_type, match="parent resolve failed"):
-            TOOL._filesystem_file_set(snapshot)
-    assert failures == 2
+    with pytest.raises(error_type, match="parent resolve failed"):
+        TOOL._filesystem_file_set(snapshot)
+    assert parent_resolve_calls == 2
 
 
 def test_filesystem_file_set_permission_error_directory_is_empty_subtree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     snapshot = tmp_path / "snapshot"
     denied = snapshot / "denied"
     denied.mkdir(parents=True)
     (snapshot / "visible").write_text("visible\n", encoding="utf-8")
     (denied / "hidden").write_text("hidden\n", encoding="utf-8")
-    original_scandir = os.scandir
+    denied_mode = stat.S_IMODE(denied.stat().st_mode)
+    os.chmod(denied, 0o000)
+    try:
+        try:
+            with os.scandir(denied) as entries:
+                next(entries, None)
+        except PermissionError:
+            pass
+        else:
+            if os.geteuid() == 0:
+                pytest.skip("running as root bypasses chmod(000) directory denial")
+            pytest.fail("chmod(000) directory remained readable for a non-root user")
 
-    def permission_denied(path: os.PathLike[str] | str):
-        if Path(path) == denied:
-            raise PermissionError("directory is unreadable")
-        return original_scandir(path)
-
-    monkeypatch.setattr(os, "scandir", permission_denied)
-
-    reference = _rglob_filesystem_file_set_reference(snapshot)
-    assert reference == {"visible"}
-    assert TOOL._filesystem_file_set(snapshot) == reference
+        reference = _rglob_filesystem_file_set_reference(snapshot)
+        assert reference == {"visible"}
+        assert TOOL._filesystem_file_set(snapshot) == reference
+    finally:
+        os.chmod(denied, denied_mode)
 
 
 def test_m9_filesystem_file_set_skips_root_git_before_lstat(
