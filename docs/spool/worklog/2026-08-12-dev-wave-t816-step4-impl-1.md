@@ -33,10 +33,24 @@ TRACE=0 同一性証拠が適用できないうえ、現物は必要 field を�
 build / attestation / seal / manifest / commit witness の検査はすべて残した。**凍結 bytes は
 1 bit も変えていない。**
 
-**受入全走で構造的 blocker が出たため、本 wave は land していない。** 実装は緑だったが、
-焦点走の範囲が狭すぎた — 前 wave は 5 file、本 wave の焦点走も 16 file しか測っておらず、
-`test_s8b_oracle_driver.py` 等が入っていなかった。前 wave の記録にある
-「S1 freeze の破れは受入では検出されない」は**誤り**である。詳細は [T-816] の項。
+**受入全走で構造的 blocker が出た。** 実装は緑だったが、焦点走の範囲が狭すぎた — 前 wave は
+5 file、本 wave の焦点走も 16 file しか測っておらず、`test_s8b_oracle_driver.py` 等が
+入っていなかった。前 wave の記録にある「S1 freeze の破れは受入では検出されない」は**誤り**である。
+
+blocker はユーザー裁定 D328 (凍結検証の保留) で解けた。**本 wave が [T-917] の保留執行も担った**
+(並行 wave と調整のうえ、赤を実証できるのが本 tip だけであるため)。保留の設計で 3 回直している。
+
+1. **関数まるごとの保留は不可**。保留対象の同一性検査と、保留してはならない測定公正・admission・
+   防壁が同じ関数に同居していた (F240)。行単位へ切り直した。
+2. **可視性を process 内状態に依存させない**。in-process registry だけだと CLI subprocess と
+   48 worker で親に届かず、「保留しているのに何も保留していないと見える」最悪の不可視化になる。
+   発火時に stderr へ機械可読 1 行を出す形にした。**ただし pytest は通過テストの出力を捕獲するため、
+   緑の走行では marker が log に現れない** (実測)。production の CLI 経路では見える。
+3. **保留対象の同定を機構名でなく赤の実体から逆引きする**。`_verify_ccbench_current` を
+   「live ccbench identity」という名前から対象外と分類していたが、実体は
+   「現在の ccbench HEAD == 記録 pin」で D328 が名指しする検査そのものだった (赤 31 件の主因)。
+   逆に `protocol-pre-oracle-head-bytes` は名前が似ているだけの盲検保護で、pin と無関係だった
+   (保留対象から外した)。
 
 実測は `output/insights/2026-08-12_t816-step4-impl/README.md` が正本。焦点 16 file は
 `828 passed, 10 skipped` で赤ゼロ。残る 1 error は `test_s8b_approved.py` の収集失敗
@@ -66,20 +80,21 @@ codex author が書いた実装と同じ統合 commit に含めて回避した�
 
 ### 更新
 
-- [T-816] **P1・手順 4 は実装完了・受入で構造的 blocker → ユーザー裁定待ち
-  (2026-08-12 dev-wave-t816-step4-impl)**: 実装は緑になった (焦点 16 file が `828 passed`、
-  変異 8/8 検出・SURVIVED 0) が、**受入全走が `44 failed, 9357 passed`** になった。
-  うち 12 件 (pin 由来 campaign identity golden と、段 2 の A/B 分類を 1 件誤って据置にした
-  fixture pin) は本 wave で修正し、**残る 32 件はすべて 1 つの構造的事実に帰着する** —
-  `s1_known_axes_freeze.verify()` が `ccbench_pin` を**submodule の現 HEAD**と比較するため、
-  **gitlink を進める限りどの実装でも通らない**。これが T-080 移行受領証 → holdout freeze →
-  8b oracle → 床値 protocol の連鎖を fail-closed にする。機械的再 pin は 1 field で閉じず、
-  受領証と seal の bytes 書き換えに波及するため無裁定では実施しない。
-  **4 択を裁定へ返す** (機械的再発行 / 再測定して再発行 / freeze の検証条件を変える /
-  手順 4 の撤回。親推奨 = 機械的再発行、根拠 = TRACE=0 同一性の機械証明)。
+- [T-816] **P1・手順 4 完了。D328 の保留執行 ([T-917]) を同 wave で実施して閂を外した
+  (2026-08-12 dev-wave-t816-step4-impl)**: 実装は緑だったが**受入全走が
+  `44 failed, 9357 passed`** になった。うち 12 件 (pin 由来 campaign identity golden と、
+  段 2 の A/B 分類を 1 件誤って据置にした fixture pin) を修正し、**残る 32 件は 1 つの
+  構造的事実**に帰着した — 凍結チェーンが「現在の ccbench HEAD == 記録 pin」を要求するため、
+  **gitlink を進める限りどの実装でも通らない**。
+  再発行パッケージの (a)〜(d) は D328 が supersede し、**検証側の保留**で解いた。
+  保留は削除でなく可視な held 印で、凍結 bytes は 1 bit も変えていない。
+  実測: 当該 6 file が `32 failed` → **`612 passed, 14 skipped` (赤ゼロ)**。
+  正しさゲート (holdout 漏洩検出と rr50 陽性対照、未承認世代 admission、variant_binding、
+  T-080 の陽性対照と schema、盲検封印 19 件、盲検保護、verifier / admission / 変異検査) は
+  すべて保留対象外で無傷。
   正本 = `output/insights/2026-08-12_t816-step4-impl/README.md`、
   一次控え = `/work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-08-12-t816-step4-freeze-chain-blocks-pin-advance.md`
-  base: 9f7a085030bd26aa99323a37d6e0b1ae02e5ac75c1e3481a275a8f408f140da0
+  base: 2d35747e2a8cbd078600bcdb35de2f26eb589038c448b3f32832ffaa40159b7a
 
 - [T-838] **P1・[T-816] の裁定へ吸収済み、実装も同 wave が保持**: hard block の実体
   (凍結 v1 raw trace と歴史 pin 再現経路) は処理した — 凍結 raw bundle は bytes 据置で

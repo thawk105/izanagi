@@ -31,6 +31,17 @@ seq: 1
 
 ## 再発
 
+### F240
+
+- **再発: 2026-08-12** ([T-816] 手順 4 wave が [T-917] の保留執行を担った際)。
+  `orchestrator/tests/test_frozen_artifacts.py` の `_frozen_artifact_check_result()` が、
+  保留中に `FROZEN_MANIFEST` **23 件を一括 skip** する実装になっていた。この 23 件には
+  selector prediction / journal / payload / envelope / raw response の**盲検封印 14 件**が含まれ、
+  oracle の結果を見た後に予測を整合的に書き換えることを防ぐ実験妥当性である。
+  静的レビューが「23 件一括 node の保留は禁止」と警告した所見が、実装に現れた実例である。
+  修正: held (凍結チェーン 4 件) / keep (残り 19 件) を定数で明示分割し、積が空・和が全 key と
+  一致することを検査する positive control を追加した。
+
 ### F230
 
 - **再発: 2026-08-12** ([T-816] 手順 4 実装 wave)。変異 8 件のうち 2 件が MISMATCH。
