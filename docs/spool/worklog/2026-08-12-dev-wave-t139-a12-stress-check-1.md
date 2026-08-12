@@ -58,6 +58,15 @@ counter 0 始まりの uint64 big endian、cell key ごと独立 stream、chunk 
 ためで、`git submodule update --init --recursive` で解消した。2 回目は
 **9,838 passed / 65 skipped / rc=0 / 112.79 秒**。
 
+**3 回目の受入 (記録 commit 込みの最終 tip) で `test_codex_worker_launch.py` の 1 件が赤になったが、
+負荷起因のフレークである。** 単独再走を 2 回追加して計 3 回走らせたところ、**毎回別のテストが
+落ちた** (`test_codex_argv_has_exact_trust_bypass_without_sandbox_bypass` →
+`test_limit_stop_is_never_accepted` → `test_all_v3_stages_reject_prior_invalid_attempt[consult-sol]`)。
+本 wave の差分 12 ファイルに同 test も `tools/codex_worker_launch.py` 本体も含まれず、
+2 回目の受入では同ファイルを含めて全件緑だった。実行時は並行 wave の codex 子が 9〜10 本
+走っており、落ちた test はいずれも子 process の起動と終了検証を実測する種類のものである
+(`termination_verified=False`、子の `wall_clock_s=0.16`)。
+
 registry 登録には 2 つの同期先が芋づるで付く — `docs/pegasus-runbook.md` §7.0 の投影表
 (`check_docs.py` が集合完全一致を検査) と `test_hooks.py` の literal golden。後者は
 「テストの期待値を変更するな」に触れるため fix 子が正しく escalate し、親が
