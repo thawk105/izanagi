@@ -12,6 +12,9 @@ prompt 非空を先に検査し、既存 `.done` は消さず再利用せず再�
 完了は `.done` と exit code だけで判定し、grep も通知も判定にしない（通知は先行しうる）。成果物は最終メッセージから読む（F23/F24）。
 採用は `tools/check_codex_output.py` の rc=0（prompt は `## 総括` 必須。F43）。
 `<model>`: 段 3 のみ 2 本で `gpt-5.6-sol`→`gpt-5.6-luna`、他段 `gpt-5.6-sol`。
+`--artifact-root` は `<root>/<wave>/` しか作らず、`<root>` 未作成は rc=2。投入前に作る。
+`--max-*` は非権威の運用既定で caller が上げてよい。重い巡は所要 model call と token を見積もる。
+中断子の部分成果物は未完了と明記して保全し、次の子へ監査させる。
 
 ## DW-O02 — job artifact
 
@@ -19,7 +22,8 @@ prompt、log、patch はすべて wave 専用 subdirectory に置き、job tmp �
 artifact と共有しない。専用場所を確保できなければ作成を止める。
 親 brief と前段の子成果物は同 subdirectory のファイルへ置き、prompt へ全文複製せず絶対パスで
 読ませる。その prompt には読めなければ即停止する指示を入れ、context 無しの子出力をレビュー結果と
-数えない。
+数えない。必読資料は job dir へ取り出して渡す（repo 内 path は worktree の遅れで fail-closed する）。
+出力へ結合文字 U+0300〜U+036F を使わせない。
 
 ## DW-O03 — 防護パスを含む prompt
 
@@ -34,7 +38,8 @@ heredoc と command substitution を併用してはならない。
 ## DW-O05 — read-only codex
 
 書込可能 tmp がないため pytest 緑を要求せず静的検査でよいと明記する。
-テスト実測は親が行い、子の非実走を緑と記録しない。
+テスト実測は親が行い、子の非実走を緑と記録しない。予算が尽きそうなら途中結論を出力形式どおり
+書いて終われ、も入れる（無出力が最悪）。
 
 ## DW-O06 — submodule 系 real-repo test
 
@@ -103,14 +108,14 @@ Codex著者行を要求されlandが止まる。
 
 ## DW-O18 — 親のテスト cwd
 
-cwd を必ず repo root にする。nested subprocess の import path による偽赤を、差分の回帰として扱わない。
+cwd を必ず repo root にする。nested subprocess の import path による偽赤を差分の回帰として扱わない。
 file 選択走は `from tests import` の import path を確立してから走らせる (未確立の赤は偽赤)。
-差分が到達しえないファイルで出た赤は、単独再走で再現性を実測してから扱う。
-再現しなければ実装差分へ帰属せず、フレークとして新規所見に起票する。
-測定値は測った checkout を併記する（F41）。変更した test file は、受入全走の前に別 process の
-単独走で 1 度確認する。全走の緑はその file 単独の緑を含意しない。新規 test file を足す走は、
-file 集合を列挙するメタテストも焦点走に含める。並行 wave が自分の編集 file を
-所有する wave では main を取り込んだ木で行う。既に回す走行へ相乗りさせ、受入の後へ足さない。
+差分が到達しえない赤は単独再走で実測し、再現しなければ帰属せずフレーク起票する。
+`tools/check_acceptance_reds.py` はこの機械化で rc=1 なら停止。rc=2 は判定不能で非帰属の根拠にしない。
+測定値は測った checkout を併記する（F41）。変更した test file は受入全走の前に別 process の
+単独走で 1 度確認する。全走の緑は file 単独の緑を含意しない。新規 test file を足す走は
+file 集合を列挙するメタテストも焦点走に含める。並行 wave が自分の編集 file を所有するなら
+main を取り込んだ木で既存走行へ相乗りさせ、受入の後へ足さない。
 
 ## DW-O19 — tracked file の一時変異
 
@@ -122,13 +127,15 @@ file 集合を列挙するメタテストも焦点走に含める。並行 wave 
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
 使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
 全 registered worktree の外に置く。
+期待 node を直して再走するときは `--out` を別 path にする（既存 out は rc=2 で拒否される）。
 
 ## DW-O20 — clean-tree gate
 
 専用handoffはworktree外（背景jobはrepo外）に置き、untracked handoffを残してgateを走らせない。
 cwdが既にworktreeなら作成せず、directory/branch不一致をhandoff・worklogへ記録してwaveの
-worktreeを流用しない。作成・再開直後に`tools/check_wave_startup.py`（背景jobは
-`--external-handoff <handoff>`付き）を実行し、非0なら停止する。HEAD差は`--ff-only`だけで揃える（F48）。
+worktreeを流用しない。作成直後は`tools/check_wave_startup.py`、再開直後は`--mode resume`付きで
+実行し（背景jobは`--external-handoff <handoff>`も）、非0なら停止する。resumeも
+branch・clean tree・main包含を要求。HEAD差は`--ff-only`で揃える（F48）。
 新規worktreeはsubmodule未初期化で非0になる。worktree内で`git submodule update --init`を実行して
 再検査する（`deinit`は使わない）。取り込みはsubmodule pointerを進めるがworking treeを更新しない。
 受入投入前に`git submodule update --recursive`で記録へ揃える。

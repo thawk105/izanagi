@@ -293,6 +293,18 @@ def _session_rows(
     for row in schedule:
         cell = by_id[row["cell_id"]]
         seq = row["seq"]
+        observations = [
+            {
+                "rep_index": index, "returncode": 0,
+                "counter_status": "complete", "missing_perf_events": [],
+                "perf_raw": {
+                    "LLC-load-misses": 1, "LLC-loads": 2,
+                    "instructions": 3, "cycles": 4,
+                },
+                "throughput": 1000.0,
+            }
+            for index in range(5)
+        ]
         rows.append({
             "event": "session", "kind": "planned", "seq": seq, "round": row["round"],
             "retry_ordinal": None, "attempt_id": f"{cell['cell_id']}::seq{seq}", "trigger": None,
@@ -301,7 +313,9 @@ def _session_rows(
             "threads": cell["threads"], "workload": dict(cell["workload"]),
             "throughputs": [1000.0] * 5, "reps_expected": 5, "exec_failures": 0,
             "excluded_reason": None, "retry": False, "session_median": 1000.0,
-            "valid": True, "session_cv": 0.0, "duration_s": 1.0,
+            "rep_observations": observations, "rep_integrity_failures": 0,
+            "exclusion_class": None, "valid": True, "session_cv": 0.0,
+            "duration_s": 1.0,
             "run_cmd": shlex.join(FC.build_portable_run_cmd(
                 binary=binaries[cell["cell_id"]]["binary"], workload=cell["workload"],
                 records=cell["records"], threads=cell["threads"],
@@ -309,8 +323,8 @@ def _session_rows(
                 numactl=contract.numactl,
             )),
             "notes": [],
-            "probe_before": {"rc": 1, "stdout": "", "stderr": "", "competing": []},
-            "probe_after": {"rc": 1, "stdout": "", "stderr": "", "competing": []},
+            "probe_before": {"rc": 1, "stdout": "", "stderr": "", "competing": False},
+            "probe_after": {"rc": 1, "stdout": "", "stderr": "", "competing": False},
             "binary_sha256_at_measure": binaries[cell["cell_id"]]["binary_sha256"],
         })
     return rows
@@ -325,7 +339,8 @@ def _result_document(protocol: dict, cells: list[dict], binaries: dict,
             configuration_id=row["configuration_id"], seq=row["seq"],
             throughputs=tuple(row["throughputs"]), reps_expected=row["reps_expected"],
             exec_failures=row["exec_failures"], excluded_reason=row["excluded_reason"],
-            retry=row["retry"],
+            retry=row["retry"], rep_observations=tuple(row["rep_observations"]),
+            rep_integrity_failures=row["rep_integrity_failures"],
         ))
     computed = {}
     cells_out = {}
@@ -357,6 +372,8 @@ def _result_document(protocol: dict, cells: list[dict], binaries: dict,
         "seq": r["seq"], "cell_id": r["cell_id"], "kind": r["kind"], "round": r["round"],
         "retry_ordinal": r["retry_ordinal"], "valid": r["valid"],
         "excluded_reason": r["excluded_reason"], "session_cv": r["session_cv"],
+        "exclusion_class": r["exclusion_class"],
+        "rep_integrity_failures": r["rep_integrity_failures"],
         "session_median": r["session_median"], "duration_s": r["duration_s"],
     } for r in sessions]
     return {
@@ -2256,6 +2273,8 @@ def test_result_excluded_projection_rederived_from_journal(tmp_path):
             "seq": 0, "cell_id": state["result"]["sessions"][0]["cell_id"],
             "kind": "planned", "retry": False, "round": 1,
             "excluded_reason": "performance_anomaly", "session_cv": 1.0,
+            "exclusion_class": "performance_anomaly",
+            "rep_integrity_failures": 0,
         })
     root, freeze, _ = _build_launch_repo(tmp_path, mutate=mutate)
     with pytest.raises(M.RatifiedFreezeError) as ei:

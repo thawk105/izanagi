@@ -37,7 +37,17 @@ def _absolute_path(value: str) -> Path:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="dev-wave の Claude session 使用量 artifact を収集する"
+        description="dev-wave の Claude session 使用量 artifact を収集する",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "先頭が '-' の project slug は --project=<slug> の等号形で指定すること。\n"
+            "終了値:\n"
+            "  0  collection.status=complete または --help\n"
+            "  1  PEGASUS_SUSPECT の blocked、incomplete、missing、error、未知 status、\n"
+            "     その他の失敗\n"
+            "  2  外側 argv を argparse が拒否\n"
+            "  3  PEGASUS_LOGIN と確証できた site の blocked"
+        ),
     )
     parser.add_argument("--wave-id", required=True)
     parser.add_argument("--out", required=True, type=_absolute_path)
@@ -94,15 +104,15 @@ def _artifact(
 def _collector_argv(args: argparse.Namespace) -> list[str]:
     argv: list[str] = []
     if args.projects_root is not None:
-        argv.extend(("--projects-root", os.fspath(args.projects_root)))
+        argv.append(f"--projects-root={os.fspath(args.projects_root)}")
     for project in args.project:
-        argv.extend(("--project", project))
-    argv.extend(("--cwd-under", os.fspath(args.cwd_under)))
+        argv.append(f"--project={project}")
+    argv.append(f"--cwd-under={os.fspath(args.cwd_under)}")
     if args.since is not None:
-        argv.extend(("--since", args.since))
+        argv.append(f"--since={args.since}")
     if args.until is not None:
-        argv.extend(("--until", args.until))
-    argv.extend(("--max-files", str(args.max_files), "--include-sidechains"))
+        argv.append(f"--until={args.until}")
+    argv.extend((f"--max-files={args.max_files}", "--include-sidechains"))
     return argv
 
 
@@ -217,17 +227,24 @@ def _run(argv: Sequence[str] | None) -> int:
                 f"collect_wave_usage: {artifact['collection']['status']}: {reason}",
                 file=sys.stderr,
             )
-    return 0
+    status = artifact["collection"]["status"]
+    if status == "complete":
+        return 0
+    if status == "blocked" and site_policy.is_pegasus_login(
+        artifact["collection"]["site"]
+    ):
+        return 3
+    return 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     try:
         return _run(argv)
-    except SystemExit:
-        return 0
+    except SystemExit as exc:
+        return exc.code if exc.code in (0, 2) else 1
     except Exception as exc:
         print(f"collect_wave_usage: error: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return 0
+        return 1
 
 
 if __name__ == "__main__":

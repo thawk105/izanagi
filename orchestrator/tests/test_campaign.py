@@ -10213,6 +10213,94 @@ def test_patchharness_git_disables_optional_locks_in_environment():
     assert captured["text"] is True
 
 
+def test_patchharness_real_shared_checkout_guard_is_pytest_only_and_fails_closed(
+        tmp_path, monkeypatch):
+    """実共有 submodule は正本印付き node だけが pytest 中に checkout できる。"""
+    from orchestrator.campaign import patchharness
+
+    real = patchharness._default_ccbench_dir()
+    hermetic = tmp_path / "hermetic-ccbench"
+    subprocess.run(["git", "init", "--quiet", str(hermetic)], check=True)
+    with unittest_mock.patch.object(
+            patchharness, "_git_repository_identity",
+            side_effect=AssertionError("production では probe 禁止")):
+        token = patchharness._PYTEST_NODE.set(None)
+        try:
+            patchharness._guard_real_shared_checkout(real)
+        finally:
+            patchharness._PYTEST_NODE.reset(token)
+    for name in (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        monkeypatch.setenv(name, f"decoy-{name}")
+    with patchharness._pytest_node_context("test_missing.py::test_missing", False):
+        with pytest.raises(RuntimeError) as excinfo:
+            with patchharness.checkout("unused-pin", base_dir=real):
+                raise AssertionError("guard が checkout body より先に拒否すべき")
+        message = str(excinfo.value)
+        assert "test_missing.py::test_missing" in message
+        assert "REAL_REPO_SERIAL_NODES へ追加せよ" in message
+        with pytest.raises(RuntimeError):
+            with patchharness.checkout(
+                    "unused-pin", base_dir=os.path.join(real, "include")):
+                raise AssertionError("subdirectory guard が checkout より先に拒否すべき")
+        patchharness._guard_real_shared_checkout(str(hermetic))
+        with pytest.raises(RuntimeError, match="repository identity"):
+            patchharness._guard_real_shared_checkout(str(tmp_path / "missing"))
+    with patchharness._pytest_node_context("test_registered.py::test_registered", True):
+        patchharness._guard_real_shared_checkout(real)
+
+
+def test_source_digest_status_scrubs_git_environment_and_disables_optional_locks(
+        monkeypatch):
+    """paired status/diff と show は同じ衛生化 Git env で実 source を見る。"""
+    forbidden = (
+        "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+    )
+    for name in forbidden:
+        monkeypatch.setenv(name, f"decoy-{name}")
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "1")
+    captured = []
+
+    def runner(command, **kwargs):
+        captured.append((command, kwargs))
+        if "status" in command:
+            return subprocess.CompletedProcess(
+                command, 0, " M include/backoff.hh\n?? build/\n", "")
+        if "diff" in command:
+            return subprocess.CompletedProcess(command, 0, b"real-source-diff", b"")
+        if "show" in command:
+            return subprocess.CompletedProcess(command, 0, "baseline\n", "")
+        raise AssertionError(f"予期しない subprocess: {command!r}")
+
+    monkeypatch.setattr(source_digest.subprocess, "run", runner)
+    monkeypatch.setattr(source_digest, "assert_includes_match_head", lambda *args: None)
+    monkeypatch.setattr(
+        source_digest, "assert_conditional_macros_covered", lambda *args: None,
+    )
+    monkeypatch.setattr(source_digest, "compute", lambda *args: "a" * 64)
+    monkeypatch.setattr(source_digest, "baseline", lambda *args: "b" * 64)
+
+    evidence = source_digest.resolve_evidence(
+        Genome("silo", {"BACK_OFF": 1}), "deadbeef", ccbench_dir="/real/ccbench",
+    )
+    assert evidence.tracked_paths == ("include/backoff.hh",)
+    assert evidence.tracked_diff_sha256 == hashlib.sha256(b"real-source-diff").hexdigest()
+    assert source_digest._git_show("/real/ccbench", "deadbeef", "include/backoff.hh") == (
+        "baseline\n"
+    )
+    assert len(captured) == 3
+    environments = [kwargs["env"] for _, kwargs in captured]
+    assert environments[0] == environments[1] == environments[2]
+    assert environments[0]["GIT_OPTIONAL_LOCKS"] == "0"
+    assert all(name not in environments[0] for name in forbidden)
+    assert all(kwargs["capture_output"] is True for _, kwargs in captured)
+
+
 def test_patchharness_fails_closed_on_dirty_or_unpinned_tree():
     """apply 前の pinned-clean assert: tracked 改変が残る tree / pin 不一致 / 空 pin には
     patch を当てない (前 variant の revert 漏れ・別セッション残骸との合成を防ぐ)。"""

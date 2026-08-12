@@ -512,7 +512,7 @@ policy:
   allow_implicit_invocation: false
 """
 CLEANUP_COMMAND_SHA256 = (
-    "a92d960c4da65a199b39a50c43d64f5ab66fccbb19205f25c5d87db47a4722e3"
+    "c13394954952a344c9086c93db102cd9b45765a04285ac8e835b15b3552db3e4"
 )
 
 COMMAND_INTERFACES = {
@@ -624,13 +624,11 @@ STAGE_UNCONDITIONAL_DISPATCH_CONTRACT = {
     ),
     "段 2 preflight": (
         _pairs(_WORKERS, "DW-S02")
-        | _pairs(_OPERATIONS, "DW-O01", "DW-O02", "DW-O03", "DW-O05")
+        | _pairs(_OPERATIONS, "DW-O01", "DW-O02", "DW-O05")
     ),
     "段 3 preflight": (
         _pairs(_WORKERS, "DW-S03")
-        | _pairs(
-            _OPERATIONS, "DW-O01", "DW-O02", "DW-O03", "DW-O05", "DW-O13"
-        )
+        | _pairs(_OPERATIONS, "DW-O01", "DW-O02", "DW-O05")
     ),
     "段 4": (
         _pairs(
@@ -649,7 +647,7 @@ STAGE_UNCONDITIONAL_DISPATCH_CONTRACT = {
         | _pairs(
             _MUTATION,
             "DW-M02", "DW-M03", "DW-M04", "DW-M05",
-            "DW-M06", "DW-M07", "DW-M08",
+            "DW-M06", "DW-M08",
         )
     ),
     "段 7": _pairs(_CORE, "DW-S07"),

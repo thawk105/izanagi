@@ -1,0 +1,152 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 40,
+  "hang_timeout_seconds": 300,
+  "timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_exact_token_is_the_only_release_for_lightweight_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_refusal_diagnostic_is_canonical_ascii_json"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "        if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) != RUN_GROWTH_HELD_TESTS_TOKEN:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))",
+          "new": "        if False:\n            raise GrowthTestHoldBypassRefused(_refusal_message(node_id))"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_direct_import_and_call_bypass_is_refused",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_guard_binding_negative_control_detects_removed_call",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_imported_conftest_does_not_enable_runpy_bypass"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_repo_scan_invariant.py",
+          "old": "enforce_held_functions(globals(), __file__, plain_runner=\"manual\")",
+          "new": "pass"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_pytest_delegating_runner_is_not_over_rejected",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    function_names = tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)",
+          "new": "    function_names = tuple(\n        name for name in namespace\n        if isinstance(name, str) and name.startswith(\"test_\")\n    ) or tuple(node_id.split(\"::\", 1)[1] for node_id in held_nodes)"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_noconftest_bypass_is_refused_before_held_body",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    raise GrowthTestHoldBypassRefused(_refusal_message(f\"{filename}::*\"))",
+          "new": "    return function_names"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-typo]",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_import_guard_rejects_nonempty_nonexact_release_token[explicit-user-command-extra]"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    if os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) == RUN_GROWTH_HELD_TESTS_TOKEN:\n        return function_names",
+          "new": "    if (os.environ.get(RUN_GROWTH_HELD_TESTS_ENV) or \"\").startswith(\"explicit\"):\n        return function_names"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    if not held_nodes:\n        raise ValueError(f\"no growth-test holds registered for {filename!r}\")",
+          "new": "    if not held_nodes:\n        return ()"
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_plain_runner_bypass_is_refused_before_held_body"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    if (\n        namespace.get(\"__name__\") == \"__main__\"\n        and plain_runner == \"pytest-delegating\"\n    ):\n        return function_names",
+          "new": "    if namespace.get(\"__name__\") == \"__main__\":\n        return function_names"
+        }
+      ]
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_enforcement_rejects_misplacement_and_missing_functions"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    noncallable = tuple(\n        name for name in function_names if not callable(namespace[name])\n    )\n    if noncallable:\n        raise ValueError(\n            f\"growth-test held names are not callable in {filename!r}: {noncallable!r}\"\n        )",
+          "new": "    noncallable = ()"
+        }
+      ]
+    }
+  ]
+}

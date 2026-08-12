@@ -533,6 +533,10 @@ def test_ratified_memo_refuses_roots_other_than_the_real_repository(tmp_path):
         ratified_memo.memo_loader(root=tmp_path)
 
 
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="pytest-delegating")
+
+
 if __name__ == "__main__":
     # pytest 依存 (fixtures / parametrize / raises) のため自走 harness は pytest.main
     # に委譲する。`python3 test_s8b_binding_driftguards.py` で実走し、0 件実行の偽緑を

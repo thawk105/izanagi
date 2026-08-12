@@ -34,6 +34,7 @@ def _git(repo: Path, *args: str) -> str:
 
 
 def _repo(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     repo = tmp_path / "repo"
     _git(tmp_path, "init", "-q", "-b", "main", str(repo))
     marker = repo / "external" / "ccbench" / "CMakeLists.txt"
@@ -53,6 +54,24 @@ def _repo(tmp_path: Path) -> Path:
     _git(repo, "checkout", "-qb", "work")
     (marker.parent / ".git").write_text("gitdir: fixture\n", encoding="utf-8")
     return repo
+
+
+def _commit_all(repo: Path, message: str) -> None:
+    git_entry = repo / "external" / "ccbench" / ".git"
+    saved_git_entry = git_entry.read_bytes() if git_entry.is_file() else None
+    if saved_git_entry is not None:
+        git_entry.unlink()
+    try:
+        _git(repo, "add", "-A")
+        _git(
+            repo,
+            "-c", "user.name=Test",
+            "-c", "user.email=test@example.invalid",
+            "commit", "-qm", message,
+        )
+    finally:
+        if saved_git_entry is not None:
+            git_entry.write_bytes(saved_git_entry)
 
 
 def _run(repo: Path, *extra: str) -> int:
@@ -97,7 +116,9 @@ def test_fresh_requires_non_main_branch(tmp_path: Path, state: str) -> None:
 
 
 @pytest.mark.parametrize("state", ["rebase-merge", "rebase-apply", "MERGE_HEAD"])
-def test_resume_rejects_rebase_or_merge_state(tmp_path: Path, state: str) -> None:
+def test_resume_rejects_rebase_or_merge_state(
+    tmp_path: Path, state: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     repo = _repo(tmp_path)
     git_dir = Path(_git(repo, "rev-parse", "--absolute-git-dir"))
     path = git_dir / state
@@ -105,7 +126,9 @@ def test_resume_rejects_rebase_or_merge_state(tmp_path: Path, state: str) -> Non
         path.write_text(_git(repo, "rev-parse", "HEAD") + "\n", encoding="ascii")
     else:
         path.mkdir()
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 1
+    assert "rebase/merge in progress" in capsys.readouterr().err
 
 
 def test_fresh_rejects_dirty_tree(tmp_path: Path) -> None:
@@ -115,38 +138,78 @@ def test_fresh_rejects_dirty_tree(tmp_path: Path) -> None:
     assert _run(repo) == 1
 
 
+def test_resume_accepts_clean_head_equal_to_main(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    assert _git(repo, "symbolic-ref", "--short", "HEAD") == "work"
+    assert _git(repo, "rev-parse", "HEAD") == _git(repo, "rev-parse", "main")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume") == 0
+
+
+@pytest.mark.parametrize("state", ["main", "detached"])
+def test_resume_requires_non_main_branch(
+    tmp_path: Path,
+    state: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    if state == "main":
+        _git(repo, "checkout", "-q", "main")
+    else:
+        _git(repo, "checkout", "-q", "--detach")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume") == 1
+    expected = "branch is main" if state == "main" else "detached HEAD"
+    assert expected in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("invalid_marker", ["missing", "directory", "symlink"])
 def test_resume_rejects_invalid_submodule_marker(
-    tmp_path: Path, invalid_marker: str
+    tmp_path: Path,
+    invalid_marker: str,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """V6: submodule marker 検査を恒真化するとこの負例が通って赤になる。"""
     repo = _repo(tmp_path)
     marker = repo / "external" / "ccbench" / "CMakeLists.txt"
     marker.unlink()
+    if invalid_marker == "symlink":
+        marker.symlink_to(repo / "base.txt")
+    _commit_all(repo, f"invalid marker {invalid_marker}")
     if invalid_marker == "directory":
         marker.mkdir()
-    elif invalid_marker == "symlink":
-        marker.symlink_to(repo / "base.txt")
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 1
+    assert "submodule is not initialized" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("invalid_git_entry", ["missing", "symlink"])
 def test_resume_requires_non_symlink_submodule_git_entry(
-    tmp_path: Path, invalid_git_entry: str
+    tmp_path: Path,
+    invalid_git_entry: str,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = _repo(tmp_path)
     git_entry = repo / "external" / "ccbench" / ".git"
     git_entry.unlink()
     if invalid_git_entry == "symlink":
         git_entry.symlink_to(repo / ".git")
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 1
+    assert "submodule is not initialized" in capsys.readouterr().err
 
 
-def test_worktree_handoff_gate_is_opt_in(tmp_path: Path) -> None:
+def test_worktree_handoff_gate_is_opt_in(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     repo = _repo(tmp_path)
     (repo / "docs" / "handoff" / "active.md").write_text("state\n", encoding="utf-8")
+    _commit_all(repo, "tracked handoff")
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 0
+    capsys.readouterr()
     assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 1
+    assert "worktree-local handoff remains" in capsys.readouterr().err
 
 
 def test_forbid_worktree_handoff_accepts_only_regular_readme(tmp_path: Path) -> None:
@@ -155,7 +218,7 @@ def test_forbid_worktree_handoff_accepts_only_regular_readme(tmp_path: Path) -> 
 
 
 def test_forbid_worktree_handoff_rejects_handoff_directory_symlink(
-    tmp_path: Path,
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """V13: handoff symlink 検査を恒真化するとこの負例が通って赤になる。"""
     repo = _repo(tmp_path)
@@ -165,17 +228,23 @@ def test_forbid_worktree_handoff_rejects_handoff_directory_symlink(
     external = tmp_path / "empty-external-handoff"
     external.mkdir()
     handoff.symlink_to(external, target_is_directory=True)
+    _commit_all(repo, "symlink handoff directory")
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 1
+    assert "docs/handoff is a symlink" in capsys.readouterr().err
 
 
 def test_forbid_worktree_handoff_counts_readme_directory_as_leftover(
-    tmp_path: Path,
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     repo = _repo(tmp_path)
     readme = repo / "docs" / "handoff" / "README.md"
     readme.unlink()
+    _commit_all(repo, "remove handoff readme")
     readme.mkdir()
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 1
+    assert "worktree-local handoff remains (README.md)" in capsys.readouterr().err
 
 
 def test_external_handoff_accepts_existing_file_outside_repo(tmp_path: Path) -> None:
@@ -187,18 +256,23 @@ def test_external_handoff_accepts_existing_file_outside_repo(tmp_path: Path) -> 
 
 
 def test_external_handoff_also_rejects_worktree_handoff_leftover(
-    tmp_path: Path,
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     repo = _repo(tmp_path)
     external = tmp_path / "external-handoff.md"
     external.write_text("state\n", encoding="utf-8")
     (repo / "docs" / "handoff" / "active.md").write_text("state\n", encoding="utf-8")
+    _commit_all(repo, "tracked handoff leftover")
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume", "--external-handoff", str(external)) == 1
+    assert "worktree-local handoff remains" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("invalid_kind", ["missing", "directory", "symlink", "inside"])
 def test_external_handoff_rejects_invalid_path(
-    tmp_path: Path, invalid_kind: str
+    tmp_path: Path,
+    invalid_kind: str,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = _repo(tmp_path)
     external = tmp_path / "candidate-handoff"
@@ -211,11 +285,14 @@ def test_external_handoff_rejects_invalid_path(
     elif invalid_kind == "inside":
         external = repo / "handoff.md"
         external.write_text("state\n", encoding="utf-8")
+        _commit_all(repo, "inside handoff candidate")
+        assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume", "--external-handoff", str(external)) == 1
+    assert "external handoff" in capsys.readouterr().err
 
 
-def test_resume_accepts_head_advance_and_dirty_tree(tmp_path: Path) -> None:
-    """resume は HEAD/main・branch・clean-tree を再検査しない正例。"""
+def test_resume_accepts_clean_head_advance(tmp_path: Path) -> None:
+    """resume は local main を包含する clean な自 wave commit を受理する。"""
     repo = _repo(tmp_path)
     (repo / "base.txt").write_text("resumed\n", encoding="utf-8")
     _git(repo, "add", "base.txt")
@@ -226,8 +303,120 @@ def test_resume_accepts_head_advance_and_dirty_tree(tmp_path: Path) -> None:
         "commit", "-qm", "resume",
     )
     assert _git(repo, "rev-parse", "HEAD") != _git(repo, "rev-parse", "main")
-    (repo / "untracked-on-resume.txt").write_text("allowed\n", encoding="utf-8")
+    assert _git(repo, "rev-list", "--count", "HEAD..main") == "0"
+    assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 0
+
+
+def test_resume_rejects_dirty_tree(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    (repo / "untracked-on-resume.txt").write_text("dirty\n", encoding="utf-8")
+    assert _run(repo, "--mode", "resume") == 1
+    assert "working tree is not clean" in capsys.readouterr().err
+
+
+def test_check_repository_rejects_unknown_mode(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    assert _git(repo, "status", "--porcelain") == ""
+    failures = CWS.check_repository(repo, mode="unsafe")
+    assert failures == [
+        "unsupported startup mode 'unsafe': fresh または resume を明示する"
+    ]
+
+
+def test_mode_parser_contract_is_exact(capsys: pytest.CaptureFixture[str]) -> None:
+    mode_action = next(action for action in CWS._parser()._actions if action.dest == "mode")
+    assert mode_action.choices == ("fresh", "resume")
+    assert mode_action.default == "fresh"
+    with pytest.raises(SystemExit) as raised:
+        CWS.main(["--mode", "unsafe"])
+    assert raised.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err
+
+
+def test_default_mode_remains_fresh_despite_resume_environment_and_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    (repo / "base.txt").write_text("ahead\n", encoding="utf-8")
+    _git(repo, "add", "base.txt")
+    _git(
+        repo,
+        "-c", "user.name=Test",
+        "-c", "user.email=test@example.invalid",
+        "commit", "-qm", "ahead",
+    )
+    _git(repo, "config", "check-wave-startup.mode", "resume")
+    monkeypatch.setenv("CHECK_WAVE_STARTUP_MODE", "resume")
+    monkeypatch.setenv("IZANAGI_WAVE_STARTUP_MODE", "resume")
+    monkeypatch.setenv("CLAUDECODE", "resume")
+    assert CWS.main(["--repo", str(repo)]) == 1
+    assert CWS.main(["--repo", str(repo), "--mode", "resume"]) == 0
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "stderr", "expected"),
+    [
+        pytest.param(1, "0", "forced failure", "git の読み取りに失敗", id="rc-nonzero-zero"),
+        pytest.param(0, "", "", "ASCII 整数でない", id="empty"),
+        pytest.param(0, "text", "", "ASCII 整数でない", id="text"),
+        pytest.param(0, "+0", "", "ASCII 整数でない", id="signed"),
+        pytest.param(0, "０", "", "ASCII 整数でない", id="full-width"),
+        pytest.param(0, "0 0", "", "ASCII 整数でない", id="multiple-tokens"),
+        pytest.param(0, "00", "", "HEAD does not contain local main", id="leading-zero"),
+    ],
+)
+def test_head_contains_main_fails_closed_for_invalid_rev_list(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    returncode: int,
+    stdout: str,
+    stderr: str,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(CWS, "_check_no_grafts", lambda repo: [])
+    rev_list_calls: list[tuple[str, ...]] = []
+
+    def fake_git(repo: Path, *args: str) -> CWS.GitResult:
+        assert args[0] == "rev-list"
+        rev_list_calls.append(args)
+        return CWS.GitResult(returncode, stdout, stderr)
+
+    monkeypatch.setattr(CWS, "_git", fake_git)
+    failures = CWS._check_head_contains_main(tmp_path)
+    assert failures
+    assert any(expected in failure for failure in failures)
+    assert rev_list_calls == [("rev-list", "--count", "HEAD..refs/heads/main")]
+
+
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        pytest.param(CWS.GitResult(1, "", "forced failure"), "git の読み取りに失敗", id="rc"),
+        pytest.param(CWS.GitResult(0, "", ""), "git common directory が空", id="empty"),
+        pytest.param(CWS.GitResult(0, "relative", ""), "絶対 path でない", id="relative"),
+    ],
+)
+def test_grafts_check_fails_closed_for_invalid_common_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    result: CWS.GitResult,
+    expected: str,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_git(repo: Path, *args: str) -> CWS.GitResult:
+        calls.append(args)
+        return result
+
+    monkeypatch.setattr(CWS, "_git", fake_git)
+    failures = CWS._check_no_grafts(tmp_path)
+    assert failures
+    assert expected in failures[0]
+    assert calls == [("rev-parse", "--path-format=absolute", "--git-common-dir")]
 
 
 def test_git_wrapper_is_sanitized_and_read_only(
@@ -243,6 +432,7 @@ def test_git_wrapper_is_sanitized_and_read_only(
         monkeypatch.setenv(key, value)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     monkeypatch.setenv("GIT_TERMINAL_PROMPT", "poison")
+    monkeypatch.setenv("GIT_NO_REPLACE_OBJECTS", "0")
     seen: dict[str, object] = {}
 
     def fake_run(argv, **kwargs):
@@ -258,6 +448,10 @@ def test_git_wrapper_is_sanitized_and_read_only(
     assert all(key not in child_env for key in poison)
     assert child_env["GIT_CONFIG_NOSYSTEM"] == "1"
     assert child_env["GIT_TERMINAL_PROMPT"] == "0"
+    assert child_env["GIT_NO_REPLACE_OBJECTS"] == "1"
+    assert CWS._READ_ONLY_GIT_SUBCOMMANDS == frozenset(
+        {"rev-list", "rev-parse", "status", "symbolic-ref"}
+    )
     with pytest.raises(ValueError):
         CWS._git(tmp_path, "checkout", "main")
 
@@ -271,7 +465,9 @@ def test_git_execution_error_becomes_aggregated_failure(
     monkeypatch.setattr(CWS.subprocess, "run", missing_git)
     failures = CWS.check_repository(tmp_path, mode="resume")
     assert failures
-    assert all("git unavailable" in failure for failure in failures[:-1])
+    git_failures = failures[:-1]
+    assert git_failures
+    assert all("git unavailable" in failure for failure in git_failures)
     assert "submodule is not initialized" in failures[-1]
 
 
@@ -325,6 +521,147 @@ def _advance_main(repo: Path, count: int) -> None:
     _git(repo, "checkout", "-q", "work")
 
 
+def _advance_work(repo: Path, name: str = "work-ahead.txt") -> None:
+    (repo / name).write_text("work\n", encoding="utf-8")
+    _git(repo, "add", name)
+    _git(
+        repo,
+        "-c", "user.name=Test",
+        "-c", "user.email=test@example.invalid",
+        "commit", "-qm", "work ahead",
+    )
+
+
+def test_resume_rejects_head_behind_local_main(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "1"
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume") == 1
+    assert "HEAD does not contain local main (1 commit behind)" in capsys.readouterr().err
+
+
+def test_resume_rejects_diverged_head(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    _advance_work(repo)
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "1"
+    assert _git(repo, "rev-list", "--count", "refs/heads/main..HEAD") == "1"
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume") == 1
+    assert "HEAD does not contain local main" in capsys.readouterr().err
+
+
+def test_resume_rejects_unborn_head(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = tmp_path / "unborn"
+    _git(tmp_path, "init", "-q", "-b", "work", str(repo))
+    empty_tree = _git(repo, "hash-object", "-t", "tree", "-w", "/dev/null")
+    main_commit = _git(
+        repo,
+        "-c", "user.name=Test",
+        "-c", "user.email=test@example.invalid",
+        "commit-tree", empty_tree, "-m", "main base",
+    )
+    _git(repo, "update-ref", "refs/heads/main", main_commit)
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.write_text("external/\ndocs/\n", encoding="ascii")
+    marker = repo / "external" / "ccbench" / "CMakeLists.txt"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("# fixture\n", encoding="utf-8")
+    (marker.parent / ".git").write_text("gitdir: fixture\n", encoding="utf-8")
+    handoff = repo / "docs" / "handoff"
+    handoff.mkdir(parents=True)
+    (handoff / "README.md").write_text("# handoff\n", encoding="utf-8")
+    assert _git(repo, "status", "--porcelain") == ""
+    failures = CWS.check_repository(repo, mode="resume")
+    assert len(failures) == 1
+    assert "HEAD/local main containment: git の読み取りに失敗" in failures[0]
+    assert _run(repo, "--mode", "resume") == 1
+    assert "HEAD/local main containment: git の読み取りに失敗" in capsys.readouterr().err
+
+
+def test_resume_does_not_accept_replace_forged_containment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    _advance_work(repo)
+    head = _git(repo, "rev-parse", "HEAD")
+    main = _git(repo, "rev-parse", "refs/heads/main")
+    assert _git(repo, "--no-replace-objects", "rev-list", "--count", "HEAD..main") == "1"
+    _git(repo, "replace", "--graft", head, main)
+    assert _git(repo, "rev-list", "--count", "HEAD..main") == "0"
+    monkeypatch.setenv("GIT_NO_REPLACE_OBJECTS", "0")
+    assert _run(repo, "--mode", "resume") == 1
+    assert "HEAD does not contain local main" in capsys.readouterr().err
+
+
+def test_resume_rejects_legacy_graft_forged_containment(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    _advance_work(repo)
+    head = _git(repo, "rev-parse", "HEAD")
+    main = _git(repo, "rev-parse", "refs/heads/main")
+    assert _git(repo, "rev-list", "--count", "HEAD..main") == "1"
+    grafts = Path(
+        _git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/grafts")
+    )
+    grafts.parent.mkdir(parents=True, exist_ok=True)
+    grafts.write_text(f"{head} {main}\n", encoding="ascii")
+    assert _git(repo, "rev-list", "--count", "HEAD..main") == "0"
+    assert _run(repo, "--mode", "resume") == 1
+    assert "legacy graft metadata exists" in capsys.readouterr().err
+
+
+def test_resume_rejects_dangling_grafts_symlink(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    grafts = Path(
+        _git(repo, "rev-parse", "--path-format=absolute", "--git-path", "info/grafts")
+    )
+    grafts.parent.mkdir(parents=True, exist_ok=True)
+    grafts.symlink_to(tmp_path / "missing-grafts-target")
+    assert grafts.is_symlink() and not grafts.exists()
+    assert _run(repo, "--mode", "resume") == 1
+    assert "legacy graft metadata exists" in capsys.readouterr().err
+
+
+def test_resume_rejects_symbolic_main_forged_containment(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    _git(repo, "symbolic-ref", "refs/heads/main", "refs/heads/work")
+    assert _git(repo, "symbolic-ref", "refs/heads/main") == "refs/heads/work"
+    assert _git(repo, "rev-list", "--count", "HEAD..refs/heads/main") == "0"
+    assert _run(repo, "--mode", "resume") == 1
+    assert "local main is a symbolic ref" in capsys.readouterr().err
+
+
+def test_fresh_rejects_symbolic_main_forged_equality(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    _git(repo, "symbolic-ref", "refs/heads/main", "refs/heads/work")
+    assert _git(repo, "rev-parse", "HEAD") == _git(
+        repo, "rev-parse", "refs/heads/main"
+    )
+    assert _run(repo, "--mode", "fresh") == 1
+    assert "local main is a symbolic ref" in capsys.readouterr().err
+
+
 def test_main_divergence_notice_is_shown_when_there_is_no_gap(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -337,30 +674,89 @@ def test_main_divergence_notice_is_shown_when_there_is_no_gap(
     assert "0 commit" in out
 
 
-def test_main_divergence_notice_reports_count_without_changing_rc(
+def test_main_divergence_notice_reports_count_while_resume_gate_rejects_lag(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """乖離 N は件数付きで出るが rc は変えない (可視化であって gate ではない)。"""
+    """INFO は件数を示し、独立した resume gate は lag を拒否する。"""
     repo = _repo(tmp_path)
     _advance_main(repo, 3)
     assert _git(repo, "rev-list", "--count", "HEAD..main") == "3"
-    assert _run(repo, "--mode", "resume") == 0
-    out = capsys.readouterr().out
+    assert _run(repo, "--mode", "resume") == 1
+    captured = capsys.readouterr()
+    out = captured.out
     assert "3 commit" in out
     assert "遅れ" in out
     assert "乖離なし" not in out
+    assert "HEAD does not contain local main" in captured.err
 
 
-def test_main_divergence_notice_is_fail_open_when_main_ref_is_missing(
+def test_main_divergence_notice_is_fail_open_but_resume_gate_is_fail_closed_when_main_is_missing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """main ref が無くても受理集合は変わらず、取得できない旨だけを述べる。"""
+    """main ref 不在時も INFO は続行を述べるが resume gate は拒否する。"""
     repo = _repo(tmp_path)
     _git(repo, "branch", "-D", "main")
-    assert _run(repo, "--mode", "resume") == 0
-    out = capsys.readouterr().out
+    assert _run(repo, "--mode", "resume") == 1
+    captured = capsys.readouterr()
+    out = captured.out
     assert "取得できない" in out
     assert "続行" in out
+    assert "HEAD/local main containment: git の読み取りに失敗" in captured.err
+
+
+def test_resume_gate_does_not_trust_info_text(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_main(repo, 1)
+    monkeypatch.setattr(CWS, "describe_main_divergence", lambda repo: "local main との乖離なし")
+    assert _run(repo, "--mode", "resume") == 1
+
+
+def test_info_failure_text_does_not_reject_valid_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+    monkeypatch.setattr(
+        CWS,
+        "describe_main_divergence",
+        lambda repo: "local main との乖離を取得できない: 可視化のみ省略し検査は続行する",
+    )
+    assert _run(repo, "--mode", "resume") == 0
+
+
+def test_info_exception_does_not_reject_valid_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path)
+    _advance_work(repo)
+
+    def raise_unexpected(repo: Path) -> str:
+        raise RuntimeError("unexpected info failure")
+
+    monkeypatch.setattr(CWS, "describe_main_divergence", raise_unexpected)
+    assert _run(repo, "--mode", "resume") == 0
+    assert "可視化のみ省略し検査は続行する" in capsys.readouterr().out
+
+
+def test_repo_argument_is_used_for_both_info_and_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    inspected = _repo(tmp_path / "inspected")
+    decoy = _repo(tmp_path / "decoy")
+    _advance_main(inspected, 1)
+    monkeypatch.chdir(decoy)
+    assert CWS.main(["--repo", str(inspected), "--mode", "resume"]) == 1
+    captured = capsys.readouterr()
+    assert "1 commit" in captured.out
+    assert "HEAD does not contain local main" in captured.err
 
 
 def test_main_divergence_notice_is_shown_even_when_checks_fail(
@@ -377,7 +773,24 @@ def test_help_discloses_qsub_is_out_of_scope(capsys: pytest.CaptureFixture[str])
     with pytest.raises(SystemExit) as raised:
         CWS.main(["--help"])
     assert raised.value.code == 0
-    assert "qsub" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "qsub" in out
+    assert "wave identity" in out
+    assert "branch 所有" in out
+    assert "--repo" in out
+    assert "同一性は認証しない" in out
+
+
+def test_ok_reports_resolved_repo_and_non_guarantees(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    assert CWS.main(["--repo", str(repo / ".." / "repo")]) == 0
+    out = capsys.readouterr().out
+    assert f"repo={repo.resolve()}" in out
+    assert "wave identity" in out
+    assert "branch 所有" in out
+    assert "--repo の同一性は認証しない" in out
 
 
 if __name__ == "__main__":

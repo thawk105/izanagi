@@ -49,15 +49,17 @@ def _usage(
 def _assistant(
     *,
     request_id: str | None = "req-1",
-    message_id: str = "msg-1",
+    message_id: str | None = "msg-1",
     timestamp: str | None = "2026-01-10T00:00:00Z",
     cwd: str | None = "/synthetic/izanagi",
     usage: Any = None,
     model: str = "claude-synthetic-test",
     tools: tuple[str, ...] = (),
+    parent_uuid: str | None = None,
+    agent_id: str | None = None,
+    record_uuid: str | None = None,
 ) -> dict[str, Any]:
     message: dict[str, Any] = {
-        "id": message_id,
         "type": "message",
         "model": model,
         "content": [
@@ -70,6 +72,8 @@ def _assistant(
             for tool_id in tools
         ],
     }
+    if message_id is not None:
+        message["id"] = message_id
     if usage is not None:
         message["usage"] = usage
     record: dict[str, Any] = {"type": "assistant", "message": message}
@@ -79,6 +83,12 @@ def _assistant(
         record["timestamp"] = timestamp
     if cwd is not None:
         record["cwd"] = cwd
+    if parent_uuid is not None:
+        record["parentUuid"] = parent_uuid
+    if agent_id is not None:
+        record["agentId"] = agent_id
+    if record_uuid is not None:
+        record["uuid"] = record_uuid
     return record
 
 
@@ -201,7 +211,14 @@ def test_request_dedupe_uses_final_usage_and_all_three_input_fields(
     assert root["event_timestamp_model_calls"] == 2
     assert root["mtime_fallback_model_calls"] == 0
     assert report["population"]["request_identity"] == (
-        "resolved_file_provenance_with_requestId_message.id_aliases"
+        "resolved_file_provenance_aliases_with_verified_cross_file_"
+        "canonical_message.id_replicas"
+    )
+    assert report["population"]["dedup_algorithm_version"] == (
+        "canonical_message_id_usage_dominance_v1"
+    )
+    assert report["population"]["dedup_comparison_compatibility"] == (
+        "incomparable_with_reports_without_dedup_algorithm_version"
     )
 
 
@@ -452,6 +469,664 @@ def test_raw_ids_do_not_merge_across_file_or_sidechain_provenance(
     assert rc == 2
     assert category in stderr
     assert len(report["issues"][category]) == 1
+    assert report["root"]["model_calls"] == 0
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_replicated_message_id_with_identical_usage_counts_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(
+        cache_read=16679, cache_creation=10258, input_tokens=2, output=428
+    )
+    for index in range(4):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/agent-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-replica",
+                    message_id="msg_011Cd9iV517nAAoCVuTwcsjt",
+                    usage=usage,
+                    parent_uuid=f"parent-{index}",
+                    agent_id=f"agent-{index}",
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    assert "message_id_collision" not in report["issues"]
+    assert "request_id_collision" not in report["issues"]
+    assert report["root"]["model_calls"] == 0
+    sidechains = report["sidechains"]
+    assert sidechains["model_calls"] == 1
+    assert sidechains["cache_read_input_tokens"] == 16679
+    assert sidechains["cache_creation_input_tokens"] == 10258
+    assert sidechains["input_tokens"] == 2
+    assert sidechains["raw_input_tokens"] == 16679 + 10258 + 2
+    assert sidechains["output_tokens"] == 428
+
+
+@pytest.mark.parametrize(
+    ("message_id", "expected"),
+    [
+        ("", False),
+        ("x", False),
+        ("msg_" + "A" * 252, True),
+        ("msg_" + "A" * 253, False),
+        ("msg_メッセージ", False),
+        ("msg_has space", False),
+        ("msg_has\ncontrol", False),
+    ],
+)
+def test_canonical_message_id_validator_boundaries(
+    message_id: str, expected: bool
+) -> None:
+    assert len(message_id) in {0, 1, 256, 257} or not expected
+    assert LEDGER._is_canonical_message_id(message_id) is expected
+
+
+def test_noncanonical_message_id_connection_reports_message_id_collision(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"noncanonical-{index}.jsonl",
+            [
+                _assistant(
+                    request_id=None,
+                    message_id="x",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert set(report["issues"]) == {"message_id_collision"}
+    assert report["root"]["model_calls"] == 0
+
+
+def test_message_only_and_request_only_replicas_do_not_double_count(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=11, cache_creation=22, input_tokens=33, output=44)
+    records = (
+        _assistant(
+            request_id=None,
+            message_id="msg_ExactClone1",
+            usage=usage,
+            record_uuid="82bb7044-10da-4c59-b4c3-04cf84d030a8",
+        ),
+        _assistant(
+            request_id="req-exact-clone",
+            message_id=None,
+            usage=usage,
+            record_uuid="82bb7044-10da-4c59-b4c3-04cf84d030a8",
+        ),
+    )
+    records[0]["message"]["content"] = [{"type": "text", "text": "é"}]
+    records[1]["message"]["content"] = [{"type": "text", "text": "e\N{COMBINING ACUTE ACCENT}"}]
+    for index, record in enumerate(records):
+        _write_jsonl(projects, "project-a", f"clone-{index}.jsonl", [record])
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["raw_input_tokens"] == 11 + 22 + 33
+    assert report["root"]["output_tokens"] == 44
+
+
+def test_shared_record_uuid_without_exact_clone_evidence_fails_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    records = (
+        _assistant(
+            request_id=None,
+            message_id="msg_SuspectedClone1",
+            usage=usage,
+            record_uuid="398955f1-bbf7-471a-8057-80ae4042edcf",
+        ),
+        _assistant(
+            request_id="req-suspected-clone",
+            message_id=None,
+            usage=usage,
+            tools=("different-content",),
+            record_uuid="398955f1-bbf7-471a-8057-80ae4042edcf",
+        ),
+    )
+    for index, record in enumerate(records):
+        _write_jsonl(projects, "project-a", f"suspect-{index}.jsonl", [record])
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["root"]["model_calls"] == 0
+
+
+def test_partial_snapshot_replica_uses_dominating_usage(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    snapshots = (
+        (
+            _usage(
+                cache_read=31900,
+                cache_creation=3770,
+                input_tokens=2,
+                output=10933,
+            ),
+            ("tool-prefix", "tool-terminal"),
+        ),
+        (
+            _usage(
+                cache_read=31900,
+                cache_creation=3770,
+                input_tokens=2,
+                output=3,
+            ),
+            ("tool-prefix",),
+        ),
+    )
+    for index, (usage, tools) in enumerate(snapshots):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/partial-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-partial",
+                    message_id="msg_011Cd9iWwXUEMz9erCs7xbA7",
+                    usage=usage,
+                    tools=tools,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    sidechains = report["sidechains"]
+    assert sidechains["model_calls"] == 1
+    assert sidechains["tool_calls"] == 2
+    assert sidechains["cache_read_input_tokens"] == 31900
+    assert sidechains["cache_creation_input_tokens"] == 3770
+    assert sidechains["input_tokens"] == 2
+    assert sidechains["output_tokens"] == 10933
+
+
+@pytest.mark.parametrize("blocking_field", LEDGER.USAGE_FIELDS)
+def test_incomparable_usage_replicas_remain_fatal(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    blocking_field: str,
+) -> None:
+    projects = tmp_path / "projects"
+    dominant_except_one = dict.fromkeys(LEDGER.USAGE_FIELDS, 10)
+    blocking_replica = dict.fromkeys(LEDGER.USAGE_FIELDS, 1)
+    dominant_except_one[blocking_field] = 0
+    blocking_replica[blocking_field] = 20
+    usages = (
+        dominant_except_one,
+        blocking_replica,
+    )
+    for index, usage in enumerate(usages):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/incomparable-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-incomparable",
+                    message_id="msg-incomparable",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["root"]["model_calls"] == 0
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_same_message_and_usage_with_different_request_ids_remains_fatal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index, request_id in enumerate(("req-a", "req-b")):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/request-{index}.jsonl",
+            [
+                _assistant(
+                    request_id=request_id,
+                    message_id="msg-shared-but-requests-differ",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["root"]["model_calls"] == 0
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_replica_loser_anomaly_is_not_hidden_by_representative(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    _write_jsonl(
+        projects,
+        "project-a",
+        "session/subagents/dominator.jsonl",
+        [
+            _assistant(
+                request_id="req-anomaly",
+                message_id="msg-anomaly",
+                usage=_usage(
+                    cache_read=10, cache_creation=20, input_tokens=30, output=100
+                ),
+            )
+        ],
+    )
+    _write_jsonl(
+        projects,
+        "project-a",
+        "session/subagents/loser.jsonl",
+        [
+            _assistant(
+                request_id="req-anomaly",
+                message_id="msg-anomaly",
+                timestamp="2026-01-10T00:00:00Z",
+                usage=_usage(
+                    cache_read=10, cache_creation=20, input_tokens=30, output=200
+                ),
+            ),
+            _assistant(
+                request_id="req-anomaly",
+                message_id="msg-anomaly",
+                timestamp="2026-01-10T00:00:01Z",
+                usage=_usage(
+                    cache_read=10, cache_creation=20, input_tokens=30, output=3
+                ),
+            ),
+        ],
+    )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert "usage_final_below_prior_max" in report["issues"]
+    assert report["root"]["model_calls"] == 0
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_replica_resolution_is_input_order_independent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    projects = tmp_path / "projects"
+    for index, output in enumerate((10933, 3)):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/order-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-order",
+                    message_id="msg_Order1",
+                    usage=_usage(
+                        cache_read=31900,
+                        cache_creation=3770,
+                        input_tokens=2,
+                        output=output,
+                    ),
+                )
+            ],
+        )
+
+    first_rc, first, first_stderr = _run_json(capsys, projects, "--strict")
+    original_discover = LEDGER._discover_paths
+
+    def reversed_discovery(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
+        paths, allocation, limit_reached = original_discover(*args, **kwargs)
+        return list(reversed(paths)), allocation, limit_reached
+
+    monkeypatch.setattr(LEDGER, "_discover_paths", reversed_discovery)
+    second_rc, second, second_stderr = _run_json(capsys, projects, "--strict")
+
+    assert first_rc == second_rc == 0
+    assert first_stderr == second_stderr == ""
+    assert first == second
+
+
+@pytest.mark.parametrize(
+    "message_id",
+    ["", "メッセージ", "m" * (LEDGER.MAX_CANONICAL_MESSAGE_ID_LENGTH + 1)],
+)
+def test_noncanonical_message_id_never_enables_cross_file_dedup(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    message_id: str,
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/noncanonical-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-noncanonical",
+                    message_id=message_id,
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "collision" in stderr
+    assert report["root"]["model_calls"] == 0
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_replica_tool_identity_must_be_subset_of_dominator(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    replicas = ((100, ("tool-a",)), (3, ("tool-b",)))
+    for index, (output, tools) in enumerate(replicas):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/tool-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-tools",
+                    message_id="msg-tools",
+                    usage=_usage(
+                        cache_read=1,
+                        cache_creation=2,
+                        input_tokens=3,
+                        output=output,
+                    ),
+                    tools=tools,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_replica_terminal_model_must_match(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index, model in enumerate(("claude-a", "claude-b")):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/model-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-model",
+                    message_id="msg-model",
+                    usage=usage,
+                    model=model,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_replica_without_terminal_usage_remains_fatal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usages = (
+        _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4),
+        None,
+    )
+    for index, usage in enumerate(usages):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/terminal-usage-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-terminal-usage",
+                    message_id="msg-terminal-usage",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_cross_bucket_replica_is_attributed_to_root_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    replicas = (
+        ("root.jsonl", 3),
+        ("session/subagents/dominator.jsonl", 100),
+    )
+    for relative, output in replicas:
+        _write_jsonl(
+            projects,
+            "project-a",
+            relative,
+            [
+                _assistant(
+                    request_id="req-cross-bucket",
+                    message_id="msg_CrossBucket1",
+                    usage=_usage(
+                        cache_read=1,
+                        cache_creation=2,
+                        input_tokens=3,
+                        output=output,
+                    ),
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["output_tokens"] == 100
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_cross_file_replica_with_divergent_cwd_selection_fails_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index, cwd in enumerate(("/wave", "/outside")):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"selector-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-selector",
+                    message_id="msg_Selector1",
+                    cwd=cwd,
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--cwd-under", "/wave")
+
+    assert rc == 2
+    assert "message_id_collision" in stderr
+    assert set(report["issues"]) == {"message_id_collision"}
+    assert report["root"]["model_calls"] == 0
+
+
+def test_cross_file_replica_with_equal_selector_identity_counts_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"selector-equal-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-selector-equal",
+                    message_id="msg_SelectorEqual1",
+                    cwd="/wave",
+                    usage=usage,
+                )
+            ],
+        )
+
+    rc, report, stderr = _run_json(
+        capsys, projects, "--cwd-under", "/wave", "--strict"
+    )
+
+    assert rc == 0
+    assert stderr == ""
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["output_tokens"] == 4
+
+
+def test_root_root_streaming_replicas_count_once_without_collisions(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    for relative in ("root-a.jsonl", "root-b.jsonl"):
+        _write_jsonl(
+            projects,
+            "project-a",
+            relative,
+            [
+                _assistant(
+                    request_id="req-root-replica",
+                    message_id="msg_011CdZC72rNdSAUyWUbUWFjp",
+                    timestamp="2026-01-10T00:00:00Z",
+                    usage=_usage(
+                        cache_read=10,
+                        cache_creation=20,
+                        input_tokens=2,
+                        output=3,
+                    ),
+                    tools=("tool-prefix",),
+                ),
+                _assistant(
+                    request_id="req-root-replica",
+                    message_id="msg_011CdZC72rNdSAUyWUbUWFjp",
+                    timestamp="2026-01-10T00:00:01Z",
+                    usage=_usage(
+                        cache_read=10,
+                        cache_creation=20,
+                        input_tokens=2,
+                        output=30,
+                    ),
+                    tools=("tool-prefix", "tool-terminal"),
+                ),
+            ],
+        )
+
+    rc, report, stderr = _run_json(capsys, projects, "--strict")
+
+    assert rc == 0
+    assert stderr == ""
+    assert "message_id_collision" not in report["issues"]
+    assert "request_id_collision" not in report["issues"]
+    assert report["root"]["model_calls"] == 1
+    assert report["root"]["tool_calls"] == 2
+    assert report["root"]["output_tokens"] == 30
+    assert report["sidechains"]["model_calls"] == 0
+
+
+def test_request_collision_invalidates_representative_and_all_replicas(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    projects = tmp_path / "projects"
+    usage = _usage(cache_read=1, cache_creation=2, input_tokens=3, output=4)
+    for index in range(2):
+        _write_jsonl(
+            projects,
+            "project-a",
+            f"session/subagents/replica-{index}.jsonl",
+            [
+                _assistant(
+                    request_id="req-reused",
+                    message_id="msg_RequestReplica1",
+                    usage=usage,
+                )
+            ],
+        )
+    _write_jsonl(
+        projects,
+        "project-a",
+        "distinct.jsonl",
+        [
+            _assistant(
+                request_id="req-reused",
+                message_id="msg_DistinctCall1",
+                usage=usage,
+            )
+        ],
+    )
+
+    rc, report, stderr = _run_json(capsys, projects)
+
+    assert rc == 2
+    assert "request_id_collision" in stderr
     assert report["root"]["model_calls"] == 0
     assert report["sidechains"]["model_calls"] == 0
 

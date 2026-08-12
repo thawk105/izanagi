@@ -1,0 +1,6 @@
+host=bnode094 date=2026-08-13T00:38:59+09:00 jobid=0:908401.nqsv
+memfile=/sys/fs/cgroup/system.slice/nqs-jsv.service/memory.current isolation=shared-service-delta
+[usage-1] base=3353116672 peak=3353124864 rc=0
+[usage-2] base=1371820032 peak=1371824128 rc=0
+[usage-3] base=1251303424 peak=1261666304 rc=0
+done
