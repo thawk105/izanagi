@@ -1,0 +1,18 @@
+{
+  "schema_version": "t810-coordinator-fixture/v1",
+  "transcripts": [
+    {"slot_id":"slot-00","command_argv":["qsub","-N","t810-00","-o","$OUTPUT_ROOT/slot-00/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-00/pbs.stderr.log","job-00.pbs"],"rc":0,"stdout":"81000.server\n","stderr":""},
+    {"slot_id":"slot-01","command_argv":["qsub","-N","t810-01","-o","$OUTPUT_ROOT/slot-01/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-01/pbs.stderr.log","job-01.pbs"],"rc":0,"stdout":"81001.server\n","stderr":""},
+    {"slot_id":"slot-02","command_argv":["qsub","-N","t810-02","-o","$OUTPUT_ROOT/slot-02/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-02/pbs.stderr.log","job-02.pbs"],"rc":0,"stdout":"81002.server\n","stderr":""},
+    {"slot_id":"slot-03","command_argv":["qsub","-N","t810-03","-o","$OUTPUT_ROOT/slot-03/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-03/pbs.stderr.log","job-03.pbs"],"rc":0,"stdout":"81003.server\n","stderr":""},
+    {"slot_id":"slot-04","command_argv":["qsub","-N","t810-04","-o","$OUTPUT_ROOT/slot-04/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-04/pbs.stderr.log","job-04.pbs"],"rc":0,"stdout":"81004.server\n","stderr":""},
+    {"slot_id":"slot-05","command_argv":["qsub","-N","t810-05","-o","$OUTPUT_ROOT/slot-05/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-05/pbs.stderr.log","job-05.pbs"],"rc":0,"stdout":"81005.server\n","stderr":""},
+    {"slot_id":"slot-06","command_argv":["qsub","-N","t810-06","-o","$OUTPUT_ROOT/slot-06/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-06/pbs.stderr.log","job-06.pbs"],"rc":0,"stdout":"81006.server\n","stderr":""},
+    {"slot_id":"slot-07","command_argv":["qsub","-N","t810-07","-o","$OUTPUT_ROOT/slot-07/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-07/pbs.stderr.log","job-07.pbs"],"rc":0,"stdout":"81007.server\n","stderr":""},
+    {"slot_id":"slot-08","command_argv":["qsub","-N","t810-08","-o","$OUTPUT_ROOT/slot-08/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-08/pbs.stderr.log","job-08.pbs"],"rc":0,"stdout":"81008.server\n","stderr":""},
+    {"slot_id":"slot-09","command_argv":["qsub","-N","t810-09","-o","$OUTPUT_ROOT/slot-09/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-09/pbs.stderr.log","job-09.pbs"],"rc":0,"stdout":"81009.server\n","stderr":""},
+    {"slot_id":"slot-10","command_argv":["qsub","-N","t810-10","-o","$OUTPUT_ROOT/slot-10/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-10/pbs.stderr.log","job-10.pbs"],"rc":0,"stdout":"81010.server\n","stderr":""},
+    {"slot_id":"slot-11","command_argv":["qsub","-N","t810-11","-o","$OUTPUT_ROOT/slot-11/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-11/pbs.stderr.log","job-11.pbs"],"rc":0,"stdout":"81011.server\n","stderr":""},
+    {"slot_id":"slot-12","command_argv":["qsub","-N","t810-12","-o","$OUTPUT_ROOT/slot-12/pbs.stdout.log","-e","$OUTPUT_ROOT/slot-12/pbs.stderr.log","job-12.pbs"],"rc":0,"stdout":"81012.server\n","stderr":""}
+  ]
+}
