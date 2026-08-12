@@ -50,8 +50,21 @@ title: SWO oracle の残余 5 件を閉じた — contract ID へ実装 bytes �
 - 段 3・段 6 のレビューが挙げた real 所見のうち 8 件は scope 外と裁定し、下の新規項目として
   ユーザーへ返す。いずれも受理集合・台帳意味論・consumer 層の択一を含み、本 wave の
   指示範囲では決められない。
-- 工数は Codex 11 本 (plan 1 / consult 2 / author 2 / review 2 / fix 2 / focus 2、すべて
-  `gpt-5.6-sol`、evidence complete、rc=0)。model call 342、wall clock 合計 7,906 秒。
+- **受入全走 1 回目は 2 failed / 10,512 passed / 65 skipped (124.85 秒、Pegasus request
+  908839.nqsv)。赤 2 件は本 wave の差分に帰属する。** node は
+  `test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin`
+  と `::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal`、例外は
+  `ReviewedSpecError: [invalid-reviewed-spec] generator_versions.materializer.sha256 が
+  実 byte hash と不一致`。s8b の承認 spec が `materializer` として
+  `orchestrator/campaign/s1_direct_comparison.py` の bytes を pin しており、項目 (d) が
+  そのファイルを編集したため hash が動いた。golden が焼いていた `dc67d934...` は main 版の
+  sha256 と完全一致し、現版は `a69422f8...` — フレークでも main 由来でもない。
+  **これは F30 の五度目の再発** (編集面 source を pin している側を段 1 で数え落とす向き) で、
+  段 1・段 3・段 6 のいずれも検出できず受入で初めて出た。golden literal 2 個の値だけを
+  現ファイルへ揃えて閉じた (production 無変更、assert の削除・緩和なし、golden を
+  production serializer の出力から再生成していない)。この記録を含む最終 tip で受入を再走する。
+- 工数は Codex 12 本 (plan 1 / consult 2 / author 2 / review 2 / fix 3 / focus 2、すべて
+  `gpt-5.6-sol`、evidence complete、rc=0)。model call 354、wall clock 合計 8,103 秒。
 
 ## 次の一手差分
 

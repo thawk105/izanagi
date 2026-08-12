@@ -30,7 +30,9 @@ worklog の該当エントリが要約の正本。ここは機械成果物の凍
 | 期待赤 node | 計 36 件 (M1=6 / M2=5 / M3=2 / M4=2 / M5=2 / M6=1 / M7=1 / M8=1 / M9=1 / P1=7 / P2=4 / P3=4)。**初回走行で全件一致** |
 | 焦点走 (fix 第 1 巡後) | 159 passed / 4.68 秒 (Pegasus request 908801.nqsv) |
 | 焦点走 (fix 第 2 巡後) | 160 passed / 4.63 秒 (Pegasus request 908811.nqsv) |
-| Codex 工数 | 11 本 (plan 1 / consult 2 / author 2 / review 2 / fix 2 / focus 2)、model call 342、wall clock 7,906 秒、全件 rc=0 / evidence complete |
+| 焦点走 (fix 第 3 巡後) | 100 passed / 2.54 秒 (Pegasus request 908849.nqsv、`test_s8b_oracle_manifest.py`) |
+| 受入全走 1 回目 | 2 failed / 10,512 passed / 65 skipped (124.85 秒、Pegasus request 908839.nqsv)。赤 2 件は本 wave 帰属で、F30 五度目の再発 (編集面 source の pin 閉包漏れ)。fix 第 3 巡で是正 |
+| Codex 工数 | 12 本 (plan 1 / consult 2 / author 2 / review 2 / fix 3 / focus 2)、model call 354、wall clock 8,103 秒、全件 rc=0 / evidence complete |
 
 受入全走の結果は worklog の該当エントリを正本とする。
 
