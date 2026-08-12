@@ -33,6 +33,7 @@ INTEGRITY_COUNTERS = (
     "missing_txids",
     "write_version_mismatch",
     "malformed_keys",
+    "framing_violations",
     "lock_coverage_violations",
     "write_intent_violations",
     "permutation_violations",
@@ -767,9 +768,10 @@ def test_verify_preserves_complete_integrity_dict(monkeypatch, tmp_path):
         "missing_txids": 5,
         "write_version_mismatch": 6,
         "malformed_keys": 7,
-        "lock_coverage_violations": 8,
-        "write_intent_violations": 9,
-        "permutation_violations": 10,
+        "framing_violations": 8,
+        "lock_coverage_violations": 9,
+        "write_intent_violations": 10,
+        "permutation_violations": 11,
         "notes": ["independent-note"],
     }
     verifier_payload = {

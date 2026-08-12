@@ -26,7 +26,7 @@ root だけを集約する。
   単一源として再輸出する (C2-5/C4-4)。重複リテラルを置かないため、値はここに焼き直さず
   import 束縛のみとする (drift の余地を構造的に消す)。
 - ccbench full commit sha は ``external/ccbench`` の gitlink 実測値 (40 hex)。
-  ``pin.CURRENT_PIN`` ("d706650") はこの prefix であり、prefix 一致・gitlink 一致の検査は
+  ``pin.CURRENT_PIN`` ("511c953") はこの prefix であり、prefix 一致・gitlink 一致の検査は
   ``test_s8b_approved`` が実 repo に対して固定する (定数の追認を許さない)。
 
 このモジュールは stdlib と葉 module のみに依存する葉であり、``s8b_floor_campaign`` を
@@ -64,4 +64,4 @@ APPROVED_FREEZE_SHA256 = V1_FREEZE_SHA256
 
 # --- ccbench full commit sha (external/ccbench gitlink 実測、40 hex) --- #
 # pin.CURRENT_PIN はこの prefix。gitlink 一致・prefix 一致の検査は test_s8b_approved。
-CCBENCH_FULL_SHA = "d706650cdb31e442bef45b9b4216951d4fb40969"
+CCBENCH_FULL_SHA = "511c9538e4e8efa54b45cda62e72389ed3b706ec"

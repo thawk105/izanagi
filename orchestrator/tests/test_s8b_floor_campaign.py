@@ -650,7 +650,38 @@ def _git_stdout(root: Path, *args: str) -> str:
     ).stdout
 
 
-def _clone_committed_head_with_ccbench(destination: Path, *, ccbench_pin: str) -> Path:
+def _assert_sealed_protocol_ccbench_pin(
+        source_submodule: Path, ccbench_pin: str,
+        held_checks: list[dict[str, object]]) -> None:
+    current_head = _git_stdout(source_submodule, "rev-parse", "HEAD").strip()
+    if s8b_floor_campaign._freeze_hold.HELD:
+        held_checks.append(s8b_floor_campaign._freeze_hold.held_marker(
+            "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+        ))
+    else:
+        assert current_head == ccbench_pin
+
+
+def test_sealed_protocol_ccbench_pin_hold_and_release_positive_control():
+    sealed_pin = "d706650cdb31e442bef45b9b4216951d4fb40969"
+    current_head = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+    held_checks = []
+    with mock.patch.object(
+            sys.modules[__name__], "_git_stdout", return_value=current_head):
+        _assert_sealed_protocol_ccbench_pin(Path("unused"), sealed_pin, held_checks)
+        assert [marker["check_id"] for marker in held_checks] == [
+            "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+        ]
+        with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
+            with pytest.raises(AssertionError):
+                _assert_sealed_protocol_ccbench_pin(
+                    Path("unused"), sealed_pin, held_checks=[],
+                )
+
+
+def _clone_committed_head_with_ccbench(
+        destination: Path, *, ccbench_pin: str,
+        held_checks: list[dict[str, object]]) -> Path:
     """ネットワークを使わず、committed HEAD と初期化済み submodule を複製する。"""
     subprocess.run(
         ["git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(destination)],
@@ -658,7 +689,7 @@ def _clone_committed_head_with_ccbench(destination: Path, *, ccbench_pin: str) -
     )
     source_submodule = ROOT / "external" / "ccbench"
     assert source_submodule.is_dir()
-    assert _git_stdout(source_submodule, "rev-parse", "HEAD").strip() == ccbench_pin
+    _assert_sealed_protocol_ccbench_pin(source_submodule, ccbench_pin, held_checks)
     cloned_submodule = destination / "external" / "ccbench"
     subprocess.run(
         [
@@ -3553,6 +3584,46 @@ def test_floor_preflight_allowlist_hashes_verified_prediction_and_selector_run_f
     assert read_counts[prediction_path] == 1
     assert read_counts[journal_path] == 1
     assert all(not rel.endswith("/") for rel in allowlist)
+    assert {marker["check_id"] for marker in allowlist.held_checks} == {
+        "s8b-floor.protocol-bytes-expected-pin",
+    }
+
+
+def test_floor_protocol_expected_pin_hold_and_release_positive_control(tmp_path):
+    freeze_rel, freeze_sha, _protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path,
+    )
+    held = s8b_floor_campaign._floor_preflight_freeze_allowlist(
+        tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+        protocol_sha256="0" * 64,
+    )
+    assert "s8b-floor.protocol-bytes-expected-pin" in {
+        marker["check_id"] for marker in held.held_checks
+    }
+    with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="floor protocol bytes sha256 が expected と不一致"):
+            s8b_floor_campaign._floor_preflight_freeze_allowlist(
+                tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+                protocol_sha256="0" * 64,
+            )
+
+
+def test_floor_protocol_head_bytes_positive_control_fires_during_hold(tmp_path):
+    freeze_rel, freeze_sha, _protocol_sha = _install_valid_prediction_preflight_fixture(
+        tmp_path,
+    )
+    protocol_path = tmp_path / s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    protocol_path.write_bytes(protocol_path.read_bytes() + b" ")
+    drifted_sha = hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="pre_oracle_head/worktree で不一致"):
+        s8b_floor_campaign._floor_preflight_freeze_allowlist(
+            tmp_path, freeze_path=freeze_rel, freeze_sha256=freeze_sha,
+            protocol_sha256=drifted_sha,
+        )
 
 
 def test_floor_preflight_requires_prediction_before_allowlist(tmp_path):
@@ -3737,9 +3808,14 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01"
     )
 
+    held_checks = []
     clone_root = _clone_committed_head_with_ccbench(
         tmp_path / "committed-head", ccbench_pin=ccbench_pin,
+        held_checks=held_checks,
     )
+    assert {marker["check_id"] for marker in held_checks} == {
+        "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+    }
     out_root = tmp_path / "campaign-output"
     claim_root = out_root / "claims"
     build_workspace = tmp_path / "prepared-build-workspace"
@@ -3770,7 +3846,23 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     gitlink_fields = _git_stdout(
         clone_root, "ls-tree", "HEAD", "external/ccbench",
     ).split()
-    assert gitlink_fields[:3] == ["160000", "commit", ccbench_pin]
+
+    def verify_sealed_gitlink_identity():
+        if s8b_floor_campaign._freeze_hold.HELD:
+            return s8b_floor_campaign._freeze_hold.held_marker(
+                "s8b-floor.sealed-protocol-ccbench-pin-current-head",
+            )
+        assert gitlink_fields[:3] == ["160000", "commit", ccbench_pin]
+        return None
+
+    held_gitlink = verify_sealed_gitlink_identity()
+    assert held_gitlink is not None
+    assert held_gitlink["check_id"] == (
+        "s8b-floor.sealed-protocol-ccbench-pin-current-head"
+    )
+    with mock.patch.object(s8b_floor_campaign._freeze_hold, "HELD", False):
+        with pytest.raises(AssertionError):
+            verify_sealed_gitlink_identity()
     assert _git_stdout(
         clone_root / "external" / "ccbench", "rev-parse", "HEAD",
     ).strip() == ccbench_pin

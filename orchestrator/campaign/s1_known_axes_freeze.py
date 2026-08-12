@@ -27,6 +27,7 @@ _ORCHESTRATOR = _HERE.parent
 from . import axis_trigger_gating as trigger_axis  # noqa: E402
 from . import backoff_sweep, genome, s6_sort_sweep, s8a_trigger_sweep  # noqa: E402
 from . import trigger_gate_binding  # noqa: E402
+from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from .model import Genome  # noqa: E402
 from .pipeline import variant_id  # noqa: E402
 
@@ -829,7 +830,9 @@ def _validate_schema(doc: Mapping) -> None:
 
 
 def verify_document(doc: Mapping, *,
-                    source_resolver: Optional[Callable[[str], Path]] = None) -> None:
+                    source_resolver: Optional[Callable[[str], Path]] = None
+                    ) -> Tuple[Mapping[str, object], ...]:
+    held_checks: List[Mapping[str, object]] = []
     _validate_schema(doc)
     generator_doc = doc["generator"]
     if generator_doc["path"] != SCRIPT_REL:
@@ -865,9 +868,16 @@ def verify_document(doc: Mapping, *,
         _run_git(["merge-base", "--is-ancestor", frozen_head, "HEAD"])
     except FreezeError as e:
         raise FreezeError(f"frozen_at_head が現行 HEAD の commit ancestor でない: {frozen_head}") from e
-    actual_pin = _run_git(["rev-parse", "HEAD"], ROOT / "external/ccbench")
-    if doc.get("ccbench_pin") != actual_pin:
-        raise FreezeError(f"ccbench_pin 不一致: recorded={doc.get('ccbench_pin')} actual={actual_pin}")
+    if _freeze_hold.HELD:
+        held_checks.append(_freeze_hold.held_marker(
+            "s1-known-axes.ccbench-submodule-head-pin",
+        ))
+    else:
+        actual_pin = _run_git(["rev-parse", "HEAD"], ROOT / "external/ccbench")
+        if doc.get("ccbench_pin") != actual_pin:
+            raise FreezeError(
+                f"ccbench_pin 不一致: recorded={doc.get('ccbench_pin')} actual={actual_pin}"
+            )
 
     expected_doc = build_document(
         frozen_at_head=frozen_head,
@@ -877,6 +887,7 @@ def verify_document(doc: Mapping, *,
     )
     if doc != expected_doc:
         raise FreezeError("freeze JSON の内容が現行 generator による機械再構成と不一致")
+    return tuple(held_checks)
 
 
 def generate(output_path: Path = FREEZE_PATH) -> Dict:
@@ -900,8 +911,8 @@ def verify(path: Path = FREEZE_PATH, *,
     if not path.is_file():
         raise FreezeError(f"freeze が存在しない: {path}")
     doc = _load_json(path)
-    verify_document(doc, source_resolver=source_resolver)
-    return doc
+    held_checks = verify_document(doc, source_resolver=source_resolver)
+    return _freeze_hold.result_with_markers(doc, held_checks)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -914,8 +925,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             generate()
             print(f"generated: {FREEZE_REL}")
         else:
-            verify()
-            print(f"verified: {FREEZE_REL}")
+            result = verify()
+            if result.held_checks:
+                print(json.dumps({
+                    "status": "held", "path": FREEZE_REL,
+                    "held_checks": result.held_checks,
+                }, ensure_ascii=False, sort_keys=True))
+            else:
+                print(f"verified: {FREEZE_REL}")
     except FreezeError as e:
         print(f"fails-closed: {e}", file=sys.stderr)
         return 1

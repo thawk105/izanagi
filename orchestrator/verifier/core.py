@@ -59,6 +59,26 @@ def verify_trace_dir(
             f"{issues.malformed_keys} malformed key token(s) (expect lowercase even-length "
             f"hex; case/format drift silently splits conflict edges): {sample}")
 
+    dsg.integrity.framing_violations = len(issues.framing_violations)
+    if issues.framing_violations:
+        by_kind: Dict[str, int] = {}
+        for violation in issues.framing_violations:
+            by_kind[violation.kind] = by_kind.get(violation.kind, 0) + 1
+        kinds = ", ".join(
+            f"{kind}×{count}" for kind, count in sorted(by_kind.items()))
+        samples = []
+        for violation in issues.framing_violations[:5]:
+            sample = f"txn{violation.txid} {violation.kind}"
+            if violation.expected_reads is not None:
+                sample += (
+                    f" reads={violation.observed_reads}/{violation.expected_reads}"
+                    f" writes={violation.observed_writes}/{violation.expected_writes}")
+            samples.append(sample)
+        dsg.integrity.notes.append(
+            f"{len(issues.framing_violations)} txn framing violation(s) "
+            f"[{kinds}] — declared R/W counts or mandatory E boundary is broken "
+            f"(trace may omit dependency edges): {'; '.join(samples)}")
+
     # X 行 = writePhase の lock 被覆 assert (D38)。variant が lock 被覆を破って書いた
     # = torn read が起こりうる → trace の版 stamp が信用できず serializable を認証
     # できない (絶対規律2、他 integrity カウンタと同じ indeterminate 帰結)。cycle は

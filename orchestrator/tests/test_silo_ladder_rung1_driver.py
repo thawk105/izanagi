@@ -80,6 +80,7 @@ def _integrity() -> dict:
         "missing_txids": 0,
         "write_version_mismatch": 0,
         "malformed_keys": 0,
+        "framing_violations": 0,
         "lock_coverage_violations": 0,
         "write_intent_violations": 0,
         "permutation_violations": 0,
@@ -1499,8 +1500,9 @@ def _materialize_raw_bundle(root: Path, document: dict) -> None:
     for worker in range(4):
         key = f"{worker + 1:02x}"
         (traces / f"trace_{worker}.log").write_text(
-            f"C {worker} {worker} 1 {worker + 1}\n"
-            f"W {worker} {key} U 1 {worker + 1}\n",
+            f"C {worker} {worker} 1 {worker + 1} 0 1\n"
+            f"W {worker} {key} U 1 {worker + 1}\n"
+            f"E {worker}\n",
             encoding="utf-8",
         )
     runs = active / "runs"
