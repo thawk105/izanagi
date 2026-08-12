@@ -14,6 +14,7 @@ proof that arbitrary C++ is a strict weak ordering on every possible input.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -26,14 +27,14 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Mapping, Optional, Sequence
+from typing import Callable, Mapping, Optional, Sequence
 
 
 CORPUS_VERSION = 1
 PROTOCOL_VERSION = 2
 AXIOM_CHECKER_VERSION = 2
 GRAMMAR_VERSION = 1
-CONTRACT_VERSION = 2
+CONTRACT_VERSION = 3
 
 _MAGIC = b"IZSWO2\0\0"
 _N = 18
@@ -49,6 +50,13 @@ _ORDERS = (0, 1, 2)
 _CORPORA = (0, 1)
 CORPUS_ID = f"sort-swo-corpus-v{CORPUS_VERSION}"
 INFRASTRUCTURE_REASON_CODE = "sort-swo-oracle-infrastructure-unavailable"
+_TRUSTED_CONTROL_STATEMENT = (
+    "sort(write_set_.begin(), write_set_.end(), "
+    "[](const auto& lhs, const auto& rhs) { return lhs.key_ < rhs.key_; });"
+)
+_TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE = (
+    "trusted-positive-tu-postflight-compile-failed"
+)
 
 _COMPILE_FLAGS = (
     "-std=c++17", "-O1",
@@ -222,6 +230,7 @@ class SortSwoOracleResult:
     contract_id: str = ""
     receipt: Optional[OracleReceipt] = None
     infrastructure: Optional[OracleInfrastructureFailure] = None
+    candidate_compile_finding: Optional[SortSwoFinding] = None
 
     def __post_init__(self) -> None:
         if self.contract_id == "":
@@ -249,6 +258,13 @@ class SortSwoOracleResult:
         if self.status is OracleStatus.UNAVAILABLE and (
                 self.finding is not None or self.infrastructure is None):
             raise ValueError("UNAVAILABLE requires separate infrastructure attribution")
+        if self.candidate_compile_finding is not None and (
+                self.status is not OracleStatus.UNAVAILABLE
+                or self.infrastructure is None
+                or self.infrastructure.phase != "trusted-postflight-compile"):
+            raise ValueError(
+                "candidate compile finding requires postflight UNAVAILABLE",
+            )
 
     def as_dict(self) -> dict[str, object]:
         out: dict[str, object] = {
@@ -263,6 +279,10 @@ class SortSwoOracleResult:
             out["receipt"] = self.receipt.as_dict()
         if self.infrastructure is not None:
             out["infrastructure"] = self.infrastructure.as_dict()
+        if self.candidate_compile_finding is not None:
+            out["candidate_compile_finding"] = (
+                self.candidate_compile_finding.as_dict()
+            )
         return out
 
 
@@ -716,12 +736,6 @@ def _translation_unit(statement: str) -> str:
 TU_TEMPLATE_SHA256 = hashlib.sha256(
     _translation_unit(_STATEMENT_PLACEHOLDER).encode("utf-8")
 ).hexdigest()
-ORACLE_CONTRACT_ID = (
-    f"sort-swo-v{CONTRACT_VERSION}-corpus{CORPUS_VERSION}-"
-    f"protocol{PROTOCOL_VERSION}-checker{AXIOM_CHECKER_VERSION}-"
-    f"grammar{GRAMMAR_VERSION}-c{CORPUS_SHA256}-"
-    f"tu{TU_TEMPLATE_SHA256}-f{COMPILE_FLAGS_SHA256}"
-)
 
 
 def _limit_compile() -> None:
@@ -1039,6 +1053,83 @@ def _evaluate_executable(
     return None
 
 
+_AXIOM_CHECKER_SOURCE_FUNCTIONS = (
+    check_relation_matrix,
+    _evaluate_executable,
+    _run_matrix,
+    _compile_command,
+)
+
+
+def _source_bundle_sha256(
+    functions: Sequence[Callable[..., object]], *, n: int,
+    orders: Sequence[int], corpora: Sequence[int],
+) -> str:
+    """Hash the enumerated checker source and semantic constants.
+
+    This binding is deliberately enumerated, not a closure: moving decision
+    logic into a helper outside ``functions`` does not change the identity.
+    ``inspect.getsource`` failures propagate so module initialization fails
+    closed instead of substituting an empty digest.
+    """
+    digest = hashlib.sha256()
+    for function in functions:
+        identity = (
+            f"{function.__module__}.{function.__qualname__}".encode("utf-8")
+        )
+        source = inspect.getsource(function).encode("utf-8")
+        for value in (identity, source):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+    semantic_constants = json.dumps(
+        {"_CORPORA": tuple(corpora), "_N": n, "_ORDERS": tuple(orders)},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    digest.update(len(semantic_constants).to_bytes(8, "big"))
+    digest.update(semantic_constants)
+    return digest.hexdigest()
+
+
+AXIOM_CHECKER_IMPLEMENTATION_SHA256 = _source_bundle_sha256(
+    _AXIOM_CHECKER_SOURCE_FUNCTIONS,
+    n=_N,
+    orders=_ORDERS,
+    corpora=_CORPORA,
+)
+_ORACLE_CONTRACT_COMPONENTS_SCHEMA = "sort-swo-contract-components-v1"
+_ORACLE_CONTRACT_COMPONENTS = {
+    "axiom_checker_implementation_sha256": AXIOM_CHECKER_IMPLEMENTATION_SHA256,
+    "compile_flags_sha256": COMPILE_FLAGS_SHA256,
+    "corpus_sha256": CORPUS_SHA256,
+    "tu_template_sha256": TU_TEMPLATE_SHA256,
+}
+
+
+def _contract_components_sha256(components: Mapping[str, str]) -> str:
+    canonical = json.dumps(
+        {
+            "components": dict(components),
+            "schema": _ORACLE_CONTRACT_COMPONENTS_SCHEMA,
+        },
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+ORACLE_COMPONENTS_SHA256 = _contract_components_sha256(
+    _ORACLE_CONTRACT_COMPONENTS,
+)
+# The full x digest is authoritative; c/tu/f/a are diagnostic prefixes only.
+ORACLE_CONTRACT_ID = (
+    f"sort-swo-v{CONTRACT_VERSION}-corpus{CORPUS_VERSION}-"
+    f"protocol{PROTOCOL_VERSION}-checker{AXIOM_CHECKER_VERSION}-"
+    f"grammar{GRAMMAR_VERSION}-x{ORACLE_COMPONENTS_SHA256}-"
+    f"c{CORPUS_SHA256[:12]}-tu{TU_TEMPLATE_SHA256[:12]}-"
+    f"f{COMPILE_FLAGS_SHA256[:12]}-"
+    f"a{AXIOM_CHECKER_IMPLEMENTATION_SHA256[:12]}"
+)
+
+
 def _compiler_version(compiler: Path) -> str:
     try:
         completed = subprocess.run(
@@ -1089,6 +1180,7 @@ def _unavailable_result(
     materialized_hash: str, proposal_hash: str, *, phase: str,
     detail_code: str, receipt: Optional[OracleReceipt] = None,
     diagnostic: Optional[CompilerDiagnostic] = None,
+    candidate_compile_finding: Optional[SortSwoFinding] = None,
 ) -> SortSwoOracleResult:
     return SortSwoOracleResult(
         OracleStatus.UNAVAILABLE, materialized_hash, proposal_hash,
@@ -1096,6 +1188,7 @@ def _unavailable_result(
         infrastructure=OracleInfrastructureFailure(
             INFRASTRUCTURE_REASON_CODE, phase, detail_code, diagnostic,
         ),
+        candidate_compile_finding=candidate_compile_finding,
     )
 
 
@@ -1155,10 +1248,7 @@ def check_materialized_sort_swo(
             dir=None if scratch_root is None else os.fspath(scratch_root),
         ) as temporary:
             temp = Path(temporary)
-            control_source = _translation_unit(
-                "sort(write_set_.begin(), write_set_.end(), "
-                "[](const auto& lhs, const auto& rhs) { return lhs.key_ < rhs.key_; });",
-            )
+            control_source = _translation_unit(_TRUSTED_CONTROL_STATEMENT)
             control_executable = temp / "trusted-control"
             control_finding, control_unavailable = _compile(
                 control_source, temp / "trusted-control.cpp", control_executable,
@@ -1199,6 +1289,50 @@ def check_materialized_sort_swo(
                 compiler=os.fspath(environment.compiler), ccbench_dir=ccbench,
                 masstree_dir=environment.dependency_root,
             )
+            if finding is not None or unavailable:
+                postflight_source_path = temp / "trusted-postflight.cpp"
+                postflight_executable = temp / "trusted-postflight"
+                postflight_artifacts = (
+                    postflight_source_path,
+                    postflight_executable,
+                    postflight_source_path.with_suffix(
+                        postflight_source_path.suffix + ".stderr",
+                    ),
+                )
+                postflight_finding = None
+                postflight_unavailable = False
+                postflight_io_failed = False
+                try:
+                    postflight_finding, postflight_unavailable = _compile(
+                        control_source,
+                        postflight_source_path,
+                        postflight_executable,
+                        compiler=os.fspath(environment.compiler),
+                        ccbench_dir=ccbench,
+                        masstree_dir=environment.dependency_root,
+                    )
+                except OSError:
+                    postflight_io_failed = True
+                finally:
+                    for artifact in postflight_artifacts:
+                        try:
+                            artifact.unlink(missing_ok=True)
+                        except OSError:
+                            postflight_io_failed = True
+                if (postflight_io_failed or postflight_unavailable
+                        or postflight_finding is not None):
+                    return _unavailable_result(
+                        materialized_hash,
+                        proposal_hash,
+                        phase="trusted-postflight-compile",
+                        detail_code=_TRUSTED_POSTFLIGHT_COMPILE_DETAIL_CODE,
+                        receipt=receipt,
+                        diagnostic=(
+                            None if postflight_finding is None
+                            else postflight_finding.compiler_diagnostic
+                        ),
+                        candidate_compile_finding=finding,
+                    )
             if unavailable:
                 return _unavailable_result(
                     materialized_hash, proposal_hash,
@@ -1285,13 +1419,19 @@ def attempt_record(result: SortSwoOracleResult) -> dict[str, object]:
         out["oracle_receipt"] = result.receipt.as_dict()
     if result.infrastructure is not None:
         out["infrastructure"] = result.infrastructure.as_dict()
+    if result.candidate_compile_finding is not None:
+        out["candidate_compile_finding"] = (
+            result.candidate_compile_finding.as_dict()
+        )
     return out
 
 
 __all__ = [
-    "AXIOM_CHECKER_VERSION", "COMPILE_FLAGS_SHA256", "CONTRACT_VERSION",
+    "AXIOM_CHECKER_IMPLEMENTATION_SHA256", "AXIOM_CHECKER_VERSION",
+    "COMPILE_FLAGS_SHA256", "CONTRACT_VERSION",
     "CORPUS_ID", "CORPUS_SHA256", "CORPUS_VERSION", "GRAMMAR_VERSION",
-    "INFRASTRUCTURE_REASON_CODE", "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
+    "INFRASTRUCTURE_REASON_CODE", "ORACLE_COMPONENTS_SHA256",
+    "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
     "TU_TEMPLATE_SHA256", "CompilerDiagnostic", "OracleEnvironment",
     "OracleInfrastructureFailure", "OracleReceipt", "OracleRejectKind",
     "OracleStatus", "SortSwoFinding", "SortSwoOracleResult",
