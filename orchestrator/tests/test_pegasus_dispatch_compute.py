@@ -2543,6 +2543,7 @@ def test_tests_task_env_allowlist_is_exact():
         "IZANAGI_TEST_NPROC",
         "IZANAGI_TEST_TRIGGER",
         "IZANAGI_T080_E2E",
+        "IZANAGI_RUN_GROWTH_HELD_TESTS",
     })
 
 

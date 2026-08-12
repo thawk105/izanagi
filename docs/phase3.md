@@ -626,6 +626,12 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   防護拡大は必要性未測定の堅牢化。再訪条件 = blocked 経路の解禁時または read-only 固定の
   変更時に、防護を義務化して再訪する。
 
+- [T-900] cmake の realpath 束縛 (toolchain 束縛が cc/cxx は realpath 照合、cmake は
+  version body のみ) — 理由: 裁定 2026-08-12 (第 3 束、推奨どおり見送り): bytes 級
+  provenance 機構の新設は既定で見送り (2026-08-12 粗い provenance 基準、一次控え
+  `rulings-inbox/2026-08-12-coarse-provenance-45rulings.md`)。当面は W-2 の記録済み
+  `cmake.path` を親が照合する運用で埋める。再訪条件なし。
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
@@ -663,6 +669,11 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 - [T-645] **NQSV / PBS 証拠による計算ノード判定の分類条件化** — 理由: 裁定 2026-08-08: 行わない。権威は bnode hostname と affinity のまま。再訪条件 = 誤検出の実測 (CI・別施設ホスト名での実害)。
 - [T-647] **bench なし correctness-only COMMIT の計測契約束縛** — 理由: 裁定 2026-08-08: 束縛の対象と数えない。numactl 等は宣言値に留まると正直に記録する現状を正とする。
 - [T-676] **launcher テストの時間予算の据え置き** — 理由: 裁定 2026-08-09: 実負荷 artifact 1 件が取れるまで変更しない。[T-663] の計装が次回再発時に失敗署名を自己申告するので、それを根拠にパッケージで再提示する。根拠なき受理緩和はしない。
+
+- [T-901] 床値 run の途中死に対する正式な救出経路 — 理由: 裁定 2026-08-12 (第 3 束、
+  推奨どおり): run_dir を使う resume は source / receipt / PBS job binding を含む別設計で
+  あり mode 変更に混ぜない。当面は新規 job で最初から再実行する。再訪条件 = 途中死による
+  再実行コストが実害として観測されたとき。
 
 ### プロセス文書系
 
