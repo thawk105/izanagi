@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-12
 wave: dev-wave-t139-a12-stress-check
 seq: 1
-title: a12 事前 simulation を実装して完走させ、pilot 前提 #3 を充足へ動かした — 全 60 セル pass、名目の 15.6% (コード + docs、受入は焦点走 55 passed、変異 12/12 KILLED、branch worktree-dev-wave-t139-a12-stress-check)
+title: a12 事前 simulation を実装して完走させ、pilot 前提 #3 を充足へ動かした — 全 60 セル pass、名目の 15.6% (コード + docs、受入 9838 passed / 65 skipped / rc=0 / 112.79 秒、変異 12/12 KILLED、branch worktree-dev-wave-t139-a12-stress-check)
 ---
 
 ## 本文
@@ -51,8 +51,20 @@ counter 0 始まりの uint64 big endian、cell key ごと独立 stream、chunk 
 実行体を拒否するため、本走の経路は `qsub` の 1 本だけである。admission registry への登録は
 本 wave の scope 外とした。
 
+**受入全走は 2 回。** 1 回目は `3 failed / 14 errors`。うち本 wave 起因は 2 件だけで
+(`tools/pegasus/` 追加分の admission registry 未登録、新テストの自走 harness 不足)、
+**残る 15 件は ccbench submodule の HEAD が `pin.CURRENT_PIN` と不一致**という環境要因だった。
+受入中の main 取り込み (50 commit) で superproject が進んだのに submodule を更新していなかった
+ためで、`git submodule update --init --recursive` で解消した。2 回目は
+**9,838 passed / 65 skipped / rc=0 / 112.79 秒**。
+
+registry 登録には 2 つの同期先が芋づるで付く — `docs/pegasus-runbook.md` §7.0 の投影表
+(`check_docs.py` が集合完全一致を検査) と `test_hooks.py` の literal golden。後者は
+「テストの期待値を変更するな」に触れるため fix 子が正しく escalate し、親が
+「registry を逐語 pin する golden の同期であって弱体化ではない」と裁定して別 commit で行った。
+
 工数の異常: 段 2 の codex 子が 1,332 秒 / 12 model call を空費して全損した ({{F:codex-nfc-evidence-loss}})。
-PBS script の規約違反 4 点は静的レビュー 2 本を通り抜け、親が実際に `qsub` して初めて判明した
+PBS script の規約違反 4 点は静的レビュー 4 本を通り抜け、親が実際に `qsub` して初めて判明した
 ({{F:pbs-directive-violations-need-submission}})。
 
 ## 次の一手差分
@@ -62,7 +74,7 @@ PBS script の規約違反 4 点は静的レビュー 2 本を通り抜け、親
 - [T-139] **P1**: `a12` は完走し前提 #3 は充足。**pilot は依然投入不可** — 残る 7 件
   (#1・#4〜#9) はすべて Q1 / Q2 の下流であり、その 2 問が未裁定のまま。次は Q1 / Q2 の裁定を
   取り、投入経路 session を Q4 scope で組む。
-  base: 1899a9a92bd7012b9e3febf4bacb0032751b66d062908e17278ec1c628046218
+  base: 660cac9f80a3ce9f9db9f0a0f1fc1536519353b99a2d3f71707997ab7c5fb214
 
 ### 新規
 
