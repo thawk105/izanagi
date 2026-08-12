@@ -1779,6 +1779,7 @@ def test_v12_production_path_in_subprocess_temp_repository(tmp_path: Path) -> No
     repo.mkdir()
     for relative in (
         "orchestrator/campaign/__init__.py",
+        "orchestrator/campaign/reflux_origin_artifacts.py",
         "orchestrator/campaign/reflux_origin_client.py",
         "orchestrator/campaign/reflux_origin_ledger.py",
         "orchestrator/campaign/reflux_ir.py",

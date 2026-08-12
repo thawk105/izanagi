@@ -393,7 +393,7 @@ def _origin_bound_launch_admission() -> dict:
             "holdout": "H1",
             "campaign_id": "fixture-campaign",
             "workload": "ycsb-a",
-            "ycsb_rratio": "80",
+            "ycsb_rratio": "70",
         },
         "activation_report_digest_sha256": "d" * 64,
         "origin_binding": _origin_binding(),
