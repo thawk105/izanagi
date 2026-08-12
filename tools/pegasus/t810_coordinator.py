@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 import os
 from pathlib import Path
 import re
+import shlex
 import stat
 import subprocess
 import time
@@ -538,6 +539,18 @@ def _canonical_qsub_argv(
     )
 
 
+def _canonical_job_script(slot: Mapping[str, Any]) -> bytes:
+    return ("#!/bin/sh\nset -eu\nexec " + shlex.join(slot["wrapper_argv"]) + "\n").encode(
+        "utf-8",
+    )
+
+
+def _assert_canonical_job_script(slot: Mapping[str, Any]) -> None:
+    raw = _read_regular_bytes(Path(slot["script_path"]), "canonical PBS job script")
+    if raw != _canonical_job_script(slot):
+        _fail("PBS job script does not match the frozen wrapper argv")
+
+
 def _authorization_token(
     witness: Any, *, preregistration: VerifiedT810Preregistration,
     policy_sha256: str, run_kind: str,
@@ -573,13 +586,22 @@ def _ensure_external_root(
 
 
 def _write_create_only(token: schema.AuthorizationToken, path: Path, value: Any) -> bytes:
+    raw = schema.canonical_json_bytes(value) + b"\n"
+    _write_bytes_create_only(token, path, raw)
+    return raw
+
+
+def _write_bytes_create_only(
+    token: schema.AuthorizationToken, path: Path, raw: bytes, *, mode: int = 0o600,
+) -> None:
     if not isinstance(token, schema.AuthorizationToken):
         _fail("AuthorizationToken is required at the publication effect boundary")
-    raw = schema.canonical_json_bytes(value) + b"\n"
+    if not isinstance(raw, bytes):
+        _fail("publication bytes must be exact bytes")
     path.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
     try:
-        fd = os.open(path, flags, 0o600)
+        fd = os.open(path, flags, mode)
         try:
             offset = 0
             while offset < len(raw):
@@ -592,7 +614,6 @@ def _write_create_only(token: schema.AuthorizationToken, path: Path, value: Any)
             os.close(fd)
     except OSError as exc:
         raise T810CoordinatorError(f"create-only publication failed: {path}") from exc
-    return raw
 
 
 def _touch_create_only(token: schema.AuthorizationToken, path: Path) -> None:
@@ -646,9 +667,11 @@ def prepare_group(
             except schema.T810SchemaError as exc:
                 raise T810CoordinatorError(f"{field} is not repository-external: {exc}") from exc
         slot_root = output_root / slot["slot_id"]
+        script_path = work_root / slot["slot_id"] / "job.pbs"
         if (Path(slot["pbs_stdout_path"]) != slot_root / "pbs.stdout.log"
-                or Path(slot["pbs_stderr_path"]) != slot_root / "pbs.stderr.log"):
-            _fail("PBS log paths do not match the frozen artifact layout")
+                or Path(slot["pbs_stderr_path"]) != slot_root / "pbs.stderr.log"
+                or Path(slot["script_path"]) != script_path):
+            _fail("PBS paths do not match the frozen artifact layout")
         if tuple(slot["qsub_argv"]) != _canonical_qsub_argv(
             slot, policy=policy, run_kind=intent["run_kind"],
         ):
@@ -684,6 +707,9 @@ def prepare_group(
     manifest_path = output_root / "group-manifest.json"
     _write_create_only(token, manifest_path, manifest)
     for slot in intent["slots"]:
+        _write_bytes_create_only(
+            token, Path(slot["script_path"]), _canonical_job_script(slot), mode=0o700,
+        )
         for name in ("pbs.stdout.log", "pbs.stderr.log"):
             _touch_create_only(token, output_root / slot["slot_id"] / name)
     for name in ("coordinator.stdout.log", "coordinator.stderr.log", "coordinator-receipt.jsonl"):
@@ -699,9 +725,15 @@ def prepare_group(
 
 
 def _append_coordinator_event(
-    prepared: PreparedGroup, event: str, details: Mapping[str, Any], *,
+    prepared: PreparedGroup, token: schema.AuthorizationToken,
+    event: str, details: Mapping[str, Any], *,
     wall_time: str, monotonic_ns: int, slot_id: str | None = None,
 ) -> str:
+    _require_token(
+        token, preregistration=prepared.preregistration,
+        policy_sha256=prepared.launch_intent["policy_sha256"],
+        run_kind=prepared.launch_intent["run_kind"],
+    )
     raw = _read_regular_bytes(prepared.coordinator_receipt_path, "coordinator receipt")
     assert raw is not None
     lines = raw.splitlines()
@@ -745,6 +777,14 @@ def _scheduler_effect(
     }
     if tuple(argv) not in allowed or not argv or argv[0] != "qsub":
         _fail("scheduler effect argv is not a canonical qsub command")
+    selected = next(
+        slot for slot in prepared.launch_intent["slots"]
+        if tuple(argv) == _canonical_qsub_argv(
+            slot, policy=prepared.admission_policy,
+            run_kind=prepared.launch_intent["run_kind"],
+        )
+    )
+    _assert_canonical_job_script(selected)
     result = scheduler_run(
         token, prepared, list(argv), cwd=str(prepared.work_root), env={},
     )
@@ -1287,10 +1327,9 @@ def verify_completion(
         prepared.preregistration, state, terminal_completed, set(receipts), started,
     )
     actual_presence = _actual_slot_presence(prepared)
-    evaluated = terminal_completed if state == "terminal_reduced" else set(requests)
-    presence_valid = all(
-        expected_presence[slot] == actual_presence[slot] for slot in evaluated
-    ) and _root_presence_valid(prepared, state)
+    presence_valid = (
+        expected_presence == actual_presence and _root_presence_valid(prepared, state)
+    )
     if not presence_valid and state in {"valid", "terminal_reduced"}:
         state, reasons = "incomplete_after_start", {"presence_matrix_mismatch"}
         expected_presence = _presence_for_state(
@@ -1398,7 +1437,8 @@ def _coordinate_authorized(
     )
     initial_ns = clock_ns()
     _append_coordinator_event(
-        prepared, "manifest_committed", {"manifest_sha256": prepared.manifest_sha256},
+        prepared, authorization, "manifest_committed",
+        {"manifest_sha256": prepared.manifest_sha256},
         wall_time=wall_clock(), monotonic_ns=initial_ns,
     )
     validator_kwargs = document["validator_kwargs"]
@@ -1429,7 +1469,7 @@ def _coordinate_authorized(
         barrier = evaluate_ready_barrier(prepared, ready_receipts, elapsed_seconds=elapsed)
         for slot_id, digest in barrier.receipt_sha256_by_slot.items():
             _append_coordinator_event(
-                prepared, "ready_received", {
+                prepared, authorization, "ready_received", {
                     "receipt_sha256": digest, "accepted": barrier.status == "release",
                     "reason_codes": [] if barrier.status == "release" else list(barrier.reason_codes),
                 }, wall_time=wall_clock(), monotonic_ns=ready_times[slot_id], slot_id=slot_id,
@@ -1440,7 +1480,7 @@ def _coordinate_authorized(
                 prepared, authorization, reasons, wall_clock=wall_clock,
             )
             _append_coordinator_event(
-                prepared, "cancel_published", {
+                prepared, authorization, "cancel_published", {
                     "marker_sha256": cancel_sha, "reason_codes": list(reasons),
                 }, wall_time=wall_clock(), monotonic_ns=clock_ns(),
             )
@@ -1450,7 +1490,8 @@ def _coordinate_authorized(
                 prepared, authorization, wall_clock=wall_clock,
             )
             _append_coordinator_event(
-                prepared, "release_published", {"marker_sha256": release_sha},
+                prepared, authorization, "release_published",
+                {"marker_sha256": release_sha},
                 wall_time=wall_clock(), monotonic_ns=release_ns,
             )
             ack_receipts, ack_times = _wait_for_phase(
@@ -1465,7 +1506,7 @@ def _coordinate_authorized(
             spread = ack.spread_ns
             for slot_id, digest in ack.receipt_sha256_by_slot.items():
                 _append_coordinator_event(
-                    prepared, "start_ack_received", {
+                    prepared, authorization, "start_ack_received", {
                         "receipt_sha256": digest, "received_monotonic_ns": ack_times[slot_id],
                         "latency_ns": ack.latency_ns_by_slot[slot_id],
                         "accepted": ack.accepted, "reason_codes": list(ack.reason_codes),
@@ -1477,7 +1518,7 @@ def _coordinate_authorized(
                     prepared, authorization, reasons, wall_clock=wall_clock,
                 )
                 _append_coordinator_event(
-                    prepared, "cancel_published", {
+                    prepared, authorization, "cancel_published", {
                         "marker_sha256": cancel_sha, "reason_codes": list(reasons),
                     }, wall_time=wall_clock(), monotonic_ns=clock_ns(),
                 )
@@ -1500,7 +1541,7 @@ def _coordinate_authorized(
                 state, reasons = terminal["state"], tuple(terminal["reason_codes"])
                 for slot_id, receipt in terminal_receipts.items():
                     _append_coordinator_event(
-                        prepared, "completion_received", {
+                        prepared, authorization, "completion_received", {
                             "receipt_sha256": receipt.sha256,
                             "accepted": state in {"valid", "terminal_reduced"},
                             "reason_codes": [] if state in {"valid", "terminal_reduced"}
@@ -1527,7 +1568,7 @@ def _coordinate_authorized(
             terminal["retry_allowed"] = False
         terminal = schema.validate_terminal_state(terminal)
     _append_coordinator_event(
-        prepared, "terminal_decided", {
+        prepared, authorization, "terminal_decided", {
             "terminal_state_sha256": schema.canonical_sha256(terminal),
         }, wall_time=wall_clock(), monotonic_ns=clock_ns(),
     )
@@ -1568,15 +1609,16 @@ def _subprocess_scheduler(
         _fail("AuthorizationToken is required by subprocess scheduler")
     if not isinstance(prepared, PreparedGroup):
         _fail("PreparedGroup is required by subprocess scheduler")
-    allowed = {
-        _canonical_qsub_argv(
+    selected = next((
+        slot for slot in prepared.launch_intent["slots"]
+        if tuple(argv) == _canonical_qsub_argv(
             slot, policy=prepared.admission_policy,
             run_kind=prepared.launch_intent["run_kind"],
         )
-        for slot in prepared.launch_intent["slots"]
-    }
-    if tuple(argv) not in allowed or cwd != str(prepared.work_root) or env:
+    ), None)
+    if selected is None or cwd != str(prepared.work_root) or env:
         _fail("subprocess scheduler inputs are not the prepared canonical submission")
+    _assert_canonical_job_script(selected)
     return subprocess.run(
         list(argv), cwd=cwd, env=dict(env), text=True, capture_output=True, check=False,
     )

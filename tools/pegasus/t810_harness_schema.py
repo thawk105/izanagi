@@ -802,8 +802,7 @@ def validate_terminal_state(value: Any) -> Document:
             values = _strings(paths, f"$.{field}.{slot}", unique=True)
             for index, item in enumerate(values):
                 _artifact_path(item, f"$.{field}.{slot}[{index}]")
-    evaluated = completed if state == "terminal_reduced" else expected_slots
-    actual_valid = all(matrices["expected_presence"][slot] == matrices["actual_presence"][slot] for slot in evaluated)
+    actual_valid = matrices["expected_presence"] == matrices["actual_presence"]
     _boolean(doc["presence_valid"], "$.presence_valid")
     if doc["presence_valid"] != actual_valid:
         _fail("$.presence_valid", "does not match exact evaluated presence")

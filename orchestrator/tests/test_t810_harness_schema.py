@@ -185,14 +185,21 @@ def test_positive_coordinator_event_payloads() -> None:
             "slot_id": "slot-00" if event in {"ready_received", "start_ack_received", "completion_received"} else None,
             "previous_event_sha256": None, "details": payload})
 
-def test_terminal_states_retry_and_dropped_exclusion() -> None:
+def test_terminal_states_retry_and_exact_presence() -> None:
     S.validate_terminal_state(_terminal())
-    S.validate_terminal_state(_terminal("terminal_reduced"))
+    reduced = _terminal("terminal_reduced")
+    reduced["actual_presence"] = deepcopy(reduced["expected_presence"])
+    S.validate_terminal_state(reduced)
     S.validate_terminal_state(_terminal("pre_release_invalid", 1))
     S.validate_terminal_state(_terminal("pre_release_invalid", 2))
     assert S.retry_allowed("pre_release_invalid", 1)
     assert not S.retry_allowed("pre_release_invalid", 2)
     assert not S.retry_allowed("valid", 1)
+
+
+def test_terminal_reduced_rejects_dropped_slot_presence_mismatch() -> None:
+    with pytest.raises(S.T810SchemaError, match="does not match exact evaluated presence"):
+        S.validate_terminal_state(_terminal("terminal_reduced"))
 
 def test_post_validator_receipt_is_required_for_pre_release_invalid() -> None:
     value = _terminal("pre_release_invalid")

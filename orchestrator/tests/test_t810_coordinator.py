@@ -439,6 +439,12 @@ def test_prepare_group_dag_is_create_only_and_policy_hosts_are_ratified(tmp_path
     assert len(scheduler.calls) == S.NODE_COUNT
     assert prepared.manifest["launch_intent_sha256"] == S.canonical_sha256(config["launch_intent"])
     assert prepared.manifest["release_token_commitment"] == S.release_token_commitment(config["release_nonce"])
+    for slot in prepared.launch_intent["slots"]:
+        script = Path(slot["script_path"])
+        assert script.read_text(encoding="utf-8") == (
+            "#!/bin/sh\nset -eu\nexec python3.10 /var/tmp/t810/package/wrapper.py\n"
+        )
+        assert script.stat().st_mode & 0o700 == 0o700
     with pytest.raises(C.T810CoordinatorError, match="create-only"):
         C.prepare_group(config, prereg, _token(config, prereg), repository_roots={Path("/repository")})
     denied = _config(tmp_path / "unratified")
@@ -685,6 +691,14 @@ def test_subprocess_and_publication_effects_reject_raw_dict_token(tmp_path: Path
         C.prepare_group(config, prereg, _witness(config), repository_roots={Path("/repo")})
     with pytest.raises(C.T810CoordinatorError, match="AuthorizationToken"):
         C._subprocess_scheduler({}, object(), ["qsub"], cwd=str(tmp_path), env={})
+    prepared = C.prepare_group(
+        config, prereg, _token(config, prereg), repository_roots={Path("/repo")},
+    )
+    with pytest.raises(C.T810CoordinatorError, match="witness"):
+        C._append_coordinator_event(
+            prepared, {}, "manifest_committed", {"manifest_sha256": H},
+            wall_time="now", monotonic_ns=0,
+        )
 
 
 def test_arbitrary_qsub_is_rejected_before_scheduler_effect(tmp_path: Path) -> None:
@@ -705,6 +719,29 @@ def test_arbitrary_qsub_is_rejected_before_scheduler_effect(tmp_path: Path) -> N
             prepared.authorization, prepared, ["qsub"],
             cwd=str(prepared.work_root), env={},
         )
+
+
+def test_modified_pbs_script_is_rejected_at_scheduler_effect(tmp_path: Path) -> None:
+    _, _, prepared, _, _ = _prepared(tmp_path)
+    slot = prepared.launch_intent["slots"][0]
+    Path(slot["script_path"]).write_text("#!/bin/sh\nexec /bin/false\n", encoding="utf-8")
+    with pytest.raises(C.T810CoordinatorError, match="frozen wrapper argv"):
+        C._subprocess_scheduler(
+            prepared.authorization, prepared, slot["qsub_argv"],
+            cwd=str(prepared.work_root), env={},
+        )
+
+
+def test_terminal_reduced_checks_preserved_dropped_slot_presence(tmp_path: Path) -> None:
+    prereg, _, prepared, _, _ = _prepared(tmp_path)
+    receipts = _completion_receipts(prepared, prereg, dropped={"slot-12"})
+    (prepared.output_root / "slot-12" / "measurements.jsonl").unlink()
+    terminal = C.verify_completion(
+        prepared, receipts, release_event_sha256=H, start_spread_ns=1,
+        pre_validator_receipt_sha256=H, post_validator_receipt_sha256=H,
+    )
+    assert terminal["state"] == "incomplete_after_start"
+    assert terminal["reason_codes"] == ["presence_matrix_mismatch"]
 
 
 def test_guard_and_budget_receipts_are_typed_and_digest_bound(tmp_path: Path) -> None:
