@@ -1,0 +1,40 @@
+{
+  "schema_version": "t810-wrapper-fixture/v1",
+  "ratified_policy": {
+    "schema_version": "t810-admission-policy/v1",
+    "qsub": {
+      "status": "ratified",
+      "project": "SFC-TEST",
+      "queue": "short",
+      "walltime_by_run_kind": {
+        "builder": "00:20:00",
+        "liveness": "00:10:00",
+        "main": "02:00:00"
+      }
+    }
+  },
+  "unratified_policy": {
+    "schema_version": "t810-admission-policy/v1",
+    "qsub": {
+      "status": "unratified"
+    }
+  },
+  "expected_liveness_argv": [
+    "qsub",
+    "-A",
+    "SFC-TEST",
+    "-q",
+    "short",
+    "-b",
+    "1",
+    "-l",
+    "elapstim_req=00:10:00",
+    "-N",
+    "t810-slot-00",
+    "-o",
+    "$ROOT/output/slot-00/pbs.stdout.log",
+    "-e",
+    "$ROOT/output/slot-00/pbs.stderr.log",
+    "$ROOT/work/slot-00.pbs"
+  ]
+}

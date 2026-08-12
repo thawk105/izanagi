@@ -57,7 +57,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from . import coder_effect_gate, env_contract, ident, trigger_gate_binding, wal  # noqa: E402
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
-                                      add_coder_build_authority_argument,
+                                      add_registered_coder_build_authority_argument,
                                       build_run_context)
 from .artifact_admission import (AdmittedCampaign,        # noqa: E402
                                          require_admitted_campaign)
@@ -1097,7 +1097,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="P3 後続段 4 coder 自律ループ (機械 E2E)")
     ap.add_argument("--no-build", action="store_true",
                     help="build/verify/bench を省き挿入→検疫の配線のみ確認")
-    add_coder_build_authority_argument(ap)
+    add_registered_coder_build_authority_argument(
+        ap,
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop.main",
+    )
     ap.add_argument("--value", type=float, default=20.0,
                     help="fixture の backoff 値 (coder proposal の代わり)")
     ap.add_argument("--reflux", choices=["on", "off"], default="on",
