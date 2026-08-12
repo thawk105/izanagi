@@ -5358,6 +5358,227 @@ def test_build_admission_explicit_coder_opt_in_reaches_build_and_records_receipt
             assert record.payload["build_admission_receipt_sha256"] == receipt["receipt_sha256"]
 
 
+def _write_materialized_trigger_source(
+        source_path: str,
+        predicate: str,
+        *,
+        hole_line: str | None = None,
+        line_ending: bytes = b"\n",
+) -> str:
+    from orchestrator.campaign import axis_trigger_gating, p3_s4_loop
+    from orchestrator.campaign.diff_quarantine import parse_template_file
+
+    base_text = (
+        f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
+        "#if BACKOFF_TRIGGER_GATING\n"
+        f"{axis_trigger_gating.PREDICATE_HOLE_INDENT}"
+        "izanagi_gate_pass = true;\n"
+        "#else\ntrue;\n#endif\n"
+        f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
+    )
+    with open(source_path, "w", encoding="utf-8") as stream:
+        stream.write(base_text)
+
+    marker = parse_template_file(source_path, axis_trigger_gating.MARKER_ID)
+    assert marker is not None
+    materialized = p3_s4_loop.render_hole(base_text, marker, predicate)
+    lines = materialized.split("\n")
+    if hole_line is not None:
+        lines[marker.hole_first - 1] = hole_line
+    with open(source_path, "wb") as stream:
+        stream.write(line_ending.join(line.encode("utf-8") for line in lines))
+    return lines[marker.hole_first - 1]
+
+
+def _assert_materialized_trigger_predicate_rejected(
+        source_root: str, mask: int = 20,
+) -> None:
+    binding = trigger_gate_binding.TriggerGateBinding(
+        mask=mask,
+        predicate_sha256=trigger_gate_binding.expected_predicate_sha256(mask),
+        nonce="f" * 64,
+        source=None,
+    )
+    evidence = _source_evidence(
+        Genome("silo", {"BACK_OFF": 1}), "deadbeef", source_root=source_root,
+    )
+    with _assert_raises_contains(
+            BuildAdmissionError,
+            "trigger binding predicate が materialized source と不一致",
+    ):
+        pipeline._require_materialized_trigger_predicate(evidence, binding)
+
+
+def test_trigger_predicate_hole_indent_matches_template_patch_bytes():
+    from orchestrator.campaign import axis_trigger_gating
+
+    patch_path = Path(_REPOSITORY) / "patches" / axis_trigger_gating.TEMPLATE_PATCH
+    patch_lines = patch_path.read_bytes().splitlines()
+    begin = (
+        b"+  // EVOLVE-BLOCK-BEGIN "
+        + axis_trigger_gating.MARKER_ID.encode("utf-8")
+    )
+    end = (
+        b"+  // EVOLVE-BLOCK-END "
+        + axis_trigger_gating.MARKER_ID.encode("utf-8")
+    )
+    begin_indices = [index for index, line in enumerate(patch_lines) if line == begin]
+    end_indices = [index for index, line in enumerate(patch_lines) if line == end]
+    assert len(begin_indices) == 1
+    assert len(end_indices) == 1
+    begin_index, end_index = begin_indices[0], end_indices[0]
+    assert begin_index < end_index
+
+    block = patch_lines[begin_index + 1:end_index]
+    if_indices = [
+        index for index, line in enumerate(block)
+        if line == b"+#if BACKOFF_TRIGGER_GATING"
+    ]
+    else_indices = [
+        index for index, line in enumerate(block) if line == b"+#else"
+    ]
+    assert len(if_indices) == 1
+    assert len(else_indices) == 1
+    if_index, else_index = if_indices[0], else_indices[0]
+    assert if_index < else_index
+    expected_hole = (
+        b"+"
+        + axis_trigger_gating.PREDICATE_HOLE_INDENT.encode("utf-8")
+        + b"izanagi_gate_pass = true;"
+    )
+    assert block[if_index + 1:else_index] == [expected_hole]
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_outer_spaces():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_outer_spaces_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="  " + predicate + "  ",
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_leading_tab():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_leading_tab_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="\t" + predicate,
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_leading_vertical_tab():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_leading_vertical_tab_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="\v" + predicate,
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_leading_form_feed():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_leading_form_feed_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="\f" + predicate,
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_leading_non_breaking_space():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_leading_non_breaking_space_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="\u00a0" + predicate,
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_leading_ideographic_space():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_leading_ideographic_space_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="\u3000" + predicate,
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_trailing_space():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_trailing_space_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line=predicate + " ",
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_four_space_indent():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_four_spaces_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, hole_line="    " + predicate,
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_crlf_line_ending():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_crlf_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, line_ending=b"\r\n",
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
+def test_trigger_binding_rejects_materialized_predicate_with_cr_only_line_ending():
+    from orchestrator.campaign import axis_trigger_gating
+
+    source_root = _tmpdir("izanagi_trigger_cr_only_")
+    source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
+    os.makedirs(os.path.dirname(source_path), exist_ok=True)
+    predicate = emit_predicate(TriggerGateIR(20))
+    _write_materialized_trigger_source(
+        source_path, predicate, line_ending=b"\r",
+    )
+    _assert_materialized_trigger_predicate_rejected(source_root)
+
+
 def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_builds():
     lay = _tmp_layout()
     from orchestrator.campaign import axis_trigger_gating
@@ -5366,14 +5587,8 @@ def test_trigger_build_start_binding_uses_same_source_evidence_as_both_cache_bui
     source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
     os.makedirs(os.path.dirname(source_path), exist_ok=True)
     predicate = emit_predicate(TriggerGateIR(20))
-    with open(source_path, "w", encoding="utf-8") as stream:
-        stream.write(
-            f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
-            "#if BACKOFF_TRIGGER_GATING\n"
-            f"{predicate}\n"
-            "#else\ntrue;\n#endif\n"
-            f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
-        )
+    hole_line = _write_materialized_trigger_source(source_path, predicate)
+    assert hole_line == "  " + predicate
     candidate = trigger_gate_binding.TriggerGateBinding(
         mask=20,
         predicate_sha256=trigger_gate_binding.expected_predicate_sha256(20),
@@ -5419,14 +5634,8 @@ def test_trigger_binding_rejects_crossed_materialized_predicate_and_mask():
     source_path = os.path.join(source_root, axis_trigger_gating.SOURCE_REL)
     os.makedirs(os.path.dirname(source_path), exist_ok=True)
     predicate_a = emit_predicate(TriggerGateIR(20))
-    with open(source_path, "w", encoding="utf-8") as stream:
-        stream.write(
-            f"// EVOLVE-BLOCK-BEGIN {axis_trigger_gating.MARKER_ID}\n"
-            "#if BACKOFF_TRIGGER_GATING\n"
-            f"{predicate_a}\n"
-            "#else\ntrue;\n#endif\n"
-            f"// EVOLVE-BLOCK-END {axis_trigger_gating.MARKER_ID}\n"
-        )
+    hole_line = _write_materialized_trigger_source(source_path, predicate_a)
+    assert hole_line == "  " + predicate_a
     binding_b = trigger_gate_binding.TriggerGateBinding(
         mask=21,
         predicate_sha256=trigger_gate_binding.expected_predicate_sha256(21),

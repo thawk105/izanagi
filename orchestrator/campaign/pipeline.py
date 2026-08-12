@@ -45,8 +45,11 @@ from .buildcache import (_resolve_site as _buildcache_resolve_site,  # noqa: E40
 from .layout import CampaignLayout                              # noqa: E402
 from .lock import bench_lock                                    # noqa: E402
 from .env_contract import ExecutionEnvironmentContract          # noqa: E402
-from .axis_trigger_gating import (MARKER_ID as TRIGGER_MARKER_ID,
-                                  SOURCE_REL as TRIGGER_SOURCE_REL)  # noqa: E402
+from .axis_trigger_gating import (  # noqa: E402
+    MARKER_ID as TRIGGER_MARKER_ID,
+    PREDICATE_HOLE_INDENT as TRIGGER_PREDICATE_HOLE_INDENT,
+    SOURCE_REL as TRIGGER_SOURCE_REL,
+)
 from .diff_quarantine import parse_template_file                # noqa: E402
 from .model import (COMMIT_CONTRACT_SHA256_KEY, Genome, STAGE_ABORT,
                     STAGE_BENCH_DONE,                           # noqa: E402
@@ -75,12 +78,30 @@ def _require_materialized_trigger_predicate(
     source_path = os.path.join(evidence.source_root, TRIGGER_SOURCE_REL)
     try:
         marker = parse_template_file(source_path, TRIGGER_MARKER_ID)
-        hole_lines = None if marker is None else tuple(marker.hole_text.values())
-        expected = emit_predicate(TriggerGateIR(binding.mask)).strip().encode("utf-8")
+        with open(source_path, "rb") as stream:
+            raw_source = stream.read()
+        raw_lines = []
+        line_start = 0
+        for newline in re.finditer(br"\r\n?|\n", raw_source):
+            payload = raw_source[line_start:newline.start()]
+            # Keep CR in the physical-line payload even though it delimits a
+            # line for the parser's universal-newline line numbering.
+            if newline.group(0).startswith(b"\r"):
+                payload += b"\r"
+            raw_lines.append(payload)
+            line_start = newline.end()
+        raw_lines.append(raw_source[line_start:])
+        hole_lines = None if marker is None else tuple(
+            raw_lines[marker.hole_first - 1:marker.hole_last]
+        )
+        expected = (
+            TRIGGER_PREDICATE_HOLE_INDENT
+            + emit_predicate(TriggerGateIR(binding.mask))
+        ).encode("utf-8")
     except (OSError, UnicodeError, TypeError, ValueError):
         raise BuildAdmissionError(_TRIGGER_PREDICATE_REJECTION) from None
     if (hole_lines is None or len(hole_lines) != 1
-            or hole_lines[0].strip().encode("utf-8") != expected):
+            or hole_lines[0] != expected):
         raise BuildAdmissionError(_TRIGGER_PREDICATE_REJECTION) from None
 
 
