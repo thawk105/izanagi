@@ -1044,7 +1044,7 @@ def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_pat
     prepare_calls = []
 
     @contextlib.contextmanager
-    def unavailable_once(cell, pin):
+    def unavailable_once(cell, pin, *, cxx):
         prepare_calls.append(1)
         if len(prepare_calls) == 1:
             result = oracle.SortSwoOracleResult(

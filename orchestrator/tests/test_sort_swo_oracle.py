@@ -676,7 +676,7 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
         },
     }
 
-    with direct.prepare_cell(cell, "fixture-pin") as prepared:
+    with direct.prepare_cell(cell, "fixture-pin", cxx="fixture-cxx") as prepared:
         assert prepared.src_token == "fixture-source"
         assert prepared.oracle_attempt is not None
         assert prepared.oracle_attempt["classification"] == "pass"
