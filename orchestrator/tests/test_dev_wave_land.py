@@ -756,25 +756,19 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
-def test_land_cli_requires_acceptance_receipt() -> None:
+@pytest.mark.parametrize(
+    "missing_option",
+    ("--acceptance-receipt", "--acceptance-wave"),
+    ids=("acceptance-receipt", "acceptance-wave"),
+)
+def test_land_cli_requires_acceptance_receipt(missing_option: str) -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
         request = repo.request(wave, tip=tip)
-        argv = [
-            sys.executable,
-            str(HELPER_PATH),
-            "--main-worktree",
-            str(request.main_worktree),
-            "--wave-worktree",
-            str(request.wave_worktree),
-            "--tested-main-sha",
-            request.tested_main_sha,
-            "--tested-wave-tip-sha",
-            request.tested_wave_tip_sha,
-        ]
-        for commit in request.audited_commits:
-            argv.extend(("--audited-commit", commit))
+        argv = _land_cli_argv(request)
+        missing_index = argv.index(missing_option)
+        del argv[missing_index:missing_index + 2]
 
         completed = subprocess.run(
             argv,
@@ -786,8 +780,7 @@ def test_land_cli_requires_acceptance_receipt() -> None:
         )
 
         assert completed.returncode == 2
-        assert "--acceptance-wave" in completed.stderr
-        assert "--acceptance-receipt" in completed.stderr
+        assert missing_option in completed.stderr
 
 
 def test_handoff_state_vocabulary_is_not_a_land_gate() -> None:
