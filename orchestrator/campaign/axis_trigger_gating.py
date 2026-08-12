@@ -23,6 +23,7 @@ from . import pin
 MARKER_ID = "silo-backoff-trigger-gating"
 SOURCE_REL = "cc/silo/transaction.cc"
 TEMPLATE_PATCH = "silo-backoff-trigger-gating-variant.patch"
+PREDICATE_HOLE_INDENT = "  "
 FLAG = "BACKOFF_TRIGGER_GATING"          # cmake CACHE = CCBENCH_BACKOFF_TRIGGER_GATING
 PIN = pin.CURRENT_PIN                    # d706650 — 骨格は patch のみ (PIN 前進なし、D48 決定 2)
 
