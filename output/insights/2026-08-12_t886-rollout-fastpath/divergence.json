@@ -1,0 +1,63 @@
+{
+  "files_scanned": 2945,
+  "scan_seconds": 4.41,
+  "distinct_content_ids": 2945,
+  "distinct_name_ids": 2945,
+  "form_A_name_has_id_content_does_not": {
+    "count": 0,
+    "sample": []
+  },
+  "form_B_content_has_id_name_does_not": {
+    "count": 4,
+    "sample": [
+      {
+        "id": "019f690c-1682-7dd2-9cc5-a708cf68d46e",
+        "path": "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-57-49-019f6912-d2d9-7422-94e3-cee5a9970367.jsonl"
+      },
+      {
+        "id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+        "path": "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-50-56-019fd532-1498-79c3-9c7b-c8cc746f1698.jsonl"
+      },
+      {
+        "id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+        "path": "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-45-019fd539-3b98-7811-bb5f-a49c14065e59.jsonl"
+      },
+      {
+        "id": "019fd52d-fdac-7b73-9d3d-4aac9948ee55",
+        "path": "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-52-019fd539-5777-7f51-91d6-0256f365fe13.jsonl"
+      }
+    ]
+  },
+  "files_without_session_meta": {
+    "count": 0,
+    "sample": []
+  },
+  "files_declaring_multiple_ids": {
+    "count": 4,
+    "sample": [
+      "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-57-49-019f6912-d2d9-7422-94e3-cee5a9970367.jsonl",
+      "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-50-56-019fd532-1498-79c3-9c7b-c8cc746f1698.jsonl",
+      "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-45-019fd539-3b98-7811-bb5f-a49c14065e59.jsonl",
+      "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-52-019fd539-5777-7f51-91d6-0256f365fe13.jsonl"
+    ]
+  },
+  "content_ids_not_exactly_one_file": {
+    "count": 2,
+    "sample": {
+      "019f690c-1682-7dd2-9cc5-a708cf68d46e": [
+        "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-50-27-019f690c-1682-7dd2-9cc5-a708cf68d46e.jsonl",
+        "/home/SFC/tanab/.codex/sessions/2026/07/16/rollout-2026-07-16T12-57-49-019f6912-d2d9-7422-94e3-cee5a9970367.jsonl"
+      ],
+      "019fd52d-fdac-7b73-9d3d-4aac9948ee55": [
+        "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-46-28-019fd52d-fdac-7b73-9d3d-4aac9948ee55.jsonl",
+        "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-50-56-019fd532-1498-79c3-9c7b-c8cc746f1698.jsonl",
+        "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-45-019fd539-3b98-7811-bb5f-a49c14065e59.jsonl",
+        "/home/SFC/tanab/.codex/sessions/2026/08/06/rollout-2026-08-06T12-58-52-019fd539-5777-7f51-91d6-0256f365fe13.jsonl"
+      ]
+    }
+  },
+  "name_ids_not_exactly_one_file": {
+    "count": 0,
+    "sample": {}
+  }
+}

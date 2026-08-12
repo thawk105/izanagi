@@ -1715,6 +1715,633 @@ def test_find_rollout_ignores_empty_and_blank_rollouts(tmp_path: Path) -> None:
     assert TOOL._find_rollout(tmp_path, "target-session") == rollout.resolve()
 
 
+def _session_meta_bytes(session_id: str, *, field: str = "id") -> bytes:
+    return (
+        json.dumps(
+            {"type": "session_meta", "payload": {field: session_id}},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        + b"\n"
+    )
+
+
+def _write_rollout(path: Path, content: bytes) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+    return path
+
+
+def _install_rollout_pin(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    label: str,
+    session_id: str,
+    content: bytes,
+) -> None:
+    monkeypatch.setitem(TOOL.SESSION_IDS, label, session_id)
+    monkeypatch.setitem(
+        TOOL.ROLLOUT_SHA256, label, hashlib.sha256(content).hexdigest()
+    )
+
+
+def test_find_rollout_pinned_checks_content_before_returning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-content-check"
+    session_id = "content-target"
+    candidate_content = _session_meta_bytes("different-session")
+    candidate = _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", candidate_content
+    )
+    fallback = _write_rollout(
+        tmp_path / "rollout-nontypical.jsonl", _session_meta_bytes(session_id)
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=candidate_content,
+    )
+
+    assert candidate != fallback
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == fallback.resolve()
+    )
+
+
+def test_find_rollout_pinned_requires_exactly_one_named_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-candidate-count"
+    session_id = "candidate-count-target"
+    pinned_content = _session_meta_bytes(session_id)
+    for branch in ("a", "b"):
+        _write_rollout(
+            tmp_path / branch / f"rollout-{branch}-{session_id}.jsonl",
+            pinned_content,
+        )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=pinned_content,
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        f"session {session_id} rollout count is 2, expected 1"
+    )
+
+
+def test_find_rollout_pinned_sha_mismatch_falls_back_to_duplicate_rejection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-sha-fallback"
+    session_id = "sha-fallback-target"
+    candidate = _write_rollout(
+        tmp_path / "candidate" / f"rollout-named-{session_id}.jsonl",
+        _session_meta_bytes(session_id),
+    )
+    duplicate = _write_rollout(
+        tmp_path / "duplicate" / "rollout-nontypical.jsonl",
+        _session_meta_bytes(session_id),
+    )
+    monkeypatch.setitem(TOOL.SESSION_IDS, label, session_id)
+    monkeypatch.setitem(
+        TOOL.ROLLOUT_SHA256,
+        label,
+        hashlib.sha256(b"different pinned bytes").hexdigest(),
+    )
+
+    assert candidate != duplicate
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        f"session {session_id} rollout count is 2, expected 1"
+    )
+
+
+def test_find_rollout_pinned_requires_sha_pin_eligibility(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-missing-sha-pin"
+    session_id = "missing-sha-pin-target"
+    content = _session_meta_bytes(session_id)
+    _write_rollout(tmp_path / f"rollout-named-{session_id}.jsonl", content)
+    _write_rollout(tmp_path / "rollout-nontypical.jsonl", content)
+    monkeypatch.setitem(TOOL.SESSION_IDS, label, session_id)
+    monkeypatch.delitem(TOOL.ROLLOUT_SHA256, label, raising=False)
+    monkeypatch.setattr(
+        TOOL, "_verify_rollout_sha", lambda *args, **kwargs: None
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+
+
+def test_find_rollout_pinned_requires_label_id_pairing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-cross-wired-label"
+    label_session_id = "label-session"
+    requested_session_id = "requested-session"
+    content = _session_meta_bytes(requested_session_id)
+    candidate = _write_rollout(
+        tmp_path / f"rollout-named-{requested_session_id}.jsonl", content
+    )
+    _write_rollout(tmp_path / "rollout-nontypical.jsonl", content)
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=label_session_id,
+        content=content,
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(
+            tmp_path, requested_session_id, pinned_label=label
+        )
+    assert candidate.exists()
+    assert excinfo.value.rc == TOOL.RC_SESSION
+
+
+@pytest.mark.parametrize(
+    "depth_parts",
+    (
+        pytest.param(("a",), id="depth-1"),
+        pytest.param(("a", "b", "c", "d", "e"), id="depth-5"),
+    ),
+)
+def test_find_rollout_pinned_rglob_reaches_arbitrary_depth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    depth_parts: tuple[str, ...],
+) -> None:
+    label = "test-arbitrary-depth"
+    session_id = f"nested-{len(depth_parts)}"
+    content = _session_meta_bytes(session_id)
+    candidate = _write_rollout(
+        tmp_path.joinpath(
+            *depth_parts, f"rollout-deep-{session_id}.jsonl"
+        ),
+        content,
+    )
+    _write_rollout(
+        tmp_path / "elsewhere" / "rollout-nontypical.jsonl", content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == candidate.resolve()
+    )
+
+
+def test_find_rollout_pinned_returns_resolved_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-resolved-symlink"
+    session_id = "resolved-symlink-target"
+    content = _session_meta_bytes(session_id)
+    target = _write_rollout(tmp_path / "outside" / "target.jsonl", content)
+    sessions_root = tmp_path / "sessions"
+    sessions_root.mkdir()
+    candidate = sessions_root / f"rollout-link-{session_id}.jsonl"
+    candidate.symlink_to(target)
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    assert (
+        TOOL._find_rollout(sessions_root, session_id, pinned_label=label)
+        == target.resolve()
+    )
+    assert candidate != target.resolve()
+
+
+def test_find_rollout_pinned_zero_named_candidates_uses_full_scan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-zero-named"
+    session_id = "zero-named-target"
+    content = _session_meta_bytes(session_id)
+    fallback = _write_rollout(
+        tmp_path / "rollout-nontypical.jsonl", content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == fallback.resolve()
+    )
+
+
+@pytest.mark.parametrize("pinned_label", (None, "unknown-label"))
+@pytest.mark.parametrize(
+    "session_id_text",
+    (
+        pytest.param("../x*?[/e\u0301 trailing ", id="metacharacters"),
+        pytest.param("Opaque]UPPER/Segment", id="bracket-upper-slash"),
+    ),
+)
+def test_find_rollout_ineligible_pin_preserves_opaque_session_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    pinned_label: str | None,
+    session_id_text: str,
+) -> None:
+    separator_probes: list[str] = []
+
+    class OpaqueSessionId(str):
+        def __contains__(self, value: str) -> bool:
+            separator_probes.append(value)
+            return super().__contains__(value)
+
+    session_id = OpaqueSessionId(session_id_text)
+    rollout = _write_rollout(
+        tmp_path / "rollout-opaque.jsonl", _session_meta_bytes(session_id)
+    )
+    patterns: list[str] = []
+    escape_calls: list[str] = []
+    real_rglob = TOOL.Path.rglob
+    real_escape = TOOL.glob.escape
+
+    def observe_rglob(path: Path, pattern: str) -> Any:
+        patterns.append(pattern)
+        return real_rglob(path, pattern)
+
+    def observe_escape(value: str) -> str:
+        escape_calls.append(value)
+        return real_escape(value)
+
+    monkeypatch.setattr(TOOL.Path, "rglob", observe_rglob)
+    monkeypatch.setattr(TOOL.glob, "escape", observe_escape)
+
+    assert (
+        TOOL._find_rollout(
+            tmp_path, session_id, pinned_label=pinned_label
+        )
+        == rollout.resolve()
+    )
+    assert patterns == ["rollout-*.jsonl"]
+    assert escape_calls == []
+    assert separator_probes == []
+
+
+def test_find_rollout_pinned_glob_metacharacters_are_literal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-glob-escape"
+    session_id = "literal*?x"
+    content = _session_meta_bytes(session_id)
+    candidate = _write_rollout(
+        tmp_path / f"rollout-exact-{session_id}.jsonl", content
+    )
+    _write_rollout(
+        tmp_path / "rollout-wild-literalZZx.jsonl", content
+    )
+    _write_rollout(tmp_path / "rollout-nontypical.jsonl", content)
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == candidate.resolve()
+    )
+
+
+def test_find_rollout_pinned_permission_error_is_speculative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-permission-fallback"
+    session_id = "permission-fallback-target"
+    content = _session_meta_bytes(session_id)
+    candidate = _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", content
+    )
+    fallback = _write_rollout(
+        tmp_path / "rollout-nontypical.jsonl", content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+    real_matches = TOOL._rollout_matches_session
+    chmod_applied = False
+
+    def chmod_after_match(path: Path, requested_id: str) -> bool:
+        nonlocal chmod_applied
+        matched = real_matches(path, requested_id)
+        if path == candidate and matched and not chmod_applied:
+            os.chmod(candidate, 0o000)
+            chmod_applied = True
+        return matched
+
+    monkeypatch.setattr(TOOL, "_rollout_matches_session", chmod_after_match)
+    try:
+        assert (
+            TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+            == fallback.resolve()
+        )
+        assert chmod_applied
+        with pytest.raises(PermissionError):
+            candidate.read_bytes()
+    finally:
+        os.chmod(candidate, 0o600)
+
+
+def test_find_rollout_pinned_memory_error_is_speculative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-memory-fallback"
+    session_id = "memory-fallback-target"
+    content = _session_meta_bytes(session_id)
+    _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", content
+    )
+    _write_rollout(tmp_path / "rollout-nontypical.jsonl", content)
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    def raise_memory_error(path: Path, requested_label: str) -> None:
+        raise MemoryError("sha verification sentinel")
+
+    monkeypatch.setattr(TOOL, "_verify_rollout_sha", raise_memory_error)
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+
+
+def test_find_rollout_pinned_does_not_catch_base_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-base-exception"
+    session_id = "base-exception-target"
+    content = _session_meta_bytes(session_id)
+    _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+    real_matches = TOOL._rollout_matches_session
+    calls = 0
+
+    def interrupt(path: Path, requested_id: str) -> bool:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise KeyboardInterrupt("base exception sentinel")
+        return real_matches(path, requested_id)
+
+    monkeypatch.setattr(TOOL, "_rollout_matches_session", interrupt)
+
+    with pytest.raises(KeyboardInterrupt, match="base exception sentinel"):
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+    assert calls == 1
+
+
+@pytest.mark.parametrize("variant", ("unicode-escape", "utf16-le", "bad-prefix"))
+def test_find_rollout_pinned_preserves_session_meta_encodings_and_bad_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variant: str,
+) -> None:
+    label = f"test-{variant}"
+    session_id = f"encoded-{variant}"
+    literal = (
+        f'{{"type":"session_meta","payload":{{"id":"{session_id}"}}}}'
+    )
+    if variant == "unicode-escape":
+        escaped_type = "".join(
+            f"\\u00{ord(char):02x}" for char in "session_meta"
+        )
+        content = literal.replace("session_meta", escaped_type).encode() + b"\n"
+    elif variant == "utf16-le":
+        content = literal.encode("utf-16-le")
+    else:
+        content = b'{"type":"session_meta",}\n' + literal.encode() + b"\n"
+    candidate = _write_rollout(
+        tmp_path / "a" / "b" / f"rollout-encoded-{session_id}.jsonl",
+        content,
+    )
+    _write_rollout(
+        tmp_path / "duplicate" / "rollout-nontypical.jsonl",
+        _session_meta_bytes(session_id),
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == candidate.resolve()
+    )
+
+
+def test_find_rollout_pinned_candidate_value_error_propagates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-value-error-propagation"
+    session_id = "value-error-propagation-target"
+    content = _session_meta_bytes(session_id)
+    _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", content
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+    real_loads = TOOL.json.loads
+    raised = False
+
+    def raise_once(line: bytes) -> Any:
+        nonlocal raised
+        if not raised:
+            raised = True
+            raise ValueError("fast candidate sentinel")
+        return real_loads(line)
+
+    monkeypatch.setattr(TOOL.json, "loads", raise_once)
+
+    with pytest.raises(ValueError, match="fast candidate sentinel"):
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+    assert raised
+
+
+def test_find_rollout_pinned_parses_only_named_candidate_lines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-pinned-parse-count"
+    session_id = "pinned-parse-count-target"
+    candidate_lines = (
+        b'{"type":"event_msg","payload":{"note":"session_meta"}}\n',
+        b'{"type":"event_msg","payload":{"note":"\\u0061"}}\n',
+        _session_meta_bytes(session_id),
+    )
+    content = b'{"type":"event_msg","payload":{}}\n' * 1000 + b"".join(
+        candidate_lines
+    )
+    candidate = _write_rollout(
+        tmp_path / f"rollout-named-{session_id}.jsonl", content
+    )
+    _write_rollout(
+        tmp_path / "rollout-0-decoy.jsonl",
+        _session_meta_bytes("unrelated") * 7,
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+    real_loads = TOOL.json.loads
+    parse_count = 0
+
+    def counted_loads(line: bytes) -> Any:
+        nonlocal parse_count
+        parse_count += 1
+        return real_loads(line)
+
+    monkeypatch.setattr(TOOL.json, "loads", counted_loads)
+
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == candidate.resolve()
+    )
+    assert parse_count == len(candidate_lines)
+
+
+def test_find_rollout_pinned_skips_unrelated_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    label = "test-unrelated-value-error"
+    session_id = "unrelated-value-error-target"
+    content = _session_meta_bytes(session_id)
+    candidate = _write_rollout(
+        tmp_path / f"rollout-z-{session_id}.jsonl", content
+    )
+    _write_rollout(
+        tmp_path / "rollout-0-poison.jsonl",
+        b'{"type":"session_meta","payload":{"value":'
+        + b"9" * 10_000
+        + b"}}\n",
+    )
+    _install_rollout_pin(
+        monkeypatch,
+        label=label,
+        session_id=session_id,
+        content=content,
+    )
+
+    with pytest.raises(ValueError):
+        TOOL._find_rollout(tmp_path, session_id)
+    assert (
+        TOOL._find_rollout(tmp_path, session_id, pinned_label=label)
+        == candidate.resolve()
+    )
+
+
+@pytest.mark.parametrize("verify_source_sha", (True, False))
+def test_derive_independent_golden_wires_pins(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    verify_source_sha: bool,
+) -> None:
+    calls: list[tuple[str, str | None]] = []
+
+    def observe(
+        sessions_root: Path,
+        session_id: str,
+        *,
+        pinned_label: str | None = None,
+    ) -> Path:
+        calls.append((session_id, pinned_label))
+        if len(calls) == 3:
+            raise RuntimeError("wiring observed")
+        return tmp_path / f"{pinned_label}.jsonl"
+
+    monkeypatch.setattr(TOOL, "_find_rollout", observe)
+
+    with pytest.raises(RuntimeError, match="wiring observed"):
+        TOOL.derive_independent_golden(
+            tmp_path, tmp_path, verify_source_sha=verify_source_sha
+        )
+    assert calls == [
+        (TOOL.SESSION_IDS[label], label)
+        for label in ("author", "fix1", "fix2")
+    ]
+
+
+@pytest.mark.parametrize("case", ("POS", "NEG"))
+@pytest.mark.parametrize("verify_source", (True, False))
+def test_render_prompt_wires_pin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+    verify_source: bool,
+) -> None:
+    calls: list[tuple[str, str | None]] = []
+
+    def observe(
+        sessions_root: Path,
+        session_id: str,
+        *,
+        pinned_label: str | None = None,
+    ) -> Path:
+        calls.append((session_id, pinned_label))
+        raise RuntimeError("wiring observed")
+
+    monkeypatch.setattr(TOOL, "_find_rollout", observe)
+
+    with pytest.raises(RuntimeError, match="wiring observed"):
+        TOOL.render_prompt(
+            tmp_path,
+            case,
+            tmp_path / "new-root",
+            verify_source=verify_source,
+        )
+    assert calls == [(TOOL.SESSION_IDS[case], case)]
+
+
 @pytest.mark.parametrize("replacement_count", [0, 9, 10])
 def test_prompt_replacement_count_zero_expected_and_excess(
     replacement_count: int,
@@ -1733,7 +2360,9 @@ def test_prompt_replacement_count_zero_expected_and_excess(
         message = canonical_message
     rollout = tmp_path / "rollout.jsonl"
     rollout.write_text("{}\n", encoding="utf-8")
-    monkeypatch.setattr(TOOL, "_find_rollout", lambda *_: rollout)
+    monkeypatch.setattr(
+        TOOL, "_find_rollout", lambda *args, **kwargs: rollout
+    )
     monkeypatch.setattr(TOOL, "_verify_rollout_sha", lambda *_: None)
     monkeypatch.setattr(TOOL, "extract_user_message", lambda *_: message)
     if replacement_count == TOOL.PROMPT_SOURCE["POS"]["replacements"]:
