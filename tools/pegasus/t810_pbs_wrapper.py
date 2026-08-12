@@ -36,7 +36,11 @@ _HARDWARE_FIELDS = frozenset({
 })
 LIMITATIONS = {
     "shared_mount_repository_reachability_not_eliminated": True,
-    "execution_mediation_incomplete": True,
+    "execution_mediation_incomplete": False,
+    "guard_snapshot_to_release_race_not_eliminated": False,
+    "approval_receipt_trust_root_absent": False,
+    "repository_absence_not_proven_from_node": True,
+    "budget_ledger_trust_root_absent": False,
 }
 
 
@@ -67,6 +71,7 @@ class WrapperRequest:
     release_marker_path: Path
     cancel_marker_path: Path
     node_receipt_path: Path
+    request_path: Path
     assigned_hostname: str
     allocated_cpus: frozenset[int]
     expected_submission_argv: tuple[str, ...]
@@ -77,13 +82,12 @@ class WrapperRequest:
     pbs_workdir: Path
     binary_source_path: Path
     binary_copy_path: Path
-    runner_path: Path
-    expected_binary_sha256: str
+    runner_policy_path: Path
+    runner_policy_sha256: str
     dependency_manifest_path: Path
     expected_dependency_manifest_sha256: str
     expected_module_list_sha256: str
     expected_numa_nodes: int
-    canonical_benchmark_argv: tuple[str, ...]
     round_count: int
     interpreter_realpath: Path
 
@@ -214,6 +218,166 @@ def render_pbs_script(
     return rendered
 
 
+def _require_token(token: Any) -> schema.AuthorizationToken:
+    if not isinstance(token, schema.AuthorizationToken):
+        raise T810WrapperError("verified AuthorizationToken is required")
+    return token
+
+
+def _request_path_from_slot(slot: Mapping[str, Any]) -> Path:
+    argv = slot["wrapper_argv"]
+    if (not isinstance(argv, list) or len(argv) != 4
+            or argv[:2] != ["python3.10", slot["wrapper_path"]]
+            or argv[2] != "--request"):
+        raise T810WrapperError("slot wrapper argv does not bind one request path")
+    path = Path(argv[3])
+    if not path.is_absolute():
+        raise T810WrapperError("wrapper request path must be absolute")
+    return path
+
+
+def build_wrapper_request(
+    launch_intent: Mapping[str, Any], group_manifest: Mapping[str, Any],
+    preregistration: Any, token: schema.AuthorizationToken, *, slot_id: str,
+    pbs_request_id: str, assigned_hostname: str, allocated_cpus: Sequence[int],
+    observed_submission_argv: Sequence[str], dependency_manifest_path: str | Path,
+    interpreter_realpath: str | Path,
+) -> WrapperRequest:
+    """Build one request only from a bound intent/manifest and verified preregistration."""
+    verified = _require_token(token)
+    try:
+        intent = schema.validate_launch_intent(launch_intent)
+        manifest = schema.validate_group_manifest(group_manifest)
+        from orchestrator.campaign.t810_preregistration import VerifiedT810Preregistration
+    except (schema.T810SchemaError, ModuleNotFoundError) as exc:
+        raise T810WrapperError("cannot validate wrapper request producer inputs") from exc
+    if not isinstance(preregistration, VerifiedT810Preregistration):
+        raise T810WrapperError("verified preregistration from loader is required")
+    if (manifest["group_id"] != intent["group_id"]
+            or manifest["launch_intent_sha256"] != schema.canonical_sha256(intent)
+            or intent["preregistration_sha256"] != preregistration.sha256
+            or intent["prereg_approval_id"] != preregistration.approval_id
+            or verified.preregistration_sha256 != preregistration.sha256
+            or verified.policy_sha256 != intent["policy_sha256"]
+            or verified.run_kind != intent["run_kind"]
+            or verified.document["approval_id"] != preregistration.approval_id):
+        raise T810WrapperError("intent, manifest, preregistration, or token binding mismatch")
+    matches = [slot for slot in intent["slots"] if slot["slot_id"] == slot_id]
+    if len(matches) != 1:
+        raise T810WrapperError("wrapper request slot is not unique in launch intent")
+    slot = matches[0]
+    policy = runner_policy.build_runner_policy(
+        preregistration, executable_sha256=slot["binary_sha256"],
+    )
+    policy_sha256 = schema.canonical_sha256(policy)
+    if policy_sha256 != slot["runner_policy_sha256"]:
+        raise T810WrapperError("launch intent runner policy digest mismatch")
+    cpus = tuple(allocated_cpus)
+    observed = tuple(observed_submission_argv)
+    if (not cpus or any(isinstance(cpu, bool) or not isinstance(cpu, int) or cpu < 0 for cpu in cpus)
+            or len(cpus) != len(set(cpus))):
+        raise T810WrapperError("allocated CPU set is invalid")
+    if (not observed or any(not isinstance(item, str) or not item for item in observed)):
+        raise T810WrapperError("observed submission argv is invalid")
+    work_root, output_root = Path(intent["work_root"]), Path(intent["output_root"])
+    benchmark_name = policy["benchmark_executable_name"]
+    return WrapperRequest(
+        group_manifest_sha256=schema.canonical_sha256(manifest),
+        group_id=intent["group_id"], slot_id=slot["slot_id"],
+        logical_request_id=slot["logical_request_id"], pbs_request_id=pbs_request_id,
+        run_kind=intent["run_kind"], preregistration_sha256=preregistration.sha256,
+        prereg_approval_id=preregistration.approval_id,
+        admission_policy_sha256=intent["policy_sha256"],
+        launch_authorization=dict(verified.document),
+        release_token_commitment=manifest["release_token_commitment"],
+        release_marker_path=work_root / "control/release.json",
+        cancel_marker_path=work_root / "control/cancel.json",
+        node_receipt_path=work_root / slot_id / "node-receipt.jsonl",
+        request_path=_request_path_from_slot(slot), assigned_hostname=assigned_hostname,
+        allocated_cpus=frozenset(cpus),
+        expected_submission_argv=tuple(slot["qsub_argv"]),
+        observed_submission_argv=observed, work_root=work_root,
+        output_root=output_root, control_root=work_root / "control",
+        pbs_workdir=work_root / slot_id,
+        binary_source_path=Path(slot["binary_source_path"]),
+        binary_copy_path=work_root / slot_id / benchmark_name,
+        runner_policy_path=Path(slot["runner_policy_path"]),
+        runner_policy_sha256=policy_sha256,
+        dependency_manifest_path=Path(dependency_manifest_path),
+        expected_dependency_manifest_sha256=slot["expected_dependency_manifest_sha256"],
+        expected_module_list_sha256=slot["expected_module_list_sha256"],
+        expected_numa_nodes=slot["expected_numa_nodes"],
+        round_count=intent["round_count"], interpreter_realpath=Path(interpreter_realpath),
+    )
+
+
+def _write_bytes_create_only(
+    token: schema.AuthorizationToken, path: Path, raw: bytes, *, mode: int = 0o600,
+) -> None:
+    _require_token(token)
+    if not isinstance(raw, bytes):
+        raise T810WrapperError("publication bytes must be exact bytes")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags, mode)
+        try:
+            offset = 0
+            while offset < len(raw):
+                written = os.write(fd, raw[offset:])
+                if written <= 0:
+                    raise T810WrapperError("short create-only publication write")
+                offset += written
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        raise T810WrapperError("create-only publication failed") from exc
+
+
+def publish_wrapper_request(
+    launch_intent: Mapping[str, Any], group_manifest: Mapping[str, Any],
+    preregistration: Any, token: schema.AuthorizationToken, *, slot_id: str,
+    pbs_request_id: str, assigned_hostname: str, allocated_cpus: Sequence[int],
+    observed_submission_argv: Sequence[str], dependency_manifest_path: str | Path,
+    interpreter_realpath: str | Path,
+) -> WrapperRequest:
+    """Publish the prereg-derived policy and request through token-gated effects."""
+    verified = _require_token(token)
+    request = build_wrapper_request(
+        launch_intent, group_manifest, preregistration, verified, slot_id=slot_id,
+        pbs_request_id=pbs_request_id, assigned_hostname=assigned_hostname,
+        allocated_cpus=allocated_cpus, observed_submission_argv=observed_submission_argv,
+        dependency_manifest_path=dependency_manifest_path,
+        interpreter_realpath=interpreter_realpath,
+    )
+    policy = runner_policy.build_runner_policy(
+        preregistration, executable_sha256=_sha256_file(request.binary_source_path),
+    )
+    if (schema.canonical_sha256(policy) != request.runner_policy_sha256
+            or verified.preregistration_sha256 != request.preregistration_sha256):
+        raise T810WrapperError("published wrapper request binding mismatch")
+    _write_bytes_create_only(
+        verified, request.runner_policy_path, schema.canonical_json_bytes(policy) + b"\n",
+    )
+    document: dict[str, Any] = {}
+    for field in dataclass_fields(WrapperRequest):
+        value = getattr(request, field.name)
+        if isinstance(value, Path):
+            value = str(value)
+        elif isinstance(value, frozenset):
+            value = sorted(value)
+        elif isinstance(value, tuple):
+            value = list(value)
+        elif isinstance(value, Mapping):
+            value = dict(value)
+        document[field.name] = value
+    _write_bytes_create_only(
+        verified, request.request_path, schema.canonical_json_bytes(document) + b"\n",
+    )
+    return request
+
+
 def _has_git_ancestor(path: Path) -> bool:
     resolved = path.resolve(strict=False)
     current = resolved if resolved.is_dir() else resolved.parent
@@ -227,24 +391,22 @@ def _has_git_ancestor(path: Path) -> bool:
 def inspect_repository_absence(
     request: WrapperRequest, *, repo_root: Path | None = None,
 ) -> Mapping[str, bool]:
+    """Return no affirmative repository-absence claims from a compute node."""
+    del request, repo_root
+    return {
+        "package_repo_free": False,
+        "roots_repo_external": False,
+        "git_ancestor_absent": False,
+        "pbs_workdir_repo_external": False,
+    }
+
+
+def _repository_hazard_observed(request: WrapperRequest) -> bool:
     paths = (
         request.pbs_workdir, request.work_root, request.output_root, request.control_root,
-        request.binary_source_path, request.binary_copy_path, request.runner_path,
+        request.binary_source_path, request.binary_copy_path, request.runner_policy_path,
     )
-    external = True
-    for path in paths:
-        try:
-            _canonical_external_path(path, "wrapper path", repo_root)
-        except T810WrapperError:
-            external = False
-    git_absent = not any(_has_git_ancestor(path) for path in paths)
-    return {
-        "package_repo_free": external and not _has_git_ancestor(request.runner_path)
-        and not _has_git_ancestor(request.binary_copy_path),
-        "roots_repo_external": external,
-        "git_ancestor_absent": git_absent,
-        "pbs_workdir_repo_external": external and not _has_git_ancestor(request.pbs_workdir),
-    }
+    return any(_has_git_ancestor(path) for path in paths)
 
 
 def _parse_cpu_list(raw: str) -> list[int]:
@@ -367,7 +529,10 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _copy_binary(source: Path, destination: Path) -> tuple[str, str]:
+def _copy_binary(
+    token: schema.AuthorizationToken, source: Path, destination: Path,
+) -> tuple[str, str]:
+    _require_token(token)
     source_hash = _sha256_file(source)
     try:
         source_mode = source.stat().st_mode & 0o777
@@ -422,8 +587,33 @@ def _preflight_process_evidence(scan: ProcessScan) -> list[Mapping[str, Any]]:
     return sorted(result, key=lambda item: item["pid"])
 
 
-def _append_event(request: WrapperRequest, events: list[Mapping[str, Any]], event: str,
-                  payload: Mapping[str, Any], observed_at: str) -> Mapping[str, Any]:
+def _append_jsonl(
+    token: schema.AuthorizationToken, path: Path, raw: bytes,
+) -> None:
+    _require_token(token)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags, 0o600)
+        try:
+            offset = 0
+            while offset < len(raw):
+                written = os.write(fd, raw[offset:])
+                if written <= 0:
+                    raise T810WrapperError("short JSONL write")
+                offset += written
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        raise T810WrapperError("JSONL append failed") from exc
+
+
+def _append_event(
+    token: schema.AuthorizationToken, request: WrapperRequest,
+    events: list[Mapping[str, Any]], event: str, payload: Mapping[str, Any],
+    observed_at: str,
+) -> Mapping[str, Any]:
     document = schema.validate_node_event({
         "schema_version": schema.NODE_EVENT_SCHEMA,
         "group_manifest_sha256": request.group_manifest_sha256,
@@ -435,26 +625,18 @@ def _append_event(request: WrapperRequest, events: list[Mapping[str, Any]], even
         "limitations": dict(LIMITATIONS), "payload": dict(payload),
     })
     raw = schema.canonical_json_bytes(document) + b"\n"
-    request.node_receipt_path.parent.mkdir(parents=True, exist_ok=True)
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        fd = os.open(request.node_receipt_path, flags, 0o600)
-        try:
-            if os.write(fd, raw) != len(raw):
-                raise T810WrapperError("short node receipt write")
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except OSError as exc:
-        raise T810WrapperError("node receipt append failed") from exc
+    _append_jsonl(token, request.node_receipt_path, raw)
+    _append_jsonl(
+        token, request.output_root / request.slot_id / "node-receipt.jsonl", raw,
+    )
     events.append(document)
     return document
 
 
-def _terminal(request: WrapperRequest, probes: WrapperProbes,
+def _terminal(token: schema.AuthorizationToken, request: WrapperRequest, probes: WrapperProbes,
               events: list[Mapping[str, Any]], state: str, reasons: Sequence[str],
               *, measurement_started: bool, completed_rounds: int) -> WrapperOutcome:
-    _append_event(request, events, "terminal", {
+    _append_event(token, request, events, "terminal", {
         "state": state, "reason_codes": list(reasons),
         "measurement_started": measurement_started, "completed_rounds": completed_rounds,
     }, probes.wall_clock())
@@ -462,14 +644,68 @@ def _terminal(request: WrapperRequest, probes: WrapperProbes,
 
 
 def _runner_document(request: WrapperRequest) -> Mapping[str, Any]:
-    return {
-        "manifest_executable_realpath": str(request.binary_copy_path),
-        "canonical_benchmark_argv": list(request.canonical_benchmark_argv),
-        "preregistration_sha256": request.preregistration_sha256,
-        "admission_policy_sha256": request.admission_policy_sha256,
-        "prereg_approval_id": request.prereg_approval_id,
-        "run_kind": request.run_kind,
-    }
+    if request.runner_policy_path.is_symlink() or not request.runner_policy_path.is_file():
+        raise T810WrapperError("runner policy is not a regular non-symlink file")
+    try:
+        raw = request.runner_policy_path.read_bytes()
+        value = schema.parse_json(raw)
+        document = runner_policy.validate_runner_policy(value)
+    except (OSError, schema.T810SchemaError, runner_policy.T810RunnerPolicyError) as exc:
+        raise T810WrapperError("runner policy artifact is invalid") from exc
+    canonical = schema.canonical_json_bytes(document)
+    if (raw != canonical + b"\n"
+            or schema.sha256_bytes(canonical) != request.runner_policy_sha256
+            or document["preregistration_sha256"] != request.preregistration_sha256
+            or document["prereg_approval_id"] != request.prereg_approval_id):
+        raise T810WrapperError("runner policy artifact binding mismatch")
+    return document
+
+
+def _validate_request_artifact_chain(request: WrapperRequest) -> Mapping[str, Any]:
+    """Rebind a serialized request to coordinator-published intent and manifest files."""
+    try:
+        intent = schema.validate_launch_intent(
+            _read_json_file(request.control_root / "launch-intent.json"),
+        )
+        manifest = schema.validate_group_manifest(
+            _read_json_file(request.output_root / "group-manifest.json"),
+        )
+    except schema.T810SchemaError as exc:
+        raise T810WrapperError("request artifact chain is invalid") from exc
+    slots = [slot for slot in intent["slots"] if slot["slot_id"] == request.slot_id]
+    if len(slots) != 1:
+        raise T810WrapperError("request slot is not unique in launch intent")
+    slot = slots[0]
+    expected = (
+        (manifest["group_id"], request.group_id),
+        (schema.canonical_sha256(manifest), request.group_manifest_sha256),
+        (manifest["launch_intent_sha256"], schema.canonical_sha256(intent)),
+        (manifest["release_token_commitment"], request.release_token_commitment),
+        (intent["group_id"], request.group_id),
+        (intent["run_kind"], request.run_kind),
+        (intent["preregistration_sha256"], request.preregistration_sha256),
+        (intent["prereg_approval_id"], request.prereg_approval_id),
+        (intent["policy_sha256"], request.admission_policy_sha256),
+        (intent["round_count"], request.round_count),
+        (Path(intent["work_root"]), request.work_root),
+        (Path(intent["output_root"]), request.output_root),
+        (slot["logical_request_id"], request.logical_request_id),
+        (tuple(slot["qsub_argv"]), request.expected_submission_argv),
+        (Path(slot["binary_source_path"]), request.binary_source_path),
+        (Path(slot["runner_policy_path"]), request.runner_policy_path),
+        (slot["runner_policy_sha256"], request.runner_policy_sha256),
+        (slot["expected_dependency_manifest_sha256"],
+         request.expected_dependency_manifest_sha256),
+        (slot["expected_module_list_sha256"], request.expected_module_list_sha256),
+        (slot["expected_numa_nodes"], request.expected_numa_nodes),
+        (_request_path_from_slot(slot), request.request_path),
+        (request.work_root / "control", request.control_root),
+        (request.work_root / request.slot_id / "node-receipt.jsonl",
+         request.node_receipt_path),
+    )
+    if any(bound != actual for bound, actual in expected):
+        raise T810WrapperError("wrapper request differs from intent or manifest")
+    return slot
 
 
 def _parse_throughput(stdout: Any) -> float:
@@ -514,6 +750,22 @@ def _run_wrapper(
     if (isinstance(request.round_count, bool) or not isinstance(request.round_count, int)
             or request.round_count < 1):
         raise T810WrapperError("wrapper round_count must be a positive int")
+    try:
+        token = schema.verify_launch_authorization(
+            request.launch_authorization, run_kind=request.run_kind,
+            preregistration_sha256=request.preregistration_sha256,
+            policy_sha256=request.admission_policy_sha256,
+        )
+    except schema.T810SchemaError as exc:
+        raise T810WrapperError("wrapper launch authorization is invalid") from exc
+    slot = _validate_request_artifact_chain(request)
+    policy = _runner_document(request)
+    expected_binary_sha256 = policy["executable_sha256"]
+    benchmark_argv = tuple(policy["canonical_benchmark_argv"])
+    if (expected_binary_sha256 != slot["binary_sha256"]
+            or request.binary_copy_path
+            != request.work_root / request.slot_id / policy["benchmark_executable_name"]):
+        raise T810WrapperError("runner policy executable identity binding mismatch")
     events: list[Mapping[str, Any]] = []
     repo_absence = inspect_repository_absence(request)
     probe_failed = False
@@ -564,7 +816,7 @@ def _run_wrapper(
         probe_failed = True
     try:
         source_hash, copy_hash = _copy_binary(
-            request.binary_source_path, request.binary_copy_path,
+            token, request.binary_source_path, request.binary_copy_path,
         )
     except T810WrapperError:
         source_hash = copy_hash = "0" * 64
@@ -608,7 +860,7 @@ def _run_wrapper(
         reasons.append("preflight_failed")
     if not quiet:
         reasons.append("quiet_gate_failed")
-    if source_hash != request.expected_binary_sha256 or copy_hash != request.expected_binary_sha256:
+    if source_hash != expected_binary_sha256 or copy_hash != expected_binary_sha256:
         reasons.append("binary_copy_hash_mismatch")
     if dependency_hash != request.expected_dependency_manifest_sha256 or module_hash != request.expected_module_list_sha256:
         reasons.append("pre_inventory_mismatch")
@@ -616,10 +868,10 @@ def _run_wrapper(
         reasons.append("preflight_failed")
     if request.observed_submission_argv != request.expected_submission_argv:
         reasons.append("submission_argv_mismatch")
-    if not all(repo_absence.values()):
+    if _repository_hazard_observed(request):
         reasons.append("preflight_failed")
     reasons = sorted(set(reasons))
-    _append_event(request, events, "preflight", {
+    _append_event(token, request, events, "preflight", {
         "assigned_hostname": request.assigned_hostname,
         "actual_hostname": actual_hostname, "hardware": hardware,
         "interpreter": interpreter,
@@ -635,7 +887,7 @@ def _run_wrapper(
     }, probes.wall_clock())
     if reasons:
         return _terminal(
-            request, probes, events, "pre_release_invalid", reasons,
+            token, request, probes, events, "pre_release_invalid", reasons,
             measurement_started=False, completed_rounds=0,
         )
 
@@ -643,7 +895,7 @@ def _run_wrapper(
         release_raw, wait_reason = _await_release(request, probes)
         if wait_reason is not None:
             return _terminal(
-                request, probes, events, "pre_release_invalid", (wait_reason,),
+                token, request, probes, events, "pre_release_invalid", (wait_reason,),
                 measurement_started=False, completed_rounds=0,
             )
         assert release_raw is not None
@@ -653,20 +905,20 @@ def _run_wrapper(
         )
     except (schema.T810SchemaError, T810WrapperError):
         return _terminal(
-            request, probes, events, "post_release_pre_measurement_invalid",
+            token, request, probes, events, "post_release_pre_measurement_invalid",
             ("release_marker_mismatch",), measurement_started=False, completed_rounds=0,
         )
     if (release["kind"] != "release"
             or release["group_manifest_sha256"] != request.group_manifest_sha256
             or release["group_id"] != request.group_id):
         return _terminal(
-            request, probes, events, "post_release_pre_measurement_invalid",
+            token, request, probes, events, "post_release_pre_measurement_invalid",
             ("release_marker_mismatch",), measurement_started=False, completed_rounds=0,
         )
     release_sha = schema.canonical_sha256(release)
     if request.cancel_marker_path.exists() or request.cancel_marker_path.is_symlink():
         return _terminal(
-            request, probes, events, "post_release_pre_measurement_invalid",
+            token, request, probes, events, "post_release_pre_measurement_invalid",
             ("cancel_marker_observed",), measurement_started=False, completed_rounds=0,
         )
 
@@ -684,12 +936,12 @@ def _run_wrapper(
         post_reasons.append("trace_symbols_present")
     if _validate_hardware(probes.hardware())["numa_nodes"] != hardware["numa_nodes"]:
         post_reasons.append("numa_nodes_mismatch")
-    if request.cancel_marker_path.exists() or request.cancel_marker_path.is_symlink():
+    if post_reasons:
         return _terminal(
-            request, probes, events, "post_release_pre_measurement_invalid",
-            ("cancel_marker_observed",), measurement_started=False, completed_rounds=0,
+            token, request, probes, events, "post_release_pre_measurement_invalid",
+            tuple(sorted(set(post_reasons))), measurement_started=False, completed_rounds=0,
         )
-    _append_event(request, events, "start_ack", {
+    _append_event(token, request, events, "start_ack", {
         "release_marker_sha256": release_sha, "cancel_marker_absent": True,
         "ack_nonce": hashlib.sha256(
             f"{request.group_id}:{request.slot_id}:{release_sha}".encode(),
@@ -699,10 +951,10 @@ def _run_wrapper(
             "unreadable": list(second_scan.unreadable),
         },
     }, probes.wall_clock())
-    if post_reasons:
+    if request.cancel_marker_path.exists() or request.cancel_marker_path.is_symlink():
         return _terminal(
-            request, probes, events, "post_release_pre_measurement_invalid",
-            tuple(sorted(set(post_reasons))), measurement_started=False, completed_rounds=0,
+            token, request, probes, events, "post_release_pre_measurement_invalid",
+            ("cancel_marker_observed",), measurement_started=False, completed_rounds=0,
         )
 
     rounds: list[dict[str, Any]] = []
@@ -710,8 +962,7 @@ def _run_wrapper(
     for index in range(1, request.round_count + 1):
         started_at = probes.wall_clock()
         result = measurement_run(
-            _runner_document(request), request.binary_copy_path,
-            request.canonical_benchmark_argv, request.launch_authorization,
+            policy, request.binary_copy_path, benchmark_argv, token,
             cwd=request.pbs_workdir,
         )
         ended_at = probes.wall_clock()
@@ -723,21 +974,26 @@ def _run_wrapper(
         except T810WrapperError:
             throughput = 0.0
             benchmark_rc = benchmark_rc or 1
-        rounds.append({
+        round_document = {
             "index": index, "started_at": started_at, "ended_at": ended_at,
             "effective_clock": probes.effective_clock(), "throughput": throughput,
             "exit_code": result.returncode,
-        })
+        }
+        rounds.append(round_document)
+        _append_jsonl(
+            token, request.output_root / request.slot_id / "measurements.jsonl",
+            schema.canonical_json_bytes(round_document) + b"\n",
+        )
         if result.returncode != 0:
             break
     after_hash = _sha256_file(request.binary_copy_path)
     isolation_after = dict(probes.isolation())
-    _append_event(request, events, "measurement", {
+    _append_event(token, request, events, "measurement", {
         "rounds": rounds, "benchmark_rc": benchmark_rc,
         "binary_after_sha256": after_hash, "isolation_after": isolation_after,
     }, probes.wall_clock())
     final_reasons: list[str] = []
-    if after_hash != request.expected_binary_sha256:
+    if after_hash != expected_binary_sha256:
         final_reasons.append("binary_after_hash_mismatch")
     if isolation_after != isolation_before:
         final_reasons.append("post_inventory_mismatch")
@@ -745,12 +1001,12 @@ def _run_wrapper(
         final_reasons.append("completed_rounds_missing")
     if final_reasons:
         return _terminal(
-            request, probes, events, "incomplete_after_start",
+            token, request, probes, events, "incomplete_after_start",
             tuple(sorted(set(final_reasons))), measurement_started=True,
             completed_rounds=len(rounds),
         )
     return _terminal(
-        request, probes, events, "valid", ("all_jobs_complete",),
+        token, request, probes, events, "valid", ("all_jobs_complete",),
         measurement_started=True, completed_rounds=len(rounds),
     )
 
@@ -782,7 +1038,10 @@ def _default_hardware() -> Mapping[str, Any]:
 
 def _default_isolation(request: WrapperRequest) -> Mapping[str, str]:
     inventory = []
-    for path in (request.binary_copy_path, request.dependency_manifest_path, request.runner_path):
+    for path in (
+        request.binary_copy_path, request.dependency_manifest_path,
+        request.runner_policy_path,
+    ):
         inventory.append({"path": str(path), "sha256": _sha256_file(path)})
     scan = scan_competing_processes(request.allocated_cpus)
     return {
@@ -843,17 +1102,16 @@ def _request_from_json(value: Any) -> WrapperRequest:
         raise T810WrapperError("wrapper request has unknown or missing fields")
     document = dict(value)
     path_fields = {
-        "release_marker_path", "cancel_marker_path", "node_receipt_path",
+        "release_marker_path", "cancel_marker_path", "node_receipt_path", "request_path",
         "work_root", "output_root", "control_root", "pbs_workdir",
-        "binary_source_path", "binary_copy_path", "runner_path",
+        "binary_source_path", "binary_copy_path", "runner_policy_path",
         "dependency_manifest_path", "interpreter_realpath",
     }
     for field in path_fields:
         if not isinstance(document[field], str):
             raise T810WrapperError(f"wrapper request {field} is not a path string")
         document[field] = Path(document[field])
-    for field in ("expected_submission_argv", "observed_submission_argv",
-                  "canonical_benchmark_argv"):
+    for field in ("expected_submission_argv", "observed_submission_argv"):
         value_argv = document[field]
         if (not isinstance(value_argv, list) or not value_argv
                 or any(not isinstance(item, str) or not item for item in value_argv)):
@@ -883,6 +1141,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, schema.T810SchemaError) as exc:
         raise T810WrapperError("cannot parse wrapper request") from exc
     request = _request_from_json(value)
+    if request.request_path.resolve(strict=True) != request_path.resolve(strict=True):
+        raise T810WrapperError("wrapper request path binding mismatch")
     outcome = run_wrapper(request)
     sys.stdout.write(outcome.state + "\n")
     return 0 if outcome.state == "valid" else 2

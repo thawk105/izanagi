@@ -10,6 +10,15 @@ import subprocess
 
 import pytest
 
+from orchestrator.campaign.t810_preregistration import (
+    APPROVAL_RECEIPT_SCHEMA_VERSION,
+    PREREG_PATH,
+    ApprovalReceipt,
+    load_t810_preregistration,
+)
+from tools.pegasus import t810_budget as B
+from tools.pegasus import t810_coordinator as C
+from tools.pegasus import t810_guard as G
 from tools.pegasus import t810_harness_schema as S
 from tools.pegasus import t810_pbs_wrapper as W
 from tools.pegasus import t810_runner_policy as R
@@ -17,12 +26,24 @@ from tools.pegasus import t810_runner_policy as R
 
 H = "a" * 64
 H2 = "b" * 64
+PREREG_SHA256 = "3052af20993481730a826ce08ee26289948f29836d43afb2d7c743cfdd12e404"
+APPROVAL_ID = "fixture-stage1-review-t810-v1"
 FIXTURE = Path(__file__).parent / "fixtures" / "t810" / "wrapper_qsub_cases.json"
 REPO = Path(__file__).resolve().parents[2]
 
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _preregistration():
+    return load_t810_preregistration(
+        PREREG_PATH,
+        approval_receipt=ApprovalReceipt(
+            artifact_sha256=PREREG_SHA256, approval_id=APPROVAL_ID,
+            schema_version=APPROVAL_RECEIPT_SCHEMA_VERSION,
+        ),
+    )
 
 
 def _fixture() -> dict:
@@ -78,6 +99,101 @@ def test_rendered_script_pins_python_and_contains_no_repo_or_forbidden_entrypoin
     assert "readlink -f" in script and "sys.version_info[:2] == (3, 10)" in script
     assert str(REPO) not in script
     assert all(word not in script.lower() for word in ("calibration", "certify", "oracle", "trace"))
+
+
+def test_intent_manifest_producer_binds_prereg_policy_request_and_publication(tmp_path):
+    prereg = _preregistration()
+    package, work, output = tmp_path / "package", tmp_path / "work", tmp_path / "output"
+    package.mkdir()
+    source = package / "CCBench-Silo"
+    source.write_bytes(b"production-route-fixture")
+    source.chmod(0o700)
+    dependency = package / "dependencies.json"
+    dependency.write_bytes(b"dependencies")
+    interpreter = tmp_path / "python3.10"
+    interpreter.write_bytes(b"python")
+    interpreter.chmod(0o700)
+    policy = R.build_runner_policy(prereg, executable_sha256=_sha(source))
+    policy_sha = S.canonical_sha256(policy)
+    slots = []
+    for index in range(13):
+        slot_id = f"slot-{index:02d}"
+        slot_output = output / slot_id
+        script = work / slot_id / "job.pbs"
+        request_path = work / slot_id / "wrapper-request.json"
+        qsub = [
+            "qsub", "-o", str(slot_output / "pbs.stdout.log"),
+            "-e", str(slot_output / "pbs.stderr.log"), str(script),
+        ]
+        slots.append({
+            "slot_id": slot_id, "logical_request_id": f"logical-{index:02d}",
+            "job_name": f"t810-{index:02d}", "qsub_argv": qsub,
+            "wrapper_argv": ["python3.10", str(package / "wrapper.py"),
+                             "--request", str(request_path)],
+            "pbs_stdout_path": str(slot_output / "pbs.stdout.log"),
+            "pbs_stderr_path": str(slot_output / "pbs.stderr.log"),
+            "binary_source_path": str(source), "binary_sha256": _sha(source),
+            "wrapper_path": str(package / "wrapper.py"), "wrapper_sha256": H,
+            "runner_policy_path": str(package / f"runner-policy-{index:02d}.json"),
+            "runner_policy_sha256": policy_sha,
+            "expected_dependency_manifest_sha256": _sha(dependency),
+            "expected_module_list_sha256": H, "expected_numa_nodes": 4,
+            "script_path": str(script),
+        })
+    intent = {
+        "schema_version": S.LAUNCH_INTENT_SCHEMA, "group_id": "group-1",
+        "run_kind": "liveness", "attempt_ordinal": 1,
+        "policy_sha256": H2, "preregistration_sha256": PREREG_SHA256,
+        "prereg_approval_id": APPROVAL_ID, "created_at": "2026-08-12T00:00:00Z",
+        "node_count": 13, "round_count": 10, "ready_timeout_seconds": 1200,
+        "start_spread_max_ns": 5_000_000_000, "work_root": str(work),
+        "output_root": str(output), "slots": slots,
+    }
+    manifest = {
+        "schema_version": S.GROUP_MANIFEST_SCHEMA, "group_id": "group-1",
+        "created_at": "2026-08-12T00:00:01Z",
+        "launch_intent_sha256": S.canonical_sha256(intent),
+        "guard_receipt_sha256": H, "budget_receipt_sha256": H,
+        "release_token_commitment": S.release_token_commitment("release-nonce"),
+    }
+    witness = {
+        "schema_version": S.LAUNCH_AUTHORIZATION_SCHEMA, "approval_id": APPROVAL_ID,
+        "preregistration_sha256": PREREG_SHA256, "policy_sha256": H2,
+        "run_kinds": ["liveness"], "issued_on": "2026-08-12", "nonce": "fixture",
+    }
+    token = S.verify_launch_authorization(
+        witness, run_kind="liveness", preregistration_sha256=PREREG_SHA256,
+        policy_sha256=H2,
+    )
+    request = W.build_wrapper_request(
+        intent, manifest, prereg, token, slot_id="slot-00", pbs_request_id="81000.server",
+        assigned_hostname="node00", allocated_cpus=[0, 1],
+        observed_submission_argv=slots[0]["qsub_argv"],
+        dependency_manifest_path=dependency, interpreter_realpath=interpreter,
+    )
+    assert request.runner_policy_sha256 == slots[0]["runner_policy_sha256"]
+    assert not hasattr(request, "canonical_benchmark_argv")
+    assert not hasattr(request, "expected_binary_sha256")
+    published = W.publish_wrapper_request(
+        intent, manifest, prereg, token, slot_id="slot-00", pbs_request_id="81000.server",
+        assigned_hostname="node00", allocated_cpus=[0, 1],
+        observed_submission_argv=slots[0]["qsub_argv"],
+        dependency_manifest_path=dependency, interpreter_realpath=interpreter,
+    )
+    assert published == request
+    serialized = json.loads(request.request_path.read_text())
+    assert serialized["runner_policy_sha256"] == policy_sha
+    assert "canonical_benchmark_argv" not in serialized
+
+
+@pytest.mark.parametrize("invalid_token", [None, {}, {"document": "not-a-token"}])
+def test_wrapper_low_level_write_adapter_rejects_non_token(tmp_path, invalid_token):
+    with pytest.raises(W.T810WrapperError, match="AuthorizationToken"):
+        W._append_jsonl(invalid_token, tmp_path / "effect.jsonl", b"{}\n")
+    with pytest.raises(W.T810WrapperError, match="AuthorizationToken"):
+        W._copy_binary(invalid_token, tmp_path / "source", tmp_path / "destination")
+    assert not (tmp_path / "effect.jsonl").exists()
+    assert not (tmp_path / "destination").exists()
 
 
 class FakeClock:
@@ -152,39 +268,99 @@ def test_process_scan_records_uid_affinity_or_command_unreadability_fail_closed(
 
 def _request(tmp_path: Path, *, expected_hash: str | None = None) -> W.WrapperRequest:
     work, output, control = tmp_path / "work", tmp_path / "output", tmp_path / "work/control"
-    package, scratch, pbs = tmp_path / "package", tmp_path / "scratch", tmp_path / "pbs"
-    for path in (work, output, control, package, scratch, pbs, tmp_path / "bin"):
+    package = tmp_path / "package"
+    for path in (work, output, control, package, tmp_path / "bin"):
         path.mkdir(parents=True, exist_ok=True)
     source = package / "CCBench-Silo"
     source.write_bytes(b"benchmark-fixture")
     source.chmod(0o700)
-    runner = package / "runner.py"
-    runner.write_bytes(b"runner")
+    runner_policy_path = package / "runner-policy.json"
+    policy = R.build_runner_policy(
+        _preregistration(), executable_sha256=expected_hash or _sha(source),
+    )
+    runner_policy_path.write_bytes(S.canonical_json_bytes(policy) + b"\n")
     dependency = package / "dependencies.json"
     dependency.write_bytes(b"dependencies")
     interpreter = tmp_path / "bin/python3.10"
     interpreter.write_bytes(b"python")
     interpreter.chmod(0o700)
+    slots = []
+    for index in range(13):
+        slot_id = f"slot-{index:02d}"
+        slot_output, slot_work = output / slot_id, work / slot_id
+        slot_work.mkdir(parents=True)
+        qsub = [
+            "qsub", "-o", str(slot_output / "pbs.stdout.log"),
+            "-e", str(slot_output / "pbs.stderr.log"), str(slot_work / "job.pbs"),
+        ]
+        slots.append({
+            "slot_id": slot_id, "logical_request_id": f"logical-{index:02d}",
+            "job_name": f"t810-{index:02d}", "qsub_argv": qsub,
+            "wrapper_argv": ["python3.10", str(package / "wrapper.py"), "--request",
+                             str(slot_work / "wrapper-request.json")],
+            "pbs_stdout_path": str(slot_output / "pbs.stdout.log"),
+            "pbs_stderr_path": str(slot_output / "pbs.stderr.log"),
+            "binary_source_path": str(source),
+            "binary_sha256": expected_hash or _sha(source),
+            "wrapper_path": str(package / "wrapper.py"), "wrapper_sha256": H,
+            "runner_policy_path": str(runner_policy_path),
+            "runner_policy_sha256": S.canonical_sha256(policy),
+            "expected_dependency_manifest_sha256": _sha(dependency),
+            "expected_module_list_sha256": H, "expected_numa_nodes": 4,
+            "script_path": str(slot_work / "job.pbs"),
+        })
+    intent = {
+        "schema_version": S.LAUNCH_INTENT_SCHEMA, "group_id": "group-1",
+        "run_kind": "liveness", "attempt_ordinal": 1, "policy_sha256": H2,
+        "preregistration_sha256": PREREG_SHA256, "prereg_approval_id": APPROVAL_ID,
+        "created_at": "2026-08-12T00:00:00Z", "node_count": 13, "round_count": 10,
+        "ready_timeout_seconds": 1200, "start_spread_max_ns": 5_000_000_000,
+        "work_root": str(work), "output_root": str(output), "slots": slots,
+    }
+    manifest = {
+        "schema_version": S.GROUP_MANIFEST_SCHEMA, "group_id": "group-1",
+        "created_at": "2026-08-12T00:00:00Z",
+        "launch_intent_sha256": S.canonical_sha256(intent),
+        "guard_receipt_sha256": H, "budget_receipt_sha256": H,
+        "release_token_commitment": S.release_token_commitment("release-nonce"),
+    }
+    manifest_sha = S.canonical_sha256(manifest)
+    (control / "launch-intent.json").write_bytes(S.canonical_json_bytes(intent) + b"\n")
+    (output / "group-manifest.json").write_bytes(S.canonical_json_bytes(manifest) + b"\n")
     release = {
         "schema_version": S.CONTROL_MARKER_SCHEMA,
-        "group_manifest_sha256": H, "group_id": "group-1", "kind": "release",
+        "group_manifest_sha256": manifest_sha, "group_id": "group-1", "kind": "release",
         "published_at": "2026-08-12T00:00:00Z", "nonce": "release-nonce",
     }
     (control / "release.json").write_bytes(S.canonical_json_bytes(release) + b"\n")
     witness = {
         "schema_version": S.LAUNCH_AUTHORIZATION_SCHEMA,
-        "approval_id": "approval", "preregistration_sha256": H,
+        "approval_id": APPROVAL_ID, "preregistration_sha256": PREREG_SHA256,
         "policy_sha256": H2, "run_kinds": ["liveness"],
         "issued_on": "2026-08-12", "nonce": "fixture-witness",
     }
     return W.WrapperRequest(
-        H, "group-1", "slot-00", "logical-00", "81000.server", "liveness",
-        H, "approval", H2, witness, S.release_token_commitment("release-nonce"),
-        control / "release.json", control / "cancel.json", output / "node.jsonl",
-        "node00", frozenset({0, 1}), ("qsub", "exact"), ("qsub", "exact"),
-        work, output, control, pbs, source, scratch / "CCBench-Silo", runner,
-        expected_hash or _sha(source), dependency, _sha(dependency), H,
-        4, ("-thread_num=48",), 2, interpreter,
+        group_manifest_sha256=manifest_sha, group_id="group-1", slot_id="slot-00",
+        logical_request_id="logical-00", pbs_request_id="81000.server",
+        run_kind="liveness", preregistration_sha256=PREREG_SHA256,
+        prereg_approval_id=APPROVAL_ID, admission_policy_sha256=H2,
+        launch_authorization=witness,
+        release_token_commitment=S.release_token_commitment("release-nonce"),
+        release_marker_path=control / "release.json",
+        cancel_marker_path=control / "cancel.json",
+        node_receipt_path=work / "slot-00/node-receipt.jsonl",
+        request_path=work / "slot-00/wrapper-request.json",
+        assigned_hostname="node00", allocated_cpus=frozenset({0, 1}),
+        expected_submission_argv=tuple(slots[0]["qsub_argv"]),
+        observed_submission_argv=tuple(slots[0]["qsub_argv"]), work_root=work,
+        output_root=output, control_root=control, pbs_workdir=work / "slot-00",
+        binary_source_path=source, binary_copy_path=work / "slot-00/CCBench-Silo",
+        runner_policy_path=runner_policy_path,
+        runner_policy_sha256=S.canonical_sha256(policy),
+        dependency_manifest_path=dependency,
+        expected_dependency_manifest_sha256=_sha(dependency),
+        expected_module_list_sha256=H, expected_numa_nodes=4,
+        round_count=10, interpreter_realpath=interpreter,
     )
 
 
@@ -230,10 +406,11 @@ def _probes(request: W.WrapperRequest, *, loads=None, scans=None, hardware=None,
 def _measurement(request, *, mutate_after=False):
     calls = []
 
-    def run(policy, executable, argv, witness, *, cwd):
+    def run(policy, executable, argv, token, *, cwd):
         lines = request.node_receipt_path.read_text(encoding="utf-8").splitlines()
         assert json.loads(lines[-1])["event"] == "start_ack" or calls
-        calls.append((policy, executable, argv, witness, cwd))
+        assert isinstance(token, S.AuthorizationToken)
+        calls.append((policy, executable, argv, token, cwd))
         if mutate_after and len(calls) == request.round_count:
             request.binary_copy_path.write_bytes(b"tampered-after-measurement")
         return subprocess.CompletedProcess(argv, 0, "123.5\n", "")
@@ -253,6 +430,20 @@ def test_valid_wrapper_writes_ack_then_immediately_uses_single_measurement_seam(
     assert result.events[1]["payload"]["release_marker_sha256"] == S.canonical_sha256(
         S.validate_control_marker(json.loads(request.release_marker_path.read_text()))
     )
+    measurements = request.output_root / request.slot_id / "measurements.jsonl"
+    rows = [json.loads(line) for line in measurements.read_text().splitlines()]
+    assert [row["index"] for row in rows] == list(range(1, 11))
+    assert all("throughput" in row and "effective_clock" in row for row in rows)
+
+
+def test_runner_policy_digest_must_remain_bound_to_published_intent(tmp_path):
+    request = _request(tmp_path)
+    forged = replace(request, runner_policy_sha256="f" * 64)
+    with pytest.raises(W.T810WrapperError, match="intent or manifest"):
+        W._run_wrapper(
+            forged, probes=_probes(forged), measurement_run=_measurement(forged)[1],
+        )
+    assert not forged.node_receipt_path.exists()
 
 
 @pytest.mark.parametrize(("phase", "expected_reason"), [
@@ -265,8 +456,10 @@ def test_binary_hash_mismatch_at_each_of_three_points_maps_to_frozen_state(
 ):
     request = _request(tmp_path, expected_hash=H if phase == "source" else None)
     if phase == "copy":
-        expected = request.expected_binary_sha256
-        monkeypatch.setattr(W, "_copy_binary", lambda source, destination: (expected, H))
+        expected = json.loads(request.runner_policy_path.read_text())["executable_sha256"]
+        monkeypatch.setattr(
+            W, "_copy_binary", lambda token, source, destination: (expected, H),
+        )
     calls, run = _measurement(request, mutate_after=phase == "after")
     result = W._run_wrapper(request, probes=_probes(request), measurement_run=run)
     assert expected_reason in result.reason_codes
@@ -274,22 +467,39 @@ def test_binary_hash_mismatch_at_each_of_three_points_maps_to_frozen_state(
     assert len(calls) == (request.round_count if phase == "after" else 0)
 
 
-@pytest.mark.parametrize(("marker", "reason"), [
-    ("cancel", "cancel_marker_observed"),
-    ("bad_release", "release_marker_mismatch"),
-])
-def test_release_then_cancel_recheck_failures_never_measure(tmp_path, marker, reason):
+def test_second_cancel_check_observes_cancel_created_after_ack(tmp_path, monkeypatch):
     request = _request(tmp_path)
-    if marker == "cancel":
-        request.cancel_marker_path.write_text("cancel", encoding="utf-8")
-    else:
-        value = json.loads(request.release_marker_path.read_text())
-        value["nonce"] = "not-the-committed-nonce"
-        request.release_marker_path.write_text(json.dumps(value), encoding="utf-8")
+    original_append = W._append_event
+
+    def append_then_cancel(token, bound_request, events, event, payload, observed_at):
+        if event in {"preflight", "start_ack"}:
+            assert not request.cancel_marker_path.exists()
+        result = original_append(
+            token, bound_request, events, event, payload, observed_at,
+        )
+        if event == "start_ack":
+            request.cancel_marker_path.write_text("cancel-after-ack", encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(W, "_append_event", append_then_cancel)
     calls, run = _measurement(request)
     result = W._run_wrapper(request, probes=_probes(request), measurement_run=run)
     assert result.state == "post_release_pre_measurement_invalid"
-    assert result.reason_codes == (reason,) and calls == []
+    assert result.reason_codes == ("cancel_marker_observed",) and calls == []
+    assert [event["event"] for event in result.events] == [
+        "preflight", "start_ack", "terminal",
+    ]
+
+
+def test_bad_release_recheck_never_measures(tmp_path):
+    request = _request(tmp_path)
+    value = json.loads(request.release_marker_path.read_text())
+    value["nonce"] = "not-the-committed-nonce"
+    request.release_marker_path.write_text(json.dumps(value), encoding="utf-8")
+    calls, run = _measurement(request)
+    result = W._run_wrapper(request, probes=_probes(request), measurement_run=run)
+    assert result.state == "post_release_pre_measurement_invalid"
+    assert result.reason_codes == ("release_marker_mismatch",) and calls == []
 
 
 @pytest.mark.parametrize(("scan", "reason"), [
@@ -304,8 +514,7 @@ def test_measurement_immediate_process_rescan_is_recorded_and_fail_closed(tmp_pa
     calls, run = _measurement(request)
     result = W._run_wrapper(request, probes=probes, measurement_run=run)
     assert result.state == "post_release_pre_measurement_invalid" and reason in result.reason_codes
-    assert result.events[1]["event"] == "start_ack"
-    assert result.events[1]["payload"]["pre_measurement_process_scan"]
+    assert [event["event"] for event in result.events] == ["preflight", "terminal"]
     assert calls == []
 
 
@@ -350,12 +559,19 @@ def test_post_release_inventory_and_trace_rechecks_map_to_state_two(tmp_path, ki
     reason = {"dependency": "dependency_manifest_mismatch", "module": "module_list_mismatch",
               "trace": "trace_symbols_present", "numa": "numa_nodes_mismatch"}[kind]
     assert result.state == "post_release_pre_measurement_invalid" and reason in result.reason_codes
+    assert [event["event"] for event in result.events] == ["preflight", "terminal"]
 
 
-def test_repo_absence_accepts_external_tree_and_declares_shared_mount_limitation(tmp_path):
+def test_node_repo_absence_never_claims_unprovable_positive(tmp_path):
     request = _request(tmp_path)
-    assert all(W.inspect_repository_absence(request, repo_root=REPO).values())
+    assert W.inspect_repository_absence(request, repo_root=REPO) == {
+        "package_repo_free": False,
+        "roots_repo_external": False,
+        "git_ancestor_absent": False,
+        "pbs_workdir_repo_external": False,
+    }
     assert W.LIMITATIONS["shared_mount_repository_reachability_not_eliminated"] is True
+    assert W.LIMITATIONS["repository_absence_not_proven_from_node"] is True
 
 
 @pytest.mark.parametrize("marker_kind", ["directory", "worktree-file"])
@@ -377,6 +593,7 @@ def test_repo_alias_and_repo_internal_pbs_workdir_are_denied(tmp_path):
     absence = W.inspect_repository_absence(request, repo_root=REPO)
     assert absence["roots_repo_external"] is False
     assert absence["pbs_workdir_repo_external"] is False
+    assert W._repository_hazard_observed(request) is True
 
 
 @pytest.mark.parametrize("change", ["missing", "extra"])
@@ -398,10 +615,11 @@ def test_ccbench_stdout_throughput_parser_accepts_primary_and_exact_fallback():
 
 
 def test_ast_tripwire_allows_subprocess_only_in_fixed_policy_runner():
-    wrapper_path = Path(W.__file__)
-    policy_path = Path(R.__file__)
-    wrapper_tree = ast.parse(wrapper_path.read_text(encoding="utf-8"))
-    policy_tree = ast.parse(policy_path.read_text(encoding="utf-8"))
+    module_paths = {
+        "schema": Path(S.__file__), "coordinator": Path(C.__file__),
+        "wrapper": Path(W.__file__), "runner": Path(R.__file__),
+        "guard": Path(G.__file__), "budget": Path(B.__file__),
+    }
 
     def subprocess_calls(tree):
         parents = {}
@@ -423,8 +641,15 @@ def test_ast_tripwire_allows_subprocess_only_in_fixed_policy_runner():
                 found.append((node.func.attr, getattr(current, "name", None)))
         return found
 
-    assert subprocess_calls(wrapper_tree) == []
-    assert subprocess_calls(policy_tree) == [("run", "_subprocess_runner")]
-    source = wrapper_path.read_text(encoding="utf-8")
+    actual = {
+        name: subprocess_calls(ast.parse(path.read_text(encoding="utf-8")))
+        for name, path in module_paths.items()
+    }
+    assert actual == {
+        "schema": [], "coordinator": [("run", "_subprocess_scheduler")],
+        "wrapper": [], "runner": [("run", "_subprocess_runner")],
+        "guard": [], "budget": [],
+    }
+    source = module_paths["wrapper"].read_text(encoding="utf-8")
     assert source.count("measurement_run(") == 1
     assert source.count("measurement_run=runner_policy.run_allowed_measurement") == 1
