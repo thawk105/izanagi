@@ -406,6 +406,58 @@ def _expressions(rratio: str, skew: str, rmw: str) -> Dict[str, str]:
     }
 
 
+def _derive_required_literal(expressions: Mapping[str, str]) -> Optional[str]:
+    """対応する expression 群から、全 match に必要な key 側 literal を導出する。"""
+    if not expressions:
+        return None
+
+    keys = []
+    unsupported = frozenset("\\^$*+?{}[]()")
+    for expression in expressions.values():
+        if not isinstance(expression, str) or not expression.startswith("(?:") \
+                or not expression.endswith(")"):
+            return None
+        alternatives = expression[3:-1].split("|")
+        if not alternatives:
+            return None
+        for alternative in alternatives:
+            if alternative.startswith('"'):
+                marker = alternative.find('":')
+                if marker <= 1:
+                    return None
+                key = alternative[1:marker]
+                value = alternative[marker + 2:]
+                if value.startswith(" "):
+                    value = value[1:]
+                if len(value) < 2 or not value.startswith('"') or not value.endswith('"'):
+                    return None
+                value = value[1:-1]
+            else:
+                if alternative.count("=") != 1:
+                    return None
+                key, value = alternative.split("=", 1)
+            if not key or not value or any(char in unsupported or char in '.|"' for char in key):
+                return None
+            # 値は regex であり literal 導出には使わない。現行値の dot だけを許し、
+            # escape、文字クラス、group、量指定子、lookaround などは slow fallback に倒す。
+            if any(char in unsupported or char in '|"' for char in value):
+                return None
+            keys.append(key)
+
+    if not keys:
+        return None
+    first = keys[0]
+    candidates = {
+        first[start:end]
+        for start in range(len(first))
+        for end in range(start + 1, len(first) + 1)
+    }
+    common = [candidate for candidate in candidates if all(candidate in key for key in keys[1:])]
+    if not common:
+        return None
+    return min(common, key=lambda candidate: (-len(candidate), candidate))
+
+
 def concrete_axis_encodings(axis: str, value: str) -> Tuple[str, str, str]:
     """番人テスト用に、ある軸の三つの canonical 符号化を実行時生成する。"""
     keys = {"rratio": RRATIO_KEY, "skew": SKEW_KEY, "rmw": RMW_KEY}
@@ -438,7 +490,14 @@ def _scan_one(
     compiled = {axis: re.compile(expression) for axis, expression in expressions.items()}
     per_axis_paths = {axis: [] for axis in expressions}
     conjunction_hits = []
+    required_literal = _derive_required_literal(expressions)
+    prefilter_paths = (
+        frozenset(rel for rel, text in texts.items() if required_literal in text)
+        if required_literal is not None else None
+    )
     for rel, text in texts.items():
+        if prefilter_paths is not None and rel not in prefilter_paths:
+            continue
         matched = {axis: bool(pattern.search(text)) for axis, pattern in compiled.items()}
         for axis, is_match in matched.items():
             if is_match:
