@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 import hashlib
 import json
+import os
 from pathlib import Path
 import shlex
 import subprocess
@@ -109,7 +110,14 @@ def _config(tmp_path: Path, *, ordinal: int = 1) -> dict:
     package.mkdir(parents=True, exist_ok=True)
     binary = package / "CCBench"
     binary.write_bytes(b"coordinator-production-route-fixture")
+    binary.chmod(0o700)
     binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+    shipped_package = Path(C.__file__).resolve().parent
+    wrapper = package / "wrapper.py"
+    wrapper.write_bytes((shipped_package / "t810_pbs_wrapper.py").read_bytes())
+    wrapper_sha256 = hashlib.sha256(wrapper.read_bytes()).hexdigest()
+    for dependency in ("t810_harness_schema.py", "t810_runner_policy.py"):
+        (package / dependency).write_bytes((shipped_package / dependency).read_bytes())
     (package / "dependencies.json").write_bytes(b"dependencies")
     policy = _policy()
     runner_policy_sha256 = S.canonical_sha256(
@@ -136,7 +144,7 @@ def _config(tmp_path: Path, *, ordinal: int = 1) -> dict:
             ],
             "pbs_stdout_path": str(stdout), "pbs_stderr_path": str(stderr),
             "binary_source_path": str(binary), "binary_sha256": binary_sha256,
-            "wrapper_path": str(package / "wrapper.py"), "wrapper_sha256": H,
+            "wrapper_path": str(wrapper), "wrapper_sha256": wrapper_sha256,
             "runner_policy_path": str(work / slot_id / "runner-policy.json"),
             "runner_policy_sha256": runner_policy_sha256,
             "expected_dependency_manifest_sha256": H,
@@ -193,11 +201,29 @@ def _config(tmp_path: Path, *, ordinal: int = 1) -> dict:
             "approved_git_identity_sha256": H, "writable_root": str(tmp_path / "writable"),
             "manifest_path": str(tmp_path / "frozen-manifest.json"),
             "manifest_root": str(tmp_path), "expected_manifest_sha256": H,
-            "executable": str(tmp_path / "CCBench"), "expected_executable_sha256": H,
+            "executable": str(binary), "expected_executable_sha256": binary_sha256,
             "attempt_root": str(tmp_path / "attempt"), "attempt_receipt": None,
             "attempt_nonce": "attempt-1", "pre_invocation_nonce": "pre-1",
         },
     }
+
+
+def _rebind_work_root(config: dict, work_root: Path) -> None:
+    intent = config["launch_intent"]
+    intent["work_root"] = str(work_root)
+    for slot in intent["slots"]:
+        slot_root = work_root / slot["slot_id"]
+        slot["script_path"] = str(slot_root / "job.pbs")
+        slot["wrapper_argv"][3] = str(slot_root / "wrapper-request.json")
+        slot["qsub_argv"][-1] = slot["script_path"]
+    intent_sha256 = S.canonical_sha256(intent)
+    for field in ("guard_receipt_path", "budget_receipt_path"):
+        path = Path(config[field])
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        receipt["launch_intent_sha256"] = intent_sha256
+        _write(path, receipt)
+
+
 def _witness(config: dict, prereg=None, *, run_kinds=None) -> dict:
     prereg = prereg or _preregistration()
     return {
@@ -777,6 +803,189 @@ def test_modified_pbs_script_is_rejected_at_scheduler_effect(tmp_path: Path) -> 
         )
 
 
+def test_scheduler_adapter_rejects_wrapper_changed_after_prepare(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, _, prepared, _, _ = _prepared(tmp_path)
+    slot = prepared.launch_intent["slots"][0]
+    Path(slot["wrapper_path"]).write_bytes(b"tampered-after-prepare")
+    monkeypatch.setattr(
+        C.subprocess, "run", lambda *args, **kwargs: pytest.fail("qsub effect reached"),
+    )
+    with pytest.raises(C.T810CoordinatorError, match="declared SHA-256"):
+        C._subprocess_scheduler(
+            prepared.authorization, prepared, slot["qsub_argv"],
+            cwd=str(prepared.work_root), env={},
+        )
+
+
+def test_staged_wrapper_accepts_shipped_bytes_and_rejects_one_byte_change(
+    tmp_path: Path,
+) -> None:
+    prereg = _preregistration()
+    accepted = _config(tmp_path / "accepted")
+    prepared = C.prepare_group(
+        accepted, prereg, _token(accepted, prereg),
+        repository_roots={tmp_path / "caller-repository"},
+    )
+    assert prepared.launch_intent["slots"][0]["wrapper_sha256"] == hashlib.sha256(
+        (Path(C.__file__).resolve().parent / "t810_pbs_wrapper.py").read_bytes()
+    ).hexdigest()
+
+    config = _config(tmp_path / "rejected")
+    wrapper = Path(config["launch_intent"]["slots"][0]["wrapper_path"])
+    changed = bytearray(wrapper.read_bytes())
+    changed[-1] ^= 1
+    wrapper.write_bytes(changed)
+    wrapper_sha256 = hashlib.sha256(wrapper.read_bytes()).hexdigest()
+    for slot in config["launch_intent"]["slots"]:
+        slot["wrapper_sha256"] = wrapper_sha256
+    intent_sha256 = S.canonical_sha256(config["launch_intent"])
+    for field in ("guard_receipt_path", "budget_receipt_path"):
+        path = Path(config[field])
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        receipt["launch_intent_sha256"] = intent_sha256
+        _write(path, receipt)
+    with pytest.raises(C.T810CoordinatorError, match="shipped wrapper bytes"):
+        C.prepare_group(
+            config, prereg, _token(config, prereg),
+            repository_roots={tmp_path / "caller-repository"},
+        )
+
+
+def test_prepare_group_rejects_forged_git_identity_before_any_mkdir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prereg = _preregistration()
+    config = _config(tmp_path)
+    _rebind_work_root(config, Path(C.__file__).resolve().parents[2] / "orchestrator")
+
+    def forbidden_mkdir(*args, **kwargs):
+        pytest.fail("mkdir reached before the live repository anchor rejected work_root")
+
+    monkeypatch.setattr(Path, "mkdir", forbidden_mkdir)
+    with pytest.raises(C.T810CoordinatorError, match="work_root is not repository-external"):
+        C.prepare_group(
+            config, prereg, _token(config, prereg),
+            repository_roots={tmp_path / "forged-caller-repository"},
+        )
+
+
+def test_prepare_group_accepts_external_root_with_anchor_union(tmp_path: Path) -> None:
+    prereg = _preregistration()
+    config = _config(tmp_path / "accepted")
+    caller_repository = tmp_path / "unrelated-caller-repository"
+    caller_repository.mkdir()
+    prepared = C.prepare_group(
+        config, prereg, _token(config, prereg),
+        repository_roots={caller_repository},
+    )
+    assert prepared.work_root == (tmp_path / "accepted/work").resolve()
+    assert Path(C.__file__).resolve().parents[2] in prepared.repository_roots
+    assert caller_repository.resolve() in prepared.repository_roots
+    staged_wrapper = Path(prepared.launch_intent["slots"][0]["wrapper_path"])
+    assert staged_wrapper.read_bytes() == Path(W.__file__).read_bytes()
+
+
+def test_declared_identity_rejects_file_swapped_during_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "identity-target"
+    original = b"before-read"
+    replacement = b"after-read!"
+    assert len(original) == len(replacement)
+    target.write_bytes(original)
+    declared_sha256 = hashlib.sha256(original).hexdigest()
+    real_read = C.os.read
+    changed = False
+
+    def swapping_read(fd: int, count: int) -> bytes:
+        nonlocal changed
+        chunk = real_read(fd, count)
+        if chunk and not changed:
+            changed = True
+            before = target.stat()
+            target.write_bytes(replacement)
+            os.utime(
+                target,
+                ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000),
+            )
+        return chunk
+
+    monkeypatch.setattr(C.os, "read", swapping_read)
+    with pytest.raises(C.T810CoordinatorError, match="changed while reading"):
+        C._assert_declared_file_identity(target, declared_sha256, "swapped fixture")
+    assert changed
+
+
+def test_generated_script_executes_staged_wrapper_cli(tmp_path: Path) -> None:
+    _, _, prepared, _, _ = _prepared(tmp_path)
+    slot = prepared.launch_intent["slots"][0]
+    command = Path(slot["script_path"]).read_text(encoding="utf-8").splitlines()[-1]
+    argv = shlex.split(command.removeprefix("exec "))
+    assert argv == slot["wrapper_argv"]
+    request_path = prepared.work_root / slot["slot_id"] / "wrapper-request.json"
+    assert Path(argv[-1]) == request_path
+    shim = tmp_path / "runtime-shim"
+    shim.mkdir()
+    (shim / "sitecustomize.py").write_text(
+        "import os\n"
+        "import time\n"
+        "os.getloadavg = lambda: (0.0, 0.0, 0.0)\n"
+        "time.sleep = lambda _seconds: None\n",
+        encoding="utf-8",
+    )
+    repo_root = Path(C.__file__).resolve().parents[2]
+    env = dict(os.environ)
+    env.update({
+        "PBS_JOBID": "81000.server",
+        "PYTHONPATH": str(shim),
+    })
+    assert repo_root.resolve() not in {
+        Path(entry).resolve() for entry in env["PYTHONPATH"].split(os.pathsep)
+    }
+    script_path = Path(slot["script_path"])
+    result = subprocess.run(
+        [str(script_path)], cwd=prepared.work_root, env=env, text=True,
+        capture_output=True, check=False, timeout=30,
+    )
+    assert result.returncode == 2
+    assert result.stdout == "pre_release_invalid\n"
+    events = [
+        json.loads(line)
+        for line in (prepared.work_root / "slot-00/node-receipt.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+    ]
+    assert events[0]["pbs_request_id"] == "81000.server"
+    assert events[0]["payload"]["assigned_hostname"] == os.uname().nodename
+
+
+def test_generated_script_rejects_self_consistent_evil_wrapper_before_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, _, prepared, _, _ = _prepared(tmp_path)
+    slot = prepared.launch_intent["slots"][0]
+    evil = tmp_path / "evil.py"
+    evil.write_bytes(b"raise SystemExit('scheduler must not execute this')\n")
+    slot["wrapper_path"] = str(evil)
+    slot["wrapper_sha256"] = hashlib.sha256(evil.read_bytes()).hexdigest()
+    slot["wrapper_argv"][1] = str(evil)
+    Path(slot["script_path"]).write_bytes(C._canonical_job_script(slot))
+    command = Path(slot["script_path"]).read_text(encoding="utf-8").splitlines()[-1]
+    evil_argv = shlex.split(command.removeprefix("exec "))
+    assert evil_argv[:3] == ["python3.10", str(evil), "--request"]
+    assert Path(evil_argv[3]).name == "wrapper-request.json"
+    monkeypatch.setattr(
+        C.subprocess, "run", lambda *args, **kwargs: pytest.fail("qsub effect reached"),
+    )
+    with pytest.raises(C.T810CoordinatorError, match="shipped wrapper bytes"):
+        C._subprocess_scheduler(
+            prepared.authorization, prepared, slot["qsub_argv"],
+            cwd=str(prepared.work_root), env={},
+        )
+
+
 def test_terminal_reduced_checks_preserved_dropped_slot_presence(tmp_path: Path) -> None:
     prereg, _, prepared, _, _ = _prepared(tmp_path)
     receipts = _completion_receipts(prepared, prereg, dropped={"slot-12"})
@@ -830,6 +1039,28 @@ def test_git_common_dir_derives_main_and_sibling_worktree_roots(tmp_path: Path) 
     assert roots == frozenset({main.resolve(), sibling.resolve()})
     with pytest.raises(S.T810SchemaError, match="outside every repository"):
         S.assert_repository_external(sibling / "output", repository_roots=roots)
+
+
+def test_git_common_dir_preserves_missing_registered_worktree_claim(
+    tmp_path: Path,
+) -> None:
+    main = tmp_path / "main"
+    common = main / ".git"
+    stale = common / "worktrees" / "stale"
+    stale.mkdir(parents=True)
+    (stale / "gitdir").write_text(
+        str(tmp_path / "removed-worktree" / ".git") + "\n", encoding="utf-8",
+    )
+
+    roots = C.repository_roots_from_git_identity(
+        GitIdentity(str(main), str(common), str(common)),
+    )
+
+    assert roots == frozenset({
+        main.resolve(), (tmp_path / "removed-worktree").resolve(strict=False),
+    })
+
+
 def test_authorized_production_core_uses_same_validator_twice_and_dormant_prereg(
     tmp_path: Path,
 ) -> None:
