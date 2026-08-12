@@ -21,6 +21,7 @@ import inspect
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -6563,14 +6564,28 @@ def test_pipeline_screen_reject_skips_verify_and_never_commits():
 def test_pipeline_stale_screening_falls_back_to_verify_first_and_records_trace():
     lay = _tmp_layout()
     now = time.time()
+    screening = _screening(baseline_measured_at=now - 31 * 60)
     r, calls = _eval(
         lay,
-        screening=_screening(baseline_measured_at=now - 31 * 60),
+        screening=screening,
         median=8000.0,
     )
     assert r.certified and not r.aborted
     assert calls.events == ["verify", "bench"]
-    assert any("stale-baseline" in note and "1860" in note for note in r.notes)
+    stale_notes = [note for note in r.notes if "stale-baseline" in note]
+    assert len(stale_notes) == 1
+    note_match = re.fullmatch(
+        r"stale-baseline: baseline age (?P<age_s>\d+\.\d{3})s "
+        r"exceeds reanchor threshold (?P<threshold_s>\d+\.\d{3})s; "
+        r"screening disabled",
+        stale_notes[0],
+    )
+    assert note_match is not None
+    assert float(note_match.group("age_s")) >= 1860.0
+    assert (
+        float(note_match.group("threshold_s"))
+        == screening.reanchor_threshold_s
+    )
     records = list(wal.read_records(lay))
     bench = [rec for rec in records if rec.stage == STAGE_BENCH_DONE][-1]
     disabled = bench.payload["screening_disabled"]

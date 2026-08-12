@@ -80,6 +80,15 @@ HISTORICAL_LEDGER_SHA256 = (
 EXPECTED_HISTORICAL_VERIFIER_MODULE_SHA256 = (
     "e604cef0b06dc36dd8e236b8ade92eb452231a5f32b7926405b402f038e9d8a2"
 )
+# 2026-08-12 [T-816] base commit 前進により patched source hash が移動。凍結 bundle の記録値を歴史 golden として固定する。
+EXPECTED_HISTORICAL_PATCHED_SOURCE_SHA256 = {
+    "cc/silo/transaction.cc": (
+        "847d27b07783fcb6bcd0c8f64514bf0292e407549039462f42870b9ac1d16d4b"
+    ),
+    "cc/silo/ycsb_silo.cc": (
+        "716c4dd21c6c2c1098ab4c6f48f1b6f0c6df24dcdbeabed86472645397d68fa3"
+    ),
+}
 
 
 def _sha256(raw: bytes) -> str:
@@ -1421,6 +1430,9 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
         "observed_patched_source_sha256"
     ] == raw_provenance["source_witness"]["expected_patched_source_sha256"]
     assert campaign_root["bindings"]["expected_patched_source_sha256"] == (
+        EXPECTED_HISTORICAL_PATCHED_SOURCE_SHA256
+    )
+    assert EXPECTED_HISTORICAL_PATCHED_SOURCE_SHA256 != (
         _recompute_patched_source_hashes(entry)
     )
 
