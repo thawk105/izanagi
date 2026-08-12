@@ -453,8 +453,13 @@ def _collect_xdist_group_report(
                             "nodeid": item.nodeid,
                             "canonical_node": node,
                             "fixture_closure": shared_fixture_closure(item),
-                            "real_repo_stamps": [list(value) for value in item.user_properties
-                                                 if value[0] == "real_repo_serial_node"],
+                            "real_repo_stamps": (
+                                [["real_repo_serial_node", getattr(
+                                    item, "_izanagi_real_repo_serial_node",
+                                )]]
+                                if hasattr(item, "_izanagi_real_repo_serial_node")
+                                else []
+                            ),
                             "marks": [
                                 {"args": list(mark.args),
                                  "kwargs": dict(mark.kwargs)}

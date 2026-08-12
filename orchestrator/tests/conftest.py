@@ -311,6 +311,7 @@ def _real_repo_node_id(item) -> str:
 
 
 _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
+_REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
 
 
@@ -392,7 +393,7 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         node_id = _real_repo_node_id(item)
         if node_id in REAL_REPO_SERIAL_NODES:
-            item.user_properties.append(("real_repo_serial_node", node_id))
+            setattr(item, _REAL_REPO_SERIAL_NODE_ATTR, node_id)
             # xdist は複数 group 名を結合するため、二個目は足さない。
             if not list(item.iter_markers(name="xdist_group")):
                 item.add_marker(pytest.mark.xdist_group("real-repo"))
@@ -437,7 +438,7 @@ def pytest_runtest_protocol(item, nextitem):
     from orchestrator.campaign import patchharness
 
     node_id = _real_repo_node_id(item)
-    stamped = ("real_repo_serial_node", node_id) in item.user_properties
+    stamped = getattr(item, _REAL_REPO_SERIAL_NODE_ATTR, None) == node_id
     with patchharness._pytest_node_context(node_id, stamped):
         return (yield)
 
