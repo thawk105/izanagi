@@ -757,6 +757,103 @@ def _tree_entry(commit: str, path: str, root: Path) -> Tuple[str, str, str]:
     return mode, kind, oid
 
 
+def _tree_entry_from_raw_tree(raw: bytes, name: bytes) -> Tuple[str, str, str]:
+    """raw tree object から ``name`` の ls-tree 相当 3 つ組を得る。"""
+    matches: List[Tuple[str, str, str]] = []
+    offset = 0
+    while offset < len(raw):
+        space = raw.find(b" ", offset)
+        nul = raw.find(b"\0", space + 1)
+        if space <= offset or nul < 0 or nul + 21 > len(raw):
+            raise MigrationError("receipt.git_error", "batch tree object の形式が不正")
+        mode_raw = raw[offset:space]
+        found = raw[space + 1:nul]
+        oid_raw = raw[nul + 1:nul + 21]
+        offset = nul + 21
+        try:
+            mode = mode_raw.decode("ascii").zfill(6)
+        except UnicodeError as exc:
+            raise MigrationError("receipt.git_error", "batch tree mode が ASCII でない") from exc
+        if re.fullmatch(r"[0-7]{6}", mode) is None:
+            raise MigrationError("receipt.git_error", f"batch tree mode が不正: {mode!r}")
+        if found != name:
+            continue
+        mode_type = int(mode, 8) & 0o170000
+        if mode_type == 0o040000:
+            kind = "tree"
+        elif mode_type == 0o160000:
+            kind = "commit"
+        else:
+            kind = "blob"
+        matches.append((mode, kind, oid_raw.hex()))
+    if offset != len(raw):
+        raise MigrationError("receipt.git_error", "batch tree object の終端が不正")
+    if len(matches) != 1:
+        raise MigrationError("receipt.basis_invalid", "batch tree entry が一意でない")
+    return matches[0]
+
+
+def _tree_entries_by_commit(
+    commits: Iterable[str], path: str, root: Path,
+) -> Dict[str, Tuple[str, str, str]]:
+    """全 commit の ``path`` entry を cat-file 1 本で得る (per-commit 起動なし)。
+
+    ``cat-file --batch`` で path の親 tree object を入力順に取得し、raw tree entry
+    から mode/kind/OID を復元する。応答数・metadata・object 境界はすべて
+    fail-closed に検査する。
+    """
+    targets = tuple(sorted(commits))
+    if not targets:
+        return {}
+    if any(_SHA1_RE.fullmatch(commit) is None for commit in targets):
+        raise MigrationError("receipt.git_error", "batch tree commit が不正")
+    pure = PurePosixPath(path)
+    if pure.is_absolute() or not pure.name or ".." in pure.parts:
+        raise MigrationError("receipt.basis_invalid", f"tree path が不正: {path!r}")
+    try:
+        name = pure.name.encode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise MigrationError("receipt.basis_invalid", "tree path が UTF-8 でない") from exc
+    parent = pure.parent.as_posix()
+    specs = tuple(
+        f"{commit}:{parent}" if parent != "." else f"{commit}^{{tree}}"
+        for commit in targets
+    )
+    stdin = "".join(f"{spec}\n" for spec in specs).encode("utf-8", "strict")
+    out = _git(["cat-file", "--batch"], root, stdin=stdin)
+    offset = 0
+    result: Dict[str, Tuple[str, str, str]] = {}
+    for commit, spec in zip(targets, specs):
+        newline = out.find(b"\n", offset)
+        if newline < 0:
+            raise MigrationError("receipt.git_error", "batch tree 出力の件数が不一致")
+        header = out[offset:newline]
+        offset = newline + 1
+        missing = spec.encode("utf-8", "strict") + b" missing"
+        if header == missing:
+            raise MigrationError(
+                "receipt.basis_invalid", f"{commit}:{path} tree entry が一意でない",
+            )
+        fields = header.split()
+        if len(fields) != 3 or fields[1] != b"tree" or not fields[2].isdigit():
+            raise MigrationError("receipt.git_error", f"batch tree metadata が不正: {header!r}")
+        try:
+            oid = fields[0].decode("ascii", "strict")
+        except UnicodeError as exc:
+            raise MigrationError("receipt.git_error", "batch tree OID が ASCII でない") from exc
+        if _SHA1_RE.fullmatch(oid) is None:
+            raise MigrationError("receipt.git_error", f"batch tree OID が不正: {oid!r}")
+        size = int(fields[2])
+        end = offset + size
+        if end >= len(out) or out[end:end + 1] != b"\n":
+            raise MigrationError("receipt.git_error", "batch tree object の件数または境界が不正")
+        result[commit] = _tree_entry_from_raw_tree(out[offset:end], name)
+        offset = end + 1
+    if offset != len(out) or len(result) != len(targets):
+        raise MigrationError("receipt.git_error", "batch tree 出力の件数が不一致")
+    return result
+
+
 def _basis_blob(commit: str, path: str, root: Path, *, ccbench_pin: Optional[str] = None) -> bytes:
     prefix = CCBENCH_REL + "/"
     if path.startswith(prefix):
@@ -853,6 +950,9 @@ def _any_history_touches_path(
 ) -> bool:
     """`_history_touches_path` を commit 集合へ適用する ([T-057])。
 
+    production の ``inspect_receipt_history`` は一括版を使う。この helper は scalar
+    述語との等価性 control 用に残す。
+
     各 commit のクエリは互いに独立な read-only の `git diff-tree` なので、
     **コマンドと解析を一切変えずに**並行実行する (逐次版は 1 本 0.15 秒 ×
     descendant 数で、receipt 検証 22.4 秒のうち 8.5 秒を占めていた)。
@@ -889,6 +989,94 @@ def _any_history_touches_path(
     if error is not None:
         raise error
     return False
+
+
+def _batched_history_touches_path(
+    commits: Iterable[str], path: str, root: Path,
+    duplicate_oid: Optional[str] = None,
+) -> bool:
+    """全 commit の raw diff を diff-tree 1 本で検査する (per-commit 起動なし)。
+
+    ``--always`` で各入力 commit の marker を最低 1 件出し、``-m`` が差分の
+    ある親ごとに反復する同一 marker は同じ commit group として照合する。
+    ``-m -r -M -C`` による M/D/R/C/T と destination OID による別 path
+    exact copy の意味論を保つ。``--find-copies-harder`` は使わない。
+    commit group の欠落・順序不一致・未知形式は fail-closed。
+    """
+    targets = tuple(sorted(commits))
+    if not targets:
+        return False
+    if any(_SHA1_RE.fullmatch(commit) is None for commit in targets):
+        raise MigrationError("receipt.git_error", "batch diff-tree commit が不正")
+    try:
+        path_raw = path.encode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise MigrationError("receipt.basis_invalid", "diff-tree path が UTF-8 でない") from exc
+    stdin = "".join(f"{commit}\n" for commit in targets).encode("ascii", "strict")
+    out = _git(
+        [
+            "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+            "-M", "-C", "--full-index", "--always", "-z",
+        ],
+        root,
+        stdin=stdin,
+    )
+    records = out.split(b"\0")
+    if not records or records[-1] != b"":
+        raise MigrationError("receipt.git_error", "batch diff-tree 出力の終端が不正")
+    records.pop()
+    seen: List[str] = []
+    current: Optional[str] = None
+    touched = False
+    offset = 0
+    while offset < len(records):
+        record = records[offset]
+        if len(record) == 40 and re.fullmatch(rb"[0-9a-f]{40}", record) is not None:
+            marker = record.decode("ascii")
+            if marker == current:
+                # ``-m`` は差分のある親ごとに同じ marker を反復する。
+                offset += 1
+                continue
+            if len(seen) >= len(targets) or marker != targets[len(seen)]:
+                raise MigrationError("receipt.git_error", "batch diff-tree commit 順または件数が不一致")
+            current = marker
+            seen.append(marker)
+            offset += 1
+            continue
+        if current is None or not record.startswith(b":"):
+            raise MigrationError("receipt.git_error", f"batch diff-tree record が不正: {record!r}")
+        fields = record.split()
+        if len(fields) != 5:
+            raise MigrationError("receipt.git_error", f"batch diff-tree metadata が不正: {record!r}")
+        src_mode = fields[0][1:]
+        dst_mode, src_oid, dst_oid, status = fields[1:]
+        if (
+            re.fullmatch(rb"[0-7]{6}", src_mode) is None
+            or re.fullmatch(rb"[0-7]{6}", dst_mode) is None
+            or re.fullmatch(rb"[0-9a-f]{40}", src_oid) is None
+            or re.fullmatch(rb"[0-9a-f]{40}", dst_oid) is None
+            or re.fullmatch(rb"[ACDMRTUXB](?:[0-9]{1,3})?", status) is None
+        ):
+            raise MigrationError("receipt.git_error", f"batch diff-tree metadata が不正: {record!r}")
+        status_code = status[:1]
+        path_count = 2 if status_code in {b"R", b"C"} else 1
+        if offset + path_count >= len(records):
+            raise MigrationError("receipt.git_error", "batch diff-tree path の件数が不一致")
+        paths = tuple(records[offset + index] for index in range(1, path_count + 1))
+        if status_code in {b"M", b"D", b"R", b"C", b"T"} and path_raw in paths:
+            touched = True
+        destination_path = paths[-1]
+        if (
+            duplicate_oid is not None
+            and dst_oid.strip(b"0")
+            and dst_oid.decode("ascii") == duplicate_oid
+            and destination_path != path_raw
+        ):
+            touched = True
+        offset += path_count + 1
+    if tuple(seen) != targets:
+        raise MigrationError("receipt.git_error", "batch diff-tree 出力の件数が不一致")
+    return touched
 
 
 def _history_touches_path(
@@ -1775,15 +1963,17 @@ def inspect_receipt_history(
     if any(oids.get(commit) != expected_oid for commit in descendants):
         _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
         issued_but_missing = True
-    for commit in descendants:
-        if oids.get(commit) != expected_oid:
-            continue
-        mode, kind, oid = _tree_entry(commit, RECEIPT_REL, root)
+    descendant_entries = _tree_entries_by_commit(
+        (commit for commit in descendants if oids.get(commit) == expected_oid),
+        RECEIPT_REL,
+        root,
+    )
+    for mode, kind, oid in descendant_entries.values():
         if (mode, kind, oid) != (expected_mode, "blob", expected_oid):
             _append_refusal(refusals, RECEIPT_PREFIX, "receipt.history_mutated")
             issued_but_missing = True
             break
-    if _any_history_touches_path(
+    if _batched_history_touches_path(
         (commit for commit in descendants if commit != introduction),
         RECEIPT_REL, root, duplicate_oid=expected_oid,
     ):
