@@ -1,0 +1,587 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/0ed65c55bcc0f92dbbded226b2b55824/izdw-0ed65c55bc.o900487",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/0ed65c55bcc0f92dbbded226b2b55824/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n...........................................                              [100%]\n============================== 43 passed in 2.44s ==============================\n",
+      "stdout_sha256": "75f830406407f0c1549c639cb8a899ff5130959e7a40fb9caf2430d2e96d25a1"
+    },
+    "artifact_error": null,
+    "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+    "duration_s": 22.056,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "62f07e5ff35d3fc2051955ed78178fe0e2ffa9607388a4d5222a18f407220ecf",
+    "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+    "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+    "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+    "status": "PASSED",
+    "test_output_sha256": "75f830406407f0c1549c639cb8a899ff5130959e7a40fb9caf2430d2e96d25a1",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+  },
+  "date": "2026-08-10T11:39:28.373613+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/9b7321b8c3810992c93197ed51ccf13a/izdw-9b7321b8c3.o900489",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/9b7321b8c3810992c93197ed51ccf13a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n................................F..........                              [100%]\n=================================== FAILURES ===================================\n_______________ test_s7_erratum_rejects_operation_count_not_one ________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14af49828fa0>\n\n    def test_s7_erratum_rejects_operation_count_not_one(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        core = _synthetic_s7_core()\n        erratum = _synthetic_erratum(\n            core, (2, 3), erratum_id=\"t139-core-s7-stresscheck-v1\"\n        )\n>       with pytest.raises(OperationCountError):\nE       Failed: DID NOT RAISE OperationCountError\n\norchestrator/tests/test_t139_preregistration_binding.py:408: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one\n========================= 1 failed, 42 passed in 2.44s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=545 retained_bytes=545 omitted_bytes=0 rendered_excerpt_bytes=576 sha256=e59d4ded1837ad525d605823731e986075880dcd67160f5759d3467eb04aa1c5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14af49828fa0>\n> \n>     def test_s7_erratum_rejects_operation_count_not_one(\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         core = _synthetic_s7_core()\n>         erratum = _synthetic_erratum(\n>             core, (2, 3), erratum_id=\"t139-core-s7-stresscheck-v1\"\n>         )\n> >       with pytest.raises(OperationCountError):\n> E       Failed: DID NOT RAISE OperationCountError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:408: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=545 retained_bytes=545 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1303 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "987c73c053c0f8e500fd3e7ebbff36c9356a1732be6d6b7345fa4d70d2c77c39"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 32.124,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "831728207af3cec436b2af0bf246ef6630edf67a4f58ff2ccbe3234b941bd9b3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "362c34740fa9863f2058bc2cc768344ed5a37b0993381caf5ee15aa87377d4a0",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "    if False:\n        raise OperationCountError(\n            f\"operations の要素数は 1 必須: actual={len(document.operations)}\"\n        )",
+          "old": "    if len(document.operations) != 1:\n        raise OperationCountError(\n            f\"operations の要素数は 1 必須: actual={len(document.operations)}\"\n        )"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "987c73c053c0f8e500fd3e7ebbff36c9356a1732be6d6b7345fa4d70d2c77c39",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/2e30758bb2b9632fa42747863f183b24/izdw-2e30758bb2.o900490",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/2e30758bb2b9632fa42747863f183b24/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n.................................F.........                              [100%]\n=================================== FAILURES ===================================\n_________________ test_s7_erratum_rejects_old_sha256_mismatch __________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1458f7efcf40>\n\n    def test_s7_erratum_rejects_old_sha256_mismatch(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        core = _synthetic_s7_core()\n        erratum = _synthetic_erratum(\n            core,\n            (2,),\n            old_sha_overrides={1: \"0\" * 64},\n            erratum_id=\"t139-core-s7-stresscheck-v1\",\n        )\n>       with pytest.raises(OldDigestMismatchError):\nE       Failed: DID NOT RAISE OldDigestMismatchError\n\norchestrator/tests/test_t139_preregistration_binding.py:427: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch\n========================= 1 failed, 42 passed in 2.42s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=615 retained_bytes=615 omitted_bytes=0 rendered_excerpt_bytes=652 sha256=5012f188318b99c6c04dc3cb4697013ccfd43ef1763fb7b1b2a380d8a27d4bdf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1458f7efcf40>\n> \n>     def test_s7_erratum_rejects_old_sha256_mismatch(\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         core = _synthetic_s7_core()\n>         erratum = _synthetic_erratum(\n>             core,\n>             (2,),\n>             old_sha_overrides={1: \"0\" * 64},\n>             erratum_id=\"t139-core-s7-stresscheck-v1\",\n>         )\n> >       with pytest.raises(OldDigestMismatchError):\n> E       Failed: DID NOT RAISE OldDigestMismatchError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:427: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=615 retained_bytes=615 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1375 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2fff8fab20a2584a67708ecd386cd4193ccdf4c8c0107354bd14812f96397e3b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 26.904,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "7920fef56de1268263c12a899ea4b4afbff5836736b296d78b1f5f539cd40308",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5c9f38c1b2d98de437e8f6d3502842db85408b1ed04b81c9e32236fd6366cf21",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "    actual = hashlib.sha256(target_line).hexdigest()\n    if False:\n        raise OldDigestMismatchError(\n            f\"locator 対象行の SHA-256 が不一致: line={operation_line}\"\n        )",
+          "old": "    actual = hashlib.sha256(target_line).hexdigest()\n    if actual != operation.old_sha256:\n        raise OldDigestMismatchError(\n            f\"locator 対象行の SHA-256 が不一致: line={operation_line}\"\n        )"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "2fff8fab20a2584a67708ecd386cd4193ccdf4c8c0107354bd14812f96397e3b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/eb4a2ac7d2a8017a971bf5978d366890/izdw-eb4a2ac7d2.o900491",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/eb4a2ac7d2a8017a971bf5978d366890/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n...........................F...............                              [100%]\n=================================== FAILURES ===================================\n_______________ test_s7_erratum_rejects_occurrence_count_not_one _______________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152b56654f10>\n\n    def test_s7_erratum_rejects_occurrence_count_not_one(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        core = _synthetic_s7_core(occurrences=2)\n        erratum = _synthetic_erratum(\n            core, (2,), erratum_id=\"t139-core-s7-stresscheck-v1\"\n        )\n>       with pytest.raises(OccurrenceCountError):\nE       Failed: DID NOT RAISE OccurrenceCountError\n\norchestrator/tests/test_t139_preregistration_binding.py:463: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one\n========================= 1 failed, 42 passed in 2.46s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=559 retained_bytes=559 omitted_bytes=0 rendered_excerpt_bytes=590 sha256=5b308e38440fc0e84d83426b03931a9239f75198291013dcc757295dfff2594a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x152b56654f10>\n> \n>     def test_s7_erratum_rejects_occurrence_count_not_one(\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         core = _synthetic_s7_core(occurrences=2)\n>         erratum = _synthetic_erratum(\n>             core, (2,), erratum_id=\"t139-core-s7-stresscheck-v1\"\n>         )\n> >       with pytest.raises(OccurrenceCountError):\n> E       Failed: DID NOT RAISE OccurrenceCountError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:463: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=559 retained_bytes=559 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1318 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b6999ba3ce6a61b64a60c3d959fdad1a5550ba9080f32748cbfee0908f68ef8f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 26.866,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "2f7b1456a3a00ac54d13d39a9261b09f18c878b138582ed82e5d1dc60594f3f5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2b55746d0971d36d8debab9c7e5a2ac9ddc33ff50e902801413a80a7779309d1",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "    if False:\n        raise OccurrenceCountError(\n            \"core 全体の対象語句出現は exact 1 件でなければならない\"\n        )",
+          "old": "    if len(occurrence_lines) != 1:\n        raise OccurrenceCountError(\n            \"core 全体の対象語句出現は exact 1 件でなければならない\"\n        )"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "b6999ba3ce6a61b64a60c3d959fdad1a5550ba9080f32748cbfee0908f68ef8f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/1ee7973b36c3ffd296d54e9e99216692/izdw-1ee7973b36.o900492",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/1ee7973b36c3ffd296d54e9e99216692/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n...........................F...............                              [100%]\n=================================== FAILURES ===================================\n__________________ test_draft_erratum_is_not_in_approved_set ___________________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_draft_erratum_is_not_in_approved_set():\n        draft_id = \"t139-core-s7-stresscheck-v1\"\n        approved_id = \"t139-core-s15-exactkey-v1\"\n>       assert DRAFT_ERRATA == frozenset({draft_id})\nE       AssertionError: assert frozenset() == frozenset({'t...esscheck-v1'})\nE         \nE         Extra items in the right set:\nE         't139-core-s7-stresscheck-v1'\nE         Use -v to get more diff\n\norchestrator/tests/test_t139_preregistration_binding.py:561: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set\n========================= 1 failed, 42 passed in 2.45s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=531 retained_bytes=531 omitted_bytes=0 rendered_excerpt_bytes=558 sha256=d53f9228c2b1f4f9b1f28ec5ab261df5f137920ef2920a4275961081809c5f74\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_draft_erratum_is_not_in_approved_set():\n>         draft_id = \"t139-core-s7-stresscheck-v1\"\n>         approved_id = \"t139-core-s15-exactkey-v1\"\n> >       assert DRAFT_ERRATA == frozenset({draft_id})\n> E       AssertionError: assert frozenset() == frozenset({'t...esscheck-v1'})\n> E         \n> E         Extra items in the right set:\n> E         't139-core-s7-stresscheck-v1'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:561: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=531 retained_bytes=531 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1278 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "28f342b33a503e01e70b3fc787af1baab0050ea2d34efbb724703bb3910a389d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 26.956,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "d0f45ce5c4e06ccc324873aa0465155e730de07c97c33a3a4f5a8108f7c14d82",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4f236a6fbebec451c5b235b2f0b79f49f526076ef9577ca7632028ee50344fc2",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "APPROVED_ERRATA: frozenset[ApprovedErratumId] = frozenset(\n    {\"t139-core-s15-exactkey-v1\", \"t139-core-s7-stresscheck-v1\"}\n)\nDRAFT_ERRATA: frozenset[DraftErratumId] = frozenset()",
+          "old": "APPROVED_ERRATA: frozenset[ApprovedErratumId] = frozenset(\n    {\"t139-core-s15-exactkey-v1\"}\n)\nDRAFT_ERRATA: frozenset[DraftErratumId] = frozenset(\n    {\"t139-core-s7-stresscheck-v1\"}\n)"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "28f342b33a503e01e70b3fc787af1baab0050ea2d34efbb724703bb3910a389d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/6bc7b0e608552bfe4c4a538b1866b87c/izdw-6bc7b0e608.o900493",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/6bc7b0e608552bfe4c4a538b1866b87c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n................................F..........                              [100%]\n=================================== FAILURES ===================================\n______________________ test_overlapping_locators_rejected ______________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1489a4494e50>\n\n    def test_overlapping_locators_rejected(monkeypatch: pytest.MonkeyPatch):\n        core = (\n            \"# synthetic core\\n\"\n            \"5. exact fields are `a01`〜`a12` only.\\n\"\n            \"unrelated line\\n\"\n            f\"The addendum sets `a01`〜`a12`; {S7_OLD_TEXT}。\\n\"\n        ).encode()\n        s15_erratum = _synthetic_erratum(core)\n        s7_new_text = f\"{S7_NEW_TEXT}\\n\".encode()\n        s7_erratum = _synthetic_erratum(\n            core,\n            (4,),\n            new_line_overrides={1: s7_new_text},\n            erratum_id=\"t139-core-s7-stresscheck-v1\",\n        )\n        composed_lines = core.splitlines(keepends=True)\n        composed_lines[1] = composed_lines[1].replace(b\"a12\", b\"a13\", 1)\n        composed_lines[3] = s7_new_text\n>       with pytest.raises(LocatorOverlapError):\nE       Failed: DID NOT RAISE LocatorOverlapError\n\norchestrator/tests/test_t139_preregistration_binding.py:587: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected\n========================= 1 failed, 42 passed in 2.44s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1045 retained_bytes=1045 omitted_bytes=0 rendered_excerpt_bytes=1122 sha256=0cdf9d0785f01b7d1a063182c8a9dcd61ae9f12caf5bc9bb41c87320d7f03136\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1489a4494e50>\n> \n>     def test_overlapping_locators_rejected(monkeypatch: pytest.MonkeyPatch):\n>         core = (\n>             \"# synthetic core\\x5cn\"\n>             \"5. exact fields are `a01`\\u301c`a12` only.\\x5cn\"\n>             \"unrelated line\\x5cn\"\n>             f\"The addendum sets `a01`\\u301c`a12`; {S7_OLD_TEXT}\\u3002\\x5cn\"\n>         ).encode()\n>         s15_erratum = _synthetic_erratum(core)\n>         s7_new_text = f\"{S7_NEW_TEXT}\\x5cn\".encode()\n>         s7_erratum = _synthetic_erratum(\n>             core,\n>             (4,),\n>             new_line_overrides={1: s7_new_text},\n>             erratum_id=\"t139-core-s7-stresscheck-v1\",\n>         )\n>         composed_lines = core.splitlines(keepends=True)\n>         composed_lines[1] = composed_lines[1].replace(b\"a12\", b\"a13\", 1)\n>         composed_lines[3] = s7_new_text\n> >       with pytest.raises(LocatorOverlapError):\n> E       Failed: DID NOT RAISE LocatorOverlapError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:587: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1045 retained_bytes=1045 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1840 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9c3969d4496050d90c3da810e8764c928f3af4eb546dca0ad3402d291f58a7de"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 31.976,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "8466eb6196f8e61311f03d35b12e6bff3eead2bb89b00734cc65959c2e17c8e4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c5f6e0d42619d6899b639956028518167ba63a3859d142150479e68a4f0483da",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "    pass",
+          "old": "    _validate_non_overlapping(operations)"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "9c3969d4496050d90c3da810e8764c928f3af4eb546dca0ad3402d291f58a7de",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/9c10e5c3e10c8fb25abf286565f6cc50/izdw-9c10e5c3e1.o900494",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/9c10e5c3e10c8fb25abf286565f6cc50/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n.................................F.........                              [100%]\n=================================== FAILURES ===================================\n_____________________ test_unknown_erratum_id_fails_closed _____________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a6b6f10ee0>\n\n    def test_unknown_erratum_id_fails_closed(monkeypatch: pytest.MonkeyPatch):\n        core, _ = _synthetic_core()\n        erratum = _synthetic_erratum(core, erratum_id=\"unknown-erratum-v1\")\n>       with pytest.raises(UnknownErratumError):\nE       Failed: DID NOT RAISE UnknownErratumError\n\norchestrator/tests/test_t139_preregistration_binding.py:392: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed\n========================= 1 failed, 42 passed in 2.45s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=479 retained_bytes=479 omitted_bytes=0 rendered_excerpt_bytes=502 sha256=2147954768fe7a2d95362cd62bba47414f2f49a3c7dcc159e0ce0e43c9cbf41e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14a6b6f10ee0>\n> \n>     def test_unknown_erratum_id_fails_closed(monkeypatch: pytest.MonkeyPatch):\n>         core, _ = _synthetic_core()\n>         erratum = _synthetic_erratum(core, erratum_id=\"unknown-erratum-v1\")\n> >       with pytest.raises(UnknownErratumError):\n> E       Failed: DID NOT RAISE UnknownErratumError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:392: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=479 retained_bytes=479 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1217 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ae545e4c5e07ac5fffffe7811f4c0488aff23a14bc440bf834c4b586565ed8f9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 26.852,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "ddf9a46b9f5c3e545d911f01158ba94a1e924e35efb5e31f1efa5ad682218177",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4d5bf95c3be05b6c0866a9d5a9824b4669c75f44598b26cfd474a2f964fae980",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "    if value not in _ERRATUM_VALIDATORS:\n        return cast(RegisteredErratumId, \"t139-core-s15-exactkey-v1\")\n    return cast(RegisteredErratumId, value)",
+          "old": "    if value not in _ERRATUM_VALIDATORS:\n        raise UnknownErratumError(f\"未知の erratum_id を拒否: {value}\")\n    return cast(RegisteredErratumId, value)"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "ae545e4c5e07ac5fffffe7811f4c0488aff23a14bc440bf834c4b586565ed8f9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/781bd905f8cdf04acf9f99a9e937ea19/izdw-781bd905f8.o900496",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/781bd905f8cdf04acf9f99a9e937ea19/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n.................................FF........                              [100%]\n=================================== FAILURES ===================================\n_______________ test_s7_erratum_rejects_strong_calibration_claim _______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14903c158eb0>\n\n    def test_s7_erratum_rejects_strong_calibration_claim(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        core = _synthetic_s7_core()\n        replacement = (\n            \"事前 simulation で cluster level の型 I 誤りを較正済みである。\\n\"\n        ).encode()\n        erratum = _synthetic_erratum(\n            core,\n            (2,),\n            new_line_overrides={1: replacement},\n            erratum_id=\"t139-core-s7-stresscheck-v1\",\n        )\n>       with pytest.raises(ReplacementTextMismatchError):\nE       Failed: DID NOT RAISE ReplacementTextMismatchError\n\norchestrator/tests/test_t139_preregistration_binding.py:525: Failed\n______________ test_s7_erratum_rejects_unconstrained_reassurance _______________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1509bf1c0f10>\n\n    def test_s7_erratum_rejects_unconstrained_reassurance(\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        core = _synthetic_s7_core()\n        replacement = \"型 I 誤りは問題ない。\\n\".encode()\n        erratum = _synthetic_erratum(\n            core,\n            (2,),\n            new_line_overrides={1: replacement},\n            erratum_id=\"t139-core-s7-stresscheck-v1\",\n        )\n>       with pytest.raises(ReplacementTextMismatchError):\nE       Failed: DID NOT RAISE ReplacementTextMismatchError\n\norchestrator/tests/test_t139_preregistration_binding.py:547: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim\nFAILED orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance\n========================= 2 failed, 41 passed in 2.44s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=774 retained_bytes=774 omitted_bytes=0 rendered_excerpt_bytes=868 sha256=9caf46a1e8b5422bb1e2360a9bf85a2c2ee8dd19d74a5ad28554f72fe715514a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14903c158eb0>\n> \n>     def test_s7_erratum_rejects_strong_calibration_claim(\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         core = _synthetic_s7_core()\n>         replacement = (\n>             \"\\u4e8b\\u524d simulation \\u3067 cluster level \\u306e\\u578b I \\u8aa4\\u308a\\u3092\\u8f03\\u6b63\\u6e08\\u307f\\u3067\\u3042\\u308b\\u3002\\x5cn\"\n>         ).encode()\n>         erratum = _synthetic_erratum(\n>             core,\n>             (2,),\n>             new_line_overrides={1: replacement},\n>             erratum_id=\"t139-core-s7-stresscheck-v1\",\n>         )\n> >       with pytest.raises(ReplacementTextMismatchError):\n> E       Failed: DID NOT RAISE ReplacementTextMismatchError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:525: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=703 retained_bytes=703 omitted_bytes=0 rendered_excerpt_bytes=772 sha256=a83f30569fdc7e8a26a7b64fefb8479d772e7fd470103db49295998739cb12f6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1509bf1c0f10>\n> \n>     def test_s7_erratum_rejects_unconstrained_reassurance(\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         core = _synthetic_s7_core()\n>         replacement = \"\\u578b I \\u8aa4\\u308a\\u306f\\u554f\\u984c\\u306a\\u3044\\u3002\\x5cn\".encode()\n>         erratum = _synthetic_erratum(\n>             core,\n>             (2,),\n>             new_line_overrides={1: replacement},\n>             erratum_id=\"t139-core-s7-stresscheck-v1\",\n>         )\n> >       with pytest.raises(ReplacementTextMismatchError):\n> E       Failed: DID NOT RAISE ReplacementTextMismatchError\n> \n> orchestrator/tests/test_t139_preregistration_binding.py:547: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1477 retained_bytes=1477 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2814 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bcc73835482bca659151a45ae1e42ba257f72a1aeff23f9bbcb4facc404e15fd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "52b6b39a0bbcf6f028c6298ce11215eba7692a34916211b73ee131558de0231f",
+      "duration_s": 31.884,
+      "expected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "8e5eb2f6241582c4e656e145be82593a4bb4c16eefbe898b6765f6363ffd5997",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9adaf303668e5ef7687a1ff8746a9d82f3f258d232e28b16f7cb4c1b75e8d7b8",
+      "replacements": [
+        {
+          "file": "orchestrator/preregistration/erratum.py",
+          "new": "    if False:\n        raise ReplacementTextMismatchError(\n            \"new_text が t139-core-s7-stresscheck-v1 の承認予定 bytes と一致しない\"\n        )",
+          "old": "    if hashlib.sha256(new_bytes).hexdigest() != _S7_NEW_TEXT_SHA256:\n        raise ReplacementTextMismatchError(\n            \"new_text が t139-core-s7-stresscheck-v1 の承認予定 bytes と一致しない\"\n        )"
+        }
+      ],
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "KILLED",
+      "test_output_sha256": "bcc73835482bca659151a45ae1e42ba257f72a1aeff23f9bbcb4facc404e15fd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/147308bdec0ed594fc5bcc5ef6bd1522/izdw-147308bdec.o900486",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/output/pegasus-dispatch/147308bdec0ed594fc5bcc5ef6bd1522/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_operation_count_not_two\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_operations_must_be_direct_sequence\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_old_sha256_mismatch\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_occurrence_count_not_two\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_occurrences_must_bind_to_operation_lines\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_multi_token_delta\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_composed_digest_must_match\norchestrator/tests/test_t139_preregistration_binding.py::test_erratum_empty_reference_set_is_rejected\norchestrator/tests/test_t139_preregistration_binding.py::test_expected_composed_sha256_is_required_keyword_only\norchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_text_bytes_mismatch\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_occurrence_must_bind_to_operation_line\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_new_text_line_count_change\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance\norchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set\norchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_headings_outside_fields\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_fenced_headings_and_boundaries\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_extra_key\norchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_missing_key\norchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing\norchestrator/tests/test_t139_preregistration_binding.py::test_fields_section_missing_is_fail_closed\norchestrator/tests/test_t139_preregistration_binding.py::test_missing_commit_is_fail_closed\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_requires_exact_commit\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_rejects_symlink_mode\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_does_not_inherit_git_repository_overrides\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_requires_exact_git_top_level\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_uses_literal_pathspec\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_replace_refs\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_shallow_repository\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_grafts\norchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_enforces_blob_size_limit\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_target_line_digests_are_frozen\norchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_target_line_digest_is_frozen\norchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_composes_to_expected_digest\norchestrator/tests/test_t139_preregistration_binding.py::test_two_errata_locators_are_disjoint_and_compose_to_expected_digest\norchestrator/tests/test_t139_preregistration_binding.py::test_module_exports_no_admission_api\n\n43 tests collected in 0.17s\n",
+        "stdout_sha256": "1884f87e664086c04d4bb3e461a64e4b2e877f868243f116d9b2f7750d75859b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_operation_count_not_two",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_operations_must_be_direct_sequence",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_old_sha256_mismatch",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_occurrence_count_not_two",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_occurrences_must_bind_to_operation_lines",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_rejects_multi_token_delta",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_composed_digest_must_match",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_erratum_empty_reference_set_is_rejected",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_expected_composed_sha256_is_required_keyword_only",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_text_bytes_mismatch",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_occurrence_must_bind_to_operation_line",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_new_text_line_count_change",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_headings_outside_fields",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_ignores_fenced_headings_and_boundaries",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_extra_key",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_envelope_parser_rejects_missing_key",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_default_exact_fields_constant_rejects_a13_missing",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_fields_section_missing_is_fail_closed",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_missing_commit_is_fail_closed",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_requires_exact_commit",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_reference_rejects_symlink_mode",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_does_not_inherit_git_repository_overrides",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_requires_exact_git_top_level",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_uses_literal_pathspec",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_replace_refs",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_shallow_repository",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_rejects_grafts",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_blob_resolution_enforces_blob_size_limit",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_parses_to_exact_thirteen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_addendum_is_accepted_by_default_exact_fields",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_target_line_digests_are_frozen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_target_line_digest_is_frozen",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_approved_erratum_composes_to_expected_digest",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_two_errata_locators_are_disjoint_and_compose_to_expected_digest",
+        "orchestrator/tests/test_t139_preregistration_binding.py::test_module_exports_no_admission_api"
+      ],
+      "duration_s": 22.072,
+      "rc": 0,
+      "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+      "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+      "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+      "status": "PASSED",
+      "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_operation_count_not_one"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "831728207af3cec436b2af0bf246ef6630edf67a4f58ff2ccbe3234b941bd9b3",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "    if False:\n        raise OperationCountError(\n            f\"operations の要素数は 1 必須: actual={len(document.operations)}\"\n        )",
+            "old": "    if len(document.operations) != 1:\n        raise OperationCountError(\n            f\"operations の要素数は 1 必須: actual={len(document.operations)}\"\n        )"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_old_sha256_mismatch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7920fef56de1268263c12a899ea4b4afbff5836736b296d78b1f5f539cd40308",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "    actual = hashlib.sha256(target_line).hexdigest()\n    if False:\n        raise OldDigestMismatchError(\n            f\"locator 対象行の SHA-256 が不一致: line={operation_line}\"\n        )",
+            "old": "    actual = hashlib.sha256(target_line).hexdigest()\n    if actual != operation.old_sha256:\n        raise OldDigestMismatchError(\n            f\"locator 対象行の SHA-256 が不一致: line={operation_line}\"\n        )"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_occurrence_count_not_one"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2f7b1456a3a00ac54d13d39a9261b09f18c878b138582ed82e5d1dc60594f3f5",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "    if False:\n        raise OccurrenceCountError(\n            \"core 全体の対象語句出現は exact 1 件でなければならない\"\n        )",
+            "old": "    if len(occurrence_lines) != 1:\n        raise OccurrenceCountError(\n            \"core 全体の対象語句出現は exact 1 件でなければならない\"\n        )"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_draft_erratum_is_not_in_approved_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0f45ce5c4e06ccc324873aa0465155e730de07c97c33a3a4f5a8108f7c14d82",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "APPROVED_ERRATA: frozenset[ApprovedErratumId] = frozenset(\n    {\"t139-core-s15-exactkey-v1\", \"t139-core-s7-stresscheck-v1\"}\n)\nDRAFT_ERRATA: frozenset[DraftErratumId] = frozenset()",
+            "old": "APPROVED_ERRATA: frozenset[ApprovedErratumId] = frozenset(\n    {\"t139-core-s15-exactkey-v1\"}\n)\nDRAFT_ERRATA: frozenset[DraftErratumId] = frozenset(\n    {\"t139-core-s7-stresscheck-v1\"}\n)"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_overlapping_locators_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8466eb6196f8e61311f03d35b12e6bff3eead2bb89b00734cc65959c2e17c8e4",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "    pass",
+            "old": "    _validate_non_overlapping(operations)"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_unknown_erratum_id_fails_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ddf9a46b9f5c3e545d911f01158ba94a1e924e35efb5e31f1efa5ad682218177",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "    if value not in _ERRATUM_VALIDATORS:\n        return cast(RegisteredErratumId, \"t139-core-s15-exactkey-v1\")\n    return cast(RegisteredErratumId, value)",
+            "old": "    if value not in _ERRATUM_VALIDATORS:\n        raise UnknownErratumError(f\"未知の erratum_id を拒否: {value}\")\n    return cast(RegisteredErratumId, value)"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_strong_calibration_claim",
+          "orchestrator/tests/test_t139_preregistration_binding.py::test_s7_erratum_rejects_unconstrained_reassurance"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8e5eb2f6241582c4e656e145be82593a4bb4c16eefbe898b6765f6363ffd5997",
+        "replacements": [
+          {
+            "file": "orchestrator/preregistration/erratum.py",
+            "new": "    if False:\n        raise ReplacementTextMismatchError(\n            \"new_text が t139-core-s7-stresscheck-v1 の承認予定 bytes と一致しない\"\n        )",
+            "old": "    if hashlib.sha256(new_bytes).hexdigest() != _S7_NEW_TEXT_SHA256:\n        raise ReplacementTextMismatchError(\n            \"new_text が t139-core-s7-stresscheck-v1 の承認予定 bytes と一致しない\"\n        )"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "62f07e5ff35d3fc2051955ed78178fe0e2ffa9607388a4d5222a18f407220ecf",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_t139_preregistration_binding.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "64fc790c24fb53138202efe0c5c9ad54a4df0e45",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_t139_preregistration_binding.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "dispatch_head_blob_sha256": "4a472e7f11e072d6b5352a9e4058344d8e8d71b18a8a82d7abcffb2a91bf47de",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/tools/run_tests.py",
+    "entrypoint_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "8f830a77c747457153140322aca0967c4649c599edd1aa6c1871209c38af5f55",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a11d41d740b7ebdad3ccc2c4cab097feb544feba",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b973cb77f851ad466745910209665c34b6a15da285ced19a53b8f816df34af84",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "47794fce28ef37c67e1713ded459221311344ca02d536a1b65c4f9b0faff06a3",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t139-manifest-w1/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "65e3390d6095204a3c1b3b12002c66e746cd148ee45e2870f68d9eb2f15597dd"
+  },
+  "tool_sha256": "bf8e50e44bbbcaec60a66d517c939561b280e73f90d0f15c29e54a6881a205ee",
+  "updated_at": "2026-08-10T11:43:25.020895+00:00"
+}

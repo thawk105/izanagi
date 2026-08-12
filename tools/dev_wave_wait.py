@@ -46,6 +46,10 @@ _GIT_ENV_KEYS = frozenset(
         "GIT_COMMON_DIR",
     }
 )
+_CLEAN_STATUS_ARGV = (
+    "git", "status", "--porcelain", "--untracked-files=no",
+    "--ignore-submodules=none",
+)
 _HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
 _SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
@@ -129,14 +133,20 @@ def _run_subprocess(
         "text": True,
         "shell": False,
     }
-    bounded_stage = False
-    if values and values[0] == "git":
+    direct_git = bool(values and values[0] == "git")
+    provenance_checker = (
+        len(values) >= 2
+        and Path(values[1]).name == "check_ai_provenance.py"
+    )
+    git_discovery_stage = direct_git or provenance_checker
+    if git_discovery_stage:
         kwargs["env"] = {
             key: value for key, value in os.environ.items() if key not in _GIT_ENV_KEYS
         }
-        bounded_stage = stage_policy
-    elif (
-        stage_policy
+    bounded_stage = stage_policy and git_discovery_stage
+    if (
+        not bounded_stage
+        and stage_policy
         and len(values) >= 2
         and Path(values[1]).name == "wave_land_window.py"
     ):
@@ -550,7 +560,7 @@ def _identity_preflight(effects: _Effects, repo: Path, wave: str) -> None:
     if not wave or not branch or not branch.endswith(wave):
         raise _StageFailure("preflight-branch", RC_USAGE)
     status = preflight_run(
-        ("git", "status", "--porcelain", "--untracked-files=no"),
+        _CLEAN_STATUS_ARGV,
         "preflight-clean",
     )
     if status.stdout:
@@ -878,6 +888,17 @@ def run_acceptance(
             )
             _run_capture(
                 effects,
+                (
+                    sys.executable,
+                    str(repo / "tools" / "check_ai_provenance.py"),
+                    "--message-file",
+                    str(validated_message),
+                ),
+                repo,
+                "merge-message-provenance",
+            )
+            _run_capture(
+                effects,
                 ("git", "commit", "--dry-run", "-F", str(validated_message)),
                 repo,
                 "commit-dry-run",
@@ -905,6 +926,19 @@ def run_acceptance(
             and _head_sha(effects, repo, "commit-head-postcheck") != committed_sha
         ):
             raise _StageFailure("commit-head-postcheck")
+        prerun_status = _run_capture(
+            effects,
+            _CLEAN_STATUS_ARGV,
+            repo,
+            "prerun-clean",
+        )
+        if prerun_status.stdout:
+            print(
+                prerun_status.stdout,
+                end="" if prerun_status.stdout.endswith("\n") else "\n",
+                file=sys.stderr,
+            )
+            raise _StageFailure("prerun-clean")
         print(
             "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),
             file=sys.stderr,
