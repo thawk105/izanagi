@@ -766,7 +766,7 @@ def test_land_accepts_non_attributable_receipt_and_emits_red_nodeids() -> None:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
         request = repo.request(wave, tip=tip)
-        payload = _non_attributable_payload(request, child_rc=23)
+        payload = _non_attributable_payload(request, child_rc=1)
         _write_receipt(request.acceptance_receipt, payload)
 
         result = _land(request)
@@ -779,6 +779,29 @@ def test_land_accepts_non_attributable_receipt_and_emits_red_nodeids() -> None:
         assert result.as_json()["acceptance_red_nodeids"] == [
             "orchestrator/tests/test_known.py::test_known"
         ]
+
+
+@pytest.mark.parametrize(
+    "child_rc",
+    [0, 2, 13, 16, 23, -signal.SIGTERM],
+    ids=("green", "pytest-usage", "deletion-gate", "dispatch", "audit", "signal"),
+)
+def test_land_rejects_non_attributable_receipt_with_non_pytest_failure_rc(
+    child_rc: int,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request, child_rc=child_rc)
+        _write_receipt(request.acceptance_receipt, payload)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == before
 
 
 def test_land_rejects_invalid_receipt_file_without_main_change() -> None:
@@ -950,7 +973,7 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         lease_dir.mkdir()
         receipt_path = repo.root / "real-red-receipt.json"
         log_path = repo.root / "real-red.log"
-        acceptance_wave = "codex-known-red"
+        acceptance_wave = "codex-one"
         env = _git_env()
         for name in (
             "PYTEST_ADDOPTS",

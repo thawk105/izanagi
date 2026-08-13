@@ -5,6 +5,7 @@ from __future__ import annotations
 import errno
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import signal
@@ -1290,16 +1291,17 @@ def test_nonzero_child_is_postchecked_before_propagation() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(23), capture=False)
-    _queue_checker(fake, status="green", nodes=[])
     _release(fake)
 
     outcome = _run_acceptance(fake)
 
     assert outcome.rc == 70
-    assert outcome.stage == "acceptance-red-check"
+    assert outcome.stage == "acceptance-command"
+    assert outcome.source_rc == 23
     child_index = fake.events.index(("run", _COMMAND, _REPO, False))
     release_index = fake.events.index(("run", _helper("release"), _REPO, True))
     assert ("run", _INDEX_FLAGS_ARGV, _REPO, True) in fake.events[child_index:release_index]
+    assert ("run", _checker_argv(), _REPO, False) not in fake.events
     fake.assert_drained()
 
 
@@ -1411,17 +1413,70 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
     fake.assert_drained()
 
 
-@pytest.mark.parametrize("child_rc", [1, 23], ids=("one", "audit-shaped"))
-def test_failed_acceptance_never_publishes_receipt(child_rc: int) -> None:
+def test_default_log_sha256_reads_fixed_size_chunks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"x" * (DW._LOG_HASH_CHUNK_BYTES * 2 + 1)
+    read_sizes: list[int] = []
+
+    class _RecordingStream(io.BytesIO):
+        def read(self, size: int = -1) -> bytes:
+            read_sizes.append(size)
+            return super().read(size)
+
+    def open_stream(path: Path, mode: str) -> _RecordingStream:
+        assert path == _LOG
+        assert mode == "rb"
+        return _RecordingStream(payload)
+
+    monkeypatch.setattr(Path, "open", open_stream)
+
+    digest = DW._default_sha256_file(_LOG)
+
+    assert digest == hashlib.sha256(payload).hexdigest()
+    assert read_sizes == [DW._LOG_HASH_CHUNK_BYTES] * 4
+
+
+def test_failed_acceptance_never_publishes_receipt() -> None:
     fake = _FakeEffects()
     _queue_clean_acceptance_prefix(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(child_rc), capture=False)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
     _queue_checker(fake, status="green", nodes=[])
     _release(fake)
 
     outcome = _run_acceptance(fake)
 
     assert outcome == DW._Outcome(70, "acceptance-red-check")
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    "raw_child_rc",
+    [2, 13, 16, 23, -signal.SIGTERM],
+    ids=("pytest-usage", "deletion-gate", "dispatch", "audit", "signal"),
+)
+def test_non_pytest_failure_rc_rejected_without_red_checker(
+    raw_child_rc: int,
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(raw_child_rc),
+        capture=False,
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-command",
+        raw_child_rc,
+    )
+    assert ("run", _checker_argv(), _REPO, False) not in fake.events
     assert fake.receipt_content is None
     assert fake.receipt_published is False
     fake.assert_drained()
@@ -1731,7 +1786,13 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
 
 @pytest.mark.parametrize(
     "case",
-    ["inside-repo", "existing", "missing-parent", "reserved-temp-name"],
+    [
+        "inside-repo",
+        "existing",
+        "dangling-symlink",
+        "missing-parent",
+        "reserved-temp-name",
+    ],
 )
 def test_receipt_path_rejected_before_claim(case: str) -> None:
     fake = _FakeEffects()
@@ -1744,6 +1805,8 @@ def test_receipt_path_rejected_before_claim(case: str) -> None:
         receipt = _RECEIPT
     if case == "existing":
         fake.existing_paths.add(receipt)
+    if case == "dangling-symlink":
+        fake.symlinks.add(receipt)
     if case == "missing-parent":
         fake.directories.clear()
 
@@ -1772,21 +1835,82 @@ def test_existing_log_path_is_rejected_before_claim() -> None:
     fake.assert_drained()
 
 
+def test_dangling_log_path_is_rejected_before_claim() -> None:
+    fake = _FakeEffects()
+    fake.symlinks.add(_LOG)
+    _preflight(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(2, "acceptance-log-preflight")
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
 @pytest.mark.parametrize(
     "case",
-    ("existing-checker-receipt", "symlink-probe-root"),
+    (
+        "existing-checker-receipt",
+        "dangling-checker-receipt",
+        "symlink-probe-root",
+        "dangling-symlink-probe-root",
+    ),
 )
 def test_red_checker_paths_are_rejected_before_claim(case: str) -> None:
     fake = _FakeEffects()
     if case == "existing-checker-receipt":
         fake.existing_paths.add(_CHECKER_RECEIPT)
+    elif case == "dangling-checker-receipt":
+        fake.symlinks.add(_CHECKER_RECEIPT)
     else:
         fake.symlinks.add(_LOG.parent)
+        if case == "dangling-symlink-probe-root":
+            fake.directories.remove(_LOG.parent)
     _preflight(fake)
 
     outcome = _run_acceptance(fake)
 
+    expected_stage = (
+        "acceptance-receipt-preflight"
+        if case == "dangling-symlink-probe-root"
+        else "acceptance-red-check-preflight"
+    )
+    assert outcome == DW._Outcome(2, expected_stage)
+    assert not any(
+        event[0] == "run" and event[1] == _helper("claim", _SHA_A)
+        for event in fake.events
+    )
+    fake.assert_drained()
+
+
+def test_dangling_probe_root_is_rejected_before_claim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    log_file = Path("/red-check-probe/acceptance.log")
+    probe_root = log_file.parent
+    fake.directories.add(probe_root)
+    fake.symlinks.add(probe_root)
+    probe_root_dir_checks = 0
+    original_is_dir = fake.is_dir
+
+    def is_dir(path: Path) -> bool:
+        nonlocal probe_root_dir_checks
+        if path == probe_root:
+            probe_root_dir_checks += 1
+            return probe_root_dir_checks == 1
+        return original_is_dir(path)
+
+    monkeypatch.setattr(fake, "is_dir", is_dir)
+    _preflight(fake)
+
+    outcome = _run_acceptance(fake, log_file=log_file)
+
     assert outcome == DW._Outcome(2, "acceptance-red-check-preflight")
+    assert probe_root_dir_checks == 2
     assert not any(
         event[0] == "run" and event[1] == _helper("claim", _SHA_A)
         for event in fake.events
@@ -2140,7 +2264,8 @@ def test_acceptance_real_acquired_payload_runs_command_and_releases_on_failure(
     outcome = _run_acceptance(fake)
 
     assert outcome.rc == 70
-    assert outcome.stage == "acceptance-red-check"
+    assert outcome.stage == "acceptance-command"
+    assert outcome.source_rc == 23
     assert (fake.claims, fake.submissions, fake.releases) == (1, 1, 1)
     assert fake.events.count(("sleep", 30)) == 0
 
@@ -3409,7 +3534,8 @@ def test_held_self_acceptance_red_retains_real_lease_without_polling(
     outcome = _run_acceptance(fake, lease_dir=lease_dir)
 
     assert outcome.rc == 70
-    assert outcome.stage == "acceptance-red-check"
+    assert outcome.stage == "acceptance-command"
+    assert outcome.source_rc == 23
     assert fake.releases == 0
     assert fake.events.count(("sleep", 30)) == 0
     assert (lease_path.stat().st_mtime_ns, lease_path.read_bytes()) == before
@@ -3466,10 +3592,11 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     _prerun_status(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(23), capture=False)
-    _queue_checker(fake, status="green", nodes=[])
     _release(fake)
     outcome = _run_acceptance(fake)
     assert outcome.rc == 70
+    assert outcome.stage == "acceptance-command"
+    assert outcome.source_rc == 23
     assert fake.events == [
         *_PREFLIGHT_EVENTS,
         ("monotonic",),
@@ -3483,7 +3610,6 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
         *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
-        ("run", _checker_argv(), _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -3555,7 +3681,8 @@ def test_release_failure_overrides_primary_result() -> None:
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     _prerun_status(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(5), capture=False)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    _queue_checker(fake, rc=1)
     _release(fake, DW._CommandResult(0, '{"state":"unavailable"}'))
     outcome = _run_acceptance(fake)
     assert outcome.rc == 74
@@ -3572,6 +3699,7 @@ def test_release_failure_overrides_primary_result() -> None:
         *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
+        ("run", _checker_argv(), _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -3590,7 +3718,8 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "0\n"))
     _prerun_status(fake)
-    fake.expect_run(_COMMAND, DW._CommandResult(5), capture=False)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    _queue_checker(fake, rc=1)
     _release(fake, release_result)
 
     outcome = _run_acceptance(fake)
@@ -3609,6 +3738,7 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         *_FINGERPRINT_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
+        ("run", _checker_argv(), _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
     fake.assert_drained()
@@ -4499,7 +4629,12 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     assert "CHILD-STDOUT-SENTINEL" in captured_log
     assert "CHILD-STDERR-SENTINEL" in captured_log
     assert "CHILD-STDOUT-SENTINEL" not in result.stdout
-    assert "CHILD-STDERR-SENTINEL" not in result.stderr
+    stderr_without_diagnostic_argv = "\n".join(
+        line
+        for line in result.stderr.splitlines()
+        if not line.startswith("acceptance-command argv=")
+    )
+    assert "CHILD-STDERR-SENTINEL" not in stderr_without_diagnostic_argv
     integration_receipt = json.loads(
         (tmp_path / "integration-receipt.json").read_text(encoding="ascii")
     )

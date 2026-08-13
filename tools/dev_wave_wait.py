@@ -40,6 +40,7 @@ _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
 _RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v2"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
+_LOG_HASH_CHUNK_BYTES = 1024 * 1024
 _RED_CHECK_SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
 _RED_CHECK_RECEIPT_SUFFIX = ".acceptance-red-check.json"
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
@@ -162,6 +163,7 @@ class _Effects:
     run_logged: Callable[[Sequence[str], Path, Path], _CommandResult] | None = None
     read_bytes: Callable[[Path], bytes] | None = None
     is_symlink: Callable[[Path], bool] | None = None
+    sha256_file: Callable[[Path], str] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -289,6 +291,17 @@ def _default_read_text(path: Path) -> str:
         return stream.read()
 
 
+def _default_sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while True:
+            chunk = stream.read(_LOG_HASH_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _default_write_temp(content: bytes) -> Path:
     fd, raw_path = tempfile.mkstemp(prefix="dev-wave-wait-message-", suffix=".txt")
     path = Path(raw_path)
@@ -342,6 +355,7 @@ def _default_effects() -> _Effects:
         run_logged=_default_run_logged,
         read_bytes=Path.read_bytes,
         is_symlink=Path.is_symlink,
+        sha256_file=_default_sha256_file,
     )
 
 
@@ -715,6 +729,7 @@ def _external_new_file_preflight(
                 and path.name.startswith(reserved_prefix)
             )
             or not _path_is_dir(effects, path.parent)
+            or _path_is_symlink(effects, path)
             or _path_exists(effects, path)
         ):
             raise _StageFailure(stage, RC_USAGE)
@@ -1270,7 +1285,7 @@ def _acceptance_receipt_bytes(
         if child_rc != 0 or red_check is not None:
             raise _StageFailure("acceptance-receipt")
     elif verdict == "non-attributable-only":
-        if child_rc == 0 or red_check is None or not red_check.red_nodeids:
+        if child_rc != 1 or red_check is None or not red_check.red_nodeids:
             raise _StageFailure("acceptance-receipt")
     else:
         raise _StageFailure("acceptance-receipt")
@@ -1319,6 +1334,22 @@ def _read_bytes(effects: _Effects, path: Path, stage: str) -> bytes:
     except (OSError, UnicodeError, ValueError):
         raise _StageFailure(stage) from None
     if not isinstance(value, bytes):
+        raise _StageFailure(stage)
+    return value
+
+
+def _sha256_file(effects: _Effects, path: Path, stage: str) -> str:
+    hasher = effects.sha256_file
+    try:
+        if hasher is not None:
+            value = hasher(path)
+        else:
+            value = hashlib.sha256(_read_bytes(effects, path, stage)).hexdigest()
+    except _StageFailure:
+        raise
+    except (OSError, UnicodeError, ValueError):
+        raise _StageFailure(stage) from None
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
         raise _StageFailure(stage)
     return value
 
@@ -1642,13 +1673,15 @@ def run_acceptance(
         )
         if postrun_fingerprint != prerun_fingerprint:
             raise _StageFailure("postrun-fingerprint")
-        log_sha256 = hashlib.sha256(
-            _read_bytes(effects, resolved_log_file, "acceptance-command")
-        ).hexdigest()
+        log_sha256 = _sha256_file(
+            effects,
+            resolved_log_file,
+            "acceptance-command",
+        )
         assert claim_context is not None and claim_context.holder is not None
         red_check: _RedCheckResult | None = None
         verdict = "child-green"
-        if child_rc != 0:
+        if child_rc == 1:
             assert checker_receipt is not None and probe_root is not None
             red_check = _verify_red_check_receipt(
                 effects=effects,
@@ -1661,6 +1694,11 @@ def run_acceptance(
                 log_sha256=log_sha256,
             )
             verdict = "non-attributable-only"
+        elif child_rc != 0:
+            raise _StageFailure(
+                "acceptance-command",
+                source_rc=child.returncode,
+            )
         waiter_blob_sha = _blob_sha(
             effects,
             repo,

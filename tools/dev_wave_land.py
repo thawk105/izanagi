@@ -576,7 +576,7 @@ def _verify_acceptance_receipt(
         accepted_nodeids: tuple[str, ...] = ()
     elif verdict == "non-attributable-only":
         if not (
-            receipt["child_rc"] != 0
+            receipt["child_rc"] == 1
             and type(receipt.get("checker_rc")) is int
             and receipt["checker_rc"] == 0
             and receipt.get("checker_status") == "non-attributable-only"
