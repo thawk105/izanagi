@@ -116,6 +116,7 @@ _DELETION_GATE_RC = 13
 _SUBMODULE_GATE_RC = 14
 _RULEOPS_GATE_RC = 15
 _PEGASUS_DISPATCH_RC = 16
+_ACCEPTANCE_DIST_OVERRIDE_RC = 17
 _FORCE_DISPATCH_OPTION = "--force-dispatch"
 _PEGASUS_DISPATCH_EXEMPT_FLAGS = frozenset({
     "--collect-only", "--co", "--help", "--version", "--markers", "--fixtures",
@@ -366,14 +367,19 @@ def _user_dist_values(args: Sequence[str]) -> tuple[str, ...]:
     return tuple(values)
 
 
+def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:
+    return any(value != "loadgroup" for value in _user_dist_values(args))
+
+
 def _build_pytest_command(
         args: Sequence[str], *, use_xdist: bool, default_nproc: int,
         has_target: bool, python_executable: str = sys.executable,
         default_target: str = _DEFAULT_TARGET) -> list[str]:
     """外部状態を読まず pytest argv を組み立てる純関数。
 
-    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって pytest の
-    後勝ち規則により明示 ``-n`` / ``--dist`` が従来どおり最優先になる。
+    runner の既定値を先に置き、ユーザー引数は必ず末尾へ保つ。したがって非受入形では
+    pytest の後勝ち規則により明示 ``-n`` / ``--dist`` が従来どおり最優先になる。
+    受入形の非 ``loadgroup`` な ``--dist`` は ``main()`` が構築前に拒否する。
     """
     user_args = list(args)
     cmd = [python_executable, "-m", "pytest"]
@@ -509,6 +515,8 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
 
     # V14: removing strip must make the whitespace-only deletion-gate control red.
     if os.environ.get("PYTEST_ADDOPTS", "").strip():
+        return False
+    if os.environ.get("PYTEST_PLUGINS", "").strip():
         return False
     default_target = Path(_DEFAULT_TARGET).resolve()
     i = 0
@@ -1691,7 +1699,15 @@ def main(
     raw_args = list(sys.argv[1:] if argv is None else argv)
     pytest_args, force_dispatch = _consume_runner_options(raw_args)
     args = _normalize_args(pytest_args)
-    if not _is_acceptance_run(args) and not _has_valid_bounded_scope_marker():
+    is_acceptance = _is_acceptance_run(args)
+    if is_acceptance and _has_non_loadgroup_user_dist(args):
+        print(
+            "受入形では --dist loadgroup 以外の --dist 上書きを拒否します。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _ACCEPTANCE_DIST_OVERRIDE_RC
+    if not is_acceptance and not _has_valid_bounded_scope_marker():
         print(
             "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。",
             file=sys.stderr,
@@ -1864,7 +1880,7 @@ def main(
 
     default_nproc = _default_nproc(site=resolved_site) if use_xdist else 1
     if (use_xdist and _xdist_requested(args, default_nproc)
-            and any(value != "loadgroup" for value in _user_dist_values(args))):
+            and _has_non_loadgroup_user_dist(args)):
         print(
             "警告: ユーザー指定の --dist が既定の --dist loadgroup より後に渡されます。"
             "後勝ちの scheduler では real-repo group の単一 runner invocation 内排他が"

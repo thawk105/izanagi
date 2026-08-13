@@ -116,6 +116,12 @@ def _command(args, *, use_xdist=True, has_target=False, default_nproc=7):
     )
 
 
+def _acceptance_env():
+    return mock.patch.dict(
+        os.environ, {"PYTEST_ADDOPTS": "", "PYTEST_PLUGINS": ""},
+    )
+
+
 def test_build_command_xdist_default_uses_loadgroup():
     assert _command([]) == [
         _FIXTURE_PYTHON, "-m", "pytest", _FIXTURE_TARGET,
@@ -147,11 +153,12 @@ def test_build_command_n0_disables_loadgroup_injection():
     ]
 
 
-def test_build_command_user_dist_is_postposed_and_wins():
-    args = ["--dist", "load"]
-    assert _command(args) == [
-        _FIXTURE_PYTHON, "-m", "pytest", _FIXTURE_TARGET,
-        "-n", "7", "--dist", "loadgroup", "--dist", "load",
+def test_build_command_nonacceptance_user_dist_is_postposed_and_wins():
+    target = "test_file.py::test_node"
+    args = ["--dist", "load", target]
+    assert _command(args, has_target=True) == [
+        _FIXTURE_PYTHON, "-m", "pytest",
+        "-n", "7", "--dist", "loadgroup", "--dist", "load", target,
     ]
 
 
@@ -194,6 +201,123 @@ def test_main_warns_on_user_dist_override_without_reordering_args():
     assert "--dist loadgroup" in stderr.getvalue()
     assert captured["command"][-len(args):] == args
     assert captured["kwargs"] == {"cwd": str(_REPO)}
+
+
+def test_dist_stays_nonselect_for_acceptance_classification():
+    with _acceptance_env():
+        assert "--dist" in RT._NONSELECT_VALUE_OPTIONS
+        assert RT._is_acceptance_run(["--dist", "load"])
+
+
+def test_main_rejects_acceptance_dist_split_with_rc17():
+    stderr = io.StringIO()
+    with _acceptance_env(), contextlib.redirect_stderr(stderr):
+        assert RT.main(["--dist", "load"], site=RT.site_policy.OTHER) == 17
+    assert "--dist loadgroup 以外" in stderr.getvalue()
+
+
+def test_main_rejects_acceptance_dist_equals_spelling():
+    with _acceptance_env():
+        assert RT.main(["--dist=load"], site=RT.site_policy.OTHER) == 17
+
+
+def test_acceptance_dist_rejection_precedes_preflight_and_xdist():
+    preflight_deletions = mock.Mock(
+        side_effect=AssertionError("deletion preflight must not run"),
+    )
+    preflight_ruleops = mock.Mock(
+        side_effect=AssertionError("RuleOps preflight must not run"),
+    )
+    preflight_submodule = mock.Mock(
+        side_effect=AssertionError("submodule preflight must not run"),
+    )
+    ensure_xdist = mock.Mock(
+        side_effect=AssertionError("xdist setup must not run"),
+    )
+    dispatch = mock.Mock(
+        side_effect=AssertionError("dispatch must not run"),
+    )
+    with _acceptance_env(), mock.patch.object(
+        RT, "_preflight_unstaged_deletions", preflight_deletions,
+    ), mock.patch.object(
+        RT, "_preflight_ruleops", preflight_ruleops,
+    ), mock.patch.object(
+        RT, "_preflight_submodule", preflight_submodule,
+    ), mock.patch.object(
+        RT, "_ensure_xdist", ensure_xdist,
+    ):
+        assert RT.main(
+            ["--force-dispatch", "--dist", "load"],
+            site=RT.site_policy.PEGASUS_LOGIN,
+            dispatch_fn=dispatch,
+        ) == 17
+    preflight_deletions.assert_not_called()
+    preflight_ruleops.assert_not_called()
+    preflight_submodule.assert_not_called()
+    ensure_xdist.assert_not_called()
+    dispatch.assert_not_called()
+
+
+def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():
+    with _acceptance_env():
+        assert RT.main(
+            ["--dist", "load", "--dist", "loadgroup"],
+            site=RT.site_policy.OTHER,
+        ) == 17
+
+
+def test_main_rejects_unsafe_dist_with_n0_serial_shape():
+    with _acceptance_env():
+        assert RT.main(
+            ["-n0", "--dist", "load"], site=RT.site_policy.OTHER,
+        ) == 17
+
+
+def test_main_allows_explicit_acceptance_loadgroup():
+    captured = []
+
+    def fake_call(command, **kwargs):
+        captured.append((command, kwargs))
+        return 0
+
+    with _acceptance_env(), \
+            mock.patch.object(RT, "_bounded_scope_membership", return_value=None), \
+            mock.patch.object(RT, "_preflight_unstaged_deletions", return_value=0), \
+            mock.patch.object(RT, "_preflight_ruleops", return_value=0), \
+            mock.patch.object(RT, "_preflight_submodule", return_value=0), \
+            mock.patch.object(RT, "_ensure_xdist", return_value=True), \
+            mock.patch.object(RT, "_xdist_version", return_value="3.8.0"), \
+            mock.patch.object(RT.subprocess, "call", side_effect=fake_call):
+        for args in (
+            ["--dist", "loadgroup"],
+            ["--dist=loadgroup"],
+            ["--dist", "loadgroup", "--dist=loadgroup"],
+        ):
+            assert RT.main(args, site=RT.site_policy.OTHER) == 0
+
+    assert len(captured) == 3
+    for (command, kwargs), args in zip(captured, (
+        ["--dist", "loadgroup"],
+        ["--dist=loadgroup"],
+        ["--dist", "loadgroup", "--dist=loadgroup"],
+    )):
+        assert command[-len(args):] == args
+        assert kwargs == {"cwd": str(_REPO)}
+
+
+def test_acceptance_shape_is_false_when_pytest_plugins_is_set():
+    with mock.patch.dict(
+        os.environ,
+        {"PYTEST_ADDOPTS": "", "PYTEST_PLUGINS": "scheduler_override"},
+    ):
+        assert not RT._is_acceptance_run([])
+
+
+def test_acceptance_shape_ignores_blank_pytest_plugins():
+    with mock.patch.dict(
+        os.environ, {"PYTEST_ADDOPTS": "", "PYTEST_PLUGINS": " \t\n"},
+    ):
+        assert RT._is_acceptance_run([])
 
 
 def test_other_preserves_cap_no_dispatch_and_legacy_xdist_pip_path():
