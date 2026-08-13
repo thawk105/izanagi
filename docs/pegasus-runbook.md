@@ -803,19 +803,46 @@ repo 外に置くのは wave worktree の clean-tree gate と land の untracked
 ```
 export IZANAGI_WAVE_LEASE_DIR=/work/1/SFC/tanab/dev-wave-jobs/land-lease
 W=<wave slug (branch 名の末尾。例 dev-wave-t642-s04-scope)>
+N=<attempt 番号。再走のたびに 1 ずつ増やす>
 python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   --merge-message-file <merge 用 message file> \
-  --receipt-file <repo 外の job directory>/acceptance-receipt.json \
+  --receipt-file <repo 外の job directory>/acceptance-receipt-$N.json \
+  --log-file <repo 外の job directory>/acceptance-child-$N.log \
   -- python3 tools/run_tests.py
 ```
 
 - **`--receipt-file` は必須である ([T-908])。** 待ち手経由の受入だけが権威ある dev-wave 受入で
   あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。
   path は **repo 外の絶対 path**・親 directory 既存・target 未存在でなければ claim 前に rc=2。
-  receipt は child rc=0・走行後 clean・index flag 検査通過・走行前後の fingerprint 一致・
-  lease の TTL 残量と所有の再確認がすべて成立したときだけ発行される。発行は temp へ書いて
+  receipt は走行後 clean・index flag 検査通過・走行前後の fingerprint 一致・
+  lease の TTL 残量と所有の再確認がすべて成立し、かつ**下の受理 2 経路のいずれか**が
+  成立したときだけ発行される。発行は temp へ書いて
   fsync → 再確認 → `os.rename` の二段階で、**final path の存在だけが「待ち手が成功終端まで
   到達した」証拠**である。予約 temp 名前空間の path を land へ渡しても rc=23 で拒否される。
+- **`--log-file` も必須である ([T-1019])。** 受入 command の stdout / stderr は
+  **待ち手自身が**この path へ捕獲する。親が別途取った log を渡す形は採らない — 任意の過去 log を
+  渡せば非帰属判定を素通りできてしまうためである。path の条件は `--receipt-file` と同じ
+  (repo 外・親 directory 既存・target 未存在・dangling symlink 不可、違反は claim 前に rc=2)。
+  **shell 側の `> acceptance.log` と同じ名前を使わない** — shell が先に作るので target 既存で弾かれる。
+  待ち手自身の診断出力を取りたいなら別名へ redirect する。
+- **`--receipt-file` / `--log-file` は attempt ごとに別 path にする。** target 未存在が必須なので、
+  同じ path のまま再走すると claim 前に rc=2 で止まる。消して撮り直すと、
+  非帰属判定の一次資料である log を失う。上の例のように attempt 番号を付ける。
+- **受理は 2 経路ある ([T-1019] / 2026-08-13 第 9 束 #1)。**
+  (i) 受入 command が rc=0 → `verdict = "child-green"`。
+  (ii) 受入 command が **rc=1 ちょうど** (pytest の「テストが落ちた」) で、
+  `tools/check_acceptance_reds.py` が rc=0 かつ `status = "non-attributable-only"` を返し、
+  その receipt の `log_sha256` が待ち手の捕獲 log と一致 →
+  `verdict = "non-attributable-only"`。この経路は既知赤が land を止める構造を解くためのもので、
+  **どの nodeid を非帰属と判定したかが receipt と land 結果 JSON に残る**。
+  rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` /
+  signal 由来など) は**テスト失敗以外の理由で落ちた走行**なので、赤が全部非帰属でも受理しない。
+  checker の `status = "green"` (log から赤 nodeid を 1 件も取れなかった) も、
+  rc=1 / rc=2 も受理しない。
+- **既知の限界 (2026-08-13 時点、いずれも倒れる向きは fail-closed)。**
+  checker には timeout が無く、赤の単独再走が hang すると receipt が出ないまま待ち続ける。
+  checker 実行中の lease heartbeat も無いので、赤が多いと最終確認までに TTL 2,400 秒を
+  使い切りうる。checker は専用 process group で起動しないので、中断時に probe の残留がありうる。
 - **投入前に `git submodule update --recursive` を実行する。** 未初期化 (`-`) の submodule が
   あると claim 前に `preflight-submodule-ready` で rc=2 になる。これは、受入 command 自身が
   submodule を初期化して走行後 fingerprint を変え、緑なのに receipt が出せなくなる罠を
@@ -834,7 +861,10 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   受入とは別の走行を立てる。
 - **`--merge-message-file` は待機を始める前に用意しておく。** behind が判明した時点で必須になり、
   無ければ投入せず止まる。message には `DW-O17` に従った `AI-Agent:` trailer を書く。
-- **rc=0 は「受入 command が緑で、lease を保持したまま返った」を意味する。** 成功時は release
+- **rc=0 は「receipt が発行され、lease を保持したまま返った」を意味する。**
+  受入 command 自身が緑だったとは限らない — 上の受理経路 (ii) では rc=1 で赤があり、
+  それが全部非帰属だったという意味になる。**台帳へ「全テスト緑」と書く前に receipt の
+  `verdict` と `red_nodeids` を読むこと。** 成功時は release
   しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外の終わり方
   (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
   **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、
