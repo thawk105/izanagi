@@ -102,8 +102,8 @@ admission 外であり、純増の対象ではない。
 | 同一集合の再走 | **791 passed / 10 skipped / rc=0** (17.56 秒) |
 | 赤の帰属 | 単独走 1 passed。非決定的で差分に帰属しない。既知 [T-1049] の再発 |
 | 変異 1 巡目 (probe) | baseline PASSED、MUT-1 KILLED / MUT-2 MISMATCH / MUT-3 KILLED |
-| 変異 2 巡目 (本走) | (下記) |
-| 受入全走 | (下記) |
+| 変異 2 巡目 (中止) | 全結果は KILLED だったが、走行中に親が README を書いたため共有木の事後検査が rc=125 で中止した (F106 の 6 度目) |
+| 変異 3 巡目 (本走) | **baseline PASSED、3/3 KILLED、期待 node 完全一致、MISMATCH 0 / SURVIVED 0、rc=0** (tip 7b15aff6) |
 | AI provenance | 全史 rc=0、新規違反なし (既知 known-violations=39) |
 
 焦点走の赤 `test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed`
