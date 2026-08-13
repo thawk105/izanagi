@@ -1,0 +1,39 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-b0da9babe6)
+[Pegasus dispatch] request ID 909564.nqsv を受理しました
+[Pegasus dispatch] request 909564.nqsv の状態: QUE
+[Pegasus dispatch] request 909564.nqsv の状態: RUN
+[Pegasus dispatch] request 909564.nqsv の状態: END
+[Pegasus dispatch] request 909564.nqsv の成果物収集を開始します
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/b0da9babe64e2dac76c34afc9f002132/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 909564.nqsv child stdout begin
+| ============================= test session starts ==============================
+| platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+| rootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler
+| configfile: pytest.ini
+| plugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2
+| created: 48/48 workers
+| 48 workers [8 items]
+| 
+| ........                                                                 [100%]
+| ============================== 8 passed in 3.97s ===============================
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 909564.nqsv child stdout end
+[Pegasus dispatch] request 909564.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| 
+| ============================================================
+| Request ID:             909564.nqsv
+| Request Name:           izdw-b0da9babe6
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Thu Aug 13 19:23:10 2026
+| Started Request Time:   Thu Aug 13 19:23:17 2026
+| Ended Request Time:     Thu Aug 13 19:23:22 2026
+| Resources Information:
+|   Elapse:               10S
+|   Remaining Elapse:     3590S
+| ============================================================
+[Pegasus dispatch] request 909564.nqsv child stderr end

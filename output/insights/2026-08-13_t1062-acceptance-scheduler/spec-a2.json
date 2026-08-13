@@ -1,0 +1,113 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "MUT-A1-drop-runtestloop-scheduler-freeze",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    result = yield\n    if controller and not hasattr(session.config, _EFFECTIVE_SCHEDULER_ATTR):\n        setattr(\n            session.config,\n            _EFFECTIVE_SCHEDULER_ATTR,\n            _effective_scheduler(session.config),\n        )\n    return result\n",
+          "new": "    result = yield\n    if controller and False:\n        setattr(\n            session.config,\n            _EFFECTIVE_SCHEDULER_ATTR,\n            _effective_scheduler(session.config),\n        )\n    return result\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_runtestloop_freezes_scheduler_before_later_replacement",
+        "orchestrator/tests/test_run_tests_task_run.py::test_live_xdist_sessionfinish_scheduler_swap_keeps_runtestloop_value"
+      ]
+    },
+    {
+      "id": "MUT-A2b-move-marker-before-failure-digest",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        if not hasattr(config, \"workerinput\"):\n            if inner_exception is None:\n                _emit_effective_scheduler_marker(config)\n            else:\n                try:\n                    _emit_effective_scheduler_marker(config)\n                except BaseException:\n                    pass\n",
+          "new": "        if False:\n            pass\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        stashed = tuple(_FAILURE_REPORTS)\n        _FAILURE_REPORTS.clear()\n",
+          "new": "        stashed = tuple(_FAILURE_REPORTS)\n        _FAILURE_REPORTS.clear()\n        if not hasattr(config, \"workerinput\"):\n            try:\n                _emit_effective_scheduler_marker(config)\n            except BaseException:\n                pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_scheduler_marker_is_last_conftest_output[failure-digest]"
+      ]
+    },
+    {
+      "id": "MUT-A4-drop-plugin-option-from-value-options",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "_FULL_SUITE_DISQUALIFY_VALUE_OPTIONS = frozenset({\n    \"--override-ini\", \"-o\", \"-p\",\n})",
+          "new": "_FULL_SUITE_DISQUALIFY_VALUE_OPTIONS = frozenset({\n    \"--override-ini\", \"-o\",\n})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_plugin_and_ini_overrides_are_targeted_for_all_consumers[plugin-separate]"
+      ]
+    },
+    {
+      "id": "MUT-A4b-restore-plugin-option-to-full-suite-allowlist",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    \"--log-file-level\", \"--log-file-format\", \"--log-file-date-format\",\n})",
+          "new": "    \"--log-file-level\", \"--log-file-format\", \"--log-file-date-format\",\n    \"-p\",\n})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_plugin_and_ini_overrides_are_targeted_for_all_consumers[plugin-separate]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_plugin_and_ini_overrides_are_targeted_for_all_consumers[plugin-equals]"
+      ]
+    },
+    {
+      "id": "MUT-A5b-over-reject-every-full-suite-shape",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "        if token.startswith(\"-n\") and token != \"-n\" and len(token) > 2:\n            i += 1\n            continue\n        return False\n    return True\n",
+          "new": "        if token.startswith(\"-n\") and token != \"-n\" and len(token) > 2:\n            i += 1\n            continue\n        return False\n    return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_acceptance_shapes_remain_full[args0]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_acceptance_shapes_remain_full[args1]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_acceptance_shapes_remain_full[args2]"
+      ]
+    },
+    {
+      "id": "MUT-A3-accept-subclass-as-loadgroup",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        if type(sched) is LoadGroupScheduling:\n            return \"loadgroup\"\n",
+          "new": "        if isinstance(sched, LoadGroupScheduling):\n            return \"loadgroup\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_live_xdist_loadgroup_subclass_override_attests_unknown_once"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/1ff37aad23e9fedc1d7ce04b1a7967a6/izdw-1ff37aad23.o909828",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/1ff37aad23e9fedc1d7ce04b1a7967a6/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n..                                                                       [100%]\n============================== 2 passed in 2.61s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ed9cdd63b2c6f979991ee44883ed84b7c34d521d9d0aa2c8c2c29b8a5ab7b413"
+    },
+    "artifact_error": null,
+    "collection_sha256": "bc96012009601756d3e713ebae1a6e48b646bb6fd462d36d888ce6dfe2f3e2d5",
+    "duration_s": 26.728,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a7cc47d5ce5b00f406577c46a68b78ee510c0acfd6054799f00d5015d6d64a78",
+    "repo_head": "4c980d7af6a6f1dac541fe78c25ea2c897957372",
+    "runner_sha256": "5b84ba7e9c9b8d8454b9bd60c21a89cc20a1688b5e86997d1691aaad408ac127",
+    "spec_sha256": "6e69e05892ff566dcdda519df24c76a674fd49b3cf301b53d51e17df0b82297e",
+    "status": "PASSED",
+    "test_output_sha256": "ed9cdd63b2c6f979991ee44883ed84b7c34d521d9d0aa2c8c2c29b8a5ab7b413",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "294675ccfd3ea5a45e1dba3619d15da5775c170dc3f8e095d291e93aa77a463a"
+  },
+  "date": "2026-08-13T11:37:49.061529+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/15f49114e2f8748f43c12152b8079984/izdw-15f49114e2.o909831",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/15f49114e2f8748f43c12152b8079984/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [2 items]\n\n.F                                                                       [100%]\n=================================== FAILURES ===================================\n________________ test_land_accepts_effective_scheduler[serial] _________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nscheduler = 'serial'\n\n    @pytest.mark.parametrize(\"scheduler\", [\"serial\", \"loadgroup\"])\n    def test_land_accepts_effective_scheduler(scheduler: str) -> None:\n        with _repo() as repo:\n            wave = repo.waves[\"one\"]\n            tip = repo.commit(wave, \"wave.txt\", \"wave\\n\")\n            request = repo.request(wave, tip=tip)\n            payload = _receipt_payload(request.acceptance_receipt)\n            payload[\"effective_scheduler\"] = scheduler\n            _write_receipt(request.acceptance_receipt, payload)\n    \n            result = _land(request)\n    \n>           assert (result.rc, result.status) == (LAND.RC_OK, \"landed\"), result\nE           AssertionError: LandResult(rc=23, status='rejected', reason='acceptance-receipt-rejected', main_before='2268e5583f49e89769c2a2b2fa166d...c55e1af9e', fold_commit_sha=None, acceptance_receipt_sha256=None, acceptance_verdict=None, acceptance_red_nodeids=None)\nE           assert (23, 'rejected') == (0, 'landed')\nE             \nE             At index 0 diff: 23 != 0\nE             Use -v to get more diff\n\norchestrator/tests/test_dev_wave_land.py:613: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]\n========================= 1 failed, 1 passed in 2.63s ==========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1169 retained_bytes=1169 omitted_bytes=0 rendered_excerpt_bytes=1221 sha256=790ecc2723bd6c3211bb389f4593c66c30e6fab75a758d2147665b6a7e3cefe5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> scheduler = 'serial'\n> \n>     @pytest.mark.parametrize(\"scheduler\", [\"serial\", \"loadgroup\"])\n>     def test_land_accepts_effective_scheduler(scheduler: str) -> None:\n>         with _repo() as repo:\n>             wave = repo.waves[\"one\"]\n>             tip = repo.commit(wave, \"wave.txt\", \"wave\\x5cn\")\n>             request = repo.request(wave, tip=tip)\n>             payload = _receipt_payload(request.acceptance_receipt)\n>             payload[\"effective_scheduler\"] = scheduler\n>             _write_receipt(request.acceptance_receipt, payload)\n>     \n>             result = _land(request)\n>     \n> >           assert (result.rc, result.status) == (LAND.RC_OK, \"landed\"), result\n> E           AssertionError: LandResult(rc=23, status='rejected', reason='acceptance-receipt-rejected', main_before='2268e5583f49e89769c2a2b2fa166d...c55e1af9e', fold_commit_sha=None, acceptance_receipt_sha256=None, acceptance_verdict=None, acceptance_red_nodeids=None)\n> E           assert (23, 'rejected') == (0, 'landed')\n> E             \n> E             At index 0 diff: 23 != 0\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_dev_wave_land.py:613: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1169 retained_bytes=1169 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1935 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "55a367be5d6dc3fba59dabe70298a0b1e7d63c875426865ea874a48101624a54"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "bc96012009601756d3e713ebae1a6e48b646bb6fd462d36d888ce6dfe2f3e2d5",
+      "duration_s": 26.726,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-C3-land-rejects-serial",
+      "injection_diff_sha256": "a9b7df8a33823b53e6d79eda6204b01b1c6e743387173c844bc703f490e2c86c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "07429b787ed7cf0d53ddfe8a46aef95d04f600c5cfc32c0fd1ea2d9fb7c4ca16",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "new": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\"})",
+          "old": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\", \"serial\"})"
+        }
+      ],
+      "repo_head": "4c980d7af6a6f1dac541fe78c25ea2c897957372",
+      "runner_sha256": "5b84ba7e9c9b8d8454b9bd60c21a89cc20a1688b5e86997d1691aaad408ac127",
+      "spec_sha256": "6e69e05892ff566dcdda519df24c76a674fd49b3cf301b53d51e17df0b82297e",
+      "status": "KILLED",
+      "test_output_sha256": "55a367be5d6dc3fba59dabe70298a0b1e7d63c875426865ea874a48101624a54",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "294675ccfd3ea5a45e1dba3619d15da5775c170dc3f8e095d291e93aa77a463a"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/c0349ad252a2204858fbc6a98f448d91/izdw-c0349ad252.o909826",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/output/pegasus-dispatch/c0349ad252a2204858fbc6a98f448d91/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]\norchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[loadgroup]\n\n2/149 tests collected (147 deselected) in 0.32s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "7b96e72744ac382bb1280602536365855ad57cade6d6a55a3d4101e5f388d93a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[loadgroup]"
+      ],
+      "duration_s": 26.765,
+      "rc": 0,
+      "repo_head": "4c980d7af6a6f1dac541fe78c25ea2c897957372",
+      "runner_sha256": "5b84ba7e9c9b8d8454b9bd60c21a89cc20a1688b5e86997d1691aaad408ac127",
+      "spec_sha256": "6e69e05892ff566dcdda519df24c76a674fd49b3cf301b53d51e17df0b82297e",
+      "status": "PASSED",
+      "tool_sha256": "294675ccfd3ea5a45e1dba3619d15da5775c170dc3f8e095d291e93aa77a463a"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-C3-land-rejects-serial": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a9b7df8a33823b53e6d79eda6204b01b1c6e743387173c844bc703f490e2c86c",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_land.py",
+            "new": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\"})",
+            "old": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\", \"serial\"})"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a7cc47d5ce5b00f406577c46a68b78ee510c0acfd6054799f00d5015d6d64a78",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "-k",
+      "test_land_accepts_effective_scheduler",
+      "orchestrator/tests/test_dev_wave_land.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "4c980d7af6a6f1dac541fe78c25ea2c897957372",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "-k",
+      "test_land_accepts_effective_scheduler",
+      "orchestrator/tests/test_dev_wave_land.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/tools/run_tests.py",
+    "entrypoint_sha256": "d5f029fffa166e1f5796c5b900ddfa4acf73785b46f9a49e31859f4649b09488",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "d5f029fffa166e1f5796c5b900ddfa4acf73785b46f9a49e31859f4649b09488",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "11c58a247354a04cd8def3da04311946cbbe65d7",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "5b84ba7e9c9b8d8454b9bd60c21a89cc20a1688b5e86997d1691aaad408ac127",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "6e69e05892ff566dcdda519df24c76a674fd49b3cf301b53d51e17df0b82297e",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t1062-acceptance-scheduler/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "294675ccfd3ea5a45e1dba3619d15da5775c170dc3f8e095d291e93aa77a463a",
+  "updated_at": "2026-08-13T11:38:45.547564+00:00"
+}
