@@ -54,6 +54,23 @@ title: trigger 軸の semantic admission を build gateway で必須化した (�
   waiver ではなく登録を選んだのは、`AI-Agent-Waiver` が「Codex 不可用時」の免除であり、
   本件は「merge に実装を書いた主体が存在しない」という別事象だからである。
   登録後の監査は rc=0 / known-violations=39 / 新規違反なし。
+- **受入を 3 回実測した。** 1 回目 (tip `6d08a26b`) 1 failed / 10545 passed / 65 skipped、
+  2 回目 (`0a438137`) 4 failed / 10542 passed / 65 skipped、
+  3 回目 (`3bfd0adc`、request 908886.nqsv) 1 failed / 10545 passed / 65 skipped (111.30 秒)。
+  **本記録を足した tip では land 直前にもう一度走らせる** (land は tested tip と wave HEAD の
+  完全一致を要求するため。`dev_wave_land.py` の `wave_head != tested_tip` 検査)。
+  **本 wave に帰属した赤は 2 回目の 1 件だけで、修正済みである** — 既知違反登録に対し
+  台帳 literal を二重に持つメタテスト 2 本が追随していなかった。
+  親が名指ししたのは 1 本で、2 本目は実装子が自ら洗い出した。焦点走 283 passed / rc=0。
+- **`test_codex_worker_launch.py` は全走の並列負荷下でのみ落ちるフレーク族である。**
+  3 回の受入で落ちた node は毎回異なり (1 回目 0 件、2 回目 3 件、3 回目 1 件)、
+  いずれも単独再走で緑 (実測: 2 回目分 9 passed / 3.26 秒、3 回目分 1 passed / 3.10 秒)。
+  失敗述語も `metering_status` 系と `process_group_residual` / `termination_verified` 系で
+  回ごとに異なる。本 wave は同 file を 1 行も触っていない。
+  1 回目の `test_p3_autonomous_workload_trial.py` の赤も 2・3 回目では再現しなかった。
+- 受入を 3 回要したのは、(i) main 取り込み merge の provenance 裁定が 1 回目の後に確定したこと、
+  (ii) 親が fix 子へ「監査ツール本体を走らせよ」とだけ指示し、**そのツールの test file を
+  指定しなかった**ことによる。二重管理された台帳では本体が緑でもメタテストが赤くなる。
 - 逐語・裁定パッケージ (RP-1〜RP-5) = `output/insights/2026-08-13_t897-trigger-admission/`。
 
 ## 次の一手差分

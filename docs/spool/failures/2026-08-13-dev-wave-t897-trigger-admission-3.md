@@ -38,6 +38,21 @@ seq: 3
 - 再発検知: 事前登録の各変異について「その検査を消したとき、他のどの層もその入力を拒否しないこと」を
   実装確定後に 1 件ずつ確認する。確認できないものは登録せず実効 gate へ再照準する。
 
+### {{F:ledger-metatest-not-named-in-fix-prompt}}. 台帳を編集させる fix 指示に、台帳を二重に持つメタテストの test file を書かなかった [手順漏れ]
+
+- 事象: 既知違反台帳 (`tools/check_ai_provenance.py`) へエントリを 1 件足す fix 指示に、
+  検査コマンドとして監査ツール本体の実行だけを書いた。子は rc=0 を確認して完了報告したが、
+  受入全走で `test_check_ai_provenance.py::test_known_violation_ledger_matches_literal_entries` が
+  赤になり、**受入を 1 回余分に消費した**。
+- 根本原因: 当該台帳は「ツール側の literal」と「test 側の literal」を意図的に二重管理している。
+  ツール本体が緑でもメタテストは赤になる。fix 指示に test file を名指ししなかったため、
+  子の検査範囲がツール本体だけになった。追随が必要なメタテストは実際には 2 本あった。
+- 恒久対応: 台帳・定数表・inventory を編集させる指示には、**その台帳を検査する test file を
+  必ず名指しする**。加えて「同種の二重管理を自分で洗い出せ」を指示に入れる
+  (再投入時にこれを入れたところ、親が名指ししなかった 2 本目を子が自ら見つけて直した)。
+- 再発検知: 台帳・定数表を触る commit の前に、その定数名で repo 全体を grep し、
+  test 側に literal の写しがないかを確認する。
+
 ### {{F:mutation-expected-nodes-underdeclared-again}}. 正例 control の期待 node を過少申告して 1 巡目が MISMATCH になった [手順漏れ]
 
 - 事象: 変異 1 巡目は 9/10 KILLED・SURVIVED 0 だったが、正例 control (pristine block の受理経路を
