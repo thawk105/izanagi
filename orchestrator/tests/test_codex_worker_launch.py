@@ -2607,6 +2607,27 @@ def test_unknown_residual_never_verifies_normal_reap(
     assert verified is False
 
 
+def test_transient_unknown_residual_requires_later_exact_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Process:
+        def wait(self) -> int:
+            return 0
+
+    observations: Any = iter([None, 1, 0])
+    monkeypatch.setattr(
+        LAUNCHER, "_group_member_count", lambda _identity: next(observations)
+    )
+    identity = LAUNCHER.PidIdentity(
+        pid=os.getpid(), boot_id="synthetic", start_ticks=1
+    )
+
+    residual, verified = LAUNCHER._normal_reap(Process(), identity)
+
+    assert residual == 0
+    assert verified is True
+
+
 def test_cumulative_limits_do_not_reset_between_attempts(
     tmp_path: Path,
 ) -> None:
@@ -3711,7 +3732,7 @@ def test_check_receipt_rechecks_all_manifest_header_fields(
     field: str,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", expected_returncode=0, max_wall="6"
     )
     assert receipt is not None
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))

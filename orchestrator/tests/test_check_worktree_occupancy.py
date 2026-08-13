@@ -793,38 +793,108 @@ def test_real_proc_cmdline_positive_control(tmp_path: Path):
                 child.wait(timeout=5.0)
 
 
-def test_real_proc_unoccupied_directory_returns_zero(tmp_path: Path):
-    proc_root = Path("/proc")
-    if not proc_root.is_dir():
-        pytest.skip("/proc is unavailable")
-    unreadable_cmdlines: list[int] = []
-    try:
-        pid_dirs = [entry for entry in proc_root.iterdir() if entry.name.isdecimal()]
-    except OSError as exc:
-        pytest.skip(f"cannot enumerate /proc: {type(exc).__name__}")
-    for pid_dir in pid_dirs:
-        try:
-            (pid_dir / "cmdline").read_bytes()
-        except FileNotFoundError:
-            if pid_dir.exists():
-                unreadable_cmdlines.append(int(pid_dir.name))
-        except OSError:
-            unreadable_cmdlines.append(int(pid_dir.name))
-    if unreadable_cmdlines:
-        pytest.skip("numeric /proc PID cmdline is not universally readable")
-
+def test_real_proc_unoccupied_directory_returns_zero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
     target = tmp_path / "unoccupied-worktree"
     target.mkdir()
-    completed = subprocess.run(
-        [sys.executable, str(checker._CHECKER_PATH), str(target)],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=20.0,
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+    ready_read, ready_write = os.pipe()
+    release_read, release_write = os.pipe()
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import os,sys; os.write(int(sys.argv[1]),b'1'); "
+            "os.read(int(sys.argv[2]),1)",
+            str(ready_write),
+            str(release_read),
+        ],
+        cwd=outside,
+        pass_fds=(ready_write, release_read),
     )
+    os.close(ready_write)
+    os.close(release_read)
+    try:
+        readable, _, _ = select.select([ready_read], [], [], 5.0)
+        assert readable, "child readiness handshake timed out"
+        assert os.read(ready_read, 1) == b"1"
+        (proc_root / str(child.pid)).symlink_to(
+            Path("/proc") / str(child.pid), target_is_directory=True
+        )
 
-    assert completed.returncode == 0, completed.stdout
-    payload = json.loads(completed.stdout)
-    assert payload["status"] == "unoccupied"
-    assert payload["issues"] == []
-    assert payload["scanned"] > 0
+        rc = checker.main(
+            [str(target)], proc_root=proc_root, self_pid=-1, parent_pid=-1
+        )
+
+        payload = json.loads(capsys.readouterr().out)
+        assert rc == 0
+        assert payload["status"] == "unoccupied"
+        assert payload["issues"] == []
+        assert payload["scanned"] == 1
+    finally:
+        os.close(ready_read)
+        try:
+            os.write(release_write, b"1")
+        except BrokenPipeError:
+            pass
+        os.close(release_write)
+        try:
+            child.wait(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.wait(timeout=5.0)
+
+
+def test_standalone_cli_real_proc_occupied_positive_control(tmp_path: Path):
+    if not Path("/proc").is_dir():
+        pytest.skip("/proc is unavailable")
+    target = tmp_path / "occupied-worktree"
+    target.mkdir()
+    ready_read, ready_write = os.pipe()
+    release_read, release_write = os.pipe()
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import os,sys; os.write(int(sys.argv[1]),b'1'); "
+            "os.read(int(sys.argv[2]),1)",
+            str(ready_write),
+            str(release_read),
+        ],
+        cwd=target,
+        pass_fds=(ready_write, release_read),
+    )
+    os.close(ready_write)
+    os.close(release_read)
+    try:
+        readable, _, _ = select.select([ready_read], [], [], 5.0)
+        assert readable, "child readiness handshake timed out"
+        assert os.read(ready_read, 1) == b"1"
+        completed = subprocess.run(
+            [sys.executable, str(checker._CHECKER_PATH), str(target)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20.0,
+        )
+
+        assert completed.returncode == 1, completed.stdout
+        payload = json.loads(completed.stdout)
+        assert payload["status"] == "occupied"
+        assert child.pid in {occupant["pid"] for occupant in payload["occupants"]}
+    finally:
+        os.close(ready_read)
+        try:
+            os.write(release_write, b"1")
+        except BrokenPipeError:
+            pass
+        os.close(release_write)
+        try:
+            child.wait(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.wait(timeout=5.0)
