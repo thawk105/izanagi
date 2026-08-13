@@ -45,6 +45,18 @@ title: trigger-gating の凍結領域を post-END の gated call まで広げ、
   `dev_wave_codex.py` は `<root>/<wave>/` までしか作らない。** launcher を直接叩く運用では必ず空振りし、
   本 wave は 2 回失敗した。`--evidence-grace-s` の既定は今も 5 秒である。
 - 変異本走で {{F:mutation-shared-tree-postcheck}} を踏み、1 走を捨てて再走した。
+- 受入全走は 2 failed / 10782 passed / 65 skipped (140.16 秒、計算ノード)。赤 2 件は
+  `test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler` ([T-1066]) と
+  `test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[xhigh]` (F57 の
+  `process_group_residual` / `termination_verified`) で、**単独再走 6 passed / rc=0** で再現しない。
+  いずれも既知で本 wave の差分に帰属しない。
+- **非帰属 checker が実運用に到達しないことを再確認した。** `tools/check_acceptance_reds.py` は
+  裁定済み・未実装の [T-1053] により、赤を 1 件でも含む実 log に対して必ず rc=2
+  (`probe worktree is not clean, including ignored files`) になる。受入前に親が ignored 生成物を
+  撤去しても、checker 自身の子が probe worktree の中で pytest を dispatch して `__pycache__` を
+  再生成するため解けない。`DW-O18` に従い rc=2 を非帰属の根拠にはせず、単独再走で確定した。
+  1 回目の受入は入れ子 submodule `third_party/googletest` の未初期化で
+  `preflight-submodule-ready` rc=2 になり、再帰初期化で解いた。
 - 放置した場合、END 行末と gated call の間へ 1 行差し込むだけで、report が mask M を主張しながら
   実バイナリは全要因 backoff で走る状態が残り続ける。
 

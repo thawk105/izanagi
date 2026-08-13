@@ -104,7 +104,17 @@ admission 外であり、純増の対象ではない。
 | 変異 1 巡目 (probe) | baseline PASSED、MUT-1 KILLED / MUT-2 MISMATCH / MUT-3 KILLED |
 | 変異 2 巡目 (中止) | 全結果は KILLED だったが、走行中に親が README を書いたため共有木の事後検査が rc=125 で中止した (F106 の 6 度目) |
 | 変異 3 巡目 (本走) | **baseline PASSED、3/3 KILLED、期待 node 完全一致、MISMATCH 0 / SURVIVED 0、rc=0** (tip 7b15aff6) |
+| 受入全走 (1 回目) | 走行前に `preflight-submodule-ready` rc=2 (入れ子 `third_party/googletest` 未初期化)。再帰初期化で解いた |
+| 受入全走 (2 回目) | **2 failed / 10782 passed / 65 skipped (140.16 秒)**、計算ノード、tip 56836799 |
+| 赤 2 件の帰属 | 単独再走 **6 passed / rc=0** で再現せず。既知 [T-1066] と F57 の再発で、本 wave の差分に帰属しない |
 | AI provenance | 全史 rc=0、新規違反なし (既知 known-violations=39) |
+
+**非帰属 checker は使えなかった。** `tools/check_acceptance_reds.py` は裁定済み・未実装の [T-1053]
+(dispatch の env allowlist に `PYTHONDONTWRITEBYTECODE` を足す) により、**赤を 1 件でも含む実 log に
+対して必ず `rc=2` (probe worktree is not clean, including ignored files) になる。** `DW-O18` は
+「rc=2 は判定不能で非帰属の根拠にしない」と定めているため、帰属は単独再走の実測で確定した。
+受入前に ignored 生成物を撤去しても、checker 自身の子が probe worktree の中で pytest を dispatch して
+`__pycache__` を再生成するため、親側の掃除では解けない。
 
 焦点走の赤 `test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed`
 (`operation_id was already used with different payload bytes`) は、`_OPERATION_REPLAY_CACHE` が
