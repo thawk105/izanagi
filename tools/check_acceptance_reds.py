@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import signal
 import stat
 import subprocess
@@ -15,11 +16,16 @@ import sys
 import tempfile
 import unicodedata
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, NamedTuple, Sequence
 
 
 _SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
 _MAX_LOG_BYTES = 64 * 1024 * 1024
+_MAX_DISPATCH_RECEIPT_BYTES = 8 * 1024 * 1024
+# dispatch_compute may spend 900s queued, then reset its deadline to
+# 3600s RUN time + 300s grace, followed by 60s of accounting.  Keep this
+# outer timeout above that 4860s authority so dispatch reports its own timeout.
+_DISPATCH_TIMEOUT_SECONDS = 5100.0
 _SUMMARY_HEADER = re.compile(r"^={3,} short test summary info ={3,}$")
 _SUMMARY_LINE = re.compile(r"^={3,} (?P<body>.+) ={3,}$")
 _OUTCOME_LINE = re.compile(
@@ -30,11 +36,58 @@ _DURATION = re.compile(r"[0-9]+(?:\.[0-9]+)?s(?: \([^()]+\))?")
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _SHA1 = re.compile(r"[0-9a-f]{40}")
 _DISPATCH_LINE_PREFIX = "| "
+_DISPATCH_CONTROL_PREFIX = "[Pegasus dispatch] "
+_DISPATCH_RECEIPT_LINE = re.compile(
+    r"^\[Pegasus dispatch\] receipt を (?P<path>/[^\r\n]*) "
+    r"へ保存しました \(child rc=(?P<rc>[0-9]+)\)$"
+)
+_DISPATCH_RECEIPT_SCHEMA = "pegasus-dispatch-receipt/v2"
+_DISPATCH_NONCE = re.compile(r"[A-Za-z0-9._-]+")
+_REQUEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_COLLECTION_FOOTER = re.compile(
+    r"(?:(?P<single>1) test collected|"
+    r"(?P<plural>(?:[2-9]|[1-9][0-9]+)) tests collected|"
+    r"(?P<selected>[0-9]+)/(?P<total>[0-9]+) tests collected "
+    r"\((?P<deselected>[0-9]+) deselected\)|"
+    r"no tests collected(?: \((?P<none_deselected>[0-9]+) deselected\))?) "
+    rf"in (?P<duration>{_DURATION.pattern})"
+)
+_PYTEST_SELECTION_ENV = frozenset({
+    "PYTEST_ADDOPTS",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    "PYTEST_PLUGINS",
+    "IZANAGI_RUN_GROWTH_HELD_TESTS",
+    "IZANAGI_T080_E2E",
+})
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 NodeRunner = Callable[[Path, str], int]
-CollectionRunner = Callable[[Path, str], Sequence[str]]
 SubmoduleReceipt = tuple[Mapping[str, str], ...]
+
+
+class _CollectionEvidence(NamedTuple):
+    path: str
+    source: str
+    deleted_receipt_path: str | None
+    submission_nonce: str | None
+    request_id: str | None
+    stdout_sha256: str | None
+
+
+class _CollectionResult(NamedTuple):
+    nodeids: tuple[str, ...]
+    evidence: _CollectionEvidence
+
+
+CollectionRunner = Callable[[Path, str], Sequence[str] | _CollectionResult]
+
+
+class _DispatchArtifacts(NamedTuple):
+    root: Path
+    receipt_path: Path
+    submission_dir: Path
+    fallback_receipt: Path | None
+    nonce: str
 
 
 class InvalidInput(RuntimeError):
@@ -55,6 +108,333 @@ def _payload_line(line: str) -> str:
     if line.startswith(_DISPATCH_LINE_PREFIX):
         return line[len(_DISPATCH_LINE_PREFIX):]
     return line
+
+
+def _has_control_character(value: str) -> bool:
+    return any(unicodedata.category(character) == "Cc" for character in value)
+
+
+def _read_regular_file(path: Path, *, limit: int, label: str) -> bytes:
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise InvalidInput(f"O_NOFOLLOW is unavailable for {label}")
+    flags = os.O_RDONLY | nofollow | getattr(os, "O_CLOEXEC", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise InvalidInput(f"cannot open {label}: {exc}") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise InvalidInput(f"{label} is not a regular file")
+        if before.st_size > limit:
+            raise InvalidInput(f"{label} exceeds its size cap")
+        chunks: list[bytes] = []
+        remaining = limit + 1
+        while remaining:
+            chunk = os.read(descriptor, min(65536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        raw = b"".join(chunks)
+        after = os.fstat(descriptor)
+        identity_before = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        )
+        identity_after = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        )
+        if len(raw) > limit:
+            raise InvalidInput(f"{label} exceeds its read cap")
+        if identity_before != identity_after or len(raw) != before.st_size:
+            raise InvalidInput(f"{label} changed while it was read")
+        return raw
+    except OSError as exc:
+        raise InvalidInput(f"cannot read {label}: {exc}") from exc
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            raise InvalidInput(f"cannot close {label}: {exc}") from exc
+
+
+def _path_is_nfc_without_controls(path: Path) -> bool:
+    value = str(path)
+    return unicodedata.normalize("NFC", value) == value and not _has_control_character(
+        value
+    )
+
+
+def _assert_no_symlink_components(root: Path, path: Path, *, label: str) -> None:
+    try:
+        relative = path.relative_to(root)
+    except ValueError as exc:
+        raise InvalidInput(f"{label} is outside the dispatch root") from exc
+    current = root
+    if current.is_symlink():
+        raise InvalidInput("dispatch root is a symlink")
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise InvalidInput(f"{label} traverses a symlink")
+
+
+def _dispatch_receipt_path(
+    stdout: str, returncode: int,
+) -> Path | None:
+    matches = [
+        match
+        for line in stdout.splitlines()
+        if (match := _DISPATCH_RECEIPT_LINE.fullmatch(line)) is not None
+    ]
+    has_dispatch_control = any(
+        line.startswith(_DISPATCH_CONTROL_PREFIX) for line in stdout.splitlines()
+    )
+    if not matches:
+        if has_dispatch_control:
+            raise InvalidInput(
+                "dispatch output has no unique non-relay receipt announcement"
+            )
+        return None
+    if len(matches) != 1:
+        raise InvalidInput("dispatch receipt announcement is non-unique")
+    match = matches[0]
+    if int(match.group("rc"), 10) != returncode:
+        raise InvalidInput("dispatch receipt announcement child rc mismatch")
+    value = match.group("path")
+    path = Path(value)
+    if not path.is_absolute() or not _path_is_nfc_without_controls(path):
+        raise InvalidInput("dispatch receipt path is not an absolute safe NFC path")
+    return path
+
+
+def _dispatch_artifacts(receipt_path: Path, worktree: Path) -> _DispatchArtifacts:
+    root_path = worktree / "output" / "pegasus-dispatch"
+    try:
+        root = root_path.resolve(strict=True)
+        worktree_resolved = worktree.resolve(strict=True)
+    except OSError as exc:
+        raise InvalidInput(f"dispatch receipt root cannot be resolved: {exc}") from exc
+    try:
+        receipt_resolved = receipt_path.resolve(strict=True)
+    except OSError as exc:
+        raise InvalidInput(f"dispatch receipt cannot be resolved: {exc}") from exc
+
+    fallback_receipt: Path | None = None
+    preferred_shape = (
+        receipt_path.parent.parent == root and receipt_path.name == "receipt.json"
+    )
+    fallback_shape = (
+        receipt_path.parent == root
+        and receipt_path.name.startswith("receipt-fallback-")
+        and receipt_path.name.endswith(".json")
+    )
+    if receipt_path.name == "receipt.json":
+        nonce = receipt_path.parent.name
+        submission_dir = receipt_path.parent
+    elif (
+        receipt_path.name.startswith("receipt-fallback-")
+        and receipt_path.name.endswith(".json")
+    ):
+        nonce = receipt_path.name[len("receipt-fallback-"):-len(".json")]
+        submission_dir = root / nonce
+        fallback_receipt = receipt_path
+    else:
+        nonce = receipt_path.parent.name
+        submission_dir = receipt_path.parent
+
+    location_valid = False
+    try:
+        _assert_no_symlink_components(root, receipt_path, label="dispatch receipt")
+        _assert_no_symlink_components(root, submission_dir, label="dispatch submission")
+        submission_resolved = submission_dir.resolve(strict=True)
+    except (InvalidInput, OSError):
+        pass
+    else:
+        location_valid = (
+            root.is_dir()
+            and root == worktree_resolved / "output" / "pegasus-dispatch"
+            and receipt_resolved == receipt_path
+            and (preferred_shape or fallback_shape)
+            and submission_dir.is_dir()
+            and submission_resolved == submission_dir
+        )
+    if not location_valid:
+        raise InvalidInput("dispatch receipt has an invalid location")
+    if _DISPATCH_NONCE.fullmatch(nonce) is None or nonce in {".", ".."}:
+        raise InvalidInput("dispatch receipt nonce directory is invalid")
+    return _DispatchArtifacts(
+        root=root,
+        receipt_path=receipt_path,
+        submission_dir=submission_dir,
+        fallback_receipt=fallback_receipt,
+        nonce=nonce,
+    )
+
+
+def _required_mapping(value: Any, label: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise InvalidInput(f"dispatch receipt {label} is not an object")
+    return value
+
+
+def _read_dispatch_receipt(
+    artifacts: _DispatchArtifacts,
+    *,
+    expected_args: Sequence[str],
+    returncode: int,
+) -> tuple[str, _CollectionEvidence]:
+    raw = _read_regular_file(
+        artifacts.receipt_path,
+        limit=_MAX_DISPATCH_RECEIPT_BYTES,
+        label="dispatch receipt",
+    )
+    try:
+        document = json.loads(raw.decode("utf-8", errors="strict"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise InvalidInput(f"dispatch receipt is not canonical UTF-8 JSON: {exc}") from exc
+    receipt = _required_mapping(document, "root")
+    if receipt.get("schema_version") != _DISPATCH_RECEIPT_SCHEMA:
+        raise InvalidInput("dispatch receipt schema_version is not v2")
+    if receipt.get("submission_dir") != str(artifacts.submission_dir):
+        raise InvalidInput("dispatch receipt submission_dir mismatch")
+
+    request = _required_mapping(receipt.get("request"), "request")
+    if request.get("task") != "tests" or request.get("args") != list(expected_args):
+        raise InvalidInput("dispatch receipt request task/args mismatch")
+    request_id = receipt.get("request_id")
+    if type(request_id) is not str or _REQUEST_ID.fullmatch(request_id) is None:
+        raise InvalidInput("dispatch receipt request_id is invalid")
+
+    result = _required_mapping(receipt.get("result"), "result")
+    child_rc = result.get("child_rc")
+    if (
+        result.get("stage") != "child"
+        or type(child_rc) is not int
+        or child_rc != returncode
+    ):
+        raise InvalidInput("dispatch receipt child result mismatch")
+    outcome = _required_mapping(receipt.get("outcome"), "outcome")
+    outcome_rc = outcome.get("rc")
+    if (
+        outcome.get("kind") != "child"
+        or type(outcome_rc) is not int
+        or outcome_rc != returncode
+        or outcome.get("accounting_verified") is not True
+    ):
+        raise InvalidInput("dispatch receipt child outcome is not verified")
+
+    scheduler_logs = _required_mapping(
+        receipt.get("scheduler_logs"), "scheduler_logs"
+    )
+    if scheduler_logs.get("accounting_present") is not True:
+        raise InvalidInput("dispatch receipt scheduler accounting is missing")
+    stdout_record = _required_mapping(
+        scheduler_logs.get("stdout"), "scheduler_logs.stdout"
+    )
+    stdout_path_value = stdout_record.get("path")
+    if type(stdout_path_value) is not str:
+        raise InvalidInput("dispatch receipt scheduler stdout path is invalid")
+    stdout_path = Path(stdout_path_value)
+    if not stdout_path.is_absolute() or not _path_is_nfc_without_controls(stdout_path):
+        raise InvalidInput("dispatch receipt scheduler stdout path is unsafe")
+    try:
+        stdout_resolved = stdout_path.resolve(strict=True)
+    except OSError as exc:
+        raise InvalidInput(f"dispatch scheduler stdout cannot be resolved: {exc}") from exc
+    _assert_no_symlink_components(
+        artifacts.submission_dir, stdout_path, label="dispatch scheduler stdout"
+    )
+    if stdout_resolved != stdout_path or not stdout_path.is_file():
+        raise InvalidInput("dispatch scheduler stdout is not a canonical regular file")
+
+    size = stdout_record.get("size")
+    omitted_bytes = stdout_record.get("omitted_bytes")
+    tail = stdout_record.get("tail")
+    if type(size) is not int or size < 0:
+        raise InvalidInput("dispatch receipt scheduler stdout size is invalid")
+    if type(omitted_bytes) is not int or omitted_bytes < 0:
+        raise InvalidInput("dispatch receipt scheduler stdout omitted_bytes is invalid")
+    if type(tail) is not str:
+        raise InvalidInput("dispatch receipt scheduler stdout tail is invalid")
+    if "\ufffd" in tail:
+        raise InvalidInput("dispatch receipt scheduler stdout contains decode replacement")
+    if omitted_bytes != 0:
+        raise InvalidInput("dispatch receipt scheduler stdout is truncated")
+    if size != len(tail.encode("utf-8")):
+        raise InvalidInput("dispatch receipt scheduler stdout size mismatch")
+    return tail, _CollectionEvidence(
+        path="",
+        source="dispatch-receipt",
+        deleted_receipt_path=str(artifacts.receipt_path),
+        submission_nonce=artifacts.nonce,
+        request_id=request_id,
+        stdout_sha256=hashlib.sha256(tail.encode("utf-8")).hexdigest(),
+    )
+
+
+def _cleanup_dispatch_artifacts(artifacts: _DispatchArtifacts) -> None:
+    failures: list[str] = []
+    try:
+        shutil.rmtree(artifacts.submission_dir)
+    except OSError as exc:
+        failures.append(f"nonce directory removal failed: {exc}")
+    if artifacts.fallback_receipt is not None:
+        try:
+            artifacts.fallback_receipt.unlink()
+        except OSError as exc:
+            failures.append(f"fallback receipt removal failed: {exc}")
+    try:
+        artifacts.root.rmdir()
+    except OSError as exc:
+        failures.append(f"dispatch root removal failed: {exc}")
+    if artifacts.submission_dir.exists() or artifacts.submission_dir.is_symlink():
+        failures.append("nonce directory remains")
+    if artifacts.fallback_receipt is not None and (
+        artifacts.fallback_receipt.exists() or artifacts.fallback_receipt.is_symlink()
+    ):
+        failures.append("fallback receipt remains")
+    if artifacts.root.exists() or artifacts.root.is_symlink():
+        failures.append("dispatch root remains")
+    if failures:
+        raise InvalidInput("dispatch artifact cleanup failed: " + "; ".join(failures))
+
+
+def _authoritative_command_stdout(
+    result: subprocess.CompletedProcess[str],
+    *,
+    worktree: Path,
+    expected_args: Sequence[str],
+) -> tuple[str, _CollectionEvidence]:
+    relay_stdout = result.stdout or ""
+    receipt_path = _dispatch_receipt_path(relay_stdout, int(result.returncode))
+    if receipt_path is None:
+        if "\ufffd" in relay_stdout:
+            raise InvalidInput("local pytest stdout contains decode replacement")
+        return relay_stdout, _CollectionEvidence(
+            path="",
+            source="local",
+            deleted_receipt_path=None,
+            submission_nonce=None,
+            request_id=None,
+            stdout_sha256=hashlib.sha256(relay_stdout.encode("utf-8")).hexdigest(),
+        )
+    artifacts = _dispatch_artifacts(receipt_path, worktree)
+    try:
+        return _read_dispatch_receipt(
+            artifacts,
+            expected_args=expected_args,
+            returncode=int(result.returncode),
+        )
+    finally:
+        _cleanup_dispatch_artifacts(artifacts)
 
 
 def _terminal_counts(line: str) -> Mapping[str, int] | None:
@@ -276,11 +656,14 @@ def _completed(
     capture_output: bool = True,
     timeout: float | None = 120.0,
     environment_overrides: Mapping[str, str] | None = None,
+    environment_removals: Sequence[str] = (),
 ) -> subprocess.CompletedProcess[str]:
     environment = {
         key: value for key, value in os.environ.items() if not key.startswith("GIT_")
     }
     environment["GIT_TERMINAL_PROMPT"] = "0"
+    for key in environment_removals:
+        environment.pop(key, None)
     if environment_overrides:
         environment.update(environment_overrides)
     try:
@@ -295,6 +678,31 @@ def _completed(
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise InvalidInput(f"command could not be completed: {type(exc).__name__}: {exc}") from exc
+
+
+def _pytest_environment() -> tuple[Mapping[str, str], tuple[str, ...]]:
+    return (
+        {
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTEST_ADDOPTS": "",
+        },
+        tuple(sorted(_PYTEST_SELECTION_ENV - {"PYTEST_ADDOPTS"})),
+    )
+
+
+def _absolute_pytest_target(worktree: Path, target: str) -> str:
+    path_text, separator, suffix = target.partition("::")
+    try:
+        absolute_path = (worktree / path_text).resolve(strict=False)
+    except OSError as exc:
+        raise InvalidInput(f"pytest target cannot be normalized: {exc}") from exc
+    return str(absolute_path) + (separator + suffix if separator else "")
+
+
+def _expected_dispatch_args(worktree: Path, pytest_args: Sequence[str]) -> list[str]:
+    if not pytest_args:
+        raise InvalidInput("pytest dispatch argv has no target")
+    return [*pytest_args[:-1], _absolute_pytest_target(worktree, pytest_args[-1])]
 
 
 def _git(
@@ -449,28 +857,104 @@ def _cleanup_probe(
         raise InvalidInput("probe cleanup failed: " + "; ".join(failures))
 
 
+def _complete_collected_nodeids(stdout: str, path_text: str) -> tuple[str, ...]:
+    lines = [
+        _ANSI_ESCAPE.sub("", _payload_line(line)).strip()
+        for line in stdout.splitlines()
+    ]
+    footer_candidates = [
+        line
+        for line in lines
+        if re.match(r"^(?:no|[0-9]+(?:/[0-9]+)?) tests? collected\b", line)
+    ]
+    if len(footer_candidates) != 1:
+        raise InvalidInput("pytest collection footer is missing or non-unique")
+    footer = _COLLECTION_FOOTER.fullmatch(footer_candidates[0])
+    if footer is None:
+        raise InvalidInput("pytest collection footer has an unknown format")
+    if footer.group("single") is not None:
+        selected = 1
+    elif footer.group("plural") is not None:
+        selected = int(footer.group("plural"), 10)
+    elif footer.group("selected") is not None:
+        selected = int(footer.group("selected"), 10)
+        total = int(footer.group("total"), 10)
+        deselected = int(footer.group("deselected"), 10)
+        if selected + deselected != total:
+            raise InvalidInput("pytest collection footer deselection arithmetic mismatch")
+    else:
+        selected = 0
+    if selected == 0:
+        raise InvalidInput("pytest collection selected zero tests")
+
+    nodeids = [
+        line
+        for line in lines
+        if line == path_text or line.startswith(f"{path_text}::")
+    ]
+    if len(nodeids) != len(set(nodeids)):
+        raise InvalidInput("pytest collect-only returned duplicate nodeids")
+    if len(nodeids) != selected:
+        raise InvalidInput(
+            "collection footer count mismatch: "
+            f"selected={selected} nodeids={len(nodeids)} path={path_text!r}"
+        )
+    return tuple(sorted(nodeids))
+
+
+def _rerun_output_proves_red(stdout: str, selector: str) -> bool:
+    try:
+        references = parse_pytest_log(stdout.encode("utf-8"))
+    except (InvalidInput, UnicodeEncodeError):
+        return False
+    for reference in references:
+        try:
+            selected, _logged = _selector_from_collection(reference, (selector,))
+        except InvalidInput:
+            continue
+        if selected == selector:
+            return True
+    return False
+
+
 def _default_node_runner(
     worktree: Path,
     nodeid: str,
     *,
     command_runner: CommandRunner,
 ) -> int:
-    command = [
-        sys.executable,
-        str(worktree / "tools" / "run_tests.py"),
-        "--force-dispatch",
+    pytest_args = [
         "-p",
         "no:cacheprovider",
         nodeid,
     ]
+    command = [
+        sys.executable,
+        str(worktree / "tools" / "run_tests.py"),
+        "--force-dispatch",
+        *pytest_args,
+    ]
+    environment_overrides, environment_removals = _pytest_environment()
     result = _completed(
         command_runner,
         command,
         cwd=worktree,
-        capture_output=False,
-        timeout=None,
-        environment_overrides={"PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        timeout=_DISPATCH_TIMEOUT_SECONDS,
+        environment_overrides=environment_overrides,
+        environment_removals=environment_removals,
     )
+    authoritative_stdout, _evidence = _authoritative_command_stdout(
+        result,
+        worktree=worktree,
+        expected_args=_expected_dispatch_args(worktree, pytest_args),
+    )
+    if result.returncode == 1 and not _rerun_output_proves_red(
+        authoritative_stdout, nodeid
+    ):
+        raise InvalidInput(
+            f"single-node rerun rc=1 lacks matching FAILED/ERROR outcome: {nodeid!r}"
+        )
     return int(result.returncode)
 
 
@@ -479,40 +963,50 @@ def _default_collection_runner(
     path_text: str,
     *,
     command_runner: CommandRunner,
-) -> tuple[str, ...]:
-    command = [
-        sys.executable,
-        str(worktree / "tools" / "run_tests.py"),
-        "--force-dispatch",
+) -> _CollectionResult:
+    pytest_args = [
         "-p",
         "no:cacheprovider",
         "--collect-only",
         "-q",
         path_text,
     ]
+    command = [
+        sys.executable,
+        str(worktree / "tools" / "run_tests.py"),
+        "--force-dispatch",
+        *pytest_args,
+    ]
+    environment_overrides, environment_removals = _pytest_environment()
     result = _completed(
         command_runner,
         command,
         cwd=worktree,
-        environment_overrides={"PYTHONDONTWRITEBYTECODE": "1"},
+        timeout=_DISPATCH_TIMEOUT_SECONDS,
+        environment_overrides=environment_overrides,
+        environment_removals=environment_removals,
+    )
+    authoritative_stdout, evidence = _authoritative_command_stdout(
+        result,
+        worktree=worktree,
+        expected_args=_expected_dispatch_args(worktree, pytest_args),
     )
     if result.returncode != 0:
         raise InvalidInput(
             f"pytest collect-only failed for logged path: {path_text!r} rc={result.returncode}"
         )
-    nodeids = {
-        line
-        for raw_line in result.stdout.splitlines()
-        if (
-            (line := _payload_line(raw_line).strip()) == path_text
-            or line.startswith(f"{path_text}::")
-        )
-    }
-    if not nodeids:
-        raise InvalidInput(
-            f"pytest collect-only returned no machine-matchable nodeids: {path_text!r}"
-        )
-    return tuple(sorted(nodeids))
+    nodeids = _complete_collected_nodeids(authoritative_stdout, path_text)
+    return _CollectionResult(
+        nodeids=nodeids,
+        evidence=_CollectionEvidence(
+            path=path_text,
+            source=evidence.source,
+            deleted_receipt_path=evidence.deleted_receipt_path,
+            submission_nonce=evidence.submission_nonce,
+            request_id=evidence.request_id,
+            stdout_sha256=evidence.stdout_sha256,
+        ),
+    )
 
 
 def _initialize_submodules_cache_only(
@@ -672,7 +1166,13 @@ def _probe_nodes(
     node_runner: NodeRunner | None,
     collection_runner: CollectionRunner | None,
     command_runner: CommandRunner,
-) -> tuple[dict[str, int], tuple[str, ...], tuple[str, ...], SubmoduleReceipt]:
+) -> tuple[
+    dict[str, int],
+    tuple[str, ...],
+    tuple[str, ...],
+    SubmoduleReceipt,
+    tuple[_CollectionEvidence, ...],
+]:
     rerun_rcs: dict[str, int] = {}
     attributable: list[str] = []
     selected_runner: NodeRunner
@@ -689,6 +1189,7 @@ def _probe_nodes(
     else:
         selected_collection_runner = collection_runner
     logged_nodeids: list[str] = []
+    collection_evidence: list[_CollectionEvidence] = []
     submodule_receipt: SubmoduleReceipt | None = None
     for reference in sorted(nodeids):
         parent = Path(
@@ -719,7 +1220,22 @@ def _probe_nodes(
                 worktree, tested_main, command_runner=command_runner
             )
             path_text = reference.split("::", 1)[0]
-            collected = selected_collection_runner(worktree, path_text)
+            collection_output = selected_collection_runner(worktree, path_text)
+            if isinstance(collection_output, _CollectionResult):
+                collected = collection_output.nodeids
+                collection_evidence.append(collection_output.evidence)
+            else:
+                collected = tuple(collection_output)
+                collection_evidence.append(
+                    _CollectionEvidence(
+                        path=path_text,
+                        source="injected-runner",
+                        deleted_receipt_path=None,
+                        submission_nonce=None,
+                        request_id=None,
+                        stdout_sha256=None,
+                    )
+                )
             selector, logged_nodeid = _selector_from_collection(reference, collected)
             if logged_nodeid in rerun_rcs:
                 raise InvalidInput(
@@ -778,6 +1294,7 @@ def _probe_nodes(
         tuple(sorted(attributable)),
         tuple(sorted(logged_nodeids)),
         submodule_receipt or (),
+        tuple(collection_evidence),
     )
 
 
@@ -903,8 +1420,9 @@ def check_acceptance_reds(
     attributable: tuple[str, ...] = ()
     nodeids: tuple[str, ...] = ()
     submodules: SubmoduleReceipt = ()
+    collections: tuple[_CollectionEvidence, ...] = ()
     if references:
-        rerun_rcs, attributable, nodeids, submodules = _probe_nodes(
+        rerun_rcs, attributable, nodeids, submodules, collections = _probe_nodes(
             repo,
             probe,
             tested_main,
@@ -934,6 +1452,17 @@ def check_acceptance_reds(
     _write_receipt(
         receipt_path,
         {
+            "collections": [
+                {
+                    "path": item.path,
+                    "deleted_receipt_path": item.deleted_receipt_path,
+                    "request_id": item.request_id,
+                    "source": item.source,
+                    "stdout_sha256": item.stdout_sha256,
+                    "submission_nonce": item.submission_nonce,
+                }
+                for item in collections
+            ],
             "log_path": str(log_path),
             "log_sha256": log_sha256,
             "nodes": nodes,
