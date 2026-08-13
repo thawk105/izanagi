@@ -443,6 +443,16 @@ def _checker_receipt_bytes(
     return (
         json.dumps(
             {
+                "collections": [
+                    {
+                        "deleted_receipt_path": None,
+                        "path": "orchestrator/tests/test_known.py",
+                        "request_id": None,
+                        "source": "local",
+                        "stdout_sha256": "f" * 64,
+                        "submission_nonce": None,
+                    }
+                ],
                 "log_path": str(_LOG),
                 "log_sha256": (
                     hashlib.sha256(fake.logged_bytes).hexdigest()
@@ -833,6 +843,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
             self.byte_files[checker_receipt] = (
                 json.dumps(
                     {
+                        "collections": [],
                         "log_path": option("--log"),
                         "log_sha256": hashlib.sha256(self.logged_bytes).hexdigest(),
                         "nodes": [],
@@ -1542,6 +1553,58 @@ def test_checker_receipt_log_hash_mismatch_is_rejected() -> None:
 
     assert outcome == DW._Outcome(70, "acceptance-red-check")
     assert fake.receipt_content is None
+    fake.assert_drained()
+
+
+def test_checker_receipt_without_collections_is_rejected() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    checker_raw = _queue_checker(fake)
+    payload = json.loads(checker_raw)
+    del payload["collections"]
+    fake.byte_files[_CHECKER_RECEIPT] = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("ascii")
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-red-check")
+    assert fake.receipt_content is None
+    fake.assert_drained()
+
+
+def test_checker_receipt_collection_with_unknown_field_is_rejected() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    checker_raw = _queue_checker(fake)
+    payload = json.loads(checker_raw)
+    payload["collections"][0]["unknown"] = "rejected"
+    fake.byte_files[_CHECKER_RECEIPT] = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("ascii")
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "acceptance-red-check")
+    assert fake.receipt_content is None
+    fake.assert_drained()
+
+
+def test_checker_receipt_with_current_collections_schema_is_accepted() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    _queue_checker(fake)
+    _queue_non_attributable_receipt_tail(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(0)
+    assert json.loads(fake.receipt_content)["verdict"] == "non-attributable-only"
     fake.assert_drained()
 
 

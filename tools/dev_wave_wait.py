@@ -1393,9 +1393,14 @@ def _verify_red_check_receipt(
     except UnicodeError:
         raise _StageFailure(stage) from None
     expected_fields = {
-        "log_path", "log_sha256", "nodes", "schema_version", "status",
-        "submodules", "tested_main", "wave_tip",
+        "collections", "log_path", "log_sha256", "nodes", "schema_version",
+        "status", "submodules", "tested_main", "wave_tip",
     }
+    expected_collection_fields = {
+        "deleted_receipt_path", "path", "request_id", "source",
+        "stdout_sha256", "submission_nonce",
+    }
+    collections = receipt.get("collections")
     nodes = receipt.get("nodes")
     if not (
         set(receipt) == expected_fields
@@ -1404,10 +1409,29 @@ def _verify_red_check_receipt(
         and receipt.get("log_sha256") == log_sha256
         and receipt.get("wave_tip") == tested_tip
         and receipt.get("tested_main") == tested_main
+        and isinstance(collections, list)
         and isinstance(nodes, list)
         and nodes
     ):
         raise _StageFailure(stage)
+    for collection in collections:
+        if not (
+            isinstance(collection, dict)
+            and set(collection) == expected_collection_fields
+            and isinstance(collection.get("path"), str)
+            and isinstance(collection.get("source"), str)
+            and all(
+                collection.get(field) is None
+                or isinstance(collection.get(field), str)
+                for field in (
+                    "deleted_receipt_path",
+                    "request_id",
+                    "stdout_sha256",
+                    "submission_nonce",
+                )
+            )
+        ):
+            raise _StageFailure(stage)
     red_nodeids: list[str] = []
     for node in nodes:
         if not (
