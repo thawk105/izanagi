@@ -56,6 +56,8 @@ def committed_repo(tmp_path: Path) -> tuple[Path, str, Path]:
             "orchestrator/tests/test_example.py::test_target",
             "orchestrator/tests/test_example.py::test_target@literal",
             "orchestrator/tests/test_example.py::test_target - literal",
+            "",
+            "7 tests collected in 0.01s",
         )
     )
     (tools / "run_tests.py").write_text(
@@ -211,8 +213,84 @@ def _arguments(
     ]
 
 
+def _fake_dispatch_result(
+    worktree: Path,
+    command: Sequence[str],
+    *,
+    returncode: int,
+    authoritative_stdout: str,
+    relay_stdout: str | None = None,
+    receipt_root: Path | None = None,
+    fallback: bool = False,
+    mutate: Callable[[dict[str, object]], None] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    values = list(command)
+    root = (
+        worktree / "output" / "pegasus-dispatch"
+        if receipt_root is None
+        else receipt_root
+    )
+    root.mkdir(parents=True, exist_ok=True)
+    nonce = "fixture-dispatch"
+    submission_dir = root / nonce
+    submission_dir.mkdir()
+    scheduler_stdout = submission_dir / "dispatch.sh.ofixture"
+    scheduler_stdout.write_text(authoritative_stdout, encoding="utf-8")
+    pytest_args = [value for value in values[2:] if value != "--force-dispatch"]
+    target_path, separator, target_suffix = pytest_args[-1].partition("::")
+    expected_target = str((worktree / target_path).resolve(strict=False))
+    pytest_args[-1] = expected_target + (
+        separator + target_suffix if separator else ""
+    )
+    document: dict[str, object] = {
+        "schema_version": "pegasus-dispatch-receipt/v2",
+        "submission_dir": str(submission_dir),
+        "request_id": "fixture.nqsv",
+        "request": {"task": "tests", "args": pytest_args},
+        "result": {"stage": "child", "child_rc": returncode},
+        "outcome": {
+            "kind": "child",
+            "rc": returncode,
+            "accounting_verified": True,
+        },
+        "scheduler_logs": {
+            "accounting_present": True,
+            "stdout": {
+                "path": str(scheduler_stdout),
+                "size": len(authoritative_stdout.encode("utf-8")),
+                "omitted_bytes": 0,
+                "tail": authoritative_stdout,
+            },
+        },
+    }
+    if mutate is not None:
+        mutate(document)
+    receipt = (
+        root / f"receipt-fallback-{nonce}.json"
+        if fallback
+        else submission_dir / "receipt.json"
+    )
+    receipt.write_text(json.dumps(document), encoding="utf-8")
+    relay = (
+        f"[Pegasus dispatch] receipt を {receipt} へ保存しました "
+        f"(child rc={returncode})\n"
+    )
+    if relay_stdout is not None:
+        relay += relay_stdout
+    return subprocess.CompletedProcess(values, returncode, relay, "")
+
+
 def _unexpected_runner(_worktree: Path, nodeid: str) -> int:
     raise AssertionError(f"runner must not be reached: {nodeid}")
+
+
+def _non_attributable_rerun(
+    command: Sequence[str], nodeid: str = _NON_ATTRIBUTABLE,
+) -> subprocess.CompletedProcess[str]:
+    values = list(command)
+    return subprocess.CompletedProcess(
+        values, 1, _summary_log((("FAILED", nodeid),)), ""
+    )
 
 
 def test_green_log_returns_zero(
@@ -884,11 +962,24 @@ def test_default_seam_forces_dispatch_for_collection_and_rerun(
         values = list(command)
         if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
             observed.append(values)
+            worktree = Path(kwargs["cwd"])
             if "--collect-only" in values:
-                return subprocess.CompletedProcess(
-                    values, 0, _NON_ATTRIBUTABLE + "\n", ""
+                return _fake_dispatch_result(
+                    worktree,
+                    values,
+                    returncode=0,
+                    authoritative_stdout=(
+                        _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+                    ),
                 )
-            return subprocess.CompletedProcess(values, 1, None, None)
+            return _fake_dispatch_result(
+                worktree,
+                values,
+                returncode=1,
+                authoritative_stdout=_summary_log(
+                    (("FAILED", _NON_ATTRIBUTABLE),)
+                ),
+            )
         return subprocess.run(values, **kwargs)
 
     assert CAR.main(
@@ -915,6 +1006,722 @@ def test_default_seam_forces_dispatch_for_collection_and_rerun(
         "no:cacheprovider",
         _NON_ATTRIBUTABLE,
     ]
+
+
+def test_truncated_relay_uses_complete_dispatch_receipt(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            worktree = Path(kwargs["cwd"])
+            if "--collect-only" in values:
+                return _fake_dispatch_result(
+                    worktree,
+                    values,
+                    returncode=0,
+                    authoritative_stdout=(
+                        _NON_ATTRIBUTABLE
+                        + "\norchestrator/tests/test_example.py::test_other"
+                        + "\n\n2 tests collected in 0.01s\n"
+                    ),
+                    relay_stdout=(
+                        "| orchestrator/tests/test_example.py::test_other\n"
+                        "| \n| 2 tests collected in 0.01s\n"
+                    ),
+                )
+            return _fake_dispatch_result(
+                worktree,
+                values,
+                returncode=1,
+                authoritative_stdout=_summary_log(
+                    (("FAILED", _NON_ATTRIBUTABLE),)
+                ),
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+    assert list(probe_root.iterdir()) == []
+
+
+def test_truncated_relay_without_receipt_fails_closed_before_rerun(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    rerun_reached = False
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal rerun_reached
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    "[Pegasus dispatch] request fixture child stdout begin "
+                    "(size=100 bytes, omitted_bytes=50)\n"
+                    f"| {_NON_ATTRIBUTABLE}\n| 1 test collected in 0.01s\n",
+                    "",
+                )
+            rerun_reached = True
+            return _non_attributable_rerun(values)
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+    assert not rerun_reached
+
+
+def test_dispatch_receipt_outside_probe_root_fails_closed_before_rerun(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    rerun_reached = False
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal rerun_reached
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                worktree = Path(kwargs["cwd"])
+                (worktree / "output" / "pegasus-dispatch").mkdir(
+                    parents=True, exist_ok=True
+                )
+                return _fake_dispatch_result(
+                    worktree,
+                    values,
+                    returncode=0,
+                    authoritative_stdout=(
+                        _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+                    ),
+                    receipt_root=tmp_path / "foreign-dispatch",
+                )
+            rerun_reached = True
+            return _non_attributable_rerun(values)
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+    assert not rerun_reached
+
+
+def test_dispatch_collection_receipt_requires_bound_request_args(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def mutate(document: dict[str, object]) -> None:
+        request = document["request"]
+        assert isinstance(request, dict)
+        request["args"] = ["-q", "/foreign/test.py"]
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" not in values:
+                return _non_attributable_rerun(values)
+            return _fake_dispatch_result(
+                Path(kwargs["cwd"]),
+                values,
+                returncode=0,
+                authoritative_stdout=(
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+                ),
+                mutate=mutate,
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+@pytest.mark.parametrize("invalid_field", ["schema", "child_rc", "accounting"])
+def test_dispatch_collection_receipt_requires_v2_child_outcome(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    invalid_field: str,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def mutate(document: dict[str, object]) -> None:
+        if invalid_field == "schema":
+            document["schema_version"] = "pegasus-dispatch-receipt/v1"
+        elif invalid_field == "child_rc":
+            result = document["result"]
+            assert isinstance(result, dict)
+            result["child_rc"] = 1
+        else:
+            outcome = document["outcome"]
+            assert isinstance(outcome, dict)
+            outcome["accounting_verified"] = False
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" not in values:
+                return _non_attributable_rerun(values)
+            return _fake_dispatch_result(
+                Path(kwargs["cwd"]),
+                values,
+                returncode=0,
+                authoritative_stdout=(
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+                ),
+                mutate=mutate,
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_dispatch_receipt_with_omitted_scheduler_stdout_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def mutate(document: dict[str, object]) -> None:
+        logs = document["scheduler_logs"]
+        assert isinstance(logs, dict)
+        stdout = logs["stdout"]
+        assert isinstance(stdout, dict)
+        stdout["omitted_bytes"] = 1
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" not in values:
+                return _non_attributable_rerun(values)
+            return _fake_dispatch_result(
+                Path(kwargs["cwd"]),
+                values,
+                returncode=0,
+                authoritative_stdout=(
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+                ),
+                mutate=mutate,
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_dispatch_receipt_size_mismatch_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def mutate(document: dict[str, object]) -> None:
+        logs = document["scheduler_logs"]
+        assert isinstance(logs, dict)
+        stdout = logs["stdout"]
+        assert isinstance(stdout, dict)
+        stdout["size"] = int(stdout["size"]) + 1
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" not in values:
+                return _non_attributable_rerun(values)
+            return _fake_dispatch_result(
+                Path(kwargs["cwd"]),
+                values,
+                returncode=0,
+                authoritative_stdout=(
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+                ),
+                mutate=mutate,
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_dispatch_receipt_replacement_character_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" not in values:
+                return _non_attributable_rerun(values)
+            return _fake_dispatch_result(
+                Path(kwargs["cwd"]),
+                values,
+                returncode=0,
+                authoritative_stdout=(
+                    _NON_ATTRIBUTABLE
+                    + "\n\ufffd\n\n1 test collected in 0.01s\n"
+                ),
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_collection_footer_count_mismatch_fails_closed_before_rerun(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    rerun_reached = False
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal rerun_reached
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n2 tests collected in 0.01s\n",
+                    "",
+                )
+            rerun_reached = True
+            return _non_attributable_rerun(values)
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+    assert not rerun_reached
+
+
+def test_collection_footer_missing_fails_closed_on_production_path(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    rerun_reached = False
+
+    def command_runner(command: Sequence[str], **kwargs):
+        nonlocal rerun_reached
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(values, 0, _NON_ATTRIBUTABLE + "\n", "")
+            rerun_reached = True
+            return _non_attributable_rerun(values)
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+    assert not rerun_reached
+
+
+def test_single_test_collection_footer_is_accepted(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
+                )
+            return subprocess.CompletedProcess(
+                values, 1, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)), ""
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+
+
+def test_deselected_collection_footer_uses_selected_count(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE
+                    + "\n\n1/3 tests collected (2 deselected) in 0.01s\n",
+                    "",
+                )
+            return subprocess.CompletedProcess(
+                values, 1, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)), ""
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+
+
+@pytest.mark.parametrize(
+    "footer",
+    [
+        "no tests collected in 0.01s",
+        "no tests collected (3 deselected) in 0.01s",
+        "0/3 tests collected (3 deselected) in 0.01s",
+    ],
+)
+def test_zero_or_all_deselected_collection_fails_closed(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    footer: str,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            assert "--collect-only" in values
+            return subprocess.CompletedProcess(values, 0, footer + "\n", "")
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_rerun_rc_one_without_matching_outcome_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
+                )
+            return subprocess.CompletedProcess(
+                values,
+                1,
+                _summary_log(
+                    (("FAILED", "orchestrator/tests/test_example.py::test_other"),)
+                ),
+                "",
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_dispatch_commands_use_dispatch_aware_timeout(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    dispatch_timeouts: list[float] = []
+    git_timeouts: list[float] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            dispatch_timeouts.append(kwargs["timeout"])
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
+                )
+            return subprocess.CompletedProcess(
+                values, 1, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)), ""
+            )
+        git_timeouts.append(kwargs["timeout"])
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+    assert dispatch_timeouts == [4200.0, 4200.0]
+    assert git_timeouts and set(git_timeouts) == {120.0}
+
+
+def test_collection_environment_neutralizes_pytest_addopts(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    monkeypatch.setenv("PYTEST_ADDOPTS", "--deselect=target")
+    monkeypatch.setenv("PYTEST_PLUGINS", "hostile_plugin")
+    monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    observed_environments: list[dict[str, str]] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            observed_environments.append(kwargs["env"])
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
+                )
+            return subprocess.CompletedProcess(
+                values, 1, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)), ""
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+    assert len(observed_environments) == 2
+    for environment in observed_environments:
+        assert environment["PYTEST_ADDOPTS"] == ""
+        assert "PYTEST_PLUGINS" not in environment
+        assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" not in environment
+
+
+def test_checker_receipt_records_collection_provenance(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    collection_stdout = _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n"
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    receipt = tmp_path / "checker-receipt.json"
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return _fake_dispatch_result(
+                    Path(kwargs["cwd"]),
+                    values,
+                    returncode=0,
+                    authoritative_stdout=collection_stdout,
+                )
+            return subprocess.CompletedProcess(
+                values, 1, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)), ""
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, receipt, probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+    collection = json.loads(receipt.read_text(encoding="utf-8"))["collections"][0]
+    assert collection["path"] == "orchestrator/tests/test_example.py"
+    assert collection["source"] == "dispatch-receipt"
+    assert collection["receipt_path"].endswith("/fixture-dispatch/receipt.json")
+    assert collection["submission_nonce"] == "fixture-dispatch"
+    assert collection["request_id"] == "fixture.nqsv"
+    assert collection["stdout_sha256"] == hashlib.sha256(
+        collection_stdout.encode("utf-8")
+    ).hexdigest()
+
+
+def test_default_dispatched_rerun_removes_verified_dispatch_artifacts(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
+                )
+            return _fake_dispatch_result(
+                Path(kwargs["cwd"]),
+                values,
+                returncode=1,
+                authoritative_stdout=_summary_log(
+                    (("FAILED", _NON_ATTRIBUTABLE),)
+                ),
+                fallback=True,
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+
+
+@pytest.mark.parametrize(
+    "collection_stdout",
+    [
+        (
+            _NON_ATTRIBUTABLE
+            + "\n"
+            + _NON_ATTRIBUTABLE
+            + "\n\n2 tests collected in 0.01s\n"
+        ),
+        (
+            _NON_ATTRIBUTABLE
+            + "\n\n1 test collected in 0.01s\n"
+            + "1 test collected in 0.02s\n"
+        ),
+        _NON_ATTRIBUTABLE + "\n\n1 tests collected in 0.01s\n",
+        _NON_ATTRIBUTABLE + "\n\n1/4 tests collected (2 deselected) in 0.01s\n",
+    ],
+)
+def test_collection_duplicate_or_invalid_footer_fails_closed(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    collection_stdout: str,
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            assert "--collect-only" in values
+            return subprocess.CompletedProcess(values, 0, collection_stdout, "")
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 2
+
+
+def test_each_logged_path_has_an_independent_complete_collection_gate(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    second = "orchestrator/tests/test_second.py::test_red"
+    log = _write_log(
+        tmp_path,
+        _summary_log(
+            (("FAILED", _NON_ATTRIBUTABLE), ("ERROR", second))
+        ),
+    )
+    collected_targets: list[str] = []
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                target = values[-1]
+                collected_targets.append(target)
+                selected = _NON_ATTRIBUTABLE if target.endswith("test_example.py") else second
+                return subprocess.CompletedProcess(
+                    values, 0, selected + "\n\n1 test collected in 0.01s\n", ""
+                )
+            selector = values[-1]
+            return subprocess.CompletedProcess(
+                values, 1, _summary_log((("FAILED", selector),)), ""
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+    assert collected_targets == [
+        "orchestrator/tests/test_example.py",
+        "orchestrator/tests/test_second.py",
+    ]
+
+
+def test_injected_collection_failure_cannot_reach_rerun_or_status(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def fail_collection(_worktree: Path, _path_text: str) -> tuple[str, ...]:
+        raise CAR.InvalidInput("injected incomplete collection")
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        node_runner=_unexpected_runner,
+        collection_runner=fail_collection,
+    ) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "status=invalid-input" in captured.err
+    assert not (tmp_path / "receipt.json").exists()
 
 
 def test_xdist_group_suffix_is_removed_only_from_rerun_selector(
@@ -996,7 +1803,10 @@ def test_default_runner_infrastructure_rc_fails_closed(
         if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
             if "--collect-only" in values:
                 return subprocess.CompletedProcess(
-                    values, 0, _NON_ATTRIBUTABLE + "\n", ""
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
                 )
             return subprocess.CompletedProcess(values, 16, None, None)
         return subprocess.run(values, **kwargs)
