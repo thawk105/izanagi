@@ -889,6 +889,53 @@ def test_live_xdist_late_outer_wrapper_override_attests_unknown_once(tmp_path):
     assert result.stdout.splitlines()[-1] == marker
 
 
+def test_live_xdist_loadgroup_subclass_override_attests_unknown_once(tmp_path):
+    sample = tmp_path / "test_xdist_loadgroup_subclass.py"
+    sample.write_text("def test_one(): assert True\n", encoding="utf-8")
+    plugin = tmp_path / "loadgroup_subclass_override.py"
+    plugin.write_text(
+        "import pytest\n"
+        "from xdist.scheduler import LoadGroupScheduling\n"
+        "class DerivedLoadGroupScheduling(LoadGroupScheduling):\n"
+        "    pass\n"
+        "class LateOuterWrapper:\n"
+        "    @pytest.hookimpl(wrapper=True, tryfirst=True)\n"
+        "    def pytest_xdist_make_scheduler(self, config, log):\n"
+        "        yield\n"
+        "        return DerivedLoadGroupScheduling(config, log)\n"
+        "def pytest_configure(config):\n"
+        "    config.pluginmanager.register(LateOuterWrapper(), 'late-outer-wrapper')\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-n",
+            "2",
+            "--dist",
+            "loadgroup",
+            "-p",
+            "orchestrator.tests.conftest",
+            "-p",
+            "loadgroup_subclass_override",
+            str(sample),
+        ],
+        cwd=_REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    marker = 'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"unknown"}'
+    assert result.stdout.splitlines().count(marker) == 1
+    assert result.stdout.splitlines()[-1] == marker
+
+
 def test_live_xdist_sessionfinish_scheduler_swap_keeps_runtestloop_value(tmp_path):
     sample = tmp_path / "test_xdist_swap.py"
     sample.write_text("def test_one(): assert True\n", encoding="utf-8")
