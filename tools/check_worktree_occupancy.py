@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """worktree への cwd / argv 参照による占有を検出する。
 
-rc=0 は cwd / argv 参照による占有を検出しなかったことだけを表す。PID 走査後に
-始まる process、別 PID namespace、FD 経由の参照は観測できないため、削除の
-必要条件であって十分条件ではない。
+rc=0 は cwd / argv 参照による占有を inspect できた範囲で検出しなかったことだけを
+表す。cmdline は列挙した PID 全体を走査するが、cwd は inspect できる PID に限られ、
+他ユーザーおよび non-dumpable process の cwd は観測できない。PID 走査後に始まる
+process、別 PID namespace、FD 経由の参照も観測できないため、削除の必要条件で
+あって十分条件ではない。
 """
 
 from __future__ import annotations
@@ -38,11 +40,18 @@ class ScanIssue:
 
 
 @dataclass(frozen=True)
+class Unreachable:
+    cwd_permission: int
+
+
+@dataclass(frozen=True)
 class ScanReport:
     worktree: Path
     status: str
     occupants: tuple[Occupant, ...]
     issues: tuple[ScanIssue, ...]
+    scanned: int
+    unreachable: Unreachable
 
 
 def _lexical_absolute(path: Path, *, base: Path | None = None) -> Path:
@@ -200,24 +209,27 @@ def _scan_pid(
     targets: tuple[Path, ...],
     self_pid: int,
     parent_pid: int,
-) -> tuple[Occupant | None, tuple[ScanIssue, ...]] | None:
+) -> tuple[Occupant | None, tuple[ScanIssue, ...], int] | None:
     try:
         start_before = _read_starttime(pid_dir)
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
-        return None, (_issue(pid, "stat", exc),)
+        return None, (_issue(pid, "stat", exc),), 0
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
-        return None, (_issue(pid, "stat", exc),)
+        return None, (_issue(pid, "stat", exc),), 0
 
     sources: set[str] = set()
     issues: list[ScanIssue] = []
     process_cwd: Path | None = None
+    cwd_permission_unreachable = 0
 
     try:
         process_cwd = _read_process_cwd(pid_dir)
         if any(_is_within(process_cwd, target) for target in targets):
             sources.add("cwd")
+    except PermissionError:
+        cwd_permission_unreachable = 1
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
@@ -254,19 +266,27 @@ def _scan_pid(
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
-        return None, tuple(issues + [_issue(pid, "stat", exc)])
+        return (
+            None,
+            tuple(issues + [_issue(pid, "stat", exc)]),
+            cwd_permission_unreachable,
+        )
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
-        return None, tuple(issues + [_issue(pid, "stat", exc)])
+        return (
+            None,
+            tuple(issues + [_issue(pid, "stat", exc)]),
+            cwd_permission_unreachable,
+        )
 
     if start_after != start_before:
         return None, (
             ScanIssue(error="pid-reused", pid=pid, source="stat"),
-        )
+        ), cwd_permission_unreachable
 
     occupant = None
     if sources:
         occupant = Occupant(pid=pid, sources=tuple(sorted(sources)))
-    return occupant, tuple(issues)
+    return occupant, tuple(issues), cwd_permission_unreachable
 
 
 def scan_worktree_occupancy(
@@ -289,6 +309,8 @@ def scan_worktree_occupancy(
             status="indeterminate",
             occupants=(),
             issues=(_issue(None, "worktree", exc),),
+            scanned=0,
+            unreachable=Unreachable(cwd_permission=0),
         )
 
     targets = tuple(dict.fromkeys((lexical_target, real_target)))
@@ -309,12 +331,15 @@ def scan_worktree_occupancy(
             status="indeterminate",
             occupants=(),
             issues=(_issue(None, "proc-root", exc),),
+            scanned=0,
+            unreachable=Unreachable(cwd_permission=0),
         )
 
     actual_self_pid = os.getpid() if self_pid is None else self_pid
     actual_parent_pid = os.getppid() if parent_pid is None else parent_pid
     occupants: list[Occupant] = []
     issues: list[ScanIssue] = []
+    cwd_permission_unreachable = 0
     for pid, pid_dir in pid_dirs:
         result = _scan_pid(
             pid,
@@ -325,10 +350,11 @@ def scan_worktree_occupancy(
         )
         if result is None:
             continue
-        occupant, pid_issues = result
+        occupant, pid_issues, pid_cwd_permission_unreachable = result
         if occupant is not None:
             occupants.append(occupant)
         issues.extend(pid_issues)
+        cwd_permission_unreachable += pid_cwd_permission_unreachable
 
     occupants.sort(key=lambda item: (item.pid, item.sources))
     issues.sort(key=lambda item: (item.pid is None, item.pid or -1, item.source, item.error))
@@ -343,6 +369,10 @@ def scan_worktree_occupancy(
         status=status,
         occupants=tuple(occupants),
         issues=tuple(issues),
+        scanned=len(pid_dirs),
+        unreachable=Unreachable(
+            cwd_permission=cwd_permission_unreachable,
+        ),
     )
 
 
@@ -350,7 +380,9 @@ def _report_payload(report: ScanReport) -> dict[str, object]:
     return {
         "issues": [asdict(issue) for issue in report.issues],
         "occupants": [asdict(occupant) for occupant in report.occupants],
+        "scanned": report.scanned,
         "status": report.status,
+        "unreachable": asdict(report.unreachable),
         "worktree": str(report.worktree),
     }
 
@@ -364,8 +396,11 @@ def main(
 ) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "worktree への cwd / argv 参照による占有を検出する。rc0 は占有を検出しなかった"
-            "ことだけを表し、削除の必要条件であって十分条件ではない。"
+            "worktree への cwd / argv 参照による占有を検出する。rc0 は inspect できた"
+            "範囲で占有を検出しなかったことだけを表す。cmdline は列挙した全 PID を走査"
+            "するが、cwd は他ユーザーおよび non-dumpable process では観測できない。"
+            "走査後に始まる process、別 PID namespace、FD 参照も観測できないため、"
+            "rc0 は削除の必要条件であって十分条件ではない。"
         )
     )
     parser.add_argument("worktree", metavar="WORKTREE")

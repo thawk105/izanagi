@@ -341,6 +341,80 @@ def test_scan_live_unreadable_pid_is_indeterminate(
     proc_root = tmp_path / "proc"
     _make_pid(proc_root, 114, cwd=outside, argv=["worker"])
 
+    def fail_cwd(_pid_dir: Path) -> Path:
+        raise OSError("synthetic read failure")
+
+    monkeypatch.setattr(checker, "_read_process_cwd", fail_cwd)
+    report = _scan(target, proc_root)
+
+    assert report.status == "indeterminate"
+    assert report.issues == (
+        checker.ScanIssue(error="os-error", pid=114, source="cwd"),
+    )
+
+
+def test_scan_cwd_permission_only_is_unoccupied(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(proc_root, 119, cwd=outside, argv=["worker"])
+
+    def deny_cwd(_pid_dir: Path) -> Path:
+        raise PermissionError("synthetic denial")
+
+    monkeypatch.setattr(checker, "_read_process_cwd", deny_cwd)
+    report = _scan(target, proc_root)
+
+    assert report.status == "unoccupied"
+    assert report.issues == ()
+
+
+def test_main_reports_cwd_permission_as_unreachable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(proc_root, 120, cwd=outside, argv=["worker"])
+
+    def deny_cwd(_pid_dir: Path) -> Path:
+        raise PermissionError("synthetic denial")
+
+    monkeypatch.setattr(checker, "_read_process_cwd", deny_cwd)
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["issues"] == []
+    assert payload["scanned"] == 1
+    assert payload["unreachable"] == {"cwd_permission": 1}
+
+
+def test_scan_cmdline_permission_error_is_indeterminate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(proc_root, 121, cwd=outside, argv=["worker"])
+
     def deny_cmdline(_pid_dir: Path) -> tuple[str, ...]:
         raise PermissionError("synthetic denial")
 
@@ -349,8 +423,68 @@ def test_scan_live_unreadable_pid_is_indeterminate(
 
     assert report.status == "indeterminate"
     assert report.issues == (
-        checker.ScanIssue(error="permission", pid=114, source="cmdline"),
+        checker.ScanIssue(error="permission", pid=121, source="cmdline"),
     )
+
+
+def test_scan_cwd_non_permission_os_error_is_indeterminate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(proc_root, 124, cwd=outside, argv=["worker"])
+
+    def missing_cwd(_pid_dir: Path) -> Path:
+        raise FileNotFoundError("synthetic missing cwd")
+
+    monkeypatch.setattr(checker, "_read_process_cwd", missing_cwd)
+    report = _scan(target, proc_root)
+
+    assert report.status == "indeterminate"
+    assert report.issues == (
+        checker.ScanIssue(error="missing", pid=124, source="cwd"),
+    )
+
+
+def test_main_occupied_wins_over_unreachable_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(proc_root, 122, cwd=outside, argv=["worker", str(target)])
+    _make_pid(proc_root, 123, cwd=outside, argv=["worker"])
+    original = checker._read_process_cwd
+
+    def read_or_deny(pid_dir: Path) -> Path:
+        if pid_dir.name == "123":
+            raise PermissionError("synthetic denial")
+        return original(pid_dir)
+
+    monkeypatch.setattr(checker, "_read_process_cwd", read_or_deny)
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert payload["status"] == "occupied"
+    assert payload["issues"] == []
+    assert payload["occupants"] == [
+        {"pid": 122, "sources": ["cmdline"]},
+    ]
+    assert payload["unreachable"] == {"cwd_permission": 1}
 
 
 def test_scan_missing_proc_root_is_indeterminate(tmp_path: Path):
@@ -424,6 +558,27 @@ def test_main_unoccupied_returns_zero(tmp_path: Path, capsys: pytest.CaptureFixt
     payload = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert payload["status"] == "unoccupied"
+
+
+def test_main_json_fields_and_key_order_are_stable(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    proc_root = tmp_path / "proc"
+    proc_root.mkdir()
+
+    rc = checker.main([str(target)], proc_root=proc_root)
+
+    output = capsys.readouterr().out
+    expected = (
+        '{"issues":[],"occupants":[],"scanned":0,"status":"unoccupied",'
+        '"unreachable":{"cwd_permission":0},"worktree":'
+        f"{json.dumps(str(target.resolve()), ensure_ascii=False)}}}\n"
+    )
+    assert rc == 0
+    assert output == expected
 
 
 def test_main_occupied_returns_one(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -531,3 +686,24 @@ def test_real_proc_cmdline_positive_control(tmp_path: Path):
             except subprocess.TimeoutExpired:
                 child.kill()
                 child.wait(timeout=5.0)
+
+
+def test_real_proc_unoccupied_directory_returns_zero(tmp_path: Path):
+    if not Path("/proc").is_dir():
+        pytest.skip("/proc is unavailable")
+
+    target = tmp_path / "unoccupied-worktree"
+    target.mkdir()
+    completed = subprocess.run(
+        [sys.executable, str(checker._CHECKER_PATH), str(target)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=20.0,
+    )
+
+    assert completed.returncode == 0, completed.stdout
+    payload = json.loads(completed.stdout)
+    assert payload["status"] == "unoccupied"
+    assert payload["issues"] == []
+    assert payload["scanned"] > 0
