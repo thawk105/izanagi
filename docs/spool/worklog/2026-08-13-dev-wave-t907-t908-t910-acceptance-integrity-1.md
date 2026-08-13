@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-13
 wave: dev-wave-t907-t908-t910-acceptance-integrity
 seq: 1
-title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の必須入力にし、走行後 fingerprint と untracked 検査を足し、floor staging の追跡境界を裁定どおりに引いた (コード + docs、branch worktree-dev-wave-t907-t908-t910-acceptance-integrity)
+title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定どおり checker 統合で解いた — 受領証の発行条件を「rc=0 または赤が全て非帰属」へ広げ、log hash を束縛した (コード + docs、変異 7/7 KILLED、branch worktree-dev-wave-t907-recovery)
 ---
 
 ## 本文
@@ -83,30 +83,98 @@ title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の�
   ユーザー再裁定へ戻す。詳細と選択肢は {{T:acceptance-receipt-vs-known-red}}。
   lease は待ち手が終端で release 済み (lease directory が空であることを実測)。
 
+### 裁定後の回収 (2026-08-13 08:11〜、別 context、branch `worktree-dev-wave-t907-recovery`)
+
+- **ユーザー裁定 (第 9 束 #1) は「(b) の変形 = checker 統合」だった。** 批准済み既知赤 registry は
+  作らず、receipt の発行条件を「rc=0 **または**非帰属 checker 緑」へ拡張する。あわせて
+  #9 [T-1019] = 待ち手の receipt へ log hash 束縛 (checker 自身が受入走を所有する案は不採用)、
+  #10 [T-1020] = 新規機構を作らず本 wave の land で閉じる、が確定した。
+- **取り残し branch を 1 回の merge で回収した。** land 前に blob 照合で二重採番を防いだ
+  (`_verify_acceptance_receipt` / `_acceptance_receipt_preflight` は main に 0 件、
+  3 fragment も未 fold)。連鎖 merge を避けたのは fold 形状検査 (F265 / F266) 対策である。
+- **裁定を機械語へ落とす際に、親が段 4 でコード実測により fail-open を 1 件摘出した。**
+  `tools/check_acceptance_reds.py` の `rc == 0` は 2 つの意味を持つ —
+  `status = "non-attributable-only"` (赤が全て非帰属) と `status = "green"`
+  (log から赤 nodeid を 1 件も取り出せなかった) である。後者は「非帰属だった」ではない。
+  受入 command が非 0 で終わったのに赤 nodeid が 0 件になる経路 (collection error /
+  internal error / crash / xdist worker の異常終了) は実在するので、裁定文の「非帰属 checker 緑」を
+  `rc == 0` だけで実装すると**崩れた受入が受領証を得る**。
+  受理は `checker_rc == 0` かつ `status == "non-attributable-only"` のときだけとした。
+- **敵対レビュー A が同型の穴をもう 1 段深く出した (blocker)。** 赤の非帰属は
+  「走行が崩れたこと」を説明しない。pytest が summary まで出したあとに wrapper が
+  signal・後段 gate で落ちても、log 中の赤が全て非帰属なら receipt が出てしまう。
+  親が実測で裁定根拠を取った — `tools/run_tests.py` の main は
+  `return subprocess.call(cmd, cwd=_REPO)` で pytest の rc をそのまま返し、
+  テストが落ちた走行は rc=1 である (焦点走で 4 failed の走行が rc=1 を返した実測)。
+  `run_tests.py` 自身の失敗は `_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` など
+  1 以外なので、**受理を `child_rc == 1` ちょうどへ狭めた**。
+- **敵対レビュー B が NO-GO を出し、blocker 3 件・must-fix 5 件のうち real 分をすべて処理した。**
+  採用 = runbook の受入例が新引数を欠く (親が docs で修正)、test consumer の不整合、
+  log 全量のメモリ読込 (1 MiB chunk 化)。
+  **本 wave では実装せず限界として記録した 3 件** = checker に timeout が無い /
+  checker 実行中の lease heartbeat が無い / checker を専用 process group で起動しない。
+  いずれも倒れる向きは fail-closed であり、値の決定には裁定が要る。{{T:acceptance-red-check-robustness}} へ起票した。
+- **非帰属受理経路が実物で成立することを end-to-end で実証した。** 合成の既知赤を作り、
+  **実 waiter → 実 checker → 実 land** を通す試験が緑になった (焦点走、計算ノード)。
+  ただし**実受入データでの検証は未達**である — 本 wave の受入が rc=0 で終われば
+  `child-green` 経路しか通らず、非帰属経路は [T-1027] (checker が実 log で rc=2) の land 後に
+  しか実データで確認できない。「実データで 1 回通した」とは書かない。
+- **変異 = baseline PASSED、7/7 KILLED、SURVIVED 0**、うち 6 件は期待完全集合と exact 一致。
+  N2 のみ 1 件差で、その差分はフレークだった (下記)。
+  「checker が緑と言った判定を受け入れる」変異は単独では殺せない — 受領証を作る手前に
+  「赤 nodeid が 1 件以上ある」二層目があるためで、`DW-M04` に従い両層同時変異として登録した。
+- **待ち手 signal handler 復元テストのフレークを 2 例実測した。** 変異 2 巡目で
+  `test_signal_after_core_success_uses_restored_real_handler` が `tools/dev_wave_land.py` だけを
+  変異させた N5 の失敗集合に現れ、3 巡目では
+  `test_public_main_failure_restores_handler_without_release` が N2 の集合から消えた。
+  **land のみの変異が待ち手の signal テストを落とすことは構造上ありえない**ので、
+  帰属させずフレークとして {{T:waiter-signal-handler-test-flake}} へ起票した。
+- **待ち手 producer の fail-open は本 context でも 2 例再発した** (09:12:29 / 09:17:29 JST)。
+  通算 7 例。毎回 3 点照合で検知して張り直したため進行への影響はない。
+
 ## 次の一手差分
+
+### 完了
+
+- [T-907] 走行後に `postrun-clean` / index flag 検査 / 走行前後の tree fingerprint 比較を足した。
+  child rc が非 0 でも必ず走り、木が変わっていれば rc=70 が child rc に優先する。
+  fingerprint は HEAD SHA / clean status / binary diff / recursive submodule status を
+  label と byte 長つきで SHA-256 に入れた自己完結実装。変異で KILLED を確認済み。
+  remaining: none
+  base: 9eb93a3c673bdff1c5eb8413ca68df4c3d3ab45fd70c3c320ceaebb2b0032bf5
+- [T-908] 待ち手経由だけを権威ある dev-wave 受入と定義した。待ち手が repo 外へ closed JSON の
+  receipt を発行し、`tools/dev_wave_land.py` が必須 consumer として検証する。欠落・不正・
+  予約 temp 名前空間・束縛不一致は rc=23 で main を 1 bit も変えず拒否し、`already-landed` も
+  通さない。逃がし道は作っていない。`run_tests.py` 側への同等 gate は裁定どおり不実装。
+  remaining: none
+  base: f2aaabe1257417ddc985a8b083c8e18732fc500be10d7d9bd40879cbb46b104e
+- [T-910] `output/env/pegasus/floor/job-staging/` を ignore し 88 file を index から外した
+  (disk bytes は全 file sha256 一致で保持)。`attempts/submissions/` の 51 file は tracked のまま
+  (index は byte 単位で不変)。受入の clean 述語を `--untracked-files=all` へ強めた。
+  remaining: none
+  base: 531003015c3ad665b6bf7a01a038e50074f9ebc9b2c32bfba20305895f298e1c
+- [T-1019] 待ち手が受入 child の stdout/stderr を必須 `--log-file` へ自分で捕獲し、その bytes の
+  SHA-256 を receipt へ束縛するようにした。親が渡した既存 log は受け取らない (これが
+  「任意の過去 log を渡せば非帰属判定を素通りできる」穴を閉じる)。checker は待ち手が
+  その log に対して起動し、checker receipt の `log_sha256` / `wave_tip` / `tested_main` /
+  `schema_version` / 全 node の `classification` を照合してから受理する。
+  裁定どおり「checker 自身が受入走を所有する」形は採らなかった。
+  remaining: none
+  base: b19aa1f977aac69b103f64e503edf2d56a212629d269ed86365021f31d0c2300
+- [T-1020] 裁定どおり新規機構は作らず、land 側は #1 が要求する照合だけを足して閉じた。
+  `_verify_acceptance_receipt` が `verdict` で分岐し、`child-green` では checker 系 5 field が
+  すべて null かつ `child_rc == 0`、`non-attributable-only` では `child_rc == 1` かつ
+  `checker_rc == 0` かつ `checker_blob_sha` が `<tested_tip>:tools/check_acceptance_reds.py` と
+  一致することを要求する。`LandResult.as_json()` へ `acceptance_verdict` と
+  `acceptance_red_nodeids` を足し、**どの赤を非帰属と判定して land したか**を残す。
+  これが registry を作らずに裁定 (b) の眼目を満たす部分である。
+  ただし残るのは land 結果 JSON であって canonical 台帳ではない (job directory の JSON を
+  失うと対象 nodeid を再構成できない)。
+  remaining: none
+  base: 988f9395dc05bb1de3482eead8123ccb99ccb4de214fb103a946f1a5f33efa15
 
 ### 更新
 
-- [T-907] **P2・実装済み・land 待ち (2026-08-13)**: 走行後に `postrun-clean` / index flag 検査 / 走行前後の tree
-  fingerprint 比較を足した。child rc が非 0 でも必ず走り、木が変わっていれば rc=70 が
-  child rc に優先する。fingerprint は HEAD SHA / clean status / binary diff / recursive
-  submodule status を label と byte 長つきで SHA-256 に入れた自己完結実装。
-  変異で単一理由の KILLED を確認済み。land は {{T:acceptance-receipt-vs-known-red}} の裁定待ち。
-  base: 9eb93a3c673bdff1c5eb8413ca68df4c3d3ab45fd70c3c320ceaebb2b0032bf5
-- [T-908] **P2・実装済み・land 待ち (2026-08-13)**: 待ち手経由だけを権威ある dev-wave 受入と
-  定義した。待ち手が repo 外へ closed JSON の receipt を発行し、`tools/dev_wave_land.py` が
-  必須 consumer として検証する。欠落・不正・予約 temp 名前空間・束縛不一致は rc=23 で main を
-  1 bit も変えず拒否し、`already-landed` も通さない。逃がし道は作っていない。
-  `run_tests.py` 側への同等 gate は裁定どおり不実装。
-  **受入で gate が設計どおり発火して receipt が出ず、既知赤裁定との非両立が実証された** —
-  land は {{T:acceptance-receipt-vs-known-red}} の裁定待ち。
-  base: f2aaabe1257417ddc985a8b083c8e18732fc500be10d7d9bd40879cbb46b104e
-- [T-910] **P2・実装済み・land 待ち (2026-08-13)**: `output/env/pegasus/floor/job-staging/` を
-  ignore し 88 file を index から外した (disk bytes は全 file sha256 一致で保持)。
-  `attempts/submissions/` の 51 file は tracked のまま (index は byte 単位で不変)。
-  受入の clean 述語を `--untracked-files=all` へ強めた。
-  land は {{T:acceptance-receipt-vs-known-red}} の裁定待ち。
-  base: 531003015c3ad665b6bf7a01a038e50074f9ebc9b2c32bfba20305895f298e1c
 - [T-892] **P3・優先度を上げる (2026-08-13 実測)**: 本 wave の変異 1 巡目で、
   この赤が **baseline を FAILED にして harness の production write を止めた**。
   起票文が予告した「変異 harness の baseline が緑にならず部分集合の変異検査が原理的に
@@ -131,13 +199,42 @@ title: 受入 integrity 3 件を実装した — 待ち手 receipt を land の�
   **親の推奨は (b)** — (a) は既知赤が再発するたびに fleet が止まる構造を残し、
   (c) は「記録不可」が機械で担保されない。(b) は fail-closed を保ったまま、
   批准という人間の判断を機械が読める形に落とす。
-  成果物影響 = 未裁定のままだと本 wave の 3 件が land できず、受入 integrity の穴が開いたまま残る。
+  **裁定は 2026-08-13 第 9 束 #1 で「(b) の変形 = checker 統合」に決した** — registry は作らず、
+  受理条件を「rc=0 または非帰属 checker 緑」へ拡張する。本 wave で実装・land 済み。
+  **残件は実データ検証だけである。** [T-1027] (`check_acceptance_reds.py` が実 log で rc=2 のまま)
+  が land するまで、非帰属経路は合成 log を実 checker へ当てる end-to-end 試験でしか通らない。
+  [T-1027] の land 後に、保存済みの実受入 log で待ち手 → checker → land を 1 度通すこと。
+  成果物影響 = 未検証のままだと、既知赤が出た wave が「非帰属だから land 可」へ到達できるか
+  実運用で確かめられておらず、裁定が解こうとした fleet 停止が残る可能性がある。
 - {{T:waiter-producer-completion-fail-open}} **P2・新規**: `tools/dev_wave_wait.py producer` が、
   `.done` も成果物も存在せず producer が生存している状態で、出力ゼロ・rc=0 で即座に返る
   ことがある。2026-08-13 に 5 回実測 (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。
   親が 3 点照合 (成果物実在 + `.done` + producer 死) で検知して張り直したため実害は出ていないが、
   待ち手を信じる呼び手は「子が成功した」と誤認する。成果物影響 = 子の成果物なしで次段へ進み、
   context 無しの出力をレビュー結果と数える経路が開く。
+  **回収 context でさらに 2 例 (09:12:29 / 09:17:29 JST)。通算 7 例で、うち 1 例は
+  投入 31 秒後だった。**
+- {{T:acceptance-red-check-robustness}} **P2・新規 (段 6 レビュー B の real 所見、本 wave 不実装)**:
+  非帰属 checker の起動に 3 つの穴がある。(i) checker に timeout が無く、赤の単独再走が hang すると
+  receipt が出ないまま待ち続ける。(ii) checker 実行中に lease の heartbeat が無く、
+  赤が複数あると最終確認までに TTL 2,400 秒を使い切りうる (受入全走 18〜21 分 + checker の
+  dispatch 複数回)。(iii) checker を専用 process group で起動しないので、中断時に
+  probe worktree や登録情報が残りうる。
+  **3 件とも倒れる向きは fail-closed** (receipt が出ない) なので受理集合は緩まないが、
+  「誰も何もできない状況」を作りうる点で本 wave の主題と同型である。
+  timeout 値・heartbeat の主体・TTL 意味論はいずれも裁定が要るので本 wave では実装せず、
+  runbook へ既知限界として明記した。(iii) は前 wave が A6 で scope 外に裁定した面と同一。
+  成果物影響 = 未実装のままだと、赤が多い wave は正しく非帰属でも受入と checker の時間を
+  捨てて land できない。
+- {{T:waiter-signal-handler-test-flake}} **P2・新規 (2026-08-13 実測 2 例)**:
+  `test_dev_wave_wait.py` の signal handler 復元テストが変異 harness の走行間で揺れる。
+  2 巡目では `test_signal_after_core_success_uses_restored_real_handler` が
+  **`tools/dev_wave_land.py` だけを変異させた N5 の失敗集合に現れ**、
+  3 巡目では `test_public_main_failure_restores_handler_without_release` が N2 の集合から消えた。
+  land のみの変異が待ち手の signal テストを落とすことは依存関係上ありえないので、
+  変異へは帰属させずフレークとして扱った。F57 族 (受入全走フレーク) と同じ面かは未確認。
+  成果物影響 = 変異 matrix の期待完全集合が走行ごとに揺れ、exact 一致契約 (`DW-M08`) が
+  フレーク由来の MISMATCH を出して検出力の判定を曇らせる。
 - {{T:dev-wave-docs-land-receipt-contract}} **P3・新規**: [T-908] の land 契約
   (必須 2 引数・rc=23・`already-landed` も通さない・逃がし道なし) を `docs/dev-wave/**` へ
   収容できなかった。実測は本文のとおりで、L1 は 229 bytes 超過、L2 の `DW-O25` は exact pin +

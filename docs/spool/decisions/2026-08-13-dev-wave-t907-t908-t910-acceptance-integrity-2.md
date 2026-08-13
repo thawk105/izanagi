@@ -50,3 +50,40 @@ seq: 2
 - receipt があるときだけ検証する fail-open — 検証意味論を弱める方向であり規律 2 に反する。
 - 互換 bypass flag を置いて旧待ち手の受入を通す — 逃がし道は必ず既定経路になる。
   旧待ち手で受入済み・未 land の wave には受入 1 走の再実行を求める。
+
+## {{D:non-attributable-acceptance-requires-pytest-failure-rc}}. 非帰属受理は「テスト失敗で落ちた走行」に限る
+
+**決定:** 受入 command が非 0 で終わったときに receipt を発行してよいのは、
+**`child_rc` がちょうど 1** であり、かつ `tools/check_acceptance_reds.py` が
+**`rc == 0` かつ `status == "non-attributable-only"`** を返し、その receipt の
+`log_sha256` が待ち手自身が捕獲した log の hash と一致したときだけとする。
+`status == "green"`、`rc == 1`、`rc == 2`、`child_rc` が 0 でも 1 でもない非 0 は、
+いずれも fail-closed とする。bypass flag と環境変数は作らない。
+
+**理由:**
+- **checker の `rc == 0` は 2 つの意味を持つ。** `status = "non-attributable-only"` は
+  「赤があり、全て tested main 単独でも落ちる」、`status = "green"` は
+  「log から赤 nodeid を 1 件も取り出せなかった」である。後者は非帰属の証拠ではない。
+  受入が非 0 で終わったのに赤 nodeid が 0 件になる経路 (collection error、internal error、
+  crash、xdist worker の異常終了) は実在するので、`rc == 0` だけを条件にすると
+  **崩れた受入が受領証を得る**。
+- **赤の非帰属は「走行が崩れたこと」を説明しない。** pytest が summary まで出したあとに
+  wrapper が signal・後段 gate で落ちても、log 中の赤が全て非帰属なら受理されてしまう。
+  `tools/run_tests.py` の main は `return subprocess.call(cmd, cwd=_REPO)` で pytest の rc を
+  そのまま返すので、テストが落ちた走行は 1 である。`run_tests.py` 自身の失敗は
+  `_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` など 1 以外になる。
+  したがって `child_rc == 1` は「テスト失敗だけで落ちた」の機械的な言い換えである。
+- **log は待ち手が所有する。** 親が渡した log を受け取る形だと、任意の過去 log を渡して
+  非帰属判定を素通りできる。待ち手が child の stdout/stderr を直接ファイルへ捕獲し、
+  その bytes の hash を receipt へ束縛することで、checker の入力が当該走行のものであることが
+  監査可能になる。
+
+**却下した選択肢:**
+- 批准済み既知赤 nodeid の registry を置く — ユーザー裁定で不採用。registry は肥大すると
+  実質的な fail-open になり、批准手順の設計と期限管理を伴う。checker による単独再走は
+  同じ判断を機械化でき、人手の批准を要さない。
+- checker 自身に受入走を所有させる ([T-1019] の対立案) — ユーザー裁定で不採用。
+- `child_rc != 0` すべてを非帰属判定へ流す — 上記のとおり受理集合が
+  「テスト失敗で落ちた走行」から「何らかの理由で落ちた走行」へ広がる。
+- checker rc=2 を「判定不能だが赤は非帰属らしい」として通す — `DW-O18` が
+  「rc=2 は判定不能で非帰属の根拠にしない」と定めた向きに反する。
