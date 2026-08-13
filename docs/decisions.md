@@ -16232,3 +16232,173 @@ artifact は従来どおり**先に**保存し rc だけを変える。呼び手
 **残る不確かさ (記録):** `slab_reclaimable` 全量が常に即時回収できるとは限らず、GUP/DMA pin の
 ように専用 stat を持たない回収不能 file page も原理的にはありうる。予備 2 GiB がこの残差の
 吸収域であり、超過が観測されたら予備でなく判定式側を見直す。
+
+## D379. oracle の contract ID は実装 bytes と走査範囲を束縛する (2026-08-13)
+
+**決定:** SWO oracle の contract ID は、手動 version 定数と corpus データ hash だけでなく、
+公理判定に関わる 4 関数の `inspect.getsource()` 本文と、走査範囲を決める意味論定数
+(要素数・order 集合・corpus 集合) を digest 入力に含める。component hash は 1 本の
+authoritative digest へ畳み、短縮タグは診断専用とする。
+
+**理由:**
+- 変更前は checker のコードを書き換えても identity が動かず、`corpus` 集合を半減させて
+  検査範囲を縮めても contract ID が同じままだった。identity が実際の検査能力を表していない。
+- 束縛は**列挙**であって閉包ではない。判定ロジックを列挙外の helper へ移せば identity は動かない。
+  この残余は docstring に明記し、「閉じている」と読める命名を避ける。
+- 消費側が contract ID を格納する欄には長さ上限があり、超過すると黙って空文字化される。
+  component ごとに hash を並べる形では上限に収まらないため、1 本へ畳む形を採った。
+
+**却下した選択肢:**
+- AST allowlist で候補実装を構文的に制限する案 — 受理集合を狭めすぎ、上流で不採用が確定済み。
+- component hash を receipt に並べて診断能力を担保する案 — receipt にその field が無く、
+  「receipt に残るから診断能力は落ちない」という前提が成り立たなかった。
+
+## D380. 消費側の schema は producer が実在する形だけを受理する (2026-08-13)
+
+**決定:** critic の oracle finding validator は、kind ごとの exact key 集合、kind ごとに閉じた
+reason_code 集合、producer 正準形の corpus_id、observations 要素の schema で受理集合を定める。
+**trusted producer が 1 つも存在しない kind と、必ず環境故障側へ倒れる reason_code は受理しない。**
+
+**理由:**
+- 「将来の互換のために受理しておく」枝は、発火しない恒真枝であると同時に、外部由来文字列を
+  materials へ運ぶ経路になる (規律 6)。gate の入力は実成果物の field に実在してから設計する。
+- 長さ検査だけでは不十分だった。任意文字列が正準形の検査を経ずに描画されていた。
+- 消費側が producer の意味論定数を直書きすると、producer の世代更新で正当な finding が黙って
+  anomaly 化する。producer が公開する定数を import し、両者の不一致が赤になる経路を作る。
+
+**却下した選択肢:**
+- 未知 kind を通して描画側で弾く案 — 判定不能を合格にしない規律に反する。
+- 検証後に observations を射影から落とす案 — 現在描画していないだけで、落とすと将来の
+  描画時に証拠が無い。保持したうえで schema で縛る。
+
+## D381. 事後 control は相関であって独立診断ではない (2026-08-13)
+
+**決定:** 候補 compile の失敗後に trusted control を再度 compile する事後検査は、
+「候補 compile の後に control も落ちた」という**相関**として扱う。候補成果物は事後検査の前に
+除去し、事後検査は専用の別一時 directory で走らせるが、filesystem quota・cgroup・host 状態は
+共有のままであり、候補から独立した環境判定であるとは主張しない。
+**除去に失敗しても事後検査は飛ばさない** — 事後検査が通れば本来の REJECT を返し、
+除去失敗と事後検査失敗が併発したときだけ専用 detail code で証拠を残す。
+
+**理由:**
+- 除去失敗だけで事後検査を飛ばして UNAVAILABLE へ倒すと、環境が健全でも確定済みの
+  candidate compile finding が hard REJECT にならず、有効な拒否を取りこぼす。
+- 候補は compile に失敗した時点で**一度も実行されていない**ため、除去失敗を候補が作る経路は無い。
+  したがって「候補が自分の REJECT を UNAVAILABLE へ変える」攻撃面の緩和にはあたらない。
+- 保証範囲を広く書くと、後続の設計がそれを前提にする。docstring は狭く正直に書く。
+
+**却下した選択肢:**
+- 事後検査を候補から完全に隔離する案 (別 cgroup / 別 quota) — 本 gate の指示範囲を超え、
+  相関以上を主張するための機構を新設することになる。
+
+## D382. trigger 軸の semantic admission は block の bytes だけを検証する (2026-08-13)
+
+**決定:** build gateway の trigger 軸検査は、marker block (BEGIN 行頭〜END 行末) の bytes が
+凍結 template と逐語一致するか、hole 1 行だけが emitter の 32 出力のいずれかと exact 一致するかを
+判定する。**block が生きた C++ かは検証しない。** 自前の C++ コメント字句解析は持たない。
+file 全体の BOM / NUL / UTF-8 decode 検査も持たない。
+
+**理由:**
+- 実装当初に置いた自前字句解析は、敵対レビューの静的追跡で**両方向に誤る**ことが実証された。
+  raw string の payload と行継続を認識しないため、(a) raw string 内の偽 block を実 block として
+  受理し、(b) 正当な source の `/*` を未終端コメントと誤認して受理集合内の source を拒否する。
+- **過剰拒否は正当な build を止めるため、fail-open と同等以上に有害である。**
+- 正確な C++ 字句解析 (翻訳フェーズ 1〜3・raw string・行継続・trigraph) は 1 検査の付随物として
+  持つには大きすぎる。誤った字句解析を残すのは、謳うだけで発火しない保証と、誤爆する保証の両方を
+  同時に抱えることである。
+- block **外**の C++ 意味論は、同 wave の段 4 で既に scope 外と裁定していた。コメントによる
+  block の無効化も raw string 内の囮も block 外の C++ 意味論であり、同じ区分に属する。
+
+**却下した選択肢:**
+- 自前字句解析の改良 — raw string と行継続だけ足しても翻訳フェーズ全体としては不正確なままで、
+  「どこまで正しいか」を主張できない。
+- file 全体の BOM / NUL 拒否の維持 — 凍結 block と完全一致する source を block 外の 1 byte で
+  拒否する。裁定した受理集合より狭く、過剰拒否である。
+
+## D383. 骨格の単位元を受理言語に含める (2026-08-13)
+
+**決定:** trigger 軸の受理言語は、生成器が出す 32 述語に加えて、凍結 template が持つ hole の
+初期値 (`izanagi_gate_pass = true;`) を含む。ただし初期値を受理するのは **block 全体が凍結
+template と逐語一致する場合に限る**。
+
+**理由:**
+- 生成器の 32 述語は要因 8 種のうち 5 種と番兵しか覆わない。残り 2 種に対して全ビット立ての
+  述語は「抑制しない」を返し、初期値は「抑制する」を返すので、**意味が一致する代替は存在しない**。
+- 「その 2 種が実際には発火しない」ことこそ characterization driver が測る対象なので、
+  全ビット立てで代用すると測りたい前提を答えに使う循環になる。
+- したがって初期値は 33 番目の候補ではなく**骨格の単位元**であり、受理言語に含めることは
+  候補空間の拡大ではない。
+- 検査導入前は gate 自体が存在せず全 source が受理されていたため、新受理集合はその真部分集合である。
+
+**却下した選択肢:**
+- 初期値を一律拒否する — 骨格の特性計測 driver 2 本を恒久的に再走不能にする。正しさの利得はゼロで
+  研究能力だけを失う。
+- 生成器の登録簿へ characterization 専用 member を足して型で分離する — 登録簿は受入方針の
+  preimage に含まれ、方針ハッシュは全 admission receipt の field である。**member を 1 つ足すだけで
+  過去・現在の全 receipt の SHA が変わる**ため、凍結 pin 閉包の全面移行なしには実装できない。
+
+## D384. 受領証の履歴走査を安価先行の二段構えにし、構文検証を通した安価出力を不在の証明とする (2026-08-13)
+
+**決定:** `_batched_history_touches_path` は、まず rename/copy 検出を外した安価走行
+(`--no-renames`) で対象 path と対象 blob OID の不在を確かめ、**どちらも現れなければ即 `False`**
+を返す。どちらかが現れたときだけ、全 commit を従来の高価 argv (`-M -C`) で再走査し、その判定を返す。
+安価側と高価側は**同一の厳格 parser**を通し、commit group の欠落・順序不一致・終端不正・
+未知形式はどちらの走行でも `receipt.git_error` で止める。
+
+**信頼境界を明示する:** この設計は「git が構文的に妥当な出力を返したなら必要な record を
+省略しない」ことを前提にしている。安価走行が構文を保ったまま record を落とす故障モデルでは、
+従来 `True` だった履歴が `False` になる。ユーザー裁定 (選択肢 (i)) はこの境界を承認しており、
+docstring に明記する。**高価コマンド固有の故障を毎回は観測しなくなる**点も同じ裁定に含まれる。
+
+**argv は凍結 tuple の定数 2 つに閉じ、`_git` へ渡す直前に定数から導出しない独立な検査を通す。**
+検査内容は許可 token 集合 (独立 literal)、`-C` と `-M` の重複禁止、`--find-copies-harder` の不在。
+`assert` は `-O` で消えるため使わず `MigrationError` を送出する。
+
+**理由:**
+
+- 本番入力 (reachable 3,572、descendants 2,920、targets 2,919) の実測で、同一機体・同一入力の
+  高価走行単独が 26.271 秒であるのに対し、二段構えは 0.704 / 0.706 / 0.710 秒だった。判定は
+  `False` のまま変わらない。従来の走査は commit 数に比例して伸びる構造だった。
+- 包含は git の意味論から従う。diffcore の rename/copy 検出は**既存の filepair を対応付けるだけ**で、
+  新しい destination path も新しい非零 dst OID も生成しない。rename の source は安価側に `D`、
+  destination は `A` として現れ、`--find-copies-harder` を使わない `-C` の copy 元は
+  同じ commit 内で変更済みなので安価側にも現れる。実測でも、本番入力 2,919 commit に対して
+  安価側と高価側の path 集合 (11,448 件) と非零 dst OID 集合 (12,279 件) が完全一致した。
+  **有限観測は普遍性を含意しない**ため、根拠は実測ではなく上記の filepair 制約に置く。
+- 敵対レンズが merge (`-m`、2 親・3 親・octopus)、root commit、mode change、
+  regular/symlink/gitlink の type change、実 submodule の gitlink、非 UTF-8 / 空白 / 改行を含む path、
+  空 blob、同一 OID の複数 destination、削除と追加の同居、`.gitattributes` の diff driver、
+  `diff.renameLimit` 超過の巨大 commit について反例を探し、**いずれも反例を構成できなかった**。
+
+**`--find-copies-harder` の検出器がこの変更で移動する。** `-C` を 2 回書くのは
+`--find-copies-harder` と同義である (git 2.34.1 で実測確認)。二段構え前は、内容を変えた copy
+(near-copy) の期待値 `False` がこの flag の混入を振る舞いとして検出していた。二段構え後は
+near-copy が安価 trigger を発火させないため高価走行に到達せず、**その検出は失われる**。
+そのため argv の機械検査は「あれば良い追加検査」ではなく、受理集合の保存そのものを担う。
+同一変異を wave 前後の HEAD へ当てた実測では、赤になる node が 1 件 (振る舞いによる検出) から
+14 件 (うち 13 件は production guard 由来) へ増えた。
+
+**却下した選択肢:**
+
+- **禁止文字列 `--find-copies-harder` の不在だけを検査する** — `-C` の重複、`-C90` 形、
+  長形式の重複がすべて素通りする。実測で `-C -C` が harder と 1 byte 違わぬ raw 出力を出すことを
+  確認しており、この検査では受理集合を守れない。
+- **完成 argv が凍結定数のいずれかと一致することだけを検査する** — 比較対象も同時に変わるため、
+  **定数そのものを書き換える変異を通す**。段 6 の敵対レビューが摘出した。多重防壁として残すが、
+  安全性の根拠は独立検査の側に置く。
+- **高価 fallback を trigger が発火した commit の部分集合へ絞る** — per-commit の包含主張が別途要り、
+  健全な repo では trigger 自体が発火しないので利得がない。
+- **`_history_touches_path` / `_any_history_touches_path` も二段構えにする** — production の
+  呼び出し元は一括版だけであり、逐次版は等価性 control として単段のまま残す方が対照になる。
+- **安価側に緩い parser (部分文字列検索など) を置く** — 未知 metadata・marker 欠落・NUL 終端不正を
+  見逃す。同一 parser 1 回の走査から集合証拠と従来判定を同時に作る。
+
+**D260 との関係:** D260 は当時「`diff-tree --stdin` で 1 process に畳む」を、process 起動が
+0.02 秒未満で節約が 1% 未満という実測に基づき却下していた。その後の一括化でこの前提は変わっており、
+本決定はさらに走査そのものを安価側へ倒す。D260 の argv 決定 (`--raw` の destination OID で
+exact copy を検出し `--find-copies-harder` を使わない) は**不変のまま引き継ぐ**。
+
+**研究状態への影響:** certified 選択・材料レポート・proof chain・凍結 bytes は不変である。
+正常な git 出力に対する受理集合も不変である。変わるのは (a) 走査の所要時間、
+(b) 安価側が構文を保ったまま record を落とす故障モデルと高価コマンド固有の故障の扱い、
+(c) 安価側の起動・parse 失敗が従来の正常判定を `receipt.git_error` へ倒す過剰拒否の追加である。

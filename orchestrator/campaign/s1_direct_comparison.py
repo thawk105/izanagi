@@ -95,6 +95,35 @@ class BudgetExhausted(DriverError):
     """通常枠または retry 専用枠が次の session の保守上界に満たない。"""
 
 
+class _SortSwoOracleRejected(DriverError):
+    """REJECT の sanitized oracle record を台帳境界まで運ぶ。"""
+
+    def __init__(self, message: str, oracle_attempt: Mapping[str, object]):
+        super().__init__(message)
+        self.oracle_attempt = dict(oracle_attempt)
+
+
+def _sort_swo_reject_attempt_record(result: object) -> Dict[str, object]:
+    from .sort_swo_oracle import OracleStatus, SortSwoOracleResult
+
+    if (type(result) is not SortSwoOracleResult
+            or result.status is not OracleStatus.REJECT
+            or result.finding is None):
+        raise TypeError("oracle reject record requires exact REJECT with finding")
+    out: Dict[str, object] = {
+        "event": "sort-swo-oracle-attempt",
+        "classification": "reject",
+        "reason_code": result.finding.reason_code,
+        "oracle_finding": result.finding.as_dict(),
+        "oracle_contract_id": result.contract_id,
+        "materialized_hole_sha256": result.materialized_hole_sha256,
+        "proposal_sha256": result.proposal_sha256,
+    }
+    if result.receipt is not None:
+        out["oracle_receipt"] = result.receipt.as_dict()
+    return out
+
+
 @dataclass(frozen=True)
 class ScheduledCell:
     schedule_index: int
@@ -598,9 +627,10 @@ def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
                     raise SortSwoOracleUnavailable(oracle)
                 if oracle.status is OracleStatus.REJECT:
                     assert oracle.finding is not None
-                    raise DriverError(
+                    raise _SortSwoOracleRejected(
                         f"sort_best comparator が SWO oracle 不通過: "
-                        f"{oracle.finding.reason_code}"
+                        f"{oracle.finding.reason_code}",
+                        _sort_swo_reject_attempt_record(oracle),
                     )
                 if oracle.status is not OracleStatus.PASS:
                     raise DriverError("sort_best SWO oracle が未知 status を返した")
@@ -880,6 +910,12 @@ def run_role(
                         status, reason = _result_classification(result, layout)
             except (wal.WalAppendError, wal.WalFramingError):
                 # evaluate/cleanup 境界でも deviation や retry を追記せず上位へ保全する。
+                raise
+            except _SortSwoOracleRejected as exc:
+                start_event = _base_event(item, variant, attempt)
+                start_event["sort_swo_oracle"] = exc.oracle_attempt
+                start_event["freeze_cell_id"] = item.freeze_cell_id
+                _append_event(layout, start_event)
                 raise
             except DriverError:
                 # freeze 値・gate predicate・quarantine の契約違反は機械故障でない。

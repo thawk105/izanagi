@@ -191,6 +191,10 @@ _T316_GITLINK_RULING = (
     "2026-08-12 dev-wave-t316-r2-oracle land 前裁定 "
     "(ユーザー選択: known-violation 登録)"
 )
+_T897_MERGE_RULING = (
+    "2026-08-13 dev-wave-t897-trigger-admission land 前裁定 "
+    "(ユーザー選択: known-violation 登録)"
+)
 _T720_MERGE_NOTE = (
     "[T-720] の repo 全体 import 機械書換えと main の同一 file 変更を競合ゼロで"
     "3 方向結合したため結果が両親のどちらとも異なり checker が実装面著作と判定；"
@@ -217,6 +221,15 @@ _T316_GITLINK_NOTE = (
     "main 取り込み merge が `external/ccbench` の gitlink（submodule ポインタ）を"
     "古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみで"
     "ソース著作なし；親作成 commit のため Codex 著者とは記さない"
+)
+_T897_MERGE_NOTE = (
+    "wave branch へ local main 9e2923c6 を取り込んだ 160 commit の merge；実装面で"
+    "両側が触ったのは `orchestrator/tests/test_campaign.py` の 1 file のみで、3 方向結合の"
+    "結果が両親のどちらとも異なるため checker が実装面著作と判定；`git diff-tree --cc "
+    "98d07c3b -- orchestrator/tests/test_campaign.py` は header 1 行のみで実質空、結果は"
+    "両側の変更の和集合；競合なし・競合解決による新規著作なし；wave 側の変更は Codex "
+    "`role=author` が commit 01d17293 で書き、main 側は各 wave land 時に監査済み；"
+    "親作成 merge のため Codex 著者とは記さない"
 )
 _T139_MALFORMED_VALUE = (
     "product=claude; model=claude-opus-5[1m]; reasoning=high; "
@@ -565,6 +578,12 @@ KNOWN_PROVENANCE_VIOLATIONS = (
         MISSING_CODEX_AUTHOR,
         _T316_GITLINK_RULING,
         note=_T316_GITLINK_NOTE,
+    ),
+    KnownViolationSpec(
+        "98d07c3b0e7726a929e98381e4762973d8e4c681",
+        MISSING_CODEX_AUTHOR,
+        _T897_MERGE_RULING,
+        note=_T897_MERGE_NOTE,
     ),
 )
 

@@ -24,13 +24,23 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import re
 import secrets
 from dataclasses import dataclass
 from enum import Enum
 from typing import Mapping
 
+from .axis_trigger_gating import (
+    FROZEN_TEMPLATE_BLOCK_BYTES,
+    FROZEN_TEMPLATE_HOLE_BYTES,
+    MARKER_ID as TRIGGER_MARKER_ID,
+    PREDICATE_HOLE_INDENT as TRIGGER_PREDICATE_HOLE_INDENT,
+    SOURCE_REL as TRIGGER_SOURCE_REL,
+)
 from .materializer_admission import require_registered_coder_entrypoint
 from .pin import CURRENT_PIN
+from .reflux_ir import TriggerGateIR, emit_predicate
 from .source_digest import STOCK, SourceEvidence
 
 
@@ -42,6 +52,36 @@ _AUTHORITY_KIND = "cli-opt-in"
 _SEAL = object()
 _ISSUED_AUTHORITY_NONCES: set[str] = set()
 _CLAIMED_AUTHORITY_NONCES: set[str] = set()
+_TRIGGER_MARKER_BYTES = TRIGGER_MARKER_ID.encode("ascii")
+_TRIGGER_BEGIN_DIRECTIVE_RE = re.compile(
+    rb"^[ \t]*//[ \t]*EVOLVE-BLOCK-BEGIN[ \t]+"
+    + re.escape(_TRIGGER_MARKER_BYTES)
+    + rb"[ \t]*(?:\r\n|\n|\r|\Z)",
+    re.IGNORECASE | re.MULTILINE,
+)
+_TRIGGER_END_DIRECTIVE_RE = re.compile(
+    rb"^[ \t]*//[ \t]*EVOLVE-BLOCK-END[ \t]+"
+    + re.escape(_TRIGGER_MARKER_BYTES)
+    + rb"[ \t]*(?:\r\n|\n|\r|\Z)",
+    re.IGNORECASE | re.MULTILINE,
+)
+_TRIGGER_SKELETON_TOKENS = (b"BACKOFF_TRIGGER_GATING", b"izanagi_gate_pass")
+_TRIGGER_REJECTION_MESSAGE = "trigger axis predicate が materialized source と不一致"
+_TRIGGER_EXPECTED_HOLE_BYTES = tuple(
+    (
+        TRIGGER_PREDICATE_HOLE_INDENT
+        + emit_predicate(TriggerGateIR(mask))
+    ).encode("utf-8")
+    for mask in range(32)
+)
+_TRIGGER_TEMPLATE_PREFIX, _TRIGGER_TEMPLATE_SEPARATOR, _TRIGGER_TEMPLATE_SUFFIX = (
+    FROZEN_TEMPLATE_BLOCK_BYTES.partition(FROZEN_TEMPLATE_HOLE_BYTES)
+)
+if (
+    not _TRIGGER_TEMPLATE_SEPARATOR
+    or FROZEN_TEMPLATE_HOLE_BYTES in _TRIGGER_TEMPLATE_SUFFIX
+):
+    raise RuntimeError("frozen trigger template hole must occur exactly once")
 
 
 class BuildAdmissionError(RuntimeError):
@@ -120,6 +160,43 @@ def _source_map(source: SourceEvidence) -> dict[str, object]:
         return source.as_receipt()
     except (AttributeError, TypeError, ValueError) as exc:
         raise BuildAdmissionError("SourceEvidence の canonical body が不正") from exc
+
+
+def _reject_trigger_axis() -> None:
+    raise BuildAdmissionError(_TRIGGER_REJECTION_MESSAGE) from None
+
+
+def _require_materialized_trigger_axis_predicate(evidence: SourceEvidence) -> None:
+    source_path = os.path.join(evidence.source_root, TRIGGER_SOURCE_REL)
+    try:
+        with open(source_path, "rb") as source_file:
+            raw = source_file.read()
+    except FileNotFoundError:
+        return
+    except OSError:
+        _reject_trigger_axis()
+
+    begins = tuple(_TRIGGER_BEGIN_DIRECTIVE_RE.finditer(raw))
+    ends = tuple(_TRIGGER_END_DIRECTIVE_RE.finditer(raw))
+    if not begins and not ends:
+        if any(token in raw for token in _TRIGGER_SKELETON_TOKENS):
+            _reject_trigger_axis()
+        return
+    if len(begins) != 1 or len(ends) != 1 or begins[0].start() >= ends[0].start():
+        _reject_trigger_axis()
+
+    block = raw[begins[0].start():ends[0].end()]
+    if block == FROZEN_TEMPLATE_BLOCK_BYTES:
+        return
+    if not (
+        block.startswith(_TRIGGER_TEMPLATE_PREFIX)
+        and block.endswith(_TRIGGER_TEMPLATE_SUFFIX)
+    ):
+        _reject_trigger_axis()
+    hole_end = len(block) - len(_TRIGGER_TEMPLATE_SUFFIX)
+    hole = block[len(_TRIGGER_TEMPLATE_PREFIX):hole_end]
+    if hole not in _TRIGGER_EXPECTED_HOLE_BYTES:
+        _reject_trigger_axis()
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -516,6 +593,7 @@ def derive_build_admission(
     if type(context) is not BuildRunContext:
         raise BuildAdmissionError("context は build_run_context() 由来の exact value が必要")
     source_body = _source_map(source)
+    _require_materialized_trigger_axis_predicate(source)
     if generator_receipt is not None and review_receipt is not None:
         raise BuildAdmissionError("generator と review receipt の同時提示は曖昧なので拒否")
 
@@ -641,6 +719,8 @@ def require_build_admission(
 
     if type(value) is not BuildAdmission:
         raise BuildAdmissionError("admission は derive_build_admission() 由来の exact value が必要")
+    _source_map(expected_source)
+    _require_materialized_trigger_axis_predicate(expected_source)
     try:
         body = value.as_wal_receipt()
     except (AttributeError, TypeError, ValueError) as exc:
