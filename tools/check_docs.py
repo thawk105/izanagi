@@ -512,7 +512,7 @@ policy:
   allow_implicit_invocation: false
 """
 CLEANUP_COMMAND_SHA256 = (
-    "c13394954952a344c9086c93db102cd9b45765a04285ac8e835b15b3552db3e4"
+    "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
 )
 
 COMMAND_INTERFACES = {
@@ -4298,14 +4298,29 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     pass
                 else:
                     command_body = "\n".join(command_lines[frontmatter_end + 1:])
+            visible_command_body = _visible_dispatch_inventory_text(command_body)
             if not any(
                 re.search(r"(?<![0-9A-Za-z])F26(?![0-9A-Za-z])", line)
                 and "`docs/failures.md`" in line
-                for line in _visible_dispatch_inventory_text(command_body).splitlines()
+                for line in visible_command_body.splitlines()
             ):
                 findings.append(
                     f"{rel}: F26 と `docs/failures.md` が同一可視行に共起しない — "
                     "他文書にしか無い義務への到達 edge を失っている"
+                )
+            required_occupancy_literals = (
+                "tools/check_worktree_occupancy.py",
+                "rc0",
+            )
+            missing_occupancy_literals = tuple(
+                literal
+                for literal in required_occupancy_literals
+                if literal not in visible_command_body
+            )
+            if missing_occupancy_literals:
+                findings.append(
+                    f"{rel}: worktree 占有 checker の必須可視 literal が無い — "
+                    f"{list(missing_occupancy_literals)}"
                 )
         parsed = _parse_frontmatter(text)
         if parsed is None:
