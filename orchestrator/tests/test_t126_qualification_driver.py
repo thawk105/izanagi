@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import os
 import json
+import select
 import signal
 import subprocess
 import time
@@ -587,6 +588,8 @@ def test_actual_term_hup_handler_cleans_descendant_process_group(sig):
     code = """
 import os,signal,sys,time
 from orchestrator.qualification.t126_driver import ActiveProcessGroups
+signal.pthread_sigmask(signal.SIG_UNBLOCK,{signal.SIGTERM,signal.SIGHUP})
+ready_fd=int(sys.argv[2])
 with ActiveProcessGroups(0.2) as groups:
     child=os.fork()
     if child==0:
@@ -595,21 +598,45 @@ with ActiveProcessGroups(0.2) as groups:
         if grandchild==0:
             time.sleep(30)
             os._exit(0)
+        os.write(ready_fd,b'1')
         time.sleep(30)
         os._exit(0)
     groups.add(child)
     print(child,flush=True)
-    time.sleep(0.05)
-    os.kill(os.getpid(),int(sys.argv[1]))
+    signal.pause()
 """
-    completed = subprocess.run(
-        [sys.executable, "-c", code, str(int(sig))],
+    ready_read, ready_write = os.pipe()
+    process = subprocess.Popen(
+        [sys.executable, "-c", code, str(int(sig)), str(ready_write)],
         cwd=_ROOT, env={**os.environ, "PYTHONPATH": str(_ROOT)},
-        capture_output=True, text=True, timeout=5)
-    assert completed.returncode != 0
-    pgid = int(completed.stdout.splitlines()[0])
-    with pytest.raises(ProcessLookupError):
-        os.killpg(pgid, 0)
+        pass_fds=(ready_write,), stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True)
+    os.close(ready_write)
+    pgid = None
+    cleanup_verified = False
+    try:
+        readable, _, _ = select.select([ready_read], [], [], 5.0)
+        assert readable, "process group readiness handshake timed out"
+        assert os.read(ready_read, 1) == b"1"
+        assert process.stdout is not None
+        pgid = int(process.stdout.readline().strip())
+        os.kill(process.pid, sig)
+        stdout, stderr = process.communicate(timeout=10)
+        assert process.returncode != 0, stderr
+        assert stdout == ""
+        with pytest.raises(ProcessLookupError):
+            os.killpg(pgid, 0)
+        cleanup_verified = True
+    finally:
+        os.close(ready_read)
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+        if not cleanup_verified and pgid is not None:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 def test_single_monotonic_envelope_rejects_gap_that_exceeds_wmax(tmp_path):

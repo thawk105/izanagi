@@ -2542,6 +2542,7 @@ def test_tests_task_env_allowlist_is_exact():
         "PYTEST_ADDOPTS",
         "IZANAGI_TEST_NPROC",
         "IZANAGI_TEST_TRIGGER",
+        "PYTHONDONTWRITEBYTECODE",
         "IZANAGI_T080_E2E",
         "IZANAGI_RUN_GROWTH_HELD_TESTS",
     })
@@ -2576,6 +2577,77 @@ def test_t080_e2e_opt_in_env_is_projected_into_tests_request(tmp_path):
         ).read_text(encoding="utf-8"),
     )
     assert request["environment"] == {"IZANAGI_T080_E2E": "1"}
+
+
+def test_python_dont_write_bytecode_env_is_projected_into_tests_request(
+    tmp_path,
+):
+    operational_scheduler = _Scheduler()
+    operational_clock = _Clock()
+    operational_rc = DC.dispatch(
+        ["orchestrator/tests/test_pegasus_dispatch_compute.py", "-q"],
+        task="tests",
+        repo_root=_REPO,
+        output_root=tmp_path / "operational-dispatch",
+        environ={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "IZANAGI_UNLISTED": "must-not-propagate",
+        },
+        run_command=operational_scheduler,
+        clock=operational_clock,
+        sleep=operational_clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="pythondontwritebytecode-operational-nonce",
+    )
+    assert operational_rc == 0
+
+    operational_request = json.loads(
+        (
+            tmp_path
+            / "operational-dispatch"
+            / "pythondontwritebytecode-operational-nonce"
+            / "request.json"
+        ).read_text(encoding="utf-8"),
+    )
+    assert operational_request["environment"]["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert "IZANAGI_UNLISTED" not in operational_request["environment"]
+
+    sentinel_scheduler = _Scheduler()
+    sentinel_clock = _Clock()
+    sentinel_rc = DC.dispatch(
+        ["orchestrator/tests/test_pegasus_dispatch_compute.py", "-q"],
+        task="tests",
+        repo_root=_REPO,
+        output_root=tmp_path / "sentinel-dispatch",
+        environ={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONDONTWRITEBYTECODE": "sentinel-passthrough",
+        },
+        run_command=sentinel_scheduler,
+        clock=sentinel_clock,
+        sleep=sentinel_clock.sleep,
+        poll_interval_s=5,
+        queue_wait_timeout_s=20,
+        accounting_grace_s=0,
+        nonce="pythondontwritebytecode-sentinel-nonce",
+    )
+    assert sentinel_rc == 0
+
+    sentinel_request = json.loads(
+        (
+            tmp_path
+            / "sentinel-dispatch"
+            / "pythondontwritebytecode-sentinel-nonce"
+            / "request.json"
+        ).read_text(encoding="utf-8"),
+    )
+    assert (
+        sentinel_request["environment"]["PYTHONDONTWRITEBYTECODE"]
+        == "sentinel-passthrough"
+    )
 
 
 def test_provenance_task_binds_child_script_and_empty_env_allowlist(tmp_path):
@@ -2663,6 +2735,27 @@ def test_job_run_accepts_v1_request_as_tests_task(tmp_path):
     assert result["stage"] == "child"
     assert result["child_rc"] == 7
     assert result["error"] is None
+
+
+def test_job_run_passes_python_dont_write_bytecode_env_to_tests_child(tmp_path):
+    request = tmp_path / "request.json"
+    sentinel = "sentinel-child-env"
+    request.write_text(
+        json.dumps({
+            "schema_version": "pegasus-dispatch-request/v2",
+            "repo_root": str(_REPO),
+            "task": "tests",
+            "args": ["orchestrator/tests", "-q"],
+            "environment": {"PYTHONDONTWRITEBYTECODE": sentinel},
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    rc, calls = _job_run_with_mocked_child(request)
+    assert rc == 0
+    assert len(calls) == 1
+    _, kwargs = calls[0]
+    assert kwargs["env"]["PYTHONDONTWRITEBYTECODE"] == sentinel
 
 
 @pytest.mark.parametrize(

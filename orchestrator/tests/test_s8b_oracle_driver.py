@@ -1679,7 +1679,8 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
                     *, source_root=ROOT, generator_paths=None,
                     contract=None, master_seed="driver-fixture",
                     activate_approved=True, name="oracle_manifest.json",
-                    campaign_id="s8b-oracle-fixture-b0") -> tuple[Path, dict]:
+                    campaign_id="s8b-oracle-fixture-b0",
+                    ccbench_pin="fixture-pin") -> tuple[Path, dict]:
     freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
     schedule = _schedule(master_seed=master_seed)
     bindings = []
@@ -1688,7 +1689,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
             identity = s8b_materialization.prepare_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id,
-                ccbench_pin="fixture-pin", cxx="site-cxx",
+                ccbench_pin=ccbench_pin, cxx="site-cxx",
                 prepare_fn=prepare_fn,
             )
             bindings.append({
@@ -1700,7 +1701,7 @@ def _write_manifest(tmp_path: Path, freeze_path: Path, prepare_fn,
         generator_paths = GENERATOR_SOURCES
     contract = contract or ec.lookup(V2_ENV_TAG)
     run_contract = {
-        "ccbench_pin": "fixture-pin", "env_tag": contract.env_tag,
+        "ccbench_pin": ccbench_pin, "env_tag": contract.env_tag,
         "clocks": contract.clocks_per_us, "reps": 5, "extime": 5,
         "verify": "legacy+s2", "screening": "off",
         "bench_max_rounds": 1,
@@ -4305,10 +4306,14 @@ def _emitter_manifest(tmp_path: Path, root: Path, freeze_path: Path):
         source = root / relative_path
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_bytes(f"hermetic generator fixture: {role}\n".encode("utf-8"))
+    generation = json.loads(freeze_path.read_bytes())
+    protocol_path = root / generation["floor_protocol"]["path"]
+    floor_protocol = json.loads(protocol_path.read_bytes())
     with mock.patch.object(manifest_module, "ROOT", root):
         return _write_manifest(
             tmp_path, freeze_path, _prepare_factory(), source_root=root,
             generator_paths=generator_paths,
+            ccbench_pin=floor_protocol["ccbench_pin"],
         )
 
 
@@ -4479,6 +4484,61 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
         receipt, env_tag=V2_ENV_TAG, contract_sha256=contract.contract_sha256,
         attestation_mode="none",
     )
+
+
+def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path):
+    root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
+    validated = s8b_ratified_freeze.launch_validate(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    binaries = s8b_ratified_freeze._plain_json(validated.binaries_by_cell)
+    pair = None
+    values = list(binaries.values())
+    for first in values:
+        for second in values:
+            if (first["cell_id"] != second["cell_id"]
+                    and first["configuration_id"] == second["configuration_id"]
+                    and first["binary_sha256"] == second["binary_sha256"]
+                    and first["binding"] == second["binding"]):
+                pair = (first, second)
+                break
+        if pair is not None:
+            break
+    assert pair is not None, "cell/holdout だけが異なる receipt swap fixture が必要"
+    first, second = pair
+    first["admission_receipt"], second["admission_receipt"] = (
+        second["admission_receipt"], first["admission_receipt"],
+    )
+    swapped = dataclasses.replace(validated, binaries_by_cell=binaries)
+    with mock.patch.object(
+            driver, "_store_sha256",
+            side_effect=AssertionError("receipt 全件 preflight 前に store を読んだ")):
+        with pytest.raises(driver.OracleDriverError, match="admission-mismatch"):
+            driver._prepare_v2_execution(
+                validated=swapped, run_contract=document["run_contract"],
+                schedule=document["schedule"]["rows"], out_root=out_root,
+                repo_root=root,
+            )
+
+
+def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):
+    """M5 の独立性は主張せず、実 store 改変が既存 record SHA gate で拒否される。"""
+    root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
+    out_root = root / "output"
+    _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)
+    validated = s8b_ratified_freeze.launch_validate(
+        s8b_ratified_freeze.load_ratified_freeze(root), root,
+    )
+    victim = _unique_store_victim(binaries)
+    (out_root / victim["store_path"]).write_bytes(b"real-store-corruption")
+    with pytest.raises(driver.OracleDriverError, match="store-hash-mismatch"):
+        driver._prepare_v2_execution(
+            validated=validated, run_contract=document["run_contract"],
+            schedule=document["schedule"]["rows"], out_root=out_root,
+            repo_root=root,
+        )
 
 
 def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):

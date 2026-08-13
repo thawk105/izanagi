@@ -58,6 +58,10 @@ from tools.dev_waves.schema import (  # noqa: E402
     canonical_bytes,
     strict_loads,
 )
+from tools.dev_waves.time_values import (  # noqa: E402
+    decimal_seconds_to_nanoseconds,
+    positive_safe_nanosecond_decimal,
+)
 from tools.dev_waves.worker import (  # noqa: E402
     PidIdentity,
     read_pid_identity,
@@ -1164,6 +1168,17 @@ def _group_member_count(identity: PidIdentity | None) -> int | None:
     return count
 
 
+def _wait_for_group_exit(
+    identity: PidIdentity | None, *, timeout_s: float
+) -> int | None:
+    deadline = time.monotonic() + timeout_s
+    while True:
+        residual = _group_member_count(identity)
+        if residual == 0 or time.monotonic() >= deadline:
+            return residual
+        time.sleep(0.01)
+
+
 def _terminate(
     process: subprocess.Popen[bytes],
     identity: PidIdentity | None,
@@ -1189,11 +1204,7 @@ def _terminate(
         except ProcessLookupError:
             pass
         process.wait(timeout=5)
-    deadline = time.monotonic() + 1.0
-    residual = _group_member_count(identity)
-    while residual not in (0, None) and time.monotonic() < deadline:
-        time.sleep(0.01)
-        residual = _group_member_count(identity)
+    residual = _wait_for_group_exit(identity, timeout_s=1.0)
     return residual, bool(verified and residual == 0)
 
 
@@ -1201,11 +1212,7 @@ def _normal_reap(
     process: subprocess.Popen[bytes], identity: PidIdentity | None
 ) -> tuple[int | None, bool]:
     process.wait()
-    deadline = time.monotonic() + 0.5
-    residual = _group_member_count(identity)
-    while residual not in (0, None) and time.monotonic() < deadline:
-        time.sleep(0.01)
-        residual = _group_member_count(identity)
+    residual = _wait_for_group_exit(identity, timeout_s=0.5)
     return residual, residual == 0
 
 
@@ -1424,8 +1431,9 @@ def _attempt_loop(
             identity = read_pid_identity(process.pid)
         except (OSError, ValueError):
             identity = None
-        evidence_deadline_ns = state.started_ns + int(
-            float(args.evidence_grace_s) * 1_000_000_000
+        evidence_deadline_ns = (
+            state.started_ns
+            + decimal_seconds_to_nanoseconds(args.evidence_grace_s)
         )
         forced_stop = False
         while True:
@@ -3101,7 +3109,9 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--sessions-root", type=Path, default=None)
     run.add_argument("--codex-bin", default="codex")
     run.add_argument(
-        "--evidence-grace-s", type=_positive_decimal, default=Decimal("5")
+        "--evidence-grace-s",
+        type=positive_safe_nanosecond_decimal,
+        default=Decimal("5"),
     )
     run.add_argument(
         "--termination-grace-s",

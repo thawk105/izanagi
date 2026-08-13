@@ -44,8 +44,9 @@ official core は ``build_fn`` 注入を副作用前に拒否し、admission-awa
 private core 完走 artifact は二相 finalize の completed terminal 後 publish に限って true となる。
 
 既知限界: ``eligible_for_refreeze`` は依然として receipt chain ではなく ``mode`` 由来であり、
-content-addressed store から resume 時に binary を取得する経路も admission receipt へ閉じていない。
-この二面には security credit を与えない。
+eligible_for_refreeze は依然として receipt chain ではない。binary 側は発行時に検証した
+admission を store、resume、floor 実測直前まで連続束縛するが、gateway 発行の証明や
+暗号学的保証ではない。
 """
 from __future__ import annotations
 
@@ -91,7 +92,9 @@ from .build_admission import (  # noqa: E402
     ReviewId,
     build_run_context,
     derive_build_admission,
+    resolve_current_build_admission_policy,
 )
+from . import s8b_binary_admission as _binary_admission  # noqa: E402
 from . import t080_freeze_migration as _t080_migration  # noqa: E402
 from . import freeze_verification_hold as _freeze_hold  # noqa: E402
 from . import s8b_floor_contract as _floor_contract  # noqa: E402
@@ -241,11 +244,7 @@ _REASON_COMPETING = "competing_process"          # preflight/post probe の競�
 _REASON_LAUNCH = "launch_failure"                # プロセス起動失敗 (全 rep 実行不能)
 _REASON_PARTIAL = "nonfinite_or_partial_output"
 
-_PORTABLE_BUILT_KEYS = frozenset({
-    "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
-    "bin_hash_short", "binding", "configure_argv", "build_argv", "cached",
-    "store_path",
-})
+_PORTABLE_BUILT_KEYS = _binary_admission.PORTABLE_BUILT_KEYS
 _PORTABLE_PLACEHOLDERS = ("${OUT_ROOT}", "${CCBENCH_ROOT}")
 
 # W2a walltime envelope の凍結定数。build cap/finalize reserve は Pegasus
@@ -2078,6 +2077,23 @@ def build_cells(
                 ccbench_dir=prepared.ccbench_dir,
                 cxx=cxx,
             )
+            receipt_identity = dict(identity)
+            if receipt_identity["src_token"] != evidence.src_token:
+                # Production build_v2 は直後にこの不一致を拒否する。既存の注入 build seam だけは
+                # legacy token を観測できるため、durable identity は権威ある SourceEvidence へ
+                # 正規化し、build 呼出しの token 自体は変更しない。
+                receipt_identity["src_token"] = evidence.src_token
+                suffix = "" if evidence.src_token == "stock" else f"|src={evidence.src_token}"
+                receipt_identity["variant_id"] = hashlib.sha256(
+                    f"{receipt_identity['genome_canonical']}{suffix}".encode("utf-8")
+                ).hexdigest()[:12]
+                unsigned = {
+                    key: receipt_identity[key]
+                    for key in sorted(set(receipt_identity) - {"binding_sha256"})
+                }
+                receipt_identity["binding_sha256"] = hashlib.sha256(json.dumps(
+                    unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+                ).encode("utf-8")).hexdigest()
             review = reviewed_source_capability(
                 review_id=ReviewId.S8B_FLOOR,
                 source=evidence,
@@ -2129,6 +2145,19 @@ def build_cells(
                     or not all(isinstance(token, str) for token in build_argv)
                     or not build_argv):
                 raise FloorCampaignError("build result.build_argv が非空 list[str] でない")
+            try:
+                admission_receipt = _binary_admission.issue_binary_admission_receipt(
+                    admission=admission, expected_policy=build_context.policy,
+                    source=evidence, cell_id=cell["cell_id"],
+                    holdout_id=holdout_id, configuration_id=configuration_id,
+                    binding=receipt_identity, binary=binary_path,
+                    binary_sha256=result.bin_sha256,
+                    contract_sha256=contract.contract_sha256, trace=False,
+                )
+            except _binary_admission.BinaryAdmissionError as exc:
+                raise FloorCampaignError(
+                    f"binary admission receipt を発行できない: {exc}"
+                ) from exc
             built[cell["cell_id"]] = {
                 "cell_id": cell["cell_id"],
                 "holdout_id": holdout_id,
@@ -2136,10 +2165,11 @@ def build_cells(
                 "binary": str(binary_path),
                 "binary_sha256": result.bin_sha256,
                 "bin_hash_short": result.bin_hash,
-                "binding": dict(identity),
+                "binding": receipt_identity,
                 "configure_argv": list(configure_argv),
                 "build_argv": list(build_argv),
                 "cached": result.cached,
+                "admission_receipt": admission_receipt,
                 "_ccbench_root": str(Path(
                     getattr(result, "ccbench_root", None) or prepared.ccbench_dir
                 ).absolute()),
@@ -2212,10 +2242,14 @@ def _portable_argv(argv, *, out_root: Path, ccbench_root: str, field: str) -> li
     return projected
 
 
-def _validate_portable_built(built: Mapping) -> dict[str, dict]:
+def _validate_portable_built(
+        built: Mapping, *, expected_ccbench_pin: str | None = None,
+        expected_contract_sha256: str | None = None,
+) -> dict[str, dict]:
     if not isinstance(built, Mapping):
         raise FloorCampaignError("portable binaries が Mapping でない")
     validated: dict[str, dict] = {}
+    current_policy = resolve_current_build_admission_policy()
     for cell_id in sorted(built):
         record = built[cell_id]
         if not isinstance(cell_id, str) or not cell_id:
@@ -2243,15 +2277,33 @@ def _validate_portable_built(built: Mapping) -> dict[str, dict]:
                 raise FloorCampaignError(f"portable binaries[{cell_id}].{field} が不正")
         if type(record["cached"]) is not bool:
             raise FloorCampaignError(f"portable binaries[{cell_id}].cached が bool でない")
+        try:
+            receipt = _binary_admission.validate_portable_binary_record(
+                record, expected_policy=current_policy,
+                expected_ccbench_pin=expected_ccbench_pin,
+                expected_contract_sha256=expected_contract_sha256,
+                expected_cell_id=cell_id,
+                expected_holdout_id=record["holdout_id"],
+                expected_configuration_id=record["configuration_id"],
+            )
+        except _binary_admission.BinaryAdmissionError as exc:
+            raise FloorCampaignError(
+                f"portable binaries[{cell_id}] admission receipt が不正: {exc}"
+            ) from exc
         validated[cell_id] = {
-            key: (dict(value) if key == "binding" else list(value)
+            key: (dict(value) if key == "binding" else receipt
+                  if key == "admission_receipt" else list(value)
                   if key in {"configure_argv", "build_argv"} else value)
             for key, value in record.items()
         }
     return validated
 
 
-def project_built_records(runtime_built: Mapping, *, out_root: Path) -> dict[str, dict]:
+def project_built_records(
+        runtime_built: Mapping, *, out_root: Path,
+        expected_ccbench_pin: str | None = None,
+        expected_contract_sha256: str | None = None,
+) -> dict[str, dict]:
     """runtime view を manifest/result 用 PortableBuiltRecord へ copy-project する。
 
     ``configure_argv`` / ``build_argv`` は provenance の表示・照合専用であり、再実行用 API
@@ -2278,15 +2330,29 @@ def project_built_records(runtime_built: Mapping, *, out_root: Path) -> dict[str
                 rec["build_argv"], out_root=out_root,
                 ccbench_root=ccbench_root, field="build_argv"),
             "cached": rec["cached"],
+            "admission_receipt": json.loads(json.dumps(
+                rec["admission_receipt"], ensure_ascii=True,
+                sort_keys=True, separators=(",", ":"),
+            )),
             "store_path": _portable_relpath(
                 rec["store_path"], out_root=out_root, field="store_path"),
         }
-    return _validate_portable_built(artifact)
+    return _validate_portable_built(
+        artifact, expected_ccbench_pin=expected_ccbench_pin,
+        expected_contract_sha256=expected_contract_sha256,
+    )
 
 
-def resolve_portable_built(artifact_built: Mapping, *, out_root: Path) -> dict[str, dict]:
+def resolve_portable_built(
+        artifact_built: Mapping, *, out_root: Path,
+        expected_ccbench_pin: str | None = None,
+        expected_contract_sha256: str | None = None,
+) -> dict[str, dict]:
     """厳密検証済み artifact view を out_root 基準の runtime absolute view に解決する。"""
-    artifact = _validate_portable_built(artifact_built)
+    artifact = _validate_portable_built(
+        artifact_built, expected_ccbench_pin=expected_ccbench_pin,
+        expected_contract_sha256=expected_contract_sha256,
+    )
     runtime: dict[str, dict] = {}
     root = Path(out_root).absolute()
     for cell_id, rec in artifact.items():
@@ -2305,7 +2371,10 @@ def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
                       built: Mapping, schedule: list[dict],
                       perf_preflight=None, mode=None) -> dict:
     """参照 hash と build identity・schedule を持つ floor manifest を組み立てる (純粋)。"""
-    portable_built = _validate_portable_built(built)
+    portable_built = _validate_portable_built(
+        built, expected_ccbench_pin=protocol["ccbench_pin"],
+        expected_contract_sha256=protocol.get("contract_sha256"),
+    )
     if perf_preflight is not None and mode != "pilot":
         raise CampaignAbort("perf_preflight を持つ manifest は pilot 専用")
     normalized_perf = (
@@ -2899,33 +2968,139 @@ def _revalidate_issued_certificate(
 # content-addressed binary store (C3-7) — 計測 bytes を hash 名で永続化         #
 # --------------------------------------------------------------------------- #
 
+_RUNTIME_FRESH_KEYS = (_PORTABLE_BUILT_KEYS - {"store_path"}) | {"_ccbench_root"}
+_RUNTIME_STORED_KEYS = _PORTABLE_BUILT_KEYS | {"_ccbench_root"}
+
+
+def _preflight_runtime_store_record(
+        cell_id: str, rec: object, *, store_root: Path,
+        expected_policy, expected_ccbench_pin: str,
+        expected_contract_sha256: str,
+) -> tuple[Mapping, Path]:
+    """Store 書込み前に runtime record 全体と admission を検査する。"""
+    if not isinstance(cell_id, str) or not cell_id:
+        raise FloorCampaignError("binary store runtime cell key が不正")
+    if not isinstance(rec, Mapping):
+        raise FloorCampaignError(f"binary store runtime record が Mapping でない: {cell_id}")
+    keys = frozenset(rec)
+    if keys not in (
+            _RUNTIME_FRESH_KEYS, _RUNTIME_STORED_KEYS, _PORTABLE_BUILT_KEYS):
+        raise FloorCampaignError(
+            f"binary store runtime record の exact key 集合が不一致: cell={cell_id}"
+        )
+    if rec.get("cell_id") != cell_id:
+        raise FloorCampaignError(
+            f"binary store runtime record.cell_id が key と不一致: cell={cell_id}"
+        )
+    for field in ("holdout_id", "configuration_id"):
+        if type(rec.get(field)) is not str or not rec[field]:
+            raise FloorCampaignError(
+                f"binary store runtime record.{field} が不正: cell={cell_id}"
+            )
+    binary = rec.get("binary")
+    if type(binary) is not str or not binary or not Path(binary).is_absolute():
+        raise FloorCampaignError(
+            f"binary store runtime record.binary が絶対 path でない: cell={cell_id}"
+        )
+    sha = rec.get("binary_sha256")
+    if not buildcache.is_full_sha256(sha):
+        raise FloorCampaignError(
+            f"binary store runtime record.binary_sha256 が不正: cell={cell_id}"
+        )
+    if rec.get("bin_hash_short") != sha[:16]:
+        raise FloorCampaignError(
+            f"binary store runtime record.bin_hash_short が不一致: cell={cell_id}"
+        )
+    for field in ("configure_argv", "build_argv"):
+        argv = rec.get(field)
+        if (type(argv) is not list or not argv
+                or any(type(token) is not str or not token for token in argv)):
+            raise FloorCampaignError(
+                f"binary store runtime record.{field} が非空 list[str] でない: "
+                f"cell={cell_id}"
+            )
+    if type(rec.get("cached")) is not bool:
+        raise FloorCampaignError(
+            f"binary store runtime record.cached が bool でない: cell={cell_id}"
+        )
+    if "_ccbench_root" in rec:
+        ccbench_root = rec["_ccbench_root"]
+        if (type(ccbench_root) is not str or not ccbench_root
+                or not Path(ccbench_root).is_absolute()):
+            raise FloorCampaignError(
+                f"binary store runtime record._ccbench_root が絶対 path でない: "
+                f"cell={cell_id}"
+            )
+    dest = Path(store_root) / sha
+    if "store_path" in rec:
+        store_path = rec["store_path"]
+        if (type(store_path) is not str or not Path(store_path).is_absolute()
+                or Path(store_path) != dest.absolute()):
+            raise FloorCampaignError(
+                f"binary store runtime record.store_path が content address と不一致: "
+                f"cell={cell_id}"
+            )
+    projected = dict(rec)
+    projected.pop("_ccbench_root", None)
+    projected["store_path"] = str(dest.absolute())
+    try:
+        _binary_admission.validate_portable_binary_record(
+            projected, expected_policy=expected_policy,
+            expected_ccbench_pin=expected_ccbench_pin,
+            expected_contract_sha256=expected_contract_sha256,
+            expected_cell_id=cell_id,
+            expected_holdout_id=rec["holdout_id"],
+            expected_configuration_id=rec["configuration_id"],
+        )
+    except _binary_admission.BinaryAdmissionError as exc:
+        raise FloorCampaignError(
+            f"binary store preflight admission 不一致: cell={cell_id}: {exc}"
+        ) from exc
+    return rec, dest
+
+
 def store_binaries(
         built: dict, store_root: Path, *, out_root: Path,
+        expected_ccbench_pin: str, expected_contract_sha256: str,
         write_capability: Optional[WriteCapability] = None) -> None:
     """計測に使う binary bytes を store_root/<sha256> へ create-only 複製する (C3-7)。
 
     既に同 hash の store が在れば内容 hash を照合するだけ (冪等)。各 built rec に out_root
     相対の store_path を書き込む。oracle 側の消費 (run marker 前の存在+hash 検査) は W4。"""
     store_root = Path(store_root)
-    store_root.mkdir(parents=True, exist_ok=True)
     out_root = Path(out_root)
+    current_policy = resolve_current_build_admission_policy()
+    preflight: list[tuple[dict, str, Path, Path, bytes | None]] = []
     for cell_id in sorted(built):
-        rec = built[cell_id]
+        rec, dest = _preflight_runtime_store_record(
+            cell_id, built[cell_id], store_root=store_root,
+            expected_policy=current_policy,
+            expected_ccbench_pin=expected_ccbench_pin,
+            expected_contract_sha256=expected_contract_sha256,
+        )
         sha = rec["binary_sha256"]
         src = Path(rec["binary"])
-        dest = store_root / sha
+        try:
+            data = src.read_bytes()
+        except OSError as exc:
+            raise FloorCampaignError(f"store 対象 binary を読めない: {src}: {exc}") from exc
+        actual_source_sha256 = hashlib.sha256(data).hexdigest()
+        if actual_source_sha256 != sha:
+            raise FloorCampaignError(
+                f"store 対象 binary の sha256 が build 記録と不一致: {src}"
+            )
         if dest.exists():
             actual = _full_sha256(dest)
             if actual != sha:
                 raise FloorCampaignError(
                     f"binary store 破損: {dest} の sha256={actual} != {sha}"
                 )
-        else:
-            data = src.read_bytes()
-            if hashlib.sha256(data).hexdigest() != sha:
-                raise FloorCampaignError(
-                    f"store 対象 binary の sha256 が build 記録と不一致: {src}"
-                )
+            data = None
+        preflight.append((rec, sha, src, dest, data))
+
+    store_root.mkdir(parents=True, exist_ok=True)
+    for rec, sha, src, dest, data in preflight:
+        if data is not None:
             tmp = store_root / f".{sha}.tmp.{os.getpid()}"
             opener = (
                 open_with_write_capability(write_capability, tmp, "xb")
@@ -2947,9 +3122,13 @@ def store_binaries(
         rec["store_path"] = str(dest.absolute())
 
 
-def _verify_resume_store(built: Mapping, out_root: Path) -> None:
+def _verify_resume_store(
+        built: Mapping, out_root: Path, *, expected_ccbench_pin: str | None = None,
+        expected_contract_sha256: str | None = None,
+) -> None:
     """resume: 記録済み store_path が存在し、その bytes sha256 が binary_sha256 と一致する。"""
     out_root = Path(out_root)
+    current_policy = resolve_current_build_admission_policy()
     for cell_id in sorted(built):
         rec = built[cell_id]
         store_path = rec.get("store_path")
@@ -2958,6 +3137,19 @@ def _verify_resume_store(built: Mapping, out_root: Path) -> None:
             # v2 の store_binaries は常に store_path を書くため、欠落は改竄か
             # store 前 manifest の混入 — 正当な消費者のない緩和を置かない (fail-closed)。
             raise FloorCampaignError(f"resume: store_path 欠落: {cell_id}")
+        try:
+            _binary_admission.validate_portable_binary_record(
+                rec, expected_policy=current_policy,
+                expected_ccbench_pin=expected_ccbench_pin,
+                expected_contract_sha256=expected_contract_sha256,
+                expected_cell_id=cell_id,
+                expected_holdout_id=rec.get("holdout_id"),
+                expected_configuration_id=rec.get("configuration_id"),
+            )
+        except _binary_admission.BinaryAdmissionError as exc:
+            raise FloorCampaignError(
+                f"resume: admission receipt 不一致: cell={cell_id}: {exc}"
+            ) from exc
         candidate = Path(store_path)
         if not candidate.is_absolute():
             candidate = out_root / store_path
@@ -3206,7 +3398,8 @@ class _Runner:
 
         # binary receipt (C3-6): 実測直前に binary bytes を再 hash し build 記録と照合する。
         # 記録 (build 時 hash) と実測直前 hash が食い違えば差し替えの疑いで CampaignAbort。
-        recorded_bin_sha = self.binaries[cell_id]["binary_sha256"]
+        binary_record = self.binaries[cell_id]
+        recorded_bin_sha = binary_record["binary_sha256"]
         measured_bin_sha = _full_sha256(Path(binary))
         if measured_bin_sha != recorded_bin_sha:
             raise CampaignAbort(
@@ -3373,7 +3566,27 @@ class _Runner:
 
     # --- campaign 実行 --------------------------------------------------- #
 
+    def _validate_live_admissions(self) -> None:
+        """public runner 実走前に全 cell を current protocol へ束縛する。"""
+        current_policy = resolve_current_build_admission_policy()
+        for cell_id in sorted(self.binaries):
+            record = self.binaries[cell_id]
+            try:
+                _binary_admission.validate_portable_binary_record(
+                    record, expected_policy=current_policy,
+                    expected_ccbench_pin=self.protocol["ccbench_pin"],
+                    expected_contract_sha256=self.contract.contract_sha256,
+                    expected_cell_id=cell_id,
+                    expected_holdout_id=record.get("holdout_id"),
+                    expected_configuration_id=record.get("configuration_id"),
+                )
+            except (AttributeError, _binary_admission.BinaryAdmissionError) as exc:
+                raise CampaignAbort(
+                    f"実測直前 admission receipt 不一致: cell={cell_id}: {exc}"
+                ) from exc
+
     def run(self) -> None:
+        self._validate_live_admissions()
         fresh = not any(r.get("event") == "campaign-start" for r in self.records)
         if fresh:
             host = _validate_host_provenance(
@@ -3511,7 +3724,10 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         _normalize_perf_preflight(perf_preflight)
         if perf_preflight is not None else None
     )
-    portable_binaries = _validate_portable_built(binaries)
+    portable_binaries = _validate_portable_built(
+        binaries, expected_ccbench_pin=protocol["ccbench_pin"],
+        expected_contract_sha256=protocol["contract_sha256"],
+    )
     n_sessions = protocol["n_sessions"]
     reps = protocol["reps"]
     session_cv_max = protocol["session_cv_max"]
@@ -4158,9 +4374,15 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             raise FloorCampaignError(f"binary store durable root 拒否: {exc}") from exc
         store_binaries(
             runtime_built, store_root, out_root=out_root,
+            expected_ccbench_pin=protocol["ccbench_pin"],
+            expected_contract_sha256=contract.contract_sha256,
             write_capability=store_write_capability,
         )
-        artifact_built = project_built_records(runtime_built, out_root=out_root)
+        artifact_built = project_built_records(
+            runtime_built, out_root=out_root,
+            expected_ccbench_pin=protocol["ccbench_pin"],
+            expected_contract_sha256=contract.contract_sha256,
+        )
         manifest = assemble_manifest(
             protocol=protocol, protocol_sha256=protocol_sha256,
             freeze_sha256=freeze_sha256, cells=cells,
@@ -4217,9 +4439,15 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 raise FloorCampaignError(f"binary store durable root 拒否: {exc}") from exc
             store_binaries(
                 runtime_built, store_root, out_root=out_root,
+                expected_ccbench_pin=protocol["ccbench_pin"],
+                expected_contract_sha256=contract.contract_sha256,
                 write_capability=store_write_capability,
             )
-            artifact_built = project_built_records(runtime_built, out_root=out_root)
+            artifact_built = project_built_records(
+                runtime_built, out_root=out_root,
+                expected_ccbench_pin=protocol["ccbench_pin"],
+                expected_contract_sha256=contract.contract_sha256,
+            )
             manifest = assemble_manifest(
                 protocol=protocol, protocol_sha256=protocol_sha256,
                 freeze_sha256=freeze_sha256, cells=cells,
@@ -4235,6 +4463,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             manifest, manifest_sha256, artifact_built, runtime_built = _load_resume_manifest(
                 manifest_path, protocol_sha256=protocol_sha256,
                 freeze_sha256=freeze_sha256, out_root=out_root,
+                expected_ccbench_pin=protocol["ccbench_pin"],
+                expected_contract_sha256=contract.contract_sha256,
             )
             perf_preflight_receipt = manifest.get("perf_preflight")
             _assert_perf_mode(mode, perf_preflight_receipt)
@@ -4245,8 +4475,15 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 raise FloorCampaignError(
                     "resume: manifest.schedule が再導出列と不一致 (改竄の疑い, fail-closed)"
                 )
-            _verify_resume_binaries(runtime_built)
-            _verify_resume_store(runtime_built, out_root)
+            _verify_resume_binaries(
+                runtime_built, expected_ccbench_pin=protocol["ccbench_pin"],
+                expected_contract_sha256=contract.contract_sha256,
+            )
+            _verify_resume_store(
+                runtime_built, out_root,
+                expected_ccbench_pin=protocol["ccbench_pin"],
+                expected_contract_sha256=contract.contract_sha256,
+            )
 
         launch_certificate_sha256 = _verify_resume_journal(
             resume_records, run_dir=run_dir, mode=mode, schedule=schedule,
@@ -4305,6 +4542,12 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 numactl=numactl, rep_observations=rep_observations, use_perf=False,
             )
 
+    # floor 実走へ入る最後の artifact gate。current policy に加え、実行中 protocol の
+    # ccbench pin と env contract を外部 authority として全 cell へ再束縛する。
+    artifact_built = _validate_portable_built(
+        artifact_built, expected_ccbench_pin=protocol["ccbench_pin"],
+        expected_contract_sha256=contract.contract_sha256,
+    )
     runner = _Runner(
         protocol=protocol, contract=contract, cells=cells, cell_by_id=cell_by_id,
         binaries=runtime_built,
@@ -4397,8 +4640,12 @@ def _fresh_run_dir(out_root: Path, protocol: Mapping, mode: str,
     return run_dir
 
 
-def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
-                          freeze_sha256: str, out_root: Path) -> tuple:
+def _load_resume_manifest(
+        manifest_path: Path, *, protocol_sha256: str,
+        freeze_sha256: str, out_root: Path,
+        expected_ccbench_pin: str | None = None,
+        expected_contract_sha256: str | None = None,
+) -> tuple:
     try:
         raw = manifest_path.read_bytes()
     except OSError as exc:
@@ -4425,15 +4672,39 @@ def _load_resume_manifest(manifest_path: Path, *, protocol_sha256: str,
         manifest["perf_preflight"] = _normalize_perf_preflight(
             manifest["perf_preflight"]
         )
-    artifact_built = _validate_portable_built(manifest.get("binaries"))
-    runtime_built = resolve_portable_built(artifact_built, out_root=out_root)
+    artifact_built = _validate_portable_built(
+        manifest.get("binaries"), expected_ccbench_pin=expected_ccbench_pin,
+        expected_contract_sha256=expected_contract_sha256,
+    )
+    runtime_built = resolve_portable_built(
+        artifact_built, out_root=out_root,
+        expected_ccbench_pin=expected_ccbench_pin,
+        expected_contract_sha256=expected_contract_sha256,
+    )
     return dict(manifest), manifest_sha256, artifact_built, runtime_built
 
 
-def _verify_resume_binaries(built: Mapping) -> None:
+def _verify_resume_binaries(
+        built: Mapping, *, expected_ccbench_pin: str | None = None,
+        expected_contract_sha256: str | None = None,
+) -> None:
     """resume: manifest 記録の binary_sha256 と disk 上バイナリの実 hash を全セル再照合する。"""
+    current_policy = resolve_current_build_admission_policy()
     for cell_id in sorted(built):
         rec = built[cell_id]
+        try:
+            _binary_admission.validate_portable_binary_record(
+                rec, expected_policy=current_policy,
+                expected_ccbench_pin=expected_ccbench_pin,
+                expected_contract_sha256=expected_contract_sha256,
+                expected_cell_id=cell_id,
+                expected_holdout_id=rec.get("holdout_id"),
+                expected_configuration_id=rec.get("configuration_id"),
+            )
+        except _binary_admission.BinaryAdmissionError as exc:
+            raise FloorCampaignError(
+                f"resume: admission receipt 不一致: cell={cell_id}: {exc}"
+            ) from exc
         binary = rec.get("binary")
         recorded = rec.get("binary_sha256")
         if not isinstance(binary, str) or not binary:

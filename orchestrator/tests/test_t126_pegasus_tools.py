@@ -30,8 +30,10 @@ from pegasus_policy_expected_goldens import (  # noqa: E402
 )
 
 _SIGNAL_RESET_LAUNCHER_MARKER = (
-    b'{"final_sighup":"SIG_DFL","final_sigterm":"SIG_DFL",'
-    b'"initial_sighup":"SIG_IGN","initial_sigterm":"SIG_IGN"}\n')
+    b'{"final_sighup":"SIG_DFL","final_sighup_blocked":false,'
+    b'"final_sigterm":"SIG_DFL","final_sigterm_blocked":false,'
+    b'"initial_sighup":"SIG_IGN","initial_sighup_blocked":true,'
+    b'"initial_sigterm":"SIG_IGN","initial_sigterm_blocked":true}\n')
 PREFLIGHT_HELPER_RELATIVE = (
     "orchestrator/campaign/certified_writer_preflight.py"
 )
@@ -40,8 +42,12 @@ _SIGNAL_IGNORE_EXEC_LAUNCHER = (
     "python,inner,bash,argv0,script,marker=sys.argv[1:]\n"
     "signal.signal(signal.SIGTERM,signal.SIG_IGN)\n"
     "signal.signal(signal.SIGHUP,signal.SIG_IGN)\n"
+    "signal.pthread_sigmask(signal.SIG_BLOCK,{signal.SIGTERM,signal.SIGHUP})\n"
+    "initial_mask=signal.pthread_sigmask(signal.SIG_BLOCK,set())\n"
     "if (signal.getsignal(signal.SIGTERM) is not signal.SIG_IGN\n"
-    "        or signal.getsignal(signal.SIGHUP) is not signal.SIG_IGN):\n"
+    "        or signal.getsignal(signal.SIGHUP) is not signal.SIG_IGN\n"
+    "        or signal.SIGTERM not in initial_mask\n"
+    "        or signal.SIGHUP not in initial_mask):\n"
     "    raise SystemExit('signal ignore setup failed')\n"
     "os.execve(python,[python,'-I','-S','-B','-c',inner,\n"
     "                  bash,argv0,script,marker],os.environ)\n"
@@ -51,15 +57,22 @@ _SIGNAL_RESET_EXEC_LAUNCHER = (
     "bash,argv0,script,marker=sys.argv[1:]\n"
     "initial_sigterm=signal.getsignal(signal.SIGTERM)\n"
     "initial_sighup=signal.getsignal(signal.SIGHUP)\n"
+    "initial_mask=signal.pthread_sigmask(signal.SIG_BLOCK,set())\n"
     "if (initial_sigterm is not signal.SIG_IGN\n"
-    "        or initial_sighup is not signal.SIG_IGN):\n"
+    "        or initial_sighup is not signal.SIG_IGN\n"
+    "        or signal.SIGTERM not in initial_mask\n"
+    "        or signal.SIGHUP not in initial_mask):\n"
     "    raise SystemExit('signal ignore inheritance failed')\n"
     "signal.signal(signal.SIGTERM,signal.SIG_DFL)\n"
     "signal.signal(signal.SIGHUP,signal.SIG_DFL)\n"
+    "signal.pthread_sigmask(signal.SIG_UNBLOCK,{signal.SIGTERM,signal.SIGHUP})\n"
     "final_sigterm=signal.getsignal(signal.SIGTERM)\n"
     "final_sighup=signal.getsignal(signal.SIGHUP)\n"
+    "final_mask=signal.pthread_sigmask(signal.SIG_BLOCK,set())\n"
     "if (final_sigterm is not signal.SIG_DFL\n"
-    "        or final_sighup is not signal.SIG_DFL):\n"
+    "        or final_sighup is not signal.SIG_DFL\n"
+    "        or signal.SIGTERM in final_mask\n"
+    "        or signal.SIGHUP in final_mask):\n"
     "    raise SystemExit('signal reset failed')\n"
     "if marker:\n"
     f"    data={_SIGNAL_RESET_LAUNCHER_MARKER!r}\n"

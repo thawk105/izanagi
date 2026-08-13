@@ -466,6 +466,17 @@ def _new_policy() -> BuildAdmissionPolicy:
     return BuildAdmissionPolicy(preimage, _seal=_SEAL)
 
 
+def resolve_current_build_admission_policy() -> BuildAdmissionPolicy:
+    """Artifact から独立に現行 build admission policy を再構築する。
+
+    durable consumer は receipt 内の policy を期待値へ流用せず、この resolver を
+    authority として使う。返却値は nonce を持たず、同じ ``CURRENT_PIN`` と registry
+    から常に同じ identity を導く。
+    """
+
+    return _new_policy()
+
+
 def build_run_context(
     *,
     generator_id: GeneratorId,

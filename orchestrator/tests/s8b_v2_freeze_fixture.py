@@ -106,9 +106,15 @@ def _holdout_hit_text(module, holdout_id: str) -> bytes:
     return text.encode("utf-8")
 
 
-def _synthetic_floor_result(v1: dict, protocol: dict) -> dict:
+def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
     from orchestrator.campaign import s8b_floor_contract as contract
     from orchestrator.campaign import s8b_floor_stats as stats
+    from orchestrator.campaign import s8b_binary_admission as binary_admission
+    from orchestrator.campaign.build_admission import (
+        GeneratorId, ReviewId, build_run_context, derive_build_admission,
+    )
+    from orchestrator.campaign.s8b_materialization import reviewed_source_capability
+    from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence
 
     cells = contract.enumerate_cells(
         v1, stock_configuration=protocol["stock_configuration"],
@@ -196,13 +202,72 @@ def _synthetic_floor_result(v1: dict, protocol: dict) -> dict:
         }
     binaries = {}
     for cell in cells:
-        sha256 = hashlib.sha256(cell["cell_id"].encode("utf-8")).hexdigest()
+        entry = v1["holdouts"][cell["holdout_id"]]["variant_binding"]["entries"][
+            cell["configuration_id"]
+        ]
+        entry_sha256 = hashlib.sha256(canonical_bytes(entry)).hexdigest()
+        genome_canonical = json.dumps(
+            {"fixture_configuration": cell["configuration_id"]}, ensure_ascii=False,
+            sort_keys=True, separators=(",", ":"),
+        )
+        src_token = hashlib.sha256(
+            f"fixture-source:{cell['configuration_id']}".encode("utf-8")
+        ).hexdigest()
+        binding = {
+            "genome_canonical": genome_canonical,
+            "src_token": src_token,
+            "variant_id": hashlib.sha256(
+                f"{genome_canonical}|src={src_token}".encode("utf-8")
+            ).hexdigest()[:12],
+            "entry_sha256": entry_sha256,
+        }
+        binding["binding_sha256"] = hashlib.sha256(canonical_bytes(binding)).hexdigest()
+        binary_raw = f"honest binary for {cell['configuration_id']}\n".encode("utf-8")
+        sha256 = hashlib.sha256(binary_raw).hexdigest()
+        binary_rel = f"fixture-binaries/{cell['cell_id'].replace('::', '--')}"
+        binary_path = root / binary_rel
+        _write(root, binary_rel, binary_raw)
+        source = SourceEvidence(
+            schema_version=SOURCE_EVIDENCE_SCHEMA,
+            source_root=str((root / "external/ccbench").resolve()),
+            ccbench_commit=protocol["ccbench_pin"],
+            genome_sha256=hashlib.sha256(genome_canonical.encode("utf-8")).hexdigest(),
+            src_token=src_token,
+            source_bytes_sha256=hashlib.sha256(
+                f"source-bytes:{cell['configuration_id']}".encode("utf-8")
+            ).hexdigest(),
+            tracked_clean=False,
+            tracked_diff_sha256=hashlib.sha256(
+                f"tracked-diff:{cell['configuration_id']}".encode("utf-8")
+            ).hexdigest(),
+            tracked_paths=("include/backoff.hh",),
+        )
+        context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+        review = reviewed_source_capability(
+            review_id=ReviewId.S8B_FLOOR, source=source,
+            input_sha256=entry_sha256,
+        )
+        admission = derive_build_admission(context, source, review_receipt=review)
+        receipt = binary_admission.issue_binary_admission_receipt(
+            admission=admission, expected_policy=context.policy, source=source,
+            cell_id=cell["cell_id"], holdout_id=cell["holdout_id"],
+            configuration_id=cell["configuration_id"], binding=binding,
+            binary=binary_path, binary_sha256=sha256,
+            contract_sha256=protocol["contract_sha256"], trace=False,
+        )
         binaries[cell["cell_id"]] = {
             "cell_id": cell["cell_id"],
             "holdout_id": cell["holdout_id"],
             "configuration_id": cell["configuration_id"],
+            "binary": binary_rel,
             "binary_sha256": sha256,
             "bin_hash_short": sha256[:16],
+            "binding": binding,
+            "configure_argv": ["cmake", "fixture"],
+            "build_argv": ["cmake", "--build", "fixture"],
+            "cached": False,
+            "store_path": f"fixture-store/{sha256}",
+            "admission_receipt": receipt,
         }
     protocol_sha256 = contract.canonical_protocol_sha256(protocol)
     configurations = sorted({cell["configuration_id"] for cell in cells})
@@ -282,7 +347,9 @@ def candidate_repository(tmp_path: Path, module) -> dict:
         f"20260811T000000Z-{protocol_sha256[:8]}"
     )
     result_rel = f"{run_dir}/result.json"
-    _write(root, result_rel, canonical_bytes(_synthetic_floor_result(v1, protocol)))
+    _write(root, result_rel, canonical_bytes(
+        _synthetic_floor_result(v1, protocol, root=root)
+    ))
     _write(root, f"{run_dir}/manifest.json", b"{}")
     _write(root, f"{run_dir}/journal.jsonl", b"{}\n")
     _write(root, f"{run_dir}/launch_certificate.json", b"{}")

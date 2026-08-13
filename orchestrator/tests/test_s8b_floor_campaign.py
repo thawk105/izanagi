@@ -17,6 +17,7 @@ manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台
 from __future__ import annotations
 
 import ast
+import copy
 import contextlib
 import dataclasses
 import datetime as dt
@@ -47,6 +48,7 @@ from orchestrator.campaign import campaign_claim, reservation  # noqa: E402
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
 from orchestrator.campaign import s8b_floor_stats  # noqa: E402
+from orchestrator.campaign import s8b_binary_admission  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_launch_cert  # noqa: E402
 from orchestrator.campaign import s8b_prediction_runner  # noqa: E402
@@ -108,12 +110,20 @@ _BASE_TPS = {
 }
 
 _FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+_FIXTURE_CELL_BY_TOKEN: dict[str, str] = {}
+
+
+def _fixture_src_token(genome, ccbench_dir) -> str:
+    source_root = Path(ccbench_dir or "/fixture/ccbench")
+    leaf = source_root.name.replace("__", "::")
+    identity = leaf if "::" in leaf else genome.canonical()
+    seed = f"{genome.canonical()}\0{identity}".encode("utf-8")
+    return hashlib.sha256(seed).hexdigest()
 
 def _fixture_source_evidence(genome, ccbench_commit, *, ccbench_dir="", cxx="g++-13"):
     del cxx
     source_root = str(Path(ccbench_dir or "/fixture/ccbench").resolve())
-    seed = f"{genome.canonical()}\0{source_root}".encode("utf-8")
-    token = hashlib.sha256(seed).hexdigest()
+    token = _fixture_src_token(genome, source_root)
     return SourceEvidence(
         schema_version="source-evidence/v1",
         source_root=source_root,
@@ -274,9 +284,12 @@ def _fake_prepare(cell, ccbench_pin, *, cxx):
     configuration_id = cell["configuration"]
     cell_id = f"{holdout_id}::{configuration_id}"
     genome = Genome("silo", dict(entry.get("flags", {})))
+    ccbench_dir = f"/fixture/ccbench/{cell_id.replace('::', '__')}"
+    token = _fixture_src_token(genome, ccbench_dir)
+    _FIXTURE_CELL_BY_TOKEN[token] = cell_id
     yield PreparedCell(
-        genome=genome, src_token=cell_id,
-        ccbench_dir="/fixture/ccbench", cache_root="/fixture/cache",
+        genome=genome, src_token=token,
+        ccbench_dir=ccbench_dir, cache_root="/fixture/cache",
     )
 
 
@@ -301,17 +314,18 @@ def _make_fake_build(build_root: Path):
         effective_ccbench = ccbench_dir or "/fixture/ccbench"
         # production と同じく渡された cache_root 配下に実体を置き、command には実 root を
         # 埋め込む（portable projection が未結線でも通る fake にしない）。
-        cell_dir = Path(cache_root) / "fixture" / src_token.replace("::", "__")
+        cell_id = _FIXTURE_CELL_BY_TOKEN.get(src_token, src_token)
+        cell_dir = Path(cache_root) / "fixture" / cell_id.replace("::", "__")
         cell_dir.mkdir(parents=True, exist_ok=True)
         binary_path = cell_dir / "ycsb_fixture.exe"
-        payload = f"fixture-binary::{src_token}".encode("utf-8")
+        payload = f"fixture-binary::{cell_id}".encode("utf-8")
         binary_path.write_bytes(payload)
         bin_sha256 = hashlib.sha256(payload).hexdigest()
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
             bin_sha256=bin_sha256, bin_hash=bin_sha256[:16],
             build_dir=str(cell_dir), cached=False,
-            configure_cmd=f"# fixture configure {src_token}",
+            configure_cmd=f"# fixture configure {cell_id}",
             build_cmd="# fixture build",
             configure_argv=["cmake", "-S", effective_ccbench, "-B", str(cell_dir)],
             build_argv=["cmake", "--build", str(cell_dir)],
@@ -2310,9 +2324,12 @@ def _deterministic_official_artifacts(base: Path) -> dict:
         configuration_id = cell["configuration"]
         cell_id = f"{holdout_id}::{configuration_id}"
         genome = Genome("silo", dict(entry.get("flags", {})))
+        ccbench_dir = str(base / "prepared trees Ω" / cell_id.replace("::", "__"))
+        token = _fixture_src_token(genome, ccbench_dir)
+        _FIXTURE_CELL_BY_TOKEN[token] = cell_id
         yield PreparedCell(
-            genome=genome, src_token=cell_id,
-            ccbench_dir=str(base / "prepared trees Ω" / cell_id.replace("::", "__")),
+            genome=genome, src_token=token,
+            ccbench_dir=ccbench_dir,
             cache_root=str(base / "prepared-cache"),
         )
 
@@ -5932,21 +5949,104 @@ def test_partial_execution_receipt_bundle_is_rejected():
         s8b_floor_campaign._validate_execution_receipt(receipt, contract=contract)
 
 
+def _honest_portable_built_record(tmp_path: Path) -> dict:
+    binary = tmp_path / "honest-portable.bin"
+    binary.write_bytes(b"honest portable binary")
+    sha = hashlib.sha256(binary.read_bytes()).hexdigest()
+    genome_canonical = '{"fixture":"portable"}'
+    token = hashlib.sha256(b"portable-token").hexdigest()
+    entry_sha = hashlib.sha256(b"portable-entry").hexdigest()
+    binding = {
+        "genome_canonical": genome_canonical,
+        "src_token": token,
+        "variant_id": hashlib.sha256(
+            f"{genome_canonical}|src={token}".encode("utf-8")
+        ).hexdigest()[:12],
+        "entry_sha256": entry_sha,
+    }
+    binding["binding_sha256"] = hashlib.sha256(json.dumps(
+        binding, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    source_root = tmp_path / "portable-source"
+    source_root.mkdir()
+    source = SourceEvidence(
+        schema_version="source-evidence/v1",
+        source_root=str(source_root.resolve()), ccbench_commit="1" * 40,
+        genome_sha256=hashlib.sha256(genome_canonical.encode("utf-8")).hexdigest(),
+        src_token=token,
+        source_bytes_sha256=hashlib.sha256(b"portable-source").hexdigest(),
+        tracked_clean=False,
+        tracked_diff_sha256=hashlib.sha256(b"portable-diff").hexdigest(),
+        tracked_paths=("include/backoff.hh",),
+    )
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    review = s8b_materialization.reviewed_source_capability(
+        review_id=ReviewId.S8B_FLOOR, source=source, input_sha256=entry_sha,
+    )
+    admission = derive_build_admission(context, source, review_receipt=review)
+    receipt = s8b_binary_admission.issue_binary_admission_receipt(
+        admission=admission, expected_policy=context.policy, source=source,
+        cell_id="cell", holdout_id="holdout", configuration_id="configuration",
+        binding=binding, binary=binary, binary_sha256=sha,
+        contract_sha256="2" * 64, trace=False,
+    )
+    return {
+        "cell": {
+            "cell_id": "cell", "holdout_id": "holdout",
+            "configuration_id": "configuration", "binary": "cache/cell/binary.exe",
+            "binary_sha256": sha, "bin_hash_short": sha[:16], "binding": binding,
+            "configure_argv": ["cmake", "-S", "${CCBENCH_ROOT}"],
+            "build_argv": ["cmake", "--build", "${OUT_ROOT}/cache/cell"],
+            "cached": False, "store_path": f"store/{sha}",
+            "admission_receipt": receipt,
+        },
+    }
+
+
+def test_fresh_store_project_resume_preserves_admission_receipt(tmp_path):
+    out_root = tmp_path / "out"
+    binary = out_root / "cache" / "cell" / "binary.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"honest portable binary")
+    ccbench_root = tmp_path / "ccbench"
+    built = _honest_portable_built_record(tmp_path)
+    runtime = built["cell"]
+    issued_receipt = copy.deepcopy(runtime["admission_receipt"])
+    runtime.pop("store_path")
+    runtime.update({
+        "binary": str(binary.resolve()),
+        "configure_argv": ["cmake", "-S", str(ccbench_root.resolve())],
+        "build_argv": ["cmake", "--build", str(binary.parent.resolve())],
+        "_ccbench_root": str(ccbench_root.resolve()),
+    })
+
+    s8b_floor_campaign.store_binaries(
+        built, out_root / "store", out_root=out_root,
+        expected_ccbench_pin="1" * 40,
+        expected_contract_sha256="2" * 64,
+    )
+    portable = s8b_floor_campaign.project_built_records(built, out_root=out_root)
+    resolved = s8b_floor_campaign.resolve_portable_built(portable, out_root=out_root)
+    s8b_floor_campaign._verify_resume_store(resolved, out_root)
+    s8b_floor_campaign._verify_resume_binaries(resolved)
+
+    assert portable["cell"]["admission_receipt"] == issued_receipt
+    assert resolved["cell"]["admission_receipt"] == issued_receipt
+
+
 def test_portable_projection_rejects_reserved_placeholder_and_exact_key_tamper(tmp_path):
     binary = tmp_path / "out" / "cache" / "binary.exe"
     binary.parent.mkdir(parents=True)
-    binary.write_bytes(b"binary")
+    binary.write_bytes(b"honest portable binary")
     sha = hashlib.sha256(binary.read_bytes()).hexdigest()
-    runtime = {
-        "cell": {
-            "cell_id": "cell", "holdout_id": "h", "configuration_id": "c",
-            "binary": str(binary), "binary_sha256": sha, "bin_hash_short": sha[:16],
-            "binding": {}, "configure_argv": ["cmake", "${OUT_ROOT}"],
-            "build_argv": ["cmake", "--build", str(binary.parent)],
-            "cached": False, "store_path": str(tmp_path / "out" / "store" / sha),
-            "_ccbench_root": str(tmp_path / "ccbench"),
-        },
-    }
+    runtime = _honest_portable_built_record(tmp_path)
+    runtime["cell"].update({
+        "binary": str(binary), "binary_sha256": sha, "bin_hash_short": sha[:16],
+        "configure_argv": ["cmake", "${OUT_ROOT}"],
+        "build_argv": ["cmake", "--build", str(binary.parent)],
+        "store_path": str(tmp_path / "out" / "store" / sha),
+        "_ccbench_root": str(tmp_path / "ccbench"),
+    })
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="予約 placeholder"):
         s8b_floor_campaign.project_built_records(runtime, out_root=tmp_path / "out")
 
@@ -5959,20 +6059,6 @@ def test_portable_projection_rejects_reserved_placeholder_and_exact_key_tamper(t
             portable, out_root=tmp_path / "out")
 
 
-def _valid_portable_built_record() -> dict:
-    sha = "a" * 64
-    return {
-        "cell": {
-            "cell_id": "cell", "holdout_id": "holdout",
-            "configuration_id": "configuration", "binary": "cache/cell/binary.exe",
-            "binary_sha256": sha, "bin_hash_short": sha[:16], "binding": {},
-            "configure_argv": ["cmake", "-S", "${CCBENCH_ROOT}"],
-            "build_argv": ["cmake", "--build", "${OUT_ROOT}/cache/cell"],
-            "cached": False, "store_path": f"store/{sha}",
-        },
-    }
-
-
 @pytest.mark.parametrize(("path", "reason"), [
     ("a/../b", "portable built binary path component が不正"),
     ("a//b", "portable built binary path 文法が不正"),
@@ -5981,7 +6067,7 @@ def _valid_portable_built_record() -> dict:
 @pytest.mark.parametrize("entrypoint", ["validate", "resolve"])
 def test_portable_built_rejects_path_traversal_and_noncanonical_paths(
         tmp_path, path, reason, entrypoint):
-    built = _valid_portable_built_record()
+    built = _honest_portable_built_record(tmp_path)
     built["cell"]["binary"] = path
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=reason):
         if entrypoint == "validate":
@@ -5999,11 +6085,62 @@ def test_portable_built_rejects_path_traversal_and_noncanonical_paths(
      "portable binaries\\[cell\\]\\.bin_hash_short が不一致"),
     ("binding", [], "portable binaries\\[cell\\]\\.binding が object でない"),
 ])
-def test_portable_built_rejects_wrong_scalar_and_mapping_types(field, value, reason):
-    built = _valid_portable_built_record()
+def test_portable_built_rejects_wrong_scalar_and_mapping_types(
+        tmp_path, field, value, reason):
+    built = _honest_portable_built_record(tmp_path)
     built["cell"][field] = value
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match=reason):
         s8b_floor_campaign._validate_portable_built(built)
+
+
+def test_portable_built_rejects_missing_admission_receipt(tmp_path):
+    built = _honest_portable_built_record(tmp_path)
+    built["cell"].pop("admission_receipt")
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError):
+        s8b_floor_campaign._validate_portable_built(built)
+
+
+def test_store_binaries_preflights_all_records_before_first_write(tmp_path):
+    valid = _honest_portable_built_record(tmp_path)["cell"]
+    valid["binary"] = str((tmp_path / "honest-portable.bin").resolve())
+    valid.pop("store_path")
+    valid["_ccbench_root"] = str((tmp_path / "portable-source").resolve())
+    invalid = json.loads(json.dumps(valid))
+    invalid["cell_id"] = "z-cell"
+    invalid["cached"] = "false"
+    store_root = tmp_path / "store"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="cached が bool"):
+        s8b_floor_campaign.store_binaries(
+            {"cell": valid, "z-cell": invalid}, store_root, out_root=tmp_path,
+            expected_ccbench_pin="1" * 40,
+            expected_contract_sha256="2" * 64,
+        )
+    assert not store_root.exists()
+
+
+@pytest.mark.parametrize("field", ["ccbench_pin", "contract_sha256"])
+def test_store_binaries_binds_receipt_to_live_protocol_before_first_write(
+        tmp_path, field):
+    rec = _honest_portable_built_record(tmp_path)["cell"]
+    rec["binary"] = str((tmp_path / "honest-portable.bin").resolve())
+    rec.pop("store_path")
+    rec["_ccbench_root"] = str((tmp_path / "portable-source").resolve())
+    receipt = rec["admission_receipt"]
+    if field == "ccbench_pin":
+        receipt["admission"]["source"]["ccbench_commit"] = "9" * 40
+    else:
+        receipt["subject"]["contract_sha256"] = "9" * 64
+    unsigned = dict(receipt)
+    unsigned.pop("receipt_sha256")
+    receipt["receipt_sha256"] = s8b_binary_admission._sha256_map(unsigned)
+    store_root = tmp_path / "store"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="外部期待値"):
+        s8b_floor_campaign.store_binaries(
+            {"cell": rec}, store_root, out_root=tmp_path,
+            expected_ccbench_pin="1" * 40,
+            expected_contract_sha256="2" * 64,
+        )
+    assert not store_root.exists()
 
 
 def _valid_launch_certificate() -> dict:
@@ -7091,7 +7228,11 @@ def test_content_addressed_store_create_only(tmp_path):
     # emitted artifact record を store へ直接戻さず、out_root 基準で runtime view に解決する。
     built = s8b_floor_campaign.resolve_portable_built(binaries, out_root=out_root)
     store_root = stored.parent
-    s8b_floor_campaign.store_binaries(built, store_root, out_root=out_root)  # 例外なし
+    s8b_floor_campaign.store_binaries(
+        built, store_root, out_root=out_root,
+        expected_ccbench_pin=protocol["ccbench_pin"],
+        expected_contract_sha256=protocol["contract_sha256"],
+    )  # 例外なし
 
 
 def test_verify_floor_artifact_binaries_positive_and_negative():

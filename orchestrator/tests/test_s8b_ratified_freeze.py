@@ -402,8 +402,7 @@ def _fixed_prepare(cell, ccbench_pin, *, cxx):
     configuration = cell["configuration"]
     flags = dict(entry.get("flags", {}))
     genome = Genome("silo", flags)
-    entry_token = _sha(M._canonical_bytes(entry))[:16]
-    token = f"fixture::{configuration}::{entry_token}"
+    token = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
     yield PreparedCell(
         genome=genome, src_token=token,
         ccbench_dir=_fixed_prepare.ccbench_dir,
@@ -814,7 +813,7 @@ def _run_official_fixture_campaign(
     def fixture_evidence(genome, ccbench_commit, *, ccbench_dir="", **_ignored):
         source_root = str(Path(ccbench_dir).resolve())
         source_sha = hashlib.sha256(
-            f"{source_root}\0{ccbench_commit}\0{genome.canonical()}".encode("utf-8")
+            f"{ccbench_commit}\0{genome.canonical()}".encode("utf-8")
         ).hexdigest()
         return FLOOR.source_digest.SourceEvidence(
             schema_version=FLOOR.source_digest.SOURCE_EVIDENCE_SCHEMA,
@@ -823,7 +822,7 @@ def _run_official_fixture_campaign(
             genome_sha256=hashlib.sha256(
                 genome.canonical().encode("utf-8")
             ).hexdigest(),
-            src_token=source_sha,
+            src_token=hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest(),
             source_bytes_sha256=source_sha,
             tracked_clean=True,
             tracked_diff_sha256=FLOOR.source_digest.EMPTY_TRACKED_DIFF_SHA256,

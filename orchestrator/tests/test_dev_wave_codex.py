@@ -73,6 +73,26 @@ def _option(argv: list[str], option: str) -> str:
     return argv[index + 1]
 
 
+def _help_option_block(output: str, option: str) -> str:
+    lines = output.splitlines()
+    starts = [
+        index
+        for index, line in enumerate(lines)
+        if line.startswith("  -") and option in line.split()
+    ]
+    assert len(starts) == 1, (option, starts)
+    start = starts[0]
+    end = next(
+        (
+            index
+            for index in range(start + 1, len(lines))
+            if lines[index].startswith("  -")
+        ),
+        len(lines),
+    )
+    return " ".join(" ".join(lines[start:end]).split())
+
+
 def test_dry_run_stage_and_lane_matrix() -> None:
     cases = (
         ("plan", None, "max", "read-only"),
@@ -182,6 +202,131 @@ def test_resource_defaults_and_overrides() -> None:
         assert _option(overridden, "--job-id") == "explicit-job"
         assert _option(overridden, "--artifact-dir") == os.fspath(
             root / "artifacts" / "wave-alpha" / "explicit-job"
+        )
+
+
+def test_evidence_grace_default_and_decimal_override_are_forwarded_once() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        defaults = _argv(_invoke(root, stage="plan", reasoning="max"))
+        assert defaults.count("--evidence-grace-s") == 1
+        assert _option(defaults, "--evidence-grace-s") == "90"
+
+        overridden = _argv(
+            _invoke(
+                root,
+                stage="plan",
+                reasoning="max",
+                extra=("--evidence-grace-s", "12.5"),
+            )
+        )
+        assert overridden.count("--evidence-grace-s") == 1
+        assert _option(overridden, "--evidence-grace-s") == "12.5"
+
+        low_wall_clock = _argv(
+            _invoke(
+                root,
+                stage="plan",
+                reasoning="max",
+                extra=("--max-wall-clock-s", "17"),
+            )
+        )
+        assert low_wall_clock.count("--evidence-grace-s") == 1
+        assert _option(low_wall_clock, "--evidence-grace-s") == "17"
+
+
+def test_evidence_grace_rejects_nonpositive_nonfinite_or_unsafe_values() -> None:
+    help_result = subprocess.run(
+        [sys.executable, os.fspath(_DISPATCHER), "--help"],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert help_result.returncode == 0, help_result.stderr
+    assert "--evidence-grace-s" in _help_option_block(
+        help_result.stdout, "--evidence-grace-s"
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        valid = _invoke(
+            root,
+            stage="plan",
+            reasoning="max",
+            extra=("--evidence-grace-s", "90"),
+        )
+        valid_argv = _argv(valid)
+        assert valid_argv.count("--evidence-grace-s") == 1
+        assert _option(valid_argv, "--evidence-grace-s") == "90"
+
+        for value in (
+            "0",
+            "-1",
+            "NaN",
+            "Infinity",
+            "1e-10000",
+            "9.999999999999999999999999999999999999e-10",
+            "1e10000",
+        ):
+            rejected = _invoke(
+                root,
+                stage="plan",
+                reasoning="max",
+                extra=("--evidence-grace-s", value),
+            )
+            assert rejected.returncode == 2, (value, rejected.stderr)
+            assert "正の有限数で nanosecond へ安全に変換" in rejected.stderr
+
+        for value in (
+            "0.000000001",
+            "0.000000001000000000000000000000000001",
+            "12.3456789012345678901234567890123456789",
+        ):
+            accepted = _invoke(
+                root,
+                stage="plan",
+                reasoning="max",
+                extra=("--evidence-grace-s", value),
+            )
+            assert accepted.returncode == 0, (value, accepted.stderr)
+            accepted_argv = _argv(accepted)
+            assert _option(accepted_argv, "--evidence-grace-s") == value
+
+
+def test_evidence_grace_must_not_exceed_max_wall_clock() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        valid = _invoke(
+            root,
+            stage="plan",
+            reasoning="max",
+            extra=(
+                "--evidence-grace-s",
+                "90",
+                "--max-wall-clock-s",
+                "3600",
+            ),
+        )
+        valid_argv = _argv(valid)
+        assert valid_argv.count("--evidence-grace-s") == 1
+        assert _option(valid_argv, "--evidence-grace-s") == "90"
+
+        rejected = _invoke(
+            root,
+            stage="plan",
+            reasoning="max",
+            extra=(
+                "--evidence-grace-s",
+                "90.5",
+                "--max-wall-clock-s",
+                "90",
+            ),
+        )
+        assert rejected.returncode == 2
+        assert (
+            "--evidence-grace-s は --max-wall-clock-s 以下"
+            in rejected.stderr
         )
 
 
@@ -441,8 +586,20 @@ def test_help_marks_resource_defaults_non_authoritative() -> None:
     )
     assert result.returncode == 0, result.stderr
     phrase = "これは非権威の運用既定であり docs 権威ではない"
-    normalized_help = " ".join(result.stdout.split())
-    assert normalized_help.count(phrase) == 3
+    for option in (
+        "--max-wall-clock-s",
+        "--max-model-calls",
+        "--max-cli-reported-tokens",
+        "--evidence-grace-s",
+    ):
+        option_block = _help_option_block(result.stdout, option)
+        assert option in option_block
+        assert phrase in option_block
+    evidence_block = _help_option_block(result.stdout, "--evidence-grace-s")
+    assert "受理集合に影響する" in evidence_block
+    assert "暫定運用値であり測定された最小値ではない" in evidence_block
+    assert "90 秒を上限" in evidence_block
+    assert "--max-wall-clock-s が 90 未満ならそれに切り下げる" in evidence_block
 
 
 def _run() -> int:

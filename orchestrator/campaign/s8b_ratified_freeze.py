@@ -42,6 +42,8 @@ from . import env_attestation as _env_attestation
 from . import execution_guard as _execution_guard
 from . import s8b_floor_contract as _floor_contract
 from . import s8b_floor_stats as _floor_stats
+from . import s8b_binary_admission as _binary_admission
+from .build_admission import resolve_current_build_admission_policy
 from . import s8b_holdout_freeze as _hf
 from .s8b_holdout_freeze import TOP_LEVEL_KEYS as V1_TOP_LEVEL_KEYS
 from .s8b_launch_cert import (
@@ -178,11 +180,7 @@ EQUALITY_CHAIN_ADJACENCY: Tuple[Tuple[str, str], ...] = (
     ("sha256(result.raw)", "generation.floor_source.sha256"),
 )
 
-_PORTABLE_BINARY_KEYS = frozenset({
-    "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
-    "bin_hash_short", "binding", "configure_argv", "build_argv", "cached",
-    "store_path",
-})
+_PORTABLE_BINARY_KEYS = _binary_admission.PORTABLE_BUILT_KEYS
 _BINDING_KEYS = frozenset({
     "genome_canonical", "src_token", "variant_id", "entry_sha256", "binding_sha256",
 })
@@ -1642,6 +1640,7 @@ def _capture_g_h_worktree(
 
 def _validate_portable_binaries(
         binaries: object, *, cells_by_id: Mapping[str, Mapping], ratified: RatifiedFreeze,
+        protocol: Mapping, expected_policy,
 ) -> Dict[str, dict]:
     if not isinstance(binaries, Mapping) or set(binaries) != set(cells_by_id):
         raise RatifiedFreezeError(
@@ -1649,6 +1648,7 @@ def _validate_portable_binaries(
             cause="binaries-cell-set",
         )
     out: Dict[str, dict] = {}
+    policy_sha256s: set[str] = set()
     for cell_id, raw in binaries.items():
         rec = _exact_keys(
             raw, _PORTABLE_BINARY_KEYS, reason="manifest-invalid", label=f"binaries[{cell_id}]",
@@ -1719,13 +1719,37 @@ def _validate_portable_binaries(
                 "manifest-invalid", f"binaries[{cell_id}].entry_sha256 が freeze entry と不一致",
                 cause="binding-entry-sha",
             )
+        try:
+            receipt = _binary_admission.validate_portable_binary_record(
+                rec, expected_policy=expected_policy,
+                expected_ccbench_pin=protocol["ccbench_pin"],
+                expected_contract_sha256=protocol["contract_sha256"],
+                expected_cell_id=cell_id,
+                expected_holdout_id=cell["holdout_id"],
+                expected_configuration_id=cell["configuration_id"],
+                expected_entry_sha256=binding["entry_sha256"],
+                expected_binding_sha256=binding["binding_sha256"],
+            )
+        except _binary_admission.BinaryAdmissionError as exc:
+            raise RatifiedFreezeError(
+                "manifest-invalid",
+                f"binaries[{cell_id}] admission receipt が不正: {exc}",
+                cause="binary-admission",
+            ) from exc
+        policy_sha256s.add(receipt["admission"]["policy_sha256"])
         out[cell_id] = _plain_json(rec)
+    if len(policy_sha256s) != 1:
+        raise RatifiedFreezeError(
+            "manifest-invalid",
+            "binaries の admission policy が cell 間で一意でない",
+            cause="binary-admission-policy-mixed",
+        )
     return out
 
 
 def _validate_manifest(
         document: dict, *, protocol: Mapping, protocol_sha256: str,
-        ratified: RatifiedFreeze,
+        ratified: RatifiedFreeze, expected_policy,
 ) -> Tuple[list[dict], list[dict], Dict[str, dict]]:
     _exact_keys(document, _MANIFEST_KEYS, reason="manifest-invalid", label="manifest")
     if document["schema_version"] != _floor_contract.MANIFEST_SCHEMA:
@@ -1800,6 +1824,7 @@ def _validate_manifest(
         )
     binaries = _validate_portable_binaries(
         document["binaries"], cells_by_id=cells_by_id, ratified=ratified,
+        protocol=protocol, expected_policy=expected_policy,
     )
     return expected_cells, expected_schedule, binaries
 
@@ -3000,8 +3025,13 @@ def _launch_validate(
             "binding-chain-mismatch", f"launch certificate invalid: {exc}",
             cause="certificate-invalid",
         ) from exc
+    expected_admission_policy = (
+        resolve_current_build_admission_policy()
+        if result_type is LaunchValidatedFreeze else None
+    )
     cells, schedule, binaries = _validate_manifest(
         manifest_doc, protocol=protocol, protocol_sha256=protocol_sha, ratified=ratified,
+        expected_policy=expected_admission_policy,
     )
     cert_sha = _sha256_hex(cert_raw)
     manifest_sha = _sha256_hex(captured[role_paths["manifest"]])

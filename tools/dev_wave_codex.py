@@ -8,8 +8,17 @@ import os
 import re
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 from typing import Sequence
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+if os.fspath(_ROOT) not in sys.path:
+    sys.path.insert(0, os.fspath(_ROOT))
+
+from tools.dev_waves.schema import canonical_decimal
+from tools.dev_waves.time_values import positive_safe_nanosecond_decimal
 
 
 STAGES = ("plan", "consult", "author", "review", "fix", "focus")
@@ -20,6 +29,7 @@ AUTHORITY_BOUND_STAGES = frozenset({"review", "focus"})
 DEFAULT_MAX_WALL_CLOCK_S = 3600
 DEFAULT_MAX_MODEL_CALLS = 100
 DEFAULT_MAX_CLI_REPORTED_TOKENS = 1_000_000
+DEFAULT_EVIDENCE_GRACE_S = Decimal("90")
 
 _SLUG_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 _HEX40_RE = re.compile(r"[0-9a-f]{40}\Z")
@@ -37,7 +47,6 @@ def _positive_int(value: str) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    repo_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
         description=(
             "dev-wave の入力から codex_worker_launch.py run の必須 argv を生成する"
@@ -53,7 +62,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sandbox", choices=("read-only", "workspace-write"), required=True
     )
-    parser.add_argument("--repo-root", type=Path, default=repo_root)
+    parser.add_argument("--repo-root", type=Path, default=_ROOT)
     parser.add_argument("--job-id")
     parser.add_argument(
         "--max-wall-clock-s",
@@ -80,6 +89,18 @@ def _parser() -> argparse.ArgumentParser:
         help=(
             "CLI reported token 観測上限 "
             f"(既定: {DEFAULT_MAX_CLI_REPORTED_TOKENS}); {_NON_AUTHORITY_HELP}"
+        ),
+    )
+    parser.add_argument(
+        "--evidence-grace-s",
+        type=positive_safe_nanosecond_decimal,
+        default=None,
+        help=(
+            "evidence 待機猶予 "
+            "(既定: min(90, --max-wall-clock-s); 90 秒を上限とする"
+            "暫定運用値であり測定された最小値ではない); "
+            f"{_NON_AUTHORITY_HELP}。ただし受理集合に影響するため、"
+            "--max-wall-clock-s が 90 未満ならそれに切り下げる"
         ),
     )
     parser.add_argument(
@@ -126,6 +147,14 @@ def _resolve_base_commit(
 def _validate_combinations(
     parser: argparse.ArgumentParser, args: argparse.Namespace
 ) -> None:
+    if args.evidence_grace_s is None:
+        args.evidence_grace_s = min(
+            DEFAULT_EVIDENCE_GRACE_S, Decimal(args.max_wall_clock_s)
+        )
+    if args.evidence_grace_s > args.max_wall_clock_s:
+        parser.error(
+            "--evidence-grace-s は --max-wall-clock-s 以下でなければならない"
+        )
     if _SLUG_RE.fullmatch(args.wave) is None:
         parser.error("--wave は path separator を含まない slug が必要")
     if args.job_id is not None and _SLUG_RE.fullmatch(args.job_id) is None:
@@ -207,6 +236,8 @@ def _launcher_argv(
         (
             "--max-wall-clock-s",
             str(args.max_wall_clock_s),
+            "--evidence-grace-s",
+            canonical_decimal(args.evidence_grace_s),
             "--max-model-calls",
             str(args.max_model_calls),
             "--max-cli-reported-tokens",
