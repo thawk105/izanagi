@@ -129,8 +129,33 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   `test_public_main_failure_restores_handler_without_release` が N2 の集合から消えた。
   **land のみの変異が待ち手の signal テストを落とすことは構造上ありえない**ので、
   帰属させずフレークとして {{T:waiter-signal-handler-test-flake}} へ起票した。
-- **待ち手 producer の fail-open は本 context でも 2 例再発した** (09:12:29 / 09:17:29 JST)。
-  通算 7 例。毎回 3 点照合で検知して張り直したため進行への影響はない。
+- **待ち手 producer の fail-open は本 context でも 3 例再発した** (09:12:29 / 09:17:29 / 10:19:43 JST)。
+  通算 8 例。毎回 3 点照合で検知して張り直したため進行への影響はない。
+- **受入全走を 3 回投入し、3 回とも同じ構造で fail-closed した。本 wave は land しない。**
+  (10:15:27 / 10:22:57 / 10:33:42 JST、tested tip `11032ea5`、tested main `a2c42574`)
+  3 回とも受入 command が rc=1 (赤 1〜2 件) で終わり、**設計どおり非帰属経路へ入って
+  checker が起動し**、その checker が rc=2 (判定不能) を返したため
+  `acceptance-red-check rc=70` で受領証が出なかった。**gate は裁定どおり動作している。**
+- **checker が rc=2 になる機序を実データで特定した。これは [T-1027] とは別の欠陥である。**
+  `tools/check_acceptance_reds.py:277` の collect 段は `timeout: float | None = 120.0` を既定に持つが、
+  この collect は `--force-dispatch` で計算ノードへ投入されるため、queue 待ち + job 起動 + 実行が
+  120 秒を容易に超える。3 回とも `TimeoutExpired ... timed out after 120.0 seconds` だった
+  (対象は `test_codex_worker_launch.py` 2 回、`test_dev_wave_wait.py` 1 回)。
+  単独再走側 (同 `:471`) は `timeout=None` なので、**collect 段だけが締まりすぎている**。
+  [T-1027] は nodeid の exact 一致の話であり、本件は timeout の話で、両方直らないと
+  非帰属経路は実運用に到達しない。{{T:acceptance-red-check-robustness}} へ追記した。
+  これは段 6 の敵対レビュー B が blocker B-02 / must-fix B-05 で予告した面であり、
+  **静的レビューでは出ず、親が実データで走らせて初めて出た** ([T-1028] の趣旨の実例)。
+- **受入の赤はすべてフレークで、本 wave の差分に帰属しない。** 1 回目の 2 件
+  (`test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries` と
+  `test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler`) は
+  単独再走で **2 passed**。3 回目の 1 件は
+  `test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler` で、
+  本日 4 例目の signal handler フレークである。
+  後者が差分由来でないことは変異 2 巡目が示している — **`tools/dev_wave_land.py` だけを
+  変異させた N5 の失敗集合に現れた**のであり、依存関係上ありえない。
+  混雑も実測した (10:23:59 JST に codex 関連 35 process、うち [T-1027] を直している wave 自身の
+  fix 子が稼働中)。
 
 ## 次の一手差分
 
@@ -201,11 +226,15 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   批准という人間の判断を機械が読める形に落とす。
   **裁定は 2026-08-13 第 9 束 #1 で「(b) の変形 = checker 統合」に決した** — registry は作らず、
   受理条件を「rc=0 または非帰属 checker 緑」へ拡張する。本 wave で実装・land 済み。
-  **残件は実データ検証だけである。** [T-1027] (`check_acceptance_reds.py` が実 log で rc=2 のまま)
-  が land するまで、非帰属経路は合成 log を実 checker へ当てる end-to-end 試験でしか通らない。
-  [T-1027] の land 後に、保存済みの実受入 log で待ち手 → checker → land を 1 度通すこと。
-  成果物影響 = 未検証のままだと、既知赤が出た wave が「非帰属だから land 可」へ到達できるか
-  実運用で確かめられておらず、裁定が解こうとした fleet 停止が残る可能性がある。
+  **実装は完了しているが、本 wave は land できていない。** 2026-08-13 の受入 3 回
+  (10:15 / 10:22 / 10:33 JST、tested tip `11032ea5`) がいずれも rc=1 の赤 (すべてフレーク) を
+  引き、非帰属 checker が rc=2 (collect 段の 120 秒 timeout) を返して receipt が出なかった。
+  **gate は裁定どおり動作しており、止めているのは checker 側の 2 つの欠陥である** —
+  [T-1027] (nodeid の exact 一致) と {{T:acceptance-red-check-robustness}} (collect の timeout)。
+  **land の再開条件** = 両方が main へ着地したうえで受入を 1 回通すこと。
+  branch `worktree-dev-wave-t907-recovery` tip `11032ea5` に全成果が保全されている。
+  成果物影響 = 未 land のあいだ [T-907] / [T-908] / [T-910] / [T-1019] / [T-1020] の実装が
+  main に入らず、受入 integrity の穴と既知赤による fleet 停止が両方残る。
 - {{T:waiter-producer-completion-fail-open}} **P2・新規**: `tools/dev_wave_wait.py producer` が、
   `.done` も成果物も存在せず producer が生存している状態で、出力ゼロ・rc=0 で即座に返る
   ことがある。2026-08-13 に 5 回実測 (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。
@@ -214,8 +243,17 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   context 無しの出力をレビュー結果と数える経路が開く。
   **回収 context でさらに 2 例 (09:12:29 / 09:17:29 JST)。通算 7 例で、うち 1 例は
   投入 31 秒後だった。**
-- {{T:acceptance-red-check-robustness}} **P2・新規 (段 6 レビュー B の real 所見、本 wave 不実装)**:
-  非帰属 checker の起動に 3 つの穴がある。(i) checker に timeout が無く、赤の単独再走が hang すると
+- {{T:acceptance-red-check-robustness}} **P1・新規 (実データで 3 回再現、非帰属経路の実運用を止めている)**:
+  **最優先は collect 段の timeout である。** `tools/check_acceptance_reds.py:277` の collect は
+  `timeout: float | None = 120.0` を既定に持つが、この collect は `--force-dispatch` で
+  計算ノードへ投入されるため queue 待ち + job 起動 + 実行が 120 秒を容易に超える。
+  2026-08-13 の受入 3 回 (10:15 / 10:22 / 10:33 JST) すべてで
+  `TimeoutExpired ... timed out after 120.0 seconds` により rc=2 となり、
+  非帰属判定が得られず receipt が出なかった。単独再走側 (同 `:471`) は `timeout=None` なので、
+  **collect 段だけが締まりすぎている**。[T-1027] (nodeid の exact 一致) とは別の欠陥で、
+  **両方直らないと非帰属経路は実運用に到達しない**。
+  以下は段 6 レビュー B が予告した残り 3 件 (本 wave 不実装)。
+  (i) checker 全体に timeout が無く、赤の単独再走が hang すると
   receipt が出ないまま待ち続ける。(ii) checker 実行中に lease の heartbeat が無く、
   赤が複数あると最終確認までに TTL 2,400 秒を使い切りうる (受入全走 18〜21 分 + checker の
   dispatch 複数回)。(iii) checker を専用 process group で起動しないので、中断時に
