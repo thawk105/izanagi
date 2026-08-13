@@ -26,11 +26,21 @@ from orchestrator.campaign import (env_contract, ident, pipeline,             # 
                                    sort_swo_oracle, wal)
 from orchestrator.campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
                                          require_admitted_campaign)
+from orchestrator.campaign.auditor_gate import (                              # noqa: E402
+    AuditorVerdict,
+    apply_mandatory_deny_only_veto,
+    compute_diff_digest,
+)
 from orchestrator.campaign.build_admission import (                            # noqa: E402
     GeneratorId,
     attest_generator_output,
     build_run_context,
     derive_build_admission,
+)
+from orchestrator.campaign.diff_quarantine import (                            # noqa: E402
+    DiffQuarantine,
+    DiffQuarantineResult,
+    TemplateMarker,
 )
 from orchestrator.campaign.layout import CampaignLayout                        # noqa: E402
 from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,        # noqa: E402
@@ -49,6 +59,7 @@ from orchestrator.critic.digest import (STOCK_SRC_TOKEN, DiffQuarantineRejection
                            Rejection, VerifyAbortSignal,
                            _validated_oracle_finding,
                            build_digest, load_diff_rejections,
+                           load_legacy_sort_swo_rejections,
                            load_liveness_rejections, load_rejections,
                            load_screen_rejections, load_verify_abort_signals,
                            load_workload,
@@ -70,6 +81,19 @@ def render_rejections(*args, **kwargs):
 _INVALID_ORACLE_FINDING = {
     "anomaly_code": "sort-swo-oracle-finding-schema-invalid",
 }
+
+# Producer 定数を参照しない独立 golden。current は現行 snapshot、v2 は履歴 snapshot。
+_CURRENT_ORACLE_CONTRACT_ID_GOLDEN = (
+    "sort-swo-v3-corpus1-protocol2-checker2-grammar1-"
+    "x2b6d45baab3f921208db25299b8622592c484dfb28bebeb8d2cf976fe38474f9-"
+    "c436a66d9d5d5-tud88f98bc1991-f7ad0ac262561-a215b718a5bfe"
+)
+_LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN = (
+    "sort-swo-v2-corpus1-protocol2-checker2-grammar1-"
+    "c436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253-"
+    "tud88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956-"
+    "f7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
+)
 
 
 def _oracle_diagnostic():
@@ -219,6 +243,51 @@ def _view(layout):
     return require_admitted_campaign(layout)
 
 
+_QUARANTINE_HEAD = "\n".join((
+    "int outside = 0;",
+    "// EVOLVE-BLOCK-BEGIN fixture",
+    "#if FIXTURE >= 0",
+    "int hole = 0;",
+    "#else",
+    "int stock = 0;",
+    "#endif",
+    "// EVOLVE-BLOCK-END fixture",
+    "int tail = 0;",
+))
+_QUARANTINE_MARKER = TemplateMarker(
+    marker_id="fixture",
+    source_rel="include/backoff.hh",
+    begin_line=2,
+    if_line=3,
+    else_line=5,
+    endif_line=7,
+    end_line=8,
+)
+
+
+def _producer_quarantine_digest(diff_body: str) -> dict:
+    diff_text = "\n".join((
+        "diff --git a/include/backoff.hh b/include/backoff.hh",
+        "--- a/include/backoff.hh",
+        "+++ b/include/backoff.hh",
+        diff_body,
+    ))
+    result = DiffQuarantine(
+        _QUARANTINE_MARKER, diff_text, head_text=_QUARANTINE_HEAD,
+    ).validate()
+    assert not result.passed
+    assert result.digest is not None
+    return result.digest
+
+
+def _write_producer_quarantine_rejection(lay: CampaignLayout, digest: dict) -> None:
+    attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="diff")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "diff-quarantine",
+        "diff_quarantine": digest,
+    })
+
+
 def _genome_value(canonical: str) -> Genome:
     protocol, body = canonical.split("|", 1)
     flags = {}
@@ -300,12 +369,54 @@ def _attempt_event(
     })
 
 
+def _oracle_receipt(contract_id: str, materialized_hash: str, proposal_hash: str) -> dict:
+    return {
+        "contract_id": contract_id,
+        "materialized_hole_sha256": materialized_hash,
+        "proposal_sha256": proposal_hash,
+        "corpus_id": "sort-swo-corpus-v1",
+        "corpus_version": 1,
+        "compiler_realpath": "/usr/bin/c++",
+        "compiler_version": "fixture-c++ 1.0",
+        "compile_flags_sha256": "c" * 64,
+        "tu_sha256": "d" * 64,
+        "tu_template_sha256": "e" * 64,
+        "dependency_root_realpath": "/fixture/dependency-root",
+        "dependency_config_sha256": "f" * 64,
+    }
+
+
+def _write_oracle_rejection(
+    lay: CampaignLayout, contract_id: object, *, reason: object = "swo-asymmetric",
+) -> None:
+    attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="swo")
+    materialized_hash = "a" * 64
+    proposal_hash = "b" * 64
+    receipt = (
+        _oracle_receipt(contract_id, materialized_hash, proposal_hash)
+        if type(contract_id) is str else {}
+    )
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "diff-quarantine",
+        "diff_quarantine": {
+            "subtype": "sort-swo-oracle",
+            "reason": reason,
+            "oracle_finding": _valid_oracle_findings()["axiom"],
+            "materialized_hole_sha256": materialized_hash,
+            "proposal_sha256": proposal_hash,
+            "oracle_contract_id": contract_id,
+            "oracle_receipt": receipt,
+        },
+    })
+
+
 @pytest.mark.parametrize("loader", [
     load_workload,
     load_rejections,
     load_liveness_rejections,
     load_screen_rejections,
     load_diff_rejections,
+    load_legacy_sort_swo_rejections,
     load_verify_abort_signals,
 ])
 def test_every_raw_loader_requires_validated_view(loader) -> None:
@@ -1153,6 +1264,7 @@ def test_invalid_oracle_finding_renders_only_fixed_anomaly_code():
                 "reason_code": "UNTRUSTED-REASON",
                 "corpus_id": "UNTRUSTED-CORPUS",
             },
+            "oracle_contract_id": _CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
         },
     })
 
@@ -1199,14 +1311,16 @@ def test_sort_swo_non_axiom_kinds_have_dedicated_fixed_rendering(kind, expected)
             reason=f"fixture-{kind}", oracle_finding=finding,
             materialized_hole_sha256="a" * 64,
             proposal_sha256="b" * 64,
-            oracle_contract_id="sort-swo-fixture-contract",
+            oracle_contract_id=_CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
+            oracle_contract_generation="current",
         )],
     )
     assert f"oracle_kind={kind}" in out
     assert expected in out
     assert "SWO公理=" not in out
     assert "comparator を SWO" not in out
-    assert "oracle_contract_id=sort-swo-fixture-contract" in out
+    assert "oracle_contract_generation=current" in out
+    assert f"oracle_contract_id={_CURRENT_ORACLE_CONTRACT_ID_GOLDEN}" in out
     assert f"materialized_hole_sha256={'a' * 64}" in out
 
 
@@ -1227,7 +1341,8 @@ def test_sort_swo_axiom_kind_alone_renders_axiom_and_counterexample():
             },
             materialized_hole_sha256="a" * 64,
             proposal_sha256="b" * 64,
-            oracle_contract_id="sort-swo-fixture-contract",
+            oracle_contract_id=_CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
+            oracle_contract_generation="current",
         )],
     )
     assert "SWO公理=asymmetric 反例pair=(3,4),(4,3)" in out
@@ -1252,20 +1367,20 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
             ],
         },
     }
-    receipt = sort_swo_oracle.OracleReceipt(
-        contract_id=sort_swo_oracle.ORACLE_CONTRACT_ID,
-        materialized_hole_sha256=materialized_hash,
-        proposal_sha256=proposal_hash,
-        corpus_id=sort_swo_oracle.CORPUS_ID,
-        corpus_version=sort_swo_oracle.CORPUS_VERSION,
-        compiler_realpath="/usr/bin/c++",
-        compiler_version="fixture-c++ 1.0",
-        compile_flags_sha256=sort_swo_oracle.COMPILE_FLAGS_SHA256,
-        tu_sha256="d" * 64,
-        tu_template_sha256=sort_swo_oracle.TU_TEMPLATE_SHA256,
-        dependency_root_realpath="/fixture/dependency-root",
-        dependency_config_sha256="f" * 64,
-    ).as_dict()
+    receipt = {
+        "contract_id": _CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
+        "materialized_hole_sha256": materialized_hash,
+        "proposal_sha256": proposal_hash,
+        "corpus_id": "sort-swo-corpus-v1",
+        "corpus_version": 1,
+        "compiler_realpath": "/usr/bin/c++",
+        "compiler_version": "fixture-c++ 1.0",
+        "compile_flags_sha256": "c" * 64,
+        "tu_sha256": "d" * 64,
+        "tu_template_sha256": "e" * 64,
+        "dependency_root_realpath": "/fixture/dependency-root",
+        "dependency_config_sha256": "f" * 64,
+    }
     _attempt_event(lay, attempt, STAGE_ABORT, {
         "reason": "diff-quarantine",
         "diff_quarantine": {
@@ -1289,13 +1404,286 @@ def test_sort_swo_oracle_contract_and_receipt_roundtrip_through_consumer_limit()
 
     loaded = load_diff_rejections(view)
     assert len(loaded) == 1
-    assert loaded[0].oracle_contract_id == sort_swo_oracle.ORACLE_CONTRACT_ID
+    assert loaded[0].oracle_contract_id == _CURRENT_ORACLE_CONTRACT_ID_GOLDEN
+    assert loaded[0].oracle_contract_generation == "current"
     assert loaded[0].oracle_finding == finding
     assert loaded[0].oracle_receipt == receipt
     assert type(loaded[0].oracle_finding) is dict
     assert type(loaded[0].oracle_finding["counterexample"]) is dict
     assert type(loaded[0].oracle_finding["counterexample"]["input_pairs"]) is list
     assert type(loaded[0].oracle_receipt) is dict
+
+
+@pytest.mark.parametrize("contract_id", [
+    "sort-swo-",
+    _CURRENT_ORACLE_CONTRACT_ID_GOLDEN + "-suffix",
+    _CURRENT_ORACLE_CONTRACT_ID_GOLDEN.replace("sort-swo-v3", "sort-swo-v4", 1),
+    _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN,
+    "",
+    None,
+])
+def test_current_loader_rejects_non_exact_oracle_contract_ids(contract_id):
+    lay = _tmp_layout()
+    _write_oracle_rejection(lay, contract_id)
+    with pytest.raises(critic_digest.OracleContractIdMismatch):
+        load_diff_rejections(_view(lay))
+
+
+def test_oracle_contract_length_boundary_fails_closed_without_empty_fallback():
+    lay = _tmp_layout()
+    _write_oracle_rejection(lay, "x" * 257)
+    with pytest.raises(critic_digest.OracleContractIdTooLong):
+        load_diff_rejections(_view(lay))
+
+    lay = _tmp_layout()
+    _write_oracle_rejection(lay, "x" * 256)
+    with pytest.raises(critic_digest.OracleContractIdMismatch):
+        load_diff_rejections(_view(lay))
+
+
+def test_contract_mismatch_is_raised_before_receipt_validation(monkeypatch):
+    lay = _tmp_layout()
+    _write_oracle_rejection(lay, "sort-swo-v3-unknown")
+    monkeypatch.setattr(
+        critic_digest,
+        "_validated_oracle_receipt",
+        lambda *args, **kwargs: pytest.fail("mismatch 後に receipt を検証してはならない"),
+    )
+    with pytest.raises(critic_digest.OracleContractIdMismatch):
+        load_diff_rejections(_view(lay))
+
+
+def test_legacy_v2_contract_is_not_accepted_by_current_loader():
+    lay = _tmp_layout()
+    _write_oracle_rejection(lay, _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN)
+    with pytest.raises(critic_digest.OracleContractIdMismatch):
+        load_diff_rejections(_view(lay))
+
+
+def test_legacy_v2_loader_projects_realistic_record_read_only():
+    lay = _tmp_layout()
+    _write_oracle_rejection(lay, _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN)
+
+    loaded = load_legacy_sort_swo_rejections(_view(lay))
+
+    assert len(loaded) == 1
+    assert loaded[0].subtype == "sort-swo-oracle"
+    assert loaded[0].oracle_contract_id == _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN
+    assert loaded[0].oracle_contract_generation == "legacy-v2-read-only"
+    assert loaded[0].oracle_receipt["contract_id"] == _LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN
+    assert loaded[0].oracle_finding == _valid_oracle_findings()["axiom"]
+
+
+def test_non_oracle_diff_rejection_keeps_current_acceptance_without_contract_id():
+    lay = _tmp_layout()
+    attempt = _start_attempt(lay, _G.format(b=1, l=1, t=0, w=0), src_token="diff")
+    _attempt_event(lay, attempt, STAGE_ABORT, {
+        "reason": "diff-quarantine",
+        "diff_quarantine": {
+            "subtype": "frame-altered",
+            "reason": "frame-altered",
+            "diff_region": "outside-marker",
+        },
+    })
+
+    loaded = load_diff_rejections(_view(lay))
+    assert len(loaded) == 1
+    assert loaded[0].subtype == "frame-altered"
+    assert loaded[0].oracle_contract_id == ""
+    assert loaded[0].oracle_contract_generation == ""
+
+
+@pytest.mark.parametrize(("diff_body", "expected_reason"), [
+    (
+        "@@ -2,1 +2,0 @@\n-// EVOLVE-BLOCK-BEGIN fixture",
+        "フレーム行 (マーカー/#if/#else/#endif/stock 枝) の削除・改変を検出",
+    ),
+    (
+        "@@ -1,1 +1,0 @@\n-int outside = 0;",
+        "EVOLVE-BLOCK 領域外の行の削除・改変を検出",
+    ),
+    (
+        "@@ -4,1 +4,2 @@\n int hole = 0;\n+int bad = 1; // comment",
+        "hole 内に禁止コメント delimiter byte を検出 (文字列・raw string 内も保守的に拒否)",
+    ),
+    (
+        "@@ -4,1 +4,2 @@\n int hole = 0;\n+int bad = 1; /* comment */",
+        "hole 内に禁止コメント delimiter byte を検出 (文字列・raw string 内も保守的に拒否)",
+    ),
+])
+def test_all_middle_dot_reason_branches_survive_real_producer_path(
+        diff_body, expected_reason):
+    digest = _producer_quarantine_digest(diff_body)
+    assert digest["reason"] == expected_reason
+    assert digest["reason"].count("・") == 1
+
+    lay = _tmp_layout()
+    _write_producer_quarantine_rejection(lay, digest)
+
+    loaded = load_diff_rejections(_view(lay))
+    assert loaded[0].reason == expected_reason
+    assert loaded[0].evidence == digest["evidence"]
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert expected_reason in rendered
+    assert digest["evidence"] in rendered
+
+
+def test_attacker_controlled_hunk_header_is_nonverbatim_through_real_producer():
+    attacker_text = "ATTACK"
+    digest = _producer_quarantine_digest(
+        "@@ --1,1 +1,1 @@ " + attacker_text + "\u202e",
+    )
+    assert attacker_text not in digest["evidence"]
+    assert digest["evidence"].startswith(
+        "branch=malformed-hunk-header diff_line=4 byte_length="
+    )
+    assert " sha256_12=" in digest["evidence"]
+
+    lay = _tmp_layout()
+    _write_producer_quarantine_rejection(lay, digest)
+
+    loaded = load_diff_rejections(_view(lay))
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert loaded[0].evidence == digest["evidence"]
+    assert attacker_text not in rendered
+    assert digest["evidence"] in rendered
+
+
+def test_auditor_violation_and_nit_evidence_survives_loader_and_renderer():
+    working_diff = "auditor reviewed diff\n"
+    auditor = AuditorVerdict(
+        verdict="reject",
+        diff_digest=compute_diff_digest(working_diff),
+        violations=[{"type": 16}, {"type": 1}],
+        nits=[{"type": "nit"}],
+    )
+    result = apply_mandatory_deny_only_veto(
+        DiffQuarantineResult(passed=True),
+        auditor,
+        working_diff,
+        diff_region="cc/some/other.cc",
+        template_diff_id="some-axis-marker",
+    )
+    expected_evidence = "violations=type-16,type-1; nits=1"
+    assert result.digest["evidence"] == expected_evidence
+
+    lay = _tmp_layout()
+    _write_producer_quarantine_rejection(lay, result.digest)
+
+    loaded = load_diff_rejections(_view(lay))
+    assert loaded[0].evidence == expected_evidence
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert f"  証拠: {expected_evidence}" in rendered
+
+
+@pytest.mark.parametrize("unsafe", [
+    "line1\nline2",
+    "escape\x1bvalue",
+    "bidi\u202evalue",
+    "\u034f",
+    "line\u2028separator",
+    "paragraph\u2029separator",
+    "left[bracket",
+    "right]bracket",
+    "at@sign",
+    "em\u2014dash",
+    "\ud800",
+    "",
+    123,
+])
+def test_diff_quarantine_reason_rejects_unsafe_unicode_and_non_strings(unsafe):
+    assert (
+        critic_digest._validated_diff_quarantine_reason(unsafe)
+        == "diff-quarantine-reason-invalid"
+    )
+
+
+@pytest.mark.parametrize("safe", [
+    "fixed-outer-reason",
+    "正規化済み日本語 123",
+    "hole 内に禁止コメント delimiter byte を検出 (文字列・raw string 内も保守的に拒否)",
+    "auditor verdict=reject (1 violations)",
+])
+def test_diff_quarantine_reason_preserves_allowed_normalized_text(safe):
+    assert critic_digest._validated_diff_quarantine_reason(safe) == safe
+
+
+def test_diff_quarantine_evidence_uses_same_unicode_policy():
+    safe = "branch=head-anchor-content source_line=1 byte_length=2 sha256_12=abcdef123456"
+    assert critic_digest._validated_diff_quarantine_evidence(safe) == safe
+    assert (
+        critic_digest._validated_diff_quarantine_evidence("unsafe\nraw")
+        == "diff-quarantine-evidence-invalid"
+    )
+
+
+def test_renderer_revalidates_reason_evidence_and_contract_generation_pair():
+    raw_reason = "unsafe\nrenderer-reason"
+    raw_contract = "sort-swo-attacker-contract"
+    rendered = render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="sort-swo-oracle",
+            reason=raw_reason,
+            oracle_finding=_valid_oracle_findings()["axiom"],
+            oracle_contract_id=raw_contract,
+            oracle_contract_generation="current",
+        )],
+    )
+    assert raw_reason not in rendered
+    assert raw_contract not in rendered
+    assert "diff-quarantine-reason-invalid" in rendered
+    assert "oracle_contract_generation=current" in rendered
+    assert "oracle_contract_id=oracle-contract-invalid" in rendered
+
+    raw_evidence = "unsafe\nrenderer-evidence"
+    rendered_evidence = render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="frame-altered",
+            reason="safe-reason", evidence=raw_evidence,
+        )],
+    )
+    assert raw_evidence not in rendered_evidence
+    assert "diff-quarantine-evidence-invalid" in rendered_evidence
+
+    generation_mismatch = render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="sort-swo-oracle",
+            reason="safe-reason",
+            oracle_finding=_valid_oracle_findings()["axiom"],
+            oracle_contract_id=_CURRENT_ORACLE_CONTRACT_ID_GOLDEN,
+            oracle_contract_generation="legacy-v2-read-only",
+        )],
+    )
+    assert _CURRENT_ORACLE_CONTRACT_ID_GOLDEN not in generation_mismatch
+    assert "oracle_contract_generation=legacy-v2-read-only" in generation_mismatch
+    assert "oracle_contract_id=oracle-contract-invalid" in generation_mismatch
+
+    legacy_read_only = render_rejections(
+        [], [], diff_rejections=[DiffQuarantineRejection(
+            genome="g", flags={}, subtype="sort-swo-oracle",
+            reason="safe-reason",
+            oracle_finding=_valid_oracle_findings()["axiom"],
+            oracle_contract_id=_LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN,
+            oracle_contract_generation="legacy-v2-read-only",
+        )],
+    )
+    assert "oracle_contract_generation=legacy-v2-read-only" in legacy_read_only
+    assert f"oracle_contract_id={_LEGACY_ORACLE_CONTRACT_ID_V2_GOLDEN}" in legacy_read_only
+
+
+def test_invalid_reason_rendering_excludes_volatile_suffix_values():
+    rendered = []
+    for volatile_suffix in ("working-tree-a", "working-tree-b"):
+        out = render_rejections(
+            [], [], diff_rejections=[DiffQuarantineRejection(
+                genome="g", flags={}, subtype="frame-altered",
+                reason=f"unsafe\n{volatile_suffix}",
+            )],
+        )
+        assert volatile_suffix not in out
+        rendered.append(out)
+    assert rendered[0] == rendered[1]
+    assert rendered[0].count("diff-quarantine-reason-invalid") == 1
 
 
 def test_synthetic_rejection_heading_has_closed_origin_not_workload_provenance():
