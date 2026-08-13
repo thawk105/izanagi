@@ -40,6 +40,20 @@ title: trigger 軸の semantic admission を build gateway で必須化した (�
   両者とも「実装済み・未実走」と申告し緑を騙らなかった。**実測はすべて親が取った。**
 - peer 2 セッションから main の恒久赤 (octopus merge 由来) の周知を受け、`git log --format='%h %p'`
   で親 4 つを自ら確認した。受入結果への反映は自分の走行で当該 node を実測してから行う。
+- **受入 1 回目 (tip `6d08a26b`): 1 failed / 10545 passed / 65 skipped (128.34 秒、request 908872.nqsv)。**
+  赤は `test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed`
+  1 件で、**本 wave の差分に帰属しない**。根拠は 3 つ — (i) 単独再走は `1 passed` (3.19 秒)、
+  (ii) 例外は `reflux_formal_consumer.py` の process 全体で共有される replay cache が投げる
+  `FormalReceiptError` で、本 wave は同 module を 1 行も触っていない、
+  (iii) 同 module は数時間前に main へ着地した別 wave の新規実装である。
+  peer 2 セッションが周知した octopus merge 由来の恒久赤は**出なかった** (main の前進で解消)。
+- **main 取り込み merge が provenance 監査で新規違反 1 件になった。** 実装面で両側が触ったのは
+  `test_campaign.py` の 1 file だけで、3 方向結合の結果が両親のどちらとも異なるため checker が
+  実装面著作と判定した。`git diff-tree --cc` は実質空で結合による新規著作はない。
+  **ユーザー裁定 (2026-08-13) により既知違反として登録した** (同型の 8 件目)。
+  waiver ではなく登録を選んだのは、`AI-Agent-Waiver` が「Codex 不可用時」の免除であり、
+  本件は「merge に実装を書いた主体が存在しない」という別事象だからである。
+  登録後の監査は rc=0 / known-violations=39 / 新規違反なし。
 - 逐語・裁定パッケージ (RP-1〜RP-5) = `output/insights/2026-08-13_t897-trigger-admission/`。
 
 ## 次の一手差分
@@ -58,6 +72,12 @@ title: trigger 軸の semantic admission を build gateway で必須化した (�
   trigger 軸 gate は block の bytes だけを検証し、block 外の C++ 意味論は検証しない。
   凍結領域を post-END の gate 呼出しまで拡大すれば block 外の再代入だけは閉じられる。
   親の推奨は拡大 (C++ 字句解析を必要としない)。
+- {{T:formal-consumer-replay-cache-leak}} **P2・新規**: `reflux_formal_consumer.py` の
+  `_OPERATION_REPLAY_CACHE` は module 変数で process 全体に残り、並列受入全走で同じ
+  `operation_id` が別 payload と再利用されると `FormalReceiptError` を投げる。
+  `test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed`
+  が全走でのみ赤くなり単独では緑になる (実測)。test 間で cache を隔離するか、
+  fixture で明示的に初期化する必要がある。
 - {{T:s8b-binary-store-admission-binding}} **P2・新規・ユーザー裁定待ち (RP-4)**:
   S8b の content-addressed binary store が admission receipt を束縛しない。
   resume と oracle 実走前の検査は store の存在と SHA だけで、admission 未証明の既存 binary でも
