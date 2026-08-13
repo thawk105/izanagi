@@ -1,0 +1,224 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_oracle.py",
+     "old": "                if (postflight_io_failed or postflight_unavailable\n                        or postflight_finding is not None):\n",
+     "new": "                if (False and (postflight_io_failed or postflight_unavailable\n                        or postflight_finding is not None)):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_with_failing_postflight_is_unavailable",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_oracle.py",
+     "old": "                        candidate_compile_finding=finding,\n                    )\n            if unavailable:\n",
+     "new": "                    )\n            if unavailable:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_unavailable_retains_candidate_finding",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_and_postflight_failure_preserve_evidence",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_and_postflight_failure_uses_postflight_detail",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_source_write_oserror_preserves_receipt",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_postflight_cleanup_oserror_preserves_receipt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_oracle.py",
+     "old": "    \"axiom_checker_implementation_sha256\": AXIOM_CHECKER_IMPLEMENTATION_SHA256,\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_axiom_checker_source_component",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_contract_manifest_hashes_and_literal_are_exact_snapshot"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_oracle.py",
+     "old": "        {\"_CORPORA\": tuple(corpora), \"_N\": n, \"_ORDERS\": tuple(orders)},\n",
+     "new": "        {\"_N\": n, \"_ORDERS\": tuple(orders)},\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_oracle.py::test_contract_digest_binds_corpus_and_order_selection",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_contract_manifest_hashes_and_literal_are_exact_snapshot"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_oracle.py",
+     "old": "    check_relation_matrix,\n    _evaluate_executable,\n    _run_matrix,\n    _compile_command,\n)\n",
+     "new": "    check_relation_matrix,\n    _evaluate_executable,\n    _compile_command,\n)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_oracle.py::test_axiom_checker_source_bundle_is_enumerated_and_ordered",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_contract_manifest_hashes_and_literal_are_exact_snapshot"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/critic/digest.py",
+     "old": "            or frozenset(value) not in exact_keysets\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_critic.py::test_oracle_finding_rejects_unknown_key_for_every_kind"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/critic/digest.py",
+     "old": "            or corpus_id not in _ORACLE_CORPUS_IDS):\n",
+     "new": "            ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_critic.py::test_oracle_finding_rejects_non_canonical_corpus_id"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/critic/digest.py",
+     "old": "    if (kind not in _ORACLE_FINDING_KINDS\n            or frozenset(value) not in exact_keysets\n",
+     "new": "    if (frozenset(value) not in exact_keysets\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_critic.py::test_oracle_finding_rejects_protocol_kind"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "                start_event[\"freeze_cell_id\"] = item.freeze_cell_id\n                _append_event(layout, start_event)\n                raise\n            except DriverError:\n",
+     "new": "                start_event[\"freeze_cell_id\"] = item.freeze_cell_id\n                raise\n            except DriverError:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_s1_oracle_reject_is_recorded_before_driver_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "P1",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/critic/digest.py",
+     "old": "    \"mutation\": frozenset({\"corpus-mutated-by-comparator\"}),\n",
+     "new": "    \"mutation\": frozenset(),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_exact_producer_keysets",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_mutation_finding[corpus-0-order-0]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_mutation_finding[corpus-0-order-1]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_mutation_finding[corpus-0-order-2]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_mutation_finding[corpus-1-order-0]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_mutation_finding[corpus-1-order-1]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_mutation_finding[corpus-1-order-2]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "P2",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/critic/digest.py",
+     "old": "    \"nondeterministic\": frozenset({\n        \"relation-varies-within-process\",\n        \"relation-varies-across-process-order\",\n    }),\n",
+     "new": "    \"nondeterministic\": frozenset({\n        \"relation-varies-within-process\",\n    }),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_across_process_finding[corpus-0-changed-order-1]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_across_process_finding[corpus-0-changed-order-2]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_across_process_finding[corpus-1-changed-order-1]",
+    "orchestrator/tests/test_critic.py::test_oracle_finding_accepts_real_producer_across_process_finding[corpus-1-changed-order-2]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "P3",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/sort_swo_oracle.py",
+     "old": "                if (postflight_io_failed or postflight_unavailable\n                        or postflight_finding is not None):\n",
+     "new": "                if (True or postflight_io_failed or postflight_unavailable\n                        or postflight_finding is not None):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_failure_is_reject_not_unavailable",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_reject_postflight_control_success_stays_reject",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_artifact_cleanup_failure_preserves_receipt",
+    "orchestrator/tests/test_sort_swo_oracle.py::test_candidate_compile_infrastructure_failure_with_successful_postflight_stays_unavailable"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

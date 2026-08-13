@@ -436,6 +436,40 @@ def _capture_prepare_quarantine(
     return calls[0]
 
 
+def _oracle_reject_result():
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    receipt = oracle.OracleReceipt(
+        contract_id=oracle.ORACLE_CONTRACT_ID,
+        materialized_hole_sha256="a" * 64,
+        proposal_sha256="b" * 64,
+        corpus_id=oracle.CORPUS_ID,
+        corpus_version=oracle.CORPUS_VERSION,
+        compiler_realpath="/fixture/cxx",
+        compiler_version="fixture-cxx 1",
+        compile_flags_sha256=oracle.COMPILE_FLAGS_SHA256,
+        tu_sha256="c" * 64,
+        tu_template_sha256=oracle.TU_TEMPLATE_SHA256,
+        dependency_root_realpath="/fixture/dependency",
+        dependency_config_sha256="d" * 64,
+    )
+    finding = oracle.SortSwoFinding(
+        oracle.OracleRejectKind.MUTATION,
+        "corpus-mutated-by-comparator",
+        input_pairs=((1, 2),),
+        corpus_id=f"{oracle.CORPUS_ID}/corpus-0",
+        order_id=1,
+        observations=({"point": "after-call", "changed": True},),
+    )
+    return oracle.SortSwoOracleResult(
+        oracle.OracleStatus.REJECT,
+        "a" * 64,
+        "b" * 64,
+        finding=finding,
+        receipt=receipt,
+    )
+
+
 def _gate_cell(configuration, predicate):
     return {
         "configuration": configuration,
@@ -813,6 +847,61 @@ def test_prepare_sort_best_passes_comparator_verbatim_to_quarantine(
     assert received["source_rel"] == sort_axis.SOURCE_REL
 
 
+def test_prepare_sort_best_reject_carries_structured_oracle_attempt(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import patchharness
+    from orchestrator.campaign import p3_s4_loop as loop_axis
+    from orchestrator.campaign import sort_swo_oracle as oracle
+
+    worktree = tmp_path / "worktree"
+    monkeypatch.setattr(
+        patchharness, "checkout",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied",
+        lambda *args, **kwargs: _fixture_checkout(worktree),
+    )
+    monkeypatch.setattr(
+        loop_axis, "quarantine",
+        lambda *args, **kwargs: (
+            types.SimpleNamespace(passed=True), "base", "edited", "diff"),
+    )
+    monkeypatch.setattr(oracle, "resolve_oracle_environment", lambda *args: None)
+    result = _oracle_reject_result()
+    monkeypatch.setattr(
+        oracle, "check_materialized_sort_swo", lambda *args, **kwargs: result,
+    )
+    monkeypatch.setattr(
+        S.source_digest, "resolve",
+        lambda *args, **kwargs: pytest.fail("REJECT 後に source resolve してはならない"),
+    )
+    cell = {
+        "configuration": "sort_best",
+        "variant": {
+            "comparator": "sort(write_set_.begin(), write_set_.end());",
+            "flags": {"BACK_OFF": 1, "SORT_VARIANT": 1},
+        },
+    }
+
+    with pytest.raises(S._SortSwoOracleRejected) as excinfo:
+        with S.prepare_cell(
+                cell, "d706650cdb31e442bef45b9b4216951d4fb40969",
+                cxx="g++-13"):
+            pass
+
+    record = excinfo.value.oracle_attempt
+    assert isinstance(excinfo.value, S.DriverError)
+    assert record["event"] == "sort-swo-oracle-attempt"
+    assert record["classification"] == "reject"
+    assert record["reason_code"] == result.finding.reason_code
+    assert record["oracle_finding"] == result.finding.as_dict()
+    assert record["materialized_hole_sha256"] == "a" * 64
+    assert record["proposal_sha256"] == "b" * 64
+    assert record["oracle_contract_id"] == oracle.ORACLE_CONTRACT_ID
+    assert record["oracle_receipt"] == result.receipt.as_dict()
+
+
 @pytest.mark.parametrize(
     "predicate",
     [
@@ -1036,6 +1125,47 @@ def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
         e for e in budget["entries"]
         if e["note"].startswith("machine-failure-retry:")
     ]) == 2
+
+
+def test_s1_oracle_reject_is_recorded_before_driver_error(tmp_path):
+    result = _oracle_reject_result()
+    attempt_record = S._sort_swo_reject_attempt_record(result)
+    evaluate_calls = []
+
+    @contextlib.contextmanager
+    def rejected_prepare(cell, pin, *, cxx):
+        raise S._SortSwoOracleRejected(
+            "sort_best comparator が SWO oracle 不通過: "
+            f"{result.finding.reason_code}",
+            attempt_record,
+        )
+        yield  # pragma: no cover
+
+    output_root = str(tmp_path / "out")
+    document = _freeze()
+    with pytest.raises(S.DriverError, match="corpus-mutated-by-comparator"):
+        S.run_role(
+            "develop", freeze_path=_write_freeze(tmp_path, document),
+            budget_path=tmp_path / "time_ledger.json", output_root=output_root,
+            verify_document=lambda doc: None,
+            evaluate_fn=lambda *args, **kwargs: evaluate_calls.append(1),
+            prepare_cell_fn=rejected_prepare, single_tenant_fn=lambda: None,
+            monotonic=_Clock(), log=lambda msg: None,
+        )
+
+    layout = S.layout_for(document, "develop", output_root=output_root)
+    events = S.read_session_ledger(layout)
+    starts = [event for event in events if event.get("event") == "session-start"]
+    assert len(starts) == 1
+    assert starts[0]["sort_swo_oracle"] == attempt_record
+    assert starts[0]["sort_swo_oracle"]["classification"] == "reject"
+    assert starts[0]["sort_swo_oracle"]["classification"] != "attempt-infra"
+    assert starts[0]["sort_swo_oracle"]["materialized_hole_sha256"] == "a" * 64
+    assert starts[0]["sort_swo_oracle"]["proposal_sha256"] == "b" * 64
+    assert "freeze_cell_id" in starts[0]
+    assert not any(event.get("event") == "session-result" for event in events)
+    assert not any(event.get("event") == "retry" for event in events)
+    assert evaluate_calls == []
 
 
 def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_path):
