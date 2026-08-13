@@ -1280,6 +1280,8 @@ def _validate_floor_inputs(
     from . import env_contract
     from . import s8b_floor_contract
     from . import s8b_floor_stats
+    from . import s8b_binary_admission
+    from .build_admission import resolve_current_build_admission_policy
     from .s8b_launch_cert import LaunchCertError, parse_official_run_path
 
     protocol_raw = _capture_regular_nofollow(
@@ -1354,6 +1356,38 @@ def _validate_floor_inputs(
         raise FreezeError("floor result.holdouts が v1 holdout 集合と不一致")
     if result.get("configurations") != expected_configurations:
         raise FreezeError("floor result.configurations が v1 configuration 集合と不一致")
+    binaries = result.get("binaries")
+    if not isinstance(binaries, Mapping):
+        raise FreezeError("floor result.binaries が object でない")
+    current_admission_policy = resolve_current_build_admission_policy()
+    for holdout_id, configurations in expected_cells.items():
+        for configuration_id in configurations:
+            cell_id = f"{holdout_id}::{configuration_id}"
+            rec = binaries.get(cell_id)
+            if not isinstance(rec, Mapping):
+                raise FreezeError(
+                    f"floor result.binaries に admission 付き cell が無い: {cell_id}"
+                )
+            try:
+                entry = v1["holdouts"][holdout_id]["variant_binding"]["entries"][
+                    configuration_id
+                ]
+                entry_sha256 = _sha256_bytes(_canonical_bytes(entry))
+                binding_sha256 = rec["binding"]["binding_sha256"]
+                s8b_binary_admission.validate_portable_binary_record(
+                    rec, expected_policy=current_admission_policy,
+                    expected_ccbench_pin=protocol["ccbench_pin"],
+                    expected_contract_sha256=protocol["contract_sha256"],
+                    expected_cell_id=cell_id,
+                    expected_holdout_id=holdout_id,
+                    expected_configuration_id=configuration_id,
+                    expected_entry_sha256=entry_sha256,
+                    expected_binding_sha256=binding_sha256,
+                )
+            except (KeyError, TypeError, s8b_binary_admission.BinaryAdmissionError) as exc:
+                raise FreezeError(
+                    f"floor result.binaries admission 束縛が不正: {cell_id}: {exc}"
+                ) from exc
     expected_protocol = s8b_floor_contract.project_protocol_for_floor_artifact(protocol)
     expected_protocol["expected_cells"] = expected_cells
     problems = s8b_floor_stats.verify_floor_artifact(result, expected_protocol, expected_use_perf=True)

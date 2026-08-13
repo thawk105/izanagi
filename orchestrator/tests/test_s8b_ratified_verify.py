@@ -7,6 +7,7 @@ pytest 専用 (tmp_path fixture 依存、README allowlist 記載)。
 """
 from __future__ import annotations
 
+import copy
 import json
 import dataclasses
 import hashlib
@@ -30,7 +31,14 @@ from orchestrator.campaign import s8b_holdout_freeze as HF  # noqa: E402
 from orchestrator.campaign import env_contract as EC  # noqa: E402
 from orchestrator.campaign import s8b_floor_contract as FC  # noqa: E402
 from orchestrator.campaign import s8b_floor_stats as FS  # noqa: E402
+from orchestrator.campaign import s8b_binary_admission as BA  # noqa: E402
 from orchestrator.campaign import s8b_selector_freeze as SF  # noqa: E402
+from orchestrator.campaign.build_admission import (  # noqa: E402
+    GeneratorId, ReviewId, build_run_context, derive_build_admission,
+    resolve_current_build_admission_policy,
+)
+from orchestrator.campaign.s8b_materialization import reviewed_source_capability  # noqa: E402
+from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence  # noqa: E402
 import test_s8b_ratified_freeze as B  # noqa: E402  (fixture 共用)
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
@@ -257,29 +265,62 @@ def _binding(cell: dict, freeze: dict) -> dict:
     preimage = {
         "entry_sha256": _lsha(M._canonical_bytes(entry)),
         "genome_canonical": f"fixture|{cell['configuration_id']}",
-        "src_token": "fixture-src",
-        "variant_id": _lsha(cell["cell_id"].encode())[:12],
+        "src_token": _lsha(("fixture-src:" + cell["cell_id"]).encode()),
+        "variant_id": _lsha(
+            f"fixture|{cell['configuration_id']}|src="
+            f"{_lsha(('fixture-src:' + cell['cell_id']).encode())}".encode()
+        )[:12],
     }
     return {**preimage, "binding_sha256": _lsha(M._canonical_bytes(preimage))}
 
 
-def _portable_binaries(cells: list[dict], freeze: dict) -> dict:
+def _portable_binaries(
+        cells: list[dict], freeze: dict, protocol: dict, root: Path) -> dict:
     out = {}
     for cell in cells:
         cell_id = cell["cell_id"]
-        binary_sha = _lsha(("binary:" + cell_id).encode())
+        binary_raw = ("binary:" + cell_id).encode()
+        binary_sha = _lsha(binary_raw)
+        binary_rel = f"output/fixture-bin/{binary_sha}/bench"
+        _lwrite(root, binary_rel, binary_raw)
+        binding = _binding(cell, freeze)
+        source = SourceEvidence(
+            schema_version=SOURCE_EVIDENCE_SCHEMA,
+            source_root=str((root / "external/ccbench").resolve()),
+            ccbench_commit=protocol["ccbench_pin"],
+            genome_sha256=_lsha(binding["genome_canonical"].encode()),
+            src_token=binding["src_token"],
+            source_bytes_sha256=_lsha(("source:" + cell_id).encode()),
+            tracked_clean=False,
+            tracked_diff_sha256=_lsha(("diff:" + cell_id).encode()),
+            tracked_paths=("include/backoff.hh",),
+        )
+        context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+        review = reviewed_source_capability(
+            review_id=ReviewId.S8B_FLOOR, source=source,
+            input_sha256=binding["entry_sha256"],
+        )
+        admission = derive_build_admission(context, source, review_receipt=review)
+        receipt = BA.issue_binary_admission_receipt(
+            admission=admission, expected_policy=context.policy, source=source,
+            cell_id=cell_id, holdout_id=cell["holdout_id"],
+            configuration_id=cell["configuration_id"], binding=binding,
+            binary=root / binary_rel, binary_sha256=binary_sha,
+            contract_sha256=protocol["contract_sha256"], trace=False,
+        )
         out[cell_id] = {
             "cell_id": cell_id,
             "holdout_id": cell["holdout_id"],
             "configuration_id": cell["configuration_id"],
-            "binary": f"output/fixture-bin/{binary_sha}/bench",
+            "binary": binary_rel,
             "binary_sha256": binary_sha,
             "bin_hash_short": binary_sha[:16],
-            "binding": _binding(cell, freeze),
+            "binding": binding,
             "configure_argv": ["cmake", "${CCBENCH_ROOT}"],
             "build_argv": ["cmake", "--build", "${OUT_ROOT}"],
             "cached": False,
             "store_path": f"output/fixture-store/{binary_sha}",
+            "admission_receipt": receipt,
         }
     return out
 
@@ -456,7 +497,7 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
     schedule = FC.build_schedule(
         cells=cells, master_seed=protocol["master_seed"], n_sessions=protocol["n_sessions"],
     )
-    binaries = _portable_binaries(cells, freeze)
+    binaries = _portable_binaries(cells, freeze, protocol, root)
     manifest = {
         "schema_version": FC.MANIFEST_SCHEMA, "protocol_sha256": protocol_sha,
         "freeze": dict(protocol["freeze"]), "freeze_sha256": M.V1_FREEZE_SHA256,
@@ -645,6 +686,32 @@ def _mutate_portable_binary_island(state: dict, case_id: str) -> None:
 
     assert manifest_binaries == result_binaries
     state["repair_manifest"] = True
+
+
+def test_historical_reverify_rejects_cross_cell_policy_mixture(tmp_path):
+    """historical は current policy 非依存だが、記録 policy の cell 間混在は拒否する。"""
+    def mutate(state):
+        manifest_binaries = state["manifest"]["binaries"]
+        result_binaries = state["result"]["binaries"]
+        cell_id = sorted(manifest_binaries)[0]
+        receipt = copy.deepcopy(manifest_binaries[cell_id]["admission_receipt"])
+        replacement = "f" * 64
+        if receipt["admission"]["policy_sha256"] == replacement:
+            replacement = "e" * 64
+        receipt["admission"]["policy_sha256"] = replacement
+        unsigned = dict(receipt)
+        unsigned.pop("receipt_sha256")
+        receipt["receipt_sha256"] = BA._sha256_map(unsigned)
+        manifest_binaries[cell_id]["admission_receipt"] = receipt
+        result_binaries[cell_id]["admission_receipt"] = copy.deepcopy(receipt)
+        state["repair_manifest"] = True
+
+    _need_v1()
+    root, freeze, _topology = _build_launch_repo(tmp_path, mutate=mutate)
+    with pytest.raises(M.RatifiedFreezeError) as excinfo:
+        M.reverify_published_freeze(freeze, root)
+    assert excinfo.value.reason == "manifest-invalid"
+    assert excinfo.value.cause == "binary-admission-policy-mixed"
 
 
 def _edge_node_fixture(edge_to_cut=None) -> dict[str, str]:
@@ -2296,6 +2363,7 @@ def test_ratified_journal_required_consumer_passes_contract_mode_and_verified(tm
     protocol_sha = FC.canonical_protocol_sha256(protocol)
     cells, schedule, binaries = M._validate_manifest(
         manifest, protocol=protocol, protocol_sha256=protocol_sha, ratified=ratified,
+        expected_policy=resolve_current_build_admission_policy(),
     )
     base = EC.lookup(protocol["env_tag"])
     required = dataclasses.replace(

@@ -13,8 +13,8 @@ oracle driver と floor campaign が共有する binding identity 生成と使�
 consumer 側の例外契約 (OracleDriverError / FloorCampaignError) への変換は各 consumer が境界で行う。
 
 review capability は canonical body と内部一貫性を証明するだけで、人間の真正な review 行為を
-認証しない。同一 process の issuer、shell materializer、calibrator の任意 executable path、
-S8b content-addressed store の resume loader は閉じておらず、security credit を与えない。
+認証しない。S8b binary receipt は発行時に検証した admission を保存から oracle 実走直前まで
+連続束縛するが、gateway が発行したことの証明でも暗号学的保証でもない。
 """
 from __future__ import annotations
 

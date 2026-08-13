@@ -42,6 +42,8 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Mapping, Optional, Sequence
 
+from . import s8b_binary_admission as _binary_admission
+
 FORMULA_ID = "s8b-floor-stats/v2"
 
 # 閉じた除外理由表 (F2 承認 + F1 で 4 行目 performance_anomaly 追加)。並び順も正本。
@@ -599,6 +601,10 @@ def verify_floor_artifact(artifact: Mapping, expected_protocol: Mapping,
     すること、である。**raw session 自体の真正性 (append-only journal・attempt registry・
     schedule 突合) は保証しない — それは F7 wave の責務。**
 
+    binary admission は receipt の実在、exact key、canonical outer SHA、subject と
+    record の一致、artifact 内 cross-cell 整合を無条件に検査する。per-cell freeze
+    entry の権威は ratified/holdout verifier が持ち、本 standalone verifier は持たない。
+
     expected_protocol の想定形 (外部入力、既定値なし):
         {formula, n_sessions, reps, stock_configuration, wired_min_rel_floor,
          session_cv_max, cell_cv_max,
@@ -883,6 +889,8 @@ def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
 
     - (holdout_id, configuration_id) の完全集合が expected_cells と一致する。
     - 各 rec の bin_hash_short が binary_sha256 の 16 文字 prefix と一致する (identity 整合)。
+    - admission receipt の exact/canonical/subject 対応を常に検査する。freeze entry の
+      外部権威はこの関数の責務でない。
     - expected_binaries (journal receipt 由来) が与えられれば cell_id ごとの binary_sha256 を
       完全一致で突合する (実測直前 hash との reconcile フック)。
 
@@ -904,6 +912,9 @@ def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
         if not isinstance(rec, Mapping):
             out.append(f"binaries[{cell_id}]: rec が Mapping でない")
             continue
+        if set(rec) != set(_binary_admission.PORTABLE_BUILT_KEYS):
+            out.append(f"binaries[{cell_id}]: exact key 集合が不一致")
+            continue
         key = (rec.get("holdout_id"), rec.get("configuration_id"))
         got_key_set.add(key)
         bin_sha = rec.get("binary_sha256")
@@ -912,6 +923,16 @@ def _verify_binaries_section(artifact: Mapping, expected_cells: Mapping,
             out.append(f"binaries[{cell_id}]: binary_sha256 が 64hex でない")
         elif bin_short != bin_sha[:16]:
             out.append(f"binaries[{cell_id}]: bin_hash_short {bin_short!r} != sha256[:16]")
+        try:
+            _binary_admission.validate_portable_binary_record(
+                rec, expected_policy=None,
+                expected_ccbench_pin=artifact.get("ccbench_pin"),
+                expected_cell_id=cell_id,
+                expected_holdout_id=rec.get("holdout_id"),
+                expected_configuration_id=rec.get("configuration_id"),
+            )
+        except _binary_admission.BinaryAdmissionError as exc:
+            out.append(f"binaries[{cell_id}]: admission receipt が不正: {exc}")
         if expected_binaries is not None:
             exp = expected_binaries.get(cell_id)
             if not isinstance(exp, str):
