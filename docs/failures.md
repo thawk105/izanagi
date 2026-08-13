@@ -3293,6 +3293,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応は F106 のまま (投入から結果取得までは commit・stage・tracked file 編集を行わず、
   待ち時間には repo 外の作業だけを置く)。本再発は memory
   `no-tree-writes-during-mutation-run` の射程を受入全走へ広げる根拠として記録する。
+
+- **再発: 2026-08-13** — [T-1048] trigger 凍結領域拡大 wave。**6 度目**。変異本走の走行中に親が
+  段 7 の insight README を worktree へ書いた。過去 5 件と違い、harness preflight でも走行中の
+  偽の赤でもなく、`mutation_worktree.py` の**走行後の共有木事後検査**が捕まえた (`rc=125`)。
+  全 4 run を消費してから中止されるため損失が最大になる点が新しい情報である。詳細は
+  F300。恒久対応は F106 のままで、
+  待ち時間には repo 外の job directory だけを触る。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -7279,3 +7286,52 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   件数を確認し、残骸があれば tracked と交差しないことを確かめて撤去する。
 - 再発検知: 段 6 の統合 commit 前に `git status --porcelain` の行数を親が読む
   (受入全走の untracked 検査より前に出す)。
+
+### F300. 変異本走の共有木事後検査が、走行完了後に全結果を捨てさせた [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py` の本走中に、親が段 7 の insight README を worktree へ書いた。
+  3 変異と baseline はすべて隔離 worktree 側で完走し、結果 JSON も `KILLED` / 期待 node 完全一致で
+  書かれたが、最後の**共有木の事後検査**が
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で `rc=125` を返し、
+  run 全体が中止扱いになった。1 走を捨てて clean tree で再走した。
+- 根本原因: F106 と同一で、長い走行を待ち時間とみなし repo 内で別の段の作業を進めたこと。
+  本 wave の親は F106 の再発を 5 件読んだうえで踏んでいる。
+- 恒久対応: F106 の恒久対応 (`DW-O19` の「本走は統合 commit 後に限る」、投入から結果取得までは
+  commit・stage・tracked file 編集を行わない、待ち時間には repo 外の作業だけを置く) をそのまま適用する。
+  本エントリは**検知点が 3 つ目である**ことを顕在化する — harness preflight の `rc=2` (走行前)、
+  テストの偽の赤 (走行中)、に加えて **`mutation_worktree.py` の事後検査 (走行後)** がある。
+  事後検査は全 run を消費してから落ちるため、3 者のうち最も高くつく。
+- 再発検知: `mutation_worktree.py` の rc が 125 で、結果 JSON 自体は完全に書かれている場合。
+  ログ末尾の `共有木の事後検査に失敗` が literal の目印になる。
+
+### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
+
+- 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
+  `ReviewedSpecError: [invalid-reviewed-spec] generator_versions.materializer.sha256 が実 byte hash と不一致`
+  で赤になった。変更面 (critic/digest・s1 driver・diff_quarantine) と無関係に見えたが、
+  s8b の承認 spec が `materializer` として `orchestrator/campaign/s1_direct_comparison.py` の
+  bytes を pin しており、本 wave がそのファイルを編集したため golden が古くなっていた。
+- 根本原因: `DW-O09` の pin 閉包検索を「本 wave が導入・変更する識別子 (contract ID)」を key に
+  だけ行い、**本 wave が編集するファイルを pin している側**を検索しなかった。
+  `DW-O09` は「path 検索が見つけるのは path を key にする pin だけ」と明記しており、
+  今回は逆向き — 編集面 path を key にした検索そのものを実行していない。
+- 恒久対応: 段 1 の凍結節で、**編集予定ファイルの path を key に `grep -rn "<編集ファイル path>"`
+  を回し、bytes hash を pin している test・spec・台帳を全列挙する**手順を pin 閉包の一部として
+  明示する。識別子 key の検索と編集面 path key の検索は別物として両方行う。
+- 再発検知: 受入全走で初めて出る型なので、段 1 の列挙結果を brief の不変条件へ書き、
+  段 6 のレビューで「編集面 path を pin している側の列挙が brief にあるか」を確認項目にする。
+- 対応: golden literal 2 値 (materializer pin と、それを含む canonical bytes の gate hash) を
+  実ファイルの sha256 から独立に計算して差し替えた。production 無変更、assert の削除・緩和なし、
+  golden を production serializer の出力から再生成していない。
+
+### F302. anchored 解析への変異が等価変異で SURVIVED した [変異検査]
+
+- 事象: 変異 matrix の probe 巡で、budget note の anchored 解析を狙った変異 M7 が SURVIVED した。
+  正規表現の `^` を外し `match` を `search` へ変える形だったが、構造化 prefix
+  `session: index=N attempt=N status=X reason=` 全体の一致は依然必要で、挙動が変わらなかった。
+- 根本原因: 変異を「実装の見た目」に対して作り、**wave 前の実コードの形**に対して作らなかった。
+  この gate が閉じたのは部分文字列検索であり、注入すべきはその形だった。
+- 恒久対応: 防壁を新設する wave では、変異に **wave 前の実コードの逐語形**を必ず 1 件含める。
+- 再発検知: SURVIVED を equivalent と結論する前に、注入内容の diff と
+  「wave 前の形を含むか」を照合する (`DW-M04`)。
+- 対応: 部分文字列検索を注入する M7r へ再照準し KILLED。初回 SURVIVED は erratum として残す。

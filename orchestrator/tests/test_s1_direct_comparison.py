@@ -1026,6 +1026,46 @@ def test_schedule_mutation_refused_and_deviation_recorded(tmp_path):
     assert any(e["note"].startswith("schedule-deviation:") for e in budget["entries"])
 
 
+def test_unknown_status_is_redacted_from_exception_deviation_and_budget(tmp_path):
+    raw_status = "future-status\nINJECT"
+    document = _freeze()
+    freeze_path = _write_freeze(tmp_path, document)
+    output_root = str(tmp_path / "out")
+    layout = S.layout_for(document, "floor", output_root=output_root).ensure()
+    wal.write_lock(layout, build_v2_lock(
+        S.ident.canonical_preimage(S.config_for(document, "floor"))
+    ))
+    item = S.schedule_for_role(document, "floor")[0]
+    start = S._base_event(item, "v0", 0)
+    S._append_event(layout, start)
+    S._append_event(layout, {
+        **start,
+        "event": "session-result",
+        "status": raw_status,
+        "reason": "fixture",
+    })
+
+    with pytest.raises(S.ScheduleDeviation) as caught:
+        S.run_role(
+            "floor", freeze_path=freeze_path, budget_path=tmp_path / "budget.json",
+            output_root=output_root, verify_document=lambda doc: None,
+            evaluate_fn=_green, prepare_cell_fn=_prepared,
+            single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None,
+        )
+
+    deviation_reasons = [
+        event["reason"] for event in S.read_session_ledger(layout)
+        if event.get("event") == "deviation"
+    ]
+    budget_notes = [entry["note"] for entry in S.read_budget(
+        tmp_path / "budget.json",
+    )["entries"]]
+    outputs = [str(caught.value), *deviation_reasons, *budget_notes]
+    assert deviation_reasons and budget_notes
+    assert all(raw_status not in output for output in outputs)
+    assert all("sha256_12=" in output for output in outputs)
+
+
 def test_budget_shortage_does_not_start_session(tmp_path):
     budget_path = tmp_path / "time_ledger.json"
     S.append_budget_entry(
@@ -1058,6 +1098,75 @@ def test_budget_preflight_uses_conservative_upper_bound(tmp_path):
         single_tenant_fn=lambda: None, monotonic=_Clock(), log=lambda msg: None)
     assert rc == S.EXIT_BUDGET
     assert calls == []
+
+
+def test_budget_status_parser_is_anchored_before_free_text_reason(tmp_path):
+    budget_path = tmp_path / "time_ledger.json"
+    S.append_budget_entry(
+        budget_path, role="floor", started_iso="2026-08-13T00:00:00+00:00",
+        wall_s=1.0, phase="floor",
+        note=("session: index=0 attempt=0 status=success "
+              "reason=mentions status=verifier-red and status=oracle-reject"),
+    )
+    assert S._terminal_exit_code(budget_path, []) is None
+
+    S.append_budget_entry(
+        budget_path, role="floor", started_iso="2026-08-13T00:00:01+00:00",
+        wall_s=1.0, phase="floor",
+        note="session: index=1 attempt=0 status=oracle-reject reason=swo-asymmetric",
+    )
+    assert S._terminal_exit_code(budget_path, []) == S.EXIT_ORACLE_REJECT
+
+
+def test_verifier_red_has_priority_across_budget_and_local_ledger(tmp_path):
+    budget_path = tmp_path / "time_ledger.json"
+    S.append_budget_entry(
+        budget_path, role="floor", started_iso="2026-08-13T00:00:00+00:00",
+        wall_s=1.0, phase="floor",
+        note="session: index=0 attempt=0 status=oracle-reject reason=swo-asymmetric",
+    )
+    local = [{"event": "session-result", "status": "verifier-red"}]
+    assert S._terminal_exit_code(budget_path, local) == S.EXIT_VERIFIER_RED
+
+
+@pytest.mark.parametrize("unknown_status", ["future-status", ["not", "hashable"]])
+def test_unknown_session_status_is_explicit_schedule_deviation(unknown_status):
+    item = S.schedule_for_role(_freeze(), "develop")[0]
+    events = [
+        S._base_event(item, "v", 0),
+        {**S._base_event(item, "v", 0), "event": "session-result",
+         "status": unknown_status, "reason": "fixture"},
+    ]
+    with pytest.raises(S.ScheduleDeviation, match="status が未知") as caught:
+        S.validate_session_events(events, [item])
+    message = str(caught.value)
+    assert "sha256_12=" in message
+    for fragment in ("future-status", "not", "hashable"):
+        assert fragment not in message
+
+
+def test_malformed_or_unknown_budget_session_status_fails_closed(tmp_path):
+    budget_path = tmp_path / "time_ledger.json"
+    S.append_budget_entry(
+        budget_path, role="floor", started_iso="2026-08-13T00:00:00+00:00",
+        wall_s=1.0, phase="floor",
+        note="session: index=0 attempt=0 status=future-status reason=fixture",
+    )
+    with pytest.raises(S.DriverError, match="status が未知") as caught:
+        S._terminal_exit_code(budget_path, [])
+    assert "future-status" not in str(caught.value)
+    assert "sha256_12=" in str(caught.value)
+
+
+def test_terminal_exit_code_redundant_local_guard_rejects_unknown_status(tmp_path):
+    raw_status = "future-local-status"
+    with pytest.raises(S.ScheduleDeviation, match="status が未知") as caught:
+        S._terminal_exit_code(
+            tmp_path / "time_ledger.json",
+            [{"event": "session-result", "status": raw_status}],
+        )
+    assert raw_status not in str(caught.value)
+    assert "sha256_12=" in str(caught.value)
 
 
 def test_retry_limit_abandons_session_and_continues(tmp_path):
@@ -1127,7 +1236,7 @@ def test_prepare_transient_failure_retries_twice_then_succeeds(tmp_path):
     ]) == 2
 
 
-def test_s1_oracle_reject_is_recorded_before_driver_error(tmp_path):
+def test_s1_oracle_reject_is_distinct_terminal_and_resume_does_not_prepare(tmp_path):
     result = _oracle_reject_result()
     attempt_record = S._sort_swo_reject_attempt_record(result)
     evaluate_calls = []
@@ -1143,15 +1252,15 @@ def test_s1_oracle_reject_is_recorded_before_driver_error(tmp_path):
 
     output_root = str(tmp_path / "out")
     document = _freeze()
-    with pytest.raises(S.DriverError, match="corpus-mutated-by-comparator"):
-        S.run_role(
-            "develop", freeze_path=_write_freeze(tmp_path, document),
-            budget_path=tmp_path / "time_ledger.json", output_root=output_root,
-            verify_document=lambda doc: None,
-            evaluate_fn=lambda *args, **kwargs: evaluate_calls.append(1),
-            prepare_cell_fn=rejected_prepare, single_tenant_fn=lambda: None,
-            monotonic=_Clock(), log=lambda msg: None,
-        )
+    kwargs = dict(
+        freeze_path=_write_freeze(tmp_path, document),
+        budget_path=tmp_path / "time_ledger.json", output_root=output_root,
+        verify_document=lambda doc: None,
+        evaluate_fn=lambda *args, **kwargs: evaluate_calls.append(1),
+        prepare_cell_fn=rejected_prepare, single_tenant_fn=lambda: None,
+        monotonic=_Clock(), log=lambda msg: None,
+    )
+    assert S.run_role("develop", **kwargs) == S.EXIT_ORACLE_REJECT
 
     layout = S.layout_for(document, "develop", output_root=output_root)
     events = S.read_session_ledger(layout)
@@ -1163,9 +1272,21 @@ def test_s1_oracle_reject_is_recorded_before_driver_error(tmp_path):
     assert starts[0]["sort_swo_oracle"]["materialized_hole_sha256"] == "a" * 64
     assert starts[0]["sort_swo_oracle"]["proposal_sha256"] == "b" * 64
     assert "freeze_cell_id" in starts[0]
-    assert not any(event.get("event") == "session-result" for event in events)
+    results = [event for event in events if event.get("event") == "session-result"]
+    assert len(results) == 1
+    assert results[0]["status"] == "oracle-reject"
+    assert results[0]["reason"] == "corpus-mutated-by-comparator"
+    assert results[0]["status"] != "verifier-red"
     assert not any(event.get("event") == "retry" for event in events)
     assert evaluate_calls == []
+    assert S.validate_session_ledger(
+        layout, S.schedule_for_role(document, "develop"),
+    ) == 1
+
+    assert S.run_role("develop", **kwargs) == S.EXIT_ORACLE_REJECT
+    resumed = S.read_session_ledger(layout)
+    assert len([e for e in resumed if e.get("event") == "session-start"]) == 1
+    assert len([e for e in resumed if e.get("event") == "session-result"]) == 1
 
 
 def test_s1_oracle_unavailable_is_recorded_as_attempt_infra_before_retry(tmp_path):
