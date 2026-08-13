@@ -16529,3 +16529,71 @@ selected 件数と、path に一致する unique nodeid 件数の一致を必須
   「テスト失敗で落ちた走行」から「何らかの理由で落ちた走行」へ広がる。
 - checker rc=2 を「判定不能だが赤は非帰属らしい」として通す — `DW-O18` が
   「rc=2 は判定不能で非帰属の根拠にしない」と定めた向きに反する。
+
+## D390. 受入形状の scheduler 上書きは runner が拒否する (2026-08-13)
+
+**決定:** `tools/run_tests.py` は、受入形状 (`_is_acceptance_run`) かつユーザー指定 `--dist` に
+`loadgroup` 以外の値が 1 つでもあるとき、argv 正規化の直後に専用 rc で停止する。D63 決定 (3) の
+「別 `--dist` は警告付き opt-out」を受入形状に限って撤回する部分改訂である。通常走 (非受入形状) の
+`--dist` は従来どおり警告のみで実行する。あわせて非空 `PYTEST_PLUGINS` を受入形状から外す。
+
+拒否は次の 4 点を満たす。
+
+1. 位置は `main()` の argv 正規化直後で、site 解決・bounded scope 検査・preflight・
+   計算ノードへの dispatch・xdist 導入のいずれよりも前に置く。後ろへ置くと、
+   dispatch される走行では login 側で発火しない。
+2. `use_xdist` の成否に依存しない。直列 fallback でも `-n0` でも拒否する。
+3. 明示 `--dist loadgroup` は許す。既定と同値であり、承認外の過剰拒否を作らない。
+   複数指定は最後の値でなく全値を見る。
+4. `--dist` は `_NONSELECT_VALUE_OPTIONS` に残す。
+
+**理由:**
+- 既定の `--dist loadgroup` は pytest の後勝ち規則でユーザー引数に上書きされる。受入形状の
+  判定は `--dist` を通すため、実 repo 排他 group が丸ごと無効な走行が受入全走として成立していた。
+  pytest 内の閉包検査が緑でも、runner 層で排他を消せる状態だった。
+- 4 の理由は fail-open の回避である。`--dist` を allowlist から外すと `_is_acceptance_run` が
+  偽になり、拒否ではなく黙って partial 走行へ降格する。
+- `PYTEST_PLUGINS` を外すのは、plugin が `pytest_xdist_make_scheduler` hook で scheduler を
+  差し替えられるため。明示 `--dist loadgroup` を渡していても排他は失われる。非空
+  `PYTEST_ADDOPTS` を受入形状から外している既存規則と同じ形の前提条件であり、新規方針ではない。
+  hard reject にはせず「受入形状ではない」へ落とすだけとし、過剰拒否を作らない。
+
+**却下した選択肢:**
+- 警告のまま実行を続ける — 受入の緑が排他なしの緑になりうる。
+- すべての `--dist` を拒否する — 既定と同値の明示指定まで受理集合から外す。
+- `--dist` を allowlist から外す — 上記 4 のとおり fail-open。
+- 実効 scheduler を conftest で検査する / acceptance receipt へ束縛する — 本 wave の scope 外。
+  plugin 経由の差し替えは argv 検査では閉じないため、独立の裁定パッケージへ送る。
+
+## D391. worktree 削除前の占有走査を checker で機械化する (2026-08-13)
+
+**決定:** `tools/check_worktree_occupancy.py` を新設し、掃除経路 (`.claude/commands/cleanup-branches.md`)
+の削除操作の直前へ、対象ごとに毎回置く。rc0 のみ続行、rc1 (占有) と rc2 (判定不能) は停止する。
+占有の述語は「`/proc/<pid>/cwd` が対象と同一か配下」または「`/proc/<pid>/cmdline` の argv が
+対象と同一か配下を参照」の論理和とする。あわせて、呼び出しの実在を `tools/check_docs.py` が
+可視 H2 節内の exact 契約として機械検査する。
+
+契約の限界を次のとおり明示する。
+
+- **rc0 は削除の必要条件であって十分条件ではない。** 走査完了後に始まる process は捕まえられず
+  (TOCTOU)、別 PID namespace と FD 経由の参照も観測できない。
+- `/proc/<pid>/cwd` の permission denied は異常でなく恒常的な到達限界として扱い、rc に影響させない。
+  自分と同じ uid のものだけ pid と comm を個別に列挙し、残る盲点を可視化する。
+- 純増は「既存の worktree lock / foreign 拒否では止まらない、cwd および argv 参照による占有の
+  追加検出」であって、全削除経路の保護ではない。
+
+**理由:**
+- codex worker は worktree を argv で指し cwd にしないため、cwd だけの走査では映らない。
+  実測でも cwd が対象外で argv だけが指すプロセスを検出できることを確認した。
+- 実 login node では全 PID の cwd のうち読めるのは一部だけで、読めない分を判定不能に倒すと
+  未占有ディレクトリでも常に rc2 になり、掃除経路が永久に停止して機械強制が成立しない。
+  一方 cmdline は全 PID で読めるため、脅威 (自分の worker が占有している状態) の検出力は失われない。
+- 呼び出しを本文へ 1 行書くだけでは、その行を消して whole-file SHA pin を更新すれば docs lint が
+  通る。契約の実在を機械検査して初めて「prompt 規律でなく機械強制」になる。
+
+**却下した選択肢:**
+- 同 uid の cwd 到達不能を rc2 にする — login session の設計上、常時 rc2 に戻る。
+- 走査 root を差し替える CLI option を公開する — 偽の空 root で rc0 にできる逃がし道になる。
+- 自己と親 PID を丸ごと除外する — 実占有の cwd を見逃す。channel 単位の最小除外に限る。
+- lease による排他 — TOCTOU を原理的に閉じる唯一の手段だが、worker launcher 全部の改修が要る。
+  本 wave の scope 外として裁定パッケージへ送る。

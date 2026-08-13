@@ -1467,6 +1467,11 @@
 - 再発検知: worktree list に detached HEAD の残骸が残っていれば引き渡し漏れを疑う (次回の
   /cleanup-branches 棚卸しが検出する)
 
+
+- **再発: 2026-08-13** — 背景 job の待ち手 (`tools/dev_wave_wait.py producer`) が成果物も
+  `.done` も無いまま終了し、上位の通知だけが「完了」を告げた。3 点照合 (成果物実在 + `.done` +
+  producer 死) で検出し、待ちを張り直して続行した。本 wave で 3 回発生し、うち 2 回は
+  段 6 の敵対レビュー待ちだった。誤って完了と扱えばレビューなしで land する事故になっていた。
 ### F52. 変異復元後の stale bytecode cache が同一バイト長変異を実効残留させた [手順漏れ]
 - 事象: [T-153]/[T-158] wave の変異 matrix (2026-07-29) で、V11 (`10 * 1024 * 1024` →
   `20 * 1024 * 1024` の同一バイト長置換) をソース復元した後も、`tools/__pycache__` の変異版
@@ -7232,3 +7237,45 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   producer は本 wave の編集面の外でユーザー裁定へ返した。
 - 再発検知: 親の実データ実走 (gate を新設・改修する wave の完了条件)。
   静的レビュー 2 本はこの型の欠陥を 1 件も出せず、実走が 5 件連続で出した。
+
+### F297. 新設 checker が本番環境で常に判定不能を返した [恒真ゲート]
+
+- 事象: `tools/check_worktree_occupancy.py` の初版は、未占有ディレクトリに対しても
+  rc2 (判定不能) を返した。実測は Pegasus login node で issue 1947 件、stdout の JSON 109,071 bytes。
+  掃除経路の本文は「rc2 は停止」なので、どの worktree も削除できず機械強制が成立しない。
+- 根本原因: `/proc/<pid>/cwd` の permission denied を異常として判定不能へ倒していた。
+  実測では全 1984 PID のうち 1935 件が他ユーザーで読めず、恒常的に成立する条件だった。
+  段 3 の敵対レビューはこの懸念を検査したが、codex sandbox 内 (可視 PID 3 件) で測ったため
+  「再現しない」と誤って refuted にしていた。
+- 恒久対応: D391 の channel 別到達可能性。cwd の permission denied は
+  到達限界として rc に影響させず、同 uid のものだけ pid と comm で個別列挙する。
+  cmdline の permission denied、非 permission の OSError、PID 再利用は従来どおり判定不能。
+- 再発検知: `orchestrator/tests/test_check_worktree_occupancy.py` の
+  `test_scan_cwd_permission_only_is_unoccupied` と、synthetic proc root で rc0 を pin する node。
+  変異 `MUT-B3` (cwd permission の握り潰し) が両 node を殺すことを実測済み。
+
+### F298. 単体テストが本物の全走を入れ子起動できた [テスト代表性]
+
+- 事象: 受入形 `--dist` 拒否を取り除く変異の下で、計算ノードの job が Elapse 3609 秒で
+  wall 上限に達し runner が rc=16 になった。変異は殺されず、変異検査自体が完了できなかった。
+- 根本原因: rc 検査の 4 node が `main()` を mock なしで呼んでいた。拒否が効いている間は
+  即返るため速いが、拒否が消えると `main()` はそのまま進み、本物の pytest を入れ子で起動して
+  テスト全体を走らせる。通常走では速いので欠陥が見えず、変異の kill を wall 上限が覆い隠した。
+- 恒久対応: `orchestrator/tests/test_run_tests_nproc.py` の `_forbid_execution()` — pytest
+  subprocess、task-run 記録経路、preflight 3 種、xdist、dispatch を「呼ばれたら AssertionError」で
+  塞ぐ context manager。該当 4 node と順序 pin node が使う。
+- 再発検知: 変異 `MUT-A1` (wave 前の形へ戻す) が 5 node を KILLED にすること。塞ぎが無いと
+  同変異は wall 上限で TIMEOUT になり KILLED にならない。
+
+### F299. codex 子の直接関数呼び出しが repo root を汚染した [手順漏れ]
+
+- 事象: fix 子へ「対象関数を直接呼ぶ小さな python one-liner で確認せよ」と指示した結果、
+  repo root に約 3000 のテスト一時ディレクトリ (合計 5.4 GB) が発生し、
+  さらに `tmpg8oq7itw/main/.gitmodules` が index に stage された。受入全走と land を止める。
+- 根本原因: codex sandbox に書ける `TMPDIR` が無く、`tempfile.mkdtemp()` が cwd (= repo root) へ
+  落ちた。temp repo 内で `git add` した helper が親 index を触った。
+- 恒久対応: fix / author 子の prompt へ「直接呼び出しで確認するときは `TMPDIR` を job dir 配下へ
+  固定し、repo root へ書かない」を入れる。親は子の完了直後に `git status --porcelain` の
+  件数を確認し、残骸があれば tracked と交差しないことを確かめて撤去する。
+- 再発検知: 段 6 の統合 commit 前に `git status --porcelain` の行数を親が読む
+  (受入全走の untracked 検査より前に出す)。
