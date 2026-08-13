@@ -122,6 +122,33 @@ def _acceptance_env():
     )
 
 
+@contextlib.contextmanager
+def _forbid_execution():
+    with mock.patch.object(
+        RT.subprocess, "call",
+        side_effect=AssertionError("pytest subprocess must not run"),
+    ), mock.patch.object(
+        RT, "_call_and_record",
+        side_effect=AssertionError("task-run pytest path must not run"),
+    ), mock.patch.object(
+        RT, "_preflight_unstaged_deletions",
+        side_effect=AssertionError("deletion preflight must not run"),
+    ), mock.patch.object(
+        RT, "_preflight_ruleops",
+        side_effect=AssertionError("RuleOps preflight must not run"),
+    ), mock.patch.object(
+        RT, "_preflight_submodule",
+        side_effect=AssertionError("submodule preflight must not run"),
+    ), mock.patch.object(
+        RT, "_ensure_xdist",
+        side_effect=AssertionError("xdist setup must not run"),
+    ), mock.patch.object(
+        RT, "_dispatch_result",
+        side_effect=AssertionError("dispatch must not run"),
+    ):
+        yield
+
+
 def test_build_command_xdist_default_uses_loadgroup():
     assert _command([]) == [
         _FIXTURE_PYTHON, "-m", "pytest", _FIXTURE_TARGET,
@@ -211,13 +238,14 @@ def test_dist_stays_nonselect_for_acceptance_classification():
 
 def test_main_rejects_acceptance_dist_split_with_rc17():
     stderr = io.StringIO()
-    with _acceptance_env(), contextlib.redirect_stderr(stderr):
+    with _acceptance_env(), _forbid_execution(), \
+            contextlib.redirect_stderr(stderr):
         assert RT.main(["--dist", "load"], site=RT.site_policy.OTHER) == 17
     assert "--dist loadgroup 以外" in stderr.getvalue()
 
 
 def test_main_rejects_acceptance_dist_equals_spelling():
-    with _acceptance_env():
+    with _acceptance_env(), _forbid_execution():
         assert RT.main(["--dist=load"], site=RT.site_policy.OTHER) == 17
 
 
@@ -276,7 +304,7 @@ def test_acceptance_dist_rejection_precedes_preflight_and_xdist():
 
 
 def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():
-    with _acceptance_env():
+    with _acceptance_env(), _forbid_execution():
         assert RT.main(
             ["--dist", "load", "--dist", "loadgroup"],
             site=RT.site_policy.OTHER,
@@ -284,7 +312,7 @@ def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():
 
 
 def test_main_rejects_unsafe_dist_with_n0_serial_shape():
-    with _acceptance_env():
+    with _acceptance_env(), _forbid_execution():
         assert RT.main(
             ["-n0", "--dist", "load"], site=RT.site_policy.OTHER,
         ) == 17
