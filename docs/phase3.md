@@ -633,6 +633,29 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   `rulings-inbox/2026-08-12-coarse-provenance-45rulings.md`)。当面は W-2 の記録済み
   `cmake.path` を親が照合する運用で埋める。再訪条件なし。
 
+- [T-973] [T-922] 残余 R1 (binary hash authority) — 理由: 裁定 2026-08-13 (第 9 回 #18):
+  実需発火まで dormant を明記して固定。発火時は (a) prereg へ binary hash を第一候補とする。
+  形だけの結線の禁止は不変。再訪 = [T-922] 系 production 正例経路の実需発火。
+- [T-976] [T-922] 残余 R4 (guard producer の production 結線) — 理由: 同裁定 (第 9 回 #18) で
+  dormant 固定。偽 allow receipt を通す形だけの結線は不変で禁止。再訪 = 同上。
+- [T-977] [T-922] 残余 R5 (budget ledger の canonical path) — 理由: 同裁定 (第 9 回 #18) で
+  dormant 固定。再訪 = 同上。
+- [T-978] [T-922] 残余 R6 (6 種 producer の不在) — 理由: 同裁定 (第 9 回 #18) で dormant 固定
+  ((b) 意図的 dormant のまま §9.1 item 1 を未達に固定)。再訪 = 同上。
+- [T-1022] 8c `_HistoryState` の freeze projection exact 一致 — 理由: 裁定 2026-08-13
+  (第 9 回 #22): 見送り。再訪 = 実害観測時。
+- [T-1030] 非 `tools/pegasus/` path への `local-ok` exact allowlist — 理由: 裁定 2026-08-13
+  (第 9 回 #6、(b)): 作らない (D375 の単調性防壁を維持)。再訪 = login 結線 ([T-1029] (a) 側) が
+  実需とともに再提起されたとき。
+- [T-1041] oracle REJECT tombstone — 理由: 裁定 2026-08-13 (第 10 回): 作らない。[T-1040] の
+  終端 status 化が再試行の動機を消すため二重機構にしない。再訪 = 終端化後も同一 proposal の
+  再試行が実測 1 件出たとき。
+- [T-1044] oracle finding exact schema の producer / WAL 展開 — 理由: 裁定 2026-08-13
+  (第 10 回): 見送り (防御的堅牢化の既定)。再訪 = reader 側 exact schema が producer 由来の
+  実不整合を 1 件捕まえたとき。
+- [T-1046] S1 ledger nested field の読み側 exact 検証 — 理由: 裁定 2026-08-13 (第 10 回):
+  見送り ([T-1044] と同じ基準)。再訪 = 同左。
+
 ### 研究・計測系
 
 - [T-021] **balanced での backoff profile 対照** (B-011, 出所 `docs/phase3.md`) — balanced を凍結機序 profile に含め qualifying rr50 成果物が無い時。裁定 2026-07-19 保留承認、述語の正本 = `output/insights/2026-07-19_backlog-triage.md`。
@@ -675,6 +698,11 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   推奨どおり): run_dir を使う resume は source / receipt / PBS job binding を含む別設計で
   あり mode 変更に混ぜない。当面は新規 job で最初から再実行する。再訪条件 = 途中死による
   再実行コストが実害として観測されたとき。
+
+- [T-293] F89 (perf 受理集合の食い違い) の残余 — 理由: 裁定 2026-08-13 (第 9 回 #19、(a)):
+  記録だけして閉じる。再訪条件 = official 化 ([T-1017] 束) の着手時。
+- [T-1045] oracle 証拠の S1 report / critic digest への露出 — 理由: 裁定 2026-08-13 (第 10 回):
+  今は見送り。再訪 = 次に S1 report を再生成する wave (そこで同梱する)。
 
 ### プロセス文書系
 

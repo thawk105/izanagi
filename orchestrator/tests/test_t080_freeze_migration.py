@@ -749,6 +749,64 @@ def test_state_same_blob_mode_change_and_diff_tree_merge_edges_are_rejected_f4()
     assert captured and "-m" in captured[0] and "-r" in captured[0]
 
 
+def test_batched_history_argv_mechanically_excludes_find_copies_harder():
+    cheap = (
+        "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+        "--no-renames", "--full-index", "--always", "-z",
+    )
+    expensive = (
+        "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+        "-M", "-C", "--full-index", "--always", "-z",
+    )
+    assert migration._BATCH_DIFF_ARGV_CHEAP == cheap
+    assert migration._BATCH_DIFF_ARGV_EXPENSIVE == expensive
+    assert migration._batched_history_diff_tree_argv(
+        detect_renames_and_copies=False,
+    ) == cheap
+    assert migration._batched_history_diff_tree_argv(
+        detect_renames_and_copies=True,
+    ) == expensive
+    assert "-B" not in cheap and "-B" not in expensive
+
+    forbidden_argvs = (
+        expensive + ("--find-copies-harder",),
+        expensive + ("-C",),
+    )
+    for forbidden in forbidden_argvs:
+        with mock.patch.object(
+            migration, "_batched_history_diff_tree_argv", return_value=forbidden,
+        ), mock.patch.object(migration, "_git") as git:
+            _expect_reason(
+                lambda: migration._run_batched_history_diff_tree(
+                    ("a" * 40,),
+                    b"target.txt",
+                    Path("."),
+                    None,
+                    detect_renames_and_copies=True,
+                ),
+                "receipt.git_error",
+            )
+            git.assert_not_called()
+
+
+def test_batched_history_runner_rejects_mutated_frozen_argv_before_git():
+    mutated = migration._BATCH_DIFF_ARGV_EXPENSIVE + ("-C",)
+    with mock.patch.object(
+        migration, "_BATCH_DIFF_ARGV_EXPENSIVE", mutated,
+    ), mock.patch.object(migration, "_git") as git:
+        _expect_reason(
+            lambda: migration._run_batched_history_diff_tree(
+                ("a" * 40,),
+                b"target.txt",
+                Path("."),
+                None,
+                detect_renames_and_copies=True,
+            ),
+            "receipt.git_error",
+        )
+        git.assert_not_called()
+
+
 def test_batched_descendant_mode_change_is_rejected_positive_control():
     """mode/kind/OID batch が same-blob の mode 変化を見落とさない。"""
     temp, root = _repo_with_schema_valid_receipt()
@@ -778,7 +836,7 @@ def test_batched_descendant_exact_copy_is_rejected_positive_control():
 
 
 def test_batched_descendant_output_count_mismatch_fails_closed_positive_control():
-    """tree/diff どちらの batch 応答欠落も receipt.git_error に倒す。"""
+    """tree または安価側 diff の batch 応答欠落を receipt.git_error に倒す。"""
     for batch_kind in ("tree", "diff"):
         temp, root = _repo_with_schema_valid_receipt()
         original = migration._git
@@ -790,7 +848,7 @@ def test_batched_descendant_output_count_mismatch_fails_closed_positive_control(
                 out = original(args, repo_root, stdin=stdin)
                 if batch_kind == "tree" and list(args) == ["cat-file", "--batch"]:
                     return b""
-                if batch_kind == "diff" and args[:2] == ["diff-tree", "--stdin"]:
+                if batch_kind == "diff" and list(args[:2]) == ["diff-tree", "--stdin"]:
                     return b""
                 return out
 
@@ -1455,10 +1513,10 @@ def test_history_touches_batch_is_equivalent_to_sequential_any():
         assert migration._any_history_touches_path(touching, "target.txt", root) is True
 
 
-def test_history_touches_path_positive_control_matrix(tmp_path: Path):
-    """[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。"""
+def _build_history_touch_cases(tmp_path: Path):
     target = "target.txt"
-    history_cases: list[tuple[int, str, str, Path, bool]] = []
+    history_cases = []
+    observation_cases = []
 
     def repo_with_files(name: str, files: dict[str, str]) -> tuple[Path, str]:
         root = tmp_path / name
@@ -1475,29 +1533,40 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     modified_oid = _run_git(
         root, "rev-parse", f"{modified_commit}:{target}",
     ).decode().strip()
-    history_cases.append((1, "modified", modified_commit, root, True))
+    history_cases.append((1, "modified", modified_commit, root, None, True))
+    observation_cases.append(("modified", (modified_commit,), root, b"target.txt"))
 
     root, _ = repo_with_files("deleted", {target: "before\n"})
     (root / target).unlink()
-    history_cases.append((2, "deleted", _commit_all(root, "delete target"), root, True))
+    deleted_commit = _commit_all(root, "delete target")
+    history_cases.append((2, "deleted", deleted_commit, root, None, True))
+    observation_cases.append(("deleted", (deleted_commit,), root, b"target.txt"))
 
     root, _ = repo_with_files("rename-source", {target: "rename me\n"})
     _run_git(root, "mv", target, "renamed.txt")
-    history_cases.append((
-        3, "rename source", _commit_all(root, "rename target away"), root, True,
+    rename_source_commit = _commit_all(root, "rename target away")
+    history_cases.append((3, "rename source", rename_source_commit, root, None, True))
+    observation_cases.append((
+        "rename source", (rename_source_commit,), root, b"target.txt",
     ))
 
     root, _ = repo_with_files("rename-destination", {"source.txt": "rename me\n"})
     _run_git(root, "mv", "source.txt", target)
+    rename_destination_commit = _commit_all(root, "rename source to target")
     history_cases.append((
-        4, "rename destination", _commit_all(root, "rename source to target"), root, True,
+        4, "rename destination", rename_destination_commit, root, None, True,
+    ))
+    observation_cases.append((
+        "rename destination", (rename_destination_commit,), root, b"target.txt",
     ))
 
     root, _ = repo_with_files("symlink", {target: "regular\n"})
     (root / target).unlink()
     (root / target).symlink_to("symlink-destination")
-    history_cases.append((
-        5, "regular to symlink", _commit_all(root, "target to symlink"), root, True,
+    symlink_commit = _commit_all(root, "target to symlink")
+    history_cases.append((5, "regular to symlink", symlink_commit, root, None, True))
+    observation_cases.append((
+        "regular to symlink", (symlink_commit,), root, b"target.txt",
     ))
 
     root, gitlink_target = repo_with_files("gitlink", {target: "regular\n"})
@@ -1508,7 +1577,10 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     )
     _run_git(root, "commit", "-q", "-m", "target to gitlink", "-m", "AI-Agent: none")
     gitlink_commit = _run_git(root, "rev-parse", "HEAD").decode().strip()
-    history_cases.append((6, "regular to gitlink", gitlink_commit, root, True))
+    history_cases.append((6, "regular to gitlink", gitlink_commit, root, None, True))
+    observation_cases.append((
+        "regular to gitlink", (gitlink_commit,), root, b"target.txt",
+    ))
 
     root = tmp_path / "added"
     root.mkdir()
@@ -1519,13 +1591,14 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     added_oid = _run_git(
         root, "rev-parse", f"{added_commit}:{target}",
     ).decode().strip()
-    history_cases.append((7, "added", added_commit, root, False))
+    history_cases.append((7, "added", added_commit, root, None, False))
+    observation_cases.append(("added", (added_commit,), root, b"target.txt"))
 
     root, _ = repo_with_files("unrelated", {target: "unchanged\n"})
     (root / "base.txt").write_text("unrelated change\n", encoding="utf-8")
-    history_cases.append((
-        8, "unrelated", _commit_all(root, "modify unrelated file"), root, False,
-    ))
+    unrelated_commit = _commit_all(root, "modify unrelated file")
+    history_cases.append((8, "unrelated", unrelated_commit, root, None, False))
+    observation_cases.append(("unrelated", (unrelated_commit,), root, b"base.txt"))
 
     root = tmp_path / "root-add"
     root.mkdir()
@@ -1534,7 +1607,8 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     _run_git(root, "config", "user.email", "t080@example.invalid")
     (root / target).write_text("root addition\n", encoding="utf-8")
     root_commit = _commit_all(root, "root adds target")
-    history_cases.append((9, "root addition", root_commit, root, False))
+    history_cases.append((9, "root addition", root_commit, root, None, False))
+    observation_cases.append(("root addition", (root_commit,), root, b"target.txt"))
 
     root, common = repo_with_files("merge-two", {target: "common\n"})
     (root / "first.txt").write_text("first parent\n", encoding="utf-8")
@@ -1548,7 +1622,10 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         "-p", first_parent, "-p", second_parent,
         input_bytes=b"two-parent merge\n\nAI-Agent: none\n",
     ).decode().strip()
-    history_cases.append((10, "second parent differs", merge_two, root, True))
+    history_cases.append((10, "second parent differs", merge_two, root, None, True))
+    observation_cases.append((
+        "second parent differs", (merge_two,), root, b"target.txt",
+    ))
 
     root, common = repo_with_files("merge-three", {target: "common\n"})
     (root / "first.txt").write_text("first parent\n", encoding="utf-8")
@@ -1565,7 +1642,10 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         "-p", first_parent, "-p", second_parent, "-p", third_parent,
         input_bytes=b"three-parent merge\n\nAI-Agent: none\n",
     ).decode().strip()
-    history_cases.append((11, "third parent differs", merge_three, root, True))
+    history_cases.append((11, "third parent differs", merge_three, root, None, True))
+    observation_cases.append((
+        "third parent differs", (merge_three,), root, b"target.txt",
+    ))
 
     exact_copy_root, exact_copy_base = repo_with_files(
         "unchanged-copy-source", {target: "same bytes\n"},
@@ -1576,24 +1656,12 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         exact_copy_root, "rev-parse", f"{exact_copy_base}:{target}",
     ).decode().strip()
     history_cases.append((
-        12, "unchanged exact copy source", exact_copy_commit, exact_copy_root, True,
+        12, "unchanged exact copy source", exact_copy_commit, exact_copy_root,
+        exact_copy_oid, True,
     ))
-
-    assert [number for number, *_rest in history_cases] == list(range(1, 13))
-    assert any(expected is True for *_case, expected in history_cases)
-    for number, label, commit, root, expected in history_cases:
-        if number == 12:
-            actual = migration._history_touches_path(
-                commit, target, root, duplicate_oid=exact_copy_oid,
-            )
-            batched = migration._batched_history_touches_path(
-                (commit,), target, root, duplicate_oid=exact_copy_oid,
-            )
-        else:
-            actual = migration._history_touches_path(commit, target, root)
-            batched = migration._batched_history_touches_path((commit,), target, root)
-        assert actual is expected, (number, label, actual, expected)
-        assert batched is expected, (number, label, batched, expected)
+    observation_cases.append((
+        "unchanged exact copy source", (exact_copy_commit,), exact_copy_root, b"copy.txt",
+    ))
 
     near_copy_contents = "".join(
         f"stable line {number:03d}: exact-copy boundary\n" for number in range(100)
@@ -1610,6 +1678,103 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
     near_copy_oid = _run_git(
         near_copy_root, "rev-parse", f"{near_copy_base}:{target}",
     ).decode().strip()
+    observation_cases.append((
+        "changed near-copy", (near_copy_commit,), near_copy_root, b"copy.txt",
+    ))
+
+    aggregate_root, _ = repo_with_files("aggregate", {target: "before\n"})
+    (aggregate_root / "base.txt").write_text("false commit\n", encoding="utf-8")
+    false_commit = _commit_all(aggregate_root, "unrelated aggregate commit")
+    (aggregate_root / target).write_text("after\n", encoding="utf-8")
+    true_commit = _commit_all(aggregate_root, "touching aggregate commit")
+    error_commit = "f" * 40
+    observation_cases.extend((
+        ("aggregate unrelated", (false_commit,), aggregate_root, b"base.txt"),
+        ("aggregate touching", (true_commit,), aggregate_root, b"target.txt"),
+    ))
+
+    changed_source_root, _ = repo_with_files(
+        "modified-copy-source", {target: "source before\n"},
+    )
+    (changed_source_root / "copy.txt").write_bytes(
+        (changed_source_root / target).read_bytes(),
+    )
+    (changed_source_root / target).write_text("source after\n", encoding="utf-8")
+    changed_source_commit = _commit_all(changed_source_root, "copy then modify source")
+    observation_cases.append((
+        "modified copy source", (changed_source_commit,), changed_source_root, b"target.txt",
+    ))
+
+    empty_copy_root, _ = repo_with_files("empty-copy", {target: ""})
+    (empty_copy_root / "empty-copy.txt").write_bytes(b"")
+    empty_copy_commit = _commit_all(empty_copy_root, "copy empty blob")
+    observation_cases.append((
+        "empty blob copy", (empty_copy_commit,), empty_copy_root, b"empty-copy.txt",
+    ))
+
+    duplicate_dest_root, _ = repo_with_files(
+        "duplicate-destinations", {target: "same destination bytes\n"},
+    )
+    for relative in ("copy-one.txt", "copy-two.txt"):
+        (duplicate_dest_root / relative).write_bytes(
+            (duplicate_dest_root / target).read_bytes(),
+        )
+    duplicate_dest_commit = _commit_all(
+        duplicate_dest_root, "add identical blob at two destinations",
+    )
+    observation_cases.append((
+        "same oid at two destinations",
+        (duplicate_dest_commit,),
+        duplicate_dest_root,
+        b"copy-one.txt",
+    ))
+
+    non_utf8_root, _ = repo_with_files("non-utf8-observation", {target: "unchanged\n"})
+    non_utf8_path = b"unrelated-\xff"
+    fd = os.open(
+        os.path.join(os.fsencode(non_utf8_root), non_utf8_path),
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o644,
+    )
+    try:
+        os.write(fd, b"non-utf8 path\n")
+    finally:
+        os.close(fd)
+    non_utf8_commit = _commit_all(non_utf8_root, "add non-UTF-8 unrelated path")
+    observation_cases.append((
+        "non-UTF-8 unrelated path", (non_utf8_commit,), non_utf8_root, non_utf8_path,
+    ))
+
+    return {
+        "target": target,
+        "history_cases": tuple(history_cases),
+        "observation_cases": tuple(observation_cases),
+        "near_copy": (near_copy_commit, near_copy_root, near_copy_oid),
+        "exact_copy": (exact_copy_commit, exact_copy_root),
+        "modified": (modified_commit, modified_root, modified_oid),
+        "added": (added_commit, added_root, added_oid),
+        "aggregate": (aggregate_root, false_commit, true_commit, error_commit),
+    }
+
+
+def test_history_touches_path_positive_control_matrix(tmp_path: Path):
+    """[T-057] path 履歴述語の受理集合を synthetic git 履歴で固定する。"""
+    cases = _build_history_touch_cases(tmp_path)
+    target = cases["target"]
+    history_cases = cases["history_cases"]
+    assert [number for number, *_rest in history_cases] == list(range(1, 13))
+    assert any(expected is True for *_case, expected in history_cases)
+    for number, label, commit, root, duplicate_oid, expected in history_cases:
+        actual = migration._history_touches_path(
+            commit, target, root, duplicate_oid=duplicate_oid,
+        )
+        batched = migration._batched_history_touches_path(
+            (commit,), target, root, duplicate_oid=duplicate_oid,
+        )
+        assert actual is expected, (number, label, actual, expected)
+        assert batched is expected, (number, label, batched, expected)
+
+    near_copy_commit, near_copy_root, near_copy_oid = cases["near_copy"]
     # このケースが True へ戻ったら、それは 2026-08-09 のユーザー裁定
     # 「--find-copies-harder を外し、exact copy だけを OID で検出する」の逆行である。
     # 期待値を変える前に裁定をやり直すこと。
@@ -1620,6 +1785,7 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         (near_copy_commit,), target, near_copy_root, duplicate_oid=near_copy_oid,
     ) is False, "case 12b batch: changed near-copy must not match the target blob OID"
 
+    exact_copy_commit, exact_copy_root = cases["exact_copy"]
     assert migration._history_touches_path(
         exact_copy_commit, target, exact_copy_root, duplicate_oid=None,
     ) is False, "exact copy must remain undetected when duplicate_oid is omitted"
@@ -1627,14 +1793,14 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         (exact_copy_commit,), target, exact_copy_root, duplicate_oid=None,
     ) is False, "batch exact copy must remain undetected when duplicate_oid is omitted"
 
-    # M は従来の path 述語で True。duplicate_oid を渡してもその判定を壊さない。
+    modified_commit, modified_root, modified_oid = cases["modified"]
     assert migration._history_touches_path(
         modified_commit, target, modified_root, duplicate_oid=modified_oid,
     ) is True
     assert migration._batched_history_touches_path(
         (modified_commit,), target, modified_root, duplicate_oid=modified_oid,
     ) is True
-    # 対象 path 自身の entry は OID 重複ではない。A を True に拡張しないことも固定する。
+    added_commit, added_root, added_oid = cases["added"]
     assert migration._history_touches_path(
         added_commit, target, added_root, duplicate_oid=added_oid,
     ) is False
@@ -1642,12 +1808,7 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         (added_commit,), target, added_root, duplicate_oid=added_oid,
     ) is False
 
-    aggregate_root, _ = repo_with_files("aggregate", {target: "before\n"})
-    (aggregate_root / "base.txt").write_text("false commit\n", encoding="utf-8")
-    false_commit = _commit_all(aggregate_root, "unrelated aggregate commit")
-    (aggregate_root / target).write_text("after\n", encoding="utf-8")
-    true_commit = _commit_all(aggregate_root, "touching aggregate commit")
-    error_commit = "f" * 40
+    aggregate_root, false_commit, true_commit, error_commit = cases["aggregate"]
 
     try:
         migration._history_touches_path(error_commit, target, aggregate_root)
@@ -1672,6 +1833,274 @@ def test_history_touches_path_positive_control_matrix(tmp_path: Path):
         "receipt.git_error",
     )
     assert migration._any_history_touches_path(frozenset(), target, aggregate_root) is False
+
+
+def test_batched_history_cheap_observation_contains_expensive_observation(tmp_path: Path):
+    cases = _build_history_touch_cases(tmp_path)
+    for label, commits, root, known_changed_path in cases["observation_cases"]:
+        targets = tuple(sorted(commits))
+        cheap = migration._run_batched_history_diff_tree(
+            targets,
+            b"target.txt",
+            root,
+            None,
+            detect_renames_and_copies=False,
+        )
+        expensive = migration._run_batched_history_diff_tree(
+            targets,
+            b"target.txt",
+            root,
+            None,
+            detect_renames_and_copies=True,
+        )
+        assert cheap.paths, label
+        assert known_changed_path in cheap.paths, (label, known_changed_path, cheap.paths)
+        assert known_changed_path in expensive.paths, (
+            label, known_changed_path, expensive.paths,
+        )
+        assert expensive.paths <= cheap.paths, label
+        assert (
+            expensive.nonzero_destination_oids
+            <= cheap.nonzero_destination_oids
+        ), label
+
+
+def _build_unchanged_target_descendants(tmp_path: Path, name: str):
+    root = tmp_path / name
+    root.mkdir()
+    _init_repo(root)
+    (root / "target.txt").write_text("target stays unchanged\n", encoding="utf-8")
+    seed = _commit_all(root, "seed target")
+    target_oid = _run_git(root, "rev-parse", f"{seed}:target.txt").decode().strip()
+
+    descendants = []
+    (root / "unrelated.txt").write_text("added\n", encoding="utf-8")
+    descendants.append(_commit_all(root, "add unrelated"))
+    (root / "unrelated.txt").write_text("modified\n", encoding="utf-8")
+    descendants.append(_commit_all(root, "modify unrelated"))
+    (root / "unrelated.txt").unlink()
+    descendants.append(_commit_all(root, "delete unrelated"))
+
+    raw_name = b"unrelated-\xff"
+    fd = os.open(
+        os.path.join(os.fsencode(root), raw_name),
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o644,
+    )
+    try:
+        os.write(fd, b"raw path\n")
+    finally:
+        os.close(fd)
+    descendants.append(_commit_all(root, "add non-UTF-8 path"))
+
+    merge_base = descendants[-1]
+    _run_git(root, "checkout", "-q", "-b", "side", merge_base)
+    (root / "side.txt").write_text("side\n", encoding="utf-8")
+    side = _commit_all(root, "side unrelated")
+    _run_git(root, "checkout", "-q", "-B", "main", merge_base)
+    (root / "main.txt").write_text("main\n", encoding="utf-8")
+    main = _commit_all(root, "main unrelated")
+    _run_git(root, "merge", "-q", "--no-ff", "-m", "merge unrelated", side)
+    merge = _run_git(root, "rev-parse", "HEAD").decode().strip()
+    descendants.extend((side, main, merge))
+    return root, target_oid, tuple(sorted(descendants))
+
+
+def test_batched_history_cheap_miss_implies_expensive_false_and_skips_expensive(
+    tmp_path: Path,
+):
+    root, target_oid, targets = _build_unchanged_target_descendants(tmp_path, "cheap-miss")
+    cheap = migration._run_batched_history_diff_tree(
+        targets, b"target.txt", root, target_oid, detect_renames_and_copies=False,
+    )
+    expensive = migration._run_batched_history_diff_tree(
+        targets, b"target.txt", root, target_oid, detect_renames_and_copies=True,
+    )
+    assert cheap.has_trigger(b"target.txt", target_oid) is False
+    assert expensive.touches_path is False
+
+    calls = []
+    original = migration._git
+
+    def record_git(args, repo_root, *, stdin=None):
+        calls.append((tuple(args), stdin))
+        return original(args, repo_root, stdin=stdin)
+
+    with mock.patch.object(migration, "_git", side_effect=record_git):
+        assert migration._batched_history_touches_path(
+            targets, "target.txt", root, duplicate_oid=target_oid,
+        ) is False
+    assert len(calls) == 1
+    assert calls[0][0] == migration._BATCH_DIFF_ARGV_CHEAP
+
+
+def _build_multicommit_fallback_targets(tmp_path: Path, name: str):
+    root = tmp_path / name
+    root.mkdir()
+    _init_repo(root)
+    (root / "target.txt").write_text("before\n", encoding="utf-8")
+    _commit_all(root, "seed target")
+    (root / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+    unrelated = _commit_all(root, "unrelated descendant")
+    commit_header = _run_git(root, "cat-file", "commit", unrelated).partition(b"\n\n")[0]
+    midpoint_raw = None
+    for nonce in range(1024):
+        candidate_raw = commit_header + (
+            f"\n\nunrelated midpoint {nonce:04d}\n\nAI-Agent: none\n".encode("ascii")
+        )
+        object_input = (
+            f"commit {len(candidate_raw)}\0".encode("ascii") + candidate_raw
+        )
+        candidate_oid = hashlib.sha1(object_input).hexdigest()
+        if 0x70 <= int(candidate_oid[:2], 16) <= 0x8F:
+            midpoint_raw = candidate_raw
+            break
+    assert midpoint_raw is not None
+    unrelated = _run_git(
+        root, "hash-object", "-t", "commit", "-w", "--stdin",
+        input_bytes=midpoint_raw,
+    ).decode().strip()
+    assert unrelated == candidate_oid
+
+    (root / "target.txt").write_text("after\n", encoding="utf-8")
+    _run_git(root, "add", "target.txt")
+    tree = _run_git(root, "write-tree").decode().strip()
+    touching = None
+    # unrelated を SHA 空間中央付近へ置くため期待約 2 回、64 回失敗は 2e-16 未満。
+    for attempt in range(64):
+        candidate = _run_git(
+            root,
+            "commit-tree",
+            tree,
+            "-p",
+            unrelated,
+            input_bytes=(
+                f"touch target {attempt}\n\nAI-Agent: none\n"
+            ).encode("ascii"),
+        ).decode().strip()
+        if unrelated < candidate:
+            touching = candidate
+            break
+    assert touching is not None
+    targets = (unrelated, touching)
+    assert targets == tuple(sorted(targets))
+    return root, targets
+
+
+def test_batched_history_expensive_fallback_reuses_all_targets_and_stdin(tmp_path: Path):
+    root, targets = _build_multicommit_fallback_targets(tmp_path, "fallback")
+    calls = []
+    original = migration._git
+
+    def record_git(args, repo_root, *, stdin=None):
+        calls.append((tuple(args), stdin))
+        return original(args, repo_root, stdin=stdin)
+
+    with mock.patch.object(migration, "_git", side_effect=record_git):
+        assert migration._batched_history_touches_path(
+            targets, "target.txt", root,
+        ) is True
+    assert len(calls) == 2
+    assert calls[0][0] == migration._BATCH_DIFF_ARGV_CHEAP
+    assert calls[1][0] == migration._BATCH_DIFF_ARGV_EXPENSIVE
+    assert calls[1][1] == calls[0][1]
+    assert calls[0][1] == "".join(f"{commit}\n" for commit in targets).encode("ascii")
+
+
+def test_batched_history_expensive_output_mismatch_fails_closed(tmp_path: Path):
+    root, targets = _build_multicommit_fallback_targets(tmp_path, "malformed-expensive")
+    original = migration._git
+    diff_tree_calls = 0
+
+    def truncate_only_expensive(args, repo_root, *, stdin=None):
+        nonlocal diff_tree_calls
+        out = original(args, repo_root, stdin=stdin)
+        if args and args[0] == "diff-tree":
+            diff_tree_calls += 1
+            if diff_tree_calls == 2:
+                return b""
+        return out
+
+    with mock.patch.object(migration, "_git", side_effect=truncate_only_expensive):
+        _expect_reason(
+            lambda: migration._batched_history_touches_path(
+                targets, "target.txt", root,
+            ),
+            "receipt.git_error",
+        )
+    assert diff_tree_calls == 2
+
+
+def test_batched_history_trigger_is_independent_of_worktree_status_commands(tmp_path: Path):
+    root, target_oid, targets = _build_unchanged_target_descendants(
+        tmp_path, "status-independent",
+    )
+    calls = []
+    original_git = migration._git
+    original_git_rc = migration._git_rc
+
+    def record_git(args, repo_root, *, stdin=None):
+        calls.append(("_git", tuple(args)))
+        return original_git(args, repo_root, stdin=stdin)
+
+    def record_git_rc(args, repo_root):
+        calls.append(("_git_rc", tuple(args)))
+        return original_git_rc(args, repo_root)
+
+    with mock.patch.object(
+        migration, "_git", side_effect=record_git,
+    ), mock.patch.object(migration, "_git_rc", side_effect=record_git_rc):
+        assert migration._batched_history_touches_path(
+            targets, "target.txt", root, duplicate_oid=target_oid,
+        ) is False
+    forbidden = {
+        "status", "diff", "diff-files", "diff-index", "ls-files", "stash",
+        "update-index", "read-tree", "write-tree", "add", "restore", "reset",
+        "checkout", "switch",
+    }
+    assert calls
+    assert all(argv and argv[0] not in forbidden for _seam, argv in calls)
+
+
+def test_batched_history_verdict_is_same_for_clean_and_dirty_worktree(tmp_path: Path):
+    root = tmp_path / "dirty-status-independent"
+    root.mkdir()
+    _init_repo(root)
+    target = root / "target.txt"
+    target.write_text("before\n", encoding="utf-8")
+    _commit_all(root, "seed target")
+    target.write_text("committed change\n", encoding="utf-8")
+    targets = (_commit_all(root, "modify target"),)
+    calls = []
+    original_git = migration._git
+    original_git_rc = migration._git_rc
+
+    def record_git(args, repo_root, *, stdin=None):
+        calls.append(("_git", tuple(args)))
+        return original_git(args, repo_root, stdin=stdin)
+
+    def record_git_rc(args, repo_root):
+        calls.append(("_git_rc", tuple(args)))
+        return original_git_rc(args, repo_root)
+
+    with mock.patch.object(
+        migration, "_git", side_effect=record_git,
+    ), mock.patch.object(migration, "_git_rc", side_effect=record_git_rc):
+        clean_verdict = migration._batched_history_touches_path(
+            targets, "target.txt", root,
+        )
+        target.write_text("dirty worktree change\n", encoding="utf-8")
+        dirty_verdict = migration._batched_history_touches_path(
+            targets, "target.txt", root,
+        )
+    assert dirty_verdict is clean_verdict is True
+    forbidden = {
+        "status", "diff", "diff-files", "diff-index", "ls-files", "stash",
+        "update-index", "read-tree", "write-tree", "add", "restore", "reset",
+        "checkout", "switch",
+    }
+    assert calls
+    assert all(argv and argv[0] not in forbidden for _seam, argv in calls)
 
 
 def test_cat_blob_memoizes_per_object_without_changing_bytes():
