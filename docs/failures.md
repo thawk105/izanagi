@@ -3293,6 +3293,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応は F106 のまま (投入から結果取得までは commit・stage・tracked file 編集を行わず、
   待ち時間には repo 外の作業だけを置く)。本再発は memory
   `no-tree-writes-during-mutation-run` の射程を受入全走へ広げる根拠として記録する。
+
+- **再発: 2026-08-13** — [T-1048] trigger 凍結領域拡大 wave。**6 度目**。変異本走の走行中に親が
+  段 7 の insight README を worktree へ書いた。過去 5 件と違い、harness preflight でも走行中の
+  偽の赤でもなく、`mutation_worktree.py` の**走行後の共有木事後検査**が捕まえた (`rc=125`)。
+  全 4 run を消費してから中止されるため損失が最大になる点が新しい情報である。詳細は
+  F300。恒久対応は F106 のままで、
+  待ち時間には repo 外の job directory だけを触る。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -7279,3 +7286,128 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   件数を確認し、残骸があれば tracked と交差しないことを確かめて撤去する。
 - 再発検知: 段 6 の統合 commit 前に `git status --porcelain` の行数を親が読む
   (受入全走の untracked 検査より前に出す)。
+
+### F300. 変異本走の共有木事後検査が、走行完了後に全結果を捨てさせた [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py` の本走中に、親が段 7 の insight README を worktree へ書いた。
+  3 変異と baseline はすべて隔離 worktree 側で完走し、結果 JSON も `KILLED` / 期待 node 完全一致で
+  書かれたが、最後の**共有木の事後検査**が
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で `rc=125` を返し、
+  run 全体が中止扱いになった。1 走を捨てて clean tree で再走した。
+- 根本原因: F106 と同一で、長い走行を待ち時間とみなし repo 内で別の段の作業を進めたこと。
+  本 wave の親は F106 の再発を 5 件読んだうえで踏んでいる。
+- 恒久対応: F106 の恒久対応 (`DW-O19` の「本走は統合 commit 後に限る」、投入から結果取得までは
+  commit・stage・tracked file 編集を行わない、待ち時間には repo 外の作業だけを置く) をそのまま適用する。
+  本エントリは**検知点が 3 つ目である**ことを顕在化する — harness preflight の `rc=2` (走行前)、
+  テストの偽の赤 (走行中)、に加えて **`mutation_worktree.py` の事後検査 (走行後)** がある。
+  事後検査は全 run を消費してから落ちるため、3 者のうち最も高くつく。
+- 再発検知: `mutation_worktree.py` の rc が 125 で、結果 JSON 自体は完全に書かれている場合。
+  ログ末尾の `共有木の事後検査に失敗` が literal の目印になる。
+
+### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
+
+- 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
+  `ReviewedSpecError: [invalid-reviewed-spec] generator_versions.materializer.sha256 が実 byte hash と不一致`
+  で赤になった。変更面 (critic/digest・s1 driver・diff_quarantine) と無関係に見えたが、
+  s8b の承認 spec が `materializer` として `orchestrator/campaign/s1_direct_comparison.py` の
+  bytes を pin しており、本 wave がそのファイルを編集したため golden が古くなっていた。
+- 根本原因: `DW-O09` の pin 閉包検索を「本 wave が導入・変更する識別子 (contract ID)」を key に
+  だけ行い、**本 wave が編集するファイルを pin している側**を検索しなかった。
+  `DW-O09` は「path 検索が見つけるのは path を key にする pin だけ」と明記しており、
+  今回は逆向き — 編集面 path を key にした検索そのものを実行していない。
+- 恒久対応: 段 1 の凍結節で、**編集予定ファイルの path を key に `grep -rn "<編集ファイル path>"`
+  を回し、bytes hash を pin している test・spec・台帳を全列挙する**手順を pin 閉包の一部として
+  明示する。識別子 key の検索と編集面 path key の検索は別物として両方行う。
+- 再発検知: 受入全走で初めて出る型なので、段 1 の列挙結果を brief の不変条件へ書き、
+  段 6 のレビューで「編集面 path を pin している側の列挙が brief にあるか」を確認項目にする。
+- 対応: golden literal 2 値 (materializer pin と、それを含む canonical bytes の gate hash) を
+  実ファイルの sha256 から独立に計算して差し替えた。production 無変更、assert の削除・緩和なし、
+  golden を production serializer の出力から再生成していない。
+
+### F302. anchored 解析への変異が等価変異で SURVIVED した [変異検査]
+
+- 事象: 変異 matrix の probe 巡で、budget note の anchored 解析を狙った変異 M7 が SURVIVED した。
+  正規表現の `^` を外し `match` を `search` へ変える形だったが、構造化 prefix
+  `session: index=N attempt=N status=X reason=` 全体の一致は依然必要で、挙動が変わらなかった。
+- 根本原因: 変異を「実装の見た目」に対して作り、**wave 前の実コードの形**に対して作らなかった。
+  この gate が閉じたのは部分文字列検索であり、注入すべきはその形だった。
+- 恒久対応: 防壁を新設する wave では、変異に **wave 前の実コードの逐語形**を必ず 1 件含める。
+- 再発検知: SURVIVED を equivalent と結論する前に、注入内容の diff と
+  「wave 前の形を含むか」を照合する (`DW-M04`)。
+- 対応: 部分文字列検索を注入する M7r へ再照準し KILLED。初回 SURVIVED は erratum として残す。
+
+### F303. hookwrapper の post-yield 値を最終値とみなした [恒真ゲート]
+
+- 事象: 段 2 プランが `pytest_xdist_make_scheduler` の hookwrapper の post-yield 値を実効
+  scheduler の attest にしていた。後から登録された外側 wrapper は、内側 wrapper が値を見た
+  **後**に戻り値を差し替えられるため、conftest に `loadgroup` を見せたまま DSession が別の
+  scheduler を使う形が成立する。実装していれば「差し替えを検出する」と称する検査が、
+  差し替えを一切検出しない恒真な gate になっていた。
+- 根本原因: pluggy の wrapper 意味論を「自分が最後に見る」と誤読した。firstresult の hookspec
+  でも、wrapper は入れ子であり最終値の保証は最外周にしかない。
+- 恒久対応: D393 の決定 1 (値源は DSession が実際に保持した
+  `.sched` の実型で、`pytest_runtestloop` の post-yield で固定する)。変異 MUT-A1 が
+  この逆変異を殺す。
+- 再発検知: 変異 MUT-A1 (runtestloop の固定を外す) と、後登録 wrapper で差し替える live-xdist
+  テスト `test_live_xdist_sessionfinish_scheduler_swap_keeps_runtestloop_value`。
+
+### F304. 計測環境の転送形式を無視した wire 設計 [テスト代表性]
+
+- 事象: 段 2 プランは受入 log の marker を行頭 exact prefix で抽出する設計だった。
+  Pegasus dispatch は compute 側 stdout の各行へ `| ` を前置し、成功時は末尾 4 KiB
+  (失敗時 64 KiB) しか relay しない。この設計では**実受入が必ず marker 0 行と判定され
+  rc=70 になる**。さらに conftest 自身が failure digest を最大 48 KiB、marker より後に出すため、
+  marker を `pytest_sessionfinish` で出すと relay tail から押し出されうる。
+- 根本原因: local の pytest 出力を wire と同一視した。既存の marker 前例
+  (`IZANAGI_GROWTH_HOLD_SUMMARY_V1`) は local terminal 出力の前例にすぎず、待ち手が見る
+  dispatch log への到達を証明していなかった。
+- 恒久対応: D393 の決定 3 と 5 (marker は
+  `pytest_unconfigure` の最後 = failure digest より後、抽出器は bare 形と `| ` 前置形の両方を
+  受けて exact-one)。実測した relay 後の literal
+  `| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}` をテストへ pin した。
+- 再発検知: 変異 MUT-B1 (`| ` 前置形を外す) と MUT-A2b (marker を failure digest より前へ移す)、
+  および親が land 前に `--force-dispatch` で回す配線 probe。
+
+### F305. 失敗要約の予算超過で期待 node の完全集合が得られない [手順漏れ]
+
+- 事象: 波及の大きい変異 (MUT-C3、land が `serial` を拒否する正例) は 64 件を赤にしたが、
+  failure digest は 48 KiB 予算で 12 件しか描画せず 52 件を省略した。DW-M08 が要求する
+  「期待 node は完全集合」は、job stdout からの抽出では**原理的に満たせない**。
+  再登録して再走しても MISMATCH が続く。
+- 根本原因: 変異の設計時に波及件数を見積もらず、共有 receipt factory を経由する層へ
+  単一 literal の変異を当てた。DW-M08 の node 抽出は digest の描画結果に依存する。
+- 恒久対応: 変異の runner 範囲を `-k` で当該契約テストへ絞り、赤の件数を digest 予算内へ
+  収めてから完全集合を採る (本 wave の spec-c4 が実例)。生 ledger は
+  `/work/1/SFC/tanab/dev-wave-jobs/t1062-acceptance-scheduler/mutation/` に残す。
+- 再発検知: `IZANAGI_FAILURE_DIGEST_ACCOUNT` の `omitted_failures` が 0 でない変異走行を
+  「完全集合が採れていない」と読む (本 fragment がその読み方の正本)。
+
+### F306. signal 復元系テスト族のフレークを単発と誤認した [テスト代表性]
+
+- 事象: entry 541 は `test_public_main_real_signal_after_success_uses_restored_handler` の
+  1 件をフレークとして起票した。本 wave で同一コマンドを 4 回走らせたところ、3 走は緑で、
+  赤になった 1 走は毎回**族の別のテスト**だった
+  (`test_public_main_failure_restores_handler_without_release`、
+  `test_signal_after_core_success_uses_restored_real_handler`)。単発ではなく族の性質である。
+- 根本原因: 実 signal を扱う subprocess テストが 48 worker の並列下で timing 競合する。
+  1 件だけを見て「その node のフレーク」と結論した。
+- 恒久対応: [T-1066] を族として更新し、変異検査では族を含む file を runner 範囲から外す
+  (含めると期待 node の完全集合が原理的に安定しない)。
+- 再発検知: 変異 baseline の赤 node が走行ごとに族内で移動すること。本 wave の
+  `ledger-c2.json` と `ledger-c3.json` の baseline が実例。
+
+### F307. conftest の出力を 1 行増やして別機構の末尾契約を壊した [テスト代表性]
+
+- 事象: 実効 scheduler の marker を `pytest_unconfigure` の最後 (failure digest より後) に出した
+  結果、`test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account`
+  が赤になった。同テストは digest の END 行が stdout の**末尾**であることを要求している。
+  受入全走で初めて出た。段 3 と段 6 の敵対レビュー計 4 本は、いずれも「marker が既存 consumer と
+  衝突しないか」を明示的に検査したうえで**衝突なしと結論していた**。
+- 根本原因: conftest は全 pytest 走行に効くため、出力を 1 行増やすだけで、出力の末尾や総量を
+  exact に検査する既存 e2e と衝突しうる。焦点走の file 集合に当該 e2e を含めていなかったため、
+  受入全走まで検出が遅れた。
+- 恒久対応: D393 の決定 3 を「digest の直前」へ改め、
+  既存契約側は 1 文字も変えなかった。変異 MUT-A2c (marker を digest より後へ戻す) が
+  当該 e2e と本 wave のテストの両方で殺される。
+- 再発検知: conftest の出力を増減する wave は、焦点走の file 集合へ
+  `orchestrator/tests/test_pytest_failure_digest.py` を必ず含める。

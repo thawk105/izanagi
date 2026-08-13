@@ -21,6 +21,7 @@ sys.path.insert(0, str(ORCHESTRATOR.parent))
 from orchestrator.campaign import source_digest  # noqa: E402
 from orchestrator.campaign.axis_trigger_gating import (  # noqa: E402
     FROZEN_TEMPLATE_BLOCK_BYTES,
+    FROZEN_TEMPLATE_EPILOGUE_BYTES,
     FROZEN_TEMPLATE_HOLE_BYTES,
     MARKER_ID as TRIGGER_MARKER_ID,
     PREDICATE_HOLE_INDENT as TRIGGER_PREDICATE_HOLE_INDENT,
@@ -119,11 +120,16 @@ def _trigger_block_with_hole(hole: bytes) -> bytes:
     return FROZEN_TEMPLATE_BLOCK_BYTES.replace(FROZEN_TEMPLATE_HOLE_BYTES, hole)
 
 
-def _trigger_source_bytes(block: bytes) -> bytes:
+def _trigger_source_bytes(
+    block: bytes,
+    *,
+    epilogue: bytes = FROZEN_TEMPLATE_EPILOGUE_BYTES,
+    after: bytes = b"int izanagi_after_block = 0;\n",
+) -> bytes:
     marker_explanation = (
         b"// explanation mentions " + TRIGGER_MARKER_ID.encode("ascii") + b" only\n"
     )
-    return marker_explanation + block + b"int izanagi_after_block = 0;\n"
+    return marker_explanation + block + epilogue + after
 
 
 def _write_trigger_source(tmp_path: Path, raw: bytes) -> tuple[SourceEvidence, Path]:
@@ -284,7 +290,7 @@ def test_receipt_validation_binds_source_root():
         )
 
 
-@pytest.mark.parametrize("mask", [0, 31], ids=["mask-0", "mask-31"])
+@pytest.mark.parametrize("mask", range(32), ids=lambda mask: f"mask-{mask}")
 def test_trigger_axis_semantic_admission_accepts_exact_emitter_bytes_without_binding(
     tmp_path: Path, mask: int,
 ):
@@ -301,6 +307,58 @@ def test_trigger_axis_semantic_admission_accepts_pristine_frozen_block(tmp_path:
     assert derive_build_admission(_context(), source).provenance is (
         BuildProvenance.STOCK_BASELINE
     )
+
+
+@pytest.mark.parametrize(
+    "after",
+    [
+        pytest.param(
+            b"\n#if ADD_ANALYSIS\nint izanagi_after_block = 0;\n#endif\n",
+            id="analysis-code",
+        ),
+        pytest.param(FROZEN_TEMPLATE_EPILOGUE_BYTES, id="duplicated-epilogue"),
+    ],
+)
+def test_trigger_axis_semantic_admission_does_not_freeze_bytes_after_epilogue(
+    tmp_path: Path, after: bytes,
+):
+    source, _ = _write_trigger_source(
+        tmp_path,
+        _trigger_source_bytes(
+            FROZEN_TEMPLATE_BLOCK_BYTES,
+            after=after,
+        ),
+    )
+    assert derive_build_admission(_context(), source).provenance is (
+        BuildProvenance.STOCK_BASELINE
+    )
+
+
+@pytest.mark.parametrize(
+    "epilogue",
+    [
+        pytest.param(b"", id="deleted"),
+        pytest.param(
+            FROZEN_TEMPLATE_EPILOGUE_BYTES.replace(
+                b"if (izanagi_gate_pass)", b"if (!izanagi_gate_pass)"
+            ),
+            id="modified",
+        ),
+        pytest.param(
+            b"\n" + FROZEN_TEMPLATE_EPILOGUE_BYTES,
+            id="gap-before",
+        ),
+    ],
+)
+def test_trigger_axis_semantic_admission_rejects_noncanonical_epilogue(
+    tmp_path: Path, epilogue: bytes,
+):
+    source, _ = _write_trigger_source(
+        tmp_path,
+        _trigger_source_bytes(FROZEN_TEMPLATE_BLOCK_BYTES, epilogue=epilogue),
+    )
+    with pytest.raises(BuildAdmissionError, match="trigger axis predicate"):
+        derive_build_admission(_context(), source)
 
 
 _BEGIN_LINE = b"  // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n"
@@ -560,6 +618,18 @@ def test_frozen_trigger_block_matches_template_patch_bytes():
         line[1:] for line in patch_lines[start:stop + 1] if line[:1] in (b"+", b" ")
     )
     assert reconstructed == FROZEN_TEMPLATE_BLOCK_BYTES
+
+
+def test_frozen_trigger_epilogue_matches_template_patch_bytes():
+    patch_path = ORCHESTRATOR.parent / "patches" / "silo-backoff-trigger-gating-variant.patch"
+    patch_lines = patch_path.read_bytes().splitlines(keepends=True)
+    end = patch_lines.index(b"+" + _END_LINE)
+    epilogue_lines = patch_lines[end + 1:end + 6]
+    assert len(epilogue_lines) == 5
+    assert all(line.startswith(b"+") for line in epilogue_lines)
+    assert b"".join(line[1:] for line in epilogue_lines) == (
+        FROZEN_TEMPLATE_EPILOGUE_BYTES
+    )
 
 
 def test_trigger_axis_import_and_gateway_call_constraints():

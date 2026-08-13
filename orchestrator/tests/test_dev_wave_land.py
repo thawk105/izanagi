@@ -254,6 +254,7 @@ class _Repo:
                 "IZANAGI_TASK_RUN_ID": None,
                 "IZANAGI_TASK_RUNS_ROOT": None,
             },
+            "effective_scheduler": "serial",
             "verdict": "child-green",
             "log_sha256": hashlib.sha256(b"").hexdigest(),
             "checker_rc": None,
@@ -597,6 +598,21 @@ def test_land_accepts_receipt_bound_to_wave_tip_and_emits_digest() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
+@pytest.mark.parametrize("scheduler", ["serial", "loadgroup"])
+def test_land_accepts_effective_scheduler(scheduler: str) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        payload["effective_scheduler"] = scheduler
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+
+
 _TAMPER_CASES = (
     "schema",
     "authority",
@@ -612,6 +628,9 @@ _TAMPER_CASES = (
     "fingerprint-validity",
     "fingerprint-equality",
     "env-projection",
+    "missing-scheduler",
+    "unknown-scheduler",
+    "non-string-scheduler",
     "waiter-blob",
     "duplicate-key",
     "unknown-field",
@@ -627,7 +646,7 @@ def test_land_rejects_tampered_acceptance_receipt(case: str) -> None:
         receipt = request.acceptance_receipt
         payload = _receipt_payload(receipt)
         if case == "schema":
-            payload["schema_version"] = "dev-wave-acceptance-receipt/v0"
+            payload["schema_version"] = "dev-wave-acceptance-receipt/v2"
         elif case == "authority":
             payload["authority_kind"] = "direct-test-run"
         elif case == "tip":
@@ -655,6 +674,12 @@ def test_land_rejects_tampered_acceptance_receipt(case: str) -> None:
             payload["post_fingerprint"]["digest"] = "f" * 64
         elif case == "env-projection":
             payload["env_projection"]["PYTEST_ADDOPTS"] = "-k nothing"
+        elif case == "missing-scheduler":
+            del payload["effective_scheduler"]
+        elif case == "unknown-scheduler":
+            payload["effective_scheduler"] = "unknown"
+        elif case == "non-string-scheduler":
+            payload["effective_scheduler"] = 1
         elif case == "waiter-blob":
             payload["waiter_blob_sha"] = "f" * 40
         elif case == "unknown-field":
@@ -868,6 +893,8 @@ def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
         shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
         shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
         (wave / "tools" / "run_tests.py").write_text(
+            "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+            "{\"effective_scheduler\":\"serial\"}')\n"
             "raise SystemExit(0)\n",
             encoding="utf-8",
         )
@@ -942,6 +969,8 @@ def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> N
         (repo.main / "tools" / "run_tests.py").write_text(
             "import sys\n"
             f"node={known_red!r}\n"
+            "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+            "{\"effective_scheduler\":\"serial\"}')\n"
             "if '--collect-only' in sys.argv:\n"
             "    print(node)\n"
             "    print('1 test collected in 0.01s')\n"

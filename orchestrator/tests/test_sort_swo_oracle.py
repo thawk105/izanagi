@@ -876,6 +876,27 @@ def test_contract_manifest_hashes_and_literal_are_exact_snapshot():
             O.AXIOM_CHECKER_VERSION, O.GRAMMAR_VERSION) == (3, 1, 2, 2, 1)
 
 
+def test_legacy_v2_contract_cannot_construct_current_oracle_result():
+    legacy_v2_golden = (
+        "sort-swo-v2-corpus1-protocol2-checker2-grammar1-"
+        "c436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253-"
+        "tud88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956-"
+        "f7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
+    )
+    with pytest.raises(ValueError, match="contract_id"):
+        O.SortSwoOracleResult(
+            O.OracleStatus.UNAVAILABLE,
+            "a" * 64,
+            "b" * 64,
+            contract_id=legacy_v2_golden,
+            infrastructure=O.OracleInfrastructureFailure(
+                O.INFRASTRUCTURE_REASON_CODE,
+                "trusted-preflight-compile",
+                "fixture-unavailable",
+            ),
+        )
+
+
 def test_translation_unit_uses_real_type_real_ctor_and_candidate_statement_verbatim():
     source = O._translation_unit(_CLEAN_IMPL)
     assert '#include "cc/silo/include/silo_op_element.hh"' in source

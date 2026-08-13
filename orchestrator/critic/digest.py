@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 import types
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -42,6 +43,7 @@ from orchestrator.campaign.sort_swo_oracle import (                # noqa: E402
     CORPORA as ORACLE_CORPORA,
     CORPUS_ID,
     N as ORACLE_N,
+    ORACLE_CONTRACT_ID,
     ORDERS as ORACLE_ORDERS,
 )
 from .identity_projection import IdentityProjection                # noqa: E402
@@ -183,6 +185,69 @@ class ScreenRejection:
 # diff_quarantine.DiffQuarantine._mk_digest の rejection_type と 1:1 で一致させる
 # — 両者は WAL を介した暗黙 API。test_diff_rejections が同値性を固定し drift を防ぐ。
 DIFF_QUARANTINE_REASON = "diff-quarantine"
+DIFF_QUARANTINE_REASON_INVALID = "diff-quarantine-reason-invalid"
+DIFF_QUARANTINE_EVIDENCE_INVALID = "diff-quarantine-evidence-invalid"
+ORACLE_CONTRACT_INVALID = "oracle-contract-invalid"
+
+ORACLE_CONTRACT_GENERATION_CURRENT = "current"
+ORACLE_CONTRACT_GENERATION_LEGACY_V2 = "legacy-v2-read-only"
+_LEGACY_ORACLE_CONTRACT_ID_V2 = (
+    "sort-swo-v2-corpus1-protocol2-checker2-grammar1-"
+    "c436a66d9d5d583e52f5d76c60b4add78c4e252dec471ff8b9620dbf8149bf253-"
+    "tud88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956-"
+    "f7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
+)
+_DIFF_QUARANTINE_TEXT_PUNCTUATION = frozenset(" -._:/=+(),#;・")
+
+
+class OracleContractIdTooLong(ValueError):
+    """oracle contract ID が据え置き上限 256 文字を超える。"""
+
+
+class OracleContractIdMismatch(ValueError):
+    """oracle contract ID が選択された世代と exact 一致しない。"""
+
+
+def _validated_diff_quarantine_text(value: object, invalid: str) -> str:
+    """制御文字・表示偽装・非正規 Unicode を閉じる。意味上の指示隔離ではない。"""
+    if type(value) is not str or not value or unicodedata.normalize("NFC", value) != value:
+        return invalid
+    if not all(
+        unicodedata.category(char)[:1] in {"L", "N"}
+        or char in _DIFF_QUARANTINE_TEXT_PUNCTUATION
+        for char in value
+    ):
+        return invalid
+    return value
+
+
+def _validated_diff_quarantine_reason(value: object) -> str:
+    return _validated_diff_quarantine_text(value, DIFF_QUARANTINE_REASON_INVALID)
+
+
+def _validated_diff_quarantine_evidence(value: object) -> str:
+    return _validated_diff_quarantine_text(value, DIFF_QUARANTINE_EVIDENCE_INVALID)
+
+
+def _validated_oracle_contract_id(value: object, expected: str) -> str:
+    if type(value) is str and len(value) > 256:
+        raise OracleContractIdTooLong("oracle contract ID が256文字を超える")
+    if type(value) is not str or not value or value != expected:
+        raise OracleContractIdMismatch("oracle contract ID が選択世代と一致しない")
+    return value
+
+
+def _rendered_oracle_contract(generation: object, contract_id: object) -> Tuple[str, str]:
+    expected = {
+        ORACLE_CONTRACT_GENERATION_CURRENT: ORACLE_CONTRACT_ID,
+        ORACLE_CONTRACT_GENERATION_LEGACY_V2: _LEGACY_ORACLE_CONTRACT_ID_V2,
+    }.get(generation)
+    if expected is None:
+        return "invalid", ORACLE_CONTRACT_INVALID
+    try:
+        return str(generation), _validated_oracle_contract_id(contract_id, expected)
+    except (OracleContractIdMismatch, OracleContractIdTooLong):
+        return str(generation), ORACLE_CONTRACT_INVALID
 
 
 @dataclass
@@ -210,6 +275,7 @@ class DiffQuarantineRejection:
     materialized_hole_sha256: str = ""
     proposal_sha256: str = ""
     oracle_contract_id: str = ""
+    oracle_contract_generation: str = ""
     oracle_receipt: Dict = field(default_factory=dict)
     template_diff_id: str = ""
     variant: str = ""
@@ -620,19 +686,14 @@ def load_screen_rejections(view: AdmittedCampaign) -> List[ScreenRejection]:
     return out
 
 
-def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection]:
-    """campaign WAL から diff 検疫 (段 4 4a) で reject された variant を読む (規律3 の第 4 経路)。
-
-    diff 検疫は pipeline.evaluate の**手前**で発火するため abort payload に verify も
-    liveness reason も持たず、代わりに reason==DIFF_QUARANTINE_REASON と
-    payload["diff_quarantine"] に DiffQuarantine の構造化 digest (subtype/reason/
-    diff_region/template_diff_id/evidence) を載せる。loop harness がこの形で WAL に
-    焼き込み、本 loader が構造を保ったまま読み返す (load_liveness_rejections は
-    DIFF_QUARANTINE_REASON を other から除外するので二重計上しない)。
-
-    diff_quarantine.py が実装され (4a)、消費経路 (render_rejections) にも配線される
-    ことで規律3 の「片肺」を閉じる — 検疫が reject を出しても誰も読まない、という
-    謳うだけの gate を作らない。"""
+def _load_diff_rejections(
+    view: AdmittedCampaign,
+    *,
+    expected_oracle_contract_id: str,
+    selected_oracle_contract_generation: str,
+    legacy_oracle_only: bool,
+) -> List[DiffQuarantineRejection]:
+    """選択済み oracle 世代を exact 検査して diff rejection を射影する。"""
     genome_of: Dict[str, str] = {}
     srctok_of: Dict[str, str] = {}
     out: List[DiffQuarantineRejection] = []
@@ -645,12 +706,15 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
             if r.payload.get("reason") != DIFF_QUARANTINE_REASON:
                 continue
             dq = r.payload.get("diff_quarantine") or {}
+            subtype = dq.get("subtype", "")
+            if legacy_oracle_only and subtype != "sort-swo-oracle":
+                continue
             g = genome_of.get(r.variant, r.payload.get("genome", ""))
             rule_id = dq.get("rule_id", "")
             category = dq.get("category", "")
             finding_count = dq.get("finding_count", 0)
             if (
-                dq.get("subtype") != "host-effect"
+                subtype != "host-effect"
                 or RULE_CATEGORY_ALLOWLIST.get(rule_id) != category
             ):
                 rule_id = ""
@@ -661,7 +725,10 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
             ):
                 finding_count = 0
             oracle_finding = dq.get("oracle_finding", {})
-            if dq.get("subtype") != "sort-swo-oracle":
+            oracle_contract_id = ""
+            oracle_contract_generation = ""
+            oracle_receipt: Dict = {}
+            if subtype != "sort-swo-oracle":
                 oracle_finding = {}
             else:
                 oracle_finding = _validated_oracle_finding(oracle_finding)
@@ -669,24 +736,26 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
             proposal_hash = dq.get("proposal_sha256", "")
             materialized_hash = _hex64(materialized_hash)
             proposal_hash = _hex64(proposal_hash)
-            oracle_contract_id = dq.get("oracle_contract_id", "")
-            if (type(oracle_contract_id) is not str
-                    or not oracle_contract_id.startswith("sort-swo-")
-                    or len(oracle_contract_id) > 256):
-                oracle_contract_id = ""
-            oracle_receipt = dq.get("oracle_receipt", {})
-            oracle_receipt = _validated_oracle_receipt(
-                oracle_receipt,
-                contract_id=oracle_contract_id,
-                materialized_hash=materialized_hash,
-                proposal_hash=proposal_hash,
-            )
+            if subtype == "sort-swo-oracle":
+                oracle_contract_id = _validated_oracle_contract_id(
+                    dq.get("oracle_contract_id", ""), expected_oracle_contract_id,
+                )
+                oracle_contract_generation = selected_oracle_contract_generation
+                oracle_receipt = _validated_oracle_receipt(
+                    dq.get("oracle_receipt", {}),
+                    contract_id=oracle_contract_id,
+                    materialized_hash=materialized_hash,
+                    proposal_hash=proposal_hash,
+                )
             out.append(DiffQuarantineRejection(
                 genome=g, flags=_parse_flags(g) if "|" in g else {},
-                subtype=dq.get("subtype", ""),
-                reason=dq.get("reason", ""),
+                subtype=subtype,
+                reason=_validated_diff_quarantine_reason(dq.get("reason", "")),
                 diff_region=dq.get("diff_region", ""),
-                evidence=dq.get("evidence", ""),
+                evidence=(
+                    _validated_diff_quarantine_evidence(dq.get("evidence"))
+                    if dq.get("evidence") else ""
+                ),
                 rule_id=rule_id,
                 category=category,
                 finding_count=finding_count,
@@ -694,10 +763,33 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
                 materialized_hole_sha256=materialized_hash,
                 proposal_sha256=proposal_hash,
                 oracle_contract_id=oracle_contract_id,
+                oracle_contract_generation=oracle_contract_generation,
                 oracle_receipt=dict(oracle_receipt),
                 template_diff_id=dq.get("template_diff_id", ""),
                 variant=r.variant, src_token=srctok_of.get(r.variant, "")))
     return out
+
+
+def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection]:
+    """現行世代の diff 検疫 rejection を読む通常 loader。"""
+    return _load_diff_rejections(
+        view,
+        expected_oracle_contract_id=ORACLE_CONTRACT_ID,
+        selected_oracle_contract_generation=ORACLE_CONTRACT_GENERATION_CURRENT,
+        legacy_oracle_only=False,
+    )
+
+
+def load_legacy_sort_swo_rejections(
+    view: AdmittedCampaign,
+) -> List[DiffQuarantineRejection]:
+    """v2 sort-SWO record だけを読む明示的な read-only 低位 API。"""
+    return _load_diff_rejections(
+        view,
+        expected_oracle_contract_id=_LEGACY_ORACLE_CONTRACT_ID_V2,
+        selected_oracle_contract_generation=ORACLE_CONTRACT_GENERATION_LEGACY_V2,
+        legacy_oracle_only=True,
+    )
 
 
 # stock variant の src_token (source_digest.STOCK と同値。import で git/g++ 依存を
@@ -1018,9 +1110,11 @@ def render_rejections(rejections: List[Rejection],
                  f"genome={dq.genome}"
                  + (f" src_token={projected_src_token}" if projected_src_token else ""))
         L.append(f"  marker={dq.template_diff_id or '?'} / region={dq.diff_region or '?'}")
-        L.append(f"  理由: {dq.reason or '(理由なし)'}")
+        safe_reason = _validated_diff_quarantine_reason(dq.reason)
+        L.append(f"  理由: {safe_reason}")
         if dq.evidence and (dq.subtype or "") not in {"host-effect", "sort-swo-oracle"}:
-            L.append(f"  証拠: {dq.evidence}")
+            safe_evidence = _validated_diff_quarantine_evidence(dq.evidence)
+            L.append(f"  証拠: {safe_evidence}")
         if (dq.subtype or "") == "host-effect":
             if dq.rule_id:
                 L.append(f"  policy_rule_id={dq.rule_id}")
@@ -1042,7 +1136,11 @@ def render_rejections(rejections: List[Rejection],
             kind = finding.get("kind", "") if type(finding) is dict else ""
             corpus_id = finding.get("corpus_id", "?") if type(finding) is dict else "?"
             order_id = finding.get("order_id") if type(finding) is dict else None
-            L.append(f"  oracle_contract_id={dq.oracle_contract_id or '?'}")
+            generation, contract_id = _rendered_oracle_contract(
+                dq.oracle_contract_generation, dq.oracle_contract_id,
+            )
+            L.append(f"  oracle_contract_generation={generation}")
+            L.append(f"  oracle_contract_id={contract_id}")
             L.append(
                 f"  materialized_hole_sha256={dq.materialized_hole_sha256 or '?'} "
                 f"proposal_sha256={dq.proposal_sha256 or '?'}"

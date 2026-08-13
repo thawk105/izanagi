@@ -59,8 +59,9 @@ _MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
-_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v2"
+_ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v3"
 _ACCEPTANCE_AUTHORITY_KIND = "dev-wave-wait-acceptance"
+_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial"})
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
     "schema_version",
@@ -76,6 +77,7 @@ _ACCEPTANCE_RECEIPT_FIELDS = frozenset({
     "post_fingerprint",
     "waiter_blob_sha",
     "env_projection",
+    "effective_scheduler",
     "verdict",
     "log_sha256",
     "checker_rc",
@@ -537,6 +539,7 @@ def _verify_acceptance_receipt(
     argv = receipt.get("argv")
     verdict = receipt.get("verdict")
     red_nodeids = receipt.get("red_nodeids")
+    effective_scheduler = receipt.get("effective_scheduler")
     if not (
         receipt.get("schema_version") == _ACCEPTANCE_RECEIPT_SCHEMA
         and receipt.get("authority_kind") == _ACCEPTANCE_AUTHORITY_KIND
@@ -561,6 +564,8 @@ def _verify_acceptance_receipt(
         )
         and not env_projection["PYTEST_ADDOPTS"]
         and not env_projection["PYTEST_PLUGINS"]
+        and isinstance(effective_scheduler, str)
+        and effective_scheduler in _ACCEPTED_EFFECTIVE_SCHEDULERS
     ):
         raise _acceptance_rejected()
     if verdict == "child-green":
