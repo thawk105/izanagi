@@ -212,6 +212,97 @@ def test_session_event_uses_shared_model_authority(monkeypatch):
     assert not report._event(reliteralized, "session-start")
 
 
+def test_report_uses_driver_status_authorities_and_accepts_oracle_terminal():
+    assert report.SESSION_RESULT_STATUSES is driver.SESSION_RESULT_STATUSES
+    assert report.TERMINAL_SESSION_STATUSES is driver.TERMINAL_SESSION_STATUSES
+    item = driver.schedule_for_role(_freeze(), "develop")[0]
+    common = {
+        "schedule_index": item.schedule_index,
+        "campaign_role": "develop",
+        "lap": item.lap,
+        "cell_id": item.cell_id,
+        "variant": "oracle-rejected",
+        "ts": "2026-08-13T00:00:00+00:00",
+        "attempt": 0,
+    }
+    events = [
+        {"event": "campaign-start", "campaign_role": "develop",
+         "ts": "2026-08-13T00:00:00+00:00"},
+        {"event": "session-start", **common},
+        {"event": "session-result", **common, "status": "oracle-reject",
+         "reason": "swo-asymmetric"},
+    ]
+    report._validate_event_metadata(events, [item], "develop")
+    assert driver.validate_session_events(events, [item]) == 1
+
+
+def test_oracle_reject_terminal_never_becomes_success_sample(tmp_path):
+    item = driver.schedule_for_role(_freeze(), "develop")[0]
+    layout = driver.layout_for(
+        _freeze(), "develop", output_root=str(tmp_path / "output"),
+    ).ensure()
+    _write_session(
+        layout, item, "develop", fitness=0.0,
+        verify_configs=[pipeline.LEGACY_TAG, pipeline.S2_TAG],
+        commit=False, status="oracle-reject",
+    )
+    records = wal.read_records(layout)
+    sample, issue = report._sample_from_segment(
+        "develop", item, report._session_segments(records)[0],
+    )
+    assert sample is None
+    assert issue is None
+
+
+@pytest.mark.parametrize("unknown_status", ["future-status", ["not", "hashable"]])
+def test_report_rejects_unknown_session_status_explicitly(unknown_status):
+    item = driver.schedule_for_role(_freeze(), "develop")[0]
+    common = {
+        "schedule_index": item.schedule_index,
+        "campaign_role": "develop",
+        "lap": item.lap,
+        "cell_id": item.cell_id,
+        "variant": "future",
+        "ts": "2026-08-13T00:00:00+00:00",
+        "attempt": 0,
+    }
+    events = [
+        {"event": "campaign-start", "campaign_role": "develop",
+         "ts": "2026-08-13T00:00:00+00:00"},
+        {"event": "session-start", **common},
+        {"event": "session-result", **common, "status": unknown_status,
+         "reason": "fixture"},
+    ]
+    with pytest.raises(report.ReportError, match="status が未知") as caught:
+        report._validate_event_metadata(events, [item], "develop")
+    message = str(caught.value)
+    assert "sha256_12=" in message
+    for fragment in ("future-status", "not", "hashable"):
+        assert fragment not in message
+
+
+def test_report_schedule_reason_does_not_repeat_unknown_status(tmp_path):
+    raw_status = "future-report-status\nINJECT"
+    document = _freeze()
+    output_root = str(tmp_path / "output")
+    item = driver.schedule_for_role(document, "develop")[0]
+    layout = driver.layout_for(document, "develop", output_root=output_root).ensure()
+    wal.log(layout, "s1-campaign", driver.SESSION_STAGE, driver.ENV_TAG, {
+        "event": "campaign-start", "campaign_role": "develop",
+        "ts": "2026-07-15T00:00:00+00:00",
+    })
+    _write_session(
+        layout, item, "develop", fitness=0.0,
+        verify_configs=[pipeline.LEGACY_TAG, pipeline.S2_TAG],
+        commit=False, status=raw_status,
+    )
+
+    assessment = report._assess_campaign(document, "develop", output_root)
+    rendered_gate = json.dumps(assessment.schedule_gate, ensure_ascii=False)
+    assert raw_status not in rendered_gate
+    assert "sha256_12=" in rendered_gate
+
+
 def test_left_system_greater_is_bound_to_target_left():
     comparison = _freeze()["comparisons"][0]
     observations = {

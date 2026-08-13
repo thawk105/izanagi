@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -81,6 +82,26 @@ EXIT_INCOMPLETE = 1
 EXIT_REFUSED = 2
 EXIT_BUDGET = 3
 EXIT_VERIFIER_RED = 4
+EXIT_ORACLE_REJECT = 5
+
+SESSION_RESULT_STATUSES = frozenset({
+    "success", "abandoned", "verifier-red", "retryable", "oracle-reject",
+})
+TERMINAL_SESSION_STATUSES = frozenset({
+    "success", "abandoned", "verifier-red", "oracle-reject",
+})
+
+
+def _unknown_session_status_message(field: str, status: object) -> str:
+    """非信頼 status を再掲せず、固定説明と短縮 digest だけを返す。"""
+    try:
+        canonical = json.dumps(
+            status, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+        )
+    except (TypeError, ValueError, OverflowError):
+        canonical = f"<{type(status).__module__}.{type(status).__qualname__}>"
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+    return f"{field} が未知 (sha256_12={digest})"
 
 
 class DriverError(RuntimeError):
@@ -354,6 +375,12 @@ def validate_session_events(
     if prior_deviation is not None:
         raise ScheduleDeviation(
             f"当該 campaign は既に逸脱記録済み: {prior_deviation.get('reason')}")
+    for event in events:
+        status = event.get("status")
+        if (event.get("event") == "session-result"
+                and (type(status) is not str or status not in SESSION_RESULT_STATUSES)):
+            raise ScheduleDeviation(
+                _unknown_session_status_message("session-result.status", status))
     starts = [e for e in events if e.get("event") == "session-start"]
     initial = [e for e in starts if e.get("attempt") == 0]
     for expected_index, event in enumerate(initial):
@@ -404,7 +431,7 @@ def validate_session_events(
     while next_index < len(initial):
         terminal = [e for e in by_index.get(next_index, [])
                     if e.get("event") == "session-result"
-                    and e.get("status") in {"success", "abandoned", "verifier-red"}]
+                    and e.get("status") in TERMINAL_SESSION_STATUSES]
         if len(terminal) > 1:
             raise ScheduleDeviation(f"schedule_index={next_index} の終端結果が重複")
         if not terminal:
@@ -412,7 +439,7 @@ def validate_session_events(
         next_index += 1
     if any(i > next_index for i in by_index if any(
             e.get("event") == "session-result" and
-            e.get("status") in {"success", "abandoned", "verifier-red"}
+            e.get("status") in TERMINAL_SESSION_STATUSES
             for e in by_index[i])):
         raise ScheduleDeviation("前方 session の終端が欠落したまま後方 session が終端")
     return next_index
@@ -499,10 +526,46 @@ def _retry_spent(document: Mapping) -> float:
                if str(e.get("note", "")).startswith("machine-failure-retry:"))
 
 
-def _has_global_verifier_red(path: Path) -> bool:
-    """別 campaign の anomaly 後に新しい S-1 session を起動しない。"""
-    return any("status=verifier-red" in str(entry.get("note", ""))
-               for entry in read_budget(path)["entries"])
+_SESSION_BUDGET_NOTE_RE = re.compile(
+    r"^(?:session:|machine-failure-retry:) "
+    r"index=[0-9]+ attempt=[0-9]+ status=([^ ]+) reason="
+)
+
+
+def _session_status_from_budget_note(note: str) -> Optional[str]:
+    """現行の session note 先頭だけから status を復元する。reason は解析しない。"""
+    match = _SESSION_BUDGET_NOTE_RE.match(note)
+    if match is None:
+        if note.startswith(("session:", "machine-failure-retry:")):
+            raise DriverError("time_ledger session note の書式が不正")
+        return None
+    status = match.group(1)
+    if status not in SESSION_RESULT_STATUSES:
+        raise DriverError(
+            _unknown_session_status_message("time_ledger session status", status))
+    return status
+
+
+def _terminal_exit_code(budget_path: Path, events: Sequence[Mapping]) -> Optional[int]:
+    """budget と local ledger を集約し、強い終端を一度だけ選ぶ。"""
+    statuses = {
+        status
+        for entry in read_budget(budget_path)["entries"]
+        if (status := _session_status_from_budget_note(entry["note"])) is not None
+    }
+    for event in events:
+        if event.get("event") != "session-result":
+            continue
+        status = event.get("status")
+        if type(status) is not str or status not in SESSION_RESULT_STATUSES:
+            raise ScheduleDeviation(
+                _unknown_session_status_message("session-result.status", status))
+        statuses.add(status)
+    if "verifier-red" in statuses:
+        return EXIT_VERIFIER_RED
+    if "oracle-reject" in statuses:
+        return EXIT_ORACLE_REJECT
+    return None
 
 
 def assert_budget_available(path: Path, required_s: float, *, retry: bool) -> None:
@@ -769,8 +832,10 @@ def run_role(
             budget_path, role=role, started_iso=_iso_now(), wall_s=0.0,
             phase=ROLE_TO_PHASE[role], note=f"schedule-deviation: {exc}")
         raise
-    if _has_global_verifier_red(budget_path):
-        return EXIT_VERIFIER_RED
+    existing = read_session_ledger(layout)
+    terminal_exit = _terminal_exit_code(budget_path, existing)
+    if terminal_exit is not None:
+        return terminal_exit
     try:
         single_tenant_fn()
     except Exception as exc:
@@ -779,10 +844,6 @@ def run_role(
             wall_s=max(0.0, monotonic() - process_started), phase=ROLE_TO_PHASE[role],
             note=f"campaign-overhead: preflight-failure {type(exc).__name__}: {exc}")
         raise
-    existing = read_session_ledger(layout)
-    if any(e.get("event") == "session-result" and e.get("status") == "verifier-red"
-           for e in existing):
-        return EXIT_VERIFIER_RED
     if not any(e.get("event") == "campaign-start" for e in existing):
         _append_event(layout, {"event": "campaign-start", "campaign_role": role,
                                "ts": _iso_now()})
@@ -796,6 +857,7 @@ def run_role(
     incomplete = False
     budget_stopped = False
     verifier_red = False
+    oracle_reject = False
     process_attempt_wall = 0.0
     try:
         index = next_index
@@ -916,7 +978,8 @@ def run_role(
                 start_event["sort_swo_oracle"] = exc.oracle_attempt
                 start_event["freeze_cell_id"] = item.freeze_cell_id
                 _append_event(layout, start_event)
-                raise
+                status = "oracle-reject"
+                reason = str(exc.oracle_attempt["reason_code"])
             except DriverError:
                 # freeze 値・gate predicate・quarantine の契約違反は機械故障でない。
                 raise
@@ -953,6 +1016,9 @@ def run_role(
             if status == "verifier-red":
                 verifier_red = True
                 break
+            if status == "oracle-reject":
+                oracle_reject = True
+                break
             if status == "abandoned":
                 incomplete = True
                 index += 1
@@ -984,6 +1050,8 @@ def run_role(
 
     if verifier_red:
         return EXIT_VERIFIER_RED
+    if oracle_reject:
+        return EXIT_ORACLE_REJECT
     if budget_stopped:
         return EXIT_BUDGET
     if incomplete:
