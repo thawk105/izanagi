@@ -35,6 +35,9 @@ from .layout import repo_output_root  # noqa: E402
 from .s1_direct_comparison import (  # noqa: E402
     BUDGET_REL,
     FREEZE_REL,
+    SESSION_RESULT_STATUSES,
+    TERMINAL_SESSION_STATUSES,
+    _unknown_session_status_message,
     layout_for,
     read_budget,
     schedule_for_role,
@@ -237,6 +240,11 @@ def _validate_event_metadata(events: Sequence[Mapping], schedule: Sequence, role
                 raise ReportError(f"{role}: retry.attempt が正整数でない")
             retry_keys.append((index, attempt))
         elif event_name == "session-result":
+            status = event.get("status")
+            if type(status) is not str or status not in SESSION_RESULT_STATUSES:
+                raise ReportError(
+                    f"{role}: "
+                    + _unknown_session_status_message("session-result.status", status))
             attempt = event.get("attempt")
             start = starts.get((index, attempt))
             interrupted_unknown = (
@@ -363,8 +371,8 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
         events = session_events_from_records(records)
         next_index: Optional[int] = None
         try:
-            next_index = validate_session_events(events, schedule)
             _validate_event_metadata(events, schedule, role)
+            next_index = validate_session_events(events, schedule)
         except Exception as exc:
             schedule_gate["reasons"].append(_reason(
                 "schedule_ledger_invalid", str(exc), campaign=role,
