@@ -46,6 +46,24 @@ title: S8b binary store の admission receipt 束縛を保存から oracle 実�
   並行 wave 3 本の混雑が原因だった。再投入で回避した。
 - 実装子・fix 子は sandbox から計算ノードへ dispatch できず pytest 実走が常に rc=16 になる。
   実測はすべて親が行った。子はいずれも「緑とは申告しない」と正しく報告した。
+- **`tools/check_acceptance_reds.py` が自分の dispatch 受領証で自分の清浄性検査を落とす。**
+  判定器は probe worktree を `git status --ignored=matching --ignore-submodules=none` で検査し
+  無視ファイルも汚れと数えるが、再走・collection はどちらも probe worktree を cwd にして
+  `run_tests.py --force-dispatch` を呼ぶため、`.gitignore` 記載の `output/pegasus-dispatch/` に
+  受領証が書かれる。pytest 実行前の probe は clean (手動再現 3/3 で空)、collection を 1 回
+  走らせた後に必ず `probe worktree is not clean, including ignored files` で rc=2 になる。
+  bytecode と pytest cache は判定器が抑止済みなので、残るのはこの受領証である。
+  詳細は {{T:acceptance-reds-checker-self-pollution}}。
+- 受入の赤は走行ごとに入れ替わり、いずれも dev-wave 基盤側のシグナル・並行性テストだった
+  (2 回目 5 件 → 4 回目 2 件、`test_mutation_worktree` は SIGTERM 版と SIGINT 版が入れ替わり、
+  `test_dev_wave_wait` も別 node)。本 wave の変更面 (`s8b_*` / `build_admission`) の赤は
+  焦点走・受入とも一貫して 0 件である。ただし DW-O18 に従い、判定器の rc=2 を
+  非帰属の根拠にはしていない。
+- 受入 receipt の schema が wave 中に v2 から v3 へ上がった (別 wave の実効 scheduler 束縛)。
+  起動済みの待ち手は旧コードのまま新 main を merge して走り、新 tip に束縛した v2 receipt を
+  発行するため land が rc=23 で拒否する。peer からの通知を一次資料 (`dev_wave_land.py` の
+  必須 schema と `dev_wave_wait.py` の定数) で裏取りしたうえで待ち手を停止し、
+  新 main を取り込んで v3 で再投入した。lease 取得前・dispatch 前だったため計算資源の損失はない。
 
 ## 次の一手差分
 
@@ -65,6 +83,13 @@ title: S8b binary store の admission receipt 束縛を保存から oracle 実�
   非接触にした。塞ぐなら report は `output_root` を持つが judge は持たないため、最終 store seal /
   report receipt / judge API のどれを採るかの設計裁定が要る。材料 =
   `output/insights/2026-08-13_t1050-s8b-admission/README.md`。
+- {{T:acceptance-reds-checker-self-pollution}} **P1・新規**: `tools/check_acceptance_reds.py` が
+  自分の dispatch 受領証で自分の清浄性検査を落とし、rc=2 (判定不能) から復帰できない。
+  再走・collection が probe worktree を cwd にして `run_tests.py --force-dispatch` を呼ぶため、
+  `.gitignore` 記載の `output/pegasus-dispatch/` に受領証が書かれ、直後の
+  `--ignored=matching` 検査が非空になる。判定器が使えないと、受入が rc=1 の wave は
+  非帰属を機械的に立証できず land できない。清浄性検査から dispatch 受領証 path を
+  除外するか、受領証を probe worktree の外へ出す設計が要る。
 - {{T:s8b-legacy-portable-artifact-impact}} **P2・新規**: receipt を持たない旧 portable artifact は
   設計どおり拒否される。tracked `output/s8b-freeze` の該当は 0 件で repo 内の影響は無いが、
   repo 外の過去 run directory・計算ノード上の durable store・手元の resume artifact は
