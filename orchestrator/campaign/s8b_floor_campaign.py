@@ -1343,7 +1343,7 @@ class _FloorOracleDependencyBinding:
 
 
 def _masstree_policy_pin(repo_root: Path) -> str:
-    policy_path = Path(repo_root) / "tools" / "pegasus" / "policy.json"
+    policy_path = _silo_ladder.third_party_policy_path(Path(repo_root))
     try:
         sources = _silo_ladder.third_party_policy(repo_root)
     except Exception as exc:
@@ -1434,7 +1434,7 @@ def _verify_floor_oracle_dependency_source(
             detail_code="floor-dependency-policy-pin-invalid",
             origin="shared-policy:masstree",
             outcome="invalid-path",
-            path=Path(repo_root) / "tools" / "pegasus" / "policy.json",
+            path=_silo_ladder.third_party_policy_path(Path(repo_root)),
         )
     try:
         raw_cache = Path(cache_root)
