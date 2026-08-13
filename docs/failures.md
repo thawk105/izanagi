@@ -3293,6 +3293,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応は F106 のまま (投入から結果取得までは commit・stage・tracked file 編集を行わず、
   待ち時間には repo 外の作業だけを置く)。本再発は memory
   `no-tree-writes-during-mutation-run` の射程を受入全走へ広げる根拠として記録する。
+
+- **再発: 2026-08-13** — [T-1048] trigger 凍結領域拡大 wave。**6 度目**。変異本走の走行中に親が
+  段 7 の insight README を worktree へ書いた。過去 5 件と違い、harness preflight でも走行中の
+  偽の赤でもなく、`mutation_worktree.py` の**走行後の共有木事後検査**が捕まえた (`rc=125`)。
+  全 4 run を消費してから中止されるため損失が最大になる点が新しい情報である。詳細は
+  F300。恒久対応は F106 のままで、
+  待ち時間には repo 外の job directory だけを触る。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -7279,3 +7286,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   件数を確認し、残骸があれば tracked と交差しないことを確かめて撤去する。
 - 再発検知: 段 6 の統合 commit 前に `git status --porcelain` の行数を親が読む
   (受入全走の untracked 検査より前に出す)。
+
+### F300. 変異本走の共有木事後検査が、走行完了後に全結果を捨てさせた [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py` の本走中に、親が段 7 の insight README を worktree へ書いた。
+  3 変異と baseline はすべて隔離 worktree 側で完走し、結果 JSON も `KILLED` / 期待 node 完全一致で
+  書かれたが、最後の**共有木の事後検査**が
+  `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で `rc=125` を返し、
+  run 全体が中止扱いになった。1 走を捨てて clean tree で再走した。
+- 根本原因: F106 と同一で、長い走行を待ち時間とみなし repo 内で別の段の作業を進めたこと。
+  本 wave の親は F106 の再発を 5 件読んだうえで踏んでいる。
+- 恒久対応: F106 の恒久対応 (`DW-O19` の「本走は統合 commit 後に限る」、投入から結果取得までは
+  commit・stage・tracked file 編集を行わない、待ち時間には repo 外の作業だけを置く) をそのまま適用する。
+  本エントリは**検知点が 3 つ目である**ことを顕在化する — harness preflight の `rc=2` (走行前)、
+  テストの偽の赤 (走行中)、に加えて **`mutation_worktree.py` の事後検査 (走行後)** がある。
+  事後検査は全 run を消費してから落ちるため、3 者のうち最も高くつく。
+- 再発検知: `mutation_worktree.py` の rc が 125 で、結果 JSON 自体は完全に書かれている場合。
+  ログ末尾の `共有木の事後検査に失敗` が literal の目印になる。

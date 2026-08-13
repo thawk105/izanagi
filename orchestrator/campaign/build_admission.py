@@ -33,6 +33,7 @@ from typing import Mapping
 
 from .axis_trigger_gating import (
     FROZEN_TEMPLATE_BLOCK_BYTES,
+    FROZEN_TEMPLATE_EPILOGUE_BYTES,
     FROZEN_TEMPLATE_HOLE_BYTES,
     MARKER_ID as TRIGGER_MARKER_ID,
     PREDICATE_HOLE_INDENT as TRIGGER_PREDICATE_HOLE_INDENT,
@@ -167,6 +168,20 @@ def _reject_trigger_axis() -> None:
 
 
 def _require_materialized_trigger_axis_predicate(evidence: SourceEvidence) -> None:
+    """凍結 frame と隣接 epilogue の raw bytes だけを検査する。
+
+    生きた C++ であることは保証しない。R1 のコメント化、raw string の囮、前処理器による
+    識別子置換、R3 の evidence 取得から compiler read までの ABA 窓は残る。さらに R4 の
+    prologue での ``izanagi_gate_pass`` 再宣言（型差し替えによる代入・真理値の無効化）、
+    R5 の宣言と BEGIN の間の制御流変更（``return;`` 等）による hole/gated call の非到達化、
+    R6 の epilogue 直後への dangling ``else`` 付加による常時 backoff 化、R7 の block と epilogue を
+    逐語一致させたまま行う call target／引数の名前解決差し替え（宣言と BEGIN の間等での
+    ``Backoff`` や ``FLAGS_clocks_per_us`` の local shadowing）も残る。
+    source が存在しない場合（``FileNotFoundError``）と、BEGIN/END marker も skeleton token も無い
+    source の場合、この検査は発火せず受理する。
+    C++ 字句解析、BOM/NUL/decode の source 全体検査は行わない。
+    """
+
     source_path = os.path.join(evidence.source_root, TRIGGER_SOURCE_REL)
     try:
         with open(source_path, "rb") as source_file:
@@ -183,6 +198,11 @@ def _require_materialized_trigger_axis_predicate(evidence: SourceEvidence) -> No
             _reject_trigger_axis()
         return
     if len(begins) != 1 or len(ends) != 1 or begins[0].start() >= ends[0].start():
+        _reject_trigger_axis()
+
+    epilogue_start = ends[0].end()
+    epilogue_end = epilogue_start + len(FROZEN_TEMPLATE_EPILOGUE_BYTES)
+    if raw[epilogue_start:epilogue_end] != FROZEN_TEMPLATE_EPILOGUE_BYTES:
         _reject_trigger_axis()
 
     block = raw[begins[0].start():ends[0].end()]
