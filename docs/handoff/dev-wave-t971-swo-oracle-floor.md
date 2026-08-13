@@ -1,9 +1,10 @@
 # handoff — [T-971] 床値 sort_best セルの SWO oracle infrastructure-unavailable
-
 - 目的: 床値 sort_best セルの SWO oracle が infrastructure-unavailable になる理由を確定し解消する
 - 状態: 作業中
 - 最終更新: 2026-08-13 20:30 JST
-- 基準コミット: 48b2caab (作業ツリー dirty — 段 5 実装差分あり)
+- 基準コミット: f4adb0358ecaf183045190ba845431aeca9b6a8c (段 5 + fix 統合済み)
+
+## wave 情報
 
 - wave: dev-wave (背景 job b7ba731c), branch `worktree-dev-wave-t971-swo-oracle-floor`
 - worktree: `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t971-swo-oracle-floor`
