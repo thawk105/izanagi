@@ -5,13 +5,14 @@ from __future__ import annotations
 import errno
 import hashlib
 import importlib.util
-import io
+import itertools
 import json
 import os
 import signal
 import shutil
 import subprocess
 import sys
+import tracemalloc
 from pathlib import Path
 
 import pytest
@@ -41,6 +42,9 @@ _CHECKER_RECEIPT = Path(
     "/receipts/acceptance.json.acceptance-red-check.json"
 )
 _COMMAND = ("harmless-command", "--flag")
+_RELAYED_LOADGROUP_MARKER = (
+    b'| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}'
+)
 _HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
 _WAITER_BLOB = "d" * 40
 _CHECKER_BLOB = "e" * 40
@@ -58,6 +62,17 @@ _SUBMODULE_INDEX_FLAGS_ARGV = (
 _DIFF_ARGV = ("git", "diff", "--binary", "--no-ext-diff", "HEAD", "--")
 _SUBMODULE_STATUS_ARGV = ("git", "submodule", "status", "--recursive")
 _SUBMODULE_READY_ARGV = _SUBMODULE_STATUS_ARGV
+
+
+def _scheduler_marker(value: object = "serial", *, relay: bool = False) -> bytes:
+    payload = json.dumps(
+        {"effective_scheduler": value},
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("ascii")
+    prefix = b"| " if relay else b""
+    return prefix + DW._EFFECTIVE_SCHEDULER_PREFIX + payload + b"\n"
 
 
 def _provenance_argv(
@@ -96,7 +111,7 @@ class _FakeEffects:
         self.receipt_published = False
         self.last_claim_main_sha: str | None = None
         self.final_claim_age_seconds = 0
-        self.logged_bytes = b""
+        self.logged_bytes = _scheduler_marker()
         self.byte_files: dict[Path, bytes] = {}
 
     @property
@@ -120,6 +135,7 @@ class _FakeEffects:
             run_logged=self.run_logged,
             read_bytes=self.read_bytes,
             is_symlink=self.is_symlink,
+            inspect_acceptance_log=self.inspect_acceptance_log,
         )
 
     def expect_run(
@@ -206,6 +222,11 @@ class _FakeEffects:
     def read_bytes(self, path: Path) -> bytes:
         assert path in self.byte_files, f"unexpected read_bytes: {path}"
         return self.byte_files[path]
+
+    def inspect_acceptance_log(self, path: Path) -> tuple[str, str]:
+        assert path in self.byte_files, f"unexpected acceptance log: {path}"
+        digest, payloads = DW._scan_acceptance_log_chunks([self.byte_files[path]])
+        return digest, DW._scheduler_from_marker_payloads(payloads)
 
     def sleep(self, seconds: float) -> None:
         self.events.append(("sleep", seconds))
@@ -582,6 +603,8 @@ def _real_waiter_repo(
     shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
     shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
     (tools / "run_tests.py").write_text(
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n"
         "raise SystemExit(0)\n",
         encoding="utf-8",
     )
@@ -1374,9 +1397,12 @@ def test_unchanged_postrun_fingerprint_allows_success_and_retains_lease() -> Non
     fake.assert_drained()
 
 
-def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
+@pytest.mark.parametrize("scheduler", ["serial", "loadgroup"])
+def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler(
+    scheduler: str,
 ) -> None:
     fake = _FakeEffects()
+    fake.logged_bytes = _scheduler_marker(scheduler, relay=scheduler == "loadgroup")
     lifecycle = DW._AcceptanceLifecycle()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
@@ -1394,9 +1420,9 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
         "pre_fingerprint", "post_fingerprint", "waiter_blob_sha",
         "env_projection", "verdict", "log_sha256", "checker_rc",
         "checker_status", "checker_blob_sha", "checker_receipt_sha256",
-        "red_nodeids",
+        "red_nodeids", "effective_scheduler",
     }
-    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v2"
+    assert receipt["schema_version"] == "dev-wave-acceptance-receipt/v3"
     assert receipt["authority_kind"] == "dev-wave-wait-acceptance"
     assert receipt["acceptance_wave"] == _WAVE
     assert receipt["lease_holder"] == _HOLDER
@@ -1409,7 +1435,8 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
     assert receipt["pre_fingerprint"]["head_sha"] == _SHA_A
     assert receipt["waiter_blob_sha"] == _WAITER_BLOB
     assert receipt["verdict"] == "child-green"
-    assert receipt["log_sha256"] == hashlib.sha256(b"").hexdigest()
+    assert receipt["log_sha256"] == hashlib.sha256(fake.logged_bytes).hexdigest()
+    assert receipt["effective_scheduler"] == scheduler
     assert receipt["checker_rc"] is None
     assert receipt["checker_status"] is None
     assert receipt["checker_blob_sha"] is None
@@ -1424,28 +1451,252 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_and_waiter_blob(
     fake.assert_drained()
 
 
-def test_default_log_sha256_reads_fixed_size_chunks(
+def test_default_log_inspection_hashes_and_extracts_from_one_nofollow_open(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    payload = b"x" * (DW._LOG_HASH_CHUNK_BYTES * 2 + 1)
-    read_sizes: list[int] = []
+    path = tmp_path / "acceptance.log"
+    payload = b"x" * (DW._LOG_HASH_CHUNK_BYTES + 1) + b"\n" + _scheduler_marker(
+        relay=True
+    )
+    path.write_bytes(payload)
+    real_open = os.open
+    calls: list[tuple[object, int]] = []
 
-    class _RecordingStream(io.BytesIO):
-        def read(self, size: int = -1) -> bytes:
-            read_sizes.append(size)
-            return super().read(size)
+    def one_open(target: object, flags: int, *args: object) -> int:
+        calls.append((target, flags))
+        return real_open(target, flags, *args)
 
-    def open_stream(path: Path, mode: str) -> _RecordingStream:
-        assert path == _LOG
-        assert mode == "rb"
-        return _RecordingStream(payload)
+    monkeypatch.setattr(os, "open", one_open)
+    monkeypatch.setattr(
+        Path,
+        "open",
+        lambda *args, **kwargs: pytest.fail("acceptance log was opened twice"),
+    )
 
-    monkeypatch.setattr(Path, "open", open_stream)
-
-    digest = DW._default_sha256_file(_LOG)
+    digest, scheduler = DW._default_inspect_acceptance_log(path)
 
     assert digest == hashlib.sha256(payload).hexdigest()
-    assert read_sizes == [DW._LOG_HASH_CHUNK_BYTES] * 4
+    assert scheduler == "serial"
+    assert len(calls) == 1
+    assert calls[0][1] & os.O_NOFOLLOW
+
+
+def test_default_log_inspection_rejects_fstat_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "changing.log"
+    path.write_bytes(_scheduler_marker())
+    real_fstat = os.fstat
+    calls = 0
+
+    def changed_after_read(fd: int):
+        nonlocal calls
+        calls += 1
+        value = real_fstat(fd)
+        if calls == 1:
+            return value
+        fields = list(value)
+        fields[6] += 1
+        return os.stat_result(fields)
+
+    monkeypatch.setattr(os, "fstat", changed_after_read)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._default_inspect_acceptance_log(path)
+
+    assert failure.value.outcome.stage == "acceptance-scheduler-attestation"
+    assert '"reason":"log-changed"' in failure.value.outcome.detail
+
+
+def test_default_log_inspection_rejects_short_read_with_stable_fstat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "short-read.log"
+    path.write_bytes(_scheduler_marker())
+    real_read = os.read
+    calls = 0
+
+    def short_read(fd: int, size: int) -> bytes:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return real_read(fd, 1)
+        return b""
+
+    monkeypatch.setattr(os, "read", short_read)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._default_inspect_acceptance_log(path)
+
+    assert failure.value.outcome.stage == "acceptance-scheduler-attestation"
+    assert '"reason":"log-changed"' in failure.value.outcome.detail
+    assert '"total_read":1' in failure.value.outcome.detail
+
+
+def test_default_log_inspection_rejects_mtime_ns_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "mtime-change.log"
+    path.write_bytes(_scheduler_marker())
+    real_fstat = os.fstat
+    calls = 0
+
+    def changed_after_read(fd: int):
+        nonlocal calls
+        calls += 1
+        value = real_fstat(fd)
+        if calls == 1:
+            return value
+        fields = list(value)
+        fields[8] += 1
+        return os.stat_result(fields)
+
+    monkeypatch.setattr(os, "fstat", changed_after_read)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._default_inspect_acceptance_log(path)
+
+    assert failure.value.outcome.stage == "acceptance-scheduler-attestation"
+    assert '"reason":"log-changed"' in failure.value.outcome.detail
+
+
+def test_relayed_loadgroup_literal_is_accepted() -> None:
+    assert _RELAYED_LOADGROUP_MARKER == (
+        b'| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}'
+    )
+    _digest, payloads = DW._scan_acceptance_log_chunks(
+        [_RELAYED_LOADGROUP_MARKER + b"\n"]
+    )
+    assert DW._scheduler_from_marker_payloads(payloads) == "loadgroup"
+
+
+def test_scanner_has_constant_extra_memory_for_huge_unterminated_line() -> None:
+    chunk = b"x" * 65536
+
+    def scan_peak(repetitions: int) -> tuple[int, str]:
+        chunks = itertools.chain(
+            itertools.repeat(chunk, repetitions),
+            (b"\n" + _scheduler_marker(),),
+        )
+        tracemalloc.start()
+        try:
+            _digest, payloads = DW._scan_acceptance_log_chunks(chunks)
+            scheduler = DW._scheduler_from_marker_payloads(payloads)
+            _current, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        return peak, scheduler
+
+    small_peak, small_scheduler = scan_peak(2)
+    large_peak, large_scheduler = scan_peak(128)
+
+    assert (small_scheduler, large_scheduler) == ("serial", "serial")
+    assert large_peak <= small_peak + 64 * 1024
+
+
+def test_scanner_bounds_payload_and_stops_retaining_after_second_marker() -> None:
+    oversized = (
+        DW._EFFECTIVE_SCHEDULER_PREFIX
+        + b"x" * (DW._MARKER_PAYLOAD_MAX_BYTES * 2)
+        + b"\n"
+    )
+    _digest, payloads = DW._scan_acceptance_log_chunks(
+        [
+            oversized,
+            _scheduler_marker(),
+            _scheduler_marker("loadgroup", relay=True) * 32,
+        ]
+    )
+
+    assert len(payloads) == 2
+    assert len(payloads[0]) == DW._MARKER_PAYLOAD_MAX_BYTES + 1
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._scheduler_from_marker_payloads(payloads)
+    assert '"reason":"marker-count"' in failure.value.outcome.detail
+
+
+def test_unknown_scheduler_is_recorded_in_receipt() -> None:
+    fake = _FakeEffects()
+    fake.logged_bytes = _scheduler_marker("unknown")
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome == DW._Outcome(0)
+    assert json.loads(fake.receipt_content)["effective_scheduler"] == "unknown"
+    fake.assert_drained()
+
+
+_INVALID_SCHEDULER_LOGS = (
+    ("missing", b"pytest completed without marker\n"),
+    ("malformed-json", DW._EFFECTIVE_SCHEDULER_PREFIX + b"{\n"),
+    (
+        "duplicate-key",
+        DW._EFFECTIVE_SCHEDULER_PREFIX
+        + b'{"effective_scheduler":"serial","effective_scheduler":"serial"}\n',
+    ),
+    ("mixed-form-duplicate", _scheduler_marker() + _scheduler_marker(relay=True)),
+    (
+        "same-line-duplicate",
+        _scheduler_marker().rstrip(b"\n") + _scheduler_marker(),
+    ),
+    (
+        "conflicting-lines",
+        _scheduler_marker("serial") + _scheduler_marker("loadgroup", relay=True),
+    ),
+    ("unknown-value", _scheduler_marker("mystery")),
+    ("non-string-value", _scheduler_marker(1)),
+    (
+        "field-drift",
+        DW._EFFECTIVE_SCHEDULER_PREFIX
+        + b'{"effective_scheduler":"serial","extra":true}\n',
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    ("case", "logged_bytes"),
+    _INVALID_SCHEDULER_LOGS,
+    ids=[case for case, _ in _INVALID_SCHEDULER_LOGS],
+)
+def test_scheduler_attestation_is_fail_closed_before_red_checker(
+    case: str,
+    logged_bytes: bytes,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake = _FakeEffects()
+    fake.logged_bytes = logged_bytes
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70, case
+    assert outcome.stage == "acceptance-scheduler-attestation", case
+    assert outcome.detail is not None
+    assert fake.receipt_content is None
+    assert not any(
+        event[0] == "run" and event[1] == _checker_argv()
+        for event in fake.events
+    )
+    DW._print_outcome(outcome)
+    diagnostic = capsys.readouterr().err
+    attestation_diagnostics = [
+        line
+        for line in diagnostic.splitlines()
+        if "error: stage=acceptance-scheduler-attestation" in line
+    ]
+    assert len(attestation_diagnostics) == 1
+    assert '"reason":' in attestation_diagnostics[0]
+    assert '"observed":' in attestation_diagnostics[0]
+    fake.assert_drained()
 
 
 def test_failed_acceptance_never_publishes_receipt() -> None:
@@ -1515,7 +1766,7 @@ def test_failed_acceptance_rejects_nonzero_checker_rc(checker_rc: int) -> None:
 
 def test_non_attributable_only_publishes_receipt_with_real_child_rc() -> None:
     fake = _FakeEffects()
-    fake.logged_bytes = b"synthetic failing pytest log\n"
+    fake.logged_bytes = b"synthetic failing pytest log\n" + _scheduler_marker()
     lifecycle = DW._AcceptanceLifecycle()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
@@ -1543,7 +1794,7 @@ def test_non_attributable_only_publishes_receipt_with_real_child_rc() -> None:
 
 def test_checker_receipt_log_hash_mismatch_is_rejected() -> None:
     fake = _FakeEffects()
-    fake.logged_bytes = b"owned log bytes\n"
+    fake.logged_bytes = b"owned log bytes\n" + _scheduler_marker()
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(1), capture=False)
     _queue_checker(fake, log_sha256=hashlib.sha256(b"other log").hexdigest())
@@ -3707,6 +3958,7 @@ def test_abnormal_path_without_ownership_does_not_release(kind: str) -> None:
             run_logged=effects.run_logged,
             read_bytes=effects.read_bytes,
             is_symlink=effects.is_symlink,
+            inspect_acceptance_log=effects.inspect_acceptance_log,
         )
     if kind == "subprocess-error":
         outcome = _run_acceptance(fake)
@@ -4656,6 +4908,8 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
         "expected=pathlib.Path(sys.argv[1]); "
         "assert pathlib.Path.cwd()==expected; "
         "print('CHILD-STDOUT-SENTINEL'); "
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}'); "
         "print('CHILD-STDERR-SENTINEL', file=sys.stderr)"
     )
     waiter_env = {**git_env, "IZANAGI_WAVE_LEASE_DIR": str(lease)}
@@ -4806,7 +5060,9 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
             "--",
             sys.executable,
             "-c",
-            "print('SECOND-ACCEPTANCE-SENTINEL')",
+            "print('SECOND-ACCEPTANCE-SENTINEL'); "
+            "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+            "{\"effective_scheduler\":\"serial\"}')",
         ],
         cwd=repo,
         capture_output=True,
@@ -4925,7 +5181,8 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
         "signal.signal(signal.SIGTERM, lambda n, f: received.append(n))\n"
         "rc=module.main(['acceptance','--wave','signal-success',"
         "'--receipt-file',sys.argv[3],'--log-file',sys.argv[4],'--',"
-        "sys.executable,'-c','raise SystemExit(0)'], repo=Path(sys.argv[2]))\n"
+        "sys.executable,'-c',\"print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\\\"effective_scheduler\\\":\\\"serial\\\"}')\"], repo=Path(sys.argv[2]))\n"
         "os.kill(os.getpid(), signal.SIGTERM)\n"
         "print(f'RESTORED={received} RC={rc}')\n"
         "raise SystemExit(rc)\n",

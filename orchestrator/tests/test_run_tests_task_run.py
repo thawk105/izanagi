@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import inspect
 import json
 import builtins
 import os
@@ -70,6 +71,41 @@ def test_opt_out_preserves_exact_command_and_call_shape(monkeypatch):
 @pytest.mark.parametrize("args", [[], ["-q"], ["-n", "2"], ["--color=yes"]])
 def test_full_classification_closed_known_nonselectors(args):
     assert RT._suite_identity(args, "")[0] == "full"
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["-p", "no:randomly"],
+        ["-p=no:randomly"],
+        ["-o", "x=1"],
+        ["-o=x=1"],
+        ["--override-ini", "x=1"],
+        ["--override-ini=x=1"],
+    ],
+    ids=(
+        "plugin-separate",
+        "plugin-equals",
+        "ini-short-separate",
+        "ini-short-equals",
+        "ini-long-separate",
+        "ini-long-equals",
+    ),
+)
+def test_plugin_and_ini_overrides_are_targeted_for_all_consumers(args):
+    assert RT._is_full_suite(args) is False
+    assert RT._test_operation(args).startswith("tests-partial-")
+    assert RT._suite_identity(args, "")[0] == "targeted"
+    assert RT._is_acceptance_run(args) is False
+    assert RT._positional_tokens(args) == ()
+
+
+@pytest.mark.parametrize("args", [[], ["-q"], ["-n", "4"]])
+def test_acceptance_shapes_remain_full(args):
+    assert RT._is_full_suite(args) is True
+    assert RT._test_operation(args) == "tests-full"
+    assert RT._suite_identity(args, "") == ("full", "pytest-orchestrator-full")
+    assert RT._is_acceptance_run(args) is True
 
 
 @pytest.mark.parametrize("args", [
@@ -502,8 +538,11 @@ def _session(*, worker=False, collected=3):
         "error": [SimpleNamespace(nodeid="c::three")],
         "skipped": [SimpleNamespace(nodeid="d::four")],
     }
-    reporter = SimpleNamespace(stats=reports)
-    manager = SimpleNamespace(get_plugin=lambda name: reporter if name == "terminalreporter" else None)
+    lines = []
+    reporter = SimpleNamespace(stats=reports, write_line=lines.append, lines=lines)
+    manager = SimpleNamespace(
+        get_plugin=lambda name: reporter if name == "terminalreporter" else None
+    )
     config = SimpleNamespace(pluginmanager=manager)
     if worker:
         config.workerinput = {}
@@ -513,6 +552,19 @@ def _session(*, worker=False, collected=3):
         SimpleNamespace(nodeid="c::three", path=Path("c"), name="three"),
     ]
     return SimpleNamespace(config=config, items=items, testscollected=collected)
+
+
+def _finish_session(session, exitstatus=0, *, inner=None):
+    if inner is not None:
+        inner()
+    return CONF.pytest_sessionfinish(session, exitstatus)
+
+
+def _finish_unconfigure(config):
+    wrapper = CONF.pytest_unconfigure(config)
+    next(wrapper)
+    with pytest.raises(StopIteration):
+        next(wrapper)
 
 
 def test_sidecar_is_create_only_0600_and_contains_digest_not_node_names(tmp_path):
@@ -566,11 +618,70 @@ def test_hook_rejects_non_wrapper_sidecar_paths_as_noop(monkeypatch, tmp_path, c
             parent.rmdir()
 
 
-def test_conftest_hook_absent_env_does_not_lazy_import(monkeypatch):
+def test_conftest_sessionfinish_is_plain_and_does_not_emit_scheduler_marker(
+    monkeypatch,
+):
     imported = mock.Mock(side_effect=AssertionError("must not import"))
     monkeypatch.setattr(PS, "write_session_stats", imported)
-    CONF.pytest_sessionfinish(_session(), 0)
+    session = _session()
+    assert inspect.isgeneratorfunction(CONF.pytest_sessionfinish) is False
+    assert getattr(CONF.pytest_sessionfinish, "pytest_impl", None) is None
+    assert _finish_session(session) is None
     imported.assert_not_called()
+    assert session.config.pluginmanager.get_plugin("terminalreporter").lines == []
+
+
+@pytest.mark.parametrize("with_digest", [False, True], ids=["green", "failure-digest"])
+def test_scheduler_marker_is_last_conftest_output(monkeypatch, capsys, with_digest):
+    session = _session()
+    CONF._FAILURE_REPORTS.clear()
+    if with_digest:
+        CONF._FAILURE_REPORTS.append(SimpleNamespace())
+        monkeypatch.setattr(
+            CONF,
+            "_emit_failure_digest",
+            lambda _reports: print("failure digest", flush=True),
+        )
+
+    _finish_unconfigure(session.config)
+
+    expected = [
+        'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}',
+    ]
+    if with_digest:
+        expected.insert(0, "failure digest")
+    assert capsys.readouterr().out.splitlines() == expected
+
+
+def test_runtestloop_freezes_scheduler_before_later_replacement(monkeypatch, capsys):
+    assert CONF.pytest_runtestloop.pytest_impl["wrapper"] is True
+    assert CONF.pytest_runtestloop.pytest_impl["optionalhook"] is False
+    reporter = SimpleNamespace(write_line=mock.Mock())
+    dsession = SimpleNamespace(sched="loadgroup")
+    plugins = {"terminalreporter": reporter, "dsession": dsession}
+    config = SimpleNamespace(
+        pluginmanager=SimpleNamespace(get_plugin=plugins.get),
+    )
+    session = SimpleNamespace(config=config)
+    classifier = mock.Mock(
+        side_effect=lambda current: current.pluginmanager.get_plugin(
+            "dsession"
+        ).sched,
+    )
+    monkeypatch.setattr(CONF, "_effective_scheduler", classifier)
+    wrapper = CONF.pytest_runtestloop(session)
+    next(wrapper)
+    with pytest.raises(StopIteration):
+        next(wrapper)
+
+    dsession.sched = "unknown"
+    CONF._FAILURE_REPORTS.clear()
+    _finish_unconfigure(session.config)
+
+    assert capsys.readouterr().out.splitlines() == [
+        'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}',
+    ]
+    classifier.assert_called_once_with(session.config)
 
 
 @pytest.mark.parametrize(
@@ -585,16 +696,21 @@ def test_conftest_hook_absent_env_does_not_lazy_import(monkeypatch):
         (CONF.pytest_sessionfinish, "write_session_stats", lambda: (_session(), 4)),
     ],
 )
-def test_conftest_hooks_swallow_exception_without_observable_change(
+def test_conftest_hooks_swallow_exception_and_preserve_required_output(
     monkeypatch, tmp_path, capsys, hook, helper, args,
 ):
     monkeypatch.setenv(PS.SIDECAR_ENV, str((tmp_path / "pytest-stats.json").resolve()))
     monkeypatch.setattr(PS, helper, mock.Mock(side_effect=OSError("injected")))
     call_args = args()
-    assert hook(*call_args) is None
+    if hook is CONF.pytest_sessionfinish:
+        _finish_session(*call_args)
+    else:
+        assert hook(*call_args) is None
     assert capsys.readouterr() == ("", "")
     if helper == "write_session_stats":
         assert call_args[1] == 4
+        reporter = call_args[0].config.pluginmanager.get_plugin("terminalreporter")
+        assert reporter.lines == []
 
 
 def test_check_wrapper_executes_only_fixed_argv(monkeypatch):
@@ -686,7 +802,9 @@ def test_real_pytest_hook_records_aggregate_only_in_tmp_ledger(monkeypatch, tmp_
     assert "test_sample.py::test_ok" not in serialized
 
 
-def test_live_xdist_controller_writes_one_valid_sidecar(tmp_path):
+def test_live_xdist_controller_writes_one_sidecar_and_one_loadgroup_attestation(
+    tmp_path,
+):
     private = tmp_path / "private"
     private.mkdir(mode=0o700)
     os.chmod(private, 0o700)
@@ -715,12 +833,100 @@ def test_live_xdist_controller_writes_one_valid_sidecar(tmp_path):
     assert result.returncode == 0, (result.stdout, result.stderr)
     assert "2 passed" in result.stdout
     assert result.stderr == ""
+    marker = 'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}'
+    assert result.stdout.splitlines().count(marker) == 1
+    assert result.stdout.splitlines()[-1] == marker
     assert sidecar.read_bytes().count(b"\n") == 1
     stats = PS.read_sidecar(sidecar)
     assert stats is not None
     counts, digest = stats
     assert counts == {"collected": 2, "passed": 2, "failed": 0, "skipped": 0}
     assert isinstance(digest, str) and len(digest) == 12
+
+
+def test_live_xdist_late_outer_wrapper_override_attests_unknown_once(tmp_path):
+    sample = tmp_path / "test_xdist_override.py"
+    sample.write_text("def test_one(): assert True\n", encoding="utf-8")
+    plugin = tmp_path / "late_scheduler_override.py"
+    plugin.write_text(
+        "import pytest\n"
+        "from xdist.scheduler import LoadScheduling\n"
+        "class LateOuterWrapper:\n"
+        "    @pytest.hookimpl(wrapper=True, tryfirst=True)\n"
+        "    def pytest_xdist_make_scheduler(self, config, log):\n"
+        "        yield\n"
+        "        return LoadScheduling(config, log)\n"
+        "def pytest_configure(config):\n"
+        "    config.pluginmanager.register(LateOuterWrapper(), 'late-outer-wrapper')\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-n",
+            "2",
+            "--dist",
+            "loadgroup",
+            "-p",
+            "orchestrator.tests.conftest",
+            "-p",
+            "late_scheduler_override",
+            str(sample),
+        ],
+        cwd=_REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    marker = 'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"unknown"}'
+    assert result.stdout.splitlines().count(marker) == 1
+    assert result.stdout.splitlines()[-1] == marker
+
+
+def test_live_xdist_sessionfinish_scheduler_swap_keeps_runtestloop_value(tmp_path):
+    sample = tmp_path / "test_xdist_swap.py"
+    sample.write_text("def test_one(): assert True\n", encoding="utf-8")
+    plugin = tmp_path / "late_scheduler_swap.py"
+    plugin.write_text(
+        "from xdist.scheduler import LoadScheduling\n"
+        "def pytest_sessionfinish(session, exitstatus):\n"
+        "    dsession = session.config.pluginmanager.get_plugin('dsession')\n"
+        "    dsession.sched = object.__new__(LoadScheduling)\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-n",
+            "2",
+            "--dist",
+            "loadgroup",
+            "-p",
+            "orchestrator.tests.conftest",
+            "-p",
+            "late_scheduler_swap",
+            str(sample),
+        ],
+        cwd=_REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    marker = 'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}'
+    assert result.stdout.splitlines().count(marker) == 1
+    assert result.stdout.splitlines()[-1] == marker
 
 
 if __name__ == "__main__":
