@@ -917,15 +917,6 @@ def _rerun_output_proves_red(stdout: str, selector: str) -> bool:
     return False
 
 
-def _replay_completed_output(result: subprocess.CompletedProcess[str]) -> None:
-    if result.stdout:
-        sys.stdout.write(result.stdout)
-        sys.stdout.flush()
-    if result.stderr:
-        sys.stderr.write(result.stderr)
-        sys.stderr.flush()
-
-
 def _default_node_runner(
     worktree: Path,
     nodeid: str,
@@ -958,7 +949,6 @@ def _default_node_runner(
         worktree=worktree,
         expected_args=_expected_dispatch_args(worktree, pytest_args),
     )
-    _replay_completed_output(result)
     if result.returncode == 1 and not _rerun_output_proves_red(
         authoritative_stdout, nodeid
     ):

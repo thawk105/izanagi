@@ -1384,6 +1384,43 @@ def test_single_test_collection_footer_is_accepted(
     ) == 0
 
 
+def test_injected_rerun_output_is_not_replayed_to_checker_streams(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    fake_rerun_log = _summary_log((("FAILED", _NON_ATTRIBUTABLE),))
+
+    def command_runner(command: Sequence[str], **kwargs):
+        values = list(command)
+        if len(values) >= 2 and Path(values[1]).name == "run_tests.py":
+            if "--collect-only" in values:
+                return subprocess.CompletedProcess(
+                    values,
+                    0,
+                    _NON_ATTRIBUTABLE + "\n\n1 test collected in 0.01s\n",
+                    "",
+                )
+            return subprocess.CompletedProcess(
+                values, 1, fake_rerun_log, fake_rerun_log
+            )
+        return subprocess.run(values, **kwargs)
+
+    assert CAR.main(
+        _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
+        repo_root=repo,
+        command_runner=command_runner,
+    ) == 0
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == ["status=non-attributable-only"]
+    assert captured.err == ""
+    for stream in (captured.out, captured.err):
+        assert "short test summary info" not in stream
+        assert f"FAILED {_NON_ATTRIBUTABLE}" not in stream
+
+
 def test_deselected_collection_footer_uses_selected_count(
     tmp_path: Path, committed_repo: tuple[Path, str, Path]
 ) -> None:
