@@ -433,20 +433,24 @@ def test_materialization_does_not_import_oracle_or_floor():
 # --------------------------------------------------------------------------- #
 
 class _FakeBuildResult:
-    def __init__(self, canonical: str, contract_sha256: str):
-        self.binary = f"/tmp/out/fixed/bin/{canonical}"
-        self.bin_sha256 = "0" * 64
-        self.bin_hash = "0" * 16
+    def __init__(self, canonical: str, contract_sha256: str, *, out_root: Path):
+        raw = canonical.encode("utf-8")
+        self.bin_sha256 = hashlib.sha256(raw).hexdigest()
+        binary = out_root / "fixed" / "bin" / self.bin_sha256
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        binary.write_bytes(raw)
+        self.binary = str(binary)
+        self.bin_hash = self.bin_sha256[:16]
         self.configure_cmd = ["cfg", canonical]
         self.build_cmd = ["build", canonical]
-        self.configure_argv = ["cfg", "/tmp/cc", "/tmp/out", canonical]
-        self.build_argv = ["build", "/tmp/out", canonical]
+        self.configure_argv = ["cfg", str(out_root.parent / "cc"), str(out_root), canonical]
+        self.build_argv = ["build", str(out_root), canonical]
         self.cached = True
-        self.ccbench_root = "/tmp/cc"
+        self.ccbench_root = str(out_root.parent / "cc")
         self.contract_sha256 = contract_sha256
 
 
-def test_floor_manifest_golden_stable():
+def test_floor_manifest_golden_stable(tmp_path):
     """固定 path/hash を返す fake build で manifest.json bytes を安定 hash で golden 固定。
 
     binding identity は共有 producer が生成するので、この golden が変われば binding か
@@ -469,10 +473,9 @@ def test_floor_manifest_golden_stable():
     def prepare_fn(cell, ccbench_pin, *, cxx):
         entry = cell["variant"]
         genome = Genome("silo", dict(entry["flags"]))
-        token = "stock" if entry["configuration"] == "stock" \
-            else "srctok-" + entry["configuration"]
+        token = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
         yield PreparedCell(genome=genome, src_token=token,
-                           ccbench_dir="/tmp/cc", cache_root="/tmp/ca")
+                           ccbench_dir=str(tmp_path / "cc"), cache_root=str(tmp_path / "ca"))
 
     contract = ec.lookup("linux-baremetal")
     verified_calibration = floor.env_attestation.load_verified_calibration(
@@ -519,7 +522,8 @@ def test_floor_manifest_golden_stable():
     with mock.patch.object(
             floor.buildcache, "build_v2",
             side_effect=lambda genome, **kw: _FakeBuildResult(
-                genome.canonical(), kw["contract"].contract_sha256)), \
+                genome.canonical(), kw["contract"].contract_sha256,
+                out_root=tmp_path / "out")), \
             mock.patch.object(
                 floor.source_digest, "resolve_evidence", fixture_evidence,
             ), \
@@ -528,15 +532,15 @@ def test_floor_manifest_golden_stable():
             ):
         built = floor.build_cells(
             freeze, cells, ccbench_pin="pin-x",
-            out_root=Path("/tmp/out"), prepare_fn=prepare_fn,
+            out_root=tmp_path / "out", prepare_fn=prepare_fn,
             contract=contract, verified_calibration=verified_calibration)
     for record in built.values():
-        record["store_path"] = "/tmp/out/store/" + record["binary_sha256"]
-    built = floor.project_built_records(built, out_root=Path("/tmp/out"))
+        record["store_path"] = str(tmp_path / "out" / "store" / record["binary_sha256"])
+    built = floor.project_built_records(built, out_root=tmp_path / "out")
 
     # 共有 producer が生成した binding が build 記録に載っていること。
     assert built["H1::stock"]["binding"]["binding_sha256"] == (
-        "e1df79581e810cefd9981e4fee13629cf29b2b299ccef7d018e6941092b7a23c"
+        "3cc28be2200a465d44e74641c3949624718205283ba6113edb529a33e657a37a"
     )
 
     # protocol/manifest は v2 形状 (blocks/replicates_per_block を廃し session_cv_max/
@@ -559,7 +563,7 @@ def test_floor_manifest_golden_stable():
     payload = json.dumps(
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     assert hashlib.sha256(payload.encode("utf-8")).hexdigest() == (
-        "9b7d1f899d4e5885aa19c4d970dc05ffb8fff3c75adfd9f81705fd55f660a99f"
+        "4860905ed2c9bf994886564bad0b3185f3d6e512230e85db43e57503f261fbc8"
     )
 
 

@@ -31,7 +31,9 @@ from .build_admission import (  # noqa: E402
     GeneratorId,
     ReviewId,
     build_run_context,
+    resolve_current_build_admission_policy,
 )
+from . import s8b_binary_admission as _binary_admission  # noqa: E402
 from . import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from . import campaign_claim as _campaign_claim  # noqa: E402
 from . import s8b_freeze_io as _freeze_io  # noqa: E402
@@ -924,9 +926,11 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
         except _reservation.ReservationError as exc:
             raise OracleDriverError(f"reservation binding 検査失敗: {exc}") from exc
 
-    # (4) binary store 消費 (C3-7): 全 schedule 行分の store 実体 + hash を検査。
+    # (4) binary store 消費 (C3-7): receipt を store 読込前に検査し、全 schedule
+    # 行分の store 実体 + record SHA + receipt subject SHA を検査する。
     expected = validated.binaries_by_cell
-    perf_sha_by_cell: dict = {}
+    current_admission_policy = resolve_current_build_admission_policy()
+    preflight: list[tuple[tuple[str, str], Mapping]] = []
     for row in schedule:
         cell = (row["holdout_id"], row["configuration_id"])
         cell_id = f"{cell[0]}::{cell[1]}"
@@ -935,6 +939,31 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
             raise OracleDriverError(
                 f"floor artifact に schedule cell の binary receipt が無い: {cell}"
             )
+        if ("admission_receipt" not in rec
+                or rec.get("admission_receipt") is None
+                or rec.get("admission_receipt") == {}):
+            raise OracleDriverError(
+                f"[admission-missing] floor binary admission receipt が無い: {cell}"
+            )
+        try:
+            _binary_admission.validate_portable_binary_record(
+                rec, expected_policy=current_admission_policy,
+                expected_ccbench_pin=run_contract["ccbench_pin"],
+                expected_contract_sha256=run_contract.get("contract_sha256"),
+                expected_cell_id=cell_id,
+                expected_holdout_id=cell[0],
+                expected_configuration_id=cell[1],
+                expected_entry_sha256=rec["binding"]["entry_sha256"],
+                expected_binding_sha256=rec["binding"]["binding_sha256"],
+            )
+        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError) as exc:
+            raise OracleDriverError(
+                f"[admission-mismatch] floor binary admission receipt が不正: {cell}: {exc}"
+            ) from exc
+        preflight.append((cell, rec))
+
+    perf_sha_by_cell: dict = {}
+    for cell, rec in preflight:
         actual = _store_sha256(out_root, rec["store_path"])
         if actual is None:
             raise OracleDriverError(

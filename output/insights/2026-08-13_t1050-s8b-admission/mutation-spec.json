@@ -1,0 +1,89 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M-B-subject-binary-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "old": "    if subject[\"binary_sha256\"] != record_binary_sha256:\n        raise BinaryAdmissionError(\"receipt subject binary SHA が record と不一致\")",
+          "new": "    if False:\n        raise BinaryAdmissionError(\"receipt subject binary SHA が record と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_validate_rejects_binary_sha_record_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-C-subject-tuple-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "old": "    if actual_tuple != record_tuple or actual_tuple != expected_tuple:\n        raise BinaryAdmissionError(",
+          "new": "    if False and (actual_tuple != record_tuple or actual_tuple != expected_tuple):\n        raise BinaryAdmissionError("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_validate_rejects_foreign_cell_receipt_with_identical_other_subjects",
+        "orchestrator/tests/test_s8b_binary_admission.py::test_validate_binds_subject_to_record_before_external_expected_tuple"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-D-live-policy-equality",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "old": "        if admission[\"policy_sha256\"] != expected_policy.sha256:\n            raise BinaryAdmissionError(\"receipt admission policy が現行 policy と不一致\")",
+          "new": "        if False:\n            raise BinaryAdmissionError(\"receipt admission policy が現行 policy と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_validate_rejects_current_policy_mismatch_after_outer_sha_is_resealed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-E-live-ccbench-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "old": "    if expected_ccbench_pin is not None and source[\"ccbench_commit\"] != expected_ccbench_pin:\n        raise BinaryAdmissionError(\"receipt source ccbench pin が外部期待値と不一致\")",
+          "new": "    if False:\n        raise BinaryAdmissionError(\"receipt source ccbench pin が外部期待値と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_validate_rejects_external_ccbench_pin_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M-F-live-contract-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_binary_admission.py",
+          "old": "    if (expected_contract_sha256 is not None\n            and subject[\"contract_sha256\"] != expected_contract_sha256):\n        raise BinaryAdmissionError(\"receipt subject contract が外部期待値と不一致\")",
+          "new": "    if (False\n            and subject[\"contract_sha256\"] != expected_contract_sha256):\n        raise BinaryAdmissionError(\"receipt subject contract が外部期待値と不一致\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_binary_admission.py::test_validate_rejects_external_contract_sha256_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
