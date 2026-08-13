@@ -27,9 +27,16 @@
 - `verbatim/s6-fix1.md` / `s6-fix2.md` — fix 2 巡分の対応表。
 - `spec-r3.json` / `result-r3.json` — 変異 matrix の確定 spec と生台帳。
 
-## 変異 matrix (確定走、anchor は fix 後の統合 tip)
+## 変異 matrix (確定走 = `spec-r5.json` / `result-r5.json`、anchor は fix 後の最終 commit)
 
-**baseline PASSED、7/7 KILLED、SURVIVED 0 / TIMEOUT 0。** うち 6 件は期待完全集合と exact 一致。
+**baseline PASSED、7/7 KILLED、MISMATCH 0 / SURVIVED 0 / TIMEOUT 0 — 全件が期待完全集合と exact 一致。**
+
+`spec-r3.json` / `result-r3.json` は午前の走行 (6/7 exact、N2 のみフレーク 1 件分の差) で、
+経緯として残す。確定は r5 である。r5 では signal handler フレーク族 4 件を
+**走行対象と期待集合の両方から**外した (この族はどの変異とも因果が無く、
+1 回目の再走ではこの族が baseline を赤にして harness が正しく fail-closed した)。
+
+以下の表は r3 時点の内訳で、gate と変異の対応は r5 でも同じである。
 
 | ID | 壊した gate | 層 | 結果 |
 |---|---|---|---|
@@ -72,8 +79,33 @@ land のみの変異が待ち手の signal テストを落とすことは依存�
 本 wave が新設した `test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end` は
 **緑**。合成の既知赤を作り、実 waiter → 実 checker → 実 land を通す唯一の経路である。
 
-## 実データ検証の限界 (「実データで 1 回通した」とは書かない)
+## 午後の続き — ユーザー裁定と checker 強化への追随
 
-非帰属経路を**実受入データ**で通すには [T-1027] (`check_acceptance_reds.py` が実 log で rc=2 の
-まま実運用に到達していない) の land が要る。本 wave の end-to-end 試験は実 checker を
-**合成 log** へ当てたものであり、実受入 log での検証は未達である。
+ユーザー裁定「**既知の赤で main へ land できない状態は許さない**」を受けて続行した。
+
+その最中に [T-1027] の wave が `tools/check_acceptance_reds.py` を強化して land した
+(3 commit・+559 行)。うち `67a46f10` は「打ち切られた collect 出力を権威にせず、
+判定不能から非帰属を出さない」で、**親が受入 3 回で実測した collect timeout の欠陥を、
+より良い形 (collect 出力に pytest の集計行があることを要求する) で塞いでいた。**
+
+本 wave はその契約へ 3 段階で追随した (いずれも計算ノードで 1 つずつ実測)。
+
+| 実測時刻 | 観測した拒否 | 追随 |
+|---|---|---|
+| 11:33 受入全走 | `pytest collection footer is missing or non-unique` | 合成 runner の collect 出力へ集計行 |
+| 11:53 焦点走 | `single-node rerun rc=1 lacks matching FAILED/ERROR outcome` | 単独再走の出力へ summary と `FAILED` 行 |
+| 12:04 焦点走 | 待ち手の receipt field 集合 exact 一致で拒否 | checker receipt に増えた `collections` を検査対象へ |
+
+**受理集合は一切広げていない。** field 集合を exact 一致で見る設計 (checker の schema 変化を
+機械で検知する防壁) も維持しており、「未知 key を無視する」形にはしていない。
+
+## 到達点と、残る 1 点
+
+**12:14 JST の焦点走で `test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end` が緑。**
+合成の既知赤に対し、**強化後の実 checker** が `non-attributable-only` を返し、
+実 waiter が receipt を発行し、実 land がそれを受理する経路が通った。
+すなわち「既知の赤があっても land できる」は実物で成立している。
+
+残るのは **実受入で赤が出たときの非帰属受理を 1 度観測すること**だけである
+(本 wave の受入が緑で終われば、その経路は通らない)。end-to-end 試験は実 checker を
+**合成 log** へ当てたものであり、実受入 log での発火は別の機会を要する。

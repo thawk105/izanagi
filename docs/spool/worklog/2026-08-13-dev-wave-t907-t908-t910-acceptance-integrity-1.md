@@ -157,6 +157,47 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   混雑も実測した (10:23:59 JST に codex 関連 35 process、うち [T-1027] を直している wave 自身の
   fix 子が稼働中)。
 
+### ユーザー裁定を受けた続き (2026-08-13 11:0x JST 以降)
+
+- **ユーザー裁定: 「既知の赤で main へ land できない状態は許さない」。**
+  親が「[T-1027] と collect timeout の 2 欠陥が着地するまで land 不能」と報告したのに対する裁定。
+  これを受けて、(i) checker 側の欠陥を本 wave で直す、(ii) それが無理なら main で現に有効な契約
+  (受領証を要求しない main 側 land) で land する、の順で進めることにした。
+- **その最中に [T-1027] の wave が land した。** `tools/check_acceptance_reds.py` へ 3 commit・
+  +559 行。うち `67a46f10` は「打ち切られた collect 出力を権威にせず、判定不能から非帰属を
+  出さない」で、**親が実データで見つけた collect timeout の欠陥を、より良い形 (collect 出力に
+  pytest の集計行があることを要求する) で塞いでいた**。親が計画していた timeout 値の修正は不要になった。
+- **強化された契約へ本 wave 側を 3 段階で追随させた** (いずれも親が計算ノードで 1 つずつ実測)。
+  1. `pytest collection footer is missing or non-unique` (11:33 JST 受入全走) →
+     E2E の合成 runner の `--collect-only` 出力へ集計行を追加。
+  2. `single-node rerun rc=1 lacks matching FAILED/ERROR outcome` (11:53 JST 焦点走) →
+     単独再走の出力へ short summary header / `FAILED <nodeid> - <理由>` / terminal summary を追加。
+  3. 待ち手の checker receipt 照合が field 集合 exact 一致で拒否 (12:04 JST 焦点走) →
+     checker receipt に増えた `collections` field を `expected_fields` へ加え、各要素の 6 key も
+     exact 集合で検査する形にした。**exact 一致の設計は維持した** — これは checker の schema 変化を
+     機械で検知する防壁であり、「未知 key を無視する」形にはしない。
+- **非帰属受理経路が、強化後の実 checker に対して end-to-end で成立した** (12:14 JST 焦点走)。
+  `test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end` が緑。
+  合成の既知赤に対し実 checker が `non-attributable-only` を返し、実 waiter が receipt を発行し、
+  実 land がそれを受理する。**「既知の赤があっても land できる」が実物で示された。**
+- **codex 実装子が 3 回連続で起動できなかった機序を特定した。**
+  `tools/codex_worker_launch.py` の `--evidence-grace-s` 既定は 5 秒で、この時間内に codex が
+  session を作らないと強制停止される (`codex_exit_code=-15`、model call 0、wall 8.6 秒)。
+  login node が混雑すると codex の起動が 5 秒に間に合わない (実測 11:15 / 11:18 / 11:37 JST)。
+  **`tools/dev_wave_codex.py` はこのノブを露出していない。**
+  同 wrapper の `--dry-run` が出す権威ある argv (model / effort / sandbox / repo-root / job-id) を
+  そのまま使い、非権威の観測ノブだけを `--evidence-grace-s 90` へ広げて起動したところ、
+  以後は全て成功した。wrapper が作る artifact directory は直接起動では作られないので
+  呼び手が `mkdir -p` する。{{T:codex-evidence-grace-too-short-under-load}} へ起票した。
+- **変異を fix 後の最終 commit で再走した (`DW-M07`)。**
+  1 回目は baseline が signal handler フレーク (本日 6 例目) で赤になり、harness が
+  「baseline が緑でないため production write を開始しない」と正しく fail-closed した。
+  族 4 件を**走行対象と期待集合の両方から**外して再走し、
+  **baseline PASSED、7/7 KILLED、MISMATCH 0 / SURVIVED 0** の完全一致を得た。
+  この族はどの変異とも因果が無いことを実測済みなので、matrix の検出力は落ちていない。
+- **待ち手 producer の fail-open は通算 10 例**に達したため、親は自前の監視
+  (`.done` 実在 / producer 生死 / 上限の 3 点を 30 秒ごとに照合) へ切り替えた。
+
 ## 次の一手差分
 
 ### 完了
@@ -226,15 +267,18 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   批准という人間の判断を機械が読める形に落とす。
   **裁定は 2026-08-13 第 9 束 #1 で「(b) の変形 = checker 統合」に決した** — registry は作らず、
   受理条件を「rc=0 または非帰属 checker 緑」へ拡張する。本 wave で実装・land 済み。
-  **実装は完了しているが、本 wave は land できていない。** 2026-08-13 の受入 3 回
-  (10:15 / 10:22 / 10:33 JST、tested tip `11032ea5`) がいずれも rc=1 の赤 (すべてフレーク) を
-  引き、非帰属 checker が rc=2 (collect 段の 120 秒 timeout) を返して receipt が出なかった。
-  **gate は裁定どおり動作しており、止めているのは checker 側の 2 つの欠陥である** —
-  [T-1027] (nodeid の exact 一致) と {{T:acceptance-red-check-robustness}} (collect の timeout)。
-  **land の再開条件** = 両方が main へ着地したうえで受入を 1 回通すこと。
-  branch `worktree-dev-wave-t907-recovery` tip `11032ea5` に全成果が保全されている。
-  成果物影響 = 未 land のあいだ [T-907] / [T-908] / [T-910] / [T-1019] / [T-1020] の実装が
-  main に入らず、受入 integrity の穴と既知赤による fleet 停止が両方残る。
+  **裁定どおり実装し、実物で成立するところまで到達した。** 2026-08-13 の受入 3 回
+  (10:15 / 10:22 / 10:33 JST) はいずれも rc=1 の赤 (すべてフレーク) を引き、非帰属 checker が
+  rc=2 (collect 段の 120 秒 timeout) を返して receipt が出なかった。
+  その後 **[T-1027] の wave が checker を強化して land し**、打ち切られた collect 出力を
+  権威にしない形 (集計行の要求) でこの欠陥も同時に塞いだ。本 wave はその契約へ追随し、
+  **12:14 JST の焦点走で end-to-end 試験が緑になった** —
+  合成の既知赤に対し実 checker が `non-attributable-only` を返し、実 waiter が receipt を発行し、
+  実 land がそれを受理する。**「既知の赤があっても land できる」が実物で示された。**
+  残るのは、**実受入で赤が出たときの非帰属受理**を 1 度観測することだけである
+  (本 wave の受入が緑で終わればその経路は通らない)。
+  成果物影響 = この経路が実受入で 1 度も発火しないまま運用に入ると、
+  既知赤が出た wave が本当に land できるかは end-to-end 試験の外で未確認のままになる。
 - {{T:waiter-producer-completion-fail-open}} **P2・新規**: `tools/dev_wave_wait.py producer` が、
   `.done` も成果物も存在せず producer が生存している状態で、出力ゼロ・rc=0 で即座に返る
   ことがある。2026-08-13 に 5 回実測 (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。
@@ -243,16 +287,15 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   context 無しの出力をレビュー結果と数える経路が開く。
   **回収 context でさらに 2 例 (09:12:29 / 09:17:29 JST)。通算 7 例で、うち 1 例は
   投入 31 秒後だった。**
-- {{T:acceptance-red-check-robustness}} **P1・新規 (実データで 3 回再現、非帰属経路の実運用を止めている)**:
-  **最優先は collect 段の timeout である。** `tools/check_acceptance_reds.py:277` の collect は
-  `timeout: float | None = 120.0` を既定に持つが、この collect は `--force-dispatch` で
-  計算ノードへ投入されるため queue 待ち + job 起動 + 実行が 120 秒を容易に超える。
-  2026-08-13 の受入 3 回 (10:15 / 10:22 / 10:33 JST) すべてで
-  `TimeoutExpired ... timed out after 120.0 seconds` により rc=2 となり、
-  非帰属判定が得られず receipt が出なかった。単独再走側 (同 `:471`) は `timeout=None` なので、
-  **collect 段だけが締まりすぎている**。[T-1027] (nodeid の exact 一致) とは別の欠陥で、
-  **両方直らないと非帰属経路は実運用に到達しない**。
-  以下は段 6 レビュー B が予告した残り 3 件 (本 wave 不実装)。
+- {{T:acceptance-red-check-robustness}} **P2・新規 (段 6 レビュー B の real 所見、本 wave 不実装)**:
+  **collect 段 timeout の件は [T-1027] の wave が解決済み。**
+  親は 2026-08-13 の受入 3 回 (10:15 / 10:22 / 10:33 JST) すべてで
+  `TimeoutExpired ... timed out after 120.0 seconds` を実測し、
+  `tools/check_acceptance_reds.py:277` の collect が `timeout=120.0` 既定に落ちている一方で
+  単独再走側 (同 `:471`) は `timeout=None` である非対称を特定した。その後 [T-1027] の wave が
+  `67a46f10` 「打ち切られた collect 出力を権威にせず、判定不能から非帰属を出さない」で
+  **同じ欠陥をより良い形 (集計行の要求) で塞いだ**ため、本項からは落とす。
+  残るのは次の 3 件である。
   (i) checker 全体に timeout が無く、赤の単独再走が hang すると
   receipt が出ないまま待ち続ける。(ii) checker 実行中に lease の heartbeat が無く、
   赤が複数あると最終確認までに TTL 2,400 秒を使い切りうる (受入全走 18〜21 分 + checker の
@@ -271,8 +314,25 @@ title: 受入 integrity 3 件を実装し、既知赤との非両立を裁定ど
   3 巡目では `test_public_main_failure_restores_handler_without_release` が N2 の集合から消えた。
   land のみの変異が待ち手の signal テストを落とすことは依存関係上ありえないので、
   変異へは帰属させずフレークとして扱った。F57 族 (受入全走フレーク) と同じ面かは未確認。
+  **通算 6 例で、うち 1 例は変異 baseline を赤にして harness を停止させた** (12:17 JST)。
+  受入全走でも 3 例出て、そのたびに非帰属 checker 経路へ落ちている。
+  対象は `test_signal_after_core_success_uses_restored_real_handler` /
+  `test_public_main_failure_restores_handler_without_release` /
+  `test_public_main_real_signal_releases_lease` /
+  `test_public_main_real_signal_after_success_uses_restored_handler` の 4 件。
   成果物影響 = 変異 matrix の期待完全集合が走行ごとに揺れ、exact 一致契約 (`DW-M08`) が
-  フレーク由来の MISMATCH を出して検出力の判定を曇らせる。
+  フレーク由来の MISMATCH を出して検出力の判定を曇らせる。加えて受入全走を繰り返し赤にし、
+  land を実質的に止める。
+- {{T:codex-evidence-grace-too-short-under-load}} **P2・新規 (2026-08-13 実測 3 例)**:
+  `tools/codex_worker_launch.py` の `--evidence-grace-s` 既定は 5 秒で、この時間内に codex が
+  session を作らないと `_terminate` で強制停止される。login node が混雑すると codex の起動が
+  5 秒に間に合わず、`codex_exit_code=-15` / model call 0 / wall 8.6 秒 / evidence missing で
+  子が死ぬ (11:15 / 11:18 / 11:37 JST)。**launcher の log は空で、receipt を開かないと理由が分からない。**
+  `tools/dev_wave_codex.py` はこのノブを露出していないため、親は同 wrapper の `--dry-run` が出す
+  権威ある argv をそのまま使い、非権威の観測ノブだけを広げて直接起動する回避を採った
+  (`--evidence-grace-s 90`。wrapper が作る artifact directory は呼び手が `mkdir -p` する)。
+  成果物影響 = 混雑時に実装子が起動できず、原因も表に出ないため、
+  wave が「codex が壊れている」と誤診して停止する。
 - {{T:dev-wave-docs-land-receipt-contract}} **P3・新規**: [T-908] の land 契約
   (必須 2 引数・rc=23・`already-landed` も通さない・逃がし道なし) を `docs/dev-wave/**` へ
   収容できなかった。実測は本文のとおりで、L1 は 229 bytes 超過、L2 の `DW-O25` は exact pin +
