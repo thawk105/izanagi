@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-13
 wave: dev-wave-t1062-acceptance-scheduler
 seq: 1
-title: 受入全走の実効 scheduler を観測して receipt へ束縛し land で照合した — argv では閉じない plugin 差し替えを観測可能にした (コード + docs、変異 14/14 KILLED、branch worktree-dev-wave-t1062-acceptance-scheduler)
+title: 受入全走の実効 scheduler を観測して receipt へ束縛し land で照合した — argv では閉じない plugin 差し替えを観測可能にした (コード + docs、変異 15/15 KILLED、branch worktree-dev-wave-t1062-acceptance-scheduler)
 ---
 
 ## 本文
@@ -46,6 +46,16 @@ title: 受入全走の実効 scheduler を観測して receipt へ束縛し land
   生 ledger は `/work/1/SFC/tanab/dev-wave-jobs/t1062-acceptance-scheduler/mutation/` に残す。
 - **DW-M08 の手順が原理的に成立しない系を実測した。** 詳細は {{F:digest-truncates-expected-nodes}}。
 - **signal 復元系テスト族のフレークを実測で特定した。** 詳細は {{F:signal-restore-test-family-flake}}。
+- **受入全走を 4 回要した。** 1 回目 10820 passed / 2 failed、2 回目 10819 / 3、
+  3 回目は 1 failed、4 回目で 10873 passed / 0 failed。1 回目の赤 1 件だけが本 wave 帰属で
+  (詳細は {{F:marker-breaks-exact-tail-contract}})、残る 5 件はすべて単独走で緑になる
+  signal 系のフレークだった (単独走の実測: `test_t126_pegasus_tools.py` 265 passed、
+  `test_t126_qualification_driver.py` 24 passed、
+  `test_public_main_real_signal_releases_lease` 1 passed)。
+  **赤が 1 件でもあると非帰属 checker が `probe worktree is not clean, including ignored files`
+  で rc=2 (判定不能) になり receipt が出ない。** DW-O18 により rc=2 は非帰属の根拠にできないため、
+  完全緑になるまで再走した。新規作成した probe worktree 自体は clean であることを親が実測しており、
+  汚染源は checker 内部の submodule 初期化が疑われる (本 wave の scope 外)。
 - 段 6 のレビュー 2 本は計 9 件の real を出し、うち 6 件を must-fix として採用した
   (値源、marker 発行位置、単一 read の完成、`held_ids` からの独立、`getattr` 連鎖、変異の層分離)。
   scope 外として裁定パッケージへ回した real は 3 件 (発行者認証、dispatch の wire 契約化、
@@ -70,7 +80,9 @@ scheduler 差し替えの検出* である。scheduler を差し替える plugin
 ### 完了
 
 - [T-1062] 実効 scheduler を conftest で観測し receipt v3 へ束縛して land で照合した。
-  `-p` / `-o` / `--override-ini` の full-suite 誤分類も同面で直した。変異 14/14 KILLED。
+  `-p` / `-o` / `--override-ini` の full-suite 誤分類も同面で直した。変異 15/15 KILLED。
+  受入全走 = 10873 passed / 65 skipped / 0 failed (143.72 秒、計算ノード)。
+  receipt は schema v3 で effective_scheduler=loadgroup を記録した。
   remaining: none
   base: 3a82c5e58b6f1095ab2a6ce9ca856765918fdaeea3d85963be55e67985fcf375
 

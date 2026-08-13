@@ -3,7 +3,7 @@
 wave = `worktree-dev-wave-t1062-acceptance-scheduler`、base main = `48b2caab`。
 裁定 = 2026-08-13 rulings 第 11 回 #3。
 
-## 変異 matrix (最終: 14/14 KILLED、SURVIVED 0、MISMATCH 0)
+## 変異 matrix (最終: 15/15 KILLED、SURVIVED 0、MISMATCH 0)
 
 runner 範囲ごとに spec を分けた。**期待 node は runner 範囲と対**であり、範囲が違う spec の
 期待集合を流用してはならない。
@@ -15,6 +15,7 @@ runner 範囲ごとに spec を分けた。**期待 node は runner 範囲と対
 | `spec-b2.json` / `ledger-b2.json` | 4 file | MUT-B1〜B5 | 5 KILLED |
 | `spec-c.json` / `ledger-c3.json` | land + task_run + collection_config | MUT-C1 / C2 | 2 KILLED |
 | `spec-c4.json` / `ledger-c4.json` | land を `-k` で 2 test へ限定 | MUT-C3 | 1 KILLED |
+| `spec-a4.json` / `ledger-a4.json` | failure_digest + task_run | MUT-A2c | 1 KILLED |
 
 正例 (過剰拒否の検出) は 2 件ある。
 
@@ -50,6 +51,26 @@ Pegasus 計算ノードへ `--force-dispatch` で投入した走行の log に�
 よる。成功時の relay は末尾 4 KiB (`DEFAULT_SUCCESS_RELAY_LIMIT_BYTES`)、失敗時は 64 KiB。
 この literal は `orchestrator/tests/test_dev_wave_wait.py` の回帰テストへ pin してある。
 
-marker の発行位置は `pytest_unconfigure` wrapper の最後である。conftest 自身が failure digest を
-最大 48 KiB、この位置より前に出すため、`pytest_sessionfinish` で出すと失敗時の relay tail から
-押し出されうる。
+marker の発行位置は `pytest_unconfigure` wrapper の中の **failure digest の直前**である。
+`pytest_sessionfinish` で出すと digest (最大 48 KiB) より前になり失敗時の relay tail から
+押し出されうる。逆に digest より後にすると、digest の END 行が stdout 末尾であることを要求する
+`test_pytest_failure_digest.py` の e2e 契約を壊す (受入全走 1 回目で実測)。
+前後どちらへも寄せられない位置が digest の直前だけである。
+
+## 受入全走 (4 回)
+
+| 走 | 結果 | 赤 | 帰属 |
+|---|---|---|---|
+| 1 | 10820 passed / 2 failed | digest e2e、signal 族 1 | digest e2e は本 wave 帰属の回帰。修正済み |
+| 2 | 10819 passed / 3 failed | signal 族 1、t126 signal 2 | 3 件とも単独走で緑 = 非帰属 |
+| 3 | 1 failed | t126 qualification driver 1 | 単独走 24 passed = 非帰属 |
+| 4 | **10873 passed / 65 skipped / 0 failed (143.72 秒)** | なし | receipt 発行 |
+
+4 回目の receipt (schema `dev-wave-acceptance-receipt/v3`) は
+`effective_scheduler = loadgroup`、`verdict = child-green`、`child_rc = 0`、
+`argv = ["python3", "tools/run_tests.py"]` を記録した。**本 wave の目的が実データで成立した
+唯一の証拠である。**
+
+赤が 1 件でもあると非帰属 checker が `probe worktree is not clean, including ignored files` で
+rc=2 (判定不能) になり receipt が出ない。DW-O18 により rc=2 は非帰属の根拠にできないため、
+完全緑になるまで再走した。新規作成した probe worktree 自体は clean であることを親が実測している。

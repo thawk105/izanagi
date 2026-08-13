@@ -21,8 +21,11 @@ acceptance receipt (schema `dev-wave-acceptance-receipt/v3`) の `effective_sche
 2. 判定は exact 型で行う。`type(sched) is LoadGroupScheduling` のみ `loadgroup`、
    `dsession` plugin 不在は `serial`、それ以外・参照不能・例外は `unknown`。
    派生クラスは scheduling を上書きできるため `isinstance` にしない。
-3. marker は `pytest_unconfigure` wrapper の最後、**failure digest より後**に controller だけが
-   1 行出す。位置が末尾でないと Pegasus dispatch の relay tail から押し出される。
+3. marker は `pytest_unconfigure` wrapper の中で、**failure digest の直前**に controller だけが
+   1 行出す。`pytest_sessionfinish` では digest より前になり Pegasus dispatch の relay tail から
+   押し出されうる。digest より後にすると、digest の END 行が stdout の末尾であることを要求する
+   既存 e2e 契約を壊す。digest が出るのは失敗がある走行だけで、その走行は relay の失敗側
+   (末尾 64 KiB) に載り、digest の予算上限 48 KiB を足しても marker は tail に収まる。
 4. 待ち手は単一 `O_NOFOLLOW` open の streaming で hash と marker を同時に得る。
    `st_dev` / `st_ino` / `st_size` / `st_mtime_ns` の前後照合に加え、
    読み切り byte 数 == `st_size` を必須とする。
@@ -40,8 +43,9 @@ acceptance receipt (schema `dev-wave-acceptance-receipt/v3`) の `effective_sche
 - 1 の理由は pluggy の wrapper 意味論である。後から登録された外側 wrapper は、conftest の
   wrapper が post-yield で値を見た**後**に戻り値を差し替えられる。DSession が実際に保持した
   object を見るしかない。
-- 3 の理由は dispatch の relay が成功時 4 KiB / 失敗時 64 KiB の tail しか返さないことである。
-  conftest 自身が失敗要約を最大 48 KiB 出すため、marker をその前に置くと押し出されうる。
+- 3 の理由は dispatch の relay が成功時 4 KiB / 失敗時 64 KiB の tail しか返さないことと、
+  conftest 自身が失敗要約を最大 48 KiB 出すことの両方である。前後どちらへ置いても
+  失われない位置は digest の直前だけであり、これは実受入で 1 度踏んで確定した。
 - 4 の理由は、hash 後に別 open で marker を読むと「log A の hash と log B の scheduler」を
   1 つの receipt へ載せられるためである。land は raw log を受け取らないので検出できない。
 - 6 で `serial` を受理するのは、`python3 tools/run_tests.py -n0` が現行 `_is_acceptance_run` の
@@ -57,6 +61,8 @@ acceptance receipt (schema `dev-wave-acceptance-receipt/v3`) の `effective_sche
 - hookwrapper の戻り値を attest にする — 後登録の外側 wrapper に差し替えられる。
 - `dsession.sched` を marker 出力時点で読む — 読むまでの間に再代入・unregister されうる。
 - marker を `pytest_sessionfinish` で出す — failure digest より前になり relay tail から落ちる。
+- marker を failure digest より後に出す — digest の END 行が stdout 末尾であることを要求する
+  既存 e2e 契約を壊す。既存契約の側を緩めない。
 - land が `loadgroup` のみ受理する — 現行受理形の `-n0` を拒否し受理集合を狭める。
 - receipt へ `unknown` を記録せず待ち手で落とす — 裁定文の「receipt へ記録し land で照合」に
   反し、何が観測されたかの診断も残らない。

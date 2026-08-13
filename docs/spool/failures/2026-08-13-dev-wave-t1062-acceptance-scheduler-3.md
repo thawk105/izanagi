@@ -67,3 +67,19 @@ seq: 3
   (含めると期待 node の完全集合が原理的に安定しない)。
 - 再発検知: 変異 baseline の赤 node が走行ごとに族内で移動すること。本 wave の
   `ledger-c2.json` と `ledger-c3.json` の baseline が実例。
+
+### {{F:marker-breaks-exact-tail-contract}}. conftest の出力を 1 行増やして別機構の末尾契約を壊した [テスト代表性]
+
+- 事象: 実効 scheduler の marker を `pytest_unconfigure` の最後 (failure digest より後) に出した
+  結果、`test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account`
+  が赤になった。同テストは digest の END 行が stdout の**末尾**であることを要求している。
+  受入全走で初めて出た。段 3 と段 6 の敵対レビュー計 4 本は、いずれも「marker が既存 consumer と
+  衝突しないか」を明示的に検査したうえで**衝突なしと結論していた**。
+- 根本原因: conftest は全 pytest 走行に効くため、出力を 1 行増やすだけで、出力の末尾や総量を
+  exact に検査する既存 e2e と衝突しうる。焦点走の file 集合に当該 e2e を含めていなかったため、
+  受入全走まで検出が遅れた。
+- 恒久対応: {{D:effective-scheduler-attestation}} の決定 3 を「digest の直前」へ改め、
+  既存契約側は 1 文字も変えなかった。変異 MUT-A2c (marker を digest より後へ戻す) が
+  当該 e2e と本 wave のテストの両方で殺される。
+- 再発検知: conftest の出力を増減する wave は、焦点走の file 集合へ
+  `orchestrator/tests/test_pytest_failure_digest.py` を必ず含める。
