@@ -632,7 +632,9 @@ def test_conftest_sessionfinish_is_plain_and_does_not_emit_scheduler_marker(
 
 
 @pytest.mark.parametrize("with_digest", [False, True], ids=["green", "failure-digest"])
-def test_scheduler_marker_is_last_conftest_output(monkeypatch, capsys, with_digest):
+def test_scheduler_marker_precedes_digest_and_is_last_without_digest(
+    monkeypatch, capsys, with_digest,
+):
     session = _session()
     CONF._FAILURE_REPORTS.clear()
     if with_digest:
@@ -640,17 +642,26 @@ def test_scheduler_marker_is_last_conftest_output(monkeypatch, capsys, with_dige
         monkeypatch.setattr(
             CONF,
             "_emit_failure_digest",
-            lambda _reports: print("failure digest", flush=True),
+            lambda _reports: print(
+                "=== IZANAGI FAILURE DIGEST v1 BEGIN ===\n"
+                "=== IZANAGI FAILURE DIGEST v1 END ===",
+                flush=True,
+            ),
         )
 
     _finish_unconfigure(session.config)
 
-    expected = [
-        'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}',
-    ]
+    marker = 'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}'
+    output = capsys.readouterr().out
+    lines = output.splitlines()
+    assert lines.count(marker) == 1
     if with_digest:
-        expected.insert(0, "failure digest")
-    assert capsys.readouterr().out.splitlines() == expected
+        digest_begin = "=== IZANAGI FAILURE DIGEST v1 BEGIN ==="
+        digest_end = "=== IZANAGI FAILURE DIGEST v1 END ==="
+        assert lines.index(marker) < lines.index(digest_begin)
+        assert output.endswith(digest_end + "\n")
+    else:
+        assert lines[-1] == marker
 
 
 def test_runtestloop_freezes_scheduler_before_later_replacement(monkeypatch, capsys):

@@ -1011,6 +1011,14 @@ def pytest_unconfigure(config):
         _FAILURE_REPORTS.clear()
         # finally 内で return すると inner hook の例外を StopIteration で消すため、
         # worker/green とも条件分岐だけで通過する。
+        if not hasattr(config, "workerinput"):
+            if inner_exception is None:
+                _emit_effective_scheduler_marker(config)
+            else:
+                try:
+                    _emit_effective_scheduler_marker(config)
+                except BaseException:
+                    pass
         if not hasattr(config, "workerinput") and stashed:
             if inner_exception is None:
                 _emit_failure_digest(stashed)
@@ -1019,13 +1027,5 @@ def pytest_unconfigure(config):
                 # emitter が投げた BaseException も含めて元例外を置換させない。
                 try:
                     _emit_failure_digest(stashed)
-                except BaseException:
-                    pass
-        if not hasattr(config, "workerinput"):
-            if inner_exception is None:
-                _emit_effective_scheduler_marker(config)
-            else:
-                try:
-                    _emit_effective_scheduler_marker(config)
                 except BaseException:
                     pass
