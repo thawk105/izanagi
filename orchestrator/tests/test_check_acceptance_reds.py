@@ -44,7 +44,9 @@ def committed_repo(tmp_path: Path) -> tuple[Path, str, Path]:
     repo.mkdir()
     _git(repo, "init", "-q")
     (repo / "tracked.txt").write_text("fixture\n", encoding="utf-8")
-    (repo / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(
+        "__pycache__/\noutput/pegasus-dispatch/\n", encoding="utf-8"
+    )
     tools = repo / "tools"
     tools.mkdir()
     collected = "\n".join(
@@ -1504,7 +1506,7 @@ def test_dispatch_commands_use_dispatch_aware_timeout(
         repo_root=repo,
         command_runner=command_runner,
     ) == 0
-    assert dispatch_timeouts == [4200.0, 4200.0]
+    assert dispatch_timeouts == [5100.0, 5100.0]
     assert git_timeouts and set(git_timeouts) == {120.0}
 
 
@@ -1518,6 +1520,10 @@ def test_collection_environment_neutralizes_pytest_addopts(
     monkeypatch.setenv("PYTEST_ADDOPTS", "--deselect=target")
     monkeypatch.setenv("PYTEST_PLUGINS", "hostile_plugin")
     monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    monkeypatch.setenv("IZANAGI_RUN_GROWTH_HELD_TESTS", "explicit-user-command")
+    monkeypatch.setenv("IZANAGI_T080_E2E", "1")
+    monkeypatch.setenv("IZANAGI_TEST_NPROC", "7")
+    monkeypatch.setenv("IZANAGI_TEST_TRIGGER", "review-fix")
     observed_environments: list[dict[str, str]] = []
 
     def command_runner(command: Sequence[str], **kwargs):
@@ -1546,6 +1552,10 @@ def test_collection_environment_neutralizes_pytest_addopts(
         assert environment["PYTEST_ADDOPTS"] == ""
         assert "PYTEST_PLUGINS" not in environment
         assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" not in environment
+        assert "IZANAGI_RUN_GROWTH_HELD_TESTS" not in environment
+        assert "IZANAGI_T080_E2E" not in environment
+        assert environment["IZANAGI_TEST_NPROC"] == "7"
+        assert environment["IZANAGI_TEST_TRIGGER"] == "review-fix"
 
 
 def test_checker_receipt_records_collection_provenance(
@@ -1579,7 +1589,10 @@ def test_checker_receipt_records_collection_provenance(
     collection = json.loads(receipt.read_text(encoding="utf-8"))["collections"][0]
     assert collection["path"] == "orchestrator/tests/test_example.py"
     assert collection["source"] == "dispatch-receipt"
-    assert collection["receipt_path"].endswith("/fixture-dispatch/receipt.json")
+    assert "receipt_path" not in collection
+    assert collection["deleted_receipt_path"].endswith(
+        "/fixture-dispatch/receipt.json"
+    )
     assert collection["submission_nonce"] == "fixture-dispatch"
     assert collection["request_id"] == "fixture.nqsv"
     assert collection["stdout_sha256"] == hashlib.sha256(
@@ -1619,6 +1632,50 @@ def test_default_dispatched_rerun_removes_verified_dispatch_artifacts(
         repo_root=repo,
         command_runner=command_runner,
     ) == 0
+
+
+def test_dispatch_cleanup_refuses_nonempty_exact_root(tmp_path: Path) -> None:
+    worktree = tmp_path / "probe"
+    worktree.mkdir()
+    command = [
+        sys.executable,
+        str(worktree / "tools" / "run_tests.py"),
+        "-p",
+        "no:cacheprovider",
+        "--force-dispatch",
+        _NON_ATTRIBUTABLE,
+    ]
+    result = _fake_dispatch_result(
+        worktree,
+        command,
+        returncode=1,
+        authoritative_stdout=_summary_log((("FAILED", _NON_ATTRIBUTABLE),)),
+        fallback=True,
+    )
+    dispatch_root = worktree / "output" / "pegasus-dispatch"
+    marker = dispatch_root / "unowned-marker"
+    marker.write_text("must remain\n", encoding="utf-8")
+    expected_args = [
+        "-p",
+        "no:cacheprovider",
+        str(
+            (
+                worktree / "orchestrator" / "tests" / "test_example.py"
+            ).resolve(strict=False)
+        )
+        + "::test_non_attributable",
+    ]
+
+    with pytest.raises(CAR.InvalidInput, match="dispatch artifact cleanup failed"):
+        CAR._authoritative_command_stdout(
+            result,
+            worktree=worktree,
+            expected_args=expected_args,
+        )
+
+    assert marker.read_text(encoding="utf-8") == "must remain\n"
+    assert not (dispatch_root / "fixture-dispatch").exists()
+    assert not (dispatch_root / "receipt-fallback-fixture-dispatch.json").exists()
 
 
 @pytest.mark.parametrize(

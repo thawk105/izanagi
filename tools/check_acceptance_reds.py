@@ -22,7 +22,10 @@ from typing import Any, Callable, Mapping, NamedTuple, Sequence
 _SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
 _MAX_LOG_BYTES = 64 * 1024 * 1024
 _MAX_DISPATCH_RECEIPT_BYTES = 8 * 1024 * 1024
-_DISPATCH_TIMEOUT_SECONDS = 4200.0
+# dispatch_compute may spend 900s queued, then reset its deadline to
+# 3600s RUN time + 300s grace, followed by 60s of accounting.  Keep this
+# outer timeout above that 4860s authority so dispatch reports its own timeout.
+_DISPATCH_TIMEOUT_SECONDS = 5100.0
 _SUMMARY_HEADER = re.compile(r"^={3,} short test summary info ={3,}$")
 _SUMMARY_LINE = re.compile(r"^={3,} (?P<body>.+) ={3,}$")
 _OUTCOME_LINE = re.compile(
@@ -53,6 +56,8 @@ _PYTEST_SELECTION_ENV = frozenset({
     "PYTEST_ADDOPTS",
     "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
     "PYTEST_PLUGINS",
+    "IZANAGI_RUN_GROWTH_HELD_TESTS",
+    "IZANAGI_T080_E2E",
 })
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
@@ -63,7 +68,7 @@ SubmoduleReceipt = tuple[Mapping[str, str], ...]
 class _CollectionEvidence(NamedTuple):
     path: str
     source: str
-    receipt_path: str | None
+    deleted_receipt_path: str | None
     submission_nonce: str | None
     request_id: str | None
     stdout_sha256: str | None
@@ -78,6 +83,7 @@ CollectionRunner = Callable[[Path, str], Sequence[str] | _CollectionResult]
 
 
 class _DispatchArtifacts(NamedTuple):
+    root: Path
     receipt_path: Path
     submission_dir: Path
     fallback_receipt: Path | None
@@ -216,38 +222,56 @@ def _dispatch_artifacts(receipt_path: Path, worktree: Path) -> _DispatchArtifact
         worktree_resolved = worktree.resolve(strict=True)
     except OSError as exc:
         raise InvalidInput(f"dispatch receipt root cannot be resolved: {exc}") from exc
-    if not root.is_dir() or root != worktree_resolved / "output" / "pegasus-dispatch":
-        raise InvalidInput("dispatch receipt root has an invalid location")
     try:
         receipt_resolved = receipt_path.resolve(strict=True)
     except OSError as exc:
         raise InvalidInput(f"dispatch receipt cannot be resolved: {exc}") from exc
-    _assert_no_symlink_components(root, receipt_path, label="dispatch receipt")
-    if receipt_resolved != receipt_path:
-        raise InvalidInput("dispatch receipt path is not canonical")
 
     fallback_receipt: Path | None = None
-    if receipt_path.parent.parent == root and receipt_path.name == "receipt.json":
+    preferred_shape = (
+        receipt_path.parent.parent == root and receipt_path.name == "receipt.json"
+    )
+    fallback_shape = (
+        receipt_path.parent == root
+        and receipt_path.name.startswith("receipt-fallback-")
+        and receipt_path.name.endswith(".json")
+    )
+    if receipt_path.name == "receipt.json":
         nonce = receipt_path.parent.name
         submission_dir = receipt_path.parent
-    elif receipt_path.parent == root and receipt_path.name.startswith(
-        "receipt-fallback-"
-    ) and receipt_path.name.endswith(".json"):
+    elif (
+        receipt_path.name.startswith("receipt-fallback-")
+        and receipt_path.name.endswith(".json")
+    ):
         nonce = receipt_path.name[len("receipt-fallback-"):-len(".json")]
         submission_dir = root / nonce
         fallback_receipt = receipt_path
     else:
-        raise InvalidInput("dispatch receipt path has an unsupported location shape")
-    if (
-        _DISPATCH_NONCE.fullmatch(nonce) is None
-        or nonce in {".", ".."}
-        or not submission_dir.is_dir()
-    ):
+        nonce = receipt_path.parent.name
+        submission_dir = receipt_path.parent
+
+    location_valid = False
+    try:
+        _assert_no_symlink_components(root, receipt_path, label="dispatch receipt")
+        _assert_no_symlink_components(root, submission_dir, label="dispatch submission")
+        submission_resolved = submission_dir.resolve(strict=True)
+    except (InvalidInput, OSError):
+        pass
+    else:
+        location_valid = (
+            root.is_dir()
+            and root == worktree_resolved / "output" / "pegasus-dispatch"
+            and receipt_resolved == receipt_path
+            and (preferred_shape or fallback_shape)
+            and submission_dir.is_dir()
+            and submission_resolved == submission_dir
+        )
+    if not location_valid:
+        raise InvalidInput("dispatch receipt has an invalid location")
+    if _DISPATCH_NONCE.fullmatch(nonce) is None or nonce in {".", ".."}:
         raise InvalidInput("dispatch receipt nonce directory is invalid")
-    _assert_no_symlink_components(root, submission_dir, label="dispatch submission")
-    if submission_dir.resolve(strict=True) != submission_dir:
-        raise InvalidInput("dispatch submission directory is not canonical")
     return _DispatchArtifacts(
+        root=root,
         receipt_path=receipt_path,
         submission_dir=submission_dir,
         fallback_receipt=fallback_receipt,
@@ -349,7 +373,7 @@ def _read_dispatch_receipt(
     return tail, _CollectionEvidence(
         path="",
         source="dispatch-receipt",
-        receipt_path=str(artifacts.receipt_path),
+        deleted_receipt_path=str(artifacts.receipt_path),
         submission_nonce=artifacts.nonce,
         request_id=request_id,
         stdout_sha256=hashlib.sha256(tail.encode("utf-8")).hexdigest(),
@@ -367,12 +391,18 @@ def _cleanup_dispatch_artifacts(artifacts: _DispatchArtifacts) -> None:
             artifacts.fallback_receipt.unlink()
         except OSError as exc:
             failures.append(f"fallback receipt removal failed: {exc}")
+    try:
+        artifacts.root.rmdir()
+    except OSError as exc:
+        failures.append(f"dispatch root removal failed: {exc}")
     if artifacts.submission_dir.exists() or artifacts.submission_dir.is_symlink():
         failures.append("nonce directory remains")
     if artifacts.fallback_receipt is not None and (
         artifacts.fallback_receipt.exists() or artifacts.fallback_receipt.is_symlink()
     ):
         failures.append("fallback receipt remains")
+    if artifacts.root.exists() or artifacts.root.is_symlink():
+        failures.append("dispatch root remains")
     if failures:
         raise InvalidInput("dispatch artifact cleanup failed: " + "; ".join(failures))
 
@@ -391,7 +421,7 @@ def _authoritative_command_stdout(
         return relay_stdout, _CollectionEvidence(
             path="",
             source="local",
-            receipt_path=None,
+            deleted_receipt_path=None,
             submission_nonce=None,
             request_id=None,
             stdout_sha256=hashlib.sha256(relay_stdout.encode("utf-8")).hexdigest(),
@@ -981,7 +1011,7 @@ def _default_collection_runner(
         evidence=_CollectionEvidence(
             path=path_text,
             source=evidence.source,
-            receipt_path=evidence.receipt_path,
+            deleted_receipt_path=evidence.deleted_receipt_path,
             submission_nonce=evidence.submission_nonce,
             request_id=evidence.request_id,
             stdout_sha256=evidence.stdout_sha256,
@@ -1210,7 +1240,7 @@ def _probe_nodes(
                     _CollectionEvidence(
                         path=path_text,
                         source="injected-runner",
-                        receipt_path=None,
+                        deleted_receipt_path=None,
                         submission_nonce=None,
                         request_id=None,
                         stdout_sha256=None,
@@ -1435,7 +1465,7 @@ def check_acceptance_reds(
             "collections": [
                 {
                     "path": item.path,
-                    "receipt_path": item.receipt_path,
+                    "deleted_receipt_path": item.deleted_receipt_path,
                     "request_id": item.request_id,
                     "source": item.source,
                     "stdout_sha256": item.stdout_sha256,
