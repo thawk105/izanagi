@@ -22,6 +22,9 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 _LAUNCHER = _ROOT / "tools" / "codex_worker_launch.py"
+_REAL_EVENT_FIXTURES = (
+    _ROOT / "orchestrator" / "tests" / "fixtures" / "codex_worker_launch"
+)
 _BASE_COMMIT = subprocess.run(
     ["git", "-C", os.fspath(_ROOT), "rev-parse", "HEAD"],
     check=True,
@@ -1845,6 +1848,85 @@ def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     assert len(manifest["sessions"]) == 1
     for pid in _leader_pids(paths):
         _assert_pid_gone(pid)
+
+
+def _consume_real_stdout_fixture(
+    name: str, *, omitted_line_indexes: frozenset[int] = frozenset()
+) -> LAUNCHER.AttemptState:
+    path = _REAL_EVENT_FIXTURES / name
+    state = LAUNCHER.AttemptState(
+        attempt_index=1,
+        started_ns=0,
+        stdout_path=path,
+        stderr_path=path.with_suffix(".stderr"),
+        output_path=path.with_suffix(".output"),
+    )
+    for index, line in enumerate(path.read_bytes().splitlines()):
+        if index in omitted_line_indexes:
+            continue
+        event = json.loads(line)
+        assert isinstance(event, dict)
+        LAUNCHER._consume_stdout_event(state, event)
+    return state
+
+
+def test_real_accepted_stdout_ignores_pre_turn_hook_trust_diagnostics() -> None:
+    with_diagnostics = _consume_real_stdout_fixture(
+        "probe-inturn.events.jsonl"
+    )
+    without_diagnostics = _consume_real_stdout_fixture(
+        "probe-inturn.events.jsonl",
+        omitted_line_indexes=frozenset({1, 2}),
+    )
+
+    assert with_diagnostics == without_diagnostics
+    assert with_diagnostics.session_ids == [
+        "019ffa55-8dc0-72e1-b93b-d2d33690c668"
+    ]
+    assert with_diagnostics.terminal_usage is not None
+
+
+def test_real_pre_turn_only_stdout_has_session_without_terminal_usage() -> None:
+    state = _consume_real_stdout_fixture(
+        "rulings-small6-failed.events.jsonl"
+    )
+
+    assert state.session_ids == ["019ff8f3-6c4d-7751-92c9-c45f9ad00ab0"]
+    assert state.terminal_usage is None
+
+
+@pytest.mark.parametrize(
+    "value",
+    (
+        "0",
+        "-1",
+        "NaN",
+        "Infinity",
+        "1e-10000",
+        "9.999999999999999999999999999999999999e-10",
+        "1e10000",
+    ),
+)
+def test_launcher_rejects_unsafe_evidence_grace_before_child_launch(
+    tmp_path: Path, value: str
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    command, env, paths = _base_command(tmp_path, fake=fake)
+    command[command.index("--evidence-grace-s") + 1] = value
+
+    completed = subprocess.run(
+        command,
+        env=env,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+    )
+
+    assert completed.returncode == 2
+    assert "正の有限数で nanosecond へ安全に変換" in completed.stderr
+    assert not paths["receipt"].exists()
 
 
 def test_unknown_reasoning_is_rejected_before_child_launch(
