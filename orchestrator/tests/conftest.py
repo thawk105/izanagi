@@ -313,6 +313,8 @@ def _real_repo_node_id(item) -> str:
 _GROWTH_HOLD_IDS_ATTR = "_izanagi_collected_growth_hold_ids"
 _REAL_REPO_SERIAL_NODE_ATTR = "_izanagi_real_repo_serial_node"
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
+_EFFECTIVE_SCHEDULER_PREFIX = "IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+_EFFECTIVE_SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 
 
 def _growth_holds_opted_in() -> bool:
@@ -492,6 +494,56 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
         pytest_stats.note_xdist_collection(node, ids)
     except Exception:
         pass
+
+
+def _effective_scheduler(config) -> str:
+    """Classify the scheduler object actually retained by xdist's DSession."""
+    try:
+        dsession = config.pluginmanager.get_plugin("dsession")
+    except Exception:
+        return "unknown"
+    if dsession is None:
+        return "serial"
+    try:
+        sched = dsession.sched
+        from xdist.scheduler import LoadGroupScheduling
+
+        if type(sched) is LoadGroupScheduling:
+            return "loadgroup"
+    except Exception:
+        pass
+    return "unknown"
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtestloop(session):
+    """Freeze the controller scheduler immediately after xdist has used it."""
+    controller = not hasattr(session.config, "workerinput")
+    result = yield
+    if controller and not hasattr(session.config, _EFFECTIVE_SCHEDULER_ATTR):
+        setattr(
+            session.config,
+            _EFFECTIVE_SCHEDULER_ATTR,
+            _effective_scheduler(session.config),
+        )
+    return result
+
+
+def _emit_effective_scheduler_marker(config) -> None:
+    pluginmanager = getattr(config, "pluginmanager", None)
+    if pluginmanager is None or not callable(getattr(pluginmanager, "get_plugin", None)):
+        return
+    scheduler = getattr(config, _EFFECTIVE_SCHEDULER_ATTR, None)
+    if scheduler is None:
+        scheduler = _effective_scheduler(config)
+    payload = json.dumps(
+        {"effective_scheduler": scheduler},
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    marker = _EFFECTIVE_SCHEDULER_PREFIX + payload
+    print(marker, flush=True)
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
@@ -959,6 +1011,14 @@ def pytest_unconfigure(config):
         _FAILURE_REPORTS.clear()
         # finally 内で return すると inner hook の例外を StopIteration で消すため、
         # worker/green とも条件分岐だけで通過する。
+        if not hasattr(config, "workerinput"):
+            if inner_exception is None:
+                _emit_effective_scheduler_marker(config)
+            else:
+                try:
+                    _emit_effective_scheduler_marker(config)
+                except BaseException:
+                    pass
         if not hasattr(config, "workerinput") and stashed:
             if inner_exception is None:
                 _emit_failure_digest(stashed)

@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "MUT-A4b-restore-plugin-option-to-full-suite-allowlist",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    \"--log-file-level\", \"--log-file-format\", \"--log-file-date-format\",\n})",
+          "new": "    \"--log-file-level\", \"--log-file-format\", \"--log-file-date-format\",\n    \"-p\",\n})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_task_run.py::test_plugin_and_ini_overrides_are_targeted_for_all_consumers[plugin-equals]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_plugin_and_ini_overrides_are_targeted_for_all_consumers[plugin-separate]"
+      ]
+    },
+    {
+      "id": "MUT-A5b-over-reject-every-full-suite-shape",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "        if token.startswith(\"-n\") and token != \"-n\" and len(token) > 2:\n            i += 1\n            continue\n        return False\n    return True\n",
+          "new": "        if token.startswith(\"-n\") and token != \"-n\" and len(token) > 2:\n            i += 1\n            continue\n        return False\n    return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_collection_config.py::test_ini_addopts_narrows_collection_while_runner_gates_stay_blind",
+        "orchestrator/tests/test_pytest_collection_config.py::test_runner_default_target_survives_ini",
+        "orchestrator/tests/test_run_tests_task_run.py::test_acceptance_shapes_remain_full[args0]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_acceptance_shapes_remain_full[args1]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_acceptance_shapes_remain_full[args2]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_full_classification_closed_known_nonselectors[args0]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_full_classification_closed_known_nonselectors[args1]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_full_classification_closed_known_nonselectors[args2]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_full_classification_closed_known_nonselectors[args3]",
+        "orchestrator/tests/test_run_tests_task_run.py::test_nonempty_pytest_addopts_forces_targeted"
+      ]
+    }
+  ]
+}
