@@ -7147,3 +7147,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   ただし**この誤りを信じたまま二段構えにしていたら、`--find-copies-harder` の検出器が
   静かに消えたことに気づけなかった** (二段構えでは near-copy が高価走行に到達しないため、
   既存テストは緑のまま通る)。
+
+### F294. 変異が「揺れる木」を走査対象にし、失敗 node 集合が非決定になった [計測汚染]
+
+- 事象: dev-wave-floor-campaign-speed の変異 M10 (`_real_output_snapshot` の既定 root を
+  `ROOT/"output"` から `ROOT` へ広げる) が 2 走とも MISMATCH、失敗 node 集合は 10 共通・1 入替の
+  非決定だった。安定した誤 root (`ROOT/"docs"`) へ分割した M10b は 1 走で KILLED・完全一致。
+- 根本原因: guard が `.git` や dispatch receipt を含む「走行中に変化する木」を走査し、どの guard が
+  先に落ちるかがレースで決まる。置換後の走査対象・入力集合が実行中に変化する変異は、DW-M08 の
+  失敗 node 完全一致要求を原理的に満たせない。
+- 恒久対応: 揺れる木に触れる変異は安定 root への単一理由分割で書く (M10b が KILLED・完全一致を
+  実証)。`DW-M03` への本文追記はしない (ユーザー裁定 2026-08-13 第 9 回 #23、一次控え =
+  rulings-inbox `2026-08-13-rulings9-29rulings.md`)。fails-closed の防壁は変異 harness の
+  DW-M08 完全一致検査 (期待 node 集合との exact 照合が非決定を MISMATCH として拒否する)。
+- 再発検知: 変異 harness の MISMATCH 判定 (2 走で失敗 node 集合が入れ替わる形で発現する)。
+  正本 = `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-floor-campaign-speed/s8-candidates.md` 候補 1。
