@@ -99,11 +99,14 @@ def _honest_record(
     }
 
 
-def _validate(record: dict) -> dict:
+def _validate(
+    record: dict, *, expected_ccbench_pin: str = _CCBENCH_PIN,
+    expected_contract_sha256: str = _CONTRACT_SHA,
+) -> dict:
     return A.validate_portable_binary_record(
         record, expected_policy=resolve_current_build_admission_policy(),
-        expected_ccbench_pin=_CCBENCH_PIN,
-        expected_contract_sha256=_CONTRACT_SHA,
+        expected_ccbench_pin=expected_ccbench_pin,
+        expected_contract_sha256=expected_contract_sha256,
         expected_cell_id=record["cell_id"],
         expected_holdout_id=record["holdout_id"],
         expected_configuration_id=record["configuration_id"],
@@ -150,6 +153,34 @@ def test_validate_rejects_binary_sha_record_mismatch(tmp_path: Path):
     record["store_path"] = f"store/{replacement}"
     with pytest.raises(A.BinaryAdmissionError, match="subject binary SHA"):
         _validate(record)
+
+
+def test_validate_rejects_external_ccbench_pin_mismatch(tmp_path: Path):
+    record = _honest_record(tmp_path)
+    assert _validate(record) == record["admission_receipt"]
+    mismatched_pin = "2" * 40
+    assert mismatched_pin != record["admission_receipt"]["admission"]["source"][
+        "ccbench_commit"
+    ]
+    with pytest.raises(
+        A.BinaryAdmissionError,
+        match="receipt source ccbench pin が外部期待値と不一致",
+    ):
+        _validate(record, expected_ccbench_pin=mismatched_pin)
+
+
+def test_validate_rejects_external_contract_sha256_mismatch(tmp_path: Path):
+    record = _honest_record(tmp_path)
+    assert _validate(record) == record["admission_receipt"]
+    mismatched_contract = "f" * 64
+    assert mismatched_contract != record["admission_receipt"]["subject"][
+        "contract_sha256"
+    ]
+    with pytest.raises(
+        A.BinaryAdmissionError,
+        match="receipt subject contract が外部期待値と不一致",
+    ):
+        _validate(record, expected_contract_sha256=mismatched_contract)
 
 
 def test_validate_rejects_foreign_cell_receipt_with_identical_other_subjects(tmp_path: Path):
