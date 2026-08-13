@@ -74,6 +74,33 @@ title: 床値 sort_best の SWO oracle 不可用を実測で確定し、原因�
   子の報告は一貫して「静的検査のみ、実走 0 件、緑とは報告しない」で、正しく fail-closed していた。
 - **段 6 投入で親が argv を誤り、レビュー 2 本が起動直後に rc=2 で落ちた** (`--lane` は
   `--stage consult` 専用)。別名で再投入し、既存 `.done` は消していない。
+- **変異 10/10 KILLED (fix 後の最終 commit `80caf743` で本走、rc=0、SURVIVED 0)。**
+  台帳は `output/insights/2026-08-14_t971-swo-oracle-floor/`。
+  初回 probe 走の 4 件 MISMATCH はすべて期待 node の導出違いで、検出そのものは効いていた
+  (2 件は親の予測より**強く**、1 件は終了コード未検証のテストがあり、1 件は担当範囲の違い)。
+  **正例として登録した M10 が検出された** — エラーメッセージの日本語文言そのものを
+  pin しているテストがあり、文面を変えるだけで赤くなる。正しさには影響しないが脆い。
+- **変異はログインノードの bounded local では完走しない。** 並行 wave が同時にテストを
+  走らせると cgroup scope を attest できず `dispatcher infrastructure failure` になり、
+  harness が fail-closed 停止する (local で 2 回停止)。**runner-mode = dispatch
+  (計算ノード) が既定であり、argv に `--force-dispatch` を入れる。**
+  切り替え後は 3 走とも一度も落ちていない。親が local を選んだのは誤りで、
+  ユーザーの指摘 (「計算ノードでやりゃ競合ないやろ」) で是正した。
+- **受入の帰属赤 4 件を 1 件ずつ単独再走で切り分けた。**
+  - 本物の欠陥 1 件: 本 wave が `s8b_floor_campaign.py` (env 中立モジュール) へ
+    Pegasus 固有 policy への path literal を持ち込んでいた。
+    **一度目の fix は `"tools" / "pegasus" / "policy.json"` を
+    `"tools/pegasus/policy.json"` へ繋げただけで、検査器の tokenizer が standalone の
+    `pegasus` を見なくなっただけだった。親が差し戻した。**
+    子が先例に挙げた `silo_ladder_rung1.py` は `V2_ENV_NEUTRAL_MODULES` に含まれず
+    許容根拠にならない。所在の権威を所有側の accessor へ寄せて literal を除去した。
+  - 再 pin 2 件: `test_s8b_oracle_manifest.py` の materializer golden。
+    当該 sha は同 test file にしか存在せず凍結成果物は持たない (全件検索で確認)、
+    かつ同じ再 pin の先例が 3 件ある (`ee4d6d29` / `b5906e84` / `03c4efb2`) ため、
+    実ファイルから算出した値へ限定更新した。hash を算出する側は変更していない。
+  - 非帰属 1 件: `test_dev_wave_wait.py::test_public_main_real_signal_releases_lease` は
+    単独再走で緑。本 wave は当該 file に 1 行も触れていない。
+    **受入中に本 wave 自身が受入 lease を保持していたことによる干渉**である。
 - 設計判断は {{D:floor-oracle-dependency-transport}}、失敗型は {{F:new-preflight-reintroduces-opaque-failure}} を参照。
 
 ## 次の一手差分
