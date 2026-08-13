@@ -363,6 +363,7 @@ def test_oracle_reject_stops_before_run_campaign_and_roundtrips_to_critic(monkey
     assert loaded[0].materialized_hole_sha256 == "a" * 64
     assert loaded[0].proposal_sha256 == "b" * 64
     assert loaded[0].oracle_contract_id == oracle.ORACLE_CONTRACT_ID
+    assert loaded[0].oracle_contract_generation == "current"
     assert loaded[0].oracle_finding["counterexample"]["axiom"] == "asymmetric"
     assert loaded[0].oracle_finding["counterexample"]["input_pairs"] == [
         {"lhs_index": 0, "rhs_index": 1},

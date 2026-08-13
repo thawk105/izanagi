@@ -1,0 +1,30 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "MUT-A2c-move-marker-after-failure-digest",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        if not hasattr(config, \"workerinput\"):\n            if inner_exception is None:\n                _emit_effective_scheduler_marker(config)\n            else:\n                try:\n                    _emit_effective_scheduler_marker(config)\n                except BaseException:\n                    pass\n        if not hasattr(config, \"workerinput\") and stashed:\n",
+          "new": "        if not hasattr(config, \"workerinput\") and stashed:\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "                try:\n                    _emit_failure_digest(stashed)\n                except BaseException:\n                    pass\n",
+          "new": "                try:\n                    _emit_failure_digest(stashed)\n                except BaseException:\n                    pass\n        if not hasattr(config, \"workerinput\"):\n            try:\n                _emit_effective_scheduler_marker(config)\n            except BaseException:\n                pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pytest_failure_digest.py::test_e2e_real_conftest_digest_has_real_failures_and_exact_account",
+        "orchestrator/tests/test_run_tests_task_run.py::test_scheduler_marker_precedes_digest_and_is_last_without_digest[failure-digest]"
+      ]
+    }
+  ]
+}

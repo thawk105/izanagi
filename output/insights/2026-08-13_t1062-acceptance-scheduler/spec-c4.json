@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "MUT-C3-land-rejects-serial",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\", \"serial\"})",
+          "new": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\"})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]"
+      ]
+    }
+  ]
+}

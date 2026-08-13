@@ -77,6 +77,23 @@ _BRANCH_BLOCK_COMMENT = "content-comment-block"
 _BRANCH_LINE_SPLICE = "content-line-splice"
 _BRANCH_TEMPLATE_COMMENT = "template-hole-comment-delimiter"
 _BRANCH_TEMPLATE_SPLICE = "template-hole-line-splice"
+_BRANCH_TRUNCATED_HUNK = "malformed-truncated-hunk"
+_BRANCH_HUNK_HEADER = "malformed-hunk-header"
+_BRANCH_OUTSIDE_HUNK = "malformed-outside-hunk"
+_BRANCH_HEAD_RANGE = "head-anchor-range"
+_BRANCH_HEAD_CONTENT = "head-anchor-content"
+_BRANCH_OUTSIDE_FILE = "outside-file"
+_BRANCH_DELETE_OUTSIDE = "delete-outside-hole"
+_BRANCH_INSERT_OUTSIDE = "insert-outside-hole"
+
+
+def _redacted_line_evidence(branch: str, line_label: str, line_number: int,
+                            content: str) -> str:
+    """非信頼行を逐語再掲せず、位置・byte 長・短縮 digest へ射影する。"""
+    content_bytes = content.encode("utf-8")
+    content_sha = hashlib.sha256(content_bytes).hexdigest()[:12]
+    return (f"branch={branch} {line_label}={line_number} "
+            f"byte_length={len(content_bytes)} sha256_12={content_sha}")
 
 
 @dataclass
@@ -234,14 +251,18 @@ def parse_diff(diff_text: str) -> ParsedDiff:
             if src_left > 0 or dst_left > 0:
                 # 宣言カウントを満たせなかった = ハンク truncated / 不正行混入 (fail-closed)。
                 malformed = True
-                reason = (f"ハンク本体が宣言カウントを満たさない (残 src={src_left} dst={dst_left}) "
-                          f"@@ -{ss} +{ds} @@ — 不正/切り詰められた diff")
+                content = lines[i].rstrip('\r') if i < n else ""
+                reason = _redacted_line_evidence(
+                    _BRANCH_TRUNCATED_HUNK, "diff_line", i + 1, content,
+                )
                 break
             hunks.append(DiffHunk(ss, sc, ds, dc, hunk_lines, cur_file))
         elif raw.startswith('@@'):
             # ハンクヘッダ様だが _HUNK_RE 不一致 (行番号詐称 `@@ --5,1 @@` 等) = 未パース (fail-closed)。
             malformed = True
-            reason = f"ハンクヘッダをパースできない: {raw[:60]!r}"
+            reason = _redacted_line_evidence(
+                _BRANCH_HUNK_HEADER, "diff_line", i + 1, raw,
+            )
             break
         elif raw.startswith(('--- ', 'diff --git ', 'index ')):
             i += 1                          # 既知のファイルヘッダ (無害) — 無視
@@ -251,7 +272,9 @@ def parse_diff(diff_text: str) -> ParsedDiff:
             # 黙って読み飛ばすと「空 diff = 変更なし」と誤認して fails-OPEN する
             # (敵対 red-team 2026-07-07 defeat-head-anchor) → fail-closed で reject。
             malformed = True
-            reason = f"ハンク外の変更行 (ヘッダ無し body / 宣言カウント超過): {raw[:60]!r}"
+            reason = _redacted_line_evidence(
+                _BRANCH_OUTSIDE_HUNK, "diff_line", i + 1, raw,
+            )
             break
         else:
             i += 1
@@ -322,10 +345,7 @@ class DiffQuarantine:
     def _line_evidence(branch: str, line_label: str, line_number: int,
                        content: str) -> str:
         """拒否行を逐語再掲せず、位置・byte 長・短縮 digest だけを返す。"""
-        content_bytes = content.encode("utf-8")
-        content_sha = hashlib.sha256(content_bytes).hexdigest()[:12]
-        return (f"branch={branch} {line_label}={line_number} "
-                f"byte_length={len(content_bytes)} sha256_12={content_sha}")
+        return _redacted_line_evidence(branch, line_label, line_number, content)
 
     def _content_evidence(self, branch: str, w: _WalkLine) -> str:
         """hole 挿入行用の非逐語 evidence。"""
@@ -383,13 +403,15 @@ class DiffQuarantine:
                         DiffRejectSubtype.MALFORMED,
                         "ハンクの申告行番号が HEAD の範囲外 (行番号詐称の疑い)",
                         f"src 行 {w.src_ln} (HEAD 行数 {len(H)})",
-                        f"{w.prefix!r} 行が範囲外: {w.content!r}")
+                        self._line_evidence(
+                            _BRANCH_HEAD_RANGE, "source_line", w.src_ln, w.content))
                 if H[w.src_ln - 1] != w.content:
                     return self._mk_digest(
                         DiffRejectSubtype.MALFORMED,
                         "ハンクの context/削除行が HEAD 内容と不一致 (行番号詐称 or desync)",
                         f"src 行 {w.src_ln}",
-                        f"HEAD[{w.src_ln}]={H[w.src_ln - 1]!r} だが diff は {w.content!r}")
+                        self._line_evidence(
+                            _BRANCH_HEAD_CONTENT, "source_line", w.src_ln, w.content))
         return None
 
     # -- 本体 --------------------------------------------------------------
@@ -425,7 +447,8 @@ class DiffQuarantine:
                     DiffRejectSubtype.OUTSIDE_REGION,
                     "編集面外のファイルに変更あり",
                     f"{h.file_rel} @@ -{h.source_start} +{h.dest_start}",
-                    f"編集面は {self.marker.source_rel} のみ ({h.file_rel} は不可)"))
+                    self._line_evidence(
+                        _BRANCH_OUTSIDE_FILE, "source_line", h.source_start, h.file_rel)))
                 continue
 
             # (2) アンカー検証: context/削除行が申告行番号の HEAD 内容と一致するか。
@@ -448,7 +471,8 @@ class DiffQuarantine:
                              if st is DiffRejectSubtype.FRAME_ALTERED
                              else "EVOLVE-BLOCK 領域外の行の削除・改変を検出"),
                             f"src 行 {w.src_ln}",
-                            f"削除行 (src {w.src_ln}) が hole 外: {w.content!r}"))
+                            self._line_evidence(
+                                _BRANCH_DELETE_OUTSIDE, "source_line", w.src_ln, w.content)))
                 elif w.prefix == '+':
                     # 挿入行: anchor が hole 内でなければフレーム/領域外への挿入。
                     if not (self.marker.if_line < w.anchor <= self.marker.else_line):
@@ -459,7 +483,8 @@ class DiffQuarantine:
                              if st is DiffRejectSubtype.FRAME_ALTERED
                              else "EVOLVE-BLOCK 領域外への行挿入を検出"),
                             f"anchor src 行 {w.anchor}",
-                            f"挿入行 (anchor src {w.anchor}) が hole 外: {w.content!r}"))
+                            self._line_evidence(
+                                _BRANCH_INSERT_OUTSIDE, "anchor_line", w.anchor, w.content)))
                         continue
                     # hole 内挿入 — 二次検査。C++ 構文を解釈せず、保守的な byte 規則で
                     # 生指令・マーカー・コメント delimiter・物理 line splice を拒否する。

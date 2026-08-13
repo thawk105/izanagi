@@ -90,6 +90,8 @@ _NONSELECT_VALUE_OPTIONS = frozenset({
     "--log-date-format", "--log-cli-level", "--log-cli-format",
     "--log-cli-date-format", "--log-file", "--log-file-mode",
     "--log-file-level", "--log-file-format", "--log-file-date-format",
+})
+_FULL_SUITE_DISQUALIFY_VALUE_OPTIONS = frozenset({
     "--override-ini", "-o", "-p",
 })
 _SELECT_FLAGS = frozenset({
@@ -109,7 +111,11 @@ _SELECT_VALUE_OPTIONS = frozenset({
     "-k", "-m", "--deselect", "--ignore", "--ignore-glob", "--maxfail",
     "--stepwise-skip",
 })
-_VALUE_OPTIONS = _NONSELECT_VALUE_OPTIONS | _SELECT_VALUE_OPTIONS
+_VALUE_OPTIONS = (
+    _NONSELECT_VALUE_OPTIONS
+    | _FULL_SUITE_DISQUALIFY_VALUE_OPTIONS
+    | _SELECT_VALUE_OPTIONS
+)
 _SUBMODULE_MARKER = Path("external") / "ccbench" / "CMakeLists.txt"
 _SUBMODULE_GIT_MARKER = Path("external") / "ccbench" / ".git"
 _DELETION_GATE_RC = 13

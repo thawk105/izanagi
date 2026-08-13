@@ -9,6 +9,7 @@ import json
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -16,7 +17,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Iterable, Sequence
 
 
 RC_OK = 0
@@ -37,10 +38,13 @@ _STAGE_TIMEOUT_SECONDS = 300
 _STAGE_TERMINATION_SECONDS = 5
 _LEASE_TTL_SECONDS = 2400
 _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
-_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v2"
+_RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v3"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _LOG_HASH_CHUNK_BYTES = 1024 * 1024
+_EFFECTIVE_SCHEDULER_PREFIX = b"IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+_EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
+_MARKER_PAYLOAD_MAX_BYTES = 4096
 _RED_CHECK_SCHEMA_VERSION = "izanagi-acceptance-red-check/v1"
 _RED_CHECK_RECEIPT_SUFFIX = ".acceptance-red-check.json"
 _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
@@ -93,6 +97,7 @@ class _Outcome:
     rc: int
     stage: str | None = None
     source_rc: int | None = None
+    detail: str | None = None
 
 
 @dataclass(frozen=True)
@@ -164,6 +169,7 @@ class _Effects:
     read_bytes: Callable[[Path], bytes] | None = None
     is_symlink: Callable[[Path], bool] | None = None
     sha256_file: Callable[[Path], str] | None = None
+    inspect_acceptance_log: Callable[[Path], tuple[str, str]] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -185,9 +191,15 @@ class _AcceptanceLifecycle:
 
 
 class _StageFailure(Exception):
-    def __init__(self, stage: str, rc: int = RC_FAIL_CLOSED, source_rc: int | None = None):
+    def __init__(
+        self,
+        stage: str,
+        rc: int = RC_FAIL_CLOSED,
+        source_rc: int | None = None,
+        detail: str | None = None,
+    ):
         super().__init__(stage)
-        self.outcome = _Outcome(rc, stage, source_rc)
+        self.outcome = _Outcome(rc, stage, source_rc, detail)
 
 
 class _SignalReceived(BaseException):
@@ -302,6 +314,219 @@ def _default_sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _scan_acceptance_log_chunks(
+    chunks: Iterable[bytes],
+) -> tuple[str, list[bytes]]:
+    digest = hashlib.sha256()
+    marker_payloads: list[bytes] = []
+    prefixes = (
+        _EFFECTIVE_SCHEDULER_PREFIX,
+        b"| " + _EFFECTIVE_SCHEDULER_PREFIX,
+    )
+    at_line_start = True
+    candidate: bytes | None = None
+    candidate_offset = 0
+    payload: bytearray | None = None
+    payload_overflow = False
+
+    def finish_line() -> None:
+        nonlocal at_line_start, candidate, candidate_offset
+        nonlocal payload, payload_overflow
+        if payload is not None and len(marker_payloads) < 2:
+            if not payload_overflow and payload.endswith(b"\r"):
+                del payload[-1:]
+            if payload_overflow:
+                payload.append(0)
+            marker_payloads.append(bytes(payload))
+        at_line_start = True
+        candidate = None
+        candidate_offset = 0
+        payload = None
+        payload_overflow = False
+
+    for chunk in chunks:
+        if not isinstance(chunk, bytes):
+            raise TypeError("acceptance log chunk must be bytes")
+        digest.update(chunk)
+        offset = 0
+        chunk_size = len(chunk)
+        while offset < chunk_size:
+            if len(marker_payloads) >= 2:
+                newline = chunk.find(b"\n", offset)
+                if newline < 0:
+                    break
+                offset = newline + 1
+                continue
+            if payload is not None:
+                newline = chunk.find(b"\n", offset)
+                end = chunk_size if newline < 0 else newline
+                available = _MARKER_PAYLOAD_MAX_BYTES - len(payload)
+                if available > 0:
+                    payload.extend(chunk[offset:min(end, offset + available)])
+                if end - offset > max(available, 0):
+                    payload_overflow = True
+                if newline < 0:
+                    break
+                finish_line()
+                offset = newline + 1
+                continue
+            if candidate is not None:
+                byte = chunk[offset]
+                if byte == candidate[candidate_offset]:
+                    candidate_offset += 1
+                    offset += 1
+                    if candidate_offset == len(candidate):
+                        payload = bytearray()
+                    continue
+                at_line_start = False
+                candidate = None
+                candidate_offset = 0
+            if at_line_start:
+                byte = chunk[offset]
+                candidate = next(
+                    (prefix for prefix in prefixes if prefix[0] == byte),
+                    None,
+                )
+                if candidate is not None:
+                    candidate_offset = 1
+                    offset += 1
+                    if candidate_offset == len(candidate):
+                        payload = bytearray()
+                    continue
+                at_line_start = False
+            newline = chunk.find(b"\n", offset)
+            if newline < 0:
+                break
+            finish_line()
+            offset = newline + 1
+    if candidate is not None or payload is not None or not at_line_start:
+        finish_line()
+    return digest.hexdigest(), marker_payloads
+
+
+def _attestation_detail(reason: str, observed: object) -> str:
+    return json.dumps(
+        {"reason": reason, "observed": observed},
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def _scheduler_from_marker_payloads(payloads: Sequence[bytes]) -> str:
+    stage = "acceptance-scheduler-attestation"
+    observed = [
+        payload[:256].decode("utf-8", "backslashreplace")
+        for payload in payloads
+    ]
+    if len(payloads) != 1:
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("marker-count", observed),
+        )
+    try:
+        text = payloads[0].decode("utf-8")
+    except UnicodeError:
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("marker-encoding", observed[0]),
+        ) from None
+    try:
+        payload = _parse_json_object(text, stage=stage)
+    except _StageFailure:
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("marker-json", observed[0]),
+        ) from None
+    if set(payload) != {"effective_scheduler"}:
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("marker-fields", payload),
+        )
+    scheduler = payload["effective_scheduler"]
+    if not isinstance(scheduler, str) or scheduler not in _EFFECTIVE_SCHEDULERS:
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("scheduler-value", scheduler),
+        )
+    return scheduler
+
+
+def _default_inspect_acceptance_log(path: Path) -> tuple[str, str]:
+    stage = "acceptance-scheduler-attestation"
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    try:
+        fd = os.open(path, flags)
+    except (OSError, TypeError, ValueError):
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("log-open", os.fspath(path)),
+        ) from None
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise _StageFailure(
+                stage,
+                detail=_attestation_detail("log-type", before.st_mode),
+            )
+
+        total_read = 0
+
+        def chunks():
+            nonlocal total_read
+            while True:
+                chunk = os.read(fd, _LOG_HASH_CHUNK_BYTES)
+                if not chunk:
+                    return
+                total_read += len(chunk)
+                yield chunk
+
+        log_sha256, payloads = _scan_acceptance_log_chunks(chunks())
+        after = os.fstat(fd)
+    except _StageFailure:
+        raise
+    except (OSError, TypeError, ValueError):
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail("log-read", os.fspath(path)),
+        ) from None
+    finally:
+        os.close(fd)
+    if (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+    ) != (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    ) or total_read != before.st_size:
+        raise _StageFailure(
+            stage,
+            detail=_attestation_detail(
+                "log-changed",
+                {
+                    "before": [
+                        before.st_dev,
+                        before.st_ino,
+                        before.st_size,
+                        before.st_mtime_ns,
+                    ],
+                    "after": [
+                        after.st_dev,
+                        after.st_ino,
+                        after.st_size,
+                        after.st_mtime_ns,
+                    ],
+                    "total_read": total_read,
+                },
+            ),
+        )
+    return log_sha256, _scheduler_from_marker_payloads(payloads)
+
+
 def _default_write_temp(content: bytes) -> Path:
     fd, raw_path = tempfile.mkstemp(prefix="dev-wave-wait-message-", suffix=".txt")
     path = Path(raw_path)
@@ -356,6 +581,7 @@ def _default_effects() -> _Effects:
         read_bytes=Path.read_bytes,
         is_symlink=Path.is_symlink,
         sha256_file=_default_sha256_file,
+        inspect_acceptance_log=_default_inspect_acceptance_log,
     )
 
 
@@ -1273,12 +1499,15 @@ def _acceptance_receipt_bytes(
     child_rc: int,
     verdict: str,
     log_sha256: str,
+    effective_scheduler: str,
     red_check: _RedCheckResult | None,
 ) -> bytes:
     if not (
         _SHA_RE.fullmatch(tested_main) is not None
         and _SHA_RE.fullmatch(tested_tip) is not None
         and re.fullmatch(r"[0-9a-f]{64}", log_sha256) is not None
+        and isinstance(effective_scheduler, str)
+        and effective_scheduler in _EFFECTIVE_SCHEDULERS
     ):
         raise _StageFailure("acceptance-receipt")
     if verdict == "child-green":
@@ -1305,6 +1534,7 @@ def _acceptance_receipt_bytes(
         "env_projection": environment.as_json(),
         "verdict": verdict,
         "log_sha256": log_sha256,
+        "effective_scheduler": effective_scheduler,
         "checker_rc": None if red_check is None else red_check.checker_rc,
         "checker_status": None if red_check is None else red_check.checker_status,
         "checker_blob_sha": None if red_check is None else red_check.checker_blob_sha,
@@ -1351,6 +1581,35 @@ def _sha256_file(effects: _Effects, path: Path, stage: str) -> str:
         raise _StageFailure(stage) from None
     if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
         raise _StageFailure(stage)
+    return value
+
+
+def _inspect_acceptance_log(
+    effects: _Effects,
+    path: Path,
+) -> tuple[str, str]:
+    inspector = effects.inspect_acceptance_log or _default_inspect_acceptance_log
+    try:
+        value = inspector(path)
+    except _StageFailure:
+        raise
+    except (OSError, UnicodeError, TypeError, ValueError):
+        raise _StageFailure(
+            "acceptance-scheduler-attestation",
+            detail=_attestation_detail("log-inspection", os.fspath(path)),
+        ) from None
+    if not (
+        isinstance(value, tuple)
+        and len(value) == 2
+        and isinstance(value[0], str)
+        and re.fullmatch(r"[0-9a-f]{64}", value[0]) is not None
+        and isinstance(value[1], str)
+        and value[1] in _EFFECTIVE_SCHEDULERS
+    ):
+        raise _StageFailure(
+            "acceptance-scheduler-attestation",
+            detail=_attestation_detail("inspection-result", repr(value)),
+        )
     return value
 
 
@@ -1697,10 +1956,14 @@ def run_acceptance(
         )
         if postrun_fingerprint != prerun_fingerprint:
             raise _StageFailure("postrun-fingerprint")
-        log_sha256 = _sha256_file(
+        if child_rc not in (0, 1):
+            raise _StageFailure(
+                "acceptance-command",
+                source_rc=child.returncode,
+            )
+        log_sha256, effective_scheduler = _inspect_acceptance_log(
             effects,
             resolved_log_file,
-            "acceptance-command",
         )
         assert claim_context is not None and claim_context.holder is not None
         red_check: _RedCheckResult | None = None
@@ -1718,11 +1981,6 @@ def run_acceptance(
                 log_sha256=log_sha256,
             )
             verdict = "non-attributable-only"
-        elif child_rc != 0:
-            raise _StageFailure(
-                "acceptance-command",
-                source_rc=child.returncode,
-            )
         waiter_blob_sha = _blob_sha(
             effects,
             repo,
@@ -1744,6 +2002,7 @@ def run_acceptance(
             child_rc=child_rc,
             verdict=verdict,
             log_sha256=log_sha256,
+            effective_scheduler=effective_scheduler,
             red_check=red_check,
         )
         receipt_temp = _prepare_acceptance_receipt(
@@ -1892,6 +2151,8 @@ def _print_outcome(outcome: _Outcome) -> None:
     if outcome.rc == 0:
         return
     suffix = f" source_rc={outcome.source_rc}" if outcome.source_rc is not None else ""
+    if outcome.detail is not None:
+        suffix += " detail=" + outcome.detail
     print(f"error: stage={outcome.stage or 'unknown'} rc={outcome.rc}{suffix}", file=sys.stderr)
 
 
