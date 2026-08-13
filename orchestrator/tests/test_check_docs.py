@@ -7701,6 +7701,91 @@ def test_cleanup_checker_invocation_line_is_required():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def _assert_cleanup_checker_contract_violation(root: str) -> None:
+    rel = ".claude/commands/cleanup-branches.md"
+    res = _run_check(root)
+    assert res.returncode == 1, res.stdout
+    assert _violation_count(res) == 1, res.stdout
+    assert "worktree 占有 checker の必須可視 literal が無い" in res.stdout
+    assert f"{rel}: whole-file SHA-256 が契約と不一致" not in res.stdout
+
+
+def test_cleanup_checker_rc_rules_are_required_with_invocation():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        contract = (
+            "削除の直前に対象ごと `python3 "
+            "tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、\n"
+            "rc1=占有/rc2=判定不能は停止。"
+        )
+        replacement = (
+            "削除の直前に対象ごと `python3 "
+            "tools/check_worktree_occupancy.py <worktree>`。\n"
+        )
+        original = _read(root, rel)
+        assert original.count(contract) == 1
+        _write(root, rel, original.replace(contract, replacement, 1))
+        _rebind_synthetic_cleanup_command_digest(root)
+
+        _assert_cleanup_checker_contract_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_checker_negated_invocation_is_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        contract = (
+            "削除の直前に対象ごと `python3 "
+            "tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、\n"
+            "rc1=占有/rc2=判定不能は停止。"
+        )
+        negation = (
+            "この command では `tools/check_worktree_occupancy.py` を実行しない。"
+            "\nrc0 は無視する。"
+        )
+        original = _read(root, rel)
+        assert original.count(contract) == 1
+        _write(root, rel, original.replace(contract, negation, 1))
+        _rebind_synthetic_cleanup_command_digest(root)
+
+        _assert_cleanup_checker_contract_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_cleanup_checker_literals_scattered_across_sections_are_rejected():
+    root = _build_min_repo()
+    try:
+        rel = ".claude/commands/cleanup-branches.md"
+        contract = (
+            "削除の直前に対象ごと `python3 "
+            "tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、\n"
+            "rc1=占有/rc2=判定不能は停止。"
+        )
+        section_two = "## 2. 安全条件 (満たさないものは削除せず報告に回す)\n"
+        original = _read(root, rel)
+        assert original.count(contract) == 1
+        assert original.count(section_two) == 1
+        changed = original.replace(
+            contract,
+            "rc0 のみ進み、\nrc1=占有/rc2=判定不能は停止。",
+            1,
+        ).replace(
+            section_two,
+            section_two + "\n`tools/check_worktree_occupancy.py`\n",
+            1,
+        )
+        _write(root, rel, changed)
+        _rebind_synthetic_cleanup_command_digest(root)
+
+        _assert_cleanup_checker_contract_violation(root)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_cleanup_address_edge_rejects_split_lines():
     root = _build_min_repo()
     try:

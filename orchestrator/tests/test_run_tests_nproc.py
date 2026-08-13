@@ -237,6 +237,15 @@ def test_acceptance_dist_rejection_precedes_preflight_and_xdist():
     dispatch = mock.Mock(
         side_effect=AssertionError("dispatch must not run"),
     )
+    bounded_membership = mock.Mock(
+        side_effect=AssertionError("bounded scope membership must not run"),
+    )
+    test_operation = mock.Mock(
+        side_effect=AssertionError("test operation resolution must not run"),
+    )
+    current_site = mock.Mock(
+        side_effect=AssertionError("site resolution must not run"),
+    )
     with _acceptance_env(), mock.patch.object(
         RT, "_preflight_unstaged_deletions", preflight_deletions,
     ), mock.patch.object(
@@ -245,10 +254,15 @@ def test_acceptance_dist_rejection_precedes_preflight_and_xdist():
         RT, "_preflight_submodule", preflight_submodule,
     ), mock.patch.object(
         RT, "_ensure_xdist", ensure_xdist,
+    ), mock.patch.object(
+        RT, "_bounded_scope_membership", bounded_membership,
+    ), mock.patch.object(
+        RT, "_test_operation", test_operation,
+    ), mock.patch.object(
+        RT.site_policy, "current_site", current_site,
     ):
         assert RT.main(
             ["--force-dispatch", "--dist", "load"],
-            site=RT.site_policy.PEGASUS_LOGIN,
             dispatch_fn=dispatch,
         ) == 17
     preflight_deletions.assert_not_called()
@@ -256,6 +270,9 @@ def test_acceptance_dist_rejection_precedes_preflight_and_xdist():
     preflight_submodule.assert_not_called()
     ensure_xdist.assert_not_called()
     dispatch.assert_not_called()
+    bounded_membership.assert_not_called()
+    test_operation.assert_not_called()
+    current_site.assert_not_called()
 
 
 def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():

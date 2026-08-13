@@ -3,9 +3,11 @@
 
 rc=0 は cwd / argv 参照による占有を inspect できた範囲で検出しなかったことだけを
 表す。cmdline は列挙した PID 全体を走査するが、cwd は inspect できる PID に限られ、
-他ユーザーおよび non-dumpable process の cwd は観測できない。PID 走査後に始まる
-process、別 PID namespace、FD 経由の参照も観測できないため、削除の必要条件で
-あって十分条件ではない。
+他ユーザーおよび non-dumpable process の cwd は観測できない。同じ uid または uid
+判定不能の観測不能 process は pid と comm を残る盲点として列挙するため、worker で
+ありうる process が一つでもあれば削除してはならない。PID 走査後に始まる process、
+別 PID namespace、FD 経由の参照も観測できないため、削除の必要条件であって十分条件
+ではない。恒久解は lease であり、本 wave の scope 外である。
 """
 
 from __future__ import annotations
@@ -45,12 +47,19 @@ class Unreachable:
 
 
 @dataclass(frozen=True)
+class SameUidCwdUnreachable:
+    pid: int
+    comm: str | None
+
+
+@dataclass(frozen=True)
 class ScanReport:
     worktree: Path
     status: str
     occupants: tuple[Occupant, ...]
     issues: tuple[ScanIssue, ...]
     scanned: int
+    same_uid_cwd_unreachable: tuple[SameUidCwdUnreachable, ...]
     unreachable: Unreachable
 
 
@@ -167,6 +176,21 @@ def _read_cmdline(pid_dir: Path) -> tuple[str, ...]:
     return tuple(os.fsdecode(token) for token in raw.split(b"\0") if token)
 
 
+def _read_process_uid(pid_dir: Path) -> int:
+    for line in (pid_dir / "status").read_text(encoding="utf-8").splitlines():
+        if not line.startswith("Uid:"):
+            continue
+        fields = line.removeprefix("Uid:").split()
+        if not fields:
+            break
+        return int(fields[0])
+    raise ValueError("status Uid field is missing")
+
+
+def _read_process_comm(pid_dir: Path) -> str:
+    return (pid_dir / "comm").read_text(encoding="utf-8").rstrip("\n")
+
+
 def _parent_is_invoking_shell(
     pid_dir: Path,
     argv: Sequence[str],
@@ -209,27 +233,47 @@ def _scan_pid(
     targets: tuple[Path, ...],
     self_pid: int,
     parent_pid: int,
-) -> tuple[Occupant | None, tuple[ScanIssue, ...], int] | None:
+    current_uid: int,
+) -> tuple[
+    Occupant | None,
+    tuple[ScanIssue, ...],
+    int,
+    tuple[SameUidCwdUnreachable, ...],
+] | None:
     try:
         start_before = _read_starttime(pid_dir)
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
-        return None, (_issue(pid, "stat", exc),), 0
+        return None, (_issue(pid, "stat", exc),), 0, ()
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
-        return None, (_issue(pid, "stat", exc),), 0
+        return None, (_issue(pid, "stat", exc),), 0, ()
 
     sources: set[str] = set()
     issues: list[ScanIssue] = []
     process_cwd: Path | None = None
     cwd_permission_unreachable = 0
+    same_uid_cwd_unreachable: tuple[SameUidCwdUnreachable, ...] = ()
 
     try:
         process_cwd = _read_process_cwd(pid_dir)
         if any(_is_within(process_cwd, target) for target in targets):
             sources.add("cwd")
     except PermissionError:
-        cwd_permission_unreachable = 1
+        try:
+            process_uid = _read_process_uid(pid_dir)
+        except (OSError, RuntimeError, UnicodeError, ValueError):
+            process_uid = None
+        if process_uid is None or process_uid == current_uid:
+            try:
+                comm: str | None = _read_process_comm(pid_dir)
+            except (OSError, RuntimeError, UnicodeError):
+                comm = None
+            same_uid_cwd_unreachable = (
+                SameUidCwdUnreachable(pid=pid, comm=comm),
+            )
+        else:
+            cwd_permission_unreachable = 1
     except FileNotFoundError as exc:
         if _pid_disappeared(pid_dir):
             return None
@@ -270,23 +314,30 @@ def _scan_pid(
             None,
             tuple(issues + [_issue(pid, "stat", exc)]),
             cwd_permission_unreachable,
+            same_uid_cwd_unreachable,
         )
     except (OSError, RuntimeError, UnicodeError, ValueError) as exc:
         return (
             None,
             tuple(issues + [_issue(pid, "stat", exc)]),
             cwd_permission_unreachable,
+            same_uid_cwd_unreachable,
         )
 
     if start_after != start_before:
         return None, (
             ScanIssue(error="pid-reused", pid=pid, source="stat"),
-        ), cwd_permission_unreachable
+        ), cwd_permission_unreachable, same_uid_cwd_unreachable
 
     occupant = None
     if sources:
         occupant = Occupant(pid=pid, sources=tuple(sorted(sources)))
-    return occupant, tuple(issues), cwd_permission_unreachable
+    return (
+        occupant,
+        tuple(issues),
+        cwd_permission_unreachable,
+        same_uid_cwd_unreachable,
+    )
 
 
 def scan_worktree_occupancy(
@@ -310,6 +361,7 @@ def scan_worktree_occupancy(
             occupants=(),
             issues=(_issue(None, "worktree", exc),),
             scanned=0,
+            same_uid_cwd_unreachable=(),
             unreachable=Unreachable(cwd_permission=0),
         )
 
@@ -332,14 +384,17 @@ def scan_worktree_occupancy(
             occupants=(),
             issues=(_issue(None, "proc-root", exc),),
             scanned=0,
+            same_uid_cwd_unreachable=(),
             unreachable=Unreachable(cwd_permission=0),
         )
 
     actual_self_pid = os.getpid() if self_pid is None else self_pid
     actual_parent_pid = os.getppid() if parent_pid is None else parent_pid
+    current_uid = os.getuid()
     occupants: list[Occupant] = []
     issues: list[ScanIssue] = []
     cwd_permission_unreachable = 0
+    same_uid_cwd_unreachable: list[SameUidCwdUnreachable] = []
     for pid, pid_dir in pid_dirs:
         result = _scan_pid(
             pid,
@@ -347,17 +402,25 @@ def scan_worktree_occupancy(
             targets=targets,
             self_pid=actual_self_pid,
             parent_pid=actual_parent_pid,
+            current_uid=current_uid,
         )
         if result is None:
             continue
-        occupant, pid_issues, pid_cwd_permission_unreachable = result
+        (
+            occupant,
+            pid_issues,
+            pid_cwd_permission_unreachable,
+            pid_same_uid_cwd_unreachable,
+        ) = result
         if occupant is not None:
             occupants.append(occupant)
         issues.extend(pid_issues)
         cwd_permission_unreachable += pid_cwd_permission_unreachable
+        same_uid_cwd_unreachable.extend(pid_same_uid_cwd_unreachable)
 
     occupants.sort(key=lambda item: (item.pid, item.sources))
     issues.sort(key=lambda item: (item.pid is None, item.pid or -1, item.source, item.error))
+    same_uid_cwd_unreachable.sort(key=lambda item: item.pid)
     if occupants:
         status = "occupied"
     elif issues:
@@ -370,6 +433,7 @@ def scan_worktree_occupancy(
         occupants=tuple(occupants),
         issues=tuple(issues),
         scanned=len(pid_dirs),
+        same_uid_cwd_unreachable=tuple(same_uid_cwd_unreachable),
         unreachable=Unreachable(
             cwd_permission=cwd_permission_unreachable,
         ),
@@ -377,7 +441,7 @@ def scan_worktree_occupancy(
 
 
 def _report_payload(report: ScanReport) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "issues": [asdict(issue) for issue in report.issues],
         "occupants": [asdict(occupant) for occupant in report.occupants],
         "scanned": report.scanned,
@@ -385,6 +449,11 @@ def _report_payload(report: ScanReport) -> dict[str, object]:
         "unreachable": asdict(report.unreachable),
         "worktree": str(report.worktree),
     }
+    if report.same_uid_cwd_unreachable:
+        payload["same_uid_cwd_unreachable"] = [
+            asdict(process) for process in report.same_uid_cwd_unreachable
+        ]
+    return payload
 
 
 def main(
@@ -399,8 +468,12 @@ def main(
             "worktree への cwd / argv 参照による占有を検出する。rc0 は inspect できた"
             "範囲で占有を検出しなかったことだけを表す。cmdline は列挙した全 PID を走査"
             "するが、cwd は他ユーザーおよび non-dumpable process では観測できない。"
+            "同じ uid または uid 判定不能の観測不能 process は pid と comm を残る"
+            "盲点として列挙する。"
+            "列挙中に worker でありうる process が一つでもあれば削除してはならない。"
             "走査後に始まる process、別 PID namespace、FD 参照も観測できないため、"
-            "rc0 は削除の必要条件であって十分条件ではない。"
+            "rc0 は削除の必要条件であって十分条件ではない。恒久解は lease であり、"
+            "本 wave の scope 外である。"
         )
     )
     parser.add_argument("worktree", metavar="WORKTREE")

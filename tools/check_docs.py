@@ -514,6 +514,13 @@ policy:
 CLEANUP_COMMAND_SHA256 = (
     "5602424621a29a76488691b3cd6a883dfbaa4a63326aab9682c89ae2754c6e4b"
 )
+CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
+CLEANUP_OCCUPANCY_CONTRACT = (
+    "削除の直前に対象ごと `python3 tools/check_worktree_occupancy.py "
+    "<worktree>`。rc0 のみ進み、\n"
+    "rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、"
+    "F26 の手順にする:"
+)
 
 COMMAND_INTERFACES = {
     ".claude/commands/dev-wave.md": {
@@ -4308,19 +4315,18 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
                     f"{rel}: F26 と `docs/failures.md` が同一可視行に共起しない — "
                     "他文書にしか無い義務への到達 edge を失っている"
                 )
-            required_occupancy_literals = (
-                "tools/check_worktree_occupancy.py",
-                "rc0",
+            _, visible_sections = _visible_h2_section_slices(command_body)
+            occupancy_sections = visible_sections.get(
+                CLEANUP_OCCUPANCY_SECTION,
+                [],
             )
-            missing_occupancy_literals = tuple(
-                literal
-                for literal in required_occupancy_literals
-                if literal not in visible_command_body
-            )
-            if missing_occupancy_literals:
+            if (
+                len(occupancy_sections) != 1
+                or CLEANUP_OCCUPANCY_CONTRACT not in occupancy_sections[0]
+            ):
                 findings.append(
                     f"{rel}: worktree 占有 checker の必須可視 literal が無い — "
-                    f"{list(missing_occupancy_literals)}"
+                    f"可視 H2 節 {CLEANUP_OCCUPANCY_SECTION!r} 内の exact 2 行契約が必須"
                 )
         parsed = _parse_frontmatter(text)
         if parsed is None:

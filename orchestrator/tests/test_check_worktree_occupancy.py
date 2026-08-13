@@ -33,6 +33,8 @@ def _make_pid(
     argv: list[str],
     exe: Path | None = None,
     starttime: int = 100,
+    uid: int | None = None,
+    comm: str = "worker",
 ) -> Path:
     pid_dir = proc_root / str(pid)
     pid_dir.mkdir(parents=True)
@@ -44,6 +46,13 @@ def _make_pid(
         _stat_text(pid, starttime),
         encoding="utf-8",
     )
+    process_uid = os.getuid() + 1 if uid is None else uid
+    (pid_dir / "status").write_text(
+        f"Name:\t{comm}\nUid:\t{process_uid}\t{process_uid}\t"
+        f"{process_uid}\t{process_uid}\n",
+        encoding="utf-8",
+    )
+    (pid_dir / "comm").write_text(f"{comm}\n", encoding="utf-8")
     if exe is not None:
         (pid_dir / "exe").symlink_to(exe)
     return pid_dir
@@ -404,6 +413,100 @@ def test_main_reports_cwd_permission_as_unreachable(
     assert payload["unreachable"] == {"cwd_permission": 1}
 
 
+def test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(
+        proc_root,
+        125,
+        cwd=outside,
+        argv=["same-uid-worker", "raw-cmdline-secret"],
+        uid=os.getuid(),
+        comm="same-uid-worker",
+    )
+    _make_pid(
+        proc_root,
+        126,
+        cwd=outside,
+        argv=["other-uid-worker"],
+        uid=os.getuid() + 1,
+        comm="other-uid-worker",
+    )
+
+    def deny_cwd(_pid_dir: Path) -> Path:
+        raise PermissionError("synthetic denial")
+
+    monkeypatch.setattr(checker, "_read_process_cwd", deny_cwd)
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert rc == 0
+    assert payload["status"] == "unoccupied"
+    assert payload["issues"] == []
+    assert payload["same_uid_cwd_unreachable"] == [
+        {"comm": "same-uid-worker", "pid": 125},
+    ]
+    assert payload["unreachable"] == {"cwd_permission": 1}
+    assert "other-uid-worker" not in output
+    assert "raw-cmdline-secret" not in output
+
+
+def test_main_cwd_permission_uid_failure_is_listed_without_rc_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    target = tmp_path / "worktree"
+    target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    proc_root = tmp_path / "proc"
+    _make_pid(
+        proc_root,
+        127,
+        cwd=outside,
+        argv=["unknown-uid-worker"],
+        comm="unknown-uid-worker",
+    )
+
+    def deny_cwd(_pid_dir: Path) -> Path:
+        raise PermissionError("synthetic denial")
+
+    def deny_uid(_pid_dir: Path) -> int:
+        raise PermissionError("synthetic uid denial")
+
+    monkeypatch.setattr(checker, "_read_process_cwd", deny_cwd)
+    monkeypatch.setattr(checker, "_read_process_uid", deny_uid)
+    rc = checker.main(
+        [str(target)],
+        proc_root=proc_root,
+        self_pid=-1,
+        parent_pid=-1,
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["status"] == "unoccupied"
+    assert payload["issues"] == []
+    assert payload["same_uid_cwd_unreachable"] == [
+        {"comm": "unknown-uid-worker", "pid": 127},
+    ]
+    assert payload["unreachable"] == {"cwd_permission": 0}
+
+
 def test_scan_cmdline_permission_error_is_indeterminate(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -550,8 +653,10 @@ def test_scan_occupied_wins_over_indeterminate(
 def test_main_unoccupied_returns_zero(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     target = tmp_path / "worktree"
     target.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
     proc_root = tmp_path / "proc"
-    proc_root.mkdir()
+    _make_pid(proc_root, 128, cwd=outside, argv=["worker"])
 
     rc = checker.main([str(target)], proc_root=proc_root)
 
@@ -689,8 +794,24 @@ def test_real_proc_cmdline_positive_control(tmp_path: Path):
 
 
 def test_real_proc_unoccupied_directory_returns_zero(tmp_path: Path):
-    if not Path("/proc").is_dir():
+    proc_root = Path("/proc")
+    if not proc_root.is_dir():
         pytest.skip("/proc is unavailable")
+    unreadable_cmdlines: list[int] = []
+    try:
+        pid_dirs = [entry for entry in proc_root.iterdir() if entry.name.isdecimal()]
+    except OSError as exc:
+        pytest.skip(f"cannot enumerate /proc: {type(exc).__name__}")
+    for pid_dir in pid_dirs:
+        try:
+            (pid_dir / "cmdline").read_bytes()
+        except FileNotFoundError:
+            if pid_dir.exists():
+                unreadable_cmdlines.append(int(pid_dir.name))
+        except OSError:
+            unreadable_cmdlines.append(int(pid_dir.name))
+    if unreadable_cmdlines:
+        pytest.skip("numeric /proc PID cmdline is not universally readable")
 
     target = tmp_path / "unoccupied-worktree"
     target.mkdir()
