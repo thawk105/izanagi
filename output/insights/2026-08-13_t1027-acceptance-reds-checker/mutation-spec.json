@@ -1,0 +1,193 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M0",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    nodeids = _complete_collected_nodeids(authoritative_stdout, path_text)",
+          "new": "    nodeids = _complete_collected_nodeids(result.stdout, path_text)"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_checker_receipt_records_collection_provenance",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_default_seam_forces_dispatch_for_collection_and_rerun",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_truncated_relay_uses_complete_dispatch_receipt"
+      ]
+    },
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    if len(nodeids) != selected:\n        raise InvalidInput(\n            \"collection footer count mismatch: \"\n            f\"selected={selected} nodeids={len(nodeids)} path={path_text!r}\"\n        )",
+          "new": "    if False:\n        raise InvalidInput(\n            \"collection footer count mismatch: \"\n            f\"selected={selected} nodeids={len(nodeids)} path={path_text!r}\"\n        )"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_collection_footer_count_mismatch_fails_closed_before_rerun"
+      ]
+    },
+    {
+      "id": "M2a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    if omitted_bytes != 0:\n        raise InvalidInput(\"dispatch receipt scheduler stdout is truncated\")",
+          "new": "    if False:\n        raise InvalidInput(\"dispatch receipt scheduler stdout is truncated\")"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_dispatch_receipt_with_omitted_scheduler_stdout_fails_closed"
+      ]
+    },
+    {
+      "id": "M2b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    if size != len(tail.encode(\"utf-8\")):\n        raise InvalidInput(\"dispatch receipt scheduler stdout size mismatch\")",
+          "new": "    if False:\n        raise InvalidInput(\"dispatch receipt scheduler stdout size mismatch\")"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_dispatch_receipt_size_mismatch_fails_closed"
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    if request.get(\"task\") != \"tests\" or request.get(\"args\") != list(expected_args):\n        raise InvalidInput(\"dispatch receipt request task/args mismatch\")",
+          "new": "    if False:\n        raise InvalidInput(\"dispatch receipt request task/args mismatch\")"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_dispatch_collection_receipt_requires_bound_request_args"
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    if not location_valid:\n        raise InvalidInput(\"dispatch receipt has an invalid location\")",
+          "new": "    if False:\n        raise InvalidInput(\"dispatch receipt has an invalid location\")"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_dispatch_receipt_outside_probe_root_fails_closed_before_rerun"
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    r\"(?:(?P<single>1) test collected|\"",
+          "new": "    r\"(?:(?P<single>1) tests collected|\""
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_checker_receipt_records_collection_provenance",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_collection_environment_neutralizes_pytest_addopts",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_default_dispatched_rerun_removes_verified_dispatch_artifacts",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_default_seam_forces_dispatch_for_collection_and_rerun",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_dispatch_commands_use_dispatch_aware_timeout",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_each_logged_path_has_an_independent_complete_collection_gate",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_injected_rerun_output_is_not_replayed_to_checker_streams",
+        "orchestrator/tests/test_check_acceptance_reds.py::test_single_test_collection_footer_is_accepted"
+      ]
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    if result.returncode == 1 and not _rerun_output_proves_red(\n        authoritative_stdout, nodeid\n    ):\n        raise InvalidInput(\n            f\"single-node rerun rc=1 lacks matching FAILED/ERROR outcome: {nodeid!r}\"\n        )",
+          "new": "    if False:\n        raise InvalidInput(\n            f\"single-node rerun rc=1 lacks matching FAILED/ERROR outcome: {nodeid!r}\"\n        )"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_rerun_rc_one_without_matching_outcome_fails_closed"
+      ]
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "_DISPATCH_TIMEOUT_SECONDS = 5100.0",
+          "new": "_DISPATCH_TIMEOUT_SECONDS = 120.0"
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_dispatch_commands_use_dispatch_aware_timeout"
+      ]
+    },
+    {
+      "id": "M8a",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "            \"PYTEST_ADDOPTS\": \"\",\n",
+          "new": ""
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_collection_environment_neutralizes_pytest_addopts"
+      ]
+    },
+    {
+      "id": "M8b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_acceptance_reds.py",
+          "old": "    \"IZANAGI_RUN_GROWTH_HELD_TESTS\",\n",
+          "new": ""
+        }
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_acceptance_reds.py::test_collection_environment_neutralizes_pytest_addopts"
+      ]
+    }
+  ]
+}

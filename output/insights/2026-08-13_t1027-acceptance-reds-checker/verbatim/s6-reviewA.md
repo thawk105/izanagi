@@ -1,0 +1,22 @@
+- **[B] R4 の cleanup は実環境の生成物を取り切れず、赤を含む実データ経路が常に rc=2 で停止する。** [tools/check_acceptance_reds.py:359](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:359)、[tools/check_acceptance_reds.py:653](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:653)、[tools/check_acceptance_reds.py:1224](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:1224) — nonce directory と fallback receipt しか消さず、`PYTHONDONTWRITEBYTECODE` も dispatch の許可環境に含まれないため、親実測どおり `__pycache__` と `output/pegasus-dispatch/` が指紋 gate を止める。  
+  成果物影響: 帰属・非帰属のいずれのレポート／台帳 receipt も作られず `status=invalid-input` となり、certified 選択の実運用受理集合が空になる。
+
+- **[M] R4 の新設 cleanup テストは実 repo の ignored 条件を再現せず、上記 blocker があっても緑になる。** [orchestrator/tests/test_check_acceptance_reds.py:47](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/orchestrator/tests/test_check_acceptance_reds.py:47)、[orchestrator/tests/test_check_acceptance_reds.py:1011](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/orchestrator/tests/test_check_acceptance_reds.py:1011)、[orchestrator/tests/test_check_acceptance_reds.py:1590](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/orchestrator/tests/test_check_acceptance_reds.py:1590) — fixture は `__pycache__` しか ignore せず、実 repo の `.gitignore:25` にある `output/pegasus-dispatch/` を欠く。また fake dispatch は計算ノードの Python import を実行しない。`test_truncated_relay_uses_complete_dispatch_receipt` と `test_default_dispatched_rerun_removes_verified_dispatch_artifacts` はこの差を検出できない。  
+  成果物影響: 受入レポートは R4 を検証済みと誤記できる一方、実データでは checker receipt が発行されず certified 選択へ到達しない。
+
+- **[M] M4 は期待 node の前に別の location gate が先取りするため、事前登録どおりの単一変異では殺せない。** [tools/check_acceptance_reds.py:212](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:212)、[orchestrator/tests/test_check_acceptance_reds.py:1086](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/orchestrator/tests/test_check_acceptance_reds.py:1086) — fixture の外部 receipt は `relative_to(root)`、canonical containment、preferred/fallback shape の複数条件を同時に満たさない。shape 判定一つを恒偽化しても前段で rc=2 のままである。M0、M1、M2a、M2b、M3、M5、M6、M7、M8 には同じ先取りを静的には認めなかった。  
+  成果物影響: M4 は期待 node の semantic kill を証明できず、変異 matrix／レビュー報ートの location gate 検出力が未証明になる。
+
+- **[M] R9 の provenance は必ず削除済み path を記録し、sha256 の再検証元が残らない。** [tools/check_acceptance_reds.py:399](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:399)、[tools/check_acceptance_reds.py:1435](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:1435)、[orchestrator/tests/test_check_acceptance_reds.py:1551](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/orchestrator/tests/test_check_acceptance_reds.py:1551) — dispatch receipt と scheduler stdout は先に削除され、その後 checker receipt へ旧 path と hash だけを書く。テストも suffix と値だけを検査し、参照可能性を検査しない。  
+  成果物影響: 台帳の `collections[*].receipt_path` は dangling reference となり、`stdout_sha256` を原文から再計算できず、非帰属判定の proof chain を監査できない。
+
+- **[N] `test_injected_collection_failure_cannot_reach_rerun_or_status` は production の完全性 gate の証拠にならない。** [orchestrator/tests/test_check_acceptance_reds.py:1704](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/orchestrator/tests/test_check_acceptance_reds.py:1704) — seam が直接 `InvalidInput` を投げるため、receipt/footer 検査を壊してもこの node は緑のままである。例外伝播テストとしては有効だが、R7 や M0〜M4 の検出力には数えられない。  
+  成果物影響: 直接の受理集合変更はないが、レビュー報告で production gate の証拠数を過大計上する。
+
+R5 は静的には fail-closed である。rc=1 relay は 64 KiB で切れる場合があるが、実装は relay ではなく receipt tail を読み、scheduler stdout が 2 MiB 上限を超えれば `omitted_bytes != 0` で rc=2、FAILED/ERROR が見つからなくても [tools/check_acceptance_reds.py:932](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1027-acceptance-reds-checker/tools/check_acceptance_reds.py:932) で rc=2 になる。既存テストの rc／status 期待値を緩めた変更も見つからず、footer 追加は入力実態合わせの範囲だった。pytest は実行していない。
+
+## 総括
+
+blocker は親実測どおり R4 の消し残しであり、現 commit は赤を含む実データを処理できない。  
+危険方向の rc=0 漏れは production の receipt・footer・R5 経路には静的に見つからなかった。  
+ただし cleanup テスト、M4 の単一理由性、R9 の監査可能性は修正が必要である。
