@@ -5368,7 +5368,10 @@ def _write_materialized_trigger_source(
     from orchestrator.campaign import axis_trigger_gating, p3_s4_loop
     from orchestrator.campaign.diff_quarantine import parse_template_file
 
-    base_text = axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES.decode("utf-8")
+    base_text = (
+        axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
+        + axis_trigger_gating.FROZEN_TEMPLATE_EPILOGUE_BYTES
+    ).decode("utf-8")
     with open(source_path, "w", encoding="utf-8") as stream:
         stream.write(base_text)
 
