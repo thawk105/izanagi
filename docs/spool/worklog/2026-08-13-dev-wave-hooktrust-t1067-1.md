@@ -38,14 +38,26 @@ title: codex 子の SIGTERM は警告の誤分類ではなく evidence 猶予だ
   にして既存 caller を 1 つも壊さない形へ変えた。
 - 段 5 実装子は裁定外に launcher 側へも関係検査を足していた。親の差分監査で検知し、
   段 6 レビューへ明示的に掛けて real と裁定、削除した。
-- **受入全走・変異 matrix は未実施のまま停止した。** 理由は環境であって差分ではない。
-  `test_codex_worker_launch.py` は login node の bounded scope 予算 (前回ピーク由来の 1.94GiB)
-  では cgroup attest が 3 回連続 rc=16 で失敗し、4.29GiB を与えた走行では 59 件が
-  `codex_exit_code=-15` (cgroup OOM による fake 子の kill) で赤になる。
-  一方 `test_dev_wave_codex.py` は 17 passed / 3.94 秒で全緑。
-  計算ノードへの dispatch は、親が段 6 で自分の焦点走 job を qdel したことにより
-  F47 型ラッチ (`compute-marker-not-observed`, request 909514.nqsv) が立って停止した。
-  **ラッチは fail-closed の防壁なので削除していない。** 解除はユーザー手番 ({{T:f47-latch-recovery}})。
+- **login node ではこの wave の検査ができない。** `test_codex_worker_launch.py` は
+  bounded scope 予算 (前回ピーク由来の 1.94GiB) では cgroup attest が 3 回連続 rc=16 で失敗し、
+  4.29GiB を与えた走行では 59 件が `codex_exit_code=-15` (cgroup OOM による fake 子の kill) で
+  赤になる。一方 `test_dev_wave_codex.py` は同じ login node で 17 passed / 3.94 秒。
+  **計算ノードでは同じ 2 ファイルが 140 passed / 6.47 秒 / rc=0** で全緑になり、
+  59 件の赤は差分由来でないと確定した ({{T:launcher-test-memory-on-login}})。
+- 途中、親が併走回避のために自分の焦点走 job を qdel した結果、F47 型ラッチ
+  (`compute-marker-not-observed`, request 909514.nqsv) が立って dispatch が全面停止した。
+  ラッチは fail-closed の防壁なので親は削除せずユーザーへ諮り、承認を得て解除した
+  ({{F:qdel-arms-f47-latch}})。
+- **変異 matrix は 2 走した。** 1 走目で M5 が MISMATCH。原因は spec の置換が単一理由でなく、
+  `exact_nanoseconds` を int にした結果 `.is_finite()` が AttributeError となり
+  launcher suite が約 100 node 巻き添えで赤になっていたこと (`DW-M03`/`DW-M04` の過剰決定)。
+  型整合する単一理由の置換へ再照準して 2 走目で KILLED になった。
+  **2 走を通じて、登録した全変異で「予測 node が発火しなかった」ものはゼロ**である
+  (`予測にあって出なかった` が全変異・全走で空集合)。正例 P1/P2 は両走で SURVIVED。
+  harness が報告した MISMATCH は、予測外の node が追加で赤になったことによるもので、
+  その追加集合は**同じ変異でも走ごとに全く異なる** (1 走目は M1〜M4 が完全一致、
+  2 走目は M4/M5 が完全一致)。したがって追加分は launcher suite の環境フレークと判定し、
+  変異の帰属には数えない ({{T:launcher-suite-flake-under-dispatch}})。
 - 工数: codex 子 8 本 (plan 1・consult 2・author 1・review 2・fix 2) + 観測 probe 1 本。
   すべて `--evidence-grace-s 90` の回避で起動した。本 wave が land すれば
   worklog entry 541 記載の回避手順 (dry-run argv へ後付け) は二重指定になるため廃止する。
@@ -69,12 +81,15 @@ title: codex 子の SIGTERM は警告の誤分類ではなく evidence 猶予だ
   (`turn.started` ちょうど 1 回 → `turn.completed`) を `evidence_status=complete` の
   必要条件にする、(3) Codex CLI に機械可読な severity / code を要求する経路を確保してから分類する。
   控え = dev-wave-jobs/rulings-inbox/2026-08-13-codex-launcher-error-item-classification.md。
-- {{T:f47-latch-recovery}} **P1・新規・ユーザー手番**:
-  worktree `dev-wave-hooktrust-t1067` の
-  `output/pegasus-dispatch/submission-disabled.json` (F47 型ラッチ、
-  reason=`compute-marker-not-observed`、request 909514.nqsv) を解除しないと
-  本 wave の受入全走と変異 matrix を実施できない。原因は親の qdel であり、
-  投入自体は qstat で QUE として可視だった (F49 の有効性検査は成立していた)。
+- {{T:launcher-suite-flake-under-dispatch}} **P2・新規**:
+  `orchestrator/tests/test_codex_worker_launch.py` は dispatch 走行でも走ごとに
+  1〜40 件の非決定な赤を出す (変異 2 走で追加赤の集合が完全に食い違った)。
+  巻き添えの node は `test_setsid_escape_is_not_claimed_as_contained`、
+  `test_late_rollout_writer_does_not_change_sealed_receipt`、
+  `test_check_receipt_rejects_unknown_and_duplicate_fields`、
+  `test_all_repo_policy_reasoning_values_are_accepted[*]` など、
+  subprocess と signal を扱う node に偏る。変異 matrix の帰属判定を毎回手作業にするため、
+  原因を切り分けて安定化するか、harness 側で既知フレークを分離する。
 - {{T:launcher-test-memory-on-login}} **P2・新規**:
   `orchestrator/tests/test_codex_worker_launch.py` は login node の bounded scope 予算では
   完走できない (1.94GiB で cgroup attest が rc=16、4.29GiB で fake 子が cgroup OOM され
