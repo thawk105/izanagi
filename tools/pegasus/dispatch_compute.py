@@ -60,6 +60,8 @@ TASKS = {
             "PYTEST_ADDOPTS",
             "IZANAGI_TEST_NPROC",
             "IZANAGI_TEST_TRIGGER",
+            # 計算ノードに bytecode を書かせない指定を伝える。
+            "PYTHONDONTWRITEBYTECODE",
             # T-080 E2E の opt-in を計算ノードへ伝える。
             "IZANAGI_T080_E2E",
             # 成長比例テストの明示 opt-in を計算ノードへ伝える。
