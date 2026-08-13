@@ -22,13 +22,13 @@ argument-hint: [任意: 削除対象の限定 (ブランチ名/worktree 名)。�
 - ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
   -d が拒否したら取り込み漏れの兆候なので止まって報告)
 - worktree: クリーン (未コミット差分なし) かつ HEAD が main に取り込み済みのもののみ。
-  他セッション使用中の可能性 (自分が作っていない・最近更新) は推測せず `/proc/*/cwd` と
-  `/proc/*/cmdline` の走査で実測し、滞在プロセスあり・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
+  占有は §3 の検査で実測し、占有・判定不能・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
 - 自分がその worktree の中で作業している場合は、先に main checkout 側へ抜けてから操作する
 
 ## 3. worktree の削除手順 (F26)
 
-submodule の gitlink を含む worktree は `git worktree remove` を使わず、F26 の安全手順を使う:
+削除の直前に対象ごと `python3 tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、
+rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
 1. `git -C <worktree> checkout --detach` (ブランチを解放)
 2. `git branch -d <branch>` (取り込み済み確認の上で)
