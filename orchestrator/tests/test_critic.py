@@ -26,6 +26,11 @@ from orchestrator.campaign import (env_contract, ident, pipeline,             # 
                                    sort_swo_oracle, wal)
 from orchestrator.campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
                                          require_admitted_campaign)
+from orchestrator.campaign.auditor_gate import (                              # noqa: E402
+    AuditorVerdict,
+    apply_mandatory_deny_only_veto,
+    compute_diff_digest,
+)
 from orchestrator.campaign.build_admission import (                            # noqa: E402
     GeneratorId,
     attest_generator_output,
@@ -34,6 +39,7 @@ from orchestrator.campaign.build_admission import (                            #
 )
 from orchestrator.campaign.diff_quarantine import (                            # noqa: E402
     DiffQuarantine,
+    DiffQuarantineResult,
     TemplateMarker,
 )
 from orchestrator.campaign.layout import CampaignLayout                        # noqa: E402
@@ -1543,6 +1549,33 @@ def test_attacker_controlled_hunk_header_is_nonverbatim_through_real_producer():
     assert digest["evidence"] in rendered
 
 
+def test_auditor_violation_and_nit_evidence_survives_loader_and_renderer():
+    working_diff = "auditor reviewed diff\n"
+    auditor = AuditorVerdict(
+        verdict="reject",
+        diff_digest=compute_diff_digest(working_diff),
+        violations=[{"type": 16}, {"type": 1}],
+        nits=[{"type": "nit"}],
+    )
+    result = apply_mandatory_deny_only_veto(
+        DiffQuarantineResult(passed=True),
+        auditor,
+        working_diff,
+        diff_region="cc/some/other.cc",
+        template_diff_id="some-axis-marker",
+    )
+    expected_evidence = "violations=type-16,type-1; nits=1"
+    assert result.digest["evidence"] == expected_evidence
+
+    lay = _tmp_layout()
+    _write_producer_quarantine_rejection(lay, result.digest)
+
+    loaded = load_diff_rejections(_view(lay))
+    assert loaded[0].evidence == expected_evidence
+    rendered = render_rejections([], [], diff_rejections=loaded)
+    assert f"  証拠: {expected_evidence}" in rendered
+
+
 @pytest.mark.parametrize("unsafe", [
     "line1\nline2",
     "escape\x1bvalue",
@@ -1550,6 +1583,8 @@ def test_attacker_controlled_hunk_header_is_nonverbatim_through_real_producer():
     "\u034f",
     "line\u2028separator",
     "paragraph\u2029separator",
+    "left[bracket",
+    "right]bracket",
     "at@sign",
     "em\u2014dash",
     "\ud800",
@@ -1567,7 +1602,7 @@ def test_diff_quarantine_reason_rejects_unsafe_unicode_and_non_strings(unsafe):
     "fixed-outer-reason",
     "正規化済み日本語 123",
     "hole 内に禁止コメント delimiter byte を検出 (文字列・raw string 内も保守的に拒否)",
-    "HEAD[1] source・reason",
+    "auditor verdict=reject (1 violations)",
 ])
 def test_diff_quarantine_reason_preserves_allowed_normalized_text(safe):
     assert critic_digest._validated_diff_quarantine_reason(safe) == safe

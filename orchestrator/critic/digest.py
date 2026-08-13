@@ -197,7 +197,7 @@ _LEGACY_ORACLE_CONTRACT_ID_V2 = (
     "tud88f98bc19911ae7ddd3049731614c0c661a2fe7c0c36c07aebd74281a07d956-"
     "f7ad0ac2625612307826a109b20f11af4beb8cbf124ad8a2e291f85ec63cbde1e"
 )
-_DIFF_QUARANTINE_TEXT_PUNCTUATION = frozenset(" -._:/=+(),#[]・")
+_DIFF_QUARANTINE_TEXT_PUNCTUATION = frozenset(" -._:/=+(),#;・")
 
 
 class OracleContractIdTooLong(ValueError):
