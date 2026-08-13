@@ -1,0 +1,58 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-C1-land-accepts-unknown-scheduler",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\", \"serial\"})",
+          "new": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\", \"serial\", \"unknown\"})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_rejects_tampered_acceptance_receipt[unknown-scheduler]"
+      ]
+    },
+    {
+      "id": "MUT-C2-land-accepts-previous-schema",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        receipt.get(\"schema_version\") == _ACCEPTANCE_RECEIPT_SCHEMA\n",
+          "new": "        receipt.get(\"schema_version\") in (\n            _ACCEPTANCE_RECEIPT_SCHEMA, \"dev-wave-acceptance-receipt/v2\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_rejects_tampered_acceptance_receipt[schema]"
+      ]
+    },
+    {
+      "id": "MUT-C3-land-rejects-serial",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\", \"serial\"})",
+          "new": "_ACCEPTED_EFFECTIVE_SCHEDULERS = frozenset({\"loadgroup\"})"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_land_accepts_effective_scheduler[serial]",
+        "orchestrator/tests/test_dev_wave_land.py::test_real_waiter_receipt_is_consumed_by_real_land_end_to_end",
+        "orchestrator/tests/test_dev_wave_land.py::test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end"
+      ]
+    }
+  ]
+}

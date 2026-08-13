@@ -271,6 +271,39 @@ def test_ini_testpaths_and_runner_default_target_point_at_the_same_tree():
     assert from_ini == Path(RT._DEFAULT_TARGET).resolve()
 
 
+def test_conftest_scheduler_attestation_loads_without_xdist(tmp_path: Path):
+    """xdist が import 不能でも serial controller の collection は壊れない。"""
+    sample = tmp_path / "test_serial_sample.py"
+    _write(sample, _GOOD_TEST)
+    _write(
+        tmp_path / "xdist.py",
+        "raise RuntimeError('xdist must not be imported for serial run')\n",
+    )
+    env = _child_env()
+    env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+    env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(_REPO)))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "orchestrator.tests.conftest",
+            str(sample),
+        ],
+        cwd=_REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    marker = 'IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}'
+    assert result.stdout.splitlines().count(marker) == 1
+    assert result.stdout.splitlines()[-1] == marker
+
+
 def _run() -> int:
     return int(pytest.main(["-q", str(Path(__file__).resolve())]))
 
