@@ -421,6 +421,23 @@
   待ち手の rc が偽である場合にも例外なく効いた。本 wave の追加事実は
   **「待ち手の rc も判定に使えない」**点で、以後の待ちは `.done` 出現と producer 死を
   直接見る条件ループへ切り替えた。
+
+- **再発: 2026-08-13** — 同型を**同一 wave 内で 5 回**独立に実測した
+  (02:44 / 03:12 / 03:55 / 03:58 / 04:14 JST)。形は 2026-08-12 の再発と同じで、
+  偽 green を返したのは通知ではなく **待ち手自身** (`tools/dev_wave_wait.py producer`) である。
+  いずれも「`.done` 不在 + 成果物不在 + producer 生存」の状態で、
+  出力ゼロ・rc=0 で投入から数十秒以内に返った。producer は `ps` で生存を確認している。
+  本 wave の追加事実は **発生頻度**で、対象は codex 子 (author / review / fix)・
+  変異 harness・受入全走の待ちに跨り、子の種別に依存しない。
+  既存の恒久対応 (「成果物実在 + `.done` + producer 死」の 3 点照合を親が毎回行う) は
+  5 回とも有効に働き、実害は出ていない。
+  ただし本 wave の主題が受入 gate の fail-closed 化であることを踏まえ、
+  **待ち手側の完了条件そのものを fail-closed にする恒久修正**を
+  [T-1056] として起票した。
+  **回収 context でさらに 2 回 (09:12:29 / 09:17:29 JST)、通算 7 回。** 1 例目は fix 子の投入から
+  **31 秒後**、2 例目は 2 本続きの焦点走の 1 本目が終わった時点で、いずれも `.done` 不在・
+  成果物不在 (または後続走行が継続中)・producer 生存だった。3 点照合で 2 回とも検知して
+  張り直しており、実害は出ていない。**頻度は wave を跨いで安定して高い**という点が追加事実である。
 ### F25. commit trailer block の分断・結合ミス — provenance 監査 3+2 違反、積み直し 2 回 [手順漏れ]
 - 事象: 2026-07-20 の同一セッションで 2 回、`AI-Agent` trailer が git に trailer と認識されない
   message を作成 (1 回目 = trailer 行と `Co-Authored-By` の間に空行 → block 分断で AI-Agent が本文化。
@@ -3129,6 +3146,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-08-12** — 敵対子が最終出力生成の段で上流分類器に遮断された
   (F256 に詳細)。既存の恒久対応
   「防御目的を明記する」だけでは不足で、**攻撃成果物の作成を求めないこと**まで射程を広げる必要がある。
+
+- **再発: 2026-08-13** — 四度目。[T-1027] wave の段 3 レンズ A が
+  `This content was flagged for possible cybersecurity risk` で rc=1・出力 0 bytes
+  (24 model call を空費)。**冒頭には防御目的を 1 文書いていた。**
+  残っていたのは節見出し `## 攻撃せよ (これが本題)` と、本文の「穴」「偽装」「侵入」という語彙で、
+  **framing を 1 文足すだけでは足りず prompt 全体の見た目が判定される**ことを示した。
+  効いた書き換えは独立した前置き節 — 「対象はこの repo 自身の開発フローで使う〈用途〉であり、
+  セキュリティ製品でも攻撃ツールでもない。外部からの入力も扱わない」 — を冒頭に置き、
+  節見出しを `## 評価してほしい論点` にし、動詞を「評価せよ・列挙せよ・名指しせよ」へ替える形。
+  所見の質は落ちず、blocker 3 件 (うち 1 件は親 brief の不変条件の向きの誤り) を返した。
+- 補足: 本件は恒久対応の不足ではなく**適用漏れ**である。F102 の既存対応と memory
+  `codex-adversarial-prompt-defensive-framing` には「冒頭だけでなく点検項目の動詞にも要る」と
+  既に書かれていた。実効的な関門は**敵対 prompt を投入する前に見出しと動詞を 1 度読み返すこと**で、
+  同 memory へこの手順を追記した。
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -7162,3 +7193,42 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   DW-M08 完全一致検査 (期待 node 集合との exact 照合が非決定を MISMATCH として拒否する)。
 - 再発検知: 変異 harness の MISMATCH 判定 (2 走で失敗 node 集合が入れ替わる形で発現する)。
   正本 = `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-floor-campaign-speed/s8-candidates.md` 候補 1。
+
+### F295. 帰属 checker が子の pytest 出力を親ストリームへ再掲し、機械解析される log を汚した [計測汚染] [テスト代表性]
+
+- 事象: 単独 rerun の子から得た captured stdout / stderr を親の `sys.stdout` /
+  `sys.stderr` へ書き戻していた。この checker のテストは
+  `=== short test summary info ===` を含む偽 pytest log を注入 runner から返すため、
+  pytest が失敗 test の captured stdout を報告に出すと、その走行の出力に
+  **実在しない file の FAILED 行**と **2 つ目の summary block** が現れた。
+  変異 matrix 1 巡目の 10 変異すべてで、失敗 node の抽出結果に実在しない
+  `orchestrator/tests/test_example.py::...` が混入した。
+- 根本原因: 正しさ裏取り (rerun の帰結を rc だけで判断しない) のために子出力を
+  capture するようにした際、「従来は表示されていた」という誤前提から replay を足した。
+  実際には変更前は capture して捨てており、表示はされていなかった。
+- なぜ重いか: 受入 log を機械解析するのはこの checker 自身であり、
+  summary block が 2 つあれば log を拒否する。**受入が赤のときにこそ壊れる**経路だった。
+- 恒久対応: 子の pytest 出力を親の stdout / stderr へ出さない
+  (D386 の tool 実装)。
+  `test_injected_rerun_output_is_not_replayed_to_checker_streams` が、
+  偽 log を注入しても capsys の stdout / stderr に summary block と FAILED 行が
+  現れないことを固定する。
+- 再発検知: 上記 node に加え、変異 matrix の失敗 node 抽出そのものが検知器として働く
+  (抽出結果に repo 非実在の nodeid が現れたら汚染である)。
+
+### F296. 自分が走らせた子の残骸で自分の clean gate を落とす [防壁の射程誤認]
+
+- 事象: probe worktree の指紋を「ignored file も含めて完全に空」と要求する gate があるが、
+  checker 自身が同じ worktree の中で pytest を dispatch する。計算ノードは共有
+  ファイルシステム上の同じ path へ書くため `__pycache__` と `output/pegasus-dispatch/`
+  が残り、赤を含む実 log では必ず rc=2 になった。
+- 根本原因: gate を設計した時点では probe 内で子を走らせる経路が dispatch 化されておらず、
+  「空であること」が達成可能だという前提が後から崩れた。
+  前段の欠陥 (collect の打ち切り) が先に停止していたため、露出が遅れた。
+- 恒久対応: 部分的。dispatch 成果物側は、検証済み nonce と fallback receipt を消したあと
+  exact root が**空のときだけ** `rmdir` し、異物があれば保持して fail-closed にする
+  (再帰削除・glob をしない)。**`__pycache__` 側は未対応** — 安全な解は
+  producer の env allowlist へ `PYTHONDONTWRITEBYTECODE` を足すことだが、
+  producer は本 wave の編集面の外でユーザー裁定へ返した。
+- 再発検知: 親の実データ実走 (gate を新設・改修する wave の完了条件)。
+  静的レビュー 2 本はこの型の欠陥を 1 件も出せず、実走が 5 件連続で出した。

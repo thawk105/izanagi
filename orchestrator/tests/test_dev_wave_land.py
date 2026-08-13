@@ -23,6 +23,8 @@ import tempfile
 import time
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
 HELPER_PATH = ROOT / "tools" / "dev_wave_land.py"
@@ -124,6 +126,18 @@ class _Repo:
             "raise SystemExit(0)\n",
             encoding="utf-8",
         )
+        (tools / "dev_wave_wait.py").write_text(
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        (tools / "check_acceptance_reds.py").write_text(
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        (tools / "run_tests.py").write_text(
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
         _git(
             self.main,
             "add",
@@ -131,6 +145,9 @@ class _Repo:
             "docs",
             "tools/check_docs.py",
             "tools/check_ai_provenance.py",
+            "tools/dev_wave_wait.py",
+            "tools/check_acceptance_reds.py",
+            "tools/run_tests.py",
         )
         _git(self.main, "commit", "-qm", "base")
         self.base = _git(self.main, "rev-parse", "HEAD")
@@ -168,6 +185,8 @@ class _Repo:
         base: str | None = None,
         tip: str | None = None,
         audited: tuple[str, ...] | None = None,
+        acceptance_wave: str = "test-wave",
+        acceptance_receipt: Path | None = None,
     ):
         tested_base = base or self.base
         tested_tip = tip or _git(wave, "rev-parse", "HEAD")
@@ -176,13 +195,79 @@ class _Repo:
             if audited is not None
             else self.audited(tested_base, tested_tip, wave)
         )
+        receipt_path = acceptance_receipt or self._acceptance_receipt(
+            wave,
+            tested_base,
+            tested_tip,
+            acceptance_wave,
+        )
         return LAND.LandRequest(
             main_worktree=self.main,
             wave_worktree=wave,
             tested_main_sha=tested_base,
             tested_wave_tip_sha=tested_tip,
             audited_commits=commits,
+            acceptance_wave=acceptance_wave,
+            acceptance_receipt=receipt_path,
         )
+
+    def _acceptance_receipt(
+        self,
+        wave: Path,
+        tested_main: str,
+        tested_tip: str,
+        acceptance_wave: str,
+    ) -> Path:
+        waiter_blob = _git(
+            wave,
+            "rev-parse",
+            f"{tested_tip}:tools/dev_wave_wait.py",
+            check=False,
+        )
+        if re.fullmatch(r"[0-9a-f]{40}", waiter_blob) is None:
+            waiter_blob = "0" * 40
+        fingerprint = {
+            "digest": hashlib.sha256(tested_tip.encode("ascii")).hexdigest(),
+            "head_sha": tested_tip,
+            "status_bytes": 0,
+            "diff_bytes": 0,
+            "submodule_status_bytes": 0,
+        }
+        receipt = {
+            "schema_version": LAND._ACCEPTANCE_RECEIPT_SCHEMA,
+            "authority_kind": LAND._ACCEPTANCE_AUTHORITY_KIND,
+            "acceptance_wave": acceptance_wave,
+            "lease_holder": hashlib.sha256(
+                acceptance_wave.encode("utf-8")
+            ).hexdigest()[:12],
+            "tested_main": tested_main,
+            "tested_tip": tested_tip,
+            "argv": ["python3", "tools/run_tests.py"],
+            "resolved_runner_path": "tools/run_tests.py",
+            "child_rc": 0,
+            "pre_fingerprint": fingerprint,
+            "post_fingerprint": dict(fingerprint),
+            "waiter_blob_sha": waiter_blob,
+            "env_projection": {
+                "PYTEST_ADDOPTS": None,
+                "PYTEST_PLUGINS": None,
+                "IZANAGI_TASK_RUN_ID": None,
+                "IZANAGI_TASK_RUNS_ROOT": None,
+            },
+            "verdict": "child-green",
+            "log_sha256": hashlib.sha256(b"").hexdigest(),
+            "checker_rc": None,
+            "checker_status": None,
+            "checker_blob_sha": None,
+            "checker_receipt_sha256": None,
+            "red_nodeids": [],
+        }
+        path = self.root / "acceptance-receipt.json"
+        path.write_text(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="ascii",
+        )
+        return path
 
 
 @contextlib.contextmanager
@@ -197,6 +282,57 @@ def _repo(*, waves: tuple[tuple[str, str], ...] = (("codex", "one"),)):
 def _land(request):
     with _cwd(request.wave_worktree):
         return LAND.land(request)
+
+
+def _land_cli_argv(request, *prefix: str) -> list[str]:
+    argv = [
+        *(prefix or (sys.executable, str(HELPER_PATH))),
+        "--main-worktree", str(request.main_worktree),
+        "--wave-worktree", str(request.wave_worktree),
+        "--tested-main-sha", request.tested_main_sha,
+        "--tested-wave-tip-sha", request.tested_wave_tip_sha,
+        "--acceptance-wave", request.acceptance_wave,
+        "--acceptance-receipt", str(request.acceptance_receipt),
+    ]
+    for commit in request.audited_commits:
+        argv.extend(("--audited-commit", commit))
+    return argv
+
+
+def _receipt_payload(path: Path) -> dict[str, object]:
+    return json.loads(path.read_text(encoding="ascii"))
+
+
+def _write_receipt(path: Path, payload: dict[str, object]) -> None:
+    path.write_text(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="ascii",
+    )
+
+
+def _non_attributable_payload(
+    request: object,
+    *,
+    child_rc: int = 1,
+) -> dict[str, object]:
+    payload = _receipt_payload(request.acceptance_receipt)
+    checker_blob = _git(
+        request.wave_worktree,
+        "rev-parse",
+        f"{request.tested_wave_tip_sha}:tools/check_acceptance_reds.py",
+    )
+    payload.update({
+        "verdict": "non-attributable-only",
+        "child_rc": child_rc,
+        "checker_rc": 0,
+        "checker_status": "non-attributable-only",
+        "checker_blob_sha": checker_blob,
+        "checker_receipt_sha256": hashlib.sha256(
+            b"synthetic checker receipt"
+        ).hexdigest(),
+        "red_nodeids": ["orchestrator/tests/test_known.py::test_known"],
+    })
+    return payload
 
 
 def _handoff_text(repo: _Repo, *, state: str = "作業中", base: str | None = None) -> str:
@@ -438,6 +574,494 @@ def test_basic_land_accepts_registered_claude_and_codex_children() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
         assert (repo.main / "author.txt").read_text() == "author\n"
         assert {path: _snapshot(path) for path in watched} == watched
+
+
+def test_land_accepts_receipt_bound_to_wave_tip_and_emits_digest() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        raw = request.acceptance_receipt.read_bytes()
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_receipt_sha256 == hashlib.sha256(raw).hexdigest()
+        assert result.acceptance_verdict == "child-green"
+        assert result.acceptance_red_nodeids == ()
+        assert result.as_json()["acceptance_receipt_sha256"] == hashlib.sha256(
+            raw
+        ).hexdigest()
+        assert result.as_json()["acceptance_verdict"] == "child-green"
+        assert result.as_json()["acceptance_red_nodeids"] == []
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+_TAMPER_CASES = (
+    "schema",
+    "authority",
+    "wave",
+    "holder",
+    "tested-main",
+    "tip",
+    "argv",
+    "runner",
+    "child-rc",
+    "log-sha256",
+    "verdict",
+    "fingerprint-validity",
+    "fingerprint-equality",
+    "env-projection",
+    "waiter-blob",
+    "duplicate-key",
+    "unknown-field",
+)
+
+
+@pytest.mark.parametrize("case", _TAMPER_CASES, ids=_TAMPER_CASES)
+def test_land_rejects_tampered_acceptance_receipt(case: str) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        receipt = request.acceptance_receipt
+        payload = _receipt_payload(receipt)
+        if case == "schema":
+            payload["schema_version"] = "dev-wave-acceptance-receipt/v0"
+        elif case == "authority":
+            payload["authority_kind"] = "direct-test-run"
+        elif case == "tip":
+            payload["tested_tip"] = repo.base
+        elif case == "tested-main":
+            payload["tested_main"] = tip
+        elif case == "wave":
+            payload["acceptance_wave"] = "other-wave"
+        elif case == "holder":
+            payload["lease_holder"] = "0" * 12
+        elif case == "argv":
+            payload["argv"] = ["python3", "-c", "pass"]
+        elif case == "runner":
+            payload["resolved_runner_path"] = "tools/other.py"
+        elif case == "child-rc":
+            payload["child_rc"] = 1
+        elif case == "log-sha256":
+            payload["log_sha256"] = "not-a-sha256"
+        elif case == "verdict":
+            payload["verdict"] = "green"
+        elif case == "fingerprint-validity":
+            payload["pre_fingerprint"]["digest"] = "not-a-sha256"
+            payload["post_fingerprint"] = dict(payload["pre_fingerprint"])
+        elif case == "fingerprint-equality":
+            payload["post_fingerprint"]["digest"] = "f" * 64
+        elif case == "env-projection":
+            payload["env_projection"]["PYTEST_ADDOPTS"] = "-k nothing"
+        elif case == "waiter-blob":
+            payload["waiter_blob_sha"] = "f" * 40
+        elif case == "unknown-field":
+            payload["extra"] = "rejected"
+        if case == "duplicate-key":
+            raw = receipt.read_text(encoding="ascii")
+            receipt.write_text(
+                raw.replace("{", '{"schema_version":"duplicate",', 1),
+                encoding="ascii",
+            )
+        else:
+            _write_receipt(receipt, payload)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, (case, result)
+        assert result.reason == "acceptance-receipt-rejected", (case, result)
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+test_land_rejects_tampered_acceptance_receipt._plain_cases = tuple(
+    (case,) for case in _TAMPER_CASES
+)
+
+
+_VERDICT_INCONSISTENCY_CASES = (
+    "green-child-rc",
+    "green-checker-rc",
+    "green-checker-status",
+    "green-checker-blob",
+    "green-checker-receipt",
+    "green-red-nodeids",
+    "red-child-rc",
+    "red-checker-rc-null",
+    "red-checker-rc-nonzero",
+    "red-checker-status-null",
+    "red-checker-blob-null",
+    "red-checker-blob-mismatch",
+    "red-checker-receipt-null",
+    "red-nodeids-empty",
+    "red-nodeids-unsorted",
+    "red-nodeids-non-string",
+)
+
+
+@pytest.mark.parametrize(
+    "case",
+    _VERDICT_INCONSISTENCY_CASES,
+    ids=_VERDICT_INCONSISTENCY_CASES,
+)
+def test_land_rejects_verdict_field_inconsistency(case: str) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _receipt_payload(request.acceptance_receipt)
+        if case.startswith("red-"):
+            payload = _non_attributable_payload(request)
+        if case == "green-child-rc":
+            payload["child_rc"] = 1
+        elif case == "green-checker-rc":
+            payload["checker_rc"] = 0
+        elif case == "green-checker-status":
+            payload["checker_status"] = "non-attributable-only"
+        elif case == "green-checker-blob":
+            payload["checker_blob_sha"] = "f" * 40
+        elif case == "green-checker-receipt":
+            payload["checker_receipt_sha256"] = "f" * 64
+        elif case == "green-red-nodeids":
+            payload["red_nodeids"] = ["test_x.py::test_x"]
+        elif case == "red-child-rc":
+            payload["child_rc"] = 0
+        elif case == "red-checker-rc-null":
+            payload["checker_rc"] = None
+        elif case == "red-checker-rc-nonzero":
+            payload["checker_rc"] = 1
+        elif case == "red-checker-status-null":
+            payload["checker_status"] = None
+        elif case == "red-checker-blob-null":
+            payload["checker_blob_sha"] = None
+        elif case == "red-checker-blob-mismatch":
+            payload["checker_blob_sha"] = "f" * 40
+        elif case == "red-checker-receipt-null":
+            payload["checker_receipt_sha256"] = None
+        elif case == "red-nodeids-empty":
+            payload["red_nodeids"] = []
+        elif case == "red-nodeids-unsorted":
+            payload["red_nodeids"] = ["z.py::test_z", "a.py::test_a"]
+        elif case == "red-nodeids-non-string":
+            payload["red_nodeids"] = [1]
+        _write_receipt(request.acceptance_receipt, payload)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT, (case, result)
+        assert result.reason == "acceptance-receipt-rejected", (case, result)
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+test_land_rejects_verdict_field_inconsistency._plain_cases = tuple(
+    (case,) for case in _VERDICT_INCONSISTENCY_CASES
+)
+
+
+def test_land_accepts_non_attributable_receipt_and_emits_red_nodeids() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request, child_rc=1)
+        _write_receipt(request.acceptance_receipt, payload)
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_verdict == "non-attributable-only"
+        assert result.acceptance_red_nodeids == (
+            "orchestrator/tests/test_known.py::test_known",
+        )
+        assert result.as_json()["acceptance_red_nodeids"] == [
+            "orchestrator/tests/test_known.py::test_known"
+        ]
+
+
+@pytest.mark.parametrize(
+    "child_rc",
+    [0, 2, 13, 16, 23, -signal.SIGTERM],
+    ids=("green", "pytest-usage", "deletion-gate", "dispatch", "audit", "signal"),
+)
+def test_land_rejects_non_attributable_receipt_with_non_pytest_failure_rc(
+    child_rc: int,
+) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        payload = _non_attributable_payload(request, child_rc=child_rc)
+        _write_receipt(request.acceptance_receipt, payload)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+def test_land_rejects_invalid_receipt_file_without_main_change() -> None:
+    for case in ("missing", "symlink", "oversize"):
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            tip = repo.commit(wave, "wave.txt", "wave\n")
+            request = repo.request(wave, tip=tip)
+            receipt = request.acceptance_receipt
+            if case == "missing":
+                receipt.unlink()
+            elif case == "symlink":
+                receipt.unlink()
+                receipt.symlink_to(repo.root / "missing-target")
+            else:
+                receipt.write_bytes(
+                    b"x" * (LAND._MAX_ACCEPTANCE_RECEIPT_BYTES + 1)
+                )
+            before = _git(repo.main, "rev-parse", "HEAD")
+
+            result = _land(request)
+
+            assert result.rc == LAND.RC_AUDIT, (case, result)
+            assert result.reason == "acceptance-receipt-rejected", (case, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+def test_land_rejects_complete_orphan_temp_receipt_without_main_change() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        orphan = repo.root / ".dev-wave-acceptance-receipt-orphan.tmp"
+        orphan.write_bytes(request.acceptance_receipt.read_bytes())
+        request = dataclasses.replace(request, acceptance_receipt=orphan)
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        result = _land(request)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+def test_already_landed_still_requires_acceptance_receipt() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        first = repo.request(wave, tip=tip)
+        assert _land(first).rc == LAND.RC_OK
+        missing = repo.root / "missing-receipt.json"
+        second = dataclasses.replace(first, acceptance_receipt=missing)
+
+        result = _land(second)
+
+        assert result.rc == LAND.RC_AUDIT
+        assert result.reason == "acceptance-receipt-rejected"
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_real_waiter_receipt_is_consumed_by_real_land_end_to_end() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
+        shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
+        (wave / "tools" / "run_tests.py").write_text(
+            "raise SystemExit(0)\n",
+            encoding="utf-8",
+        )
+        _git(
+            wave,
+            "add",
+            "tools/dev_wave_wait.py",
+            "tools/wave_land_window.py",
+            "tools/run_tests.py",
+        )
+        _git(wave, "commit", "-qm", "install real acceptance waiter")
+        tip = _git(wave, "rev-parse", "HEAD")
+        lease_dir = repo.root / "lease"
+        lease_dir.mkdir()
+        receipt_path = repo.root / "real-waiter-receipt.json"
+        log_path = repo.root / "real-waiter.log"
+        acceptance_wave = "codex-one"
+        env = _git_env()
+        env.pop("PYTEST_ADDOPTS", None)
+        env.pop("PYTEST_PLUGINS", None)
+        env.pop("IZANAGI_TASK_RUN_ID", None)
+        env.pop("IZANAGI_TASK_RUNS_ROOT", None)
+
+        waiter = subprocess.run(
+            [
+                sys.executable,
+                str(wave / "tools" / "dev_wave_wait.py"),
+                "acceptance",
+                "--wave",
+                acceptance_wave,
+                "--lease-dir",
+                str(lease_dir),
+                "--receipt-file",
+                str(receipt_path),
+                "--log-file",
+                str(log_path),
+                "--",
+                "python3",
+                "tools/run_tests.py",
+            ],
+            cwd=wave,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        assert waiter.returncode == 0, waiter.stderr
+        raw_receipt = receipt_path.read_bytes()
+        request = repo.request(
+            wave,
+            tip=tip,
+            acceptance_wave=acceptance_wave,
+            acceptance_receipt=receipt_path,
+        )
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_receipt_sha256 == hashlib.sha256(
+            raw_receipt
+        ).hexdigest()
+        assert receipt_path.read_bytes() == raw_receipt
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_real_non_attributable_waiter_receipt_passes_real_land_end_to_end() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        known_red = "orchestrator/tests/test_known.py::test_known"
+        (repo.main / "tools" / "run_tests.py").write_text(
+            "import sys\n"
+            f"node={known_red!r}\n"
+            "if '--collect-only' in sys.argv:\n"
+            "    print(node)\n"
+            "    print('1 test collected in 0.01s')\n"
+            "    raise SystemExit(0)\n"
+            "if node in sys.argv:\n"
+            "    print('=== short test summary info ===')\n"
+            "    print('FAILED ' + node + ' - synthetic known red')\n"
+            "    print('=== 1 failed in 0.01s ===')\n"
+            "    raise SystemExit(1)\n"
+            "print('=== short test summary info ===')\n"
+            "print('FAILED ' + node + ' - synthetic known red')\n"
+            "print('=== 1 failed in 0.01s ===')\n"
+            "raise SystemExit(1)\n",
+            encoding="utf-8",
+        )
+        _git(repo.main, "add", "tools/run_tests.py")
+        _git(repo.main, "commit", "-qm", "install synthetic known red")
+        repo.base = _git(repo.main, "rev-parse", "HEAD")
+        _git(wave, "merge", "--ff-only", "main")
+        shutil.copy2(ROOT / "tools" / "dev_wave_wait.py", wave / "tools")
+        shutil.copy2(ROOT / "tools" / "wave_land_window.py", wave / "tools")
+        shutil.copy2(ROOT / "tools" / "check_acceptance_reds.py", wave / "tools")
+        _git(
+            wave,
+            "add",
+            "tools/dev_wave_wait.py",
+            "tools/wave_land_window.py",
+            "tools/check_acceptance_reds.py",
+        )
+        _git(wave, "commit", "-qm", "install real acceptance integrity tools")
+        tip = _git(wave, "rev-parse", "HEAD")
+        lease_dir = repo.root / "lease-red"
+        lease_dir.mkdir()
+        receipt_path = repo.root / "real-red-receipt.json"
+        log_path = repo.root / "real-red.log"
+        acceptance_wave = "codex-one"
+        env = _git_env()
+        for name in (
+            "PYTEST_ADDOPTS",
+            "PYTEST_PLUGINS",
+            "IZANAGI_TASK_RUN_ID",
+            "IZANAGI_TASK_RUNS_ROOT",
+        ):
+            env.pop(name, None)
+
+        waiter = subprocess.run(
+            [
+                sys.executable,
+                str(wave / "tools" / "dev_wave_wait.py"),
+                "acceptance",
+                "--wave",
+                acceptance_wave,
+                "--lease-dir",
+                str(lease_dir),
+                "--receipt-file",
+                str(receipt_path),
+                "--log-file",
+                str(log_path),
+                "--",
+                "python3",
+                "tools/run_tests.py",
+            ],
+            cwd=wave,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        assert waiter.returncode == 0, waiter.stdout + waiter.stderr
+        raw_receipt = receipt_path.read_bytes()
+        payload = json.loads(raw_receipt)
+        assert payload["verdict"] == "non-attributable-only"
+        assert payload["child_rc"] == 1
+        assert payload["red_nodeids"] == [known_red]
+        request = repo.request(
+            wave,
+            base=repo.base,
+            tip=tip,
+            acceptance_wave=acceptance_wave,
+            acceptance_receipt=receipt_path,
+        )
+
+        result = _land(request)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert result.acceptance_receipt_sha256 == hashlib.sha256(
+            raw_receipt
+        ).hexdigest()
+        assert result.acceptance_verdict == "non-attributable-only"
+        assert result.acceptance_red_nodeids == (known_red,)
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+@pytest.mark.parametrize(
+    "missing_option",
+    ("--acceptance-receipt", "--acceptance-wave"),
+    ids=("acceptance-receipt", "acceptance-wave"),
+)
+def test_land_cli_requires_acceptance_receipt(missing_option: str) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        argv = _land_cli_argv(request)
+        missing_index = argv.index(missing_option)
+        del argv[missing_index:missing_index + 2]
+
+        completed = subprocess.run(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        assert completed.returncode == 2
+        assert missing_option in completed.stderr
 
 
 def test_handoff_state_vocabulary_is_not_a_land_gate() -> None:
@@ -2220,7 +2844,11 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
         )
         tip = repo.commit(wave, "wave.txt", "wave\n")
 
-        first = _land(repo.request(wave, tip=tip))
+        first_request = repo.request(wave, tip=tip)
+        receipt_digest = hashlib.sha256(
+            first_request.acceptance_receipt.read_bytes()
+        ).hexdigest()
+        first = _land(first_request)
         second = _land(repo.request(wave, tip=tip))
 
         assert first == LAND.LandResult(
@@ -2230,6 +2858,9 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
             repo.base,
             tip,
             tip,
+            acceptance_receipt_sha256=receipt_digest,
+            acceptance_verdict="child-green",
+            acceptance_red_nodeids=(),
         )
         assert second == LAND.LandResult(
             LAND.RC_OK,
@@ -2238,6 +2869,9 @@ def test_zero_fragment_preserves_land_result_and_commit_graph_bit_for_bit() -> N
             tip,
             tip,
             tip,
+            acceptance_receipt_sha256=receipt_digest,
+            acceptance_verdict="child-green",
+            acceptance_red_nodeids=(),
         )
         assert _git(repo.main, "rev-list", "--count", f"{repo.base}..HEAD") == "1"
         assert _git(repo.main, "status", "--porcelain=v1") == ""
@@ -4164,15 +4798,7 @@ def test_merge_child_inherits_lock_fd_if_helper_is_killed() -> None:
             f"m._GIT_EXE={str(wrapper)!r};"
             "raise SystemExit(m.main(sys.argv[1:]))"
         )
-        argv = [
-            sys.executable, "-c", code,
-            "--main-worktree", str(repo.main),
-            "--wave-worktree", str(wave),
-            "--tested-main-sha", repo.base,
-            "--tested-wave-tip-sha", tip,
-        ]
-        for commit in request.audited_commits:
-            argv.extend(("--audited-commit", commit))
+        argv = _land_cli_argv(request, sys.executable, "-c", code)
         env = dict(os.environ)
         env.update({
             "DEV_WAVE_REAL_GIT": REAL_GIT,
@@ -4345,16 +4971,7 @@ def test_cli_emits_json_and_uses_only_sha_target_ff() -> None:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
         request = repo.request(wave, tip=tip)
-        argv = [
-            sys.executable,
-            str(HELPER_PATH),
-            "--main-worktree", str(repo.main),
-            "--wave-worktree", str(wave),
-            "--tested-main-sha", repo.base,
-            "--tested-wave-tip-sha", tip,
-        ]
-        for commit in request.audited_commits:
-            argv.extend(("--audited-commit", commit))
+        argv = _land_cli_argv(request)
         completed = subprocess.run(
             argv,
             cwd=wave,
@@ -4548,7 +5165,12 @@ def _run() -> int:
     passed = failed = 0
     for test in tests:
         try:
-            test()
+            plain_cases = getattr(test, "_plain_cases", None)
+            if plain_cases is None:
+                test()
+            else:
+                for case in plain_cases:
+                    test(*case)
             print(f"PASS {test.__name__}")
             passed += 1
         except AssertionError as exc:

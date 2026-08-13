@@ -16402,3 +16402,130 @@ exact copy を検出し `--find-copies-harder` を使わない) は**不変の�
 正常な git 出力に対する受理集合も不変である。変わるのは (a) 走査の所要時間、
 (b) 安価側が構文を保ったまま record を落とす故障モデルと高価コマンド固有の故障の扱い、
 (c) 安価側の起動・parse 失敗が従来の正常判定を `receipt.git_error` へ倒す過剰拒否の追加である。
+
+## D385. dispatch 経由の collection は relay ではなく receipt を権威にする (2026-08-13)
+
+**決定:** `tools/check_acceptance_reds.py` が pytest の collection 集合を得るとき、
+dispatch が親へ流した stdout を権威にしない。relay 行が告知する dispatch receipt の
+`scheduler_logs.stdout` を読み、`omitted_bytes == 0` かつ `size` と tail の byte 長が
+一致する場合だけ権威として採用する。加えて pytest の collection footer が申告する
+selected 件数と、path に一致する unique nodeid 件数の一致を必須にする。
+いずれも証明できなければ rc=2 で停止する。
+
+**理由:**
+- dispatch は child rc=0 の走行で子 stdout を末尾 4 KiB へ切り詰める。
+  実測では 12,098 bytes の collect 出力が `omitted_bytes=8002` となり、
+  114 件中およそ 40 件しか親へ届かず、先頭 payload 行は途中で切れた nodeid 片だった。
+- 切り詰められた部分集合を完全な collection として扱うと、exact selector 解決が
+  「見つからない」で止まるだけでなく、**残った部分集合の中に prefix となる別 nodeid が
+  あれば誤った node を選びうる**。件数一致の gate はこの経路を構造的に閉じる。
+- 完全な出力は disk 上の receipt に残っており、追加の再実行なしに回収できる。
+
+**却下した選択肢:**
+- relay の `omitted_bytes` を見て rc=2 にするだけ — 誤診は直るが、
+  出力の大きい file では永久に判定できず tool が実運用に到達しない。
+- exact selector だけを再 collect する — group suffix と literal の区別に推測が戻り、
+  最長 exact match の契約を弱める。長い parameter 集合では再び上限を超える。
+- relay 上限の引き上げ — producer 側に調整弁が存在しない。
+
+## D386. 判定不能な入力から「非帰属」を出さない (2026-08-13)
+
+**決定:** 受入赤の帰属判定において、collection の完全性・selector の一意性・単独 rerun の
+帰結のいずれかを証明できない入力からは、`status=non-attributable-only` または rc=0 を
+出してはならない。証明できない場合は rc=2 で停止する。rc=1 (帰属) 側へ倒すことは
+安全側であり禁止しない。単独 rerun の rc=1 も、その selector が実際に FAILED/ERROR した
+ことを rerun 自身の出力で裏取りできた場合だけ非帰属の根拠にする。
+
+**理由:**
+- この tool の rc=0 は下流で「取り込んでよい」と読まれる。危険な方向は rc=0 側であって
+  rc=1 側ではない。**当初 brief はこの向きを逆に書いており、敵対レンズが blocker として
+  是正した。** fail-closed 系の不変条件は、禁止する側の rc / status を明示して書く必要がある。
+- rc=1 は「その走行が失敗した」ことしか意味しない。session-level error や
+  collection error でも rc=1 になるため、rc だけで「main でも赤」と結論すると
+  受理集合が誤って広がる。
+
+**却下した選択肢:**
+- 「match しなかったから非帰属」— 判定不能を安全側の結論に読み替える典型で、
+  正しさゲートを後付けにする (規律 3) のと同じ誤り。
+
+## D387. 受入権威の防御対象は事故であって偽造ではない (2026-08-13)
+
+**決定:** dev-wave の受入 receipt が防ぐ対象は、**待ち手を経由しない直接走の結果を権威ある受入
+として記録してしまう事故**である。同一 Unix user による意図的な偽造は防御範囲外と明記し、
+偽造対策にしか効かない機構 (interpreter attestation、暗号署名、実行 bytes の attest、
+残存子孫の reap 保証) は receipt の要件に含めない。
+
+**理由:**
+- receipt の producer と consumer は同じ user 権限で走るので、その user は receipt を
+  直接書ける。防御を謳っても成立しない保証を並べることは、恒真な assert を増やすのと同じである。
+- 起票理由になった実例は、待ち手の deadlock を迂回して直接走した運用上の事故だった。
+  安価に閉じられるのはこの経路であり、費用対効果もここに集中している。
+- 範囲を明記しないと、後続レビューが偽造耐性の不足を blocker として繰り返し起票し、
+  実装が青天井に膨らむ。
+
+**却下した選択肢:**
+- 偽造耐性まで要件に含める — 同一 user 前提では達成不能で、達成したふりになる。
+- 範囲を書かずに実装だけ最小にする — 何が守られていないかが台帳から読めなくなる。
+
+## D388. land は待ち手 receipt を必須入力にする (2026-08-13)
+
+**決定:** `tools/dev_wave_land.py` は `--acceptance-wave` / `--acceptance-receipt` を必須引数とし、
+待ち手が発行した receipt を lock 内で検証してからでなければ main を 1 bit も進めず、
+`landed` / `already-landed` のいずれの成功も返さない。欠落・不正・予約 temp 名前空間・
+束縛不一致は `RC_AUDIT` = 23 で拒否する。CLI flag・環境変数・警告化の逃がし道を作らない。
+検証の位置は provenance 監査と lock 再検証の後でよいが、fold-recovery の `already-landed`、
+`locked_main == tested_tip` の `already-landed`、ff-only merge の**すべてより前**に置く。
+
+**理由:**
+- receipt を出すだけで誰も読まなければ「直接走の結果は記録不可」は機械で担保されない。
+  consumer を持たない証跡は規律ではなく飾りである。
+- 守るべき不変条件は「有効な receipt なしに main を進めず成功も返さない」ことだけで、
+  provenance 監査との前後関係は要求ではない。前に置くと、tools/ を symlink として commit する
+  既存の provenance 検査と rc 期待が両立しない。
+- receipt の発行は temp へ書いて fsync し、holder / main SHA / TTL 残量を再確認してから
+  `os.rename` する二段階とする。final path の存在だけが「待ち手が成功終端まで到達した」
+  証拠になり、fsync 済みの temp が残っても land が予約名前空間として拒否できる。
+
+**却下した選択肢:**
+- `tools/run_tests.py` 側に同等 gate を足す — 稼働中の全 wave の受入へ即座に効くため
+  ユーザー裁定で不採用。
+- receipt があるときだけ検証する fail-open — 検証意味論を弱める方向であり規律 2 に反する。
+- 互換 bypass flag を置いて旧待ち手の受入を通す — 逃がし道は必ず既定経路になる。
+  旧待ち手で受入済み・未 land の wave には受入 1 走の再実行を求める。
+
+## D389. 非帰属受理は「テスト失敗で落ちた走行」に限る (2026-08-13)
+
+**決定:** 受入 command が非 0 で終わったときに receipt を発行してよいのは、
+**`child_rc` がちょうど 1** であり、かつ `tools/check_acceptance_reds.py` が
+**`rc == 0` かつ `status == "non-attributable-only"`** を返し、その receipt の
+`log_sha256` が待ち手自身が捕獲した log の hash と一致したときだけとする。
+`status == "green"`、`rc == 1`、`rc == 2`、`child_rc` が 0 でも 1 でもない非 0 は、
+いずれも fail-closed とする。bypass flag と環境変数は作らない。
+
+**理由:**
+- **checker の `rc == 0` は 2 つの意味を持つ。** `status = "non-attributable-only"` は
+  「赤があり、全て tested main 単独でも落ちる」、`status = "green"` は
+  「log から赤 nodeid を 1 件も取り出せなかった」である。後者は非帰属の証拠ではない。
+  受入が非 0 で終わったのに赤 nodeid が 0 件になる経路 (collection error、internal error、
+  crash、xdist worker の異常終了) は実在するので、`rc == 0` だけを条件にすると
+  **崩れた受入が受領証を得る**。
+- **赤の非帰属は「走行が崩れたこと」を説明しない。** pytest が summary まで出したあとに
+  wrapper が signal・後段 gate で落ちても、log 中の赤が全て非帰属なら受理されてしまう。
+  `tools/run_tests.py` の main は `return subprocess.call(cmd, cwd=_REPO)` で pytest の rc を
+  そのまま返すので、テストが落ちた走行は 1 である。`run_tests.py` 自身の失敗は
+  `_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` など 1 以外になる。
+  したがって `child_rc == 1` は「テスト失敗だけで落ちた」の機械的な言い換えである。
+- **log は待ち手が所有する。** 親が渡した log を受け取る形だと、任意の過去 log を渡して
+  非帰属判定を素通りできる。待ち手が child の stdout/stderr を直接ファイルへ捕獲し、
+  その bytes の hash を receipt へ束縛することで、checker の入力が当該走行のものであることが
+  監査可能になる。
+
+**却下した選択肢:**
+- 批准済み既知赤 nodeid の registry を置く — ユーザー裁定で不採用。registry は肥大すると
+  実質的な fail-open になり、批准手順の設計と期限管理を伴う。checker による単独再走は
+  同じ判断を機械化でき、人手の批准を要さない。
+- checker 自身に受入走を所有させる ([T-1019] の対立案) — ユーザー裁定で不採用。
+- `child_rc != 0` すべてを非帰属判定へ流す — 上記のとおり受理集合が
+  「テスト失敗で落ちた走行」から「何らかの理由で落ちた走行」へ広がる。
+- checker rc=2 を「判定不能だが赤は非帰属らしい」として通す — `DW-O18` が
+  「rc=2 は判定不能で非帰属の根拠にしない」と定めた向きに反する。
