@@ -6,6 +6,9 @@ import contextlib
 import inspect
 import json
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 
 import pytest
 
@@ -83,7 +86,9 @@ def _receipt(materialized_hash: str = "1" * 64,
 @pytest.fixture(scope="module")
 def compiled_oracle_artifacts(tmp_path_factory):
     """Exactly two real compiles: one positive TU and one multiplexed negative TU."""
-    assert _ENVIRONMENT is not None, "real oracle E2E requires an injected oracle environment"
+    assert type(_ENVIRONMENT) is O.OracleEnvironment, (
+        "real oracle E2E requires an injected oracle environment"
+    )
     scratch = tmp_path_factory.mktemp("sort-swo-real")
     artifacts = {}
     compile_count = 0
@@ -234,6 +239,33 @@ def test_real_compile_budget_is_fixed_positive_and_negative_only(compiled_oracle
     assert compiled_oracle_artifacts["compile_count"] == 2
 
 
+def test_real_patchharness_checkout_and_resolver_use_explicit_binding(tmp_path):
+    """模擬を介さず共有 submodule の実 worktree と実 resolver を結ぶ。"""
+    from orchestrator.campaign import patchharness
+
+    compiler = shutil.which("g++")
+    assert compiler is not None
+    dependency = tmp_path / "masstree"
+    dependency.mkdir()
+    (dependency / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    head = subprocess.run(
+        ["git", "-C", str(_CCBENCH), "rev-parse", "--verify", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+    with patchharness.checkout(head, base_dir=str(_CCBENCH)) as checkout:
+        resolution = O.resolve_oracle_environment(
+            checkout,
+            compiler=compiler,
+            dependency_root=dependency,
+        )
+        assert type(resolution) is O.OracleEnvironment
+        assert resolution.ccbench_dir == Path(checkout).resolve()
+        assert resolution.ccbench_dir != _CCBENCH.resolve()
+        assert resolution.compiler == Path(compiler).resolve()
+        assert resolution.dependency_root == dependency.resolve()
+
+
 def test_materialized_marker_bytes_are_exact_and_proposal_hash_is_distinct(monkeypatch):
     statement = "  " + _CLEAN_IMPL + "\n"
     source = _materialized(statement)
@@ -289,6 +321,137 @@ def test_unresolved_environment_is_unavailable_not_candidate_reject():
     assert result.finding is None
     assert result.infrastructure is not None
     assert result.infrastructure.reason_code == O.INFRASTRUCTURE_REASON_CODE
+
+
+def test_phase_marker_runs_immediately_before_first_oracle_subprocess(monkeypatch):
+    assert type(_ENVIRONMENT) is O.OracleEnvironment
+    order = []
+
+    def compiler_version(_compiler):
+        order.append("compiler-subprocess")
+        return "fixture-cxx 1"
+
+    monkeypatch.setattr(O, "_compiler_version", compiler_version)
+    monkeypatch.setattr(O, "_compile", lambda *args, **kwargs: (None, False))
+    monkeypatch.setattr(O, "_evaluate_executable", lambda _executable: None)
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL),
+        marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL,
+        environment=_ENVIRONMENT,
+        phase_marker=lambda: order.append("phase-marker"),
+    )
+    assert result.status is O.OracleStatus.PASS
+    assert order[:2] == ["phase-marker", "compiler-subprocess"]
+
+
+@pytest.mark.parametrize(
+    ("compiler_ok", "dependency_ok", "detail_code", "failed_legs"),
+    [
+        (
+            False,
+            True,
+            "oracle-environment-compiler-unresolved",
+            ("compiler",),
+        ),
+        (
+            True,
+            False,
+            "oracle-environment-dependency-unresolved",
+            ("dependency",),
+        ),
+        (
+            False,
+            False,
+            "oracle-environment-compiler-and-dependency-unresolved",
+            ("compiler", "dependency"),
+        ),
+    ],
+    ids=["compiler", "dependency", "both"],
+)
+def test_resolver_failure_union_has_three_closed_legs_and_candidate_outcomes(
+        tmp_path, compiler_ok, dependency_ok, detail_code, failed_legs):
+    compiler = Path(sys.executable) if compiler_ok else tmp_path / "missing-cxx"
+    dependency = tmp_path / ("masstree-ok" if dependency_ok else "masstree-missing")
+    dependency.mkdir()
+    if dependency_ok:
+        (dependency / "config.h").write_text("#pragma once\n", encoding="utf-8")
+
+    resolution = O.resolve_oracle_environment(
+        tmp_path / "disposable-checkout",
+        compiler=compiler,
+        dependency_root=dependency,
+    )
+    assert type(resolution) is O.OracleEnvironmentResolutionFailure
+    assert resolution.detail_code == detail_code
+    assert resolution.failed_legs == failed_legs
+    assert [item.origin for item in resolution.compiler_candidates] == [
+        "argument:compiler"
+    ]
+    assert [item.origin for item in resolution.dependency_candidates] == [
+        "argument:dependency-root"
+    ]
+    assert resolution.compiler_candidates[0].outcome == (
+        "selected" if compiler_ok else "missing"
+    )
+    assert resolution.dependency_candidates[0].outcome == (
+        "selected" if dependency_ok else "config-h-missing"
+    )
+
+
+def test_resolution_private_and_durable_projections_do_not_share_full_path(tmp_path):
+    missing_dependency = tmp_path / "private-machine-root" / "masstree"
+    resolution = O.resolve_oracle_environment(
+        tmp_path / "disposable-checkout",
+        compiler=sys.executable,
+        dependency_root=missing_dependency,
+    )
+    assert type(resolution) is O.OracleEnvironmentResolutionFailure
+    result = O.check_materialized_sort_swo(
+        _materialized(_CLEAN_IMPL), marker_id="silo-writeset-sort",
+        proposal_source=_CLEAN_IMPL, environment=resolution,
+    )
+    assert result.status is O.OracleStatus.UNAVAILABLE
+    assert result.infrastructure is not None
+    assert result.infrastructure.detail_code == resolution.detail_code
+    private = O.private_attempt_record(result)
+    durable = O.attempt_record(result)
+    full_path = str(missing_dependency)
+    assert full_path in json.dumps(private, sort_keys=True)
+    assert full_path not in json.dumps(durable, sort_keys=True)
+    durable_candidate = durable["infrastructure"][
+        "environment_resolution"
+    ]["dependency_candidates"][0]
+    assert set(durable_candidate) == {
+        "origin", "outcome", "path_basename", "path_sha256",
+    }
+    assert durable_candidate["path_basename"] == "masstree"
+    assert len(durable_candidate["path_sha256"]) == 64
+
+
+def test_explicit_compiler_binding_never_falls_back_to_ambient(
+        monkeypatch, tmp_path):
+    ambient = tmp_path / "ambient-cxx"
+    ambient.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    ambient.chmod(0o755)
+    dependency = tmp_path / "masstree"
+    dependency.mkdir()
+    (dependency / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    monkeypatch.setenv("IZANAGI_SORT_SWO_CXX", str(ambient))
+    monkeypatch.setenv("CXX", str(ambient))
+    monkeypatch.setattr(O.shutil, "which", lambda name: str(ambient))
+
+    resolution = O.resolve_oracle_environment(
+        tmp_path / "checkout",
+        compiler=tmp_path / "missing-explicit-cxx",
+        dependency_root=dependency,
+    )
+    assert type(resolution) is O.OracleEnvironmentResolutionFailure
+    assert resolution.detail_code == "oracle-environment-compiler-unresolved"
+    assert [item.origin for item in resolution.compiler_candidates] == [
+        "argument:compiler"
+    ]
+    assert all(item.outcome != "selected" for item in resolution.compiler_candidates)
 
 
 def test_scratch_failure_is_unavailable_not_candidate_reject(monkeypatch):
@@ -391,6 +554,9 @@ def test_postflight_unavailable_retains_candidate_finding(monkeypatch):
 
     assert result.receipt is not None
     assert attempt["oracle_receipt"] == result.receipt.as_dict()
+    assert attempt["infrastructure"]["dependency_config_sha256"] == (
+        result.receipt.dependency_config_sha256
+    )
     assert result.candidate_compile_finding is candidate_finding
     assert attempt["candidate_compile_finding"] == {
         "kind": "compile",
@@ -1107,6 +1273,7 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
     )
 
     def oracle_check(source, **kwargs):
+        kwargs["phase_marker"]()
         order.append("oracle")
         assert source == materialized
         assert kwargs["proposal_source"] == _CLEAN_IMPL
@@ -1119,7 +1286,20 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
         order.append("resolve")
         return "fixture-source"
 
+    dependency = tmp_path / "verified-masstree"
+    verified_compiler = tmp_path / "verified-cxx"
+
+    def resolve_environment(ccbench, **kwargs):
+        order.append("environment")
+        assert Path(ccbench) == tmp_path
+        assert kwargs == {
+            "compiler": verified_compiler,
+            "dependency_root": dependency,
+        }
+        return "fixture-environment"
+
     monkeypatch.setattr(O, "check_materialized_sort_swo", oracle_check)
+    monkeypatch.setattr(O, "resolve_oracle_environment", resolve_environment)
     monkeypatch.setattr(direct.source_digest, "resolve", resolve)
     cell = {
         "configuration": "sort_best",
@@ -1135,12 +1315,19 @@ def test_s1_sort_best_runs_same_oracle_before_source_materializer(monkeypatch, t
         },
     }
 
-    with direct.prepare_cell(cell, "fixture-pin", cxx="fixture-cxx") as prepared:
+    with direct.prepare_cell(
+            cell,
+            "fixture-pin",
+            cxx="fixture-cxx",
+            oracle_dependency_root=dependency,
+            oracle_compiler=verified_compiler,
+            oracle_phase_marker=lambda: order.append("marker"),
+    ) as prepared:
         assert prepared.src_token == "fixture-source"
         assert prepared.oracle_attempt is not None
         assert prepared.oracle_attempt["classification"] == "pass"
         assert prepared.oracle_attempt["oracle_receipt"]["contract_id"] == O.ORACLE_CONTRACT_ID
-    assert order == ["oracle", "resolve"]
+    assert order == ["environment", "marker", "oracle", "resolve"]
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ usage() {
   cat <<'EOF'
 usage: submit_floor.sh [--dry-run] [--repo-root PATH]
                        [--attempts-root PATH] [--job-script PATH]
+                       [--cache-root PATH]
 EOF
 }
 
@@ -28,6 +29,7 @@ DEFAULT_REPO_ROOT=$(realpath -e -- "$SCRIPT_DIR/../..") || {
 REPO_ROOT_RAW="$DEFAULT_REPO_ROOT"
 ATTEMPTS_ROOT_RAW=""
 JOB_SCRIPT_RAW="$SCRIPT_DIR/floor_campaign.sh"
+THIRD_PARTY_CACHE_ROOT_RAW=${IZANAGI_PEGASUS_THIRDPARTY_CACHE:-}
 DRY_RUN=0
 REPO_ROOT_OVERRIDDEN=0
 ATTEMPTS_ROOT_OVERRIDDEN=0
@@ -57,6 +59,11 @@ while [[ $# -gt 0 ]]; do
       JOB_SCRIPT_OVERRIDDEN=1
       shift 2
       ;;
+    --cache-root)
+      [[ $# -ge 2 ]] || { echo "--cache-root requires PATH" >&2; exit 2; }
+      THIRD_PARTY_CACHE_ROOT_RAW=$2
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -83,6 +90,23 @@ REPO_ROOT=$(cd "$REPO_ROOT_RAW" && pwd -P) || exit 2
 if [[ "$DRY_RUN" -eq 0 \
     && "$SCRIPT_PATH" != "$REPO_ROOT/tools/pegasus/submit_floor.sh" ]]; then
   echo "real submission requires the repo tools/pegasus/submit_floor.sh" >&2
+  exit 2
+fi
+if [[ -z "$THIRD_PARTY_CACHE_ROOT_RAW" \
+    || "$THIRD_PARTY_CACHE_ROOT_RAW" != /* \
+    || "$THIRD_PARTY_CACHE_ROOT_RAW" == *","* \
+    || "$THIRD_PARTY_CACHE_ROOT_RAW" == *$'\n'* ]]; then
+  echo "third-party cache root must be an explicit absolute path without comma/newline" >&2
+  exit 2
+fi
+if [[ ! -d "$THIRD_PARTY_CACHE_ROOT_RAW" || -L "$THIRD_PARTY_CACHE_ROOT_RAW" ]]; then
+  echo "third-party cache root is missing, not a directory, or a symlink" >&2
+  exit 2
+fi
+THIRD_PARTY_CACHE_ROOT=$(realpath -e -- "$THIRD_PARTY_CACHE_ROOT_RAW") || exit 2
+if [[ "$THIRD_PARTY_CACHE_ROOT" == "$REPO_ROOT" \
+    || "$THIRD_PARTY_CACHE_ROOT" == "$REPO_ROOT/"* ]]; then
+  echo "third-party cache root must be outside the repository" >&2
   exit 2
 fi
 OUTPUT_ROOT="$REPO_ROOT/output"
@@ -408,7 +432,7 @@ provision_claim_root() {
 provision_claim_root || exit 2
 
 # 出典: submit_certify.sh:170-237 @ e9b6f69
-export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE"
+export_spec="IZANAGI_SUBMISSION_NONCE=$NONCE,IZANAGI_PEGASUS_THIRDPARTY_CACHE=$THIRD_PARTY_CACHE_ROOT"
 SCHEDULER_STDOUT="$SUBMISSION_DIR/scheduler.stdout"
 SCHEDULER_STDERR="$SUBMISSION_DIR/scheduler.stderr"
 for scheduler_path in "$SCHEDULER_STDOUT" "$SCHEDULER_STDERR"; do

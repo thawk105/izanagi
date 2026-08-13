@@ -867,7 +867,9 @@ def test_prepare_sort_best_reject_carries_structured_oracle_attempt(
         lambda *args, **kwargs: (
             types.SimpleNamespace(passed=True), "base", "edited", "diff"),
     )
-    monkeypatch.setattr(oracle, "resolve_oracle_environment", lambda *args: None)
+    monkeypatch.setattr(
+        oracle, "resolve_oracle_environment", lambda *args, **kwargs: None,
+    )
     result = _oracle_reject_result()
     monkeypatch.setattr(
         oracle, "check_materialized_sort_swo", lambda *args, **kwargs: result,

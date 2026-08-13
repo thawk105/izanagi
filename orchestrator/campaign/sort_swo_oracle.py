@@ -46,6 +46,19 @@ _RUN_TIMEOUT_S = 2.0
 _TOOL_IDENTITY_TIMEOUT_S = 2.0
 _MAX_SOURCE_BYTES = 64 * 1024
 _MAX_DIAGNOSTIC_BYTES = 16 * 1024
+_MAX_ENVIRONMENT_CANDIDATES = 16
+_MAX_ENVIRONMENT_BASENAME_CHARS = 255
+_ENVIRONMENT_CANDIDATE_OUTCOMES = frozenset({
+    "not-configured",
+    "not-found",
+    "selected",
+    "not-executable",
+    "not-regular-file",
+    "missing",
+    "config-h-not-regular-file",
+    "config-h-missing",
+    "invalid-path",
+})
 _ORDERS = (0, 1, 2)
 _CORPORA = (0, 1)
 # Public producer-domain aliases for consumers of the finding schema.
@@ -204,13 +217,108 @@ class OracleReceipt:
 
 
 @dataclass(frozen=True)
+class OracleEnvironmentCandidate:
+    """resolver が実際に検査した bounded な候補 1 件。"""
+
+    origin: str
+    path: Optional[Path]
+    outcome: str
+
+    def __post_init__(self) -> None:
+        if type(self.origin) is not str or not self.origin or len(self.origin) > 128:
+            raise ValueError("oracle environment candidate origin is invalid")
+        if self.outcome not in _ENVIRONMENT_CANDIDATE_OUTCOMES:
+            raise ValueError("oracle environment candidate outcome is invalid")
+        if self.path is not None and not isinstance(self.path, Path):
+            raise TypeError("oracle environment candidate path must be Path or None")
+
+    def private_dict(self) -> dict[str, object]:
+        return {
+            "origin": self.origin,
+            "outcome": self.outcome,
+            "path": None if self.path is None else os.fspath(self.path),
+        }
+
+    def durable_dict(self) -> dict[str, object]:
+        out: dict[str, object] = {
+            "origin": self.origin,
+            "outcome": self.outcome,
+        }
+        if self.path is not None:
+            path_text = os.fspath(self.path)
+            basename = self.path.name
+            out["path_basename"] = basename[:_MAX_ENVIRONMENT_BASENAME_CHARS]
+            out["path_sha256"] = hashlib.sha256(
+                path_text.encode("utf-8", errors="surrogatepass")
+            ).hexdigest()
+        return out
+
+
+@dataclass(frozen=True)
+class OracleEnvironmentResolutionFailure:
+    """成功値と排他的な resolver failure union member。"""
+
+    detail_code: str
+    compiler_candidates: tuple[OracleEnvironmentCandidate, ...]
+    dependency_candidates: tuple[OracleEnvironmentCandidate, ...]
+
+    def __post_init__(self) -> None:
+        if self.detail_code not in {
+            "oracle-environment-compiler-unresolved",
+            "oracle-environment-dependency-unresolved",
+            "oracle-environment-compiler-and-dependency-unresolved",
+        }:
+            raise ValueError("unknown oracle environment resolution detail_code")
+        for candidates in (self.compiler_candidates, self.dependency_candidates):
+            if not candidates or len(candidates) > _MAX_ENVIRONMENT_CANDIDATES:
+                raise ValueError("oracle environment candidate count is out of bounds")
+            if any(type(item) is not OracleEnvironmentCandidate for item in candidates):
+                raise TypeError("oracle environment candidates must use the exact type")
+
+    @property
+    def failed_legs(self) -> tuple[str, ...]:
+        if self.detail_code == "oracle-environment-compiler-unresolved":
+            return ("compiler",)
+        if self.detail_code == "oracle-environment-dependency-unresolved":
+            return ("dependency",)
+        return ("compiler", "dependency")
+
+    def private_dict(self) -> dict[str, object]:
+        return {
+            "detail_code": self.detail_code,
+            "failed_legs": list(self.failed_legs),
+            "compiler_candidates": [
+                item.private_dict() for item in self.compiler_candidates
+            ],
+            "dependency_candidates": [
+                item.private_dict() for item in self.dependency_candidates
+            ],
+        }
+
+    def durable_dict(self) -> dict[str, object]:
+        return {
+            "detail_code": self.detail_code,
+            "failed_legs": list(self.failed_legs),
+            "compiler_candidates": [
+                item.durable_dict() for item in self.compiler_candidates
+            ],
+            "dependency_candidates": [
+                item.durable_dict() for item in self.dependency_candidates
+            ],
+        }
+
+
+@dataclass(frozen=True)
 class OracleInfrastructureFailure:
     reason_code: str
     phase: str
     detail_code: str
     compiler_diagnostic: Optional[CompilerDiagnostic] = None
+    environment_resolution: Optional[OracleEnvironmentResolutionFailure] = None
+    dependency_config_sha256: Optional[str] = None
 
     def as_dict(self) -> dict[str, object]:
+        """durable/WAL 専用の機体非依存射影。"""
         out: dict[str, object] = {
             "reason_code": self.reason_code,
             "phase": self.phase,
@@ -218,6 +326,29 @@ class OracleInfrastructureFailure:
         }
         if self.compiler_diagnostic is not None:
             out["compiler_diagnostic"] = self.compiler_diagnostic.metadata_dict()
+        if self.environment_resolution is not None:
+            out["environment_resolution"] = (
+                self.environment_resolution.durable_dict()
+            )
+        if self.dependency_config_sha256 is not None:
+            out["dependency_config_sha256"] = self.dependency_config_sha256
+        return out
+
+    def private_dict(self) -> dict[str, object]:
+        """mode 0700 の job staging だけへ出す operator 射影。"""
+        out: dict[str, object] = {
+            "reason_code": self.reason_code,
+            "phase": self.phase,
+            "detail_code": self.detail_code,
+        }
+        if self.compiler_diagnostic is not None:
+            out["compiler_diagnostic"] = self.compiler_diagnostic.metadata_dict()
+        if self.environment_resolution is not None:
+            out["environment_resolution"] = (
+                self.environment_resolution.private_dict()
+            )
+        if self.dependency_config_sha256 is not None:
+            out["dependency_config_sha256"] = self.dependency_config_sha256
         return out
 
 
@@ -973,46 +1104,117 @@ def resolve_oracle_environment(
     *,
     compiler: Optional[os.PathLike[str] | str] = None,
     dependency_root: Optional[os.PathLike[str] | str] = None,
-) -> Optional[OracleEnvironment]:
-    """Resolve bounded defaults, returning an object callers must inject."""
+) -> OracleEnvironment | OracleEnvironmentResolutionFailure:
+    """Resolve bounded defaults into a success/failure closed union."""
     ccbench = Path(ccbench_dir).resolve()
-    compiler_candidates: list[Path] = []
+    compiler_inputs: list[tuple[str, object | None, str]] = []
     if compiler is not None:
-        compiler_candidates.append(Path(compiler))
-    for env_name in ("IZANAGI_SORT_SWO_CXX", "CXX"):
-        value = os.environ.get(env_name)
-        if value:
-            compiler_candidates.append(Path(value))
-    discovered_compiler = shutil.which("g++")
-    if discovered_compiler:
-        compiler_candidates.append(Path(discovered_compiler))
+        compiler_inputs.append(("argument:compiler", compiler, "not-configured"))
+    else:
+        for env_name in ("IZANAGI_SORT_SWO_CXX", "CXX"):
+            compiler_inputs.append((
+                f"environment:{env_name}", os.environ.get(env_name),
+                "not-configured",
+            ))
+        compiler_inputs.append((
+            "path:g++", shutil.which("g++"), "not-found",
+        ))
 
-    dependency_candidates: list[Path] = []
+    dependency_inputs: list[tuple[str, object | None, str]] = []
     if dependency_root is not None:
-        dependency_candidates.append(Path(dependency_root))
-    configured_dependency = os.environ.get("IZANAGI_SORT_SWO_MASSTREE_ROOT")
-    if configured_dependency:
-        dependency_candidates.append(Path(configured_dependency))
-    dependency_candidates.append(ccbench / "build" / "_deps" / "masstree-src")
-    # A portable repo-relative discovery fallback.  It is bounded by the fixed
-    # ancestor count and contains no host/user-specific absolute path literal.
-    for ancestor in tuple(ccbench.parents)[:8]:
-        dependency_candidates.append(
-            ancestor.parent / f"{ancestor.name}-thirdparty-cache" / "masstree",
-        )
+        dependency_inputs.append((
+            "argument:dependency-root", dependency_root, "not-configured",
+        ))
+    else:
+        dependency_inputs.append((
+            "environment:IZANAGI_SORT_SWO_MASSTREE_ROOT",
+            os.environ.get("IZANAGI_SORT_SWO_MASSTREE_ROOT"),
+            "not-configured",
+        ))
+        dependency_inputs.append((
+            "ccbench-build-dependency",
+            ccbench / "build" / "_deps" / "masstree-src",
+            "not-configured",
+        ))
+        # portable fallback は固定祖先数に閉じ、機体固有 literal を持たない。
+        for index, ancestor in enumerate(tuple(ccbench.parents)[:8]):
+            dependency_inputs.append((
+                f"ancestor-cache:{index}",
+                ancestor.parent / f"{ancestor.name}-thirdparty-cache" / "masstree",
+                "not-configured",
+            ))
 
-    compiler_path = next(
-        (candidate.resolve() for candidate in compiler_candidates
-         if candidate.is_file() and os.access(candidate, os.X_OK)),
-        None,
-    )
-    dependency_path = next(
-        (candidate.resolve() for candidate in dependency_candidates
-         if (candidate / "config.h").is_file()),
-        None,
-    )
+    compiler_records: list[OracleEnvironmentCandidate] = []
+    compiler_path: Optional[Path] = None
+    for origin, raw_candidate, absent_outcome in compiler_inputs:
+        if raw_candidate is None or raw_candidate == "":
+            compiler_records.append(OracleEnvironmentCandidate(
+                origin, None, absent_outcome,
+            ))
+            continue
+        try:
+            candidate = Path(raw_candidate)
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                compiler_path = candidate.resolve()
+                compiler_records.append(OracleEnvironmentCandidate(
+                    origin, candidate, "selected",
+                ))
+                break
+            outcome = (
+                "not-executable" if candidate.is_file()
+                else "not-regular-file"
+                if candidate.exists() or candidate.is_symlink()
+                else "missing"
+            )
+        except (OSError, TypeError, ValueError):
+            candidate = None
+            outcome = "invalid-path"
+        compiler_records.append(OracleEnvironmentCandidate(
+            origin, candidate, outcome,
+        ))
+
+    dependency_records: list[OracleEnvironmentCandidate] = []
+    dependency_path: Optional[Path] = None
+    for origin, raw_candidate, absent_outcome in dependency_inputs:
+        if raw_candidate is None or raw_candidate == "":
+            dependency_records.append(OracleEnvironmentCandidate(
+                origin, None, absent_outcome,
+            ))
+            continue
+        try:
+            candidate = Path(raw_candidate)
+            config = candidate / "config.h"
+            if config.is_file():
+                dependency_path = candidate.resolve()
+                dependency_records.append(OracleEnvironmentCandidate(
+                    origin, candidate, "selected",
+                ))
+                break
+            outcome = (
+                "config-h-not-regular-file"
+                if config.exists() or config.is_symlink()
+                else "config-h-missing"
+            )
+        except (OSError, TypeError, ValueError):
+            candidate = None
+            outcome = "invalid-path"
+        dependency_records.append(OracleEnvironmentCandidate(
+            origin, candidate, outcome,
+        ))
+
     if compiler_path is None or dependency_path is None:
-        return None
+        detail_code = (
+            "oracle-environment-compiler-and-dependency-unresolved"
+            if compiler_path is None and dependency_path is None
+            else "oracle-environment-compiler-unresolved"
+            if compiler_path is None
+            else "oracle-environment-dependency-unresolved"
+        )
+        return OracleEnvironmentResolutionFailure(
+            detail_code,
+            tuple(compiler_records),
+            tuple(dependency_records),
+        )
     return OracleEnvironment(compiler_path, ccbench, dependency_path)
 
 
@@ -1188,12 +1390,27 @@ def _unavailable_result(
     detail_code: str, receipt: Optional[OracleReceipt] = None,
     diagnostic: Optional[CompilerDiagnostic] = None,
     candidate_compile_finding: Optional[SortSwoFinding] = None,
+    environment_resolution: Optional[OracleEnvironmentResolutionFailure] = None,
+    environment: Optional[OracleEnvironment] = None,
 ) -> SortSwoOracleResult:
+    dependency_config_sha256 = None
+    if type(environment) is OracleEnvironment:
+        try:
+            dependency_config_sha256 = _file_sha256(
+                environment.dependency_root / "config.h"
+            )
+        except OSError:
+            dependency_config_sha256 = None
     return SortSwoOracleResult(
         OracleStatus.UNAVAILABLE, materialized_hash, proposal_hash,
         receipt=receipt,
         infrastructure=OracleInfrastructureFailure(
-            INFRASTRUCTURE_REASON_CODE, phase, detail_code, diagnostic,
+            INFRASTRUCTURE_REASON_CODE,
+            phase,
+            detail_code,
+            compiler_diagnostic=diagnostic,
+            environment_resolution=environment_resolution,
+            dependency_config_sha256=dependency_config_sha256,
         ),
         candidate_compile_finding=candidate_compile_finding,
     )
@@ -1204,8 +1421,11 @@ def check_materialized_sort_swo(
     *,
     marker_id: str,
     proposal_source: str,
-    environment: Optional[OracleEnvironment],
+    environment: Optional[
+        OracleEnvironment | OracleEnvironmentResolutionFailure
+    ],
     scratch_root: Optional[os.PathLike[str] | str] = None,
+    phase_marker: Optional[Callable[[], None]] = None,
 ) -> SortSwoOracleResult:
     """Check the exact post-materialization sort hole with a closed result.
 
@@ -1234,6 +1454,13 @@ def check_materialized_sort_swo(
             SortSwoFinding(OracleRejectKind.STRUCTURE, structural_reason),
         )
 
+    if type(environment) is OracleEnvironmentResolutionFailure:
+        return _unavailable_result(
+            materialized_hash, proposal_hash,
+            phase="environment-resolution",
+            detail_code=environment.detail_code,
+            environment_resolution=environment,
+        )
     if environment is None:
         return _unavailable_result(
             materialized_hash, proposal_hash,
@@ -1255,9 +1482,12 @@ def check_materialized_sort_swo(
         return _unavailable_result(
             materialized_hash, proposal_hash,
             phase="environment-resolution", detail_code="required-header-missing",
+            environment=environment,
         )
 
     try:
+        if phase_marker is not None:
+            phase_marker()
         compiler_version = _compiler_version(environment.compiler)
         with tempfile.TemporaryDirectory(
             prefix="izanagi_sort_swo_",
@@ -1278,6 +1508,7 @@ def check_materialized_sort_swo(
                     detail_code="trusted-positive-tu-compile-failed",
                     diagnostic=(None if control_finding is None
                                 else control_finding.compiler_diagnostic),
+                    environment=environment,
                 )
             try:
                 control_evaluation = _evaluate_executable(control_executable)
@@ -1285,12 +1516,14 @@ def check_materialized_sort_swo(
                 return _unavailable_result(
                     materialized_hash, proposal_hash,
                     phase="trusted-preflight-run", detail_code=exc.detail_code,
+                    environment=environment,
                 )
             if control_evaluation is not None:
                 return _unavailable_result(
                     materialized_hash, proposal_hash,
                     phase="trusted-preflight-run",
                     detail_code="trusted-positive-tu-semantic-failure",
+                    environment=environment,
                 )
 
             executable = temp / "oracle"
@@ -1375,6 +1608,7 @@ def check_materialized_sort_swo(
                             else postflight_finding.compiler_diagnostic
                         ),
                         candidate_compile_finding=finding,
+                        environment=environment,
                     )
             if unavailable:
                 return _unavailable_result(
@@ -1385,6 +1619,7 @@ def check_materialized_sort_swo(
                     ), receipt=receipt,
                     diagnostic=(None if finding is None
                                 else finding.compiler_diagnostic),
+                    environment=environment,
                 )
             if finding is None:
                 try:
@@ -1394,16 +1629,19 @@ def check_materialized_sort_swo(
                         materialized_hash, proposal_hash,
                         phase=exc.phase, detail_code=exc.detail_code,
                         receipt=receipt,
+                        environment=environment,
                     )
     except _EvaluationUnavailable as exc:
         return _unavailable_result(
             materialized_hash, proposal_hash,
             phase=exc.phase, detail_code=exc.detail_code,
+            environment=environment,
         )
     except OSError as exc:
         return _unavailable_result(
             materialized_hash, proposal_hash,
             phase="oracle-io", detail_code=type(exc).__name__,
+            environment=environment,
         )
     if finding is not None:
         return SortSwoOracleResult(
@@ -1469,6 +1707,35 @@ def attempt_record(result: SortSwoOracleResult) -> dict[str, object]:
     return out
 
 
+def private_attempt_record(result: SortSwoOracleResult) -> dict[str, object]:
+    """private job artifact 用。resolver 候補の full path をここだけへ残す。"""
+    if type(result) is not SortSwoOracleResult or result.status not in {
+            OracleStatus.PASS, OracleStatus.UNAVAILABLE}:
+        raise TypeError("oracle private attempt record requires exact PASS or UNAVAILABLE")
+    out: dict[str, object] = {
+        "event": "sort-swo-oracle-attempt",
+        "classification": (
+            "pass" if result.status is OracleStatus.PASS else "attempt-infra"
+        ),
+        "reason_code": (
+            "sort-swo-oracle-pass"
+            if result.status is OracleStatus.PASS else INFRASTRUCTURE_REASON_CODE
+        ),
+        "oracle_contract_id": result.contract_id,
+        "materialized_hole_sha256": result.materialized_hole_sha256,
+        "proposal_sha256": result.proposal_sha256,
+    }
+    if result.receipt is not None:
+        out["oracle_receipt"] = result.receipt.as_dict()
+    if result.infrastructure is not None:
+        out["infrastructure"] = result.infrastructure.private_dict()
+    if result.candidate_compile_finding is not None:
+        out["candidate_compile_finding"] = (
+            result.candidate_compile_finding.as_dict()
+        )
+    return out
+
+
 __all__ = [
     "AXIOM_CHECKER_IMPLEMENTATION_SHA256", "AXIOM_CHECKER_VERSION",
     "COMPILE_FLAGS_SHA256", "CONTRACT_VERSION",
@@ -1477,10 +1744,12 @@ __all__ = [
     "INFRASTRUCTURE_REASON_CODE", "ORACLE_COMPONENTS_SHA256",
     "ORACLE_CONTRACT_ID", "PROTOCOL_VERSION",
     "TU_TEMPLATE_SHA256", "CompilerDiagnostic", "OracleEnvironment",
+    "OracleEnvironmentCandidate", "OracleEnvironmentResolutionFailure",
     "OracleInfrastructureFailure", "OracleReceipt", "OracleRejectKind",
     "OracleStatus", "SortSwoFinding", "SortSwoOracleResult",
     "SortSwoOracleUnavailable", "SwoAxiom", "SwoCounterexample",
-    "attempt_record", "check_materialized_sort_swo", "check_relation_matrix",
+    "attempt_record", "private_attempt_record", "check_materialized_sort_swo",
+    "check_relation_matrix",
     "extract_materialized_hole", "rejection_digest",
     "resolve_oracle_environment",
 ]
