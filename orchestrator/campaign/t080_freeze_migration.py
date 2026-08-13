@@ -166,6 +166,19 @@ class AdapterResult:
     held_checks: Tuple[Mapping[str, object], ...] = ()
 
 
+@dataclasses.dataclass(frozen=True)
+class _BatchedHistoryScan:
+    paths: frozenset[bytes]
+    nonzero_destination_oids: frozenset[str]
+    touches_path: bool
+
+    def has_trigger(self, path_raw: bytes, duplicate_oid: Optional[str]) -> bool:
+        return path_raw in self.paths or (
+            duplicate_oid is not None
+            and duplicate_oid in self.nonzero_destination_oids
+        )
+
+
 def _sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
@@ -995,42 +1008,40 @@ def _any_history_touches_path(
     return False
 
 
-def _batched_history_touches_path(
-    commits: Iterable[str], path: str, root: Path,
-    duplicate_oid: Optional[str] = None,
-) -> bool:
-    """全 commit の raw diff を diff-tree 1 本で検査する (per-commit 起動なし)。
+_BATCH_DIFF_ARGV_CHEAP: Tuple[str, ...] = (
+    "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+    "--no-renames", "--full-index", "--always", "-z",
+)
+_BATCH_DIFF_ARGV_EXPENSIVE: Tuple[str, ...] = (
+    "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+    "-M", "-C", "--full-index", "--always", "-z",
+)
 
-    ``--always`` で各入力 commit の marker を最低 1 件出し、``-m`` が差分の
-    ある親ごとに反復する同一 marker は同じ commit group として照合する。
-    ``-m -r -M -C`` による M/D/R/C/T と destination OID による別 path
-    exact copy の意味論を保つ。``--find-copies-harder`` は使わない。
-    commit group の欠落・順序不一致・未知形式は fail-closed。
-    """
-    targets = tuple(sorted(commits))
-    if not targets:
-        return False
-    if any(_SHA1_RE.fullmatch(commit) is None for commit in targets):
-        raise MigrationError("receipt.git_error", "batch diff-tree commit が不正")
-    try:
-        path_raw = path.encode("utf-8", "strict")
-    except UnicodeError as exc:
-        raise MigrationError("receipt.basis_invalid", "diff-tree path が UTF-8 でない") from exc
-    stdin = "".join(f"{commit}\n" for commit in targets).encode("ascii", "strict")
-    out = _git(
-        [
-            "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
-            "-M", "-C", "--full-index", "--always", "-z",
-        ],
-        root,
-        stdin=stdin,
+
+def _batched_history_diff_tree_argv(
+    *, detect_renames_and_copies: bool,
+) -> Tuple[str, ...]:
+    return (
+        _BATCH_DIFF_ARGV_EXPENSIVE
+        if detect_renames_and_copies
+        else _BATCH_DIFF_ARGV_CHEAP
     )
+
+
+def _parse_batched_history_diff_tree(
+    out: bytes,
+    targets: Tuple[str, ...],
+    path_raw: bytes,
+    duplicate_oid: Optional[str],
+) -> _BatchedHistoryScan:
     records = out.split(b"\0")
     if not records or records[-1] != b"":
         raise MigrationError("receipt.git_error", "batch diff-tree 出力の終端が不正")
     records.pop()
     seen: List[str] = []
     current: Optional[str] = None
+    all_paths = set()
+    nonzero_destination_oids = set()
     touched = False
     offset = 0
     while offset < len(records):
@@ -1067,6 +1078,9 @@ def _batched_history_touches_path(
         if offset + path_count >= len(records):
             raise MigrationError("receipt.git_error", "batch diff-tree path の件数が不一致")
         paths = tuple(records[offset + index] for index in range(1, path_count + 1))
+        all_paths.update(paths)
+        if dst_oid.strip(b"0"):
+            nonzero_destination_oids.add(dst_oid.decode("ascii"))
         if status_code in {b"M", b"D", b"R", b"C", b"T"} and path_raw in paths:
             touched = True
         destination_path = paths[-1]
@@ -1080,17 +1094,105 @@ def _batched_history_touches_path(
         offset += path_count + 1
     if tuple(seen) != targets:
         raise MigrationError("receipt.git_error", "batch diff-tree 出力の件数が不一致")
-    return touched
+    return _BatchedHistoryScan(
+        # MUT-P1 anchor: ``set(all_paths)`` で包む一行置換は意味を変えない。
+        paths=frozenset(all_paths),
+        nonzero_destination_oids=frozenset(nonzero_destination_oids),
+        touches_path=touched,
+    )
+
+
+def _run_batched_history_diff_tree(
+    targets: Tuple[str, ...],
+    path_raw: bytes,
+    root: Path,
+    duplicate_oid: Optional[str],
+    *,
+    detect_renames_and_copies: bool,
+) -> _BatchedHistoryScan:
+    argv = _batched_history_diff_tree_argv(
+        detect_renames_and_copies=detect_renames_and_copies,
+    )
+    allowed_tokens = {
+        "diff-tree", "--stdin", "--root", "--raw", "-m", "-r",
+        "--no-renames", "-M", "-C", "--full-index", "--always", "-z",
+    }
+    if (
+        not argv
+        or argv[0] != "diff-tree"
+        or any(not isinstance(token, str) for token in argv)
+        or "--find-copies-harder" in argv
+        or sum(token.startswith("-C") for token in argv) > 1
+        or sum(token.startswith("-M") for token in argv) > 1
+        or any(token not in allowed_tokens for token in argv)
+    ):
+        raise MigrationError(
+            "receipt.git_error",
+            "batch diff-tree argv に未承認の token または重複検出指定がある",
+        )
+    if argv not in (_BATCH_DIFF_ARGV_CHEAP, _BATCH_DIFF_ARGV_EXPENSIVE):
+        raise MigrationError(
+            "receipt.git_error",
+            "batch diff-tree argv が凍結済みの安価形・高価形と不一致",
+        )
+    stdin = "".join(f"{commit}\n" for commit in targets).encode("ascii", "strict")
+    out = _git(argv, root, stdin=stdin)
+    return _parse_batched_history_diff_tree(
+        out, targets, path_raw, duplicate_oid,
+    )
+
+
+def _batched_history_touches_path(
+    commits: Iterable[str], path: str, root: Path,
+    duplicate_oid: Optional[str] = None,
+) -> bool:
+    """安価な raw diff を先行し、必要なときだけ従来の高価走査へ倒す。
+
+    両走査は同じ厳格 parser を使い、安価出力に対象 path または対象 blob OID が
+    現れた場合だけ、全 commit を ``-M -C`` 付きで再走査する。どちらの argv にも
+    ``--find-copies-harder`` は使わない。
+
+    安価出力を不在の証明にするため、git が構文的に妥当な出力を返したなら必要な
+    record を省略しないことを信頼境界として前提にする。
+    """
+    targets = tuple(sorted(commits))
+    if not targets:
+        return False
+    if any(_SHA1_RE.fullmatch(commit) is None for commit in targets):
+        raise MigrationError("receipt.git_error", "batch diff-tree commit が不正")
+    try:
+        path_raw = path.encode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise MigrationError("receipt.basis_invalid", "diff-tree path が UTF-8 でない") from exc
+    cheap = _run_batched_history_diff_tree(
+        targets,
+        path_raw,
+        root,
+        duplicate_oid,
+        detect_renames_and_copies=False,
+    )
+    if not cheap.has_trigger(path_raw, duplicate_oid):
+        return False
+    expensive = _run_batched_history_diff_tree(
+        targets,
+        path_raw,
+        root,
+        duplicate_oid,
+        detect_renames_and_copies=True,
+    )
+    return expensive.touches_path
 
 
 def _history_touches_path(
     commit: str, path: str, root: Path, duplicate_oid: Optional[str] = None,
 ) -> bool:
-    """対象 path の M/D/R/C/T と、期待 blob の別 path への exact copy を検出する。
+    """逐次 control として M/D/R/C/T と別 path への exact copy を検出する。
 
     ``--find-copies-harder`` を使わず、``--raw`` の destination OID が
     ``duplicate_oid`` と一致する別 path も検出する。2026-08-09 のユーザー裁定により、
     検出しなくなったのは中身を変えたうえでの copy (50--99% 類似) だけである。
+
+    production は安価先行の一括版を使い、この helper は二段構えにしない。
 
     descendant 20 commit の実測は従来 45.31 秒、``--raw`` では 0.075 秒で、
     1529 commit への外挿は従来約 3470 秒 (8-thread 約 434 秒)、``--raw`` 約 6 秒だった。
