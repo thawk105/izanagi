@@ -1,0 +1,97 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MUT-A1-revert-to-pre-wave-postposed-win",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    is_acceptance = _is_acceptance_run(args)\n    if is_acceptance and _has_non_loadgroup_user_dist(args):\n        print(\n            \"受入形では --dist loadgroup 以外の --dist 上書きを拒否します。\",\n            file=sys.stderr,\n            flush=True,\n        )\n        return _ACCEPTANCE_DIST_OVERRIDE_RC\n    if not is_acceptance and not _has_valid_bounded_scope_marker():\n",
+          "new": "    is_acceptance = _is_acceptance_run(args)\n    if not is_acceptance and not _has_valid_bounded_scope_marker():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+      ]
+    },
+    {
+      "id": "MUT-A2-drop-equals-spelling",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "        if token.startswith(\"--dist=\"):\n            values.append(token.split(\"=\", 1)[1])\n",
+          "new": "        if False:\n            values.append(token.split(\"=\", 1)[1])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling"
+      ]
+    },
+    {
+      "id": "MUT-A3-drop-dist-from-nonselect-allowlist",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    \"-n\", \"--numprocesses\", \"--dist\", \"--color\", \"--tb\", \"--capture\",\n",
+          "new": "    \"-n\", \"--numprocesses\", \"--color\", \"--tb\", \"--capture\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+      ]
+    },
+    {
+      "id": "MUT-A4-drop-pytest-plugins-exclusion",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "    if os.environ.get(\"PYTEST_PLUGINS\", \"\").strip():\n        return False\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set"
+      ]
+    },
+    {
+      "id": "MUT-A5-reject-all-explicit-dist",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "old": "def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:\n    return any(value != \"loadgroup\" for value in _user_dist_values(args))\n",
+          "new": "def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:\n    return bool(_user_dist_values(args))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup"
+      ]
+    }
+  ]
+}

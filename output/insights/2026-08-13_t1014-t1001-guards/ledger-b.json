@@ -1,0 +1,494 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/fc9e4cf3b61bd7d0fb513cd9f5b41b59/izdw-fc9e4cf3b6.o909247",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/fc9e4cf3b61bd7d0fb513cd9f5b41b59/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [31 items]\n\n...............................                                          [100%]\n============================== 31 passed in 2.58s ==============================\n",
+      "stdout_sha256": "08b55e363080297beef969214ac7c1ea25721e1f3685990871ff55557caa36d1"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2084165d69d88f72b4b4d6a2ffbfc47673af9ed1096cb9b318f98c0daef36986",
+    "duration_s": 26.795,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6d700fb3aefd34a1cf189bc8a127dcb201f41b37c93d56d3113b1e838caa3f92",
+    "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+    "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+    "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+    "status": "PASSED",
+    "test_output_sha256": "08b55e363080297beef969214ac7c1ea25721e1f3685990871ff55557caa36d1",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+  },
+  "date": "2026-08-13T04:29:35.859540+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/26c80b15611b71c5083faacdb5da41c0/izdw-26c80b1561.o909248",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/26c80b15611b71c5083faacdb5da41c0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [31 items]\n\n.....................FFFFFFFFF.                                          [100%]\n=================================== FAILURES ===================================\n_________ test_scan_resolves_relative_cmdline_path_against_process_cwd _________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_scan_resolves_relative_cm0')\n\n    def test_scan_resolves_relative_cmdline_path_against_process_cwd(tmp_path: Path):\n        target = tmp_path / \"worktree\"\n        (target / \"nested\").mkdir(parents=True)\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(\n            proc_root,\n            105,\n            cwd=outside,\n            argv=[\"worker\", \"../worktree/nested\"],\n        )\n    \n        report = _scan(target, proc_root)\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'unoccupied' == 'occupied'\nE         \nE         - occupied\nE         + unoccupied\nE         ? ++\n\norchestrator/tests/test_check_worktree_occupancy.py:159: AssertionError\n_________________ test_main_occupied_wins_over_unreachable_cwd _________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_main_occupied_wins_over_u0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14eac99d49d0>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14eac99d4250>\n\n    def test_main_occupied_wins_over_unreachable_cwd(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(proc_root, 122, cwd=outside, argv=[\"worker\", str(target)])\n        _make_pid(proc_root, 123, cwd=outside, argv=[\"worker\"])\n        original = checker._read_process_cwd\n    \n        def read_or_deny(pid_dir: Path) -> Path:\n            if pid_dir.name == \"123\":\n                raise PermissionError(\"synthetic denial\")\n            return original(pid_dir)\n    \n        monkeypatch.setattr(checker, \"_read_process_cwd\", read_or_deny)\n        rc = checker.main(\n            [str(target)],\n            proc_root=proc_root,\n            self_pid=-1,\n            parent_pid=-1,\n        )\n    \n        payload = json.loads(capsys.readouterr().out)\n>       assert rc == 1\nE       assert 0 == 1\n\norchestrator/tests/test_check_worktree_occupancy.py:584: AssertionError\n___________________ test_scan_detects_cmdline_only_occupant ____________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_scan_detects_cmdline_only0')\n\n    def test_scan_detects_cmdline_only_occupant(tmp_path: Path):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(proc_root, 103, cwd=outside, argv=[\"worker\", str(target)])\n    \n        report = _scan(target, proc_root)\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'unoccupied' == 'occupied'\nE         \nE         - occupied\nE         + unoccupied\nE         ? ++\n\norchestrator/tests/test_check_worktree_occupancy.py:122: AssertionError\n__________________ test_scan_occupied_wins_over_indeterminate __________________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_scan_occupied_wins_over_i0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ac9ab86d0>\n\n    def test_scan_occupied_wins_over_indeterminate(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(proc_root, 116, cwd=outside, argv=[\"worker\", str(target)])\n        _make_pid(proc_root, 117, cwd=outside, argv=[\"worker\"])\n        original = checker._read_cmdline\n    \n        def read_or_deny(pid_dir: Path) -> tuple[str, ...]:\n            if pid_dir.name == \"117\":\n                raise PermissionError(\"synthetic denial\")\n            return original(pid_dir)\n    \n        monkeypatch.setattr(checker, \"_read_cmdline\", read_or_deny)\n        report = _scan(target, proc_root)\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'indeterminate' == 'occupied'\nE         \nE         - occupied\nE         + indeterminate\n\norchestrator/tests/test_check_worktree_occupancy.py:646: AssertionError\n__________________ test_scan_matches_equals_rhs_path_in_argv ___________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_scan_matches_equals_rhs_p0')\n\n    def test_scan_matches_equals_rhs_path_in_argv(tmp_path: Path):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(\n            proc_root,\n            106,\n            cwd=outside,\n            argv=[\"worker\", f\"--cwd={target}\"],\n        )\n    \n        report = _scan(target, proc_root)\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'unoccupied' == 'occupied'\nE         \nE         - occupied\nE         + unoccupied\nE         ? ++\n\norchestrator/tests/test_check_worktree_occupancy.py:178: AssertionError\n__________ test_target_normalizes_relative_symlink_and_trailing_slash __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_target_normalizes_relativ0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1536ed7e6170>\n\n    def test_target_normalizes_relative_symlink_and_trailing_slash(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ):\n        target = tmp_path / \"real-target\"\n        target.mkdir()\n        (target / \"child\").mkdir()\n        alias = tmp_path / \"alias\"\n        alias.symlink_to(target, target_is_directory=True)\n        proc_root = tmp_path / \"proc\"\n        _make_pid(proc_root, 101, cwd=tmp_path, argv=[\"worker\", \"alias/child\"])\n    \n        monkeypatch.chdir(tmp_path)\n        report = _scan(Path(\"alias/\"), proc_root)\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'unoccupied' == 'occupied'\nE         \nE         - occupied\nE         + unoccupied\nE         ? ++\n\n/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/orchestrator/tests/test_check_worktree_occupancy.py:92: AssertionError\n______ test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline ______\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_scan_does_not_exclude_she0')\n\n    def test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline(\n        tmp_path: Path,\n    ):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        shell = _shell_exe(tmp_path)\n        proc_root = tmp_path / \"proc\"\n        _make_pid(\n            proc_root,\n            112,\n            cwd=outside,\n            argv=[\"bash\", str(target)],\n            exe=shell,\n        )\n    \n        report = checker.scan_worktree_occupancy(\n            target,\n            proc_root=proc_root,\n            self_pid=-1,\n            parent_pid=112,\n        )\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'unoccupied' == 'occupied'\nE         \nE         - occupied\nE         + unoccupied\nE         ? ++\n\norchestrator/tests/test_check_worktree_occupancy.py:316: AssertionError\n____________ test_scan_does_not_exclude_spoofed_argv0_shell_parent _____________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_scan_does_not_exclude_spo0')\n\n    def test_scan_does_not_exclude_spoofed_argv0_shell_parent(tmp_path: Path):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        non_shell = _shell_exe(tmp_path, \"python3\")\n        proc_root = tmp_path / \"proc\"\n        _make_pid(\n            proc_root,\n            111,\n            cwd=outside,\n            argv=[\"bash\", str(checker._CHECKER_PATH), str(target)],\n            exe=non_shell,\n        )\n    \n        report = checker.scan_worktree_occupancy(\n            target,\n            proc_root=proc_root,\n            self_pid=-1,\n            parent_pid=111,\n        )\n    \n>       assert report.status == \"occupied\"\nE       AssertionError: assert 'unoccupied' == 'occupied'\nE         \nE         - occupied\nE         + unoccupied\nE         ? ++\n\norchestrator/tests/test_check_worktree_occupancy.py:288: AssertionError\n___________________ test_real_proc_cmdline_positive_control ____________________\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_real_proc_cmdline_positiv0')\n\n    def test_real_proc_cmdline_positive_control(tmp_path: Path):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        proc_root.mkdir()\n        ready_read, ready_write = os.pipe()\n        release_read, release_write = os.pipe()\n        child_code = (\n            \"import os,sys; \"\n            \"os.write(int(sys.argv[2]), b'1'); \"\n            \"os.read(int(sys.argv[3]), 1)\"\n        )\n        child = subprocess.Popen(\n            [\n                sys.executable,\n                \"-c\",\n                child_code,\n                str(target.resolve()),\n                str(ready_write),\n                str(release_read),\n            ],\n            cwd=outside,\n            pass_fds=(ready_write, release_read),\n        )\n        os.close(ready_write)\n        os.close(release_read)\n        try:\n            readable, _, _ = select.select([ready_read], [], [], 5.0)\n            assert readable, \"child readiness handshake timed out\"\n            assert os.read(ready_read, 1) == b\"1\"\n            (proc_root / str(child.pid)).symlink_to(\n                Path(\"/proc\") / str(child.pid),\n                target_is_directory=True,\n            )\n    \n            report = _scan(target, proc_root)\n    \n>           assert report.status == \"occupied\"\nE           AssertionError: assert 'unoccupied' == 'occupied'\nE             \nE             - occupied\nE             + unoccupied\nE             ? ++\n\norchestrator/tests/test_check_worktree_occupancy.py:774: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_wins_over_unreachable_cwd\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_occupied_wins_over_indeterminate\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_target_normalizes_relative_symlink_and_trailing_slash\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control\n========================= 9 failed, 22 passed in 2.56s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1726 retained_bytes=1726 omitted_bytes=0 rendered_excerpt_bytes=1829 sha256=4e2ace283fba2e8efe9cf89b06ef08a5c96acc44a960ba41d673bb3be0df2cdd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_real_proc_cmdline_positiv0')\n> \n>     def test_real_proc_cmdline_positive_control(tmp_path: Path):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         proc_root.mkdir()\n>         ready_read, ready_write = os.pipe()\n>         release_read, release_write = os.pipe()\n>         child_code = (\n>             \"import os,sys; \"\n>             \"os.write(int(sys.argv[2]), b'1'); \"\n>             \"os.read(int(sys.argv[3]), 1)\"\n>         )\n>         child = subprocess.Popen(\n>             [\n>                 sys.executable,\n>                 \"-c\",\n>                 child_code,\n>                 str(target.resolve()),\n>                 str(ready_write),\n>                 str(release_read),\n>             ],\n>             cwd=outside,\n>             pass_fds=(ready_write, release_read),\n>         )\n>         os.close(ready_write)\n>         os.close(release_read)\n>         try:\n>             readable, _, _ = select.select([ready_read], [], [], 5.0)\n>             assert readable, \"child readiness handshake timed out\"\n>             assert os.read(ready_read, 1) == b\"1\"\n>             (proc_root / str(child.pid)).symlink_to(\n>                 Path(\"/proc\") / str(child.pid),\n>                 target_is_directory=True,\n>             )\n>     \n>             report = _scan(target, proc_root)\n>     \n> >           assert report.status == \"occupied\"\n> E           AssertionError: assert 'unoccupied' == 'occupied'\n> E             \n> E             - occupied\n> E             + unoccupied\n> E             ? ++\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:774: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_wins_over_unreachable_cwd\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1394 retained_bytes=1394 omitted_bytes=0 rendered_excerpt_bytes=1471 sha256=181000bee8ad81544a4435985dccef2732c61037596a204d1e0ed315da8ea21c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_main_occupied_wins_over_u0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14eac99d49d0>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14eac99d4250>\n> \n>     def test_main_occupied_wins_over_unreachable_cwd(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         capsys: pytest.CaptureFixture[str],\n>     ):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(proc_root, 122, cwd=outside, argv=[\"worker\", str(target)])\n>         _make_pid(proc_root, 123, cwd=outside, argv=[\"worker\"])\n>         original = checker._read_process_cwd\n>     \n>         def read_or_deny(pid_dir: Path) -> Path:\n>             if pid_dir.name == \"123\":\n>                 raise PermissionError(\"synthetic denial\")\n>             return original(pid_dir)\n>     \n>         monkeypatch.setattr(checker, \"_read_process_cwd\", read_or_deny)\n>         rc = checker.main(\n>             [str(target)],\n>             proc_root=proc_root,\n>             self_pid=-1,\n>             parent_pid=-1,\n>         )\n>     \n>         payload = json.loads(capsys.readouterr().out)\n> >       assert rc == 1\n> E       assert 0 == 1\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:584: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_occupied_wins_over_indeterminate\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1240 retained_bytes=1240 omitted_bytes=0 rendered_excerpt_bytes=1307 sha256=7c07c4cb2331ac470fe98915bddb607e59cf78221e2338999f38d55668273347\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw23/test_scan_occupied_wins_over_i0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ac9ab86d0>\n> \n>     def test_scan_occupied_wins_over_indeterminate(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(proc_root, 116, cwd=outside, argv=[\"worker\", str(target)])\n>         _make_pid(proc_root, 117, cwd=outside, argv=[\"worker\"])\n>         original = checker._read_cmdline\n>     \n>         def read_or_deny(pid_dir: Path) -> tuple[str, ...]:\n>             if pid_dir.name == \"117\":\n>                 raise PermissionError(\"synthetic denial\")\n>             return original(pid_dir)\n>     \n>         monkeypatch.setattr(checker, \"_read_cmdline\", read_or_deny)\n>         report = _scan(target, proc_root)\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'indeterminate' == 'occupied'\n> E         \n> E         - occupied\n> E         + indeterminate\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:646: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_target_normalizes_relative_symlink_and_trailing_slash\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 rendered_excerpt_bytes=1136 sha256=a0c2d4405765f9c2324e37a7530ac229a0038630b0d74847c1e27698692a3ada\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_target_normalizes_relativ0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1536ed7e6170>\n> \n>     def test_target_normalizes_relative_symlink_and_trailing_slash(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ):\n>         target = tmp_path / \"real-target\"\n>         target.mkdir()\n>         (target / \"child\").mkdir()\n>         alias = tmp_path / \"alias\"\n>         alias.symlink_to(target, target_is_directory=True)\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(proc_root, 101, cwd=tmp_path, argv=[\"worker\", \"alias/child\"])\n>     \n>         monkeypatch.chdir(tmp_path)\n>         report = _scan(Path(\"alias/\"), proc_root)\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'unoccupied' == 'occupied'\n> E         \n> E         - occupied\n> E         + unoccupied\n> E         ? ++\n> \n> /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/orchestrator/tests/test_check_worktree_occupancy.py:92: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1048 retained_bytes=1048 omitted_bytes=0 rendered_excerpt_bytes=1117 sha256=c1de7c42c1c46fba18eb15a3b2358e0a2044bf25528ac4d1833f58418b61ee80\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw10/test_scan_does_not_exclude_spo0')\n> \n>     def test_scan_does_not_exclude_spoofed_argv0_shell_parent(tmp_path: Path):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         non_shell = _shell_exe(tmp_path, \"python3\")\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(\n>             proc_root,\n>             111,\n>             cwd=outside,\n>             argv=[\"bash\", str(checker._CHECKER_PATH), str(target)],\n>             exe=non_shell,\n>         )\n>     \n>         report = checker.scan_worktree_occupancy(\n>             target,\n>             proc_root=proc_root,\n>             self_pid=-1,\n>             parent_pid=111,\n>         )\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'unoccupied' == 'occupied'\n> E         \n> E         - occupied\n> E         + unoccupied\n> E         ? ++\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:288: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=1029 retained_bytes=1029 omitted_bytes=0 rendered_excerpt_bytes=1102 sha256=a3a04cdf0ed4b7ecf52835b754f3d2f39e39b90a1b8806c16e21d3be93b11c2f\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_scan_does_not_exclude_she0')\n> \n>     def test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline(\n>         tmp_path: Path,\n>     ):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         shell = _shell_exe(tmp_path)\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(\n>             proc_root,\n>             112,\n>             cwd=outside,\n>             argv=[\"bash\", str(target)],\n>             exe=shell,\n>         )\n>     \n>         report = checker.scan_worktree_occupancy(\n>             target,\n>             proc_root=proc_root,\n>             self_pid=-1,\n>             parent_pid=112,\n>         )\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'unoccupied' == 'occupied'\n> E         \n> E         - occupied\n> E         + unoccupied\n> E         ? ++\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:316: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=858 retained_bytes=858 omitted_bytes=0 rendered_excerpt_bytes=913 sha256=c00fb89d4c64944e1d16cb177f25fe81530fa3e7a23f85c6ff57e4456f22fa9c\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_scan_resolves_relative_cm0')\n> \n>     def test_scan_resolves_relative_cmdline_path_against_process_cwd(tmp_path: Path):\n>         target = tmp_path / \"worktree\"\n>         (target / \"nested\").mkdir(parents=True)\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(\n>             proc_root,\n>             105,\n>             cwd=outside,\n>             argv=[\"worker\", \"../worktree/nested\"],\n>         )\n>     \n>         report = _scan(target, proc_root)\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'unoccupied' == 'occupied'\n> E         \n> E         - occupied\n> E         + unoccupied\n> E         ? ++\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:159: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=811 retained_bytes=811 omitted_bytes=0 rendered_excerpt_bytes=866 sha256=f2c064c89550c72f15391545de5e9539c4eea6f84a51604002cbce31302d709c\n--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_scan_matches_equals_rhs_p0')\n> \n>     def test_scan_matches_equals_rhs_path_in_argv(tmp_path: Path):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(\n>             proc_root,\n>             106,\n>             cwd=outside,\n>             argv=[\"worker\", f\"--cwd={target}\"],\n>         )\n>     \n>         report = _scan(target, proc_root)\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'unoccupied' == 'occupied'\n> E         \n> E         - occupied\n> E         + unoccupied\n> E         ? ++\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:178: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=8 END ---\nIZANAGI_FAILURE rank=9 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=744 retained_bytes=744 omitted_bytes=0 rendered_excerpt_bytes=789 sha256=e6cc6e74f30c960c3b696df8e9c8638e2c80a2e70bb1bdd624e7f4c3bbedb2ed\n--- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_scan_detects_cmdline_only0')\n> \n>     def test_scan_detects_cmdline_only_occupant(tmp_path: Path):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(proc_root, 103, cwd=outside, argv=[\"worker\", str(target)])\n>     \n>         report = _scan(target, proc_root)\n>     \n> >       assert report.status == \"occupied\"\n> E       AssertionError: assert 'unoccupied' == 'occupied'\n> E         \n> E         - occupied\n> E         + unoccupied\n> E         ? ++\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:122: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=9 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=9 failed=9 errors=0 selected=9 omitted_failures=0 source_bytes=9929 retained_bytes=9929 omitted_bytes=0 budget_bytes=49152 rendered_bytes=14792 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e1990b5d79f7ccabc956fa470fa342f37dabaae2a43bc29bb3a82f5e55077776"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2084165d69d88f72b4b4d6a2ffbfc47673af9ed1096cb9b318f98c0daef36986",
+      "duration_s": 26.79,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_wins_over_unreachable_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_occupied_wins_over_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_target_normalizes_relative_symlink_and_trailing_slash",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B1-drop-cmdline-channel",
+      "injection_diff_sha256": "4e4a6de487be58014af0563854d7f55a039f6ead6caaa0757e350d9135f0fe7b",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "adb200f6941e596e61de7a8d54f152278bf1b5df03ffa41472be5ad457282175",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "new": "            if False and not ignore_cmdline and _argv_matches_targets(\n                argv,\n                process_cwd=process_cwd,\n                targets=targets,\n            ):\n                sources.add(\"cmdline\")\n",
+          "old": "            if not ignore_cmdline and _argv_matches_targets(\n                argv,\n                process_cwd=process_cwd,\n                targets=targets,\n            ):\n                sources.add(\"cmdline\")\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+      "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+      "status": "MISMATCH",
+      "test_output_sha256": "e1990b5d79f7ccabc956fa470fa342f37dabaae2a43bc29bb3a82f5e55077776",
+      "test_output_tail": [
+        ">         target = tmp_path / \"worktree\"",
+        ">         (target / \"nested\").mkdir(parents=True)",
+        ">         outside = tmp_path / \"outside\"",
+        ">         outside.mkdir()",
+        ">         proc_root = tmp_path / \"proc\"",
+        ">         _make_pid(",
+        ">             proc_root,",
+        ">             105,",
+        ">             cwd=outside,",
+        ">             argv=[\"worker\", \"../worktree/nested\"],",
+        ">         )",
+        ">     ",
+        ">         report = _scan(target, proc_root)",
+        ">     ",
+        "> >       assert report.status == \"occupied\"",
+        "> E       AssertionError: assert 'unoccupied' == 'occupied'",
+        "> E         ",
+        "> E         - occupied",
+        "> E         + unoccupied",
+        "> E         ? ++",
+        "> ",
+        "> orchestrator/tests/test_check_worktree_occupancy.py:159: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=7 END ---",
+        "IZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=811 retained_bytes=811 omitted_bytes=0 rendered_excerpt_bytes=866 sha256=f2c064c89550c72f15391545de5e9539c4eea6f84a51604002cbce31302d709c",
+        "--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---",
+        "> [gw5] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_scan_matches_equals_rhs_p0')",
+        "> ",
+        ">     def test_scan_matches_equals_rhs_path_in_argv(tmp_path: Path):",
+        ">         target = tmp_path / \"worktree\"",
+        ">         target.mkdir()",
+        ">         outside = tmp_path / \"outside\"",
+        ">         outside.mkdir()",
+        ">         proc_root = tmp_path / \"proc\"",
+        ">         _make_pid(",
+        ">             proc_root,",
+        ">             106,",
+        ">             cwd=outside,",
+        ">             argv=[\"worker\", f\"--cwd={target}\"],",
+        ">         )",
+        ">     ",
+        ">         report = _scan(target, proc_root)",
+        ">     ",
+        "> >       assert report.status == \"occupied\"",
+        "> E       AssertionError: assert 'unoccupied' == 'occupied'",
+        "> E         ",
+        "> E         - occupied",
+        "> E         + unoccupied",
+        "> E         ? ++",
+        "> ",
+        "> orchestrator/tests/test_check_worktree_occupancy.py:178: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=8 END ---",
+        "IZANAGI_FAILURE rank=9 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=744 retained_bytes=744 omitted_bytes=0 rendered_excerpt_bytes=789 sha256=e6cc6e74f30c960c3b696df8e9c8638e2c80a2e70bb1bdd624e7f4c3bbedb2ed",
+        "--- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---",
+        "> [gw2] linux -- Python 3.10.12 /bin/python3.10",
+        "> ",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_scan_detects_cmdline_only0')",
+        "> ",
+        ">     def test_scan_detects_cmdline_only_occupant(tmp_path: Path):",
+        ">         target = tmp_path / \"worktree\"",
+        ">         target.mkdir()",
+        ">         outside = tmp_path / \"outside\"",
+        ">         outside.mkdir()",
+        ">         proc_root = tmp_path / \"proc\"",
+        ">         _make_pid(proc_root, 103, cwd=outside, argv=[\"worker\", str(target)])",
+        ">     ",
+        ">         report = _scan(target, proc_root)",
+        ">     ",
+        "> >       assert report.status == \"occupied\"",
+        "> E       AssertionError: assert 'unoccupied' == 'occupied'",
+        "> E         ",
+        "> E         - occupied",
+        "> E         + unoccupied",
+        "> E         ? ++",
+        "> ",
+        "> orchestrator/tests/test_check_worktree_occupancy.py:122: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=9 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=9 failed=9 errors=0 selected=9 omitted_failures=0 source_bytes=9929 retained_bytes=9929 omitted_bytes=0 budget_bytes=49152 rendered_bytes=14792 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/8b4003df3754212eed37c527418c7af7/izdw-8b4003df37.o909249",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/8b4003df3754212eed37c527418c7af7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [31 items]\n\n.............................F.                                          [100%]\n=================================== FAILURES ===================================\n___________________ test_scan_does_not_match_sibling_prefix ____________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_scan_does_not_match_sibli0')\n\n    def test_scan_does_not_match_sibling_prefix(tmp_path: Path):\n        target = tmp_path / \"wt\"\n        target.mkdir()\n        sibling = tmp_path / \"wt-2\"\n        sibling.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(proc_root, 104, cwd=outside, argv=[\"worker\", str(sibling)])\n    \n        report = _scan(target, proc_root)\n    \n>       assert report.status == \"unoccupied\"\nE       AssertionError: assert 'occupied' == 'unoccupied'\nE         \nE         - unoccupied\nE         ? --\nE         + occupied\n\norchestrator/tests/test_check_worktree_occupancy.py:140: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix\n========================= 1 failed, 30 passed in 2.59s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=801 retained_bytes=801 omitted_bytes=0 rendered_excerpt_bytes=850 sha256=b5bdbf35978680da6532d69b4f3edfdb36fd9bf81e048b856b8042c6c9e7f087\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_scan_does_not_match_sibli0')\n> \n>     def test_scan_does_not_match_sibling_prefix(tmp_path: Path):\n>         target = tmp_path / \"wt\"\n>         target.mkdir()\n>         sibling = tmp_path / \"wt-2\"\n>         sibling.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(proc_root, 104, cwd=outside, argv=[\"worker\", str(sibling)])\n>     \n>         report = _scan(target, proc_root)\n>     \n> >       assert report.status == \"unoccupied\"\n> E       AssertionError: assert 'occupied' == 'unoccupied'\n> E         \n> E         - unoccupied\n> E         ? --\n> E         + occupied\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:140: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=801 retained_bytes=801 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1564 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "241315476a7813ca18463f8566b2f5d3663e3402eee1c674bb045c69bc2b3ccc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2084165d69d88f72b4b4d6a2ffbfc47673af9ed1096cb9b318f98c0daef36986",
+      "duration_s": 26.809,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B2-prefix-containment",
+      "injection_diff_sha256": "6b3465889e28105f4935c347c0c8499fcabec0dcc4e950c70b6c95799ff88721",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1495f76601b6b9b3c092139b608f23edafcc904c2a8f5c994f02a479a24ce107",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "new": "def _is_within(candidate: Path, target: Path) -> bool:\n    return str(candidate).startswith(str(target))\n",
+          "old": "def _is_within(candidate: Path, target: Path) -> bool:\n    if candidate == target:\n        return True\n    try:\n        candidate.relative_to(target)\n    except ValueError:\n        return False\n    return True\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+      "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+      "status": "KILLED",
+      "test_output_sha256": "241315476a7813ca18463f8566b2f5d3663e3402eee1c674bb045c69bc2b3ccc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/927af1ea72b9ec8c1e7b61b1c2a29dad/izdw-927af1ea72.o909250",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/927af1ea72b9ec8c1e7b61b1c2a29dad/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [31 items]\n\n............................FF.                                          [100%]\n=================================== FAILURES ===================================\n_______ test_main_cwd_permission_uid_failure_is_listed_without_rc_change _______\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_main_cwd_permission_uid_f0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145e7a69c640>\ncapsys = <_pytest.capture.CaptureFixture object at 0x145e7a69c100>\n\n    def test_main_cwd_permission_uid_failure_is_listed_without_rc_change(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(\n            proc_root,\n            127,\n            cwd=outside,\n            argv=[\"unknown-uid-worker\"],\n            comm=\"unknown-uid-worker\",\n        )\n    \n        def deny_cwd(_pid_dir: Path) -> Path:\n            raise PermissionError(\"synthetic denial\")\n    \n        def deny_uid(_pid_dir: Path) -> int:\n            raise PermissionError(\"synthetic uid denial\")\n    \n        monkeypatch.setattr(checker, \"_read_process_cwd\", deny_cwd)\n        monkeypatch.setattr(checker, \"_read_process_uid\", deny_uid)\n        rc = checker.main(\n            [str(target)],\n            proc_root=proc_root,\n            self_pid=-1,\n            parent_pid=-1,\n        )\n    \n        payload = json.loads(capsys.readouterr().out)\n        assert rc == 0\n        assert payload[\"status\"] == \"unoccupied\"\n        assert payload[\"issues\"] == []\n>       assert payload[\"same_uid_cwd_unreachable\"] == [\n            {\"comm\": \"unknown-uid-worker\", \"pid\": 127},\n        ]\nE       KeyError: 'same_uid_cwd_unreachable'\n\norchestrator/tests/test_check_worktree_occupancy.py:504: KeyError\n___ test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change ___\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_main_cwd_permission_parti0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f5596e0670>\ncapsys = <_pytest.capture.CaptureFixture object at 0x14f5596e0340>\n\n    def test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n        outside = tmp_path / \"outside\"\n        outside.mkdir()\n        proc_root = tmp_path / \"proc\"\n        _make_pid(\n            proc_root,\n            125,\n            cwd=outside,\n            argv=[\"same-uid-worker\", \"raw-cmdline-secret\"],\n            uid=os.getuid(),\n            comm=\"same-uid-worker\",\n        )\n        _make_pid(\n            proc_root,\n            126,\n            cwd=outside,\n            argv=[\"other-uid-worker\"],\n            uid=os.getuid() + 1,\n            comm=\"other-uid-worker\",\n        )\n    \n        def deny_cwd(_pid_dir: Path) -> Path:\n            raise PermissionError(\"synthetic denial\")\n    \n        monkeypatch.setattr(checker, \"_read_process_cwd\", deny_cwd)\n        rc = checker.main(\n            [str(target)],\n            proc_root=proc_root,\n            self_pid=-1,\n            parent_pid=-1,\n        )\n    \n        output = capsys.readouterr().out\n        payload = json.loads(output)\n        assert rc == 0\n        assert payload[\"status\"] == \"unoccupied\"\n        assert payload[\"issues\"] == []\n>       assert payload[\"same_uid_cwd_unreachable\"] == [\n            {\"comm\": \"same-uid-worker\", \"pid\": 125},\n        ]\nE       KeyError: 'same_uid_cwd_unreachable'\n\norchestrator/tests/test_check_worktree_occupancy.py:459: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change\n========================= 2 failed, 29 passed in 2.58s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1820 retained_bytes=1820 omitted_bytes=0 rendered_excerpt_bytes=1931 sha256=d47e8e07d818529edb75ce3386ab8f197e973ce7c5cb221fd8c45ad6daf4f9bf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_main_cwd_permission_parti0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14f5596e0670>\n> capsys = <_pytest.capture.CaptureFixture object at 0x14f5596e0340>\n> \n>     def test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         capsys: pytest.CaptureFixture[str],\n>     ):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(\n>             proc_root,\n>             125,\n>             cwd=outside,\n>             argv=[\"same-uid-worker\", \"raw-cmdline-secret\"],\n>             uid=os.getuid(),\n>             comm=\"same-uid-worker\",\n>         )\n>         _make_pid(\n>             proc_root,\n>             126,\n>             cwd=outside,\n>             argv=[\"other-uid-worker\"],\n>             uid=os.getuid() + 1,\n>             comm=\"other-uid-worker\",\n>         )\n>     \n>         def deny_cwd(_pid_dir: Path) -> Path:\n>             raise PermissionError(\"synthetic denial\")\n>     \n>         monkeypatch.setattr(checker, \"_read_process_cwd\", deny_cwd)\n>         rc = checker.main(\n>             [str(target)],\n>             proc_root=proc_root,\n>             self_pid=-1,\n>             parent_pid=-1,\n>         )\n>     \n>         output = capsys.readouterr().out\n>         payload = json.loads(output)\n>         assert rc == 0\n>         assert payload[\"status\"] == \"unoccupied\"\n>         assert payload[\"issues\"] == []\n> >       assert payload[\"same_uid_cwd_unreachable\"] == [\n>             {\"comm\": \"same-uid-worker\", \"pid\": 125},\n>         ]\n> E       KeyError: 'same_uid_cwd_unreachable'\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:459: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1719 retained_bytes=1719 omitted_bytes=0 rendered_excerpt_bytes=1818 sha256=880e49e7996908440ee35aaa009ea19cf79a971631d67dd4abe6024d6fdefaf1\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_main_cwd_permission_uid_f0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145e7a69c640>\n> capsys = <_pytest.capture.CaptureFixture object at 0x145e7a69c100>\n> \n>     def test_main_cwd_permission_uid_failure_is_listed_without_rc_change(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         capsys: pytest.CaptureFixture[str],\n>     ):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>         outside = tmp_path / \"outside\"\n>         outside.mkdir()\n>         proc_root = tmp_path / \"proc\"\n>         _make_pid(\n>             proc_root,\n>             127,\n>             cwd=outside,\n>             argv=[\"unknown-uid-worker\"],\n>             comm=\"unknown-uid-worker\",\n>         )\n>     \n>         def deny_cwd(_pid_dir: Path) -> Path:\n>             raise PermissionError(\"synthetic denial\")\n>     \n>         def deny_uid(_pid_dir: Path) -> int:\n>             raise PermissionError(\"synthetic uid denial\")\n>     \n>         monkeypatch.setattr(checker, \"_read_process_cwd\", deny_cwd)\n>         monkeypatch.setattr(checker, \"_read_process_uid\", deny_uid)\n>         rc = checker.main(\n>             [str(target)],\n>             proc_root=proc_root,\n>             self_pid=-1,\n>             parent_pid=-1,\n>         )\n>     \n>         payload = json.loads(capsys.readouterr().out)\n>         assert rc == 0\n>         assert payload[\"status\"] == \"unoccupied\"\n>         assert payload[\"issues\"] == []\n> >       assert payload[\"same_uid_cwd_unreachable\"] == [\n>             {\"comm\": \"unknown-uid-worker\", \"pid\": 127},\n>         ]\n> E       KeyError: 'same_uid_cwd_unreachable'\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:504: KeyError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3539 retained_bytes=3539 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4960 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8cbe1c6af7de833452e52c7172d14b501f2ddfa8ab65a0c298e4cbbdc7697fef"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2084165d69d88f72b4b4d6a2ffbfc47673af9ed1096cb9b318f98c0daef36986",
+      "duration_s": 26.796,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B3-swallow-cwd-permission-entirely",
+      "injection_diff_sha256": "c0400143a7e8c2f60d3fcf5eb90d227bd246f074bf5516ef21f0a78e942abc9e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2173abfd3e1bb489e46ac2252b3ee390befeb10c2847e6cb649c7f5f98f22a3c",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "new": "        if False:\n",
+          "old": "        if process_uid is None or process_uid == current_uid:\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+      "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+      "status": "KILLED",
+      "test_output_sha256": "8cbe1c6af7de833452e52c7172d14b501f2ddfa8ab65a0c298e4cbbdc7697fef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/bca6b6b368a6ade0b9e0edabd52082ef/izdw-bca6b6b368.o909251",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/bca6b6b368a6ade0b9e0edabd52082ef/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [31 items]\n\n............................FF.                                          [100%]\n=================================== FAILURES ===================================\n_______________ test_main_rejects_missing_or_nondirectory_target _______________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_main_rejects_missing_or_n0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x148362b402b0>\n\n    def test_main_rejects_missing_or_nondirectory_target(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        nondirectory = tmp_path / \"file\"\n        nondirectory.write_text(\"not a directory\\n\", encoding=\"utf-8\")\n        for target in (tmp_path / \"missing\", nondirectory):\n            rc = checker.main([str(target)], proc_root=tmp_path / \"unused-proc\")\n            payload = json.loads(capsys.readouterr().out)\n>           assert rc == 2\nE           assert 0 == 2\n\norchestrator/tests/test_check_worktree_occupancy.py:730: AssertionError\n_____________________ test_main_indeterminate_returns_two ______________________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_main_indeterminate_return0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1513a10100d0>\n\n    def test_main_indeterminate_returns_two(\n        tmp_path: Path,\n        capsys: pytest.CaptureFixture[str],\n    ):\n        target = tmp_path / \"worktree\"\n        target.mkdir()\n    \n        rc = checker.main([str(target)], proc_root=tmp_path / \"missing-proc\")\n    \n        payload = json.loads(capsys.readouterr().out)\n>       assert rc == 2\nE       assert 0 == 2\n\norchestrator/tests/test_check_worktree_occupancy.py:717: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target\nFAILED orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two\n========================= 2 failed, 29 passed in 2.57s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=782 retained_bytes=782 omitted_bytes=0 rendered_excerpt_bytes=822 sha256=a1ab33b1fcc6ce0031c1793b4f563c34780072883bac025a2a4a58f12a6c562c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw28/test_main_rejects_missing_or_n0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x148362b402b0>\n> \n>     def test_main_rejects_missing_or_nondirectory_target(\n>         tmp_path: Path,\n>         capsys: pytest.CaptureFixture[str],\n>     ):\n>         nondirectory = tmp_path / \"file\"\n>         nondirectory.write_text(\"not a directory\\x5cn\", encoding=\"utf-8\")\n>         for target in (tmp_path / \"missing\", nondirectory):\n>             rc = checker.main([str(target)], proc_root=tmp_path / \"unused-proc\")\n>             payload = json.loads(capsys.readouterr().out)\n> >           assert rc == 2\n> E           assert 0 == 2\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:730: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=654 retained_bytes=654 omitted_bytes=0 rendered_excerpt_bytes=693 sha256=d00e599e9db388d4c2b39ab4f94656392ae488d121930afb5fc2af1fe8fd2354\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_main_indeterminate_return0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x1513a10100d0>\n> \n>     def test_main_indeterminate_returns_two(\n>         tmp_path: Path,\n>         capsys: pytest.CaptureFixture[str],\n>     ):\n>         target = tmp_path / \"worktree\"\n>         target.mkdir()\n>     \n>         rc = checker.main([str(target)], proc_root=tmp_path / \"missing-proc\")\n>     \n>         payload = json.loads(capsys.readouterr().out)\n> >       assert rc == 2\n> E       assert 0 == 2\n> \n> orchestrator/tests/test_check_worktree_occupancy.py:717: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1436 retained_bytes=1436 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2666 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0798f5473cf6db84ca86525d9ee31378e3e0f820cc0a652c77e1bbed82c98f4c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2084165d69d88f72b4b4d6a2ffbfc47673af9ed1096cb9b318f98c0daef36986",
+      "duration_s": 27.312,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two"
+      ],
+      "hang_risk": false,
+      "id": "MUT-B4-indeterminate-maps-to-zero",
+      "injection_diff_sha256": "fe5caadfd03a48597cf1890952636967a57bdbe3c21f928777d864f4aaf9fdbb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "742e1d23b19e0185e4b29689002972430c193297cf25f7213c094bd89e977f00",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "new": "        \"indeterminate\": UNOCCUPIED_RC,\n",
+          "old": "        \"indeterminate\": INDETERMINATE_RC,\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+      "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+      "status": "KILLED",
+      "test_output_sha256": "0798f5473cf6db84ca86525d9ee31378e3e0f820cc0a652c77e1bbed82c98f4c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/ff9ac43f62b78b31e90c411c5427f598/izdw-ff9ac43f62.o909246",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/ff9ac43f62b78b31e90c411c5427f598/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_worktree_occupancy.py::test_target_normalizes_relative_symlink_and_trailing_slash\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cwd_descendant_occupant\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_ignores_self_cmdline\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_ignore_self_cwd\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_ignores_parent_shell_invocation_cmdline\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_ignore_parent_cwd\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_flags_pid_starttime_change_as_indeterminate\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_live_unreadable_pid_is_indeterminate\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_cwd_permission_only_is_unoccupied\norchestrator/tests/test_check_worktree_occupancy.py::test_main_reports_cwd_permission_as_unreachable\norchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change\norchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_cmdline_permission_error_is_indeterminate\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_cwd_non_permission_os_error_is_indeterminate\norchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_wins_over_unreachable_cwd\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_missing_proc_root_is_indeterminate\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_disappeared_pid_is_ignored\norchestrator/tests/test_check_worktree_occupancy.py::test_scan_occupied_wins_over_indeterminate\norchestrator/tests/test_check_worktree_occupancy.py::test_main_unoccupied_returns_zero\norchestrator/tests/test_check_worktree_occupancy.py::test_main_json_fields_and_key_order_are_stable\norchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_returns_one\norchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two\norchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target\norchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control\norchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_unoccupied_directory_returns_zero\n\n31 tests collected in 0.30s\n",
+        "stdout_sha256": "711ce0586af776ec894c28c9b9fde492d83d5558f1c9506f9c4491aba8b77e06"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_target_normalizes_relative_symlink_and_trailing_slash",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cwd_descendant_occupant",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_ignores_self_cmdline",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_ignore_self_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_ignores_parent_shell_invocation_cmdline",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_ignore_parent_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_flags_pid_starttime_change_as_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_live_unreadable_pid_is_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_cwd_permission_only_is_unoccupied",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_reports_cwd_permission_as_unreachable",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_cmdline_permission_error_is_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_cwd_non_permission_os_error_is_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_wins_over_unreachable_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_missing_proc_root_is_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_disappeared_pid_is_ignored",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_occupied_wins_over_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_unoccupied_returns_zero",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_json_fields_and_key_order_are_stable",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_returns_one",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_unoccupied_directory_returns_zero"
+      ],
+      "duration_s": 21.701,
+      "rc": 0,
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+      "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+      "status": "PASSED",
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-B1-drop-cmdline-channel": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4e4a6de487be58014af0563854d7f55a039f6ead6caaa0757e350d9135f0fe7b",
+        "replacements": [
+          {
+            "file": "tools/check_worktree_occupancy.py",
+            "new": "            if False and not ignore_cmdline and _argv_matches_targets(\n                argv,\n                process_cwd=process_cwd,\n                targets=targets,\n            ):\n                sources.add(\"cmdline\")\n",
+            "old": "            if not ignore_cmdline and _argv_matches_targets(\n                argv,\n                process_cwd=process_cwd,\n                targets=targets,\n            ):\n                sources.add(\"cmdline\")\n"
+          }
+        ]
+      },
+      "MUT-B2-prefix-containment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6b3465889e28105f4935c347c0c8499fcabec0dcc4e950c70b6c95799ff88721",
+        "replacements": [
+          {
+            "file": "tools/check_worktree_occupancy.py",
+            "new": "def _is_within(candidate: Path, target: Path) -> bool:\n    return str(candidate).startswith(str(target))\n",
+            "old": "def _is_within(candidate: Path, target: Path) -> bool:\n    if candidate == target:\n        return True\n    try:\n        candidate.relative_to(target)\n    except ValueError:\n        return False\n    return True\n"
+          }
+        ]
+      },
+      "MUT-B3-swallow-cwd-permission-entirely": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c0400143a7e8c2f60d3fcf5eb90d227bd246f074bf5516ef21f0a78e942abc9e",
+        "replacements": [
+          {
+            "file": "tools/check_worktree_occupancy.py",
+            "new": "        if False:\n",
+            "old": "        if process_uid is None or process_uid == current_uid:\n"
+          }
+        ]
+      },
+      "MUT-B4-indeterminate-maps-to-zero": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two",
+          "orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fe5caadfd03a48597cf1890952636967a57bdbe3c21f928777d864f4aaf9fdbb",
+        "replacements": [
+          {
+            "file": "tools/check_worktree_occupancy.py",
+            "new": "        \"indeterminate\": UNOCCUPIED_RC,\n",
+            "old": "        \"indeterminate\": INDETERMINATE_RC,\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6d700fb3aefd34a1cf189bc8a127dcb201f41b37c93d56d3113b1e838caa3f92",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_check_worktree_occupancy.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_check_worktree_occupancy.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/tools/run_tests.py",
+    "entrypoint_sha256": "dc0f17d5800c097418e0a9095abd056276d365e149acfa05d9db47c0299884d0",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "dc0f17d5800c097418e0a9095abd056276d365e149acfa05d9db47c0299884d0",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "389b04d5c3586d4416320d3d693d729e99709e30",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b84b41d79e68fef14621294f96b86a27c35a04d76c91a75190172057d50c3384",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c74306a4527a4e1c04b81e6df0a78ff0342fc5ff2abe4401448e06b320fb69ce",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 3,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d",
+  "updated_at": "2026-08-13T04:32:16.417757+00:00"
+}

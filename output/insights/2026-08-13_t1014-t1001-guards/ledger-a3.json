@@ -1,0 +1,471 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/4b45c7e0aaceeb1626898d6a1dccc5eb/izdw-4b45c7e0aa.o909240",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/4b45c7e0aaceeb1626898d6a1dccc5eb/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [25 items]\n\n.........................                                                [100%]\n============================== 25 passed in 2.56s ==============================\n",
+      "stdout_sha256": "efd3cd2e81b6c4b2dbea90d217f5fcbae31ba1485ff87ea135a706581ccf1ee7"
+    },
+    "artifact_error": null,
+    "collection_sha256": "87a498a46a0714047bc7d73bf453b9cd5cc1d310f4f740d4c103143e46e77f1f",
+    "duration_s": 26.722,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "d29243df66c3c3608720dd9e49292bf6d81719d104f6b070e3ee14ec68592ce8",
+    "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+    "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+    "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+    "status": "PASSED",
+    "test_output_sha256": "efd3cd2e81b6c4b2dbea90d217f5fcbae31ba1485ff87ea135a706581ccf1ee7",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+  },
+  "date": "2026-08-13T04:24:25.050182+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/90b5707cd780f666322624f3c63d2e0d/izdw-90b5707cd7.o909241",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/90b5707cd780f666322624f3c63d2e0d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [25 items]\n\n....................FFFFF                                                [100%]\n=================================== FAILURES ===================================\n______________ test_main_rejects_acceptance_dist_equals_spelling _______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_acceptance_dist_equals_spelling():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main([\"--dist=load\"], site=RT.site_policy.OTHER) == 17\n\norchestrator/tests/test_run_tests_nproc.py:249: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1810: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='23006154064176'>\nargs = (['--dist=load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n______________ test_main_rejects_unsafe_dist_with_n0_serial_shape ______________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_unsafe_dist_with_n0_serial_shape():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main(\n                [\"-n0\", \"--dist\", \"load\"], site=RT.site_policy.OTHER,\n            ) == 17\n\norchestrator/tests/test_run_tests_nproc.py:316: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1810: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='23351559798160'>\nargs = (['-n0', '--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n__________ test_main_rejects_unsafe_dist_even_when_loadgroup_is_last ___________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main(\n                [\"--dist\", \"load\", \"--dist\", \"loadgroup\"],\n                site=RT.site_policy.OTHER,\n            ) == 17\n\norchestrator/tests/test_run_tests_nproc.py:308: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1810: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='22644021608752'>\nargs = (['--dist', 'load', '--dist', 'loadgroup'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n______________ test_main_rejects_acceptance_dist_split_with_rc17 _______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_acceptance_dist_split_with_rc17():\n        stderr = io.StringIO()\n        with _acceptance_env(), _forbid_execution(), \\\n                contextlib.redirect_stderr(stderr):\n>           assert RT.main([\"--dist\", \"load\"], site=RT.site_policy.OTHER) == 17\n\norchestrator/tests/test_run_tests_nproc.py:243: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1810: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='23210862296512'>\nargs = (['--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n_________ test_acceptance_dist_rejection_precedes_preflight_and_xdist __________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_acceptance_dist_rejection_precedes_preflight_and_xdist():\n        preflight_deletions = mock.Mock(\n            side_effect=AssertionError(\"deletion preflight must not run\"),\n        )\n        preflight_ruleops = mock.Mock(\n            side_effect=AssertionError(\"RuleOps preflight must not run\"),\n        )\n        preflight_submodule = mock.Mock(\n            side_effect=AssertionError(\"submodule preflight must not run\"),\n        )\n        ensure_xdist = mock.Mock(\n            side_effect=AssertionError(\"xdist setup must not run\"),\n        )\n        dispatch = mock.Mock(\n            side_effect=AssertionError(\"dispatch must not run\"),\n        )\n        bounded_membership = mock.Mock(\n            side_effect=AssertionError(\"bounded scope membership must not run\"),\n        )\n        test_operation = mock.Mock(\n            side_effect=AssertionError(\"test operation resolution must not run\"),\n        )\n        current_site = mock.Mock(\n            side_effect=AssertionError(\"site resolution must not run\"),\n        )\n        with _acceptance_env(), mock.patch.object(\n            RT, \"_preflight_unstaged_deletions\", preflight_deletions,\n        ), mock.patch.object(\n            RT, \"_preflight_ruleops\", preflight_ruleops,\n        ), mock.patch.object(\n            RT, \"_preflight_submodule\", preflight_submodule,\n        ), mock.patch.object(\n            RT, \"_ensure_xdist\", ensure_xdist,\n        ), mock.patch.object(\n            RT, \"_bounded_scope_membership\", bounded_membership,\n        ), mock.patch.object(\n            RT, \"_test_operation\", test_operation,\n        ), mock.patch.object(\n            RT.site_policy, \"current_site\", current_site,\n        ):\n>           assert RT.main(\n                [\"--force-dispatch\", \"--dist\", \"load\"],\n                dispatch_fn=dispatch,\n            ) == 17\n\norchestrator/tests/test_run_tests_nproc.py:292: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1710: in main\n    operation = _test_operation(args)\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Mock id='22892232041392'>, args = (['--dist', 'load'],), kwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: test operation resolution must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist\n========================= 5 failed, 20 passed in 2.57s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2929 retained_bytes=2929 omitted_bytes=0 rendered_excerpt_bytes=3070 sha256=c240411ea8c6efcef5ebd6dc5187021b391b60cf7afdcab68a70e540891e6110\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_acceptance_dist_rejection_precedes_preflight_and_xdist():\n>         preflight_deletions = mock.Mock(\n>             side_effect=AssertionError(\"deletion preflight must not run\"),\n>         )\n>         preflight_ruleops = mock.Mock(\n>             side_effect=AssertionError(\"RuleOps preflight must not run\"),\n>         )\n>         preflight_submodule = mock.Mock(\n>             side_effect=AssertionError(\"submodule preflight must not run\"),\n>         )\n>         ensure_xdist = mock.Mock(\n>             side_effect=AssertionError(\"xdist setup must not run\"),\n>         )\n>         dispatch = mock.Mock(\n>             side_effect=AssertionError(\"dispatch must not run\"),\n>         )\n>         bounded_membership = mock.Mock(\n>             side_effect=AssertionError(\"bounded scope membership must not run\"),\n>         )\n>         test_operation = mock.Mock(\n>             side_effect=AssertionError(\"test operation resolution must not run\"),\n>         )\n>         current_site = mock.Mock(\n>             side_effect=AssertionError(\"site resolution must not run\"),\n>         )\n>         with _acceptance_env(), mock.patch.object(\n>             RT, \"_preflight_unstaged_deletions\", preflight_deletions,\n>         ), mock.patch.object(\n>             RT, \"_preflight_ruleops\", preflight_ruleops,\n>         ), mock.patch.object(\n>             RT, \"_preflight_submodule\", preflight_submodule,\n>         ), mock.patch.object(\n>             RT, \"_ensure_xdist\", ensure_xdist,\n>         ), mock.patch.object(\n>             RT, \"_bounded_scope_membership\", bounded_membership,\n>         ), mock.patch.object(\n>             RT, \"_test_operation\", test_operation,\n>         ), mock.patch.object(\n>             RT.site_policy, \"current_site\", current_site,\n>         ):\n> >           assert RT.main(\n>                 [\"--force-dispatch\", \"--dist\", \"load\"],\n>                 dispatch_fn=dispatch,\n>             ) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:292: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1710: in main\n>     operation = _test_operation(args)\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Mock id='22892232041392'>, args = (['--dist', 'load'],), kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: test operation resolution must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1540 retained_bytes=1540 omitted_bytes=0 rendered_excerpt_bytes=1609 sha256=6090e89bca42e40a8d7802c1090f6627bd0920bd38b624cbd3ef6282336e7fb0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main(\n>                 [\"--dist\", \"load\", \"--dist\", \"loadgroup\"],\n>                 site=RT.site_policy.OTHER,\n>             ) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:308: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1810: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='22644021608752'>\n> args = (['--dist', 'load', '--dist', 'loadgroup'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1524 retained_bytes=1524 omitted_bytes=0 rendered_excerpt_bytes=1594 sha256=58f0c147e5b6a06a70d81dc3660513587e43c1ded295f5c72c4f145acc48924b\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_acceptance_dist_split_with_rc17():\n>         stderr = io.StringIO()\n>         with _acceptance_env(), _forbid_execution(), \\x5c\n>                 contextlib.redirect_stderr(stderr):\n> >           assert RT.main([\"--dist\", \"load\"], site=RT.site_policy.OTHER) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:243: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1810: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='23210862296512'>\n> args = (['--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1485 retained_bytes=1485 omitted_bytes=0 rendered_excerpt_bytes=1552 sha256=9a0c457e92732127d708af7f07274f89329cfcbe8109e8afc3abb9b5b843118b\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_unsafe_dist_with_n0_serial_shape():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main(\n>                 [\"-n0\", \"--dist\", \"load\"], site=RT.site_policy.OTHER,\n>             ) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:316: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1810: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='23351559798160'>\n> args = (['-n0', '--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1433 retained_bytes=1433 omitted_bytes=0 rendered_excerpt_bytes=1496 sha256=db1c627e4bea2068a40193c73f38375aca5dec1949457c211d052019934361e6\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_acceptance_dist_equals_spelling():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main([\"--dist=load\"], site=RT.site_policy.OTHER) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:249: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1810: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='23006154064176'>\n> args = (['--dist=load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=8911 retained_bytes=8911 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11795 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0a9126898dd8837bd0d4f85abea66cbce6b77522c3a694a9cfc4cc64353f7fbb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87a498a46a0714047bc7d73bf453b9cd5cc1d310f4f740d4c103143e46e77f1f",
+      "duration_s": 26.799,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A1-revert-to-pre-wave-postposed-win",
+      "injection_diff_sha256": "ff317bd3d717ebdb75f55c7ff78593667f8336fd7c68cf85c4cda3d0bdf31b3a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c345f0352a8bc38a791fd07c7ec0f4e4eaed2035905e1e286878195539722f62",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "new": "    is_acceptance = _is_acceptance_run(args)\n    if not is_acceptance and not _has_valid_bounded_scope_marker():\n",
+          "old": "    is_acceptance = _is_acceptance_run(args)\n    if is_acceptance and _has_non_loadgroup_user_dist(args):\n        print(\n            \"受入形では --dist loadgroup 以外の --dist 上書きを拒否します。\",\n            file=sys.stderr,\n            flush=True,\n        )\n        return _ACCEPTANCE_DIST_OVERRIDE_RC\n    if not is_acceptance and not _has_valid_bounded_scope_marker():\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+      "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+      "status": "KILLED",
+      "test_output_sha256": "0a9126898dd8837bd0d4f85abea66cbce6b77522c3a694a9cfc4cc64353f7fbb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/2523739c26abb2e43bd7948e0da56516/izdw-2523739c26.o909242",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/2523739c26abb2e43bd7948e0da56516/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [25 items]\n\n........................F                                                [100%]\n=================================== FAILURES ===================================\n______________ test_main_rejects_acceptance_dist_equals_spelling _______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_acceptance_dist_equals_spelling():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main([\"--dist=load\"], site=RT.site_policy.OTHER) == 17\n\norchestrator/tests/test_run_tests_nproc.py:249: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1817: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='22966056271344'>\nargs = (['--dist=load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\n========================= 1 failed, 24 passed in 2.56s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1433 retained_bytes=1433 omitted_bytes=0 rendered_excerpt_bytes=1496 sha256=f6cbb653ca703b82b6392a47cfa507ec3e211f55f9b1964b5c46799ef864139f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_acceptance_dist_equals_spelling():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main([\"--dist=load\"], site=RT.site_policy.OTHER) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:249: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1817: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='22966056271344'>\n> args = (['--dist=load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1433 retained_bytes=1433 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2216 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "356a11932c2b3c61b99cfa4c8193eed921e51053051b4a0eea6a16b12abdfd0a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87a498a46a0714047bc7d73bf453b9cd5cc1d310f4f740d4c103143e46e77f1f",
+      "duration_s": 26.721,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A2-drop-equals-spelling",
+      "injection_diff_sha256": "37eb0e39e27f2fda71e086d5c4bc7e367ed0982f28cd39ab919cdc8c3005aaa7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2be8187e2c1ba93e6229a4d1a51e8fe752b47b9578e90b3c02b83b913f4edf90",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "new": "        if False:\n            values.append(token.split(\"=\", 1)[1])\n",
+          "old": "        if token.startswith(\"--dist=\"):\n            values.append(token.split(\"=\", 1)[1])\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+      "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+      "status": "KILLED",
+      "test_output_sha256": "356a11932c2b3c61b99cfa4c8193eed921e51053051b4a0eea6a16b12abdfd0a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/2df85d99ecf6be2f619e705c6dff0cbc/izdw-2df85d99ec.o909243",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/2df85d99ecf6be2f619e705c6dff0cbc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [25 items]\n\n...................FFFFFF                                                [100%]\n=================================== FAILURES ===================================\n___________ test_dist_stays_nonselect_for_acceptance_classification ____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_dist_stays_nonselect_for_acceptance_classification():\n        with _acceptance_env():\n>           assert \"--dist\" in RT._NONSELECT_VALUE_OPTIONS\nE           AssertionError: assert '--dist' in frozenset({'--basetemp', '--capture', '--color', '--confcutdir', '--durations', '--durations-min', ...})\nE            +  where frozenset({'--basetemp', '--capture', '--color', '--confcutdir', '--durations', '--durations-min', ...}) = RT._NONSELECT_VALUE_OPTIONS\n\norchestrator/tests/test_run_tests_nproc.py:235: AssertionError\n__________ test_main_rejects_unsafe_dist_even_when_loadgroup_is_last ___________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main(\n                [\"--dist\", \"load\", \"--dist\", \"loadgroup\"],\n                site=RT.site_policy.OTHER,\n            ) == 17\n\norchestrator/tests/test_run_tests_nproc.py:308: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1817: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='22660138025216'>\nargs = (['--dist', 'load', '--dist', 'loadgroup'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\n警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n______________ test_main_rejects_acceptance_dist_equals_spelling _______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_acceptance_dist_equals_spelling():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main([\"--dist=load\"], site=RT.site_policy.OTHER) == 17\n\norchestrator/tests/test_run_tests_nproc.py:249: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1817: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='22560830914864'>\nargs = (['--dist=load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\n警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n______________ test_main_rejects_acceptance_dist_split_with_rc17 _______________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_acceptance_dist_split_with_rc17():\n        stderr = io.StringIO()\n        with _acceptance_env(), _forbid_execution(), \\\n                contextlib.redirect_stderr(stderr):\n>           assert RT.main([\"--dist\", \"load\"], site=RT.site_policy.OTHER) == 17\n\norchestrator/tests/test_run_tests_nproc.py:243: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1817: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='22499694166992'>\nargs = (['--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n_________ test_acceptance_dist_rejection_precedes_preflight_and_xdist __________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_acceptance_dist_rejection_precedes_preflight_and_xdist():\n        preflight_deletions = mock.Mock(\n            side_effect=AssertionError(\"deletion preflight must not run\"),\n        )\n        preflight_ruleops = mock.Mock(\n            side_effect=AssertionError(\"RuleOps preflight must not run\"),\n        )\n        preflight_submodule = mock.Mock(\n            side_effect=AssertionError(\"submodule preflight must not run\"),\n        )\n        ensure_xdist = mock.Mock(\n            side_effect=AssertionError(\"xdist setup must not run\"),\n        )\n        dispatch = mock.Mock(\n            side_effect=AssertionError(\"dispatch must not run\"),\n        )\n        bounded_membership = mock.Mock(\n            side_effect=AssertionError(\"bounded scope membership must not run\"),\n        )\n        test_operation = mock.Mock(\n            side_effect=AssertionError(\"test operation resolution must not run\"),\n        )\n        current_site = mock.Mock(\n            side_effect=AssertionError(\"site resolution must not run\"),\n        )\n        with _acceptance_env(), mock.patch.object(\n            RT, \"_preflight_unstaged_deletions\", preflight_deletions,\n        ), mock.patch.object(\n            RT, \"_preflight_ruleops\", preflight_ruleops,\n        ), mock.patch.object(\n            RT, \"_preflight_submodule\", preflight_submodule,\n        ), mock.patch.object(\n            RT, \"_ensure_xdist\", ensure_xdist,\n        ), mock.patch.object(\n            RT, \"_bounded_scope_membership\", bounded_membership,\n        ), mock.patch.object(\n            RT, \"_test_operation\", test_operation,\n        ), mock.patch.object(\n            RT.site_policy, \"current_site\", current_site,\n        ):\n>           assert RT.main(\n                [\"--force-dispatch\", \"--dist\", \"load\"],\n                dispatch_fn=dispatch,\n            ) == 17\n\norchestrator/tests/test_run_tests_nproc.py:292: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1717: in main\n    operation = _test_operation(args)\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <Mock id='23372524461200'>, args = (['--dist', 'load'],), kwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: test operation resolution must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\n警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n______________ test_main_rejects_unsafe_dist_with_n0_serial_shape ______________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_rejects_unsafe_dist_with_n0_serial_shape():\n        with _acceptance_env(), _forbid_execution():\n>           assert RT.main(\n                [\"-n0\", \"--dist\", \"load\"], site=RT.site_policy.OTHER,\n            ) == 17\n\norchestrator/tests/test_run_tests_nproc.py:316: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/run_tests.py:1817: in main\n    preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_preflight_unstaged_deletions' id='22524726499344'>\nargs = (['-n0', '--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: deletion preflight must not run\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\n警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape\n========================= 6 failed, 19 passed in 2.59s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2929 retained_bytes=2929 omitted_bytes=0 rendered_excerpt_bytes=3070 sha256=7a1b91706d1dde1b0e0f388cda1601d612935be045e8419cc00b1823075b8baa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_acceptance_dist_rejection_precedes_preflight_and_xdist():\n>         preflight_deletions = mock.Mock(\n>             side_effect=AssertionError(\"deletion preflight must not run\"),\n>         )\n>         preflight_ruleops = mock.Mock(\n>             side_effect=AssertionError(\"RuleOps preflight must not run\"),\n>         )\n>         preflight_submodule = mock.Mock(\n>             side_effect=AssertionError(\"submodule preflight must not run\"),\n>         )\n>         ensure_xdist = mock.Mock(\n>             side_effect=AssertionError(\"xdist setup must not run\"),\n>         )\n>         dispatch = mock.Mock(\n>             side_effect=AssertionError(\"dispatch must not run\"),\n>         )\n>         bounded_membership = mock.Mock(\n>             side_effect=AssertionError(\"bounded scope membership must not run\"),\n>         )\n>         test_operation = mock.Mock(\n>             side_effect=AssertionError(\"test operation resolution must not run\"),\n>         )\n>         current_site = mock.Mock(\n>             side_effect=AssertionError(\"site resolution must not run\"),\n>         )\n>         with _acceptance_env(), mock.patch.object(\n>             RT, \"_preflight_unstaged_deletions\", preflight_deletions,\n>         ), mock.patch.object(\n>             RT, \"_preflight_ruleops\", preflight_ruleops,\n>         ), mock.patch.object(\n>             RT, \"_preflight_submodule\", preflight_submodule,\n>         ), mock.patch.object(\n>             RT, \"_ensure_xdist\", ensure_xdist,\n>         ), mock.patch.object(\n>             RT, \"_bounded_scope_membership\", bounded_membership,\n>         ), mock.patch.object(\n>             RT, \"_test_operation\", test_operation,\n>         ), mock.patch.object(\n>             RT.site_policy, \"current_site\", current_site,\n>         ):\n> >           assert RT.main(\n>                 [\"--force-dispatch\", \"--dist\", \"load\"],\n>                 dispatch_fn=dispatch,\n>             ) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:292: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1717: in main\n>     operation = _test_operation(args)\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <Mock id='23372524461200'>, args = (['--dist', 'load'],), kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: test operation resolution must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1540 retained_bytes=1540 omitted_bytes=0 rendered_excerpt_bytes=1609 sha256=a270b283f17e4ead4110c8a3e9af184e13e16c9a91f44c02953a7cffcb6bc8be\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_unsafe_dist_even_when_loadgroup_is_last():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main(\n>                 [\"--dist\", \"load\", \"--dist\", \"loadgroup\"],\n>                 site=RT.site_policy.OTHER,\n>             ) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:308: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1817: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='22660138025216'>\n> args = (['--dist', 'load', '--dist', 'loadgroup'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1524 retained_bytes=1524 omitted_bytes=0 rendered_excerpt_bytes=1594 sha256=fe651372807f1121b0b3dd1ac7a1ee4dd77d7c655b38e6eec3bb697ae4059bf2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_acceptance_dist_split_with_rc17():\n>         stderr = io.StringIO()\n>         with _acceptance_env(), _forbid_execution(), \\x5c\n>                 contextlib.redirect_stderr(stderr):\n> >           assert RT.main([\"--dist\", \"load\"], site=RT.site_policy.OTHER) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:243: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1817: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='22499694166992'>\n> args = (['--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1485 retained_bytes=1485 omitted_bytes=0 rendered_excerpt_bytes=1552 sha256=b27701f7a7137346cffcb3aee572b50651aaeed2299c3db976e278c9fe6b4866\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_unsafe_dist_with_n0_serial_shape():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main(\n>                 [\"-n0\", \"--dist\", \"load\"], site=RT.site_policy.OTHER,\n>             ) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:316: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1817: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='22524726499344'>\n> args = (['-n0', '--dist', 'load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1433 retained_bytes=1433 omitted_bytes=0 rendered_excerpt_bytes=1496 sha256=c5a0f53de2dd3db2d8874013c46caec14e6b65feb49d00ca2c28821cf705cfda\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_rejects_acceptance_dist_equals_spelling():\n>         with _acceptance_env(), _forbid_execution():\n> >           assert RT.main([\"--dist=load\"], site=RT.site_policy.OTHER) == 17\n> \n> orchestrator/tests/test_run_tests_nproc.py:249: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/run_tests.py:1817: in main\n>     preflight_rc = _preflight_unstaged_deletions(args, Path(_REPO))\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_preflight_unstaged_deletions' id='22560830914864'>\n> args = (['--dist=load'], PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards'))\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: deletion preflight must not run\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=578 retained_bytes=578 omitted_bytes=0 rendered_excerpt_bytes=597 sha256=829bfc3568ab6bfa8a6de4dba881aa5b70738fb6ea4ad91e14c327416d91c6a1\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_dist_stays_nonselect_for_acceptance_classification():\n>         with _acceptance_env():\n> >           assert \"--dist\" in RT._NONSELECT_VALUE_OPTIONS\n> E           AssertionError: assert '--dist' in frozenset({'--basetemp', '--capture', '--color', '--confcutdir', '--durations', '--durations-min', ...})\n> E            +  where frozenset({'--basetemp', '--capture', '--color', '--confcutdir', '--durations', '--durations-min', ...}) = RT._NONSELECT_VALUE_OPTIONS\n> \n> orchestrator/tests/test_run_tests_nproc.py:235: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=9489 retained_bytes=9489 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12828 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "225dd363d9c1e20ea6ed940d63cd3c4ea96e3ebcc1419da4322e2041c3d5b9c1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87a498a46a0714047bc7d73bf453b9cd5cc1d310f4f740d4c103143e46e77f1f",
+      "duration_s": 26.722,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A3-drop-dist-from-nonselect-allowlist",
+      "injection_diff_sha256": "a6aede7abea1505b477d8000072596ba7c540cc61ea808e81645bd8348f86022",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "94ba81bfcf23261ae34d2694ae8c685c9916cd98df5ef9ac66fb51ce20f8df8c",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "new": "    \"-n\", \"--numprocesses\", \"--color\", \"--tb\", \"--capture\",\n",
+          "old": "    \"-n\", \"--numprocesses\", \"--dist\", \"--color\", \"--tb\", \"--capture\",\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+      "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+      "status": "KILLED",
+      "test_output_sha256": "225dd363d9c1e20ea6ed940d63cd3c4ea96e3ebcc1419da4322e2041c3d5b9c1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/69108cb7da2edc9e18501ace9cbd7905/izdw-69108cb7da.o909244",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/69108cb7da2edc9e18501ace9cbd7905/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [25 items]\n\n........................F                                                [100%]\n=================================== FAILURES ===================================\n__________ test_acceptance_shape_is_false_when_pytest_plugins_is_set ___________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_acceptance_shape_is_false_when_pytest_plugins_is_set():\n        with mock.patch.dict(\n            os.environ,\n            {\"PYTEST_ADDOPTS\": \"\", \"PYTEST_PLUGINS\": \"scheduler_override\"},\n        ):\n>           assert not RT._is_acceptance_run([])\nE           assert not True\nE            +  where True = <function _is_acceptance_run at 0x14ec66c10c10>([])\nE            +    where <function _is_acceptance_run at 0x14ec66c10c10> = RT._is_acceptance_run\n\norchestrator/tests/test_run_tests_nproc.py:358: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set\n========================= 1 failed, 24 passed in 2.55s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=575 retained_bytes=575 omitted_bytes=0 rendered_excerpt_bytes=602 sha256=3b19ce33ba7422225aeb001db14563fe424d4b6a70056cd0b8ee55c6620865d6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_acceptance_shape_is_false_when_pytest_plugins_is_set():\n>         with mock.patch.dict(\n>             os.environ,\n>             {\"PYTEST_ADDOPTS\": \"\", \"PYTEST_PLUGINS\": \"scheduler_override\"},\n>         ):\n> >           assert not RT._is_acceptance_run([])\n> E           assert not True\n> E            +  where True = <function _is_acceptance_run at 0x14ec66c10c10>([])\n> E            +    where <function _is_acceptance_run at 0x14ec66c10c10> = RT._is_acceptance_run\n> \n> orchestrator/tests/test_run_tests_nproc.py:358: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=575 retained_bytes=575 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1326 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "339760a56eeac2bda53d96964efc2ce4612cef3dbad67382d611cf592ce2187b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "87a498a46a0714047bc7d73bf453b9cd5cc1d310f4f740d4c103143e46e77f1f",
+      "duration_s": 26.759,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A4-drop-pytest-plugins-exclusion",
+      "injection_diff_sha256": "85891e2b7c70da8354426a124e682f877c73c66037ff75fca63f5ac71f145209",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c1228899c12a5f887695b93ad44fc873a75daa4c713d8897bc8190ac37305c1b",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "new": "",
+          "old": "    if os.environ.get(\"PYTEST_PLUGINS\", \"\").strip():\n        return False\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+      "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+      "status": "KILLED",
+      "test_output_sha256": "339760a56eeac2bda53d96964efc2ce4612cef3dbad67382d611cf592ce2187b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/c5b065ce8f748b8fbb01690c1d727832/izdw-c5b065ce8f.o909245",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/c5b065ce8f748b8fbb01690c1d727832/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [25 items]\n\n........................F                                                [100%]\n=================================== FAILURES ===================================\n________________ test_main_allows_explicit_acceptance_loadgroup ________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_main_allows_explicit_acceptance_loadgroup():\n        captured = []\n    \n        def fake_call(command, **kwargs):\n            captured.append((command, kwargs))\n            return 0\n    \n        with _acceptance_env(), \\\n                mock.patch.object(RT, \"_bounded_scope_membership\", return_value=None), \\\n                mock.patch.object(RT, \"_preflight_unstaged_deletions\", return_value=0), \\\n                mock.patch.object(RT, \"_preflight_ruleops\", return_value=0), \\\n                mock.patch.object(RT, \"_preflight_submodule\", return_value=0), \\\n                mock.patch.object(RT, \"_ensure_xdist\", return_value=True), \\\n                mock.patch.object(RT, \"_xdist_version\", return_value=\"3.8.0\"), \\\n                mock.patch.object(RT.subprocess, \"call\", side_effect=fake_call):\n            for args in (\n                [\"--dist\", \"loadgroup\"],\n                [\"--dist=loadgroup\"],\n                [\"--dist\", \"loadgroup\", \"--dist=loadgroup\"],\n            ):\n>               assert RT.main(args, site=RT.site_policy.OTHER) == 0\nE               AssertionError: assert 17 == 0\nE                +  where 17 = <function main at 0x14b1ca77e5f0>(['--dist', 'loadgroup'], site='OTHER')\nE                +    where <function main at 0x14b1ca77e5f0> = RT.main\nE                +    and   'OTHER' = <module 'orchestrator.campaign.site_policy' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/orchestrator/campaign/site_policy.py'>.OTHER\nE                +      where <module 'orchestrator.campaign.site_policy' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/orchestrator/campaign/site_policy.py'> = RT.site_policy\n\norchestrator/tests/test_run_tests_nproc.py:341: AssertionError\n----------------------------- Captured stderr call -----------------------------\n受入形では --dist loadgroup 以外の --dist 上書きを拒否します。\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup\n========================= 1 failed, 24 passed in 2.55s =========================\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1809 retained_bytes=1809 omitted_bytes=0 rendered_excerpt_bytes=1891 sha256=52e47edebf447ce5b3295f1e0a586e440e7bcde0e552758dab95d34b2e5a2044\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_main_allows_explicit_acceptance_loadgroup():\n>         captured = []\n>     \n>         def fake_call(command, **kwargs):\n>             captured.append((command, kwargs))\n>             return 0\n>     \n>         with _acceptance_env(), \\x5c\n>                 mock.patch.object(RT, \"_bounded_scope_membership\", return_value=None), \\x5c\n>                 mock.patch.object(RT, \"_preflight_unstaged_deletions\", return_value=0), \\x5c\n>                 mock.patch.object(RT, \"_preflight_ruleops\", return_value=0), \\x5c\n>                 mock.patch.object(RT, \"_preflight_submodule\", return_value=0), \\x5c\n>                 mock.patch.object(RT, \"_ensure_xdist\", return_value=True), \\x5c\n>                 mock.patch.object(RT, \"_xdist_version\", return_value=\"3.8.0\"), \\x5c\n>                 mock.patch.object(RT.subprocess, \"call\", side_effect=fake_call):\n>             for args in (\n>                 [\"--dist\", \"loadgroup\"],\n>                 [\"--dist=loadgroup\"],\n>                 [\"--dist\", \"loadgroup\", \"--dist=loadgroup\"],\n>             ):\n> >               assert RT.main(args, site=RT.site_policy.OTHER) == 0\n> E               AssertionError: assert 17 == 0\n> E                +  where 17 = <function main at 0x14b1ca77e5f0>(['--dist', 'loadgroup'], site='OTHER')\n> E                +    where <function main at 0x14b1ca77e5f0> = RT.main\n> E                +    and   'OTHER' = <module 'orchestrator.campaign.site_policy' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/orchestrator/campaign/site_policy.py'>.OTHER\n> E                +      where <module 'orchestrator.campaign.site_policy' from '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/orchestrator/campaign/site_policy.py'> = RT.site_policy\n> \n> orchestrator/tests/test_run_tests_nproc.py:341: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1809 retained_bytes=1809 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2608 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "31f9990792ec7bdf16c25ea53f0f7425f00f8edc563df70be670816c3a4f4737"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "87a498a46a0714047bc7d73bf453b9cd5cc1d310f4f740d4c103143e46e77f1f",
+      "duration_s": 26.759,
+      "expected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup"
+      ],
+      "hang_risk": false,
+      "id": "MUT-A5-reject-all-explicit-dist",
+      "injection_diff_sha256": "4144ebeca299f0b55e3baac968958e0c7f770ce615336494b30a7292c2e4941a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b3f1e1145c433daf85382eb498b64a6e44bd3d8d1571efe6598ad6d518eeef5b",
+      "replacements": [
+        {
+          "file": "tools/run_tests.py",
+          "new": "def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:\n    return bool(_user_dist_values(args))\n",
+          "old": "def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:\n    return any(value != \"loadgroup\" for value in _user_dist_values(args))\n"
+        }
+      ],
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+      "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+      "status": "KILLED",
+      "test_output_sha256": "31f9990792ec7bdf16c25ea53f0f7425f00f8edc563df70be670816c3a4f4737",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/2ebac6ff96ab621b61fcf129720a2f40/izdw-2ebac6ff96.o909239",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/output/pegasus-dispatch/2ebac6ff96ab621b61fcf129720a2f40/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_run_tests_nproc.py::test_available_cpus_positive_and_affinity_bounded\norchestrator/tests/test_run_tests_nproc.py::test_default_is_available_capped\norchestrator/tests/test_run_tests_nproc.py::test_m2_compute_default_uses_full_affinity_while_other_keeps_cap\norchestrator/tests/test_run_tests_nproc.py::test_env_max_removes_cap\norchestrator/tests/test_run_tests_nproc.py::test_env_numeric_override_wins_over_cap\norchestrator/tests/test_run_tests_nproc.py::test_env_garbage_falls_back_to_default\norchestrator/tests/test_run_tests_nproc.py::test_build_command_xdist_default_uses_loadgroup\norchestrator/tests/test_run_tests_nproc.py::test_build_command_without_xdist_is_serial\norchestrator/tests/test_run_tests_nproc.py::test_build_command_recognizes_all_parallel_nproc_spellings\norchestrator/tests/test_run_tests_nproc.py::test_build_command_n0_disables_loadgroup_injection\norchestrator/tests/test_run_tests_nproc.py::test_build_command_nonacceptance_user_dist_is_postposed_and_wins\norchestrator/tests/test_run_tests_nproc.py::test_build_command_explicit_target_omits_default_target\norchestrator/tests/test_run_tests_nproc.py::test_xdist_loadgroup_version_gate\norchestrator/tests/test_run_tests_nproc.py::test_main_warns_on_user_dist_override_without_reordering_args\norchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification\norchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17\norchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling\norchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist\norchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last\norchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape\norchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup\norchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set\norchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_ignores_blank_pytest_plugins\norchestrator/tests/test_run_tests_nproc.py::test_other_preserves_cap_no_dispatch_and_legacy_xdist_pip_path\norchestrator/tests/test_run_tests_nproc.py::test_legacy_xdist_installer_still_uses_user_pip_command\n\n25 tests collected in 0.30s\n",
+        "stdout_sha256": "a202545bdf2b5f293a1735a543b39257b507bb0e1b144b3f048cf9d0a61e5976"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_run_tests_nproc.py::test_available_cpus_positive_and_affinity_bounded",
+        "orchestrator/tests/test_run_tests_nproc.py::test_default_is_available_capped",
+        "orchestrator/tests/test_run_tests_nproc.py::test_m2_compute_default_uses_full_affinity_while_other_keeps_cap",
+        "orchestrator/tests/test_run_tests_nproc.py::test_env_max_removes_cap",
+        "orchestrator/tests/test_run_tests_nproc.py::test_env_numeric_override_wins_over_cap",
+        "orchestrator/tests/test_run_tests_nproc.py::test_env_garbage_falls_back_to_default",
+        "orchestrator/tests/test_run_tests_nproc.py::test_build_command_xdist_default_uses_loadgroup",
+        "orchestrator/tests/test_run_tests_nproc.py::test_build_command_without_xdist_is_serial",
+        "orchestrator/tests/test_run_tests_nproc.py::test_build_command_recognizes_all_parallel_nproc_spellings",
+        "orchestrator/tests/test_run_tests_nproc.py::test_build_command_n0_disables_loadgroup_injection",
+        "orchestrator/tests/test_run_tests_nproc.py::test_build_command_nonacceptance_user_dist_is_postposed_and_wins",
+        "orchestrator/tests/test_run_tests_nproc.py::test_build_command_explicit_target_omits_default_target",
+        "orchestrator/tests/test_run_tests_nproc.py::test_xdist_loadgroup_version_gate",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_warns_on_user_dist_override_without_reordering_args",
+        "orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape",
+        "orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set",
+        "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_ignores_blank_pytest_plugins",
+        "orchestrator/tests/test_run_tests_nproc.py::test_other_preserves_cap_no_dispatch_and_legacy_xdist_pip_path",
+        "orchestrator/tests/test_run_tests_nproc.py::test_legacy_xdist_installer_still_uses_user_pip_command"
+      ],
+      "duration_s": 21.746,
+      "rc": 0,
+      "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+      "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+      "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+      "status": "PASSED",
+      "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-A1-revert-to-pre-wave-postposed-win": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+          "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ff317bd3d717ebdb75f55c7ff78593667f8336fd7c68cf85c4cda3d0bdf31b3a",
+        "replacements": [
+          {
+            "file": "tools/run_tests.py",
+            "new": "    is_acceptance = _is_acceptance_run(args)\n    if not is_acceptance and not _has_valid_bounded_scope_marker():\n",
+            "old": "    is_acceptance = _is_acceptance_run(args)\n    if is_acceptance and _has_non_loadgroup_user_dist(args):\n        print(\n            \"受入形では --dist loadgroup 以外の --dist 上書きを拒否します。\",\n            file=sys.stderr,\n            flush=True,\n        )\n        return _ACCEPTANCE_DIST_OVERRIDE_RC\n    if not is_acceptance and not _has_valid_bounded_scope_marker():\n"
+          }
+        ]
+      },
+      "MUT-A2-drop-equals-spelling": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "37eb0e39e27f2fda71e086d5c4bc7e367ed0982f28cd39ab919cdc8c3005aaa7",
+        "replacements": [
+          {
+            "file": "tools/run_tests.py",
+            "new": "        if False:\n            values.append(token.split(\"=\", 1)[1])\n",
+            "old": "        if token.startswith(\"--dist=\"):\n            values.append(token.split(\"=\", 1)[1])\n"
+          }
+        ]
+      },
+      "MUT-A3-drop-dist-from-nonselect-allowlist": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_nproc.py::test_dist_stays_nonselect_for_acceptance_classification",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_split_with_rc17",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_acceptance_dist_equals_spelling",
+          "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_dist_rejection_precedes_preflight_and_xdist",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_even_when_loadgroup_is_last",
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_rejects_unsafe_dist_with_n0_serial_shape"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a6aede7abea1505b477d8000072596ba7c540cc61ea808e81645bd8348f86022",
+        "replacements": [
+          {
+            "file": "tools/run_tests.py",
+            "new": "    \"-n\", \"--numprocesses\", \"--color\", \"--tb\", \"--capture\",\n",
+            "old": "    \"-n\", \"--numprocesses\", \"--dist\", \"--color\", \"--tb\", \"--capture\",\n"
+          }
+        ]
+      },
+      "MUT-A4-drop-pytest-plugins-exclusion": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_nproc.py::test_acceptance_shape_is_false_when_pytest_plugins_is_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "85891e2b7c70da8354426a124e682f877c73c66037ff75fca63f5ac71f145209",
+        "replacements": [
+          {
+            "file": "tools/run_tests.py",
+            "new": "",
+            "old": "    if os.environ.get(\"PYTEST_PLUGINS\", \"\").strip():\n        return False\n"
+          }
+        ]
+      },
+      "MUT-A5-reject-all-explicit-dist": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_run_tests_nproc.py::test_main_allows_explicit_acceptance_loadgroup"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4144ebeca299f0b55e3baac968958e0c7f770ce615336494b30a7292c2e4941a",
+        "replacements": [
+          {
+            "file": "tools/run_tests.py",
+            "new": "def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:\n    return bool(_user_dist_values(args))\n",
+            "old": "def _has_non_loadgroup_user_dist(args: Sequence[str]) -> bool:\n    return any(value != \"loadgroup\" for value in _user_dist_values(args))\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "d29243df66c3c3608720dd9e49292bf6d81719d104f6b070e3ee14ec68592ce8",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_run_tests_nproc.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 600.0
+  },
+  "repo_head": "797e1ff2e696ec851802fd29b8b9632d2b779585",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_run_tests_nproc.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "dispatch_head_blob_sha256": "35180dc1627f0a9ab8b97b668f08cc5500e47dbd83e637b27d9525cdeccc4750",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/tools/run_tests.py",
+    "entrypoint_sha256": "dc0f17d5800c097418e0a9095abd056276d365e149acfa05d9db47c0299884d0",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "dc0f17d5800c097418e0a9095abd056276d365e149acfa05d9db47c0299884d0",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "389b04d5c3586d4416320d3d693d729e99709e30",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c7fe2fb59fddd64bcae2c100ea18ff65db528ceb72309a2b00f95d70e85b1da2",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "19e40a4b227a6c5bd8c958693fadc31914d284aefb5379f6650c871eb8a347a1",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1014-t1001-guards/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "c85066c5a441b28c116d1fa9daa6c17e5ce05ea4db21b167ef21ff0cbcfc198d",
+  "updated_at": "2026-08-13T04:27:35.116164+00:00"
+}

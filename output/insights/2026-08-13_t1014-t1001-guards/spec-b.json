@@ -1,0 +1,82 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MUT-B1-drop-cmdline-channel",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "old": "            if not ignore_cmdline and _argv_matches_targets(\n                argv,\n                process_cwd=process_cwd,\n                targets=targets,\n            ):\n                sources.add(\"cmdline\")\n",
+          "new": "            if False and not ignore_cmdline and _argv_matches_targets(\n                argv,\n                process_cwd=process_cwd,\n                targets=targets,\n            ):\n                sources.add(\"cmdline\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_detects_cmdline_only_occupant",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_resolves_relative_cmdline_path_against_process_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_matches_equals_rhs_path_in_argv",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_spoofed_argv0_shell_parent",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_exclude_shell_parent_without_checker_in_cmdline",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_real_proc_cmdline_positive_control",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_occupied_wins_over_unreachable_cwd",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_occupied_wins_over_indeterminate",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_target_normalizes_relative_symlink_and_trailing_slash"
+      ]
+    },
+    {
+      "id": "MUT-B2-prefix-containment",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "old": "def _is_within(candidate: Path, target: Path) -> bool:\n    if candidate == target:\n        return True\n    try:\n        candidate.relative_to(target)\n    except ValueError:\n        return False\n    return True\n",
+          "new": "def _is_within(candidate: Path, target: Path) -> bool:\n    return str(candidate).startswith(str(target))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_scan_does_not_match_sibling_prefix"
+      ]
+    },
+    {
+      "id": "MUT-B3-swallow-cwd-permission-entirely",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "old": "        if process_uid is None or process_uid == current_uid:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_partitions_same_and_other_uid_without_rc_change",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_cwd_permission_uid_failure_is_listed_without_rc_change"
+      ]
+    },
+    {
+      "id": "MUT-B4-indeterminate-maps-to-zero",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_worktree_occupancy.py",
+          "old": "        \"indeterminate\": INDETERMINATE_RC,\n",
+          "new": "        \"indeterminate\": UNOCCUPIED_RC,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_indeterminate_returns_two",
+        "orchestrator/tests/test_check_worktree_occupancy.py::test_main_rejects_missing_or_nondirectory_target"
+      ]
+    }
+  ]
+}

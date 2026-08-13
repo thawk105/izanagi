@@ -1,0 +1,45 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "MUT-C1-weaken-to-two-literal-containment",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            if (\n                len(occupancy_sections) != 1\n                or CLEANUP_OCCUPANCY_CONTRACT not in occupancy_sections[0]\n            ):\n",
+          "new": "            if (\n                \"tools/check_worktree_occupancy.py\" not in visible_command_body\n                or \"rc0\" not in visible_command_body\n            ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_rc_rules_are_required_with_invocation",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_negated_invocation_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_literals_scattered_across_sections_are_rejected"
+      ]
+    },
+    {
+      "id": "MUT-C2-drop-occupancy-check-entirely",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            if (\n                len(occupancy_sections) != 1\n                or CLEANUP_OCCUPANCY_CONTRACT not in occupancy_sections[0]\n            ):\n",
+          "new": "            if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_invocation_line_is_required",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_rc_rules_are_required_with_invocation",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_negated_invocation_is_rejected",
+        "orchestrator/tests/test_check_docs.py::test_cleanup_checker_literals_scattered_across_sections_are_rejected"
+      ]
+    }
+  ]
+}
