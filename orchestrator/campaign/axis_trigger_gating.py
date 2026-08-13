@@ -48,6 +48,13 @@ FROZEN_TEMPLATE_BLOCK_BYTES = (
     b"#endif\n"
     b"  // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
 )
+FROZEN_TEMPLATE_EPILOGUE_BYTES = (
+    b"#if BACKOFF_TRIGGER_GATING\n"
+    b"  if (izanagi_gate_pass) {\n"
+    b"    Backoff::backoff(FLAGS_clocks_per_us);\n"
+    b"  }\n"
+    b"#endif\n"
+)
 FLAG = "BACKOFF_TRIGGER_GATING"          # cmake CACHE = CCBENCH_BACKOFF_TRIGGER_GATING
 PIN = pin.CURRENT_PIN                    # 511c953 — 骨格は patch のみ (PIN 前進なし、D48 決定 2)
 
