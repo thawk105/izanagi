@@ -1383,6 +1383,19 @@ def test_known_violation_ledger_matches_literal_entries():
         "古い側で確定させたことの是正；変更は d706650c → 511c9538 のポインタ更新のみで"
         "ソース著作なし；親作成 commit のため Codex 著者とは記さない"
     )
+    t897_ruling = (
+        "2026-08-13 dev-wave-t897-trigger-admission land 前裁定 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t897_note = (
+        "wave branch へ local main 9e2923c6 を取り込んだ 160 commit の merge；実装面で"
+        "両側が触ったのは `orchestrator/tests/test_campaign.py` の 1 file のみで、3 方向結合の"
+        "結果が両親のどちらとも異なるため checker が実装面著作と判定；`git diff-tree --cc "
+        "98d07c3b -- orchestrator/tests/test_campaign.py` は header 1 行のみで実質空、結果は"
+        "両側の変更の和集合；競合なし・競合解決による新規著作なし；wave 側の変更は Codex "
+        "`role=author` が commit 01d17293 で書き、main 側は各 wave land 時に監査済み；"
+        "親作成 merge のため Codex 著者とは記さない"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1444,6 +1457,7 @@ def test_known_violation_ledger_matches_literal_entries():
         ("9408fb4ae8f999c7c0d6ced735335c9da97e35a4", "missing-codex-author", dw8c_ruling, dw8c_acceptance_note, ""),
         ("c96803854911dd989954c20d0955ad423e7d1207", "missing-codex-author", dw8c_ruling, dw8c_retry_note, ""),
         ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author", t316_ruling, t316_note, ""),
+        ("98d07c3b0e7726a929e98381e4762973d8e4c681", "missing-codex-author", t897_ruling, t897_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected
@@ -1493,6 +1507,7 @@ def test_known_violation_ledger_matches_real_commit_findings():
         "d72c18cdd3c81278e844b4fd15e9682e98e62c20",
         "668f4dfe1026a4ad5e7603e8161b1f3166ce589c",
         "8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e",
+        "98d07c3b0e7726a929e98381e4762973d8e4c681",
     ]
     audit = provenance._audit_history(commits)
     assert audit.findings == []
@@ -1534,6 +1549,7 @@ def test_known_violation_ledger_matches_real_commit_findings():
         ("d72c18cdd3c81278e844b4fd15e9682e98e62c20", "missing-codex-author"),
         ("668f4dfe1026a4ad5e7603e8161b1f3166ce589c", "missing-codex-author"),
         ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author"),
+        ("98d07c3b0e7726a929e98381e4762973d8e4c681", "missing-codex-author"),
     ]
 
 
