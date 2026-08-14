@@ -1670,6 +1670,15 @@ def test_detail_text_normalizer_bounds_controls_and_non_ascii() -> None:
     assert DW._bounded_detail_text(HostileRepr()) == "HostileRepr"
 
 
+def test_detail_text_normalizer_preserves_exact_byte_limit() -> None:
+    value = "x" * 256
+
+    normalized = DW._bounded_detail_text(value)
+
+    assert normalized == value
+    assert len(normalized.encode("ascii")) == 256
+
+
 def test_attestation_detail_has_fixed_serialized_byte_limit() -> None:
     detail = DW._attestation_detail(
         "bounded-detail",
@@ -1685,6 +1694,18 @@ def test_attestation_detail_has_fixed_serialized_byte_limit() -> None:
             "serialized_bytes": 8670,
         },
     }
+
+
+def test_attestation_detail_preserves_exact_serialized_byte_limit() -> None:
+    observed = {f"f{index}": "x" * 240 for index in range(8)}
+    observed["p"] = "x" * 23
+    expected = {"reason": "boundary", "observed": observed}
+
+    detail = DW._attestation_detail("boundary", observed)
+
+    assert len(detail.encode("ascii")) == 2048
+    assert detail == json.dumps(expected, separators=(",", ":"), sort_keys=True)
+    assert json.loads(detail) == expected
 
 
 def test_exception_normalizer_ignores_hostile_errno_accessor() -> None:
@@ -2613,6 +2634,33 @@ def test_receipt_publish_failure_is_fail_closed_and_releases() -> None:
     assert fake.receipt_published is False
     assert ("unlink", _RECEIPT_TEMP) in fake.events
     assert ("run", _helper("release"), _REPO, True) in fake.events
+    fake.assert_drained()
+
+
+def test_receipt_publishes_at_minimum_lease_ttl_boundary() -> None:
+    fake = _FakeEffects()
+    fake.final_claim_age_seconds = 2100
+    lifecycle = DW._AcceptanceLifecycle()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+
+    outcome = _run_acceptance(fake, lifecycle=lifecycle)
+
+    assert outcome.rc == 0
+    assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
+    assert lifecycle.receipt_published is True
+    assert fake.receipt_published is True
+    assert fake.receipt_content is not None
+    receipt = json.loads(fake.receipt_content)
+    assert receipt["lease_holder"] == _HOLDER
+    assert receipt["tested_main"] == _SHA_A
+    assert receipt["tested_tip"] == _SHA_A
+    assert receipt["child_rc"] == 0
+    assert receipt["verdict"] == "child-green"
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
     fake.assert_drained()
 
 
