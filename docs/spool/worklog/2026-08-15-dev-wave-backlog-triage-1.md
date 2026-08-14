@@ -103,6 +103,13 @@ title: 次の一手 657 件を全件棚卸しし、陳腐化・低価値 312 件
   **`base:` 照合は carry 解決後の digest で行うため通り、`check_docs` も `spool_fold --dry-run` も
   緑のままだった。** 機械化を新規 T として起票し、当面は memory で担う。
 - 実装面の差分がゼロのため変異 matrix は免除 (`DW-S04`)。受入全走は免除せず実施した。
+- **受入 1 走目 (08:51 JST) が [T-1107] のフレークで赤になり、非帰属 checker も解除できなかった。**
+  落ちたのは `test_dev_wave_wait.py::test_public_main_real_signal_releases_lease` で、
+  checker の単独再走も `stage=acceptance-scheduler-attestation` の `marker-count` で rc=70 になり
+  `status=attributable-red` と判定され receipt が出なかった。**親が同じ node を通常の焦点走で回すと
+  1 passed / 2.16 秒で緑**であり (本 wave は docs のみの差分で当該 file に到達しない)、
+  `DW-O18` に従い帰属させない。**このフレークは「赤になる」だけでなく非帰属経路でも解除できない**
+  という新事実を [T-1107] へ足した。
 
 ## 次の一手差分
 
@@ -592,7 +599,7 @@ title: 次の一手 657 件を全件棚卸しし、陳腐化・低価値 312 件
   (テスト用 tmp repo の child argv は scheduler marker を出さない)。単独走・焦点走では緑。
   受入を止める帰属赤として観測されるため、期待を「143 または attestation 失敗」に広げるのでなく、
   marker を出す child か attestation を待たせる seam を設ける方向で直す。
-  **(2026-08-15 棚卸し) 今も高価値**: 48 worker の受入全走でだけ赤になり、帰属赤として観測されるため受入を止める。機序 (marker-count が signal 到達より先に発火) と直す方向 (期待を広げるのでなく marker を出す child か seam) まで特定済みで、着手可能である。
+  **(2026-08-15 棚卸し) 今も高価値。本 wave の受入 1 走目で実際に発火し、新事実を 1 つ足す**: 08:51 JST の受入全走が本 node で赤になり land できなかった。**重要なのは、非帰属 checker の単独再走も同じ rc=70 (`stage=acceptance-scheduler-attestation`、`detail={"observed":[],"reason":"marker-count"}`) で落ちたため `status=attributable-red` と判定され、receipt が出なかったことである。** 一方で親が同じ node を通常の焦点走で回すと **1 passed / 2.16 秒**で緑になる (docs のみの差分は当該 file に到達しない)。つまり本フレークは「赤になる」だけでなく **非帰属経路でも解除できない**種類であり、踏んだ wave は受入をやり直す以外に道がない。checker の再走環境が scheduler marker を出さないことが原因側にあるため、[T-1087] とも同じ面である。
   base: 5d7b11b224e95d58d0dcd6a5fffba5ecb0148eabef096c524ba0530dfeb28525
 
 - [T-1109] **P1・新規・ユーザー裁定待ち**:
