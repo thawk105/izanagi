@@ -126,8 +126,8 @@ main を取り込んだ木で既存走行へ相乗りさせ、受入の後へ足
 後続の記録 commit へ置く。anchor を amend して自己 hash 循環を作らない。
 主 tree を変異させない経路として `tools/mutation_worktree.py --commit <commit>` が固定 commit の
 使い捨て worktree で harness を走らせる。`--scratch-root` は既存 directory 必須で、
-全 registered worktree の外に置く。
-期待 node を直して再走するときは `--out` を別 path にする（既存 out は rc=2 で拒否される）。
+全 registered worktree の外に置く。再走は `--out` と `--attempt-out` を新 path にする
+（既存は rc=2）。`--wrapper-attempt` は試行番号。
 
 ## DW-O20 — clean-tree gate
 
