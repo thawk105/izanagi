@@ -1,0 +1,94 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    if type(oracle) is not VerifiedOracleVerdict:\n        raise VerdictError(\n            \"judge_combined は VerifiedOracleVerdict exact type のみ受理する\")\n",
+          "new": "    if (type(oracle) is not VerifiedOracleVerdict\n            and type(oracle) is not _artifacts.OfficialVerdict):\n        raise VerdictError(\n            \"judge_combined は VerifiedOracleVerdict exact type のみ受理する\")\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    oracle_document = oracle.document\n",
+          "new": "    oracle_document = (oracle.document\n                       if type(oracle) is VerifiedOracleVerdict else oracle)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_unverified_official_oracle_verdict"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    if _canonical_json_text(rederived) != _canonical_json_text(document):\n",
+          "new": "    if dict(rederived) != dict(document):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_boolean_median_type_confusion"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    if document.get(\"manifest_sha256\") != verified_manifest.sha256:\n        raise VerdictError(\n            \"oracle verdict の manifest_sha256 が検証済み manifest の実値と一致しない\"\n        )\n\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_wrong_authority_observations"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    if _canonical_json_text(rederived) != _canonical_json_text(document):\n",
+          "new": "    if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_post_issuance_oracle_document_tampering",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_accepts_rederived_exact_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "old": "    if type(oracle) is not VerifiedOracleVerdict:\n",
+          "new": "    if (type(oracle) is not VerifiedOracleVerdict\n            and not hasattr(oracle, \"document\")):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_duck_typed_oracle_wrapper"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
