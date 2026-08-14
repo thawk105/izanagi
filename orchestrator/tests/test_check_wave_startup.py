@@ -33,7 +33,12 @@ def _git(repo: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
-def _repo(tmp_path: Path) -> Path:
+def _repo(
+    tmp_path: Path,
+    *,
+    main_handoffs: tuple[str, ...] = (),
+    executable_main_handoffs: tuple[str, ...] = (),
+) -> Path:
     tmp_path.mkdir(parents=True, exist_ok=True)
     repo = tmp_path / "repo"
     _git(tmp_path, "init", "-q", "-b", "main", str(repo))
@@ -43,6 +48,12 @@ def _repo(tmp_path: Path) -> Path:
     handoff = repo / "docs" / "handoff"
     handoff.mkdir(parents=True)
     (handoff / "README.md").write_text("# handoff\n", encoding="utf-8")
+    for name in (*main_handoffs, *executable_main_handoffs):
+        candidate = handoff / name
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        candidate.write_text("state\n", encoding="utf-8")
+        if name in executable_main_handoffs:
+            candidate.chmod(0o755)
     (repo / "base.txt").write_text("base\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(
@@ -54,6 +65,12 @@ def _repo(tmp_path: Path) -> Path:
     _git(repo, "checkout", "-qb", "work")
     (marker.parent / ".git").write_text("gitdir: fixture\n", encoding="utf-8")
     return repo
+
+
+def _ignore(repo: Path, relative_path: str) -> None:
+    exclude = repo / ".git" / "info" / "exclude"
+    with exclude.open("a", encoding="utf-8") as stream:
+        stream.write(f"/{relative_path}\n")
 
 
 def _commit_all(repo: Path, message: str) -> None:
@@ -180,7 +197,18 @@ def test_resume_rejects_invalid_submodule_marker(
         marker.mkdir()
     assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 1
-    assert "submodule is not initialized" in capsys.readouterr().err
+    diagnostic = capsys.readouterr().err
+    assert "submodule is not initialized" in diagnostic
+    assert (
+        "external/ccbench/CMakeLists.txt must be a non-symlink regular file"
+        in diagnostic
+    )
+    assert "external/ccbench/.git must exist without being a symlink" in diagnostic
+    assert (
+        "検査対象の worktree root で git -c protocol.file.allow=always "
+        "submodule update --init を実行し再検査する"
+        in diagnostic
+    )
 
 
 @pytest.mark.parametrize("invalid_git_entry", ["missing", "symlink"])
@@ -196,7 +224,18 @@ def test_resume_requires_non_symlink_submodule_git_entry(
         git_entry.symlink_to(repo / ".git")
     assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 1
-    assert "submodule is not initialized" in capsys.readouterr().err
+    diagnostic = capsys.readouterr().err
+    assert "submodule is not initialized" in diagnostic
+    assert (
+        "external/ccbench/CMakeLists.txt must be a non-symlink regular file"
+        in diagnostic
+    )
+    assert "external/ccbench/.git must exist without being a symlink" in diagnostic
+    assert (
+        "検査対象の worktree root で git -c protocol.file.allow=always "
+        "submodule update --init を実行し再検査する"
+        in diagnostic
+    )
 
 
 def test_worktree_handoff_gate_is_opt_in(
@@ -204,7 +243,7 @@ def test_worktree_handoff_gate_is_opt_in(
 ) -> None:
     repo = _repo(tmp_path)
     (repo / "docs" / "handoff" / "active.md").write_text("state\n", encoding="utf-8")
-    _commit_all(repo, "tracked handoff")
+    _ignore(repo, "docs/handoff/active.md")
     assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume") == 0
     capsys.readouterr()
@@ -232,6 +271,35 @@ def test_forbid_worktree_handoff_rejects_handoff_directory_symlink(
     assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 1
     assert "docs/handoff is a symlink" in capsys.readouterr().err
+
+
+def test_forbid_worktree_handoff_rejects_handoff_root_regular_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path)
+    handoff = repo / "docs" / "handoff"
+    (handoff / "README.md").unlink()
+    handoff.rmdir()
+    handoff.write_text("not a directory\n", encoding="utf-8")
+    _commit_all(repo, "replace handoff directory with regular file")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 1
+    diagnostic = capsys.readouterr().err
+    assert "docs/handoff is not a directory" in diagnostic
+    assert diagnostic.index("docs/handoff is not a directory") < diagnostic.index(
+        "worktree handoff index contains docs/handoff itself"
+    )
+
+
+def test_forbid_worktree_handoff_accepts_missing_handoff_root(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    handoff = repo / "docs" / "handoff"
+    (handoff / "README.md").unlink()
+    handoff.rmdir()
+    _commit_all(repo, "remove handoff directory")
+    assert not handoff.exists()
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 0
 
 
 def test_forbid_worktree_handoff_counts_readme_directory_as_leftover(
@@ -262,10 +330,318 @@ def test_external_handoff_also_rejects_worktree_handoff_leftover(
     external = tmp_path / "external-handoff.md"
     external.write_text("state\n", encoding="utf-8")
     (repo / "docs" / "handoff" / "active.md").write_text("state\n", encoding="utf-8")
-    _commit_all(repo, "tracked handoff leftover")
+    _ignore(repo, "docs/handoff/active.md")
     assert _git(repo, "status", "--porcelain") == ""
     assert _run(repo, "--mode", "resume", "--external-handoff", str(external)) == 1
     assert "worktree-local handoff remains" in capsys.readouterr().err
+
+
+def test_worktree_handoff_accepts_main_landed_regular_file(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, main_handoffs=("landed.md",))
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 0
+
+
+def test_worktree_handoff_accepts_main_landed_executable_file(tmp_path: Path) -> None:
+    relative_path = "docs/handoff/executable.md"
+    repo = _repo(tmp_path, executable_main_handoffs=("executable.md",))
+    assert _git(repo, "ls-files", "--stage", "--", relative_path).startswith("100755 ")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 0
+
+
+def test_external_handoff_accepts_main_landed_regular_file(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, main_handoffs=("landed.md",))
+    external = tmp_path / "external-handoff.md"
+    external.write_text("state\n", encoding="utf-8")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--external-handoff", str(external)) == 0
+
+
+def test_worktree_handoff_rejects_ignored_untracked_regular_file(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    (repo / "docs" / "handoff" / "untracked.md").write_text(
+        "state\n", encoding="utf-8"
+    )
+    _ignore(repo, "docs/handoff/untracked.md")
+    assert _git(repo, "status", "--porcelain") == ""
+    failures = CWS._check_worktree_handoff(repo)
+    assert failures == [
+        "worktree-local handoff remains (untracked.md): "
+        "外部 handoff を正本にして worktree 内の残置を除く"
+    ]
+
+
+def test_worktree_handoff_rejects_branch_only_committed_file(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "docs" / "handoff" / "branch-only.md").write_text(
+        "state\n", encoding="utf-8"
+    )
+    _commit_all(repo, "branch-only handoff")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index entry is absent from main "
+        "(docs/handoff/branch-only.md): main に land してから再検査する"
+    ]
+
+
+def test_worktree_handoff_rejects_index_oid_different_from_main(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, main_handoffs=("changed.md",))
+    relative_path = "docs/handoff/changed.md"
+    (repo / relative_path).write_text("changed\n", encoding="utf-8")
+    _git(repo, "add", relative_path)
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index OID differs from main "
+        "(docs/handoff/changed.md): index を main と同じ内容へ戻す"
+    ]
+
+
+def test_worktree_handoff_rejects_assume_unchanged_entry(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, main_handoffs=("flagged.md",))
+    relative_path = "docs/handoff/flagged.md"
+    _git(repo, "update-index", "--assume-unchanged", relative_path)
+    assert _git(repo, "ls-files", "-v", "--", relative_path).startswith("h ")
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index tag is not H "
+        "(docs/handoff/flagged.md: h): "
+        "assume-unchanged / skip-worktree 等の flag を解除する"
+    ]
+
+
+def test_worktree_handoff_rejects_skip_worktree_entry(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, main_handoffs=("flagged.md",))
+    relative_path = "docs/handoff/flagged.md"
+    _git(repo, "update-index", "--skip-worktree", relative_path)
+    assert _git(repo, "ls-files", "-v", "--", relative_path).startswith("S ")
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index tag is not H "
+        "(docs/handoff/flagged.md: S): "
+        "assume-unchanged / skip-worktree 等の flag を解除する"
+    ]
+
+
+def test_worktree_handoff_rejects_missing_skip_worktree_entry_via_main(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _repo(tmp_path, main_handoffs=("flagged.md",))
+    relative_path = "docs/handoff/flagged.md"
+    _git(repo, "update-index", "--skip-worktree", relative_path)
+    (repo / relative_path).unlink()
+    assert _git(repo, "ls-files", "-v", "--", relative_path).startswith("S ")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 1
+    assert (
+        "worktree handoff index tag is not H "
+        "(docs/handoff/flagged.md: S)"
+        in capsys.readouterr().err
+    )
+
+
+@pytest.mark.parametrize("stage", ["1", "2", "3"])
+def test_worktree_handoff_rejects_unmerged_index_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+) -> None:
+    repo = tmp_path / "repo"
+    candidate = repo / "docs" / "handoff" / "unmerged.md"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_text("state\n", encoding="utf-8")
+    raw = f"H 100644 {'1' * 40} {stage}\tdocs/handoff/unmerged.md\0"
+    monkeypatch.setattr(CWS, "_git_raw", lambda repo, *args: CWS.GitResult(0, raw, ""))
+    monkeypatch.setattr(
+        CWS,
+        "_git",
+        lambda repo, *args: pytest.fail("stage rejection must precede rev-parse"),
+    )
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index stage is not 0 "
+        f"(docs/handoff/unmerged.md: {stage}): 未 merge の index record を解消する"
+    ]
+
+
+def _assert_worktree_handoff_rejects_index_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+) -> None:
+    repo = tmp_path / f"repo-{mode}"
+    candidate = repo / "docs" / "handoff" / "mode.md"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_text("regular filesystem entry\n", encoding="utf-8")
+    raw = f"H {mode} {'1' * 40} 0\tdocs/handoff/mode.md\0"
+    monkeypatch.setattr(CWS, "_git_raw", lambda repo, *args: CWS.GitResult(0, raw, ""))
+    monkeypatch.setattr(
+        CWS,
+        "_git",
+        lambda repo, *args: pytest.fail("mode rejection must precede rev-parse"),
+    )
+    assert candidate.is_file() and not candidate.is_symlink()
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index mode is not 100644/100755 "
+        f"(docs/handoff/mode.md: {mode}): regular file mode に修復する"
+    ]
+
+
+def test_worktree_handoff_rejects_symlink_index_mode_with_regular_filesystem_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _assert_worktree_handoff_rejects_index_mode(tmp_path, monkeypatch, "120000")
+
+
+def test_worktree_handoff_rejects_gitlink_index_mode_with_regular_filesystem_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _assert_worktree_handoff_rejects_index_mode(tmp_path, monkeypatch, "160000")
+
+
+@pytest.mark.parametrize("entry_kind", ["symlink", "directory"])
+def test_worktree_handoff_rejects_non_regular_filesystem_entry_with_accepted_index(
+    tmp_path: Path, entry_kind: str
+) -> None:
+    repo = _repo(tmp_path, main_handoffs=("entry.md",))
+    candidate = repo / "docs" / "handoff" / "entry.md"
+    candidate.unlink()
+    if entry_kind == "symlink":
+        candidate.symlink_to(repo / "base.txt")
+    else:
+        candidate.mkdir()
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree-local handoff remains (entry.md): "
+        "外部 handoff を正本にして worktree 内の残置を除く"
+    ]
+
+
+def test_worktree_handoff_rejects_directory_with_tracked_descendant(
+    tmp_path: Path,
+) -> None:
+    """直下 directory の membership と filesystem 型による二重拒否を固定する。"""
+    repo = _repo(tmp_path, main_handoffs=("archive/landed.md",))
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree-local handoff remains (archive): "
+        "外部 handoff を正本にして worktree 内の残置を除く"
+    ]
+
+
+def test_worktree_handoff_rejects_index_record_for_handoff_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    (repo / "docs" / "handoff").mkdir(parents=True)
+    raw = f"H 160000 {'1' * 40} 0\tdocs/handoff\0"
+    monkeypatch.setattr(CWS, "_git_raw", lambda repo, *args: CWS.GitResult(0, raw, ""))
+    failures = CWS._check_worktree_handoff(repo)
+    assert failures
+    assert "index contains docs/handoff itself" in failures[0]
+
+
+def test_worktree_handoff_rejects_root_index_record_when_handoff_root_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw = f"H 160000 {'1' * 40} 0\tdocs/handoff\0"
+    monkeypatch.setattr(CWS, "_git_raw", lambda repo, *args: CWS.GitResult(0, raw, ""))
+    assert CWS._check_worktree_handoff(tmp_path / "missing-repo") == [
+        "worktree handoff index contains docs/handoff itself: "
+        "gitlink 等の root entry を除去する"
+    ]
+
+
+def test_worktree_handoff_rejects_duplicate_index_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    (repo / "docs" / "handoff").mkdir(parents=True)
+    record = f"H 100644 {'1' * 40} 0\tdocs/handoff/duplicate.md\0"
+    monkeypatch.setattr(
+        CWS,
+        "_git_raw",
+        lambda repo, *args: CWS.GitResult(0, record + record, ""),
+    )
+    monkeypatch.setattr(
+        CWS,
+        "_git",
+        lambda repo, *args: pytest.fail("duplicate rejection must precede rev-parse"),
+    )
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index contains duplicate path "
+        "(docs/handoff/duplicate.md): 重複 record を解消する"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        pytest.param(CWS.GitResult(1, "", "forced failure"), "git の読み取りに失敗", id="rc"),
+        pytest.param(
+            CWS.GitResult(0, f"H 100644 {'1' * 40} 0\tdocs/handoff/file.md", ""),
+            "NUL 終端でない",
+            id="non-nul",
+        ),
+        pytest.param(CWS.GitResult(0, "malformed\0", ""), "record を解釈できない", id="record"),
+    ],
+)
+def test_worktree_handoff_ls_files_failure_is_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    result: CWS.GitResult,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(CWS, "_git_raw", lambda repo, *args: result)
+    failures = CWS._check_worktree_handoff(tmp_path / "missing-repo")
+    assert failures
+    assert expected in failures[0]
+
+
+def test_worktree_handoff_rev_parse_failure_rejects_that_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = _repo(tmp_path, main_handoffs=("unreadable.md",))
+    real_git = CWS._git
+
+    def fail_one_main_entry(repo: Path, *args: str) -> CWS.GitResult:
+        if args[-1] == "refs/heads/main:docs/handoff/unreadable.md":
+            return CWS.GitResult(1, "", "forced failure")
+        return real_git(repo, *args)
+
+    monkeypatch.setattr(CWS, "_git", fail_one_main_entry)
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree handoff index entry is absent from main "
+        "(docs/handoff/unreadable.md): main に land してから再検査する"
+    ]
+
+
+def test_worktree_handoff_rejects_untracked_readme(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    readme = repo / "docs" / "handoff" / "README.md"
+    readme.unlink()
+    _commit_all(repo, "delete readme on work branch")
+    readme.write_text("untracked replacement\n", encoding="utf-8")
+    _ignore(repo, "docs/handoff/README.md")
+    assert _git(repo, "status", "--porcelain") == ""
+    assert CWS._check_worktree_handoff(repo) == [
+        "worktree-local handoff remains (README.md): "
+        "外部 handoff を正本にして worktree 内の残置を除く"
+    ]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("非ASCII.md", id="non-ascii"),
+        pytest.param("tab\tname.md", id="tab"),
+        pytest.param("line\nname.md", id="newline"),
+        pytest.param('quote"name.md', id="quote"),
+    ],
+)
+def test_worktree_handoff_accepts_main_landed_special_character_name(
+    tmp_path: Path, name: str
+) -> None:
+    repo = _repo(tmp_path, main_handoffs=(name,))
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _run(repo, "--mode", "resume", "--forbid-worktree-handoff") == 0
 
 
 @pytest.mark.parametrize("invalid_kind", ["missing", "directory", "symlink", "inside"])
@@ -450,7 +826,7 @@ def test_git_wrapper_is_sanitized_and_read_only(
     assert child_env["GIT_TERMINAL_PROMPT"] == "0"
     assert child_env["GIT_NO_REPLACE_OBJECTS"] == "1"
     assert CWS._READ_ONLY_GIT_SUBCOMMANDS == frozenset(
-        {"rev-list", "rev-parse", "status", "symbolic-ref"}
+        {"ls-files", "rev-list", "rev-parse", "status", "symbolic-ref"}
     )
     with pytest.raises(ValueError):
         CWS._git(tmp_path, "checkout", "main")
