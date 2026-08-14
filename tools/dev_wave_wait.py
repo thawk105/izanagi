@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import errno
 import hashlib
+import importlib.abc
 import json
 import os
 import re
@@ -18,6 +19,195 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
+
+
+_WAITER_SOURCE_CHUNK_BYTES = 1024 * 1024
+_SHA256_TEXT_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _exception_errno(exc: BaseException) -> int | None:
+    if not isinstance(exc, OSError):
+        return None
+    try:
+        candidate = OSError.errno.__get__(exc, type(exc))
+    except Exception:
+        return None
+    return candidate if type(candidate) is int else None
+
+
+@dataclass(frozen=True)
+class _WaiterSourceUnavailable:
+    exception_type: str
+    errno: int | None = None
+
+
+@dataclass
+class _WaiterSourceBinding:
+    """module 初期化直後に束縛した source inode を保持する。"""
+
+    path: Path
+    root_fd: int
+    tools_fd: int
+    source_fd: int
+    initial_sha256: str = ""
+
+    def bytes_sha256(self) -> str:
+        if not stat.S_ISREG(os.fstat(self.source_fd).st_mode):
+            raise OSError("bound waiter source is not a regular file")
+
+        def read_once() -> tuple[str, int]:
+            digest = hashlib.sha256()
+            offset = 0
+            while True:
+                chunk = os.pread(
+                    self.source_fd,
+                    _WAITER_SOURCE_CHUNK_BYTES,
+                    offset,
+                )
+                if not chunk:
+                    return digest.hexdigest(), offset
+                digest.update(chunk)
+                offset += len(chunk)
+
+        first = read_once()
+        second = read_once()
+        if first != second:
+            raise OSError("bound waiter source changed while being read")
+        return second[0]
+
+    def close(self) -> None:
+        """テスト用の明示 close。production binding は process lifetime 保持する。"""
+
+        for name in ("source_fd", "tools_fd", "root_fd"):
+            fd = getattr(self, name)
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                finally:
+                    setattr(self, name, -1)
+
+
+def _same_inode(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        left.st_dev,
+        left.st_ino,
+        stat.S_IFMT(left.st_mode),
+    ) == (
+        right.st_dev,
+        right.st_ino,
+        stat.S_IFMT(right.st_mode),
+    )
+
+
+def _bind_waiter_source(
+    source_file: object,
+    module_spec: object,
+) -> _WaiterSourceBinding:
+    """canonical tools path の source を root FD から非追従で束縛する。"""
+
+    if not isinstance(source_file, str) or not source_file:
+        raise ValueError("waiter __file__ is invalid")
+    source_path = Path(os.path.abspath(source_file))
+    if source_path.name != "dev_wave_wait.py" or source_path.parent.name != "tools":
+        raise ValueError("waiter __file__ is not the canonical tools path")
+    spec_origin: Path | None = None
+    if module_spec is not None:
+        loader = getattr(module_spec, "loader", None)
+        if not isinstance(loader, importlib.abc.FileLoader):
+            raise ValueError("waiter module spec does not use a file loader")
+        origin = getattr(module_spec, "origin", None)
+        if not isinstance(origin, str) or not origin:
+            raise ValueError("waiter module spec origin is invalid")
+        spec_origin = Path(os.path.abspath(origin))
+    root_path = source_path.parent.parent
+    directory_flags = (
+        os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_DIRECTORY
+    )
+    source_flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    root_fd = tools_fd = source_fd = -1
+    try:
+        root_before = os.stat(root_path, follow_symlinks=False)
+        root_fd = os.open(root_path, directory_flags)
+        root_opened = os.fstat(root_fd)
+        if not stat.S_ISDIR(root_opened.st_mode) or not _same_inode(
+            root_before,
+            root_opened,
+        ):
+            raise OSError("waiter repository root is symlink/raced/non-directory")
+
+        tools_before = os.stat(
+            b"tools",
+            dir_fd=root_fd,
+            follow_symlinks=False,
+        )
+        tools_fd = os.open(
+            b"tools",
+            directory_flags,
+            dir_fd=root_fd,
+        )
+        tools_opened = os.fstat(tools_fd)
+        if not stat.S_ISDIR(tools_opened.st_mode) or not _same_inode(
+            tools_before,
+            tools_opened,
+        ):
+            raise OSError("waiter tools path is symlink/raced/non-directory")
+
+        source_before = os.stat(
+            b"dev_wave_wait.py",
+            dir_fd=tools_fd,
+            follow_symlinks=False,
+        )
+        source_fd = os.open(
+            b"dev_wave_wait.py",
+            source_flags,
+            dir_fd=tools_fd,
+        )
+        source_opened = os.fstat(source_fd)
+        if not stat.S_ISREG(source_opened.st_mode) or not _same_inode(
+            source_before,
+            source_opened,
+        ):
+            raise OSError("waiter source is symlink/raced/non-regular")
+        if spec_origin is not None:
+            origin_stat = os.stat(spec_origin, follow_symlinks=False)
+            if not stat.S_ISREG(origin_stat.st_mode) or not _same_inode(
+                origin_stat,
+                source_opened,
+            ):
+                raise OSError("waiter module spec origin is not the bound source")
+        binding = _WaiterSourceBinding(
+            source_path,
+            root_fd,
+            tools_fd,
+            source_fd,
+        )
+        binding.initial_sha256 = binding.bytes_sha256()
+        return binding
+    except BaseException:
+        for fd in (source_fd, tools_fd, root_fd):
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        raise
+
+
+def _initialize_waiter_source_binding() -> (
+    _WaiterSourceBinding | _WaiterSourceUnavailable
+):
+    try:
+        return _bind_waiter_source(globals().get("__file__"), __spec__)
+    except Exception as exc:
+        return _WaiterSourceUnavailable(
+            type(exc).__name__,
+            _exception_errno(exc),
+        )
+
+
+# Python loader が source を compile した後の最初期に束縛する。compile 入力そのものの
+# 証明ではなく、canonical file 起動でここから保持する source inode bytes の契約である。
+_RUNNING_WAITER_SOURCE = _initialize_waiter_source_binding()
 
 
 RC_OK = 0
@@ -92,6 +282,13 @@ class _CommandResult:
     returncode: int
     stdout: str = ""
     stderr: str = ""
+
+
+class _TipWaiterBlobError(Exception):
+    def __init__(self, reason: str, returncode: int | None = None):
+        super().__init__(reason)
+        self.reason = reason
+        self.returncode = returncode
 
 
 @dataclass(frozen=True)
@@ -172,6 +369,8 @@ class _Effects:
     is_symlink: Callable[[Path], bool] | None = None
     sha256_file: Callable[[Path], str] | None = None
     inspect_acceptance_log: Callable[[Path], tuple[str, str]] | None = None
+    running_waiter_bytes_sha256: Callable[[], object] | None = None
+    tip_waiter_bytes_sha256: Callable[[Path, str], object] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -314,6 +513,65 @@ def _default_sha256_file(path: Path) -> str:
                 break
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _default_running_waiter_bytes_sha256() -> object:
+    binding = _RUNNING_WAITER_SOURCE
+    if isinstance(binding, _WaiterSourceUnavailable):
+        return binding
+    current = binding.bytes_sha256()
+    if current != binding.initial_sha256:
+        raise OSError("bound waiter source changed since module initialization")
+    return current
+
+
+def _default_tip_waiter_bytes_sha256(repo: Path, tip_sha: str) -> object:
+    argv = (
+        "git",
+        "cat-file",
+        "blob",
+        f"{tip_sha}:tools/dev_wave_wait.py",
+    )
+    try:
+        process = subprocess.Popen(
+            argv,
+            cwd=repo,
+            shell=False,
+            text=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+            env={
+                key: value
+                for key, value in os.environ.items()
+                if key not in _GIT_ENV_KEYS
+            },
+        )
+    except (OSError, ValueError) as exc:
+        raise _TipWaiterBlobError(
+            f"git-cat-file-start:{type(exc).__name__}",
+        ) from exc
+    try:
+        stdout, _stderr = process.communicate(timeout=_STAGE_TIMEOUT_SECONDS)
+    except BaseException:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                pass
+        raise
+    if process.returncode != 0:
+        raise _TipWaiterBlobError("git-cat-file", process.returncode)
+    if not isinstance(stdout, bytes):
+        raise _TipWaiterBlobError("git-cat-file-output-type")
+    return hashlib.sha256(stdout).hexdigest()
 
 
 def _scan_acceptance_log_chunks(
@@ -496,15 +754,9 @@ def _attestation_detail(reason: str, observed: object) -> str:
 
 
 def _exception_observed(exc: BaseException) -> dict[str, object]:
-    candidate_errno = None
-    if isinstance(exc, OSError):
-        try:
-            candidate_errno = OSError.errno.__get__(exc, type(exc))
-        except Exception:
-            candidate_errno = None
     return {
         "exception_type": type(exc).__name__,
-        "errno": candidate_errno if type(candidate_errno) is int else None,
+        "errno": _exception_errno(exc),
     }
 
 
@@ -737,6 +989,8 @@ def _default_effects() -> _Effects:
         is_symlink=Path.is_symlink,
         sha256_file=_default_sha256_file,
         inspect_acceptance_log=_default_inspect_acceptance_log,
+        running_waiter_bytes_sha256=_default_running_waiter_bytes_sha256,
+        tip_waiter_bytes_sha256=_default_tip_waiter_bytes_sha256,
     )
 
 
@@ -1107,6 +1361,138 @@ def _fingerprint_json(fingerprint: _TreeFingerprint) -> dict[str, object]:
         "diff_bytes": fingerprint.diff_bytes,
         "submodule_status_bytes": fingerprint.submodule_status_bytes,
     }
+
+
+def _waiter_source_gate_failure(
+    *,
+    tested_tip: str,
+    reason: str,
+    running_sha256: object = None,
+    tip_sha256: object = None,
+    diagnostic_observed: dict[str, object] | None = None,
+    source_rc: int | None = None,
+) -> _StageFailure:
+    def diagnostic_value(value: object) -> object:
+        if value is None:
+            return value
+        if isinstance(value, str):
+            if _SHA256_TEXT_RE.fullmatch(value) is not None:
+                return value
+            try:
+                text_bytes = len(value.encode("utf-8", "surrogatepass"))
+                if not value.isascii():
+                    text_class = "non-ascii"
+                elif len(value) != 64:
+                    text_class = "wrong-length"
+                else:
+                    text_class = "non-hex"
+            except Exception:
+                text_bytes = None
+                text_class = "unclassifiable"
+            return {
+                "type": "str",
+                "text_bytes": text_bytes,
+                "text_class": text_class,
+            }
+        return {"type": _bounded_detail_text(type(value).__name__)}
+
+    observed: dict[str, object] = {
+        "actual_sha256": diagnostic_value(running_sha256),
+        "expected_sha256": diagnostic_value(tip_sha256),
+        "tested_tip": tested_tip,
+    }
+    if diagnostic_observed is not None:
+        observed.update(diagnostic_observed)
+    return _StageFailure(
+        "restart-required",
+        source_rc=source_rc,
+        detail=_attestation_detail(
+            "receipt-waiter-" + _bounded_detail_text(reason),
+            observed,
+        ),
+    )
+
+
+def _verify_waiter_source_bytes(
+    effects: _Effects,
+    repo: Path,
+    tested_tip: str,
+) -> None:
+    running_sha256: object = None
+    tip_sha256: object = None
+    try:
+        running_sha256 = (
+            effects.running_waiter_bytes_sha256
+            or _default_running_waiter_bytes_sha256
+        )()
+    except Exception as exc:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-source-read-failed",
+            diagnostic_observed=_exception_observed(exc),
+        ) from None
+    if isinstance(running_sha256, _WaiterSourceUnavailable):
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-source-binding-unavailable",
+            diagnostic_observed={
+                "exception_type": running_sha256.exception_type,
+                "errno": running_sha256.errno,
+            },
+        )
+    if not isinstance(running_sha256, str):
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-sha256-type",
+            running_sha256=running_sha256,
+        )
+    if _SHA256_TEXT_RE.fullmatch(running_sha256) is None:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-sha256-format",
+            running_sha256=running_sha256,
+        )
+
+    try:
+        tip_sha256 = (
+            effects.tip_waiter_bytes_sha256
+            or _default_tip_waiter_bytes_sha256
+        )(repo, tested_tip)
+    except _TipWaiterBlobError as exc:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason=exc.reason,
+            running_sha256=running_sha256,
+            source_rc=exc.returncode,
+        ) from None
+    except Exception as exc:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="tip-blob-read-failed",
+            running_sha256=running_sha256,
+            diagnostic_observed=_exception_observed(exc),
+        ) from None
+    if not isinstance(tip_sha256, str):
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="tip-sha256-type",
+            running_sha256=running_sha256,
+            tip_sha256=tip_sha256,
+        )
+    if _SHA256_TEXT_RE.fullmatch(tip_sha256) is None:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="tip-sha256-format",
+            running_sha256=running_sha256,
+            tip_sha256=tip_sha256,
+        )
+    if running_sha256 != tip_sha256:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="sha256-mismatch",
+            running_sha256=running_sha256,
+            tip_sha256=tip_sha256,
+        )
 
 
 def _path_exists(effects: _Effects, path: Path) -> bool:
@@ -2381,6 +2767,11 @@ def run_acceptance(
             repo,
             "prerun-fingerprint",
             prerun_status.stdout,
+        )
+        _verify_waiter_source_bytes(
+            effects,
+            repo,
+            prerun_fingerprint.head_sha,
         )
         print(
             "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),

@@ -843,6 +843,18 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   checker には timeout が無く、赤の単独再走が hang すると receipt が出ないまま待ち続ける。
   checker 実行中の lease heartbeat も無いので、赤が多いと最終確認までに TTL 2,400 秒を
   使い切りうる。checker は専用 process group で起動しないので、中断時に probe の残留がありうる。
+- **`stage=restart-required` (rc=70) は待ち手を再起動しろという意味である。** 受入 command を
+  投入する直前に、待ち手が module 初期化直後に束縛した自 source の bytes と、その走行が束縛する
+  tip の `tools/dev_wave_wait.py` blob 内容を照合し、不一致・照合不能なら command を投入せずに
+  止める。stderr の detail に期待 sha・実 sha・tested tip・理由が出る (**ただし停止後の lease 解放が
+  失敗した場合は cleanup 側の結果が primary を置換するため、この detail は表示されない**)。
+  直し方は、その待ち手 process
+  を止め、**新しい tip の木から待ち手を起動し直して再投入する**ことだけである。同じ process を
+  待たせ直しても直らない。走行前に止まるので計算資源は消費していない。
+  **保証の範囲**は「canonical direct 起動、または origin が束縛 source と同一 inode を指す
+  file loader 経由で、module 初期化直後に束縛した source inode の bytes」であり、Python が
+  compile した bytes そのものではない。**この gate を持たないコードで既に起動している待ち手は
+  本契約の被覆外である** — 契約が入った tip より前に起動した待ち手は、この検査を実行しない。
 - **投入前に `git submodule update --recursive` を実行する。** 未初期化 (`-`) の submodule が
   あると claim 前に `preflight-submodule-ready` で rc=2 になる。これは、受入 command 自身が
   submodule を初期化して走行後 fingerprint を変え、緑なのに receipt が出せなくなる罠を
