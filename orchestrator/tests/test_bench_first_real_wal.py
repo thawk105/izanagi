@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -19,8 +20,20 @@ _HERE = Path(__file__).resolve().parent
 _ORCH = _HERE.parent
 sys.path.insert(0, str(_ORCH.parent))
 
-from orchestrator.campaign import p2_2_report, replay, s6_sort_sweep, s8a_trigger_sweep, wal  # noqa: E402
-from orchestrator.campaign.artifact_admission import require_admitted_campaign                # noqa: E402
+from orchestrator.campaign import (                                                   # noqa: E402
+    campaign_lock,
+    contract_loader_binding,
+    p2_2_report,
+    replay,
+    s6_sort_sweep,
+    s8a_trigger_sweep,
+    wal,
+)
+from orchestrator.campaign.artifact_admission import (                                      # noqa: E402
+    CampaignReadPurpose,
+    CampaignVerifierEpochRejected,
+    require_admitted_campaign,
+)
 from orchestrator.campaign.backoff_repro import _bench_tps                              # noqa: E402
 from orchestrator.campaign.build_admission import (                                     # noqa: E402
     GeneratorId,
@@ -28,13 +41,19 @@ from orchestrator.campaign.build_admission import (                             
     derive_build_admission,
 )
 from orchestrator.campaign.layout import CampaignLayout                                # noqa: E402
-from orchestrator.campaign.model import STAGE_ABORT, STAGE_BENCH_DONE, STAGE_COMMIT     # noqa: E402
+from orchestrator.campaign.model import (                                               # noqa: E402
+    COMMIT_CONTRACT_SHA256_KEY,
+    STAGE_ABORT,
+    STAGE_BENCH_DONE,
+    STAGE_COMMIT,
+)
 from orchestrator.campaign.pin import CURRENT_PIN                                       # noqa: E402
 from orchestrator.campaign.source_digest import (                                       # noqa: E402
     EMPTY_TRACKED_DIFF_SHA256,
     SourceEvidence,
 )
 from orchestrator.critic.digest import load_screen_rejections, load_workload            # noqa: E402
+from campaign_lock_test_support import build_v2_lock                                    # noqa: E402
 
 _FIXTURE = _HERE / "fixtures" / "bench_first_screen_reject_6f169f90.jsonl"
 _BASELINE = "84319b1127a6"
@@ -46,6 +65,10 @@ _BASELINE_GENOME = (
 _REJECTED_GENOME = (
     "silo|BACKOFF_FIXED=100,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,"
     "NO_WAIT_OF_TICTOC=0,WAL=0"
+)
+_REAL_E0_CAMPAIGN = (
+    Path(__file__).resolve().parents[2]
+    / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
 )
 
 
@@ -112,6 +135,72 @@ def _write_admitted_real_fixture(root: Path) -> CampaignLayout:
     return layout
 
 
+def _fixture_git(repo: Path, *args: str) -> bytes:
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.fail("git is required for verifier epoch fixtures")
+    completed = subprocess.run(
+        [executable, "-C", str(repo), *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        pytest.fail(
+            "git fixture command failed: "
+            f"args={args!r} rc={completed.returncode} "
+            f"stderr={completed.stderr.decode('utf-8', errors='replace')!r}"
+        )
+    return completed.stdout
+
+
+def _upgrade_to_fixed_e1(
+    layout: CampaignLayout, root: Path, monkeypatch: pytest.MonkeyPatch,
+) -> CampaignLayout:
+    """固定 bytes の closure repo に束縛した E1 campaign へ移行する。"""
+    repo = root / "closure-repo"
+    repo.mkdir()
+    _fixture_git(repo, "init", "-q")
+    for index, relative in enumerate(
+        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+    ):
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"epoch closure fixture {index}\n".encode("ascii"))
+    _fixture_git(
+        repo, "add", "--", *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+    )
+    _fixture_git(
+        repo,
+        "-c", "user.email=epoch-fixture@example.invalid",
+        "-c", "user.name=epoch fixture",
+        "commit", "-q", "-m", "record closure A",
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+
+    lock_path = Path(layout.lock_file)
+    lock_text = build_v2_lock(lock_path.read_text(encoding="utf-8"))
+    decoded = campaign_lock.decode_campaign_lock(lock_text)
+    assert decoded.authority is not None
+    lock_path.write_text(lock_text, encoding="utf-8")
+
+    records = [
+        json.loads(line)
+        for line in Path(layout.wal_file).read_text(encoding="utf-8").splitlines()
+    ]
+    for record in records:
+        if record["stage"] == "commit":
+            record["payload"][COMMIT_CONTRACT_SHA256_KEY] = (
+                decoded.authority.environment_contract_sha256
+            )
+    Path(layout.wal_file).write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    return layout
+
+
 @pytest.fixture
 def admitted_real_screen_layout(tmp_path) -> CampaignLayout:
     return _write_admitted_real_fixture(tmp_path / "campaign")
@@ -140,8 +229,29 @@ def test_real_wal_fixture_preserves_positive_control_shape(real_screen_layout):
     assert states[_REJECTED].aborted and not states[_REJECTED].committed
 
 
-def test_real_wal_critic_loaders_hide_uncertified_metrics(admitted_real_screen_layout):
-    view = require_admitted_campaign(admitted_real_screen_layout)
+def test_real_wal_critic_loaders_hide_uncertified_metrics(
+    admitted_real_screen_layout, tmp_path, monkeypatch,
+):
+    historical = require_admitted_campaign(
+        _REAL_E0_CAMPAIGN,
+        purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    assert historical.campaign_verifier_epoch.state == "E0"
+    assert historical.records
+    with pytest.raises(CampaignVerifierEpochRejected, match="state=E0"):
+        require_admitted_campaign(
+            _REAL_E0_CAMPAIGN,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
+
+    e1_layout = _upgrade_to_fixed_e1(
+        admitted_real_screen_layout, tmp_path, monkeypatch,
+    )
+    view = require_admitted_campaign(
+        e1_layout,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    assert view.campaign_verifier_epoch.state == "E1"
     workload = load_workload(view)
     assert len(workload) == 1 and workload[0].genome == _BASELINE_GENOME
     assert workload[0].li["throughput_tps"] == 8470959.0
@@ -155,12 +265,26 @@ def test_real_wal_critic_loaders_hide_uncertified_metrics(admitted_real_screen_l
 
 
 @pytest.mark.parametrize("loader", [s6_sort_sweep._load_rows, s8a_trigger_sweep._load_rows])
-def test_real_wal_sweep_report_rows_gate_on_commit(admitted_real_screen_layout, loader):
+def test_real_wal_sweep_report_rows_gate_on_commit(
+    admitted_real_screen_layout, loader, tmp_path, monkeypatch,
+):
     entries = {
         "baseline": {"variant_id": _BASELINE, "category": "full-order"},
         "screened-out": {"variant_id": _REJECTED, "category": "full-order"},
     }
-    rows = {r["name"]: r for r in loader(admitted_real_screen_layout, entries)}
+    historical = require_admitted_campaign(
+        _REAL_E0_CAMPAIGN,
+        purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    assert historical.campaign_verifier_epoch.state == "E0"
+    assert historical.records
+    with pytest.raises(CampaignVerifierEpochRejected, match="state=E0"):
+        loader(_REAL_E0_CAMPAIGN, entries)
+
+    e1_layout = _upgrade_to_fixed_e1(
+        admitted_real_screen_layout, tmp_path, monkeypatch,
+    )
+    rows = {r["name"]: r for r in loader(e1_layout, entries)}
     assert rows["baseline"]["certified"] is True
     assert rows["baseline"]["median_tps"] == 8470959.0
     screened = rows["screened-out"]
@@ -170,24 +294,81 @@ def test_real_wal_sweep_report_rows_gate_on_commit(admitted_real_screen_layout, 
         assert screened[key] is None
 
 
-def test_real_wal_replay_landscape_requires_commit(tmp_path):
+@pytest.mark.parametrize("loader", [s6_sort_sweep._load_rows, s8a_trigger_sweep._load_rows])
+def test_real_e0_sweep_selection_is_rejected_by_epoch(loader):
+    campaign = (
+        Path(__file__).resolve().parents[2]
+        / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+    )
+    with pytest.raises(CampaignVerifierEpochRejected, match="state=E0"):
+        loader(campaign, {})
+
+
+def test_real_wal_replay_landscape_requires_commit(tmp_path, monkeypatch):
     root = tmp_path / "output"
     layout = CampaignLayout(str(
         root / "campaigns" / "p2-2-silo-real-screen-enumerate-fixture"
     )).ensure()
     _write_admitted_real_fixture(Path(layout.root))
+    historical = require_admitted_campaign(
+        _REAL_E0_CAMPAIGN,
+        purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    assert historical.campaign_verifier_epoch.state == "E0"
+    assert historical.records
+    with pytest.raises(CampaignVerifierEpochRejected, match="state=E0"):
+        replay.load_landscape("read-heavy")
+
+    _upgrade_to_fixed_e1(layout, tmp_path, monkeypatch)
     landscape = replay.load_landscape("real-screen", str(root))
     assert set(landscape) == {_BASELINE_GENOME}
     assert landscape[_BASELINE_GENOME].fitness_tps == 8470959.0
     assert _REJECTED_GENOME not in landscape
 
 
-def test_real_wal_p2_2_report_ranking_requires_commit(real_screen_layout):
-    rows = p2_2_report._collect(real_screen_layout)
+def test_real_wal_p2_2_report_ranking_requires_commit(admitted_real_screen_layout):
+    view = require_admitted_campaign(
+        admitted_real_screen_layout,
+        purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    rows = p2_2_report._collect(view)
     assert rows[_REJECTED].median == 1912074.0  # 実 WAL に数値がある正対照
     ranked = p2_2_report._ranked(rows)
     assert [r.variant for r in ranked] == [_BASELINE]
     assert all(r.median != 1912074.0 for r in ranked)
+
+
+def test_real_e0_replay_landscape_is_rejected_for_certified_selection():
+    with pytest.raises(CampaignVerifierEpochRejected, match="state=E0"):
+        replay.load_landscape("read-heavy")
+
+
+def test_real_e0_p2_report_provenance_names_historical_epoch():
+    campaign = (
+        Path(__file__).resolve().parents[2]
+        / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+    )
+    view = require_admitted_campaign(
+        campaign, purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    provenance = p2_2_report._epoch_provenance(view)
+    assert provenance["read_purpose"] == "HISTORICAL_RAW"
+    assert provenance["campaign_verifier_epoch"] == "E0"
+    assert provenance["campaign_verifier_epoch_state"] == "E0"
+    assert "certified" not in repr(provenance).lower()
+
+
+def test_p2_report_declares_historical_purpose(monkeypatch):
+    class PurposeObserved(RuntimeError):
+        pass
+
+    def observe(_tag, *, purpose):
+        assert purpose is CampaignReadPurpose.HISTORICAL_RAW
+        raise PurposeObserved
+
+    monkeypatch.setattr(p2_2_report.replay, "discover_p2_2_dir", observe)
+    with pytest.raises(PurposeObserved):
+        p2_2_report.report_workload("fixture", {})
 
 
 def test_real_wal_backoff_repro_bench_tps_requires_commit(real_screen_layout):

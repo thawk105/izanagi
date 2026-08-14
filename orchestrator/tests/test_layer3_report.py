@@ -17,6 +17,7 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE.parents[1]))
 
 from orchestrator.campaign import (  # noqa: E402
+    artifact_admission,
     autonomous_trial_completeness,
     campaign_lock,
     contract_loader_binding,
@@ -208,7 +209,10 @@ def _campaign(tmp_path: Path, records, whiteboard=None, *, loop_state=True,
 
 
 def _historical_admitted_campaign(campaign: Path):
-    admitted = layer3_report.require_admitted_campaign(campaign)
+    admitted = layer3_report.require_admitted_campaign(
+        campaign,
+        purpose=layer3_report.CampaignReadPurpose.HISTORICAL_RAW,
+    )
     decision = dataclasses.replace(
         admitted.decision,
         classification="historical-pre-admission-schema",
@@ -481,7 +485,8 @@ def test_historical_build_report_remains_non_certifying(
     )
     historical = _historical_admitted_campaign(campaign)
     monkeypatch.setattr(
-        layer3_report, "require_admitted_campaign", lambda _path: historical,
+        layer3_report, "require_admitted_campaign",
+        lambda _path, *, purpose: historical,
     )
 
     report = layer3_report.build_report(
@@ -495,13 +500,55 @@ def test_historical_build_report_remains_non_certifying(
     assert report["certifying_input"] is False
 
 
+def test_historical_build_report_displays_e0_without_rejection(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    historical = _historical_admitted_campaign(campaign)
+    e0 = artifact_admission.CampaignVerifierEpoch(
+        campaign_verifier_epoch="E0",
+        state="E0",
+        reason_code="v1-authority-absent",
+    )
+    historical_e0 = dataclasses.replace(
+        historical,
+        campaign_verifier_epoch=e0,
+    )
+
+    def historical_only(_path, *, purpose):
+        assert purpose is layer3_report.CampaignReadPurpose.HISTORICAL_RAW
+        return historical_e0
+
+    monkeypatch.setattr(
+        layer3_report, "require_admitted_campaign", historical_only,
+    )
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert report["campaign_verifier_epoch"] == {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": e0.identity_scope,
+        "excluded_scope": e0.excluded_scope,
+    }
+    assert report["certifying_input"] is False
+
+
 def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_refs(
     tmp_path: Path, monkeypatch,
 ) -> None:
     campaign, output_root = _campaign(
         tmp_path, [_record("build_start", genome="g", src_token="s")],
     )
-    admitted = layer3_report.require_admitted_campaign(campaign)
+    admitted = layer3_report.require_admitted_campaign(
+        campaign,
+        purpose=layer3_report.CampaignReadPurpose.HISTORICAL_RAW,
+    )
     baseline_report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=output_root,
     )
@@ -522,7 +569,8 @@ def test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_re
         ),
     )
     monkeypatch.setattr(
-        layer3_report, "require_admitted_campaign", lambda _path: v2_admitted,
+        layer3_report, "require_admitted_campaign",
+        lambda _path, *, purpose: v2_admitted,
     )
 
     report = layer3_report.build_report(
@@ -566,6 +614,25 @@ def test_existing_v3_missing_new_admission_fields_remains_readable(
     assert report["acceptance_receipt"] is None
     del report["acceptance_receipt"]
     del report["certifying_input"]
+    layer3_report._validate_schema(report)
+
+
+def test_existing_certifying_v3_missing_epoch_remains_readable(
+    tmp_path: Path,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    report["acceptance_receipt"] = {
+        "path": "acceptance/legacy.json",
+        "sha256": "a" * 64,
+    }
+    report["certifying_input"] = True
+    del report["campaign_verifier_epoch"]
+
     layer3_report._validate_schema(report)
 
 
@@ -649,7 +716,8 @@ def test_reader_rejects_certifying_historical_admission(
     )
     historical = _historical_admitted_campaign(campaign)
     monkeypatch.setattr(
-        layer3_report, "require_admitted_campaign", lambda _path: historical,
+        layer3_report, "require_admitted_campaign",
+        lambda _path, *, purpose: historical,
     )
     report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=output_root,
@@ -715,7 +783,8 @@ def test_accepted_report_rejects_historical_before_certifying_fields_are_set(
     )
     historical = _historical_admitted_campaign(campaign)
     monkeypatch.setattr(
-        layer3_report, "require_admitted_campaign", lambda _path: historical,
+        layer3_report, "require_admitted_campaign",
+        lambda _path, *, purpose: historical,
     )
     report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=output_root,
@@ -743,6 +812,86 @@ def test_accepted_report_rejects_historical_before_certifying_fields_are_set(
 
     assert report["acceptance_receipt"] is None
     assert report["certifying_input"] is False
+
+
+def test_accepted_report_requires_e1_and_records_epoch(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+
+    report = layer3_report.build_accepted_report(
+        campaign,
+        acceptance_receipt=object(),
+        generated_from_head="fixed",
+        output_root=output_root,
+    )
+
+    assert report["certifying_input"] is True
+    assert report["campaign_verifier_epoch"]["state"] == "E1"
+    assert report["campaign_verifier_epoch"][
+        "campaign_verifier_epoch"
+    ].startswith("E1:")
+    assert report["acceptance_receipt"] == {
+        "path": verified.relative_path,
+        "sha256": verified.sha256,
+    }
+
+
+def test_accepted_report_rejects_e0_after_historical_projection(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    campaign, output_root = _campaign(
+        tmp_path, [_record("build_start", genome="g", src_token="s")],
+    )
+    historical = _historical_admitted_campaign(campaign)
+    e0 = artifact_admission.CampaignVerifierEpoch(
+        campaign_verifier_epoch="E0",
+        state="E0",
+        reason_code="v1-authority-absent",
+    )
+    historical_e0 = dataclasses.replace(
+        historical,
+        campaign_verifier_epoch=e0,
+        decision=dataclasses.replace(
+            historical.decision,
+            classification="admitted-new-schema",
+            admission_status="admitted",
+        ),
+    )
+    verified = _certifying_receipt_for(campaign)
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt",
+        lambda _receipt: verified,
+    )
+
+    def purpose_gate(_path, *, purpose):
+        if purpose is layer3_report.CampaignReadPurpose.HISTORICAL_RAW:
+            return historical_e0
+        raise artifact_admission.CampaignVerifierEpochRejected(e0)
+
+    monkeypatch.setattr(
+        layer3_report, "require_admitted_campaign", purpose_gate,
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match=r"certifying campaign admission 検証に失敗:.*state=E0",
+    ):
+        layer3_report.build_accepted_report(
+            campaign,
+            acceptance_receipt=object(),
+            generated_from_head="fixed",
+            output_root=output_root,
+        )
 
 
 @pytest.fixture
@@ -784,7 +933,7 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(
         autonomous_trial_completeness,
         "require_admitted_campaign",
-        lambda _path: SimpleNamespace(
+        lambda _path, **_kwargs: SimpleNamespace(
             decision=SimpleNamespace(
                 as_receipt=lambda: decision_ref["value"],
             ),

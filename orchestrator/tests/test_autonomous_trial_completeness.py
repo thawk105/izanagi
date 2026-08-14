@@ -1665,6 +1665,60 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(
     C.assert_campaign_layer3_chain(report=report, output_root=output_root)
 
 
+def test_campaign_chain_declares_certified_acceptance_purpose(
+    tmp_path, monkeypatch,
+) -> None:
+    output_root, _campaign, _persisted_path, _persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    original = C.require_admitted_campaign
+    observed = []
+
+    def observe(campaign, *, purpose):
+        observed.append(purpose)
+        return original(campaign, purpose=purpose)
+
+    monkeypatch.setattr(C, "require_admitted_campaign", observe)
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=output_root,
+    )
+    assert observed == [C.CampaignReadPurpose.CERTIFIED_ACCEPTANCE]
+
+
+def test_campaign_chain_reads_legacy_layer3_without_epoch(tmp_path) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    assert persisted.pop("campaign_verifier_epoch")["state"] == "E1"
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=output_root,
+    )
+
+
+def test_campaign_chain_rejects_persisted_epoch_mutation(tmp_path) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    persisted["campaign_verifier_epoch"]["campaign_verifier_epoch"] = (
+        "E1:" + "0" * 64
+    )
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match="campaign verifier epoch differs from validator",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
 @pytest.mark.parametrize(
     "workload,old_campaign_id,new_campaign_id",
     _CURRENT_WORKLOAD_CAMPAIGN_EPOCHS,

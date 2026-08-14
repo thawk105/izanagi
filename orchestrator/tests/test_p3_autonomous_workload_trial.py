@@ -192,7 +192,10 @@ def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
     A.loop_core.wal.write_lock(
         layout, build_v2_lock(A.ident.canonical_preimage(cfg))
     )
-    critic_view = A.require_admitted_campaign(layout.root)
+    critic_view = A.require_admitted_campaign(
+        layout.root,
+        purpose=A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     raw_digest = A.loop_core.make_critic_digest(
         critic_view,
         tag=A.trigger.CRITIC_TAG,

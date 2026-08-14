@@ -89,7 +89,10 @@ from .s8b_prediction_runner import (
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
 from . import env_contract, ident  # noqa: E402
-from .artifact_admission import require_admitted_campaign  # noqa: E402
+from .artifact_admission import (  # noqa: E402
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from .build_admission import (  # noqa: E402
     BuildAdmissionError,
     BuildRunContext,
@@ -1491,7 +1494,10 @@ def _run_pending_critics(
         digest = None
         candidate_label = raw_variant
         if digest_path.exists():
-            critic_view = require_admitted_campaign(cell["campaign_root"])
+            critic_view = require_admitted_campaign(
+                cell["campaign_root"],
+                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+            )
             identity_projection = loop_core.make_critic_identity_projection(
                 critic_view
             )

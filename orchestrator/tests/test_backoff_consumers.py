@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,7 +16,8 @@ _ORCH = os.path.dirname(_HERE)
 _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
-from orchestrator.campaign import wal                                      # noqa: E402
+from orchestrator.campaign import backoff_sweep_report, wal                # noqa: E402
+from orchestrator.campaign.artifact_admission import CampaignReadPurpose   # noqa: E402
 from orchestrator.campaign.backoff_repro import _bench_tps                 # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout                    # noqa: E402
 from orchestrator.campaign.model import (STAGE_ABORT, STAGE_BENCH_DONE,    # noqa: E402
@@ -28,6 +30,29 @@ def _load_plot_module():
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
+
+    def historical_fixture_view(campaign, *, purpose):
+        assert purpose is CampaignReadPurpose.HISTORICAL_RAW
+        layout = CampaignLayout(str(campaign))
+        records, _truncated = wal.read_records_checked(layout)
+        epoch = SimpleNamespace(
+            campaign_verifier_epoch="E0",
+            state="E0",
+            reason_code="v1-authority-absent",
+            identity_scope="fixture enforcement closure",
+            excluded_scope="fixture verifier exclusion",
+        )
+        return SimpleNamespace(
+            wal_file=layout.wal_file,
+            records=tuple(records),
+            read_purpose=CampaignReadPurpose.HISTORICAL_RAW,
+            campaign_verifier_epoch=epoch,
+        )
+
+    # These parser fixtures intentionally contain no campaign.lock.  Keep their
+    # WAL-malformation focus while separately asserting the production caller's
+    # exact historical purpose at this seam.
+    module.require_admitted_campaign = historical_fixture_view
     return module
 
 
@@ -52,6 +77,60 @@ def _fixture_layout(tmp_path):
     return layout
 
 
+def test_backoff_report_declares_certified_purpose_and_epoch(
+        tmp_path, monkeypatch):
+    layout = CampaignLayout(str(tmp_path / "certified-campaign")).ensure()
+    epoch = SimpleNamespace(
+        campaign_verifier_epoch="E1:" + "a" * 64,
+        identity_scope="fixture enforcement closure",
+        excluded_scope="fixture verifier exclusion",
+    )
+    view = SimpleNamespace(
+        layout=layout,
+        read_purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        campaign_verifier_epoch=epoch,
+    )
+    observed = {}
+
+    def discover(_slug, _tag, *, purpose):
+        observed["purpose"] = purpose
+        return object()
+
+    monkeypatch.setattr(
+        backoff_sweep_report, "config_for",
+        lambda _tag, _workload: SimpleNamespace(spec_slug="fixture", search_tag="sweep"),
+    )
+    monkeypatch.setattr(backoff_sweep_report, "discover_campaign_dir", discover)
+    monkeypatch.setattr(
+        backoff_sweep_report, "require_certified_campaign_view", lambda _value: view,
+    )
+    monkeypatch.setattr(backoff_sweep_report, "load_workload", lambda _view: [
+        SimpleNamespace(flags={"BACK_OFF": 0}, li={"throughput_tps": 100.0}),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": -1},
+            li={"throughput_tps": 110.0},
+        ),
+        SimpleNamespace(
+            flags={"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+            li={"throughput_tps": 120.0, "abort_rate": 0.1, "ipc": 1.2},
+        ),
+    ])
+
+    def make_plot(dat, _spec, stem):
+        observed["provenance"] = dat.provenance
+        return {"png": stem + ".png", "dat": stem + ".dat", "plt": stem + ".plt"}
+
+    monkeypatch.setattr(backoff_sweep_report, "make_plot", make_plot)
+    result = backoff_sweep_report.report_workload("fixture", {})
+    assert observed["purpose"] is CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+    assert observed["provenance"]["read_purpose"] == "CERTIFIED_ACCEPTANCE"
+    assert observed["provenance"]["campaign_verifier_epoch"] == "E1:" + "a" * 64
+    assert result["best_amt"] == 5
+    report = Path(result["report"]).read_text(encoding="utf-8")
+    assert "受理目的**: `CERTIFIED_ACCEPTANCE`" in report
+    assert "campaign_verifier_epoch**: `E1:" in report
+
+
 def test_backoff_repro_bench_tps_requires_commit(tmp_path):
     layout = _fixture_layout(tmp_path)
     assert _bench_tps(layout, "v-screen") is None
@@ -74,6 +153,8 @@ def test_plot_backoff_excludes_and_reports_uncertified_bench_done(tmp_path, caps
     campaign = plot.load_campaign(layout.root)
     assert campaign["pts"] == [(5, [123456.0, 123457.0])]
     assert campaign["excluded_uncertified"] == ["v-certified", "v-screen"]
+    assert campaign["read_purpose"] == "HISTORICAL_RAW"
+    assert campaign["campaign_verifier_epoch"]["campaign_verifier_epoch"] == "E0"
     assert "999999" not in repr(campaign["pts"])
 
     out_prefix = str(tmp_path / "plot")
@@ -87,10 +168,16 @@ def test_plot_backoff_excludes_and_reports_uncertified_bench_done(tmp_path, caps
         plot.make_figure = original_make_figure
     stdout = capsys.readouterr().out
     assert "excluded 2 uncertified BENCH_DONE (後続COMMITなし): v-certified, v-screen" in stdout
+    assert "historical best 0.12M @ 5\u00b5s (epoch=E0;" in stdout
     with open(out_prefix + ".provenance.json", encoding="utf-8") as f:
         prov = json.load(f)
     assert prov["inputs"][0]["excluded_uncertified_bench_done"] == \
         ["v-certified", "v-screen"]
+    assert prov["inputs"][0]["read_purpose"] == "HISTORICAL_RAW"
+    assert prov["inputs"][0]["campaign_verifier_epoch"][
+        "campaign_verifier_epoch"
+    ] == "E0"
+    assert prov["facts"]["fixture"]["campaign_verifier_epoch"] == "E0"
 
 
 def test_plot_backoff_rejects_duplicate_tps_before_it_reaches_plot_data(tmp_path):
@@ -111,7 +198,7 @@ def test_plot_backoff_rejects_duplicate_tps_before_it_reaches_plot_data(tmp_path
         raise AssertionError("fixture に certified BENCH_DONE がない")
     wal_path.write_bytes("".join(lines).encode("utf-8"))
 
-    with pytest.raises(plot.campaign_wal.WalDuplicateKeyError, match="tps"):
+    with pytest.raises(wal.WalDuplicateKeyError, match="tps"):
         plot.load_campaign(layout.root)
 
 
@@ -122,7 +209,7 @@ def test_plot_backoff_rejects_blank_line_between_records(tmp_path):
     lines = wal_path.read_text(encoding="utf-8").splitlines(keepends=True)
     wal_path.write_text("".join([lines[0], "\n", *lines[1:]]), encoding="utf-8")
 
-    with pytest.raises(plot.campaign_wal.WalLineError, match="must not be empty"):
+    with pytest.raises(wal.WalLineError, match="must not be empty"):
         plot.load_campaign(layout.root)
 
 
@@ -143,5 +230,5 @@ def test_plot_backoff_rejects_unframed_tail_without_returning_partial_data(
     with wal_path.open("ab") as stream:
         stream.write(tail)
 
-    with pytest.raises(plot.campaign_wal.WalFramingError):
+    with pytest.raises(wal.WalFramingError):
         plot.load_campaign(layout.root)

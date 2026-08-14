@@ -34,9 +34,35 @@ class ManifestScheduleProjection:
 
     n_per_cell: int
     expected_cells: frozenset[tuple[int, str, str]]
+    expected_campaign_ids: frozenset[str]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "expected_cells", frozenset(self.expected_cells))
+        campaign_ids = frozenset(self.expected_campaign_ids)
+        if not campaign_ids or not all(
+                isinstance(value, str) and value for value in campaign_ids):
+            raise ValueError(
+                "expected_campaign_ids は空でない campaign ID 集合が必要"
+            )
+        object.__setattr__(
+            self, "expected_campaign_ids", campaign_ids,
+        )
+
+
+def _verified_manifest_campaign_ids(document: Mapping) -> frozenset[str]:
+    raw = document["campaign_ids"]
+    if isinstance(raw, Mapping):
+        values = raw.values()
+    else:
+        values = raw
+    campaign_ids = {
+        value.get("campaign_id") if isinstance(value, Mapping) else value
+        for value in values
+    }
+    if not campaign_ids or not all(
+            isinstance(value, str) and value for value in campaign_ids):
+        raise ValueError("verified manifest campaign_ids の射影に失敗")
+    return frozenset(campaign_ids)
 
 
 def project_verified_manifest_schedule(
@@ -56,6 +82,9 @@ def project_verified_manifest_schedule(
             )
             for row in schedule["rows"]
         ),
+        expected_campaign_ids=_verified_manifest_campaign_ids(
+            verified_manifest.document
+        ),
     )
 
 
@@ -74,13 +103,23 @@ def _unknown(reasons: Sequence[Mapping]) -> dict:
             "trial_medians": [], "reasons": ordered}
 
 
-def _cell(rows: Sequence[Mapping], n: int, duplicate_indices: set[int]) -> dict:
+def _cell(
+        rows: Sequence[Mapping], n: int, duplicate_indices: set[int],
+        epoch_eligible_campaign_ids: frozenset[str],
+) -> dict:
     reasons: list[dict] = []
     if len(rows) != n:
         reasons.append(_reason("trial-count", f"期待 n={n} に対して rows={len(rows)}"))
     if any(_is_int(row.get("schedule_index"))
            and row.get("schedule_index") in duplicate_indices for row in rows):
         reasons.append(_reason("duplicate-row", "schedule_index が observations 内で重複"))
+    if any(
+            row.get("campaign_id") not in epoch_eligible_campaign_ids
+            for row in rows):
+        reasons.append(_reason(
+            "campaign-verifier-epoch",
+            "campaign_verifier_epoch が certified E1 でない",
+        ))
     for row in rows:
         if not _is_int(row.get("schedule_index")) or row["schedule_index"] < 0:
             reasons.append(_reason("schedule-index", "schedule_index が非負整数でない"))
@@ -179,6 +218,38 @@ def judge_oracle(
         top_reasons.append(_reason(
             "manifest-kind", "manifest_kind が official でない",
         ))
+    epoch_campaign_ids: frozenset[str] | None = None
+    epoch_eligible_campaign_ids: frozenset[str] = frozenset()
+    try:
+        epoch_entries = _artifacts.validate_campaign_verifier_epochs(
+            observations.get("campaign_verifier_epochs")
+        )
+    except _artifacts.OracleArtifactTypeError as exc:
+        top_reasons.append(_reason(
+            "campaign-verifier-epoch-evidence", str(exc),
+        ))
+    else:
+        epoch_campaign_ids = frozenset(
+            entry["campaign_id"] for entry in epoch_entries
+        )
+        epoch_eligible_campaign_ids = frozenset(
+            entry["campaign_id"] for entry in epoch_entries
+            if entry["state"] == "E1"
+            and entry["certified_eligible"] is True
+        )
+        if epoch_campaign_ids != schedule_projection.expected_campaign_ids:
+            top_reasons.append(_reason(
+                "campaign-verifier-epoch-campaigns",
+                "campaign_verifier_epochs が検証済み manifest campaign_ids と不一致",
+            ))
+        for entry in epoch_entries:
+            if entry["state"] != "E1" or entry["certified_eligible"] is not True:
+                rejection = entry["rejection"]
+                top_reasons.append(_reason(
+                    rejection["code"],
+                    f"campaign_id={entry['campaign_id']!r}: "
+                    f"{entry['reason_code']}: {rejection['message']}",
+                ))
     manifest_sha = observations.get("manifest_sha256")
     if (not isinstance(verified_manifest_sha256, str)
             or len(verified_manifest_sha256) != 64
@@ -216,6 +287,18 @@ def judge_oracle(
         rows = [row for row in raw_rows if isinstance(row, Mapping)]
         if len(rows) != len(raw_rows):
             top_reasons.append(_reason("row-type", "rows に object でない行がある"))
+    if any(
+            not isinstance(row.get("campaign_id"), str)
+            or not row.get("campaign_id")
+            or (
+                epoch_campaign_ids is not None
+                and row.get("campaign_id") not in epoch_campaign_ids
+            )
+            for row in rows):
+        top_reasons.append(_reason(
+            "campaign-id",
+            "rows の campaign_id が epoch 証拠へ束縛された非空文字列でない",
+        ))
 
     raw_expected = observations.get("expected_cells")
     observed_expected_cells: list[tuple[int, str, str]] = []
@@ -300,6 +383,7 @@ def judge_oracle(
                          and row.get("configuration_id") == configuration_id]
             configurations[configuration_id] = _cell(
                 cell_rows, n, duplicate_indices,
+                epoch_eligible_campaign_ids,
             )
         unknown = bool(top_reasons) or any(
             value["status"] == "unknown" for value in configurations.values())
