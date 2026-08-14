@@ -1,0 +1,246 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60.0,
+  "timeout_seconds": 3600.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "A1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "                    \"receipt-lease-check\",\n",
+          "new": "                    \"receipt-main-moved\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_reacquired_before_receipt_is_released_once",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_reconfirms_same_lease_holder_before_publish",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_requires_sufficient_lease_ttl_and_releases"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "A2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "                    \"receipt-main-moved\",\n                    {\n                        \"claimed_main_sha\": claim_context.main_sha,\n                        \"final_main_sha\": final_main_sha,\n",
+          "new": "                    \"receipt-main-moved\",\n                    {\n                        \"claimed_main_sha\": claim_context.main_sha,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_main_moved_detail"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "A3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        failure_reason = \"receipt-publish-rename\"\n",
+          "new": "        failure_reason = \"receipt-publish-sigblock\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_rename_builds_detail_after_mask_restore",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_rename_preserves_detail_when_mask_restore_fails",
+        "orchestrator/tests/test_dev_wave_wait.py::test_cleanup_failure_preserves_primary_receipt_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_publish_failure_is_fail_closed_and_releases"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "A4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if outcome.detail is not None:\n        print(\n            f\"diagnostic: stage={outcome.stage or 'unknown'} \"\n            f\"rc={outcome.rc} detail={outcome.detail}\"\n        )\n",
+          "new": "    if outcome.detail is not None:\n        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_detail_is_printed_to_stdout_and_stderr"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "A5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "                        \"detail\": _nested_detail(primary.detail),\n",
+          "new": "                        \"detail\": None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_cleanup_failure_preserves_primary_receipt_detail"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "            and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS\n        ):\n",
+          "new": "            and confirmed_remaining > _RECEIPT_PUBLISH_MIN_TTL_SECONDS\n        ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_publishes_at_minimum_lease_ttl_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        if final_main_sha != claim_context.main_sha:\n",
+          "new": "        if final_main_sha == claim_context.main_sha:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_runs_command_without_polling[observed-age]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_runs_command_without_polling[zero-age]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_main_moved_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_rename_preserves_detail_when_mask_restore_fails",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[age-range]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[age-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-exception]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-rc]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-state]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-format]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-mismatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-self]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[main-sha-mismatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[self-renew-failed]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[source]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[unexpected-holder-self]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acquired_reloads_main_before_behind_check",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_with_current_collections_schema_is_accepted",
+        "orchestrator/tests/test_dev_wave_wait.py::test_cleanup_failure_preserves_primary_receipt_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_second_acceptance_reuses_self_held_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_with_real_git_and_lease_helper",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_and_queued_refresh_main_before_every_claim",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_reacquired_before_receipt_is_released_once",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_sequence_and_postcheck_are_exact",
+        "orchestrator/tests/test_dev_wave_wait.py::test_missing_owned_path_skips_diff_warns_and_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_attributable_only_publishes_receipt_with_real_child_rc",
+        "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_prefix_is_not_overlap_and_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_prerun_clean_allows_acceptance_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_publish_failure_is_fail_closed_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_publishes_at_minimum_lease_ttl_boundary",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_reconfirms_same_lease_holder_before_publish",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_requires_sufficient_lease_ttl_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_receipt_publish_does_not_reverse_success",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[loadgroup]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[serial]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_unchanged_postrun_fingerprint_allows_success_and_retains_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_unknown_scheduler_is_recorded_in_receipt"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "B3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        if child_rc != 0 or red_check is not None:\n",
+          "new": "        if red_check is not None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_consistency_detail[child-green]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "C1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "def _bounded_detail_text(value: object) -> str:\n    if not isinstance(value, str):\n",
+          "new": "def _bounded_detail_text(value: object) -> str:\n    raise RuntimeError(\"mutation-c1\")\n    if not isinstance(value, str):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_consistency_detail[child-green-red-check]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_consistency_detail[child-green]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_consistency_detail[non-attributable-child-rc]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_consistency_detail[non-attributable-empty-nodeids]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_consistency_detail[non-attributable-missing-red-check]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_encode_detail_omits_exception_text",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_field_detail[log-sha256]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_field_detail[scheduler-allowed]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_field_detail[scheduler-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_field_detail[tested-main]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_field_detail[tested-tip]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_main_moved_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_main_resolve_detail[command-exception]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_main_resolve_detail[command-failure]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_main_resolve_detail[invalid-sha]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_mask_restore_failure_is_fail_closed",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_rename_builds_detail_after_mask_restore",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_rename_preserves_detail_when_mask_restore_fails",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_publish_sigblock_detail_restores_ownership",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[age-range]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[age-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-exception]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-rc]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[claim-state]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-format]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-mismatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-self]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[holder-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[main-sha-mismatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[self-renew-failed]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[source]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_detail[unexpected-holder-self]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_reclaim_holder_hash_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_sigmask_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_temp_contract_detail[parent-mismatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_temp_contract_detail[prefix-mismatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_temp_write_detail_omits_exception_text",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_unknown_verdict_detail_is_bounded",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_waiter_blob_detail[command-exception]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_waiter_blob_detail[command-failure]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_receipt_waiter_blob_detail[invalid-sha]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_attestation_detail_has_fixed_serialized_byte_limit",
+        "orchestrator/tests/test_dev_wave_wait.py::test_attestation_detail_preserves_exact_serialized_byte_limit",
+        "orchestrator/tests/test_dev_wave_wait.py::test_cleanup_failure_preserves_primary_receipt_detail",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_log_inspection_rejects_short_read_with_stable_fstat",
+        "orchestrator/tests/test_dev_wave_wait.py::test_detail_text_normalizer_bounds_controls_and_non_ascii",
+        "orchestrator/tests/test_dev_wave_wait.py::test_detail_text_normalizer_preserves_exact_byte_limit",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_reacquired_before_receipt_is_released_once",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_publish_failure_is_fail_closed_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_reconfirms_same_lease_holder_before_publish",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_requires_sufficient_lease_ttl_and_releases"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
