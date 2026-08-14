@@ -1,0 +1,249 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60.0,
+  "timeout_seconds": 3600.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if running_sha256 != tip_sha256:\n        raise _waiter_source_gate_failure(\n            tested_tip=tested_tip,\n            reason=\"sha256-mismatch\",\n",
+          "new": "    if False:\n        raise _waiter_source_gate_failure(\n            tested_tip=tested_tip,\n            reason=\"sha256-mismatch\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_waiter_bytes_mismatch_blocks_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_no_merge_waiter_bytes_mismatch_blocks_submission_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if running_sha256 != tip_sha256:\n",
+          "new": "    if running_sha256 == tip_sha256:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_command_red_is_propagated_after_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_runs_command_without_polling[observed-age]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_runs_command_without_polling[zero-age]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_waiter_bytes_mismatch_blocks_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_real_acquired_payload_runs_command_and_releases_on_failure",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acquired_reloads_main_before_behind_check",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_collection_with_unknown_field_is_rejected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_identity_and_nodes_are_bound[classification]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_identity_and_nodes_are_bound[schema_version]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_identity_and_nodes_are_bound[tested_main]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_identity_and_nodes_are_bound[wave_tip]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_log_hash_mismatch_is_rejected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_with_current_collections_schema_is_accepted",
+        "orchestrator/tests/test_dev_wave_wait.py::test_checker_receipt_without_collections_is_rejected",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_second_acceptance_reuses_self_held_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_default_wiring_with_real_git_and_lease_helper",
+        "orchestrator/tests/test_dev_wave_wait.py::test_failed_acceptance_never_publishes_receipt",
+        "orchestrator/tests/test_dev_wave_wait.py::test_failed_acceptance_rejects_nonzero_checker_rc[attributable]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_failed_acceptance_rejects_nonzero_checker_rc[unknown]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_fingerprint_git_command_failure_fails_closed_and_releases[postrun]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_and_queued_refresh_main_before_every_claim",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_acceptance_red_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_postrun_dirty_retains_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_reacquired_before_receipt_is_released_once",
+        "orchestrator/tests/test_dev_wave_wait.py::test_held_self_signal_retains_real_lease_without_polling",
+        "orchestrator/tests/test_dev_wave_wait.py::test_index_flags_fail_closed_before_claim_and_after_run[postrun-root-assume-unchanged]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_index_flags_fail_closed_before_claim_and_after_run[postrun-root-skip-worktree]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_index_flags_fail_closed_before_claim_and_after_run[postrun-submodule-assume-unchanged]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_index_flags_fail_closed_before_claim_and_after_run[postrun-submodule-skip-worktree]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_merge_sequence_and_postcheck_are_exact",
+        "orchestrator/tests/test_dev_wave_wait.py::test_missing_owned_path_skips_diff_warns_and_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_no_merge_waiter_bytes_mismatch_blocks_submission_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_attributable_only_publishes_receipt_with_real_child_rc",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_pytest_failure_rc_rejected_without_red_checker[audit]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_pytest_failure_rc_rejected_without_red_checker[deletion-gate]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_pytest_failure_rc_rejected_without_red_checker[dispatch]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_pytest_failure_rc_rejected_without_red_checker[pytest-usage]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_non_pytest_failure_rc_rejected_without_red_checker[signal]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_child_is_postchecked_before_propagation",
+        "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_prefix_is_not_overlap_and_reaches_submission",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_clean_head_change_fails_fingerprint_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_dirty_fails_closed_and_releases[submodule- m external/ccbench\\n]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_dirty_fails_closed_and_releases[tracked- M tracked.py\\n]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_dirty_fails_closed_and_releases[untracked-?? untracked.py\\n]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_dirty_overrides_nonzero_child_rc",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_failure_prevents_red_checker[postrun-clean]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_failure_prevents_red_checker[postrun-fingerprint]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_failure_prevents_red_checker[postrun-index-flags]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_fingerprint_binds_diff_and_submodule_status[diff]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_postrun_fingerprint_binds_diff_and_submodule_status[submodule-status]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_prerun_clean_allows_acceptance_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_releases_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_accepts_merged_tip_with_same_waiter_bytes",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_publish_failure_is_fail_closed_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_reconfirms_same_lease_holder_before_publish",
+        "orchestrator/tests/test_dev_wave_wait.py::test_receipt_requires_sufficient_lease_ttl_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_failure_overrides_primary_result",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[malformed-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[nonzero]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[conflicting-lines]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[duplicate-key]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[field-drift]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[malformed-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[missing]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[mixed-form-duplicate]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[non-string-value]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[same-line-duplicate]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_scheduler_attestation_is_fail_closed_before_red_checker[unknown-value]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_receipt_publish_does_not_reverse_success",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_before_receipt_publish_leaves_no_final_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[loadgroup]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[serial]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_unchanged_postrun_fingerprint_allows_success_and_retains_lease",
+        "orchestrator/tests/test_dev_wave_wait.py::test_unknown_scheduler_is_recorded_in_receipt",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_source_binding_accepts_regular_direct_source_and_inode_replacement"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        _verify_waiter_source_bytes(\n            effects,\n            repo,\n            prerun_fingerprint.head_sha,\n        )\n        print(\n            \"acceptance-command argv=\"",
+          "new": "        print(\n            \"acceptance-command argv=\""
+        },
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        child_rc = _normalize_child_rc(child.returncode)\n",
+          "new": "        child_rc = _normalize_child_rc(child.returncode)\n        _verify_waiter_source_bytes(\n            effects,\n            repo,\n            prerun_fingerprint.head_sha,\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_command_red_is_propagated_after_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_waiter_bytes_mismatch_blocks_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_no_merge_waiter_bytes_mismatch_blocks_submission_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_prerun_clean_allows_acceptance_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_failure_overrides_primary_result",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[malformed-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[nonzero]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[loadgroup]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[serial]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[binding-sentinel]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[git-nonzero]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-empty]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-invalid-length]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-invalid-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-none]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-oserror]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-unexpected-error]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-unicode-error]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-empty]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-invalid-length]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-invalid-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-none]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    if isinstance(running_sha256, _WaiterSourceUnavailable):\n        raise _waiter_source_gate_failure(\n            tested_tip=tested_tip,\n            reason=\"running-source-binding-unavailable\",\n            reason_detail=running_sha256.reason,\n        )\n",
+          "new": "    if isinstance(running_sha256, _WaiterSourceUnavailable):\n        return\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[binding-sentinel]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    current = binding.bytes_sha256()\n    if current != binding.initial_sha256:\n        raise OSError(\"bound waiter source changed since module initialization\")\n    return current\n",
+          "new": "    return _default_sha256_file(binding.path)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        running_waiter_bytes_sha256=_default_running_waiter_bytes_sha256,\n",
+          "new": "        running_waiter_bytes_sha256=(lambda: _default_sha256_file(Path(__file__))),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "        _verify_waiter_source_bytes(\n            effects,\n            repo,\n            prerun_fingerprint.head_sha,\n        )\n",
+          "new": "        if committed_sha is not None:\n            _verify_waiter_source_bytes(\n                effects,\n                repo,\n                prerun_fingerprint.head_sha,\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_command_red_is_propagated_after_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_acceptance_held_self_waiter_bytes_mismatch_blocks_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_no_merge_waiter_bytes_mismatch_blocks_submission_and_releases",
+        "orchestrator/tests/test_dev_wave_wait.py::test_prerun_clean_allows_acceptance_submission_without_release",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_failure_overrides_primary_result",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[malformed-json]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_release_subprocess_failures_are_cleanup_failures[nonzero]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[loadgroup]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_scheduler[serial]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[binding-sentinel]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[git-nonzero]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-empty]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-invalid-length]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-invalid-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-none]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-oserror]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-unexpected-error]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[running-unicode-error]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-empty]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-invalid-length]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-invalid-type]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_waiter_bytes_unverifiable_is_restart_required_before_submission[tip-none]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
