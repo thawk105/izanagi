@@ -540,6 +540,43 @@ def _queue_non_attributable_receipt_tail(fake: _FakeEffects) -> None:
     )
 
 
+def _valid_receipt_arguments() -> dict[str, object]:
+    fingerprint = DW._TreeFingerprint(
+        digest="f" * 64,
+        head_sha=_SHA_A,
+        status_bytes=0,
+        diff_bytes=0,
+        submodule_status_bytes=0,
+    )
+    return {
+        "wave": _WAVE,
+        "holder": _HOLDER,
+        "tested_main": _SHA_A,
+        "tested_tip": _SHA_A,
+        "command": _COMMAND,
+        "resolved_runner_path": "--flag",
+        "pre_fingerprint": fingerprint,
+        "post_fingerprint": fingerprint,
+        "waiter_blob_sha": _WAITER_BLOB,
+        "environment": DW._AcceptanceEnvironment(None, None, None, None),
+        "child_rc": 0,
+        "verdict": "child-green",
+        "log_sha256": "f" * 64,
+        "effective_scheduler": "serial",
+        "red_check": None,
+    }
+
+
+def _red_check(*, red_nodeids: tuple[str, ...] = ("test.py::test_red",)) -> object:
+    return DW._RedCheckResult(
+        checker_rc=0,
+        checker_status="non-attributable-only",
+        checker_blob_sha=_CHECKER_BLOB,
+        checker_receipt_sha256="f" * 64,
+        red_nodeids=red_nodeids,
+    )
+
+
 _SUCCESS_RECEIPT_EVENTS = [
     (
         "run",
@@ -1619,6 +1656,72 @@ def test_scanner_bounds_payload_and_stops_retaining_after_second_marker() -> Non
     assert '"reason":"marker-count"' in failure.value.outcome.detail
 
 
+def test_detail_text_normalizer_bounds_controls_and_non_ascii() -> None:
+    assert DW._DETAIL_TEXT_MAX_BYTES == 256
+    assert DW._bounded_detail_text("line\n\t\x00é") == (
+        "line\\x0a\\x09\\x00\\xc3\\xa9"
+    )
+    assert DW._bounded_detail_text("x" * 300) == "x" * 253 + "..."
+
+    class HostileRepr:
+        def __repr__(self) -> str:
+            raise AssertionError("repr must not run")
+
+    assert DW._bounded_detail_text(HostileRepr()) == "HostileRepr"
+
+
+def test_attestation_detail_has_fixed_serialized_byte_limit() -> None:
+    detail = DW._attestation_detail(
+        "bounded-detail",
+        {f"field-{index}": "x" * 1000 for index in range(32)},
+    )
+
+    assert DW._ATTESTATION_DETAIL_MAX_BYTES == 2048
+    assert len(detail.encode("ascii")) <= 2048
+    assert json.loads(detail) == {
+        "reason": "bounded-detail",
+        "observed": {
+            "detail_truncated": True,
+            "serialized_bytes": 8670,
+        },
+    }
+
+
+def test_exception_normalizer_ignores_hostile_errno_accessor() -> None:
+    class HostileErrno(OSError):
+        @property
+        def errno(self) -> int:
+            raise RuntimeError("ERRNO-SECRET-SENTINEL")
+
+    observed = DW._exception_observed(HostileErrno("MESSAGE-SECRET-SENTINEL"))
+
+    assert observed == {"exception_type": "HostileErrno", "errno": None}
+    assert "SECRET" not in json.dumps(observed)
+
+
+def test_diagnostic_generation_failure_preserves_receipt_stage_and_rc() -> None:
+    class ExplodingString(str):
+        def encode(self, *args: object, **kwargs: object) -> bytes:
+            del args, kwargs
+            raise RuntimeError("NORMALIZER-SECRET-SENTINEL")
+
+    arguments = _valid_receipt_arguments()
+    arguments["verdict"] = ExplodingString("unknown")
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._acceptance_receipt_bytes(**arguments)
+
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=(
+            '{"observed":{"detail_generation_failed":true},'
+            '"reason":"receipt-verdict"}'
+        ),
+    )
+    assert "NORMALIZER-SECRET-SENTINEL" not in failure.value.outcome.detail
+
+
 def test_unknown_scheduler_is_recorded_in_receipt() -> None:
     fake = _FakeEffects()
     fake.logged_bytes = _scheduler_marker("unknown")
@@ -1917,6 +2020,577 @@ def test_postrun_failure_prevents_red_checker(postcheck: str) -> None:
     fake.assert_drained()
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "expected_observed"),
+    (
+        (
+            "tested_main",
+            "bad",
+            {
+                "tested_main": "bad",
+                "tested_main_valid": False,
+                "tested_tip": None,
+                "tested_tip_valid": None,
+                "log_sha256": None,
+                "log_sha256_valid": None,
+                "effective_scheduler": None,
+                "scheduler_is_str": None,
+                "scheduler_in_allowed": None,
+            },
+        ),
+        (
+            "tested_tip",
+            "bad",
+            {
+                "tested_main": _SHA_A,
+                "tested_main_valid": True,
+                "tested_tip": "bad",
+                "tested_tip_valid": False,
+                "log_sha256": None,
+                "log_sha256_valid": None,
+                "effective_scheduler": None,
+                "scheduler_is_str": None,
+                "scheduler_in_allowed": None,
+            },
+        ),
+        (
+            "log_sha256",
+            "bad",
+            {
+                "tested_main": _SHA_A,
+                "tested_main_valid": True,
+                "tested_tip": _SHA_A,
+                "tested_tip_valid": True,
+                "log_sha256": "bad",
+                "log_sha256_valid": False,
+                "effective_scheduler": None,
+                "scheduler_is_str": None,
+                "scheduler_in_allowed": None,
+            },
+        ),
+        (
+            "effective_scheduler",
+            7,
+            {
+                "tested_main": _SHA_A,
+                "tested_main_valid": True,
+                "tested_tip": _SHA_A,
+                "tested_tip_valid": True,
+                "log_sha256": "f" * 64,
+                "log_sha256_valid": True,
+                "effective_scheduler": "int",
+                "scheduler_is_str": False,
+                "scheduler_in_allowed": None,
+            },
+        ),
+        (
+            "effective_scheduler",
+            "mystery",
+            {
+                "tested_main": _SHA_A,
+                "tested_main_valid": True,
+                "tested_tip": _SHA_A,
+                "tested_tip_valid": True,
+                "log_sha256": "f" * 64,
+                "log_sha256_valid": True,
+                "effective_scheduler": "mystery",
+                "scheduler_is_str": True,
+                "scheduler_in_allowed": False,
+            },
+        ),
+    ),
+    ids=(
+        "tested-main",
+        "tested-tip",
+        "log-sha256",
+        "scheduler-type",
+        "scheduler-allowed",
+    ),
+)
+def test_acceptance_receipt_field_detail(
+    field: str,
+    value: object,
+    expected_observed: dict[str, object],
+) -> None:
+    arguments = _valid_receipt_arguments()
+    arguments[field] = value
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._acceptance_receipt_bytes(**arguments)
+
+    expected = {"reason": "receipt-fields", "observed": expected_observed}
+    expected_detail = json.dumps(
+        expected,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=expected_detail,
+    )
+    assert json.loads(failure.value.outcome.detail) == expected
+
+
+@pytest.mark.parametrize(
+    ("verdict", "child_rc", "red_check", "reason", "observed"),
+    (
+        (
+            "child-green",
+            1,
+            None,
+            "receipt-child-green",
+            {"child_rc": 1, "red_check_present": None},
+        ),
+        (
+            "child-green",
+            0,
+            _red_check(),
+            "receipt-child-green",
+            {"child_rc": 0, "red_check_present": True},
+        ),
+        (
+            "non-attributable-only",
+            0,
+            None,
+            "receipt-non-attributable",
+            {
+                "child_rc": 0,
+                "red_check_present": None,
+                "red_nodeid_count": None,
+            },
+        ),
+        (
+            "non-attributable-only",
+            1,
+            None,
+            "receipt-non-attributable",
+            {
+                "child_rc": 1,
+                "red_check_present": False,
+                "red_nodeid_count": None,
+            },
+        ),
+        (
+            "non-attributable-only",
+            1,
+            _red_check(red_nodeids=()),
+            "receipt-non-attributable",
+            {
+                "child_rc": 1,
+                "red_check_present": True,
+                "red_nodeid_count": 0,
+            },
+        ),
+    ),
+    ids=(
+        "child-green",
+        "child-green-red-check",
+        "non-attributable-child-rc",
+        "non-attributable-missing-red-check",
+        "non-attributable-empty-nodeids",
+    ),
+)
+def test_acceptance_receipt_consistency_detail(
+    verdict: str,
+    child_rc: int,
+    red_check: object,
+    reason: str,
+    observed: dict[str, object],
+) -> None:
+    arguments = _valid_receipt_arguments()
+    arguments.update(
+        verdict=verdict,
+        child_rc=child_rc,
+        red_check=red_check,
+    )
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._acceptance_receipt_bytes(**arguments)
+
+    expected = {"reason": reason, "observed": observed}
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(failure.value.outcome.detail) == expected
+
+
+def test_acceptance_receipt_unknown_verdict_detail_is_bounded() -> None:
+    arguments = _valid_receipt_arguments()
+    arguments["verdict"] = "v" * 300
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._acceptance_receipt_bytes(**arguments)
+
+    expected = {
+        "reason": "receipt-verdict",
+        "observed": {"verdict": "v" * 253 + "..."},
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(failure.value.outcome.detail) == expected
+
+
+def test_acceptance_receipt_encode_detail_omits_exception_text() -> None:
+    sentinel = "ENCODE-SECRET-SENTINEL"
+
+    class Unencodable:
+        def __repr__(self) -> str:
+            return sentinel
+
+    arguments = _valid_receipt_arguments()
+    arguments["command"] = (Unencodable(),)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._acceptance_receipt_bytes(**arguments)
+
+    expected = {
+        "reason": "receipt-encode",
+        "observed": {"exception_type": "TypeError", "errno": None},
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(failure.value.outcome.detail) == expected
+    assert sentinel not in failure.value.outcome.detail
+
+
+def test_acceptance_receipt_detail_is_printed_to_stdout_and_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    detail = (
+        '{"observed":{"final_main_sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},'
+        '"reason":"receipt-main-moved"}'
+    )
+
+    DW._print_outcome(DW._Outcome(70, "acceptance-receipt", detail=detail))
+
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "diagnostic: stage=acceptance-receipt rc=70 detail=" + detail + "\n"
+    )
+    assert captured.err == (
+        "error: stage=acceptance-receipt rc=70 detail=" + detail + "\n"
+    )
+    assert not captured.out.startswith("error:")
+
+
+def test_acceptance_receipt_temp_write_detail_omits_exception_text() -> None:
+    fake = _FakeEffects()
+    fake.receipt_temp_result = OSError(errno.EIO, "TEMP-SECRET-SENTINEL")
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._prepare_acceptance_receipt(
+            effects=fake.effects,
+            receipt_file=_RECEIPT,
+            content=b"receipt",
+        )
+
+    expected = {
+        "reason": "receipt-temp-write",
+        "observed": {"exception_type": "OSError", "errno": errno.EIO},
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert "TEMP-SECRET-SENTINEL" not in failure.value.outcome.detail
+
+
+@pytest.mark.parametrize(
+    ("temp_path", "observed"),
+    (
+        (
+            Path("/other/.dev-wave-acceptance-receipt-test.tmp"),
+            {"parent_matches": False, "prefix_matches": None},
+        ),
+        (
+            Path("/receipts/wrong-prefix.tmp"),
+            {"parent_matches": True, "prefix_matches": False},
+        ),
+    ),
+    ids=("parent-mismatch", "prefix-mismatch"),
+)
+def test_acceptance_receipt_temp_contract_detail(
+    temp_path: Path,
+    observed: dict[str, object],
+) -> None:
+    fake = _FakeEffects()
+    fake.receipt_temp_result = temp_path
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._prepare_acceptance_receipt(
+            effects=fake.effects,
+            receipt_file=_RECEIPT,
+            content=b"receipt",
+        )
+
+    expected = {"reason": "receipt-temp-contract", "observed": observed}
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert str(temp_path) not in failure.value.outcome.detail
+    assert ("unlink", temp_path) in fake.events
+
+
+def test_acceptance_receipt_sigmask_detail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+    monkeypatch.delattr(signal, "pthread_sigmask")
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._publish_acceptance_receipt(
+            effects=fake.effects,
+            lifecycle=lifecycle,
+            receipt_file=_RECEIPT,
+            temp_path=_RECEIPT_TEMP,
+        )
+
+    expected = {
+        "reason": "receipt-sigmask",
+        "observed": {"pthread_sigmask_available": False},
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+
+
+def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+
+    def fail_sigblock(how: object, mask: object) -> set[signal.Signals]:
+        del how, mask
+        raise OSError(errno.EBUSY, "SIGBLOCK-SECRET-SENTINEL")
+
+    monkeypatch.setattr(signal, "pthread_sigmask", fail_sigblock)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._publish_acceptance_receipt(
+            effects=fake.effects,
+            lifecycle=lifecycle,
+            receipt_file=_RECEIPT,
+            temp_path=_RECEIPT_TEMP,
+        )
+
+    expected = {
+        "reason": "receipt-publish-sigblock",
+        "observed": {"exception_type": "OSError", "errno": errno.EBUSY},
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert "SIGBLOCK-SECRET-SENTINEL" not in failure.value.outcome.detail
+    assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+
+
+def test_acceptance_receipt_publish_rename_builds_detail_after_mask_restore(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    fake.rename_result = OSError(errno.EIO, "RENAME-SECRET-SENTINEL")
+    lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+    mask_restored = False
+    real_detail = DW._attestation_detail
+
+    def record_mask(how: object, mask: object) -> set[signal.Signals]:
+        nonlocal mask_restored
+        del mask
+        if how == signal.SIG_SETMASK:
+            mask_restored = True
+        return set()
+
+    def detail_after_restore(reason: str, observed: object) -> str:
+        if reason == "receipt-publish-rename":
+            assert mask_restored is True
+            assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+        return real_detail(reason, observed)
+
+    monkeypatch.setattr(signal, "pthread_sigmask", record_mask)
+    monkeypatch.setattr(DW, "_attestation_detail", detail_after_restore)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._publish_acceptance_receipt(
+            effects=fake.effects,
+            lifecycle=lifecycle,
+            receipt_file=_RECEIPT,
+            temp_path=_RECEIPT_TEMP,
+        )
+
+    assert json.loads(failure.value.outcome.detail) == {
+        "reason": "receipt-publish-rename",
+        "observed": {"exception_type": "OSError", "errno": errno.EIO},
+    }
+    assert "RENAME-SECRET-SENTINEL" not in failure.value.outcome.detail
+
+
+def test_acceptance_receipt_publish_rename_preserves_detail_when_mask_restore_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    fake.rename_result = OSError(errno.EIO, "RENAME-SECRET-SENTINEL")
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+    _release(fake)
+    publish_restore_failed = False
+
+    def fail_mask_restore(
+        how: object,
+        mask: object,
+    ) -> set[signal.Signals]:
+        nonlocal publish_restore_failed
+        del mask
+        if how == signal.SIG_SETMASK and not publish_restore_failed:
+            publish_restore_failed = True
+            raise OSError(errno.EPERM, "MASK-RESTORE-SECRET-SENTINEL")
+        return set()
+
+    monkeypatch.setattr(signal, "pthread_sigmask", fail_mask_restore)
+
+    outcome = _run_acceptance(fake)
+
+    expected = {
+        "reason": "receipt-publish-rename",
+        "observed": {
+            "exception_type": "OSError",
+            "errno": errno.EIO,
+            "mask_restore_failed": True,
+            "mask_restore_exception_type": "PermissionError",
+            "mask_restore_errno": errno.EPERM,
+        },
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
+    assert "RENAME-SECRET-SENTINEL" not in outcome.detail
+    assert "MASK-RESTORE-SECRET-SENTINEL" not in outcome.detail
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    assert ("run", _helper("release"), _REPO, True) in fake.events
+    fake.assert_drained()
+
+
+def test_acceptance_receipt_mask_restore_failure_is_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    fake.rename_result = DW._SignalReceived(signal.SIGTERM)
+    lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+
+    def fail_mask_restore(
+        how: object,
+        mask: object,
+    ) -> set[signal.Signals]:
+        del mask
+        if how == signal.SIG_SETMASK:
+            raise OSError(errno.EPERM, "MASK-RESTORE-SECRET-SENTINEL")
+        return set()
+
+    monkeypatch.setattr(signal, "pthread_sigmask", fail_mask_restore)
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._publish_acceptance_receipt(
+            effects=fake.effects,
+            lifecycle=lifecycle,
+            receipt_file=_RECEIPT,
+            temp_path=_RECEIPT_TEMP,
+        )
+
+    expected = {
+        "reason": "receipt-publish-mask-restore",
+        "observed": {
+            "exception_type": "PermissionError",
+            "errno": errno.EPERM,
+        },
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(failure.value.outcome.detail) == expected
+    assert "MASK-RESTORE-SECRET-SENTINEL" not in failure.value.outcome.detail
+    assert lifecycle.receipt_published is False
+
+
+@pytest.mark.parametrize(
+    "injected",
+    (DW._SignalReceived(signal.SIGTERM), KeyboardInterrupt()),
+    ids=("signal", "keyboard-interrupt"),
+)
+def test_acceptance_receipt_temp_writer_control_flow_passthrough(
+    injected: BaseException,
+) -> None:
+    fake = _FakeEffects()
+    fake.receipt_temp_result = injected
+
+    with pytest.raises(type(injected)) as raised:
+        DW._prepare_acceptance_receipt(
+            effects=fake.effects,
+            receipt_file=_RECEIPT,
+            content=b"receipt",
+        )
+
+    assert raised.value is injected
+
+
+@pytest.mark.parametrize(
+    "injected",
+    (DW._SignalReceived(signal.SIGTERM), KeyboardInterrupt()),
+    ids=("signal", "keyboard-interrupt"),
+)
+def test_acceptance_receipt_rename_control_flow_passthrough(
+    injected: BaseException,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    fake.rename_result = injected
+    lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+    masks: list[object] = []
+
+    def record_mask(how: object, mask: object) -> set[signal.Signals]:
+        masks.append(how)
+        del mask
+        return set()
+
+    monkeypatch.setattr(signal, "pthread_sigmask", record_mask)
+
+    with pytest.raises(type(injected)) as raised:
+        DW._publish_acceptance_receipt(
+            effects=fake.effects,
+            lifecycle=lifecycle,
+            receipt_file=_RECEIPT,
+            temp_path=_RECEIPT_TEMP,
+        )
+
+    assert raised.value is injected
+    assert masks == [signal.SIG_BLOCK, signal.SIG_SETMASK]
+    assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+
+
 def test_receipt_publish_failure_is_fail_closed_and_releases() -> None:
     fake = _FakeEffects()
     fake.rename_result = OSError("rename failed")
@@ -1926,7 +2600,16 @@ def test_receipt_publish_failure_is_fail_closed_and_releases() -> None:
 
     outcome = _run_acceptance(fake)
 
-    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    expected = {
+        "reason": "receipt-publish-rename",
+        "observed": {"exception_type": "OSError", "errno": None},
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
     assert fake.receipt_published is False
     assert ("unlink", _RECEIPT_TEMP) in fake.events
     assert ("run", _helper("release"), _REPO, True) in fake.events
@@ -1962,7 +2645,25 @@ def test_receipt_requires_sufficient_lease_ttl_and_releases() -> None:
 
     outcome = _run_acceptance(fake)
 
-    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    expected = {
+        "reason": "receipt-lease-check",
+        "observed": {
+            "state": "held-self",
+            "holder_matches": True,
+            "main_sha_matches": True,
+            "claimed_main_sha": _SHA_A,
+            "final_main_sha": _SHA_A,
+            "remaining_seconds": 299,
+            "required_seconds": 300,
+            "ttl_sufficient": False,
+        },
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
     assert fake.receipt_content is not None
     assert fake.receipt_published is False
     assert ("unlink", _RECEIPT_TEMP) in fake.events
@@ -1995,7 +2696,25 @@ def test_receipt_reconfirms_same_lease_holder_before_publish() -> None:
 
     outcome = _run_acceptance(fake)
 
-    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    expected = {
+        "reason": "receipt-lease-check",
+        "observed": {
+            "state": "held",
+            "holder_matches": None,
+            "main_sha_matches": None,
+            "claimed_main_sha": None,
+            "final_main_sha": _SHA_A,
+            "remaining_seconds": None,
+            "required_seconds": None,
+            "ttl_sufficient": None,
+        },
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
     assert fake.receipt_content is not None
     assert fake.receipt_published is False
     assert ("unlink", _RECEIPT_TEMP) in fake.events
@@ -2032,10 +2751,479 @@ def test_held_self_reacquired_before_receipt_is_released_once() -> None:
 
     outcome = _run_acceptance(fake, lifecycle=lifecycle)
 
-    assert outcome == DW._Outcome(70, "acceptance-receipt")
+    expected = {
+        "reason": "receipt-lease-check",
+        "observed": {
+            "state": "acquired",
+            "holder_matches": None,
+            "main_sha_matches": None,
+            "claimed_main_sha": _SHA_A,
+            "final_main_sha": _SHA_A,
+            "remaining_seconds": None,
+            "required_seconds": None,
+            "ttl_sufficient": None,
+        },
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
     assert fake.events.count(("run", _helper("release"), _REPO, True)) == 1
     assert fake.receipt_published is False
     assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("result", "observed", "source_rc"),
+    (
+        (
+            DW._CommandResult(9),
+            {
+                "revision": _SHA_A,
+                "path": "tools/dev_wave_wait.py",
+                "failure_kind": "command",
+                "source_rc": 9,
+                "exception_type": None,
+            },
+            9,
+        ),
+        (
+            OSError(errno.EIO, "BLOB-COMMAND-SECRET"),
+            {
+                "revision": _SHA_A,
+                "path": "tools/dev_wave_wait.py",
+                "failure_kind": "command",
+                "source_rc": None,
+                "exception_type": "OSError",
+            },
+            None,
+        ),
+        (
+            DW._CommandResult(0, "é\n"),
+            {
+                "revision": _SHA_A,
+                "path": "tools/dev_wave_wait.py",
+                "failure_kind": "invalid-sha",
+                "stdout_bytes": 2,
+                "stdout_class": "non-ascii",
+            },
+            None,
+        ),
+    ),
+    ids=("command-failure", "command-exception", "invalid-sha"),
+)
+def test_acceptance_receipt_waiter_blob_detail(
+    result: object,
+    observed: dict[str, object],
+    source_rc: int | None,
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    argv = ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py")
+    fake.expect_run(argv, result)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    expected = {"reason": "receipt-waiter-blob", "observed": observed}
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        source_rc,
+        json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
+    assert "BLOB-COMMAND-SECRET" not in outcome.detail
+    assert "sha256" not in observed
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("result", "observed", "source_rc"),
+    (
+        (
+            DW._CommandResult(8),
+            {
+                "failure_kind": "command",
+                "source_rc": 8,
+                "exception_type": None,
+            },
+            8,
+        ),
+        (
+            OSError(errno.EACCES, "MAIN-COMMAND-SECRET"),
+            {
+                "failure_kind": "command",
+                "source_rc": None,
+                "exception_type": "PermissionError",
+            },
+            None,
+        ),
+        (
+            DW._CommandResult(0, "g" * 40 + "\n"),
+            {
+                "failure_kind": "invalid-sha",
+                "stdout_bytes": 40,
+                "stdout_class": "non-hex",
+            },
+            None,
+        ),
+    ),
+    ids=("command-failure", "command-exception", "invalid-sha"),
+)
+def test_acceptance_receipt_main_resolve_detail(
+    result: object,
+    observed: dict[str, object],
+    source_rc: int | None,
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(("git", "rev-parse", "main"), result)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    expected = {"reason": "receipt-main-resolve", "observed": observed}
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        source_rc,
+        json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
+    assert "MAIN-COMMAND-SECRET" not in outcome.detail
+    assert "sha256" not in observed
+    assert fake.receipt_content is not None
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+def test_acceptance_receipt_main_moved_detail() -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_B + "\n"),
+    )
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    expected = {
+        "reason": "receipt-main-moved",
+        "observed": {
+            "claimed_main_sha": _SHA_A,
+            "final_main_sha": _SHA_B,
+        },
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    (
+        "claim_result",
+        "failure_kind",
+        "exception_type",
+        "source_stage",
+        "source_rc",
+        "ownership",
+    ),
+    (
+        (
+            DW._CommandResult(9),
+            "command",
+            None,
+            "claim",
+            9,
+            "unknown",
+        ),
+        (
+            OSError(errno.EIO, "RECLAIM-COMMAND-SECRET"),
+            "command",
+            "OSError",
+            "claim",
+            None,
+            "unknown",
+        ),
+        (
+            DW._CommandResult(0, "not-json"),
+            "claim-json",
+            None,
+            "claim-json",
+            None,
+            "unknown",
+        ),
+        (
+            DW._CommandResult(0, json.dumps({"state": "free"})),
+            "claim-state",
+            None,
+            "claim-state",
+            None,
+            "unknown",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                json.dumps(
+                    {
+                        "state": "unavailable",
+                        "holder_self": True,
+                        "source": {"reason": "self-renew-failed"},
+                    }
+                ),
+            ),
+            "self-renew-failed",
+            None,
+            "claim-self-renew-failed",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(holder_self=False),
+            ),
+            "holder-self",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(holder=7),
+            ),
+            "holder-type",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(holder="not-a-holder"),
+            ),
+            "holder-format",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(holder="f" * 12),
+            ),
+            "holder-mismatch",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(main_sha=_SHA_B),
+            ),
+            "main-sha-mismatch",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(age_seconds=True),
+            ),
+            "age-type",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(age_seconds=2400),
+            ),
+            "age-range",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(
+                    source={"status": "error", "reason": "test"}
+                ),
+            ),
+            "source",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+        (
+            DW._CommandResult(
+                0,
+                _held_self_payload(state="held"),
+            ),
+            "unexpected-holder-self",
+            None,
+            "claim-self-unverified",
+            None,
+            "held-self",
+        ),
+    ),
+    ids=(
+        "claim-rc",
+        "claim-exception",
+        "claim-json",
+        "claim-state",
+        "self-renew-failed",
+        "holder-self",
+        "holder-type",
+        "holder-format",
+        "holder-mismatch",
+        "main-sha-mismatch",
+        "age-type",
+        "age-range",
+        "source",
+        "unexpected-holder-self",
+    ),
+)
+def test_acceptance_receipt_reclaim_detail(
+    claim_result: object,
+    failure_kind: str,
+    exception_type: str | None,
+    source_stage: str,
+    source_rc: int | None,
+    ownership: str,
+) -> None:
+    fake = _FakeEffects()
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(
+        _COMMAND,
+        DW._CommandResult(0),
+        capture=False,
+        unchanged_postrun=False,
+    )
+    _postrun_integrity(fake)
+    fake.expect_run(
+        ("git", "rev-parse", f"{_SHA_A}:tools/dev_wave_wait.py"),
+        DW._CommandResult(0, _WAITER_BLOB + "\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "main"),
+        DW._CommandResult(0, _SHA_A + "\n"),
+    )
+    fake.expect_run(_helper("claim", _SHA_A), claim_result)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    expected = {
+        "reason": "receipt-reclaim",
+        "observed": {
+            "failure_kind": failure_kind,
+            "exception_type": exception_type,
+            "source_stage": source_stage,
+            "source_rc": source_rc,
+            "confirmation_ownership": ownership,
+        },
+    }
+    assert outcome == DW._Outcome(
+        70,
+        "acceptance-receipt",
+        source_rc,
+        json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
+    assert "RECLAIM-COMMAND-SECRET" not in outcome.detail
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
+    fake.assert_drained()
+
+
+def test_acceptance_receipt_reclaim_holder_hash_detail() -> None:
+    wave = "wave-\udc80"
+    fake = _FakeEffects()
+    fake.expect_run(
+        DW._lease_command(_REPO, "claim", _LEASE, wave, _SHA_A),
+        DW._CommandResult(0, _held_self_payload()),
+    )
+    lifecycle = DW._AcceptanceLifecycle()
+
+    with pytest.raises(DW._StageFailure) as failure:
+        DW._claim_once(
+            fake.effects,
+            _REPO,
+            _LEASE,
+            wave,
+            _SHA_A,
+            lifecycle,
+            diagnostic_reason="receipt-reclaim",
+        )
+
+    expected = {
+        "reason": "receipt-reclaim",
+        "observed": {"failure_kind": "holder-hash"},
+    }
+    assert failure.value.outcome == DW._Outcome(
+        70,
+        "claim-self-unverified",
+        detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(failure.value.outcome.detail) == expected
+    assert lifecycle.ownership is DW._LeaseOwnership.HELD_SELF
     fake.assert_drained()
 
 
@@ -4017,6 +5205,41 @@ def test_release_failure_overrides_primary_result() -> None:
         ("run", _checker_argv(), _REPO, False),
         ("run", _helper("release"), _REPO, True),
     ]
+    fake.assert_drained()
+
+
+def test_cleanup_failure_preserves_primary_receipt_detail() -> None:
+    fake = _FakeEffects()
+    fake.rename_result = OSError("rename failed")
+    _queue_clean_acceptance_prefix(fake)
+    fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
+    _release(fake, DW._CommandResult(0, '{"state":"unavailable"}'))
+
+    outcome = _run_acceptance(fake)
+
+    primary_detail = {
+        "reason": "receipt-publish-rename",
+        "observed": {"exception_type": "OSError", "errno": None},
+    }
+    expected = {
+        "reason": "cleanup-overrode-primary",
+        "observed": {
+            "cleanup_detail": None,
+            "primary": {
+                "stage": "acceptance-receipt",
+                "detail": primary_detail,
+            },
+        },
+    }
+    assert outcome == DW._Outcome(
+        74,
+        "release-state",
+        0,
+        json.dumps(expected, separators=(",", ":"), sort_keys=True),
+    )
+    assert json.loads(outcome.detail) == expected
+    assert fake.receipt_published is False
+    assert ("unlink", _RECEIPT_TEMP) in fake.events
     fake.assert_drained()
 
 

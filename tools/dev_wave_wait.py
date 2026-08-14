@@ -41,6 +41,8 @@ _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
 _RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v3"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
+_DETAIL_TEXT_MAX_BYTES = 256
+_ATTESTATION_DETAIL_MAX_BYTES = 2048
 _LOG_HASH_CHUNK_BYTES = 1024 * 1024
 _EFFECTIVE_SCHEDULER_PREFIX = b"IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
@@ -404,13 +406,166 @@ def _scan_acceptance_log_chunks(
     return digest.hexdigest(), marker_payloads
 
 
+def _bounded_detail_text(value: object) -> str:
+    if not isinstance(value, str):
+        value = type(value).__name__
+    escaped = bytearray()
+    for byte in value.encode("utf-8", "backslashreplace"):
+        if 0x20 <= byte <= 0x7E:
+            escaped.append(byte)
+        else:
+            escaped.extend(f"\\x{byte:02x}".encode("ascii"))
+        if len(escaped) > _DETAIL_TEXT_MAX_BYTES:
+            return (
+                escaped[: _DETAIL_TEXT_MAX_BYTES - 3].decode("ascii") + "..."
+            )
+    return escaped.decode("ascii")
+
+
+def _normalized_detail_value(value: object, *, depth: int = 0) -> object:
+    if value is None or type(value) in {bool, int}:
+        return value
+    if isinstance(value, str):
+        return _bounded_detail_text(value)
+    if depth >= 4:
+        return type(value).__name__
+    if type(value) is dict:
+        normalized: dict[str, object] = {}
+        for index, (key, item) in enumerate(value.items()):
+            if index >= 32:
+                normalized["detail_items_truncated"] = True
+                break
+            normalized[_bounded_detail_text(key)] = _normalized_detail_value(
+                item,
+                depth=depth + 1,
+            )
+        return normalized
+    if type(value) in {list, tuple}:
+        normalized_items = [
+            _normalized_detail_value(item, depth=depth + 1)
+            for item in value[:32]
+        ]
+        if len(value) > 32:
+            normalized_items.append("detail_items_truncated")
+        return normalized_items
+    return _bounded_detail_text(value)
+
+
 def _attestation_detail(reason: str, observed: object) -> str:
-    return json.dumps(
-        {"reason": reason, "observed": observed},
-        ensure_ascii=True,
-        separators=(",", ":"),
-        sort_keys=True,
+    try:
+        normalized_reason = _bounded_detail_text(reason)
+        payload = {
+            "reason": normalized_reason,
+            "observed": _normalized_detail_value(observed),
+        }
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        serialized_bytes = len(serialized.encode("ascii"))
+        if serialized_bytes <= _ATTESTATION_DETAIL_MAX_BYTES:
+            return serialized
+        return json.dumps(
+            {
+                "reason": normalized_reason,
+                "observed": {
+                    "detail_truncated": True,
+                    "serialized_bytes": serialized_bytes,
+                },
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    except Exception:
+        fallback_reason = (
+            reason
+            if type(reason) is str and reason.isascii() and len(reason) <= 64
+            else "detail"
+        )
+        return json.dumps(
+            {
+                "reason": fallback_reason,
+                "observed": {"detail_generation_failed": True},
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+
+def _exception_observed(exc: BaseException) -> dict[str, object]:
+    candidate_errno = None
+    if isinstance(exc, OSError):
+        try:
+            candidate_errno = OSError.errno.__get__(exc, type(exc))
+        except Exception:
+            candidate_errno = None
+    return {
+        "exception_type": type(exc).__name__,
+        "errno": candidate_errno if type(candidate_errno) is int else None,
+    }
+
+
+def _malformed_sha_observed(value: str) -> dict[str, object]:
+    try:
+        stdout_bytes = len(str.encode(value, "utf-8", "surrogatepass"))
+        if not str.isascii(value):
+            stdout_class = "non-ascii"
+        elif len(value) != 40:
+            stdout_class = "wrong-length"
+        else:
+            stdout_class = "non-hex"
+    except Exception:
+        stdout_bytes = None
+        stdout_class = "unclassifiable"
+    return {
+        "failure_kind": "invalid-sha",
+        "stdout_bytes": stdout_bytes,
+        "stdout_class": stdout_class,
+    }
+
+
+def _diagnostic_bool(check: Callable[[], object]) -> bool | None:
+    try:
+        return bool(check())
+    except Exception:
+        return None
+
+
+def _detail_observed(detail: str | None) -> dict[str, object]:
+    if detail is None:
+        return {}
+    try:
+        payload = json.loads(detail)
+        observed = payload.get("observed") if type(payload) is dict else None
+        if type(observed) is dict:
+            return observed
+    except Exception:
+        pass
+    return {}
+
+
+def _detail_failure_kind(detail: str | None) -> str:
+    failure_kind = _detail_observed(detail).get("failure_kind")
+    return (
+        _bounded_detail_text(failure_kind)
+        if isinstance(failure_kind, str)
+        else "unknown"
     )
+
+
+def _nested_detail(detail: str | None) -> object:
+    if detail is None:
+        return None
+    try:
+        payload = json.loads(detail)
+        if type(payload) is dict:
+            return payload
+    except Exception:
+        pass
+    return _bounded_detail_text(detail)
 
 
 def _scheduler_from_marker_payloads(payloads: Sequence[bytes]) -> str:
@@ -811,21 +966,70 @@ def _run_capture(
     argv: Sequence[str],
     repo: Path,
     stage: str,
+    *,
+    diagnostic_reason: str | None = None,
+    diagnostic_observed: dict[str, object] | None = None,
 ) -> _CommandResult:
     try:
         result = effects.run(tuple(argv), repo, True)
-    except (OSError, UnicodeError, subprocess.SubprocessError):
-        raise _StageFailure(stage) from None
+    except (OSError, UnicodeError, subprocess.SubprocessError) as exc:
+        detail = None
+        if diagnostic_reason is not None:
+            detail = _attestation_detail(
+                diagnostic_reason,
+                {
+                    **({} if diagnostic_observed is None else diagnostic_observed),
+                    "failure_kind": "command",
+                    "source_rc": None,
+                    "exception_type": type(exc).__name__,
+                },
+            )
+        raise _StageFailure(stage, detail=detail) from None
     if result.returncode != 0:
-        raise _StageFailure(stage, source_rc=result.returncode)
+        detail = None
+        if diagnostic_reason is not None:
+            detail = _attestation_detail(
+                diagnostic_reason,
+                {
+                    **({} if diagnostic_observed is None else diagnostic_observed),
+                    "failure_kind": "command",
+                    "source_rc": result.returncode,
+                    "exception_type": None,
+                },
+            )
+        raise _StageFailure(
+            stage,
+            source_rc=result.returncode,
+            detail=detail,
+        )
     return result
 
 
-def _main_sha(effects: _Effects, repo: Path, stage: str) -> str:
-    result = _run_capture(effects, ("git", "rev-parse", "main"), repo, stage)
+def _main_sha(
+    effects: _Effects,
+    repo: Path,
+    stage: str,
+    *,
+    diagnostic_reason: str | None = None,
+) -> str:
+    result = _run_capture(
+        effects,
+        ("git", "rev-parse", "main"),
+        repo,
+        stage,
+        diagnostic_reason=diagnostic_reason,
+    )
     value = result.stdout.strip()
     if _SHA_RE.fullmatch(value) is None:
-        raise _StageFailure(stage)
+        detail = (
+            None
+            if diagnostic_reason is None
+            else _attestation_detail(
+                diagnostic_reason,
+                _malformed_sha_observed(value),
+            )
+        )
+        raise _StageFailure(stage, detail=detail)
     return value
 
 
@@ -1107,16 +1311,33 @@ def _blob_sha(
     revision: str,
     path: str,
     stage: str,
+    *,
+    diagnostic_reason: str | None = None,
 ) -> str:
     result = _run_capture(
         effects,
         ("git", "rev-parse", f"{revision}:{path}"),
         repo,
         stage,
+        diagnostic_reason=diagnostic_reason,
+        diagnostic_observed={
+            "revision": revision,
+            "path": path,
+        },
     )
     value = result.stdout.strip()
     if _SHA_RE.fullmatch(value) is None:
-        raise _StageFailure(stage)
+        detail = None
+        if diagnostic_reason is not None:
+            detail = _attestation_detail(
+                diagnostic_reason,
+                {
+                    "revision": revision,
+                    "path": path,
+                    **_malformed_sha_observed(value),
+                },
+            )
+        raise _StageFailure(stage, detail=detail)
     return value
 
 
@@ -1233,6 +1454,8 @@ def _claim_once(
     wave: str,
     main_sha: str,
     lifecycle: _AcceptanceLifecycle | None = None,
+    *,
+    diagnostic_reason: str | None = None,
 ) -> _ClaimContext:
     if lifecycle is not None:
         lifecycle.ownership = _LeaseOwnership.UNKNOWN
@@ -1241,11 +1464,34 @@ def _claim_once(
         _lease_command(repo, "claim", lease_dir, wave, main_sha),
         repo,
         "claim",
+        diagnostic_reason=diagnostic_reason,
     )
-    parsed = _parse_json_object(result.stdout, stage="claim-json")
+    try:
+        parsed = _parse_json_object(result.stdout, stage="claim-json")
+    except _StageFailure as exc:
+        if diagnostic_reason is None:
+            raise
+        raise _StageFailure(
+            exc.outcome.stage or "claim-json",
+            source_rc=exc.outcome.source_rc,
+            detail=_attestation_detail(
+                diagnostic_reason,
+                {"failure_kind": "claim-json"},
+            ),
+        ) from None
     state = parsed.get("state")
     if not isinstance(state, str) or state not in _CLAIM_STATES:
-        raise _StageFailure("claim-state")
+        raise _StageFailure(
+            "claim-state",
+            detail=(
+                None
+                if diagnostic_reason is None
+                else _attestation_detail(
+                    diagnostic_reason,
+                    {"failure_kind": "claim-state"},
+                )
+            ),
+        )
     holder_self = parsed.get("holder_self") is True
     holder = parsed.get("holder")
     claimed_main_sha = parsed.get("main_sha")
@@ -1266,12 +1512,32 @@ def _claim_once(
             lifecycle.ownership = _LeaseOwnership.NONE
             # held/queued の待ち札は 300 秒で失効するため、他 holder を release しない。
     if self_renew_failed:
-        raise _StageFailure("claim-self-renew-failed")
+        raise _StageFailure(
+            "claim-self-renew-failed",
+            detail=(
+                None
+                if diagnostic_reason is None
+                else _attestation_detail(
+                    diagnostic_reason,
+                    {"failure_kind": "self-renew-failed"},
+                )
+            ),
+        )
     if state in _ACCEPTED_CLAIM_STATES:
         try:
             expected_holder = hashlib.sha256(wave.encode("utf-8")).hexdigest()[:12]
         except UnicodeError:
-            raise _StageFailure("claim-self-unverified") from None
+            raise _StageFailure(
+                "claim-self-unverified",
+                detail=(
+                    None
+                    if diagnostic_reason is None
+                    else _attestation_detail(
+                        diagnostic_reason,
+                        {"failure_kind": "holder-hash"},
+                    )
+                ),
+            ) from None
         if not (
             holder_self
             and isinstance(holder, str)
@@ -1282,9 +1548,44 @@ def _claim_once(
             and 0 <= age_seconds < _LEASE_TTL_SECONDS
             and source == {"status": "ok", "reason": None}
         ):
-            raise _StageFailure("claim-self-unverified")
+            failure_kind = "source"
+            if not holder_self:
+                failure_kind = "holder-self"
+            elif not isinstance(holder, str):
+                failure_kind = "holder-type"
+            elif _HOLDER_RE.fullmatch(holder) is None:
+                failure_kind = "holder-format"
+            elif holder != expected_holder:
+                failure_kind = "holder-mismatch"
+            elif claimed_main_sha != main_sha:
+                failure_kind = "main-sha-mismatch"
+            elif type(age_seconds) is not int:
+                failure_kind = "age-type"
+            elif not 0 <= age_seconds < _LEASE_TTL_SECONDS:
+                failure_kind = "age-range"
+            raise _StageFailure(
+                "claim-self-unverified",
+                detail=(
+                    None
+                    if diagnostic_reason is None
+                    else _attestation_detail(
+                        diagnostic_reason,
+                        {"failure_kind": failure_kind},
+                    )
+                ),
+            )
     elif state != "acquired" and holder_self:
-        raise _StageFailure("claim-self-unverified")
+        raise _StageFailure(
+            "claim-self-unverified",
+            detail=(
+                None
+                if diagnostic_reason is None
+                else _attestation_detail(
+                    diagnostic_reason,
+                    {"failure_kind": "unexpected-holder-self"},
+                )
+            ),
+        )
     return _ClaimContext(
         state=state,
         holder=holder if isinstance(holder, str) else None,
@@ -1509,15 +1810,107 @@ def _acceptance_receipt_bytes(
         and isinstance(effective_scheduler, str)
         and effective_scheduler in _EFFECTIVE_SCHEDULERS
     ):
-        raise _StageFailure("acceptance-receipt")
+        tested_main_valid = _diagnostic_bool(
+            lambda: _SHA_RE.fullmatch(tested_main) is not None
+        )
+        tested_tip_valid = (
+            _diagnostic_bool(lambda: _SHA_RE.fullmatch(tested_tip) is not None)
+            if tested_main_valid
+            else None
+        )
+        log_sha256_valid = (
+            _diagnostic_bool(
+                lambda: re.fullmatch(r"[0-9a-f]{64}", log_sha256) is not None
+            )
+            if tested_tip_valid is True
+            else None
+        )
+        scheduler_is_str = (
+            _diagnostic_bool(lambda: isinstance(effective_scheduler, str))
+            if log_sha256_valid is True
+            else None
+        )
+        scheduler_in_allowed = (
+            _diagnostic_bool(
+                lambda: effective_scheduler in _EFFECTIVE_SCHEDULERS
+            )
+            if scheduler_is_str is True
+            else None
+        )
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-fields",
+                {
+                    "tested_main": tested_main,
+                    "tested_main_valid": tested_main_valid,
+                    "tested_tip": (
+                        tested_tip
+                        if tested_tip_valid is not None
+                        else None
+                    ),
+                    "tested_tip_valid": tested_tip_valid,
+                    "log_sha256": (
+                        log_sha256
+                        if log_sha256_valid is not None
+                        else None
+                    ),
+                    "log_sha256_valid": log_sha256_valid,
+                    "effective_scheduler": (
+                        effective_scheduler
+                        if scheduler_is_str is True
+                        else (
+                            type(effective_scheduler).__name__
+                            if scheduler_is_str is False
+                            else None
+                        )
+                    ),
+                    "scheduler_is_str": scheduler_is_str,
+                    "scheduler_in_allowed": scheduler_in_allowed,
+                },
+            ),
+        )
     if verdict == "child-green":
         if child_rc != 0 or red_check is not None:
-            raise _StageFailure("acceptance-receipt")
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-child-green",
+                    {
+                        "child_rc": child_rc,
+                        "red_check_present": (
+                            red_check is not None if child_rc == 0 else None
+                        ),
+                    },
+                ),
+            )
     elif verdict == "non-attributable-only":
         if child_rc != 1 or red_check is None or not red_check.red_nodeids:
-            raise _StageFailure("acceptance-receipt")
+            red_check_present = red_check is not None if child_rc == 1 else None
+            red_nodeid_count = (
+                len(red_check.red_nodeids)
+                if red_check_present is True
+                else None
+            )
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-non-attributable",
+                    {
+                        "child_rc": child_rc,
+                        "red_check_present": red_check_present,
+                        "red_nodeid_count": red_nodeid_count,
+                    },
+                ),
+            )
     else:
-        raise _StageFailure("acceptance-receipt")
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-verdict",
+                {"verdict": verdict},
+            ),
+        )
     receipt = {
         "schema_version": _RECEIPT_SCHEMA_VERSION,
         "authority_kind": _RECEIPT_AUTHORITY_KIND,
@@ -1553,8 +1946,14 @@ def _acceptance_receipt_bytes(
             )
             + "\n"
         ).encode("ascii")
-    except (TypeError, UnicodeError, ValueError, RecursionError):
-        raise _StageFailure("acceptance-receipt") from None
+    except (TypeError, UnicodeError, ValueError, RecursionError) as exc:
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-encode",
+                _exception_observed(exc),
+            ),
+        ) from None
 
 
 def _read_bytes(effects: _Effects, path: Path, stage: str) -> bytes:
@@ -1732,16 +2131,41 @@ def _prepare_acceptance_receipt(
         temp_path = write_temp(receipt_file, content)
     except (_SignalReceived, KeyboardInterrupt):
         raise
-    except BaseException:
-        raise _StageFailure("acceptance-receipt") from None
+    except BaseException as exc:
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-temp-write",
+                _exception_observed(exc),
+            ),
+        ) from None
     if temp_path.parent != receipt_file.parent or not temp_path.name.startswith(
         _RECEIPT_TEMP_PREFIX
     ):
+        parent_matches = _diagnostic_bool(
+            lambda: temp_path.parent == receipt_file.parent
+        )
+        prefix_matches = (
+            _diagnostic_bool(
+                lambda: temp_path.name.startswith(_RECEIPT_TEMP_PREFIX)
+            )
+            if parent_matches is True
+            else None
+        )
         try:
             effects.unlink(temp_path)
         except OSError:
             pass
-        raise _StageFailure("acceptance-receipt")
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-temp-contract",
+                {
+                    "parent_matches": parent_matches,
+                    "prefix_matches": prefix_matches,
+                },
+            ),
+        )
     return temp_path
 
 
@@ -1756,11 +2180,21 @@ def _publish_acceptance_receipt(
     prior_ownership = lifecycle.ownership
     previous_mask: set[signal.Signals] | None = None
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
+    publish_failure: tuple[str, BaseException] | None = None
+    mask_restore_failure: BaseException | None = None
+    failure_reason = "receipt-publish-sigblock"
     try:
         if pthread_sigmask is None:
-            raise _StageFailure("acceptance-receipt")
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-sigmask",
+                    {"pthread_sigmask_available": False},
+                ),
+            )
         lifecycle.ownership = _LeaseOwnership.RETAINED
         previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        failure_reason = "receipt-publish-rename"
         try:
             rename(temp_path, receipt_file)
         except BaseException:
@@ -1775,13 +2209,43 @@ def _publish_acceptance_receipt(
         if not lifecycle.receipt_published:
             lifecycle.ownership = prior_ownership
         raise
-    except BaseException:
+    except BaseException as exc:
         if not lifecycle.receipt_published:
             lifecycle.ownership = prior_ownership
-        raise _StageFailure("acceptance-receipt") from None
+        publish_failure = (failure_reason, exc)
     finally:
         if previous_mask is not None:
-            pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            try:
+                pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            except BaseException as exc:
+                if publish_failure is None and not lifecycle.receipt_published:
+                    raise _StageFailure(
+                        "acceptance-receipt",
+                        detail=_attestation_detail(
+                            "receipt-publish-mask-restore",
+                            _exception_observed(exc),
+                        ),
+                    ) from None
+                if publish_failure is not None:
+                    mask_restore_failure = exc
+    if publish_failure is not None:
+        reason, exc = publish_failure
+        observed = _exception_observed(exc)
+        if mask_restore_failure is not None:
+            restore_observed = _exception_observed(mask_restore_failure)
+            observed.update(
+                {
+                    "mask_restore_failed": True,
+                    "mask_restore_exception_type": restore_observed[
+                        "exception_type"
+                    ],
+                    "mask_restore_errno": restore_observed["errno"],
+                }
+            )
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(reason, observed),
+        ) from None
 
 
 def run_acceptance(
@@ -1987,6 +2451,7 @@ def run_acceptance(
             postrun_fingerprint.head_sha,
             "tools/dev_wave_wait.py",
             "acceptance-receipt",
+            diagnostic_reason="receipt-waiter-blob",
         )
         receipt_content = _acceptance_receipt_bytes(
             wave=wave,
@@ -2014,9 +2479,19 @@ def run_acceptance(
             effects,
             repo,
             "acceptance-receipt",
+            diagnostic_reason="receipt-main-resolve",
         )
         if final_main_sha != claim_context.main_sha:
-            raise _StageFailure("acceptance-receipt")
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-main-moved",
+                    {
+                        "claimed_main_sha": claim_context.main_sha,
+                        "final_main_sha": final_main_sha,
+                    },
+                ),
+            )
         confirmation_lifecycle = _AcceptanceLifecycle()
         try:
             confirmed = _claim_once(
@@ -2026,6 +2501,7 @@ def run_acceptance(
                 wave,
                 final_main_sha,
                 confirmation_lifecycle,
+                diagnostic_reason="receipt-reclaim",
             )
         except _StageFailure as exc:
             if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
@@ -2033,6 +2509,22 @@ def run_acceptance(
             raise _StageFailure(
                 "acceptance-receipt",
                 source_rc=exc.outcome.source_rc,
+                detail=_attestation_detail(
+                    "receipt-reclaim",
+                    {
+                        "failure_kind": _detail_failure_kind(
+                            exc.outcome.detail
+                        ),
+                        "exception_type": _detail_observed(
+                            exc.outcome.detail
+                        ).get("exception_type"),
+                        "source_stage": exc.outcome.stage,
+                        "source_rc": exc.outcome.source_rc,
+                        "confirmation_ownership": (
+                            confirmation_lifecycle.ownership.value
+                        ),
+                    },
+                ),
             ) from None
         if confirmed.state == "acquired":
             active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
@@ -2047,7 +2539,46 @@ def run_acceptance(
             and confirmed.main_sha == claim_context.main_sha
             and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
         ):
-            raise _StageFailure("acceptance-receipt")
+            state_is_held_self = confirmed.state == "held-self"
+            holder_matches = (
+                confirmed.holder == claim_context.holder
+                if state_is_held_self
+                else None
+            )
+            main_sha_matches = (
+                confirmed.main_sha == claim_context.main_sha
+                if holder_matches is True
+                else None
+            )
+            ttl_sufficient = (
+                confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+                if main_sha_matches is True
+                else None
+            )
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-lease-check",
+                    {
+                        "state": confirmed.state,
+                        "holder_matches": holder_matches,
+                        "main_sha_matches": main_sha_matches,
+                        "claimed_main_sha": confirmed.main_sha,
+                        "final_main_sha": final_main_sha,
+                        "remaining_seconds": (
+                            confirmed_remaining
+                            if ttl_sufficient is not None
+                            else None
+                        ),
+                        "required_seconds": (
+                            _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+                            if ttl_sufficient is not None
+                            else None
+                        ),
+                        "ttl_sufficient": ttl_sufficient,
+                    },
+                ),
+            )
         _publish_acceptance_receipt(
             effects=effects,
             lifecycle=active_lifecycle,
@@ -2096,6 +2627,22 @@ def run_acceptance(
             repo,
             lease_dir,
             wave,
+        )
+    if cleanup_failure is not None:
+        cleanup_failure = _Outcome(
+            cleanup_failure.rc,
+            cleanup_failure.stage,
+            cleanup_failure.source_rc,
+            _attestation_detail(
+                "cleanup-overrode-primary",
+                {
+                    "cleanup_detail": _nested_detail(cleanup_failure.detail),
+                    "primary": {
+                        "stage": primary.stage,
+                        "detail": _nested_detail(primary.detail),
+                    },
+                },
+            ),
         )
     return cleanup_failure if cleanup_failure is not None else primary
 
@@ -2154,6 +2701,11 @@ def _print_outcome(outcome: _Outcome) -> None:
     if outcome.detail is not None:
         suffix += " detail=" + outcome.detail
     print(f"error: stage={outcome.stage or 'unknown'} rc={outcome.rc}{suffix}", file=sys.stderr)
+    if outcome.detail is not None:
+        print(
+            f"diagnostic: stage={outcome.stage or 'unknown'} "
+            f"rc={outcome.rc} detail={outcome.detail}"
+        )
 
 
 def main(
