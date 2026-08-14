@@ -718,6 +718,64 @@ def test_judge_combined_rejects_post_issuance_oracle_document_tampering(tmp_path
         )
 
 
+def test_judge_combined_rejects_nested_semantic_subclass_in_sealed_document(tmp_path):
+    case = _oracle_verifier_case(tmp_path)
+    verified_oracle = verdict.verify_oracle_verdict(
+        case.oracle_path,
+        observations_source=case.observations_path,
+        verified_manifest=case.verified_manifest,
+        approved_spec=case.approved,
+    )
+    first_holdout = next(iter(verified_oracle.document["holdouts"].values()))
+    configurations = first_holdout["configurations"]
+    original_cell = configurations[STOCK]
+    floor_by_holdout = {
+        holdout_id: {
+            "pairs": {},
+            "scale_ref": holdout["configurations"][STOCK]["median_of_medians"],
+            "scalar_alt": None,
+        }
+        for holdout_id, holdout in verified_oracle.document["holdouts"].items()
+    }
+
+    class MisleadingMedianCell(dict):
+        def __getitem__(self, key):
+            value = dict.__getitem__(self, key)
+            if key == "median_of_medians":
+                return value + 1.0
+            return value
+
+        def get(self, key, default=None):
+            if key == "median_of_medians" and key in self:
+                return self[key]
+            return dict.get(self, key, default)
+
+    configurations[STOCK] = MisleadingMedianCell(original_cell)
+    assert list(configurations[STOCK]) == list(original_cell)
+    assert list(configurations[STOCK].items()) == list(original_cell.items())
+    assert configurations[STOCK].get("median_of_medians") != original_cell.get(
+        "median_of_medians"
+    )
+    canonical_sha256 = hashlib.sha256(
+        verdict._canonical_json_text(verified_oracle.document).encode("utf-8")
+    ).hexdigest()
+    assert canonical_sha256 == verified_oracle.document_sha256
+    # この fixture は canonical hash を保つため、plain 型検査を外すと受理される。
+    prediction = verdict.VerifiedPrediction(document=make_prediction({
+        H1: {"on": "c01", "off": "c06", "swapped": "c02"},
+        H2: {"on": "c02", "off": "c06", "swapped": "c01"},
+    }))
+
+    with pytest.raises(verdict.VerdictError, match="nested 値.*plain JSON 型"):
+        verdict.judge_combined(
+            prediction=prediction,
+            oracle=verified_oracle,
+            floor_by_holdout=floor_by_holdout,
+            expected_holdouts=set(verified_oracle.document["holdouts"]),
+            scale_tolerance=TOL,
+        )
+
+
 # ---- VerifiedPrediction: off=stock / catalog 合法性の機械検査 ------------------
 
 def _valid_off_stock_rows() -> list[dict]:
