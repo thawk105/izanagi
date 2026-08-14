@@ -2698,6 +2698,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **恒久対応 (本再発分):** 前提実測 probe が「X は通るか」を測るときは、
   **X へ到達した witness を成果物に含める** (本 wave の `deps_present` がその実例)。
   rc だけを見て非 0 を X へ帰属しない。近縁 = F41 (偽赤の非帰属)、F99 (sanctioned 呼出し形の逐語写し)。
+- **supersede: 2026-08-15** — 直上の再発項が書く `[T-1097] wave` は誤引用である。`[T-1097]` は `check_ai_provenance.py --message-file` の診断に関する無関係な既存項で、当該 near miss を出したのは branch `worktree-dev-wave-t1097-s8c-live-abc` の wave (台帳上の identity は [T-1109] 〜 [T-1113]) である。branch 名の `t1097` は slug であって T 参照ではない。
 ### F85. 信頼できない観測が回復経路を潰す latch を作りかけた [恒真ゲート]
 
 - 事象: [T-363] の段 5 実装で、実行予算の張り直しを「信頼できる (qstat rc=0 の) RUN 観測」に
@@ -3024,6 +3025,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **F97 の「再発検知」が提案する自己整合 positive control は、独立 2 例目が出たことで
   F97 単体でなく fail-closed admission 述語の族へ一般化できる状態になった** (`DW-G03` の閾値充足)。
   族一般化そのものは受理集合と検査義務に触れるため [T-1111] で裁定へ返す。
+- **supersede: 2026-08-15** — 直上の再発項が書く `[T-1097] wave` は誤引用である。`[T-1097]` は無関係な既存項で、当該独立 2 例目を出したのは branch `worktree-dev-wave-t1097-s8c-live-abc` の wave であり、この再発が起票した裁定項目は [T-1109] (PBS_JOBID 受理文法) と [T-1111] (fail-closed admission 述語の族一般化) である。
 ### F98. campaign を実走した wave は正規経路で land できない — guard の削除拒否と land の完全 clean 要求が噛み合っていない [手順漏れ]
 
 - 事象: 本 wave が使い捨て driver で campaign を 1 回起動したところ、wave worktree に
