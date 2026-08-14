@@ -2684,6 +2684,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本件は残留計測用の使い捨て PBS script であり、**「使い捨てだから写さなくてよい」という判断が
   同じ穴を再生産する**ことを示す 2 例目である。マシン固有の手順 (既定 `python3` の版・shim の要否・
   `-o`/`-e` の落ち先) は `docs/pegasus-runbook.md` §3 が正本。
+
+- **再発: 2026-08-15** ([T-1097] wave、near miss)。段 1 の前提実測 probe が
+  production の `buildcache._v2_commands` を呼んで configure argv を導出したが、
+  production caller が渡す `dependency_prefix` を空のまま渡した。結果、計算ノードでの
+  configure は 0.655 秒で `find_package(gflags)` に落ち、**測定対象だった FetchContent へ
+  1 度も到達しなかった**。誘発要因は「argv を production から取れば同じ経路だ」という認識で、
+  F84 本体の「transport を変えるだけ」と同型 — **使い捨て経路が production caller の設定を
+  写し漏らすと、内側が同じ経路でなくなる**。
+  誤結論 (「[T-1094] の FetchContent 不通を確認」) の直前で止められたのは、probe が
+  `_deps` の中身を成果物として記録しており **0 件だったから**である。prefix を production の
+  seam 経由で渡して再測すると rc=0 / 8.357 秒で依存 3 本が pin 通りに生成された。
+- **恒久対応 (本再発分):** 前提実測 probe が「X は通るか」を測るときは、
+  **X へ到達した witness を成果物に含める** (本 wave の `deps_present` がその実例)。
+  rc だけを見て非 0 を X へ帰属しない。近縁 = F41 (偽赤の非帰属)、F99 (sanctioned 呼出し形の逐語写し)。
 ### F85. 信頼できない観測が回復経路を潰す latch を作りかけた [恒真ゲート]
 
 - 事象: [T-363] の段 5 実装で、実行予算の張り直しを「信頼できる (qstat rc=0 の) RUN 観測」に
@@ -2994,6 +3008,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   確かめる positive control を `orchestrator/tests/` へ置く。これは「参照が自分の判定を通る」
   という恒真でない性質の検査であり、今回の型を直接撃つ。
 
+
+- **再発: 2026-08-15** ([T-1097] wave、独立 2 例目 — 別 producer / 別 consumer)。
+  D122 決定 (2)(ii) の transport 受理条件が、計算ノードで実在する `PBS_JOBID` を必ず拒否する。
+  `claude_transport.PBS_JOBID_PATTERN` は `[A-Za-z0-9][A-Za-z0-9._-]*` で colon を含まないが、
+  NQSV が渡す実値は `0:911106.nqsv` (job index + request id) である。pattern は
+  `qsub_binding._JOB_ID_TEXT` と byte 一致で pin されているが、そちらは **qsub が印字する
+  request ID** の文法であって環境変数の文法ではない。**repo 自身がこの差を知っている** —
+  `test_claude_transport.py` は `COLLECTOR._JOB_ID.pattern == rf"(?:0:)?{PBS_JOBID_PATTERN}"` を
+  pin しつつ、同じテストで `"job:id"` を invalid と主張している。F97 と同型で、
+  **参照/実在値が自分自身の受理述語を通らない**ため、計算ノードでの 8c live 実行が全面的に塞がる。
+  D122 段 1 の前提実測 (request `877155`) は proxy key と `claude -p` の rc を測ったが、
+  `is_valid_pbs_jobid` を実機の `PBS_JOBID` へ通す end-to-end を測っていない。
+  緩和も迂回もせず裁定へ返した (材料 = `output/insights/2026-08-15_t1097-s8c-live-abc/` §5 問 1)。
+  **F97 の「再発検知」が提案する自己整合 positive control は、独立 2 例目が出たことで
+  F97 単体でなく fail-closed admission 述語の族へ一般化できる状態になった** (`DW-G03` の閾値充足)。
+  族一般化そのものは受理集合と検査義務に触れるため [T-1111] で裁定へ返す。
 ### F98. campaign を実走した wave は正規経路で land できない — guard の削除拒否と land の完全 clean 要求が噛み合っていない [手順漏れ]
 
 - 事象: 本 wave が使い捨て driver で campaign を 1 回起動したところ、wave worktree に
@@ -7473,3 +7503,40 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`test_production_floor_requires_staging_before_toolchain_or_oracle_or_build`) と、
   preflight marker が両 probe より先に存在する ordering 検査
   (`test_production_floor_preflight_marker_precedes_toolchain_and_dependency_probes`)。
+
+### F311. 親の fix 指示が受入証発行後の成功を失敗へ倒した [手順漏れ]
+
+- 事象: 診断を足す小 wave の fix 第 2 巡で、`_publish_acceptance_receipt` の
+  signal mask 復元失敗を**無条件に** fail-closed (rc=70) にしたため、
+  **receipt を publish し終えた後**に signal を受けた走行が成功 (rc=0) から失敗へ変わった。
+  既存テスト `test_signal_after_receipt_publish_does_not_reverse_success` が回帰で赤になり検出した。
+- 根本原因: 親が fix prompt に「mask 復元単独失敗も fail-closed rc=70」と書き、
+  **`receipt_published` が真の場合を除外し忘れた**。子は指示どおり実装した。
+  受入証はディスク上に存在し走行は実際に成功しているのに、それを失敗に倒していた。
+  緑の走行を理由なく捨てるのは、この wave が無くそうとしていた事象そのものである。
+- 恒久対応: D407 — 受入証を書き終えた後の失敗は
+  成功を覆さない。fix prompt の制約に「緩める方向だけでなく**過剰に拒否する方向**の変更も禁止」を
+  明記する (規律 2 の対称形)。fix 第 3 巡で、publish 失敗が無く**かつ**未 publish のときだけ
+  fail-closed にする条件へ訂正した。
+- 再発検知: `test_signal_after_receipt_publish_does_not_reverse_success` (期待値を 1 文字も
+  変えずに緑へ戻すことを fix の受入条件にした)。変異 C1 が診断生成の例外で rc/stage が
+  置換されないことを固定する。
+
+### F312. 並行 wave が新設した失敗経路が非漏洩規律の外に出た [計測汚染]
+
+- 事象: 同じ 2 ファイルを触る 2 wave の合流で、git の自動マージが競合なしで成功し、
+  焦点走も 276 passed で緑だった。しかし main 側 wave が新設した waiter bytes gate の
+  失敗経路は、共通の attestation 形式を使わず手組み JSON で detail を作っており、
+  初期束縛失敗時に**例外メッセージ (`str(exc)`) を運用 log へ出しうる**状態だった。
+  不正な SHA 文字列も原文のまま載りうる形だった。
+- 根本原因: 「診断に何を載せてよいか」の規律は既存の失敗経路にしか適用されておらず、
+  新設経路が規律の外側で書かれた。テストが緑なので静的にも実行前にも見えない。
+  マージが競合しなかったため、合流時に中身を読む契機も無かった。
+- 恒久対応: 実装面を両親のいずれとも異なる状態にする merge は Codex `role=author` が
+  合成結果を監査して所有する (`docs/ai-provenance.md` の実装面 Codex author 契約が
+  この監査を機械的に要求する)。本件では監査で検出し、同じ merge commit の中で
+  共通形式へ統合し、型名と整数 errno だけに絞った。
+- 再発検知: 例外メッセージと絶対 path が detail に出ないことの回帰テストを
+  `orchestrator/tests/test_dev_wave_wait.py` へ追加した。
+  `check_ai_provenance.py` が実装面 path の merge に Codex author 行を要求し、
+  監査なしの通過を機械的に塞ぐ。
