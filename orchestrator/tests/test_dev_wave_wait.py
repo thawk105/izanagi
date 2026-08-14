@@ -47,6 +47,7 @@ _RELAYED_LOADGROUP_MARKER = (
 )
 _HOLDER = hashlib.sha256(_WAVE.encode("utf-8")).hexdigest()[:12]
 _WAITER_BLOB = "d" * 40
+_WAITER_BYTES_SHA256 = hashlib.sha256(b"same waiter source").hexdigest()
 _CHECKER_BLOB = "e" * 40
 _RELEASE_JSON = json.dumps({"state": "released"})
 _LEGACY_STATUS_ARGV = ("git", "status", "--porcelain", "--untracked-files=no")
@@ -113,6 +114,8 @@ class _FakeEffects:
         self.final_claim_age_seconds = 0
         self.logged_bytes = _scheduler_marker()
         self.byte_files: dict[Path, bytes] = {}
+        self.running_waiter_bytes_result: object = _WAITER_BYTES_SHA256
+        self.tip_waiter_bytes_result: object = _WAITER_BYTES_SHA256
 
     @property
     def effects(self) -> object:
@@ -136,6 +139,8 @@ class _FakeEffects:
             read_bytes=self.read_bytes,
             is_symlink=self.is_symlink,
             inspect_acceptance_log=self.inspect_acceptance_log,
+            running_waiter_bytes_sha256=self.running_waiter_bytes_sha256,
+            tip_waiter_bytes_sha256=self.tip_waiter_bytes_sha256,
         )
 
     def expect_run(
@@ -227,6 +232,18 @@ class _FakeEffects:
         assert path in self.byte_files, f"unexpected acceptance log: {path}"
         digest, payloads = DW._scan_acceptance_log_chunks([self.byte_files[path]])
         return digest, DW._scheduler_from_marker_payloads(payloads)
+
+    def running_waiter_bytes_sha256(self) -> object:
+        self.events.append(("running_waiter_bytes_sha256",))
+        if isinstance(self.running_waiter_bytes_result, BaseException):
+            raise self.running_waiter_bytes_result
+        return self.running_waiter_bytes_result
+
+    def tip_waiter_bytes_sha256(self, repo: Path, tip_sha: str) -> object:
+        self.events.append(("tip_waiter_bytes_sha256", repo, tip_sha))
+        if isinstance(self.tip_waiter_bytes_result, BaseException):
+            raise self.tip_waiter_bytes_result
+        return self.tip_waiter_bytes_result
 
     def sleep(self, seconds: float) -> None:
         self.events.append(("sleep", seconds))
@@ -393,6 +410,10 @@ _FINGERPRINT_EVENTS = [
     ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
     ("run", _DIFF_ARGV, _REPO, True),
     ("run", _SUBMODULE_STATUS_ARGV, _REPO, True),
+]
+_WAITER_GATE_EVENTS = [
+    ("running_waiter_bytes_sha256",),
+    ("tip_waiter_bytes_sha256", _REPO, _SHA_A),
 ]
 _POSTRUN_INTEGRITY_EVENTS = [
     ("run", _STATUS_ARGV, _REPO, True),
@@ -1448,6 +1469,124 @@ def test_success_receipt_binds_tip_argv_rc_fingerprints_holder_waiter_and_schedu
         "IZANAGI_TASK_RUN_ID": None,
         "IZANAGI_TASK_RUNS_ROOT": None,
     }
+    assert fake.events.count(("running_waiter_bytes_sha256",)) == 1
+    assert fake.events.count(
+        ("tip_waiter_bytes_sha256", _REPO, _SHA_A)
+    ) == 1
+    gate_index = fake.events.index(("running_waiter_bytes_sha256",))
+    assert fake.events[gate_index - len(_FINGERPRINT_EVENTS):gate_index] == (
+        _FINGERPRINT_EVENTS
+    )
+    assert gate_index < fake.events.index(
+        ("tip_waiter_bytes_sha256", _REPO, _SHA_A)
+    ) < fake.events.index(("run", _COMMAND, _REPO, False))
+    assert fake.events.count(("run", _COMMAND, _REPO, False)) == 1
+    fake.assert_drained()
+
+
+def test_no_merge_waiter_bytes_mismatch_blocks_submission_and_releases() -> None:
+    fake = _FakeEffects()
+    fake.running_waiter_bytes_result = hashlib.sha256(b"version A").hexdigest()
+    fake.tip_waiter_bytes_result = hashlib.sha256(b"version B").hexdigest()
+    _queue_clean_acceptance_prefix(fake)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "restart-required"
+    detail = json.loads(outcome.detail)
+    assert detail["actual_sha256"] == fake.running_waiter_bytes_result
+    assert detail["expected_sha256"] == fake.tip_waiter_bytes_result
+    assert detail["reason"] == "sha256-mismatch"
+    assert detail["tested_tip"] == _SHA_A
+    assert ("run", _COMMAND, _REPO, False) not in fake.events
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert fake.events.count(("run", _helper("release"), _REPO, True)) == 1
+    fake.assert_drained()
+
+
+@pytest.mark.parametrize(
+    ("side", "value", "expected_source_rc", "expected_reason"),
+    [
+        (
+            "running",
+            DW._WaiterSourceUnavailable("direct binding unavailable"),
+            None,
+            "running-source-binding-unavailable",
+        ),
+        ("running", OSError("read failed"), None, "running-source-read-failed"),
+        (
+            "running",
+            UnicodeError("decode failed"),
+            None,
+            "running-source-read-failed",
+        ),
+        (
+            "running",
+            RuntimeError("unexpected"),
+            None,
+            "running-source-read-failed",
+        ),
+        ("tip", DW._TipWaiterBlobError("git-cat-file", 19), 19, "git-cat-file"),
+        ("running", None, None, "running-sha256-type"),
+        ("running", "", None, "running-sha256-format"),
+        ("running", 7, None, "running-sha256-type"),
+        ("running", "a" * 63, None, "running-sha256-format"),
+        ("tip", None, None, "tip-sha256-type"),
+        ("tip", "", None, "tip-sha256-format"),
+        ("tip", 7, None, "tip-sha256-type"),
+        ("tip", "a" * 63, None, "tip-sha256-format"),
+    ],
+    ids=(
+        "binding-sentinel",
+        "running-oserror",
+        "running-unicode-error",
+        "running-unexpected-error",
+        "git-nonzero",
+        "running-none",
+        "running-empty",
+        "running-invalid-type",
+        "running-invalid-length",
+        "tip-none",
+        "tip-empty",
+        "tip-invalid-type",
+        "tip-invalid-length",
+    ),
+)
+def test_waiter_bytes_unverifiable_is_restart_required_before_submission(
+    side: str,
+    value: object,
+    expected_source_rc: int | None,
+    expected_reason: str,
+) -> None:
+    fake = _FakeEffects()
+    if side == "running":
+        fake.running_waiter_bytes_result = value
+    else:
+        fake.tip_waiter_bytes_result = value
+    _queue_clean_acceptance_prefix(fake)
+    _release(fake)
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "restart-required"
+    assert outcome.source_rc == expected_source_rc
+    detail = json.loads(outcome.detail)
+    assert set(detail) >= {
+        "actual_sha256",
+        "expected_sha256",
+        "reason",
+        "tested_tip",
+    }
+    assert detail["reason"] == expected_reason
+    assert detail["tested_tip"] == _SHA_A
+    assert ("run", _COMMAND, _REPO, False) not in fake.events
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert fake.events.count(("run", _helper("release"), _REPO, True)) == 1
     fake.assert_drained()
 
 
@@ -1480,6 +1619,117 @@ def test_default_log_inspection_hashes_and_extracts_from_one_nofollow_open(
     assert scheduler == "serial"
     assert len(calls) == 1
     assert calls[0][1] & os.O_NOFOLLOW
+
+
+def test_waiter_source_binding_accepts_regular_direct_source_and_inode_replacement(
+    tmp_path: Path,
+) -> None:
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    source = tools / "dev_wave_wait.py"
+    payload = b"print('version A')\n"
+    source.write_bytes(payload)
+
+    binding = DW._bind_waiter_source(str(source), None)
+    try:
+        original_inode = os.stat(source, follow_symlinks=False).st_ino
+        replacement = tools / "replacement.py"
+        replacement.write_bytes(payload)
+        os.replace(replacement, source)
+
+        assert os.stat(source, follow_symlinks=False).st_ino != original_inode
+        assert binding.initial_sha256 == hashlib.sha256(payload).hexdigest()
+        assert binding.bytes_sha256() == binding.initial_sha256
+        fake = _FakeEffects()
+        fake.running_waiter_bytes_sha256 = binding.bytes_sha256
+        fake.tip_waiter_bytes_result = binding.initial_sha256
+        DW._verify_waiter_source_bytes(fake.effects, tmp_path, _SHA_A)
+    finally:
+        binding.close()
+
+
+def test_waiter_source_binding_accepts_spec_with_same_file_origin(
+    tmp_path: Path,
+) -> None:
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    source = tools / "dev_wave_wait.py"
+    payload = b"print('same origin')\n"
+    source.write_bytes(payload)
+    spec = importlib.util.spec_from_file_location("same_origin_waiter", source)
+    assert spec is not None and spec.loader is not None
+
+    binding = DW._bind_waiter_source(str(source), spec)
+    try:
+        assert binding.initial_sha256 == hashlib.sha256(payload).hexdigest()
+        assert binding.bytes_sha256() == binding.initial_sha256
+    finally:
+        binding.close()
+
+
+def test_waiter_source_binding_rejects_symlink(tmp_path: Path) -> None:
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    target = tmp_path / "target.py"
+    target.write_text("print('target')\n", encoding="utf-8")
+    (tools / "dev_wave_wait.py").symlink_to(target)
+
+    with pytest.raises(OSError):
+        DW._bind_waiter_source(str(tools / "dev_wave_wait.py"), None)
+
+
+def test_waiter_source_binding_rejects_non_regular(tmp_path: Path) -> None:
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (tools / "dev_wave_wait.py").mkdir()
+
+    with pytest.raises(OSError):
+        DW._bind_waiter_source(str(tools / "dev_wave_wait.py"), None)
+
+
+def test_tip_waiter_bytes_sha256_hashes_blob_without_text_decoding(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    tools = repo / "tools"
+    tools.mkdir(parents=True)
+    payload = b"valid prefix\n\xff\xfe\x80\n"
+    (tools / "dev_wave_wait.py").write_bytes(payload)
+    env = {
+        **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+    subprocess.run(
+        ["git", "init", "-b", "main"],
+        cwd=repo,
+        env=env,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "add", "tools/dev_wave_wait.py"],
+        cwd=repo,
+        env=env,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "binary waiter"],
+        cwd=repo,
+        env=env,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert DW._default_tip_waiter_bytes_sha256(repo, "HEAD") == (
+        hashlib.sha256(payload).hexdigest()
+    )
 
 
 def test_default_log_inspection_rejects_fstat_change(
@@ -2567,6 +2817,33 @@ def test_acceptance_held_self_runs_command_without_polling(age_seconds: int) -> 
     )
 
 
+def test_acceptance_held_self_waiter_bytes_mismatch_blocks_without_release(
+) -> None:
+    fake = _RoutingAcceptanceEffects(
+        behind=[0, 0],
+        claim_payload=_held_self_payload(),
+    )
+    fake.running_waiter_bytes_result = hashlib.sha256(b"version A").hexdigest()
+    fake.tip_waiter_bytes_result = hashlib.sha256(b"version B").hexdigest()
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "restart-required"
+    detail = json.loads(outcome.detail)
+    assert detail["actual_sha256"] == fake.running_waiter_bytes_result
+    assert detail["expected_sha256"] == fake.tip_waiter_bytes_result
+    assert detail["reason"] == "sha256-mismatch"
+    assert detail["tested_tip"] == _SHA_A
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 0)
+    assert fake.receipt_content is None
+    assert fake.receipt_published is False
+    assert not any(
+        event[0] == "run" and event[1] == _helper("release")
+        for event in fake.events
+    )
+
+
 def test_acceptance_real_acquired_payload_runs_command_and_releases_on_failure(
 ) -> None:
     fake = _RoutingAcceptanceEffects(
@@ -3411,6 +3688,7 @@ def test_prerun_clean_allows_acceptance_submission_without_release() -> None:
             ),
             ("run", _STATUS_ARGV, _REPO, True),
             *_FINGERPRINT_EVENTS,
+            *_WAITER_GATE_EVENTS,
             ("run", _COMMAND, _REPO, False),
             *_POSTRUN_INTEGRITY_EVENTS,
             *_SUCCESS_RECEIPT_EVENTS,
@@ -3922,6 +4200,7 @@ def test_acceptance_command_red_is_propagated_after_release() -> None:
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
+        *_WAITER_GATE_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         ("run", _helper("release"), _REPO, True),
@@ -4012,6 +4291,7 @@ def test_release_failure_overrides_primary_result() -> None:
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
+        *_WAITER_GATE_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         ("run", _checker_argv(), _REPO, False),
@@ -4051,6 +4331,7 @@ def test_release_subprocess_failures_are_cleanup_failures(release_result: object
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
+        *_WAITER_GATE_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         ("run", _checker_argv(), _REPO, False),
@@ -4583,6 +4864,7 @@ def test_signal_after_core_success_uses_restored_real_handler(
         ("run", ("git", "rev-list", "--count", "HEAD..main"), _REPO, True),
         ("run", _STATUS_ARGV, _REPO, True),
         *_FINGERPRINT_EVENTS,
+        *_WAITER_GATE_EVENTS,
         ("run", _COMMAND, _REPO, False),
         *_POSTRUN_INTEGRITY_EVENTS,
         *_SUCCESS_RECEIPT_EVENTS,
@@ -4980,6 +5262,162 @@ def test_default_wiring_with_real_git_and_lease_helper(tmp_path: Path) -> None:
     )
     assert released.returncode == 0
     assert json.loads(released.stdout)["state"] == "released"
+
+
+def _run_runtime_waiter_bytes_case(
+    tmp_path: Path,
+    *,
+    wave: str,
+    change_waiter_on_main: bool,
+) -> tuple[subprocess.CompletedProcess[str], Path, Path, Path, Path, dict[str, str]]:
+    main_repo = tmp_path / "main-repo"
+    wave_repo = tmp_path / "wave-repo"
+    lease = tmp_path / "lease"
+    main_repo.mkdir()
+    lease.mkdir()
+    tools = main_repo / "tools"
+    tools.mkdir()
+    shutil.copy2(_TOOL, tools / "dev_wave_wait.py")
+    shutil.copy2(_LEASE_HELPER, tools / "wave_land_window.py")
+    _write_test_provenance_checker(main_repo)
+    (tools / "run_tests.py").write_text(
+        "from pathlib import Path\n"
+        "import sys\n"
+        "with Path(sys.argv[1]).open('a', encoding='ascii') as stream:\n"
+        "    stream.write('run\\n')\n"
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n",
+        encoding="utf-8",
+    )
+    env = {
+        **{
+            key: value
+            for key, value in os.environ.items()
+            if key not in DW._GIT_ENV_KEYS
+            and key not in {
+                "PYTEST_ADDOPTS",
+                "PYTEST_PLUGINS",
+                "IZANAGI_TASK_RUN_ID",
+                "IZANAGI_TASK_RUNS_ROOT",
+            }
+        },
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    def git(repo: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            env=env,
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+
+    git(main_repo, "init", "-b", "main")
+    git(main_repo, "add", "tools")
+    git(main_repo, "commit", "-m", "version A")
+    branch = f"worktree-{wave}"
+    git(main_repo, "branch", branch)
+    git(main_repo, "worktree", "add", str(wave_repo), branch)
+    if change_waiter_on_main:
+        with (tools / "dev_wave_wait.py").open("a", encoding="utf-8") as stream:
+            stream.write("\n# version B\n")
+        git(main_repo, "add", "tools/dev_wave_wait.py")
+    else:
+        (main_repo / "main-advance.txt").write_text("advanced\n", encoding="utf-8")
+        git(main_repo, "add", "main-advance.txt")
+    git(main_repo, "commit", "-m", "advance main")
+
+    message = tmp_path / "merge-message.txt"
+    message.write_text(
+        "merge main\n\nAI-Agent: product=codex; model=gpt-5; "
+        "reasoning=high; role=author\n",
+        encoding="utf-8",
+    )
+    receipt = tmp_path / "acceptance-receipt.json"
+    log = tmp_path / "acceptance.log"
+    counter = tmp_path / "command-runs.txt"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(wave_repo / "tools" / "dev_wave_wait.py"),
+            "acceptance",
+            "--wave",
+            wave,
+            "--lease-dir",
+            str(lease),
+            "--merge-message-file",
+            str(message),
+            "--receipt-file",
+            str(receipt),
+            "--log-file",
+            str(log),
+            "--",
+            sys.executable,
+            str(wave_repo / "tools" / "run_tests.py"),
+            str(counter),
+        ],
+        cwd=wave_repo,
+        env=env,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return result, wave_repo, lease, receipt, counter, env
+
+
+def test_real_waiter_process_rejects_merged_tip_with_different_waiter_bytes(
+    tmp_path: Path,
+) -> None:
+    wave = "runtime-bytes-negative"
+    result, _repo, lease, receipt, counter, _env = _run_runtime_waiter_bytes_case(
+        tmp_path,
+        wave=wave,
+        change_waiter_on_main=True,
+    )
+
+    assert result.returncode == 70, result.stderr
+    assert "stage=restart-required rc=70" in result.stderr
+    assert "acceptance-command argv=" not in result.stderr
+    assert not counter.exists()
+    assert not receipt.exists()
+    assert not (lease / "acceptance.lease").exists()
+
+
+def test_real_waiter_process_accepts_merged_tip_with_same_waiter_bytes(
+    tmp_path: Path,
+) -> None:
+    wave = "runtime-bytes-positive"
+    result, repo, lease, receipt, counter, env = _run_runtime_waiter_bytes_case(
+        tmp_path,
+        wave=wave,
+        change_waiter_on_main=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert counter.read_text(encoding="ascii").splitlines() == ["run"]
+    payload = json.loads(receipt.read_text(encoding="ascii"))
+    assert payload["schema_version"] == "dev-wave-acceptance-receipt/v3"
+    waiter_blob_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD:tools/dev_wave_wait.py"],
+        cwd=repo,
+        env=env,
+        check=True,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    ).stdout.strip()
+    assert payload["waiter_blob_sha"] == waiter_blob_sha
+    assert (lease / "acceptance.lease").is_file()
 
 
 def test_default_wiring_second_acceptance_reuses_self_held_lease(
