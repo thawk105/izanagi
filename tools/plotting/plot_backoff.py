@@ -25,6 +25,7 @@ import sys, os, json, re, glob, hashlib, datetime
 # admission 層への import root を __file__ から解決する。独自の WAL reader は持たない。
 _REPO_ROOT=os.path.abspath(os.path.join(os.path.dirname(__file__),"..",".."))
 if _REPO_ROOT not in sys.path: sys.path.insert(0,_REPO_ROOT)
+from orchestrator.campaign import wal
 from orchestrator.campaign.artifact_admission import (
     CampaignReadPurpose,
     require_admitted_campaign,
@@ -115,6 +116,11 @@ def load_campaign(cdir):
     historical_view=require_admitted_campaign(
         cdir, purpose=CampaignReadPurpose.HISTORICAL_RAW)
     wal_path=historical_view.wal_file
+    # Historical admission may preserve a crash-prefix tail for forensic reads.
+    # Plot inputs must be complete: validate every physical frame before using
+    # the immutable partial projection returned by the historical view.
+    for _ in wal.iter_lines(wal_path):
+        pass
     dat_paths=glob.glob(os.path.join(cdir,"reports","*.dat"))
     if not dat_paths:
         raise FileNotFoundError(f"dat がない: {cdir}/reports/*.dat")

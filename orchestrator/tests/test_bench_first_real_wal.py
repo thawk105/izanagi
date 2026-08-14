@@ -180,7 +180,17 @@ def _upgrade_to_fixed_e1(
     monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
 
     lock_path = Path(layout.lock_file)
-    lock_text = build_v2_lock(lock_path.read_text(encoding="utf-8"))
+    legacy_identity = campaign_lock.decode_campaign_lock(
+        lock_path.read_text(encoding="utf-8")
+    ).identity
+    identity_preimage = campaign_lock.canonical_json({
+        "ccbench_commit": legacy_identity["ccbench_commit"],
+        "search_config": legacy_identity["search_config"],
+        "search_tag": "real-screen",
+        "spec_content": "test",
+        "trial": "test",
+    })
+    lock_text = build_v2_lock(identity_preimage)
     decoded = campaign_lock.decode_campaign_lock(lock_text)
     assert decoded.authority is not None
     lock_path.write_text(lock_text, encoding="utf-8")

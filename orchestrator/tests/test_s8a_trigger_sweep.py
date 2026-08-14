@@ -851,7 +851,7 @@ def _install_fixed_e1_closure(
 def _install_post_policy_screen_fixture(layout, root, monkeypatch):
     """固定 E1 closure と receipt に束縛した合成 sweep WAL を作る。"""
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-    identity_preimage = json.dumps({
+    identity_preimage = campaign_lock.canonical_json({
         "ccbench_commit": W.PIN,
         "search_config": {
             "records": 1,
