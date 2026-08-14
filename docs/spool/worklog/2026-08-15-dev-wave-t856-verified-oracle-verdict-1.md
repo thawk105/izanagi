@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-15
 wave: dev-wave-t856-verified-oracle-verdict
 seq: 1
-title: judge_combined を封印 token 専用にし oracle 側の未封印経路を閉じた — 恒真な検査を置かず再導出 1 本に畳み、5 変異すべてが単一テストで KILLED (コード、branch worktree-dev-wave-t856-verified-oracle-verdict)
+title: judge_combined を封印 token 専用にし oracle 側の未封印経路を閉じた — 恒真な検査を 5 件除去して再導出へ畳み、生存した変異 1 本が検出力の穴を実測で暴いた (コード、branch worktree-dev-wave-t856-verified-oracle-verdict)
 ---
 
 ## 本文
@@ -42,8 +42,14 @@ title: judge_combined を封印 token 専用にし oracle 側の未封印経路�
   明示的に scope 外に置いている。(2) `_write_create_only` の書き込み途中失敗で partial output が
   残る件 — 本 wave が触っていない既存 helper。(3) 反射操作経由の迂回 — 明記済みの信頼境界外。
   いずれも新規タスクとして起票を諮る。
-- **エージェント工数と異常:** codex 子 10 本 (plan 1・consult 2・author 1・review 4・fix 2)。
-  異常 2 件。(i) 段 6 レビュー 1 本が `evidence_status=invalid` で不受理。子は完走して
+- **エージェント工数と異常:** codex 子 11 本 (plan 1・consult 2・author 1・review 4・fix 3)。
+  異常 3 件。(iii) 変異 scratch を `rm -rf` で消したところ、git の worktree 登録に
+  「登録済みだが実体が無い」残骸が残り、次の変異走が rc=125 で起動前に落ちた。
+  これは land を全 wave 分止める型でもある。`git worktree prune --dry-run` で対象が
+  自分の 1 件だけであることを確認してから prune した (他 wave の worktree 10 件は無傷)。
+  `mutation_worktree.py` は中断時に container を保持する設計なので、後片付けは
+  `rm -rf` でなく prune を伴う必要がある。
+  残り 2 件は次のとおり。(i) 段 6 レビュー 1 本が `evidence_status=invalid` で不受理。子は完走して
   8,388 bytes 相当の所見を出していたが、成果物として数えられないため保全して親が独立に裏取りし、
   以後の子 prompt に出力量上限を明記した。以後の 4 本はすべて受理された。
   (ii) 最終焦点レビューの 1 本が上流分類器に「サイバーセキュリティ上のリスク」として弾かれ
@@ -53,13 +59,23 @@ title: judge_combined を封印 token 専用にし oracle 側の未封印経路�
   親の bounded local は同条件で通る。子は「実装済み・未実走」と正しく申告し、実測はすべて親が行った。
 - 実測: wave 前 baseline (`test_s8b_verdict.py` + `test_s8b_oracle_manifest_contract.py`) =
   62 passed。最終形の焦点走 (上記 + `test_s8b_oracle_artifacts.py` + `test_s8b_oracle_judge.py`) =
-  **130 passed / 5.57 秒** (Pegasus 計算ノード request 910969.nqsv、tip `e8e817ba`)。
-- 変異: 固定 commit `e8e817ba` の使い捨て worktree で 5 変異を dispatch 実行し、
-  **5/5 KILLED・SURVIVED 0・MISMATCH 0**。M01〜M03・M05 はそれぞれ**ちょうど 1 本**の
-  テストだけを落とし、単一理由性が実測で成立した。M04 (正例) だけ 2 本落ちる
-  (正例テストと事後改竄テストの双方が正当な token を必要とするため) ので、
-  probe 走で完全集合を実測してから再登録した。probe 台帳は erratum 証拠として同梱する。
+  **131 passed / 5.39 秒** (Pegasus 計算ノード、tip `e418f9c1`)。
+  なお login ノードの bounded local は他 wave が memory 予算を占有すると
+  `memory.max / memory.oom.group を走行中に attest できない` で止まるため、
+  焦点走は計算ノードへ dispatch した。
+- 変異: 固定 commit `e418f9c1` の使い捨て worktree で 6 変異を dispatch 実行し、
+  **6/6 KILLED・SURVIVED 0・MISMATCH 0**。M01〜M03・M05・M06 はそれぞれ**ちょうど 1 本**の
+  テストだけを落とし、単一理由性が実測で成立した。M04 (正例) だけ 3 本落ちる
+  (いずれも正当な token 発行を前処理に含むため)。期待 node は 2 度、実測した失敗集合へ
+  再登録した (`DW-M08`)。probe 台帳を消さずに残す (`DW-M02`)。
   台帳は `output/insights/2026-08-15_t856-verified-oracle-verdict/`。
+- **変異が 1 本生存し、それが検出力の穴を実測で見つけた。** 最終レビューが
+  「`judge_combined` 側の plain JSON 型再検査には専用の実効性テストがない」と指摘したのを、
+  親は断定せず M06 を `expected_status=SURVIVED` で走らせて確かめた。結果は **SURVIVED**
+  (落ちたテスト 0 件) で指摘は real と確定。**production に欠陥は無く、欠けていたのは
+  検出力だった** — canonical hash を保ったまま consumer が読む値だけを変える
+  `dict` subclass を、型検査は拒否できるが、それを固定する回帰テストが無かった。
+  テストを 1 本足して M06 を KILLED にした (production は変更していない)。
 - **受入全走の数値を本文へ書けない構造がある。** `dev_wave_land.py` は wave tip と tested tip の
   完全一致を要求するため、受入は本記録 commit を含む tip で回すしかなく、その結果を後から
   本文へ書き足すと tip が変わって受入自体が無効化される。したがって本エントリの受入証拠は
