@@ -45,6 +45,14 @@ title: acceptance-receipt 段の失敗理由を stdout と stderr へ出す (コ
 - 工数 = codex 子 11 本 (plan 1 / consult 2 / author 1 / fix 4 / review 2 / merge 監査 1)、
   すべて `outcome=accepted`。model は段 3 luna 側のみ `gpt-5.6-luna`、他は `gpt-5.6-sol`。
   受入 lease の待ちは発生せず (投入時に保持者なし)。
+- **受入全走 1 回目が帰属赤 1 件で止まった。実測でフレークと判定し、帰属しなかった
+  ({{T:signal-lease-test-attestation-race}})。** `1 failed, 11033 passed, 65 skipped`。
+  赤は `test_public_main_real_signal_releases_lease` で、子へ SIGTERM を送り rc=143 を期待するが、
+  実際は `stage=acceptance-scheduler-attestation rc=70 detail={"observed":[],"reason":"marker-count"}`
+  が先に出た。判定根拠は 4 点 — (1) 当該テスト本体は main と HEAD で byte 同一 (sha 一致、1837 bytes)、
+  (2) `_scheduler_from_marker_payloads` / `_default_inspect_acceptance_log` / `_inspect_acceptance_log`
+  の 3 関数も main と byte 同一で本 wave の差分が到達しない、(3) 焦点走 277 件では緑、
+  (4) 単独再走で `1 passed` rc=0。48 worker の全走でだけ signal 到達が attestation より遅れる競走である。
 - セッション異常 = 待ち手が 1 度**偽の完了**を返した (成果物も `.done` も無く生産者は稼働中)。
   成果物実在・`.done` 実在・生産者の生死の 3 点照合で偽と判定し、PID 直指定で張り直した。
   また親の進捗報告が数回、実測でない推定時刻を書いていた (実測より進んでいた)。以後は実測のみ。
@@ -65,6 +73,13 @@ title: acceptance-receipt 段の失敗理由を stdout と stderr へ出す (コ
 - {{T:receipt-content-generation-diagnostics}} **P3・新規**: `_acceptance_receipt_bytes` の
   receipt 本体生成 (`_fingerprint_json` 等) で例外が出ると `unexpected-error` へ落ち、
   どの段で落ちたか分からない。base からの穴で rc は同じ 70。診断段の対象外として降格した分。
+- {{T:signal-lease-test-attestation-race}} **P2・新規・フレーク**:
+  `test_public_main_real_signal_releases_lease` は 48 worker の受入全走でだけ赤になる。
+  子へ SIGTERM を送り rc=143 を期待するが、負荷下では signal 到達より先に
+  `acceptance-scheduler-attestation` の `marker-count` が発火して rc=70 になる
+  (テスト用 tmp repo の child argv は scheduler marker を出さない)。単独走・焦点走では緑。
+  受入を止める帰属赤として観測されるため、期待を「143 または attestation 失敗」に広げるのでなく、
+  marker を出す child か attestation を待たせる seam を設ける方向で直す。
 - {{T:scheduler-attestation-detail-redaction}} **P3・新規**: `acceptance-scheduler-attestation` 段の
   既存 detail は絶対 path (`log-open` / `log-read`) と `repr(value)` (`inspection-result`) を
   載せている。本 wave の非漏洩規律を既存段へも広げるか諮る。
