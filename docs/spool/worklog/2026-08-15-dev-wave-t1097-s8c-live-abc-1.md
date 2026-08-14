@@ -83,6 +83,13 @@ title: 段 8 主経路 (1) の 8c A/B/C live pilot を計算ノードで起動�
   択 (a) 足す (partial report が失敗経路でも書かれる)、
   択 (b) producer 側を `provider-init-error` へ丸める。
   **親の推奨は択 (a)** — 丸めると規律 3 の還流が狭くなる。受理集合の変更なので D96 手続。
+- {{T:admission-predicate-live-value-control}} **P1・新規・ユーザー裁定待ち**:
+  fail-closed admission 述語に「実在の production 値を自分の述語へ通す positive control」を
+  族として義務づけるか。F97 (登録済み較正が自分の attestation 述語を通らない) と
+  本 wave の {{T:pbs-jobid-witness-grammar}} (実機 `PBS_JOBID` が transport 述語を通らない) は
+  別 producer / 別 consumer の独立 2 例で、`DW-G03` の族一般化閾値を満たす。
+  どちらも「誰かが実際に走らせるまで発見されない」型である。
+  検査義務の新設なので親は実装せず裁定へ返す。
 - {{T:s8c-live-abc-rerun}} **P1・新規**: 上 2 件が閉じた後に 8c A/B/C live pilot を再投入する。
   job script と依存 staging は保全済みで、単独性検査と gflags/glog build はそのまま再利用できる。
 - {{T:s8c-runbook-stale-33}} **P2・新規**: `docs/phase3-s8c-autonomous-trial-runbook.md` §3.3 の
