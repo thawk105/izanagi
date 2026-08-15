@@ -53,6 +53,17 @@ seq: 1
 
 ## 再発
 
+### F306
+
+- **再発: 2026-08-15** — **受入全走で出た**。本 wave の受入 3 走目が
+  `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` 1 件で
+  `attributable-red` (rc=70) になった。**本 wave の差分は docs 7 ファイルのみで、当該 test file に
+  1 行も触れていない。** 単独再走を計算ノードで行い rc=0 (`Request 911268.nqsv`、8 秒) を実測して
+  非帰属と判定した。同じ tip の 2 走目は緑だったので決定的な赤ではない。
+  F306 の既知の再発検知は「変異 baseline の赤 node が族内で移動すること」だが、
+  **本件は変異でなく受入全走で、しかも待ち手の非帰属 checker が `attributable` と分類した**。
+  族のフレークが受入の帰属判定を誤らせる経路がある。
+
 ### F286
 
 - **再発: 2026-08-15** — 3 例目。`docs/handoff/dev-wave-t971-swo-oracle-floor.md` が main へ
