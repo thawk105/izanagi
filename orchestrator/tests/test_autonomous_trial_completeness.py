@@ -844,6 +844,39 @@ def _transport_admitted_trial(tmp_path: Path):
     return run, events, report
 
 
+def _transport_admission_error_trial(
+    tmp_path: Path, *, do_build: bool = False,
+):
+    """Build the current producer's error/start/finish projection, not stale bytes."""
+    run = tmp_path / "run"
+    report = _report(run, ["ycsb-a"])
+    report.update({
+        "status": "partial",
+        "provider": "claude-headless",
+        "do_build": do_build,
+        "fatal_error": {
+            "type": "FixtureTransportError",
+            "message": "fixture transport admission failed",
+        },
+    })
+    start = _start(run, ["ycsb-a"])
+    start.update({
+        "provider": "claude-headless",
+        "do_build": do_build,
+        "seq": 2,
+        "ts": "2026-08-01T00:00:02+00:00",
+    })
+    error = {
+        "event": "transport-admission-error",
+        **report["fatal_error"],
+        "seq": 1,
+        "ts": "2026-08-01T00:00:01+00:00",
+    }
+    events = [error, start, _finish(run, "partial", 3)]
+    _persist(run, events, report)
+    return run, events, report
+
+
 def _verify(run: Path, report: dict) -> None:
     C.assert_autonomous_trial_completeness(
         report=report, attempt_journal=run / "attempts.jsonl",
@@ -912,6 +945,59 @@ def test_multigeneration_in_cell_wall_budget_requires_its_cell(tmp_path) -> None
 def test_transport_admission_bound_shape_and_projection_passes(tmp_path) -> None:
     run, _events, report = _transport_admitted_trial(tmp_path)
     _verify(run, report)
+
+
+def test_transport_admission_error_before_run_start_with_empty_cells_passes(
+    tmp_path,
+) -> None:
+    run, events, report = _transport_admission_error_trial(
+        tmp_path, do_build=True,
+    )
+    _verify(run, report)
+    C.verify_autonomous_trial_files(run / "attempts.jsonl", run / "report.json")
+    assert [event["event"] for event in events] == [
+        "transport-admission-error", "run-start", "run-finish",
+    ]
+    assert report["cells"] == []
+    assert report["honest_accounting"] == {
+        "role_query_count": 0,
+        "bench_wall_seconds": 0.0,
+    }
+    assert all("transport_receipt" not in event for event in events)
+    assert "transport_receipt" not in report
+
+
+def test_transport_admission_error_accepts_empty_string_message(tmp_path) -> None:
+    run, events, report = _transport_admission_error_trial(tmp_path)
+    events[0]["message"] = ""
+    report["fatal_error"]["message"] = ""
+    _persist(run, events, report)
+    _verify(run, report)
+
+
+def test_build_file_verification_with_cells_still_requires_campaign_root(
+    tmp_path,
+) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    report["do_build"] = True
+    events[0]["do_build"] = True
+    report["cells"][0]["admission_decision"] = {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "admission_status": "admitted",
+        "classification": "admitted-new-schema",
+    }
+    _persist(run, events, report)
+    _verify(run, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[campaign-chain\] build trial verification requires "
+            r"campaign_output_root$"
+        ),
+    ):
+        C.verify_autonomous_trial_files(
+            run / "attempts.jsonl", run / "report.json",
+        )
 
 
 def test_query_ordinals_must_be_contiguous_and_exclude_skips(tmp_path) -> None:
@@ -1119,6 +1205,117 @@ def test_transport_admission_binding_mutations_are_rejected(
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=rf"\[transport-admission\] {expected}$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    [
+        ("duplicate-error", r"transport admission outcome may occur at most once"),
+        ("success-and-error", r"transport admission outcome may occur at most once"),
+        (
+            "after-run-start",
+            r"transport-admission-error must occur immediately before run-start",
+        ),
+        (
+            "extra-field",
+            r"transport-admission-error fields must match the producer exact set",
+        ),
+        (
+            "empty-type",
+            r"transport-admission-error\.type must be a non-empty string",
+        ),
+        (
+            "non-string-type",
+            r"transport-admission-error\.type must be a non-empty string",
+        ),
+        (
+            "non-string-message",
+            r"transport-admission-error\.message must be a string",
+        ),
+        (
+            "wrong-provider",
+            r"transport-admission-error requires the claude-headless provider",
+        ),
+        (
+            "forged-report-receipt",
+            r"transport-admission-error outcome forbids transport_receipt",
+        ),
+        (
+            "forged-run-start-receipt",
+            r"transport-admission-error outcome forbids transport_receipt",
+        ),
+        (
+            "forged-run-finish-receipt",
+            r"transport-admission-error outcome forbids transport_receipt",
+        ),
+        (
+            "fatal-mismatch",
+            r"transport-admission-error projection is inconsistent",
+        ),
+        (
+            "nonempty-cells",
+            r"transport-admission-error projection is inconsistent",
+        ),
+        (
+            "complete-status",
+            r"terminal supervisor event requires partial status",
+        ),
+    ],
+)
+def test_transport_admission_error_mutations_are_rejected(
+    tmp_path, mutation, expected,
+) -> None:
+    run, events, report = _transport_admission_error_trial(tmp_path)
+    if mutation == "duplicate-error":
+        events.insert(1, copy.deepcopy(events[0]))
+    elif mutation == "success-and-error":
+        events.insert(1, {
+            "event": "transport-admission",
+            "transport_receipt": copy.deepcopy(_TRANSPORT_RECEIPT),
+            "seq": 2,
+            "ts": "2026-08-01T00:00:02+00:00",
+        })
+    elif mutation == "after-run-start":
+        events[0], events[1] = events[1], events[0]
+    elif mutation == "extra-field":
+        events[0]["unexpected"] = True
+    elif mutation == "empty-type":
+        events[0]["type"] = ""
+    elif mutation == "non-string-type":
+        events[0]["type"] = 1
+    elif mutation == "non-string-message":
+        events[0]["message"] = None
+    elif mutation == "wrong-provider":
+        report["provider"] = "fixture"
+        events[1]["provider"] = "fixture"
+    elif mutation == "forged-report-receipt":
+        report["transport_receipt"] = copy.deepcopy(_TRANSPORT_RECEIPT)
+    elif mutation == "forged-run-start-receipt":
+        events[1]["transport_receipt"] = copy.deepcopy(_TRANSPORT_RECEIPT)
+    elif mutation == "forged-run-finish-receipt":
+        events[-1]["transport_receipt"] = copy.deepcopy(_TRANSPORT_RECEIPT)
+    elif mutation == "fatal-mismatch":
+        report["fatal_error"]["message"] = "different failure"
+    elif mutation == "nonempty-cells":
+        report["cells"] = [{
+            "admission_decision": {"admission_status": "not-applicable"},
+        }]
+    else:
+        report["status"] = "complete"
+        events[-1]["status"] = "complete"
+    for seq, event in enumerate(events, 1):
+        event["seq"] = seq
+    _persist(run, events, report)
+    gate = (
+        "terminal-projection"
+        if mutation in {"fatal-mismatch", "nonempty-cells", "complete-status"}
+        else "transport-admission"
+    )
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=rf"\[{gate}\] {expected}$",
     ):
         _verify(run, report)
 
