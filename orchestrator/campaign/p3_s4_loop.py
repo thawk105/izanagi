@@ -59,8 +59,11 @@ from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
-from .artifact_admission import (AdmittedCampaign,        # noqa: E402
-                                         require_admitted_campaign)
+from .artifact_admission import (                         # noqa: E402
+    CampaignReadPurpose,
+    CertifiedCampaignView,
+    require_admitted_campaign,
+)
 from .diff_quarantine import (DiffQuarantine,              # noqa: E402
                                       DiffRejectSubtype,
                                       DiffQuarantineResult,
@@ -318,7 +321,7 @@ UNREGISTERED_CANDIDATE_LABEL = "candidate-unregistered"
 class CriticIdentityProjection(IdentityProjection):
     """1 campaign の BUILD_START から作る候補 ID 射影。"""
 
-    admitted_view: AdmittedCampaign = field(repr=False, compare=False)
+    admitted_view: CertifiedCampaignView = field(repr=False, compare=False)
     variant_labels: Dict[str, str]
     src_token_labels: Dict[Tuple[str, str], str]
     build_attempt_labels: Dict[Tuple[str, str], str]
@@ -399,11 +402,13 @@ def _bind_projection_value(
 
 
 def make_critic_identity_projection(
-    view: AdmittedCampaign,
+    view: CertifiedCampaignView,
 ) -> CriticIdentityProjection:
-    """admission 済み同一 snapshot の BUILD_START 初出から label を作る。"""
-    if type(view) is not AdmittedCampaign:
-        raise TypeError("view は require_admitted_campaign() の exact value が必要")
+    """certified admission 済み snapshot の BUILD_START 初出から label を作る。"""
+    if type(view) is not CertifiedCampaignView:
+        raise TypeError(
+            "view は require_admitted_campaign() の exact CertifiedCampaignView が必要"
+        )
     variant_labels: Dict[str, str] = {}
     src_token_labels: Dict[Tuple[str, str], str] = {}
     build_attempt_labels: Dict[Tuple[str, str], str] = {}
@@ -472,7 +477,7 @@ def make_critic_identity_projection(
 
 # ==== critic 入力 digest (緑 + 赤、還流 on/off スイッチ) =======================
 
-def make_critic_digest(view: AdmittedCampaign, tag: str = "p3-s4",
+def make_critic_digest(view: CertifiedCampaignView, tag: str = "p3-s4",
                        reflux: bool = True, *,
                        identity_projection: IdentityProjection) -> str:
     """critic に渡す digest テキストを組む。
@@ -484,8 +489,10 @@ def make_critic_digest(view: AdmittedCampaign, tag: str = "p3-s4",
     共通 (性能数値は trace-disabled build 由来、規律1)。"""
     if not isinstance(identity_projection, IdentityProjection):
         raise TypeError("identity_projection は IdentityProjection が必要")
-    if type(view) is not AdmittedCampaign:
-        raise TypeError("view は require_admitted_campaign() の exact value が必要")
+    if type(view) is not CertifiedCampaignView:
+        raise TypeError(
+            "view は require_admitted_campaign() の exact CertifiedCampaignView が必要"
+        )
     if (
         isinstance(identity_projection, CriticIdentityProjection)
         and identity_projection.admitted_view is not view
@@ -1067,7 +1074,10 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     save_loop_state(layout, state)
 
     if do_build and out["outcome"] != "dry-pass":
-        critic_view = require_admitted_campaign(layout.root)
+        critic_view = require_admitted_campaign(
+            layout.root,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
         digest_txt = make_critic_digest(
             critic_view,
             tag="p3-s4",
@@ -1188,7 +1198,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     stop = check_stop(state)
     dqs = []
     if out["outcome"] != "dry-pass":
-        critic_view = require_admitted_campaign(layout.root)
+        critic_view = require_admitted_campaign(
+            layout.root,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
         digest_txt = make_critic_digest(
             critic_view,
             tag="p3-s4",

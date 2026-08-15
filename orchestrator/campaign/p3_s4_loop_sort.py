@@ -68,7 +68,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import env_contract, ident, pin, wal                # noqa: E402
 from . import p3_s4_loop as L                              # noqa: E402
-from .artifact_admission import require_admitted_campaign # noqa: E402
+from .artifact_admission import (                         # noqa: E402
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from .build_admission import (BuildAdmissionError, BuildRunContext, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
@@ -418,7 +421,10 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
                             cache_root=cache_root, build_context=build_context)
     L.save_loop_state(layout, state)
 
-    critic_view = require_admitted_campaign(layout.root)
+    critic_view = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     digest_txt = L.make_critic_digest(
         critic_view,
         tag="p3-s5-sort",
@@ -564,7 +570,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"  outcome={out['outcome']} variant={out.get('variant')}")
 
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
-    critic_view = require_admitted_campaign(layout.root)
+    critic_view = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     digest_txt = L.make_critic_digest(
         critic_view,
         tag="p3-s5-sort",

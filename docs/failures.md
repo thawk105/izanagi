@@ -1960,6 +1960,28 @@
   と整合する。本 wave の差分は docs のみ (spool fragment 3 件と output/insights) で当該 test file に
   1 行も触れていない。計算ノードでの単独再走 (request 912438) が 3 node まとめて
   **3 passed / 3.27 秒**で緑になり、非帰属と判定した。
+
+- **再発: 2026-08-16 ([T-987] wave の受入全走)** — `test_codex_worker_launch.py` の 12 node と
+  `test_dev_wave_wait.py::test_public_main_real_signal_releases_lease` の計 **13 件**が同時に落ち、
+  待ち手の非帰属 checker は全件を `attributable` と分類した (`stage=acceptance-red-check` rc=70)。
+  本 wave の差分は `docs/spool/` と `output/insights/` の **docs 10 file のみ**で、Python・test
+  file・`docs/dev-wave/` のいずれにも触れておらず、launcher 実装へ到達しえない。
+  同 2 file の単独再走 (計算ノードへ dispatch、request `912484`) は **400 passed / 1 failed /
+  6.45 秒**で、**帰属された 13 件は 1 件も再現しなかった**。`DW-O18` により帰属しない。
+  **新しい情報は 3 点。**
+  (i) **同時失敗数が 1 件から 13 件へ跳ねた初の観測である。** 台帳の既存再発はいずれも 1 件だった。
+  (ii) **2026-08-08 の再発が「成立していない」と明記した条件が、今回は成立していた** —
+  当該走行の隣で別 wave (`dev-wave-t523-holdout-admission`) の codex `fix` 子が
+  `sandbox=workspace-write` / `--max-wall-clock-s 7200` / `--max-model-calls 500` で稼働しており、
+  親自身は子を 1 本も起動していない。**「受入の隣で子 process が走る」条件と失敗数の跳ねが
+  同時に観測されたのはこれが初めてで、台帳の資源競合の見立てを支持する。**
+  ただし本 wave は原因を確定していない — 観測は 1 例であり、他 wave の子は本 wave の制御外にある。
+  (iii) 単独再走で落ちた 1 件は帰属 13 件のいずれでもない
+  `test_dev_wave_wait.py::test_signal_after_core_success_uses_restored_real_handler` であり、
+  「失敗 node が移動する」という既存の見立てと整合する。
+  恒久対応は F57 既載の失敗 artifact 保存による原因分離のままで、本 wave では変えていない。
+  **本 wave で新たに分かったのは、非帰属 checker の `attributable` 分類が、
+  隣で走る他 wave の子による資源競合を差分への帰属と取り違えうるということである。**
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -7410,6 +7432,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実ファイルの sha256 から独立に計算して差し替えた。production 無変更、assert の削除・緩和なし、
   golden を production serializer の出力から再生成していない。
 
+
+- **再発: 2026-08-16** — [T-817] wave の受入全走で
+  `test_t671_source_binding.py::test_production_contract_loader_binding_call_sites_are_exact`
+  が赤になった。本 wave が epoch 導出のため `artifact_admission.py` へ
+  `contract_loader_binding.capture_contract_loader_binding()` を 1 箇所足したが、
+  同 file の呼び出し位置を exact な Counter で pin している側を数え落としていた。
+  **前回は bytes hash の pin、今回は呼び出し位置 (file 名 + 関数名 + 属性名) の pin** で、
+  いずれも「編集面 path を key にした検索」を実行していれば段 1 で見つかっていた。
+  焦点走 28 file にこの pin test が入っておらず、**受入で初めて出た**。
+  fix 後に live な exact pin / golden を 17 面数え上げ、全面一致を確認している。
 ### F302. anchored 解析への変異が等価変異で SURVIVED した [変異検査]
 
 - 事象: 変異 matrix の probe 巡で、budget note の anchored 解析を狙った変異 M7 が SURVIVED した。
@@ -7779,6 +7811,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (本事象はその検査が実際に発火して判明した)。検査の存在は確認済みで、
   欠けているのは検査を踏まないための手順記述である。
 
+
+- **再発: 2026-08-16** — 同日の別 wave (`dev-wave-t324-8c-prereg`) が記録した直後に本 wave でも再現。
+  `stage=preflight-submodule-ready rc=2` でテスト 0 件・log ファイル未生成のまま失敗
+  (lease claim 前の preflight で止まったため lease 窓は失っていない)。
+  `git -c protocol.file.allow=always submodule update --init --recursive` で
+  `external/ccbench/third_party/shirakami` とその `third_party/googletest` を追加初期化し、
+  `git submodule status --recursive` の全行が `-`/`U` プレフィックスなしになったことを確認して
+  attempt 2 で再投入した。恒久対応 ([T-1139] 未裁定) は未実施のまま。
 ### F321. `single_process` を名乗る床値 claim が、同一 protocol の二重投入を排除しない [恒真ゲート]
 
 - 事象: (2026-08-16、静的検査) 床値 campaign は `isolation_policy.single_process` が真のとき
@@ -7822,3 +7862,37 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (材料 = `output/insights/2026-08-16_t330-scr-single-process/s4-adjudication.md`)。
 - 再発検知: 環境契約が bool を宣言しているのに、その field を読む production consumer が
   dataclass 定義とテスト以外に存在しないこと。
+
+### F323. 新設 gate の変異が、事前登録した期待 node の 30 倍を赤にした [事前登録の不完全] [変異]
+
+- 事象: [T-817] の変異本走で MUT-4 / MUT-5 / MUT-7 が MISMATCH。段 4 で登録した期待 node は
+  各 1 件だったが、実際の kill は 31 / 8 / 30 件だった。SURVIVED ではなく、検出力は十分にある。
+- 根本原因: 新設した中央受理 gate が発火すると**後段の検査が走らない**。gate を壊す変異は
+  受理層より下流の全経路を巻き込むため、`test_nontrigger_historical_campaigns_remain_admitted`
+  の全 param のように、一見無関係な既存テストが同じ分岐に依存し始める。段 4 の事前登録時点で
+  この集合を完全に列挙するのは現実的でない。
+- 恒久対応: `DW-M08` が既に許している「初回を probe と明記し、期待 node を完全集合として
+  再登録して再走する」手順で閉じる。採用の根拠は **baseline が完全に緑 (rc=0、赤 0 件) である**
+  こと — 観測された赤がすべて注入変異由来だと言えるのはこの条件が成り立つときだけである。
+  probe 台帳は消さず erratum として残す。
+- 再発検知: 受理層・admission・gate を新設する wave では、段 4 の事前登録に
+  「この gate が発火したとき走らなくなる後段検査の件数」を見積もり欄として書き、
+  1 件しか登録していないなら probe 前提で計画する。
+
+### F324. 行が競合しなかった面に、取り込みの意味破壊が 3 件あった [取り込み] [合成監査漏れ]
+
+- 事象: [T-817] wave へ local main を 69 commit 取り込んだところ、`git merge` が報告した競合は
+  1 ファイル 1 hunk だけだったが、conflict marker が出なかった面に 3 件の破壊があった。
+  (a) main から入った `require_admitted_campaign` 呼び出し 2 件が purpose を省略しており、
+  本 wave が必須化した引数を満たさない。(b) main 側 wave [T-856] が新設した合成 fixture が
+  `campaign_verifier_epochs` を持たないため、本 wave の gate が fail-closed で発火し、
+  下流 assertion が 2 件落ちた。
+- 根本原因: 3-way merge は**行の重なり**だけを競合として報告する。片側が「呼び出し規約を厳しく
+  した」ときに、もう片側が**その規約を知らずに新しい呼び出しを足した**場合、行は重ならないので
+  自動 merge が成功してしまう。競合ゼロは意味が保たれた証拠ではない。
+- 恒久対応: 呼び出し規約・受理集合・必須引数を変える wave の取り込みでは、競合の有無に関わらず
+  Codex `role=author` へ**合成監査**を明示的に依頼する。監査の形は「変更した識別子の全呼び出しを
+  AST で数え上げ、新契約を満たす件数と満たさない件数を報告する」。本 wave では実呼び出し 65 件の
+  うち production 16/16・test 48/49 という数え上げで穴が特定できた。
+- 再発検知: 合成監査の報告に「満たさない件数」欄を必須にする。ゼロと書くなら何を母集合として
+  数えたかを併記させる (`DW-O17` の実装面 path 判定だけでは行が競合しない破壊を捕まえられない)。
