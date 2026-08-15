@@ -1,0 +1,314 @@
+{
+  "authoritative_attempts": {
+    "t361-flock": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "t362-mitigation": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9"
+  },
+  "created_time_ns": 1785769687730063769,
+  "cumulative_requested_node_min": 29,
+  "flock_one_shot_submission_count": 1,
+  "initial_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-controller-session",
+    "remaining_point_raw": "313.97",
+    "returncode": 0
+  },
+  "initial_four_budget_after": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 16,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-request",
+    "remaining_point_raw": "306.37",
+    "returncode": 0
+  },
+  "latest_budget_after_request": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 22,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-request",
+    "remaining_point_raw": "4372.09",
+    "returncode": 0
+  },
+  "request_count": 5,
+  "request_limit": 6,
+  "requested_node_min_limit": 40,
+  "requests": [
+    {
+      "admissible": false,
+      "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 13,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "resolve-rbudgetcheck-after-request",
+        "remaining_point_raw": "313.74",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1785772009007030505,
+      "cumulative_requested_node_min": 10,
+      "external_root_terminal_proven": true,
+      "leg": "t361-flock",
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T361_ATTEMPT_ID=20260803T150808Z-t361-flock-a1-9060899fb1686d87,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87,T361_RECON_ONLY=0,T361_RUN_NONCE=20260803T150808Z-t361-flock-a1-9060899fb1686d87,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260803T150808Z-t361-flock-a1-9060899fb1686d87/scheduler/t361-flock.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+      ],
+      "qsub_returncode": 0,
+      "request_id": "882038.nqsv",
+      "request_ordinal": 1,
+      "requested_node_min": 10,
+      "reserved_before_qsub_time_ns": 1785769688566345019,
+      "resolution_id": "20260803T154627Z-48225721d7617863",
+      "resolved_after_controller_interruption": true,
+      "selected_as_authoritative": false,
+      "submitted_time_ns": 1785769688571037460
+    },
+    {
+      "admissible": false,
+      "attempt_id": "20260803T154703Z-t362-default-a1-bb51e2680bf2dc05",
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 94,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "rbudgetcheck-after-request",
+        "remaining_point_raw": "313.68",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1785772520256067890,
+      "cumulative_requested_node_min": 13,
+      "external_root_terminal_proven": true,
+      "leg": "t362-default",
+      "legacy_admissible": false,
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T362_ATTEMPT_ID=20260803T154703Z-t362-default-a1-bb51e2680bf2dc05,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=default,T362_RUN_NONCE=20260803T154703Z-t362-default-a1-bb51e2680bf2dc05,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/scheduler/t362-default.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t361-362-probes/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_default.pbs"
+      ],
+      "qsub_returncode": 0,
+      "request_id": "882048.nqsv",
+      "request_ordinal": 2,
+      "requested_node_min": 3,
+      "reserved_before_qsub_time_ns": 1785772023929697785,
+      "selected_as_authoritative": false,
+      "submitted_time_ns": 1785772023932581120,
+      "terminal_migration": {
+        "migration_id": "20260804T125406Z-migration-fac37ac93ab181d9",
+        "raw_revalidation_valid": true,
+        "receipt_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-default/20260803T154703Z-t362-default-a1-bb51e2680bf2dc05/controller/resolutions/20260804T125406Z-migration-fac37ac93ab181d9/terminal-migration.json"
+      }
+    },
+    {
+      "accounting_available": false,
+      "accounting_evidence": false,
+      "accounting_integrity_valid": null,
+      "accounting_unavailable_reason": "permission",
+      "admissible": true,
+      "attempt_id": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+      "attempt_safe": null,
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 45,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "rbudgetcheck-after-request",
+        "remaining_point_raw": "306.37",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1785851763763335380,
+      "cumulative_requested_node_min": 16,
+      "evaluation_model": "split-v2",
+      "external_root_terminal_proven": true,
+      "leg": "t362-mitigation",
+      "observation_valid": true,
+      "probe_cleanup_outcome": "safe",
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T362_ATTEMPT_ID=20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=mitigation,T362_RUN_NONCE=20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/scheduler/t362-mitigation.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/scheduler/t362-mitigation.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_mitigation.pbs"
+      ],
+      "qsub_returncode": 0,
+      "reevaluation": {
+        "evaluator_tool_sha256": "20d4f6353c2d71c1459790ec1f4464cd13f8fec4bd828042ff17a6daa97fe5a2",
+        "receipt_path": "output/insights/2026-08-03_t361-t362-cluster-probes/evidence/20260804T125421Z-5e03df98c93b444e/attempts/t362-mitigation/20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9/reevaluation-receipt.json",
+        "reevaluated_time_ns": 1785859635226187010
+      },
+      "request_id": "887918.nqsv",
+      "request_ordinal": 3,
+      "requested_node_min": 3,
+      "reserved_before_qsub_time_ns": 1785848062101276417,
+      "retry_reason": null,
+      "safety_content_present": true,
+      "selected_as_authoritative": true,
+      "submitted_time_ns": 1785848062104507953,
+      "superseded_evaluation": {
+        "accounting_available": false,
+        "accounting_integrity_valid": false,
+        "admissible": false,
+        "attempt_safe": null,
+        "evaluation_model": "split-v2",
+        "observation_valid": false,
+        "probe_cleanup_outcome": "safe",
+        "termination_cause_consistent": true,
+        "unsafe_reason": null
+      },
+      "termination_cause_consistent": true,
+      "termination_cause_evidence_source": "qwait-receipt+manifest-bound-scheduler-stderr",
+      "unsafe_reason": null
+    },
+    {
+      "accounting_available": false,
+      "accounting_evidence": false,
+      "accounting_integrity_valid": null,
+      "accounting_unavailable_reason": "permission",
+      "admissible": false,
+      "attempt_id": "20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+      "attempt_safe": false,
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 16,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "rbudgetcheck-after-request",
+        "remaining_point_raw": "306.37",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1785851869701066219,
+      "cumulative_requested_node_min": 19,
+      "evaluation_model": "split-v2",
+      "external_root_terminal_proven": true,
+      "leg": "t362-split-warning",
+      "observation_valid": false,
+      "probe_cleanup_outcome": "unsafe",
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T362_ATTEMPT_ID=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T362_MODE=split-warning,T362_RUN_NONCE=20260804T125422Z-t362-split-warning-a1-20ab4380634df583,T362_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/scheduler/t362-split-warning.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t399-t400-signal-mitigation/output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_split_warning.pbs"
+      ],
+      "qsub_returncode": 0,
+      "reevaluation": {
+        "evaluator_tool_sha256": "20d4f6353c2d71c1459790ec1f4464cd13f8fec4bd828042ff17a6daa97fe5a2",
+        "receipt_path": "output/insights/2026-08-03_t361-t362-cluster-probes/evidence/20260804T125421Z-5e03df98c93b444e/attempts/t362-split-warning/20260804T125422Z-t362-split-warning-a1-20ab4380634df583/reevaluation-receipt.json",
+        "reevaluated_time_ns": 1785859635227679395
+      },
+      "request_id": "887919.nqsv",
+      "request_ordinal": 4,
+      "requested_node_min": 3,
+      "reserved_before_qsub_time_ns": 1785848062643174693,
+      "retry_reason": null,
+      "safety_content_present": true,
+      "selected_as_authoritative": false,
+      "submitted_time_ns": 1785848062646709143,
+      "superseded_evaluation": {
+        "accounting_available": false,
+        "accounting_integrity_valid": false,
+        "admissible": false,
+        "attempt_safe": false,
+        "evaluation_model": "split-v2",
+        "observation_valid": false,
+        "probe_cleanup_outcome": "unsafe",
+        "termination_cause_consistent": true,
+        "unsafe_reason": "post_restore_canary_mismatch"
+      },
+      "termination_cause_consistent": false,
+      "termination_cause_evidence_source": "qwait-receipt+manifest-bound-scheduler-stderr",
+      "unsafe_reason": "post_restore_canary_mismatch"
+    },
+    {
+      "accounting_available": false,
+      "accounting_evidence": false,
+      "accounting_integrity_valid": null,
+      "accounting_unavailable_reason": "permission",
+      "admissible": true,
+      "attempt_id": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+      "attempt_safe": null,
+      "budget_after": {
+        "budget_identity_raw": "SFC",
+        "command_sequence": 22,
+        "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+        "purpose": "rbudgetcheck-after-request",
+        "remaining_point_raw": "4372.09",
+        "returncode": 0
+      },
+      "completed": true,
+      "completed_time_ns": 1786812993469843930,
+      "cumulative_requested_node_min": 29,
+      "evaluation_model": "split-v2",
+      "external_root_terminal_proven": true,
+      "flock_one_shot_reserved": true,
+      "leg": "t361-flock",
+      "observation_valid": true,
+      "probe_cleanup_outcome": "unknown",
+      "qsub_argv": [
+        "qsub",
+        "-v",
+        "T361_ATTEMPT_ID=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RECON_ONLY=0,T361_RUN_NONCE=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+      ],
+      "qsub_returncode": 0,
+      "request_id": "912550.nqsv",
+      "request_ordinal": 5,
+      "requested_node_min": 10,
+      "reserved_before_qsub_time_ns": 1786812933452694624,
+      "retry_reason": null,
+      "safety_content_present": false,
+      "selected_as_authoritative": true,
+      "submission_mode": "flock-leg-only",
+      "submission_receipt": {
+        "qsub_returncode": 0,
+        "request_id": "912550.nqsv",
+        "state": "id-bound",
+        "transitions": [
+          {
+            "state": "reserved",
+            "time_ns": 1786812933452694624
+          },
+          {
+            "state": "submit-started",
+            "time_ns": 1786812933456280781
+          },
+          {
+            "state": "submit-returned",
+            "time_ns": 1786812933523746134
+          },
+          {
+            "state": "id-bound",
+            "time_ns": 1786812933527460144
+          }
+        ]
+      },
+      "submitted_time_ns": 1786812933456280781,
+      "termination_cause_consistent": null,
+      "termination_cause_evidence_source": null,
+      "unsafe_reason": null
+    }
+  ],
+  "schema": "izanagi-t361-t362-controller-wave-state/v2",
+  "updated_time_ns": 1786812993469863861
+}

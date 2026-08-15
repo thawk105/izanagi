@@ -1,0 +1,579 @@
+{
+  "accounting_available": false,
+  "accounting_evidence": false,
+  "accounting_integrity_valid": null,
+  "accounting_unavailable_reason": "permission",
+  "accounting_validation": {
+    "commands": {
+      "racctjob": {
+        "accounting_record_fields_present": false,
+        "all_cause_lines_request_bound_by_stream": {
+          "stderr": true,
+          "stdout": true
+        },
+        "available": false,
+        "elapse_field_present": null,
+        "ended_field_present": null,
+        "exact_request_record_count_valid": null,
+        "exclusive_request_ids_valid": null,
+        "expected_matching_records": 2,
+        "expected_request_id": "912550.nqsv",
+        "invalid_request_id_fields": [],
+        "invalid_request_id_fields_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "matching_request_record_count": 0,
+        "observed_normalized_request_ids": [],
+        "observed_normalized_request_ids_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "provenance_bound_text": "",
+        "request_bound_record_lines_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "started_field_present": null,
+        "stderr_cause_request_bound": null,
+        "stream_provenance_valid": null,
+        "unavailable_reason": "permission",
+        "valid": null
+      },
+      "racctreq": {
+        "accounting_record_fields_present": false,
+        "all_cause_lines_request_bound_by_stream": {
+          "stderr": true,
+          "stdout": true
+        },
+        "available": false,
+        "elapse_field_present": null,
+        "ended_field_present": null,
+        "exact_request_record_count_valid": null,
+        "exclusive_request_ids_valid": null,
+        "expected_matching_records": 1,
+        "expected_request_id": "912550.nqsv",
+        "invalid_request_id_fields": [],
+        "invalid_request_id_fields_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "matching_request_record_count": 0,
+        "observed_normalized_request_ids": [],
+        "observed_normalized_request_ids_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "provenance_bound_text": "",
+        "request_bound_record_lines_by_stream": {
+          "stderr": [],
+          "stdout": []
+        },
+        "started_field_present": null,
+        "stderr_cause_request_bound": null,
+        "stream_provenance_valid": null,
+        "unavailable_reason": "permission",
+        "valid": null
+      }
+    },
+    "selected_snapshot": {
+      "available": false,
+      "integrity_valid": null,
+      "source": "controller-later",
+      "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
+      "unavailable_reason": "permission"
+    },
+    "valid": false
+  },
+  "admissible": true,
+  "attempt_id": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+  "attempt_safe": null,
+  "budget_after": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 22,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-request",
+    "remaining_point_raw": "4372.09",
+    "returncode": 0
+  },
+  "budget_before": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-qsub",
+    "remaining_point_raw": "4372.09",
+    "returncode": 0
+  },
+  "budget_delta": {
+    "after_remaining_point_raw": "4372.09",
+    "before_remaining_point_raw": "4372.09",
+    "budget_identity_raw": "SFC",
+    "decrease_point_raw": "0.00",
+    "point_conversion": "UNDETERMINED",
+    "valid": true
+  },
+  "cumulative_requested_node_min": 29,
+  "dangerous": null,
+  "dangerous_note": "controller admissibility is not a safety verdict; raw probe results retain the dangerous/safe observation",
+  "evaluation_model": "split-v2",
+  "external_root_terminal_proof": {
+    "accounting_ended_request_valid": false,
+    "qstat_request_absent": true,
+    "qwait_terminal_receipt_valid": true,
+    "request_id_available": true,
+    "request_not_active_at_controller_stop": true,
+    "saved_nqsv_stderr_accounting": {
+      "errors": [],
+      "expected_request_id": "912550.nqsv",
+      "files": [
+        {
+          "manifest_bound": true,
+          "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.000.stderr.raw",
+          "request_block_count": 1,
+          "sha256": "b9656c3e6a3f31bcb88b2748fbf5ff7654fbf4d5b5482d73032676ebad705c01",
+          "size": 540,
+          "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT"
+        },
+        {
+          "manifest_bound": true,
+          "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.001.stderr.raw",
+          "request_block_count": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT"
+        }
+      ],
+      "matching_ended_request_blocks": [
+        {
+          "ended_request_time_field_raw": "Ended Request Time:     Sun Aug 16 01:55:55 2026",
+          "manifest_bound": true,
+          "normalized_request_id": "912550.nqsv",
+          "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.000.stderr.raw",
+          "remaining_elapse_seconds": 286,
+          "request_block_count": 1,
+          "request_id_field_raw": "Request ID:             912550.nqsv",
+          "scheduler_signal_name": null,
+          "sha256": "b9656c3e6a3f31bcb88b2748fbf5ff7654fbf4d5b5482d73032676ebad705c01",
+          "size": 540,
+          "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
+          "termination_mechanics_fields_complete": false
+        }
+      ],
+      "remaining_elapse_seconds": 286,
+      "scheduler_root": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler",
+      "scheduler_signal_name": null,
+      "termination_cause_classification": "UNKNOWN_NOT_RESOURCE_LIMIT",
+      "termination_cause_evidence_available": false,
+      "termination_cause_evidence_source": null,
+      "termination_mechanics_evidence_available": true,
+      "valid": true
+    },
+    "terminal_evidence_disjunction_valid": true,
+    "termination_evidence_paths": [
+      "1_qwait_raw",
+      "3_manifest_bound_nqsv_stderr_plus_qstat_absence"
+    ],
+    "valid": true
+  },
+  "job_output_manifest": {
+    "errors": [],
+    "expected_job_count_per_stream": 2,
+    "files": [
+      {
+        "original_name": "t361-flock.912550.nqsv.000.o",
+        "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.000.o",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "original_size": 0,
+        "saved_name": "t361-flock.912550.nqsv.000.stdout.raw",
+        "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.000.stdout.raw",
+        "stream": "stdout"
+      },
+      {
+        "original_name": "t361-flock.912550.nqsv.001.o",
+        "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.001.o",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "original_size": 0,
+        "saved_name": "t361-flock.912550.nqsv.001.stdout.raw",
+        "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.001.stdout.raw",
+        "stream": "stdout"
+      },
+      {
+        "original_name": "t361-flock.912550.nqsv.000.e",
+        "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.000.e",
+        "original_sha256": "b9656c3e6a3f31bcb88b2748fbf5ff7654fbf4d5b5482d73032676ebad705c01",
+        "original_size": 540,
+        "saved_name": "t361-flock.912550.nqsv.000.stderr.raw",
+        "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.000.stderr.raw",
+        "stream": "stderr"
+      },
+      {
+        "original_name": "t361-flock.912550.nqsv.001.e",
+        "original_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.001.e",
+        "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "original_size": 0,
+        "saved_name": "t361-flock.912550.nqsv.001.stderr.raw",
+        "saved_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.912550.nqsv.001.stderr.raw",
+        "stream": "stderr"
+      }
+    ],
+    "note": ".o/.e are auxiliary; absence is preserved but is not alone an admissibility failure",
+    "observed_counts": {
+      "stderr": 2,
+      "stdout": 2
+    },
+    "schema": "izanagi-t361-t362-controller/v1",
+    "time_ns": 1786812987769042282
+  },
+  "leg": "t361-flock",
+  "marker_validation": {
+    "errors": [],
+    "execution_host_mapping": {
+      "0": "bnode003",
+      "1": "bnode004"
+    },
+    "execution_hosts_normalized_order": [
+      "bnode003",
+      "bnode004"
+    ],
+    "execution_hosts_raw_order": [
+      "bnode003",
+      "bnode004"
+    ],
+    "marker_host_set": [
+      "bnode003",
+      "bnode004"
+    ],
+    "marker_identities": [
+      {
+        "host": "bnode003",
+        "job_number": 0,
+        "normalized_request_id": "912550.nqsv",
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.58c96e85041b2c5ef238433b9d16f533f0ab1922ce647741.json",
+        "sha256": "7923765bb7772faaf9e00b2bbd96fecf9929f45268bb3895051a8ea8c7eea31f"
+      },
+      {
+        "host": "bnode004",
+        "job_number": 1,
+        "normalized_request_id": "912550.nqsv",
+        "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.5bf78a9f1bae47df43adddcd6fc08a7dba39579842b4ca17.json",
+        "sha256": "c250b162ba97c5acce5a71815ff492648e0ccbf5eacfcfc98ccf0f955343799b"
+      }
+    ],
+    "marker_paths": [
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.58c96e85041b2c5ef238433b9d16f533f0ab1922ce647741.json",
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.5bf78a9f1bae47df43adddcd6fc08a7dba39579842b4ca17.json"
+    ],
+    "one_to_one_job_number_host_binding": true,
+    "target_request_block_count": 2,
+    "valid": true
+  },
+  "monitor": {
+    "active_at_execution_deadline": false,
+    "execution_host_mapping": {
+      "0": "bnode003",
+      "1": "bnode004"
+    },
+    "execution_host_mapping_conflict": false,
+    "execution_hosts_raw_evidence": {
+      "command_sequence": 10,
+      "stdout_path": "raw/00010-lifecycle-qstat-attempt-1.stdout.raw",
+      "stdout_sha256": "ca8cb5caf97d87d341b4b60e7e8fc0da6c721694dd197aa75ce1b27cc765da46"
+    },
+    "execution_hosts_raw_order": [
+      "bnode003",
+      "bnode004"
+    ],
+    "qdel_receipt": null,
+    "qstat_permission_error": false,
+    "qstat_run_seen": false,
+    "qstat_transient_error_seen": false,
+    "qstat_visible": true,
+    "target_request_block_count": 2,
+    "terminal_reason": "VISIBLE_REQUEST_DISAPPEARED"
+  },
+  "observation_valid": true,
+  "observer_validation": null,
+  "probe_cleanup_outcome": "unknown",
+  "probe_result_validation": {
+    "authority_receipt": {
+      "A_observation_and_terminal": true,
+      "B_all_raw_outcomes_blocked": true,
+      "E_localflock_absent": true,
+      "H_execution_host_binding": true,
+      "S_probe_self_checks": true,
+      "external_root_terminal_proven": true,
+      "observation_valid": true
+    },
+    "errors": [],
+    "filesystem_results_raw": {
+      "home": {
+        "controller_all_six_outcomes_blocked": true,
+        "controller_raw_outcomes_complete": true,
+        "dangerous": false,
+        "execution_host_validation": "VALIDATED_BY_SINGLE_AUTHORITY_RECEIPT",
+        "filesystem": "home",
+        "localflock_absent_on_both_bnodes": true,
+        "producer_observed_verdict": "BLOCKED_EXPECTED",
+        "producer_verdict_matches_controller_derivation": true,
+        "raw_attempt_outcomes": [
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED"
+        ],
+        "source_provisional_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+        "valid_for_safety_conclusion": true,
+        "verdict": "BLOCKED_EXPECTED"
+      },
+      "work": {
+        "controller_all_six_outcomes_blocked": true,
+        "controller_raw_outcomes_complete": true,
+        "dangerous": false,
+        "execution_host_validation": "VALIDATED_BY_SINGLE_AUTHORITY_RECEIPT",
+        "filesystem": "work",
+        "localflock_absent_on_both_bnodes": true,
+        "producer_observed_verdict": "BLOCKED_EXPECTED",
+        "producer_verdict_matches_controller_derivation": true,
+        "raw_attempt_outcomes": [
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED",
+          "BLOCKED"
+        ],
+        "source_provisional_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+        "valid_for_safety_conclusion": true,
+        "verdict": "BLOCKED_EXPECTED"
+      }
+    },
+    "finalized_result_raw": {
+      "attempt_id": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+      "authority_components": {
+        "B_all_raw_outcomes_blocked": true,
+        "E_localflock_absent": true,
+        "H_execution_host_binding": true,
+        "S_probe_self_checks": true
+      },
+      "authority_receipt": {
+        "A_observation_and_terminal": true,
+        "B_all_raw_outcomes_blocked": true,
+        "E_localflock_absent": true,
+        "H_execution_host_binding": true,
+        "S_probe_self_checks": true,
+        "external_root_terminal_proven": true,
+        "observation_valid": true
+      },
+      "dangerous": false,
+      "errors": [],
+      "execution_host_validation": {
+        "errors": [],
+        "execution_host_mapping": {
+          "0": "bnode003",
+          "1": "bnode004"
+        },
+        "execution_hosts_normalized_order": [
+          "bnode003",
+          "bnode004"
+        ],
+        "execution_hosts_raw_order": [
+          "bnode003",
+          "bnode004"
+        ],
+        "marker_host_set": [
+          "bnode003",
+          "bnode004"
+        ],
+        "marker_identities": [
+          {
+            "host": "bnode003",
+            "job_number": 0,
+            "normalized_request_id": "912550.nqsv",
+            "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.58c96e85041b2c5ef238433b9d16f533f0ab1922ce647741.json",
+            "sha256": "7923765bb7772faaf9e00b2bbd96fecf9929f45268bb3895051a8ea8c7eea31f"
+          },
+          {
+            "host": "bnode004",
+            "job_number": 1,
+            "normalized_request_id": "912550.nqsv",
+            "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.5bf78a9f1bae47df43adddcd6fc08a7dba39579842b4ca17.json",
+            "sha256": "c250b162ba97c5acce5a71815ff492648e0ccbf5eacfcfc98ccf0f955343799b"
+          }
+        ],
+        "marker_paths": [
+          "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.58c96e85041b2c5ef238433b9d16f533f0ab1922ce647741.json",
+          "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/recon/job-markers/marker.5bf78a9f1bae47df43adddcd6fc08a7dba39579842b4ca17.json"
+        ],
+        "one_to_one_job_number_host_binding": true,
+        "target_request_block_count": 2,
+        "valid": true
+      },
+      "filesystem_results": {
+        "home": {
+          "controller_all_six_outcomes_blocked": true,
+          "controller_raw_outcomes_complete": true,
+          "dangerous": false,
+          "execution_host_validation": "VALIDATED_BY_SINGLE_AUTHORITY_RECEIPT",
+          "filesystem": "home",
+          "localflock_absent_on_both_bnodes": true,
+          "producer_observed_verdict": "BLOCKED_EXPECTED",
+          "producer_verdict_matches_controller_derivation": true,
+          "raw_attempt_outcomes": [
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED"
+          ],
+          "source_provisional_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+          "valid_for_safety_conclusion": true,
+          "verdict": "BLOCKED_EXPECTED"
+        },
+        "work": {
+          "controller_all_six_outcomes_blocked": true,
+          "controller_raw_outcomes_complete": true,
+          "dangerous": false,
+          "execution_host_validation": "VALIDATED_BY_SINGLE_AUTHORITY_RECEIPT",
+          "filesystem": "work",
+          "localflock_absent_on_both_bnodes": true,
+          "producer_observed_verdict": "BLOCKED_EXPECTED",
+          "producer_verdict_matches_controller_derivation": true,
+          "raw_attempt_outcomes": [
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED",
+            "BLOCKED"
+          ],
+          "source_provisional_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+          "valid_for_safety_conclusion": true,
+          "verdict": "BLOCKED_EXPECTED"
+        }
+      },
+      "overall_verdict": "BLOCKED_EXPECTED",
+      "result_state": "FINAL",
+      "schema": "izanagi-t361-flock-controller-final/v1",
+      "source_probe_result_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/flock-result.json",
+      "source_probe_result_sha256": "2c29a7e05ac5edca9c47a66d4b2c2640f38db20ae1597fb2e46494dd673dcc4e",
+      "time_ns": 1786812988218305161,
+      "valid_for_safety_conclusion": true
+    },
+    "overall_verdict_raw": "BLOCKED_EXPECTED",
+    "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/controller/t361-finalized-result.json",
+    "sha256": "798f326ab17de380d17174382f0f633cdc9f82735797f2c906f085fdcd2b7aff",
+    "valid": true
+  },
+  "qsub_argv": [
+    "qsub",
+    "-v",
+    "T361_ATTEMPT_ID=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RECON_ONLY=0,T361_RUN_NONCE=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "-o",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.o",
+    "-e",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.e",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+  ],
+  "qsub_receipt": {
+    "argv": [
+      "qsub",
+      "-v",
+      "T361_ATTEMPT_ID=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RECON_ONLY=0,T361_RUN_NONCE=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+      "-o",
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.o",
+      "-e",
+      "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.e",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+    ],
+    "duration_ns": 62438561,
+    "error_type": null,
+    "purpose": "qsub",
+    "returncode": 0,
+    "schema": "izanagi-t361-t362-controller/v1",
+    "sequence": 2,
+    "started_time_ns": 1786812933459983192,
+    "stderr_path": "raw/00002-qsub.stderr.raw",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "raw/00002-qsub.stdout.raw",
+    "stdout_sha256": "2ea2afc37e33d7bc9f7ab138e1dbd05fd28124dff0432dea1416c9b1c95d36f3",
+    "terminated_by_controller": false,
+    "timed_out": false
+  },
+  "qwait_validation": {
+    "expected_outcome": "normal",
+    "natural_receipt_valid": true,
+    "request_id_binding_valid": true,
+    "requirement": "T-361 requires normal request completion",
+    "returncode_raw": 0,
+    "valid": true
+  },
+  "request_id": "912550.nqsv",
+  "request_ordinal": 5,
+  "requested_node_min": 10,
+  "retry_reason": null,
+  "safety_content_present": false,
+  "saved_preflight_validation": {
+    "errors": [],
+    "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/controller/preflight.json",
+    "sha256": "ddee070a6b780cbfa7a305d96a35bd7fde798f37643d78714aabb876aec9779a",
+    "source_commit": "b8a0e226e1eea84238ef23ff9ad9110f969c03a7",
+    "valid": true
+  },
+  "saved_qsub_validation": {
+    "errors": [],
+    "receipt": {
+      "argv": [
+        "qsub",
+        "-v",
+        "T361_ATTEMPT_ID=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RECON_ONLY=0,T361_RUN_NONCE=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+        "-o",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.o",
+        "-e",
+        "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.e",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+      ],
+      "commands_path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/controller/commands.jsonl",
+      "duration_ns": 62438561,
+      "error_type": null,
+      "purpose": "qsub",
+      "returncode": 0,
+      "schema": "izanagi-t361-t362-controller/v1",
+      "sequence": 2,
+      "started_time_ns": 1786812933459983192,
+      "stderr_path": "raw/00002-qsub.stderr.raw",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_path": "raw/00002-qsub.stdout.raw",
+      "stdout_sha256": "2ea2afc37e33d7bc9f7ab138e1dbd05fd28124dff0432dea1416c9b1c95d36f3",
+      "terminated_by_controller": false,
+      "timed_out": false
+    },
+    "valid": true
+  },
+  "schema": "izanagi-t361-t362-controller-attempt/v2",
+  "session_id": "20260815T165532Z-203e1b799097dbd0",
+  "termination_cause_consistent": null,
+  "termination_cause_evidence_source": null,
+  "time_ns": 1786812988222691621,
+  "unsafe_reason": null,
+  "validity_conjunction": {
+    "accounting_valid": false,
+    "compute_marker_valid": true,
+    "execution_host_binding_valid": true,
+    "job_output_collection_error_free": true,
+    "preflight_valid": true,
+    "probe_result_self_checks_valid": true,
+    "qstat_no_permission_error": true,
+    "qstat_no_transient_error": true,
+    "qstat_visible": true,
+    "qsub_rc_zero": true,
+    "qsub_receipt_valid": true,
+    "qwait_valid": true,
+    "rbudgetcheck_after_rc_zero": true,
+    "rbudgetcheck_before_rc_zero": true,
+    "request_id_parsed": true,
+    "request_not_active_at_deadline": true
+  }
+}

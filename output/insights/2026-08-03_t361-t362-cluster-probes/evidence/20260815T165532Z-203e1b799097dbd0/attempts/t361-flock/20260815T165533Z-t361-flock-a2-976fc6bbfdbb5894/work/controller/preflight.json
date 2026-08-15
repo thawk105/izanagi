@@ -1,0 +1,152 @@
+{
+  "attempt_id": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+  "canonical_byte_comparison": {
+    "candidates": [
+      "python3.10",
+      "/usr/bin/python3.10",
+      "/bin/python3.10"
+    ],
+    "canonical_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/tools/pegasus/dispatch_compute.py",
+    "canonical_sha256": "f43fdad788fc3acfe46234e3892f3bd4401686c38bc5297feb7a9b1b885bb400",
+    "canonical_template_sha256": "4146275a4dfff31e3d041007b0acc97f6307238c2c44dba378b24a6da019118b",
+    "files": {
+      "flock_cross_node.pbs": {
+        "file_sha256": "a91f4b660cd093581b00e25ece93a863355b1797f72f7f09f452914743bc72c3",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      },
+      "signal_job_body.sh": {
+        "file_sha256": "7d006d6fb453fc62d26628144c60b9109b36ca33ee9bbd160ce75fb2ca8d89ce",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      },
+      "signal_walltime_default.pbs": {
+        "file_sha256": "9f23b0e4ec3d0805cfad84b30f61f854b215fa63c1eac6178c58f843804e8b83",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      },
+      "signal_walltime_mitigation.pbs": {
+        "file_sha256": "48a90e28b9f016f647557f462617132d0659fe981436072a59363cba90f73e40",
+        "interpreter_loop_exact_byte_matches": 1,
+        "path_line_exact_byte_matches": 1
+      }
+    },
+    "path_line_sha256": "263bc1bad3492bd10009e18e4969fe86862153dc56413227cbc186be206fc7f1",
+    "rendered_interpreter_loop_sha256": "da4efe902cfcc7c6947ef21f5301123d807ed5c9386c120af0792e7c60f7a75e"
+  },
+  "command_paths": {
+    "git": "/usr/bin/git",
+    "qdel": "/opt/nec/nqsv/bin/qdel",
+    "qstat": "/opt/nec/nqsv/bin/qstat",
+    "qsub": "/system/tool/bin/qsub",
+    "qwait": "/opt/nec/nqsv/bin/qwait",
+    "racctjob": "/opt/nec/nqsv/bin/racctjob",
+    "racctreq": "/opt/nec/nqsv/bin/racctreq",
+    "rbudgetcheck": "/opt/nec/nqsv/bin/rbudgetcheck"
+  },
+  "driver_files_tracked": [
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_interpreter_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_interpreter_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_job_body.sh",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_observer.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_probe.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_default.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_mitigation.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/signal_walltime_split_warning.pbs",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py",
+    "output/insights/2026-08-03_t361-t362-cluster-probes/driver/README.md"
+  ],
+  "driver_hashes": {
+    "README.md": {
+      "sha256": "955721b2fe12c2b6601362f1be93ce0786306aa48fd7eff2bcd23b60017232f2",
+      "size": 15807
+    },
+    "flock_cross_node.pbs": {
+      "sha256": "a91f4b660cd093581b00e25ece93a863355b1797f72f7f09f452914743bc72c3",
+      "size": 1528
+    },
+    "flock_interpreter_probe.py": {
+      "sha256": "f780b55ddd529b5e5c927222ab2777da4a0098c94f9a0b35a32950b5d8c73ae5",
+      "size": 179
+    },
+    "flock_probe.py": {
+      "sha256": "f3697497faf2f5bd455acd917ef83131728d0791cef1547b8b0bef1e66636dce",
+      "size": 80428
+    },
+    "run_probes.py": {
+      "sha256": "9efa01589fe5c915b7e3db38aadc9b742387d373a4ab00540cfa9cfb53803df0",
+      "size": 282968
+    },
+    "signal_interpreter_probe.py": {
+      "sha256": "a08f87a24cddb4e42af747aef401756185e95cd5a92d726a966df16eb7af693e",
+      "size": 213
+    },
+    "signal_job_body.sh": {
+      "sha256": "7d006d6fb453fc62d26628144c60b9109b36ca33ee9bbd160ce75fb2ca8d89ce",
+      "size": 3521
+    },
+    "signal_observer.py": {
+      "sha256": "fca5d3227d76c620950d79aa65a840af03354f45de2a7850742f011ee5ac8bdb",
+      "size": 77963
+    },
+    "signal_probe.py": {
+      "sha256": "938048b832056e615d8c764ecbdd5bf8f3b17e97686aab8bbd378338bd13c81c",
+      "size": 30251
+    },
+    "signal_walltime_default.pbs": {
+      "sha256": "9f23b0e4ec3d0805cfad84b30f61f854b215fa63c1eac6178c58f843804e8b83",
+      "size": 1389
+    },
+    "signal_walltime_mitigation.pbs": {
+      "sha256": "48a90e28b9f016f647557f462617132d0659fe981436072a59363cba90f73e40",
+      "size": 1473
+    },
+    "signal_walltime_split_warning.pbs": {
+      "sha256": "ffa7b3fa1a21cf245c2cf0240aff6645e2ce236a65ad63e360267dd21b894e75",
+      "size": 1005
+    }
+  },
+  "leg": "t361-flock",
+  "path_env_raw": "/home/SFC/tanab/.local/bin:/work/SFC/tanab/scripts:/home/SFC/tanab/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/local/bin:/system/tool/bin:/opt/nec/nqsv/bin",
+  "paths": {
+    "driver_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver",
+    "home_attempt_root": "/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost",
+    "stderr_template": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.e",
+    "stdout_template": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.o",
+    "work_attempt_root": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894"
+  },
+  "qsub_argv": [
+    "qsub",
+    "-v",
+    "T361_ATTEMPT_ID=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_DRIVER_ROOT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver,T361_HOME_ROOT=/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RECON_ONLY=0,T361_RUN_NONCE=20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894,T361_RUN_ROOT=/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "-o",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.o",
+    "-e",
+    "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/scheduler/t361-flock.%r.%03j.e",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver/flock_cross_node.pbs"
+  ],
+  "qsub_environment": {
+    "T361_ATTEMPT_ID": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "T361_DRIVER_ROOT": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t402-flock-exechost/output/insights/2026-08-03_t361-t362-cluster-probes/driver",
+    "T361_HOME_ROOT": "/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "T361_RECON_ONLY": "0",
+    "T361_RUN_NONCE": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "T361_RUN_ROOT": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894"
+  },
+  "read_write_probes": {
+    "home": {
+      "path": "/home/SFC/tanab/.izanagi-t361/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/home-read-write.probe.raw",
+      "sha256": "5c20f478e3e0e0cf0caf63a5b76990055cd7a7218bba367c8306140e24a23dd6"
+    },
+    "work": {
+      "path": "/work/1/SFC/tanab/izanagi-jobs/3a7f810a/probe-runs/t361-flock/20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894/controller/work-read-write.probe.raw",
+      "sha256": "ba497b2b8136d389eaca66cdb0a32724fb88d6133291b10c1f87a0a456303f94"
+    }
+  },
+  "schema": "izanagi-t361-t362-controller-preflight/v1",
+  "source_commit": "b8a0e226e1eea84238ef23ff9ad9110f969c03a7",
+  "time_ns": 1786812933184710805
+}
