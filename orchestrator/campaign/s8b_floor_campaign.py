@@ -4156,17 +4156,27 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  host_provenance_fn=None, process_identity_fn=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
                  after_certificate_issued_fn=None,
-                 durable_root_policy=None, perf_preflight_fn=None) -> dict:
-    """Production wrapper with no effect-capable measurement seams."""
+                 durable_root_policy=None, perf_preflight_fn=None,
+                 confirm_irreversible_pilot_holdout=False) -> dict:
+    """Production wrapper with no caller-provided callable seams."""
     mode = _validate_mode(mode)
-    effectful = sorted(name for name, present in {
+    callable_seams = sorted(name for name, present in {
         "measure_fn": measure_fn is not None,
         "probe_fn": probe_fn is not None,
+        "sleep_fn": sleep_fn is not time.sleep,
+        "monotonic_fn": monotonic_fn is not time.monotonic,
+        "prepare_fn": prepare_fn is not None,
+        "now_fn": now_fn is not None,
+        "host_provenance_fn": host_provenance_fn is not None,
+        "process_identity_fn": process_identity_fn is not None,
+        "execution_receipt_fn": execution_receipt_fn is not None,
+        "build_fn": build_fn is not None,
+        "after_certificate_issued_fn": after_certificate_issued_fn is not None,
         "perf_preflight_fn": perf_preflight_fn is not None,
     }.items() if present)
-    if effectful:
+    if callable_seams:
         raise FloorCampaignError(
-            f"production mode への副作用可能 seam 注入を拒否する: {effectful}"
+            f"production mode への caller callable seam 注入を拒否する: {callable_seams}"
         )
     if mode == "official":
         injected = {
@@ -4200,6 +4210,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
+        confirm_irreversible_pilot_holdout=confirm_irreversible_pilot_holdout,
     )
 
 
@@ -4211,8 +4222,8 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        after_certificate_issued_fn=None,
                        durable_root_policy=None, _floor_preflight_fn=None,
                        perf_preflight_fn=None, _holdout_repo_root=None,
-                       _holdout_reserve_fn=None, _holdout_finalize_fn=None,
-                       _holdout_assert_fn=None, _attempt_consume_fn=None) -> dict:
+                       _holdout_signature_source=None,
+                       confirm_irreversible_pilot_holdout=False) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
@@ -4220,9 +4231,25 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。
 
     public wrapper を通らない staged builder/test 専用 core。official permit gate と materializer
-    固定はこの core 自体が行い、wrapper 迂回時にも admission-aware gateway を外せない。
+    固定はこの core 自体が行う。holdout gate の関数注入点は持たない。場所を変える
+    ``_holdout_repo_root`` と合成 freeze の中立表だけを解決する
+    ``_holdout_signature_source`` のどちらでも、claim・ledger・ticket・authority・identity の
+    全検査を実行する。
+
+    Cell claim は全ての非計測 preflight と manifest sealing の後、``runner.run()`` の直前に
+    取得する。それ以前に保護比率を実測しようとしても、最下層 ``run_once`` gateway が
+    attempt token 無しで拒否するため、claim を遅らせても未記録観測の穴は開かない。
     """
     mode = _validate_mode(mode)
+    if type(confirm_irreversible_pilot_holdout) is not bool:
+        raise FloorCampaignError(
+            "confirm_irreversible_pilot_holdout が exact bool でない"
+        )
+    if mode == "pilot" and not confirm_irreversible_pilot_holdout:
+        raise FloorCampaignError(
+            "pilot holdout は将来の official と共有する一回性 key を不可逆消費するため、"
+            "明示承認が必要"
+        )
     if mode == "official" and perf_preflight_fn is not None:
         raise FloorCampaignError(
             "official mode への非 default seam 注入を拒否する: ['perf_preflight_fn']"
@@ -4237,6 +4264,13 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         build_fn = build_fn or buildcache.build_v2
     _assert_official_permitted(mode)
 
+    out_root = Path(out_root)
+    try:
+        output_write_capability = authorize_output_root(
+            str(out_root), policy=durable_root_policy,
+        )
+    except DurableRootError as exc:
+        raise FloorCampaignError(f"durable output root preflight 失敗: {exc}") from exc
     if not isinstance(freeze_doc, _freeze_io.VerifiedFreeze):
         raise FloorCampaignError("freeze_doc が load_verified_freeze の戻り値でない")
     now_fn = now_fn or (lambda: dt.datetime.now(dt.timezone.utc))
@@ -4276,7 +4310,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         n_sessions=protocol["n_sessions"],
     )
     protocol_sha256 = _canonical_sha256(protocol)
-    out_root = Path(out_root)
     started_at = now_fn() if resume_dir is None else None
     campaign_run_id = (
         _fresh_run_id(protocol_sha256, started_at)
@@ -4288,8 +4321,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             / f"s8b-floor-{mode}" / campaign_run_id
         ).as_posix()
         early_resume_records = None
-        journal_exists = False
-        measurement_started = False
     else:
         early_run_dir = Path(resume_dir)
         try:
@@ -4299,28 +4330,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         except ValueError as exc:
             raise FloorCampaignError("resume run_dir が out_root 配下でない") from exc
         early_journal_path = early_run_dir / "journal.jsonl"
-        journal_exists = early_journal_path.is_file()
         early_resume_records = _read_journal(early_journal_path)
-        measurement_started = any(
-            record.get("event") in {"session-start", "session"}
-            for record in early_resume_records
-        )
-    reserve_fn = (
-        _holdout_admission.reserve_floor_holdout_observations
-        if _holdout_reserve_fn is None else _holdout_reserve_fn
-    )
-    try:
-        holdout_reservation = reserve_fn(
-            repo_root=holdout_repo_root, protocol=protocol,
-            verified_freeze_document=freeze, freeze_sha256=freeze_sha256,
-            cells=admission_cells, schedule=schedule, campaign_run_id=campaign_run_id,
-            run_relpath=run_relpath, mode=mode, resume=resume_dir is not None,
-            journal_exists=journal_exists,
-            measurement_started=measurement_started,
-        )
-    except _holdout_admission.HoldoutAdmissionError as exc:
-        raise FloorCampaignError(f"holdout admission reservation failed: {exc}") from exc
-
     # current admission が解決した同一 contract object を calibration・receipt・
     # materialization の全 edge へ渡す。歴史検証済み dict を実行権限にしない。
     # 全 env で calibration bytes を hash 束縛してから mode を dispatch する。required は
@@ -4379,12 +4389,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         except reservation.ReservationError as exc:
             raise FloorCampaignError(f"reservation preflight 失敗: {exc}") from exc
 
-    try:
-        output_write_capability = authorize_output_root(
-            str(out_root), policy=durable_root_policy,
-        )
-    except DurableRootError as exc:
-        raise FloorCampaignError(f"durable output root preflight 失敗: {exc}") from exc
     launch_certificate_sha256 = None
     resume_records = early_resume_records
     resume_state = None
@@ -4656,17 +4660,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             journal_path, resume_records, write_capability=run_write_capability,
         )
 
-    finalize_admissions = (
-        _holdout_admission.finalize_floor_holdout_admissions
-        if _holdout_finalize_fn is None else _holdout_finalize_fn
-    )
-    try:
-        holdout_admissions = finalize_admissions(
-            holdout_reservation, manifest_sha256=manifest_sha256,
-        )
-    except _holdout_admission.HoldoutAdmissionError as exc:
-        raise FloorCampaignError(f"holdout admission issuance failed: {exc}") from exc
-
     if resume_state == "M-finalize-pending":
         result = assemble_result(
             protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
@@ -4723,22 +4716,46 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 **admission_kw,
             )
 
-    measure_attempt_fn = _wrap_admission_aware_measure(
-        measure_fn, admissions=holdout_admissions, cell_by_id=cell_by_id,
-        binaries=runtime_built, protocol=protocol,
-        freeze_sha256=freeze_sha256, protocol_sha256=protocol_sha256,
-        manifest_sha256=manifest_sha256,
-        assert_admission_fn=_holdout_assert_fn,
-        consume_ticket_fn=_attempt_consume_fn,
-        pass_observation_to_internal_measure=default_measure,
-    )
-
     # floor 実走へ入る最後の artifact gate。current policy に加え、実行中 protocol の
     # ccbench pin と env contract を外部 authority として全 cell へ再束縛する。
     artifact_built = _validate_portable_built(
         artifact_built, expected_ccbench_pin=protocol["ccbench_pin"],
         expected_contract_sha256=contract.contract_sha256,
     )
+
+    # Cell claims are intentionally the final durable pre-measurement action.
+    # Environment, reservation, clean-scan, perf, output, build, and manifest
+    # preflights have completed.  The session competition probe remains inside
+    # runner.run(), after this claim.  Production rejects caller callables.
+    try:
+        holdout_reservation = (
+            _holdout_admission._reserve_floor_holdout_observations_core(
+                repo_root=holdout_repo_root, protocol=protocol,
+                verified_freeze_document=freeze, freeze_sha256=freeze_sha256,
+                cells=admission_cells, schedule=schedule,
+                campaign_run_id=campaign_run_id, out_root=out_root,
+                run_dir=run_dir, run_relpath=run_relpath, mode=mode,
+                resume=resume_dir is not None,
+                irreversible_pilot_approved=confirm_irreversible_pilot_holdout,
+                _neutral_holdouts=_holdout_signature_source,
+            )
+        )
+        holdout_admissions = (
+            _holdout_admission.finalize_floor_holdout_admissions(
+                holdout_reservation,
+            )
+        )
+    except _holdout_admission.HoldoutAdmissionError as exc:
+        raise FloorCampaignError(f"holdout admission reservation failed: {exc}") from exc
+
+    measure_attempt_fn = _wrap_admission_aware_measure(
+        measure_fn, admissions=holdout_admissions, cell_by_id=cell_by_id,
+        binaries=runtime_built, protocol=protocol,
+        freeze_sha256=freeze_sha256, protocol_sha256=protocol_sha256,
+        manifest_sha256=manifest_sha256,
+        pass_observation_to_internal_measure=default_measure,
+    )
+
     runner = _Runner(
         protocol=protocol, contract=contract, cells=cells, cell_by_id=cell_by_id,
         binaries=runtime_built,
@@ -4755,7 +4772,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         reservation_check=reservation_check,
         write_capability=run_write_capability,
         perf_preflight=perf_preflight_receipt, mode=mode,
-        holdout_assert_fn=_holdout_assert_fn,
     )
 
     try:
@@ -5159,6 +5175,10 @@ def _parser() -> argparse.ArgumentParser:
                         help="floor protocol JSON (s8b-floor-protocol/v2)")
     parser.add_argument("--resume", type=Path, default=None,
                         help="既存 run_dir を forward-only で続行する")
+    parser.add_argument(
+        "--confirm-irreversible-pilot-holdout", action="store_true",
+        help="pilot が将来の official と共有する一回性 key を不可逆消費することを承認する",
+    )
     return parser
 
 
@@ -5298,26 +5318,27 @@ def main(argv=None) -> int:
         }, ensure_ascii=False))
         return 2
 
-    canonical_protocol_path = (ROOT / _FLOOR_PROTOCOL_REL).absolute()
     supplied_protocol_path = (
         args.protocol if args.protocol.is_absolute() else Path.cwd() / args.protocol
     ).absolute()
-    if supplied_protocol_path != canonical_protocol_path:
-        print(json.dumps({
-            "status": "error",
-            "error": "FloorCampaignError: --protocol は canonical floor protocol path 固定",
-        }, ensure_ascii=False))
-        return 1
 
     try:
-        raw_protocol = load_protocol(canonical_protocol_path)
-        protocol = validate_protocol(raw_protocol)
+        raw_protocol = load_protocol(supplied_protocol_path)
+        try:
+            protocol = validate_protocol(raw_protocol)
+        except FloorCampaignError as exc:
+            raise FloorCampaignError(
+                f"canonical protocol validation failed: {exc}"
+            ) from exc
         freeze_path = _resolve_freeze_path(protocol["freeze"]["path"])
         verified = _load_verified_freeze(freeze_path, expected_hash=protocol["freeze"]["sha256"])
         out_root = Path(repo_output_root())
         outcome = run_campaign(
             protocol, verified, out_root=out_root, mode=args.mode,
             resume_dir=args.resume,
+            confirm_irreversible_pilot_holdout=(
+                args.confirm_irreversible_pilot_holdout
+            ),
         )
     except SortSwoOracleUnavailable as exc:
         return _emit_sort_swo_unavailable(exc)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from concurrent.futures import ProcessPoolExecutor
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import subprocess
@@ -12,6 +13,7 @@ import pytest
 from orchestrator.campaign import s8b_floor_campaign
 from orchestrator.campaign import s8b_floor_contract
 from orchestrator.campaign import s8b_holdout_admission as admission
+from orchestrator.calibrator import runner as calibrator_runner
 from orchestrator.holdout_observation import assert_issued_holdout_observation
 
 
@@ -60,6 +62,7 @@ def _fixture_documents(master_seed: str = "seed-a") -> tuple[dict, dict]:
         },
         "master_seed": master_seed,
         "n_sessions": 8,
+        "reps": 5,
         "retry_slots_per_cell": 2,
         "stock_configuration": "stock_common",
     }
@@ -116,17 +119,37 @@ def _cells_and_schedule(protocol: dict, freeze: dict) -> tuple[list[dict], list[
 
 def _reserve(
         root: Path, protocol: dict, freeze: dict, *, run_id: str,
-        resume: bool = False, journal_exists: bool = False,
-        measurement_started: bool = False):
+        resume: bool = False, journal_exists: bool = False):
     cells, schedule = _cells_and_schedule(protocol, freeze)
+    out_root = root / "out"
+    run_relpath = f"env/fixture-env/calibration/s8b-floor-pilot/{run_id}"
+    run_dir = out_root / run_relpath
+    run_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        manifest_path.write_text(json.dumps({
+            "schema_version": "s8b-floor-manifest/v2",
+            "protocol_sha256": hashlib.sha256(_canonical(protocol)).hexdigest(),
+            "freeze_sha256": protocol["freeze"]["sha256"],
+            "reps": protocol["reps"],
+        }, sort_keys=True) + "\n", encoding="utf-8")
+    if journal_exists:
+        manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        journal = run_dir / "journal.jsonl"
+        if not journal.exists():
+            journal.write_text(json.dumps({
+                "event": "campaign-start",
+                "protocol_sha256": hashlib.sha256(_canonical(protocol)).hexdigest(),
+                "freeze_sha256": protocol["freeze"]["sha256"],
+                "manifest_sha256": manifest_sha256,
+            }, sort_keys=True) + "\n", encoding="utf-8")
     return admission.reserve_floor_holdout_observations(
         repo_root=root, protocol=protocol,
         verified_freeze_document=freeze,
         freeze_sha256=protocol["freeze"]["sha256"],
         cells=cells, schedule=schedule, campaign_run_id=run_id,
-        run_relpath=f"env/fixture-env/calibration/s8b-floor-pilot/{run_id}",
-        mode="pilot", resume=resume, journal_exists=journal_exists,
-        measurement_started=measurement_started,
+        out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
+        mode="pilot", resume=resume, irreversible_pilot_approved=True,
     )
 
 
@@ -171,9 +194,7 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
     cells, _schedule = _cells_and_schedule(protocol, freeze)
     reservation = _reserve(root, protocol, freeze, run_id="run-a")
-    admitted = admission.finalize_floor_holdout_admissions(
-        reservation, manifest_sha256="a" * 64,
-    )
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
 
     ledger_path = admission.shared_admission_root(root) / "ledger.jsonl"
     rows = [json.loads(line) for line in ledger_path.read_text().splitlines()]
@@ -196,7 +217,34 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
         assert "manifest_sha256" in row
         assert "holdout_id" not in row
         assert effect_key <= row.keys()
+        assert row["irreversible_pilot_approved"] is True
     assert "confirm_user_freeze" not in protocol
+
+
+def test_pilot_claim_requires_irreversible_approval_before_claim(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    cells, schedule = _cells_and_schedule(protocol, freeze)
+    out_root = root / "out"
+    run_id = "run-a"
+    run_relpath = f"env/fixture-env/calibration/s8b-floor-pilot/{run_id}"
+    run_dir = out_root / run_relpath
+    run_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(json.dumps({
+        "protocol_sha256": hashlib.sha256(_canonical(protocol)).hexdigest(),
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "reps": protocol["reps"],
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
+        admission.reserve_floor_holdout_observations(
+            repo_root=root, protocol=protocol,
+            verified_freeze_document=freeze,
+            freeze_sha256=protocol["freeze"]["sha256"],
+            cells=cells, schedule=schedule, campaign_run_id=run_id,
+            out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
+            mode="pilot", resume=False, irreversible_pilot_approved=False,
+        )
+    shared = admission.shared_admission_root(root)
+    assert not shared.exists()
 
 
 def test_protocol_master_seed_change_does_not_reset_cell_key(tmp_path):
@@ -216,7 +264,7 @@ def test_protocol_master_seed_change_does_not_reset_cell_key(tmp_path):
 def test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal(tmp_path):
     root, protocol, freeze = _init_repo(tmp_path)
     first = _reserve(root, protocol, freeze, run_id="run-a")
-    admission.finalize_floor_holdout_admissions(first, manifest_sha256="a" * 64)
+    admission.finalize_floor_holdout_admissions(first)
     ledger = admission.shared_admission_root(root) / "ledger.jsonl"
     before = ledger.read_bytes()
 
@@ -226,15 +274,57 @@ def test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal
     resumed = _reserve(
         root, protocol, freeze, run_id="run-a", resume=True, journal_exists=True,
     )
-    admission.finalize_floor_holdout_admissions(resumed, manifest_sha256="a" * 64)
+    admission.finalize_floor_holdout_admissions(resumed)
     assert ledger.read_bytes() == before
 
+    manifest_path = (
+        root / "out/env/fixture-env/calibration/s8b-floor-pilot/run-a/manifest.json"
+    )
+    changed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    changed_manifest["evidence_only_change"] = True
+    manifest_path.write_text(
+        json.dumps(changed_manifest, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    journal_path = manifest_path.with_name("journal.jsonl")
+    journal_row = json.loads(journal_path.read_text(encoding="utf-8"))
+    journal_row["manifest_sha256"] = hashlib.sha256(
+        manifest_path.read_bytes()
+    ).hexdigest()
+    journal_path.write_text(
+        json.dumps(journal_row, sort_keys=True) + "\n", encoding="utf-8"
+    )
     mismatched = _reserve(
         root, protocol, freeze, run_id="run-a", resume=True, journal_exists=True,
     )
     with pytest.raises(admission.HoldoutAdmissionError, match="same run identity"):
-        admission.finalize_floor_holdout_admissions(
-            mismatched, manifest_sha256="b" * 64,
+        admission.finalize_floor_holdout_admissions(mismatched)
+
+
+def test_resume_api_has_no_caller_journal_or_manifest_self_report():
+    reserve_parameters = inspect.signature(
+        admission.reserve_floor_holdout_observations
+    ).parameters
+    finalize_parameters = inspect.signature(
+        admission.finalize_floor_holdout_admissions
+    ).parameters
+    assert "journal_exists" not in reserve_parameters
+    assert "measurement_started" not in reserve_parameters
+    assert "manifest_sha256" not in finalize_parameters
+
+
+def test_resume_rejects_actual_terminal_journal(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    first = _reserve(root, protocol, freeze, run_id="run-a")
+    admission.finalize_floor_holdout_admissions(first)
+    run_dir = root / "out/env/fixture-env/calibration/s8b-floor-pilot/run-a"
+    (run_dir / "journal.jsonl").write_text(
+        json.dumps({"event": "terminal", "status": "completed"}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(admission.HoldoutAdmissionError, match="terminal run"):
+        _reserve(
+            root, protocol, freeze, run_id="run-a",
+            resume=True, journal_exists=True,
         )
 
 
@@ -255,18 +345,30 @@ def _issued_cell(tmp_path: Path):
     root, protocol, freeze = _init_repo(tmp_path)
     cells, schedule = _cells_and_schedule(protocol, freeze)
     reservation = _reserve(root, protocol, freeze, run_id="run-a")
-    admitted = admission.finalize_floor_holdout_admissions(
-        reservation, manifest_sha256="a" * 64,
-    )
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
     cell = cells[0]
     seq = next(row["seq"] for row in schedule if row["cell_id"] == cell["cell_id"])
-    return root, protocol, cell, admitted[cell["cell_id"]], f"{cell['cell_id']}::seq{seq}"
+    attempt_id = f"{cell['cell_id']}::seq{seq}"
+    run_dir = root / "out/env/fixture-env/calibration/s8b-floor-pilot/run-a"
+    (run_dir / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start", "seq": seq,
+        "round": next(row["round"] for row in schedule if row["seq"] == seq),
+        "kind": "planned", "cell_id": cell["cell_id"],
+        "attempt_id": attempt_id, "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256((run_dir / "manifest.json").read_bytes()).hexdigest()
+    return (
+        root, protocol, cell, admitted[cell["cell_id"]], attempt_id,
+        manifest_sha256,
+    )
 
 
 def test_attempt_ticket_is_durably_single_use(tmp_path):
-    root, _protocol, _cell, admitted, attempt_id = _issued_cell(tmp_path)
+    root, protocol, _cell, admitted, attempt_id, _manifest_sha256 = _issued_cell(tmp_path)
     token = admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
     assert_issued_holdout_observation(token)
+    assert token.attempt_id == attempt_id
+    assert token.permitted_run_once_calls == protocol["reps"]
     with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
         admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
     consumed = admission.shared_admission_root(root) / "consumed"
@@ -274,7 +376,7 @@ def test_attempt_ticket_is_durably_single_use(tmp_path):
 
 
 def test_ticket_consumption_precedes_crashing_measure_callback_m5(tmp_path):
-    _root, protocol, cell, admitted, attempt_id = _issued_cell(tmp_path)
+    _root, protocol, cell, admitted, attempt_id, manifest_sha256 = _issued_cell(tmp_path)
     floor_cell = dict(cell)
     floor_cell["holdout_id"] = floor_cell.pop("freeze_holdout_key")
     binary = tmp_path / "bench"
@@ -295,7 +397,7 @@ def test_ticket_consumption_precedes_crashing_measure_callback_m5(tmp_path):
         binaries={cell["cell_id"]: {"binary": str(binary)}},
         protocol=protocol, freeze_sha256=protocol["freeze"]["sha256"],
         protocol_sha256=hashlib.sha256(_canonical(protocol)).hexdigest(),
-        manifest_sha256="a" * 64,
+        manifest_sha256=manifest_sha256,
     )
     with pytest.raises(Crash):
         wrapped(
@@ -310,8 +412,30 @@ def test_ticket_consumption_precedes_crashing_measure_callback_m5(tmp_path):
     assert len(calls) == 1
 
 
+def test_retry_ticket_without_failed_planned_trigger_is_rejected(tmp_path):
+    root, protocol, freeze = _init_repo(tmp_path)
+    cells, _schedule = _cells_and_schedule(protocol, freeze)
+    reservation = _reserve(root, protocol, freeze, run_id="run-a")
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
+    cell = cells[0]
+    retry_id = f"{cell['cell_id']}::retry1"
+    run_dir = root / "out/env/fixture-env/calibration/s8b-floor-pilot/run-a"
+    (run_dir / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start", "seq": 96, "round": 1,
+        "kind": "retry", "retry_ordinal": 1,
+        "cell_id": cell["cell_id"], "attempt_id": retry_id,
+        "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    with pytest.raises(admission.HoldoutAdmissionError, match="failed planned trigger"):
+        admission.consume_attempt_ticket(
+            admitted[cell["cell_id"]], attempt_id=retry_id,
+        )
+    consumed = admission.shared_admission_root(root) / "consumed"
+    assert list(consumed.iterdir()) == []
+
+
 def test_cell_coordinates_are_evidence_checks_not_extra_key_fields(tmp_path):
-    _root, protocol, cell, admitted, _attempt_id = _issued_cell(tmp_path)
+    _root, protocol, cell, admitted, _attempt_id, manifest_sha256 = _issued_cell(tmp_path)
     changed = dict(cell)
     changed["records"] += 1
     with pytest.raises(admission.HoldoutAdmissionError, match="records"):
@@ -319,7 +443,7 @@ def test_cell_coordinates_are_evidence_checks_not_extra_key_fields(tmp_path):
             admitted, cell=changed, protocol=protocol,
             freeze_sha256=protocol["freeze"]["sha256"],
             protocol_sha256=hashlib.sha256(_canonical(protocol)).hexdigest(),
-            manifest_sha256="a" * 64,
+            manifest_sha256=manifest_sha256,
         )
     ledger_row = admission._read_ledger(  # noqa: SLF001 - key-shape boundary test
         admission.shared_admission_root(_root) / "ledger.jsonl"
@@ -333,3 +457,111 @@ def test_cell_coordinates_are_evidence_checks_not_extra_key_fields(tmp_path):
     assert "records" not in key_projection
     assert "threads" not in key_projection
     assert "workload" not in key_projection
+
+
+def test_canonical_authority_to_run_once_proof_chain_e2e(tmp_path):
+    source_root = Path(__file__).resolve().parents[2]
+    protocol_raw = (
+        source_root / "output/s8b-freeze/floor_protocol.json"
+    ).read_bytes()
+    freeze_raw = (
+        source_root / "output/s8b-freeze/holdout_freeze.json"
+    ).read_bytes()
+    protocol = json.loads(protocol_raw)
+    freeze = json.loads(freeze_raw)
+
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init")
+    fixed = root / "output/s8b-freeze"
+    fixed.mkdir(parents=True)
+    (fixed / "floor_protocol.json").write_bytes(protocol_raw)
+    (fixed / "holdout_freeze.json").write_bytes(freeze_raw)
+    _git(root, "add", "output/s8b-freeze")
+    _git(root, "-c", "user.name=fixture", "-c", "user.email=f@example.invalid",
+         "commit", "-m", "real canonical authority")
+
+    cells, schedule = _cells_and_schedule(protocol, freeze)
+    out_root = root / "out"
+    run_id = "run-e2e"
+    run_relpath = f"env/{protocol['env_tag']}/calibration/s8b-floor-pilot/{run_id}"
+    run_dir = out_root / run_relpath
+    run_dir.mkdir(parents=True)
+    protocol_sha256 = hashlib.sha256(protocol_raw).hexdigest()
+    manifest_path = run_dir / "manifest.json"
+    manifest_path.write_text(json.dumps({
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "reps": protocol["reps"],
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+
+    reservation = admission.reserve_floor_holdout_observations(
+        repo_root=root, protocol=protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        cells=cells, schedule=schedule, campaign_run_id=run_id,
+        out_root=out_root, run_dir=run_dir, run_relpath=run_relpath,
+        mode="pilot", resume=False, irreversible_pilot_approved=True,
+    )
+    admitted = admission.finalize_floor_holdout_admissions(reservation)
+    cell = cells[0]
+    scheduled = next(row for row in schedule if row["cell_id"] == cell["cell_id"])
+    attempt_id = f"{cell['cell_id']}::seq{scheduled['seq']}"
+    (run_dir / "journal.jsonl").write_text(json.dumps({
+        "event": "session-start", "seq": scheduled["seq"],
+        "round": scheduled["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "trigger": None,
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    binary = tmp_path / "ccbench-spy"
+    binary.write_bytes(b"spy")
+    shared = admission.shared_admission_root(root)
+    spawns = []
+
+    def subprocess_spy(*_args, **_kwargs):
+        assert len(list((shared / "claims").iterdir())) == 12
+        assert len(admission._read_ledger(shared / "ledger.jsonl")) == 12
+        assert len(list((shared / "consumed").iterdir())) == 1
+        assert len(admission._read_ledger(shared / "attempt-ledger.jsonl")) == 1
+        spawns.append("run_once")
+        return type("Completed", (), {
+            "returncode": 0,
+            "stdout": "throughput[tps]:\t1000\nmaxrss:\t100 kB\n",
+            "stderr": "",
+        })()
+
+    def internal_measure(
+            measured_binary, _records, _threads, workload, *,
+            _holdout_observation_admission):
+        return calibrator_runner.run_once(
+            measured_binary,
+            [f"--ycsb_rratio={workload['ycsb_rratio']}"],
+            subprocess_runner=subprocess_spy, use_perf=False,
+            holdout_observation_admission=_holdout_observation_admission,
+        )
+
+    floor_cell = dict(cell)
+    floor_cell["holdout_id"] = floor_cell.pop("freeze_holdout_key")
+    wrapped = s8b_floor_campaign._wrap_admission_aware_measure(
+        internal_measure,
+        admissions={cell["cell_id"]: admitted[cell["cell_id"]]},
+        cell_by_id={cell["cell_id"]: floor_cell},
+        binaries={cell["cell_id"]: {"binary": str(binary)}},
+        protocol=protocol, freeze_sha256=protocol["freeze"]["sha256"],
+        protocol_sha256=protocol_sha256, manifest_sha256=manifest_sha256,
+        pass_observation_to_internal_measure=True,
+    )
+    wrapped(
+        cell["cell_id"], attempt_id, str(binary), cell["records"],
+        cell["threads"], cell["workload"],
+    )
+    assert spawns == ["run_once"]
+
+
+def _run() -> int:
+    return pytest.main([__file__, "-q"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run())

@@ -414,15 +414,18 @@ def run_once(binary: str, gflags: Sequence[str],
     rep_returncodes を指定した場合は subprocess 完了直後、出力や strict rc の検査より
     前に return code を追記する。perf_raw_sink は parser の集約値とは独立した 4 event
     の証跡を受け取る。戻り値の 3-tuple は変えない。"""
+    gflags_snapshot = tuple(gflags)
     assert_holdout_observation_admitted(
-        gflags=gflags,
+        gflags=gflags_snapshot,
         admission=holdout_observation_admission,
     )
     # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")
     try:
         perf_out = os.path.join(tmp, "perf.csv")
-        cmd = _build_cmd(binary, gflags, perf_out, numactl, use_perf=use_perf)
+        cmd = _build_cmd(
+            binary, gflags_snapshot, perf_out, numactl, use_perf=use_perf,
+        )
         # WAL=1 の genome は <cwd>/log/log<thid> に log を書く (CCBench fileio.hh
         # genLogFileName)。log/ が無いと open 失敗 → LibcError → SIGABRT で計測不能。
         # cwd を使い捨て tmp にし log/ を用意する (binary/perf_out は絶対パスなので

@@ -3,7 +3,12 @@
 
 This is a neutral, stdlib-only leaf.  The campaign layer remains responsible
 for verifying freeze/protocol authority and durable attempt consumption before
-calling the issuer hook in this module.
+creating the private receipt consumed by this module's private issuer path.
+
+Python code with permission to import private names can construct or invoke
+those private hooks; this module does not claim to prevent that.  The boundary
+provided here is narrower: no supported public API can issue an observation
+token without the campaign ledger's durable-consumption path.
 """
 from __future__ import annotations
 
@@ -19,7 +24,6 @@ __all__ = (
     "assert_holdout_observation_admitted",
     "assert_issued_holdout_observation",
     "classify_minimal_holdout_signature",
-    "issue_holdout_observation_admission",
     "normalized_direct_gflags",
     "protected_signatures_from_verified_freeze",
 )
@@ -41,18 +45,29 @@ class MinimalHoldoutSignature:
 
 @dataclass(frozen=True, slots=True)
 class HoldoutObservationAdmission:
-    """Opaque-by-identity token; field equality never establishes issuance."""
+    """Attempt-bound identity token; field equality never establishes issuance."""
 
     freeze_holdout_key: str
     freeze_candidate_id: str
     trial_workload_name: str
     ycsb_rratio: str
+    attempt_id: str
+    permitted_run_once_calls: int
+
+
+@dataclass(frozen=True, slots=True)
+class _DurableAttemptConsumptionReceipt:
+    """Private handoff created only after Unit B's durable ticket consume."""
+
+    attempt_id: str
+    permitted_run_once_calls: int
 
 
 @dataclass(frozen=True, slots=True)
 class _IssuedAdmissionState:
     token: HoldoutObservationAdmission
     signature: MinimalHoldoutSignature
+    remaining_run_once_calls: int
 
 
 # This neutral table is deliberately freeze-shaped.  It is not production
@@ -70,6 +85,7 @@ _NEUTRAL_HOLDOUTS: Mapping[str, Mapping[str, Any]] = {
 }
 
 _INDIRECT_GFLAGS = frozenset({"flagfile", "fromenv", "tryfromenv"})
+_UINT64_MAX = (1 << 64) - 1
 
 
 def _require_nonempty_string(value: object, field: str) -> str:
@@ -136,6 +152,18 @@ _NEUTRAL_BY_RATIO = {
 def protected_signatures_from_verified_freeze(
     verified_freeze_document: Mapping[str, object],
 ) -> frozenset[MinimalHoldoutSignature]:
+    """Return the production protected set from the fixed neutral table."""
+
+    return _protected_signatures_from_verified_freeze_core(
+        verified_freeze_document,
+    )
+
+
+def _protected_signatures_from_verified_freeze_core(
+    verified_freeze_document: Mapping[str, object],
+    *,
+    _neutral_holdouts: Mapping[str, Mapping[str, object]] | None = None,
+) -> frozenset[MinimalHoldoutSignature]:
     """Return the protected set, rejecting drift from the neutral known set.
 
     The caller must first establish that ``verified_freeze_document`` is the
@@ -144,7 +172,14 @@ def protected_signatures_from_verified_freeze(
     """
 
     derived = _derive_protected_signatures(verified_freeze_document)
-    if derived != _NEUTRAL_PROTECTED_SIGNATURES:
+    if _neutral_holdouts is None:
+        if derived != _NEUTRAL_PROTECTED_SIGNATURES:
+            raise HoldoutObservationError(
+                "verified freeze holdout signatures do not exactly match the neutral set"
+            )
+        return derived
+    expected = _derive_protected_signatures({"holdouts": _neutral_holdouts})
+    if derived != expected:
         raise HoldoutObservationError(
             "verified freeze holdout signatures do not exactly match the neutral set"
         )
@@ -160,8 +195,8 @@ def normalized_direct_gflags(gflags: Sequence[str]) -> dict[str, str]:
 
     effective: dict[str, str] = {}
     for raw in gflags:
-        if not isinstance(raw, str):
-            raise HoldoutObservationError("gflags must contain strings only")
+        if type(raw) is not str:
+            raise HoldoutObservationError("gflags must contain exact strings only")
         if not raw.startswith("-") or raw == "-":
             continue
         body = raw[2:] if raw.startswith("--") else raw[1:]
@@ -170,6 +205,15 @@ def normalized_direct_gflags(gflags: Sequence[str]) -> dict[str, str]:
             raise HoldoutObservationError(f"indirect gflags input is forbidden: {name}")
         if separator and name:
             effective[name] = value
+    ratio = effective.get("ycsb_rratio")
+    if ratio is not None:
+        if (not ratio or not ratio.isascii() or not ratio.isdecimal()
+                or (len(ratio) > 1 and ratio.startswith("0"))):
+            raise HoldoutObservationError(
+                "ycsb_rratio must be canonical unsigned decimal"
+            )
+        if int(ratio, 10) > _UINT64_MAX:
+            raise HoldoutObservationError("ycsb_rratio exceeds uint64 range")
     return effective
 
 
@@ -186,15 +230,43 @@ def _identity_capability_functions():
     # Keep the strong-reference registry in a closure: importing a private
     # module name cannot expose a seal or mutable registry that forges identity.
     issued: dict[int, _IssuedAdmissionState] = {}
+    receipts: dict[int, _DurableAttemptConsumptionReceipt] = {}
     lock = threading.RLock()
 
-    def issue(
+    def new_receipt(
+        *, attempt_id: str, permitted_run_once_calls: int,
+    ) -> _DurableAttemptConsumptionReceipt:
+        """Register Unit B's private post-durable-consumption handoff.
+
+        This private Python hook is a supported-layer boundary, not a sandbox:
+        code allowed to import private names can call it without doing I/O.
+        """
+        if type(attempt_id) is not str or not attempt_id:
+            raise HoldoutObservationError("attempt_id must be a nonempty exact str")
+        if (type(permitted_run_once_calls) is not int
+                or permitted_run_once_calls <= 0):
+            raise HoldoutObservationError(
+                "permitted_run_once_calls must be a positive exact int"
+            )
+        receipt = _DurableAttemptConsumptionReceipt(
+            attempt_id=attempt_id,
+            permitted_run_once_calls=permitted_run_once_calls,
+        )
+        with lock:
+            receipts[id(receipt)] = receipt
+        return receipt
+
+    def issue_from_receipt(
         *,
+        receipt: _DurableAttemptConsumptionReceipt,
         verified_freeze_document: Mapping[str, object],
         freeze_holdout_key: str,
+        _neutral_holdouts: Mapping[str, Mapping[str, object]] | None = None,
     ) -> HoldoutObservationAdmission:
-        signatures = protected_signatures_from_verified_freeze(
-            verified_freeze_document
+        """Consume one private receipt and issue its attempt-bound token."""
+        signatures = _protected_signatures_from_verified_freeze_core(
+            verified_freeze_document,
+            _neutral_holdouts=_neutral_holdouts,
         )
         matches = [
             signature for signature in signatures
@@ -204,16 +276,26 @@ def _identity_capability_functions():
             raise HoldoutObservationError(
                 f"verified freeze holdout key is not protected: {freeze_holdout_key}"
             )
-        signature = matches[0]
-        token = HoldoutObservationAdmission(
-            freeze_holdout_key=signature.freeze_holdout_key,
-            freeze_candidate_id=signature.freeze_candidate_id,
-            trial_workload_name=signature.trial_workload_name,
-            ycsb_rratio=signature.ycsb_rratio,
-        )
-        state = _IssuedAdmissionState(token=token, signature=signature)
         with lock:
-            issued[id(token)] = state
+            registered_receipt = receipts.pop(id(receipt), None)
+            if registered_receipt is None or registered_receipt is not receipt:
+                raise HoldoutObservationError(
+                    "durable attempt consumption receipt was not issued or was reused"
+                )
+            signature = matches[0]
+            token = HoldoutObservationAdmission(
+                freeze_holdout_key=signature.freeze_holdout_key,
+                freeze_candidate_id=signature.freeze_candidate_id,
+                trial_workload_name=signature.trial_workload_name,
+                ycsb_rratio=signature.ycsb_rratio,
+                attempt_id=receipt.attempt_id,
+                permitted_run_once_calls=receipt.permitted_run_once_calls,
+            )
+            issued[id(token)] = _IssuedAdmissionState(
+                token=token,
+                signature=signature,
+                remaining_run_once_calls=receipt.permitted_run_once_calls,
+            )
         return token
 
     def assert_issued(
@@ -230,12 +312,39 @@ def _identity_capability_functions():
                 "holdout observation admission does not match the protected signature"
             )
 
-    return issue, assert_issued
+    def consume_run_once(
+        admission: object,
+        *,
+        effective_ycsb_rratio: str | None,
+    ) -> None:
+        with lock:
+            state = issued.get(id(admission))
+            if state is None or state.token is not admission:
+                raise HoldoutObservationError(
+                    "holdout observation admission was not issued"
+                )
+            if state.signature.ycsb_rratio != effective_ycsb_rratio:
+                raise HoldoutObservationError(
+                    "holdout observation admission does not match the protected signature"
+                )
+            if state.remaining_run_once_calls <= 0:
+                raise HoldoutObservationError(
+                    "holdout observation admission run_once allowance exhausted"
+                )
+            issued[id(admission)] = _IssuedAdmissionState(
+                token=state.token,
+                signature=state.signature,
+                remaining_run_once_calls=state.remaining_run_once_calls - 1,
+            )
+
+    return new_receipt, issue_from_receipt, assert_issued, consume_run_once
 
 
 (
-    issue_holdout_observation_admission,
+    _new_durable_attempt_consumption_receipt,
+    _issue_holdout_observation_admission_from_receipt,
     assert_issued_holdout_observation,
+    _consume_holdout_observation_run_once,
 ) = _identity_capability_functions()
 del _identity_capability_functions
 
@@ -245,21 +354,24 @@ def assert_holdout_observation_admitted(
     gflags: Sequence[str],
     admission: HoldoutObservationAdmission | None,
 ) -> None:
-    """Apply the subprocess gateway gate for the effective direct flags."""
+    """Apply the subprocess gateway gate for the effective direct flags.
 
-    signature = classify_minimal_holdout_signature(gflags)
-    if signature is None:
-        if admission is not None:
-            assert_issued_holdout_observation(admission)
+    Tokenless calls use the fixed production table.  An issued token carries
+    the exact verified signature used by its private campaign reservation, so
+    the subprocess edge compares the executed ratio with that same signature.
+    """
+
+    effective = normalized_direct_gflags(gflags)
+    ratio = effective.get("ycsb_rratio")
+    if admission is None:
+        signature = _NEUTRAL_BY_RATIO.get(ratio)
+        if signature is not None:
             raise HoldoutObservationError(
-                "holdout observation admission supplied for an unprotected ratio"
+                "holdout observation admission required for "
+                f"ycsb_rratio={signature.ycsb_rratio}"
             )
         return
-    if admission is None:
-        raise HoldoutObservationError(
-            f"holdout observation admission required for ycsb_rratio={signature.ycsb_rratio}"
-        )
-    assert_issued_holdout_observation(
+    _consume_holdout_observation_run_once(
         admission,
-        expected_signature=signature,
+        effective_ycsb_rratio=ratio,
     )

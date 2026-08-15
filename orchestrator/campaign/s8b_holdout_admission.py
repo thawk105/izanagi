@@ -24,9 +24,10 @@ from ..holdout_observation import (
     HoldoutObservationAdmission,
     HoldoutObservationError,
     MinimalHoldoutSignature,
+    _issue_holdout_observation_admission_from_receipt,
+    _new_durable_attempt_consumption_receipt,
+    _protected_signatures_from_verified_freeze_core,
     assert_issued_holdout_observation,
-    issue_holdout_observation_admission,
-    protected_signatures_from_verified_freeze,
 )
 from . import s8b_floor_contract as _floor_contract
 
@@ -91,19 +92,28 @@ class _ReservationState:
     schedule: tuple[dict[str, Any], ...]
     claims: tuple[dict[str, Any], ...]
     signatures: Mapping[str, MinimalHoldoutSignature]
+    neutral_holdouts: Mapping[str, Mapping[str, object]]
     mode: str
     resume: bool
     measurement_started: bool
+    run_dir: Path
+    manifest_sha256: str
+    protocol_reps: int
+    irreversible_pilot_approved: bool
 
 
 @dataclass(frozen=True, slots=True)
 class _CellState:
     token: CellHoldoutAdmission
-    observation: HoldoutObservationAdmission
     root: Path
     row: dict[str, Any]
     claim_digest: str
     attempt_ids: frozenset[str]
+    run_dir: Path
+    schedule: tuple[dict[str, Any], ...]
+    verified_freeze: dict[str, Any]
+    neutral_holdouts: Mapping[str, Mapping[str, object]]
+    protocol_reps: int
 
 
 _reservation_states: dict[int, _ReservationState] = {}
@@ -435,6 +445,114 @@ def _read_ledger(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _read_run_journal(path: Path) -> list[dict[str, Any]]:
+    """Read the canonical run journal without trusting caller summaries."""
+
+    if not path.exists():
+        return []
+    try:
+        mode = path.lstat().st_mode
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise HoldoutAdmissionError("cannot read canonical run journal") from exc
+    if not stat.S_ISREG(mode) or path.is_symlink():
+        raise HoldoutAdmissionError("canonical run journal is not a regular file")
+    if len(raw) > _MAX_LEDGER_BYTES:
+        raise HoldoutAdmissionError("canonical run journal exceeds byte bound")
+    if raw and not raw.endswith(b"\n"):
+        raise HoldoutAdmissionError("canonical run journal has a truncated final row")
+    rows: list[dict[str, Any]] = []
+    for index, line in enumerate(raw.splitlines(), 1):
+        if not line:
+            raise HoldoutAdmissionError(
+                f"canonical run journal has a blank row: {index}"
+            )
+        rows.append(_strict_json(line, f"journal.jsonl:{index}"))
+    return rows
+
+
+def _canonical_run_artifacts(
+    *, out_root: Path, run_dir: Path, run_relpath: str,
+    campaign_run_id: str, resume: bool, protocol_sha256: str,
+    freeze_sha256: str, protocol_reps: int,
+) -> tuple[Path, str, dict[str, Any], list[dict[str, Any]], bool]:
+    """Verify actual manifest/journal bytes in the canonical run directory."""
+
+    out_root = Path(out_root).resolve(strict=False)
+    supplied = Path(run_dir)
+    expected = out_root / PurePosixPath(run_relpath)
+    if supplied.resolve(strict=False) != expected.resolve(strict=False):
+        raise HoldoutAdmissionError("run_dir does not match canonical run_relpath")
+    try:
+        mode = supplied.lstat().st_mode
+    except OSError as exc:
+        raise HoldoutAdmissionError("canonical run directory is unavailable") from exc
+    if not stat.S_ISDIR(mode) or supplied.is_symlink() or supplied.name != campaign_run_id:
+        raise HoldoutAdmissionError("canonical run directory identity is invalid")
+
+    manifest_path = supplied / "manifest.json"
+    try:
+        manifest_mode = manifest_path.lstat().st_mode
+        manifest_raw = manifest_path.read_bytes()
+    except OSError as exc:
+        raise HoldoutAdmissionError("canonical run manifest is unavailable") from exc
+    if not stat.S_ISREG(manifest_mode) or manifest_path.is_symlink():
+        raise HoldoutAdmissionError("canonical run manifest is not a regular file")
+    manifest = _strict_json(manifest_raw, "manifest.json")
+    expected_manifest = {
+        "protocol_sha256": protocol_sha256,
+        "freeze_sha256": freeze_sha256,
+        "reps": protocol_reps,
+    }
+    for field, value in expected_manifest.items():
+        if manifest.get(field) != value:
+            raise HoldoutAdmissionError(
+                f"canonical run manifest identity mismatch: {field}"
+            )
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+
+    journal_path = supplied / "journal.jsonl"
+    records = _read_run_journal(journal_path)
+    measurement_started = any(
+        row.get("event") in {"session-start", "session"} for row in records
+    )
+    terminals = [row for row in records if row.get("event") == "terminal"]
+    if terminals:
+        raise HoldoutAdmissionError("completed or terminal run cannot reissue admission")
+    if resume:
+        if not journal_path.is_file():
+            raise HoldoutAdmissionError(
+                "resume journal is absent after admission ledger issuance"
+            )
+        starts = [row for row in records if row.get("event") == "campaign-start"]
+        if len(starts) > 1:
+            raise HoldoutAdmissionError("resume journal has duplicate campaign-start")
+        if starts:
+            start = starts[0]
+            for field, value in {
+                "protocol_sha256": protocol_sha256,
+                "freeze_sha256": freeze_sha256,
+                "manifest_sha256": manifest_sha256,
+            }.items():
+                if start.get(field) != value:
+                    raise HoldoutAdmissionError(
+                        f"resume journal identity mismatch: {field}"
+                    )
+        try:
+            _floor_contract.classify_journal_resume_state(
+                records, manifest_exists=True,
+                result_published=(supplied / "result.json").is_file(),
+                markdown_published=(supplied / "result.md").is_file(),
+            )
+        except _floor_contract.FloorContractError as exc:
+            raise HoldoutAdmissionError(
+                f"canonical resume state is invalid: {exc}"
+            ) from exc
+    elif measurement_started:
+        raise HoldoutAdmissionError("fresh admission cannot follow measurement")
+    return supplied, manifest_sha256, manifest, records, measurement_started
+
+
 def _append_ledger(path: Path, rows: Sequence[Mapping[str, object]]) -> None:
     if not rows:
         return
@@ -478,26 +596,70 @@ def reserve_floor_holdout_observations(
     *, repo_root: Path, protocol: Mapping[str, object],
     verified_freeze_document: Mapping[str, object], freeze_sha256: str,
     cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
-    campaign_run_id: str, run_relpath: str, mode: str, resume: bool,
-    journal_exists: bool, measurement_started: bool,
+    campaign_run_id: str, out_root: Path, run_dir: Path, run_relpath: str,
+    mode: str, resume: bool, irreversible_pilot_approved: bool,
 ) -> FloorHoldoutReservation:
-    """Verify fixed HEAD authority and atomically reserve every frozen cell."""
+    """Production reservation entrypoint with the fixed neutral signature table."""
 
-    if type(resume) is not bool or type(journal_exists) is not bool:
-        raise HoldoutAdmissionError("resume and journal_exists must be exact bools")
-    if type(measurement_started) is not bool:
-        raise HoldoutAdmissionError("measurement_started must be an exact bool")
-    if measurement_started and not journal_exists:
-        raise HoldoutAdmissionError("measurement cannot precede the durable journal")
+    return _reserve_floor_holdout_observations_core(
+        repo_root=repo_root, protocol=protocol,
+        verified_freeze_document=verified_freeze_document,
+        freeze_sha256=freeze_sha256, cells=cells, schedule=schedule,
+        campaign_run_id=campaign_run_id, out_root=out_root, run_dir=run_dir,
+        run_relpath=run_relpath, mode=mode, resume=resume,
+        irreversible_pilot_approved=irreversible_pilot_approved,
+    )
+
+
+def _reserve_floor_holdout_observations_core(
+    *, repo_root: Path, protocol: Mapping[str, object],
+    verified_freeze_document: Mapping[str, object], freeze_sha256: str,
+    cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
+    campaign_run_id: str, out_root: Path, run_dir: Path, run_relpath: str,
+    mode: str, resume: bool, irreversible_pilot_approved: bool,
+    _neutral_holdouts: Mapping[str, Mapping[str, object]] | None = None,
+) -> FloorHoldoutReservation:
+    """Verify fixed authority and atomically reserve every frozen cell.
+
+    Callers cannot summarize resume state: this boundary reads the actual
+    canonical manifest and journal bytes itself.  A pilot claim also records
+    the explicit acknowledgement that it irreversibly consumes the same
+    one-shot key a future official run would need.
+    """
+
+    if type(resume) is not bool:
+        raise HoldoutAdmissionError("resume must be an exact bool")
+    if type(irreversible_pilot_approved) is not bool:
+        raise HoldoutAdmissionError(
+            "irreversible_pilot_approved must be an exact bool"
+        )
     campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
     run_relpath = _portable_run_relpath(run_relpath)
     mode = _require_text(mode, "mode")
+    if mode == "pilot" and not irreversible_pilot_approved:
+        raise HoldoutAdmissionError(
+            "pilot holdout observation requires irreversible one-shot approval"
+        )
     root = provision_shared_admission_root(Path(repo_root))
     measurement_head, protocol_sha256, fixed_protocol, fixed_freeze = _authority(
         Path(repo_root), protocol, verified_freeze_document, freeze_sha256,
     )
+    protocol_reps = fixed_protocol.get("reps")
+    if type(protocol_reps) is not int or protocol_reps <= 0:
+        raise HoldoutAdmissionError("canonical protocol reps is invalid")
+    canonical_run_dir, manifest_sha256, manifest, _run_records, measurement_started = (
+        _canonical_run_artifacts(
+            out_root=Path(out_root), run_dir=Path(run_dir), run_relpath=run_relpath,
+            campaign_run_id=campaign_run_id, resume=resume,
+            protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
+            protocol_reps=protocol_reps,
+        )
+    )
     try:
-        signatures = protected_signatures_from_verified_freeze(fixed_freeze)
+        signatures = _protected_signatures_from_verified_freeze_core(
+            fixed_freeze,
+            _neutral_holdouts=_neutral_holdouts,
+        )
         contract_cells = _floor_contract.enumerate_cells(
             fixed_freeze,
             stock_configuration=fixed_protocol["stock_configuration"],
@@ -531,7 +693,19 @@ def reserve_floor_holdout_observations(
         raise HoldoutAdmissionError("supplied cells differ from the fixed freeze projection")
     if normalized_schedule != expected_schedule:
         raise HoldoutAdmissionError("supplied schedule differs from the frozen schedule")
+    manifest_schedule = manifest.get("schedule")
+    if manifest_schedule is not None and manifest_schedule != normalized_schedule:
+        raise HoldoutAdmissionError(
+            "canonical run manifest schedule differs from the frozen schedule"
+        )
     signature_by_key = {item.freeze_holdout_key: item for item in signatures}
+    neutral_holdouts = {
+        item.freeze_holdout_key: {
+            "candidate_id": item.freeze_candidate_id,
+            "ycsb": {"ycsb_rratio": item.ycsb_rratio},
+        }
+        for item in signatures
+    }
     retry_slots = fixed_protocol.get("retry_slots_per_cell")
     if type(retry_slots) is not int or retry_slots < 0:
         raise HoldoutAdmissionError("protocol retry_slots_per_cell is invalid")
@@ -578,20 +752,11 @@ def reserve_floor_holdout_observations(
             "campaign_run_id": campaign_run_id,
             "run_relpath": run_relpath,
             "mode": mode,
+            "irreversible_pilot_approved": irreversible_pilot_approved,
             "attempt_ids": list(attempts),
         })
 
     with _locked(root):
-        ledger_rows = _read_ledger(root / _LEDGER_NAME)
-        matching_run_rows = [
-            row for row in ledger_rows
-            if row.get("campaign_run_id") == campaign_run_id
-            and row.get("run_relpath") == run_relpath
-        ]
-        if resume and not journal_exists and matching_run_rows:
-            raise HoldoutAdmissionError(
-                "resume journal is absent after admission ledger issuance"
-            )
         for claim in claims:
             digest = _claim_digest(claim["key"])
             path = _claim_path(root, digest)
@@ -623,8 +788,12 @@ def reserve_floor_holdout_observations(
         token=token, root=root, measurement_head=measurement_head,
         protocol=fixed_protocol, freeze=fixed_freeze,
         cells=tuple(normalized_cells), schedule=tuple(normalized_schedule),
-        claims=tuple(claims), signatures=signature_by_key, mode=mode,
+        claims=tuple(claims), signatures=signature_by_key,
+        neutral_holdouts=neutral_holdouts, mode=mode,
         resume=resume, measurement_started=measurement_started,
+        run_dir=canonical_run_dir, manifest_sha256=manifest_sha256,
+        protocol_reps=protocol_reps,
+        irreversible_pilot_approved=irreversible_pilot_approved,
     )
     with _state_lock:
         _reservation_states[id(token)] = state
@@ -640,12 +809,12 @@ def _reservation_state(reservation: object) -> _ReservationState:
 
 
 def finalize_floor_holdout_admissions(
-    reservation: FloorHoldoutReservation, *, manifest_sha256: str,
+    reservation: FloorHoldoutReservation,
 ) -> dict[str, CellHoldoutAdmission]:
-    """Durably append evidence rows, then issue cell and attempt capabilities."""
+    """Durably append evidence rows, then issue cell capabilities only."""
 
     state = _reservation_state(reservation)
-    manifest_sha256 = _require_sha256(manifest_sha256, "manifest_sha256")
+    manifest_sha256 = state.manifest_sha256
     expected_rows: list[dict[str, Any]] = []
     for claim in state.claims:
         key = dict(claim["key"])
@@ -665,6 +834,7 @@ def finalize_floor_holdout_admissions(
             "campaign_run_id": state.token.campaign_run_id,
             "run_relpath": state.token.run_relpath,
             "mode": state.mode,
+            "irreversible_pilot_approved": state.irreversible_pilot_approved,
             "attempt_ids": claim["attempt_ids"],
             "attempt_count": len(claim["attempt_ids"]),
         })
@@ -717,13 +887,6 @@ def finalize_floor_holdout_admissions(
 
     admissions: dict[str, CellHoldoutAdmission] = {}
     for row in expected_rows:
-        try:
-            observation = issue_holdout_observation_admission(
-                verified_freeze_document=state.freeze,
-                freeze_holdout_key=row["freeze_holdout_key"],
-            )
-        except HoldoutObservationError as exc:
-            raise HoldoutAdmissionError(f"cannot issue observation capability: {exc}") from exc
         token = CellHoldoutAdmission(
             freeze_holdout_key=row["freeze_holdout_key"],
             freeze_candidate_id=row["freeze_candidate_id"],
@@ -732,7 +895,7 @@ def finalize_floor_holdout_admissions(
             cell_id=row["cell_id"],
         )
         cell_state = _CellState(
-            token=token, observation=observation, root=state.root, row=row,
+            token=token, root=state.root, row=row,
             claim_digest=_claim_digest(_key_fields(
                 freeze_sha256=row["freeze_sha256"],
                 freeze_holdout_key=row["freeze_holdout_key"],
@@ -740,6 +903,9 @@ def finalize_floor_holdout_admissions(
                 ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
             )),
             attempt_ids=frozenset(row["attempt_ids"]),
+            run_dir=state.run_dir, schedule=state.schedule,
+            verified_freeze=state.freeze, neutral_holdouts=state.neutral_holdouts,
+            protocol_reps=state.protocol_reps,
         )
         with _state_lock:
             _cell_states[id(token)] = cell_state
@@ -779,18 +945,46 @@ def assert_cell_holdout_admission(
     for field, value in expected.items():
         if row.get(field) != value:
             raise HoldoutAdmissionError(f"cell holdout admission mismatch: {field}")
-    signature = MinimalHoldoutSignature(
-        freeze_holdout_key=row["freeze_holdout_key"],
-        freeze_candidate_id=row["freeze_candidate_id"],
-        trial_workload_name=row["trial_workload_name"],
-        ycsb_rratio=row["workload"].get("ycsb_rratio"),
-    )
-    try:
-        assert_issued_holdout_observation(
-            state.observation, expected_signature=signature,
+
+
+def _assert_attempt_authorized_by_journal(
+    state: _CellState, *, attempt_id: str,
+) -> None:
+    records = _read_run_journal(state.run_dir / "journal.jsonl")
+    if any(row.get("event") == "terminal" for row in records):
+        raise HoldoutAdmissionError("terminal run cannot consume another attempt")
+    starts = [
+        row for row in records
+        if row.get("event") == "session-start"
+        and row.get("attempt_id") == attempt_id
+    ]
+    if len(starts) != 1 or starts[0].get("cell_id") != state.row["cell_id"]:
+        raise HoldoutAdmissionError(
+            "attempt ticket lacks one canonical session-start authorization"
         )
-    except HoldoutObservationError as exc:
-        raise HoldoutAdmissionError(f"observation capability mismatch: {exc}") from exc
+    start = starts[0]
+    if start.get("kind") == "planned":
+        schedule_by_seq = {row.get("seq"): row for row in state.schedule}
+        scheduled = schedule_by_seq.get(start.get("seq"))
+        if (scheduled is None or scheduled.get("cell_id") != state.row["cell_id"]
+                or scheduled.get("round") != start.get("round")
+                or start.get("trigger") is not None):
+            raise HoldoutAdmissionError("planned attempt authorization is inconsistent")
+        return
+    if start.get("kind") != "retry":
+        raise HoldoutAdmissionError("attempt authorization kind is unknown")
+    trigger = start.get("trigger")
+    triggering_rows = [
+        row for row in records
+        if row.get("event") == "session" and row.get("attempt_id") == trigger
+    ]
+    if (type(trigger) is not str or len(triggering_rows) != 1
+            or triggering_rows[0].get("cell_id") != state.row["cell_id"]
+            or triggering_rows[0].get("kind") != "planned"
+            or triggering_rows[0].get("valid") is not False):
+        raise HoldoutAdmissionError(
+            "retry attempt lacks its canonical failed planned trigger"
+        )
 
 
 def consume_attempt_ticket(
@@ -802,6 +996,7 @@ def consume_attempt_ticket(
     attempt_id = _require_text(attempt_id, "attempt_id")
     if attempt_id not in state.attempt_ids:
         raise HoldoutAdmissionError("attempt_id is not in the frozen ticket set")
+    _assert_attempt_authorized_by_journal(state, attempt_id=attempt_id)
     marker = {
         "schema_version": _ATTEMPT_SCHEMA,
         "event": "consume",
@@ -823,7 +1018,17 @@ def consume_attempt_ticket(
             raise HoldoutAdmissionError("attempt ticket was already consumed") from exc
         _append_ledger(state.root / _ATTEMPT_LEDGER_NAME, [marker])
     try:
-        assert_issued_holdout_observation(state.observation)
+        receipt = _new_durable_attempt_consumption_receipt(
+            attempt_id=attempt_id,
+            permitted_run_once_calls=state.protocol_reps,
+        )
+        observation = _issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=state.verified_freeze,
+            freeze_holdout_key=state.row["freeze_holdout_key"],
+            _neutral_holdouts=state.neutral_holdouts,
+        )
+        assert_issued_holdout_observation(observation)
     except HoldoutObservationError as exc:
-        raise HoldoutAdmissionError(f"observation capability is no longer valid: {exc}") from exc
-    return state.observation
+        raise HoldoutAdmissionError(f"cannot issue attempt observation: {exc}") from exc
+    return observation

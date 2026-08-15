@@ -44,6 +44,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 
 from orchestrator.campaign import env_contract as ec  # noqa: E402
+from orchestrator import holdout_observation  # noqa: E402
 from orchestrator.campaign import campaign_claim, reservation  # noqa: E402
 from orchestrator.campaign import env_attestation  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
@@ -84,11 +85,11 @@ _CONFIGS = (
 _STOCK = "stock_common"
 _HOLDOUT_SHAPE = {
     "rr79": {
-        "records": 730079, "threads": 17,
+        "candidate_id": "H1", "records": 730079, "threads": 17,
         "ycsb": {"ycsb_zipf_skew": "0.42", "ycsb_rratio": "79", "ycsb_rmw": "1"},
     },
     "rr23": {
-        "records": 230023, "threads": 11,
+        "candidate_id": "H2", "records": 230023, "threads": 11,
         "ycsb": {"ycsb_zipf_skew": "0.31", "ycsb_rratio": "23", "ycsb_rmw": "0"},
     },
 }
@@ -205,6 +206,7 @@ def _freeze_document() -> dict:
     holdouts = {}
     for holdout_id, shape in _HOLDOUT_SHAPE.items():
         holdouts[holdout_id] = {
+            "candidate_id": shape["candidate_id"],
             "records": shape["records"],
             "threads": shape["threads"],
             "ycsb": dict(shape["ycsb"]),
@@ -249,7 +251,10 @@ def _protocol(*, freeze_sha: str, master_seed: str = "fixture-seed",
         "env_tag": env_tag,
         "contract_sha256": contract_sha256,
         "ccbench_pin": "0" * 40,
-        "freeze": {"path": "output/fixture_freeze.json", "sha256": freeze_sha},
+        "freeze": {
+            "path": "output/s8b-freeze/holdout_freeze.json",
+            "sha256": freeze_sha,
+        },
         "stock_configuration": _STOCK,
         "n_sessions": n_sessions,
         "reps": reps,
@@ -377,31 +382,57 @@ def _cell_id_from_binary(binary: str) -> str:
     return Path(binary).parent.name.replace("__", "::")
 
 
-def _private_holdout_admission_kwargs(protocol, freeze_doc):
-    return {
-        "_holdout_reserve_fn": lambda **_kwargs: SimpleNamespace(reserved=True),
-        "_holdout_finalize_fn": lambda _reservation, *, manifest_sha256: {
-            cell["cell_id"]: SimpleNamespace(
-                cell_id=cell["cell_id"], observation=None,
-            )
-            for cell in s8b_floor_campaign.enumerate_cells(
-                freeze_doc.document,
-                stock_configuration=protocol["stock_configuration"],
-            )
-        },
-        "_holdout_assert_fn": lambda _admission, **_kwargs: None,
-        "_attempt_consume_fn": lambda _admission, **_kwargs: None,
-    }
+def _test_holdout_authority(out_root: Path, protocol, freeze_doc) -> Path:
+    """Resolve tests to a real Git authority without disabling any gate."""
+
+    out_root = Path(out_root)
+    authority = out_root.parent / f".{out_root.name}-holdout-authority"
+    if authority.exists():
+        return authority
+    authority.mkdir(parents=True)
+    subprocess.run(
+        ["git", "-C", str(authority), "init"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    fixed = authority / "output" / "s8b-freeze"
+    fixed.mkdir(parents=True)
+    # _protocol() and the callers that prevalidate already supply canonical
+    # protocol mappings.  Re-resolving through the production historical
+    # registry would bypass a test-installed current contract.
+    normalized = dict(protocol)
+    (fixed / "floor_protocol.json").write_bytes(
+        json.dumps(
+            normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+    )
+    (fixed / "holdout_freeze.json").write_bytes(
+        json.dumps(
+            freeze_doc.document, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    )
+    subprocess.run(
+        ["git", "-C", str(authority), "add", "output/s8b-freeze"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "-C", str(authority), "-c", "user.name=fixture", "-c",
+         "user.email=fixture@example.invalid", "commit", "-m", "fixture authority"],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    return authority
 
 
 def _private_run_campaign(protocol, freeze_doc, **kwargs):
-    admission_kwargs = _private_holdout_admission_kwargs(protocol, freeze_doc)
-    for name in tuple(admission_kwargs):
-        if name in kwargs:
-            admission_kwargs[name] = kwargs.pop(name)
+    authority = (
+        _test_holdout_authority(kwargs["out_root"], protocol, freeze_doc)
+        if "durable_root_policy" in kwargs else ROOT
+    )
     return s8b_floor_campaign._run_campaign_core(
         protocol, freeze_doc,
-        **admission_kwargs,
+        _holdout_repo_root=authority,
+        _holdout_signature_source=freeze_doc.document["holdouts"],
+        confirm_irreversible_pilot_holdout=True,
         **kwargs,
     )
 
@@ -422,9 +453,13 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
         monotonic_fn=monotonic_fn or (lambda: 0.0),
         prepare_fn=_fake_prepare, now_fn=now_fn or (lambda: _FIXED_NOW),
         durable_root_policy=_durable_policy(Path(out_root)),
-        **_private_holdout_admission_kwargs(protocol, freeze_doc),
         **extra,
     )
+    kwargs["_holdout_repo_root"] = _test_holdout_authority(
+        Path(out_root), protocol, freeze_doc,
+    )
+    kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
+    kwargs["confirm_irreversible_pilot_holdout"] = True
     if mode == "official":
         with mock.patch.object(
                 s8b_floor_campaign, "_assert_official_permitted", lambda _mode: None), \
@@ -3076,6 +3111,15 @@ def test_public_official_rejects_each_nondefault_seam_before_side_effects(
 @pytest.mark.parametrize("seam_name,seam_value", [
     ("measure_fn", lambda *_args: (_ for _ in ()).throw(AssertionError())),
     ("probe_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("sleep_fn", lambda _seconds: (_ for _ in ()).throw(AssertionError())),
+    ("monotonic_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("prepare_fn", lambda *_args: (_ for _ in ()).throw(AssertionError())),
+    ("now_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("host_provenance_fn", lambda **_kwargs: (_ for _ in ()).throw(AssertionError())),
+    ("process_identity_fn", lambda: (_ for _ in ()).throw(AssertionError())),
+    ("execution_receipt_fn", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError())),
+    ("build_fn", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError())),
+    ("after_certificate_issued_fn", lambda _path: (_ for _ in ()).throw(AssertionError())),
     ("perf_preflight_fn", lambda **_kwargs: (_ for _ in ()).throw(AssertionError())),
 ])
 def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
@@ -3090,45 +3134,123 @@ def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
     assert not out_root.exists()
 
 
-def test_private_core_reserves_holdout_before_perf_probe_and_measure(tmp_path):
+def test_production_entrypoints_have_no_holdout_gate_disabling_seam():
+    forbidden = {
+        "_holdout_reserve_fn", "_holdout_finalize_fn",
+        "_holdout_assert_fn", "_attempt_consume_fn",
+    }
+    for entrypoint in (
+            s8b_floor_campaign.run_campaign,
+            s8b_floor_campaign._run_campaign_core):
+        assert forbidden.isdisjoint(inspect.signature(entrypoint).parameters)
+
+
+def test_holdout_signature_source_seam_is_private_core_only():
+    seam = "_holdout_signature_source"
+    assert seam in inspect.signature(
+        s8b_floor_campaign._run_campaign_core,
+    ).parameters
+    assert seam not in inspect.signature(s8b_floor_campaign.run_campaign).parameters
+    assert seam not in {
+        action.dest for action in s8b_floor_campaign._parser()._actions
+    }
+    assert seam not in inspect.getsource(s8b_floor_campaign.run_campaign)
+    for public_leaf in (
+            s8b_floor_campaign._holdout_admission.reserve_floor_holdout_observations,
+            holdout_observation.protected_signatures_from_verified_freeze):
+        assert "_neutral_holdouts" not in inspect.signature(public_leaf).parameters
+
+
+def test_public_pilot_requires_irreversible_holdout_approval_before_effects(tmp_path):
+    freeze = _freeze_document()
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="一回性 key"):
+        s8b_floor_campaign.run_campaign(
+            _protocol(freeze_sha=_freeze_sha(freeze)), _verified_freeze(freeze),
+            out_root=out_root, mode="pilot",
+        )
+    assert not out_root.exists()
+
+
+def test_cli_exposes_dedicated_irreversible_pilot_holdout_flag():
+    parsed = s8b_floor_campaign._parser().parse_args([
+        "--mode", "pilot", "--protocol", "protocol.json",
+        "--confirm-irreversible-pilot-holdout",
+    ])
+    assert parsed.confirm_irreversible_pilot_holdout is True
+
+
+def test_private_core_claims_only_after_nonmeasurement_preflight(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(
+        out_root, protocol, _verified_freeze(freeze),
+    )
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
     order = []
-
-    def reserve_first(**_kwargs):
-        order.append("reserve")
-        return SimpleNamespace(reserved=True)
 
     def perf_preflight(**_kwargs):
         order.append("perf")
+        assert not (shared / "claims").exists()
         return _perf_receipt()
 
     def probe():
         order.append("probe")
+        assert len(list((shared / "claims").iterdir())) == 12
         return (1, "", "")
 
     measure = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
 
     def ordered_measure(*args):
         order.append("measure")
+        assert len(list((shared / "claims").iterdir())) == 12
         return measure(*args)
 
     _private_run_campaign(
-        protocol, _verified_freeze(freeze), out_root=tmp_path / "out", mode="pilot",
+        protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
         measure_fn=ordered_measure, probe_fn=probe,
         perf_preflight_fn=perf_preflight, sleep_fn=lambda _seconds: None,
         monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
         now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "bin"),
-        durable_root_policy=_durable_policy(tmp_path / "out"),
-        _holdout_reserve_fn=reserve_first,
+        durable_root_policy=_durable_policy(out_root),
     )
-    assert order[0] == "reserve"
-    assert order.index("reserve") < order.index("perf")
-    assert order.index("reserve") < order.index("probe")
-    assert order.index("reserve") < order.index("measure")
+    assert order[0] == "perf"
+    assert order.index("perf") < order.index("probe")
+    assert order.index("perf") < order.index("measure")
 
 
-def test_resume_absent_journal_reaches_ledger_gate_before_perf_preflight(tmp_path):
+def test_private_signature_source_keeps_real_claim_ledger_and_tickets(tmp_path):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    authority = _test_holdout_authority(out_root, protocol, verified)
+    shared = s8b_floor_campaign._holdout_admission.shared_admission_root(authority)
+
+    _private_run_campaign(
+        protocol, verified, out_root=out_root, mode="pilot",
+        measure_fn=_make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid],
+        ),
+        perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
+        probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+        monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+        now_fn=lambda: _FIXED_NOW, build_fn=_make_fake_build(tmp_path / "bin"),
+        durable_root_policy=_durable_policy(out_root),
+    )
+
+    assert len(list((shared / "claims").iterdir())) == 12
+    assert len(s8b_floor_campaign._holdout_admission._read_ledger(
+        shared / "ledger.jsonl",
+    )) == 12
+    assert len(list((shared / "consumed").iterdir())) == 12 * 8
+    assert len(s8b_floor_campaign._holdout_admission._read_ledger(
+        shared / "attempt-ledger.jsonl",
+    )) == 12 * 8
+
+
+def test_resume_absent_journal_is_rejected_before_perf_preflight(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     out_root = tmp_path / "out"
@@ -3137,22 +3259,15 @@ def test_resume_absent_journal_reaches_ledger_gate_before_perf_preflight(tmp_pat
         / "s8b-floor-pilot" / "issued-run"
     )
     resume_dir.mkdir(parents=True)
-    seen = []
-
-    def reject_issued_without_journal(**kwargs):
-        seen.append((kwargs["resume"], kwargs["journal_exists"]))
-        raise s8b_floor_campaign._holdout_admission.HoldoutAdmissionError(
-            "resume journal is absent after admission ledger issuance"
-        )
-
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="journal is absent"):
-        s8b_floor_campaign._run_campaign_core(
+    called = []
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="resume state invalid"):
+        _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
             resume_dir=resume_dir,
-            perf_preflight_fn=lambda **_kwargs: (_ for _ in ()).throw(AssertionError()),
-            _holdout_reserve_fn=reject_issued_without_journal,
+            perf_preflight_fn=lambda **_kwargs: called.append("perf"),
+            durable_root_policy=_durable_policy(out_root),
         )
-    assert seen == [(True, False)]
+    assert called == []
 
 
 def _forbid_measure(*_a, **_kw):
@@ -3494,8 +3609,6 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
     contract = ec.lookup(ENV_TAG)
     seen = {}
-    observation = object()
-
     def spy_measure_point(binary, records, threads, clocks_per_us, **kw):
         use_perf = kw.get("use_perf", True)
         seen["clocks_per_us"] = clocks_per_us
@@ -3520,20 +3633,12 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
             perf_preflight_fn=lambda **_kwargs: _perf_receipt(),
             now_fn=lambda: _FIXED_NOW, monotonic_fn=lambda: 0.0,
             durable_root_policy=_durable_policy(tmp_path / "out"),
-            _holdout_finalize_fn=lambda _reservation, *, manifest_sha256: {
-                cell["cell_id"]: SimpleNamespace(
-                    cell_id=cell["cell_id"],
-                )
-                for cell in s8b_floor_campaign.enumerate_cells(
-                    freeze, stock_configuration=protocol["stock_configuration"],
-                )
-            },
-            _attempt_consume_fn=lambda _admission, **_kwargs: observation,
         )
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)
     assert seen["use_perf"] is True
-    assert seen["holdout_observation_admission"] is observation
+    assert seen["holdout_observation_admission"] is not None
+    assert seen["holdout_observation_admission"].permitted_run_once_calls == 5
 
 
 def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
@@ -6948,6 +7053,7 @@ def test_fresh_run_rejects_recorded_g1_when_current_contract_is_g2_before_io(
         _private_run_campaign(
             protocol, _verified_freeze(freeze), out_root=out_root, mode="pilot",
             measure_fn=measure_fn,
+            durable_root_policy=_durable_policy(out_root),
         )
 
     current_lookup.assert_called_once_with(ENV_TAG)

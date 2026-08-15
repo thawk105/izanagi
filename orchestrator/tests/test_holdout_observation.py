@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Sequence
 import copy
 import dataclasses
 import json
@@ -43,8 +44,15 @@ def _completed_process(returncode: int = 0):
     })()
 
 
-def _issued(key: str = "rr80") -> observation.HoldoutObservationAdmission:
-    return observation.issue_holdout_observation_admission(
+def _issued(
+    key: str = "rr80", *, attempt_id: str = "planned:0", uses: int = 1,
+) -> observation.HoldoutObservationAdmission:
+    receipt = observation._new_durable_attempt_consumption_receipt(
+        attempt_id=attempt_id,
+        permitted_run_once_calls=uses,
+    )
+    return observation._issue_holdout_observation_admission_from_receipt(
+        receipt=receipt,
         verified_freeze_document=_freeze(),
         freeze_holdout_key=key,
     )
@@ -75,6 +83,30 @@ def test_protected_signatures_are_derived_from_freeze_and_match_exactly():
         ("rr80", "H1", "rr80", "80"),
         ("rr20", "H2", "rr20", "20"),
     }
+
+
+def test_no_supported_public_api_can_issue_an_observation_token():
+    assert "issue_holdout_observation_admission" not in observation.__all__
+    assert not hasattr(observation, "issue_holdout_observation_admission")
+
+
+def test_private_consumption_receipt_is_single_use_and_attempt_bound():
+    receipt = observation._new_durable_attempt_consumption_receipt(
+        attempt_id="retry:1", permitted_run_once_calls=5,
+    )
+    token = observation._issue_holdout_observation_admission_from_receipt(
+        receipt=receipt,
+        verified_freeze_document=_freeze(),
+        freeze_holdout_key="rr80",
+    )
+    assert token.attempt_id == "retry:1"
+    assert token.permitted_run_once_calls == 5
+    with pytest.raises(observation.HoldoutObservationError, match="reused"):
+        observation._issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=_freeze(),
+            freeze_holdout_key="rr80",
+        )
 
 
 def test_unknown_freeze_holdout_is_rejected_instead_of_classified_unprotected():
@@ -142,6 +174,89 @@ def test_direct_gflags_are_normalized_with_last_wins_semantics():
     assert classified.ycsb_rratio == "80"
 
 
+@pytest.mark.parametrize(
+    "ratio",
+    [
+        "+80", "080", " 80", "80 ", "-80", "80+", "80x", "",
+        "18446744073709551616",
+    ],
+)
+def test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect(
+    monkeypatch, ratio,
+):
+    effects = []
+    monkeypatch.setattr(
+        runner.tempfile, "mkdtemp",
+        lambda **_kwargs: effects.append("tempdir"),
+    )
+    with pytest.raises(
+        observation.HoldoutObservationError,
+        match="canonical unsigned decimal|uint64 range",
+    ):
+        runner.run_once(
+            "/bench", [f"--ycsb_rratio={ratio}"],
+            subprocess_runner=lambda *_args, **_kwargs: effects.append("spawn"),
+            use_perf=False,
+        )
+    assert effects == []
+
+
+@pytest.mark.parametrize("ratio", ["0", "19", "21", "79", "81", "18446744073709551615"])
+def test_canonical_uint64_boundary_controls_remain_unprotected(ratio):
+    assert observation.classify_minimal_holdout_signature(
+        [f"--ycsb_rratio={ratio}"]
+    ) is None
+
+
+def test_run_once_snapshots_stateful_gflags_exactly_once():
+    class StatefulFlags(Sequence[str]):
+        def __init__(self):
+            self.iterations = 0
+
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, index):
+            if index == 0:
+                return "--ycsb_rratio=50"
+            raise IndexError
+
+        def __iter__(self):
+            self.iterations += 1
+            ratio = "50" if self.iterations == 1 else "80"
+            return iter((f"--ycsb_rratio={ratio}",))
+
+    flags = StatefulFlags()
+    seen = []
+    runner.run_once(
+        "/bench", flags,
+        subprocess_runner=lambda cmd, **_kwargs: (
+            seen.append(tuple(cmd)) or _completed_process()
+        ),
+        use_perf=False,
+    )
+    assert flags.iterations == 1
+    assert seen == [("/bench", "--ycsb_rratio=50")]
+
+
+def test_run_once_snapshot_rejects_non_exact_str_before_effect(monkeypatch):
+    class StringSubclass(str):
+        pass
+
+    effects = []
+    monkeypatch.setattr(
+        runner.tempfile, "mkdtemp",
+        lambda **_kwargs: effects.append("tempdir"),
+    )
+    with pytest.raises(observation.HoldoutObservationError, match="exact strings"):
+        runner.run_once(
+            "/bench", [StringSubclass("--ycsb_rratio=50")],
+            subprocess_runner=lambda *_args, **_kwargs: effects.append("spawn"),
+            use_perf=False,
+        )
+    assert effects == []
+
+
 @pytest.mark.parametrize("ratio", ["20", "80"])
 def test_protected_ratio_without_admission_stops_before_any_effect(
     monkeypatch, ratio,
@@ -200,6 +315,50 @@ def test_issued_identity_admission_allows_matching_protected_ratio():
     assert len(calls) == 1
 
 
+def test_attempt_admission_rejects_run_once_beyond_permitted_count():
+    token = _issued("rr80", attempt_id="planned:2", uses=2)
+    calls = []
+    for _ in range(2):
+        runner.run_once(
+            "/bench", ["--ycsb_rratio=80"],
+            subprocess_runner=lambda *_args, **_kwargs: (
+                calls.append("spawn") or _completed_process()
+            ),
+            use_perf=False,
+            holdout_observation_admission=token,
+        )
+    with pytest.raises(observation.HoldoutObservationError, match="exhausted"):
+        runner.run_once(
+            "/bench", ["--ycsb_rratio=80"],
+            subprocess_runner=lambda *_args, **_kwargs: calls.append("spawn"),
+            use_perf=False,
+            holdout_observation_admission=token,
+        )
+    assert calls == ["spawn", "spawn"]
+
+
+def test_one_attempt_allows_exactly_one_measure_point_repetition_set():
+    token = _issued("rr80", attempt_id="planned:3", uses=5)
+    calls = []
+    runner.measure_point(
+        "/bench", records=1000, threads=4, clocks_per_us=1800,
+        workload={"ycsb_rratio": "80"}, reps=5,
+        subprocess_runner=lambda *_args, **_kwargs: (
+            calls.append("spawn") or _completed_process()
+        ),
+        rep_observations=[], use_perf=False,
+        holdout_observation_admission=token,
+    )
+    with pytest.raises(observation.HoldoutObservationError, match="exhausted"):
+        runner.run_once(
+            "/bench", ["--ycsb_rratio=80"],
+            subprocess_runner=lambda *_args, **_kwargs: calls.append("spawn"),
+            use_perf=False,
+            holdout_observation_admission=token,
+        )
+    assert calls == ["spawn"] * 5
+
+
 def test_issued_admission_cannot_be_reused_for_another_protected_ratio():
     calls = []
     with pytest.raises(observation.HoldoutObservationError, match="does not match"):
@@ -212,6 +371,48 @@ def test_issued_admission_cannot_be_reused_for_another_protected_ratio():
     assert calls == []
 
 
+def test_private_signature_token_cannot_authorize_another_private_signature():
+    freeze = {
+        "holdouts": {
+            "rr79": {
+                "candidate_id": "S1",
+                "ycsb": {"ycsb_rratio": "79"},
+            },
+            "rr23": {
+                "candidate_id": "S2",
+                "ycsb": {"ycsb_rratio": "23"},
+            },
+        },
+    }
+    receipt = observation._new_durable_attempt_consumption_receipt(
+        attempt_id="synthetic:0", permitted_run_once_calls=1,
+    )
+    token = observation._issue_holdout_observation_admission_from_receipt(
+        receipt=receipt,
+        verified_freeze_document=freeze,
+        freeze_holdout_key="rr79",
+        _neutral_holdouts=freeze["holdouts"],
+    )
+    calls = []
+    with pytest.raises(observation.HoldoutObservationError, match="does not match"):
+        runner.run_once(
+            "/bench", ["--ycsb_rratio=23"],
+            subprocess_runner=lambda *_args, **_kwargs: calls.append("spawn"),
+            use_perf=False,
+            holdout_observation_admission=token,
+        )
+    assert calls == []
+    runner.run_once(
+        "/bench", ["--ycsb_rratio=79"],
+        subprocess_runner=lambda *_args, **_kwargs: (
+            calls.append("spawn") or _completed_process()
+        ),
+        use_perf=False,
+        holdout_observation_admission=token,
+    )
+    assert calls == ["spawn"]
+
+
 def test_identity_capability_rejects_construction_copy_replace_pickle_and_dict():
     token = _issued("rr80")
     attacks = [
@@ -220,6 +421,8 @@ def test_identity_capability_rejects_construction_copy_replace_pickle_and_dict()
             freeze_candidate_id=token.freeze_candidate_id,
             trial_workload_name=token.trial_workload_name,
             ycsb_rratio=token.ycsb_rratio,
+            attempt_id=token.attempt_id,
+            permitted_run_once_calls=token.permitted_run_once_calls,
         ),
         copy.copy(token),
         dataclasses.replace(token),
@@ -259,6 +462,18 @@ def test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape(ratio):
     )
     assert len(result) == 3
     assert calls == ["spawn"]
+
+
+def test_private_neutral_source_still_requires_exact_signature_equality():
+    freeze = _freeze()
+    source = copy.deepcopy(freeze["holdouts"])
+    first = next(iter(source.values()))
+    first["candidate_id"] = "synthetic-drift"
+    with pytest.raises(observation.HoldoutObservationError, match="exactly match"):
+        observation._protected_signatures_from_verified_freeze_core(
+            freeze,
+            _neutral_holdouts=source,
+        )
 
 
 def test_subprocess_environment_removes_all_flags_prefix_inputs(monkeypatch):
