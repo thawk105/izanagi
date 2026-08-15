@@ -2164,6 +2164,36 @@ def test_acquired_lock_rejects_path_inode_replacement() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
+def test_acquired_lock_rejects_path_rebinding_with_old_inode_preserved() -> None:
+    """M3: 旧 inode の link を保った path 差し替えも rc 22。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        lock_path = repo.main / ".git" / "dev-wave-land.lock"
+        preserved = repo.main / ".git" / "dev-wave-land.lock.before-rebind"
+        with _held_land_lock(repo) as holder:
+            def rebind_lock_path(_runtime) -> None:
+                runtime.on_sleep = None
+                os.rename(lock_path, preserved)
+                lock_path.write_bytes(b"")
+                lock_path.chmod(0o600)
+                assert LAND._lock_metadata_is_safe(os.fstat(holder))
+                assert LAND._lock_metadata_is_safe(
+                    os.stat(lock_path, follow_symlinks=False)
+                )
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = rebind_lock_path
+            with runtime.patch():
+                result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_IDENTITY, "rejected"), result
+        assert "binding changed after acquisition" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
 @pytest.mark.parametrize("lock_rebinding", ["move-old-inode", "symlink-old-inode"])
 def test_acquired_lock_rejects_common_git_dir_replacement(
     lock_rebinding: str,
