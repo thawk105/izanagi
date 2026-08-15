@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import errno
 import fcntl
 import hashlib
 import importlib.util
@@ -283,6 +284,46 @@ def _repo(*, waves: tuple[tuple[str, str], ...] = (("codex", "one"),)):
 def _land(request):
     with _cwd(request.wave_worktree):
         return LAND.land(request)
+
+
+class _FakeLandLockRuntime:
+    def __init__(self) -> None:
+        self.now_s = 0.0
+        self.sleeps: list[float] = []
+        self.delay_caps: list[float] = []
+        self.on_sleep = None
+
+    def now(self) -> float:
+        return self.now_s
+
+    def sleep(self, delay: float) -> None:
+        self.sleeps.append(delay)
+        self.now_s += delay
+        if self.on_sleep is not None:
+            self.on_sleep(self)
+
+    def jitter(self, delay_cap: float) -> float:
+        self.delay_caps.append(delay_cap)
+        return delay_cap
+
+    @contextlib.contextmanager
+    def patch(self):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(_patched_land_attr("_land_lock_now", self.now))
+            stack.enter_context(_patched_land_attr("_land_lock_sleep", self.sleep))
+            stack.enter_context(_patched_land_attr("_land_lock_jitter", self.jitter))
+            yield self
+
+
+@contextlib.contextmanager
+def _held_land_lock(repo: _Repo):
+    path = repo.main / ".git" / "dev-wave-land.lock"
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield fd
+    finally:
+        os.close(fd)
 
 
 def _land_cli_argv(request, *prefix: str) -> list[str]:
@@ -1874,8 +1915,8 @@ def test_audited_sequence_same_length_wrong_commit_is_rejected() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
-def test_nonblocking_common_lock_reports_lock_busy() -> None:
-    """M9: lock-busy は checker を起動せず 2 秒未満で返す。"""
+def test_common_lock_timeout_does_not_start_provenance_checker() -> None:
+    """M5/M9: timeout は checker より先に rc 11 で止まる。"""
     with _repo() as repo:
         wave = repo.waves["one"]
         marker = repo.root / "provenance-checker-started"
@@ -1885,18 +1926,86 @@ def test_nonblocking_common_lock_reports_lock_busy() -> None:
         )
         repo.commit(wave, "tools/check_ai_provenance.py", checker)
         tip = repo.commit(wave, "wave.txt", "wave\n")
-        lock_path = repo.main / ".git" / "dev-wave-land.lock"
-        lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        try:
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            started = time.monotonic()
+        runtime = _FakeLandLockRuntime()
+        with _held_land_lock(repo), runtime.patch():
             result = _land(repo.request(wave, tip=tip))
-            elapsed = time.monotonic() - started
-        finally:
-            os.close(lock_fd)
         assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
-        assert elapsed < 2.0
+        assert result.reason == (
+            "another cooperative land operation holds the common lock "
+            "(phase=initial, waited_s=180.000, "
+            "window_elapsed_s=180.000, limit_s=180.000)"
+        )
+        assert sum(runtime.sleeps) == pytest.approx(LAND._LAND_LOCK_WAIT_SECONDS)
         assert not marker.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_common_lock_waits_then_lands_after_holder_releases() -> None:
+    """M1: holder 解放後は同じ invocation が待機から land へ進む。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        with _held_land_lock(repo) as holder:
+            runtime.on_sleep = lambda _runtime: fcntl.flock(holder, fcntl.LOCK_UN)
+            with runtime.patch():
+                result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert runtime.sleeps
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_land_lock_polling_stops_at_shared_deadline() -> None:
+    """M2: 監査後再取得にも初回からの同じ絶対 deadline だけを使う。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        deadlines: list[float] = []
+        holder = -1
+        real_audit = LAND._audit_provenance_history
+        real_acquire = LAND._acquire_land_lock
+
+        def audit_then_hold(repository):
+            nonlocal holder
+            receipt = real_audit(repository)
+            holder = os.open(
+                repo.main / ".git" / "dev-wave-land.lock",
+                os.O_RDWR | os.O_NOFOLLOW,
+            )
+            fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            runtime.now_s = 170.0
+            return receipt
+
+        def record_deadline(repository, lock, deadline):
+            deadlines.append(deadline)
+            return real_acquire(repository, lock, deadline)
+
+        try:
+            with (
+                runtime.patch(),
+                _patched_land_attr("_audit_provenance_history", audit_then_hold),
+                _patched_land_attr("_acquire_land_lock", record_deadline),
+            ):
+                result = _land(repo.request(wave, tip=tip))
+        finally:
+            if holder >= 0:
+                os.close(holder)
+
+        assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
+        assert result.reason == (
+            "another cooperative land operation holds the common lock "
+            "(phase=post-provenance, waited_s=10.000, "
+            "window_elapsed_s=180.000, limit_s=180.000)"
+        )
+        assert deadlines == [180.0, 180.0]
+        assert runtime.sleeps
+        assert all(0.0 < delay <= LAND._LAND_LOCK_MAX_POLL_SECONDS for delay in runtime.sleeps)
+        assert sum(runtime.sleeps) == pytest.approx(10.0)
+        assert runtime.now_s == pytest.approx(180.0)
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
@@ -1947,6 +2056,452 @@ def test_provenance_audit_runs_with_global_lock_released() -> None:
         result = _land(repo.request(wave, tip=tip))
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
         assert marker.is_file()
+
+
+def test_post_provenance_reacquire_waits_with_same_deadline() -> None:
+    """監査後の contender 解放を待ち、receipt と fingerprint を実検査する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        runtime = _FakeLandLockRuntime()
+        deadlines: list[float] = []
+        holder = -1
+        real_audit = LAND._audit_provenance_history
+        real_acquire = LAND._acquire_land_lock
+
+        def audit_then_hold(repository):
+            nonlocal holder
+            receipt = real_audit(repository)
+            holder = os.open(
+                repo.main / ".git" / "dev-wave-land.lock",
+                os.O_RDWR | os.O_NOFOLLOW,
+            )
+            fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            runtime.now_s = 170.0
+            return receipt
+
+        def release_after_five_seconds(_runtime) -> None:
+            if runtime.now_s >= 175.0:
+                runtime.on_sleep = None
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+        def record_deadline(repository, lock, deadline):
+            deadlines.append(deadline)
+            return real_acquire(repository, lock, deadline)
+
+        runtime.on_sleep = release_after_five_seconds
+        try:
+            with (
+                runtime.patch(),
+                _patched_land_attr("_audit_provenance_history", audit_then_hold),
+                _patched_land_attr("_acquire_land_lock", record_deadline),
+            ):
+                result = _land(request)
+        finally:
+            if holder >= 0:
+                os.close(holder)
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert deadlines == [180.0, 180.0]
+        assert sum(runtime.sleeps) >= 5.0
+        assert runtime.now_s < 180.0
+        assert result.acceptance_receipt_sha256 == hashlib.sha256(
+            request.acceptance_receipt.read_bytes()
+        ).hexdigest()
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_expired_shared_deadline_still_attempts_post_provenance_once() -> None:
+    """期限経過後の再取得も、空いていれば最初の nonblocking 1 回で成功する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_expire(repository):
+            receipt = real_audit(repository)
+            runtime.now_s = LAND._LAND_LOCK_WAIT_SECONDS + 1.0
+            return receipt
+
+        with (
+            runtime.patch(),
+            _patched_land_attr("_audit_provenance_history", audit_then_expire),
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert runtime.sleeps == []
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_acquired_lock_rejects_path_inode_replacement() -> None:
+    """M3: 待機中に lock path が別 inode へ替われば rc 22。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        lock_path = repo.main / ".git" / "dev-wave-land.lock"
+        replacement = repo.main / ".git" / "dev-wave-land.lock.new"
+        with _held_land_lock(repo) as holder:
+            def replace_lock(_runtime) -> None:
+                runtime.on_sleep = None
+                replacement.write_bytes(b"")
+                replacement.chmod(0o600)
+                os.replace(replacement, lock_path)
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = replace_lock
+            with runtime.patch():
+                result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_IDENTITY, "rejected"), result
+        assert "binding changed after acquisition" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_acquired_lock_rejects_path_rebinding_with_old_inode_preserved() -> None:
+    """M3: 旧 inode の link を保った path 差し替えも rc 22。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        lock_path = repo.main / ".git" / "dev-wave-land.lock"
+        preserved = repo.main / ".git" / "dev-wave-land.lock.before-rebind"
+        with _held_land_lock(repo) as holder:
+            def rebind_lock_path(_runtime) -> None:
+                runtime.on_sleep = None
+                os.rename(lock_path, preserved)
+                lock_path.write_bytes(b"")
+                lock_path.chmod(0o600)
+                assert LAND._lock_metadata_is_safe(os.fstat(holder))
+                assert LAND._lock_metadata_is_safe(
+                    os.stat(lock_path, follow_symlinks=False)
+                )
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = rebind_lock_path
+            with runtime.patch():
+                result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_IDENTITY, "rejected"), result
+        assert "binding changed after acquisition" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+@pytest.mark.parametrize("lock_rebinding", ["move-old-inode", "symlink-old-inode"])
+def test_acquired_lock_rejects_common_git_dir_replacement(
+    lock_rebinding: str,
+) -> None:
+    """M4: common dir 差し替えと旧 lock への symlink を rc 22 で拒否する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        common = repo.main / ".git"
+        old_common = repo.root / "common-before-replacement"
+        with _held_land_lock(repo) as holder:
+            def replace_common(_runtime) -> None:
+                runtime.on_sleep = None
+                common.rename(old_common)
+                shutil.copytree(old_common, common, symlinks=True)
+                (common / "dev-wave-land.lock").unlink()
+                if lock_rebinding == "move-old-inode":
+                    os.replace(
+                        old_common / "dev-wave-land.lock",
+                        common / "dev-wave-land.lock",
+                    )
+                else:
+                    os.symlink(
+                        old_common / "dev-wave-land.lock",
+                        common / "dev-wave-land.lock",
+                    )
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = replace_common
+            with runtime.patch():
+                result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_IDENTITY, "rejected"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+test_acquired_lock_rejects_common_git_dir_replacement._plain_cases = (
+    ("move-old-inode",),
+    ("symlink-old-inode",),
+)
+
+
+def test_post_provenance_reacquire_rejects_control_directory_replacement() -> None:
+    """M7: 再取得待機中の byte-identical control inode 交換は rc 21。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        holder = -1
+        real_audit = LAND._audit_provenance_history
+        handoff = repo.main / "docs" / "handoff"
+        old_handoff = repo.root / "handoff-before-replacement"
+
+        def audit_then_hold(repository):
+            nonlocal holder
+            receipt = real_audit(repository)
+            holder = os.open(
+                repo.main / ".git" / "dev-wave-land.lock",
+                os.O_RDWR | os.O_NOFOLLOW,
+            )
+            fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            runtime.now_s = 170.0
+            return receipt
+
+        def replace_control(_runtime) -> None:
+            runtime.on_sleep = None
+            handoff.rename(old_handoff)
+            shutil.copytree(old_handoff, handoff)
+            fcntl.flock(holder, fcntl.LOCK_UN)
+
+        runtime.on_sleep = replace_control
+        try:
+            with (
+                runtime.patch(),
+                _patched_land_attr("_audit_provenance_history", audit_then_hold),
+            ):
+                result = _land(repo.request(wave, tip=tip))
+        finally:
+            if holder >= 0:
+                os.close(holder)
+
+        assert (result.rc, result.status) == (
+            LAND.RC_CONTROL_PLANE,
+            "rejected",
+        ), result
+        assert result.reason == (
+            "control-plane identity/binding changed during the provenance audit"
+        )
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+@pytest.mark.parametrize(
+    ("exit_kind", "expected_exception"),
+    [
+        ("timeout", None),
+        ("runtime-error", RuntimeError),
+        ("keyboard-interrupt", KeyboardInterrupt),
+    ],
+)
+def test_land_lock_wait_closes_fd_on_non_success_exit(
+    exit_kind: str,
+    expected_exception: type[BaseException] | None,
+) -> None:
+    """M8: timeout・例外・割込みの全てで caller 所有 fd を閉じる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        runtime = _FakeLandLockRuntime()
+        opened: list[int] = []
+        real_open = LAND._open_lock
+
+        def record_open(repository, lock) -> None:
+            real_open(repository, lock)
+            opened.append(lock.fd)
+
+        if exit_kind == "runtime-error":
+            def fail_jitter(_delay_cap: float) -> float:
+                raise RuntimeError("synthetic jitter failure")
+            runtime.jitter = fail_jitter
+        elif exit_kind == "keyboard-interrupt":
+            def interrupt_sleep(_delay: float) -> None:
+                raise KeyboardInterrupt("synthetic interrupt")
+            runtime.sleep = interrupt_sleep
+
+        with _held_land_lock(repo), runtime.patch(), _patched_land_attr(
+            "_open_lock", record_open
+        ):
+            if expected_exception is None:
+                result = _land(repo.request(wave, tip=tip))
+                assert result.rc == LAND.RC_LOCK_BUSY, result
+            else:
+                with pytest.raises(expected_exception):
+                    _land(repo.request(wave, tip=tip))
+
+        assert opened
+        with pytest.raises(OSError) as closed:
+            os.fstat(opened[-1])
+        assert closed.value.errno == errno.EBADF
+
+
+test_land_lock_wait_closes_fd_on_non_success_exit._plain_cases = (
+    ("timeout", None),
+    ("runtime-error", RuntimeError),
+    ("keyboard-interrupt", KeyboardInterrupt),
+)
+
+
+@pytest.mark.parametrize(
+    ("exit_kind", "expected_exception"),
+    [
+        ("reject", None),
+        ("os-error", OSError),
+        ("keyboard-interrupt", KeyboardInterrupt),
+    ],
+)
+def test_land_lock_closes_fd_on_post_acquire_verification_exit(
+    exit_kind: str,
+    expected_exception: type[BaseException] | None,
+) -> None:
+    """M8: real flock 成功後の検証失敗でも caller 所有 fd を閉じる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        opened: list[int] = []
+        verified: list[int] = []
+        real_open = LAND._open_lock
+
+        def record_open(repository, lock) -> None:
+            real_open(repository, lock)
+            opened.append(lock.fd)
+
+        def fail_verification(_repository, lock) -> None:
+            verified.append(lock.fd)
+            contender = os.open(
+                repo.main / ".git" / "dev-wave-land.lock",
+                os.O_RDWR | os.O_NOFOLLOW,
+            )
+            try:
+                with pytest.raises(BlockingIOError):
+                    fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            finally:
+                os.close(contender)
+            if exit_kind == "reject":
+                raise LAND._Reject(LAND.RC_IDENTITY, "synthetic binding rejection")
+            if exit_kind == "os-error":
+                raise OSError(errno.EIO, "synthetic binding I/O failure")
+            raise KeyboardInterrupt("synthetic post-acquire interrupt")
+
+        with (
+            _patched_land_attr("_open_lock", record_open),
+            _patched_land_attr("_verify_land_lock_binding", fail_verification),
+        ):
+            if expected_exception is None:
+                result = _land(repo.request(wave, tip=tip))
+                assert (result.rc, result.status) == (
+                    LAND.RC_IDENTITY,
+                    "rejected",
+                ), result
+                assert result.reason == "synthetic binding rejection"
+            else:
+                with pytest.raises(expected_exception):
+                    _land(repo.request(wave, tip=tip))
+
+        assert verified == opened
+        assert opened
+        with pytest.raises(OSError) as closed:
+            os.fstat(opened[-1])
+        assert closed.value.errno == errno.EBADF
+
+
+test_land_lock_closes_fd_on_post_acquire_verification_exit._plain_cases = (
+    ("reject", None),
+    ("os-error", OSError),
+    ("keyboard-interrupt", KeyboardInterrupt),
+)
+
+
+def test_pre_provenance_release_does_not_close_reused_fd() -> None:
+    """監査前の意図的解放後、再利用された同番号 fd を cleanup で閉じない。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        opened: list[int] = []
+        reused_fd = -1
+        real_open = LAND._open_lock
+
+        def record_open(repository, lock) -> None:
+            real_open(repository, lock)
+            opened.append(lock.fd)
+
+        def reuse_released_fd_then_interrupt(_repository):
+            nonlocal reused_fd
+            assert opened
+            with pytest.raises(OSError) as released:
+                os.fstat(opened[-1])
+            assert released.value.errno == errno.EBADF
+            reused_fd = os.open(request.acceptance_receipt, os.O_RDONLY)
+            assert reused_fd == opened[-1]
+            raise KeyboardInterrupt("synthetic audit interrupt after fd reuse")
+
+        try:
+            with (
+                _patched_land_attr("_open_lock", record_open),
+                _patched_land_attr(
+                    "_audit_provenance_history",
+                    reuse_released_fd_then_interrupt,
+                ),
+            ):
+                with pytest.raises(KeyboardInterrupt):
+                    _land(request)
+
+            assert reused_fd >= 0
+            os.fstat(reused_fd)
+        finally:
+            if reused_fd >= 0:
+                os.close(reused_fd)
+
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_waited_initial_lock_rechecks_main_and_reports_stale() -> None:
+    """M6: 待機後も main の監査閉包外移動を同じ理由で拒否する。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
+        marker = repo.root / "provenance-checker-started"
+        checker = (
+            "from pathlib import Path\n"
+            f"Path({str(marker)!r}).write_text('started')\n"
+        )
+        tested_main = repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        tested_main_parent = _git(wave, "rev-parse", f"{tested_main}^")
+        assert _git(
+            wave,
+            "merge-base",
+            "--is-ancestor",
+            tested_main_parent,
+            tip,
+        ) == ""
+        _git(repo.main, "reset", "--hard", tested_main)
+        runtime = _FakeLandLockRuntime()
+        with _held_land_lock(repo) as holder:
+            def move_main(_runtime) -> None:
+                runtime.on_sleep = None
+                _git(repo.main, "reset", "--hard", tested_main_parent)
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = move_main
+            with runtime.patch():
+                result = _land(repo.request(wave, base=tested_main, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_STALE_MAIN, "stale-main"), result
+        assert result.reason == "main moved outside the tested audited closure while locking"
+        assert not marker.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == tested_main_parent
+        assert _git(repo.main, "status", "--porcelain=v1") == ""
 
 
 def test_already_landed_does_not_run_failing_provenance_checker() -> None:
@@ -4851,11 +5406,14 @@ def test_merge_child_inherits_lock_fd_if_helper_is_killed() -> None:
             assert ready.exists(), "merge wrapper did not start"
             os.kill(process.pid, signal.SIGKILL)
             process.wait(timeout=2)
-            result = _land(request)
+            runtime = _FakeLandLockRuntime()
+            with runtime.patch():
+                result = _land(request)
             assert (result.rc, result.status) == (
                 LAND.RC_LOCK_BUSY,
                 "lock-busy",
             ), result
+            assert runtime.now_s == pytest.approx(LAND._LAND_LOCK_WAIT_SECONDS)
         finally:
             release.touch()
         deadline = time.monotonic() + 5
