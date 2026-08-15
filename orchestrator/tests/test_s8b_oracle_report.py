@@ -27,6 +27,7 @@ import s8b_v2_freeze_fixture as v2_fixture  # noqa: E402
 import s8b_oracle_spec_fixture as spec_fixture  # noqa: E402
 import test_s8b_ratified_freeze as ratified_fixture  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
+    artifact_admission as admission,
     env_contract,
     execution_guard,
     model,
@@ -77,6 +78,14 @@ _MANIFEST_ENV_ISSUE = (
 _SPEC_FIXTURES: dict[str, spec_fixture.ReviewedSpecFixture] = {}
 
 
+def _e1_epoch() -> admission.CampaignVerifierEpoch:
+    return admission.CampaignVerifierEpoch(
+        campaign_verifier_epoch=f"E1:{'e' * 64}",
+        state="E1",
+        reason_code="recorded-closure",
+    )
+
+
 @pytest.fixture(autouse=True)
 def _hermetic_t080_never_issued(monkeypatch):
     """実 repository の receipt 発行状態から既存 report test を分離する。"""
@@ -86,6 +95,16 @@ def _hermetic_t080_never_issued(monkeypatch):
     monkeypatch.setattr(
         report._t080, "inspect_receipt_history",
         lambda *, root, validation_head=None, check_worktree=True: resolution,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_certified_campaign_epoch(monkeypatch):
+    """Report 単体テストを中央 gate の Git/worktree 状態から分離する。"""
+    monkeypatch.setattr(
+        report._artifact_admission,
+        "require_campaign_verifier_epoch",
+        lambda campaign, *, purpose: _e1_epoch(),
     )
 
 
@@ -367,6 +386,12 @@ def _judge(observations, *, manifest_sha256=None, spec_sha256=None):
             for entry in observations.get("expected_cells", [])
             if isinstance(entry, Mapping)
             and set(entry) == judge._EXPECTED_CELL_KEYS
+        ),
+        expected_campaign_ids=frozenset(
+            entry["campaign_id"]
+            for entry in observations.get("campaign_verifier_epochs", [])
+            if isinstance(entry, Mapping)
+            and isinstance(entry.get("campaign_id"), str)
         ),
     )
     return judge.judge_oracle(
@@ -737,6 +762,122 @@ def test_success_uses_real_manifest_and_binds_physical_trial_intervals(tmp_path)
     ]
     assert all(row["binding_ok"] for row in observations["rows"][:2])
     assert len(observations["expected_cells"]) == len(schedule)
+
+
+def test_report_projects_e1_epoch_from_resolved_campaign_layout(
+        tmp_path, monkeypatch):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+    calls = []
+
+    def certified(campaign, *, purpose):
+        calls.append((campaign, purpose))
+        return _e1_epoch()
+
+    monkeypatch.setattr(
+        report._artifact_admission,
+        "require_campaign_verifier_epoch",
+        certified,
+    )
+    observations = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )
+
+    assert len(calls) == 1
+    assert Path(calls[0][0].root) == Path(layout.root).resolve()
+    assert calls[0][1] is admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+    assert observations["campaign_verifier_epochs"] == [{
+        "campaign_id": "oracle-b0",
+        "campaign_verifier_epoch": f"E1:{'e' * 64}",
+        "state": "E1",
+        "reason_code": "recorded-closure",
+        "identity_scope": admission.CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        "excluded_scope": admission.CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+        "certified_eligible": True,
+        "rejection": None,
+    }]
+    assert {row["campaign_id"] for row in observations["rows"]} == {
+        "oracle-b0"
+    }
+
+
+@pytest.mark.parametrize(
+    "epoch",
+    [
+        admission.CampaignVerifierEpoch(
+            campaign_verifier_epoch="E0",
+            state="E0",
+            reason_code="v1-authority-absent",
+        ),
+        admission.CampaignVerifierEpoch(
+            campaign_verifier_epoch=f"E1:{'d' * 64}",
+            state="E1-stale",
+            reason_code="recorded-current-closure-mismatch",
+        ),
+    ],
+    ids=["e0", "e1-stale"],
+)
+def test_report_keeps_non_e1_epoch_rejection_as_structured_evidence(
+        tmp_path, monkeypatch, epoch):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    def rejected(campaign, *, purpose):
+        raise admission.CampaignVerifierEpochRejected(epoch)
+
+    monkeypatch.setattr(
+        report._artifact_admission,
+        "require_campaign_verifier_epoch",
+        rejected,
+    )
+    observations = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )
+
+    evidence = observations["campaign_verifier_epochs"]
+    assert len(evidence) == 1
+    assert evidence[0]["state"] == epoch.state
+    assert evidence[0]["reason_code"] == epoch.reason_code
+    assert evidence[0]["certified_eligible"] is False
+    assert evidence[0]["rejection"]["code"] == (
+        "campaign-verifier-epoch-rejected"
+    )
+    assert all(row["status"] == "completed" for row in observations["rows"])
+    verdict = _judge(observations)
+    assert verdict["status"] == "indeterminate"
+    assert {
+        reason["code"] for reason in verdict["reasons"]
+    } == {"campaign-verifier-epoch-rejected"}
+
+
+def test_report_keeps_unreadable_epoch_as_structured_rejection(
+        tmp_path, monkeypatch):
+    manifest = _manifest(tmp_path)
+    layout = _layout(tmp_path, manifest)
+    _finish_campaign(layout, manifest)
+
+    def unavailable(campaign, *, purpose):
+        raise admission.ArtifactAdmissionError("campaign.lock を読めない")
+
+    monkeypatch.setattr(
+        report._artifact_admission,
+        "require_campaign_verifier_epoch",
+        unavailable,
+    )
+    observations = report.build_observations(
+        manifest=_verify_for_report(tmp_path, manifest), output_root=tmp_path,
+    )
+
+    evidence = observations["campaign_verifier_epochs"][0]
+    assert evidence["campaign_verifier_epoch"] is None
+    assert evidence["state"] == "unavailable"
+    assert evidence["reason_code"] == "campaign-verifier-epoch-unavailable"
+    assert evidence["certified_eligible"] is False
+    assert evidence["rejection"]["code"] == (
+        "campaign-verifier-epoch-unavailable"
+    )
 
 
 def test_build_observations_accepts_actual_verify_manifest_result(tmp_path):

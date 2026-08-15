@@ -20,6 +20,21 @@ from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
 WORKLOADS = ("balanced", "write-heavy", "read-heavy")
 CONFIGS = ("system_gate", "ident_all", "p2_2_flag_opt",
            "backoff_fixed_best", "sort_best", "stock_common")
+E1_EPOCH = report.CampaignVerifierEpoch(
+    campaign_verifier_epoch="E1:" + "1" * 64,
+    state="E1",
+    reason_code="recorded-closure",
+)
+
+
+@pytest.fixture(autouse=True)
+def _certified_epoch_fixture(monkeypatch):
+    """既存 S1 fixture を固定 E1 の lock-only 境界へ適合させる。"""
+    monkeypatch.setattr(
+        report,
+        "require_campaign_verifier_epoch",
+        lambda _campaign, *, purpose: E1_EPOCH,
+    )
 
 
 def _freeze() -> dict:
@@ -401,6 +416,55 @@ def test_line_issue_and_unframed_tail_are_both_reported_with_prefix_kept(tmp_pat
     assert gate["recorded_attempt_starts"] == expected
     assert gate["next_index"] == expected
     assert result["hard_gates"]["certified"]["accepted_samples"]["block1"] == expected
+
+
+def test_non_e1_campaign_is_structured_and_wal_is_not_read(
+        tmp_path, monkeypatch):
+    document, freeze_path, budget_path = _fixture(tmp_path)
+    rejected_layout = driver.layout_for(
+        document, "block1", output_root=str(tmp_path / "output"),
+    )
+    e0 = report.CampaignVerifierEpoch(
+        campaign_verifier_epoch="E0",
+        state="E0",
+        reason_code="v1-authority-absent",
+    )
+    original_read = report.wal.read_records_collected
+    read_roots = []
+
+    def epoch_gate(campaign, *, purpose):
+        assert purpose is report.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+        if campaign.root == rejected_layout.root:
+            raise report.CampaignVerifierEpochRejected(e0)
+        return E1_EPOCH
+
+    def observed_read(layout):
+        assert layout.root != rejected_layout.root
+        read_roots.append(layout.root)
+        return original_read(layout)
+
+    monkeypatch.setattr(report, "require_campaign_verifier_epoch", epoch_gate)
+    monkeypatch.setattr(report.wal, "read_records_collected", observed_read)
+
+    result = _generate(tmp_path, document, freeze_path, budget_path)
+
+    gate = result["hard_gates"]["schedule"]["block1"]
+    reason = gate["reasons"][0]
+    assert reason["code"] == "campaign_verifier_epoch_rejected"
+    assert reason["campaign_verifier_epoch"] == "E0"
+    assert reason["state"] == "E0"
+    assert reason["reason_code"] == "v1-authority-absent"
+    certified = result["hard_gates"]["certified"]
+    assert certified["status"] == "fail"
+    assert certified["accepted_samples"]["block1"] == 0
+    assert certified["campaign_verifier_epochs"]["block1"] == {
+        "campaign_verifier_epoch": "E0",
+        "state": "E0",
+        "reason_code": "v1-authority-absent",
+        "identity_scope": e0.identity_scope,
+        "excluded_scope": e0.excluded_scope,
+    }
+    assert len(read_roots) == len(report.ROLES) - 1
 
 
 def test_floor_cell_with_seven_sessions_makes_comparison_indeterminate(tmp_path):

@@ -57,7 +57,10 @@ from . import (  # noqa: E402
 )
 from .artifact_admission import (  # noqa: E402
     ArtifactAdmissionError,
+    CampaignReadPurpose,
+    CampaignVerifierEpoch,
     require_admitted_campaign,
+    require_certified_campaign_view,
 )
 
 
@@ -220,27 +223,6 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         schema["properties"]["schema_version"] = {"const": LEGACY_SCHEMA_VERSION}
         schema["required"].remove("admission_decision")
         schema["properties"].pop("admission_decision")
-    else:
-        # The shared schema artifact is outside this wiring unit's ownership.
-        # Extend its in-memory v3 contract at the reader boundary.
-        schema = json.loads(json.dumps(schema))
-        schema["properties"]["acceptance_receipt"] = {
-            "oneOf": [
-                {"type": "null"},
-                {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["path", "sha256"],
-                    "properties": {
-                        "path": {"type": "string", "minLength": 1},
-                        "sha256": {
-                            "type": "string", "pattern": "^[0-9a-f]{64}$",
-                        },
-                    },
-                },
-            ],
-        }
-        schema["properties"]["certifying_input"] = {"type": "boolean"}
     try:
         jsonschema.Draft7Validator(schema).validate(report)
     except jsonschema.ValidationError as exc:
@@ -259,6 +241,16 @@ def _validate_schema(report: Mapping[str, Any]) -> None:
         raise Layer3ReportError(
             "certifying_input=true には admission_status=admitted が必須"
         )
+
+
+def _epoch_projection(epoch: CampaignVerifierEpoch) -> Dict[str, str]:
+    return {
+        "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
+        "state": epoch.state,
+        "reason_code": epoch.reason_code,
+        "identity_scope": epoch.identity_scope,
+        "excluded_scope": epoch.excluded_scope,
+    }
 
 
 def _variant_rows(records: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -429,7 +421,10 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     if not campaign_dir.is_dir():
         raise Layer3ReportError("campaign directory が存在しない: %s" % campaign_dir)
     try:
-        admitted_campaign = require_admitted_campaign(campaign_dir)
+        admitted_campaign = require_admitted_campaign(
+            campaign_dir,
+            purpose=CampaignReadPurpose.HISTORICAL_RAW,
+        )
     except ArtifactAdmissionError as exc:
         if str(exc) == "post-policy campaign WAL has a truncated tail":
             # Keep Layer 3's established framing diagnosis while the shared
@@ -524,6 +519,9 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         "whiteboard_provenance": whiteboard_provenance,
         "artifact_refs": _artifact_refs(campaign_dir), "source_refs": [],
         "admission_decision": admitted_campaign.decision.as_receipt(),
+        "campaign_verifier_epoch": _epoch_projection(
+            admitted_campaign.campaign_verifier_epoch
+        ),
         "acceptance_receipt": None,
         "certifying_input": False,
         "mechanism_hypotheses": [],
@@ -591,12 +589,33 @@ def build_accepted_report(
         raise Layer3ReportError(
             "certifying Layer3 report には admission_status=admitted が必須"
         )
+    try:
+        certified_campaign = require_certified_campaign_view(
+            require_admitted_campaign(
+                resolved_campaign,
+                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+            )
+        )
+    except (ArtifactAdmissionError, TypeError) as exc:
+        raise Layer3ReportError(
+            f"certifying campaign admission 検証に失敗: {exc}"
+        ) from exc
+    if admission_decision != certified_campaign.decision.as_receipt():
+        raise Layer3ReportError(
+            "campaign admission decision が historical 構築後に変化した"
+        )
+    epoch = _epoch_projection(certified_campaign.campaign_verifier_epoch)
+    if epoch["state"] != "E1":
+        raise Layer3ReportError(
+            "新規 certifying Layer3 report には E1 epoch が必須"
+        )
     report.update({
         "acceptance_receipt": {
             "path": verified.relative_path,
             "sha256": verified.sha256,
         },
         "certifying_input": True,
+        "campaign_verifier_epoch": epoch,
     })
     _validate_schema(report)
     return report

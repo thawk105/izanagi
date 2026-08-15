@@ -54,6 +54,25 @@
         }
       }
     },
+    "campaign_verifier_epoch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_verifier_epoch", "state", "reason_code", "identity_scope", "excluded_scope"],
+      "properties": {
+        "campaign_verifier_epoch": {"type": "string", "pattern": "^(E0|E1:[0-9a-f]{64})$"},
+        "state": {"enum": ["E0", "E1", "E1-stale"]},
+        "reason_code": {"enum": ["v1-authority-absent", "recorded-closure", "recorded-current-closure-mismatch", "current-closure-unavailable"]},
+        "identity_scope": {"type": "string", "minLength": 1},
+        "excluded_scope": {"type": "string", "minLength": 1}
+      }
+    },
+    "acceptance_receipt": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+      ]
+    },
+    "certifying_input": {"type": "boolean"},
     "mechanism_hypotheses": {"type": "array", "maxItems": 0, "description": "原料配線設計 = docs/ 側の設計文書に従い、実装時に v3 へ上げる"}
   },
   "definitions": {
