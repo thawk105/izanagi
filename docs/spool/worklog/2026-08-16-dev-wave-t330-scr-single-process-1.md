@@ -57,6 +57,15 @@ title: [T-330] の実装形は受入条件が満たせないと実測で確定�
   (`test_s8c_preregistration_predicates.py` の `zero_satisfied` / `gap_reason_snapshot`) だけである。
   8c 事前登録 C12 の機械評価器は `machine_checkable` が false のため休眠しており、契約が名指しする
   `reservation.single_process_required` という関数は実在しない (現行名は `is_reservation_required`)。
+- **実装差分ゼロのため変異 matrix は対象外 (`DW-S04`)。受入全走は免除せず実施した。**
+  1 走目 (request 912424、計算ノード 48 worker、11,224 items、152.97 秒) は
+  `attributable-red` (rc=70) で 3 node が赤だったが、**3 件とも本 wave の差分が到達しえない**
+  (差分は spool fragment 3 件と `output/insights/` のみ)。計算ノードでの単独再走
+  (request 912438) が **3 passed / 3.27 秒**で緑になり、非帰属と判定した。
+  内訳は F57 の再発 2 件 (`test_codex_worker_launch.py` の fake wall 上限 3 秒) と
+  F306 の再発 1 件 (`test_dev_wave_wait.py` の signal 復元系) で、いずれも新しい F は採らず
+  既存エントリへ再発として追記した。**待ち手の非帰属 checker は docs-only の差分でも
+  3 件すべてを `attributable` と分類しており、この経路は今回も塞がれていない。**
 - 材料の正本 = `output/insights/2026-08-16_t330-scr-single-process/`
   (段 4 裁定と、段 2 プラン・段 3 敵対 2 レンズの逐語)。
 

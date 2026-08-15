@@ -51,3 +51,25 @@ seq: 3
   (材料 = `output/insights/2026-08-16_t330-scr-single-process/s4-adjudication.md`)。
 - 再発検知: 環境契約が bool を宣言しているのに、その field を読む production consumer が
   dataclass 定義とテスト以外に存在しないこと。
+
+## 再発
+
+### F57
+
+- **再発: 2026-08-16** — docs-only wave の受入全走 (request 912424、計算ノード 48 worker、
+  11,224 items、152.97 秒) が `test_codex_worker_launch.py` の 2 node
+  (`test_cli_reported_running_max_latches_usage_rollback`、
+  `test_fake_can_reproduce_thread_id_change_and_multiple_sessions`) で赤になった。
+  前者は `cli_reported` が 1000 でなく 0、後者は `codex_exit_code=-9` /
+  `wall_clock_s=1.08` で、いずれも本エントリが「未確定」として挙げた **fake の既定 wall 上限 3 秒**
+  と整合する。本 wave の差分は docs のみ (spool fragment 3 件と output/insights) で当該 test file に
+  1 行も触れていない。計算ノードでの単独再走 (request 912438) が 3 node まとめて
+  **3 passed / 3.27 秒**で緑になり、非帰属と判定した。
+
+### F306
+
+- **再発: 2026-08-16** — 上と同じ受入全走で
+  `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` が
+  同時に赤になった。2026-08-15 の再発と**同一 node** である。単独再走は上記のとおり緑。
+  待ち手の非帰属 checker は今回も 3 件すべてを `attributable` と分類した (rc=70) — docs-only の
+  差分でも `attributable` になる経路は塞がれていない。
