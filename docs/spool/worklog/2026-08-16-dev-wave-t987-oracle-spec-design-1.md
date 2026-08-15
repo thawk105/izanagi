@@ -52,9 +52,9 @@ title: 8b oracle spec の事前登録は n を導出できないと確定し、�
 **承認 trust root は独立 2 例が揃ったので 1 決定へ合流させた。** 親は
 `verify_external_authority` / `AuthenticatedApproval` 相当の実装が `orchestrator/` 配下に 0 件、
 署名 trust root (`gpg.format` / `user.signingkey` / `gpg.ssh.allowedSignersFile`) も全て不在だと
-実測した。**同日 23:16 に並行稼働中の [T-1116] wave が独立に同型の欠陥を実測していた。**
-`DW-G03` の独立 2 例が成立したため、entry 511 の Q2 を独立の問として再提示せず、
-T-1116 問 1 の第 2 consumer として付記した。承認手番を 2 回に割らない。
+実測した。**同時期に別 wave ([T-1116]) が独立に同型の欠陥を実測しており、本 wave の受入直前に
+land した (entry 561)。** `DW-G03` の独立 2 例が成立したため、entry 511 の Q2 を独立の問として
+再提示せず、T-1116 問 1 の第 2 consumer として付記した。承認手番を 2 回に割らない。
 
 **段 3 sol が本 wave の contract test 設計そのものも倒した。** 親案と段 2 案の
 「`X0 ⊊ X` は拡大だけ」は誤りで、no-follow 全 entry 比較への置換は空 subdirectory・

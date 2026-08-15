@@ -66,10 +66,11 @@ entry 511 の Q2 (人間承認の trust root) を、**独立の問として再�
   test fixture も file を書いた直後に同じ hash を monkeypatch する
   (`orchestrator/tests/s8b_oracle_spec_fixture.py:102-112`)。
 
-**同じ欠陥が、同日に別 wave でも独立に実測されている。**
-[T-1116] wave (2026-08-15 23:16) が「批准済み既知赤 registry は trust root が無く成立しない」
-として同型の欠陥を報告し、問 1 に (α) 外部 trust root 導入 / (β) 弱く再定義 /
-(γ) 別択へ戻る、の 3 択を出している。
+**同じ欠陥が、同時期に別 wave でも独立に実測されている。**
+[T-1116] wave が「批准済み既知赤 registry は現 repo に trust root が無いため成立しない」として
+同型の欠陥を報告し、問 1 に (α) 外部 trust root 導入 / (β) 弱く再定義 / (γ) 別択へ戻る、の
+3 択を出している。同 wave は本 wave の受入直前に main へ land した (worklog entry 561)。
+**裁定待ちのまま**であり、本 wave の合流判断はそのまま成立する。
 
 `DW-G03` の「族一般化には独立 2 例」がこれで成立した。
 **oracle spec の承認 pin は、この決定の第 2 の consumer である。**
