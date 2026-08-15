@@ -1,0 +1,185 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90.0,
+  "timeout_seconds": 3600.0,
+  "hang_timeout_seconds": 900.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "def _check_worktree_handoff(repo: Path) -> list[str]:\n    \"\"\"main との内容一致は check_repository の先行 clean-tree gate と連言で保証する。\n\n    clean/smudge filter や EOL 変換がある path では raw bytes の一致までは含意しない。\n    \"\"\"\n    tracked = _git_raw(\n        repo,\n        \"ls-files\",\n        \"-v\",\n        \"--stage\",\n        \"-z\",\n        \"--\",\n        _HANDOFF_DIR.as_posix(),\n    )\n    if tracked.returncode != 0:\n        return [_git_failure(\"worktree handoff index\", tracked)]\n    if tracked.stdout and not tracked.stdout.endswith(\"\\0\"):\n        return [\n            \"worktree handoff index: git ls-files -v --stage -z の出力が \"\n            \"NUL 終端でない: repository を確認する\"\n        ]\n\n    direct_records: dict[str, tuple[str, str, str, str] | None] = {}\n    records = tracked.stdout[:-1].split(\"\\0\") if tracked.stdout else []\n    for record in records:\n        index_metadata, separator, relative_path = record.partition(\"\\t\")\n        fields = index_metadata.split()\n        if not separator or len(fields) != 4 or not relative_path:\n            return [\n                \"worktree handoff index: git ls-files -v --stage -z の record を\"\n                \"解釈できない: repository を確認する\"\n            ]\n        tag, mode, object_id, stage = fields\n        index_path = Path(relative_path)\n        if relative_path != _HANDOFF_DIR.as_posix() and index_path.parent != _HANDOFF_DIR:\n            continue\n        if relative_path in direct_records:\n            direct_records[relative_path] = None\n        else:\n            direct_records[relative_path] = (tag, mode, object_id, stage)\n\n    root_record = _HANDOFF_DIR.as_posix() in direct_records\n    index_failures: list[str] = []\n    accepted_names: set[str] = set()\n    for relative_path, metadata in direct_records.items():\n        if metadata is None:\n            index_failures.append(\n                \"worktree handoff index contains duplicate path \"\n                f\"({relative_path}): 重複 record を解消する\"\n            )\n            continue\n        if relative_path == _HANDOFF_DIR.as_posix():\n            continue\n        tag, mode, object_id, stage = metadata\n        record_failures: list[str] = []\n        if tag != \"H\":\n            record_failures.append(\n                \"worktree handoff index tag is not H \"\n                f\"({relative_path}: {tag}): assume-unchanged / skip-worktree 等の flag を解除する\"\n            )\n        if stage != \"0\":\n            record_failures.append(\n                \"worktree handoff index stage is not 0 \"\n                f\"({relative_path}: {stage}): 未 merge の index record を解消する\"\n            )\n        if mode not in {\"100644\", \"100755\"}:\n            record_failures.append(\n                \"worktree handoff index mode is not 100644/100755 \"\n                f\"({relative_path}: {mode}): regular file mode に修復する\"\n            )\n        if record_failures:\n            index_failures.extend(record_failures)\n            continue\n        main_entry = _git(\n            repo,\n            \"rev-parse\",\n            \"--verify\",\n            f\"{_MAIN_REF}:{relative_path}\",\n        )\n        if main_entry.returncode != 0:\n            index_failures.append(\n                \"worktree handoff index entry is absent from main \"\n                f\"({relative_path}): main に land してから再検査する\"\n            )\n        elif main_entry.stdout != object_id:\n            index_failures.append(\n                \"worktree handoff index OID differs from main \"\n                f\"({relative_path}): index を main と同じ内容へ戻す\"\n            )\n        else:\n            accepted_names.add(Path(relative_path).name)\n\n    root_record_failure = (\n        f\"worktree handoff index contains {_HANDOFF_DIR} itself: \"\n        \"gitlink 等の root entry を除去する\"\n    )\n\n    handoff = repo / _HANDOFF_DIR\n    try:\n        metadata = handoff.lstat()\n    except FileNotFoundError:\n        if root_record:\n            index_failures.append(root_record_failure)\n        return index_failures\n    except OSError as exc:\n        filesystem_failure = (\n            f\"{_HANDOFF_DIR} を検査できない ({exc}): handoff path を修復する\"\n        )\n        if root_record:\n            index_failures.append(root_record_failure)\n        return [filesystem_failure, *index_failures]\n    if stat.S_ISLNK(metadata.st_mode):\n        filesystem_failure = f\"{_HANDOFF_DIR} is a symlink: worktree 内の symlink を除去する\"\n        if root_record:\n            index_failures.append(root_record_failure)\n        return [filesystem_failure, *index_failures]\n    if not stat.S_ISDIR(metadata.st_mode):\n        filesystem_failure = (\n            f\"{_HANDOFF_DIR} is not a directory: worktree 内の handoff path を修復する\"\n        )\n        if root_record:\n            index_failures.append(root_record_failure)\n        return [filesystem_failure, *index_failures]\n    if root_record:\n        index_failures.append(root_record_failure)\n    if index_failures:\n        return index_failures\n    leftovers: list[str] = []\n    try:\n        entries = list(handoff.iterdir())\n    except OSError as exc:\n        return [f\"{_HANDOFF_DIR} を列挙できない ({exc}): handoff path を修復する\"]\n    for path in entries:\n        try:\n            entry_metadata = path.lstat()\n        except OSError:\n            leftovers.append(path.name)\n            continue\n        if not stat.S_ISREG(entry_metadata.st_mode) or path.name not in accepted_names:\n            leftovers.append(path.name)\n    leftovers.sort()\n    if not leftovers:\n        return []\n    return [\n        \"worktree-local handoff remains \"\n        f\"({', '.join(leftovers)}): 外部 handoff を正本にして worktree 内の残置を除く\"\n    ]\n\n",
+          "new": "def _check_worktree_handoff(repo: Path) -> list[str]:\n    handoff = repo / _HANDOFF_DIR\n    try:\n        metadata = handoff.lstat()\n    except FileNotFoundError:\n        return []\n    except OSError as exc:\n        return [f\"{_HANDOFF_DIR} を検査できない ({exc}): handoff path を修復する\"]\n    if stat.S_ISLNK(metadata.st_mode):\n        return [f\"{_HANDOFF_DIR} is a symlink: worktree 内の symlink を除去する\"]\n    if not stat.S_ISDIR(metadata.st_mode):\n        return [f\"{_HANDOFF_DIR} is not a directory: worktree 内の handoff path を修復する\"]\n    leftovers: list[str] = []\n    try:\n        entries = list(handoff.iterdir())\n    except OSError as exc:\n        return [f\"{_HANDOFF_DIR} を列挙できない ({exc}): handoff path を修復する\"]\n    for path in entries:\n        try:\n            entry_metadata = path.lstat()\n        except OSError:\n            leftovers.append(path.name)\n            continue\n        if path.name != \"README.md\" or not stat.S_ISREG(entry_metadata.st_mode):\n            leftovers.append(path.name)\n    leftovers.sort()\n    if not leftovers:\n        return []\n    return [\n        \"worktree-local handoff remains \"\n        f\"({', '.join(leftovers)}): 外部 handoff を正本にして worktree 内の残置を除く\"\n    ]\n\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_external_handoff_accepts_main_landed_regular_file",
+        "orchestrator/tests/test_check_wave_startup.py::test_forbid_worktree_handoff_rejects_handoff_root_regular_file",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_accepts_main_landed_executable_file",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_accepts_main_landed_regular_file",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_accepts_main_landed_special_character_name[newline]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_accepts_main_landed_special_character_name[non-ascii]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_accepts_main_landed_special_character_name[quote]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_accepts_main_landed_special_character_name[tab]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_ls_files_failure_is_fail_closed[non-nul]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_ls_files_failure_is_fail_closed[rc]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_ls_files_failure_is_fail_closed[record]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_assume_unchanged_entry",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_branch_only_committed_file",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_duplicate_index_record",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_gitlink_index_mode_with_regular_filesystem_entry",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_index_oid_different_from_main",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_index_record_for_handoff_root",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_missing_skip_worktree_entry_via_main",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_root_index_record_when_handoff_root_missing",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_skip_worktree_entry",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_symlink_index_mode_with_regular_filesystem_entry",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_unmerged_index_entry[1]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_unmerged_index_entry[2]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_unmerged_index_entry[3]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_untracked_readme",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rev_parse_failure_rejects_that_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "    if tracked.returncode != 0:\n        return [_git_failure(\"worktree handoff index\", tracked)]\n",
+          "new": "    if tracked.returncode != 0:\n        return []\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_ls_files_failure_is_fail_closed[rc]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        if tag != \"H\":\n            record_failures.append(\n",
+          "new": "        if False:\n            record_failures.append(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_assume_unchanged_entry",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_missing_skip_worktree_entry_via_main",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_skip_worktree_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        if stage != \"0\":\n            record_failures.append(\n",
+          "new": "        if False:\n            record_failures.append(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_unmerged_index_entry[1]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_unmerged_index_entry[2]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_unmerged_index_entry[3]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        if mode not in {\"100644\", \"100755\"}:\n            record_failures.append(\n",
+          "new": "        if False:\n            record_failures.append(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_gitlink_index_mode_with_regular_filesystem_entry",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_symlink_index_mode_with_regular_filesystem_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        main_entry = _git(\n            repo,\n            \"rev-parse\",\n            \"--verify\",\n            f\"{_MAIN_REF}:{relative_path}\",\n        )\n        if main_entry.returncode != 0:\n",
+          "new": "        main_entry = GitResult(0, object_id, \"\")\n        if main_entry.returncode != 0:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_branch_only_committed_file",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_index_oid_different_from_main",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rev_parse_failure_rejects_that_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        elif main_entry.stdout != object_id:\n",
+          "new": "        elif False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_index_oid_different_from_main"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        if not stat.S_ISREG(entry_metadata.st_mode) or path.name not in accepted_names:\n",
+          "new": "        if path.name not in accepted_names:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_non_regular_filesystem_entry_with_accepted_index[directory]",
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_non_regular_filesystem_entry_with_accepted_index[symlink]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_wave_startup.py",
+          "old": "        if relative_path in direct_records:\n            direct_records[relative_path] = None\n        else:\n            direct_records[relative_path] = (tag, mode, object_id, stage)\n",
+          "new": "        if relative_path not in direct_records:\n            direct_records[relative_path] = (tag, mode, object_id, stage)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_wave_startup.py::test_worktree_handoff_rejects_duplicate_index_record"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
