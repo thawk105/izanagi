@@ -6498,6 +6498,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 再投入は**新しい artifact 名**で行い、`rc=1` は receipt の
   `attempt output` と `validator_rc` を読んでから原因を分類する。
 
+
+- **再発: 2026-08-15** — 段 3 レンズ A の初回投入が上流分類器に遮断され、model call 16 回・
+  出力 0 bytes を空費した (`turn.failed` の message = `This content was flagged for possible
+  cybersecurity risk`、`evidence_status=complete`、`codex_exit_code=1`)。
+  親は F256 の恒久対応を知っており、**prompt 冒頭には防御目的を明記していた**。
+  遮断したのは、段 2 の結果を受けて**後から追記した「最優先の争点」節**が
+  「回避する C++ 文字列を構成できるなら具体的に示せ」と攻撃成果物の作成を求めていたことである。
+  防御的枠組みは prompt 冒頭に 1 度書けば足りるものではなく、**追記した節を含む個々の指示文が
+  それぞれ攻撃成果物を要求していないことを、投入前に確認する**必要がある。
+  再投入は被覆監査の枠組み (契約項目と機械執行の差分表・既存境界テストの被覆評価) へ
+  書き直して成功した。
 ### F257. merge が submodule gitlink を古い側で確定させ、是正 commit が provenance で land を止めた [手順漏れ] [監査ログ汚染]
 
 - 事象: local main 取り込みの merge 後、受入全走で s1/s8b/real-repo 系が 30 件級で赤になった
