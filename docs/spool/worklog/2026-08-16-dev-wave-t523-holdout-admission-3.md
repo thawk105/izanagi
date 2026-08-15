@@ -61,6 +61,11 @@ title: freeze 由来 holdout を実測へ渡す下位境界に admission と一�
   pid file 書き込みと競合して**即座に空振りし、走行中の子を完了と誤認しうる**
   ({{F:waiter-arms-before-pid-file}})。成果物・`.done`・子の生死の 3 点照合をしていたため
   誤って先へ進まずに済んだ。
+- **受入 3 走目の赤 1 件は非帰属と実測で確定した。**
+  `test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points`
+  (SIGINT パラメータ) が受入で 1 件赤になったが、本 wave の変更面と接点が無い。
+  当該 file を計算ノードで単独再走したところ **21 passed** で再現せず、フレークと判定した。
+  受入 checker は「到達しうる」として帰属側へ分類するが、**単独再走の実測が非帰属を示した**。
 - **本 wave が主張しないことを 5 項目、設計判断へ明示した。** 特に 5 項目目
   (private な Python API を直接 import できる呼び手への保護) は、焦点レビューが
   「公開 issuer を消しても private 経路が残る」と指摘したことを受けて**新たに追加した保証の縮小**である。
