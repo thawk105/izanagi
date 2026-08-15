@@ -60,6 +60,20 @@ title: 起動検査が main landed handoff を通すようにし、握り潰さ�
   dispatcher infrastructure failure) になった。同じ command が 08:22 には成功しており、
   テスト結果ではない。`--force-dispatch` で計算ノードへ回して 95 passed / 0 failed
   (2.53 秒) を得た。
+- **受入 attempt 1 は走行前に停止した (走行の失敗ではない)。** `preflight-submodule-ready` が rc=2 で、
+  原因は入れ子 submodule `external/ccbench/third_party/shirakami` の未初期化である。
+  `git -c protocol.file.allow=always submodule update --init --recursive` で解消した。
+  **これは同日 2 例目**であり、先行 wave が同じ停止を記録している。`DW-G03` の独立 2 例が成立するため、
+  `DW-O20` の「最上位だけ `--init`」という記述の是正を {{T:submodule-init-recursive}} として起票する。
+- **受入 attempt 2 (09:21 投入、10:15 終了) は [T-1107] 族のフレーク 1 件で赤になった。**
+  node は `orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]`。
+  非帰属の根拠 3 点 — (1) 当該 test file と `tools/mutation_worktree.py` はどちらも main と
+  blob 一致 (`e3d7ab5c` / `54fd4bbd`)、(2) 当該 file に `check_wave_startup` への参照が 0 件、
+  (3) 親が同 node を焦点走で回すと **2 passed / 30.51 秒**で緑。`DW-O18` に従い非帰属として扱う。
+  **新事実 — 族の member にもう 1 つ file が加わった。** [T-1107] は既に
+  `test_dev_wave_wait.py` と `test_mutation_harness.py` に member を持つと記録されていたが、
+  `test_mutation_worktree.py` は 3 つ目の file である。直近 4 回の受入全走が連続して
+  別々の member に止められており、受入 1 走あたりの成功率が現に律速している。
 - **エージェント工数:** codex 子 6 本 (plan 1・consult 2・author 1・review 2・fix 1)。
   全 6 本が完走し `check_codex_output.py` rc=0。異常なし。
 
@@ -72,6 +86,15 @@ title: 起動検査が main landed handoff を通すようにし、握り潰さ�
   [T-1038] が所有」として見送りへ移しており、その所有分を本 wave が果たした。
   remaining: none
   base: 357533da14106935c6a90ef03afdee4c143408e35cd58a7c00c097dc156b6ee1
+
+### 更新
+
+- [T-1107] **P2・フレーク**: 族の member に 3 つ目の file が加わった。2026-08-15 10:15 JST の受入で
+  `orchestrator/tests/test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]`
+  が `status=attributable-red` になり、焦点走では 2 passed / 30.51 秒で緑だった。
+  既知の `test_dev_wave_wait.py` / `test_mutation_harness.py` に続く 3 file 目である。
+  直近 4 回の受入全走が連続して別々の member に止められている。
+  base: b2baee3ffcbd77ff0ad9f61d30ec88169f1a8c5e1589a0436b932f2871cfeb91
 
 ### 新規
 
@@ -92,6 +115,11 @@ title: 起動検査が main landed handoff を通すようにし、握り潰さ�
 - {{T:startup-help-text}} **P3・新規**: `--forbid-worktree-handoff` の help は
   「README.md 以外の worktree-local handoff が無いこと」とだけ書き、新しい受理条件
   (main landed) を反映していない。1 行の文言修正。
+- {{T:submodule-init-recursive}} **P2・新規**: `DW-O20` は新規 worktree について最上位の
+  `git submodule update --init` しか書いていないため、入れ子 submodule
+  `external/ccbench/third_party/shirakami` が未初期化のまま残り、受入の
+  `preflight-submodule-ready` が rc=2 で走行前に止まる。2026-08-15 に独立 2 wave が同じ停止を
+  踏んでおり `DW-G03` の独立 2 例が成立する。`--init --recursive` へ是正する。
 
 ### 見送り追記
 
