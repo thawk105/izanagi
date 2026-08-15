@@ -101,6 +101,16 @@ def test_ci95_large_n_uses_normal_approx():
     assert abs(half - expected_half) < 1e-9, (half, expected_half)
 
 
+def test_figure_epoch_label_keeps_exact_recorded_epochs():
+    plot = _load_plot_module(need_numpy=False)
+    e1 = "E1:" + "a" * 64
+    camps = [
+        {"campaign_verifier_epoch": {"campaign_verifier_epoch": "E0"}},
+        {"campaign_verifier_epoch": {"campaign_verifier_epoch": e1}},
+    ]
+    assert plot._figure_epoch_label(camps) == f"E0, {e1}"
+
+
 # ---- 素の runner (pytest 無しでも) ----
 
 def _run():

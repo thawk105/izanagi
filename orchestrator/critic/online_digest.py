@@ -19,6 +19,10 @@ fitness を見せると評価器の優位を評価器の定義で論証する出
 """
 from __future__ import annotations
 
+from orchestrator.campaign.artifact_admission import (
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from orchestrator.campaign.layout import CampaignLayout
 
 from . import digest
@@ -35,7 +39,10 @@ def online_digest(layout: CampaignLayout, tag: str, workload: dict,
     iterations = これまでに評価した回数。digest の genome 数がこれを超えたら配線ミス (layout
     取り違え / iterations 誤計算) として LeakageError で止める。同一誘導 layout 経路では構造的に
     恒真ゆえ中立性の独立保証にはならない (module docstring 参照) — 真の担保は WAL 分離である。"""
-    d = digest.build_digest(tag, workload, layout)
+    historical_view = require_admitted_campaign(
+        layout, purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    d = digest.build_digest(tag, workload, historical_view)
     n = len(d.genomes)
     if n > iterations:
         raise LeakageError(
