@@ -14,6 +14,18 @@ requested node-min 上限 40 の範囲で最大 2 本再試行する。成功済
 PYTHONDONTWRITEBYTECODE=1 python3 output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py run
 ```
 
+T-402 の flock leg だけを追加投入するときは、通常の `run` や signal 用 flag ではなく次を使う。
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 output/insights/2026-08-03_t361-t362-cluster-probes/driver/run_probes.py run --flock-leg-only
+```
+
+`--flock-leg-only` は `t361-flock` だけを対象にする one-shot であり、初回 4 request の point gate、
+request 上限 6、requested node-min 上限 40 を迂回しない。予約は qsub 前に wave-state の
+`flock_one_shot_submission_count` へ永続化され、失敗・中断・`dangerous:null` でも消費は戻らない。
+後続 session と通常 `run` も 2 本目の flock を投入しない。`--signal-legs-only` は T-362 の
+mitigation / split-warning 専用で用途が異なり、両 flag は同時指定できない。
+
 ## 中断 session の回収
 
 controller が request 投入後に異常終了し、`_controller/sessions/` と未完の wave state が残った場合だけ、
@@ -91,7 +103,8 @@ attempt を同じ台帳へ固定する。controller 再起動後もこの台帳�
    `qdel` を実行し receipt を残す。RUN 初観測から requested walltime + 300 秒を execution deadline
    とする。
 7. compute marker の schema・request ID・mode / nonce・host を検査する。T-361 は raw
-   `qstat -J -f` の `Execution Hosts(JSVNO)` と 2 marker の PBS job number / host を一対一照合し、
+    `qstat -J -f` の対象 `Request ID:` block 2 件から得た `Batch Job Number` → `Execution Host`
+    写像と 2 marker の PBS job number / host を一対一照合し、
    probe の provisional `flock-result.json` と合流した `controller/t361-finalized-result.json` を生成する。
    host 照合または probe 自己検査が不成立なら final 側も `valid_for_safety_conclusion:false` / 
    `dangerous:null` のままにする。T-362 は `t362-signal-marker/v2` と controller の attempt-id を
@@ -115,8 +128,9 @@ controller の `admissible` は「その観測を読んでよい」という有�
 
 | 対象 | raw 観測と自己検査 | 扱い |
 |---|---|---|
-| T-361 | 全自己検査・marker・会計・Execution Host 照合が通り、contender が全 trial で `BLOCKED` | `BLOCKED_EXPECTED`; exact host pair / kernel / effective mount に限って排他を観測 |
+| T-361 | authority・全自己検査・marker・会計・Execution Host 照合が通り、`localflock` がなく、controller が raw 各 6 件を全 `BLOCKED` と再導出 | `BLOCKED_EXPECTED`; exact host pair / kernel / effective mount に限って排他を観測 |
 | T-361 | 上記有効性が通り、contender が `ACQUIRED` | `ACQUIRED_SILENT_FAIL_OPEN`; **危険** |
+| T-361 | 上記有効性が通り、いずれかの mount に `localflock` がある | 観測無効へ畳まず `dangerous:true`; **危険** |
 | T-361 | `ENOSYS` / `EOPNOTSUPP` 等を raw errno で観測 | 明示的非対応。fail-open と同一視せず、別の排他機構が必要 |
 | T-361 | control / mount / backing object / marker / host / accounting / cleanup のどれか不成立 | `INVALID_CONTROL` / `INFRA_ERROR`; `dangerous` は `null` 相当で安全結論を出さない |
 | T-362 | observer rc=0 かつ walltime 会計、非 RUN 終端、全必須層、parse error なし、TERM→約5秒 timeout→KILL→wait→restore→byte 検証の順が成立 | 有効。受信 signal と継続 heartbeat の raw 時刻から grace を復元する |
@@ -126,7 +140,9 @@ controller の `admissible` は「その観測を読んでよい」という有�
 
 controller の `attempt-result.json` は `validity_conjunction` の全値が literal `true` の場合だけ
 `admissible: true` にする。attempt envelope の `dangerous` は常に `null` だが、T-361 の
-`t361-finalized-result.json` は host 照合まで通った場合だけ final な boolean を持つ。無効時は必ず
+`t361-finalized-result.json` は observation と外部 root 終端、host 束縛、自己検査を単一の
+authority receipt で束縛した場合だけ final な boolean を持つ。安全側の `false` にはさらに
+`localflock` 不在と raw 各 6 件の全 `BLOCKED` を要求する。無効時は必ず
 `dangerous:null` である。authoritative attempt は wave 永続台帳上の各 leg の**最初の admissible
 attempt**だけで、session を跨いでも後続の都合のよい結果へ差し替えない。全 attempt は evidence に残る。
 

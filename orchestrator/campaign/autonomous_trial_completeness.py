@@ -38,6 +38,7 @@ from .role_session_isolation import evaluate_role_session_isolation
 
 _EVENTS = frozenset({
     "transport-admission",
+    "transport-admission-error",
     "run-start",
     "role-attempt",
     "generation-accounting",
@@ -48,6 +49,7 @@ _EVENTS = frozenset({
 })
 _TERMINAL_EVENTS = frozenset({
     "supervisor-error", "supervisor-wall-budget", "provider-init-error",
+    "transport-admission-error",
 })
 _ROLE_ORDER = ("planner", "coder", "auditor", "critic")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
@@ -743,8 +745,61 @@ def _check_transport_admission(
     admissions = [
         event for event in events if event.get("event") == "transport-admission"
     ]
-    if len(admissions) > 1:
+    errors = [
+        event
+        for event in events
+        if event.get("event") == "transport-admission-error"
+    ]
+    if len(admissions) > 1 and not errors:
         _fail("transport-admission", "transport-admission may occur at most once")
+    if len(admissions) + len(errors) > 1:
+        _fail(
+            "transport-admission",
+            "transport admission outcome may occur at most once",
+        )
+    if errors:
+        error = errors[0]
+        required = {"event", "type", "message", "seq", "ts"}
+        if set(error) != required:
+            _fail(
+                "transport-admission",
+                "transport-admission-error fields must match the producer exact set",
+            )
+        if not isinstance(error.get("type"), str) or not error["type"]:
+            _fail(
+                "transport-admission",
+                "transport-admission-error.type must be a non-empty string",
+            )
+        if not isinstance(error.get("message"), str):
+            _fail(
+                "transport-admission",
+                "transport-admission-error.message must be a string",
+            )
+        starts = [event for event in events if event.get("event") == "run-start"]
+        if (
+            len(events) < 2
+            or events[0] is not error
+            or len(starts) != 1
+            or events[1] is not starts[0]
+        ):
+            _fail(
+                "transport-admission",
+                "transport-admission-error must occur immediately before run-start",
+            )
+        if report.get("provider") != "claude-headless":
+            _fail(
+                "transport-admission",
+                "transport-admission-error requires the claude-headless provider",
+            )
+        if "transport_receipt" in report or any(
+            "transport_receipt" in event for event in events
+        ):
+            _fail(
+                "transport-admission",
+                "transport-admission-error outcome forbids transport_receipt",
+            )
+        return
+
     report_has_receipt = "transport_receipt" in report
     if bool(admissions) != report_has_receipt:
         _fail(
@@ -965,7 +1020,12 @@ def _check_run_envelope(
     finishes = [event for event in events if event.get("event") == "run-finish"]
     if len(starts) != 1 or len(finishes) != 1:
         _fail("run-envelope", "run-start and run-finish must each occur exactly once")
-    first_run_event = 1 if events[0].get("event") == "transport-admission" else 0
+    first_run_event = (
+        1
+        if events[0].get("event")
+        in {"transport-admission", "transport-admission-error"}
+        else 0
+    )
     if events[first_run_event] is not starts[0] or events[-1] is not finishes[0]:
         _fail(
             "run-envelope",
@@ -1139,16 +1199,25 @@ def _check_terminal_projection(
             )
         return None
     terminal = terminals[0]
-    if len(events) < 2 or events[-2] is not terminal:
+    kind = terminal["event"]
+    if kind == "transport-admission-error":
+        if not events or events[0] is not terminal:
+            _fail(
+                "terminal-projection",
+                "transport-admission-error terminal must be the first event",
+            )
+    elif len(events) < 2 or events[-2] is not terminal:
         _fail("terminal-projection", "terminal supervisor event must precede run-finish")
     if report.get("status") != "partial":
         _fail("terminal-projection", "terminal supervisor event requires partial status")
     fatal_map = _mapping(fatal, gate="terminal-projection", label="fatal_error")
-    kind = terminal["event"]
-    if kind == "provider-init-error":
+    if kind in {"provider-init-error", "transport-admission-error"}:
         expected = {"type": terminal.get("type"), "message": terminal.get("message")}
         if dict(fatal_map) != expected or cells:
-            _fail("terminal-projection", "provider-init-error projection is inconsistent")
+            _fail(
+                "terminal-projection",
+                f"{kind} projection is inconsistent",
+            )
     elif kind == "supervisor-error":
         expected = {"type": terminal.get("type"), "message": terminal.get("message")}
         if dict(fatal_map) != expected:
@@ -1160,13 +1229,15 @@ def _check_terminal_projection(
         cell = matches[0]
         if cell.get("stop_reason") != "supervisor-error" or cell.get("error") != expected:
             _fail("terminal-projection", "supervisor-error cell projection is inconsistent")
-    else:
+    elif kind == "supervisor-wall-budget":
         expected = {
             "type": "SupervisorWallBudget",
             "message": "wall budget expired before the next workload",
         }
         if dict(fatal_map) != expected:
             _fail("terminal-projection", "supervisor-wall-budget fatal projection is inconsistent")
+    else:  # pragma: no cover - closed-event and terminal sets are exhaustive
+        _fail("terminal-projection", f"unknown terminal event: {kind!r}")
     return terminal
 
 
@@ -1510,7 +1581,7 @@ def _check_workload_coverage(
     if terminal is None:
         _fail("workload-coverage", "requested workload suffix is unexplained")
     kind = terminal_kind
-    if kind == "provider-init-error" and not actual:
+    if kind in {"provider-init-error", "transport-admission-error"} and not actual:
         return
     if kind == "supervisor-wall-budget" and terminal.get("workload") == requested[len(actual)]:
         if multigeneration and type(terminal.get("generation")) is int:
@@ -2067,7 +2138,18 @@ def verify_autonomous_trial_files(
         report=report, attempt_journal=Path(attempt_journal),
     )
     if report.get("do_build") is True and campaign_output_root is None:
-        _fail("campaign-chain", "build trial verification requires campaign_output_root")
+        # Completeness has already proved that fatal_error has one matching
+        # terminal journal event.  Only a zero-cell fatal outcome has no
+        # campaign root to verify.
+        fatal_without_cells = (
+            isinstance(report.get("fatal_error"), Mapping)
+            and report.get("cells") == []
+        )
+        if not fatal_without_cells:
+            _fail(
+                "campaign-chain",
+                "build trial verification requires campaign_output_root",
+            )
     if campaign_output_root is not None:
         assert_campaign_layer3_chain(
             report=report, output_root=Path(campaign_output_root),

@@ -95,6 +95,48 @@ def test_check_reservation_accepts_bound_job_and_derives_monotonic_deadline():
     assert checked.remaining_s == 100.0
 
 
+def test_recorded_pegasus_reservation_passes_live_admission():
+    # job-staging/0:867876.nqsv/reservation.json の全 field を literal 固定する。
+    environ = {
+        "IZANAGI_RESERVATION_JOB_ID": "0:867876.nqsv",
+        "IZANAGI_RESERVATION_REQUESTED_S": "7200",
+        "IZANAGI_RESERVATION_SCHEDULER_STARTED_EPOCH": "1784404720",
+        "IZANAGI_RESERVATION_DEADLINE_EPOCH": "1784411920",
+        "IZANAGI_RESERVATION_HOST": "bnode011",
+        "IZANAGI_RESERVATION_BOOT_ID": "3f4fbd80-2ed8-4f3e-90c2-0cfd149b9fdb",
+        "IZANAGI_RESERVATION_SCRIPT_SHA256": (
+            "4b50b9982676222c6b3b97abe38e3a534fe73c8b9cd6cab868ad6fe9bf450911"
+        ),
+        "IZANAGI_RESERVATION_NONCE": "751223708553eba8b7c942d845fbb266",
+        "PBS_JOBID": "0:867876.nqsv",
+    }
+    binding = read_binding(environ)
+    assert binding.job_id == "0:867876.nqsv"
+    assert binding.requested_s == 7200
+    assert binding.scheduler_started_epoch == 1784404720
+    assert binding.deadline_epoch == 1784411920
+    assert binding.host == "bnode011"
+    assert binding.boot_id == "3f4fbd80-2ed8-4f3e-90c2-0cfd149b9fdb"
+    assert binding.script_sha256 == (
+        "4b50b9982676222c6b3b97abe38e3a534fe73c8b9cd6cab868ad6fe9bf450911"
+    )
+    assert binding.nonce == "751223708553eba8b7c942d845fbb266"
+
+    checked = check_reservation(
+        binding,
+        required_s=7000,
+        safety_margin_s=100,
+        environ=environ,
+        realtime_now_fn=lambda: 1784404722.0,
+        monotonic_now_fn=lambda: 400.0,
+        boot_id_read_fn=lambda: "3f4fbd80-2ed8-4f3e-90c2-0cfd149b9fdb",
+    )
+    assert checked.checked_realtime == 1784404722.0
+    assert checked.checked_monotonic == 400.0
+    assert checked.remaining_s == 7198.0
+    assert checked.monotonic_deadline == 7598.0
+
+
 @pytest.mark.parametrize(
     ("mutation", "overrides"),
     [

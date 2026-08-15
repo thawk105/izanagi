@@ -169,8 +169,21 @@ guard_write が見ない Bash 経由の成果物書き込み (`echo >> wal.jsonl
 - 絶対パス・`~` は repo_root で相対化してから照合 (`rm -rf /abs/.../output/campaigns/c` を塞ぐ)。
 - 改行はセグメント境界にする (先頭行 read-only head が後続行 writer を隠蔽するのを防ぐ)。
 - here-doc `<<` は不透明構文として fails-closed (bare interpreter への流し込みを塞ぐ)。
-- 純読み取り (nm/objdump/readelf/ldd/size/du/zcat 系) を allowlist に追加 (規律1 の nm 手検証を止めない)。
+- 純読み取り (objdump/readelf/ldd/size/du/zcat 系) を allowlist に追加 (規律1 の手検証を止めない)。
 - tar/rsync は read (backup) / write (展開・mirror INTO) を判別 (backup を巻き込まない)。
+
+**head 名だけの pure reader と、option/program を解析する conditional reader を分ける** ([T-1025])。
+`nm`/`xxd`/`file`/`rg`/`less`/`zless` は head としては読み取りだが書き込み・任意実行の option を持つため
+専用分岐で判定する。`sed`/`awk`/`sort`/`find`/`git`/`dd` も同じく option と program を解析する。
+判別の原則は 2 つ。**出力先を持つ option は、その option の値が防護対象のときだけ拒否する**
+(`git diff --cached --output=/tmp/f -- <防護 path>` のような正当な patch 作成を止めない)。
+**任意 command を実行し得る option は値に関わらず拒否する** (効果を限定できないため。git の
+`-c`/pager/`--ext-diff`/`--textconv`/`--filters`、`rg --pre`、`nm --plugin`、`sort --compress-program`、
+sed の `e`、awk の `system`/`close`/pipe、`-f` による script 読み込み)。
+短 option の cluster (`sort -uo<path>`)、GNU 長 option の省略形 (`--ou=`)、`--` 以降の positional、
+positional の後ろに置いた option (`sed 'p' -i <path>`) も解釈する。
+**解析できない program / script は拒否側へ倒す** (awk の非リテラル出力先、sed の解析不能 script)。
+実体を確認できず同名実装の能力を確定できない head (`ag`/`yq`/`most`) は allowlist から外した。
 
 **Pegasus の重い処理層 (正しさ防壁ではない)。** 同 hook は Pegasus ログインノードでの重量コマンドも
 拒否する。admission は **`tools/pegasus/admission_registry.json` が正本**で、
@@ -319,10 +332,18 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   閉じるのは信頼済み PreToolUse が観測する直接操作だけであり、次は依然として外にある:
   script file 越し・変数展開・`python3 -c`・persistent shell・IDE・cron・別 process、
   path literal を持たない Git 操作 (`git checkout -- .` / `merge` / `reset --hard` / `stash pop`)、
-  read-only allowlist に残る実 writer (`awk` の出力 redirection・`sed -n 'w'`・
-  `git diff --output=`・`sort -T`・`find -fls`・`xxd -r`。これは WAL 等の既存保護対象にも
-  同じく成立する既存欠陥)、`.codex/hooks.json` / `.claude/settings.json` の設定面、
+  `.codex/hooks.json` / `.claude/settings.json` の設定面、
   有効化前から置かれていた artifact。**「完全ロック」ではない。**
+- **末端層が保護するのは末端 path だけである** ([T-1025])。read-only allowlist に残っていた実 writer
+  (`awk` の出力 redirection・`sed -n 'w'`・`git diff --output=`・`sort -T`・`find -fls`・`xxd` の
+  出力 positional・`less -o`・`file -C`・`nm --plugin`・`rg --pre`・`dd of=`) は、WAL/campaign.lock/
+  build-variants/namespace marker/exploration の末端/hooks subtree については閉じた。
+  一方 **ccbench tree と campaign dir の非末端 path (`external/ccbench/include/*.hh` 等) は
+  末端層の対象外のままである** — そこは `echo x > <path>` を含むあらゆる writer が通り、
+  `sed -n 'w'` だけが特別に抜けているのではない。閉じるには末端層が守る対象集合自体を
+  広げる必要があり、build 経路 (`cmake` の build-variants 生成) と干渉しうるため別課題とした。
+  保守的な巻き添えも残る: awk の program で `print` と比較演算が同じ statement にある形
+  (`awk '{ print ($1 > 5) }'`) は redirection と区別できず拒否する。
 - **guard 自身の保守境界** ([T-956])。`codex_guard.sh` は tool call ごとに guard を読み直すため、
   hooks/ へ判定を入れた瞬間から同一 worktree での再編集は自分自身に拒否される (構文エラーでも
   同じ — 壊れた guard は rc≠0/2 が 2 へ正規化されて全拒否になる)。さらに

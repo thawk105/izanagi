@@ -1220,8 +1220,9 @@ def _one(records: list[dict[str, Any]], kind: str, filesystem: str, trial: Any =
 
 def _validate_effective_mounts(
     ctx: RunContext, filesystem: str
-) -> tuple[bool, list[dict[str, Any]], list[str], list[str]]:
+) -> tuple[bool, bool, list[dict[str, Any]], list[str], list[str]]:
     valid = True
+    localflock_absent = True
     entries: list[dict[str, Any]] = []
     reasons: list[str] = []
     node_signatures: list[str] = []
@@ -1246,6 +1247,21 @@ def _validate_effective_mounts(
                 reasons.append(f"malformed effective mount entry on {token}")
                 continue
             entry = path_entry["effective_mount"]
+            effective_options = entry.get("effective_options")
+            if not isinstance(effective_options, list) or not all(
+                isinstance(option, str) for option in effective_options
+            ):
+                valid = False
+                effective_options = []
+                reasons.append(f"effective mount options are malformed on {token}")
+            raw_localflock = entry.get("has_localflock")
+            if not isinstance(raw_localflock, bool):
+                valid = False
+                localflock_absent = False
+                reasons.append(f"localflock classification is malformed on {token}")
+            localflock_present = (
+                raw_localflock is True or "localflock" in effective_options
+            )
             entries.append(
                 {
                     "job_token": token,
@@ -1258,7 +1274,11 @@ def _validate_effective_mounts(
                 {
                     "filesystem_type": entry.get("filesystem_type"),
                     "source": entry.get("source"),
-                    "effective_options": entry.get("effective_options"),
+                    "effective_options_except_localflock": sorted(
+                        option
+                        for option in effective_options
+                        if option != "localflock"
+                    ),
                 },
                 sort_keys=True,
             )
@@ -1272,9 +1292,9 @@ def _validate_effective_mounts(
             if not entry.get("has_flock"):
                 valid = False
                 reasons.append(f"flock mount option is absent on {token}")
-            if entry.get("has_localflock"):
-                valid = False
-                reasons.append(f"localflock invalidates the trial on {token}")
+            if localflock_present:
+                localflock_absent = False
+                reasons.append(f"localflock is a dangerous environment finding on {token}")
         if len(signatures) != 1:
             valid = False
             reasons.append(
@@ -1288,16 +1308,20 @@ def _validate_effective_mounts(
             "effective fs type/source/options differ between nodes: "
             f"{node_signatures}"
         )
-    return valid, entries, node_signatures, reasons
+    return valid, localflock_absent, entries, node_signatures, reasons
 
 
 def _aggregate_filesystem(
     ctx: RunContext, records: list[dict[str, Any]], filesystem: str
 ) -> dict[str, Any]:
     reasons: list[str] = []
-    mount_valid, mount_entries, mount_signatures, mount_reasons = (
-        _validate_effective_mounts(ctx, filesystem)
-    )
+    (
+        mount_valid,
+        localflock_absent,
+        mount_entries,
+        mount_signatures,
+        mount_reasons,
+    ) = _validate_effective_mounts(ctx, filesystem)
     reasons.extend(mount_reasons)
     controls_valid = True
     for marker in ctx.markers:
@@ -1454,6 +1478,10 @@ def _aggregate_filesystem(
             "pending evidence maps to null"
         ),
         "effective_mounts_valid_on_both_bnodes": mount_valid,
+        "localflock_absent_on_both_bnodes": localflock_absent,
+        "environment_dangerous_before_execution_host_validation": (
+            not localflock_absent
+        ),
         "effective_mount_signatures_by_node": mount_signatures,
         "controls_valid_on_both_bnodes": controls_valid,
         "backing_object_proof_valid": proof_valid,

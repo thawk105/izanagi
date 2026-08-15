@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -9,6 +10,7 @@ import time
 
 import pytest
 
+import flock_probe
 import run_probes as subject
 import signal_observer
 
@@ -2208,3 +2210,1089 @@ def test_end_to_end_safe_natural_reaches_summary_rc(
     assert evaluation["observation_valid"] is True
     assert evaluation["attempt_safe"] is True
     assert completion["returncode"] == 0
+
+
+def _qstat_job_block(request_id: str, job_number: int, host: str) -> str:
+    return (
+        f"Request ID: {request_id}\n"
+        f"    Batch Job Number = {job_number}\n"
+        f"    Execution Job ID = {9000 + job_number}\n"
+        f"    Execution Host = {host}\n"
+    )
+
+
+def _write_t361_provisional(
+    work_root: Path,
+    *,
+    raw_outcomes: list[object],
+    localflock_absent: bool,
+    producer_verdict: str = "BLOCKED_EXPECTED",
+) -> dict[str, object]:
+    (work_root / "controller").mkdir(parents=True, exist_ok=True)
+    filesystem_results = {
+        name: {
+            "filesystem": name,
+            "verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+            "observed_flock_verdict_before_execution_host_validation": producer_verdict,
+            "valid_for_safety_conclusion": False,
+            "dangerous": None,
+            "probe_self_checks_valid_before_execution_host_validation": True,
+            "localflock_absent_on_both_bnodes": localflock_absent,
+            "raw_attempt_outcomes": raw_outcomes,
+        }
+        for name in ("work", "home")
+    }
+    value = {
+        "schema": subject.T361_RESULT_SCHEMA,
+        "run_nonce": "attempt-1",
+        "overall_verdict": "PENDING_EXECUTION_HOST_VALIDATION",
+        "result_state": "PROVISIONAL_NOT_AUTHORITATIVE",
+        "valid_for_safety_conclusion": False,
+        "dangerous": None,
+        "probe_self_checks_valid_before_execution_host_validation": True,
+        "filesystem_results": filesystem_results,
+        "exact_host_pair": ["bnode001", "bnode005"],
+    }
+    (work_root / "flock-result.json").write_text(
+        json.dumps(value, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return value
+
+
+def _valid_t361_marker_receipt() -> dict[str, object]:
+    return {
+        "valid": True,
+        "target_request_block_count": 2,
+        "one_to_one_job_number_host_binding": True,
+        "marker_host_set": ["bnode001", "bnode005"],
+    }
+
+
+def test_qstat_parser_rejects_three_target_blocks() -> None:
+    raw = (
+        _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + _qstat_job_block("887918.nqsv", 1, "bnode024")
+        + _qstat_job_block("887918.nqsv", 0, "bnode025")
+    )
+
+    assert subject._target_request_block_count_supported(3) is False
+    assert subject._execution_hosts(raw, "887918.nqsv") == {}
+
+
+def test_qstat_parser_rejects_two_job_pairs_in_one_target_block() -> None:
+    raw = (
+        "Request ID: 887918.nqsv\n"
+        "    Batch Job Number = 0\n"
+        "    Execution Job ID = 9000\n"
+        "    Execution Host = bnode023\n"
+        "    Batch Job Number = 1\n"
+        "    Execution Job ID = 9001\n"
+        "    Execution Host = bnode024\n"
+    )
+
+    assert subject._target_request_block_count_supported(1) is False
+    assert subject._execution_hosts(raw, "887918.nqsv") == {}
+
+
+@pytest.mark.parametrize("indent", [" ", "\t", "\u3000"])
+def test_qstat_parser_rejects_indented_foreign_request_boundary(
+    indent: str,
+) -> None:
+    raw = (
+        f"{indent}Request ID: foreign.nqsv\n"
+        "    Batch Job Number = 0\n"
+        "    Execution Host = bnode099\n"
+        "    Batch Job Number = 1\n"
+        "    Execution Host = bnode100\n"
+    )
+
+    assert subject._request_visible(raw, "foreign.nqsv") is False
+    assert subject._execution_hosts(raw, "foreign.nqsv") == {}
+
+
+def test_qstat_parser_uses_only_exact_target_request_blocks() -> None:
+    raw = (
+        _qstat_job_block("foreign.nqsv", 0, "bnode099")
+        + _qstat_job_block("foreign.nqsv", 1, "bnode100")
+        + _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + _qstat_job_block("887918.nqsv", 1, "bnode024")
+    )
+
+    assert subject._execution_hosts(raw, "887918.nqsv") == {
+        0: "bnode023",
+        1: "bnode024",
+    }
+
+
+def test_qstat_parser_accepts_descending_job_number_blocks() -> None:
+    raw = _qstat_job_block("887918.nqsv", 1, "bnode024") + _qstat_job_block(
+        "887918.nqsv", 0, "bnode023"
+    )
+
+    assert subject._execution_hosts(raw, "887918.nqsv") == {
+        0: "bnode023",
+        1: "bnode024",
+    }
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + _qstat_job_block("887918.nqsv", 0, "bnode024"),
+        _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + _qstat_job_block("887918.nqsv", 1, "bnode023"),
+        _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + "Request ID: 887918.nqsv\n    Batch Job Number = 1\n",
+    ],
+)
+def test_qstat_parser_rejects_incomplete_or_non_bijective_mapping(raw: str) -> None:
+    assert subject._execution_hosts(raw, "887918.nqsv") == {}
+
+
+@pytest.mark.parametrize(
+    "malformed_line",
+    [
+        "Request ID = foreign.nqsv",
+        "Request-ID: foreign.nqsv",
+        "RequestID: foreign.nqsv",
+        "Request Identifier: foreign.nqsv",
+        "Req ID: foreign.nqsv",
+        "Batch Job Number: 1",
+        "Execution Host: bnode024",
+        "Execution Hosts(JSVNO):",
+    ],
+)
+def test_qstat_parser_and_visibility_reject_alternative_critical_lines(
+    malformed_line: str,
+) -> None:
+    raw = (
+        _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + f"{malformed_line}\n"
+        + "    Batch Job Number = 1\n"
+        + "    Execution Host = bnode024\n"
+    )
+
+    assert subject._request_visible(raw, "887918.nqsv") is False
+    assert subject._execution_hosts(raw, "887918.nqsv") == {}
+
+
+@pytest.mark.parametrize(
+    "duplicate_line",
+    ["    Batch Job Number = 0\n", "    Execution Host = bnode023\n"],
+)
+def test_qstat_parser_rejects_duplicate_critical_field_per_block(
+    duplicate_line: str,
+) -> None:
+    raw = (
+        _qstat_job_block("887918.nqsv", 0, "bnode023")
+        + duplicate_line
+        + _qstat_job_block("887918.nqsv", 1, "bnode024")
+    )
+
+    assert subject._execution_hosts(raw, "887918.nqsv") == {}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        (
+            "Request ID: 887918.nqsv\n"
+            "    Batch Job Number = 0\n"
+            "    Execution Host = bnode023\n"
+            "    Batch Job Number = 0\n"
+            "    Execution Host = bnode024\n"
+        ),
+        (
+            "Request ID: 887918.nqsv\n"
+            "    Batch Job Number = 0\n"
+            "    Execution Host = bnode023\n"
+            "    Batch Job Number = 1\n"
+            "    Execution Host = bnode023\n"
+        ),
+        (
+            "Request ID: 887918.nqsv\n"
+            "    Batch Job Number = 0\n"
+            "    Execution Host = bnode023\n"
+            "    Batch Job Number = 1\n"
+        ),
+    ],
+)
+def test_qstat_single_block_layout_keeps_bijection_fail_closed(raw: str) -> None:
+    assert subject._execution_hosts(raw, "887918.nqsv") == {}
+
+
+def _monitor_observation(
+    *,
+    visible: bool,
+    state: str | None,
+    mapping: dict[int, str],
+    sequence: int,
+) -> dict[str, object]:
+    return {
+        "classification": "ok",
+        "transient_during_retries": False,
+        "visible": visible,
+        "returncode": 0,
+        "state": state,
+        "target_request_block_count": 2 if set(mapping) == {0, 1} else None,
+        "execution_host_mapping": mapping,
+        "execution_hosts": subject._execution_hosts_in_job_number_order(mapping),
+        "sequence": sequence,
+        "stdout_path": f"raw/{sequence}.stdout.raw",
+        "stdout_sha256": f"hash-{sequence}",
+    }
+
+
+def test_monitor_does_not_adopt_hosts_from_invisible_observation(monkeypatch) -> None:
+    monkeypatch.setattr(
+        subject,
+        "_bounded_qstat",
+        lambda *_args, **_kwargs: _monitor_observation(
+            visible=False,
+            state="END",
+            mapping={0: "bnode001", 1: "bnode005"},
+            sequence=1,
+        ),
+    )
+
+    value = subject._monitor_request(object(), "887918.nqsv", 300)
+
+    assert value["execution_host_mapping"] == {}
+
+
+def test_monitor_rejects_disagreeing_complete_host_mappings(monkeypatch) -> None:
+    observations = iter(
+        [
+            _monitor_observation(
+                visible=True,
+                state="QUE",
+                mapping={0: "bnode001", 1: "bnode005"},
+                sequence=1,
+            ),
+            _monitor_observation(
+                visible=True,
+                state="END",
+                mapping={0: "bnode002", 1: "bnode006"},
+                sequence=2,
+            ),
+        ]
+    )
+    monkeypatch.setattr(subject, "_bounded_qstat", lambda *_args, **_kwargs: next(observations))
+    monkeypatch.setattr(subject.time, "sleep", lambda _seconds: None)
+
+    value = subject._monitor_request(object(), "887918.nqsv", 300)
+
+    assert value["execution_host_mapping"] == {}
+    assert value["execution_host_mapping_conflict"] is True
+
+
+def test_monitor_adopts_complete_mapping_without_run_state(monkeypatch) -> None:
+    monkeypatch.setattr(
+        subject,
+        "_bounded_qstat",
+        lambda *_args, **_kwargs: _monitor_observation(
+            visible=True,
+            state="END",
+            mapping={0: "bnode001", 1: "bnode005"},
+            sequence=1,
+        ),
+    )
+
+    value = subject._monitor_request(object(), "887918.nqsv", 300)
+
+    assert value["execution_host_mapping"] == {0: "bnode001", 1: "bnode005"}
+    assert value["qstat_run_seen"] is False
+
+
+def test_monitor_considers_execution_deadline_recheck_for_hosts(monkeypatch) -> None:
+    observations = iter(
+        [
+            _monitor_observation(
+                visible=True, state="RUN", mapping={}, sequence=1
+            ),
+            _monitor_observation(
+                visible=True,
+                state="END",
+                mapping={0: "bnode001", 1: "bnode005"},
+                sequence=2,
+            ),
+        ]
+    )
+    monkeypatch.setattr(subject, "_bounded_qstat", lambda *_args, **_kwargs: next(observations))
+
+    value = subject._monitor_request(object(), "887918.nqsv", -300)
+
+    assert value["execution_host_mapping"] == {0: "bnode001", 1: "bnode005"}
+    assert value["terminal_reason"] == "EXECUTION_DEADLINE_TERMINAL_RECHECK"
+
+
+def test_flock_only_target_is_exactly_t361_and_excludes_t362() -> None:
+    assert [
+        leg.key
+        for leg in subject._selected_target_legs(
+            signal_legs_only=False, flock_leg_only=True
+        )
+    ] == ["t361-flock"]
+
+
+def test_run_cli_modes_are_mutually_exclusive() -> None:
+    with pytest.raises(SystemExit) as raised:
+        subject._parser().parse_args(
+            ["run", "--flock-leg-only", "--signal-legs-only"]
+        )
+
+    assert raised.value.code == 2
+
+
+def _reservation_controller(*, flock_only_count: int) -> subject.Controller:
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.request_count = 4
+    controller.cumulative_node_min = 19
+    controller.leg_attempt_counts = {leg.key: 1 for leg in subject.LEGS}
+    controller.wave_state = {
+        "requests": [],
+        "flock_one_shot_submission_count": flock_only_count,
+    }
+    controller._persist_wave_state = lambda: None
+    controller.flock_leg_only_active = True
+    return controller
+
+
+def _completed_initial_wave_state() -> dict[str, object]:
+    requests: list[dict[str, object]] = []
+    cumulative = 0
+    for ordinal, leg in enumerate(subject.LEGS, 1):
+        cumulative += leg.requested_node_min
+        requests.append(
+            {
+                "request_ordinal": ordinal,
+                "leg": leg.key,
+                "attempt_id": f"initial-{leg.key}",
+                "requested_node_min": leg.requested_node_min,
+                "cumulative_requested_node_min": cumulative,
+                "qsub_argv": ["qsub", leg.script],
+                "submitted_time_ns": ordinal,
+                "qsub_returncode": 0,
+                "request_id": f"{100 + ordinal}.nqsv",
+                "completed": True,
+                "admissible": False,
+                "external_root_terminal_proven": True,
+                "budget_after": {"returncode": 0},
+            }
+        )
+    return {
+        "schema": subject.WAVE_STATE_SCHEMA,
+        "request_limit": subject.REQUEST_LIMIT,
+        "requested_node_min_limit": subject.REQUESTED_NODE_MIN_LIMIT,
+        "request_count": len(requests),
+        "cumulative_requested_node_min": cumulative,
+        "requests": requests,
+        "authoritative_attempts": {},
+        "initial_budget": None,
+        "initial_four_budget_after": {"returncode": 0},
+        "latest_budget_after_request": {"returncode": 0},
+        "flock_one_shot_submission_count": 0,
+        "created_time_ns": 1,
+        "updated_time_ns": 1,
+    }
+
+
+def test_flock_only_one_shot_is_persisted_and_blocks_later_session(
+    tmp_path: Path, monkeypatch
+) -> None:
+    leg = subject.LEG_BY_KEY["t361-flock"]
+    work_base = tmp_path / "work"
+    wave_state_path = work_base / "_controller" / "wave-state.json"
+    wave_state_path.parent.mkdir(parents=True)
+    first = subject.Controller.__new__(subject.Controller)
+    first.wave_state_path = wave_state_path
+    first.wave_state = _completed_initial_wave_state()
+    first.request_count = 4
+    first.cumulative_node_min = 19
+    first.leg_attempt_counts = {candidate.key: 1 for candidate in subject.LEGS}
+    first.authoritative = {}
+    first.initial_budget = None
+    first.latest_budget = {"returncode": 0}
+    first.flock_leg_only_active = True
+    first._persist_wave_state()
+    first._reserve_request(leg, "attempt-2", ["qsub"], 1)
+    persisted = json.loads(wave_state_path.read_text(encoding="utf-8"))
+    assert persisted["flock_one_shot_submission_count"] == 1
+    assert persisted["requests"][-1]["submission_receipt"]["state"] == "reserved"
+
+    monkeypatch.setattr(subject, "WORK_BASE", work_base)
+    monkeypatch.setattr(subject, "_home_base", lambda: tmp_path / "home")
+    later = subject.Controller(resolving=True)
+    try:
+        later.flock_leg_only_active = True
+        with pytest.raises(subject.ControllerError, match="one-shot"):
+            later._reserve_request(leg, "attempt-3", ["qsub"], 2)
+    finally:
+        os.close(later.lock_descriptor)
+
+
+def test_plain_run_requires_explicit_mode_after_initial_four_legs() -> None:
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.leg_attempt_counts = {leg.key: 1 for leg in subject.LEGS}
+
+    with pytest.raises(subject.ControllerError, match="explicit run mode"):
+        controller.run()
+
+
+def test_plain_run_startup_rejects_mature_state_before_session_creation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    work_base = tmp_path / "work"
+    controller_base = work_base / "_controller"
+    controller_base.mkdir(parents=True)
+    subject._atomic_json(
+        controller_base / "wave-state.json", _completed_initial_wave_state()
+    )
+    monkeypatch.setattr(subject, "WORK_BASE", work_base)
+    monkeypatch.setattr(subject, "_home_base", lambda: tmp_path / "home")
+
+    with pytest.raises(subject.ControllerError, match="explicit run mode"):
+        subject.Controller(run_mode="plain")
+
+    assert list((controller_base / "sessions").iterdir()) == []
+
+
+def test_plain_run_keeps_initial_all_zero_target_set() -> None:
+    counts = {leg.key: 0 for leg in subject.LEGS}
+
+    assert subject._initial_four_leg_transaction_completed(counts) is False
+    assert subject._selected_target_legs(
+        signal_legs_only=False, flock_leg_only=False
+    ) == subject.LEGS
+
+
+def test_plain_run_flock_reservation_also_consumes_persistent_one_shot() -> None:
+    controller = _reservation_controller(flock_only_count=0)
+    controller.flock_leg_only_active = False
+
+    controller._reserve_request(
+        subject.LEG_BY_KEY["t361-flock"], "attempt-2", ["qsub"], 1
+    )
+
+    assert controller.wave_state["flock_one_shot_submission_count"] == 1
+    assert controller.wave_state["requests"][0]["submission_mode"] == "standard"
+    assert controller.wave_state["requests"][0]["flock_one_shot_reserved"] is True
+
+
+@pytest.mark.parametrize(
+    ("request_count", "node_min", "message"),
+    [(6, 19, "request count limit 6"), (4, 31, "node-minute limit 40")],
+)
+def test_flock_only_reservation_keeps_resource_caps(
+    request_count: int, node_min: int, message: str
+) -> None:
+    controller = _reservation_controller(flock_only_count=0)
+    controller.request_count = request_count
+    controller.cumulative_node_min = node_min
+
+    with pytest.raises(subject.ControllerError, match=message):
+        controller._reserve_request(
+            subject.LEG_BY_KEY["t361-flock"], "attempt-2", ["qsub"], 1
+        )
+    assert controller.wave_state["flock_one_shot_submission_count"] == 0
+
+
+def test_flock_only_does_not_bypass_initial_point_gate(
+    tmp_path: Path, monkeypatch
+) -> None:
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.recorder = object()
+    controller.initial_budget = {
+        "returncode": 0,
+        "budget_identity_raw": "SFC",
+        "remaining_point_raw": "100",
+    }
+    controller.wave_state = {
+        "requests": [
+            {"leg": leg.key, "completed": True, "attempt_id": f"old-{leg.key}"}
+            for leg in subject.LEGS
+        ],
+        "initial_four_budget_after": {
+            "budget_identity_raw": "SFC",
+            "remaining_point_raw": "70",
+        },
+        "flock_one_shot_submission_count": 0,
+    }
+    controller.leg_attempt_counts = {leg.key: 1 for leg in subject.LEGS}
+    controller.authoritative = {}
+    controller.request_count = 4
+    controller.cumulative_node_min = 19
+    controller.permanent_stop = False
+    controller.repo_root = tmp_path
+    controller.session_id = "fixture-session"
+    controller._persist_wave_state = lambda: None
+    captured: dict[str, object] = {}
+    controller._finalize_runtime = lambda summary: captured.update(summary)
+    controller.run_attempt = lambda *_args, **_kwargs: pytest.fail(
+        "point gate must stop before flock submission"
+    )
+    monkeypatch.setattr(
+        subject,
+        "_budget_capture",
+        lambda *_args, **_kwargs: {
+            "returncode": 0,
+            "budget_identity_raw": "SFC",
+            "remaining_point_raw": "70",
+        },
+    )
+
+    assert controller.run(flock_leg_only=True) == 3
+    assert captured["initial_four_point_gate"]["stop_before_retry"] is True
+    assert captured["target_leg_keys"] == ["t361-flock"]
+
+
+def test_marker_one_to_one_includes_request_id_and_exact_marker_count(
+    tmp_path: Path,
+) -> None:
+    marker_root = tmp_path / "job-markers"
+    marker_root.mkdir()
+    for job_number, host in ((0, "bnode001"), (1, "bnode005")):
+        (marker_root / f"marker.{job_number}.json").write_text(
+            json.dumps(
+                {
+                    "pbs_jobid_raw": f"{job_number}:foreign.nqsv",
+                    "hostname_short_normalized": host,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    value = subject._t361_marker_validation(
+        tmp_path, "887918.nqsv", {0: "bnode001", 1: "bnode005"}, 2
+    )
+
+    assert value["one_to_one_job_number_host_binding"] is False
+    assert value["valid"] is False
+
+
+def test_marker_one_to_one_rejects_extra_unparseable_marker(tmp_path: Path) -> None:
+    marker_root = tmp_path / "job-markers"
+    marker_root.mkdir()
+    for job_number, host in ((0, "bnode001"), (1, "bnode005")):
+        (marker_root / f"marker.{job_number}.json").write_text(
+            json.dumps(
+                {
+                    "pbs_jobid_raw": f"{job_number}:887918.nqsv",
+                    "hostname_short_normalized": host,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    (marker_root / "marker.extra.json").write_text("{}\n", encoding="utf-8")
+
+    value = subject._t361_marker_validation(
+        tmp_path, "887918.nqsv", {0: "bnode001", 1: "bnode005"}, 2
+    )
+
+    assert value["one_to_one_job_number_host_binding"] is False
+    assert value["valid"] is False
+
+
+def test_localflock_is_authoritative_dangerous_not_null(tmp_path: Path) -> None:
+    _write_t361_provisional(
+        tmp_path,
+        raw_outcomes=["BLOCKED"] * 6,
+        localflock_absent=False,
+    )
+    source = subject._finalize_t361_result(
+        tmp_path, "attempt-1", _valid_t361_marker_receipt()
+    )
+    assert source["valid"] is True
+
+    bound = subject._bind_t361_authority_verdict(
+        tmp_path,
+        observation_valid=True,
+        external_root_terminal_proven=True,
+    )
+    assert bound["finalized_result_raw"]["dangerous"] is True
+    assert bound["authority_receipt"]["E_localflock_absent"] is False
+
+
+def test_probe_reports_localflock_separately_from_mount_parse_validity() -> None:
+    ctx = type(
+        "FixtureContext",
+        (),
+        {
+            "markers": [
+                {
+                    "job_token": token,
+                    "process_nonce": f"nonce-{token}",
+                    "mounts": {
+                        "work": {
+                            "lock_paths": [
+                                {
+                                    "lock_path": "/work/probe.lock",
+                                    "effective_mount": {
+                                        "filesystem_type": "lustre",
+                                        "source": "10.0.0.1@tcp:/work",
+                                        "effective_options": (
+                                            ["flock", "localflock"]
+                                            if token == "0"
+                                            else ["flock"]
+                                        ),
+                                        "has_flock": True,
+                                        "has_localflock": token == "0",
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                }
+                for token in ("0", "1")
+            ]
+        },
+    )()
+
+    valid, localflock_absent, _entries, _signatures, reasons = (
+        flock_probe._validate_effective_mounts(ctx, "work")
+    )
+
+    assert valid is True
+    assert localflock_absent is False
+    assert any("dangerous environment finding" in reason for reason in reasons)
+
+
+def test_controller_derives_nonblocked_from_raw_not_producer_field(
+    tmp_path: Path,
+) -> None:
+    _write_t361_provisional(
+        tmp_path,
+        raw_outcomes=["ACQUIRED"] * 6,
+        localflock_absent=True,
+        producer_verdict="BLOCKED_EXPECTED",
+    )
+    subject._finalize_t361_result(
+        tmp_path, "attempt-1", _valid_t361_marker_receipt()
+    )
+
+    bound = subject._bind_t361_authority_verdict(
+        tmp_path,
+        observation_valid=True,
+        external_root_terminal_proven=True,
+    )
+    work = bound["filesystem_results_raw"]["work"]
+    assert bound["finalized_result_raw"]["dangerous"] is True
+    assert work["verdict"] == "ACQUIRED_SILENT_FAIL_OPEN"
+    assert work["producer_verdict_matches_controller_derivation"] is False
+
+
+@pytest.mark.parametrize(
+    "raw_outcomes",
+    [
+        ["BLOCKED"] * 5,
+        ["BLOCKED"] * 5 + [1],
+        ["BLOCKED"] * 5 + ["UNKNOWN"],
+    ],
+)
+def test_controller_rejects_malformed_raw_outcome_evidence(
+    tmp_path: Path, raw_outcomes: list[object]
+) -> None:
+    _write_t361_provisional(
+        tmp_path,
+        raw_outcomes=raw_outcomes,
+        localflock_absent=True,
+    )
+
+    source = subject._finalize_t361_result(
+        tmp_path, "attempt-1", _valid_t361_marker_receipt()
+    )
+
+    assert source["valid"] is False
+    assert any("exactly 6" in error for error in source["errors"])
+
+
+def test_safe_verdict_requires_observation_authority(tmp_path: Path) -> None:
+    _write_t361_provisional(
+        tmp_path,
+        raw_outcomes=["BLOCKED"] * 6,
+        localflock_absent=True,
+    )
+    subject._finalize_t361_result(
+        tmp_path, "attempt-1", _valid_t361_marker_receipt()
+    )
+
+    bound = subject._bind_t361_authority_verdict(
+        tmp_path,
+        observation_valid=True,
+        external_root_terminal_proven=False,
+    )
+    finalized = bound["finalized_result_raw"]
+    assert finalized["valid_for_safety_conclusion"] is False
+    assert finalized["dangerous"] is None
+    assert bound["authority_receipt"]["observation_valid"] is True
+    assert bound["authority_receipt"]["external_root_terminal_proven"] is False
+
+
+def test_safe_verdict_rechecks_exact_qstat_target_block_count(
+    tmp_path: Path,
+) -> None:
+    _write_t361_provisional(
+        tmp_path,
+        raw_outcomes=["BLOCKED"] * 6,
+        localflock_absent=True,
+    )
+    marker_receipt = _valid_t361_marker_receipt()
+    marker_receipt["target_request_block_count"] = 1
+    subject._finalize_t361_result(tmp_path, "attempt-1", marker_receipt)
+
+    bound = subject._bind_t361_authority_verdict(
+        tmp_path,
+        observation_valid=True,
+        external_root_terminal_proven=True,
+    )
+
+    assert bound["authority_receipt"]["H_execution_host_binding"] is False
+    assert bound["finalized_result_raw"]["dangerous"] is None
+
+
+@pytest.mark.parametrize(
+    ("qsub_returncode", "request_id", "final_state"),
+    [(0, None, "terminal-unknown"), (1, None, "terminal-unknown"), (0, "205.nqsv", "id-bound")],
+)
+def test_submission_receipt_records_durable_ordered_lifecycle(
+    tmp_path: Path,
+    qsub_returncode: int,
+    request_id: str | None,
+    final_state: str,
+) -> None:
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.wave_state_path = tmp_path / "wave-state.json"
+    controller.wave_state = _completed_initial_wave_state()
+    controller.request_count = 4
+    controller.cumulative_node_min = 19
+    controller.leg_attempt_counts = {leg.key: 1 for leg in subject.LEGS}
+    controller.authoritative = {}
+    controller.initial_budget = None
+    controller.latest_budget = {"returncode": 0}
+    controller.flock_leg_only_active = True
+    controller.ledger = tmp_path / "request-ledger.jsonl"
+    leg = subject.LEG_BY_KEY["t361-flock"]
+    controller._reserve_request(leg, "attempt-2", ["qsub"], 10)
+    controller._transition_submission(
+        leg=leg,
+        attempt_id="attempt-2",
+        state="submit-started",
+        time_ns=20,
+    )
+    started = json.loads(controller.wave_state_path.read_text(encoding="utf-8"))
+    assert started["requests"][-1]["submission_receipt"]["state"] == "submit-started"
+    controller._transition_submission(
+        leg=leg,
+        attempt_id="attempt-2",
+        state="submit-returned",
+        time_ns=30,
+        qsub_returncode=qsub_returncode,
+    )
+    returned = json.loads(controller.wave_state_path.read_text(encoding="utf-8"))
+    assert returned["requests"][-1]["submission_receipt"]["state"] == "submit-returned"
+    controller._ledger_entry(
+        leg=leg,
+        attempt_id="attempt-2",
+        request_id=request_id,
+        argv=["qsub"],
+        submitted_time_ns=20,
+        qsub_returncode=qsub_returncode,
+    )
+
+    persisted = json.loads(controller.wave_state_path.read_text(encoding="utf-8"))
+    request = persisted["requests"][-1]
+    receipt = request["submission_receipt"]
+    assert [item["state"] for item in receipt["transitions"]] == [
+        "reserved",
+        "submit-started",
+        "submit-returned",
+        final_state,
+    ]
+    assert receipt["state"] == final_state
+    assert receipt["qsub_returncode"] == qsub_returncode
+    assert receipt["request_id"] == request_id
+    assert subject._request_requires_resolution(request) is True
+
+
+def test_wave_state_rejects_new_request_without_submission_receipt() -> None:
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.wave_state = _completed_initial_wave_state()
+    controller.wave_state["requests"][0]["submission_mode"] = "standard"
+
+    with pytest.raises(subject.ControllerError, match="lacks its submission receipt"):
+        controller._validate_wave_state()
+
+
+def test_submission_receipt_rejects_skipped_submit_started_transition() -> None:
+    request = {
+        "reserved_before_qsub_time_ns": 10,
+        "submitted_time_ns": 20,
+        "qsub_returncode": 0,
+        "request_id": None,
+        "completed": False,
+        "submission_receipt": {
+            "state": "submit-returned",
+            "transitions": [
+                {"state": "reserved", "time_ns": 10},
+                {"state": "submit-returned", "time_ns": 30},
+            ],
+            "qsub_returncode": 0,
+            "request_id": None,
+        },
+    }
+
+    with pytest.raises(subject.ControllerError, match="transition order"):
+        subject._validate_submission_receipt(request)
+
+
+def test_submission_recovery_receipt_rejects_disposition_stage_mismatch() -> None:
+    request = {
+        "qsub_returncode": 0,
+        "request_id": "205.nqsv",
+        "submission_receipt": {"state": "id-bound"},
+        "submission_recovery_receipt": {
+            "schema": subject.SUBMISSION_RECOVERY_SCHEMA,
+            "observed_submission_state": "reserved",
+            "disposition": "recoverable-terminal-proof",
+            "reason": "saved-qsub-request-id-recovered",
+            "qsub_returncode": 0,
+            "request_id": "205.nqsv",
+            "classified_time_ns": 1,
+        },
+    }
+
+    with pytest.raises(subject.ControllerError, match="stage cannot be recovered"):
+        subject._validate_submission_recovery_receipt(request)
+
+
+def _ledgerless_restart_controller(
+    tmp_path: Path,
+    monkeypatch,
+    *,
+    stage: str,
+    saved_qsub_stdout: bytes | None,
+    qsub_returncode: int | None,
+) -> tuple[subject.Controller, Path]:
+    work_base = tmp_path / "work"
+    home_base = tmp_path / "home"
+    monkeypatch.setattr(subject, "WORK_BASE", work_base)
+    monkeypatch.setattr(subject, "_home_base", lambda: home_base)
+    controller = subject.Controller.__new__(subject.Controller)
+    controller.wave_state_path = work_base / "_controller" / "wave-state.json"
+    controller.wave_state_path.parent.mkdir(parents=True)
+    controller.wave_state = _completed_initial_wave_state()
+    controller.request_count = 4
+    controller.cumulative_node_min = 19
+    controller.leg_attempt_counts = {leg.key: 1 for leg in subject.LEGS}
+    controller.authoritative = {}
+    controller.initial_budget = None
+    controller.latest_budget = {"returncode": 0}
+    controller.flock_leg_only_active = True
+    leg = subject.LEG_BY_KEY["t361-flock"]
+    attempt_id = "attempt-ledgerless"
+    controller._reserve_request(leg, attempt_id, ["qsub"], 10)
+    if stage != "reserved":
+        controller._transition_submission(
+            leg=leg,
+            attempt_id=attempt_id,
+            state="submit-started",
+            time_ns=20,
+        )
+    if stage in {"submit-returned", "id-bound", "terminal-unknown"}:
+        assert type(qsub_returncode) is int
+        controller._transition_submission(
+            leg=leg,
+            attempt_id=attempt_id,
+            state="submit-returned",
+            time_ns=30,
+            qsub_returncode=qsub_returncode,
+        )
+    if stage in {"id-bound", "terminal-unknown"}:
+        controller._transition_submission(
+            leg=leg,
+            attempt_id=attempt_id,
+            state=stage,
+            time_ns=40,
+            qsub_returncode=qsub_returncode,
+            request_id="205.nqsv" if stage == "id-bound" else None,
+        )
+
+    work_root = work_base / leg.key / attempt_id
+    home_root = home_base / leg.key / attempt_id
+    (work_root / "controller").mkdir(parents=True)
+    home_root.mkdir(parents=True)
+    if saved_qsub_stdout is not None:
+        assert type(qsub_returncode) is int
+        _write_saved_command(
+            work_root / "controller",
+            sequence=1,
+            purpose="qsub",
+            argv=["qsub"],
+            returncode=qsub_returncode,
+            stdout=saved_qsub_stdout,
+        )
+    session_root = work_base / "_controller" / "sessions" / "session-1"
+    session_root.mkdir(parents=True)
+    _write_jsonl(
+        session_root / "attempts.jsonl",
+        [
+            {
+                "event": "attempt_roots_created",
+                "leg": leg.key,
+                "attempt_id": attempt_id,
+                "work_root": str(work_root),
+                "home_root": str(home_root),
+                "time_ns": 1,
+            }
+        ],
+    )
+    controller.sessions_root = session_root.parent
+    controller.stale_sessions = [session_root]
+    controller.home_base = home_base
+    return controller, session_root
+
+
+@pytest.mark.parametrize(
+    ("stage", "saved_qsub_stdout", "qsub_returncode", "expected_disposition"),
+    [
+        ("reserved", None, None, "permanent-stop-human-ruling"),
+        (
+            "submit-started",
+            None,
+            None,
+            "permanent-stop-human-ruling",
+        ),
+        (
+            "submit-started",
+            b"Request 205.nqsv submitted\n",
+            0,
+            "recoverable-terminal-proof",
+        ),
+        (
+            "submit-returned",
+            b"Request 205.nqsv submitted\n",
+            0,
+            "recoverable-terminal-proof",
+        ),
+        (
+            "submit-returned",
+            b"Request 205.nqsv submitted\n",
+            1,
+            "permanent-stop-human-ruling",
+        ),
+        (
+            "submit-returned",
+            b"submission response unavailable\n",
+            0,
+            "permanent-stop-human-ruling",
+        ),
+        (
+            "id-bound",
+            b"Request 205.nqsv submitted\n",
+            0,
+            "recoverable-terminal-proof",
+        ),
+        (
+            "id-bound",
+            b"Request 205.nqsv submitted\n",
+            1,
+            "permanent-stop-human-ruling",
+        ),
+        (
+            "terminal-unknown",
+            b"submission response unavailable\n",
+            0,
+            "permanent-stop-human-ruling",
+        ),
+    ],
+    ids=[
+        "reserved",
+        "submit-started-ambiguous",
+        "submit-started-recovered",
+        "submit-returned-recovered",
+        "submit-returned-nonzero-id-stopped",
+        "submit-returned-unbound",
+        "id-bound",
+        "id-bound-nonzero-stopped",
+        "terminal-unknown",
+    ],
+)
+def test_restart_classifies_each_ledgerless_submission_stage(
+    tmp_path: Path,
+    monkeypatch,
+    stage: str,
+    saved_qsub_stdout: bytes | None,
+    qsub_returncode: int | None,
+    expected_disposition: str,
+) -> None:
+    controller, session_root = _ledgerless_restart_controller(
+        tmp_path,
+        monkeypatch,
+        stage=stage,
+        saved_qsub_stdout=saved_qsub_stdout,
+        qsub_returncode=qsub_returncode,
+    )
+
+    if expected_disposition == "recoverable-terminal-proof":
+        attempts = controller._discover_unresolved_attempts()
+        assert len(attempts) == 1
+        assert attempts[0].request_id == "205.nqsv"
+        assert (session_root / "request-ledger.jsonl").is_file()
+    else:
+        with pytest.raises(subject.ControllerError, match="human ruling is required"):
+            controller._discover_unresolved_attempts()
+        assert not (session_root / "request-ledger.jsonl").exists()
+
+    persisted = json.loads(controller.wave_state_path.read_text(encoding="utf-8"))
+    request = persisted["requests"][-1]
+    recovery = request["submission_recovery_receipt"]
+    assert recovery["observed_submission_state"] == stage
+    assert recovery["disposition"] == expected_disposition
+    assert recovery["qsub_returncode"] == qsub_returncode
+    if (
+        qsub_returncode == 1
+        and saved_qsub_stdout == b"Request 205.nqsv submitted\n"
+    ):
+        assert recovery["reason"] == "nonzero-qsub-with-request-id"
+    assert persisted["request_count"] == 5
+    assert persisted["cumulative_requested_node_min"] == 29
+    assert persisted["flock_one_shot_submission_count"] == 1
+
+
+def test_missing_qsub_request_id_remains_terminal_unproven(tmp_path: Path) -> None:
+    work_root = tmp_path / "work"
+    controller_root = work_root / "controller"
+    _write_saved_command(
+        controller_root,
+        sequence=1,
+        purpose="qsub",
+        argv=["qsub", "probe.pbs"],
+        returncode=1,
+        stdout=b"submission response unavailable\n",
+    )
+    request = {
+        "qsub_argv": ["qsub", "probe.pbs"],
+        "qsub_returncode": 1,
+        "request_id": None,
+    }
+    attempt = subject.UnresolvedAttempt(
+        session_id="session-1",
+        session_root=tmp_path / "session-1",
+        request_index=0,
+        leg=subject.LEG_BY_KEY["t361-flock"],
+        attempt_id="attempt-1",
+        request_id=None,
+        work_root=work_root,
+        home_root=tmp_path / "home",
+        request=request,
+        ledger_entry={},
+    )
+    controller = subject.Controller.__new__(subject.Controller)
+
+    bundle = controller._collect_resolution_terminal_proof(attempt)
+
+    assert bundle["terminal_proof"]["valid"] is False
+    assert bundle["terminal_proof"]["termination_evidence_paths"] == []

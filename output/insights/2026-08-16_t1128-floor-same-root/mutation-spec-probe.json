@@ -1,0 +1,164 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 130.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "    expected_source = fetchcontent_base / \"masstree-src\"\n    expected_root_sha256 = hashlib.sha256(\n        str(expected_source).encode(\"utf-8\")\n    ).hexdigest()\n    if (getattr(result, \"cached\", None) is not True\n            and getattr(result, \"masstree_source_root_sha256\", None)\n            != expected_root_sha256):\n        raise _floor_postflight_error(\n            \"build 成果物の実効 masstree source root が期待値と不一致\",\n            detail_code=\"floor-dependency-postflight-effective-root-mismatch\",\n            outcome=\"identity-mismatch\", path=expected_source,\n        )\n",
+     "new": "    expected_source = fetchcontent_base / \"masstree-src\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_postflight_cache_hit_uses_content_receipt_not_prior_absolute_root",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_postflight_gate_rejects_effective_root_and_content_drift[archive_sha256-archive \\u304c\\u5909\\u5316]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_postflight_gate_rejects_effective_root_and_content_drift[config_sha256-config.h \\u304c\\u5909\\u5316]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "    if after.config_sha256 != before.config_sha256:\n",
+     "new": "    if after.config_sha256 != after.config_sha256:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_postflight_gate_rejects_effective_root_and_content_drift[config_sha256-config.h \\u304c\\u5909\\u5316]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "    if receipt is not None:\n        preimage[\"fetchcontent_dependency_receipt\"] = receipt\n",
+     "new": "    if receipt is not None:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_receipt_change_misses_and_empty_default_preserves_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "            except buildcache.MasstreeFetchContentError as exc:\n                code = (\n                    \"floor-dependency-fetchcontent-configure-failed\"\n                    if exc.stage == \"configure\"\n                    else \"floor-dependency-fetchcontent-target-failed\"\n                )\n                raise _FloorOraclePreflightError(\n                    str(exc), detail_code=code,\n                    origin=f\"floor-fetchcontent-prebuild:{exc.stage}\",\n                    outcome=\"execution-failed\", path=fetchcontent_base,\n                ) from exc\n",
+     "new": "            except buildcache.MasstreeFetchContentError:\n                pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[configure]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_dependency_preflight_failure_persists_private_attempt[target]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "    fetchcontent_define = (\n        [f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\"]\n        if fetchcontent_base_dir else []\n    )\n",
+     "new": "    fetchcontent_define = (\n        [f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\"] * 2\n        if fetchcontent_base_dir else []\n    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "            build_kwargs = {}\n            if (dependency_binding is not None\n                    and configuration_id == \"sort_best\"):\n                assert fetchcontent_base is not None\n",
+     "new": "            build_kwargs = {}\n            if dependency_binding is not None:\n                assert fetchcontent_base is not None\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "                    oracle_dependency_root=_dependency.source_root,\n",
+     "new": "                    oracle_dependency_root=(\n                        _dependency.source_root.parent.parent\n                        / \"third-party-cache\" / \"masstree-src\"\n                    ),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_preflight_marker_precedes_toolchain_and_dependency_probes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "            \"archive_sha256\": self.archive_sha256,\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_preflight_marker_precedes_toolchain_and_dependency_probes",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_postflight_failure_persists_unavailable_before_binary_admission[fresh]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_postflight_failure_persists_unavailable_before_binary_admission[cache-hit]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "            \"dependency_archive_sha256\": dependency.archive_sha256,\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
