@@ -67,17 +67,11 @@ title: 起動検査が main landed handoff を通すようにし、握り潰さ�
 
 ### 完了
 
-- [T-1037] 両半分とも閉じた。main の tracked handoff 撤去は `952fd45d` (wave 外) が実施し、
-  起動検査側は本 wave が main landed だけを通す形へ直した。
-  remaining: none
-  base: 25b89bc5a98f2e32f86ff11f7465c7006420148d8eca13c08ea89d9e3255e8a9
 - [T-1038] (a) checker 側修正と submodule 提示文の是正をどちらも実装した。変異 9/9 KILLED。
+  [T-1037] / [T-1039] は wave 中に並行の棚卸しが「陳腐化 = 実測で解消、構造的な再発防止は
+  [T-1038] が所有」として見送りへ移しており、その所有分を本 wave が果たした。
   remaining: none
-  base: a32def30b6da412b22aab3bc3481f53fc6008cdc038d53e6dd1ed7b9bc2f2fe4
-- [T-1039] 起動 gate と land の control-plane 保護の衝突は解消した。S-1 は起動 gate 側を直す形で
-  決着し、S-2 (`docs/handoff/README.md` の削除契約) はユーザー裁定どおり現状維持のままである。
-  remaining: none
-  base: 6160db6a007333e8796d265ea6841eb2543a35603309e0b38dd957f974710d20
+  base: 357533da14106935c6a90ef03afdee4c143408e35cd58a7c00c097dc156b6ee1
 
 ### 新規
 
@@ -98,3 +92,8 @@ title: 起動検査が main landed handoff を通すようにし、握り潰さ�
 - {{T:startup-help-text}} **P3・新規**: `--forbid-worktree-handoff` の help は
   「README.md 以外の worktree-local handoff が無いこと」とだけ書き、新しい受理条件
   (main landed) を反映していない。1 行の文言修正。
+
+### 見送り追記
+
+- [T-1037] 2026-08-15 に所有先の [T-1038] が checker 側の恒久修正を実装した (main landed だけを通す)。再訪不要。
+- [T-1039] 2026-08-15 に所有先の [T-1038] が checker 側の恒久修正を実装した。S-2 (README の削除契約) は裁定どおり現状維持。
