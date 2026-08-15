@@ -54,11 +54,11 @@ _METERED_TRANSPORT_KEYS = (
     "CLAUDE_CODE_USE_BEDROCK",
     "CLAUDE_CODE_USE_VERTEX",
 )
-# Keep this stdlib-only leaf grammar byte-for-byte aligned with
-# orchestrator.qualification.qsub_binding._JOB_ID_TEXT.  The qualification
-# package is deliberately not imported across the production leaf boundary;
-# the cross-package equality is pinned by test_claude_transport.py.
-PBS_JOBID_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._-]*"
+# Keep this stdlib-only leaf grammar as the exact optional ``0:`` extension of
+# orchestrator.qualification.qsub_binding._JOB_ID_TEXT. The qsub authority
+# parses request IDs; transport and collector also accept the PBS_JOBID form.
+# Cross-package relationships are pinned by test_claude_transport.py.
+PBS_JOBID_PATTERN = r"(?:0:)?[A-Za-z0-9][A-Za-z0-9._-]*"
 _PBS_JOBID_RE = re.compile(PBS_JOBID_PATTERN)
 
 
@@ -126,7 +126,7 @@ def _reject(code: str, message: str) -> None:
 
 
 def is_valid_pbs_jobid(value: object) -> bool:
-    """Return whether ``value`` has the repository-authoritative raw job ID form."""
+    """Return whether ``value`` has the admitted PBS_JOBID environment form."""
 
     return type(value) is str and _PBS_JOBID_RE.fullmatch(value) is not None
 
