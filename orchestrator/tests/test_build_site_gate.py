@@ -449,6 +449,50 @@ def test_other_and_compute_do_not_refuse_buildcache_commands():
         })]
 
 
+def test_masstree_prebuild_routes_both_commands_through_heavy_site_gate():
+    with tempfile.TemporaryDirectory(prefix="izanagi_masstree_prebuild_") as tmp:
+        root = Path(tmp)
+        base = root / "base"
+        source = root / "ccbench"
+        base.mkdir()
+        source.mkdir()
+        gates = []
+        launches = []
+
+        def gate(site, what):
+            gates.append((site, what))
+            return site
+
+        def launch(cmd, **kwargs):
+            launches.append((tuple(cmd), kwargs))
+            return SimpleNamespace(returncode=0, stderr="")
+
+        manifest = {
+            role: {
+                "requested": role,
+                "realpath": f"/fixture/{role}",
+                "version_first_line": "fixture v1",
+                "version": "fixture v1",
+            }
+            for role in ("cc", "cxx", "cmake")
+        }
+        with patch.object(buildcache, "require_heavy_work_site", gate), patch.object(
+                buildcache.subprocess, "run", launch):
+            buildcache.prepare_masstree_fetchcontent(
+                ccbench_dir=str(source.resolve()),
+                fetchcontent_base_dir=str(base.resolve()),
+                expected_toolchain_manifest=manifest,
+                configure_timeout_s=17,
+                target_timeout_s=19,
+                site=site_policy.OTHER,
+            )
+        assert gates == [
+            (site_policy.OTHER, "cmake configure"),
+            (site_policy.OTHER, "cmake build"),
+        ]
+        assert len(launches) == 2
+
+
 def test_cache_hit_does_not_consult_real_build_gate_or_call_run_stub():
     with tempfile.TemporaryDirectory(prefix="izanagi_site_gate_hit_") as tmp:
         results, calls = _fake_v2_builds(

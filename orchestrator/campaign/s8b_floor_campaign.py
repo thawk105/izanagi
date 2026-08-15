@@ -84,7 +84,7 @@ from ..calibrator.runner import (  # noqa: E402
     measure_point,
 )
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
-from . import buildcache, s8b_floor_stats, source_digest  # noqa: E402
+from . import buildcache, patchharness, s8b_floor_stats, source_digest  # noqa: E402
 from . import silo_ladder_rung1 as _silo_ladder  # noqa: E402
 from . import toolchain_binding  # noqa: E402
 from .build_admission import (  # noqa: E402
@@ -158,10 +158,10 @@ _APPROVED_SCALE_ADEQUACY = _floor_contract._APPROVED_SCALE_ADEQUACY
 _APPROVED_REASONS = list(_floor_contract._APPROVED_REASONS)
 
 _FLOOR_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
-_THIRD_PARTY_CACHE_ENV = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
 _FLOOR_JOB_STAGING_ENV = "IZANAGI_FLOOR_JOB_STAGING"
 _PRIVATE_DIAGNOSTIC_MAX_BYTES = 128 * 1024
 _FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
+_FLOOR_POSTFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-postflight-failure.json"
 _FLOOR_PREFLIGHT_MATERIALIZED_SHA256 = hashlib.sha256(
     b"floor-sort-swo-preflight:materialized-unavailable"
 ).hexdigest()
@@ -185,14 +185,21 @@ _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-policy-unavailable",
     "floor-dependency-policy-pin-nonunique",
     "floor-dependency-policy-pin-invalid",
-    "floor-dependency-cache-unconfigured",
-    "floor-dependency-cache-path-invalid",
-    "floor-dependency-cache-unavailable",
-    "floor-dependency-cache-not-directory",
-    "floor-dependency-cache-boundary-unavailable",
-    "floor-dependency-cache-inside-repository",
+    "floor-dependency-tmpdir-unconfigured",
+    "floor-dependency-base-create-failed",
+    "floor-dependency-base-path-invalid",
+    "floor-dependency-base-unavailable",
+    "floor-dependency-base-not-directory",
+    "floor-dependency-base-owner-mismatch",
+    "floor-dependency-base-boundary-unavailable",
+    "floor-dependency-base-inside-repository",
+    "floor-dependency-ccbench-checkout-failed",
+    "floor-dependency-fetchcontent-base-failed",
+    "floor-dependency-fetchcontent-configure-failed",
+    "floor-dependency-fetchcontent-target-failed",
     "floor-dependency-source-missing",
     "floor-dependency-source-not-directory",
+    "floor-dependency-source-stat-unavailable",
     "floor-dependency-head-probe-unavailable",
     "floor-dependency-head-nonunique",
     "floor-dependency-git-root-unavailable",
@@ -201,6 +208,21 @@ _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES = frozenset({
     "floor-dependency-config-missing",
     "floor-dependency-config-not-regular",
     "floor-dependency-config-hash-unavailable",
+    "floor-dependency-archive-missing",
+    "floor-dependency-archive-not-regular",
+    "floor-dependency-archive-hash-unavailable",
+})
+_FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES = frozenset({
+    "floor-dependency-postflight-build-failed",
+    "floor-dependency-postflight-result-base-mismatch",
+    "floor-dependency-postflight-configure-argv-invalid",
+    "floor-dependency-postflight-source-override",
+    "floor-dependency-postflight-base-define-count",
+    "floor-dependency-postflight-effective-root-mismatch",
+    "floor-dependency-postflight-source-unavailable",
+    "floor-dependency-postflight-head-drift",
+    "floor-dependency-postflight-config-drift",
+    "floor-dependency-postflight-archive-drift",
 })
 _FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES = frozenset({
     "not-configured",
@@ -212,6 +234,8 @@ _FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES = frozenset({
     "config-h-not-regular-file",
     "config-h-missing",
     "invalid-path",
+    "execution-failed",
+    "identity-mismatch",
 })
 _HOLDOUT_FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
 _SELECTOR_PREDICTIONS_REL = "output/s8b-freeze/selector_predictions.json"
@@ -245,16 +269,20 @@ _REASON_LAUNCH = "launch_failure"                # プロセス起動失敗 (全
 _REASON_PARTIAL = "nonfinite_or_partial_output"
 
 _PORTABLE_BUILT_KEYS = _binary_admission.PORTABLE_BUILT_KEYS
-_PORTABLE_PLACEHOLDERS = ("${OUT_ROOT}", "${CCBENCH_ROOT}")
+_PORTABLE_PLACEHOLDERS = (
+    "${OUT_ROOT}", "${CCBENCH_ROOT}", "${FETCHCONTENT_BASE_DIR}",
+)
 
 # W2a walltime envelope の凍結定数。build cap/finalize reserve は Pegasus
 # certification job と同じ 15 分/10 分。verify cap は session ごとの binary hash +
 # strict pre/post probe を 120 秒に閉じ込める上限で、bench extime×reps とは分離する。
 _FLOOR_BUILD_CAP_PER_CELL_S = 900
+_FLOOR_DEPENDENCY_CONFIGURE_CAP_S = 900
+_FLOOR_DEPENDENCY_TARGET_CAP_S = 900
 _FLOOR_VERIFY_CAP_PER_ATTEMPT_S = 120
 _FLOOR_FINALIZE_RESERVE_S = 600
 _FLOOR_RESERVATION_FORMULA = (
-    "cell_count * (build_cap_per_cell_s + "
+    "shared_dependency_prebuild_s + cell_count * (build_cap_per_cell_s + "
     "(scheduled_attempts_per_cell + retry_slots_per_cell) * "
     "(bench_extime_s * reps + verify_cap_per_attempt_s))"
 )
@@ -846,9 +874,10 @@ def _floor_reservation_budget(
 ) -> tuple[int, int]:
     """validated schedule から campaign の有限 walltime envelope を導出する。
 
-    凍結式は ``cell_count * (build_cap_per_cell +
+    凍結式は ``shared_dependency_prebuild + cell_count * (build_cap_per_cell +
     (scheduled_attempts_per_cell + retry_slots_per_cell) *
     (bench_extime_s * reps + verify_cap_per_attempt)) + finalize_reserve``。
+    shared dependency prebuild は sort_best がある run だけ configure/target 各 900s を一度加える。
     build cap=900s は trace-disabled v2 build 1 セルの hard upper bound、verify cap=120s は
     binary receipt + strict pre/post probe、finalize reserve=600s は terminal/result fsync と
     rejection forensic の退避枠である。leaf には前半を ``required_s``、末尾を
@@ -875,7 +904,12 @@ def _floor_reservation_budget(
         _FLOOR_BUILD_CAP_PER_CELL_S
         + (scheduled_per_cell + protocol["retry_slots_per_cell"]) * attempt_cap
     )
-    required_s = len(cell_ids) * per_cell
+    shared_dependency_prebuild_s = (
+        _FLOOR_DEPENDENCY_CONFIGURE_CAP_S + _FLOOR_DEPENDENCY_TARGET_CAP_S
+        if any(cell.get("configuration_id") == "sort_best" for cell in cells)
+        else 0
+    )
+    required_s = shared_dependency_prebuild_s + len(cell_ids) * per_cell
     if required_s <= 0:
         raise FloorCampaignError("reservation required_s を正数として導出できない")
     return required_s, _FLOOR_FINALIZE_RESERVE_S
@@ -1278,7 +1312,8 @@ class _FloorOraclePreflightDiagnostic:
     def __post_init__(self) -> None:
         if self.detail_code not in (
                 _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES
-                | _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES):
+                | _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES
+                | _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES):
             raise ValueError("未知の floor oracle preflight detail_code")
         if type(self.origin) is not str or not self.origin or len(self.origin) > 128:
             raise ValueError("floor oracle preflight origin が不正")
@@ -1291,6 +1326,8 @@ class _FloorOraclePreflightDiagnostic:
     def phase(self) -> str:
         if self.detail_code in _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES:
             return "floor-toolchain-preflight"
+        if self.detail_code in _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES:
+            return "floor-dependency-postflight"
         return "floor-dependency-preflight"
 
     @property
@@ -1298,6 +1335,14 @@ class _FloorOraclePreflightDiagnostic:
         if self.detail_code in _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES:
             return "compiler"
         return "dependency"
+
+    def private_dict(self) -> dict[str, object]:
+        return {
+            "detail_code": self.detail_code,
+            "origin": self.origin,
+            "outcome": self.outcome,
+            "path": None if self.path is None else str(self.path),
+        }
 
 
 class _FloorOraclePreflightError(FloorCampaignError):
@@ -1332,6 +1377,16 @@ class _FloorOracleDependencyBinding:
     expected_head: str
     observed_head: str
     config_sha256: str
+    archive_sha256: str
+    source_st_dev: int
+    source_st_ino: int
+
+    def cache_receipt(self) -> dict[str, str]:
+        return {
+            "masstree_head": self.observed_head,
+            "config_sha256": self.config_sha256,
+            "archive_sha256": self.archive_sha256,
+        }
 
     def private_dict(self) -> dict[str, object]:
         return {
@@ -1339,6 +1394,9 @@ class _FloorOracleDependencyBinding:
             "dependency_expected_head": self.expected_head,
             "dependency_head": self.observed_head,
             "dependency_config_sha256": self.config_sha256,
+            "dependency_archive_sha256": self.archive_sha256,
+            "dependency_source_st_dev": self.source_st_dev,
+            "dependency_source_st_ino": self.source_st_ino,
         }
 
 
@@ -1389,23 +1447,39 @@ def _floor_git_environment() -> dict[str, str]:
     return env
 
 
-def _sha256_regular_file(path: Path) -> str:
+def _sha256_regular_file(path: Path, *, artifact: str = "config") -> str:
+    if artifact == "config":
+        label = "config.h"
+        missing_code = "floor-dependency-config-missing"
+        nonregular_code = "floor-dependency-config-not-regular"
+        hash_code = "floor-dependency-config-hash-unavailable"
+        missing_outcome = "config-h-missing"
+        nonregular_outcome = "config-h-not-regular-file"
+    elif artifact == "archive":
+        label = "libkohler_masstree_json.a"
+        missing_code = "floor-dependency-archive-missing"
+        nonregular_code = "floor-dependency-archive-not-regular"
+        hash_code = "floor-dependency-archive-hash-unavailable"
+        missing_outcome = "missing"
+        nonregular_outcome = "not-regular-file"
+    else:
+        raise ValueError("未知の masstree dependency artifact")
     try:
         info = path.lstat()
     except OSError as exc:
         raise _FloorOraclePreflightError(
-            "masstree config.h が存在しない",
-            detail_code="floor-dependency-config-missing",
+            f"masstree {label} が存在しない",
+            detail_code=missing_code,
             origin="floor-dependency:masstree",
-            outcome="config-h-missing",
+            outcome=missing_outcome,
             path=path.parent,
         ) from exc
     if path.is_symlink() or not stat.S_ISREG(info.st_mode):
         raise _FloorOraclePreflightError(
-            "masstree config.h が non-symlink regular file でない",
-            detail_code="floor-dependency-config-not-regular",
+            f"masstree {label} が non-symlink regular file でない",
+            detail_code=nonregular_code,
             origin="floor-dependency:masstree",
-            outcome="config-h-not-regular-file",
+            outcome=nonregular_outcome,
             path=path.parent,
         )
     digest = hashlib.sha256()
@@ -1415,8 +1489,8 @@ def _sha256_regular_file(path: Path) -> str:
                 digest.update(chunk)
     except OSError as exc:
         raise _FloorOraclePreflightError(
-            "masstree config.h を hash できない",
-            detail_code="floor-dependency-config-hash-unavailable",
+            f"masstree {label} を hash できない",
+            detail_code=hash_code,
             origin="floor-dependency:masstree",
             outcome="invalid-path",
             path=path.parent,
@@ -1424,8 +1498,13 @@ def _sha256_regular_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _stat_floor_dependency_root(path: Path) -> os.stat_result:
+    """依存 root の identity probe を単一の注入 site に束縛する。"""
+    return path.stat()
+
+
 def _verify_floor_oracle_dependency_source(
-        cache_root: Path, *, repo_root: Path,
+        fetchcontent_base_dir: Path, *, repo_root: Path,
         expected_head: str) -> _FloorOracleDependencyBinding:
     if (type(expected_head) is not str
             or re.fullmatch(r"[0-9a-f]{40}", expected_head) is None):
@@ -1437,19 +1516,19 @@ def _verify_floor_oracle_dependency_source(
             path=_silo_ladder.third_party_policy_path(Path(repo_root)),
         )
     try:
-        raw_cache = Path(cache_root)
+        raw_cache = Path(fetchcontent_base_dir)
     except (TypeError, ValueError) as exc:
         raise _FloorOraclePreflightError(
-            "third-party cache root が path として不正",
-            detail_code="floor-dependency-cache-path-invalid",
-            origin="floor-cache-root",
+            "FetchContent base が path として不正",
+            detail_code="floor-dependency-base-path-invalid",
+            origin="floor-fetchcontent-base",
             outcome="invalid-path",
         ) from exc
     if not raw_cache.is_absolute():
         raise _FloorOraclePreflightError(
-            "third-party cache root は絶対 path 必須",
-            detail_code="floor-dependency-cache-path-invalid",
-            origin="floor-cache-root",
+            "FetchContent base は絶対 path 必須",
+            detail_code="floor-dependency-base-path-invalid",
+            origin="floor-fetchcontent-base",
             outcome="invalid-path",
             path=raw_cache,
         )
@@ -1458,17 +1537,17 @@ def _verify_floor_oracle_dependency_source(
         resolved_cache = raw_cache.resolve(strict=True)
     except (OSError, RuntimeError) as exc:
         raise _FloorOraclePreflightError(
-            "third-party cache root を解決できない",
-            detail_code="floor-dependency-cache-unavailable",
-            origin="floor-cache-root",
+            "FetchContent base を解決できない",
+            detail_code="floor-dependency-base-unavailable",
+            origin="floor-fetchcontent-base",
             outcome="missing" if not raw_cache.exists() else "invalid-path",
             path=raw_cache,
         ) from exc
     if raw_cache.is_symlink() or not resolved_cache.is_dir():
         raise _FloorOraclePreflightError(
-            "third-party cache root が実 directory でない",
-            detail_code="floor-dependency-cache-not-directory",
-            origin="floor-cache-root",
+            "FetchContent base が実 directory でない",
+            detail_code="floor-dependency-base-not-directory",
+            origin="floor-fetchcontent-base",
             outcome="not-regular-file",
             path=raw_cache,
         )
@@ -1478,22 +1557,22 @@ def _verify_floor_oracle_dependency_source(
         )) == str(resolved_repo)
     except ValueError as exc:
         raise _FloorOraclePreflightError(
-            "third-party cache root の境界を比較できない",
-            detail_code="floor-dependency-cache-boundary-unavailable",
-            origin="floor-cache-root",
+            "FetchContent base の境界を比較できない",
+            detail_code="floor-dependency-base-boundary-unavailable",
+            origin="floor-fetchcontent-base",
             outcome="invalid-path",
             path=raw_cache,
         ) from exc
     if inside_repo:
         raise _FloorOraclePreflightError(
-            "third-party cache root は repo 外でなければならない",
-            detail_code="floor-dependency-cache-inside-repository",
-            origin="floor-cache-root",
+            "FetchContent base は repo 外でなければならない",
+            detail_code="floor-dependency-base-inside-repository",
+            origin="floor-fetchcontent-base",
             outcome="invalid-path",
             path=raw_cache,
         )
 
-    unresolved_source = resolved_cache / "masstree"
+    unresolved_source = resolved_cache / "masstree-src"
     try:
         source_root = unresolved_source.resolve(strict=True)
     except (OSError, RuntimeError) as exc:
@@ -1571,43 +1650,201 @@ def _verify_floor_oracle_dependency_source(
             path=source_root,
         )
     config_sha256 = _sha256_regular_file(source_root / "config.h")
+    archive_sha256 = _sha256_regular_file(
+        source_root / "libkohler_masstree_json.a", artifact="archive",
+    )
+    try:
+        source_info = _stat_floor_dependency_root(source_root)
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "masstree source root の identity を取得できない",
+            detail_code="floor-dependency-source-stat-unavailable",
+            origin="floor-dependency:masstree",
+            outcome="missing",
+            path=source_root,
+        ) from exc
     return _FloorOracleDependencyBinding(
         source_root=source_root,
         expected_head=expected_head,
         observed_head=observed_head,
         config_sha256=config_sha256,
+        archive_sha256=archive_sha256,
+        source_st_dev=source_info.st_dev,
+        source_st_ino=source_info.st_ino,
     )
 
 
-def _resolve_floor_oracle_dependency(
-        cache_root: Optional[os.PathLike[str] | str] = None,
-        *, repo_root: Path = ROOT) -> _FloorOracleDependencyBinding:
-    configured = cache_root
-    origin = "argument:third-party-cache-root"
+def _canonical_floor_fetchcontent_base(
+        configured: Optional[os.PathLike[str] | str], *, repo_root: Path = ROOT,
+) -> Path:
+    """明示 seam または production TMPDIR から job-local base を一つ確定する。"""
     if configured is None:
-        configured = os.environ.get(_THIRD_PARTY_CACHE_ENV)
-        origin = f"environment:{_THIRD_PARTY_CACHE_ENV}"
+        tmpdir = os.environ.get("TMPDIR")
+        if not tmpdir:
+            raise _FloorOraclePreflightError(
+                "production floor の TMPDIR が未設定",
+                detail_code="floor-dependency-tmpdir-unconfigured",
+                origin="environment:TMPDIR",
+                outcome="not-configured",
+            )
+        try:
+            unresolved_tmp = Path(tmpdir)
+        except (TypeError, ValueError) as exc:
+            raise _FloorOraclePreflightError(
+                "production floor の TMPDIR が path として不正",
+                detail_code="floor-dependency-base-path-invalid",
+                origin="environment:TMPDIR",
+                outcome="invalid-path",
+            ) from exc
+        try:
+            tmp_root = unresolved_tmp.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise _FloorOraclePreflightError(
+                "production floor の TMPDIR を解決できない",
+                detail_code="floor-dependency-base-unavailable",
+                origin="environment:TMPDIR",
+                outcome="missing",
+                path=unresolved_tmp,
+            ) from exc
+        if (not unresolved_tmp.is_absolute() or unresolved_tmp.is_symlink()
+                or not tmp_root.is_dir()):
+            raise _FloorOraclePreflightError(
+                "production floor の TMPDIR が実 absolute directory でない",
+                detail_code="floor-dependency-base-not-directory",
+                origin="environment:TMPDIR",
+                outcome="not-regular-file",
+                path=unresolved_tmp,
+            )
+        try:
+            configured = tempfile.mkdtemp(
+                prefix="izanagi-floor-fetchcontent-", dir=str(tmp_root),
+            )
+        except OSError as exc:
+            raise _FloorOraclePreflightError(
+                "job-local FetchContent base を作成できない",
+                detail_code="floor-dependency-base-create-failed",
+                origin="environment:TMPDIR",
+                outcome="execution-failed",
+                path=tmp_root,
+            ) from exc
     try:
-        unconfigured = configured is None or os.fspath(configured) == ""
-    except (TypeError, ValueError) as exc:
+        unresolved = Path(configured)
+        resolved = unresolved.resolve(strict=True)
+        resolved_repo = Path(repo_root).resolve(strict=True)
+    except (TypeError, ValueError, OSError, RuntimeError) as exc:
         raise _FloorOraclePreflightError(
-            "third-party cache root が path として不正",
-            detail_code="floor-dependency-cache-path-invalid",
-            origin=origin,
+            "FetchContent base を解決できない",
+            detail_code="floor-dependency-base-unavailable",
+            origin="floor-fetchcontent-base",
             outcome="invalid-path",
+            path=_preflight_candidate_path(configured),
         ) from exc
-    if unconfigured:
+    if (not unresolved.is_absolute() or unresolved.is_symlink()
+            or not resolved.is_dir() or unresolved.absolute() != resolved):
         raise _FloorOraclePreflightError(
-            "third-party cache root は明示引数または "
-            f"{_THIRD_PARTY_CACHE_ENV} で必須",
-            detail_code="floor-dependency-cache-unconfigured",
-            origin=origin,
-            outcome="not-configured",
+            "FetchContent base が canonical non-symlink absolute directory でない",
+            detail_code="floor-dependency-base-not-directory",
+            origin="floor-fetchcontent-base",
+            outcome="not-regular-file",
+            path=unresolved,
         )
-    expected_head = _masstree_policy_pin(Path(repo_root))
+    try:
+        resolved_info = _stat_floor_dependency_root(resolved)
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "FetchContent base の identity を取得できない",
+            detail_code="floor-dependency-base-unavailable",
+            origin="floor-fetchcontent-base",
+            outcome="missing",
+            path=resolved,
+        ) from exc
+    try:
+        if resolved_info.st_uid != os.geteuid():
+            raise _FloorOraclePreflightError(
+                "FetchContent base の owner が実効 uid と不一致",
+                detail_code="floor-dependency-base-owner-mismatch",
+                origin="floor-fetchcontent-base",
+                outcome="invalid-path",
+                path=resolved,
+            )
+        inside_repo = os.path.commonpath((str(resolved), str(resolved_repo))) == str(resolved_repo)
+    except ValueError as exc:
+        raise _FloorOraclePreflightError(
+            "FetchContent base の repo 境界を比較できない",
+            detail_code="floor-dependency-base-boundary-unavailable",
+            origin="floor-fetchcontent-base",
+            outcome="invalid-path",
+            path=resolved,
+        ) from exc
+    if inside_repo:
+        raise _FloorOraclePreflightError(
+            "FetchContent base は repo 外でなければならない",
+            detail_code="floor-dependency-base-inside-repository",
+            origin="floor-fetchcontent-base",
+            outcome="invalid-path",
+            path=resolved,
+        )
+    return resolved
+
+
+def _prepare_floor_oracle_dependency(
+        fetchcontent_base: Path, *, ccbench_pin: str,
+        expected_toolchain_manifest: Mapping[str, object], repo_root: Path = ROOT,
+) -> _FloorOracleDependencyBinding:
+    """pin 済み CCBench checkout で prebuild し、oracle identity を取得する。"""
+    fixed_sub = Path(repo_root) / "external" / "ccbench"
+    try:
+        checkout = patchharness.checkout(ccbench_pin, base_dir=str(fixed_sub))
+    except Exception as exc:
+        raise _FloorOraclePreflightError(
+            "pin 済み CCBench checkout を prebuild 用に作成できない",
+            detail_code="floor-dependency-ccbench-checkout-failed",
+            origin="floor-fetchcontent-prebuild:ccbench-checkout",
+            outcome="execution-failed",
+            path=fixed_sub,
+        ) from exc
+    try:
+        with checkout as prebuild_source:
+            try:
+                buildcache.prepare_masstree_fetchcontent(
+                    ccbench_dir=str(Path(prebuild_source).resolve()),
+                    fetchcontent_base_dir=str(fetchcontent_base),
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    configure_timeout_s=_FLOOR_DEPENDENCY_CONFIGURE_CAP_S,
+                    target_timeout_s=_FLOOR_DEPENDENCY_TARGET_CAP_S,
+                )
+            except buildcache.MasstreeFetchContentError as exc:
+                code = (
+                    "floor-dependency-fetchcontent-configure-failed"
+                    if exc.stage == "configure"
+                    else "floor-dependency-fetchcontent-target-failed"
+                )
+                raise _FloorOraclePreflightError(
+                    str(exc), detail_code=code,
+                    origin=f"floor-fetchcontent-prebuild:{exc.stage}",
+                    outcome="execution-failed", path=fetchcontent_base,
+                ) from exc
+            except Exception as exc:
+                raise _FloorOraclePreflightError(
+                    str(exc),
+                    detail_code="floor-dependency-fetchcontent-base-failed",
+                    origin="floor-fetchcontent-prebuild:base",
+                    outcome="execution-failed",
+                    path=fetchcontent_base,
+                ) from exc
+    except _FloorOraclePreflightError:
+        raise
+    except Exception as exc:
+        raise _FloorOraclePreflightError(
+            "pin 済み CCBench checkout を prebuild 用に作成できない",
+            detail_code="floor-dependency-ccbench-checkout-failed",
+            origin="floor-fetchcontent-prebuild:ccbench-checkout",
+            outcome="execution-failed",
+            path=fixed_sub,
+        ) from exc
     return _verify_floor_oracle_dependency_source(
-        Path(configured), repo_root=Path(repo_root),
-        expected_head=expected_head,
+        fetchcontent_base, repo_root=Path(repo_root),
+        expected_head=_masstree_policy_pin(Path(repo_root)),
     )
 
 
@@ -1696,6 +1933,9 @@ def _write_phase_marker(
             "dependency_head": dependency.observed_head,
             "dependency_expected_head": dependency.expected_head,
             "dependency_config_sha256": dependency.config_sha256,
+            "dependency_archive_sha256": dependency.archive_sha256,
+            "dependency_source_st_dev": dependency.source_st_dev,
+            "dependency_source_st_ino": dependency.source_st_ino,
         })
     _create_private_json(destination, document)
     return destination
@@ -1705,6 +1945,17 @@ def _floor_oracle_preflight_unavailable_result(
         diagnostic: _FloorOraclePreflightDiagnostic, *,
         verified_compiler: Optional[str],
 ) -> SortSwoOracleResult:
+    if diagnostic.outcome in {"execution-failed", "identity-mismatch"}:
+        return SortSwoOracleResult(
+            OracleStatus.UNAVAILABLE,
+            _FLOOR_PREFLIGHT_MATERIALIZED_SHA256,
+            _FLOOR_PREFLIGHT_PROPOSAL_SHA256,
+            infrastructure=OracleInfrastructureFailure(
+                INFRASTRUCTURE_REASON_CODE,
+                diagnostic.phase,
+                diagnostic.detail_code,
+            ),
+        )
     if diagnostic.failed_leg == "compiler":
         compiler_candidates = (
             OracleEnvironmentCandidate(
@@ -1763,11 +2014,128 @@ def _persist_floor_oracle_preflight_failure(
         error.diagnostic,
         verified_compiler=verified_compiler,
     )
-    _create_private_json(
-        marker_root / _FLOOR_PREFLIGHT_FAILURE_FILENAME,
-        private_attempt_record(result),
-    )
+    record = private_attempt_record(result)
+    if error.diagnostic.outcome in {"execution-failed", "identity-mismatch"}:
+        record["floor_failure_diagnostic"] = error.diagnostic.private_dict()
+    _create_private_json(marker_root / _FLOOR_PREFLIGHT_FAILURE_FILENAME, record)
     return SortSwoOracleUnavailable(result)
+
+
+def _persist_floor_oracle_postflight_failure(
+        marker_root: Path, error: _FloorOraclePreflightError, *,
+        verified_compiler: Optional[str],
+) -> SortSwoOracleUnavailable:
+    if error.diagnostic.detail_code not in _FLOOR_DEPENDENCY_POSTFLIGHT_DETAIL_CODES:
+        raise ValueError("postflight 永続化へ preflight detail code を渡せない")
+    result = _floor_oracle_preflight_unavailable_result(
+        error.diagnostic,
+        verified_compiler=verified_compiler,
+    )
+    record = private_attempt_record(result)
+    record["floor_failure_diagnostic"] = error.diagnostic.private_dict()
+    _create_private_json(marker_root / _FLOOR_POSTFLIGHT_FAILURE_FILENAME, record)
+    return SortSwoOracleUnavailable(result)
+
+
+def _floor_postflight_error(
+        message: str, *, detail_code: str, outcome: str,
+        path: Optional[Path] = None,
+) -> _FloorOraclePreflightError:
+    return _FloorOraclePreflightError(
+        message,
+        detail_code=detail_code,
+        origin="floor-dependency-postflight:masstree",
+        outcome=outcome,
+        path=path,
+    )
+
+
+def _verify_floor_build_dependency(
+        result: object, configure_argv: tuple[str, ...] | list[str], *,
+        fetchcontent_base: Path, before: _FloorOracleDependencyBinding,
+        repo_root: Path = ROOT,
+) -> _FloorOracleDependencyBinding:
+    """binary admission 前に build 成果物由来 root と依存内容を再照合する。"""
+    if getattr(result, "fetchcontent_base_dir", None) != str(fetchcontent_base):
+        raise _floor_postflight_error(
+            "build result の FetchContent base が期待値と不一致",
+            detail_code="floor-dependency-postflight-result-base-mismatch",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    if (not isinstance(configure_argv, (list, tuple))
+            or not configure_argv
+            or any(type(token) is not str or not token for token in configure_argv)):
+        raise _floor_postflight_error(
+            "build configure argv が非空 str 列でない",
+            detail_code="floor-dependency-postflight-configure-argv-invalid",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    if any(
+            token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+            for token in configure_argv):
+        raise _floor_postflight_error(
+            "build configure argv に禁止された FetchContent SOURCE_DIR override がある",
+            detail_code="floor-dependency-postflight-source-override",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    expected_define = f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base}"
+    base_defines = [
+        token for token in configure_argv
+        if token.startswith("-DFETCHCONTENT_BASE_DIR=")
+    ]
+    if base_defines != [expected_define]:
+        raise _floor_postflight_error(
+            "build configure argv の FetchContent base define が exact 1 でない",
+            detail_code="floor-dependency-postflight-base-define-count",
+            outcome="identity-mismatch", path=fetchcontent_base,
+        )
+    expected_source = fetchcontent_base / "masstree-src"
+    expected_root_sha256 = hashlib.sha256(
+        str(expected_source).encode("utf-8")
+    ).hexdigest()
+    if (getattr(result, "cached", None) is not True
+            and getattr(result, "masstree_source_root_sha256", None)
+            != expected_root_sha256):
+        raise _floor_postflight_error(
+            "build 成果物の実効 masstree source root が期待値と不一致",
+            detail_code="floor-dependency-postflight-effective-root-mismatch",
+            outcome="identity-mismatch", path=expected_source,
+        )
+    try:
+        after = _verify_floor_oracle_dependency_source(
+            fetchcontent_base, repo_root=repo_root,
+            expected_head=before.expected_head,
+        )
+    except _FloorOraclePreflightError as exc:
+        detail_code = (
+            "floor-dependency-postflight-head-drift"
+            if exc.diagnostic.detail_code == "floor-dependency-head-mismatch"
+            else "floor-dependency-postflight-source-unavailable"
+        )
+        raise _floor_postflight_error(
+            "build 後の masstree dependency identity を再取得できない",
+            detail_code=detail_code,
+            outcome="identity-mismatch", path=expected_source,
+        ) from exc
+    if after.observed_head != before.observed_head:
+        raise _floor_postflight_error(
+            "build 後に masstree HEAD が変化した",
+            detail_code="floor-dependency-postflight-head-drift",
+            outcome="identity-mismatch", path=expected_source,
+        )
+    if after.config_sha256 != before.config_sha256:
+        raise _floor_postflight_error(
+            "build 後に masstree config.h が変化した",
+            detail_code="floor-dependency-postflight-config-drift",
+            outcome="identity-mismatch", path=expected_source,
+        )
+    if after.archive_sha256 != before.archive_sha256:
+        raise _floor_postflight_error(
+            "build 後に masstree archive が変化した",
+            detail_code="floor-dependency-postflight-archive-drift",
+            outcome="identity-mismatch", path=expected_source,
+        )
+    return after
 
 
 @contextlib.contextmanager
@@ -1942,7 +2310,7 @@ def build_cells(
         freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
         out_root: Path, prepare_fn, contract, verified_calibration,
         build_fn=None,
-        third_party_cache_root: Optional[os.PathLike[str] | str] = None,
+        fetchcontent_base_dir: Optional[os.PathLike[str] | str] = None,
         phase_marker_root: Optional[os.PathLike[str] | str] = None,
 ) -> dict[str, dict]:
     """全セルを実体化し、runner/store 専用の absolute-path runtime view を返す。"""
@@ -1989,6 +2357,7 @@ def build_cells(
             )
 
     dependency_binding = None
+    fetchcontent_base = None
     verified_oracle_compiler = None
     try:
         expected_toolchain_manifest = _bind_current_toolchain(
@@ -2016,8 +2385,13 @@ def build_cells(
                     outcome="invalid-path",
                     path=_preflight_candidate_path(verified_oracle_compiler),
                 )
-            dependency_binding = _resolve_floor_oracle_dependency(
-                third_party_cache_root,
+            fetchcontent_base = _canonical_floor_fetchcontent_base(
+                fetchcontent_base_dir,
+            )
+            dependency_binding = _prepare_floor_oracle_dependency(
+                fetchcontent_base,
+                ccbench_pin=ccbench_pin,
+                expected_toolchain_manifest=expected_toolchain_manifest,
             )
             _create_private_json(
                 marker_root / "sort-swo-oracle-dependency.json",
@@ -2112,17 +2486,45 @@ def build_cells(
                     compiler=(verified_oracle_compiler or cxx),
                     dependency=dependency_binding,
                 )
-            result = build_fn(
-                prepared.genome,
-                admission=admission, build_context=build_context,
-                source_evidence=evidence,
-                contract=contract, ccbench_commit=ccbench_pin,
-                trace=False, cache_root=cache_root, src_token=prepared.src_token,
-                cc=cc, cxx=cxx,
-                ccbench_dir=prepared.ccbench_dir,
-                timeout_s=_FLOOR_BUILD_CAP_PER_CELL_S,
-                expected_toolchain_manifest=expected_toolchain_manifest,
-            )
+            build_kwargs = {}
+            if (dependency_binding is not None
+                    and configuration_id == "sort_best"):
+                assert fetchcontent_base is not None
+                build_kwargs = {
+                    "fetchcontent_base_dir": str(fetchcontent_base),
+                    "fetchcontent_dependency_receipt": (
+                        dependency_binding.cache_receipt()
+                    ),
+                }
+            try:
+                result = build_fn(
+                    prepared.genome,
+                    admission=admission, build_context=build_context,
+                    source_evidence=evidence,
+                    contract=contract, ccbench_commit=ccbench_pin,
+                    trace=False, cache_root=cache_root, src_token=prepared.src_token,
+                    cc=cc, cxx=cxx,
+                    ccbench_dir=prepared.ccbench_dir,
+                    timeout_s=_FLOOR_BUILD_CAP_PER_CELL_S,
+                    expected_toolchain_manifest=expected_toolchain_manifest,
+                    **build_kwargs,
+                )
+            except Exception as exc:
+                if dependency_binding is None or configuration_id != "sort_best":
+                    raise
+                assert marker_root is not None
+                assert fetchcontent_base is not None
+                error = _floor_postflight_error(
+                    "sort_best cell build または build 成果物抽出に失敗",
+                    detail_code="floor-dependency-postflight-build-failed",
+                    outcome="execution-failed",
+                    path=fetchcontent_base / "masstree-src",
+                )
+                raise _persist_floor_oracle_postflight_failure(
+                    marker_root,
+                    error,
+                    verified_compiler=verified_oracle_compiler,
+                ) from exc
             if getattr(result, "contract_sha256", None) != contract.contract_sha256:
                 raise FloorCampaignError(
                     "floor build が contract namespace provenance を返さない "
@@ -2137,6 +2539,21 @@ def build_cells(
                 configure_argv = tuple(result.configure_cmd)
             if not build_argv and isinstance(getattr(result, "build_cmd", None), list):
                 build_argv = tuple(result.build_cmd)
+            if dependency_binding is not None and configuration_id == "sort_best":
+                assert marker_root is not None
+                assert fetchcontent_base is not None
+                try:
+                    _verify_floor_build_dependency(
+                        result, configure_argv,
+                        fetchcontent_base=fetchcontent_base,
+                        before=dependency_binding,
+                    )
+                except _FloorOraclePreflightError as exc:
+                    raise _persist_floor_oracle_postflight_failure(
+                        marker_root,
+                        exc,
+                        verified_compiler=verified_oracle_compiler,
+                    ) from exc
             if (not isinstance(configure_argv, (list, tuple))
                     or not all(isinstance(token, str) for token in configure_argv)
                     or not configure_argv):
@@ -2174,6 +2591,10 @@ def build_cells(
                     getattr(result, "ccbench_root", None) or prepared.ccbench_dir
                 ).absolute()),
             }
+            if dependency_binding is not None and configuration_id == "sort_best":
+                built[cell["cell_id"]]["_fetchcontent_base_dir"] = str(
+                    fetchcontent_base
+                )
     return built
 
 
@@ -2220,7 +2641,10 @@ def _replace_root_component(token: str, root: str, placeholder: str) -> str:
             start = index + 1
 
 
-def _portable_argv(argv, *, out_root: Path, ccbench_root: str, field: str) -> list[str]:
+def _portable_argv(
+        argv, *, out_root: Path, ccbench_root: str, field: str,
+        fetchcontent_base_dir: Optional[str] = None,
+) -> list[str]:
     """absolute root を placeholder 化した表示・照合専用 argv（再実行は禁止）。"""
     if (not isinstance(argv, (list, tuple)) or not argv
             or not all(isinstance(token, str) for token in argv)):
@@ -2229,6 +2653,16 @@ def _portable_argv(argv, *, out_root: Path, ccbench_root: str, field: str) -> li
         (str(Path(out_root).absolute()), "${OUT_ROOT}"),
         (str(Path(ccbench_root).absolute()), "${CCBENCH_ROOT}"),
     ]
+    if fetchcontent_base_dir is not None:
+        if (type(fetchcontent_base_dir) is not str or not fetchcontent_base_dir
+                or not Path(fetchcontent_base_dir).is_absolute()):
+            raise FloorCampaignError(
+                f"runtime built {field} の FetchContent base が絶対 path でない"
+            )
+        roots.append((
+            str(Path(fetchcontent_base_dir).absolute()),
+            "${FETCHCONTENT_BASE_DIR}",
+        ))
     roots.sort(key=lambda item: len(item[0]), reverse=True)
     projected = []
     for raw in argv:
@@ -2238,6 +2672,11 @@ def _portable_argv(argv, *, out_root: Path, ccbench_root: str, field: str) -> li
         token = raw
         for root, placeholder in roots:
             token = _replace_root_component(token, root, placeholder)
+        if (fetchcontent_base_dir is not None
+                and fetchcontent_base_dir in token):
+            raise FloorCampaignError(
+                f"runtime built {field} に raw FetchContent base が残った"
+            )
         projected.append(token)
     return projected
 
@@ -2312,9 +2751,25 @@ def project_built_records(
     artifact: dict[str, dict] = {}
     for cell_id in sorted(runtime_built):
         rec = runtime_built[cell_id]
+        if (not isinstance(rec, Mapping)
+                or frozenset(rec) not in {
+                    _RUNTIME_STORED_KEYS,
+                    _RUNTIME_FETCHCONTENT_STORED_KEYS,
+                }):
+            raise FloorCampaignError(
+                f"runtime binaries[{cell_id}] の exact key 集合が不一致"
+            )
+        has_fetchcontent_base = "_fetchcontent_base_dir" in rec
+        is_sort_best = rec.get("configuration_id") == "sort_best"
+        if has_fetchcontent_base and not is_sort_best:
+            raise FloorCampaignError(
+                f"runtime binaries[{cell_id}] の FetchContent base は "
+                "sort_best にだけ許可される"
+            )
         ccbench_root = rec.get("_ccbench_root")
         if not isinstance(ccbench_root, str) or not ccbench_root:
             raise FloorCampaignError(f"runtime binaries[{cell_id}] の ccbench root がない")
+        fetchcontent_base = rec.get("_fetchcontent_base_dir")
         artifact[cell_id] = {
             "cell_id": rec["cell_id"],
             "holdout_id": rec["holdout_id"],
@@ -2325,10 +2780,12 @@ def project_built_records(
             "binding": dict(rec["binding"]),
             "configure_argv": _portable_argv(
                 rec["configure_argv"], out_root=out_root,
-                ccbench_root=ccbench_root, field="configure_argv"),
+                ccbench_root=ccbench_root, field="configure_argv",
+                fetchcontent_base_dir=fetchcontent_base),
             "build_argv": _portable_argv(
                 rec["build_argv"], out_root=out_root,
-                ccbench_root=ccbench_root, field="build_argv"),
+                ccbench_root=ccbench_root, field="build_argv",
+                fetchcontent_base_dir=fetchcontent_base),
             "cached": rec["cached"],
             "admission_receipt": json.loads(json.dumps(
                 rec["admission_receipt"], ensure_ascii=True,
@@ -2970,6 +3427,8 @@ def _revalidate_issued_certificate(
 
 _RUNTIME_FRESH_KEYS = (_PORTABLE_BUILT_KEYS - {"store_path"}) | {"_ccbench_root"}
 _RUNTIME_STORED_KEYS = _PORTABLE_BUILT_KEYS | {"_ccbench_root"}
+_RUNTIME_FETCHCONTENT_FRESH_KEYS = _RUNTIME_FRESH_KEYS | {"_fetchcontent_base_dir"}
+_RUNTIME_FETCHCONTENT_STORED_KEYS = _RUNTIME_STORED_KEYS | {"_fetchcontent_base_dir"}
 
 
 def _preflight_runtime_store_record(
@@ -2984,13 +3443,22 @@ def _preflight_runtime_store_record(
         raise FloorCampaignError(f"binary store runtime record が Mapping でない: {cell_id}")
     keys = frozenset(rec)
     if keys not in (
-            _RUNTIME_FRESH_KEYS, _RUNTIME_STORED_KEYS, _PORTABLE_BUILT_KEYS):
+            _RUNTIME_FRESH_KEYS, _RUNTIME_STORED_KEYS,
+            _RUNTIME_FETCHCONTENT_FRESH_KEYS, _RUNTIME_FETCHCONTENT_STORED_KEYS,
+            _PORTABLE_BUILT_KEYS):
         raise FloorCampaignError(
             f"binary store runtime record の exact key 集合が不一致: cell={cell_id}"
         )
     if rec.get("cell_id") != cell_id:
         raise FloorCampaignError(
             f"binary store runtime record.cell_id が key と不一致: cell={cell_id}"
+        )
+    has_fetchcontent_base = "_fetchcontent_base_dir" in rec
+    is_sort_best = rec.get("configuration_id") == "sort_best"
+    if has_fetchcontent_base and not is_sort_best:
+        raise FloorCampaignError(
+            "binary store runtime record._fetchcontent_base_dir は "
+            f"sort_best にだけ許可される: cell={cell_id}"
         )
     for field in ("holdout_id", "configuration_id"):
         if type(rec.get(field)) is not str or not rec[field]:
@@ -3031,6 +3499,17 @@ def _preflight_runtime_store_record(
                 f"binary store runtime record._ccbench_root が絶対 path でない: "
                 f"cell={cell_id}"
             )
+    if "_fetchcontent_base_dir" in rec:
+        fetchcontent_base = rec["_fetchcontent_base_dir"]
+        if (type(fetchcontent_base) is not str or not fetchcontent_base
+                or not Path(fetchcontent_base).is_absolute()
+                or Path(fetchcontent_base).is_symlink()
+                or not Path(fetchcontent_base).is_dir()
+                or Path(fetchcontent_base).absolute() != Path(fetchcontent_base).resolve()):
+            raise FloorCampaignError(
+                "binary store runtime record._fetchcontent_base_dir が canonical "
+                f"absolute directory でない: cell={cell_id}"
+            )
     dest = Path(store_root) / sha
     if "store_path" in rec:
         store_path = rec["store_path"]
@@ -3042,6 +3521,7 @@ def _preflight_runtime_store_record(
             )
     projected = dict(rec)
     projected.pop("_ccbench_root", None)
+    projected.pop("_fetchcontent_base_dir", None)
     projected["store_path"] = str(dest.absolute())
     try:
         _binary_admission.validate_portable_binary_record(
@@ -4352,6 +4832,12 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                     "safety_margin_s": reservation_safety_margin_s,
                     "formula": _FLOOR_RESERVATION_FORMULA,
                     "build_cap_per_cell_s": _FLOOR_BUILD_CAP_PER_CELL_S,
+                    "shared_dependency_prebuild": any(
+                        cell.get("configuration_id") == "sort_best"
+                        for cell in cells
+                    ),
+                    "dependency_configure_cap_s": _FLOOR_DEPENDENCY_CONFIGURE_CAP_S,
+                    "dependency_target_cap_s": _FLOOR_DEPENDENCY_TARGET_CAP_S,
                     "verify_cap_per_attempt_s": _FLOOR_VERIFY_CAP_PER_ATTEMPT_S,
                     "finalize_reserve_s": _FLOOR_FINALIZE_RESERVE_S,
                 },
