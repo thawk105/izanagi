@@ -77,6 +77,18 @@ spec が pin する `contract_sha256` は activation 世代の進行で失効す
 デッドロックの結び目になっている。他の値は先行 blocker (active ratified freeze 不在、
 `holdout_freeze.json` の `floor`/`budget` が null、trust root 不在) が解けるまで承認しても効かない。
 
+**受入全走は 1 回目が F57 の再発で赤になり、非帰属を実測してから取り直した。** 待ち手の
+非帰属 checker は `test_codex_worker_launch.py` の 12 node と
+`test_dev_wave_wait.py::test_public_main_real_signal_releases_lease` の計 13 件を
+`attributable` と分類したが (rc=70)、本 wave の差分は docs 10 file のみで launcher 実装へ
+到達しえない。同 2 file の単独再走 (計算ノード、request `912484`) は 400 passed / 1 failed で
+**帰属された 13 件は 1 件も再現せず**、落ちた 1 件は 13 件のいずれでもない別 node だった。
+`DW-O18` により帰属しないと裁定し、F57 へ再発として記録した。
+**隣で別 wave の codex 子が稼働していた点が過去の再発と違い、同時失敗数が 1 件から 13 件へ
+跳ねた初の観測である。** なお受入の起動前 rc=2 が 2 回あり、原因は入れ子 submodule
+(`external/ccbench/third_party/shirakami` とその配下) の未初期化だった。テストは 1 件も
+走っていない。`--init --recursive` で解消した。
+
 **工数。** 段 2 プラン子 (codex sol/max) 1 本、段 3 敵対 2 本 (sol / luna、いずれも max)。
 いずれも read-only sandbox、`check_codex_output.py` rc=0。実装子は起こしていない。
 変異 matrix は `DW-S04` により免除 (「実装しない」と裁定済み・実装差分ゼロ)。
