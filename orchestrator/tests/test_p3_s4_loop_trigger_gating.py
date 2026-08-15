@@ -35,6 +35,7 @@ from orchestrator.campaign import site_policy                                   
 from orchestrator.campaign import wal                                            # noqa: E402
 from orchestrator.campaign.artifact_admission import (                           # noqa: E402
     ArtifactAdmissionError,
+    CampaignReadPurpose,
     require_admitted_campaign,
 )
 from orchestrator.campaign.auditor_gate import (AuditorGateFailure, AuditorVerdict,  # noqa: E402
@@ -135,7 +136,9 @@ _T530_COMPUTE_CAMPAIGN_ID = (
 def _critic_view(layout: CampaignLayout):
     cfg = T._campaign_cfg_for_site(T.default_cfg(), site_policy.OTHER)
     wal.write_lock(layout, build_v2_lock(ident.canonical_preimage(cfg)))
-    return require_admitted_campaign(layout)
+    return require_admitted_campaign(
+        layout, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
 
 
 def _mk_template_dir() -> str:
@@ -2151,7 +2154,9 @@ def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
     assert recovery_error.condition == "trigger-campaign"
     assert variant in wal.replay(current, admission_policy=policy)
     write_provenance_for_starts(current, current_records)
-    assert require_admitted_campaign(current).decision.admitted
+    assert require_admitted_campaign(
+        current, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    ).decision.admitted
 
     mutant = new_layout("inner-trigger-reject-identity-only")
     seed_active_attempt(mutant)
@@ -2200,7 +2205,9 @@ def test_inner_run_reject_start_crash_fails_before_second_start(monkeypatch):
         wal.replay(mutant, admission_policy=policy)
     write_provenance_for_starts(mutant, mutant_records)
     with pytest.raises(ArtifactAdmissionError, match="variant に未終端 attempt"):
-        require_admitted_campaign(mutant)
+        require_admitted_campaign(
+            mutant, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
 
 
 def test_drive_iteration_writes_entry_and_checkpoint(monkeypatch):

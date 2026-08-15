@@ -69,6 +69,8 @@ from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
 from orchestrator.calibrator import runner as calibrator_runner  # noqa: E402
 
+buildcache = s8b_floor_campaign.buildcache
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
@@ -293,11 +295,19 @@ def _fake_prepare(cell, ccbench_pin, *, cxx):
     )
 
 
-def _make_fake_build(build_root: Path):
+_FIXTURE_DEPENDENCY_RECEIPT = {
+    "masstree_head": "a" * 40,
+    "config_sha256": "b" * 64,
+    "archive_sha256": "c" * 64,
+}
+
+
+def _make_fake_build(build_root: Path, *, cached: bool = False):
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
                    timeout_s=None, admission=None, build_context=None,
-                   source_evidence=None, expected_toolchain_manifest=None):
+                   source_evidence=None, expected_toolchain_manifest=None,
+                   fetchcontent_base_dir="", fetchcontent_dependency_receipt=None):
         del jobs
         assert admission is not None
         assert admission.provenance_class is BuildProvenance.HUMAN_REVIEWED
@@ -321,18 +331,42 @@ def _make_fake_build(build_root: Path):
         payload = f"fixture-binary::{cell_id}".encode("utf-8")
         binary_path.write_bytes(payload)
         bin_sha256 = hashlib.sha256(payload).hexdigest()
+        configure_argv = ["cmake", "-S", effective_ccbench, "-B", str(cell_dir)]
+        masstree_source_root_sha256 = ""
+        if fetchcontent_base_dir:
+            assert fetchcontent_dependency_receipt == _FIXTURE_DEPENDENCY_RECEIPT
+            configure_argv.append(
+                f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}"
+            )
+            masstree_source_root_sha256 = hashlib.sha256(
+                str(Path(fetchcontent_base_dir) / "masstree-src").encode("utf-8")
+            ).hexdigest()
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
             bin_sha256=bin_sha256, bin_hash=bin_sha256[:16],
-            build_dir=str(cell_dir), cached=False,
+            build_dir=str(cell_dir), cached=cached,
             configure_cmd=f"# fixture configure {cell_id}",
             build_cmd="# fixture build",
-            configure_argv=["cmake", "-S", effective_ccbench, "-B", str(cell_dir)],
+            configure_argv=configure_argv,
             build_argv=["cmake", "--build", str(cell_dir)],
             cache_root=str(cache_root), ccbench_root=effective_ccbench,
             contract_sha256=(contract.contract_sha256 if contract is not None else None),
+            fetchcontent_base_dir=fetchcontent_base_dir,
+            masstree_source_root_sha256=masstree_source_root_sha256,
         )
     return fake_build
+
+
+def _fixture_dependency_binding(base: Path) -> object:
+    return s8b_floor_campaign._FloorOracleDependencyBinding(
+        source_root=base / "masstree-src",
+        expected_head=_FIXTURE_DEPENDENCY_RECEIPT["masstree_head"],
+        observed_head=_FIXTURE_DEPENDENCY_RECEIPT["masstree_head"],
+        config_sha256=_FIXTURE_DEPENDENCY_RECEIPT["config_sha256"],
+        archive_sha256=_FIXTURE_DEPENDENCY_RECEIPT["archive_sha256"],
+        source_st_dev=1,
+        source_st_ino=2,
+    )
 
 
 def _durable_policy(out_root: Path):
@@ -1593,12 +1627,9 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     marker_root = tmp_path / "job-staging"
     marker_root.mkdir()
-    dependency = s8b_floor_campaign._FloorOracleDependencyBinding(
-        source_root=tmp_path / "third-party-cache" / "masstree",
-        expected_head="a" * 40,
-        observed_head="a" * 40,
-        config_sha256="b" * 64,
-    )
+    fetchcontent_base = tmp_path / "fetchcontent"
+    fetchcontent_base.mkdir()
+    dependency = _fixture_dependency_binding(fetchcontent_base)
     observed = {}
 
     @contextlib.contextmanager
@@ -1621,8 +1652,12 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     )
     monkeypatch.setattr(
         s8b_floor_campaign,
-        "_resolve_floor_oracle_dependency",
-        lambda configured: dependency,
+        "_prepare_floor_oracle_dependency",
+        lambda base, **_kwargs: dependency,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_build_dependency",
+        lambda _result, _argv, **_kwargs: dependency,
     )
     monkeypatch.setattr(
         s8b_floor_campaign, "prepare_cell", production_prepare,
@@ -1638,7 +1673,7 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
         contract=contract,
         verified_calibration=verified,
         build_fn=_make_fake_build(tmp_path / "bin"),
-        third_party_cache_root=tmp_path / "explicit-cache",
+        fetchcontent_base_dir=fetchcontent_base,
         phase_marker_root=marker_root,
     )
     assert len(built) == 1
@@ -1660,6 +1695,9 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     assert dependency_attempt["dependency_root"] == str(dependency.source_root)
     assert dependency_attempt["dependency_config_sha256"] == (
         dependency.config_sha256
+    )
+    assert dependency_attempt["dependency_archive_sha256"] == (
+        dependency.archive_sha256
     )
 
 
@@ -1709,7 +1747,7 @@ def test_production_floor_requires_staging_before_toolchain_or_oracle_or_build(
             contract=contract,
             verified_calibration=verified,
             build_fn=build,
-            third_party_cache_root=tmp_path / "cache",
+            fetchcontent_base_dir=tmp_path / "cache",
         )
     assert calls == []
 
@@ -1727,12 +1765,9 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     marker_root = tmp_path / "job-staging"
     marker_root.mkdir()
-    dependency = s8b_floor_campaign._FloorOracleDependencyBinding(
-        source_root=tmp_path / "cache" / "masstree",
-        expected_head="a" * 40,
-        observed_head="a" * 40,
-        config_sha256="b" * 64,
-    )
+    fetchcontent_base = tmp_path / "cache"
+    fetchcontent_base.mkdir()
+    dependency = _fixture_dependency_binding(fetchcontent_base)
     events = []
 
     def assert_preflight_marker() -> None:
@@ -1747,10 +1782,10 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
         events.append("toolchain-preflight")
         return _fixture_toolchain_binding(candidate, cc=cc, cxx=cxx)
 
-    def resolve(configured):
-        assert configured == tmp_path / "cache"
+    def prebuild(configured, **_kwargs):
+        assert configured == fetchcontent_base
         assert_preflight_marker()
-        events.append("dependency-preflight")
+        events.append("dependency-prebuild")
         return dependency
 
     @contextlib.contextmanager
@@ -1773,7 +1808,11 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
     monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
     monkeypatch.setattr(s8b_floor_campaign, "_bind_current_toolchain", bind)
     monkeypatch.setattr(
-        s8b_floor_campaign, "_resolve_floor_oracle_dependency", resolve,
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency", prebuild,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_build_dependency",
+        lambda _result, _argv, **_kwargs: dependency,
     )
     built = s8b_floor_campaign.build_cells(
         freeze,
@@ -1784,13 +1823,296 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
         contract=contract,
         verified_calibration=verified,
         build_fn=build,
-        third_party_cache_root=tmp_path / "cache",
+        fetchcontent_base_dir=fetchcontent_base,
         phase_marker_root=marker_root,
     )
     assert len(built) == 1
     assert events == [
-        "toolchain-preflight", "dependency-preflight", "oracle", "build",
+        "toolchain-preflight", "dependency-prebuild", "oracle", "build",
     ]
+
+
+def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    all_cells = s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=_STOCK,
+    )
+    cells = [
+        next(cell for cell in all_cells if cell["configuration_id"] == _STOCK),
+        next(cell for cell in all_cells if cell["configuration_id"] == "sort_best"),
+    ]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    dependency = _fixture_dependency_binding(base)
+    events = []
+    build_kwargs = {}
+
+    def prebuild(observed_base, **_kwargs):
+        assert observed_base == base.resolve()
+        events.append("prebuild")
+        return dependency
+
+    @contextlib.contextmanager
+    def production_prepare(
+            cell, ccbench_pin, *, cxx, oracle_dependency_root,
+            oracle_compiler, oracle_phase_marker):
+        if cell["configuration"] == "sort_best":
+            assert oracle_dependency_root == dependency.source_root
+            oracle_phase_marker()
+            events.append("oracle")
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            yield prepared
+
+    fake_build = _make_fake_build(tmp_path / "bin")
+
+    def build(genome, **kwargs):
+        cell_id = _FIXTURE_CELL_BY_TOKEN.get(kwargs["src_token"])
+        build_kwargs[cell_id] = dict(kwargs)
+        events.append(f"build:{cell_id}")
+        return fake_build(genome, **kwargs)
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency", prebuild,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_build_dependency",
+        lambda _result, _argv, **_kwargs: dependency,
+    )
+    built = s8b_floor_campaign.build_cells(
+        freeze, cells, ccbench_pin="0" * 40,
+        out_root=tmp_path / "out", prepare_fn=production_prepare,
+        contract=contract, verified_calibration=verified, build_fn=build,
+        fetchcontent_base_dir=base.resolve(), phase_marker_root=marker_root,
+    )
+    assert events.count("prebuild") == 1
+    assert events.index("prebuild") < events.index("oracle")
+    sort_id = next(key for key in built if key.endswith("::sort_best"))
+    stock_id = next(key for key in built if key.endswith(f"::{_STOCK}"))
+    assert build_kwargs[sort_id]["fetchcontent_base_dir"] == str(base.resolve())
+    assert build_kwargs[sort_id]["fetchcontent_dependency_receipt"] == (
+        _FIXTURE_DEPENDENCY_RECEIPT
+    )
+    assert "fetchcontent_base_dir" not in build_kwargs[stock_id]
+    assert "fetchcontent_dependency_receipt" not in build_kwargs[stock_id]
+    assert "_fetchcontent_base_dir" in built[sort_id]
+    assert "_fetchcontent_base_dir" not in built[stock_id]
+    store_root = tmp_path / "out" / "store"
+    s8b_floor_campaign.store_binaries(
+        built, store_root, out_root=tmp_path / "out",
+        expected_ccbench_pin="0" * 40,
+        expected_contract_sha256=contract.contract_sha256,
+    )
+    portable = s8b_floor_campaign.project_built_records(
+        built, out_root=tmp_path / "out",
+        expected_ccbench_pin="0" * 40,
+        expected_contract_sha256=contract.contract_sha256,
+    )
+    assert "_fetchcontent_base_dir" not in portable[sort_id]
+    assert f"-DFETCHCONTENT_BASE_DIR=${{FETCHCONTENT_BASE_DIR}}" in (
+        portable[sort_id]["configure_argv"]
+    )
+    assert str(base.resolve()) not in json.dumps(portable, sort_keys=True)
+
+
+def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
+        tmp_path, monkeypatch):
+    base = tmp_path / "fetchcontent"
+    source = tmp_path / "prebuild-ccbench"
+    base.mkdir()
+    source.mkdir()
+    binding = _fixture_dependency_binding(base)
+    events = []
+    manifest = _fixture_toolchain_binding(
+        env_attestation.load_verified_calibration(ec.lookup(ENV_TAG), ROOT),
+        cc="site-cc", cxx="site-cxx",
+    )
+
+    @contextlib.contextmanager
+    def checkout(pin, *, base_dir):
+        events.append(("checkout", pin, base_dir))
+        yield str(source.resolve())
+
+    def prebuild(**kwargs):
+        events.append(("prebuild", kwargs))
+        return SimpleNamespace()
+
+    def verify(observed_base, *, repo_root, expected_head):
+        events.append(("verify", observed_base, repo_root, expected_head))
+        return binding
+
+    monkeypatch.setattr(s8b_floor_campaign.patchharness, "checkout", checkout)
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "prepare_masstree_fetchcontent", prebuild,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source", verify,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_masstree_policy_pin", lambda _root: "a" * 40,
+    )
+    observed = s8b_floor_campaign._prepare_floor_oracle_dependency(
+        base.resolve(), ccbench_pin="0" * 40,
+        expected_toolchain_manifest=manifest,
+    )
+    assert observed is binding
+    assert [event[0] for event in events] == ["checkout", "prebuild", "verify"]
+    assert events[1][1]["fetchcontent_base_dir"] == str(base.resolve())
+    assert events[1][1]["ccbench_dir"] == str(source.resolve())
+    assert events[1][1]["configure_timeout_s"] == 900
+    assert events[1][1]["target_timeout_s"] == 900
+
+
+def test_floor_postflight_gate_rejects_source_override_and_accepts_base_only(
+        tmp_path, monkeypatch):
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    before = _fixture_dependency_binding(base)
+    result = SimpleNamespace(
+        fetchcontent_base_dir=str(base.resolve()),
+        masstree_source_root_sha256=hashlib.sha256(
+            str(base.resolve() / "masstree-src").encode("utf-8")
+        ).hexdigest(),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: dataclasses.replace(
+            before, source_st_dev=9, source_st_ino=10,
+        ),
+    )
+    base_only = ["cmake", f"-DFETCHCONTENT_BASE_DIR={base.resolve()}"]
+    after = s8b_floor_campaign._verify_floor_build_dependency(
+        result, base_only, fetchcontent_base=base.resolve(), before=before,
+        repo_root=tmp_path,
+    )
+    assert (after.source_st_dev, after.source_st_ino) == (9, 10)
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="SOURCE_DIR override"):
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result,
+            base_only + [f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={tmp_path / 'other'}"],
+            fetchcontent_base=base.resolve(), before=before, repo_root=tmp_path,
+        )
+
+
+def test_floor_postflight_cache_hit_uses_content_receipt_not_prior_absolute_root(
+        tmp_path, monkeypatch):
+    base_a = tmp_path / "fetchcontent-a"
+    base_b = tmp_path / "fetchcontent-b"
+    base_a.mkdir()
+    base_b.mkdir()
+    before = _fixture_dependency_binding(base_b.resolve())
+    argv = ["cmake", f"-DFETCHCONTENT_BASE_DIR={base_b.resolve()}"]
+    prior_root_sha256 = hashlib.sha256(
+        str(base_a.resolve() / "masstree-src").encode("utf-8")
+    ).hexdigest()
+    hit = SimpleNamespace(
+        cached=True,
+        fetchcontent_base_dir=str(base_b.resolve()),
+        masstree_source_root_sha256=prior_root_sha256,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: before,
+    )
+    assert s8b_floor_campaign._verify_floor_build_dependency(
+        hit, argv, fetchcontent_base=base_b.resolve(), before=before,
+        repo_root=tmp_path,
+    ) is before
+
+    fresh = SimpleNamespace(**{**vars(hit), "cached": False})
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="実効 masstree source root"):
+        s8b_floor_campaign._verify_floor_build_dependency(
+            fresh, argv, fetchcontent_base=base_b.resolve(), before=before,
+            repo_root=tmp_path,
+        )
+
+
+@pytest.mark.parametrize(
+    ("drift_field", "message"),
+    [("config_sha256", "config.h が変化"),
+     ("archive_sha256", "archive が変化")],
+)
+def test_floor_postflight_gate_rejects_effective_root_and_content_drift(
+        tmp_path, monkeypatch, drift_field, message):
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    before = _fixture_dependency_binding(base)
+    argv = ["cmake", f"-DFETCHCONTENT_BASE_DIR={base.resolve()}"]
+    wrong_root = SimpleNamespace(
+        fetchcontent_base_dir=str(base.resolve()),
+        masstree_source_root_sha256="0" * 64,
+    )
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="実効 masstree source root"):
+        s8b_floor_campaign._verify_floor_build_dependency(
+            wrong_root, argv, fetchcontent_base=base.resolve(), before=before,
+            repo_root=tmp_path,
+        )
+
+    result = SimpleNamespace(
+        fetchcontent_base_dir=str(base.resolve()),
+        masstree_source_root_sha256=hashlib.sha256(
+            str(base.resolve() / "masstree-src").encode("utf-8")
+        ).hexdigest(),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        lambda *_args, **_kwargs: dataclasses.replace(
+            before, **{drift_field: "d" * 64},
+        ),
+    )
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match=message):
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, argv, fetchcontent_base=base.resolve(), before=before,
+            repo_root=tmp_path,
+        )
+
+
+def test_floor_postflight_gate_classifies_head_drift(tmp_path, monkeypatch):
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    before = _fixture_dependency_binding(base)
+    result = SimpleNamespace(
+        fetchcontent_base_dir=str(base.resolve()),
+        masstree_source_root_sha256=hashlib.sha256(
+            str(base.resolve() / "masstree-src").encode("utf-8")
+        ).hexdigest(),
+    )
+
+    def head_mismatch(*_args, **_kwargs):
+        raise s8b_floor_campaign._FloorOraclePreflightError(
+            "fixture HEAD mismatch",
+            detail_code="floor-dependency-head-mismatch",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=base / "masstree-src",
+        )
+
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_oracle_dependency_source",
+        head_mismatch,
+    )
+    with pytest.raises(s8b_floor_campaign._FloorOraclePreflightError) as caught:
+        s8b_floor_campaign._verify_floor_build_dependency(
+            result, ["cmake", f"-DFETCHCONTENT_BASE_DIR={base.resolve()}"],
+            fetchcontent_base=base.resolve(), before=before, repo_root=tmp_path,
+        )
+    assert caught.value.diagnostic.detail_code == (
+        "floor-dependency-postflight-head-drift"
+    )
 
 
 def test_floor_oracle_preflight_diagnostic_rejects_unknown_detail_code():
@@ -1826,10 +2148,12 @@ def test_floor_oracle_dependency_compares_head_and_hashes_regular_config(tmp_pat
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     cache_root = tmp_path / "cache"
-    source = cache_root / "masstree"
+    source = cache_root / "masstree-src"
     head = _git_fixture_source(source)
     config = source / "config.h"
     config.write_text("#define MASSTREE_CONFIG 1\n", encoding="utf-8")
+    archive = source / "libkohler_masstree_json.a"
+    archive.write_bytes(b"fixture archive")
 
     binding = s8b_floor_campaign._verify_floor_oracle_dependency_source(
         cache_root, repo_root=repo_root, expected_head=head,
@@ -1838,6 +2162,7 @@ def test_floor_oracle_dependency_compares_head_and_hashes_regular_config(tmp_pat
     assert binding.expected_head == head
     assert binding.observed_head == head
     assert binding.config_sha256 == hashlib.sha256(config.read_bytes()).hexdigest()
+    assert binding.archive_sha256 == hashlib.sha256(archive.read_bytes()).hexdigest()
     with pytest.raises(
             s8b_floor_campaign.FloorCampaignError,
             match="共有 policy pin と不一致"):
@@ -1850,7 +2175,7 @@ def test_floor_oracle_dependency_rejects_nonregular_config(tmp_path):
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     cache_root = tmp_path / "cache"
-    source = cache_root / "masstree"
+    source = cache_root / "masstree-src"
     head = _git_fixture_source(source)
     target = tmp_path / "generated-config.h"
     target.write_text("#pragma once\n", encoding="utf-8")
@@ -1867,7 +2192,7 @@ def test_floor_oracle_dependency_rejects_missing_config_before_hash(tmp_path):
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     cache_root = tmp_path / "cache"
-    source = cache_root / "masstree"
+    source = cache_root / "masstree-src"
     head = _git_fixture_source(source)
     with pytest.raises(
             s8b_floor_campaign.FloorCampaignError,
@@ -1877,33 +2202,59 @@ def test_floor_oracle_dependency_rejects_missing_config_before_hash(tmp_path):
         )
 
 
+def test_floor_oracle_dependency_rejects_missing_archive_before_oracle(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    cache_root = tmp_path / "cache"
+    source = cache_root / "masstree-src"
+    head = _git_fixture_source(source)
+    (source / "config.h").write_text("#pragma once\n", encoding="utf-8")
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="libkohler_masstree_json.a が存在しない"):
+        s8b_floor_campaign._verify_floor_oracle_dependency_source(
+            cache_root, repo_root=repo_root, expected_head=head,
+        )
+
+
 @pytest.mark.parametrize(
-    ("failure_kind", "detail_code", "outcome"),
+    ("failure_kind", "detail_code", "origin", "outcome"),
     [
         (
-            "cache-unavailable",
-            "floor-dependency-cache-unavailable",
-            "missing",
+            "checkout",
+            "floor-dependency-ccbench-checkout-failed",
+            "floor-fetchcontent-prebuild:ccbench-checkout",
+            "execution-failed",
+        ),
+        (
+            "base",
+            "floor-dependency-fetchcontent-base-failed",
+            "floor-fetchcontent-prebuild:base",
+            "execution-failed",
+        ),
+        (
+            "configure",
+            "floor-dependency-fetchcontent-configure-failed",
+            "floor-fetchcontent-prebuild:configure",
+            "execution-failed",
+        ),
+        (
+            "target",
+            "floor-dependency-fetchcontent-target-failed",
+            "floor-fetchcontent-prebuild:target",
+            "execution-failed",
         ),
         (
             "source-missing",
             "floor-dependency-source-missing",
+            "floor-dependency:masstree",
             "missing",
         ),
-        (
-            "config-missing",
-            "floor-dependency-config-missing",
-            "config-h-missing",
-        ),
-        (
-            "head-mismatch",
-            "floor-dependency-head-mismatch",
-            "invalid-path",
-        ),
     ],
+    ids=["checkout", "base", "configure", "target", "source-missing"],
 )
 def test_production_floor_dependency_preflight_failure_persists_private_attempt(
-        tmp_path, monkeypatch, failure_kind, detail_code, outcome):
+        tmp_path, monkeypatch, failure_kind, detail_code, origin, outcome):
     freeze = _freeze_document()
     cells = [next(
         cell for cell in s8b_floor_campaign.enumerate_cells(
@@ -1915,24 +2266,32 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
     verified = env_attestation.load_verified_calibration(contract, ROOT)
     marker_root = tmp_path / "job-staging"
     marker_root.mkdir()
-    cache_root = tmp_path / "third-party-cache"
-    source_root = cache_root / "masstree"
-    expected_head = "a" * 40
-    expected_private_path = cache_root
+    fetchcontent_base = tmp_path / "fetchcontent"
+    fetchcontent_base.mkdir()
+    prebuild_source = tmp_path / "prebuild-ccbench"
+    prebuild_source.mkdir()
     if failure_kind == "source-missing":
-        cache_root.mkdir()
-        expected_private_path = source_root
-    elif failure_kind in {"config-missing", "head-mismatch"}:
-        observed_head = _git_fixture_source(source_root)
-        expected_head = observed_head
-        expected_private_path = source_root.resolve()
-        if failure_kind == "head-mismatch":
-            (source_root / "config.h").write_text(
-                "#define MASSTREE_CONFIG 1\n", encoding="utf-8",
-            )
-            expected_head = "0" * 40
+        head = "a" * 40
+    else:
+        source = fetchcontent_base / "masstree-src"
+        head = _git_fixture_source(source)
+        (source / "config.h").write_text("#pragma once\n", encoding="utf-8")
+        (source / "libkohler_masstree_json.a").write_bytes(b"fixture archive")
+    if failure_kind == "checkout":
+        expected_private_path = ROOT / "external" / "ccbench"
+    elif failure_kind == "source-missing":
+        expected_private_path = fetchcontent_base / "masstree-src"
+    else:
+        expected_private_path = fetchcontent_base
 
-    calls = []
+    downstream_calls = []
+    gate_events = []
+    assert buildcache is s8b_floor_campaign.buildcache
+    prebuild_failure_type = {
+        "configure": buildcache.MasstreeFetchContentError,
+        "target": buildcache.MasstreeFetchContentError,
+        "base": buildcache.BuildCacheError,
+    }.get(failure_kind)
 
     @contextlib.contextmanager
     def production_prepare(
@@ -1940,17 +2299,47 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
             oracle_compiler, oracle_phase_marker):
         del cell, ccbench_pin, cxx, oracle_dependency_root
         del oracle_compiler, oracle_phase_marker
-        calls.append("oracle")
+        downstream_calls.append("oracle")
         pytest.fail("dependency preflight 拒否後に oracle へ到達してはいけない")
         yield
 
     def build(*_args, **_kwargs):
-        calls.append("build")
+        downstream_calls.append("build")
         pytest.fail("dependency preflight 拒否後に build へ到達してはいけない")
 
     monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+
+    @contextlib.contextmanager
+    def checkout(_pin, *, base_dir):
+        gate_events.append(("checkout", base_dir))
+        yield str(prebuild_source.resolve())
+
+    def fail_checkout(*_args, **_kwargs):
+        gate_events.append(("checkout", "failed"))
+        raise RuntimeError("fixture checkout failure")
+
+    def prebuild(**_kwargs):
+        gate_events.append(("prebuild", failure_kind))
+        if failure_kind in {"configure", "target"}:
+            failure = buildcache.MasstreeFetchContentError(
+                failure_kind, f"fixture {failure_kind} failure",
+            )
+        elif failure_kind == "base":
+            failure = buildcache.BuildCacheError("fixture base failure")
+        else:
+            return SimpleNamespace()
+        gate_events.append(("prebuild-error", type(failure)))
+        raise failure
+
     monkeypatch.setattr(
-        s8b_floor_campaign, "_masstree_policy_pin", lambda _root: expected_head,
+        s8b_floor_campaign.patchharness, "checkout",
+        fail_checkout if failure_kind == "checkout" else checkout,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign.buildcache, "prepare_masstree_fetchcontent", prebuild,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_masstree_policy_pin", lambda _root: head,
     )
     with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
         s8b_floor_campaign.build_cells(
@@ -1962,7 +2351,7 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
             contract=contract,
             verified_calibration=verified,
             build_fn=build,
-            third_party_cache_root=cache_root,
+            fetchcontent_base_dir=fetchcontent_base,
             phase_marker_root=marker_root,
         )
 
@@ -1976,23 +2365,251 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
         marker_root / s8b_floor_campaign._FLOOR_PREFLIGHT_FAILURE_FILENAME
     )
     artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
-    assert artifact == sort_swo_oracle.private_attempt_record(result)
-    candidate = artifact["infrastructure"][
-        "environment_resolution"
-    ]["dependency_candidates"][0]
-    assert candidate == {
-        "origin": "floor-cache-root" if failure_kind == "cache-unavailable"
-        else "floor-dependency:masstree",
-        "outcome": outcome,
-        "path": str(expected_private_path),
-    }
+    expected_artifact = sort_swo_oracle.private_attempt_record(result)
+    if outcome == "execution-failed":
+        expected_artifact["floor_failure_diagnostic"] = {
+            "detail_code": detail_code,
+            "origin": origin,
+            "outcome": outcome,
+            "path": str(expected_private_path),
+        }
+        assert result.infrastructure.environment_resolution is None
+    else:
+        candidate = artifact["infrastructure"][
+            "environment_resolution"
+        ]["dependency_candidates"][0]
+        assert candidate == {
+            "origin": origin,
+            "outcome": outcome,
+            "path": str(expected_private_path),
+        }
+    assert artifact == expected_artifact
     assert artifact_path.stat().st_mode & 0o777 == 0o600
     assert artifact_path.stat().st_size <= (
         s8b_floor_campaign._PRIVATE_DIAGNOSTIC_MAX_BYTES
     )
     assert len(list(marker_root.glob("phase-preflight-*.json"))) == 1
     assert not (marker_root / "sort-swo-oracle-dependency.json").exists()
+    assert downstream_calls == []
+    assert gate_events[0][0] == "checkout"
+    if failure_kind != "checkout":
+        assert gate_events[1] == ("prebuild", failure_kind)
+    if prebuild_failure_type is not None:
+        assert gate_events[2] == ("prebuild-error", prebuild_failure_type)
+
+
+@pytest.mark.parametrize(
+    ("race_stage", "detail_code", "origin"),
+    [
+        (
+            "base-stat",
+            "floor-dependency-base-unavailable",
+            "floor-fetchcontent-base",
+        ),
+        (
+            "source-stat",
+            "floor-dependency-source-stat-unavailable",
+            "floor-dependency:masstree",
+        ),
+    ],
+    ids=["base-stat", "source-stat"],
+)
+def test_floor_dependency_disappearance_race_persists_closed_detail_before_oracle(
+        tmp_path, monkeypatch, race_stage, detail_code, origin):
+    freeze = _freeze_document()
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK,
+        ) if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    target = base.resolve()
+    head = "a" * 40
+
+    if race_stage == "source-stat":
+        source = base / "masstree-src"
+        head = _git_fixture_source(source)
+        (source / "config.h").write_text("#pragma once\n", encoding="utf-8")
+        (source / "libkohler_masstree_json.a").write_bytes(b"fixture archive")
+        prebuild_source = tmp_path / "prebuild-ccbench"
+        prebuild_source.mkdir()
+
+        @contextlib.contextmanager
+        def checkout(_pin, *, base_dir):
+            del base_dir
+            yield str(prebuild_source.resolve())
+
+        monkeypatch.setattr(s8b_floor_campaign.patchharness, "checkout", checkout)
+        monkeypatch.setattr(
+            s8b_floor_campaign.buildcache,
+            "prepare_masstree_fetchcontent",
+            lambda **_kwargs: SimpleNamespace(),
+        )
+        monkeypatch.setattr(
+            s8b_floor_campaign, "_masstree_policy_pin", lambda _root: head,
+        )
+        target = source.resolve()
+
+    original_dependency_stat = s8b_floor_campaign._stat_floor_dependency_root
+    injected_sites = []
+
+    def disappearing_dependency_stat(path):
+        if path == target:
+            injected_sites.append(path)
+            raise FileNotFoundError("fixture disappearance race")
+        return original_dependency_stat(path)
+
+    monkeypatch.setattr(
+        s8b_floor_campaign,
+        "_stat_floor_dependency_root",
+        disappearing_dependency_stat,
+    )
+    downstream_calls = []
+
+    @contextlib.contextmanager
+    def production_prepare(*_args, **_kwargs):
+        downstream_calls.append("oracle")
+        pytest.fail("filesystem race の拒否後に oracle を実行しない")
+        yield
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
+        s8b_floor_campaign.build_cells(
+            freeze, cells, ccbench_pin="0" * 40,
+            out_root=tmp_path / "out", prepare_fn=production_prepare,
+            contract=contract, verified_calibration=verified,
+            build_fn=lambda *_args, **_kwargs: downstream_calls.append("build"),
+            fetchcontent_base_dir=base, phase_marker_root=marker_root,
+        )
+    assert caught.value.result.infrastructure.detail_code == detail_code
+    artifact_path = (
+        marker_root / s8b_floor_campaign._FLOOR_PREFLIGHT_FAILURE_FILENAME
+    )
+    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    assert artifact["infrastructure"]["detail_code"] == detail_code
+    assert artifact["infrastructure"]["environment_resolution"][
+        "dependency_candidates"
+    ] == [{"origin": origin, "outcome": "missing", "path": str(target)}]
+    assert injected_sites == [target]
+    assert downstream_calls == []
+
+
+def test_floor_dependency_base_creation_failure_persists_before_oracle_or_build(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK,
+        ) if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    job_tmp = tmp_path / "job-tmp"
+    job_tmp.mkdir()
+    monkeypatch.setenv("TMPDIR", str(job_tmp.resolve()))
+    monkeypatch.setattr(
+        s8b_floor_campaign.tempfile, "mkdtemp",
+        lambda **_kwargs: (_ for _ in ()).throw(OSError("fixture create failure")),
+    )
+    calls = []
+
+    @contextlib.contextmanager
+    def production_prepare(*_args, **_kwargs):
+        calls.append("oracle")
+        pytest.fail("base 作成失敗後に oracle を実行しない")
+        yield
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
+        s8b_floor_campaign.build_cells(
+            freeze, cells, ccbench_pin="0" * 40,
+            out_root=tmp_path / "out", prepare_fn=production_prepare,
+            contract=contract, verified_calibration=verified,
+            build_fn=lambda *_args, **_kwargs: calls.append("build"),
+            phase_marker_root=marker_root,
+        )
+    assert caught.value.result.infrastructure.detail_code == (
+        "floor-dependency-base-create-failed"
+    )
+    assert caught.value.result.status is sort_swo_oracle.OracleStatus.UNAVAILABLE
+    assert (marker_root / s8b_floor_campaign._FLOOR_PREFLIGHT_FAILURE_FILENAME).is_file()
     assert calls == []
+
+
+@pytest.mark.parametrize("cached", [False, True], ids=["fresh", "cache-hit"])
+def test_floor_postflight_failure_persists_unavailable_before_binary_admission(
+        tmp_path, monkeypatch, cached):
+    freeze = _freeze_document()
+    cells = [next(
+        cell for cell in s8b_floor_campaign.enumerate_cells(
+            freeze, stock_configuration=_STOCK,
+        ) if cell["configuration_id"] == "sort_best"
+    )]
+    contract = ec.lookup(ENV_TAG)
+    verified = env_attestation.load_verified_calibration(contract, ROOT)
+    marker_root = tmp_path / "job-staging"
+    marker_root.mkdir()
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    dependency = _fixture_dependency_binding(base.resolve())
+
+    @contextlib.contextmanager
+    def production_prepare(
+            cell, ccbench_pin, *, cxx, oracle_dependency_root,
+            oracle_compiler, oracle_phase_marker):
+        del oracle_dependency_root, oracle_compiler
+        oracle_phase_marker()
+        with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
+            yield prepared
+
+    monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency",
+        lambda *_args, **_kwargs: dependency,
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign, "_verify_floor_build_dependency",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            s8b_floor_campaign._floor_postflight_error(
+                "fixture effective root mismatch",
+                detail_code="floor-dependency-postflight-effective-root-mismatch",
+                outcome="identity-mismatch",
+                path=base / "masstree-src",
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        s8b_floor_campaign._binary_admission,
+        "issue_binary_admission_receipt",
+        lambda **_kwargs: pytest.fail("postflight 拒否後に admission を発行しない"),
+    )
+    with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
+        s8b_floor_campaign.build_cells(
+            freeze, cells, ccbench_pin="0" * 40,
+            out_root=tmp_path / "out", prepare_fn=production_prepare,
+            contract=contract, verified_calibration=verified,
+            build_fn=_make_fake_build(tmp_path / "bin", cached=cached),
+            fetchcontent_base_dir=base.resolve(), phase_marker_root=marker_root,
+        )
+    assert caught.value.result.infrastructure.phase == "floor-dependency-postflight"
+    assert caught.value.result.status is sort_swo_oracle.OracleStatus.UNAVAILABLE
+    artifact = marker_root / s8b_floor_campaign._FLOOR_POSTFLIGHT_FAILURE_FILENAME
+    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    expected = sort_swo_oracle.private_attempt_record(caught.value.result)
+    expected["floor_failure_diagnostic"] = {
+        "detail_code": "floor-dependency-postflight-effective-root-mismatch",
+        "origin": "floor-dependency-postflight:masstree",
+        "outcome": "identity-mismatch",
+        "path": str(base / "masstree-src"),
+    }
+    assert payload == expected
 
 
 @pytest.mark.parametrize(
@@ -2090,7 +2707,7 @@ def test_production_floor_toolchain_preflight_failure_persists_private_attempt(
             lambda _requested, role: observations[role],
         )
     monkeypatch.setattr(
-        s8b_floor_campaign, "_resolve_floor_oracle_dependency", forbid_dependency,
+        s8b_floor_campaign, "_prepare_floor_oracle_dependency", forbid_dependency,
     )
     with pytest.raises(sort_swo_oracle.SortSwoOracleUnavailable) as caught:
         s8b_floor_campaign.build_cells(
@@ -2102,7 +2719,7 @@ def test_production_floor_toolchain_preflight_failure_persists_private_attempt(
             contract=contract,
             verified_calibration=verified,
             build_fn=forbid_build,
-            third_party_cache_root=tmp_path / "cache",
+            fetchcontent_base_dir=tmp_path / "cache",
             phase_marker_root=marker_root,
         )
 
@@ -2126,43 +2743,33 @@ def test_production_floor_toolchain_preflight_failure_persists_private_attempt(
     assert calls == []
 
 
-def test_floor_oracle_cache_root_comes_only_from_explicit_argument_or_env(
+def test_floor_fetchcontent_base_uses_explicit_seam_or_job_unique_tmpdir(
         tmp_path, monkeypatch):
-    observed = []
-    binding = s8b_floor_campaign._FloorOracleDependencyBinding(
-        source_root=tmp_path / "resolved" / "masstree",
-        expected_head="a" * 40,
-        observed_head="a" * 40,
-        config_sha256="b" * 64,
-    )
-    monkeypatch.setattr(
-        s8b_floor_campaign, "_masstree_policy_pin", lambda _root: "a" * 40,
-    )
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    explicit = tmp_path / "explicit"
+    explicit.mkdir()
+    assert s8b_floor_campaign._canonical_floor_fetchcontent_base(
+        explicit.resolve(), repo_root=repo_root,
+    ) == explicit.resolve()
 
-    def verify(cache_root, *, repo_root, expected_head):
-        observed.append((cache_root, repo_root, expected_head))
-        return binding
-
-    monkeypatch.setattr(
-        s8b_floor_campaign,
-        "_verify_floor_oracle_dependency_source",
-        verify,
+    tmpdir = tmp_path / "job-tmp"
+    tmpdir.mkdir()
+    monkeypatch.setenv("TMPDIR", str(tmpdir.resolve()))
+    first = s8b_floor_campaign._canonical_floor_fetchcontent_base(
+        None, repo_root=repo_root,
     )
-    env_root = tmp_path / "env-cache"
-    argument_root = tmp_path / "argument-cache"
-    monkeypatch.setenv(
-        "IZANAGI_PEGASUS_THIRDPARTY_CACHE", str(env_root),
+    second = s8b_floor_campaign._canonical_floor_fetchcontent_base(
+        None, repo_root=repo_root,
     )
-    assert s8b_floor_campaign._resolve_floor_oracle_dependency(
-        repo_root=tmp_path,
-    ) is binding
-    assert s8b_floor_campaign._resolve_floor_oracle_dependency(
-        argument_root, repo_root=tmp_path,
-    ) is binding
-    assert observed == [
-        (env_root, tmp_path, "a" * 40),
-        (argument_root, tmp_path, "a" * 40),
-    ]
+    assert first.parent == tmpdir.resolve()
+    assert second.parent == tmpdir.resolve()
+    assert first != second
+    monkeypatch.setenv("IZANAGI_PEGASUS_THIRDPARTY_CACHE", str(tmp_path / "ignored"))
+    third = s8b_floor_campaign._canonical_floor_fetchcontent_base(
+        None, repo_root=repo_root,
+    )
+    assert third.parent == tmpdir.resolve()
 
 
 def test_floor_oracle_uses_existing_shared_pin_without_floor_policy_copy():
@@ -2182,12 +2789,7 @@ def test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash
         tmp_path):
     staging = tmp_path / "job-staging"
     staging.mkdir()
-    dependency = s8b_floor_campaign._FloorOracleDependencyBinding(
-        source_root=tmp_path / "cache/masstree",
-        expected_head="a" * 40,
-        observed_head="a" * 40,
-        config_sha256="b" * 64,
-    )
+    dependency = _fixture_dependency_binding(tmp_path / "cache")
     marker = s8b_floor_campaign._write_phase_marker(
         staging,
         cell="rr79:sort_best",
@@ -2201,6 +2803,7 @@ def test_phase_marker_is_create_only_fsynced_private_and_carries_dependency_hash
     assert payload["phase"] == "oracle"
     assert payload["dependency_root"] == str(dependency.source_root)
     assert payload["dependency_config_sha256"] == "b" * 64
+    assert payload["dependency_archive_sha256"] == "c" * 64
     assert marker.stat().st_mode & 0o777 == 0o600
     with pytest.raises(
             s8b_floor_campaign.FloorCampaignError,
@@ -2436,6 +3039,24 @@ def test_floor_reservation_budget_matches_frozen_formula_exactly():
     assert s8b_floor_campaign._floor_reservation_budget(
         protocol=protocol, cells=cells, schedule=schedule,
     ) == (3280, 600)
+
+
+def test_floor_reservation_includes_one_shared_dependency_prebuild_only_for_sort():
+    schedule = [{"cell_id": "a"}]
+    protocol = {"extime_s": 7, "reps": 4, "retry_slots_per_cell": 0}
+    nonsort = [{"cell_id": "a", "configuration_id": "stock"}]
+    sort = [{"cell_id": "a", "configuration_id": "sort_best"}]
+    without, margin = s8b_floor_campaign._floor_reservation_budget(
+        protocol=protocol, cells=nonsort, schedule=schedule,
+    )
+    with_sort, sort_margin = s8b_floor_campaign._floor_reservation_budget(
+        protocol=protocol, cells=sort, schedule=schedule,
+    )
+    assert with_sort - without == (
+        s8b_floor_campaign._FLOOR_DEPENDENCY_CONFIGURE_CAP_S
+        + s8b_floor_campaign._FLOOR_DEPENDENCY_TARGET_CAP_S
+    )
+    assert margin == sort_margin == 600
 
 
 @pytest.mark.parametrize(
@@ -3307,10 +3928,13 @@ def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
                  if record.get("event") == "reservation-preflight"]
     assert preflight == [{
         "event": "reservation-preflight",
-        "required_s": 28200,
+        "required_s": 30000,
         "safety_margin_s": 600,
         "formula": s8b_floor_campaign._FLOOR_RESERVATION_FORMULA,
         "build_cap_per_cell_s": 900,
+        "shared_dependency_prebuild": True,
+        "dependency_configure_cap_s": 900,
+        "dependency_target_cap_s": 900,
         "verify_cap_per_attempt_s": 120,
         "finalize_reserve_s": 600,
     }]
@@ -5769,7 +6393,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     assert certificate["v1_freeze_sha256"] == freeze_sha256
     assert launch["launch_certificate_sha256"] == certificate_raw_sha256
     assert campaign_start["launch_certificate_sha256"] == certificate_raw_sha256
-    assert reservation_start["required_s"] == 28_200
+    assert reservation_start["required_s"] == 30_000
     assert reservation_start["safety_margin_s"] == 600
     assert s8b_floor_campaign.execution_guard.receipt_matches_contract(
         campaign_start["execution_receipt"],
@@ -5949,7 +6573,9 @@ def test_partial_execution_receipt_bundle_is_rejected():
         s8b_floor_campaign._validate_execution_receipt(receipt, contract=contract)
 
 
-def _honest_portable_built_record(tmp_path: Path) -> dict:
+def _honest_portable_built_record(
+        tmp_path: Path, *, configuration_id: str = "configuration",
+) -> dict:
     binary = tmp_path / "honest-portable.bin"
     binary.write_bytes(b"honest portable binary")
     sha = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -5986,14 +6612,14 @@ def _honest_portable_built_record(tmp_path: Path) -> dict:
     admission = derive_build_admission(context, source, review_receipt=review)
     receipt = s8b_binary_admission.issue_binary_admission_receipt(
         admission=admission, expected_policy=context.policy, source=source,
-        cell_id="cell", holdout_id="holdout", configuration_id="configuration",
+        cell_id="cell", holdout_id="holdout", configuration_id=configuration_id,
         binding=binding, binary=binary, binary_sha256=sha,
         contract_sha256="2" * 64, trace=False,
     )
     return {
         "cell": {
             "cell_id": "cell", "holdout_id": "holdout",
-            "configuration_id": "configuration", "binary": "cache/cell/binary.exe",
+            "configuration_id": configuration_id, "binary": "cache/cell/binary.exe",
             "binary_sha256": sha, "bin_hash_short": sha[:16], "binding": binding,
             "configure_argv": ["cmake", "-S", "${CCBENCH_ROOT}"],
             "build_argv": ["cmake", "--build", "${OUT_ROOT}/cache/cell"],
@@ -6003,21 +6629,29 @@ def _honest_portable_built_record(tmp_path: Path) -> dict:
     }
 
 
-def test_fresh_store_project_resume_preserves_admission_receipt(tmp_path):
+def test_sort_runtime_record_with_fetchcontent_base_stores_and_projects(tmp_path):
     out_root = tmp_path / "out"
     binary = out_root / "cache" / "cell" / "binary.exe"
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"honest portable binary")
     ccbench_root = tmp_path / "ccbench"
-    built = _honest_portable_built_record(tmp_path)
+    fetchcontent_base = tmp_path / "job-fetchcontent"
+    fetchcontent_base.mkdir()
+    built = _honest_portable_built_record(
+        tmp_path, configuration_id="sort_best",
+    )
     runtime = built["cell"]
     issued_receipt = copy.deepcopy(runtime["admission_receipt"])
     runtime.pop("store_path")
     runtime.update({
         "binary": str(binary.resolve()),
-        "configure_argv": ["cmake", "-S", str(ccbench_root.resolve())],
+        "configure_argv": [
+            "cmake", "-S", str(ccbench_root.resolve()),
+            f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base.resolve()}",
+        ],
         "build_argv": ["cmake", "--build", str(binary.parent.resolve())],
         "_ccbench_root": str(ccbench_root.resolve()),
+        "_fetchcontent_base_dir": str(fetchcontent_base.resolve()),
     })
 
     s8b_floor_campaign.store_binaries(
@@ -6032,6 +6666,87 @@ def test_fresh_store_project_resume_preserves_admission_receipt(tmp_path):
 
     assert portable["cell"]["admission_receipt"] == issued_receipt
     assert resolved["cell"]["admission_receipt"] == issued_receipt
+    assert "_fetchcontent_base_dir" not in portable["cell"]
+    assert "${FETCHCONTENT_BASE_DIR}" in portable["cell"]["configure_argv"][-1]
+    durable_json = json.dumps(portable, sort_keys=True)
+    assert str(fetchcontent_base.resolve()) not in durable_json
+
+
+def test_sort_runtime_record_without_fetchcontent_base_stores_and_projects(tmp_path):
+    out_root = tmp_path / "out"
+    binary = out_root / "cache" / "cell" / "binary.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"honest portable binary")
+    ccbench_root = tmp_path / "ccbench"
+    built = _honest_portable_built_record(
+        tmp_path, configuration_id="sort_best",
+    )
+    runtime = built["cell"]
+    runtime.pop("store_path")
+    runtime.update({
+        "binary": str(binary.resolve()),
+        "configure_argv": ["cmake", "-S", str(ccbench_root.resolve())],
+        "build_argv": ["cmake", "--build", str(binary.parent.resolve())],
+        "_ccbench_root": str(ccbench_root.resolve()),
+    })
+
+    s8b_floor_campaign.store_binaries(
+        built, out_root / "store", out_root=out_root,
+        expected_ccbench_pin="1" * 40,
+        expected_contract_sha256="2" * 64,
+    )
+    portable = s8b_floor_campaign.project_built_records(built, out_root=out_root)
+
+    assert portable["cell"]["configuration_id"] == "sort_best"
+    assert "_fetchcontent_base_dir" not in portable["cell"]
+    assert portable["cell"]["configure_argv"] == [
+        "cmake", "-S", "${CCBENCH_ROOT}",
+    ]
+
+
+@pytest.mark.parametrize("entrypoint", ["store", "project"])
+def test_fetchcontent_runtime_field_is_rejected_for_non_sort_record(
+        tmp_path, entrypoint):
+    out_root = tmp_path / "out"
+    binary = out_root / "cache" / "cell" / "binary.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"honest portable binary")
+    sha = hashlib.sha256(binary.read_bytes()).hexdigest()
+    ccbench_root = tmp_path / "ccbench"
+    fetchcontent_base = tmp_path / "job-fetchcontent"
+    fetchcontent_base.mkdir()
+    built = _honest_portable_built_record(tmp_path)
+    runtime = built["cell"]
+    runtime.update({
+        "binary": str(binary.resolve()),
+        "binary_sha256": sha,
+        "bin_hash_short": sha[:16],
+        "configure_argv": [
+            "cmake", "-S", str(ccbench_root.resolve()),
+            f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base.resolve()}",
+        ],
+        "build_argv": ["cmake", "--build", str(binary.parent.resolve())],
+        "_ccbench_root": str(ccbench_root.resolve()),
+        "_fetchcontent_base_dir": str(fetchcontent_base.resolve()),
+    })
+    if entrypoint == "store":
+        runtime.pop("store_path")
+        call = lambda: s8b_floor_campaign.store_binaries(
+            built, out_root / "store", out_root=out_root,
+            expected_ccbench_pin="1" * 40,
+            expected_contract_sha256="2" * 64,
+        )
+    else:
+        runtime["store_path"] = str((out_root / "store" / sha).resolve())
+        call = lambda: s8b_floor_campaign.project_built_records(
+            built, out_root=out_root,
+            expected_ccbench_pin="1" * 40,
+            expected_contract_sha256="2" * 64,
+        )
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError,
+            match="sort_best にだけ許可"):
+        call()
 
 
 def test_portable_projection_rejects_reserved_placeholder_and_exact_key_tamper(tmp_path):

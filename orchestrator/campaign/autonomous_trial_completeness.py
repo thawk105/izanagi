@@ -25,7 +25,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import campaign_lock
 from . import layer3_report as _layer3_report
-from .artifact_admission import ArtifactAdmissionError, require_admitted_campaign
+from .artifact_admission import (
+    ArtifactAdmissionError,
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from .layer3_report import canonical_record_ref
 from .role_session_isolation import evaluate_role_session_isolation
 
@@ -58,6 +62,10 @@ _ADMISSION_DECISION_KEYS = frozenset({
 })
 _ADMISSION_VALIDATOR_KEYS = frozenset({"identity", "sha256"})
 _ADMISSION_OVERLAY_KEYS = frozenset({"ledger_sha256", "record_key"})
+_CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
+    "campaign_verifier_epoch", "state", "reason_code", "identity_scope",
+    "excluded_scope",
+})
 _LAUNCH_ADMISSION_BASE_KEYS = frozenset({
     "mode", "certifying", "reason_code", "trial_id", "workloads",
     "binding", "activation_report_digest_sha256",
@@ -1881,10 +1889,20 @@ def _fresh_layer3_for_comparison(
     return fresh
 
 
-def _without_generated_from_head(report: Mapping[str, Any]) -> dict[str, Any]:
+def _layer3_comparison_projection(
+    report: Mapping[str, Any], *, include_epoch: bool,
+) -> dict[str, Any]:
+    """Normalize volatile fields and the one allowed legacy schema omission.
+
+    Layer3 v3 documents written before T-817 have no
+    ``campaign_verifier_epoch``.  They remain readable, while a document that
+    does carry the field must compare it exactly with the fresh rebuild.
+    """
     normalized = dict(report)
     normalized.setdefault("acceptance_receipt", None)
     normalized.setdefault("certifying_input", False)
+    if not include_epoch:
+        normalized.pop("campaign_verifier_epoch", None)
     meta = _mapping(
         report.get("meta"), gate="campaign-chain", label="layer3 report.meta",
     )
@@ -1892,6 +1910,32 @@ def _without_generated_from_head(report: Mapping[str, Any]) -> dict[str, Any]:
     normalized_meta.pop("generated_from_head", None)
     normalized["meta"] = normalized_meta
     return normalized
+
+
+def _epoch_projection(epoch: Any) -> dict[str, Any]:
+    return {
+        "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
+        "state": epoch.state,
+        "reason_code": epoch.reason_code,
+        "identity_scope": epoch.identity_scope,
+        "excluded_scope": epoch.excluded_scope,
+    }
+
+
+def _require_compatible_layer3_epoch(
+    report: Mapping[str, Any], *, expected: Mapping[str, Any], label: str,
+) -> None:
+    """Validate a present epoch exactly; absence is the sole legacy projection."""
+    if "campaign_verifier_epoch" not in report:
+        return
+    epoch = _mapping(
+        report.get("campaign_verifier_epoch"), gate="campaign-chain",
+        label=f"{label}.campaign_verifier_epoch",
+    )
+    if set(epoch) != _CAMPAIGN_VERIFIER_EPOCH_KEYS:
+        _fail("campaign-chain", f"{label} campaign verifier epoch exact keys differ")
+    if _canonical_bytes(epoch) != _canonical_bytes(expected):
+        _fail("campaign-chain", f"{label} campaign verifier epoch differs from validator")
 
 
 def _require_exact_layer3_admission_decision(
@@ -1937,6 +1981,16 @@ def _require_certifying_layer3_admission(
             "campaign-chain",
             f"{label} certifying input requires admission_status=admitted",
         )
+    if "campaign_verifier_epoch" in report:
+        epoch = _mapping(
+            report.get("campaign_verifier_epoch"), gate="campaign-chain",
+            label=f"{label}.campaign_verifier_epoch",
+        )
+        if epoch.get("state") != "E1":
+            _fail(
+                "campaign-chain",
+                f"{label} certifying input requires verifier epoch E1",
+            )
 
 
 def assert_campaign_layer3_chain(
@@ -2029,9 +2083,11 @@ def assert_campaign_layer3_chain(
             persisted, label="persisted layer3 report",
         )
         try:
-            expected_decision = require_admitted_campaign(
+            certified_view = require_admitted_campaign(
                 campaign_root,
-            ).decision.as_receipt()
+                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+            )
+            expected_decision = certified_view.decision.as_receipt()
         except ArtifactAdmissionError as exc:
             raise AutonomousTrialCompletenessError(
                 "[campaign-chain] independent campaign admission validation failed"
@@ -2043,15 +2099,27 @@ def assert_campaign_layer3_chain(
             {"admission_decision": cell.get("admission_decision")},
             expected=expected_decision, label=f"cells[{index}]",
         )
+        if "campaign_verifier_epoch" in persisted:
+            expected_epoch = _epoch_projection(
+                certified_view.campaign_verifier_epoch
+            )
+            _require_compatible_layer3_epoch(
+                persisted,
+                expected=expected_epoch,
+                label="persisted layer3 report",
+            )
         fresh = _fresh_layer3_for_comparison(
             campaign_root=campaign_root,
             persisted_path=persisted_path,
             persisted=persisted,
             output_root=output_root,
         )
-        if _canonical_bytes(_without_generated_from_head(persisted)) != _canonical_bytes(
-            _without_generated_from_head(fresh)
-        ):
+        include_epoch = "campaign_verifier_epoch" in persisted
+        if _canonical_bytes(_layer3_comparison_projection(
+            persisted, include_epoch=include_epoch,
+        )) != _canonical_bytes(_layer3_comparison_projection(
+            fresh, include_epoch=include_epoch,
+        )):
             _fail("campaign-chain", "persisted layer3 report differs from fresh rebuild")
 
 

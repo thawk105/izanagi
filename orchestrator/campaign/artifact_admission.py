@@ -17,9 +17,10 @@ import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping, final, overload
 
 from . import (
     campaign_lock,
@@ -59,6 +60,14 @@ _INPUT_KEYS = (
 )
 _RECORD_KEYS = frozenset((*_INPUT_KEYS, "verification_status", "admission_status"))
 _TRIGGER_PROVENANCE_BASENAME = "p3_s8a_trigger_loop_provenance.json"
+_CAMPAIGN_VERIFIER_EPOCH_DOMAIN = b"campaign-verifier-epoch/v1"
+_CERTIFIED_VIEW_TOKEN = object()
+CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
+    "enforcement source closure (exact 8 path; witness gate 本体 pipeline.py を含む)"
+)
+CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
+    "orchestrator/verifier/* implementation bytes は束縛しない"
+)
 
 
 class ArtifactAdmissionError(RuntimeError):
@@ -75,6 +84,93 @@ class OverlayMutationError(ArtifactAdmissionError):
 
 class CampaignNotAdmitted(ArtifactAdmissionError):
     """A valid decision explicitly excludes the campaign from admitted use."""
+
+
+class CampaignReadPurpose(str, Enum):
+    """Campaign raw bytes を読む exact 2 値の目的。"""
+
+    CERTIFIED_ACCEPTANCE = "CERTIFIED_ACCEPTANCE"
+    HISTORICAL_RAW = "HISTORICAL_RAW"
+
+
+@dataclass(frozen=True, slots=True)
+class CampaignVerifierEpoch:
+    """記録された enforcement source closure の epoch 診断。
+
+    ``campaign_verifier_epoch`` が束縛するのは exact 8 path の enforcement
+    source closure の同一性であり、witness gate 本体 ``pipeline.py`` を含む。
+    ``orchestrator/verifier/*`` の実装 bytes は束縛しない。
+    """
+
+    campaign_verifier_epoch: str
+    state: str
+    reason_code: str
+    identity_scope: str = CAMPAIGN_VERIFIER_EPOCH_SCOPE
+    excluded_scope: str = CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE
+
+    def __post_init__(self) -> None:
+        if self.identity_scope != CAMPAIGN_VERIFIER_EPOCH_SCOPE:
+            raise TypeError("campaign verifier epoch identity scope が不正")
+        if self.excluded_scope != CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE:
+            raise TypeError("campaign verifier epoch excluded scope が不正")
+        if self.state == "E0":
+            valid = (
+                self.campaign_verifier_epoch == "E0"
+                and self.reason_code == "v1-authority-absent"
+            )
+        elif self.state == "E1":
+            valid = (
+                self.campaign_verifier_epoch.startswith("E1:")
+                and _is_sha256(self.campaign_verifier_epoch[3:])
+                and self.reason_code == "recorded-closure"
+            )
+        else:
+            valid = (
+                self.state == "E1-stale"
+                and self.campaign_verifier_epoch.startswith("E1:")
+                and _is_sha256(self.campaign_verifier_epoch[3:])
+                and self.reason_code in {
+                    "recorded-current-closure-mismatch",
+                    "current-closure-unavailable",
+                }
+            )
+        if not valid:
+            raise TypeError("campaign verifier epoch diagnostic が不正")
+
+
+class CampaignVerifierEpochRejected(CampaignNotAdmitted):
+    """Certified use cannot prove the recorded enforcement closure is current."""
+
+    def __init__(self, epoch: CampaignVerifierEpoch):
+        self.campaign_verifier_epoch = epoch.campaign_verifier_epoch
+        self.epoch_state = epoch.state
+        self.reason_code = epoch.reason_code
+        self.identity_scope = epoch.identity_scope
+        self.excluded_scope = epoch.excluded_scope
+        super().__init__(
+            "campaign verifier epoch rejected certified acceptance: "
+            f"state={epoch.state} reason={epoch.reason_code} "
+            f"epoch={epoch.campaign_verifier_epoch}; "
+            f"scope={epoch.identity_scope}; excludes={epoch.excluded_scope}"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _RecordedCampaignVerifierEpoch:
+    diagnostic: CampaignVerifierEpoch
+    blob_sha256s: Mapping[str, str] | None
+
+    def __post_init__(self) -> None:
+        if type(self.diagnostic) is not CampaignVerifierEpoch:
+            raise TypeError("recorded verifier epoch diagnostic が不正")
+        if self.diagnostic.state == "E0":
+            if self.blob_sha256s is not None:
+                raise TypeError("E0 verifier epoch に blob map は存在しない")
+            return
+        if type(self.blob_sha256s) is not MappingProxyType:
+            raise TypeError("E1 verifier epoch blob map は immutable projection が必要")
+        if set(self.blob_sha256s) != set(campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS):
+            raise TypeError("E1 verifier epoch blob map の exact path 集合が不正")
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,16 +229,18 @@ class CampaignAdmissionDecision:
 
 @dataclass(frozen=True, slots=True)
 class AdmittedCampaign:
-    """Immutable validated raw-WAL view; raw consumers accept only this type."""
+    """Immutable validated raw-WAL view shared by the two nominal view types."""
 
     layout: CampaignLayout
     records: tuple[ImmutableWalRecord, ...]
     decision: CampaignAdmissionDecision
+    campaign_verifier_epoch: CampaignVerifierEpoch
 
     def __post_init__(self) -> None:
         if (
             type(self.layout) is not CampaignLayout
             or type(self.decision) is not CampaignAdmissionDecision
+            or type(self.campaign_verifier_epoch) is not CampaignVerifierEpoch
             or type(self.records) is not tuple
             or not all(type(record) is ImmutableWalRecord for record in self.records)
         ):
@@ -161,6 +259,55 @@ class AdmittedCampaign:
     @property
     def lock_file(self) -> str:
         return self.layout.lock_file
+
+
+@final
+@dataclass(frozen=True, slots=True, init=False)
+class CertifiedCampaignView(AdmittedCampaign):
+    """E1 と current exact map equality を証明した certified 専用 view。"""
+
+    def __init__(
+            self, *, layout: CampaignLayout,
+            records: tuple[ImmutableWalRecord, ...],
+            decision: CampaignAdmissionDecision,
+            campaign_verifier_epoch: CampaignVerifierEpoch,
+            _certification_token: object,
+    ) -> None:
+        if _certification_token is not _CERTIFIED_VIEW_TOKEN:
+            raise TypeError(
+                "CertifiedCampaignView は certified epoch gate だけが発行できる"
+            )
+        object.__setattr__(self, "layout", layout)
+        object.__setattr__(self, "records", records)
+        object.__setattr__(self, "decision", decision)
+        object.__setattr__(
+            self, "campaign_verifier_epoch", campaign_verifier_epoch,
+        )
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        AdmittedCampaign.__post_init__(self)
+        if self.campaign_verifier_epoch.state != "E1":
+            raise TypeError("CertifiedCampaignView requires exact E1")
+
+    @property
+    def read_purpose(self) -> CampaignReadPurpose:
+        return CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class HistoricalCampaignView(AdmittedCampaign):
+    """現在 bytes を参照せず、記録 epoch だけを保持する historical view。"""
+
+    def __post_init__(self) -> None:
+        AdmittedCampaign.__post_init__(self)
+        if self.campaign_verifier_epoch.state not in {"E0", "E1"}:
+            raise TypeError("HistoricalCampaignView requires a recorded epoch")
+
+    @property
+    def read_purpose(self) -> CampaignReadPurpose:
+        return CampaignReadPurpose.HISTORICAL_RAW
 
 
 def _is_sha256(value: object) -> bool:
@@ -564,6 +711,113 @@ def _verify_committed_loader_binding(
         ) from exc
 
 
+def _recorded_campaign_verifier_epoch(
+        decoded: campaign_lock.DecodedCampaignLock,
+) -> _RecordedCampaignVerifierEpoch:
+    """記録値だけから enforcement closure epoch を導出する。
+
+    束縛対象は exact 8 path（witness gate 本体 ``pipeline.py`` を含む）で、
+    ``orchestrator/verifier/*`` の実装 bytes は束縛しない。v2 の記録 map は
+    記録 commit に対して真正と検証してから表示 ID を作る。
+    """
+    authority = decoded.authority
+    if authority is None:
+        return _RecordedCampaignVerifierEpoch(
+            diagnostic=CampaignVerifierEpoch(
+                campaign_verifier_epoch="E0",
+                state="E0",
+                reason_code="v1-authority-absent",
+            ),
+            blob_sha256s=None,
+        )
+    _verify_committed_loader_binding(decoded)
+    recorded_map = {
+        relative: authority.contract_loader_blob_sha256s[relative]
+        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    }
+    payload = _CAMPAIGN_VERIFIER_EPOCH_DOMAIN + b"".join(
+        relative.encode("utf-8") + b"\0" + bytes.fromhex(recorded_map[relative])
+        for relative in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
+    display = f"E1:{hashlib.sha256(payload).hexdigest()}"
+    return _RecordedCampaignVerifierEpoch(
+        diagnostic=CampaignVerifierEpoch(
+            campaign_verifier_epoch=display,
+            state="E1",
+            reason_code="recorded-closure",
+        ),
+        blob_sha256s=MappingProxyType(recorded_map),
+    )
+
+
+def _validate_read_purpose(purpose: CampaignReadPurpose) -> None:
+    if type(purpose) is not CampaignReadPurpose:
+        raise TypeError(
+            "purpose は exact CampaignReadPurpose.CERTIFIED_ACCEPTANCE "
+            "または HISTORICAL_RAW が必要"
+        )
+
+
+def _stale_epoch(
+        recorded: _RecordedCampaignVerifierEpoch, *, reason_code: str,
+) -> CampaignVerifierEpoch:
+    return CampaignVerifierEpoch(
+        campaign_verifier_epoch=recorded.diagnostic.campaign_verifier_epoch,
+        state="E1-stale",
+        reason_code=reason_code,
+    )
+
+
+def _require_verifier_epoch_for_purpose(
+        recorded: _RecordedCampaignVerifierEpoch,
+        purpose: CampaignReadPurpose,
+) -> CampaignVerifierEpoch:
+    """中央の目的別 gate。history は current closure を一切参照しない。"""
+    _validate_read_purpose(purpose)
+    if purpose is CampaignReadPurpose.HISTORICAL_RAW:
+        return recorded.diagnostic
+    if recorded.diagnostic.state == "E0":
+        raise CampaignVerifierEpochRejected(recorded.diagnostic)
+    try:
+        current = contract_loader_binding.capture_contract_loader_binding()
+    except contract_loader_binding.ContractLoaderBindingError as exc:
+        raise CampaignVerifierEpochRejected(_stale_epoch(
+            recorded, reason_code="current-closure-unavailable",
+        )) from exc
+    if dict(recorded.blob_sha256s or {}) != dict(
+        current.contract_loader_blob_sha256s
+    ):
+        raise CampaignVerifierEpochRejected(_stale_epoch(
+            recorded, reason_code="recorded-current-closure-mismatch",
+        ))
+    return recorded.diagnostic
+
+
+def require_campaign_verifier_epoch(
+        campaign: CampaignLayout | str | Path, *,
+        purpose: CampaignReadPurpose,
+) -> CampaignVerifierEpoch:
+    """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
+
+    診断する同一性は enforcement source closure exact 8 path（witness gate
+    本体 ``pipeline.py`` を含む）に限られ、``orchestrator/verifier/*`` の
+    実装 bytes は束縛しない。
+    """
+    _validate_read_purpose(purpose)
+    layout = _layout(campaign)
+    lock_path = Path(layout.lock_file)
+    try:
+        lock_raw = lock_path.read_bytes()
+    except OSError as exc:
+        raise ArtifactAdmissionError(
+            f"campaign.lock cannot be read: {lock_path}"
+        ) from exc
+    recorded = _recorded_campaign_verifier_epoch(
+        _decode_campaign_lock(lock_raw)
+    )
+    return _require_verifier_epoch_for_purpose(recorded, purpose)
+
+
 def _validate_recorded_activation(
         decoded: campaign_lock.DecodedCampaignLock,
 ) -> None:
@@ -576,7 +830,11 @@ def _validate_recorded_activation(
 
 def _inspect_campaign(
     campaign: CampaignLayout | str | Path,
-) -> tuple[CampaignAdmissionDecision, tuple[Any, ...]]:
+) -> tuple[
+    CampaignAdmissionDecision,
+    tuple[Any, ...],
+    _RecordedCampaignVerifierEpoch | None,
+]:
     layout = _layout(campaign)
     root = Path(layout.root).resolve()
     lock_path = root / "campaign.lock"
@@ -651,13 +909,13 @@ def _inspect_campaign(
             overlay_ledger_sha256=ledger_sha,
             overlay_record_key=_record_key(record),
             validator_sha256=validator_sha,
-        ), tuple(records)
+        ), tuple(records), None
 
     decoded = _decode_campaign_lock(lock_raw)
+    recorded_epoch = _recorded_campaign_verifier_epoch(decoded)
     lock = decoded.identity
     search = lock["search_config"]
     if decoded.is_v2:
-        _verify_committed_loader_binding(decoded)
         _validate_recorded_activation(decoded)
         if "build_admission" not in search:
             raise ArtifactAdmissionError(
@@ -706,7 +964,7 @@ def _inspect_campaign(
             overlay_ledger_sha256=ledger_sha,
             overlay_record_key=None,
             validator_sha256=validator_sha,
-        ), tuple(records)
+        ), tuple(records), recorded_epoch
 
     if truncated:
         raise ArtifactAdmissionError("post-policy campaign WAL has a truncated tail")
@@ -782,30 +1040,64 @@ def _inspect_campaign(
         overlay_ledger_sha256=ledger_sha,
         overlay_record_key=None,
         validator_sha256=validator_sha,
-    ), tuple(records)
+    ), tuple(records), recorded_epoch
 
 
 def classify_campaign(
     campaign: CampaignLayout | str | Path,
 ) -> CampaignAdmissionDecision:
     """Classify exact campaign bytes without admitting a denied overlay record."""
-    decision, _records = _inspect_campaign(campaign)
+    decision, _records, _epoch = _inspect_campaign(campaign)
     return decision
 
 
+@overload
 def require_admitted_campaign(
-    campaign: CampaignLayout | str | Path,
-) -> AdmittedCampaign:
-    """Issue the sole raw-WAL consumer view after the shared validator succeeds."""
-    decision, records = _inspect_campaign(campaign)
+    campaign: CampaignLayout | str | Path, *,
+    purpose: Literal[CampaignReadPurpose.CERTIFIED_ACCEPTANCE],
+) -> CertifiedCampaignView: ...
+
+
+@overload
+def require_admitted_campaign(
+    campaign: CampaignLayout | str | Path, *,
+    purpose: Literal[CampaignReadPurpose.HISTORICAL_RAW],
+) -> HistoricalCampaignView: ...
+
+
+def require_admitted_campaign(
+    campaign: CampaignLayout | str | Path, *,
+    purpose: CampaignReadPurpose,
+) -> CertifiedCampaignView | HistoricalCampaignView:
+    """既存 admission 後に目的別 epoch gate を適用して非互換 view を返す。"""
+    _validate_read_purpose(purpose)
+    decision, records, recorded_epoch = _inspect_campaign(campaign)
     if not decision.admitted:
         raise CampaignNotAdmitted(
             f"campaign is {decision.admission_status}: {decision.campaign_id}; "
             f"overlay={decision.overlay_ledger_sha256} "
             f"record={decision.overlay_record_key}"
         )
-    return AdmittedCampaign(
-        layout=_layout(campaign),
-        records=_immutable_records(records),
-        decision=decision,
-    )
+    if recorded_epoch is None:
+        raise AssertionError("admitted campaign requires a recorded epoch")
+    epoch = _require_verifier_epoch_for_purpose(recorded_epoch, purpose)
+    view_fields = {
+        "layout": _layout(campaign),
+        "records": _immutable_records(records),
+        "decision": decision,
+        "campaign_verifier_epoch": epoch,
+    }
+    if purpose is CampaignReadPurpose.CERTIFIED_ACCEPTANCE:
+        return CertifiedCampaignView(
+            **view_fields, _certification_token=_CERTIFIED_VIEW_TOKEN,
+        )
+    return HistoricalCampaignView(**view_fields)
+
+
+def require_certified_campaign_view(
+        view: object,
+) -> CertifiedCampaignView:
+    """History 型を certified consumer 境界へ渡すことを exact 型で拒否する。"""
+    if type(view) is not CertifiedCampaignView:
+        raise TypeError("certified consumer requires exact CertifiedCampaignView")
+    return view

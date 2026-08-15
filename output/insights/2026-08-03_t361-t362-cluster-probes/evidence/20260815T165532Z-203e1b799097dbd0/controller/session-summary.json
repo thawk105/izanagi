@@ -1,0 +1,92 @@
+{
+  "all_legs_have_authoritative_attempt": false,
+  "all_target_legs_have_authoritative_attempt": true,
+  "attempts_by_leg": {
+    "t361-flock": [
+      {
+        "accounting_available": null,
+        "admissible": false,
+        "attempt_id": "20260803T150808Z-t361-flock-a1-9060899fb1686d87",
+        "attempt_safe": null,
+        "observation_valid": null,
+        "request_id": "882038.nqsv",
+        "request_ordinal": 1,
+        "retry_reason": null
+      },
+      {
+        "accounting_available": false,
+        "admissible": true,
+        "attempt_id": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+        "attempt_safe": null,
+        "observation_valid": true,
+        "request_id": "912550.nqsv",
+        "request_ordinal": 5,
+        "retry_reason": null
+      }
+    ]
+  },
+  "authoritative_attempts": {
+    "t361-flock": "20260815T165533Z-t361-flock-a2-976fc6bbfdbb5894",
+    "t362-mitigation": "20260804T125421Z-t362-mitigation-a1-2a754178cd1a19d9"
+  },
+  "cumulative_requested_node_min": 29,
+  "final_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 2,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-after-wave",
+    "remaining_point_raw": "4372.08",
+    "returncode": 0
+  },
+  "final_rbudgetcheck_rc_zero": true,
+  "flock_leg_only": true,
+  "flock_one_shot_submission_count": 1,
+  "initial_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-controller-session",
+    "remaining_point_raw": "313.97",
+    "returncode": 0
+  },
+  "initial_four_point_gate": {
+    "after_raw": "306.37",
+    "before_raw": "313.97",
+    "budget_identity_raw": "SFC",
+    "decrease_point_raw": "7.60",
+    "point_conversion": "UNDETERMINED",
+    "reason": "initial four requests did not exceed 20 point",
+    "stop_before_retry": false,
+    "valid": true
+  },
+  "permanent_stop": false,
+  "request_count": 5,
+  "request_limit": 6,
+  "requested_node_min_limit": 40,
+  "schema": "izanagi-t361-t362-controller/v1",
+  "session_finished_time_ns": 1786812993811445748,
+  "session_id": "20260815T165532Z-203e1b799097dbd0",
+  "session_initial_budget": {
+    "budget_identity_raw": "SFC",
+    "command_sequence": 1,
+    "point_conversion": "UNDETERMINED; no node-minute conversion is inferred",
+    "purpose": "rbudgetcheck-before-controller-session",
+    "remaining_point_raw": "4372.09",
+    "returncode": 0
+  },
+  "session_started_time_ns": 1786812932825065387,
+  "signal_legs_only": false,
+  "target_leg_keys": [
+    "t361-flock"
+  ],
+  "transaction_complete": true,
+  "verdict_note": "Authority is the first split-v2 observation_valid && terminal_proven attempt (or an already-selected legacy true). Safety remains a separate scalar.",
+  "wave_budget_delta": {
+    "after_remaining_point_raw": "4372.08",
+    "before_remaining_point_raw": "313.97",
+    "budget_identity_raw": "SFC",
+    "decrease_point_raw": "-4058.11",
+    "point_conversion": "UNDETERMINED",
+    "valid": true
+  }
+}

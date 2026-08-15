@@ -129,18 +129,20 @@ _WRAPPER_VAL_RE = re.compile(r"\d+[smhd]?|\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*"
 
 # ---- 読み取り専用 allowlist (末端に触れてよい head) ----
 _PURE_READERS = frozenset({
-    "cat", "tac", "grep", "egrep", "fgrep", "rg", "ag", "zgrep", "jq", "yq",
-    "head", "tail", "less", "more", "most", "wc", "nl", "cut", "tr", "od", "xxd",
-    "hexdump", "strings", "stat", "file", "ls", "dir", "vdir", "diff", "cmp",
+    "cat", "tac", "grep", "egrep", "fgrep", "zgrep", "jq",
+    "head", "tail", "more", "wc", "nl", "cut", "tr", "od",
+    "hexdump", "strings", "stat", "ls", "dir", "vdir", "diff", "cmp",
     "comm", "column", "fold", "fmt", "rev", "paste", "join", "expand", "unexpand",
     "md5sum", "sha1sum", "sha256sum", "sha512sum", "cksum", "b2sum",
     "basename", "dirname", "realpath", "readlink", "echo", "printf", "true",
     "false", "test", "pwd", "date", "seq", "cd", "pushd", "popd", "which", "type",
     # バイナリ/シンボル検査 (規律1 の nm 観測者効果検証を手でも回せるように。書き込み
     # 不能ツールなので規律2 を弱めない, 2026-07-04 敵対検証 false-positive):
-    "nm", "objdump", "readelf", "ldd", "size", "addr2line", "c++filt",
+    "objdump", "readelf", "ldd", "size", "addr2line", "c++filt",
     # ディスク使用量・圧縮読み (純読み取り, 同上):
-    "du", "zcat", "zless", "zmore", "zdiff"})
+    "du", "zcat", "zmore", "zdiff"})
+# 実体を確認できず同名実装の能力を確定できない ag/yq/most は fail-closed。
+# rg/less/zless/xxd/file/nm は安全な形を下の専用分岐で判定する。
 # git の読み取り/proof-chain 非破壊サブコマンド (checkout/restore/clean/rm/reset/
 # stash/mv は含めない → それらは head=git でも read-only 判定 False = 拒否)。
 # config も含めない: `git config -f <protected>` は書き込み invocation (GB2-4)。
@@ -1351,39 +1353,860 @@ def _stdin_script(head: str, args) -> bool:
     return not any(not a.startswith("-") for a in args)   # 非フラグ引数ゼロ = bare
 
 
-def _is_read_only(head: str, args, repo_root: str = "", cwd: str = "") -> bool:
-    """head が末端防護対象に触れてよい (中身を変えない) 読み取り専用操作か。"""
+_DENY_OUTPUT = "output"
+_DENY_PROGRAM = "program"
+_DENY_EXEC = "exec"
+_DENY_GENERIC = "generic"
+
+
+def _long_option(token: str, name: str, _minimum: int = 1) -> bool:
+    """GNU 長 option の `--name[=VALUE]` と非空 prefix を照合する。"""
+    spelling = token.split("=", 1)[0]
+    if not spelling.startswith("--"):
+        return False
+    prefix = spelling[2:]
+    return bool(prefix) and name[2:].startswith(prefix)
+
+
+def _before_double_dash(args):
+    """`--` より前の option 領域だけを返す。"""
+    try:
+        return args[:args.index("--")]
+    except ValueError:
+        return args
+
+
+def _option_value(args, index: int, token: str):
+    """option の `=VALUE` または次 token を返す。値なしは None。"""
+    if "=" in token:
+        return token.split("=", 1)[1], index + 1
+    if index + 1 >= len(args):
+        return None, index + 1
+    return args[index + 1], index + 2
+
+
+def _sed_delimited(script: str, start: int, delimiter: str, fields: int):
+    """sed の delimiter 区間を fields 個読み、直後の位置を返す。"""
+    i = start
+    for _ in range(fields):
+        escaped = False
+        while i < len(script):
+            char = script[i]
+            i += 1
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == delimiter:
+                break
+        else:
+            return None
+    return i
+
+
+def _sed_address(script: str, start: int):
+    """単純な sed address を読み、address でなければ同じ位置を返す。"""
+    i = start
+    if i >= len(script):
+        return i
+    if script[i].isdigit():
+        while i < len(script) and script[i].isdigit():
+            i += 1
+        return i
+    if script[i] in "+~" and i + 1 < len(script) and script[i + 1].isdigit():
+        i += 2
+        while i < len(script) and script[i].isdigit():
+            i += 1
+        return i
+    if script[i] == "$":
+        return i + 1
+    if script[i] == "/":
+        return _sed_delimited(script, i + 1, "/", 1)
+    if script[i] == "\\" and i + 1 < len(script):
+        delimiter = script[i + 1]
+        return _sed_delimited(script, i + 2, delimiter, 1)
+    return i
+
+
+def _sed_script_check(
+        script: str, repo_root: str = "", cwd: str = "", hooks_index=None):
+    """sed script を字句走査し、書き込み・実行構文と解析不能を分ける。"""
+    i = 0
+    while i < len(script):
+        while i < len(script) and (script[i].isspace() or script[i] == ";"):
+            i += 1
+        if i >= len(script):
+            return True, ""
+        if script[i] == "#":
+            newline = script.find("\n", i)
+            if newline < 0:
+                return True, ""
+            i = newline + 1
+            continue
+
+        end = _sed_address(script, i)
+        if end is None:
+            return False, _DENY_PROGRAM
+        if end != i:
+            i = end
+            if i < len(script) and script[i] in ",~":
+                end = _sed_address(script, i + 1)
+                if end is None or end == i + 1:
+                    return False, _DENY_PROGRAM
+                i = end
+        while i < len(script) and script[i].isspace():
+            i += 1
+        if i < len(script) and script[i] == "!":
+            i += 1
+            while i < len(script) and script[i].isspace():
+                i += 1
+        if i >= len(script):
+            return False, _DENY_PROGRAM
+
+        command = script[i]
+        i += 1
+        if command in "wW":
+            end = len(script)
+            for separator in (";", "\n"):
+                found = script.find(separator, i)
+                if found >= 0:
+                    end = min(end, found)
+            target = script[i:end].strip()
+            if not target:
+                return False, _DENY_PROGRAM
+            if _argument_hits_protected(
+                    target, repo_root, cwd, hooks_index):
+                return False, _DENY_OUTPUT
+            i = end
+            continue
+        if command == "e":
+            return False, _DENY_PROGRAM
+        if command in "sy":
+            if i >= len(script) or script[i].isspace() or script[i] == "\\":
+                return False, _DENY_PROGRAM
+            delimiter = script[i]
+            fields = 2
+            end = _sed_delimited(script, i + 1, delimiter, fields)
+            if end is None:
+                return False, _DENY_PROGRAM
+            i = end
+            if command == "s":
+                flag_end = i
+                while flag_end < len(script) and script[flag_end] not in ";\n":
+                    flag_end += 1
+                flags = script[i:flag_end].strip()
+                j = 0
+                while j < len(flags):
+                    if flags[j].isspace() or flags[j] in "gpIimM":
+                        j += 1
+                        continue
+                    if flags[j].isdigit():
+                        while j < len(flags) and flags[j].isdigit():
+                            j += 1
+                        continue
+                    if flags[j] == "e":
+                        return False, _DENY_PROGRAM
+                    if flags[j] == "w":
+                        target = flags[j + 1:].strip()
+                        if not target:
+                            return False, _DENY_PROGRAM
+                        if _argument_hits_protected(
+                                target, repo_root, cwd, hooks_index):
+                            return False, _DENY_OUTPUT
+                        j = len(flags)
+                        continue
+                    return False, _DENY_PROGRAM
+                i = flag_end
+            continue
+        if command in "aicrRbTt:":
+            end = len(script)
+            for separator in (";", "\n"):
+                found = script.find(separator, i)
+                if found >= 0:
+                    end = min(end, found)
+            i = end
+            continue
+        if command in "{}pPdDqQ=nNhHgGxlFvz":
+            continue
+        return False, _DENY_PROGRAM
+    return True, ""
+
+
+def _sed_read_only(args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    scripts = []
+    explicit = False
+    positional_script = False
+    i = 0
+    options = True
+    while i < len(args):
+        arg = args[i]
+        if options and arg == "--":
+            options = False
+            i += 1
+            continue
+        if not options:
+            # `--` 後でも wave 前から拒否していた writer 綴りは緩めない。
+            if arg == "-i" or arg.startswith("-i") \
+                    or arg.startswith("--in-place"):
+                return False, _DENY_OUTPUT
+            if not explicit and not positional_script:
+                scripts.append(arg)
+                positional_script = True
+            i += 1
+            continue
+        if (arg == "-i" or arg.startswith("-i")
+                or arg.startswith("--in-place")
+                or _long_option(arg, "--in-place", 3)):
+            return False, _DENY_OUTPUT
+        if arg == "-f" or arg.startswith("-f") or _long_option(arg, "--file", 2):
+            return False, _DENY_PROGRAM
+        if arg == "-e" or _long_option(arg, "--expression", 3):
+            if "=" in arg:
+                scripts.append(arg.split("=", 1)[1])
+                explicit = True
+                i += 1
+                continue
+            if i + 1 >= len(args):
+                return False, _DENY_PROGRAM
+            scripts.append(args[i + 1])
+            explicit = True
+            i += 2
+            continue
+        if arg.startswith("-") and arg != "-":
+            if arg.startswith("--"):
+                if arg in ("--quiet", "--silent", "--regexp-extended",
+                           "--unbuffered", "--null-data", "--separate",
+                           "--sandbox", "--posix"):
+                    i += 1
+                    continue
+                return False, _DENY_PROGRAM
+            cluster = arg[1:]
+            j = 0
+            while j < len(cluster):
+                flag = cluster[j]
+                if flag in "nErusz":
+                    j += 1
+                    continue
+                if flag == "i":
+                    return False, _DENY_OUTPUT
+                if flag == "f":
+                    return False, _DENY_PROGRAM
+                if flag == "e":
+                    value = cluster[j + 1:]
+                    if not value:
+                        if i + 1 >= len(args):
+                            return False, _DENY_PROGRAM
+                        value = args[i + 1]
+                        i += 1
+                    scripts.append(value)
+                    explicit = True
+                    j = len(cluster)
+                    continue
+                return False, _DENY_PROGRAM
+            if cluster:
+                i += 1
+                continue
+        if not explicit and not positional_script:
+            scripts.append(arg)
+            positional_script = True
+        i += 1
+    if not scripts:
+        return False, _DENY_PROGRAM
+    for script in scripts:
+        allowed, kind = _sed_script_check(
+            script, repo_root, cwd, hooks_index)
+        if not allowed:
+            return False, kind
+    return True, ""
+
+
+def _awk_string(program: str, start: int):
+    """二重引用符 literal を読み、終了位置と値を返す。"""
+    value = []
+    i = start + 1
+    escapes = {"\\": "\\", '"': '"', "/": "/", "n": "\n", "r": "\r",
+               "t": "\t", "b": "\b", "f": "\f", "v": "\v"}
+    while i < len(program):
+        char = program[i]
+        if char == '"':
+            return i + 1, "".join(value)
+        if char == "\\":
+            i += 1
+            if i >= len(program):
+                return None, None
+            if program[i] in escapes:
+                value.append(escapes[program[i]])
+            elif program[i] == "x":
+                end = i + 1
+                while end < len(program) and end < i + 3 \
+                        and program[end] in "0123456789abcdefABCDEF":
+                    end += 1
+                if end == i + 1:
+                    value.append("x")
+                else:
+                    value.append(chr(int(program[i + 1:end], 16)))
+                    i = end - 1
+            elif program[i] in "01234567":
+                end = i + 1
+                while end < len(program) and end < i + 3 \
+                        and program[end] in "01234567":
+                    end += 1
+                value.append(chr(int(program[i:end], 8)))
+                i = end - 1
+            else:
+                value.append(program[i])
+        else:
+            value.append(char)
+        i += 1
+    return None, None
+
+
+def _awk_regex_end(program: str, start: int):
+    """regex literal を読み、閉じ `/` の直後を返す。"""
+    i = start + 1
+    escaped = False
+    bracket = False
+    while i < len(program):
+        char = program[i]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == "[":
+            bracket = True
+        elif char == "]" and bracket:
+            bracket = False
+        elif char == "/" and not bracket:
+            return i + 1
+        elif char == "\n":
+            return None
+        i += 1
+    return None
+
+
+def _awk_program_check(
+        program: str, repo_root: str = "", cwd: str = "", hooks_index=None):
+    """awk program の code 文脈だけで外部実行と redirection を判定する。"""
+    i = 0
+    statement = []
+    expect_operand = True
+    while i < len(program):
+        char = program[i]
+        if char in " \t\r":
+            statement.append(char)
+            i += 1
+            continue
+        if char == "\n":
+            statement = []
+            expect_operand = True
+            i += 1
+            continue
+        if char == "#":
+            newline = program.find("\n", i)
+            if newline < 0:
+                return True, ""
+            statement = []
+            expect_operand = True
+            i = newline + 1
+            continue
+        if char == '"':
+            end, _ = _awk_string(program, i)
+            if end is None:
+                return False, _DENY_PROGRAM
+            statement.append(" ")
+            expect_operand = False
+            i = end
+            continue
+        if char == "/":
+            if expect_operand:
+                end = _awk_regex_end(program, i)
+                if end is None:
+                    return False, _DENY_PROGRAM
+                statement.append(" ")
+                expect_operand = False
+                i = end
+                continue
+            statement.append(char)
+            expect_operand = True
+            i += 1
+            continue
+        if char.isalpha() or char == "_":
+            end = i + 1
+            while end < len(program) and (program[end].isalnum()
+                                           or program[end] == "_"):
+                end += 1
+            word = program[i:end]
+            following = end
+            while following < len(program) and program[following].isspace():
+                following += 1
+            if word in ("system", "close") and following < len(program) \
+                    and program[following] == "(":
+                return False, _DENY_PROGRAM
+            statement.append(word)
+            expect_operand = word in {
+                "delete", "do", "else", "for", "if", "in", "print", "printf",
+                "return", "while",
+            }
+            i = end
+            continue
+        if char.isdigit() or char == "$":
+            end = i + 1
+            while end < len(program) and (program[end].isalnum()
+                                           or program[end] in "._"):
+                end += 1
+            statement.append(program[i:end])
+            expect_operand = False
+            i = end
+            continue
+        if char == "|":
+            if i + 1 < len(program) and program[i + 1] == "|":
+                statement.append("||")
+                expect_operand = True
+                i += 2
+                continue
+            return False, _DENY_PROGRAM
+        if char == ">":
+            if i + 1 < len(program) and program[i + 1] == "=":
+                statement.append(">=")
+                expect_operand = True
+                i += 2
+                continue
+            if not re.search(r"\bprint(?:f)?\b", "".join(statement)):
+                statement.append(">")
+                expect_operand = True
+                i += 1
+                continue
+            i += 2 if i + 1 < len(program) and program[i + 1] == ">" else 1
+            while i < len(program) and program[i].isspace():
+                i += 1
+            if i >= len(program) or program[i] != '"':
+                return False, _DENY_PROGRAM
+            end, target = _awk_string(program, i)
+            if end is None:
+                return False, _DENY_PROGRAM
+            if _argument_hits_protected(
+                    target, repo_root, cwd, hooks_index):
+                return False, _DENY_OUTPUT
+            statement.append(" ")
+            expect_operand = False
+            i = end
+            continue
+        if char in ";{}":
+            statement = []
+            expect_operand = True
+            i += 1
+            continue
+        statement.append(char)
+        if char in "(,[=~!?:+-*%&":
+            expect_operand = True
+        elif char in ")]":
+            expect_operand = False
+        i += 1
+    return True, ""
+
+
+def _awk_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    """inline program と option 値を一意に取り出し、危険な効果を拒否する。"""
+    program = None
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--":
+            i += 1
+            if i < len(args):
+                program = args[i]
+            break
+        if (arg == "-f" or arg.startswith("-f")
+                or _long_option(arg, "--file", 2)
+                or arg == "-i" or arg.startswith("-i")
+                or arg.startswith("--include")
+                or _long_option(arg, "--include", 3)):
+            return False, _DENY_PROGRAM
+        if (arg == "-l" or arg.startswith("-l")
+                or _long_option(arg, "--load", 2)):
+            return False, _DENY_EXEC
+        output_long = next((name for name in (
+            "--pretty-print", "--profile", "--debug", "--dump-variables",
+            "--gen-pot") if _long_option(arg, name)), None)
+        if output_long is not None:
+            value = arg.split("=", 1)[1] if "=" in arg else None
+            if value is not None and _argument_hits_protected(
+                    value, repo_root, cwd, hooks_index):
+                return False, _DENY_OUTPUT
+            i += 1
+            continue
+        if (arg.startswith("-") and not arg.startswith("--")
+                and len(arg) >= 2 and arg[1] in "opD"):
+            value = arg[2:]
+            if value and _argument_hits_protected(
+                    value, repo_root, cwd, hooks_index):
+                return False, _DENY_OUTPUT
+            i += 1
+            continue
+        if arg in ("-F", "-v", "--field-separator", "--assign"):
+            if i + 1 >= len(args):
+                return False, _DENY_PROGRAM
+            i += 2
+            continue
+        if ((arg.startswith("-F") and arg != "-F")
+                or (arg.startswith("-v") and arg != "-v")
+                or arg.startswith("--field-separator=")
+                or arg.startswith("--assign=")):
+            i += 1
+            continue
+        if arg.startswith("-") and arg != "-":
+            if arg in ("-b", "-c", "-C", "-L", "-n", "-N", "-P", "-S",
+                       "-t", "--characters-as-bytes", "--traditional",
+                       "--copyright", "--lint", "--non-decimal-data",
+                       "--posix", "--use-lc-numeric", "--sandbox"):
+                i += 1
+                continue
+            return False, _DENY_PROGRAM
+        program = arg
+        break
+    if program is None:
+        return False, _DENY_PROGRAM
+    return _awk_program_check(program, repo_root, cwd, hooks_index)
+
+
+def _xxd_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    positionals = []
+    value_options = frozenset({"-c", "-g", "-l", "-n", "-o", "-R", "-s"})
+    long_value_options = frozenset({
+        "-cols", "-groupsize", "-len", "-name", "-offset", "-seek",
+    })
+    flag_options = frozenset({
+        "-a", "-autoskip", "-b", "-bits", "-C", "-capitalize", "-d", "-decimal",
+        "-e", "-E", "-ebcdic", "-h", "-help", "-i", "-include", "-ps", "-plain",
+        "-r", "-revert", "-u", "-upper", "-v", "-version",
+    })
+    i = 0
+    options = True
+    while i < len(args):
+        arg = args[i]
+        if options and arg == "--":
+            options = False
+            i += 1
+            continue
+        if options and arg.startswith("-") and arg != "-":
+            if arg in flag_options:
+                i += 1
+                continue
+            long_name = next((name for name in long_value_options
+                              if arg == name or arg.startswith(name)), None)
+            if long_name is not None:
+                if arg == long_name:
+                    if i + 1 >= len(args):
+                        return False, _DENY_PROGRAM
+                    i += 2
+                else:
+                    i += 1
+                continue
+            if arg in value_options:
+                if i + 1 >= len(args):
+                    return False, _DENY_PROGRAM
+                i += 2
+                continue
+            if arg[:2] in value_options and len(arg) > 2:
+                i += 1
+                continue
+            return False, _DENY_PROGRAM
+        positionals.append(arg)
+        i += 1
+    if len(positionals) < 2:
+        return True, ""
+    if len(positionals) > 2:
+        return False, _DENY_PROGRAM
+    if _argument_hits_protected(
+            positionals[1], repo_root, cwd, hooks_index):
+        return False, _DENY_OUTPUT
+    return True, ""
+
+
+def _git_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    # legacy の sub 決定を維持し、既存 deny を allow へ反転させない。
+    sub_index = next((i for i, arg in enumerate(args)
+                      if not arg.startswith("-")), None)
+    sub = args[sub_index] if sub_index is not None else ""
+    prefix = args[:sub_index] if sub_index is not None else args
+    if (any(arg == "-c" or arg.startswith("-c") for arg in prefix)
+            or any(_long_option(arg, "--config-env", 4) for arg in prefix)
+            or any(arg in ("-p", "--paginate") for arg in prefix)):
+        return False, _DENY_EXEC
+    if sub not in _GIT_READ_SUBS:
+        return False, _DENY_GENERIC
+    rest = _before_double_dash(args[sub_index + 1:])
+    if sub in ("log", "diff", "show", "whatchanged"):
+        i = 0
+        while i < len(rest):
+            arg = rest[i]
+            if _long_option(arg, "--output", 3):
+                value, next_i = _option_value(rest, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                if _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index):
+                    return False, _DENY_OUTPUT
+                i = next_i
+                continue
+            i += 1
+        if any(_long_option(arg, "--ext-diff", 3)
+               or _long_option(arg, "--textconv", 4) for arg in rest):
+            return False, _DENY_EXEC
+    if sub == "grep":
+        if any(arg == "-O" or arg.startswith("-O")
+               or _long_option(arg, "--open-files-in-pager", 4)
+               or _long_option(arg, "--textconv", 4) for arg in rest):
+            return False, _DENY_EXEC
+    if sub == "cat-file" and any(
+            _long_option(arg, "--filters", 3)
+            or _long_option(arg, "--textconv", 4) for arg in rest):
+        return False, _DENY_EXEC
+    return True, ""
+
+
+def _find_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    option_args = args
+    if any(arg in ("-exec", "-execdir", "-ok", "-okdir")
+           for arg in option_args):
+        return False, _DENY_EXEC
+    if "-delete" in option_args:
+        return False, _DENY_OUTPUT
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("-fprint"):
+            return False, _DENY_OUTPUT
+        if arg == "-fls":
+            if i + 1 >= len(option_args):
+                return False, _DENY_PROGRAM
+            if _argument_hits_protected(
+                    option_args[i + 1], repo_root, cwd, hooks_index):
+                return False, _DENY_OUTPUT
+            i += 2
+            continue
+        i += 1
+    return True, ""
+
+
+def _sort_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    option_args = _before_double_dash(args)
+    safe_flags = frozenset("bdfghiMmnRrsuVz")
+    value_flags = frozenset("kSt")
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("--"):
+            if _long_option(arg, "--compress-program"):
+                return False, _DENY_EXEC
+            output_name = next((name for name in (
+                "--output", "--temporary-directory")
+                if _long_option(arg, name)), None)
+            if output_name is not None:
+                value, next_i = _option_value(option_args, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                if _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index):
+                    return False, _DENY_OUTPUT
+                i = next_i
+                continue
+            i += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            i += 1
+            continue
+        cluster = arg[1:]
+        j = 0
+        while j < len(cluster):
+            flag = cluster[j]
+            if flag in safe_flags:
+                j += 1
+                continue
+            if flag in value_flags or flag in "oT":
+                value = cluster[j + 1:]
+                if not value:
+                    if i + 1 >= len(option_args):
+                        return False, _DENY_PROGRAM
+                    value = option_args[i + 1]
+                    i += 1
+                if flag in "oT" and _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index):
+                    return False, _DENY_OUTPUT
+                j = len(cluster)
+                continue
+            return False, _DENY_PROGRAM
+        i += 1
+    return True, ""
+
+
+def _file_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    option_args = _before_double_dash(args)
+    compile_magic = False
+    magic_files = []
+    safe_flags = frozenset("bcdEhilkLNnprSsZ0vz")
+    value_flags = frozenset("eFfP")
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("--"):
+            if _long_option(arg, "--compile"):
+                compile_magic = True
+            elif _long_option(arg, "--magic-file"):
+                value, next_i = _option_value(option_args, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                magic_files.append(value)
+                i = next_i
+                continue
+            i += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            i += 1
+            continue
+        cluster = arg[1:]
+        j = 0
+        while j < len(cluster):
+            flag = cluster[j]
+            if flag == "C":
+                compile_magic = True
+                j += 1
+                continue
+            if flag == "m" or flag in value_flags:
+                value = cluster[j + 1:]
+                if not value:
+                    if i + 1 >= len(option_args):
+                        return False, _DENY_PROGRAM
+                    value = option_args[i + 1]
+                    i += 1
+                if flag == "m":
+                    magic_files.append(value)
+                j = len(cluster)
+                continue
+            if flag in safe_flags:
+                j += 1
+                continue
+            return False, _DENY_PROGRAM
+        i += 1
+    if compile_magic and any(_argument_hits_protected(
+            value, repo_root, cwd, hooks_index) for value in magic_files):
+        return False, _DENY_OUTPUT
+    return True, ""
+
+
+def _less_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None):
+    option_args = _before_double_dash(args)
+    safe_flags = frozenset("aABcCdDeEfFgGhHiIJKLMmnNqQrRsSuUVwWX~")
+    value_flags = frozenset("jkPtxyz#")
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("--"):
+            log_name = next((name for name in ("--log-file", "--LOG-FILE")
+                             if _long_option(arg, name)), None)
+            if log_name is not None:
+                value, next_i = _option_value(option_args, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                if _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index):
+                    return False, _DENY_OUTPUT
+                i = next_i
+                continue
+            i += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            i += 1
+            continue
+        cluster = arg[1:]
+        j = 0
+        while j < len(cluster):
+            flag = cluster[j]
+            if flag in "oO" or flag in value_flags:
+                value = cluster[j + 1:]
+                if not value:
+                    if i + 1 >= len(option_args):
+                        return False, _DENY_PROGRAM
+                    value = option_args[i + 1]
+                    i += 1
+                if flag in "oO" and _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index):
+                    return False, _DENY_OUTPUT
+                j = len(cluster)
+                continue
+            if flag in safe_flags:
+                j += 1
+                continue
+            return False, _DENY_PROGRAM
+        i += 1
+    return True, ""
+
+
+def _read_only_check(
+        head: str, args, repo_root: str = "", cwd: str = "",
+        hooks_index=None):
+    """末端防護対象に触れる操作の可否と拒否原因分類を返す。"""
     if head in _PURE_READERS:
-        return True
+        return True, ""
     if head == "dd":
-        # dd if=WAL of=/tmp (読み) は許可、of= が末端 (書き) なら拒否
-        return not any(a.startswith("of=") and (
-            _LEAF_RE.search(a) or _namespace_marker_violation(a, repo_root, cwd)
-        ) for a in args)
+        for arg in args:
+            if arg.startswith("of=") and _argument_hits_protected(
+                    arg.split("=", 1)[1], repo_root, cwd, hooks_index):
+                return False, _DENY_OUTPUT
+        return True, ""
     if head == "find":
-        return not any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir")
-                       or a.startswith("-fprint") for a in args)
+        return _find_read_only(args, repo_root, cwd, hooks_index)
     if head == "sed":
-        return not any(a == "-i" or a.startswith("-i") or a.startswith("--in-place")
-                       for a in args)
+        return _sed_read_only(args, repo_root, cwd, hooks_index)
     if head in ("awk", "gawk", "mawk"):
-        return "-i" not in args and not any(a.startswith("--include") for a in args)
+        return _awk_read_only(args, repo_root, cwd, hooks_index)
     if head == "sort":
-        return not any(a in ("-o", "--output") or a.startswith("-o")
-                       or a.startswith("--output=") for a in args)
+        return _sort_read_only(args, repo_root, cwd, hooks_index)
     if head == "git":
-        sub = next((a for a in args if not a.startswith("-")), "")
-        return sub in _GIT_READ_SUBS
+        return _git_read_only(args, repo_root, cwd, hooks_index)
+    if head == "xxd":
+        return _xxd_read_only(args, repo_root, cwd, hooks_index)
+    if head == "file":
+        return _file_read_only(args, repo_root, cwd, hooks_index)
+    if head == "nm":
+        if any(_long_option(arg, "--plugin", 4)
+               for arg in _before_double_dash(args)):
+            return False, _DENY_EXEC
+        return True, ""
+    if head == "rg":
+        if any(_long_option(arg, "--pre")
+               or _long_option(arg, "--hostname-bin")
+               for arg in _before_double_dash(args)):
+            return False, _DENY_EXEC
+        return True, ""
+    if head in ("less", "zless"):
+        return _less_read_only(args, repo_root, cwd, hooks_index)
     if head in _INTERP:
         # inline コード (-c/-e)・in-place (-i/-pe/-ne 等)・bare/stdin 実行は拒否。
         # 素の `python3 script.py wal.jsonl` (レポート生成) だけ許可。
-        for a in args:
-            if a in ("-c", "-e"):
-                return False
-            if a.startswith("-") and a != "-" and ("e" in a[1:] or "i" in a[1:]):
-                return False   # perl -pe / -i / -ne / ruby -i 等
-        return not _stdin_script(head, args)
-    return False                                  # 未知 head = fails-closed
+        for arg in _before_double_dash(args):
+            if arg in ("-c", "-e"):
+                return False, _DENY_PROGRAM
+            if (arg.startswith("-") and arg != "-"
+                    and ("e" in arg[1:] or "i" in arg[1:])):
+                return False, _DENY_PROGRAM
+        allowed = not _stdin_script(head, args)
+        return allowed, "" if allowed else _DENY_PROGRAM
+    return False, _DENY_GENERIC               # 未知 head = fails-closed
+
+
+def _is_read_only(
+        head: str, args, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
+    """既存 caller 向けの bool interface。"""
+    return _read_only_check(head, args, repo_root, cwd, hooks_index)[0]
 
 
 def _glob_prefix(token: str) -> str:
@@ -1583,6 +2406,26 @@ def _tree_violation(
     return _campaign_tree_violation(token, repo_root)
 
 
+def _argument_hits_protected(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
+    """option 値や inline program 内も含め、防護 path fragment を照合する。"""
+    candidates = [token]
+    if "=" in token:
+        candidates.append(token.split("=", 1)[1])
+    if len(token) > 2 and token.startswith("-") and not token.startswith("--"):
+        candidates.append(token[2:])
+    candidates.extend(fragment for fragment in re.split(
+        r"[\s\"'=,:;(){}<>|]+", token) if fragment)
+    candidates = list(dict.fromkeys(candidates))
+    return any(
+        _LEAF_RE.search(candidate)
+        or _hooks_tree_violation(candidate, repo_root, cwd, hooks_index)
+        or _namespace_marker_violation(candidate, repo_root, cwd)
+        for candidate in candidates
+    )
+
+
 def _path_args(args):
     """フラグ・`--` を除いたパス様引数 (削除/移動対象の候補)。"""
     return [a for a in args if not a.startswith("-") and a != "--"]
@@ -1624,7 +2467,8 @@ def _destroys_protected_tree(
                        for t in _path_args(args))
         return False
     if head == "find":
-        if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
+        if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir")
+               for a in args):
             return any(_tree_violation(t, repo_root, cwd, hooks_index)
                        for t in _path_args(args))
         return False
@@ -1679,7 +2523,7 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
     hooks_hot = bool(_TREE_LITERAL_RE.search(command))
     if tokens is not None:
         hooks_hot = hooks_hot or any(
-            _hooks_tree_violation(token, root, hooks_index=hooks_index)
+            _argument_hits_protected(token, root, hooks_index=hooks_index)
             for token in tokens)
     if not _MENTION_RE.search(command) and not hooks_hot:
         return True, ""                            # fast path
@@ -1750,18 +2594,27 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
             return False, ("防護対象パスを含むコマンドでの bare/stdin インタプリタ実行 "
                            "(pipe や here-string でコードを流し込む形) は中身を追えない "
                            "= fails-closed (GB2-3)。スクリプトはファイルに置いて実行する")
-        leaf_hits = [t for t in args if (
-            _LEAF_RE.search(t)
-            or _hooks_tree_violation(t, root, marker_cwd, hooks_index)
-            or _namespace_marker_violation(t, root, marker_cwd)
-        )]
-        if leaf_hits and not _is_read_only(head, args, root, marker_cwd):
+        leaf_hits = [t for t in args if _argument_hits_protected(
+            t, root, marker_cwd, hooks_index)]
+        read_only, refusal_kind = _read_only_check(
+            head, args, root, marker_cwd, hooks_index)
+        if leaf_hits and not read_only:
             # ビルドシステムによる build-variants の生成/更新は正当経路
             # (cmake -E の任意ファイル操作は除く)。head 自身が build-variants 配下の
             # バイナリである「実行」は leaf_hits (args のみ) に乗らず素通り (F-FP-1)。
             if (head in _BUILDERS and not (head == "cmake" and "-E" in args)
                     and all("build-variants" in t for t in leaf_hits)):
                 continue
+            if refusal_kind == _DENY_OUTPUT:
+                return False, (f"保護対象を書き換える option / 出力先指定 ({head or '?'})。"
+                               "読むだけなら cat/grep/jq または sed -n Np を使う")
+            if refusal_kind == _DENY_PROGRAM:
+                return False, (f"program / script の中身を追えない、または書き込み・"
+                               f"外部実行の構文を含む ({head or '?'})。読むだけなら "
+                               "cat/grep/jq または単純な sed -n Np を使う")
+            if refusal_kind == _DENY_EXEC:
+                return False, (f"任意 command を実行し得る option ({head or '?'})。"
+                               "pager/plugin/pre-command を外し、cat/grep/jq で読む")
             return False, (f"末端防護対象に触れる非読み取りコマンド ({head or '?'})。"
                            "WAL/campaign.lock/build-cache/namespace marker の書き換え・"
                            "削除・移動は不可 (規律2)。読み取りは cat/grep/jq/head/tail 等で")
