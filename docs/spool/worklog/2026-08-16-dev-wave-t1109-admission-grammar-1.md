@@ -128,6 +128,22 @@ title: 実機の job ID が admission を通らず 8c live が全面的に塞が
   reservation control が緑でも 8c の allocation provenance は保護されていない。
   配線するか契約から明示的に外すかを決める。
 
+- {{T:waiter-attach-race-guard-blocked-by-budget}} **P3・新規・ユーザー裁定待ち**:
+  段 8 の自己改善候補が **docs 予算に阻まれて実装できなかった**。
+  候補は `DW-O01` へ「親は投入直後に pid file の実在と非空を確認してから待ち手を張る
+  (未書込の窓を掴むと待ち手が即時 rc=0 を返しうる)」の 1 文を足すもので、
+  本 wave が実測した false completion (producer 生存・`.done` 不在・成果物不在で rc=0、
+  再現性 2 回中 1 回) への手順側の防壁である。
+  追記すると `check_docs` が `docs/dev-wave/**: L1.5 unique footprint 9710 bytes > 予算 9566 bytes`
+  で赤になる。**予算値を上げる変更は通常の自己改善に含めない契約**なので変更を止めた。
+  択 (a) L1.5 の別節を意味等価に縮約して枠を作る (dev-wave docs の圧縮は exact pin を壊すため
+  高リスク)、択 (b) 予算値の引き上げを独立審査する、択 (c) 手順ではなく
+  `dev_wave_wait.py` 側で pid file 未書込を明示 rc で弾く機械的防壁にする、択 (d) 見送る。
+  **親の推奨は択 (c)** — 手順への 1 文追加より機械検査の方が確実で、L1.5 予算も消費しない。
+  ただし本 wave は rc=0 の根本原因を確定できていない
+  (`wait_for_producer` の fail-closed 分岐はいずれも非 0 を返す構造であり、
+  観測と静的な読みが一致しない) ため、択 (c) は原因確定を前提とする。
+
 - {{T:trial-journal-schema-version-not-bumped}} **P2・新規**: 自律試行 journal の
   `run-start` に field を足したとき `SCHEMA_VERSION` を上げていない。
   記録済み artifact と現行 producer が同一 schema_version で別 shape になっており、
