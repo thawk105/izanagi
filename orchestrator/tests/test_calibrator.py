@@ -748,20 +748,20 @@ def test_competing_bench_pids_rc1_clean_is_no_competition():
 
 
 def test_recorded_competing_bench_probes_pass_admission():
-    """tracked isolation.txt 6 件の production 観測と status=pass を固定する。"""
+    """tracked isolation.txt 6 件の production 観測が無競合に分類されることを固定する。"""
     from orchestrator.calibrator import runner
     recorded_probes = [
-        ("0_873732.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
-        ("0_873737.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
-        ("0_873759.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
-        ("0_873846.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
-        ("0_873855.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
-        ("0_873859.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+        ("0_873732.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe")),
+        ("0_873737.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe")),
+        ("0_873759.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe")),
+        ("0_873846.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe")),
+        ("0_873855.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe")),
+        ("0_873859.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe")),
     ]
-    for artifact, rc, stdout, stderr, argv, recorded_status in recorded_probes:
+    for artifact, rc, stdout, stderr, argv in recorded_probes:
         classified = runner.classify_competing_probe(
             rc, stdout, stderr, argv, own_pid=4242)
-        assert (classified, recorded_status) == ([], "pass"), artifact
+        assert classified == [], artifact
 
 
 def test_competing_bench_pids_rc1_with_stderr_is_probe_error():

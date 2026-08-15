@@ -1263,6 +1263,22 @@ def test_transport_admission_binding_mutations_are_rejected(
             r"terminal supervisor event requires partial status",
         ),
     ],
+    ids=[
+        "duplicate-error",
+        "success-and-error",
+        "after-run-start",
+        "extra-field",
+        "empty-type",
+        "non-string-type",
+        "non-string-message",
+        "wrong-provider",
+        "forged-report-receipt",
+        "forged-run-start-receipt",
+        "forged-run-finish-receipt",
+        "fatal-mismatch",
+        "nonempty-cells",
+        "complete-status",
+    ],
 )
 def test_transport_admission_error_mutations_are_rejected(
     tmp_path, mutation, expected,
