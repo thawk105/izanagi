@@ -7811,6 +7811,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (本事象はその検査が実際に発火して判明した)。検査の存在は確認済みで、
   欠けているのは検査を踏まないための手順記述である。
 
+
+- **再発: 2026-08-16** — 同日の別 wave (`dev-wave-t324-8c-prereg`) が記録した直後に本 wave でも再現。
+  `stage=preflight-submodule-ready rc=2` でテスト 0 件・log ファイル未生成のまま失敗
+  (lease claim 前の preflight で止まったため lease 窓は失っていない)。
+  `git -c protocol.file.allow=always submodule update --init --recursive` で
+  `external/ccbench/third_party/shirakami` とその `third_party/googletest` を追加初期化し、
+  `git submodule status --recursive` の全行が `-`/`U` プレフィックスなしになったことを確認して
+  attempt 2 で再投入した。恒久対応 ([T-1139] 未裁定) は未実施のまま。
 ### F321. `single_process` を名乗る床値 claim が、同一 protocol の二重投入を排除しない [恒真ゲート]
 
 - 事象: (2026-08-16、静的検査) 床値 campaign は `isolation_policy.single_process` が真のとき
