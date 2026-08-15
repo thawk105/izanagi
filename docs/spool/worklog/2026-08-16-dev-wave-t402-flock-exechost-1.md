@@ -55,6 +55,19 @@ title: cross-node flock は排他された — Execution Host 照合まで通し
   (`mutation-ledger-final.json`)。初回は期待 node 未確定のため probe とし、M1 (3 件) と
   M3 (2 件) の完全集合を実測で確定して再登録・再走した (erratum は RESULT §10)。
   `check_docs` / 全史 provenance はいずれも緑
+- **受入全走は 4 回投入して 1 度も赤で止まっていない — 止めたのは毎回前提条件だった。**
+  (1) 入れ子 submodule `external/ccbench/third_party/shirakami` が未初期化で
+  `preflight-submodule-ready` rc=2 (走行ゼロ)。`--init --recursive` で googletest まで 3 階層を
+  初期化して解消。(2) `--merge-message-file` 未指定で `merge-message` rc=70 — main が進んでいると
+  待ち手が取り込みを行うため必須。(3) 受入 lease の順番待ちが既定上限を超えて
+  `claim-timeout` rc=70 (**テストは 1 件も走っていない**)。`--poll-seconds 30
+  --max-wait-seconds 21600` を明示して解消。(4) 走行して赤 2 件
+- **その赤 2 件はフレークだった。** `test_dev_wave_wait.py::` `test_public_main_real_signal_after_success_uses_restored_handler` と
+  `test_mutation_worktree.py::` `test_sigint_and_sigterm_are_forwarded_between_observation_points[SIGINT]`。
+  **いずれも signal 転送のテストで、本 wave の差分 (probe driver と docs 1 行) からは到達しない。**
+  同 tip で単独再走したところ **3 passed** で再現しなかったため、帰属せずフレークとして
+  {{T:signal-forwarding-test-flake}} へ起票する。並行 wave の計算ノード job が 5 本以上
+  同時走行している負荷下だった
 - **運用で詰まった点:** (a) `tools/run_tests.py` は `dispatch_compute.dispatch()` を既定の
   `overall_grace_s = 300` で呼び**待ち時間上限を渡す口が無い**ため、gen_S が QUE 76 で滞留した
   ときに `queue-wait-timeout` で rc=16 になった。`tools/pegasus/dispatch_compute.py` を
@@ -107,6 +120,15 @@ title: cross-node flock は排他された — Execution Host 照合まで通し
   `_default_dispatch` が既定 300 秒固定で、キュー滞留時に**テストが走らないまま rc=16** になる。
   回避策 (`dispatch_compute.py` 直接) は判明済みだが、`run_tests.py` が受入形の正規経路である以上
   滞留時に使えないのは運用上の穴である。
+- {{T:signal-forwarding-test-flake}} **P3・新規**: signal 転送の 2 テスト
+  (`orchestrator/tests/test_dev_wave_wait.py::`
+  `test_public_main_real_signal_after_success_uses_restored_handler` と
+  `orchestrator/tests/test_mutation_worktree.py::`
+  `test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]`) が
+  受入全走で赤になり、同 tip の単独再走では 3 passed で再現しなかった。
+  **計算ノード job が 5 本以上並走する負荷下でだけ落ちる可能性がある。**
+  受入 1 走 (と lease 窓 1 つ) を確実に捨てるので、負荷依存かどうかを実測して
+  タイミング依存を除くか、既知赤 registry へ載せるかを決める。
 - {{T:waiter-pid-file-race}} **P2・新規**: `tools/dev_wave_wait.py producer` が
   **pid file 不在を「producer 死亡」と解釈して即座に正常終了する**。子の投入直後に待ち手を張ると
   必ず空振りし、`.done` も成果物も無いのに完了通知が届く。pid file 不在は「未起動」として
