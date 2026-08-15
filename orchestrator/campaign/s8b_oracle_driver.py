@@ -1325,6 +1325,7 @@ def run_block(
         )
         return {"status": "refused", **asdict(decision)}
 
+    refusal: Optional[str]
     try:
         execution_identity = _execution_identity(plan)
         claim_root = output_root / "claims"
@@ -1345,23 +1346,21 @@ def run_block(
         )
     except (OracleDriverError, _campaign_claim.ClaimError, DurableRootError) as exc:
         # claim 競合は既存 claim 以外を作らず、WAL/marker/budget より前に拒否する。
-        decision = _make_gate_decision(
-            t080_resolution, refusals=[f"v2-execution: {exc}"],
-        )
-        return {"status": "refused", **asdict(decision)}
-
-    try:
-        oracle_admissions = _holdout_admission.reserve_oracle_holdout_observations(
-            repo_root=root,
-            verified_manifest=verified_manifest,
-            launch_validated=validated,
-            block_id=block_id,
-        )
-    except _holdout_admission.HoldoutAdmissionError as exc:
-        decision = _make_gate_decision(
-            t080_resolution,
-            refusals=[f"holdout-observation-admission: {exc}"],
-        )
+        refusal = f"v2-execution: {exc}"
+    else:
+        try:
+            oracle_admissions = _holdout_admission.reserve_oracle_holdout_observations(
+                repo_root=root,
+                verified_manifest=verified_manifest,
+                launch_validated=validated,
+                block_id=block_id,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            refusal = f"holdout-observation-admission: {exc}"
+        else:
+            refusal = None
+    if refusal is not None:
+        decision = _make_gate_decision(t080_resolution, refusals=[refusal])
         return {"status": "refused", **asdict(decision)}
 
     campaign_start_resolution = _resolve_t080_receipt(root=root)

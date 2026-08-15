@@ -3573,6 +3573,11 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
     approved = _APPROVED_BY_PATH[manifest_path.resolve()]
     output_root = tmp_path / "cli-out"
     budget_path = tmp_path / "cli-budget.json"
+    admission_root = tmp_path / "cli-admission"
+    admission_root.mkdir()
+    (admission_root / "claims").mkdir()
+    (admission_root / "consumed").mkdir()
+    (admission_root / "ledger.lock").write_bytes(b"")
 
     # 全行 binding-refused を CLI 経路で再現するため、driver.prepare_cell を
     # manifest とは異なる src_token を返す fixture に差し替える。
@@ -3655,6 +3660,9 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
              mock.patch.object(driver.s8b_oracle_spec,
                                "load_approved_spec", return_value=approved_spec), \\
              mock.patch.object(driver, "_prepare_v2_execution", fake_plan), \\
+             mock.patch.object(driver._holdout_admission,
+                               "provision_shared_admission_root",
+                               return_value=Path({str(admission_root)!r})), \\
              mock.patch.object(driver, "prepare_cell", fake_prepare):
             rc = driver.main([
                 "run-block", "--manifest", {str(manifest_path)!r},
