@@ -78,7 +78,7 @@ title: 床値 claim identity の protocol 単位化を実装差分ゼロで再�
   ただし (a) 単独では別 out_root 間の排他は成立せず
   (`campaign_claim.py:170-173`)、「protocol 単位の global 排他」とは表現できない。
   材料 = `output/insights/2026-08-16_t1140-claim-identity/`。
-  base: 84b7ce94a1b4d15a8d40bd8b6f10fbea00133ecb385d3d9b93adad8eac6b28a1
+  base: 5b76b0eade67bb68b297605a2b493f7e8a4909e864fe7abdde718c5049e4279a
 - [T-330] **P1・ユーザー裁定待ち (再裁定)**: 択 (c) の対象である予約照合を実装差分ゼロで返す。
   裁定材料が前提にした「scheduler 所有の create-only receipt」は**存在しない** —
   実在するのは submitter 所有 receipt (`submit_floor.sh:466-495`) で、
@@ -90,7 +90,7 @@ title: 床値 claim identity の protocol 単位化を実装差分ゼロで再�
   hostname 照合は非特権 UTS namespace で偽装可能なため authority に数えない
   ({{F:hostname-forgeable-in-userns}})。択一と親推奨は
   `output/insights/2026-08-16_t1140-claim-identity/ruling-package.md` の問 2。
-  base: 3700a3b29172445f06c73dd64f240494acdb42cdd92f97390a7fb5bf8e362b95
+  base: b1a9dbbcbd7ac50c0e138522f89b06656d6882f906efa1c015779bf610efd272
 
 ### 新規
 
