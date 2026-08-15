@@ -83,6 +83,15 @@ title: 床値の oracle 依存 root と build の source root を同一 tree へ
   (ABA) 攻撃への予防を設計する。前後 snapshot の同値検査では検出できない。
   予防には依存 tree の書込み禁止か、linker が実際に読んだ archive の identity を
   binary completion receipt へ束縛することが要る。どちらも書込み / download 権威の変更である。
+- {{T:fix-contract-needs-passing-positive-example}} **P2・新規・ユーザー裁定待ち**:
+  段 6 の fix 契約にも「受理・拒否条件は含意の向きを 2 文へ分け、通る正例を 1 つ添える」義務を
+  課す。段 4 裁定 (`DW-S04`) には同義の義務があるが段 6 fix 契約には無く、
+  それが {{F:ruling-implication-written-as-equivalence}} の直接原因だった。
+  **段 8 で `DW-S06-B` へ 2 行足そうとしたが `docs/dev-wave/**` の L1.5 予算を
+  165 bytes 超過したため撤回した** (追加前の空きはゼロ)。自己改善契約は
+  「予算のために安全義務を弱めない、意味等価に収まらなければ止めてユーザー裁定へ返す」と
+  定めるため裁定へ返す。選択肢は (a) L1.5 から陳腐化した節を落として空ける、
+  (b) D271 の条件を満たす新規 L2 節として登録する、(c) 見送り (恒久対応は F 台帳のみ)。
 - {{T:shared-base-ownership-lock}} **P3・新規**: 共有 FetchContent base に create-only の
   所有権 token を導入する。現状は job 一意な `$TMPDIR` 配下の `mkdtemp` で排他が構造的に成立し、
   cell loop も同期なので発火しない。**cell build を並列化するときの再審査事項**として起票する。
