@@ -4466,6 +4466,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   rc=0 になり、matrix は 16/16 KILLED で完走した。
   **新しい情報は、恒久対応が memory 本文にあるとき、索引行に要点が無いと参照されないことである。**
   同 memory の索引行へ `--force-dispatch` を明示する更新を行った。
+
+- **再発: 2026-08-15** — 変異 harness を通さない素の焦点走
+  (`python3 tools/run_tests.py orchestrator/tests/test_check_wave_startup.py -rf -q`) が
+  login node で 3 回連続 rc=16 (`bounded scope の memory.max / memory.oom.group を走行中に
+  attest できない`) になった。同じ command は 34 分前には成功しており、テスト結果ではない。
+  `--force-dispatch` を足して計算ノードへ回したところ 95 passed / 0 failed で完走した。
+  既存の恒久対応 (先例と同じ runner argv を使う) で足り、新しい手順は足さない。
 ### F156. 前回投入の `.done` 残骸で待ちが即座に返った [手順漏れ]
 
 - 事象: 変異本走を投入し直した直後に完了待ちを張ったところ、待ちが即座に返った。
@@ -6498,6 +6505,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 再投入は**新しい artifact 名**で行い、`rc=1` は receipt の
   `attempt output` と `validator_rc` を読んでから原因を分類する。
 
+
+- **再発: 2026-08-15** — 段 3 レンズ A の初回投入が上流分類器に遮断され、model call 16 回・
+  出力 0 bytes を空費した (`turn.failed` の message = `This content was flagged for possible
+  cybersecurity risk`、`evidence_status=complete`、`codex_exit_code=1`)。
+  親は F256 の恒久対応を知っており、**prompt 冒頭には防御目的を明記していた**。
+  遮断したのは、段 2 の結果を受けて**後から追記した「最優先の争点」節**が
+  「回避する C++ 文字列を構成できるなら具体的に示せ」と攻撃成果物の作成を求めていたことである。
+  防御的枠組みは prompt 冒頭に 1 度書けば足りるものではなく、**追記した節を含む個々の指示文が
+  それぞれ攻撃成果物を要求していないことを、投入前に確認する**必要がある。
+  再投入は被覆監査の枠組み (契約項目と機械執行の差分表・既存境界テストの被覆評価) へ
+  書き直して成功した。
 ### F257. merge が submodule gitlink を古い側で確定させ、是正 commit が provenance で land を止めた [手順漏れ] [監査ログ汚染]
 
 - 事象: local main 取り込みの merge 後、受入全走で s1/s8b/real-repo 系が 30 件級で赤になった
@@ -7102,6 +7120,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   除外する案を親推奨として裁定へ返した (package の R4)。
 - 再発検知: `git ls-files docs/handoff/` が README.md 以外を返すこと。
 
+
+- **再発: 2026-08-15** — `docs/handoff/dev-wave-t971-swo-oracle-floor.md` が main へ landed し、
+  背景 job の wave が起動時 rc=1 になった。`952fd45d` が main で直接撤去して応急処置している。
+  2026-08-13 の `a3168d85` に続く 2 例目で、同 F が「次に wave が handoff を land した時点で
+  同じ赤が再発する」と書いた予告どおりである。checker 側の恒久対応を本 wave で実装した。
+- **supersede: 2026-08-15** — 恒久対応の「未実施」は解消した。D409 に従い `_check_worktree_handoff` が main landed handoff を通し、untracked と不適格 index record を拒否する。再発検知は `orchestrator/tests/test_check_wave_startup.py` の 26 node (変異 M01 が完全集合で KILLED)。
 ### F287. 段 1 brief の「存在しない」実測を head で切った検索から書いた [誤前提]
 
 - 事象: 親が段 1 brief に「finding の `observations` を生成する箇所は 0 件」と書いた。実際は

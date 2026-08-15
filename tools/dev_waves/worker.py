@@ -609,6 +609,7 @@ def spawn_worker(
         key: os.environ[key] for key in ("LANG", "LC_ALL", "PATH", "TZ") if key in os.environ
     }
     environment["PYTHONPATH"] = repo_root
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     parent_pid = os.getpid()
 
     def prepare_wrapper() -> None:
