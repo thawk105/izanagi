@@ -119,7 +119,7 @@ title: 依頼された受領証残渣は既に解消済みだと実測で確定�
   bytecode を書く別の producer で本番再現しており、その 1 件は本 wave で塞いだが族としては
   未閉鎖である。残りは下記の新規 4 項が継承する。
   remaining: none
-  base: fd82c7856d3dcdcbf33e34b0add1645202c0512d8f3b5696f62bd58a68d00ec4
+  base: 637d23d26f6fa8119f715d7e41bd6ce9dd821b608486e1f1e9bd8dd91f38feca
 
 ### 新規
 
