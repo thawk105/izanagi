@@ -155,6 +155,18 @@ title: 実機の job ID が admission を通らず 8c live が全面的に塞が
   **新しい防壁ではなく既存規律の遵守で足りており、実際 3 点照合が 2 回とも誤進行を防いだ。**
   L1.5 予算を消費してまで追記する価値はない。
 
+- {{T:acceptance-scheduler-attestation-flake}} **P2・新規**: 受入全走で
+  `orchestrator/tests/test_dev_wave_wait.py::test_public_main_real_signal_releases_lease` が
+  1 度だけ赤になった (11,182 passed / 1 failed / 65 skipped)。
+  失敗はシグナル処理に到達する前で、テストが内部起動した受入サブプロセスが
+  `stage=acceptance-scheduler-attestation rc=70 detail={"observed":[],"reason":"marker-count"}`
+  で落ちている (期待 rc=143 に対し実測 70)。
+  **同 nodeid の単独再走は緑** (`1 passed in 2.58s`、`--force-dispatch`)。
+  本 wave の差分は `dev_wave_wait.py` とその test に 1 行も触れていないため
+  `DW-O18` に従い非帰属とした。並列 11k 件走行下でのみ marker が観測されない条件があると疑われる。
+  既知赤 registry ([T-1116] 系) の対象にするか、attestation 側で並列走行時の
+  marker 観測を確実にするかを決める。
+
 - {{T:trial-journal-schema-version-not-bumped}} **P2・新規**: 自律試行 journal の
   `run-start` に field を足したとき `SCHEMA_VERSION` を上げていない。
   記録済み artifact と現行 producer が同一 schema_version で別 shape になっており、
