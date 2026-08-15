@@ -29,6 +29,20 @@ import test_s8b_oracle_report as report_fixtures  # noqa: E402
 CONFIGURATIONS = tuple(f"c{i}" for i in range(6))
 MANIFEST_SHA256 = "a" * 64
 SPEC_SHA256 = "b" * 64
+CAMPAIGN_ID = "oracle-b0"
+
+
+def _e1_evidence() -> list[dict]:
+    return [{
+        "campaign_id": CAMPAIGN_ID,
+        "campaign_verifier_epoch": f"E1:{'e' * 64}",
+        "state": "E1",
+        "reason_code": "recorded-closure",
+        "identity_scope": "fixture enforcement closure",
+        "excluded_scope": "fixture excluded verifier implementation",
+        "certified_eligible": True,
+        "rejection": None,
+    }]
 
 
 def _observations(
@@ -42,6 +56,7 @@ def _observations(
                 value = float(config_index * 10 + replicate)
                 rows.append({
                     "schedule_index": index,
+                    "campaign_id": CAMPAIGN_ID,
                     "block_id": "b0",
                     "holdout_id": holdout_id,
                     "configuration_id": configuration_id,
@@ -65,6 +80,7 @@ def _observations(
         "manifest_sha256": MANIFEST_SHA256,
         "spec_sha256": SPEC_SHA256,
         "n_per_cell": n,
+        "campaign_verifier_epochs": _e1_evidence(),
         "expected_cells": [{
             "schedule_index": row["schedule_index"],
             "holdout_id": row["holdout_id"],
@@ -94,6 +110,7 @@ def _judge(
                 if isinstance(entry, dict)
                 and set(entry) == judge._EXPECTED_CELL_KEYS
             ),
+            expected_campaign_ids=frozenset({CAMPAIGN_ID}),
         )
     return judge.judge_oracle(
         observations,
@@ -110,6 +127,67 @@ def test_complete_data_has_unique_best():
     assert _holdout(result)["verdict"] == "unique-best"
     assert _holdout(result)["winner_configuration_id"] == CONFIGURATIONS[-1]
     assert result["status"] == "determinate"
+
+
+@pytest.mark.parametrize(
+    ("state", "epoch", "reason_code"),
+    [
+        ("E0", "E0", "v1-authority-absent"),
+        (
+            "E1-stale", f"E1:{'d' * 64}",
+            "recorded-current-closure-mismatch",
+        ),
+    ],
+)
+def test_non_e1_campaign_epoch_is_never_eligible(
+        state, epoch, reason_code):
+    observations = _observations()
+    observations["campaign_verifier_epochs"] = [{
+        "campaign_id": CAMPAIGN_ID,
+        "campaign_verifier_epoch": epoch,
+        "state": state,
+        "reason_code": reason_code,
+        "identity_scope": "fixture enforcement closure",
+        "excluded_scope": "fixture excluded verifier implementation",
+        "certified_eligible": False,
+        "rejection": {
+            "code": "campaign-verifier-epoch-rejected",
+            "message": f"fixture rejected {state}",
+        },
+    }]
+
+    result = _judge(observations)
+
+    assert result["status"] == "indeterminate"
+    assert _holdout(result)["verdict"] == "indeterminate"
+    assert all(
+        cell["status"] == "unknown"
+        for cell in _holdout(result)["configurations"].values()
+    )
+    assert [reason["code"] for reason in result["reasons"]] == [
+        "campaign-verifier-epoch-rejected"
+    ]
+
+
+@pytest.mark.parametrize("damage", ["missing", "eligible-e0", "campaign-set"])
+def test_epoch_evidence_schema_or_campaign_binding_failure_is_indeterminate(
+        damage):
+    observations = _observations()
+    if damage == "missing":
+        observations.pop("campaign_verifier_epochs")
+    elif damage == "eligible-e0":
+        observations["campaign_verifier_epochs"][0].update(
+            campaign_verifier_epoch="E0",
+            state="E0",
+            reason_code="v1-authority-absent",
+        )
+    else:
+        observations["campaign_verifier_epochs"][0]["campaign_id"] = "other"
+
+    result = _judge(observations)
+
+    assert result["status"] == "indeterminate"
+    assert _holdout(result)["verdict"] == "indeterminate"
 
 
 def test_exact_maximum_tie_is_not_broken_by_a_floor():
@@ -303,6 +381,7 @@ def _asymmetric_observations() -> artifacts.OfficialObservations:
         for _ in range(3):
             rows.append({
                 "schedule_index": index,
+                "campaign_id": CAMPAIGN_ID,
                 "block_id": "b0",
                 "holdout_id": "rr80",
                 "configuration_id": configuration_id,
@@ -324,6 +403,7 @@ def _asymmetric_observations() -> artifacts.OfficialObservations:
         "manifest_sha256": MANIFEST_SHA256,
         "spec_sha256": SPEC_SHA256,
         "n_per_cell": 3,
+        "campaign_verifier_epochs": _e1_evidence(),
         "expected_cells": [{
             "schedule_index": row["schedule_index"],
             "holdout_id": row["holdout_id"],
@@ -395,6 +475,7 @@ def test_observations_schedule_body_must_match_verified_manifest_projection():
             )
             for entry in observations["expected_cells"]
         ),
+        expected_campaign_ids=frozenset({CAMPAIGN_ID}),
     )
     baseline = _judge(observations, schedule_projection=projection)
     assert baseline["status"] == "determinate"
@@ -434,10 +515,14 @@ def test_judge_binding_keywords_are_required_without_defaults():
 
 
 def _cli_observations(document, approved_sha256):
+    campaign_id = next(iter(document["campaign_ids"].values()))
+    if isinstance(campaign_id, dict):
+        campaign_id = campaign_id["campaign_id"]
     rows = []
     for schedule_row in document["schedule"]["rows"]:
         rows.append({
             "schedule_index": schedule_row["schedule_index"],
+            "campaign_id": campaign_id,
             "block_id": schedule_row["block_id"],
             "holdout_id": schedule_row["holdout_id"],
             "configuration_id": schedule_row["configuration_id"],
@@ -458,6 +543,9 @@ def _cli_observations(document, approved_sha256):
         "manifest_sha256": oracle_manifest._canonical_sha256(document),
         "spec_sha256": approved_sha256,
         "n_per_cell": document["schedule"]["n"],
+        "campaign_verifier_epochs": [{
+            **_e1_evidence()[0], "campaign_id": campaign_id,
+        }],
         "expected_cells": [{
             "schedule_index": row["schedule_index"],
             "holdout_id": row["holdout_id"],

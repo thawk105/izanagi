@@ -36,6 +36,7 @@ _HERE = Path(__file__).resolve().parent
 _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
+from . import artifact_admission as _artifact_admission  # noqa: E402
 from . import env_attestation, env_contract, model  # noqa: E402
 from . import execution_guard, s8b_oracle_manifest, wal  # noqa: E402
 from . import s8b_oracle_spec  # noqa: E402
@@ -351,6 +352,65 @@ def _resolved_campaign_layout(
             "resolved campaign root が official output_root/campaigns 直下でない"
         )
     return CampaignLayout(root=str(resolved_campaign_root))
+
+
+def _campaign_verifier_epoch_projection(
+        campaign_id: str, resolved_output_root: Path,
+) -> dict:
+    """Campaign の lock-only epoch gate を observations 証拠へ射影する。"""
+    layout = _resolved_campaign_layout(campaign_id, resolved_output_root)
+    try:
+        epoch = _artifact_admission.require_campaign_verifier_epoch(
+            layout,
+            purpose=(
+                _artifact_admission.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+            ),
+        )
+    except _artifact_admission.CampaignVerifierEpochRejected as exc:
+        return {
+            "campaign_id": campaign_id,
+            "campaign_verifier_epoch": exc.campaign_verifier_epoch,
+            "state": exc.epoch_state,
+            "reason_code": exc.reason_code,
+            "identity_scope": exc.identity_scope,
+            "excluded_scope": exc.excluded_scope,
+            "certified_eligible": False,
+            "rejection": {
+                "code": "campaign-verifier-epoch-rejected",
+                "message": str(exc),
+            },
+        }
+    except _artifact_admission.ArtifactAdmissionError as exc:
+        return {
+            "campaign_id": campaign_id,
+            "campaign_verifier_epoch": None,
+            "state": "unavailable",
+            "reason_code": "campaign-verifier-epoch-unavailable",
+            "identity_scope": (
+                _artifact_admission.CAMPAIGN_VERIFIER_EPOCH_SCOPE
+            ),
+            "excluded_scope": (
+                _artifact_admission.CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE
+            ),
+            "certified_eligible": False,
+            "rejection": {
+                "code": "campaign-verifier-epoch-unavailable",
+                "message": (
+                    "campaign verifier epoch を検証できない: "
+                    f"{type(exc).__name__}"
+                ),
+            },
+        }
+    return {
+        "campaign_id": campaign_id,
+        "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
+        "state": epoch.state,
+        "reason_code": epoch.reason_code,
+        "identity_scope": epoch.identity_scope,
+        "excluded_scope": epoch.excluded_scope,
+        "certified_eligible": True,
+        "rejection": None,
+    }
 
 
 def _is_int(value: object) -> bool:
@@ -1624,6 +1684,12 @@ def build_observations(
         document = manifest
         manifest_kind = "legacy"
         spec_sha = None
+        (schedule, allowed_excluded, manifest_sha, n, expected_reps,
+         manifest_issues) = _validate_manifest(document)
+    by_block, campaign_ids, declaration_issues = _campaign_index(
+        document["campaign_ids"], schedule,
+    )
+    manifest_issues.extend(declaration_issues)
     try:
         receipt_resolution = _t080.inspect_receipt_history(root=Path(repo_root))
     except _t080.MigrationError as exc:
@@ -1637,9 +1703,10 @@ def build_observations(
         or (receipt_resolution.state == "invalid" and bool(receipt_resolution.refusals))
     )
     resolved_output_root = _resolve_official_output_root(Path(output_root))
-    if type(manifest) is _artifacts.LegacyManifest:
-        (schedule, allowed_excluded, manifest_sha, n, expected_reps,
-         manifest_issues) = _validate_manifest(document)
+    campaign_verifier_epochs = [
+        _campaign_verifier_epoch_projection(campaign_id, resolved_output_root)
+        for campaign_id in sorted(campaign_ids)
+    ]
     receipt_expectations = None
     receipt_expectations_error = None
     try:
@@ -1649,10 +1716,6 @@ def build_observations(
         )
     except ReportError as exc:
         receipt_expectations_error = exc
-    by_block, campaign_ids, declaration_issues = _campaign_index(
-        document["campaign_ids"], schedule,
-    )
-    manifest_issues.extend(declaration_issues)
     ghost_issues = [
         issue for issue in manifest_issues
         if issue["code"] == "campaign-without-schedule-row"
@@ -1688,10 +1751,13 @@ def build_observations(
             )
             t080_by_campaign[campaign_id] = t080_observation
             for ordinal, row in zip(ordinals, assessed):
+                row["campaign_id"] = campaign_id
                 by_ordinal[ordinal] = row
     for ordinal, item, reason in detached:
         base = _base_row(item)
-        base.update(status="protocol_violation", reason=reason)
+        base.update(
+            campaign_id=None, status="protocol_violation", reason=reason,
+        )
         by_ordinal[ordinal] = base
 
     campaign_observations = list(t080_by_campaign.values())
@@ -1726,6 +1792,7 @@ def build_observations(
         "expected_cells": expected_cells,
         "rows": rows,
         "manifest_issues": [dict(issue) for issue in manifest_issues],
+        "campaign_verifier_epochs": campaign_verifier_epochs,
         _T080_KEY: t080_report_observation,
     })
     if spec_sha is not None:

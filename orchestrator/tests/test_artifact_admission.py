@@ -39,6 +39,8 @@ from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
 
 
 ROOT = Path(__file__).resolve().parents[2]
+CERTIFIED = A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+HISTORICAL = A.CampaignReadPurpose.HISTORICAL_RAW
 LEDGER_RAW_SHA256 = "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93"
 EXPECTED_RECORDS = (
     (
@@ -307,6 +309,43 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
     return completed.stdout
 
 
+def _committed_closure_repo(tmp_path: Path) -> Path:
+    """現行 checkout の hash を使わない exact 8-path E1 fixture。"""
+    repo = tmp_path / "closure-repo"
+    repo.mkdir()
+    _fixture_git(repo, "init", "-q")
+    for index, relative in enumerate(
+        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+    ):
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"epoch closure fixture {index}\n".encode("ascii"))
+    _fixture_git(
+        repo, "add", "--", *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+    )
+    _fixture_git(
+        repo,
+        "-c", "user.email=epoch-fixture@example.invalid",
+        "-c", "user.name=epoch fixture",
+        "commit", "-q", "-m", "record closure A",
+    )
+    return repo
+
+
+def _expected_fixture_epoch() -> str:
+    payload = b"campaign-verifier-epoch/v1" + b"".join(
+        relative.encode("utf-8")
+        + b"\0"
+        + hashlib.sha256(
+            f"epoch closure fixture {index}\n".encode("ascii")
+        ).digest()
+        for index, relative in enumerate(
+            campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+        )
+    )
+    return f"E1:{hashlib.sha256(payload).hexdigest()}"
+
+
 def _new_schema_campaign(
         tmp_path: Path, *, omit_receipt: bool = False,
         coder_authored: bool = False,
@@ -498,7 +537,7 @@ def test_recovered_attempt_then_retry_is_admitted_without_read_mutation(tmp_path
     })
     before_admission = (campaign / "runs/wal.jsonl").read_bytes()
 
-    admitted = A.require_admitted_campaign(campaign)
+    admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
     assert admitted.decision.admitted
     assert before_admission.startswith(crash_prefix)
     assert (campaign / "runs/wal.jsonl").read_bytes() == before_admission
@@ -535,7 +574,7 @@ def test_recovery_abort_extra_keys_are_rejected_by_replay_and_admission(
     with pytest.raises(wal.AttemptTopologyError, match="exact key"):
         wal.replay(layout, admission_policy=policy)
     with pytest.raises(A.ArtifactAdmissionError, match="exact key"):
-        A.require_admitted_campaign(campaign)
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
 
 
 @pytest.mark.parametrize("schema_key,schema_value", [
@@ -621,7 +660,9 @@ def test_historical_signal_does_not_overreject_later_start_only_recovery(tmp_pat
     assert recovered[0].payload["build_attempt_id"] == "active-attempt"
     _append_committed_retry(layout, start, "retry-attempt")
     before_admission = (campaign / "runs/wal.jsonl").read_bytes()
-    assert A.require_admitted_campaign(campaign).decision.admitted
+    assert A.require_admitted_campaign(
+        campaign, purpose=HISTORICAL,
+    ).decision.admitted
     assert (campaign / "runs/wal.jsonl").read_bytes() == before_admission
 
 
@@ -658,7 +699,9 @@ def test_other_variant_recovery_limit_does_not_overreject_first_recovery(tmp_pat
     assert recovered[0].payload["build_attempt_id"] == "variant-b-active"
     _append_committed_retry(layout, start, "variant-b-retry")
     before_admission = (campaign / "runs/wal.jsonl").read_bytes()
-    assert A.require_admitted_campaign(campaign).decision.admitted
+    assert A.require_admitted_campaign(
+        campaign, purpose=HISTORICAL,
+    ).decision.admitted
     assert (campaign / "runs/wal.jsonl").read_bytes() == before_admission
 
 
@@ -833,8 +876,11 @@ def test_three_legacy_campaigns_are_denied() -> None:
             '"stage":"build_start"' in line
             for line in (campaign / "runs/wal.jsonl").read_text().splitlines()
         )
-        with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
-            A.require_admitted_campaign(campaign)
+        with pytest.raises(
+            A.CampaignNotAdmitted, match="legacy-unclassified",
+        ) as excinfo:
+            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert type(excinfo.value) is A.CampaignNotAdmitted
 
 
 @pytest.mark.parametrize(
@@ -858,8 +904,11 @@ def test_legacy_trigger_campaigns_are_not_admitted(
     decision = A.classify_campaign(campaign)
     assert decision.classification == "historical-pre-admission-schema"
     assert decision.admission_status == "legacy-unclassified"
-    with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
-        A.require_admitted_campaign(campaign)
+    with pytest.raises(
+        A.CampaignNotAdmitted, match="legacy-unclassified",
+    ) as excinfo:
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    assert type(excinfo.value) is A.CampaignNotAdmitted
 
 
 @pytest.mark.parametrize(
@@ -868,9 +917,40 @@ def test_legacy_trigger_campaigns_are_not_admitted(
     ids=[Path(path).name for path in ADMITTED_HISTORICAL_CAMPAIGNS],
 )
 def test_nontrigger_historical_campaigns_remain_admitted(path: str) -> None:
-    admitted = A.require_admitted_campaign(ROOT / path)
+    admitted = A.require_admitted_campaign(ROOT / path, purpose=HISTORICAL)
     assert admitted.decision.classification == "historical-pre-admission-schema"
     assert admitted.decision.admission_status == "historical-not-reclassified"
+
+
+def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
+    campaign = (
+        ROOT
+        / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+    )
+    decision = A.classify_campaign(campaign)
+    assert decision.admitted
+    assert decision.classification == "historical-pre-admission-schema"
+
+    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    assert excinfo.value.campaign_verifier_epoch == "E0"
+    assert excinfo.value.epoch_state == "E0"
+    assert excinfo.value.reason_code == "v1-authority-absent"
+    assert "exact 8 path" in excinfo.value.identity_scope
+    assert "pipeline.py" in excinfo.value.identity_scope
+    assert "orchestrator/verifier/*" in excinfo.value.excluded_scope
+
+
+def test_real_e0_historical_raw_succeeds_with_recorded_epoch() -> None:
+    campaign = (
+        ROOT
+        / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+    )
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    assert type(view) is A.HistoricalCampaignView
+    assert view.campaign_verifier_epoch.campaign_verifier_epoch == "E0"
+    assert view.campaign_verifier_epoch.state == "E0"
+    assert view.read_purpose is HISTORICAL
 
 
 @pytest.mark.parametrize("schema", ["historical", "post-policy"])
@@ -908,7 +988,7 @@ def test_lock_read_snapshot_is_rechecked_against_terminal_path(
     monkeypatch.setattr(Path, "read_bytes", read_then_replace)
 
     with pytest.raises(A.ArtifactAdmissionError, match="bytes changed"):
-        A.require_admitted_campaign(campaign)
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
     assert replaced
     assert original_read_bytes(lock_path) == replacement_raw
 
@@ -940,7 +1020,7 @@ def test_overlay_exact_bytes_remain_denied_after_relocation(tmp_path: Path) -> N
     assert decision.classification == "overlay-denied"
     assert decision.overlay_record_key is not None
     with pytest.raises(A.CampaignNotAdmitted, match="legacy-unclassified"):
-        A.require_admitted_campaign(copied)
+        A.require_admitted_campaign(copied, purpose=CERTIFIED)
 
 
 @pytest.mark.parametrize("mutated_file", ["campaign.lock", "runs/wal.jsonl"])
@@ -963,7 +1043,7 @@ def test_overlay_invariant_tuple_partial_match_is_tampering(
 
 def test_unlisted_post_policy_campaign_requires_exact_attempt_receipt(tmp_path: Path) -> None:
     campaign = _new_schema_campaign(tmp_path)
-    admitted = A.require_admitted_campaign(campaign)
+    admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
     assert admitted.decision.classification == "admitted-new-schema"
     assert len(admitted.decision.attempt_receipt_sha256s) == 1
 
@@ -977,6 +1057,144 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     assert decoded.authority is not None
     assert len(decoded.authority.contract_loader_blob_sha256s) == 8
     assert A.classify_campaign(campaign).admission_status == "admitted"
+
+
+def test_certified_acceptance_admits_exact_e1_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+
+    view = A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+    assert type(view) is A.CertifiedCampaignView
+    assert view.campaign_verifier_epoch.state == "E1"
+    assert (
+        view.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_fixture_epoch()
+    )
+    assert view.read_purpose is CERTIFIED
+    assert A.require_certified_campaign_view(view) is view
+
+
+def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    pipeline_path = repo / "orchestrator/campaign/pipeline.py"
+    pipeline_path.write_bytes(pipeline_path.read_bytes() + b"changed in B\n")
+    _fixture_git(repo, "add", "--", "orchestrator/campaign/pipeline.py")
+    _fixture_git(
+        repo,
+        "-c", "user.email=epoch-fixture@example.invalid",
+        "-c", "user.name=epoch fixture",
+        "commit", "-q", "-m", "record closure B",
+    )
+
+    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+    assert excinfo.value.epoch_state == "E1-stale"
+    assert (
+        excinfo.value.reason_code
+        == "recorded-current-closure-mismatch"
+    )
+    assert excinfo.value.campaign_verifier_epoch == _expected_fixture_epoch()
+
+
+def test_certified_acceptance_distinguishes_current_closure_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+
+    def unavailable() -> contract_loader_binding.ContractLoaderBinding:
+        raise contract_loader_binding.ContractLoaderBindingError("unavailable")
+
+    monkeypatch.setattr(
+        contract_loader_binding, "capture_contract_loader_binding", unavailable,
+    )
+    with pytest.raises(A.CampaignVerifierEpochRejected) as excinfo:
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+    assert excinfo.value.epoch_state == "E1-stale"
+    assert excinfo.value.reason_code == "current-closure-unavailable"
+
+
+def test_historical_epoch_display_is_independent_of_live_closure_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    before = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    live_path = repo / "orchestrator/campaign/loop.py"
+    live_path.write_bytes(live_path.read_bytes() + b"dirty live bytes\n")
+
+    after = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert type(before) is A.HistoricalCampaignView
+    assert type(after) is A.HistoricalCampaignView
+    assert (
+        before.campaign_verifier_epoch.campaign_verifier_epoch
+        == after.campaign_verifier_epoch.campaign_verifier_epoch
+        == _expected_fixture_epoch()
+    )
+    assert before.campaign_verifier_epoch == after.campaign_verifier_epoch
+
+
+def test_historical_view_cannot_cross_certified_type_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    historical = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+    assert type(historical) is A.HistoricalCampaignView
+    assert not isinstance(historical, A.CertifiedCampaignView)
+    with pytest.raises(TypeError, match="exact CertifiedCampaignView"):
+        A.require_certified_campaign_view(historical)
+    with pytest.raises(TypeError, match="gate だけが発行"):
+        A.CertifiedCampaignView(
+            layout=historical.layout,
+            records=historical.records,
+            decision=historical.decision,
+            campaign_verifier_epoch=historical.campaign_verifier_epoch,
+            _certification_token=object(),
+        )
+
+
+def test_lock_only_epoch_api_does_not_read_wal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    (campaign / "runs/wal.jsonl").write_bytes(b"not-json\n")
+
+    epoch = A.require_campaign_verifier_epoch(
+        campaign, purpose=CERTIFIED,
+    )
+
+    assert epoch.state == "E1"
+    assert epoch.campaign_verifier_epoch == _expected_fixture_epoch()
+
+
+def test_read_purpose_is_mandatory_and_exact() -> None:
+    campaign = (
+        ROOT
+        / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+    )
+    with pytest.raises(TypeError):
+        A.require_admitted_campaign(campaign)  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match="exact CampaignReadPurpose"):
+        A.require_admitted_campaign(
+            campaign, purpose="HISTORICAL_RAW",  # type: ignore[arg-type]
+        )
 
 
 def test_v2_committed_admission_ignores_dirty_live_loader_disk(
@@ -1661,7 +1879,7 @@ def test_post_policy_variant_is_rederived_from_genome_and_source(tmp_path: Path)
     )
 
     with pytest.raises(A.ArtifactAdmissionError, match="variant differs"):
-        A.require_admitted_campaign(campaign)
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
 
 
 def test_post_policy_variant_without_build_start_remains_admissible(tmp_path: Path) -> None:
@@ -1683,7 +1901,7 @@ def test_post_policy_variant_without_build_start_remains_admissible(tmp_path: Pa
         encoding="utf-8",
     )
 
-    admitted = A.require_admitted_campaign(campaign)
+    admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
     assert admitted.decision.classification == "admitted-new-schema"
     assert any(
         record.variant == "ffffffffffff" and record.stage == "verify_done"
@@ -1692,7 +1910,9 @@ def test_post_policy_variant_without_build_start_remains_admissible(tmp_path: Pa
 
 
 def test_admitted_view_is_deeply_immutable(tmp_path: Path) -> None:
-    admitted = A.require_admitted_campaign(_new_schema_campaign(tmp_path))
+    admitted = A.require_admitted_campaign(
+        _new_schema_campaign(tmp_path), purpose=HISTORICAL,
+    )
     start = admitted.records[0]
     with pytest.raises(FrozenInstanceError):
         start.stage = "commit"
@@ -1705,7 +1925,7 @@ def test_admitted_view_is_deeply_immutable(tmp_path: Path) -> None:
 def test_unlisted_post_policy_receiptless_terminal_is_denied(tmp_path: Path) -> None:
     campaign = _new_schema_campaign(tmp_path, omit_receipt=True)
     with pytest.raises(A.ArtifactAdmissionError, match="attempt admission is invalid"):
-        A.require_admitted_campaign(campaign)
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
 
 
 def test_unlisted_receiptless_campaign_cannot_self_declare_history(tmp_path: Path) -> None:
@@ -1719,7 +1939,7 @@ def test_unlisted_receiptless_campaign_cannot_self_declare_history(tmp_path: Pat
         [_record("build_start", {"genome": "g", "src_token": "old"}, ts=1.0)],
     )
     with pytest.raises(A.ArtifactAdmissionError, match="historicity is not proven"):
-        A.require_admitted_campaign(campaign)
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
 
 
 def test_exact_pre_policy_git_snapshot_artifact_remains_readable() -> None:
@@ -1727,7 +1947,7 @@ def test_exact_pre_policy_git_snapshot_artifact_remains_readable() -> None:
     campaign = ROOT / path
     assert hashlib.sha256((campaign / "campaign.lock").read_bytes()).hexdigest() == lock_sha
     assert hashlib.sha256((campaign / "runs/wal.jsonl").read_bytes()).hexdigest() == wal_sha
-    admitted = A.require_admitted_campaign(campaign)
+    admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
     assert admitted.decision.classification == "historical-pre-admission-schema"
     assert admitted.decision.admission_status == "historical-not-reclassified"
 

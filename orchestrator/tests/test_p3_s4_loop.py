@@ -43,7 +43,10 @@ from orchestrator.campaign.build_admission import (                             
     derive_build_admission,
 )
 from orchestrator.campaign.reflux_ir import TriggerGateIR, emit_predicate       # noqa: E402
-from orchestrator.campaign.artifact_admission import require_admitted_campaign  # noqa: E402
+from orchestrator.campaign.artifact_admission import (                         # noqa: E402
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from orchestrator.campaign.loop import CampaignSummary                          # noqa: E402
 from orchestrator.campaign.pipeline import variant_id                           # noqa: E402
 from orchestrator.campaign.source_digest import (                               # noqa: E402
@@ -123,7 +126,9 @@ def _critic_view(layout: CampaignLayout):
     wal.write_lock(layout, build_v2_lock(
         ident.canonical_preimage(L.default_cfg())
     ))
-    return require_admitted_campaign(layout)
+    return require_admitted_campaign(
+        layout, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
 
 
 def _mk_template_dir(source_rel: str = _SRC_REL):
@@ -1216,7 +1221,9 @@ def test_critic_digest_rejects_projector_from_different_admitted_snapshot():
     lay = _tmp_layout("projection-snapshot")
     _log_projection_start(lay, "raw-src", "projection-snapshot-attempt")
     first = _critic_view(lay)
-    second = require_admitted_campaign(lay)
+    second = require_admitted_campaign(
+        lay, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     projection = L.make_critic_identity_projection(first)
     try:
         L.make_critic_digest(
@@ -1306,6 +1313,40 @@ def test_all_production_critic_digest_calls_explicit_projection_context():
         else:
             assert isinstance(projection, ast.Name)
             assert projection.id == "identity_projection", (path, line)
+
+
+def test_all_p3_loop_campaign_reads_declare_certified_purpose():
+    """次 iteration の材料を読む全 P3 caller を certified purpose に閉じる。"""
+    production_paths = [
+        Path(L.__file__),
+        Path(SORT_LOOP.__file__),
+        Path(TRIGGER_LOOP.__file__),
+        Path(L.__file__).with_name("p3_s4_red.py"),
+        Path(L.__file__).with_name("p3_autonomous_workload_trial.py"),
+    ]
+    calls = []
+    for path in production_paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = (
+                node.func.id if isinstance(node.func, ast.Name)
+                else node.func.attr if isinstance(node.func, ast.Attribute)
+                else ""
+            )
+            if name == "require_admitted_campaign":
+                calls.append((path.name, node.lineno, node))
+    assert len(calls) == 7, calls
+    for path, line, call in calls:
+        purposes = [
+            keyword.value for keyword in call.keywords
+            if keyword.arg == "purpose"
+        ]
+        assert len(purposes) == 1, (path, line)
+        assert ast.unparse(purposes[0]).endswith(
+            "CampaignReadPurpose.CERTIFIED_ACCEPTANCE"
+        ), (path, line, ast.unparse(purposes[0]))
 
 
 def _single_production_make_digest_call(filename: str) -> ast.Call:

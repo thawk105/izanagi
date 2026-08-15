@@ -22,7 +22,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from ..calibrator.stability import compare                        # noqa: E402
-from . import replay, wal                                # noqa: E402
+from . import replay                                     # noqa: E402
+from .artifact_admission import (                        # noqa: E402
+    CampaignReadPurpose,
+    HistoricalCampaignView,
+)
 from .layout import repo_output_root                    # noqa: E402
 from .model import (STAGE_BENCH_DONE, STAGE_BUILD_DONE,  # noqa: E402
                             STAGE_BUILD_START, STAGE_COMMIT)
@@ -64,10 +68,12 @@ class GRow:
         return _short_label(self.genome) if self.genome else self.variant[:8]
 
 
-def _collect(layout) -> dict:
+def _collect(view: HistoricalCampaignView) -> dict:
+    if type(view) is not HistoricalCampaignView:
+        raise TypeError("P2-2 歴史レポートには exact HistoricalCampaignView が必要")
     rows: dict = {}
     # [T-082] prefix 容認 (crash tail は黙って捨てる) — 公式判定に使わない。
-    for r in wal.read_records(layout):
+    for r in view.records:
         g = rows.setdefault(r.variant, GRow(r.variant))
         p = r.payload
         if r.stage == STAGE_BUILD_START:
@@ -86,6 +92,20 @@ def _collect(layout) -> dict:
             if p.get("fitness_tps") is not None:
                 g.median = p.get("fitness_tps")
     return rows
+
+
+def _epoch_provenance(view: HistoricalCampaignView) -> dict:
+    """歴史生値を certified と再ブランドせず、記録 epoch を表示する。"""
+    if type(view) is not HistoricalCampaignView:
+        raise TypeError("P2-2 歴史レポートには exact HistoricalCampaignView が必要")
+    epoch = view.campaign_verifier_epoch
+    return {
+        "read_purpose": view.read_purpose.value,
+        "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
+        "campaign_verifier_epoch_state": epoch.state,
+        "campaign_verifier_epoch_scope": epoch.identity_scope,
+        "campaign_verifier_epoch_excluded_scope": epoch.excluded_scope,
+    }
 
 
 def _ranked(rows: dict) -> list:
@@ -108,11 +128,14 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     # discover する。旧実装は submodule pin 前進で on-disk id と食い違い、歴史的
     # campaign を沈黙 skip して exit 0 していた (phase2.md 選択肢a)。
     try:
-        layout = replay.discover_p2_2_dir(tag)
+        view = replay.discover_p2_2_dir(
+            tag, purpose=CampaignReadPurpose.HISTORICAL_RAW,
+        )
     except FileNotFoundError as e:
         log(f"[{tag}] campaign dir を discover できない → skip: {e}")
         return {}
-    rows = _collect(layout)
+    layout = view.layout
+    rows = _collect(view)
     ranked = _ranked(rows)
     if not ranked:
         log(f"[{tag}] committed genome 無し → skip")
@@ -131,6 +154,7 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         "noise_floor_cv": f"between-run {BETWEEN_RUN_CV * 100:.1f}% "
                           f"(within-run {WITHIN_RUN_CV * 100:.2f}%, skew0.9)",
         "genome_label": "B<BACK_OFF>-<L=no-wait-locking/即abort | T=tictoc-no-wait/retry>-W<WAL>",
+        **_epoch_provenance(view),
     }
     dat = DatFile(
         title=f"P2-2 silo fitness: {tag} ({wl_str})",
@@ -163,8 +187,11 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
               os.path.basename(paths["png"]), os.path.basename(paths["dat"]),
               os.path.basename(paths["plt"]))
     log(f"[{tag}] 最速={win.label} {win.median:,.0f} tps → {md_path}")
-    return {"tag": tag, "cid": os.path.basename(layout.root), "winner": win, "ranked": ranked,
-            "verdicts": verdicts, "report": md_path, "png": paths["png"]}
+    return {
+        "tag": tag, "cid": os.path.basename(layout.root), "winner": win,
+        "ranked": ranked, "verdicts": verdicts, "report": md_path,
+        "png": paths["png"], **_epoch_provenance(view),
+    }
 
 
 def _verdict_str(c) -> str:
@@ -227,8 +254,8 @@ def write_summary(results: list, path: str) -> None:
          f"clocks_per_us={CLK} / skew0.9 / 採否 floor = between-run "
          f"{BETWEEN_RUN_CV * 100:.1f}% (within-run {WITHIN_RUN_CV * 100:.2f}%)",
          "",
-         "| workload | 最速 genome | median tps | CV | 2位との差 |",
-         "|---|---|---:|---:|---|"]
+         "| workload | verifier epoch | 最速 genome | median tps | CV | 2位との差 |",
+         "|---|---|---|---:|---:|---|"]
     for r in results:
         if not r:
             continue
@@ -239,7 +266,8 @@ def write_summary(results: list, path: str) -> None:
         if second is not None:
             c = r["verdicts"].get(second.variant)
             gap = _verdict_str(c) if c else "—"
-        L.append(f"| {r['tag']} | `{win.label}` ({win.genome.split('|',1)[1]}) | "
+        L.append(f"| {r['tag']} | `{r['campaign_verifier_epoch']}` | "
+                 f"`{win.label}` ({win.genome.split('|',1)[1]}) | "
                  f"{win.median:,.0f} | {win.cv * 100:.2f}% | {gap} |")
     L += ["", "## 各 workload の詳細レポート", ""]
     for r in results:

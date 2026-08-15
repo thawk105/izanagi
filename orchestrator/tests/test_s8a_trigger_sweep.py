@@ -22,6 +22,8 @@ import itertools
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -34,23 +36,37 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 import pytest                                                      # noqa: E402
 
 from orchestrator.campaign import axis_trigger_gating as T                      # noqa: E402
+from orchestrator.campaign import campaign_lock, contract_loader_binding        # noqa: E402
 from orchestrator.campaign import ident                                         # noqa: E402
 from orchestrator.campaign import pipeline                                      # noqa: E402
 from orchestrator.campaign import p3_s4_loop as L                               # noqa: E402
 from orchestrator.campaign import s8a_trigger_sweep as W                        # noqa: E402
 from orchestrator.campaign import wal                                           # noqa: E402
-from orchestrator.campaign.artifact_admission import CampaignNotAdmitted         # noqa: E402
+from orchestrator.campaign.artifact_admission import (                          # noqa: E402
+    CampaignNotAdmitted,
+    CampaignReadPurpose,
+    CampaignVerifierEpochRejected,
+    require_admitted_campaign,
+)
 from orchestrator.campaign.build_admission import (BuildAdmissionError,            # noqa: E402
                                       BuildProvenance, GeneratorId,
                                       attest_generator_output,
                                       build_run_context,
                                       derive_build_admission)
-from orchestrator.campaign.model import STAGE_BUILD_START                       # noqa: E402
+from orchestrator.campaign.model import (                                       # noqa: E402
+    COMMIT_CONTRACT_SHA256_KEY,
+    STAGE_BUILD_START,
+)
 from orchestrator.campaign.pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from orchestrator.campaign.pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from orchestrator.campaign.source_digest import (EMPTY_TRACKED_DIFF_SHA256,      # noqa: E402
                                     STOCK, SourceEvidence)
 from campaign_lock_test_support import build_v2_lock                 # noqa: E402
+
+_REAL_E0_CAMPAIGN = (
+    Path(_ORCH).parent
+    / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+)
 
 # 頻度実測の予想結果 (シート導出: YCSB では node/absent 構造ゼロ)。テストは実測に
 # 依存しない — 代表として 3 ビットの実効集合で列挙の機械性質を検査する。
@@ -787,10 +803,55 @@ def test_floor_uncalibrated_fails_closed():
                                  {"abort_rate": 0})               # 基準 0 も判定不能
 
 
-def _install_post_policy_screen_fixture(layout):
-    """receipt に束縛した合成 sweep WAL と variant id を作る。"""
+def _fixture_git(repo: Path, *args: str) -> bytes:
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.fail("git is required for verifier epoch fixtures")
+    completed = subprocess.run(
+        [executable, "-C", str(repo), *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        pytest.fail(
+            "git fixture command failed: "
+            f"args={args!r} rc={completed.returncode} "
+            f"stderr={completed.stderr.decode('utf-8', errors='replace')!r}"
+        )
+    return completed.stdout
+
+
+def _install_fixed_e1_closure(
+    root: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """単位 A と同じ固定 bytes の exact 8-path closure を用意する。"""
+    repo = root / "closure-repo"
+    repo.mkdir()
+    _fixture_git(repo, "init", "-q")
+    for index, relative in enumerate(
+        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+    ):
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"epoch closure fixture {index}\n".encode("ascii"))
+    _fixture_git(
+        repo, "add", "--", *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+    )
+    _fixture_git(
+        repo,
+        "-c", "user.email=epoch-fixture@example.invalid",
+        "-c", "user.name=epoch fixture",
+        "commit", "-q", "-m", "record closure A",
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+
+
+def _install_post_policy_screen_fixture(layout, root, monkeypatch):
+    """固定 E1 closure と receipt に束縛した合成 sweep WAL を作る。"""
     context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
-    Path(layout.lock_file).write_text(json.dumps({
+    identity_preimage = campaign_lock.canonical_json({
         "ccbench_commit": W.PIN,
         "search_config": {
             "records": 1,
@@ -800,7 +861,12 @@ def _install_post_policy_screen_fixture(layout):
         "search_tag": "test",
         "spec_content": "test",
         "trial": "test",
-    }), encoding="utf-8")
+    })
+    _install_fixed_e1_closure(root, monkeypatch)
+    lock_text = build_v2_lock(identity_preimage)
+    Path(layout.lock_file).write_text(lock_text, encoding="utf-8")
+    decoded = campaign_lock.decode_campaign_lock(lock_text)
+    assert decoded.authority is not None
     variants = {}
     for ordinal, label in enumerate(("screen", "certified"), start=1):
         genome = W._genome(1)
@@ -842,17 +908,30 @@ def _install_post_policy_screen_fixture(layout):
             "build_attempt_id": attempt,
             "build_admission_receipt_sha256": receipt["receipt_sha256"],
         })
-    return variants
+    return variants, decoded.authority.environment_contract_sha256
 
 
-def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch):
+def test_screen_reject_row_and_report_hide_uncertified_bench_values(
+    monkeypatch, tmp_path,
+):
     """BENCH_DONE は certified の証拠ではない。screen 数値は WAL にだけ保持する。"""
     from orchestrator.campaign.layout import CampaignLayout
+
+    historical = require_admitted_campaign(
+        _REAL_E0_CAMPAIGN,
+        purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    assert historical.campaign_verifier_epoch.state == "E0"
+    assert historical.records
+    with pytest.raises(CampaignVerifierEpochRejected, match="state=E0"):
+        W._load_rows(_REAL_E0_CAMPAIGN, {})
 
     layout = CampaignLayout(
         root=tempfile.mkdtemp(prefix="izanagi_s8ascreen_")
     ).ensure()
-    variants = _install_post_policy_screen_fixture(layout)
+    variants, contract_sha256 = _install_post_policy_screen_fixture(
+        layout, tmp_path, monkeypatch,
+    )
     screen_variant, screen_attempt, screen_receipt = variants["screen"]
     certified_variant, certified_attempt, certified_receipt = (
         variants["certified"]
@@ -887,6 +966,7 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
     W.wal.log(layout, certified_variant, W.STAGE_COMMIT, W.ENV_TAG, {
         "build_attempt_id": certified_attempt,
         "build_admission_receipt_sha256": certified_receipt["receipt_sha256"],
+        COMMIT_CONTRACT_SHA256_KEY: contract_sha256,
     })
 
     entries = {
@@ -929,6 +1009,8 @@ def test_screen_reject_row_and_report_hide_uncertified_bench_values(monkeypatch)
     assert path is not None
     with open(path, encoding="utf-8") as f:
         text = f.read()
+    assert "受理目的**: `CERTIFIED_ACCEPTANCE`" in text
+    assert "campaign_verifier_epoch**: `E1:" in text
     assert "screening 正常棄却" in text
     assert pipeline.SCREEN_REJECTION_REASON in text
     assert "12345" not in text.replace(",", "")
