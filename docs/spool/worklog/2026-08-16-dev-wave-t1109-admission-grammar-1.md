@@ -1,0 +1,134 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-08-16
+wave: dev-wave-t1109-admission-grammar
+seq: 1
+title: 実機の job ID が admission を通らず 8c live が全面的に塞がっていた件を解き、失敗経路が診断 report を残せるようにした — 「実在値が自分の述語を通らない」型を族として positive control で撃つ (コード + テスト + docs、branch worktree-dev-wave-t1109-admission-grammar)
+---
+
+## 本文
+
+- **ユーザー裁定 (2026-08-15 の /rulings 全件束、authority: ユーザー) を 3 件実装した。**
+  [T-1109] = 択 (a) 受理文法を `(?:0:)?` へ拡張、[T-1110] = 択 (a) `transport-admission-error` を
+  足す、[T-1111] = 義務づける (起動を止める型の fail-closed admission 述語に限定)。
+  控えは wave 外の裁定 inbox にあり、branch `worktree-rulings-20260815-full` が未 land のため
+  canonical worklog には本 wave 時点で未反映だった。
+- **repo 自身が 526 file の反証を抱えていた。** `output/env/pegasus/calibration/job-staging/` には
+  `0:867863.nqsv` 〜 `0:867876.nqsv` 等の**実機 `PBS_JOBID` を directory 名に持つ** tracked artifact が
+  526 file あり、`reservation.json` は `"job_id": "0:867876.nqsv"` を持つ。
+  transport の述語が「colon を含まない」と主張し続ける間、repo は同じ値を tracked で保持していた。
+  **F97 型 (実在値が自分の述語を通らない) は、多くの場合 repo 内に既に反証が置かれている。**
+- **本 wave の最重要の実測は [T-1110] の性質が想定と違ったことである。**
+  完全性検査は「書かれた report を後から検証するもの」ではなく
+  **report を書くこと自体の関門**だった ({{F:completeness-gate-blocks-its-own-report}})。
+  実走 journal の `run-finish` は report path を書いているのに実体が無く、
+  原因は検査の例外で書き込み行に到達していなかったことである。
+  この所見は並行 job (8c live pilot 担当) が送ってきた journal を親が開いて確認する過程で出た。
+  **同 job と親は、admission 失敗経路で発火する関門が
+  `assert_autonomous_trial_completeness` ただ 1 つであることに独立に到達し、一致した**
+  (build 系 3 関門は `fatal_error` / `cells` の guard で飛ぶ)。
+- **段 3 の敵対 2 レンズは独立に NO-GO を返し、親 brief の誤りを 5 件反証した。** 特に
+  「positive control の実在値は実走 journal から取れる」は偽で、**あの journal に job ID は無い**。
+  一次出所を tracked artifact へ差し替えた。「族の member は 2 件」も偽で、
+  実際は 8 件だった。「D96 が機械検査を一律禁止している」も過度な一般化だった
+  (D96 は AST 案 1 件を却下し、独立 2 例と再裁定での再提案を明示的に許している)。
+- **段 6 の敵対 2 レンズは production の防壁を崩せなかった。** early return による検査飛ばし、
+  campaign root 免除の悪用、terminal 分岐の過剰拒否、`0:` 付き値による receipt 同一視や
+  redaction の穴、既存負例の弱体化は**いずれも反証された**。
+  **must-fix 5 件はすべて親の記録と変異登録の不備だった。**
+- **親が段 4 裁定の前提を 1 件、実装子に反証されて訂正した。** member 7 (competing-bench) を
+  「clean production probe の raw triple が repo に無い」として `unmet` にしていたが、
+  tracked `isolation.txt` が 6 file (内部 53 記録すべて同一) 実在した。
+  述語は生の 3 つ組をそのまま受け取るため正直な control が書ける。
+  **「入力が無いので未達」と台帳に書けば実測に反する虚偽になる**ので、裁定へ addendum を書き、
+  単位 D を追加した。段 6 レンズ A はこの不一致 (裁定文書に addendum が無いこと) を正しく突いた。
+- **変異事前登録に 3 件の欠陥があり、本走前に訂正した。** (a) `_EVENTS` と `_TERMINAL_EVENTS` が
+  同一 literal を共有するため裸の置換では 2 箇所に当たり帰属が壊れる、(b) 期待 nodeid が
+  自動生成 ID 依存で確定しない、(c) **1 件が等価変異** (テストの独立 pin を production 定数参照へ
+  替えるだけで、production が同じ文字列を持つため必ず生存する)。
+  **(c) は本 wave が撃っている恒真ゲート型そのものであり、そのまま本走すれば
+  「新設検査が捕まえた」と誤記録するところだった。**
+- **副次的に、記録済み journal と現行 producer の shape が乖離していることを見つけた。**
+  記録側の `run-start` は現行 producer が無条件に書く 3 field を持たないのに、
+  `SCHEMA_VERSION` は双方とも同じである。schema_version を上げずに field を足している。
+  本 wave の fixture は現行 producer から導出した。恒久対応は別タスクへ切った。
+- **セッション異常 2 件。** (1) 待ち手を producer 起動直後に張ると、
+  出力ゼロの `rc=0` を約 1 分で返す false completion が 1 度起きた (再現性 2 回中 1 回)。
+  3 点照合 (成果物実在 + `.done` + producer 死) を守っていたため誤進行は防げた。
+  (2) login node が並行 wave の輻輳で `bounded scope の memory.max / memory.oom.group を
+  走行中に attest できない` を返し続け、**同一手順で直前に緑だった対象も同じ症状で落ちた**。
+  環境障害と判定し、他 wave と同じく計算ノードへ回して実走した。
+- **変異本走は 8 件すべて KILLED し、期待 node 完全集合と一致した** (baseline PASSED、harness rc=0)。
+  ただし**第 1 走は probe である** — V3〜V6 の 4 件が MISMATCH になった。
+  変異自体は 8 件とも検出されており検出力の不足ではなく、親の期待 node 集合が過小だった
+  (V3 は登録 2 件に対し実測 17 件)。原因は「新設 gate が発火すると後段の検査が走らず
+  診断がまとめて置き換わる」型で、親は新設検査を直接撃つ 2 件しか数えていなかった。
+  実測 node を完全集合として再登録し第 2 走を権威走行とした。
+  逐語と erratum = `output/insights/2026-08-16_t1109-admission-grammar/`。
+- **工数:** codex 子 8 本 (plan 1 / consult 2 / author 4 / review 2 / fix 1)。
+  実装子の wall-clock は 350 / 568 / 423 秒。
+
+## 次の一手差分
+
+### 完了
+
+- [T-1109] 受理文法を `(?:0:)?<request-id>` へ拡げ、qsub authority は不変に保った。
+  新たに拒否される値は 0 件で、既存負例 15 件はすべて拒否のまま。
+  設計判断は {{D:pbs-jobid-env-grammar}}。
+  remaining: none
+  base: b0262a19aaef1d6b46eb13d245e6728e886a759d45bc97efe1a3e5cfecd30d34
+
+- [T-1110] `transport-admission-error` を受理 event と terminal event の両方へ足し、
+  admission 失敗経路が verified partial `report.json` を実際に永続化できるようにした。
+  `_EVENTS` への追加だけでは足りず、error 専用 gate・`first_run_event`・terminal 配置・
+  zero-cell coverage・campaign root 要求の限定免除の 5 面が必要だった
+  ({{F:completeness-gate-blocks-its-own-report}})。
+  remaining: none
+  base: b31d3e5b1b32107819b4126647774299cb61e7ce77d2d81307c2744e930167f0
+
+### 更新
+
+- [T-1111] **P2・部分実施**: 「起動を止める型の fail-closed admission 述語は、実在の
+  production 値を自分の述語へ通す positive control を持つ」を族として義務づけ、
+  {{D:fail-closed-admission-positive-control}} に境界定義と 8 member の inventory
+  (停止点 / 実在値の正本 / positive nodeid / 充足状態) を固定した。
+  **member 8 件中 6 件に control を置いた。** 残る 2 件は
+  member 2 (runtime attestation、D143 のユーザー裁定待ちで真正面に書けば現在は赤) と
+  member 8 (provider live env / receipt 一致、実在値を未取得) で、
+  **skip・xfail・期待反転で緑に見せず `unmet` のまま残した。**
+  member を機械列挙する registry gate は、この 2 件が unmet のまま作ると
+  偽の完備性を与えるため新設しない。残余は {{T:admission-control-unmet-members}} へ。
+  base: 6d7b64ba232fd58c199d12d01e445ae6fea1cb5e813a3e4e8ca380294f6f869b
+
+- [T-1112] **P1・ユーザー裁定待ち**: 8c A/B/C live pilot の再投入。
+  本 wave で [T-1109]/[T-1110]/[T-1111] が閉じ、**起票の前提を 1 つ満たした** —
+  実機 job ID が transport admission を通り、admission 失敗時も診断 report が残る。
+  **ただし段 3 の敵対 2 レンズが独立に、残る閂を 2 件測定した。**
+  (a) F97 の runtime attestation (D143 未裁定) は build 前で止めるため、
+  文法が直っても build・measurement・certified 選択は生成されない。
+  (b) 計算ノード実機での D122 (2)(i)(iii)〜(viii) は**未測定**である
+  (proxy 2 key の実在と policy exact 一致、TLS override 不在、従量 env 不在、policy path の健全性)。
+  本 wave は login node のみで走っており、実機測定は行っていない。
+  **起票してよいか、(a)(b) を [T-1112] 自身の第 1 段として測るかはユーザー裁定へ返す。**
+  base: a6fe161424df38a7f27497b72bebfe289b30dfe6dbbf1063e5fecd2df1f3da6d
+
+### 新規
+
+- {{T:admission-control-unmet-members}} **P2・新規**: {{D:fail-closed-admission-positive-control}}
+  の unmet member 2 件を閉じる。member 2 は D143 の裁定が前提。member 8 は
+  provider live env / receipt 一致の実在 production 値を取得する必要がある。
+  両方が閉じたら member registry の機械 gate 化を再提案してよい
+  (D96 は AST 案 1 件を却下しただけで、独立 2 例と再裁定での再提案を許している)。
+
+- {{T:reservation-not-wired-to-8c-launch}} **P1・新規**: 8c の事前登録証拠契約は
+  `run_trial -> reservation.single_process_required -> campaign launch` を要求するが、
+  `check_reservation` の実 call site は t126 driver と 8b の 2 driver だけで、
+  8c launch path への到達が確認できない。**契約と実装の乖離**であり、
+  reservation control が緑でも 8c の allocation provenance は保護されていない。
+  配線するか契約から明示的に外すかを決める。
+
+- {{T:trial-journal-schema-version-not-bumped}} **P2・新規**: 自律試行 journal の
+  `run-start` に field を足したとき `SCHEMA_VERSION` を上げていない。
+  記録済み artifact と現行 producer が同一 schema_version で別 shape になっており、
+  記録を fixture に使うと stale な形を固定する。version 規約を決めて追随させる。
