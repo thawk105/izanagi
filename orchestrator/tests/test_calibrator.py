@@ -747,6 +747,23 @@ def test_competing_bench_pids_rc1_clean_is_no_competition():
     assert _probe_result(returncode=1, stdout="", stderr="") == []
 
 
+def test_recorded_competing_bench_probes_pass_admission():
+    """tracked isolation.txt 6 件の production 観測と status=pass を固定する。"""
+    from orchestrator.calibrator import runner
+    recorded_probes = [
+        ("0_873732.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+        ("0_873737.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+        ("0_873759.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+        ("0_873846.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+        ("0_873855.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+        ("0_873859.nqsv", 1, "", "", ("pgrep", "-af", r"ycsb_.*\.exe"), "pass"),
+    ]
+    for artifact, rc, stdout, stderr, argv, recorded_status in recorded_probes:
+        classified = runner.classify_competing_probe(
+            rc, stdout, stderr, argv, own_pid=4242)
+        assert (classified, recorded_status) == ([], "pass"), artifact
+
+
 def test_competing_bench_pids_rc1_with_stderr_is_probe_error():
     """rc==1 でも stderr 非空 (BusyBox 等の option 構文エラーの罠) は fail-closed で例外
     にする — 空 stdout を「無競合」と誤認して汚染計測を採用しない (B-1)。"""
