@@ -7896,3 +7896,132 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   うち production 16/16・test 48/49 という数え上げで穴が特定できた。
 - 再発検知: 合成監査の報告に「満たさない件数」欄を必須にする。ゼロと書くなら何を母集合として
   数えたかを併記させる (`DW-O17` の実装面 path 判定だけでは行が競合しない破壊を捕まえられない)。
+
+### F325. 裁定文が片方向の含意を「同値」と書き、忠実な実装が 79 件を赤にした [誤前提] [手順漏れ]
+
+- 事象: (2026-08-16) 段 6 fix 契約で親が「新しい private field の存在を
+  `configuration_id == "sort_best"` と**同値**にする」と書いた。fix 子は書かれたとおり
+  双方向の同値を実装し、計算ノードの焦点走で **79 件**が赤になった。うち **78 件**は同一行
+  (`... は sort_best と同値でなければならない`) から出ており、原因は 1 本だった。
+- 根本原因: 親が意図していたのは片方向の含意 (「field があるなら sort_best」) だが、
+  逆向き (「sort_best なら field がある」) まで要求する語を選んだ。当該 field の注入は
+  production の sort 経路が走るときだけ起きるので、pilot・注入 build seam・base 未使用の run では
+  `sort_best` record が field を持たないのが正常であり、同値要求はそれらを全部拒否した。
+  **同じ wave のレビューが「受理集合の過剰縮小」として潰した型を、親自身が別の場所で作り直していた。**
+- 影響: fix 1 巡 (子 1 本 + 計算ノードの焦点走 6 本) を丸ごと消費した。
+  実装子は指示に忠実であり、子側の欠陥ではない。
+- 恒久対応: 裁定文で受理・拒否の条件を書くときは、**含意の向きを 2 文へ分解して書く** —
+  「X があって非 A なら拒否する」「A で X が無くても拒否しない」。
+  本 wave の第 2 巡 fix 契約 §2 がその形の実例である
+  (逐語 = `output/insights/2026-08-16_t1128-floor-same-root/verbatim/`)。
+- 再発検知: 裁定文に「同値」「iff」「と一致すること」が現れ、
+  受理側の反例 (条件を満たすが field を持たない正常な入力) が 1 つも書かれていないこと。
+
+### F326. 未束縛の名前による NameError が総括捕捉へ落ち、期待値と偶然一致して偽の緑になった [テスト代表性] [恒真ゲート]
+
+- 事象: (2026-08-16) 失敗注入テストの fixture が `buildcache.MasstreeFetchContentError` を
+  raise していたが、その test module には `buildcache` という名前が一度も束縛されていなかった。
+  raise は `NameError` になり、production の総括 `except Exception` に落ちて
+  `...-base-failed` へ分類された。`[configure]` / `[target]` パラメータは期待値と違うので赤になったが、
+  **`[base]` パラメータは期待値がまさに `base-failed` だったため緑のまま通っていた。**
+- 根本原因: fixture が意図した層に届いていないのに、期待値との偶然の一致で緑が出る形だった。
+  段階別の例外分類は production 側では正しく書かれており、
+  その分類を通る経路を fixture が一度も踏んでいなかった。
+- 影響: 「prebuild の base 失敗が閉じた detail code へ変換される」という保証が、
+  実際には一度も検証されていなかった。同 wave の焦点再レビューは同型の過剰決定を
+  もう 1 件 (期待 node が後段 gate に決定されている) 指摘している。
+- 恒久対応: 失敗注入の負例では、**注入した例外の型が production の意図した `except` 節に
+  実際に入ったこと**を検査に含める。本 wave の第 3 巡 fix は
+  `[configure]` / `[target]` / `[base]` の 3 パラメータが**それぞれ別の例外型と
+  別の detail code** を通ることを固定した。
+- 再発検知: 負例が緑なのに、期待する detail code が production の総括 `except` の値と
+  同じであること。fixture が参照する名前が test module で束縛されているかの確認。
+
+### F327. 待ち手が成果物・`.done` 不在かつ生産者生存のまま rc=0 で終了した [観測] [完了誤認]
+
+- 事象: (2026-08-16) 背景 job の待ち手 `tools/dev_wave_wait.py producer` が、
+  **3 回連続で**成果物ファイルも `.done` も存在せず、`--pid-file` の生産者 process が
+  生存している状態で rc=0・出力ゼロで終了した。同じ wave の先行 6 本では正常に待っていた。
+- 根本原因: 未特定。待ち手の出力が空で、判定の根拠が残らない。
+  本 wave では原因究明より作業続行を優先した。
+- 影響: 通知だけを信じていれば、未生成の成果物を「完了」として読みに行き、
+  変異台帳が欠けたまま先へ進んでいた。実際には 3 点照合 (成果物実在・`.done`・生産者死)
+  で毎回 fail-closed に検出できた。
+- 恒久対応: **待ち手の rc=0 を完了の根拠にしない。** 成果物実在・`.done` の内容・
+  `--pid-file` の pid が死んでいることの 3 点をすべて確認する。
+  3 点が揃わなければ待ちを張り直す。本 wave は 3 回目で
+  `.done` 出現までブロックする自前の待ちへ切り替えた (無出力・周期報告なし)。
+- 再発検知: 待ち手が数秒で rc=0 を返し、出力が空であること。
+
+### F328. 敵対レンズ子が上流分類器に拒否され 2 回とも出力ゼロで死んだ [セッション死・救出]
+
+- 事象: 段 3 の敵対レンズ A が 2 回連続で rc=1・出力 0 bytes で終了した。1 回目は
+  guard 自身が `python3 -c` での判定直叩きを (設計どおり) 拒否し、子が測定手段を失って停止。
+  親が repo 外の判定 runner を用意して 2 回目を投入したところ、今度は上流の分類器が
+  「cybersecurity risk」として `turn.failed` を返し、828 秒 / model call 16 / 出力 30,797 token が
+  全損した。`evidence_status` は `complete` で、receipt からは正常終了と区別が付かない。
+- 根本原因: (1) 防壁を狭める wave の敵対レンズは、本質的に「迂回コマンドを列挙して実測する」
+  作業になる。prompt 冒頭に防御目的を明記しても、**作業内容そのもの**が分類器の閾値を越える。
+  (2) 防壁を検査する子に、防壁自身が拒否する測定手段しか渡していなかった。
+- 恒久対応: D427 と同 wave の運用で、(a) 判定の実測は**親が repo 外に置いた
+  runner を script file 実行で渡す** (`python3 <runner> <repo> bash "<cmd>"` は allowlist を
+  通るため、防壁を迂回せずに測れる)、(b) 迂回列挙型のレンズは段 3 で単独に投げず、
+  段 6 のレビューへ**中立な適合性検査**として畳み込む。memory
+  `codex-adversarial-prompt-defensive-framing` に「防御目的の明記だけでは足りない」を追記する。
+- 再発検知: 子の receipt で `codex_exit_code=1` かつ `output_bytes=0` かつ
+  `evidence_status=complete` の組み合わせを、events の `turn.failed` まで開いて分類する
+  (rc だけでは web 検索由来の全損と区別できない)。
+
+### F329. 判定述語を上位集合へ差し替えて過去に潰した false positive が 2 件戻った [ドリフト]
+
+- 事象: 防壁の受理集合を狭める実装が、末端判定の述語を上位集合 (campaign tree と ccbench tree の
+  祖先を含む) へ差し替えた。結果、`echo external deps: $(nproc) cores` (防護対象の字面を
+  含まない mention 語 + 不透明構文) と `tee output/campaigns/c` (official campaign root への
+  旧受理) が拒否されるようになった。どちらも過去の敵対レビューで明示的に潰した
+  false positive であり、回帰テストが両方を捕まえた。
+- 根本原因: 述語を「より広く判定するもの」へ置き換えると、狭める方向の変更としては
+  一見安全に見えるが、**過去の FP 修正が依存していた境界**が同時に消える。
+  さらに token を記号で分割して候補を作ったため、散文中の裸単語 `external` / `output` まで
+  「防護対象に触れた」と判定された。
+- 恒久対応: 述語は元の 3 つ (末端 regex / hooks subtree / namespace marker) に戻し、
+  option 値と inline program 内の path fragment 抽出だけを残した。加えて
+  D428 で、受理集合を変える wave に wave 前との反転検査を課す。
+- 再発検知: `orchestrator/tests/test_hooks.py` の
+  `test_bash_false_positive_fixes_allowed` と
+  `test_bash_official_campaign_root_direct_writers_keep_legacy_acceptance` (両方ともこの
+  再発を実際に赤で検出した)。加えて反転検査の `WIDENED=0` 要求。
+
+### F330. 親が自分で 30 分前に凍結した事前登録に反する受理集合の拡大を子へ指示した [手順漏れ]
+
+- 事象: 段 6 fix 2 巡目で、親が実装子へ「qstat の `Request ID:` block が 1 件で、その中に
+  job/host の組が 2 組ある形式も受理せよ」と指示した。しかし同じ wave の
+  `output/insights/2026-08-16_t402-flock-execution-host/verdict-preregistration.md` は
+  `H := 対象 request の qstat block がちょうど 2 件` と凍結しており、**この凍結文は親自身が
+  その約 30 分前に書いて commit 対象にしていた**。焦点再レビューが「凍結 H に反する受理集合の
+  拡大 = 事前登録違反」と検出し、親は指示を撤回して fix 3 巡目で凍結形へ戻した。
+- 根本原因: 過剰拒否 (実 2 job grammar が未知で、正当な出力を拒否して唯一の測定機会を失う恐れ)
+  を減らそうとして、**凍結文との整合を確認せずに受理集合を広げた**。凍結を「他人が課した制約」と
+  暗黙に扱い、自分が直前に作った制約であることを見落とした。加えて、広げた形は job number 列と
+  host 列を出現順に zip するだけで、2 block 形式と同等の束縛を持っていなかった
+  (安全側の受理集合が実質的に緩む)。
+- 恒久対応: D429 決定 (5) が「2 job 実出力が未知でも受理集合は広げない。
+  過剰拒否で `null` に終わっても実物の raw が証拠として残るのでそちらを採る」を固定する。
+  手順側は `DW-S04` / `DW-O13` の「受理集合を変える指示を子へ出す直前に、この wave で凍結済みの
+  事前登録文書を再読する」を段 8 で routing する。
+- 再発検知: 焦点再レビュー子へ「凍結した判定式の文書」を必読資料として渡し、
+  実装・fix 指示との差分を判定させる (本 wave で実際に発火した経路)。
+
+### F331. 待ち手が pid file 不在を producer 死亡と解釈し、子が走行中に完了通知を出した [恒真ゲート]
+
+- 事象: 段 6 fix 3 巡目で `nohup setsid bash <launcher>` の**直後**に
+  `tools/dev_wave_wait.py producer --pid-file <pid>` を起動したところ、待ち手が
+  **rc=0・出力ゼロで即座に終了**し、完了通知が届いた。`.done` も成果物も存在せず、
+  子 (pid 685171) は実際には生きて走り続けていた。
+- 根本原因: launcher script が `echo $$ > <pid file>` を書く前に待ち手が pid file を読み、
+  読めなかったため「producer は死んだ」と判定して正常終了した。**待機条件が起動前に恒真で
+  満たされる**型である。
+- 恒久対応: 待ち手の起動前に pid file の実在を確認する運用へ変えた (本 wave の以後の全投入で実施)。
+  機構側の恒久対応は [T-1165] で起票する — pid file 不在を「未起動」として
+  bounded に待つか、待ち手が pid file 不在なら起動前に停止する。
+- 再発検知: 完了通知を受けたら**成果物実在 + `.done` + producer 死**の 3 点照合を必ず行う
+  (memory `background-task-notifications-can-be-fabricated`)。本事故はこの 3 点照合が捕まえた。

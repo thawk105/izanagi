@@ -17624,3 +17624,197 @@ paired・blind・事前登録済み非劣性 margin 付きの証拠を出せば�
 
 **rollback:** 本決定は現行の model/effort 値を一切変更していないため、戻すべき機械状態は無い。
 T-189 の比較実験が完了し証拠が揃えば、後継の決定記録で本決定を再訪する。
+
+## D424. 床値の oracle と build を job-local な FetchContent base で同一 tree へ束縛する (2026-08-16)
+
+**決定:** 床値の `sort_best` cell について、job 一意な `$TMPDIR` 配下に canonical な
+FetchContent base を 1 個作り、依存の prebuild と cell build が同じ `<base>/masstree-src` を
+使う。oracle の `dependency_root` はその root へ明示束縛する。
+`FETCHCONTENT_SOURCE_DIR_*` は渡さない。base 注入は `sort_best` cell に限定し、
+非 sort cell の cache identity と binary 参照を変えない。
+
+**理由:**
+
+- oracle が要求しているのは pin された source ではなく build 済み masstree
+  (`config.h` と archive) であり、これは pin ではなく build 順序の問題である (D413)。
+  oracle は build より前に走るので、oracle 実行前に masstree だけを build する段が要る。
+- build を共有 cache tree へ寄せる案は `FETCHCONTENT_SOURCE_DIR_*` の配線を要し、
+  ユーザー裁定 (該当項目は「実装しない」) に反する。したがって oracle を build 側へ寄せる。
+- `FETCHCONTENT_BASE_DIR` は FetchContent の repository と SHA pin を迂回せず、
+  source / build / subbuild の親だけを変える。外部 source を権威として差し込む
+  `FETCHCONTENT_SOURCE_DIR_*` とは機構が異なる。
+- cell ごとの build dir 配下 `_deps` を oracle root にする案は不成立である。
+  v2 の fresh configure は nonce staging で行われ、staging は build 後に削除されるため、
+  oracle 実行時点で存在せず、build 後には残らない。
+
+**却下した選択肢:**
+
+- **共有 third-party cache を oracle 依存の root として使い続ける** — その tree に
+  `config.h` が存在したのは過去の build の生成物で汚染されていたからであり (F319)、
+  clean な cache では oracle が UNAVAILABLE になる。入口を残すと同じ穴を作り直す。
+- **共有 (非 job-local) な base を使う** — 複数 job が同じ `_deps` で masstree の
+  in-source build を同時に走らせる危険がある。job-local なら `mkdtemp` の時点で排他が成立する。
+- **base を全 cell へ渡す** — 非 sort cell 10 件の cache identity と binary 参照が
+  job ごとに変わる。今回の欠陥は `sort_best` の oracle と build の不一致であり、
+  非 sort cell に oracle は無い。
+
+## D425. 依存 tree の同一性は内容で主張し、実効 root を build 自身の成果物から検証する (2026-08-16)
+
+**決定:** masstree 依存の同一性の権威を **内容** (HEAD + `config.h` sha256 + archive sha256) に置く。
+`st_dev` / `st_ino` は診断として記録するだけで、一致を必須条件にしない。
+build が実際に使った masstree source root は **build 自身の成果物 (`CMakeCache.txt`) から
+読み取って**期待値と照合する。configure argv の文字列検査は補助であって合格の根拠にしない。
+依存 receipt を v2 build identity の preimage へ入れ、completion を publish する前に
+**実効 root から**内容を取り直して入力 receipt と比較する。
+
+**理由:**
+
+- 実効値を見る検査 1 本は、環境変数を個別に禁止する検査の集合を包含する。
+  ambient な CMake toolchain から source root を差し替える経路があるため、
+  argv に禁止 token が無いことは「build が期待した tree を使った」ことを証明しない。
+- 内容が同一なら再 populate が起きても証拠は成立する。inode 一致を必須にすると、
+  内容が同じでも停止する過剰拒否になる。逆に inode が同じでも archive が差し替われば
+  検出できないので、内容照合が必須である。
+- base path を cache identity へ入れると job ごとに必ず cache miss する一方、
+  base path は中身を証明しない。内容 receipt を入れれば
+  「別の masstree で作った binary が cache hit する」経路が閉じる。
+- publish 前の照合を期待 base に対して行うと、実効 root が期待外の build でも
+  completion が publish され、次回の cache hit で受理されうる。
+  **fresh で拒否したものが cache 経由で通る**という合成欠陥になる。
+
+**却下した選択肢:**
+
+- **ambient な `CMAKE_TOOLCHAIN_FILE` を拒否または hash 固定する** — 実効 root の照合が
+  それを包含する。環境変数の有無で受理集合を不必要に縮めない。
+- **cache hit でも絶対 root の再一致を要求する** — 内容が同じでも job が変わるだけで拒否され、
+  2 回目以降の本番走で `sort_best` の受理集合が空になる。
+- **依存 tree を書込み不能にして再 fetch を禁止する** — download / 書込み権威の変更であり、
+  別審査が要る。本 wave は検知して fail-closed に留める。
+
+## D426. 依存 prebuild と postflight の失敗を段階別の閉じた診断へ変換する (2026-08-16)
+
+**決定:** base 作成、pin 済み CCBench checkout、prebuild configure、prebuild target、
+build 後の照合の各失敗を、**段階別の閉じた detail code** へ変換し、
+永続化してから `OracleStatus.UNAVAILABLE` で停止する。oracle 未実行・`build_fn` 未実行を保つ。
+実行失敗に `invalid-path` を流用せず、閉集合へ実行失敗を表す値を足す。
+build 後の照合は preflight ではないので、postflight 専用の閉じた detail code と
+永続化区間を設ける。
+
+**理由:**
+
+- 規律 3 (正しさシグナルを後付けにしない) は pass/fail ではなく
+  **なぜ壊れたか**を構造化して返すことを要求する。停止するだけで理由が台帳に残らなければ、
+  次の一手のシグナルにならない。
+- filesystem の消失競合で素の `FileNotFoundError` が抜けると、
+  fail-closed ではあるが失敗理由が診断 artifact から消える。
+- 実行失敗を `invalid-path` へ流用すると、path が不正だったのか実行が失敗したのかが
+  台帳から区別できなくなる。
+
+**却下した選択肢:**
+
+- **総括 `except Exception` 1 本で受ける** — どの段で落ちたかが失われる。
+  実際、総括捕捉が段階別の分類を隠していたために、テストの偽の緑が 1 件生まれた。
+
+## D427. hooks/ 配下を変更する wave は有効化前 commit の別 worktree で実装し merge で持ち込む (2026-08-16)
+
+**決定:** `hooks/` 配下のコードを変更する wave は、次の経路だけを使う。
+
+1. 親が、`guard_write` に hooks 判定が入る 1 つ手前の commit を base にした**第 2 worktree** を作る。
+2. Codex 実装子はそこで対象ファイルだけを編集する。テストは編集可能な wave worktree 側で
+   別の実装子が書く (所有を分ける)。
+3. 親が第 2 worktree で統合 commit を作り、wave branch へ `git merge` で持ち込む。
+4. merge 後に親が受理集合を再実測し、wave 前との**反転検査**を通してから次へ進む。
+
+D374 は「guard の修正が必要になったら有効化前の commit から作り直す」と定めていたが、
+その前提は「wave 開始時点では hooks/ を編集できる」だった。hooks/ の自己保護が main に
+入った後は**開始時点で既に編集不能**であり、この経路が唯一の実行形になる。
+
+**理由:**
+- 実測で `apply_patch` / `Write` / `Edit` のすべてが `hooks/` 配下を拒否する
+  (例外は exact `hooks/README.md` のみ)。Codex 実装子も親も、直接には 1 byte も書けない。
+- 残る手段は設計上の限界を突く形 (script file 越しの書き込み、path literal を持たない
+  `git apply`) だけで、どちらも hook が「見えない」と自認している経路であり、
+  拒否の迂回にあたる。防壁を狭める wave がその防壁を迂回して実装するのは筋が通らない。
+- 別 base の worktree は迂回ではない。guard の判定は worktree ごとに checkout された
+  guard 自身が行うので、有効化前の base では**設計どおり**編集が許可される。
+  main へは merge を通してのみ入るため、統合時の監査は従来と変わらない。
+
+**却下した選択肢:**
+- 一時的に判定を無効化する flag / env — 受理集合を縮める目的と矛盾し、fail-open 経路を残す。
+- script file 越しの書き込み・`git apply` — 拒否の迂回であり、以後の wave が同じ手を
+  正当化する前例になる。
+- 親が直接編集する — 実装面の Codex author 契約に反する。
+
+## D428. 受理集合を変える wave は wave 前との反転検査を証拠にする (2026-08-16)
+
+**決定:** 防壁の受理集合を変える wave は、期待表の緑だけを証拠にしない。**wave 前の実装と
+wave 後の実装へ同一のコマンド集合を通し、`deny → allow` の反転が 0 件であること**を実測して
+記録する。反転が 1 件でもあれば land しない。
+
+**理由:**
+- 受理集合を縮める意図の実装が、綴りの解析を作り込む過程で**元から拒否していた形を
+  通すようになる**ことがある。期待表は「閉じたい形」を列挙するため、この向きの後退を
+  構造的に検出できない。
+- 実際にこの wave で、script positional の後ろに置いた in-place option が
+  wave 前 deny から wave 後 allow へ反転した。期待表は全件緑のままだった。
+- 反転検査は wave 前後の 2 実装へ同じ入力を通すだけで、追加の人手判断を要さない。
+
+**却下した選択肢:**
+- 期待表へ「wave 前から deny の対照群」を足すだけで足りるとする — 対照群は列挙した分しか
+  守らず、実装が新設した解析器の綴り空間を覆えない。
+- レビュー子の指摘に依存する — 実際に見つけたのはレビュー子だったが、これは属人的で
+  再現性がない。機械検査へ落とす。
+
+## D429. cross-node flock を確定できなかった原因は controller の実行時欠陥ではなく qstat parser の文法不一致である (2026-08-16)
+
+**決定 (1): 旧 parser はこの scheduler の実出力に対して常に空を返していた。**
+実際の `qstat -J -f` は `Request ID: <id>` 行のあとに `Batch Job Number = <n>` と
+**単数形** `Execution Host = <host>` を出す。旧 `_execution_hosts` は見出し行
+`Execution Hosts(JSVNO):` に fullmatch を要求し、さらに `=` を含む行で走査を打ち切っていた。
+この見出し語は保存 evidence 全体で**出現 0 件**である。
+
+**決定 (2): 決定打は「健全な走行でも空だった」ことである。** 2026-08-04 の request 887918 は
+完走して authoritative と判定された attempt であり、`Execution Host = bnode023` を含む
+qstat raw を繰り返し保存している。それでも `monitor.execution_hosts_raw_order` は `[]`、
+`execution_hosts_raw_evidence` は `null` だった。2026-08-03 の flock attempt の保存 raw は
+`rbudgetcheck` / `qsub` / `qwait` の 3 command だけで、**qstat には一度も到達していない**。
+したがって同 attempt の空 host は「controller が NameError で落ちた」ことの帰結ではない。
+**parser を直さない限り、素の再走は何度でも `dangerous: null` に終わっていた。**
+
+**決定 (3): 実出力は位置順 list より強い束縛を与える。** `Request ID:` block ごとに
+job number と host が対になるので、`{job_number: host}` の閉じた写像が直接得られる。
+これは `one_to_one_job_number_host_binding` が本来必要としていた情報そのものである。
+parser は「対象 request の block がちょうど 2 件・各 block に job number と host が各 1 件・
+job number 集合が `{0,1}`・host が相異なる」を要求し、満たさなければ空写像を返す。
+**canonical な非インデント header として parse できない `Request ID` 行は、
+インデントの有無に依らず拒否する** (別名の有限列挙に依存しない)。
+
+**決定 (4): 最終判定は authority へ束縛し、危険側は保持する。**
+`A ∧ H ∧ S ∧ E ∧ B` が全成立したときだけ `dangerous: false`、
+`A ∧ H ∧ S ∧ (¬E ∨ ¬B)` で `true`、`A`・`H`・`S` のいずれかが不成立なら `null`。
+`E` (localflock 不在) と `B` (raw outcome が各 6 件・全件 BLOCKED) は危険側の条件であり、
+不成立を `null` へ畳まない。`B` は producer の派生 field ではなく controller が raw から
+再導出する。`attempt_safe` は authority 連言へ加えない (D161 の証拠 3 分離を維持し、
+危険側の観測も authoritative になれる性質を守る)。
+
+**決定 (5): 2 job 構成の実出力が未知のままでも、受理集合は広げない。**
+手元には 1 job の実出力しか無く、2 block grammar は外挿である。過剰拒否を避けようとして
+「1 block に 2 組」を受理する案を一度採ったが、これは (i) 凍結済み事前登録の `H`
+(「対象 block がちょうど 2 件」) に反し、(ii) job number 列と host 列を出現順に zip するだけで
+2 block 形式と同等の束縛を持たない。**撤回して凍結形へ戻した。**
+過剰拒否で `null` に終わっても、**実物の 2 job raw が証拠として保存される**ため
+次の判断材料になる。安全側へ倒すよりこちらを採る。
+
+**理由:**
+- 規律 3 は「正しさシグナルを後付けにしない」ことを求める。照合未確定の入力が
+  安全側の受理集合へ入る経路は、実測前に塞がなければならない。
+- `DW-S01` は「模擬対象と実との差を明記し、自己 hash / 参照 / pin 対象では模擬を裁定根拠に
+  しない」と定める。2 job grammar の外挿はまさにこの型である。
+
+**却下した選択肢:**
+- **素の再走を先に試す** — 決定 (2) により結果が事前に分かっており、request 枠と node-min を
+  捨てるだけである。
+- **`Request ID` の別名を列挙して拒否する** — `RequestID:` / `Request Identifier:` /
+  `Req ID:` を塞いでも、**インデントした同じ境界**で同型の抜け道が残ることを敵対レビューが
+  実証した。構造規則 (非インデント行は canonical header 以外を拒否) へ置き換えた。
+- **1 block 2 組を受理して過剰拒否を避ける** — 決定 (5) のとおり撤回した。
