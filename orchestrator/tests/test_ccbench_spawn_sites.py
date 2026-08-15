@@ -67,6 +67,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/buildcache.py", "<module>._run"): 1,
     ("campaign/buildcache.py", "<module>._tool_version"): 1,
     ("campaign/buildcache.py", "<module>._tool_version_full"): 1,
+    # Runs only `git ... rev-parse --show-toplevel --verify HEAD` to bind the
+    # FetchContent dependency receipt; argv cannot name or execute CCBench.
+    ("campaign/buildcache.py", "<module>._observe_fetchcontent_dependency_receipt"): 1,
     ("campaign/buildcache.py", "<module>._verify_ccbench_commit"): 1,
     ("campaign/certified_writer_admission.py", "<module>._git"): 1,
     ("campaign/certified_writer_preflight.py", "<module>._committed_blob"): 1,
