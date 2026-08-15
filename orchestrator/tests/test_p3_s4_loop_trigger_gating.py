@@ -501,6 +501,30 @@ def test_site_admission_matrix():
         assert T._site_admits_measurement(site) is False
 
 
+def test_recorded_pegasus_hostname_reaches_measurement_site_admission():
+    # calibration-753f535a8d024727.json の host.node を独立 literal で replay する。
+    classified_site = site_policy.classify_site("bnode011", {}, True)
+    assert classified_site == "PEGASUS_COMPUTE"
+    assert T._site_admits_measurement(classified_site) is True
+
+
+def test_recorded_compute_site_and_opt_in_pass_build_site_admission(monkeypatch):
+    from orchestrator.campaign import p3_autonomous_workload_trial as trial
+
+    # calibration-753f535a8d024727.json の host.node を独立 literal で replay する。
+    classified_site = site_policy.classify_site("bnode011", {}, True)
+    assert classified_site == "PEGASUS_COMPUTE"
+    monkeypatch.setattr(trial.trigger, "_current_site", lambda: classified_site)
+
+    trial._assert_build_site_opted_in(
+        True, allow_pegasus_compute_transport=True,
+    )
+    with pytest.raises(trial.AutonomousTrialError, match="明示 transport opt-in"):
+        trial._assert_build_site_opted_in(
+            True, allow_pegasus_compute_transport=False,
+        )
+
+
 def test_environment_module_surface_and_default_seams():
     assert T.ENV_TAG == "linux-baremetal"
     assert not hasattr(T, "CLK")

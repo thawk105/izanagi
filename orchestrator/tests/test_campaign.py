@@ -4980,6 +4980,20 @@ def test_p2_actual_floor_and_t126_admission_accept_valid_evidence(tmp_path=None)
         admission.env_attestation.load_verified_calibration = saved_calibration
 
 
+def test_certified_writer_environment_accepts_recorded_pegasus_identity():
+    from orchestrator.campaign import certified_writer_admission as admission
+
+    # job-staging/0:867876.nqsv/reservation.json の identity を literal 固定する。
+    environ = {
+        "IZANAGI_SUBMISSION_NONCE": "751223708553eba8b7c942d845fbb266",
+        "PBS_JOBID": "0:867876.nqsv",
+    }
+    assert admission._required_environment(environ) == (
+        "751223708553eba8b7c942d845fbb266",
+        "0:867876.nqsv",
+    )
+
+
 def test_m8_preflight_rejects_fail_open_domain_module_drift(tmp_path=None):
     root = Path(tmp_path) if tmp_path is not None else Path(
         _tmpdir("izanagi_source_drift_")
