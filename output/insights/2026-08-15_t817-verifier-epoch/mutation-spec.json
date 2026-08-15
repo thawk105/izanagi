@@ -1,0 +1,192 @@
+{
+  "estimated_run_seconds": 60.0,
+  "hang_timeout_seconds": 600.0,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_real_e0_is_rejected_only_by_certified_epoch_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "    if recorded.diagnostic.state == \"E0\":\n        return recorded.diagnostic\n",
+          "old": "    if recorded.diagnostic.state == \"E0\":\n        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_certified_acceptance_rejects_e1_stale_exact_map_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-2",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "    if set(recorded.blob_sha256s or {}) != set(\n        current.contract_loader_blob_sha256s\n    ):\n",
+          "old": "    if dict(recorded.blob_sha256s or {}) != dict(\n        current.contract_loader_blob_sha256s\n    ):\n"
+        }
+      ]
+    },
+    {
+      "category": "both-layers",
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_view_cannot_cross_certified_type_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "        if False:\n            raise TypeError(\n                \"CertifiedCampaignView は certified epoch gate だけが発行できる\"\n            )\n",
+          "old": "        if _certification_token is not _CERTIFIED_VIEW_TOKEN:\n            raise TypeError(\n                \"CertifiedCampaignView は certified epoch gate だけが発行できる\"\n            )\n"
+        },
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "        if False:\n            raise TypeError(\"CertifiedCampaignView requires exact E1\")\n",
+          "old": "        if self.campaign_verifier_epoch.state != \"E1\":\n            raise TypeError(\"CertifiedCampaignView requires exact E1\")\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_admitted_view_is_deeply_immutable",
+        "orchestrator/tests/test_artifact_admission.py::test_exact_pre_policy_git_snapshot_artifact_remains_readable",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_epoch_display_is_independent_of_live_closure_bytes",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_signal_does_not_overreject_later_start_only_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_view_cannot_cross_certified_type_boundary",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-repro-silo-balanced-repro-87dbbf50]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-repro-silo-write-heavy-repro-181607af]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-balanced-sweep-484c663e]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-610004b9]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-6f169f90]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-8ff95955]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-write-heavy-sweep-493813a7]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-balanced-enumerate-f1588056]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-read-heavy-enumerate-5ffcabad]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-write-heavy-enumerate-8967bed6]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-kickoff-coder-wiring-cba40400]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s4-red-s4-red-consumer-9a1897c4]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-balanced-sweep-1b39095e]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-balanced-sweep-dd25aa8c]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-write-heavy-sweep-0484feef]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-write-heavy-sweep-d4552403]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-block1-direct-comparison-74ff9ba2]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-block2-direct-comparison-9645b16a]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-develop-direct-comparison-7bccdf1a]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-develop-direct-comparison-d0f495bf]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-floor-direct-comparison-b82b9229]",
+        "orchestrator/tests/test_artifact_admission.py::test_other_variant_recovery_limit_does_not_overreject_first_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_post_policy_variant_without_build_start_remains_admissible",
+        "orchestrator/tests/test_artifact_admission.py::test_real_e0_historical_raw_succeeds_with_recorded_epoch",
+        "orchestrator/tests/test_artifact_admission.py::test_recovered_attempt_then_retry_is_admitted_without_read_mutation",
+        "orchestrator/tests/test_artifact_admission.py::test_unlisted_post_policy_campaign_requires_exact_attempt_receipt"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        raise CampaignVerifierEpochRejected(recorded.diagnostic)\n",
+          "old": "    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        return recorded.diagnostic\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-balanced-sweep-b8f4a4e2]",
+        "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-balanced-sweep-c2d838b8]",
+        "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-read-heavy-sweep-654d5cd7]",
+        "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-read-heavy-sweep-8a237e8c]",
+        "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-write-heavy-sweep-a81ec3d8]",
+        "orchestrator/tests/test_artifact_admission.py::test_legacy_trigger_campaigns_are_not_admitted[p3-s8a-trigger-sweep-write-heavy-sweep-dcd2bbfb]",
+        "orchestrator/tests/test_artifact_admission.py::test_overlay_exact_bytes_remain_denied_after_relocation",
+        "orchestrator/tests/test_artifact_admission.py::test_three_legacy_campaigns_are_denied"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "    if recorded_epoch is None:\n        raise AssertionError(\"admitted campaign requires a recorded epoch\")\n    epoch = _require_verifier_epoch_for_purpose(recorded_epoch, purpose)\n    if not decision.admitted:\n        raise CampaignNotAdmitted(\n            f\"campaign is {decision.admission_status}: {decision.campaign_id}; \"\n            f\"overlay={decision.overlay_ledger_sha256} \"\n            f\"record={decision.overlay_record_key}\"\n        )\n",
+          "old": "    if not decision.admitted:\n        raise CampaignNotAdmitted(\n            f\"campaign is {decision.admission_status}: {decision.campaign_id}; \"\n            f\"overlay={decision.overlay_ledger_sha256} \"\n            f\"record={decision.overlay_record_key}\"\n        )\n    if recorded_epoch is None:\n        raise AssertionError(\"admitted campaign requires a recorded epoch\")\n    epoch = _require_verifier_epoch_for_purpose(recorded_epoch, purpose)\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_judge.py::test_non_e1_campaign_epoch_is_never_eligible[E0-E0-v1-authority-absent]",
+        "orchestrator/tests/test_s8b_oracle_judge.py::test_non_e1_campaign_epoch_is_never_eligible[E1-stale-E1:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd-recorded-current-closure-mismatch]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_judge.py",
+          "new": "        epoch_eligible_campaign_ids = frozenset(\n            entry[\"campaign_id\"] for entry in epoch_entries\n        )\n",
+          "old": "        epoch_eligible_campaign_ids = frozenset(\n            entry[\"campaign_id\"] for entry in epoch_entries\n            if entry[\"state\"] == \"E1\"\n            and entry[\"certified_eligible\"] is True\n        )\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_admitted_view_is_deeply_immutable",
+        "orchestrator/tests/test_artifact_admission.py::test_exact_pre_policy_git_snapshot_artifact_remains_readable",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_epoch_display_is_independent_of_live_closure_bytes",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_signal_does_not_overreject_later_start_only_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-repro-silo-balanced-repro-87dbbf50]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-repro-silo-write-heavy-repro-181607af]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-balanced-sweep-484c663e]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-610004b9]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-6f169f90]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-read-heavy-sweep-8ff95955]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[backoff-sweep-silo-write-heavy-sweep-493813a7]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-balanced-enumerate-f1588056]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-read-heavy-enumerate-5ffcabad]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p2-2-silo-write-heavy-enumerate-8967bed6]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-kickoff-coder-wiring-cba40400]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s4-red-s4-red-consumer-9a1897c4]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-balanced-sweep-1b39095e]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-balanced-sweep-dd25aa8c]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-write-heavy-sweep-0484feef]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[p3-s6-sort-sweep-write-heavy-sweep-d4552403]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-block1-direct-comparison-74ff9ba2]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-block2-direct-comparison-9645b16a]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-develop-direct-comparison-7bccdf1a]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-develop-direct-comparison-d0f495bf]",
+        "orchestrator/tests/test_artifact_admission.py::test_nontrigger_historical_campaigns_remain_admitted[s1-direct-floor-direct-comparison-b82b9229]",
+        "orchestrator/tests/test_artifact_admission.py::test_other_variant_recovery_limit_does_not_overreject_first_recovery",
+        "orchestrator/tests/test_artifact_admission.py::test_post_policy_variant_without_build_start_remains_admissible",
+        "orchestrator/tests/test_artifact_admission.py::test_real_e0_historical_raw_succeeds_with_recorded_epoch",
+        "orchestrator/tests/test_artifact_admission.py::test_recovered_attempt_then_retry_is_admitted_without_read_mutation",
+        "orchestrator/tests/test_artifact_admission.py::test_unlisted_post_policy_campaign_requires_exact_attempt_receipt"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "MUT-7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "new": "    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        _live = contract_loader_binding.capture_contract_loader_binding()\n        if dict(recorded.blob_sha256s or {}) != dict(\n            _live.contract_loader_blob_sha256s\n        ):\n            return _stale_epoch(\n                recorded, reason_code=\"recorded-current-closure-mismatch\",\n            )\n        return recorded.diagnostic\n",
+          "old": "    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        return recorded.diagnostic\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 3600.0
+}

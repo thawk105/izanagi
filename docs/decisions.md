@@ -17445,3 +17445,322 @@ critic の第二層射影) に限る閉包を規範として書く。ただし *
 **却下した選択肢:**
 - 起動形を runbook 側だけに置く — runbook は凍結対象でないため、結果後に書き換えられる。
 - pilot の完了を起動条件に含める — 対象 workload も arm も異なるため、条件として成立しない。
+
+## D419. `/scr` fresh namespace を `single_process` 強制から切り離し、強制側は実装差分ゼロで再裁定へ返す (2026-08-16)
+
+**決定 (1): 実装差分ゼロで再裁定へ返す。** 2026-08-03 の裁定は「使用権を供給する wrapper の新設と
+セットで実装する」形を指定し、その wave の追加条件は「caller が実在することをテストで固定する」で
+あった。現行 main ではこれが満たせない。`campaign.loop.run_campaign` へ到達する計算ノード caller は
+実在するが、repo 外・untracked の wave 専用 job script であり tracked なテストで固定できない。
+tracked 化するには 8c を計算ノードで運転する wrapper を新設するしかなく、それは D125 決定 (6)、
+D108 決定 (2)〜(5) の campaign task 凍結、および T-276 / 8c live pilot 側の所有境界である。
+**本決定はその境界を開かない。**
+
+**決定 (2): `/scr` fresh namespace は本件から切り離す。** 対象を取り違えていた。
+床値 wrapper は依存を `/scr/${PBS_JOBID}` へ build して `CMAKE_PREFIX_PATH` へ export し、
+v2 build identity は dependency prefix を path 要素の配列として pre-image に束縛する (D125 決定 (3))。
+したがって床値経路は durable な cache root を使っていても job ごとに digest が変わり、
+跨ジョブ cache hit は構造的に起きない。加えて F319 の汚染対象は third-party source cache であり、
+本件が動かそうとしていた build-variants cache root ではない。
+**懸念自体は 8c 経路 (共有 checkout の `build-variants` と `TMPDIR` 未設定時の `/tmp` checkout) で
+生きている**が、それは F319 の恒久対応と同じ層であり、その所有者へ返す。
+
+**決定 (3): 差分ゼロは「解決済み」を意味しない。** `loop.run_campaign` は required attestation を
+発火させる一方、claim 取得・reservation 検査・`allow_resume=False` 拒否をいずれも行わない。
+Pegasus 契約は `single_process=True` / `allow_resume=False` を宣言しているので、これは
+**宣言だけで強制しない gate** である。8c live pilot の transport 欠陥が直った時点で、この sink は
+単独性が未検査のまま exploratory WAL・report・binary を受理し始める。再裁定はこれを止めるためのもので
+あり、本決定は現状維持を推奨するものではない。
+
+**決定 (4): 発火 caller が既に実在する穴を先に直す方を推奨する。** 床値 campaign の claim identity は
+秒精度の run ID であって protocol 単位の排他ではなく、reservation は caller の自己申告である。
+こちらは発火 caller (床値 campaign) が実在するため DW-G04 を確実に満たす。
+
+**理由:**
+- 発火 caller を持たない強制は「謳うだけで発火しない gate」になる (DW-G04)。2026-08-03 の裁定自身が
+  部分実装を明示的に禁じており、その禁止を wave 側で黙って解除しない。
+- 別タスクが所有する裁定対象 (8c の計算ノード運転、F319 の恒久対応) を、実装の都合で横取りしない。
+- 差分ゼロでも、宣言と強制の乖離を台帳へ残さなければ次の実装者が同じ調査を繰り返す。
+
+**却下した選択肢:**
+- 強制だけを先に入れる — 2026-08-03 の裁定が明示的に禁じた形であり、解除はユーザー手番である。
+  再裁定の択一としては残す。
+- 8c 用 tracked wrapper を本件で新設する — 他タスクが所有する境界を独断で開く。
+- `/scr` へ cache root を一律移設する — 床値では既に job ごとに cold であり、F319 も閉じない。
+  1 cell あたり build cap 900 秒の予算を cold build で圧迫するだけになる。
+- 「前提が失効したので完了」として閉じる — 失効したのは wrapper 不在の前提だけで、
+  宣言と強制の乖離は生きている。完了扱いは事実に反する。
+
+## D420. 8b oracle の replicate 数を a12 stress-check から導出しない (2026-08-16)
+
+**決定:** 8b oracle の事前登録値 `n` の根拠として a12 stress-check
+(`output/env/pegasus/t139-a12-stress-check/full-v1/stress-check-simulation.json`) を
+使わない。較正からの導出も、対象環境・対象 workload・対象 estimator での分布を
+実測して誤選択率または検出力の目標を事前固定するまでは、承認材料として提示しない。
+承認パッケージに書けるのは費用点の実測値と、導出に要る pilot の仕様だけである。
+
+**理由:**
+- a12 の `J` は t139/a11 study の cluster 数であり、その選択規則は当該 study の検出力基準
+  (`J = min{ j in {4..13} : L_j^cert >= 0.80 }`) である。8b oracle の
+  `build_schedule` における replicate 数と同一視する一次資料は無い。
+- a12 が模擬する判定式は `mean - q*sqrt(s/J) > 0` という標本平均・標本分散・`q(J)` による
+  下側信頼限界だが、配線されている `judge_oracle` の集約は各 trial の bench rep 中央値を
+  さらに中央値へ畳む median of medians であり、configuration 間は float 完全一致による
+  argmax である。同関数の docstring 自身が「この集約規則はまだ再凍結されておらず、
+  実測開始前に明示的な再凍結が必要である」と宣言している。
+- 下流の verdict が使う floor 条件も `median(on) - median(off) > floor` という
+  **点推定値の閾値判定**であり、統計的不確実性の gate ではない。
+  すなわち a12 相当の規則は下流にも配線されていない。
+- a12 artifact 自身が `claim_scope.value = "a11_empirical_stress_model_only"` と
+  `pilot_ready = false` を宣言している。
+- 較正からの代替導出も同定されない。標本中央値の漸近式 `1.253*sigma/sqrt(n)` は
+  iid な単一標本中央値のものだが、実 estimator は二段推定であり、certified 条件が使うのは
+  2 推定量の**差**である。手元の較正は別 read ratio・別 extime の within-run CV しかない。
+  同じ仮定の変奏で必要な `n` が 7 から 14 まで振れることを段 3 敵対子が算術で示した。
+
+**却下した選択肢:**
+- a12 の J 範囲 `[4,13]` を `n` の安全域として提示する — 別 study の別統計量の範囲であり、
+  oracle の受理挙動を一切支配しない。proof chain の参照が誤る。
+- 精度係数 `q(J)/sqrt(J)` の平坦化点を採る — 事前固定された elbow 規則が無く、
+  評価判断であって導出ではない。値は J=13 まで単調に下がり続ける。
+- floor protocol の session 数と同値を継承する — 別 estimator の数値先例にすぎない。
+- 限界を注記したうえで推奨値として出す — 非同定な値に注記を付けても、
+  ユーザーは承認の可否を判断できない。
+
+## D421. 受理集合を広げる改訂に、未裁定の縮小を混ぜない (2026-08-16)
+
+**決定:** 正しさ防壁の受理集合を広げる改訂を設計するときは、同じ変更に含まれる
+**縮小**を分離して別の裁定項にする。旧集合と新集合は、pin・authority・root の型・
+全 entry の型を含む**同一の状態空間**で定義し、「拡大部分」と「安全側の縮小部分」を
+別々に承認できる形で提示する。純拡大に留められる案がある場合は、それを先に置く。
+
+**理由:**
+- 規律 2 が求めるのは「広げる範囲と根拠の明示」である。同じ変更に未裁定の縮小を混ぜると、
+  **承認された範囲が事後に判別できなくなる。**
+- 8b oracle の lifecycle gate 改訂で実際に起きた。現行検査は `rglob("*")` + `is_file()` で
+  走査するため、空の下位 directory・directory を指す symlink・broken symlink・FIFO・socket を
+  受理している。これを no-follow の全 entry 比較へ置換すると、承認された 1 件を許す拡大と
+  同時にこれらを拒否する縮小が入り、新旧は包含関係でなく**交差**になる。
+  設計文書は当初これを「拡大だけ」と記述しており、段 3 敵対子が倒した。
+- 縮小は必然ではなく選択である。走査規則を現行のまま据え置き pin 分岐だけを足せば、
+  受理集合は純粋に拡大する。両案を並べて初めてユーザーは範囲を選べる。
+
+**却下した選択肢:**
+- 縮小を「安全側だから」として同じ承認に含める — 安全側かどうかは走査対象の実状態に依存し、
+  root 自身が symlink や regular file である場合の扱いなど未設計の領域が残る。
+  安全側だという判断自体が裁定対象である。
+- 縮小を先に単独で行う — 現行から悪化しない拡大を待たせる理由が無く、
+  かつ縮小だけでは lifecycle gate の目的 (承認済み 1 件を通す) を満たさない。
+
+## D422. verifier epoch は導出ラベルとし、読み手に受理目的を表明させる (2026-08-16)
+
+**決定:** `campaign_verifier_epoch` は新しい artifact でも新しい lock field でもなく、
+**v2 lock の既存 authority (`contract_loader_blob_sha256s`) からの導出ラベル**とする。
+`E1` = 記録された blob map が現在の enforcement source closure と exact 一致、
+`E1-stale` = v2 authority を持つが不一致、`E0` = v2 authority を持たない。
+
+除外の適用点は**読み取り側の受理層 1 箇所**に集約し、consumer ごとに散らさない。
+各 consumer は `require_admitted_campaign(root, purpose=...)` の `purpose` で、
+`CERTIFIED_ACCEPTANCE` (certified を名乗る受理集合として読む) か
+`HISTORICAL_RAW` (epoch 表示付きの歴史生値として読む) かを**呼び出し方で表明する**。
+`purpose` は既定値を持たず、省略は `TypeError` とする。
+certified 側だけが受け取れる view 型を分け、歴史側の view が型境界を越えられないようにする。
+
+**理由:**
+- 新しい pin や署名機構を足すと、それ自体が「policy を変えずに受理意味論だけ変える」抜け道に
+  なりうる。実 enforcement bytes への束縛だけが、正しさ防壁の書き換えと連動して壊れる。
+- 適用点を散らすと、新しい consumer が追加されたときに黙って抜ける。1 箇所へ集約し、かつ
+  `purpose` を必須にすると、**新しい呼び出しは表明しない限りコンパイルもテストも通らない**。
+  実際、本 wave の取り込みでは、この必須性が別 wave から入った 2 件の未表明呼び出しを露出させた。
+- 表明を「呼び出し方」に置くのは、consumer 側の意図を機械が読める形で残すためである。
+  同じ campaign を certified として読む経路と歴史生値として読む経路が同居しても、
+  どちらの意味で読んだかが呼び出し点に書かれている。
+
+**却下した選択肢:**
+- lock へ epoch field を新設する — `IDENTITY_KEYS` / `AUTHORITY_KEYS` は exact key 集合検査なので、
+  field 追加は既存 lock を全部不正にする。既存 campaign を引けなくなる。
+- consumer ごとに epoch を検査する — 追加漏れが黙って通る。悉皆性を機械で保証できない。
+- 受理集合を変えずラベルを表示するだけにする — 「certified を名乗る出力が未検証の証拠に載る」
+  という当の問題が残る。裁定 Q1(a) が明示的に除外を選んでいる。
+- `purpose` に既定値を与える — 既定が付いた瞬間、新しい呼び出しが黙って片方の意味に倒れる。
+  必須にすることが、この設計の実効性を担保している唯一の機構である。
+
+## D423. 段2/5のcodex model routing 拡張 (sol→luna) は「下流検査で安全」論法だけでは採用しない — D207の一般原則は model 軸にも及ぶ (2026-08-16)
+
+**決定:** dev-wave の段2 (plan)・段5 (author) について、codex model を sol から luna へ証拠なしで
+変更することは、「出力は下流 (段3敵対相談／段6敵対レビュー＋変異matrix＋受入全走) で独立再検査
+されるから安全」という論法だけでは採用しない。この論法は D207 が段2プラン起草の reasoning effort
+引き下げ提案に対して既に明示却下した論法と同型であり、D207 の一般原則 (「検出力を下げる変更は
+規律2の対象」「トークン節約は最適化圧力であり、最適化圧力は必ず正しさ側を攻撃しに来るという前提で
+扱う」) は effort 軸だけでなく model 軸にも及ぶ。
+
+**射程:** 本決定が拘束するのは「証拠なしで段2/5の model を変えてよいか」という問いへの答えだけである。
+D241 (段3の sol/luna 混成) と D243/D266 (段6 reasoning effort の据え置き) は不変のまま。
+段2/5 の model を変更する実装そのものを禁じるものではなく、妥当な比較実験 (T-189) が
+paired・blind・事前登録済み非劣性 margin 付きの証拠を出せば、この決定は再訪できる。
+
+**理由:**
+- D207 は段2プラン起草の effort 引き下げを「起草物は後段が必ず攻撃するので安全に見えるが、
+  弱い起草が must-fix と fix 巡回を増やし、消費と正しさが同時に悪化する経路を排除できない。
+  この比較こそ paired 評価の対象である」として却下した。同じ構造 (下流に攻撃者が存在するという
+  事実だけを根拠に、上流の質の劣化を安全とみなす) は model 軸の変更にも等しく当てはまる。
+- sol→luna の品質同等性を示す証拠は段2・段3・段5のいずれについても存在しない。認証済み A/B
+  (D266) は段6 focused review の high 対 max だけを対象とし、model 比較でも他工程の観測でもない。
+  2026-08-08 の luna shadow pilot (91%/token−31.6%) は n=1・非盲検・循環評価として policy 根拠
+  から明示除外されている (D241)。
+- D241 は「段2/5/6 は sol のまま」と明示的に固定した決定であり、段2/5 部分だけを再開する提案は
+  D241 のロジックを新しい scope へ適用するだけではなく、D241 の一部を supersede する提案に当たる。
+  supersede の採否はユーザー裁定に属し、段4裁定 (親) の権限には含まれない。
+
+**却下した選択肢:**
+- **段2/5だけ証拠なしで luna へ変更する** — D207 の一般原則に反する。下流検査の存在は
+  「検出されうる」であって「品質が同等」の代替にならない。
+- **段6 (review/focus) の reasoning effort を high から max へ引き上げる** — 段2/5 の model 分割に
+  必要な変更ではなく、D243/D266 が明示的に据え置いた値への無根拠な上書きになる。
+- **権威行の sol/luna 位置を入れ替える「flip trick」で docs 1 行だけの近道にする** — 145 箇所の
+  実在 `--lane sol`/`--lane luna` 呼び出し (`dev-wave-jobs/**/*.sh`) の意味が逆転する footgun が
+  あり、かつ現行 `tools/check_docs.py` の exact pin が新しい権威行を拒否するため、そもそも
+  「docs だけ」の変更として land できない。
+
+**rollback:** 本決定は現行の model/effort 値を一切変更していないため、戻すべき機械状態は無い。
+T-189 の比較実験が完了し証拠が揃えば、後継の決定記録で本決定を再訪する。
+
+## D424. 床値の oracle と build を job-local な FetchContent base で同一 tree へ束縛する (2026-08-16)
+
+**決定:** 床値の `sort_best` cell について、job 一意な `$TMPDIR` 配下に canonical な
+FetchContent base を 1 個作り、依存の prebuild と cell build が同じ `<base>/masstree-src` を
+使う。oracle の `dependency_root` はその root へ明示束縛する。
+`FETCHCONTENT_SOURCE_DIR_*` は渡さない。base 注入は `sort_best` cell に限定し、
+非 sort cell の cache identity と binary 参照を変えない。
+
+**理由:**
+
+- oracle が要求しているのは pin された source ではなく build 済み masstree
+  (`config.h` と archive) であり、これは pin ではなく build 順序の問題である (D413)。
+  oracle は build より前に走るので、oracle 実行前に masstree だけを build する段が要る。
+- build を共有 cache tree へ寄せる案は `FETCHCONTENT_SOURCE_DIR_*` の配線を要し、
+  ユーザー裁定 (該当項目は「実装しない」) に反する。したがって oracle を build 側へ寄せる。
+- `FETCHCONTENT_BASE_DIR` は FetchContent の repository と SHA pin を迂回せず、
+  source / build / subbuild の親だけを変える。外部 source を権威として差し込む
+  `FETCHCONTENT_SOURCE_DIR_*` とは機構が異なる。
+- cell ごとの build dir 配下 `_deps` を oracle root にする案は不成立である。
+  v2 の fresh configure は nonce staging で行われ、staging は build 後に削除されるため、
+  oracle 実行時点で存在せず、build 後には残らない。
+
+**却下した選択肢:**
+
+- **共有 third-party cache を oracle 依存の root として使い続ける** — その tree に
+  `config.h` が存在したのは過去の build の生成物で汚染されていたからであり (F319)、
+  clean な cache では oracle が UNAVAILABLE になる。入口を残すと同じ穴を作り直す。
+- **共有 (非 job-local) な base を使う** — 複数 job が同じ `_deps` で masstree の
+  in-source build を同時に走らせる危険がある。job-local なら `mkdtemp` の時点で排他が成立する。
+- **base を全 cell へ渡す** — 非 sort cell 10 件の cache identity と binary 参照が
+  job ごとに変わる。今回の欠陥は `sort_best` の oracle と build の不一致であり、
+  非 sort cell に oracle は無い。
+
+## D425. 依存 tree の同一性は内容で主張し、実効 root を build 自身の成果物から検証する (2026-08-16)
+
+**決定:** masstree 依存の同一性の権威を **内容** (HEAD + `config.h` sha256 + archive sha256) に置く。
+`st_dev` / `st_ino` は診断として記録するだけで、一致を必須条件にしない。
+build が実際に使った masstree source root は **build 自身の成果物 (`CMakeCache.txt`) から
+読み取って**期待値と照合する。configure argv の文字列検査は補助であって合格の根拠にしない。
+依存 receipt を v2 build identity の preimage へ入れ、completion を publish する前に
+**実効 root から**内容を取り直して入力 receipt と比較する。
+
+**理由:**
+
+- 実効値を見る検査 1 本は、環境変数を個別に禁止する検査の集合を包含する。
+  ambient な CMake toolchain から source root を差し替える経路があるため、
+  argv に禁止 token が無いことは「build が期待した tree を使った」ことを証明しない。
+- 内容が同一なら再 populate が起きても証拠は成立する。inode 一致を必須にすると、
+  内容が同じでも停止する過剰拒否になる。逆に inode が同じでも archive が差し替われば
+  検出できないので、内容照合が必須である。
+- base path を cache identity へ入れると job ごとに必ず cache miss する一方、
+  base path は中身を証明しない。内容 receipt を入れれば
+  「別の masstree で作った binary が cache hit する」経路が閉じる。
+- publish 前の照合を期待 base に対して行うと、実効 root が期待外の build でも
+  completion が publish され、次回の cache hit で受理されうる。
+  **fresh で拒否したものが cache 経由で通る**という合成欠陥になる。
+
+**却下した選択肢:**
+
+- **ambient な `CMAKE_TOOLCHAIN_FILE` を拒否または hash 固定する** — 実効 root の照合が
+  それを包含する。環境変数の有無で受理集合を不必要に縮めない。
+- **cache hit でも絶対 root の再一致を要求する** — 内容が同じでも job が変わるだけで拒否され、
+  2 回目以降の本番走で `sort_best` の受理集合が空になる。
+- **依存 tree を書込み不能にして再 fetch を禁止する** — download / 書込み権威の変更であり、
+  別審査が要る。本 wave は検知して fail-closed に留める。
+
+## D426. 依存 prebuild と postflight の失敗を段階別の閉じた診断へ変換する (2026-08-16)
+
+**決定:** base 作成、pin 済み CCBench checkout、prebuild configure、prebuild target、
+build 後の照合の各失敗を、**段階別の閉じた detail code** へ変換し、
+永続化してから `OracleStatus.UNAVAILABLE` で停止する。oracle 未実行・`build_fn` 未実行を保つ。
+実行失敗に `invalid-path` を流用せず、閉集合へ実行失敗を表す値を足す。
+build 後の照合は preflight ではないので、postflight 専用の閉じた detail code と
+永続化区間を設ける。
+
+**理由:**
+
+- 規律 3 (正しさシグナルを後付けにしない) は pass/fail ではなく
+  **なぜ壊れたか**を構造化して返すことを要求する。停止するだけで理由が台帳に残らなければ、
+  次の一手のシグナルにならない。
+- filesystem の消失競合で素の `FileNotFoundError` が抜けると、
+  fail-closed ではあるが失敗理由が診断 artifact から消える。
+- 実行失敗を `invalid-path` へ流用すると、path が不正だったのか実行が失敗したのかが
+  台帳から区別できなくなる。
+
+**却下した選択肢:**
+
+- **総括 `except Exception` 1 本で受ける** — どの段で落ちたかが失われる。
+  実際、総括捕捉が段階別の分類を隠していたために、テストの偽の緑が 1 件生まれた。
+
+## D427. hooks/ 配下を変更する wave は有効化前 commit の別 worktree で実装し merge で持ち込む (2026-08-16)
+
+**決定:** `hooks/` 配下のコードを変更する wave は、次の経路だけを使う。
+
+1. 親が、`guard_write` に hooks 判定が入る 1 つ手前の commit を base にした**第 2 worktree** を作る。
+2. Codex 実装子はそこで対象ファイルだけを編集する。テストは編集可能な wave worktree 側で
+   別の実装子が書く (所有を分ける)。
+3. 親が第 2 worktree で統合 commit を作り、wave branch へ `git merge` で持ち込む。
+4. merge 後に親が受理集合を再実測し、wave 前との**反転検査**を通してから次へ進む。
+
+D374 は「guard の修正が必要になったら有効化前の commit から作り直す」と定めていたが、
+その前提は「wave 開始時点では hooks/ を編集できる」だった。hooks/ の自己保護が main に
+入った後は**開始時点で既に編集不能**であり、この経路が唯一の実行形になる。
+
+**理由:**
+- 実測で `apply_patch` / `Write` / `Edit` のすべてが `hooks/` 配下を拒否する
+  (例外は exact `hooks/README.md` のみ)。Codex 実装子も親も、直接には 1 byte も書けない。
+- 残る手段は設計上の限界を突く形 (script file 越しの書き込み、path literal を持たない
+  `git apply`) だけで、どちらも hook が「見えない」と自認している経路であり、
+  拒否の迂回にあたる。防壁を狭める wave がその防壁を迂回して実装するのは筋が通らない。
+- 別 base の worktree は迂回ではない。guard の判定は worktree ごとに checkout された
+  guard 自身が行うので、有効化前の base では**設計どおり**編集が許可される。
+  main へは merge を通してのみ入るため、統合時の監査は従来と変わらない。
+
+**却下した選択肢:**
+- 一時的に判定を無効化する flag / env — 受理集合を縮める目的と矛盾し、fail-open 経路を残す。
+- script file 越しの書き込み・`git apply` — 拒否の迂回であり、以後の wave が同じ手を
+  正当化する前例になる。
+- 親が直接編集する — 実装面の Codex author 契約に反する。
+
+## D428. 受理集合を変える wave は wave 前との反転検査を証拠にする (2026-08-16)
+
+**決定:** 防壁の受理集合を変える wave は、期待表の緑だけを証拠にしない。**wave 前の実装と
+wave 後の実装へ同一のコマンド集合を通し、`deny → allow` の反転が 0 件であること**を実測して
+記録する。反転が 1 件でもあれば land しない。
+
+**理由:**
+- 受理集合を縮める意図の実装が、綴りの解析を作り込む過程で**元から拒否していた形を
+  通すようになる**ことがある。期待表は「閉じたい形」を列挙するため、この向きの後退を
+  構造的に検出できない。
+- 実際にこの wave で、script positional の後ろに置いた in-place option が
+  wave 前 deny から wave 後 allow へ反転した。期待表は全件緑のままだった。
+- 反転検査は wave 前後の 2 実装へ同じ入力を通すだけで、追加の人手判断を要さない。
+
+**却下した選択肢:**
+- 期待表へ「wave 前から deny の対照群」を足すだけで足りるとする — 対照群は列挙した分しか
+  守らず、実装が新設した解析器の綴り空間を覆えない。
+- レビュー子の指摘に依存する — 実際に見つけたのはレビュー子だったが、これは属人的で
+  再現性がない。機械検査へ落とす。

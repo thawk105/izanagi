@@ -1363,6 +1363,303 @@ _EXPLORATION_WAL = f"{_EXPLORATION_CAMPAIGN}/runs/wal.jsonl"
 _EXPLORATION_MARKER = "output/exploration/namespace.json"
 
 
+# [T-1025] cases-t1025.tsv の 93 行を repo 内へ固定する。外部の job artifact は
+# テスト実行時には参照しない。
+_T1025_DENY_CASES = (
+    ("awk-gt-wal", f"awk 'BEGIN {{ print \"x\" > \"{_WAL}\" }}' /dev/null"),
+    ("awk-append-wal", f"awk 'BEGIN {{ print \"x\" >> \"{_WAL}\" }}' /dev/null"),
+    ("awk-printf-wal", f"awk 'BEGIN {{ printf \"x\" > \"{_WAL}\" }}' /dev/null"),
+    ("gawk-gt-hook", "gawk 'BEGIN { print \"x\" > \"hooks/guard_write.py\" }' /dev/null"),
+    ("mawk-gt-lock", f"mawk 'BEGIN {{ print \"x\" > \"{_LOCK}\" }}' /dev/null"),
+    ("awk-gt-explwal", f"awk 'BEGIN {{ print \"x\" > \"{_EXPLORATION_WAL}\" }}' /dev/null"),
+    ("awk-gt-marker", f"awk 'BEGIN {{ print \"x\" > \"{_EXPLORATION_MARKER}\" }}' /dev/null"),
+    ("awk-pipe-wal", f"awk 'BEGIN {{ print \"x\" | \"cat > {_WAL}\" }}' /dev/null"),
+    ("awk-system-wal", f"awk 'BEGIN {{ system(\"rm {_WAL}\") }}' /dev/null"),
+    ("awk-progfile-wal", f"awk -f /tmp/prog.awk {_WAL}"),
+    ("gawk-profile-hook", "gawk --profile=hooks/guard_write.py '{print}' /dev/null"),
+    ("gawk-load-wal", f"gawk -l /tmp/evil.so '{{print}}' {_WAL}"),
+    ("sed-w-wal", f"sed -n 'w {_WAL}' /etc/hostname"),
+    ("sed-sw-wal", f"sed -n 's/a/b/w {_WAL}' /etc/hostname"),
+    ("sed-w-hook", "sed -n 'w hooks/guard_write.py' /etc/hostname"),
+    ("sed-e-wal", f"sed -n 'e cat {_WAL}' /etc/hostname"),
+    ("sed-scriptfile-wal", f"sed -n -f /tmp/prog.sed {_WAL}"),
+    ("git-diff-output-eq", f"git diff --output={_WAL}"),
+    ("git-diff-output-sep", f"git diff --output {_WAL}"),
+    ("git-log-output", f"git log --output={_WAL}"),
+    ("git-show-output", f"git show --output={_WAL}"),
+    ("git-diff-output-hook", "git diff --output=hooks/guard_write.py"),
+    ("git-grep-O", f"git grep -O{_WAL} COMMIT"),
+    ("git-diff-extdiff", f"git diff --ext-diff -- {_WAL}"),
+    ("git-diff-textconv", f"git diff --textconv -- {_WAL}"),
+    ("git-c-pager", f"git -c core.pager=tee log -- {_WAL}"),
+    ("git-paginate", f"git --paginate log -- {_WAL}"),
+    ("git-catfile-filters", f"git cat-file --filters HEAD:{_WAL}"),
+    ("sort-T-wal", f"sort -T {_WAL} /etc/hostname"),
+    ("sort-T-attached", f"sort -T{_WAL} /etc/hostname"),
+    ("sort-tempdir-long", f"sort --temporary-directory={_WAL} /etc/hostname"),
+    ("sort-compress-prog", f"sort --compress-program=/tmp/w {_WAL}"),
+    ("find-fls-wal", f"find . -maxdepth 1 -fls {_WAL}"),
+    ("find-fls-hook", "find . -maxdepth 1 -fls hooks/guard_write.py"),
+    ("xxd-r-out", f"xxd -r /etc/hostname {_WAL}"),
+    ("xxd-out", f"xxd /etc/hostname {_WAL}"),
+    ("xxd-out-hook", "xxd /etc/hostname hooks/guard_write.py"),
+    ("file-compile", f"file -C -m {_WAL}"),
+    ("nm-plugin", f"nm --plugin=/tmp/evil.so {_BV}/silo_x/ycsb_silo.exe"),
+    ("rg-pre", f"rg --pre=/tmp/writer COMMIT {_WAL}"),
+    ("less-o-attached", f"less -o{_WAL} /etc/hostname"),
+    ("less-logfile-long", f"less --log-file={_WAL} /etc/hostname"),
+    ("zless-o", f"zless -o{_WAL} /etc/hostname"),
+    ("dd-of-hook", "dd if=/etc/hostname of=hooks/guard_write.py"),
+    ("yq-inplace", f"yq -i '.a=1' {_WAL}"),
+    ("ag-pager", f"ag --pager=tee COMMIT {_WAL}"),
+    ("most-wal", f"most {_WAL}"),
+    ("dd-of-wal", f"dd if=/etc/hostname of={_WAL}"),
+    ("sed-i-wal", f"sed -i s/a/b/ {_WAL}"),
+    ("awk-i-inplace", f"awk -i inplace '{{print}}' {_WAL}"),
+    ("perl-i-wal", f"perl -i -pe s/a/b/ {_WAL}"),
+    ("echo-append-wal", f"echo x >> {_WAL}"),
+    ("rm-wal", f"rm -f {_WAL}"),
+    ("sort-o-wal", f"sort -o {_WAL} {_WAL}"),
+    ("find-delete", "find output/campaigns/c/runs -name '*.jsonl' -delete"),
+    ("find-fprintf", f"find . -maxdepth 1 -fprintf {_WAL} %p"),
+    ("rm-hook", "rm -f hooks/guard_write.py"),
+    ("tee-hook", "tee hooks/guard_write.py"),
+)
+
+_T1025_ALLOW_CASES = (
+    ("awk-plain-hook", "awk '{print}' hooks/guard_write.py"),
+    ("awk-field-wal", f"awk '{{print $1}}' {_WAL}"),
+    ("awk-count-wal", f"awk '/COMMIT/ {{ n++ }} END {{ print n }}' {_WAL}"),
+    ("sed-n-1p", f"sed -n 1p {_WAL}"),
+    ("sed-n-range", f"sed -n '1,200p' {_WAL}"),
+    ("sed-n-warn", f"sed -n '/warn/p' {_WAL}"),
+    ("sed-n-sp", f"sed -n 's/x/y/p' {_WAL}"),
+    ("git-diff-path", "git diff -- hooks/guard_write.py"),
+    ("git-log-oneline", f"git log --oneline -- {_WAL}"),
+    ("git-lstree", f"git ls-tree HEAD {_WAL}"),
+    ("git-blame-contents", f"git blame --contents {_WAL} HEAD"),
+    ("git-add-wal", f"git add {_WAL}"),
+    ("git-commit-msg", f"git commit -m 'campaign: {_WAL} を追加'"),
+    ("sort-plain-hook", "sort hooks/guard_write.py"),
+    ("sort-u-wal", f"sort -u {_WAL}"),
+    ("find-name", "find output/campaigns -name '*.jsonl'"),
+    ("find-type-f", "find hooks -type f -print"),
+    ("xxd-plain", f"xxd {_WAL}"),
+    ("xxd-len", f"xxd -l 16 {_WAL}"),
+    ("dd-if-wal", f"dd if={_WAL} of=/tmp/copy"),
+    ("nm-C", f"nm -C {_BV}/silo_x/ycsb_silo.exe"),
+    ("file-plain", f"file {_WAL}"),
+    ("rg-plain", f"rg COMMIT {_WAL}"),
+    ("less-plain", f"less {_WAL}"),
+    ("cat-wal", f"cat {_WAL}"),
+    ("grep-wal", f"grep -c COMMIT {_WAL}"),
+    ("jq-wal", f"jq .fitness {_WAL}"),
+    ("head-wal", f"head -5 {_WAL}"),
+    ("wc-wal", f"wc -l {_WAL}"),
+    ("python-script", f"python3 orchestrator/campaign/p2_2_report.py {_WAL}"),
+    ("od-second-positional", f"od -c /etc/hostname {_WAL}"),
+    ("stat-printf", f"stat --printf=x {_WAL}"),
+    ("date-f", f"date -f {_WAL}"),
+    ("ls-bv", f"ls {_BV}"),
+    ("reports-write", "echo '# report' > output/campaigns/c/reports/r.md"),
+)
+
+
+@pytest.mark.parametrize(
+    ("label", "command"),
+    _T1025_DENY_CASES,
+    ids=[label for label, _ in _T1025_DENY_CASES],
+)
+def test_t1025_expectation_table_denies(label, command):
+    ok, why = GB.decide(command)
+    assert not ok, f"T-1025 deny が通った [{label}]: {command!r} ({why})"
+
+
+@pytest.mark.parametrize(
+    ("label", "command"),
+    _T1025_ALLOW_CASES,
+    ids=[label for label, _ in _T1025_ALLOW_CASES],
+)
+def test_t1025_expectation_table_allows(label, command):
+    ok, why = GB.decide(command)
+    assert ok, f"T-1025 allow が誤拒否された [{label}]: {command!r} ({why})"
+
+
+_T1025_PROTECTED_TARGETS = (
+    ("wal", _WAL),
+    ("lock", _LOCK),
+    ("build-variants", f"{_BV}/silo_x/meta.json"),
+    ("exploration-marker", _EXPLORATION_MARKER),
+    ("exploration-wal", _EXPLORATION_WAL),
+    ("hook", "hooks/guard_write.py"),
+)
+
+
+@pytest.mark.parametrize(
+    ("label", "target"),
+    _T1025_PROTECTED_TARGETS,
+    ids=[label for label, _ in _T1025_PROTECTED_TARGETS],
+)
+def test_t1025_sed_writer_denied_across_protected_targets(label, target):
+    command = f"sed -n 'w {target}' /etc/hostname"
+    ok, why = GB.decide(command)
+    assert not ok, f"保護対象への sed writer が通った [{label}]: {command!r} ({why})"
+
+
+# ccbench source は末端層が保護しない範囲で、`echo >` を含む全 writer が同様に通る
+# 既存の境界。[T-1025] の scope 外なので、deny 直積ではなく残余限界を allow で固定する。
+def test_t1025_ccbench_source_writer_remains_out_of_scope():
+    command = "sed -n 'w external/ccbench/include/backoff.hh' /etc/hostname"
+    ok, why = GB.decide(command)
+    assert ok, f"T-1025 scope 外の ccbench source writer が拒否された: {command!r} ({why})"
+
+
+_T1025_ADDITIONAL_DENY_CASES = (
+    ("awk-pipe-both", f"awk 'BEGIN {{ print \"x\" |& \"cat > {_WAL}\" }}' /dev/null"),
+    ("awk-close", f"awk 'BEGIN {{ close(\"{_WAL}\") }}' {_WAL}"),
+    ("awk-file-long", f"awk --file /tmp/prog.awk {_WAL}"),
+    ("awk-file-long-eq", f"awk --file=/tmp/prog.awk {_WAL}"),
+    ("gawk-o-attached", f"gawk -o{_WAL} '{{print}}' /dev/null"),
+    ("gawk-pretty-eq", f"gawk --pretty-print={_WAL} '{{print}}' /dev/null"),
+    ("gawk-p-attached", f"gawk -p{_WAL} '{{print}}' /dev/null"),
+    ("gawk-debug-attached", f"gawk -D{_WAL} '{{print}}' /dev/null"),
+    ("gawk-debug-long", f"gawk --debug={_WAL} '{{print}}' /dev/null"),
+    ("gawk-dump-vars", f"gawk --dump-variables={_WAL} '{{print}}' /dev/null"),
+    ("gawk-gen-pot", f"gawk --gen-pot={_WAL} '{{print}}' /dev/null"),
+    ("gawk-load-long", f"gawk --load=/tmp/evil.so '{{print}}' {_WAL}"),
+    ("sed-W", f"sed -n 'W {_WAL}' /etc/hostname"),
+    ("sed-sub-e", f"sed -n 's/a/b/e' {_WAL}"),
+    ("sed-ambiguous-script", f"sed -n 's/a/b' {_WAL}"),
+    ("sed-file-long", f"sed -n --file /tmp/prog.sed {_WAL}"),
+    ("sed-file-long-eq", f"sed -n --file=/tmp/prog.sed {_WAL}"),
+    ("sort-tempdir-sep", f"sort --temporary-directory {_WAL} /etc/hostname"),
+    ("sort-compress-sep", f"sort --compress-program /tmp/w {_WAL}"),
+    ("git-c-attached", f"git -ccore.pager=tee log -- {_WAL}"),
+    ("git-config-env-sep", f"git --config-env core.pager=PAGER log -- {_WAL}"),
+    ("git-config-env-eq", f"git --config-env=core.pager=PAGER log -- {_WAL}"),
+    ("git-p-short", f"git -p log -- {_WAL}"),
+    ("git-diff-out-abbrev", f"git diff --out={_WAL}"),
+    ("git-whatchanged-output", f"git whatchanged --output={_WAL}"),
+    ("git-log-ext-diff", f"git log --ext-diff -- {_WAL}"),
+    ("git-show-textconv", f"git show --textconv -- {_WAL}"),
+    ("git-grep-O-sep", f"git grep -O {_WAL} COMMIT"),
+    ("git-grep-pager-long", f"git grep --open-files-in-pager={_WAL} COMMIT"),
+    ("git-grep-textconv", f"git grep --textconv COMMIT {_WAL}"),
+    ("git-catfile-textconv", f"git cat-file --textconv HEAD:{_WAL}"),
+    ("file-compile-long", f"file --compile -m {_WAL}"),
+    ("nm-plugin-sep", f"nm --plugin /tmp/evil.so {_BV}/silo_x/ycsb_silo.exe"),
+    ("rg-pre-sep", f"rg --pre /tmp/writer COMMIT {_WAL}"),
+    ("rg-hostname-bin", f"rg --hostname-bin=/tmp/writer COMMIT {_WAL}"),
+    ("rg-hostname-bin-sep", f"rg --hostname-bin /tmp/writer COMMIT {_WAL}"),
+    ("less-o-sep", f"less -o {_WAL} /etc/hostname"),
+    ("less-O-attached", f"less -O{_WAL} /etc/hostname"),
+    ("less-logfile-sep", f"less --log-file {_WAL} /etc/hostname"),
+    ("less-LOG-FILE", f"less --LOG-FILE={_WAL} /etc/hostname"),
+    ("zless-O-sep", f"zless -O {_WAL} /etc/hostname"),
+    ("xxd-ambiguous-option", f"xxd -Z {_WAL}"),
+)
+
+
+@pytest.mark.parametrize(
+    ("label", "command"),
+    _T1025_ADDITIONAL_DENY_CASES,
+    ids=[label for label, _ in _T1025_ADDITIONAL_DENY_CASES],
+)
+def test_t1025_spec_writer_spellings_denied(label, command):
+    ok, why = GB.decide(command)
+    assert not ok, f"T-1025 の writer 綴りが通った [{label}]: {command!r} ({why})"
+
+
+_T1025_ADDITIONAL_ALLOW_CASES = (
+    ("git-status-short", "git status --short"),
+    ("ldd-build-variant", f"ldd {_BV}/silo_x/ycsb_silo.exe"),
+    # v3 A5: 比較演算は redirection ではない。
+    ("awk-comparison", f"awk '$1 > 5 {{print}}' {_WAL}"),
+    # gawk の任意引数長 option は `=` でしか値を取らない。`=` 形は deny 側で固定する。
+    ("gawk-pretty-sep", f"gawk --pretty-print {_WAL} '{{print}}' /dev/null"),
+)
+
+
+@pytest.mark.parametrize(
+    ("label", "command"),
+    _T1025_ADDITIONAL_ALLOW_CASES,
+    ids=[label for label, _ in _T1025_ADDITIONAL_ALLOW_CASES],
+)
+def test_t1025_spec_readers_remain_allowed(label, command):
+    ok, why = GB.decide(command)
+    assert ok, f"T-1025 の reader が誤拒否された [{label}]: {command!r} ({why})"
+
+
+# [T-1025] cases-t1025-v2.tsv の追加 42 行も外部 artifact に依存せず固定する。
+_T1025_V2_DENY_CASES = (
+    ("sed-i-after-script", f"sed 'p' -i {_WAL}"),
+    ("sed-inplace-long-eq", f"sed 'p' --in-place={_WAL}"),
+    ("sort-cluster-uo", f"sort -uo{_WAL} /etc/hostname"),
+    ("sort-cluster-uT", f"sort -uT {_WAL} /etc/hostname"),
+    ("file-cluster-Cm", f"file -Cm {_WAL}"),
+    ("less-cluster-NO", f"less -NO{_WAL} /etc/hostname"),
+    ("sort-abbrev-ou", f"sort --ou={_WAL} /etc/hostname"),
+    ("sort-abbrev-te", f"sort --te={_WAL} /etc/hostname"),
+    ("sort-abbrev-co", f"sort --co=/tmp/writer {_WAL}"),
+    ("git-diff-abbrev-ou", f"git diff --ou={_WAL}"),
+    ("git-grep-abbrev-ope", f"git grep --ope=/tmp/pager COMMIT {_WAL}"),
+    ("git-catfile-abbrev-fi", f"git cat-file --fi HEAD:{_WAL}"),
+    ("file-abbrev-com", f"file --com -m {_WAL}"),
+    ("nm-abbrev-plu", f"nm --plu=/tmp/evil.so {_BV}/silo_x/ycsb_silo.exe"),
+    ("awk-redirect-nonliteral", f"awk 'BEGIN {{ print \"x\" > outvar }}' {_WAL}"),
+    ("rg-pre-tmp", f"rg --pre=/tmp/writer COMMIT {_WAL}"),
+    ("nm-plugin-tmp", f"nm --plugin=/tmp/evil.so {_BV}/silo_x/ycsb_silo.exe"),
+    ("git-textconv-tmp", f"git diff --textconv -- {_WAL}"),
+    ("git-extdiff-tmp", f"git diff --ext-diff -- {_WAL}"),
+    ("awk-system-tmp", f"awk 'BEGIN {{ system(\"echo x\") }}' {_WAL}"),
+)
+
+_T1025_V2_ALLOW_CASES = (
+    ("git-diff-cached-patch", "git diff --cached --output=/tmp/guard.patch -- hooks/guard_bash.py"),
+    ("sed-w-to-tmp", f"sed -n 'w /tmp/copy' {_WAL}"),
+    ("sort-T-tmp", f"sort -T /tmp {_WAL}"),
+    ("find-fls-tmp", "find output/campaigns/c/runs -fls /tmp/list"),
+    ("xxd-out-tmp", f"xxd {_WAL} /tmp/copy"),
+    ("less-o-tmp", f"less -o/tmp/log {_WAL}"),
+    ("gawk-profile-tmp", f"gawk --profile=/tmp/prof '{{print}}' {_WAL}"),
+    ("file-compile-tmp", f"file -C -m /tmp/magic {_WAL}"),
+    ("dd-of-tmp2", f"dd if={_WAL} of=/tmp/copy2"),
+    ("sed-bundled-ne", f"sed -ne '1p' {_WAL}"),
+    ("sed-relative-range", f"sed -n '1,+2p' {_WAL}"),
+    ("xxd-long-seek", f"xxd -seek 0 {_WAL}"),
+    ("xxd-long-cols", f"xxd -cols 16 {_WAL}"),
+    ("awk-regex-alternation", f"awk '/COMMIT|ABORT/ {{ print }}' {_WAL}"),
+    ("awk-string-pipe", f"awk '{{ if ($1 == \"a|b\") print }}' {_WAL}"),
+    ("awk-comparison", f"awk '$1 > 5 {{ print }}' {_WAL}"),
+    ("awk-redirect-tmp-literal", f"awk 'BEGIN {{ print \"x\" > \"/tmp/out\" }}' {_WAL}"),
+    ("git-diff-ddash-pathspec", f"git diff -- --output={_WAL}"),
+    ("sort-ddash", f"sort -- --temporary-directory {_WAL}"),
+    ("file-ddash", f"file -- -C {_WAL}"),
+    ("less-ddash", f"less -- -o {_WAL}"),
+    ("rg-ddash", f"rg -- --pre {_WAL}"),
+)
+
+
+@pytest.mark.parametrize(
+    ("label", "command"),
+    _T1025_V2_DENY_CASES,
+    ids=[label for label, _ in _T1025_V2_DENY_CASES],
+)
+def test_t1025_v2_expectation_table_denies(label, command):
+    ok, why = GB.decide(command)
+    assert not ok, f"T-1025 v2 deny が通った [{label}]: {command!r} ({why})"
+
+
+@pytest.mark.parametrize(
+    ("label", "command"),
+    _T1025_V2_ALLOW_CASES,
+    ids=[label for label, _ in _T1025_V2_ALLOW_CASES],
+)
+def test_t1025_v2_expectation_table_allows(label, command):
+    ok, why = GB.decide(command)
+    assert ok, f"T-1025 v2 allow が誤拒否された [{label}]: {command!r} ({why})"
+
+
 def test_bash_fast_path_and_reads_allowed():
     for cmd in ("ls -la",
                 "echo hi > /tmp/x",

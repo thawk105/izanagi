@@ -26,7 +26,10 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import ident, p3_s4_loop as L                         # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as S                           # noqa: E402
 from orchestrator.campaign import wal                                            # noqa: E402
-from orchestrator.campaign.artifact_admission import require_admitted_campaign   # noqa: E402
+from orchestrator.campaign.artifact_admission import (                          # noqa: E402
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from orchestrator.campaign.diff_quarantine import DiffRejectSubtype              # noqa: E402
 from orchestrator.campaign.layout import CampaignLayout                          # noqa: E402
 from orchestrator.campaign.model import Genome                                   # noqa: E402
@@ -129,7 +132,9 @@ def _critic_view(layout: CampaignLayout):
     wal.write_lock(layout, build_v2_lock(
         ident.canonical_preimage(S.default_cfg())
     ))
-    return require_admitted_campaign(layout)
+    return require_admitted_campaign(
+        layout, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
 
 
 def _planner() -> "L.PlannerProposal":

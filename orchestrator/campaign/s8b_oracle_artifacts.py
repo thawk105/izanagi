@@ -28,6 +28,16 @@ EXPLORATION_ARTIFACT_KEYS = frozenset({
     "schema_version", "artifact_role", "campaign_id", "measurement_hint", "payload",
 })
 MEASUREMENT_HINT_KEYS = frozenset({"extime_s", "reps"})
+CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
+    "campaign_id", "campaign_verifier_epoch", "state", "reason_code",
+    "identity_scope", "excluded_scope", "certified_eligible", "rejection",
+})
+CAMPAIGN_VERIFIER_EPOCH_REJECTION_KEYS = frozenset({"code", "message"})
+CAMPAIGN_VERIFIER_EPOCH_REJECTION_CODES = frozenset({
+    "campaign-verifier-epoch-rejected",
+    "campaign-verifier-epoch-unavailable",
+})
+_SHA256_CHARS = frozenset("0123456789abcdef")
 
 
 class OracleArtifactTypeError(TypeError):
@@ -126,6 +136,102 @@ def project_finite_float_sequence(value: object) -> list[float] | None:
             return None
         projected.append(number)
     return projected
+
+
+def validate_campaign_verifier_epochs(value: object) -> tuple[dict, ...]:
+    """Official observations の campaign 別 epoch 証拠を exact 検査する。"""
+    if (not isinstance(value, Sequence)
+            or isinstance(value, (str, bytes, bytearray)) or not value):
+        raise OracleArtifactTypeError(
+            "campaign_verifier_epochs は空でない array でなければならない"
+        )
+    projected: list[dict] = []
+    campaign_ids: set[str] = set()
+    for entry in value:
+        if not isinstance(entry, Mapping) or set(entry) != CAMPAIGN_VERIFIER_EPOCH_KEYS:
+            raise OracleArtifactTypeError(
+                "campaign_verifier_epochs entry の exact key 集合が不一致"
+            )
+        campaign_id = entry.get("campaign_id")
+        if (not isinstance(campaign_id, str) or not campaign_id
+                or campaign_id in campaign_ids):
+            raise OracleArtifactTypeError(
+                "campaign_verifier_epochs campaign_id が空・重複・非文字列"
+            )
+        campaign_ids.add(campaign_id)
+        state = entry.get("state")
+        epoch = entry.get("campaign_verifier_epoch")
+        reason_code = entry.get("reason_code")
+        eligible = entry.get("certified_eligible")
+        rejection = entry.get("rejection")
+        if (not isinstance(entry.get("identity_scope"), str)
+                or not entry["identity_scope"]
+                or not isinstance(entry.get("excluded_scope"), str)
+                or not entry["excluded_scope"]):
+            raise OracleArtifactTypeError(
+                "campaign_verifier_epochs scope が空でない文字列でない"
+            )
+        if state == "E1":
+            valid = (
+                isinstance(epoch, str)
+                and epoch.startswith("E1:")
+                and len(epoch) == 67
+                and set(epoch[3:]) <= _SHA256_CHARS
+                and reason_code == "recorded-closure"
+                and eligible is True
+                and rejection is None
+            )
+        elif state == "E0":
+            valid = (
+                epoch == "E0"
+                and reason_code == "v1-authority-absent"
+                and eligible is False
+            )
+        elif state == "E1-stale":
+            valid = (
+                isinstance(epoch, str)
+                and epoch.startswith("E1:")
+                and len(epoch) == 67
+                and set(epoch[3:]) <= _SHA256_CHARS
+                and reason_code in {
+                    "recorded-current-closure-mismatch",
+                    "current-closure-unavailable",
+                }
+                and eligible is False
+            )
+        elif state == "unavailable":
+            valid = (
+                epoch is None
+                and reason_code == "campaign-verifier-epoch-unavailable"
+                and eligible is False
+            )
+        else:
+            valid = False
+        if not valid:
+            raise OracleArtifactTypeError(
+                "campaign_verifier_epochs epoch/eligibility 対応が不正"
+            )
+        if eligible is False:
+            if (not isinstance(rejection, Mapping)
+                    or set(rejection) != CAMPAIGN_VERIFIER_EPOCH_REJECTION_KEYS
+                    or rejection.get("code")
+                    not in CAMPAIGN_VERIFIER_EPOCH_REJECTION_CODES
+                    or not isinstance(rejection.get("message"), str)
+                    or not rejection["message"]):
+                raise OracleArtifactTypeError(
+                    "campaign_verifier_epochs rejection が不正"
+                )
+            expected_code = (
+                "campaign-verifier-epoch-unavailable"
+                if state == "unavailable"
+                else "campaign-verifier-epoch-rejected"
+            )
+            if rejection["code"] != expected_code:
+                raise OracleArtifactTypeError(
+                    "campaign_verifier_epochs rejection code が state と不一致"
+                )
+        projected.append(dict(entry))
+    return tuple(projected)
 
 
 def load_official_manifest(source: JsonSource) -> OfficialManifest | LegacyManifest:

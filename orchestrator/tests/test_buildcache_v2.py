@@ -220,6 +220,19 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
     monkeypatch.setattr(buildcache, "_assert_no_trace_symbols", lambda *a, **k: None)
 
     def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
+        if what == "configure":
+            base_tokens = [
+                token for token in cmd
+                if token.startswith("-DFETCHCONTENT_BASE_DIR=")
+            ]
+            if base_tokens:
+                bdir = Path(cmd[cmd.index("-B") + 1])
+                bdir.mkdir(parents=True, exist_ok=True)
+                base = Path(base_tokens[0].split("=", 1)[1])
+                (bdir / "CMakeCache.txt").write_text(
+                    f"masstree_SOURCE_DIR:STATIC={base / 'masstree-src'}\n",
+                    encoding="utf-8",
+                )
         if what == "build":
             bdir = Path(cmd[cmd.index("--build") + 1])
             binary = bdir / "cc" / "silo" / "ycsb_silo.exe"
@@ -232,7 +245,8 @@ def _fake_build_environment(monkeypatch, tmp_path: Path, payload: bytes = b"v2-b
 def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: bool = True,
            ccbench_dir: str = "", timeout_s: int | None = None,
            dependency_prefix: str = "", site: str | None = None,
-           expected_toolchain_manifest=None):
+           expected_toolchain_manifest=None, fetchcontent_base_dir: str = "",
+           fetchcontent_dependency_receipt=None):
     genome = Genome("silo", {"BACK_OFF": 1})
     source_root = ccbench_dir or str(tmp_path / "ccbench")
     context, evidence, admission = _admission_bundle(
@@ -258,9 +272,295 @@ def _build(tmp_path: Path, contract: ExecutionEnvironmentContract, *, trace: boo
         kwargs["site"] = site
     if expected_toolchain_manifest is not None:
         kwargs["expected_toolchain_manifest"] = expected_toolchain_manifest
+    if fetchcontent_base_dir:
+        kwargs["fetchcontent_base_dir"] = fetchcontent_base_dir
+    if fetchcontent_dependency_receipt is not None:
+        kwargs["fetchcontent_dependency_receipt"] = fetchcontent_dependency_receipt
     return buildcache.build_v2(
         genome,
         **kwargs,
+    )
+
+
+def _dependency_receipt(*, config: str = "b", archive: str = "c") -> dict[str, str]:
+    return {
+        "masstree_head": "a" * 40,
+        "config_sha256": config * 64,
+        "archive_sha256": archive * 64,
+    }
+
+
+def _write_fetchcontent_dependency(base: Path) -> dict[str, str]:
+    source = base / "masstree-src"
+    source.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(source)], check=True)
+    (source / "tracked.hh").write_text("// pinned\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(source), "add", "tracked.hh"], check=True)
+    subprocess.run(
+        [
+            "git", "-C", str(source), "-c", "user.name=Fixture",
+            "-c", "user.email=fixture@example.invalid", "commit", "-qm", "pin",
+        ],
+        check=True,
+    )
+    config = source / "config.h"
+    archive = source / "libkohler_masstree_json.a"
+    config.write_bytes(b"fixture config\n")
+    archive.write_bytes(b"fixture archive\n")
+    head = subprocess.run(
+        ["git", "-C", str(source), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    return {
+        "masstree_head": head,
+        "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
+        "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+    }
+
+
+def test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    result = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    hit = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    base_defines = [
+        token for token in result.configure_argv
+        if token.startswith("-DFETCHCONTENT_BASE_DIR=")
+    ]
+    assert base_defines == [f"-DFETCHCONTENT_BASE_DIR={base.resolve()}"]
+    assert not any(
+        token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+        for token in result.configure_argv
+    )
+    assert not result.cached
+    assert hit.cached
+    assert hit.masstree_source_root_sha256 == result.masstree_source_root_sha256
+    manifest = json.loads(
+        (Path(result.build_dir) / "completion.json").read_text(encoding="utf-8")
+    )
+    assert manifest["preimage"]["fetchcontent_dependency_receipt"] == (
+        receipt
+    )
+    assert manifest["completion_marker"] == "complete"
+    assert str(base.resolve()) not in json.dumps(
+        manifest["preimage"], sort_keys=True,
+    )
+
+
+def test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base_a = tmp_path / "fetchcontent-a"
+    base_a.mkdir()
+    receipt = _write_fetchcontent_dependency(base_a)
+    first = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base_a.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    base_b = tmp_path / "fetchcontent-b"
+    base_b.mkdir()
+    shutil.copytree(base_a / "masstree-src", base_b / "masstree-src")
+    second = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base_b.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    assert not first.cached
+    assert second.cached
+    assert second.build_dir == first.build_dir
+    assert second.fetchcontent_base_dir == str(base_b.resolve())
+    assert second.masstree_source_root_sha256 == hashlib.sha256(
+        str(base_a.resolve() / "masstree-src").encode("utf-8")
+    ).hexdigest()
+
+
+def test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    base = tmp_path / "fetchcontent"
+    base.mkdir()
+    receipt = _write_fetchcontent_dependency(base)
+    config = base / "masstree-src" / "config.h"
+    original_run = buildcache._run
+    mutate = True
+
+    def drift_after_build(cmd, what, **kwargs):
+        nonlocal mutate
+        original_run(cmd, what, **kwargs)
+        if what == "build" and mutate:
+            config.write_bytes(b"drifted config\n")
+
+    monkeypatch.setattr(buildcache, "_run", drift_after_build)
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="dependency 内容が build 中に変化"):
+        _build(
+            tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+        )
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
+
+    config.write_bytes(b"fixture config\n")
+    mutate = False
+    claims = list((tmp_path / "cache").rglob("*.building"))
+    assert len(claims) == 1
+    assert claims[0].is_dir()
+    assert (claims[0] / "owner.json").is_file()
+    shutil.rmtree(claims[0])
+    rebuilt = _build(
+        tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    assert not rebuilt.cached
+
+
+def test_v2_wrong_effective_root_never_publishes_or_hits_same_key(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected_base = tmp_path / "fetchcontent-expected"
+    expected_base.mkdir()
+    receipt = _write_fetchcontent_dependency(expected_base)
+    wrong_base = tmp_path / "fetchcontent-wrong"
+    wrong_base.mkdir()
+    shutil.copytree(
+        expected_base / "masstree-src", wrong_base / "masstree-src",
+    )
+    original_run = buildcache._run
+    inject_wrong_root = True
+
+    def replace_effective_root_after_configure(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "configure" and inject_wrong_root:
+            staging = Path(cmd[cmd.index("-B") + 1])
+            (staging / "CMakeCache.txt").write_text(
+                f"masstree_SOURCE_DIR:STATIC={wrong_base / 'masstree-src'}\n",
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(buildcache, "_run", replace_effective_root_after_configure)
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="実効 source root が期待値と不一致"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(expected_base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+        )
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
+
+    claims = list((tmp_path / "cache").rglob("*.building"))
+    assert len(claims) == 1
+    shutil.rmtree(claims[0])
+    inject_wrong_root = False
+    rebuilt = _build(
+        tmp_path, _contract(1),
+        fetchcontent_base_dir=str(expected_base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    assert not rebuilt.cached
+
+
+def test_v2_fetchcontent_receipt_change_misses_and_empty_default_preserves_identity(
+        tmp_path):
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {"requested": role, "realpath": f"/tool/{role}", "version_first_line": "v1"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    kwargs = dict(
+        site="test", dependency_prefix=[], admission={"receipt": "fixture"},
+    )
+    legacy = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain, **kwargs,
+    )
+    explicit_empty = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_dependency_receipt=None, **kwargs,
+    )
+    changed = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_dependency_receipt=_dependency_receipt(config="d"), **kwargs,
+    )
+    baseline = buildcache._v2_identity(
+        genome, "a" * 40, False, "stock", "cc", "cxx", toolchain,
+        fetchcontent_dependency_receipt=_dependency_receipt(), **kwargs,
+    )
+    assert legacy == explicit_empty
+    assert changed[1] != baseline[1]
+
+
+def test_prepare_masstree_fetchcontent_configures_then_builds_exact_target(
+        tmp_path, monkeypatch):
+    base = tmp_path / "base"
+    source = tmp_path / "ccbench"
+    base.mkdir()
+    source.mkdir()
+    calls = []
+    monkeypatch.setattr(buildcache, "_run", lambda cmd, what, **kwargs: calls.append((cmd, what, kwargs)))
+    monkeypatch.setattr(
+        buildcache.site_policy, "current_site", lambda: buildcache.site_policy.OTHER,
+    )
+    result = buildcache.prepare_masstree_fetchcontent(
+        ccbench_dir=str(source.resolve()),
+        fetchcontent_base_dir=str(base.resolve()),
+        expected_toolchain_manifest={
+            role: {
+                "requested": role, "realpath": f"/tool/{role}",
+                "version_first_line": "v1", "version": "v1",
+            }
+            for role in ("cc", "cxx", "cmake")
+        },
+        configure_timeout_s=11, target_timeout_s=13,
+    )
+    assert [what for _cmd, what, _kwargs in calls] == ["configure", "build"]
+    assert calls[1][0][calls[1][0].index("--target") + 1] == "masstree_build"
+    assert calls[0][2]["timeout_s"] == 11
+    assert calls[1][2]["timeout_s"] == 13
+    assert result.fetchcontent_base_dir == str(base.resolve())
+
+
+def test_prepare_masstree_fetchcontent_never_emits_source_dir_override(
+        tmp_path, monkeypatch):
+    base = tmp_path / "base"
+    source = tmp_path / "ccbench"
+    base.mkdir()
+    source.mkdir()
+    calls = []
+    monkeypatch.setattr(buildcache, "_run", lambda cmd, what, **kwargs: calls.append(cmd))
+    monkeypatch.setattr(
+        buildcache.site_policy, "current_site", lambda: buildcache.site_policy.OTHER,
+    )
+    buildcache.prepare_masstree_fetchcontent(
+        ccbench_dir=str(source.resolve()),
+        fetchcontent_base_dir=str(base.resolve()),
+        expected_toolchain_manifest={
+            role: {
+                "requested": role, "realpath": f"/tool/{role}",
+                "version_first_line": "v1", "version": "v1",
+            }
+            for role in ("cc", "cxx", "cmake")
+        },
+        configure_timeout_s=11, target_timeout_s=13,
+    )
+    assert [
+        token for token in calls[0]
+        if token.startswith("-DFETCHCONTENT_BASE_DIR=")
+    ] == [f"-DFETCHCONTENT_BASE_DIR={base.resolve()}"]
+    assert not any(
+        token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+        for command in calls for token in command
     )
 
 

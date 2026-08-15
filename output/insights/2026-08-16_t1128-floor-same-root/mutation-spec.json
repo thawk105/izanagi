@@ -1,0 +1,45 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 130.0,
+ "timeout_seconds": 3600.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "    if receipt is not None:\n        preimage[\"fetchcontent_dependency_receipt\"] = receipt\n",
+     "new": "    if receipt is not None:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_receipt_change_misses_and_empty_default_preserves_identity",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "    fetchcontent_define = (\n        [f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\"]\n        if fetchcontent_base_dir else []\n    )\n",
+     "new": "    fetchcontent_define = (\n        [f\"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}\"] * 2\n        if fetchcontent_base_dir else []\n    )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_cache_hit_reuses_same_content_receipt_across_distinct_bases",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage",
+    "orchestrator/tests/test_buildcache_v2.py::test_v2_wrong_effective_root_never_publishes_or_hits_same_key"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
