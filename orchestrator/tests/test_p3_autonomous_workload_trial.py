@@ -27,6 +27,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from orchestrator.campaign import claude_transport
+from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import artifact_admission
 from orchestrator.campaign import model as campaign_model
 from orchestrator.campaign import p3_autonomous_workload_trial as A
@@ -1950,6 +1951,67 @@ def test_compute_build_requires_matching_t276_transport_admission(
             transport_admission=admission,
             transport_receipt=mismatched,
         )
+
+
+def test_transport_admission_error_persists_verified_partial_report(
+    tmp_path, monkeypatch,
+) -> None:
+    class FixtureTransportAdmissionError(RuntimeError):
+        pass
+
+    admission_calls = []
+
+    def reject_transport_admission(**kwargs):
+        admission_calls.append(kwargs)
+        raise FixtureTransportAdmissionError("fixture transport admission failed")
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site",
+        lambda: A.trigger.site_policy.PEGASUS_COMPUTE,
+    )
+    monkeypatch.setattr(A, "admit_claude_transport", reject_transport_admission)
+    run_root = tmp_path / "transport-admission-error"
+    report = A.run_trial(
+        trial_id="transport-admission-error",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="claude-headless",
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        coder_authority=_coder_authority(),
+        allow_pegasus_compute_transport=True,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert len(admission_calls) == 1
+    persisted = json.loads((run_root / "report.json").read_text(encoding="utf-8"))
+    assert persisted == report
+    assert report["status"] == "partial"
+    assert report["cells"] == []
+    assert report["honest_accounting"] == {
+        "role_query_count": 0,
+        "bench_wall_seconds": 0.0,
+    }
+    assert "transport_receipt" not in report
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+    ]
+    assert [event["event"] for event in events] == [
+        "transport-admission-error", "run-start", "run-finish",
+    ]
+    assert set(events[0]) == {"event", "type", "message", "seq", "ts"}
+    assert report["fatal_error"] == {
+        "type": events[0]["type"],
+        "message": events[0]["message"],
+    }
+    assert all("transport_receipt" not in event for event in events)
+    completeness.verify_autonomous_trial_files(
+        run_root / "attempts.jsonl", run_root / "report.json",
+    )
 
 
 def test_run_workload_other_build_reaches_drive_positive(tmp_path, monkeypatch) -> None:

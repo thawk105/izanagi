@@ -329,10 +329,17 @@ def test_rejects_pbs_job_witness_failures_without_disclosure() -> None:
         )
 
 
-def test_pbs_jobid_grammar_matches_qualification_authority_exactly() -> None:
-    assert T.PBS_JOBID_PATTERN == QSUB._JOB_ID_TEXT
-    assert T._PBS_JOBID_RE.pattern == QSUB._JOB_ID.pattern
-    assert COLLECTOR._JOB_ID.pattern == rf"(?:0:)?{T.PBS_JOBID_PATTERN}"
+def test_pbs_jobid_grammar_is_exact_optional_zero_prefix_extension_of_qsub_authority(
+) -> None:
+    assert T.PBS_JOBID_PATTERN == rf"(?:0:)?{QSUB._JOB_ID_TEXT}"
+    assert T._PBS_JOBID_RE.pattern == T.PBS_JOBID_PATTERN
+    assert COLLECTOR._JOB_ID.pattern == T.PBS_JOBID_PATTERN
+    assert T.is_valid_pbs_jobid("0:867876.nqsv")
+    assert COLLECTOR._JOB_ID.fullmatch("0:867876.nqsv") is not None
+    assert QSUB._JOB_ID.fullmatch("0:867876.nqsv") is None
+    assert T.is_valid_pbs_jobid("0:123.server")
+    assert COLLECTOR._JOB_ID.fullmatch("0:123.server") is not None
+    assert QSUB._JOB_ID.fullmatch("0:123.server") is None
     for value in ("a", "987654.pegasus", "job_name-1", "x" * 256):
         assert T.is_valid_pbs_jobid(value)
         assert QSUB._JOB_ID.fullmatch(value) is not None
@@ -349,6 +356,12 @@ def test_rejects_pbs_jobid_outside_strict_syntax_without_disclosure() -> None:
         ":",
         "credential-sentinel@host",
         "\n",
+        "0:",
+        "0:0:911191",
+        "0::x",
+        "00:x",
+        "1:911106.nqsv",
+        "0:job:id",
     ):
         source = _source()
         source["PBS_JOBID"] = bad
@@ -358,6 +371,89 @@ def test_rejects_pbs_jobid_outside_strict_syntax_without_disclosure() -> None:
             bad,
             "credential-sentinel",
         )
+
+
+def test_recorded_compute_pbs_jobid_passes_transport_and_receipt_admission(
+    tmp_path: Path,
+) -> None:
+    source = {
+        "HOME": "/fixture/home",
+        "PBS_JOBID": "0:867876.nqsv",
+        "http_proxy": "http://proxy-a.example:18080",
+        "https_proxy": "http://proxy-b.example:18443",
+    }
+    expected_receipt = {
+        "schema_version": "claude-transport-receipt/v1",
+        "mode": "explicit-http-proxy-env",
+        "site": "PEGASUS_COMPUTE",
+        "admitted_env_keys": ["http_proxy", "https_proxy"],
+        "endpoint_values": {
+            "http_proxy": "http://proxy-a.example:18080",
+            "https_proxy": "http://proxy-b.example:18443",
+        },
+        "endpoint_values_sha256": (
+            "8600267e0e37ea741979c88de241b910804defdb9ea147f4d0f5200a4ece3cfb"
+        ),
+        "policy_path": "tools/pegasus/policies/transport_v1.json",
+        "policy_sha256": (
+            "279fcecffc6e0c636171799fa7744f58495730698d3c75f9fb18534e1430797c"
+        ),
+        "source_tls_trust_override_keys": [],
+        "forwarded_tls_trust_override_keys": [],
+        "pbs_jobid": "0:867876.nqsv",
+    }
+    admission = T.evaluate_transport_admission(
+        source_env=source,
+        policy_bytes=_DISTINCT_POLICY_BYTES,
+        site="PEGASUS_COMPUTE",
+    )
+    assert admission.receipt.as_dict() == expected_receipt
+
+    validated = A._validate_transport_receipt(
+        {
+            "schema_version": "claude-transport-receipt/v1",
+            "mode": "explicit-http-proxy-env",
+            "site": "PEGASUS_COMPUTE",
+            "admitted_env_keys": ["http_proxy", "https_proxy"],
+            "endpoint_values": {
+                "http_proxy": "http://proxy-a.example:18080",
+                "https_proxy": "http://proxy-b.example:18443",
+            },
+            "endpoint_values_sha256": (
+                "8600267e0e37ea741979c88de241b910804defdb9ea147f4d0f5200a4ece3cfb"
+            ),
+            "policy_path": "tools/pegasus/policies/transport_v1.json",
+            "policy_sha256": (
+                "279fcecffc6e0c636171799fa7744f58495730698d3c75f9fb18534e1430797c"
+            ),
+            "source_tls_trust_override_keys": [],
+            "forwarded_tls_trust_override_keys": [],
+            "pbs_jobid": "0:867876.nqsv",
+        }
+    )
+    assert validated == expected_receipt
+
+    provider = ClaudeProjectedRoleProvider(
+        artifact_root=tmp_path / "recorded-provider-artifacts",
+        role_file=_role_file(tmp_path / "recorded-provider-role.md"),
+        role_name="fixture-auditor",
+        mediated_contract="Return JSON only.",
+        repository_root=_ROOT,
+        executable=_executable(tmp_path / "recorded-provider-claude"),
+        environ=source,
+        allow_pegasus_compute_transport=True,
+        transport_admission=admission,
+    )
+    try:
+        assert provider.env == {
+            "HOME": "/fixture/home",
+            "http_proxy": "http://proxy-a.example:18080",
+            "https_proxy": "http://proxy-b.example:18443",
+        }
+        assert provider.transport_receipt is not None
+        assert provider.transport_receipt.as_dict() == expected_receipt
+    finally:
+        provider.close()
 
 
 def test_rejects_each_tls_override_without_secret_disclosure() -> None:
