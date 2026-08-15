@@ -30,7 +30,13 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from orchestrator.campaign import pipeline, wal                    # noqa: E402
 from orchestrator.campaign.artifact_admission import (             # noqa: E402
-    AdmittedCampaign, require_admitted_campaign)
+    CampaignReadPurpose,
+    CampaignVerifierEpoch,
+    CertifiedCampaignView,
+    HistoricalCampaignView,
+    require_admitted_campaign,
+    require_certified_campaign_view,
+)
 from orchestrator.campaign.coder_effect_gate import (              # noqa: E402
     MAX_HOLE_TOKENS,
     RULE_CATEGORY_ALLOWLIST,
@@ -93,6 +99,8 @@ class WorkloadDigest:
     workload: Dict[str, str]
     genomes: List[GenomeLI]
     axes: List[AxisEffect]
+    campaign_verifier_epoch: CampaignVerifierEpoch
+    read_purpose: CampaignReadPurpose
     fastest: Optional[GenomeLI] = None
 
 
@@ -540,15 +548,18 @@ def _validated_oracle_receipt(
     return _mutable_oracle_projection(value)
 
 
-def _validated_records(view: AdmittedCampaign):
-    if type(view) is not AdmittedCampaign:
+CampaignView = CertifiedCampaignView | HistoricalCampaignView
+
+
+def _validated_records(view: CampaignView):
+    if type(view) not in {CertifiedCampaignView, HistoricalCampaignView}:
         raise TypeError(
             "raw-WAL critic loader requires require_admitted_campaign() view"
         )
     return view.records
 
 
-def load_workload(view: AdmittedCampaign) -> List[GenomeLI]:
+def load_workload(view: CampaignView) -> List[GenomeLI]:
     """campaign WAL から **committed** genome の leading indicators を読む。
 
     bench_done だけで拾うと、bench は走ったが COMMIT 前にクラッシュした half-evaluated
@@ -578,7 +589,7 @@ def load_workload(view: AdmittedCampaign) -> List[GenomeLI]:
     return out
 
 
-def load_rejections(view: AdmittedCampaign) -> List[Rejection]:
+def load_rejections(view: CampaignView) -> List[Rejection]:
     """campaign WAL から verify-red で reject された variant の構造化 anomaly を読む。
 
     規律3 (正しさシグナルを後付けにしない) の次手入力経路: verifier の構造化 anomaly が
@@ -614,7 +625,7 @@ def load_rejections(view: AdmittedCampaign) -> List[Rejection]:
 
 
 def load_liveness_rejections(
-        view: AdmittedCampaign) -> Tuple[List[LivenessRejection], Dict[str, int]]:
+        view: CampaignView) -> Tuple[List[LivenessRejection], Dict[str, int]]:
     """campaign WAL から liveness-red (verify に到達する前に死んだ) abort を読む。
 
     verify payload を持つ abort (verify-red) は `load_rejections` の領分 — 本関数は
@@ -662,7 +673,7 @@ def load_liveness_rejections(
     return out, dict(other)
 
 
-def load_screen_rejections(view: AdmittedCampaign) -> List[ScreenRejection]:
+def load_screen_rejections(view: CampaignView) -> List[ScreenRejection]:
     """bench-first screening の正常棄却を identity + reason だけで復元する。
 
     未認証性能値は WAL の監査面にだけ留め、critic 射影には載せない。したがって本 loader
@@ -687,7 +698,7 @@ def load_screen_rejections(view: AdmittedCampaign) -> List[ScreenRejection]:
 
 
 def _load_diff_rejections(
-    view: AdmittedCampaign,
+    view: CampaignView,
     *,
     expected_oracle_contract_id: str,
     selected_oracle_contract_generation: str,
@@ -770,7 +781,7 @@ def _load_diff_rejections(
     return out
 
 
-def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection]:
+def load_diff_rejections(view: CampaignView) -> List[DiffQuarantineRejection]:
     """現行世代の diff 検疫 rejection を読む通常 loader。"""
     return _load_diff_rejections(
         view,
@@ -781,7 +792,7 @@ def load_diff_rejections(view: AdmittedCampaign) -> List[DiffQuarantineRejection
 
 
 def load_legacy_sort_swo_rejections(
-    view: AdmittedCampaign,
+    view: CampaignView,
 ) -> List[DiffQuarantineRejection]:
     """v2 sort-SWO record だけを読む明示的な read-only 低位 API。"""
     return _load_diff_rejections(
@@ -817,7 +828,7 @@ class VerifyAbortSignal:
         return (self.aborts / tot) if tot else None
 
 
-def load_verify_abort_signals(view: AdmittedCampaign) -> List[VerifyAbortSignal]:
+def load_verify_abort_signals(view: CampaignView) -> List[VerifyAbortSignal]:
     """STAGE_VERIFY_DONE の commits/aborts を variant 別に読む。
 
     verify まで到達した run のみ (liveness-red は VERIFY_DONE 手前で abort するため
@@ -877,14 +888,15 @@ def axis_effects(genomes: List[GenomeLI], axis: str) -> AxisEffect:
 
 
 def build_digest(tag: str, workload: Dict[str, str],
-                 view: AdmittedCampaign | CampaignLayout) -> WorkloadDigest:
-    if type(view) is not AdmittedCampaign:
-        view = require_admitted_campaign(view)
+                 view: CampaignView) -> WorkloadDigest:
+    _validated_records(view)
     genomes = load_workload(view)
     axes = [axis_effects(genomes, a) for a in _AXES]
     fastest = genomes[0] if genomes else None
     return WorkloadDigest(tag=tag, workload=workload, genomes=genomes,
-                          axes=axes, fastest=fastest)
+                          axes=axes, fastest=fastest,
+                          campaign_verifier_epoch=view.campaign_verifier_epoch,
+                          read_purpose=view.read_purpose)
 
 
 def _fmt(ind: str, v: Optional[float]) -> str:
@@ -907,7 +919,12 @@ def load_p2_2_digests() -> List[WorkloadDigest]:
     raise (critic の入力が空のまま進む方が有害、規律3)。"""
     from orchestrator.campaign.p2_2 import WORKLOADS
     from orchestrator.campaign.replay import discover_p2_2_dir
-    return [build_digest(tag, wl, discover_p2_2_dir(tag)) for tag, wl in WORKLOADS]
+    return [
+        build_digest(tag, wl, discover_p2_2_dir(
+            tag, purpose=CampaignReadPurpose.HISTORICAL_RAW,
+        ))
+        for tag, wl in WORKLOADS
+    ]
 
 
 def render_text(digests: List[WorkloadDigest]) -> str:
@@ -916,6 +933,15 @@ def render_text(digests: List[WorkloadDigest]) -> str:
     for d in digests:
         wl = ", ".join(f"{k}={v}" for k, v in sorted(d.workload.items()))
         L.append(f"## workload: {d.tag} ({wl})")
+        L.append("")
+        epoch = d.campaign_verifier_epoch
+        L.append(f"- read_purpose: `{d.read_purpose.value}`")
+        L.append(
+            f"- campaign_verifier_epoch: `{epoch.campaign_verifier_epoch}` "
+            f"(state={epoch.state})"
+        )
+        L.append(f"- epoch identity scope: {epoch.identity_scope}")
+        L.append(f"- epoch excluded scope: {epoch.excluded_scope}")
         L.append("")
         L.append("genome | " + " | ".join(INDICATORS))
         L.append("---|" + "|".join("---" for _ in INDICATORS))
@@ -1246,7 +1272,10 @@ def main(argv) -> int:
     ap.add_argument("--tag", default="phase3", help="--campaign-dir 時の表示タグ")
     a = ap.parse_args(argv[1:])
     if a.campaign_dir:
-        view = require_admitted_campaign(CampaignLayout(root=a.campaign_dir))
+        view = require_certified_campaign_view(require_admitted_campaign(
+            CampaignLayout(root=a.campaign_dir),
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        ))
         from orchestrator.campaign.p3_s4_loop import make_critic_identity_projection
         identity_projection = make_critic_identity_projection(view)
         parts = [render_text([build_digest(a.tag, {}, view)])]

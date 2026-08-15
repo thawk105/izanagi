@@ -856,10 +856,14 @@ def _oracle_verifier_case(tmp_path: Path) -> SimpleNamespace:
             approved_spec=approved,
         )
 
+    campaign_id = next(iter(manifest_document["campaign_ids"].values()))
+    if isinstance(campaign_id, dict):
+        campaign_id = campaign_id["campaign_id"]
     rows = []
     for ordinal, schedule_row in enumerate(manifest_document["schedule"]["rows"], start=1):
         rows.append({
             "schedule_index": schedule_row["schedule_index"],
+            "campaign_id": campaign_id,
             "block_id": schedule_row["block_id"],
             "holdout_id": schedule_row["holdout_id"],
             "configuration_id": schedule_row["configuration_id"],
@@ -880,6 +884,16 @@ def _oracle_verifier_case(tmp_path: Path) -> SimpleNamespace:
         "manifest_sha256": verified_manifest.sha256,
         "spec_sha256": approved.sha256,
         "n_per_cell": manifest_document["schedule"]["n"],
+        "campaign_verifier_epochs": [{
+            "campaign_id": campaign_id,
+            "campaign_verifier_epoch": f"E1:{'e' * 64}",
+            "state": "E1",
+            "reason_code": "recorded-closure",
+            "identity_scope": "fixture enforcement closure",
+            "excluded_scope": "fixture excluded verifier implementation",
+            "certified_eligible": True,
+            "rejection": None,
+        }],
         "expected_cells": [{
             "schedule_index": row["schedule_index"],
             "holdout_id": row["holdout_id"],

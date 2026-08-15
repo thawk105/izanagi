@@ -100,7 +100,10 @@ from .s8c_generation_projection import (
 # context and identity types on that same module identity so exact-type seals
 # survive package and direct-script entry points alike.
 from . import env_contract, ident  # noqa: E402
-from .artifact_admission import require_admitted_campaign  # noqa: E402
+from .artifact_admission import (  # noqa: E402
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from .build_admission import (  # noqa: E402
     BuildAdmissionError,
     BuildRunContext,
@@ -1823,7 +1826,10 @@ def _run_one_pending_critic(
                 raise AutonomousTrialError(
                     "critic digest generated=true だが通常 file が存在しない"
                 )
-            critic_view = require_admitted_campaign(cell["campaign_root"])
+            critic_view = require_admitted_campaign(
+                cell["campaign_root"],
+                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+            )
             identity_projection = loop_core.make_critic_identity_projection(
                 critic_view
             )

@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 from orchestrator.campaign import (env_contract, ident, pipeline,             # noqa: E402
                                    sort_swo_oracle, wal)
 from orchestrator.campaign.artifact_admission import (CampaignNotAdmitted,     # noqa: E402
+                                         CampaignReadPurpose,
                                          require_admitted_campaign)
 from orchestrator.campaign.auditor_gate import (                              # noqa: E402
     AuditorVerdict,
@@ -240,7 +241,9 @@ def _tmp_layout():
 
 
 def _view(layout):
-    return require_admitted_campaign(layout)
+    return require_admitted_campaign(
+        layout, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
 
 
 _QUARANTINE_HEAD = "\n".join((
@@ -431,7 +434,9 @@ def test_real_legacy_s4_critic_entry_is_rejected() -> None:
         / "output/campaigns/p3-s4-loop-s4-autonomous-0b53a387"
     )
     with pytest.raises(CampaignNotAdmitted, match="legacy-unclassified"):
-        require_admitted_campaign(campaign)
+        require_admitted_campaign(
+            campaign, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
 
 
 def _write(lay, genome, committed=True, **li):
@@ -457,7 +462,7 @@ def test_load_sorts_by_throughput_and_marginal_back_off():
     _write(lay, _G.format(b=1, l=1, t=0, w=0),
            throughput_tps=4_000_000, abort_rate=0.05, latency_ns=2000,
            llc_miss_rate=0.2, ipc=1.5)
-    d = build_digest("balanced", {"ycsb_rratio": "50"}, lay)
+    d = build_digest("balanced", {"ycsb_rratio": "50"}, _view(lay))
     assert len(d.genomes) == 2
     assert d.fastest.flags["BACK_OFF"] == 0           # throughput 降順
     bo = next(e for e in d.axes if e.axis == "BACK_OFF")
@@ -475,7 +480,7 @@ def test_no_wait_axis_is_categorical_LT():
     _write(lay, _G.format(b=0, l=0, t=1, w=0),         # T = retry
            throughput_tps=1_900_000, abort_rate=0.50, latency_ns=700,
            llc_miss_rate=0.3, ipc=0.9)
-    d = build_digest("balanced", {}, lay)
+    d = build_digest("balanced", {}, _view(lay))
     nw = next(e for e in d.axes if e.axis == "no_wait")
     assert set(nw.levels) == {"L", "T"}                # NWL=1→L / NWT=1→T に畳む
     assert nw.means["throughput_tps"]["L"] == 2_700_000
@@ -495,7 +500,7 @@ def test_marginal_averages_over_other_flags():
            abort_rate=0.05, latency_ns=2000, llc_miss_rate=0.2, ipc=1.0)
     _write(lay, _G.format(b=1, l=1, t=0, w=1), throughput_tps=3_000_000,
            abort_rate=0.05, latency_ns=2100, llc_miss_rate=0.2, ipc=0.9)
-    d = build_digest("x", {}, lay)
+    d = build_digest("x", {}, _view(lay))
     bo = next(e for e in d.axes if e.axis == "BACK_OFF")
     assert bo.means["throughput_tps"]["0"] == 7_500_000     # (8M+7M)/2
     assert bo.means["throughput_tps"]["1"] == 3_500_000     # (4M+3M)/2
@@ -512,7 +517,7 @@ def test_uncommitted_genome_excluded():
     _write(lay, _G.format(b=1, l=1, t=0, w=0), committed=False,  # half-evaluated
            throughput_tps=4_000_000, abort_rate=0.05, latency_ns=2000,
            llc_miss_rate=0.2, ipc=1.5)
-    d = build_digest("x", {}, lay)
+    d = build_digest("x", {}, _view(lay))
     assert len(d.genomes) == 1                   # 非 committed は不採用
     assert d.genomes[0].flags["BACK_OFF"] == 0
 
@@ -521,11 +526,40 @@ def test_render_text_has_axes_and_indicators():
     lay = _tmp_layout()
     _write(lay, _G.format(b=0, l=1, t=0, w=0), throughput_tps=8_000_000,
            abort_rate=0.05, latency_ns=1000, llc_miss_rate=0.2, ipc=1.5)
-    txt = render_text([build_digest("read-heavy", {"ycsb_rratio": "95"}, lay)])
+    txt = render_text([
+        build_digest("read-heavy", {"ycsb_rratio": "95"}, _view(lay))
+    ])
     assert "read-heavy" in txt
     assert "BACK_OFF" in txt and "no_wait" in txt and "WAL" in txt
     assert "throughput_tps" in txt and "abort_rate" in txt
     assert "限界効果" in txt
+
+
+def test_historical_p2_digest_keeps_e0_and_names_raw_purpose():
+    campaign = (
+        Path(__file__).resolve().parents[2]
+        / "output/campaigns/p2-2-silo-read-heavy-enumerate-5ffcabad"
+    )
+    view = require_admitted_campaign(
+        campaign, purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    text = render_text([build_digest("read-heavy", {}, view)])
+    assert "read_purpose: `HISTORICAL_RAW`" in text
+    assert "campaign_verifier_epoch: `E0` (state=E0)" in text
+    assert "certified E0" not in text
+
+
+def test_phase3_cli_declares_certified_purpose(monkeypatch):
+    class PurposeObserved(RuntimeError):
+        pass
+
+    def observe(_campaign, *, purpose):
+        assert purpose is CampaignReadPurpose.CERTIFIED_ACCEPTANCE
+        raise PurposeObserved
+
+    monkeypatch.setattr(critic_digest, "require_admitted_campaign", observe)
+    with pytest.raises(PurposeObserved):
+        critic_digest.main(["digest", "--campaign-dir", "/unused"])
 
 
 def test_load_rejections_surfaces_structured_anomaly():

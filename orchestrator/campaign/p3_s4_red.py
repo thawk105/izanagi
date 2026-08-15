@@ -41,7 +41,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from . import env_contract, ident, pipeline, wal            # noqa: E402
-from .artifact_admission import require_admitted_campaign # noqa: E402
+from .artifact_admission import (                         # noqa: E402
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 from .build_admission import (BuildAdmissionError, GeneratorId,  # noqa: E402
                                       add_registered_coder_build_authority_argument,
                                       build_run_context)
@@ -184,7 +187,10 @@ def main(argv=None) -> int:
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     r1 = wal.records_by_stage(layout, v1) if v1 else {}
     r2 = wal.records_by_stage(layout, v2) if v2 else {}
-    critic_view = require_admitted_campaign(layout.root)
+    critic_view = require_admitted_campaign(
+        layout.root,
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     livs, other = load_liveness_rejections(critic_view)
     rejs = load_rejections(critic_view)
 

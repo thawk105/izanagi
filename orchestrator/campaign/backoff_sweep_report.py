@@ -20,6 +20,10 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     __package__ = "orchestrator.campaign"
 
 from .backoff_sweep import WORKLOADS, config_for         # noqa: E402
+from .artifact_admission import (                        # noqa: E402
+    CampaignReadPurpose,
+    require_certified_campaign_view,
+)
 from .p2_2 import BETWEEN_RUN_CV                          # noqa: E402
 from .replay import discover_campaign_dir                 # noqa: E402
 from ..critic.digest import load_workload                          # noqa: E402
@@ -41,11 +45,15 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     # C1 回避: campaign-id 再計算 (宣言 ccbench_commit 依存) でなく dir 名 prefix で
     # discover する (+38%/+11% の根拠 sweep が pin 前進で沈黙 skip されていた)。
     try:
-        layout = discover_campaign_dir(cfg.spec_slug, cfg.search_tag)
+        view = require_certified_campaign_view(discover_campaign_dir(
+            cfg.spec_slug, cfg.search_tag,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        ))
     except FileNotFoundError as e:
         log(f"[{tag}] campaign dir を discover できない → skip: {e}")
         return {}
-    genomes = load_workload(layout)
+    layout = view.layout
+    genomes = load_workload(view)
     none_g = adaptive_g = None
     static = []
     for g in genomes:
@@ -78,6 +86,10 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
         "adaptive_tps(stock Cicada)": f"{adap_tp:,.0f}" if adap_tp else "—",
         "best_static": f"{best_amt}us = {tp(best_g):,.0f} tps",
         "noise_floor_cv": f"between-run {BETWEEN_RUN_CV * 100:.1f}% (skew0.9, A2)",
+        "read_purpose": view.read_purpose.value,
+        "campaign_verifier_epoch": view.campaign_verifier_epoch.campaign_verifier_epoch,
+        "campaign_verifier_epoch_scope": view.campaign_verifier_epoch.identity_scope,
+        "campaign_verifier_epoch_excluded_scope": view.campaign_verifier_epoch.excluded_scope,
     }
     dat = DatFile(
         title=f"backoff sweep: {tag} ({wl_str})",
@@ -99,8 +111,9 @@ def report_workload(tag: str, workload: dict, log=print) -> dict:
     os.makedirs(layout.reports_dir, exist_ok=True)
     paths = make_plot(dat, spec, stem)
 
-    md = _md(tag, wl_str, os.path.basename(layout.root), static, none_tp, adap_tp, best_amt, best_g, tp,
-             os.path.basename(paths["png"]), os.path.basename(paths["dat"]))
+    md = _md(tag, wl_str, os.path.basename(layout.root), static, none_tp, adap_tp,
+             best_amt, best_g, tp, os.path.basename(paths["png"]),
+             os.path.basename(paths["dat"]), view)
     md_path = os.path.join(layout.reports_dir, f"backoff-sweep-{tag}_report.md")
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(md)
@@ -130,10 +143,16 @@ def _verdict(none_tp, adap_tp, best_static) -> str:
     return f"静的最良でも無 backoff に届かず ({rel_vs_none*100:+.1f}%) = backoff は純損"
 
 
-def _md(tag, wl_str, cid, static, none_tp, adap_tp, best_amt, best_g, tp, png, dat) -> str:
+def _md(tag, wl_str, cid, static, none_tp, adap_tp, best_amt, best_g, tp,
+        png, dat, view) -> str:
     L = [f"# backoff sweep 材料レポート — {tag}", "",
          "> 自動生成。silo の backoff *量* を単一軸として sweep (patches/silo-backoff-fixed.patch, "
          "D18)。trace-disabled build (規律1)・単一テナント直列 (規律4)・各 genome は verifier 通過。", "",
+         f"- **受理目的**: `{view.read_purpose.value}`",
+         f"- **campaign_verifier_epoch**: "
+         f"`{view.campaign_verifier_epoch.campaign_verifier_epoch}`",
+         f"- **epoch identity scope**: {view.campaign_verifier_epoch.identity_scope}",
+         f"- **epoch excluded scope**: {view.campaign_verifier_epoch.excluded_scope}", "",
          f"![backoff sweep {tag}]({png})", "",
          "## 参照", "",
          f"- **無 backoff** (BACK_OFF=0): {none_tp:,.0f} tps" if none_tp else "- 無 backoff: —",
