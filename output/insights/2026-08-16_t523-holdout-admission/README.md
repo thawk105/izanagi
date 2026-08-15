@@ -51,3 +51,23 @@ dev-wave (branch `worktree-dev-wave-t523-holdout-admission`) の一次資料。
 検出側へ倒れたが node 集合が MISMATCH だった。実測集合で再登録して本走を行った。
 本走の runner からは、実行時にサフィックスが付く real-repo 変種 1 件を `--deselect` した
 (collection 時 ID と実行時 ID が異なり事前登録できないため)。**当該 test は受入全走で担保される。**
+
+## erratum — 逐語 1 本の可逆 defang (2026-08-16)
+
+`verbatim/s6-review-a.md` を repo へ記録した時点で、**この逐語が holdout 三軸 conjunction の
+1 hit を作り**、launch certificate の clean scan が拒否に倒れた (受入前の実測で検出)。
+段 6 レビューが攻撃例として workload dict を引用したことによる。
+
+段 7 契約に従い**可逆 defang + erratum**とした。
+
+- 対象: `verbatim/s6-review-a.md` の所見 6 の攻撃シナリオ行 (物理 38 行目)
+- 置換: 偏り軸と rmw 軸の 2 つの値を、それぞれ literal `<<DEFANG>>` へ置換した。
+  比率軸は同ファイル内の他行にも現れるため触れていない (三軸のうち 2 軸を落とせば
+  conjunction は成立しない)。
+- 可視文字以外の変更はしていない。復元は `<<DEFANG>>` を元の値へ戻すだけでよい。
+  元の値は、偏り軸が floor protocol の holdout に記録された値、rmw 軸が同じく 0 である。
+- defang 前の file sha256 = `0c143a402a787d246b8a68e1d32f3f1ce3625aa9d3c31f0ac382551b4ee426a3`
+  (9,599 bytes)、defang 後 = `3a0cdda2782f96a54fc76c525ec881ddc87ff75bf20c6eed80f092980557e387`
+  (9,615 bytes)。defang 前の当該行 sha256 =
+  `7ea4185da10c52abfd3dcc109650fd18062aad4f4cacde43f047f46dc4abaa9d` (272 bytes)。
+- defang 後に repo 全体を再走査し、全 holdout の conjunction hit が 0 件であることを実測した。

@@ -35,7 +35,7 @@
 
 ### 所見 6
 - severity: must-fix
-- 攻撃シナリオ: `backoff_profile.profile_point(2, {"ycsb_zipf_skew":"0.9","ycsb_rratio":"80","ycsb_rmw":"0"})` を直接 import 呼出しする。freeze と同じ records、threads、rr80 shape で build した binary が gateway を通らず三回実測される。
+- 攻撃シナリオ: `backoff_profile.profile_point(2, {"ycsb_zipf_skew":"<<DEFANG>>","ycsb_rratio":"80","ycsb_rmw":"<<DEFANG>>"})` を直接 import 呼出しする。freeze と同じ records、threads、rr80 shape で build した binary が gateway を通らず三回実測される。
 - 根拠: `orchestrator/campaign/backoff_profile.py:46-58` が records／threads と workload shape を定義し、同 `:137-160` の公開関数は任意 workload を `_profile_run()` へ渡す。同 `:104-109` は `subprocess.run()` で binary を直接実行する。allowlist テストは `orchestrator/tests/test_ccbench_spawn_sites.py:39-40,167-173` で CLI の `POINTS` だけを確認し、直接 import の引数を拘束しない。
 - 成果物影響: admission／attempt 台帳に存在しない保護比率の profile 値が得られ、台帳の観測集合が実際の観測集合を表さなくなる。
 - 提案: `_profile_run()` 自体を gateway 経由にするか、`profile_point()` で保護 signature を runtime 拒否し、caller workload を受け取れない閉じた API にする。
