@@ -44,6 +44,23 @@ title: freeze 由来 holdout を実測へ渡す下位境界に admission と一�
 - **親の手順ミスを 1 件記録する。** 変異走行中に spool fragment を書いたため、harness が
   untracked 検出で中止した。既知の罠であり、待ち時間を作業に使おうとして踏んだ。
   fragment を commit して木を clean にしてから再走した。
+- **受入全走が「producer は 2 つではなく 3 つだった」ことを実測で暴いた。** 起票は
+  8c launcher と 8b floor campaign の 2 例で族一般化を要求していたが、受入の帰属ありの赤 1 件が
+  **8b oracle driver も freeze 由来 holdout セル (records=1000000 / threads=48 / 保護比率) を
+  実測している**ことを示した。関門は設計どおり発火している。oracle は過去に使用実績があり
+  出力は凍結保存済みのため、素通りさせれば動いていた機能を止める。
+  **ユーザー裁定 (2026-08-16) により oracle も admission 経路へ通してから land した。**
+  一回性 key へ観測者の役割 (閉じた 2 値、未知は拒否) を足し、役割ごとに一回性を保つ。
+  役割を跨いだ再観測は依然として不可能で、[T-524] の実験単位へは踏み込んでいない。
+- **oracle 側の赤 1 件は、一回性が効いている証拠だった。** CLI の protocol 違反テストが
+  赤になった原因は、subprocess fixture が共有台帳を隔離しておらず**過去の確保が残って
+  二度目の観測を止めていた**ことである。テスト側に専用の一時台帳を渡して解いた。
+- **手順の罠を 2 つ実測した。** (a) `pipeline.py` は contract-loader binding が
+  **HEAD の blob との一致**を要求するため、未 commit のまま走らせると無関係な campaign テストが
+  25 件級で赤になる。実装の欠陥と誤認しかけた。(b) 背景待ち手を投入と同時に張ると
+  pid file 書き込みと競合して**即座に空振りし、走行中の子を完了と誤認しうる**
+  ({{F:waiter-arms-before-pid-file}})。成果物・`.done`・子の生死の 3 点照合をしていたため
+  誤って先へ進まずに済んだ。
 - **本 wave が主張しないことを 5 項目、設計判断へ明示した。** 特に 5 項目目
   (private な Python API を直接 import できる呼び手への保護) は、焦点レビューが
   「公開 issuer を消しても private 経路が残る」と指摘したことを受けて**新たに追加した保証の縮小**である。
@@ -58,6 +75,8 @@ title: freeze 由来 holdout を実測へ渡す下位境界に admission と一�
 - [T-523] 族一般化の設計を {{D:holdout-observation-boundary}} として起票し、8b 側の実結線を
   行った。実測の下位境界を `run_once` に置き、共有 durable root 上の cell 確保と
   attempt ticket の消費を経た許可だけが保護比率の実測を通す。変異 8/8 KILLED。
+  **受入で第 3 の producer (8b oracle driver) が実測で見つかり、ユーザー裁定により
+  そちらも同じ経路へ結線した** (観測者の役割を key へ追加)。
   残る所見は下記の新規項目へ分割した。
   remaining: none
   base: f3ebd4232dfcb9e45767f466ac5d109860c2fce4d5f6c971f2f97cd101457a72
