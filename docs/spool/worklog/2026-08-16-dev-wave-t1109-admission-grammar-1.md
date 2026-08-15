@@ -64,8 +64,32 @@ title: 実機の job ID が admission を通らず 8c live が全面的に塞が
   変異自体は 8 件とも検出されており検出力の不足ではなく、親の期待 node 集合が過小だった
   (V3 は登録 2 件に対し実測 17 件)。原因は「新設 gate が発火すると後段の検査が走らず
   診断がまとめて置き換わる」型で、親は新設検査を直接撃つ 2 件しか数えていなかった。
-  実測 node を完全集合として再登録し第 2 走を権威走行とした。
+  実測 node を完全集合として再登録して第 2 走を行い、
+  さらに local main 取り込み後の**最終 commit で第 3 走を権威走行とした** (`DW-M07`)。
+  取り込みで `autonomous_trial_completeness.py` を含む実装面 5 file が結合され
+  焦点テストが 813 → 816 件へ増えたが、**8 anchor はすべて一意のままで期待 node 集合も変化せず、
+  8/8 KILLED と baseline PASSED を再現した。**
   逐語と erratum = `output/insights/2026-08-16_t1109-admission-grammar/`。
+- **親が `DW-O17` を踏み忘れて provenance を赤にし、既知違反登録を使わずに手順どおり直した。**
+  main 側の別 wave が本 wave と同じ実装面 5 file を触っていたため、親が自分で作った
+  main 取り込み merge が `check_ai_provenance` の **rc=1 (実装面に Codex role=author がない)**
+  に掛かった。`DW-O17` は「実装面 path が両親と異なれば Codex `role=author` へ」と
+  既に定めており、**踏み忘れたのは親である。**
+  `git diff-tree --cc` は空 (合成差分ゼロ = 両側の変更の和集合) だったが、
+  checker は「全 parent と異なる path」を file 単位で数えるため成立する。
+  **既知違反 registry への登録は採らなかった** — 同 registry の項目はすべて
+  ユーザー裁定の参照を要求しており、親の自己登録は防壁の自己迂回になる。
+  また checker 自体の是正 (`--cc` を使う精密化) も、land が **tip 側 checker** で
+  監査する構造上は自分の赤を消せる立場にあったが、
+  **自分に都合よく防壁の受理条件を変える行為なので採らなかった。**
+  採った手順: merge 手前へ巻き戻し → 親が結合を用意 → **Codex author が結合後の
+  実装面 5 file を監査して所有** (`COMPOSITION-SOUND`、是正ゼロ) → 著者行を確定。
+  結果 `check_ai_provenance` は **rc=0 / 3,500 件・新規違反なし**。
+  **先行 5 例が registry 登録で処理してきた型だが、`DW-O17` の手順で正面から通せることを実証した。**
+  副次的に判明した制約: Codex 子は Git 管理領域へ書けず `git merge` を実行できない
+  (`ORIG_HEAD.lock` が read-only)。また取り込みが `docs/dev-wave/` を持ち込むと
+  未 commit 差分で子のランチャーが起動を拒む。したがって
+  **親が merge を commit してから子が監査する順序でしか成立しない。**
 - **工数:** codex 子 8 本 (plan 1 / consult 2 / author 4 / review 2 / fix 1)。
   実装子の wall-clock は 350 / 568 / 423 秒。
 
@@ -77,7 +101,7 @@ title: 実機の job ID が admission を通らず 8c live が全面的に塞が
   新たに拒否される値は 0 件で、既存負例 15 件はすべて拒否のまま。
   設計判断は {{D:pbs-jobid-env-grammar}}。
   remaining: none
-  base: b0262a19aaef1d6b46eb13d245e6728e886a759d45bc97efe1a3e5cfecd30d34
+  base: 4cf8d339b3d1a61512099c4d80797b15facff23bfdf382330000b661529a9521
 
 - [T-1110] `transport-admission-error` を受理 event と terminal event の両方へ足し、
   admission 失敗経路が verified partial `report.json` を実際に永続化できるようにした。
@@ -85,7 +109,7 @@ title: 実機の job ID が admission を通らず 8c live が全面的に塞が
   zero-cell coverage・campaign root 要求の限定免除の 5 面が必要だった
   ({{F:completeness-gate-blocks-its-own-report}})。
   remaining: none
-  base: b31d3e5b1b32107819b4126647774299cb61e7ce77d2d81307c2744e930167f0
+  base: a02559b4c446e55df0bb065b80b90cf46b9181fc298c34fdf943b34a38007ebd
 
 ### 更新
 
@@ -99,7 +123,7 @@ title: 実機の job ID が admission を通らず 8c live が全面的に塞が
   **skip・xfail・期待反転で緑に見せず `unmet` のまま残した。**
   member を機械列挙する registry gate は、この 2 件が unmet のまま作ると
   偽の完備性を与えるため新設しない。残余は {{T:admission-control-unmet-members}} へ。
-  base: 6d7b64ba232fd58c199d12d01e445ae6fea1cb5e813a3e4e8ca380294f6f869b
+  base: 305ef9e3156a10750fc7dbe0dc994ca35b7f01923d0a53a576310b09e7224309
 
 - [T-1112] **P1・ユーザー裁定待ち**: 8c A/B/C live pilot の再投入。
   本 wave で [T-1109]/[T-1110]/[T-1111] が閉じ、**起票の前提を 1 つ満たした** —
