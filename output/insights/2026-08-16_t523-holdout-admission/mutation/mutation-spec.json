@@ -1,0 +1,274 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 45,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "            ycsb_rratio=ratio,\n        ))\n    return frozenset(signatures)\n",
+          "new": "            ycsb_rratio=ratio,\n        ))\n    return frozenset()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]",
+        "orchestrator/tests/test_holdout_observation.py::test_attempt_admission_rejects_run_once_beyond_permitted_count",
+        "orchestrator/tests/test_holdout_observation.py::test_caller_constructed_token_cannot_reach_subprocess",
+        "orchestrator/tests/test_holdout_observation.py::test_direct_gflags_are_normalized_with_last_wins_semantics",
+        "orchestrator/tests/test_holdout_observation.py::test_identity_capability_rejects_construction_copy_replace_pickle_and_dict",
+        "orchestrator/tests/test_holdout_observation.py::test_issued_admission_cannot_be_reused_for_another_protected_ratio",
+        "orchestrator/tests/test_holdout_observation.py::test_issued_identity_admission_allows_matching_protected_ratio",
+        "orchestrator/tests/test_holdout_observation.py::test_measure_point_forwards_admission_only_when_non_none",
+        "orchestrator/tests/test_holdout_observation.py::test_one_attempt_allows_exactly_one_measure_point_repetition_set",
+        "orchestrator/tests/test_holdout_observation.py::test_private_consumption_receipt_is_single_use_and_attempt_bound",
+        "orchestrator/tests/test_holdout_observation.py::test_private_neutral_source_still_requires_exact_signature_equality",
+        "orchestrator/tests/test_holdout_observation.py::test_private_signature_token_cannot_authorize_another_private_signature",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_ratio_without_admission_stops_before_any_effect[20]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_ratio_without_admission_stops_before_any_effect[80]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_signatures_are_derived_from_freeze_and_match_exactly",
+        "orchestrator/tests/test_holdout_observation.py::test_real_freeze_projection_exactly_matches_trial_registry_neutral_table",
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_rr80_gate_is_only_barrier_before_accepting_subprocess",
+        "orchestrator/tests/test_holdout_observation.py::test_unknown_freeze_holdout_is_rejected_instead_of_classified_unprotected",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_binary_receipt_recorded_in_session_journal",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_content_addressed_store_create_only",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_create_only_rejects_overwrite_journal_appends",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_current_admission_reuses_exact_contract_across_successful_run",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_deterministic_artifacts_across_roots_and_subprocess_environments",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_each_determinism_seam_reaches_its_expected_json_pointer",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_end_to_end_golden_floor_values_and_tamper_detection",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_resume_rejects_tampered_published_result",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_finalize_pending_resume_rejects_tampered_staged_result",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_journal_manifest_and_binary_store_open_through_capability",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_manifest_binary_sha256_matches_real_file_bytes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_idempotent_finalization_after_result_json_crash",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_m_prestart_resume_starts_runner_fresh_without_resume_start",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_machine_anomaly_valid_cell_but_pair_null",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_fn_default_uses_contract_clocks_and_numactl",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_new_seam_defaults_delegate_to_production_functions",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_build_failure_leaves_durable_launch_start",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_fresh_issues_certificate_and_binds_wall_ledger",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_result_rejects_perf_preflight_receipt_fail_closed",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_certificate_time_not_bound_to_run_id",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_extra_launch_start_key",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_launch_start_utc_not_bound_to_certificate",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_renamed_run_dir",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_tampered_certificate",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_validates_certificate_and_completes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_perf_available_records_receipt_and_preserves_perf_shape",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_perf_unavailable_continues_and_records_one_run_receipt",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_performance_anomaly_invalidates_session_and_nulls_pair",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_default_perf_preflight_delegate_is_resolved_once_at_call_time",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_does_not_apply_official_freeze_allowlist_scan",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_path_has_no_launch_certificate_changes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_resume_rejects_launch_certificate_contamination[campaign-key]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_pilot_resume_rejects_launch_certificate_contamination[launch-start]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_private_core_claims_only_after_nonmeasurement_preflight",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_private_signature_source_keeps_real_claim_ledger_and_tickets",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_competing_invalidates_session_with_raw_stdout_in_journal",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_own_descendant_pid_detected_as_competing_b2",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unexecutable_or_inconsistent_aborts_campaign[<lambda>-/u6709/u9650/u6642/u9593]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unexecutable_or_inconsistent_aborts_campaign[<lambda>-/u78ba/u5b9a/u3067/u304d/u306a/u3044_0]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unexecutable_or_inconsistent_aborts_campaign[<lambda>-/u78ba/u5b9a/u3067/u304d/u306a/u3044_1]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unexecutable_or_inconsistent_aborts_campaign[<lambda>-/u78ba/u5b9a/u3067/u304d/u306a/u3044_2]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unexecutable_or_inconsistent_aborts_campaign[<lambda>-/u78ba/u5b9a/u3067/u304d/u306a/u3044_3]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unexecutable_or_inconsistent_aborts_campaign[<lambda>-OSError]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_probe_unparseable_pid_line_invalidates_session_not_abort",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[clean]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[missing_cycles]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[no_perf]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_rep_integrity_positive_control_default_measure_point[nonzero_rc]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_mode_happy_path_pins_journal_claim_and_receipt_shape",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_clock",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_required_reservation_loss_is_typed_campaign_terminal_with_no_values",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_result_json_records_per_attempt_duration_and_no_absolute_monotonic",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_does_not_reissue_retry_slot_after_retry_start_crash",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_forward_only_skips_completed_and_crashed_seqs",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_rejects_duplicate_session_start",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_rejects_recorded_g1_when_current_contract_is_g2_before_calibration",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_rejects_tampered_binary_but_succeeds_when_untampered",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_rejects_tampered_manifest_schedule",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_reuses_manifest_perf_preflight_without_reprobing",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_resume_under_unchanged_current_contract_generation_completes",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_retry_sequence_is_metamorphic_to_other_cells_values",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_stock_flaky_nulls_entire_holdout_including_scale_ref",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[result-write-after]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[self-check-after]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[terminal-after]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries[terminal-before]",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_verify_floor_artifact_binaries_positive_and_negative",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_admission_rows_use_effect_key_and_issue_frozen_attempt_count",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_attempt_ticket_is_durably_single_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_canonical_authority_to_run_once_proof_chain_e2e",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_cell_coordinates_are_evidence_checks_not_extra_key_fields",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_protocol_master_seed_change_does_not_reset_cell_key",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_rejects_actual_terminal_journal",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_resume_requires_same_manifest_and_rejects_issued_ledger_without_journal",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_retry_ticket_without_failed_planned_trigger_is_rejected",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_ticket_consumption_precedes_crashing_measure_callback_m5",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_two_worktrees_parallel_fresh_runs_cannot_both_claim_the_same_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "    gflags_snapshot = tuple(gflags)\n    assert_holdout_observation_admitted(\n        gflags=gflags_snapshot,\n        admission=holdout_observation_admission,\n    )\n",
+          "new": "    gflags_snapshot = tuple(gflags)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_attempt_admission_rejects_run_once_beyond_permitted_count",
+        "orchestrator/tests/test_holdout_observation.py::test_caller_constructed_token_cannot_reach_subprocess",
+        "orchestrator/tests/test_holdout_observation.py::test_flagfile_gate_is_only_barrier_before_accepting_subprocess",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags0]",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags1]",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags2]",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags3]",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags4]",
+        "orchestrator/tests/test_holdout_observation.py::test_issued_admission_cannot_be_reused_for_another_protected_ratio",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[ 80]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[+80]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[-80]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[080]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[18446744073709551616]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[80 ]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[80+]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[80x]",
+        "orchestrator/tests/test_holdout_observation.py::test_noncanonical_or_out_of_range_uint64_ratio_is_rejected_before_effect[]",
+        "orchestrator/tests/test_holdout_observation.py::test_one_attempt_allows_exactly_one_measure_point_repetition_set",
+        "orchestrator/tests/test_holdout_observation.py::test_private_signature_token_cannot_authorize_another_private_signature",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_ratio_without_admission_stops_before_any_effect[20]",
+        "orchestrator/tests/test_holdout_observation.py::test_protected_ratio_without_admission_stops_before_any_effect[80]",
+        "orchestrator/tests/test_holdout_observation.py::test_run_once_snapshot_rejects_non_exact_str_before_effect",
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_rr80_gate_is_only_barrier_before_accepting_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "_INDIRECT_GFLAGS = frozenset({\"flagfile\", \"fromenv\", \"tryfromenv\"})\n",
+          "new": "_INDIRECT_GFLAGS = frozenset({\"fromenv\", \"tryfromenv\"})\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_flagfile_gate_is_only_barrier_before_accepting_subprocess",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags0]",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags1]",
+        "orchestrator/tests/test_holdout_observation.py::test_indirect_gflags_are_rejected_before_tempdir_or_subprocess[gflags4]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "def _write_exclusive(path: Path, document: Mapping[str, object]) -> None:\n    payload = _canonical_line(document)\n    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL\n",
+          "new": "def _write_exclusive(path: Path, document: Mapping[str, object]) -> None:\n    payload = _canonical_line(document)\n    flags = os.O_WRONLY | os.O_CREAT\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_attempt_ticket_is_durably_single_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_protocol_master_seed_change_does_not_reset_cell_key",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_ticket_consumption_precedes_crashing_measure_callback_m5",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_two_worktrees_parallel_fresh_runs_cannot_both_claim_the_same_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        try:\n            _write_exclusive(path, marker)\n        except FileExistsError as exc:\n            raise HoldoutAdmissionError(\"attempt ticket was already consumed\") from exc\n",
+          "new": "        try:\n            _write_exclusive(path, marker)\n        except FileExistsError:\n            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_attempt_ticket_is_durably_single_use",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_ticket_consumption_precedes_crashing_measure_callback_m5"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "    if _neutral_holdouts is None:\n        if derived != _NEUTRAL_PROTECTED_SIGNATURES:\n            raise HoldoutObservationError(\n                \"verified freeze holdout signatures do not exactly match the neutral set\"\n            )\n        return derived\n",
+          "new": "    if _neutral_holdouts is None:\n        return derived\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_unknown_freeze_holdout_is_rejected_instead_of_classified_unprotected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "    _consume_holdout_observation_run_once(\n        admission,\n        effective_ycsb_rratio=ratio,\n    )\n",
+          "new": "    if not isinstance(admission, HoldoutObservationAdmission):\n        raise HoldoutObservationError(\"admission is not a HoldoutObservationAdmission\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_attempt_admission_rejects_run_once_beyond_permitted_count",
+        "orchestrator/tests/test_holdout_observation.py::test_caller_constructed_token_cannot_reach_subprocess",
+        "orchestrator/tests/test_holdout_observation.py::test_issued_admission_cannot_be_reused_for_another_protected_ratio",
+        "orchestrator/tests/test_holdout_observation.py::test_one_attempt_allows_exactly_one_measure_point_repetition_set",
+        "orchestrator/tests/test_holdout_observation.py::test_private_signature_token_cannot_authorize_another_private_signature"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "    if admission is None:\n        signature = _NEUTRAL_BY_RATIO.get(ratio)\n        if signature is not None:\n            raise HoldoutObservationError(\n                \"holdout observation admission required for \"\n                f\"ycsb_rratio={signature.ycsb_rratio}\"\n            )\n        return\n",
+          "new": "    if admission is None:\n        raise HoldoutObservationError(\n            \"holdout observation admission required for \"\n            f\"ycsb_rratio={ratio}\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape[50]",
+        "orchestrator/tests/test_holdout_observation.py::test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape[5]",
+        "orchestrator/tests/test_holdout_observation.py::test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape[95]",
+        "orchestrator/tests/test_holdout_observation.py::test_run_once_snapshots_stateful_gflags_exactly_once",
+        "orchestrator/tests/test_holdout_observation.py::test_subprocess_environment_removes_all_flags_prefix_inputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
