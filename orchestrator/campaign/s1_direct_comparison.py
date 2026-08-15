@@ -590,7 +590,11 @@ def _session_wall_upper_bound_s(role: str) -> float:
 
 
 @contextlib.contextmanager
-def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
+def prepare_cell(
+        cell: Mapping, ccbench_pin: str, *, cxx: str,
+        oracle_dependency_root: Optional[os.PathLike[str] | str] = None,
+        oracle_compiler: Optional[os.PathLike[str] | str] = None,
+        oracle_phase_marker: Optional[Callable[[], None]] = None):
     """freeze variant の flags/code を使い、使い捨て worktree に該当点を実体化する。"""
     from . import patchharness
     from . import p3_s4_loop as loop_axis
@@ -674,12 +678,17 @@ def prepare_cell(cell: Mapping, ccbench_pin: str, *, cxx: str):
                     check_materialized_sort_swo,
                     resolve_oracle_environment,
                 )
-                oracle_environment = resolve_oracle_environment(sub)
+                oracle_environment = resolve_oracle_environment(
+                    sub,
+                    compiler=oracle_compiler,
+                    dependency_root=oracle_dependency_root,
+                )
                 oracle = check_materialized_sort_swo(
                     _edited,
                     marker_id=marker_id,
                     proposal_source=quarantine_implementation,
                     environment=oracle_environment,
+                    phase_marker=oracle_phase_marker,
                 )
                 if (type(oracle) is not SortSwoOracleResult
                         or type(oracle.status) is not OracleStatus):

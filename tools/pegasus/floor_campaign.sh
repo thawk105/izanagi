@@ -945,6 +945,7 @@ with open(path, "x", encoding="utf-8") as handle:
 PY
 
 PROTOCOL_PATH="output/s8b-freeze/floor_protocol.json"
+export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"
 driver_setup_rc=0
 exec {DRIVER_STDOUT_FD}>"$ATTEMPT_DIR/floor-driver.stdout" || driver_setup_rc=$?
 if [[ "$driver_setup_rc" -ne 0 ]]; then

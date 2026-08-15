@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import errno
 import hashlib
+import importlib.abc
 import json
 import os
 import re
@@ -18,6 +19,195 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
+
+
+_WAITER_SOURCE_CHUNK_BYTES = 1024 * 1024
+_SHA256_TEXT_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _exception_errno(exc: BaseException) -> int | None:
+    if not isinstance(exc, OSError):
+        return None
+    try:
+        candidate = OSError.errno.__get__(exc, type(exc))
+    except Exception:
+        return None
+    return candidate if type(candidate) is int else None
+
+
+@dataclass(frozen=True)
+class _WaiterSourceUnavailable:
+    exception_type: str
+    errno: int | None = None
+
+
+@dataclass
+class _WaiterSourceBinding:
+    """module 初期化直後に束縛した source inode を保持する。"""
+
+    path: Path
+    root_fd: int
+    tools_fd: int
+    source_fd: int
+    initial_sha256: str = ""
+
+    def bytes_sha256(self) -> str:
+        if not stat.S_ISREG(os.fstat(self.source_fd).st_mode):
+            raise OSError("bound waiter source is not a regular file")
+
+        def read_once() -> tuple[str, int]:
+            digest = hashlib.sha256()
+            offset = 0
+            while True:
+                chunk = os.pread(
+                    self.source_fd,
+                    _WAITER_SOURCE_CHUNK_BYTES,
+                    offset,
+                )
+                if not chunk:
+                    return digest.hexdigest(), offset
+                digest.update(chunk)
+                offset += len(chunk)
+
+        first = read_once()
+        second = read_once()
+        if first != second:
+            raise OSError("bound waiter source changed while being read")
+        return second[0]
+
+    def close(self) -> None:
+        """テスト用の明示 close。production binding は process lifetime 保持する。"""
+
+        for name in ("source_fd", "tools_fd", "root_fd"):
+            fd = getattr(self, name)
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                finally:
+                    setattr(self, name, -1)
+
+
+def _same_inode(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        left.st_dev,
+        left.st_ino,
+        stat.S_IFMT(left.st_mode),
+    ) == (
+        right.st_dev,
+        right.st_ino,
+        stat.S_IFMT(right.st_mode),
+    )
+
+
+def _bind_waiter_source(
+    source_file: object,
+    module_spec: object,
+) -> _WaiterSourceBinding:
+    """canonical tools path の source を root FD から非追従で束縛する。"""
+
+    if not isinstance(source_file, str) or not source_file:
+        raise ValueError("waiter __file__ is invalid")
+    source_path = Path(os.path.abspath(source_file))
+    if source_path.name != "dev_wave_wait.py" or source_path.parent.name != "tools":
+        raise ValueError("waiter __file__ is not the canonical tools path")
+    spec_origin: Path | None = None
+    if module_spec is not None:
+        loader = getattr(module_spec, "loader", None)
+        if not isinstance(loader, importlib.abc.FileLoader):
+            raise ValueError("waiter module spec does not use a file loader")
+        origin = getattr(module_spec, "origin", None)
+        if not isinstance(origin, str) or not origin:
+            raise ValueError("waiter module spec origin is invalid")
+        spec_origin = Path(os.path.abspath(origin))
+    root_path = source_path.parent.parent
+    directory_flags = (
+        os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_DIRECTORY
+    )
+    source_flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    root_fd = tools_fd = source_fd = -1
+    try:
+        root_before = os.stat(root_path, follow_symlinks=False)
+        root_fd = os.open(root_path, directory_flags)
+        root_opened = os.fstat(root_fd)
+        if not stat.S_ISDIR(root_opened.st_mode) or not _same_inode(
+            root_before,
+            root_opened,
+        ):
+            raise OSError("waiter repository root is symlink/raced/non-directory")
+
+        tools_before = os.stat(
+            b"tools",
+            dir_fd=root_fd,
+            follow_symlinks=False,
+        )
+        tools_fd = os.open(
+            b"tools",
+            directory_flags,
+            dir_fd=root_fd,
+        )
+        tools_opened = os.fstat(tools_fd)
+        if not stat.S_ISDIR(tools_opened.st_mode) or not _same_inode(
+            tools_before,
+            tools_opened,
+        ):
+            raise OSError("waiter tools path is symlink/raced/non-directory")
+
+        source_before = os.stat(
+            b"dev_wave_wait.py",
+            dir_fd=tools_fd,
+            follow_symlinks=False,
+        )
+        source_fd = os.open(
+            b"dev_wave_wait.py",
+            source_flags,
+            dir_fd=tools_fd,
+        )
+        source_opened = os.fstat(source_fd)
+        if not stat.S_ISREG(source_opened.st_mode) or not _same_inode(
+            source_before,
+            source_opened,
+        ):
+            raise OSError("waiter source is symlink/raced/non-regular")
+        if spec_origin is not None:
+            origin_stat = os.stat(spec_origin, follow_symlinks=False)
+            if not stat.S_ISREG(origin_stat.st_mode) or not _same_inode(
+                origin_stat,
+                source_opened,
+            ):
+                raise OSError("waiter module spec origin is not the bound source")
+        binding = _WaiterSourceBinding(
+            source_path,
+            root_fd,
+            tools_fd,
+            source_fd,
+        )
+        binding.initial_sha256 = binding.bytes_sha256()
+        return binding
+    except BaseException:
+        for fd in (source_fd, tools_fd, root_fd):
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        raise
+
+
+def _initialize_waiter_source_binding() -> (
+    _WaiterSourceBinding | _WaiterSourceUnavailable
+):
+    try:
+        return _bind_waiter_source(globals().get("__file__"), __spec__)
+    except Exception as exc:
+        return _WaiterSourceUnavailable(
+            type(exc).__name__,
+            _exception_errno(exc),
+        )
+
+
+# Python loader が source を compile した後の最初期に束縛する。compile 入力そのものの
+# 証明ではなく、canonical file 起動でここから保持する source inode bytes の契約である。
+_RUNNING_WAITER_SOURCE = _initialize_waiter_source_binding()
 
 
 RC_OK = 0
@@ -41,6 +231,8 @@ _RECEIPT_PUBLISH_MIN_TTL_SECONDS = _STAGE_TIMEOUT_SECONDS
 _RECEIPT_SCHEMA_VERSION = "dev-wave-acceptance-receipt/v3"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-wait-acceptance"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
+_DETAIL_TEXT_MAX_BYTES = 256
+_ATTESTATION_DETAIL_MAX_BYTES = 2048
 _LOG_HASH_CHUNK_BYTES = 1024 * 1024
 _EFFECTIVE_SCHEDULER_PREFIX = b"IZANAGI_EFFECTIVE_SCHEDULER_V1 "
 _EFFECTIVE_SCHEDULERS = frozenset({"loadgroup", "serial", "unknown"})
@@ -90,6 +282,13 @@ class _CommandResult:
     returncode: int
     stdout: str = ""
     stderr: str = ""
+
+
+class _TipWaiterBlobError(Exception):
+    def __init__(self, reason: str, returncode: int | None = None):
+        super().__init__(reason)
+        self.reason = reason
+        self.returncode = returncode
 
 
 @dataclass(frozen=True)
@@ -170,6 +369,8 @@ class _Effects:
     is_symlink: Callable[[Path], bool] | None = None
     sha256_file: Callable[[Path], str] | None = None
     inspect_acceptance_log: Callable[[Path], tuple[str, str]] | None = None
+    running_waiter_bytes_sha256: Callable[[], object] | None = None
+    tip_waiter_bytes_sha256: Callable[[Path, str], object] | None = None
 
 
 class _LeaseOwnership(Enum):
@@ -314,6 +515,65 @@ def _default_sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _default_running_waiter_bytes_sha256() -> object:
+    binding = _RUNNING_WAITER_SOURCE
+    if isinstance(binding, _WaiterSourceUnavailable):
+        return binding
+    current = binding.bytes_sha256()
+    if current != binding.initial_sha256:
+        raise OSError("bound waiter source changed since module initialization")
+    return current
+
+
+def _default_tip_waiter_bytes_sha256(repo: Path, tip_sha: str) -> object:
+    argv = (
+        "git",
+        "cat-file",
+        "blob",
+        f"{tip_sha}:tools/dev_wave_wait.py",
+    )
+    try:
+        process = subprocess.Popen(
+            argv,
+            cwd=repo,
+            shell=False,
+            text=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+            env={
+                key: value
+                for key, value in os.environ.items()
+                if key not in _GIT_ENV_KEYS
+            },
+        )
+    except (OSError, ValueError) as exc:
+        raise _TipWaiterBlobError(
+            f"git-cat-file-start:{type(exc).__name__}",
+        ) from exc
+    try:
+        stdout, _stderr = process.communicate(timeout=_STAGE_TIMEOUT_SECONDS)
+    except BaseException:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            process.communicate(timeout=_STAGE_TERMINATION_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=_STAGE_TERMINATION_SECONDS)
+            except subprocess.TimeoutExpired:
+                pass
+        raise
+    if process.returncode != 0:
+        raise _TipWaiterBlobError("git-cat-file", process.returncode)
+    if not isinstance(stdout, bytes):
+        raise _TipWaiterBlobError("git-cat-file-output-type")
+    return hashlib.sha256(stdout).hexdigest()
+
+
 def _scan_acceptance_log_chunks(
     chunks: Iterable[bytes],
 ) -> tuple[str, list[bytes]]:
@@ -404,13 +664,160 @@ def _scan_acceptance_log_chunks(
     return digest.hexdigest(), marker_payloads
 
 
+def _bounded_detail_text(value: object) -> str:
+    if not isinstance(value, str):
+        value = type(value).__name__
+    escaped = bytearray()
+    for byte in value.encode("utf-8", "backslashreplace"):
+        if 0x20 <= byte <= 0x7E:
+            escaped.append(byte)
+        else:
+            escaped.extend(f"\\x{byte:02x}".encode("ascii"))
+        if len(escaped) > _DETAIL_TEXT_MAX_BYTES:
+            return (
+                escaped[: _DETAIL_TEXT_MAX_BYTES - 3].decode("ascii") + "..."
+            )
+    return escaped.decode("ascii")
+
+
+def _normalized_detail_value(value: object, *, depth: int = 0) -> object:
+    if value is None or type(value) in {bool, int}:
+        return value
+    if isinstance(value, str):
+        return _bounded_detail_text(value)
+    if depth >= 4:
+        return type(value).__name__
+    if type(value) is dict:
+        normalized: dict[str, object] = {}
+        for index, (key, item) in enumerate(value.items()):
+            if index >= 32:
+                normalized["detail_items_truncated"] = True
+                break
+            normalized[_bounded_detail_text(key)] = _normalized_detail_value(
+                item,
+                depth=depth + 1,
+            )
+        return normalized
+    if type(value) in {list, tuple}:
+        normalized_items = [
+            _normalized_detail_value(item, depth=depth + 1)
+            for item in value[:32]
+        ]
+        if len(value) > 32:
+            normalized_items.append("detail_items_truncated")
+        return normalized_items
+    return _bounded_detail_text(value)
+
+
 def _attestation_detail(reason: str, observed: object) -> str:
-    return json.dumps(
-        {"reason": reason, "observed": observed},
-        ensure_ascii=True,
-        separators=(",", ":"),
-        sort_keys=True,
+    try:
+        normalized_reason = _bounded_detail_text(reason)
+        payload = {
+            "reason": normalized_reason,
+            "observed": _normalized_detail_value(observed),
+        }
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        serialized_bytes = len(serialized.encode("ascii"))
+        if serialized_bytes <= _ATTESTATION_DETAIL_MAX_BYTES:
+            return serialized
+        return json.dumps(
+            {
+                "reason": normalized_reason,
+                "observed": {
+                    "detail_truncated": True,
+                    "serialized_bytes": serialized_bytes,
+                },
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    except Exception:
+        fallback_reason = (
+            reason
+            if type(reason) is str and reason.isascii() and len(reason) <= 64
+            else "detail"
+        )
+        return json.dumps(
+            {
+                "reason": fallback_reason,
+                "observed": {"detail_generation_failed": True},
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+
+def _exception_observed(exc: BaseException) -> dict[str, object]:
+    return {
+        "exception_type": type(exc).__name__,
+        "errno": _exception_errno(exc),
+    }
+
+
+def _malformed_sha_observed(value: str) -> dict[str, object]:
+    try:
+        stdout_bytes = len(str.encode(value, "utf-8", "surrogatepass"))
+        if not str.isascii(value):
+            stdout_class = "non-ascii"
+        elif len(value) != 40:
+            stdout_class = "wrong-length"
+        else:
+            stdout_class = "non-hex"
+    except Exception:
+        stdout_bytes = None
+        stdout_class = "unclassifiable"
+    return {
+        "failure_kind": "invalid-sha",
+        "stdout_bytes": stdout_bytes,
+        "stdout_class": stdout_class,
+    }
+
+
+def _diagnostic_bool(check: Callable[[], object]) -> bool | None:
+    try:
+        return bool(check())
+    except Exception:
+        return None
+
+
+def _detail_observed(detail: str | None) -> dict[str, object]:
+    if detail is None:
+        return {}
+    try:
+        payload = json.loads(detail)
+        observed = payload.get("observed") if type(payload) is dict else None
+        if type(observed) is dict:
+            return observed
+    except Exception:
+        pass
+    return {}
+
+
+def _detail_failure_kind(detail: str | None) -> str:
+    failure_kind = _detail_observed(detail).get("failure_kind")
+    return (
+        _bounded_detail_text(failure_kind)
+        if isinstance(failure_kind, str)
+        else "unknown"
     )
+
+
+def _nested_detail(detail: str | None) -> object:
+    if detail is None:
+        return None
+    try:
+        payload = json.loads(detail)
+        if type(payload) is dict:
+            return payload
+    except Exception:
+        pass
+    return _bounded_detail_text(detail)
 
 
 def _scheduler_from_marker_payloads(payloads: Sequence[bytes]) -> str:
@@ -582,6 +989,8 @@ def _default_effects() -> _Effects:
         is_symlink=Path.is_symlink,
         sha256_file=_default_sha256_file,
         inspect_acceptance_log=_default_inspect_acceptance_log,
+        running_waiter_bytes_sha256=_default_running_waiter_bytes_sha256,
+        tip_waiter_bytes_sha256=_default_tip_waiter_bytes_sha256,
     )
 
 
@@ -811,21 +1220,70 @@ def _run_capture(
     argv: Sequence[str],
     repo: Path,
     stage: str,
+    *,
+    diagnostic_reason: str | None = None,
+    diagnostic_observed: dict[str, object] | None = None,
 ) -> _CommandResult:
     try:
         result = effects.run(tuple(argv), repo, True)
-    except (OSError, UnicodeError, subprocess.SubprocessError):
-        raise _StageFailure(stage) from None
+    except (OSError, UnicodeError, subprocess.SubprocessError) as exc:
+        detail = None
+        if diagnostic_reason is not None:
+            detail = _attestation_detail(
+                diagnostic_reason,
+                {
+                    **({} if diagnostic_observed is None else diagnostic_observed),
+                    "failure_kind": "command",
+                    "source_rc": None,
+                    "exception_type": type(exc).__name__,
+                },
+            )
+        raise _StageFailure(stage, detail=detail) from None
     if result.returncode != 0:
-        raise _StageFailure(stage, source_rc=result.returncode)
+        detail = None
+        if diagnostic_reason is not None:
+            detail = _attestation_detail(
+                diagnostic_reason,
+                {
+                    **({} if diagnostic_observed is None else diagnostic_observed),
+                    "failure_kind": "command",
+                    "source_rc": result.returncode,
+                    "exception_type": None,
+                },
+            )
+        raise _StageFailure(
+            stage,
+            source_rc=result.returncode,
+            detail=detail,
+        )
     return result
 
 
-def _main_sha(effects: _Effects, repo: Path, stage: str) -> str:
-    result = _run_capture(effects, ("git", "rev-parse", "main"), repo, stage)
+def _main_sha(
+    effects: _Effects,
+    repo: Path,
+    stage: str,
+    *,
+    diagnostic_reason: str | None = None,
+) -> str:
+    result = _run_capture(
+        effects,
+        ("git", "rev-parse", "main"),
+        repo,
+        stage,
+        diagnostic_reason=diagnostic_reason,
+    )
     value = result.stdout.strip()
     if _SHA_RE.fullmatch(value) is None:
-        raise _StageFailure(stage)
+        detail = (
+            None
+            if diagnostic_reason is None
+            else _attestation_detail(
+                diagnostic_reason,
+                _malformed_sha_observed(value),
+            )
+        )
+        raise _StageFailure(stage, detail=detail)
     return value
 
 
@@ -903,6 +1361,138 @@ def _fingerprint_json(fingerprint: _TreeFingerprint) -> dict[str, object]:
         "diff_bytes": fingerprint.diff_bytes,
         "submodule_status_bytes": fingerprint.submodule_status_bytes,
     }
+
+
+def _waiter_source_gate_failure(
+    *,
+    tested_tip: str,
+    reason: str,
+    running_sha256: object = None,
+    tip_sha256: object = None,
+    diagnostic_observed: dict[str, object] | None = None,
+    source_rc: int | None = None,
+) -> _StageFailure:
+    def diagnostic_value(value: object) -> object:
+        if value is None:
+            return value
+        if isinstance(value, str):
+            if _SHA256_TEXT_RE.fullmatch(value) is not None:
+                return value
+            try:
+                text_bytes = len(value.encode("utf-8", "surrogatepass"))
+                if not value.isascii():
+                    text_class = "non-ascii"
+                elif len(value) != 64:
+                    text_class = "wrong-length"
+                else:
+                    text_class = "non-hex"
+            except Exception:
+                text_bytes = None
+                text_class = "unclassifiable"
+            return {
+                "type": "str",
+                "text_bytes": text_bytes,
+                "text_class": text_class,
+            }
+        return {"type": _bounded_detail_text(type(value).__name__)}
+
+    observed: dict[str, object] = {
+        "actual_sha256": diagnostic_value(running_sha256),
+        "expected_sha256": diagnostic_value(tip_sha256),
+        "tested_tip": tested_tip,
+    }
+    if diagnostic_observed is not None:
+        observed.update(diagnostic_observed)
+    return _StageFailure(
+        "restart-required",
+        source_rc=source_rc,
+        detail=_attestation_detail(
+            "receipt-waiter-" + _bounded_detail_text(reason),
+            observed,
+        ),
+    )
+
+
+def _verify_waiter_source_bytes(
+    effects: _Effects,
+    repo: Path,
+    tested_tip: str,
+) -> None:
+    running_sha256: object = None
+    tip_sha256: object = None
+    try:
+        running_sha256 = (
+            effects.running_waiter_bytes_sha256
+            or _default_running_waiter_bytes_sha256
+        )()
+    except Exception as exc:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-source-read-failed",
+            diagnostic_observed=_exception_observed(exc),
+        ) from None
+    if isinstance(running_sha256, _WaiterSourceUnavailable):
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-source-binding-unavailable",
+            diagnostic_observed={
+                "exception_type": running_sha256.exception_type,
+                "errno": running_sha256.errno,
+            },
+        )
+    if not isinstance(running_sha256, str):
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-sha256-type",
+            running_sha256=running_sha256,
+        )
+    if _SHA256_TEXT_RE.fullmatch(running_sha256) is None:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="running-sha256-format",
+            running_sha256=running_sha256,
+        )
+
+    try:
+        tip_sha256 = (
+            effects.tip_waiter_bytes_sha256
+            or _default_tip_waiter_bytes_sha256
+        )(repo, tested_tip)
+    except _TipWaiterBlobError as exc:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason=exc.reason,
+            running_sha256=running_sha256,
+            source_rc=exc.returncode,
+        ) from None
+    except Exception as exc:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="tip-blob-read-failed",
+            running_sha256=running_sha256,
+            diagnostic_observed=_exception_observed(exc),
+        ) from None
+    if not isinstance(tip_sha256, str):
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="tip-sha256-type",
+            running_sha256=running_sha256,
+            tip_sha256=tip_sha256,
+        )
+    if _SHA256_TEXT_RE.fullmatch(tip_sha256) is None:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="tip-sha256-format",
+            running_sha256=running_sha256,
+            tip_sha256=tip_sha256,
+        )
+    if running_sha256 != tip_sha256:
+        raise _waiter_source_gate_failure(
+            tested_tip=tested_tip,
+            reason="sha256-mismatch",
+            running_sha256=running_sha256,
+            tip_sha256=tip_sha256,
+        )
 
 
 def _path_exists(effects: _Effects, path: Path) -> bool:
@@ -1107,16 +1697,33 @@ def _blob_sha(
     revision: str,
     path: str,
     stage: str,
+    *,
+    diagnostic_reason: str | None = None,
 ) -> str:
     result = _run_capture(
         effects,
         ("git", "rev-parse", f"{revision}:{path}"),
         repo,
         stage,
+        diagnostic_reason=diagnostic_reason,
+        diagnostic_observed={
+            "revision": revision,
+            "path": path,
+        },
     )
     value = result.stdout.strip()
     if _SHA_RE.fullmatch(value) is None:
-        raise _StageFailure(stage)
+        detail = None
+        if diagnostic_reason is not None:
+            detail = _attestation_detail(
+                diagnostic_reason,
+                {
+                    "revision": revision,
+                    "path": path,
+                    **_malformed_sha_observed(value),
+                },
+            )
+        raise _StageFailure(stage, detail=detail)
     return value
 
 
@@ -1233,6 +1840,8 @@ def _claim_once(
     wave: str,
     main_sha: str,
     lifecycle: _AcceptanceLifecycle | None = None,
+    *,
+    diagnostic_reason: str | None = None,
 ) -> _ClaimContext:
     if lifecycle is not None:
         lifecycle.ownership = _LeaseOwnership.UNKNOWN
@@ -1241,11 +1850,34 @@ def _claim_once(
         _lease_command(repo, "claim", lease_dir, wave, main_sha),
         repo,
         "claim",
+        diagnostic_reason=diagnostic_reason,
     )
-    parsed = _parse_json_object(result.stdout, stage="claim-json")
+    try:
+        parsed = _parse_json_object(result.stdout, stage="claim-json")
+    except _StageFailure as exc:
+        if diagnostic_reason is None:
+            raise
+        raise _StageFailure(
+            exc.outcome.stage or "claim-json",
+            source_rc=exc.outcome.source_rc,
+            detail=_attestation_detail(
+                diagnostic_reason,
+                {"failure_kind": "claim-json"},
+            ),
+        ) from None
     state = parsed.get("state")
     if not isinstance(state, str) or state not in _CLAIM_STATES:
-        raise _StageFailure("claim-state")
+        raise _StageFailure(
+            "claim-state",
+            detail=(
+                None
+                if diagnostic_reason is None
+                else _attestation_detail(
+                    diagnostic_reason,
+                    {"failure_kind": "claim-state"},
+                )
+            ),
+        )
     holder_self = parsed.get("holder_self") is True
     holder = parsed.get("holder")
     claimed_main_sha = parsed.get("main_sha")
@@ -1266,12 +1898,32 @@ def _claim_once(
             lifecycle.ownership = _LeaseOwnership.NONE
             # held/queued の待ち札は 300 秒で失効するため、他 holder を release しない。
     if self_renew_failed:
-        raise _StageFailure("claim-self-renew-failed")
+        raise _StageFailure(
+            "claim-self-renew-failed",
+            detail=(
+                None
+                if diagnostic_reason is None
+                else _attestation_detail(
+                    diagnostic_reason,
+                    {"failure_kind": "self-renew-failed"},
+                )
+            ),
+        )
     if state in _ACCEPTED_CLAIM_STATES:
         try:
             expected_holder = hashlib.sha256(wave.encode("utf-8")).hexdigest()[:12]
         except UnicodeError:
-            raise _StageFailure("claim-self-unverified") from None
+            raise _StageFailure(
+                "claim-self-unverified",
+                detail=(
+                    None
+                    if diagnostic_reason is None
+                    else _attestation_detail(
+                        diagnostic_reason,
+                        {"failure_kind": "holder-hash"},
+                    )
+                ),
+            ) from None
         if not (
             holder_self
             and isinstance(holder, str)
@@ -1282,9 +1934,44 @@ def _claim_once(
             and 0 <= age_seconds < _LEASE_TTL_SECONDS
             and source == {"status": "ok", "reason": None}
         ):
-            raise _StageFailure("claim-self-unverified")
+            failure_kind = "source"
+            if not holder_self:
+                failure_kind = "holder-self"
+            elif not isinstance(holder, str):
+                failure_kind = "holder-type"
+            elif _HOLDER_RE.fullmatch(holder) is None:
+                failure_kind = "holder-format"
+            elif holder != expected_holder:
+                failure_kind = "holder-mismatch"
+            elif claimed_main_sha != main_sha:
+                failure_kind = "main-sha-mismatch"
+            elif type(age_seconds) is not int:
+                failure_kind = "age-type"
+            elif not 0 <= age_seconds < _LEASE_TTL_SECONDS:
+                failure_kind = "age-range"
+            raise _StageFailure(
+                "claim-self-unverified",
+                detail=(
+                    None
+                    if diagnostic_reason is None
+                    else _attestation_detail(
+                        diagnostic_reason,
+                        {"failure_kind": failure_kind},
+                    )
+                ),
+            )
     elif state != "acquired" and holder_self:
-        raise _StageFailure("claim-self-unverified")
+        raise _StageFailure(
+            "claim-self-unverified",
+            detail=(
+                None
+                if diagnostic_reason is None
+                else _attestation_detail(
+                    diagnostic_reason,
+                    {"failure_kind": "unexpected-holder-self"},
+                )
+            ),
+        )
     return _ClaimContext(
         state=state,
         holder=holder if isinstance(holder, str) else None,
@@ -1509,15 +2196,107 @@ def _acceptance_receipt_bytes(
         and isinstance(effective_scheduler, str)
         and effective_scheduler in _EFFECTIVE_SCHEDULERS
     ):
-        raise _StageFailure("acceptance-receipt")
+        tested_main_valid = _diagnostic_bool(
+            lambda: _SHA_RE.fullmatch(tested_main) is not None
+        )
+        tested_tip_valid = (
+            _diagnostic_bool(lambda: _SHA_RE.fullmatch(tested_tip) is not None)
+            if tested_main_valid
+            else None
+        )
+        log_sha256_valid = (
+            _diagnostic_bool(
+                lambda: re.fullmatch(r"[0-9a-f]{64}", log_sha256) is not None
+            )
+            if tested_tip_valid is True
+            else None
+        )
+        scheduler_is_str = (
+            _diagnostic_bool(lambda: isinstance(effective_scheduler, str))
+            if log_sha256_valid is True
+            else None
+        )
+        scheduler_in_allowed = (
+            _diagnostic_bool(
+                lambda: effective_scheduler in _EFFECTIVE_SCHEDULERS
+            )
+            if scheduler_is_str is True
+            else None
+        )
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-fields",
+                {
+                    "tested_main": tested_main,
+                    "tested_main_valid": tested_main_valid,
+                    "tested_tip": (
+                        tested_tip
+                        if tested_tip_valid is not None
+                        else None
+                    ),
+                    "tested_tip_valid": tested_tip_valid,
+                    "log_sha256": (
+                        log_sha256
+                        if log_sha256_valid is not None
+                        else None
+                    ),
+                    "log_sha256_valid": log_sha256_valid,
+                    "effective_scheduler": (
+                        effective_scheduler
+                        if scheduler_is_str is True
+                        else (
+                            type(effective_scheduler).__name__
+                            if scheduler_is_str is False
+                            else None
+                        )
+                    ),
+                    "scheduler_is_str": scheduler_is_str,
+                    "scheduler_in_allowed": scheduler_in_allowed,
+                },
+            ),
+        )
     if verdict == "child-green":
         if child_rc != 0 or red_check is not None:
-            raise _StageFailure("acceptance-receipt")
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-child-green",
+                    {
+                        "child_rc": child_rc,
+                        "red_check_present": (
+                            red_check is not None if child_rc == 0 else None
+                        ),
+                    },
+                ),
+            )
     elif verdict == "non-attributable-only":
         if child_rc != 1 or red_check is None or not red_check.red_nodeids:
-            raise _StageFailure("acceptance-receipt")
+            red_check_present = red_check is not None if child_rc == 1 else None
+            red_nodeid_count = (
+                len(red_check.red_nodeids)
+                if red_check_present is True
+                else None
+            )
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-non-attributable",
+                    {
+                        "child_rc": child_rc,
+                        "red_check_present": red_check_present,
+                        "red_nodeid_count": red_nodeid_count,
+                    },
+                ),
+            )
     else:
-        raise _StageFailure("acceptance-receipt")
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-verdict",
+                {"verdict": verdict},
+            ),
+        )
     receipt = {
         "schema_version": _RECEIPT_SCHEMA_VERSION,
         "authority_kind": _RECEIPT_AUTHORITY_KIND,
@@ -1553,8 +2332,14 @@ def _acceptance_receipt_bytes(
             )
             + "\n"
         ).encode("ascii")
-    except (TypeError, UnicodeError, ValueError, RecursionError):
-        raise _StageFailure("acceptance-receipt") from None
+    except (TypeError, UnicodeError, ValueError, RecursionError) as exc:
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-encode",
+                _exception_observed(exc),
+            ),
+        ) from None
 
 
 def _read_bytes(effects: _Effects, path: Path, stage: str) -> bytes:
@@ -1732,16 +2517,41 @@ def _prepare_acceptance_receipt(
         temp_path = write_temp(receipt_file, content)
     except (_SignalReceived, KeyboardInterrupt):
         raise
-    except BaseException:
-        raise _StageFailure("acceptance-receipt") from None
+    except BaseException as exc:
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-temp-write",
+                _exception_observed(exc),
+            ),
+        ) from None
     if temp_path.parent != receipt_file.parent or not temp_path.name.startswith(
         _RECEIPT_TEMP_PREFIX
     ):
+        parent_matches = _diagnostic_bool(
+            lambda: temp_path.parent == receipt_file.parent
+        )
+        prefix_matches = (
+            _diagnostic_bool(
+                lambda: temp_path.name.startswith(_RECEIPT_TEMP_PREFIX)
+            )
+            if parent_matches is True
+            else None
+        )
         try:
             effects.unlink(temp_path)
         except OSError:
             pass
-        raise _StageFailure("acceptance-receipt")
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(
+                "receipt-temp-contract",
+                {
+                    "parent_matches": parent_matches,
+                    "prefix_matches": prefix_matches,
+                },
+            ),
+        )
     return temp_path
 
 
@@ -1756,11 +2566,21 @@ def _publish_acceptance_receipt(
     prior_ownership = lifecycle.ownership
     previous_mask: set[signal.Signals] | None = None
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
+    publish_failure: tuple[str, BaseException] | None = None
+    mask_restore_failure: BaseException | None = None
+    failure_reason = "receipt-publish-sigblock"
     try:
         if pthread_sigmask is None:
-            raise _StageFailure("acceptance-receipt")
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-sigmask",
+                    {"pthread_sigmask_available": False},
+                ),
+            )
         lifecycle.ownership = _LeaseOwnership.RETAINED
         previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        failure_reason = "receipt-publish-rename"
         try:
             rename(temp_path, receipt_file)
         except BaseException:
@@ -1775,13 +2595,43 @@ def _publish_acceptance_receipt(
         if not lifecycle.receipt_published:
             lifecycle.ownership = prior_ownership
         raise
-    except BaseException:
+    except BaseException as exc:
         if not lifecycle.receipt_published:
             lifecycle.ownership = prior_ownership
-        raise _StageFailure("acceptance-receipt") from None
+        publish_failure = (failure_reason, exc)
     finally:
         if previous_mask is not None:
-            pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            try:
+                pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            except BaseException as exc:
+                if publish_failure is None and not lifecycle.receipt_published:
+                    raise _StageFailure(
+                        "acceptance-receipt",
+                        detail=_attestation_detail(
+                            "receipt-publish-mask-restore",
+                            _exception_observed(exc),
+                        ),
+                    ) from None
+                if publish_failure is not None:
+                    mask_restore_failure = exc
+    if publish_failure is not None:
+        reason, exc = publish_failure
+        observed = _exception_observed(exc)
+        if mask_restore_failure is not None:
+            restore_observed = _exception_observed(mask_restore_failure)
+            observed.update(
+                {
+                    "mask_restore_failed": True,
+                    "mask_restore_exception_type": restore_observed[
+                        "exception_type"
+                    ],
+                    "mask_restore_errno": restore_observed["errno"],
+                }
+            )
+        raise _StageFailure(
+            "acceptance-receipt",
+            detail=_attestation_detail(reason, observed),
+        ) from None
 
 
 def run_acceptance(
@@ -1918,6 +2768,11 @@ def run_acceptance(
             "prerun-fingerprint",
             prerun_status.stdout,
         )
+        _verify_waiter_source_bytes(
+            effects,
+            repo,
+            prerun_fingerprint.head_sha,
+        )
         print(
             "acceptance-command argv=" + json.dumps(list(command), ensure_ascii=True),
             file=sys.stderr,
@@ -1987,6 +2842,7 @@ def run_acceptance(
             postrun_fingerprint.head_sha,
             "tools/dev_wave_wait.py",
             "acceptance-receipt",
+            diagnostic_reason="receipt-waiter-blob",
         )
         receipt_content = _acceptance_receipt_bytes(
             wave=wave,
@@ -2014,9 +2870,19 @@ def run_acceptance(
             effects,
             repo,
             "acceptance-receipt",
+            diagnostic_reason="receipt-main-resolve",
         )
         if final_main_sha != claim_context.main_sha:
-            raise _StageFailure("acceptance-receipt")
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-main-moved",
+                    {
+                        "claimed_main_sha": claim_context.main_sha,
+                        "final_main_sha": final_main_sha,
+                    },
+                ),
+            )
         confirmation_lifecycle = _AcceptanceLifecycle()
         try:
             confirmed = _claim_once(
@@ -2026,6 +2892,7 @@ def run_acceptance(
                 wave,
                 final_main_sha,
                 confirmation_lifecycle,
+                diagnostic_reason="receipt-reclaim",
             )
         except _StageFailure as exc:
             if confirmation_lifecycle.ownership is _LeaseOwnership.ACQUIRED:
@@ -2033,6 +2900,22 @@ def run_acceptance(
             raise _StageFailure(
                 "acceptance-receipt",
                 source_rc=exc.outcome.source_rc,
+                detail=_attestation_detail(
+                    "receipt-reclaim",
+                    {
+                        "failure_kind": _detail_failure_kind(
+                            exc.outcome.detail
+                        ),
+                        "exception_type": _detail_observed(
+                            exc.outcome.detail
+                        ).get("exception_type"),
+                        "source_stage": exc.outcome.stage,
+                        "source_rc": exc.outcome.source_rc,
+                        "confirmation_ownership": (
+                            confirmation_lifecycle.ownership.value
+                        ),
+                    },
+                ),
             ) from None
         if confirmed.state == "acquired":
             active_lifecycle.ownership = _LeaseOwnership.ACQUIRED
@@ -2047,7 +2930,46 @@ def run_acceptance(
             and confirmed.main_sha == claim_context.main_sha
             and confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
         ):
-            raise _StageFailure("acceptance-receipt")
+            state_is_held_self = confirmed.state == "held-self"
+            holder_matches = (
+                confirmed.holder == claim_context.holder
+                if state_is_held_self
+                else None
+            )
+            main_sha_matches = (
+                confirmed.main_sha == claim_context.main_sha
+                if holder_matches is True
+                else None
+            )
+            ttl_sufficient = (
+                confirmed_remaining >= _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+                if main_sha_matches is True
+                else None
+            )
+            raise _StageFailure(
+                "acceptance-receipt",
+                detail=_attestation_detail(
+                    "receipt-lease-check",
+                    {
+                        "state": confirmed.state,
+                        "holder_matches": holder_matches,
+                        "main_sha_matches": main_sha_matches,
+                        "claimed_main_sha": confirmed.main_sha,
+                        "final_main_sha": final_main_sha,
+                        "remaining_seconds": (
+                            confirmed_remaining
+                            if ttl_sufficient is not None
+                            else None
+                        ),
+                        "required_seconds": (
+                            _RECEIPT_PUBLISH_MIN_TTL_SECONDS
+                            if ttl_sufficient is not None
+                            else None
+                        ),
+                        "ttl_sufficient": ttl_sufficient,
+                    },
+                ),
+            )
         _publish_acceptance_receipt(
             effects=effects,
             lifecycle=active_lifecycle,
@@ -2096,6 +3018,22 @@ def run_acceptance(
             repo,
             lease_dir,
             wave,
+        )
+    if cleanup_failure is not None:
+        cleanup_failure = _Outcome(
+            cleanup_failure.rc,
+            cleanup_failure.stage,
+            cleanup_failure.source_rc,
+            _attestation_detail(
+                "cleanup-overrode-primary",
+                {
+                    "cleanup_detail": _nested_detail(cleanup_failure.detail),
+                    "primary": {
+                        "stage": primary.stage,
+                        "detail": _nested_detail(primary.detail),
+                    },
+                },
+            ),
         )
     return cleanup_failure if cleanup_failure is not None else primary
 
@@ -2154,6 +3092,11 @@ def _print_outcome(outcome: _Outcome) -> None:
     if outcome.detail is not None:
         suffix += " detail=" + outcome.detail
     print(f"error: stage={outcome.stage or 'unknown'} rc={outcome.rc}{suffix}", file=sys.stderr)
+    if outcome.detail is not None:
+        print(
+            f"diagnostic: stage={outcome.stage or 'unknown'} "
+            f"rc={outcome.rc} detail={outcome.detail}"
+        )
 
 
 def main(

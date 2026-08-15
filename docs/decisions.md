@@ -16801,3 +16801,265 @@ allowlist は key だけを検査し値を検査しないため、この判定�
 - 指紋から派生物を宣言除外する再設計 — 受理集合を広げる方向で、規律 2 に反する。
 - checker が自分の残骸を消す — 既存の fail-closed テストを壊す。
   所有 nonce が確定している dispatch artifact だけは既存経路が限定削除しており、そこは変えない。
+
+## D399. oracle の依存 root は明示 transport で受け、同一性は既存の凍結 pin で照合する (2026-08-14)
+
+**決定:** 床値経路の SWO oracle が使う masstree source root は、明示引数または専用環境変数
+だけで受け取る。floor policy へ path も HEAD も**書かない**。job は受け取った root の HEAD を
+**凍結共有 `tools/pegasus/policy.json` に既にある pin** と照合し、`config.h` の regular file 性を
+要求して sha256 を診断・marker へ記録する。compiler も同様に、floor が検証済みの `cxx` realpath を
+`compiler=` で明示注入し、ambient `CXX` / `IZANAGI_SORT_SWO_CXX` に選ばせない。
+
+**環境変数は transport であって authority ではない。** 所在だけを運び、同一性は既存の凍結 pin と
+job 内の検査が決める。
+
+**理由:**
+- D152 決定 (3) が「cache root は明示必須とし policy から導出しない」と定めている。
+  機体固有の値は環境専用 runbook に置く。
+- masstree の pin は既に凍結共有 policy の `silo_ladder_rung1.third_party_sources` にあり
+  (`pin` = `fetchcontent_ref`)、floor policy へ複写すると**同じ pin の正本が 2 つ**になる。
+  D115 決定 (1) により共有 policy 自体は 1 byte も変えられない。
+- oracle の compile は正しさゲートの一部なので、依存の同一性は判定に影響する。
+  ただし masstree の `config.h` は上流 `.gitignore` が除外する**生成物で Git 非管理**であり、
+  HEAD を固定しても中身は自由に変わりうる。HEAD pin だけを根拠に
+  「受理集合は不変」と主張してはならない。
+- 使い捨て checkout (`$TMPDIR` 配下) 上では `build/_deps` も祖先 fallback も届かないため、
+  **明示 transport が唯一の解決経路**である。共有 checkout でしか成立しない祖先 fallback に
+  依存し続けると、login で緑・計算ノードで赤という再現しない失敗が残る。
+
+**却下した選択肢:**
+- floor policy へ `masstree_source_path` / `masstree_expected_head` / `masstree_config_sha256` を
+  足す — D152 に反し、pin が二重正本になる。
+- 呼び手が repo root の sibling から cache を推測する — worktree 隔離下で誤る。
+  generic campaign 層へ機体固有の配置を持ち込むことにもなる。
+- 環境変数だけで同一性まで決める — 規律 6 に反する。外から来た path は data であって
+  authority ではない。
+
+**残余 (本 wave では閉じない):** compile closure の byte 封印と oracle receipt の proof chain 耐久化。
+`expected config.h hash` をどこへ置くかは D115 (identity 非束縛の key だけ task policy へ) と
+D152 (cache root は policy から導出しない) の双方に抵触しうる未解決の設計択一であり、裁定が要る。
+
+## D400. 診断の生成失敗は元の失敗を置換せず、別事象として記録する (2026-08-14)
+
+**決定:** 不可用の理由を成果物へ残す経路は、(a) 元の失敗の分類と終了コードを変えない、
+(b) 診断そのものが失敗したら `diagnostic-emission-failed` として**別に**記録する、
+(c) いずれの経路でも非ゼロ終了する、の 3 つを同時に満たす。診断 payload は bounded な
+JSON primitive だけで構成し、full path は private artifact へ、durable / WAL 射影は
+`origin` / `outcome` と機体非依存の値だけにする。
+
+**理由:**
+- 診断を足す変更は、握り潰しによって**元の失敗を隠す**方向へ倒れやすい。
+  `result` が無い、payload が直列化できない、stdout が書けない、の 3 経路はいずれも
+  診断ハンドラ自身が例外を投げうる。ここで元の例外が別の型に置換されると、
+  「不可用だった」という一次事実まで失われる。
+- 「診断が無い」ことと「診断が壊れた」ことは別事象であり、後者を前者に畳むと
+  再発時にまた原因が分からなくなる。
+- durable 側へ full path を流すと、機体・利用者固有の情報が恒久記録へ残り、
+  試行参照の可搬性が壊れる。private artifact は `umask 077` かつ Git 管理外なので
+  full path を残してよいが、同じ射影関数を無差別に再利用してはならない。
+
+**却下した選択肢:**
+- 診断の失敗を握り潰して元の例外だけ再送出する — 「診断が無い」ことに気づけない。
+- 単一の `as_dict()` を durable と private の両方へ使う — 分離が規律ではなく偶然になる。
+- 診断を実行履歴ファイルへ追記する — 再開状態機械の受理形を壊す構成がある。
+  driver の標準出力は前提条件に依らず必ず存在し、書込権限にも再開契約にも依存しない。
+
+## D401. 不透明な失敗を塞ぐ wave は、自分が新設した前段が同じ不透明さを持たないことを確かめる (2026-08-14)
+
+**決定:** 「失敗理由が成果物に残らない」ことを塞ぐ wave では、その wave が**新たに追加した
+前段の検査**についても、失敗が構造化されて残ることを実装レビューの必須項目にする。
+新設した検査が汎用例外で倒れるなら、その wave は自分が塞いだはずの穴を別経路で作り直している。
+
+**理由:**
+- 本 wave は oracle の不可用理由が残らない問題を塞いだが、同時に新設した依存 preflight は
+  汎用例外で倒れる実装になっていた。しかも**計算ノードで最も起きやすい失敗要因**
+  (共有 cache が見えない、生成物が無い) がその新しい経路を通る。
+  結果として、直したつもりの症状が新しい場所で再現しうる状態だった。
+- 敵対レビューが指摘するまで親も実装子も気づかなかった。検査の中身 (fail-closed か) は
+  正しく、欠けていたのは「失敗理由が残るか」だけだったため、
+  通常の正しさレビューの視線では素通りしやすい。
+
+**却下した選択肢:**
+- 「新設検査は元の scope 外」とする — 症状が同じである以上、利用者から見れば未解決である。
+- 全 producer の例外を一律に構造化する族一般化 — 独立 2 例の再現がないため
+  `DW-G03` に従い局所修復に留める。
+
+## D402. 判定器を速くする変更は判定の入力文脈を変えてはならない (2026-08-14)
+
+**決定:** 受入の合否を決める判定器 (非帰属 checker の単独 rerun、merge message の provenance 検査など)
+に対する速度改善は、**判定の入力文脈を不変に保つ範囲でのみ行う**。入力文脈とは、判定が観測する
+実行環境 (同時実行数・負荷・兄弟 worktree の存在) と repository 状態 (index、`MERGE_HEAD`、
+staged path 集合) の両方を指す。入力文脈を変える最適化は、速くなっても採らない。
+採るなら「変えた文脈の下でも判定が同値である」ことを実測で示す義務が提案側にある。
+
+**理由:**
+
+- 独立した 2 例で、速度改善案が判定の意味を変えることが実測された。
+  - 非帰属 checker の per-node 有界並列化は、単独 rerun を 4 並列の負荷下へ置く。
+    signal / launcher 系テスト族が負荷で落ちることは既に実測済みであり (worklog 544 / 548)、
+    `rerun_rc` は 0 から 1 へ倒れやすくなる。この向きは**帰属する赤を非帰属と誤判定して
+    land を通す**方向であり、正しさ防壁のノイズ床を性能のために上げる構造である。
+  - merge message provenance の claim 前前倒しは、判定を merge 前の clean index で行う。
+    同一 bytes の message が、受入試行 1 では拒否され試行 5 では受理された実測があり、
+    合否が message の関数でないことが確定している。前倒し検査はこの入力を通すため、
+    救おうとした待ち時間を実際には救わない。
+- どちらも「実行環境を変えた」「repository 状態を変えた」という同型の誤りであり、
+  異なる producer で独立に再現しているため族として一般化できる。
+- 速度は測れば分かるが、判定の意味の変化は測らなければ見えない。既定を「変えない」に置き、
+  変えるなら同値性の立証を求めるのが安全側である。
+
+**却下した選択肢:**
+
+- 「並列化しても同じ verdict になることが多いので許容する」 — 偏りの向きが
+  land を通す側なので、稀でも受理集合が広がる。絶対規律 2 に反する。
+- 「前倒し検査を advisory (警告のみ) にする」 — 受理集合は変えないが、無人継続では
+  誰も警告を読まないため待ち時間は 1 秒も減らない。改善として成立しない。
+- 「隔離 worktree で merge 文脈を claim 前に再現する」 — 待機中に main が動くため、
+  trial 時点と claim 時点で判定が変わり、通るはずの投入を拒否しうる。
+  受理集合を予測不能に縮める。
+
+## D403. 受入投入前に待ち手の束縛 source bytes と新 tip の blob を照合する (2026-08-15)
+
+**決定:** `tools/dev_wave_wait.py` の acceptance 経路は、受入 command を投入する直前
+(prerun fingerprint 確定後、`run_logged` の前、merge の有無に依らない共通経路) で、
+module 初期化直後に束縛した自 source inode の bytes の sha256 と、
+`<prerun tip>:tools/dev_wave_wait.py` の blob 内容の sha256 を照合する。
+不一致および照合不能はすべて stage `restart-required` (rc=70) で停止する。
+
+**保証の範囲を狭く定める。** この契約が主張するのは「canonical direct 起動、または origin が
+束縛 source と同一 inode を指す file loader 経由で、**module 初期化直後に束縛した source inode の
+bytes**」であって、Python が compile した bytes そのものではない。loader が source を読んでから
+module-level で FD を束縛するまでの窓は、同じ file 自身の中では消せない。
+gate 導入より前に起動された process も本契約の被覆外である。
+
+**理由:**
+- 既存 receipt field `waiter_blob_sha` は、発行側も land 側も同じ tip の tree から算出する。
+  実行体の検査としては恒真であり、旧コードのまま新 main を merge した待ち手を区別できない。
+- 実行体を観測する既存機構は無い。`_behind_count` は commit 数、tree fingerprint は tree の状態、
+  D254 の全史 provenance 関門が束縛するのは provenance checker であって待ち手ではない。
+- 照合不能を通す設計にすると、束縛できない環境が検査回避の抜け道になる。停止側へ倒す。
+
+**却下した選択肢:**
+- claim 前に main の blob と比較する早期照合 — 待ち手は wave 版を実行するため、同 file を編集する
+  wave では main 版と恒久的に不一致になり、その wave の受入を永久に拒否する。
+  照合対象は merge 後の固定 tip でなければならない。
+- pathname の現 inode 同一性を合否条件に含める — 待ち手は自分を再実行しないため、pathname が今
+  どの inode を指すかは「何を実行しているか」に影響しない。同内容の原子的置換まで拒否する
+  過剰拒否になる。束縛時の symlink / 非 regular 検査と、読取中に束縛 FD の bytes が動いた場合の
+  拒否は維持する。
+- 起動形を `__spec__ is None` に限定する — origin が束縛 source と同一 file を指す file loader
+  経由のロードは、照合対象の source を曖昧にしない。一律拒否は安全性を足さず、正当な走行を止める。
+- receipt に実行 bytes の sha256 を field 追加する — gate 通過が「実行 bytes == その tip の blob 内容」を
+  含意するため冗長で、schema 昇格自体が同型の事故源になる。
+
+## D404. 契約の rollout 被覆は receipt schema の世代交代で強制しない (2026-08-15)
+
+**決定:** 上の gate を持たない旧 process を機械的に締め出す目的で、受入 receipt schema を
+互換なしで上げ、land 側を新 schema のみ受理へ切り替えることは行わない。
+残るのは rollout 被覆の窓 (gate 導入前に起動された process) であり、これを契約の一部として
+完了形で報告せず、窓の存在と fresh process からの再投入手順を runbook へ明記する。
+
+**理由:**
+- 裁定された契約は「受入投入前に照合して止める」ことである。schema の世代交代は別機構であり、
+  受理集合を変える範囲が裁定文を超える。
+- schema cutoff は投入前に止めない。旧 process を通常どおり走らせ、実測 318〜2755 秒を消費させた
+  **後に** land で拒否するだけである。契約の強化版ではなく、より遅くより高価な別の関門である。
+- 並行 wave が常時複数走る運用では、cutoff の瞬間に走行中の receipt と、cutoff 前に完走していた
+  受領証まで一律失効する。狙った母集団と無関係な巻き添えが大きい。
+
+**却下した選択肢:**
+- 排水方式 (旧 process が全て終了してから世代交代する) — 並行 wave が常時あるため窓が来ない。
+- activation tip による grandfather (land は旧 schema の受領証を、その tested tip が gate 導入 commit を
+  含むときだけ拒否する) — 巻き添えが無く、狙った母集団だけを正確に落とせる。本 wave では
+  実装しないが、rollout 被覆を閉じる案としては最も筋がよい。gate 導入 commit の sha は
+  その commit を作る前には書けないため、2 段活性化が要る。設計裁定はユーザーへ返す。
+
+## D405. oracle verdict の封印は再導出と canonical 型厳密比較で行う (2026-08-15)
+
+**決定:** `judge_combined` は `VerifiedOracleVerdict` 封印 token だけを受理する。token は
+`verify_oracle_verdict` が (1) strict load、(2) `ReviewedSpec` exact type、(3) 両 sha256 が
+exact `str`、(4) manifest document の nested 値が plain JSON 型ちょうど、(5) schedule 射影、
+(6) manifest document の canonical hash 再導出照合、(7) manifest の `spec_sha256` と
+approved spec の束縛、(8) oracle の `manifest_sha256` と検証済み manifest の束縛、
+(9) observations からの `judge_oracle` 再導出、(10) 再導出結果と入力文書の canonical JSON
+**文字列**一致 をすべて通したときだけ発行する。token は発行時の document canonical hash を
+束縛し、`judge_combined` は plain 型と hash を再照合してから中身を取り出す。
+
+**理由:**
+- schema 名と manifest sha の照合だけでは、正しい公開 sha を転記した改竄 verdict が通る。
+  これは D304 が「公開 pin との比較は迂回者が転記すれば満たせる」と決めた型と同一である。
+  再導出まで行って初めて、単独の verdict 文書の改竄が閉じる。
+- 比較に dict 等値を使うと Python の `True == 1.0` が成立し、median を `true` へ差し替えた
+  verdict が一致と判定される。実測では、その verdict は下流の実数判定で拒否されるため
+  結論が成立から判定不能へ倒れる。canonical JSON 文字列比較はこの型混同を落とす。
+- 全文書 1 本の比較にすると、余剰 top-level key・malformed holdouts・別 schema は
+  すべて不一致として落ちる。個別 guard を並べると冗長 gate になり、変異の単一理由性が壊れる。
+- (6) は発行時と同じ canonical hash 関数を使うため、正当な token を誤って落とさない。
+
+**却下した選択肢:**
+- **manifest sha 束縛だけを足す** — 公開 sha を転記した semantic 改竄が残る。
+- **掲載だけの証拠 field を足す** — 恒真化であり、起票時に却下済み。
+- **observations 層にも封印 token 境界を新設する** — D304 がレポート層と判定層の間の
+  改竄防御まで広げる権威の設計判断として明示的に scope 外に置いている。
+
+## D406. 封印 token の信頼境界は反射操作の有無で引く (2026-08-15)
+
+**決定:** izanagi の封印 token (検証済み文書を表す型) が防ぐ範囲は、**通常の Python 操作で
+成立する迂回まで**とする。具体的には、発行済み token の内包 dict の item 代入、
+`str` / `dict` の subclass を作って渡すこと、duck typing で `.document` を持つ別 object を
+渡すことは**防ぐ**。`object.__setattr__` / `object.__new__` / `__closure__` 参照など
+**反射操作**を要する偽造は信頼境界外とし、防御を足さず docstring に明記する。
+
+**理由:**
+- 「in-process 偽造は信頼境界外」とだけ書くと範囲が曖昧で、通常の dict 代入だけで結論を
+  変えられる状態を「境界外だから仕方ない」と見逃す。実際にレビューはこの穴を突いた。
+- 反射操作まで防ごうとすると、封印は言語機能との軍拡になり、検査の維持費が
+  防いでいるリスクを上回る。境界を反射の有無で引くと、実装も docstring も一意に決まる。
+- 通常操作側は安価に閉じられる。発行時 hash の束縛、`type(x) is str`、
+  nested 値の plain JSON 型検査はいずれも数行で、それぞれ独立に入力を落とす。
+
+**却下した選択肢:**
+- **「in-process 偽造は境界外」だけを書いて何も足さない** — 通常の dict 代入で結論が
+  変わる状態が残る。
+- **document を再帰的に不変化する** — consumer が Mapping として読む前提を壊し、
+  既存の三値判定本体まで書き換えが波及する。
+
+## D407. acceptance-receipt 段の失敗は reason と判定観測値を必ず出す (2026-08-15)
+
+**決定:** `tools/dev_wave_wait.py` の `acceptance-receipt` 段の各失敗地点は、
+互いに一意な `receipt-*` の reason と、**その判定に実際に使った観測値**を
+`_attestation_detail` の `{"reason": ..., "observed": ...}` 形式で出す。
+出力は stderr の既存 `error:` 行へ `detail=` を足し、**加えて** stdout へ別接頭辞の 1 行を出す。
+判定条件・分岐・rc・stage 名・受理集合は変えない。失敗時の `raise` へ引数を足すだけとする。
+
+載せてよいのは判定に使った値だけとする。短絡で未評価だった条件は `null` を明示し、
+再評価して観測値を作らない。例外は**型名と整数 errno のみ**とし、例外メッセージ・`repr`・
+絶対 path・環境変数値・stdout 原像の hash は載せない。自由文字列は 256 bytes、
+serialized detail 全体は 2048 bytes で切り詰める。診断生成は例外を出さない構造にし、
+rc と stage を置換しない。
+
+cleanup の失敗が一次 outcome を置換するときは、**返す outcome の選択を変えずに**
+一次側の stage と detail を入れ子で保存する。
+
+テスト側の期待 reason / failure_kind は **production の定数を参照せず literal 文字列**で書く。
+両側が同じ定数を共有すると、reason の取り違えが同時に動いて緑のまま通るためである。
+
+**理由:**
+- 受入全走が完全に緑でも `stage=acceptance-receipt rc=70` だけが出て land できない事故で、
+  git 履歴・全 log・source を持つ親が約 14 の失敗地点のどれかを特定できなかった。
+  1 走 300 秒と受入 lease 1 枠が理由不明で捨てられ、影響は全 wave に及ぶ。
+- 診断の仕組み (`_Outcome.detail` / `_attestation_detail` / `_print_outcome`) は既存で、
+  隣の段は使っていた。欠けていたのはこの段が値を渡していないことだけだった。
+- 判定に使っていない値まで載せると、短絡で未評価だった式を評価することになり、
+  追加評価の例外が stage を変えうる。観測値は判定の写像に限る。
+- 診断を足す変更は「緩める」方向だけでなく「過剰に拒否する」方向にも壊れる。
+  受入証を書き終えた後の失敗は成功を覆してはならない。
+
+**却下した選択肢:**
+- stderr だけに出す — 確定裁定の文言は stdout であり、`2>&1` は特定 launcher の
+  リダイレクトであって stderr を stdout 契約に変えない。親が読み替えてはならない。
+- 失敗時に receipt を書いて診断を載せる — publish は成功経路にしかなく、新機構になる。
+- 失敗後に全条件を再評価して観測値を揃える — 短絡で未評価だった値を「判定に使った値」と
+  偽ることになり、追加評価の例外が rc と stage を置換する。
+- 入れ子保存で一次 detail の `observed` を落として stage と reason だけ残す —
+  出力は減るが、この決定が残そうとしている原因値そのものを失う。

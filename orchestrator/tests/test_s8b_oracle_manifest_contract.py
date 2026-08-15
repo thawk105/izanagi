@@ -22,6 +22,7 @@ LOADER_EXPECTED_CONSUMERS = {
     },
     "load_official_observations": {
         "orchestrator/campaign/s8b_oracle_judge.py",
+        "orchestrator/campaign/s8b_verdict.py",
     },
     "load_official_verdict": {
         "orchestrator/campaign/s8b_verdict.py",
@@ -31,6 +32,7 @@ VERIFY_EXPECTED_CONSUMERS = {
     "orchestrator/campaign/s8b_oracle_driver.py",
     "orchestrator/campaign/s8b_oracle_judge.py",
     "orchestrator/campaign/s8b_oracle_report.py",
+    "orchestrator/campaign/s8b_verdict.py",
 }
 
 

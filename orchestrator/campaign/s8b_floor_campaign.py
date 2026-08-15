@@ -60,6 +60,7 @@ import re
 import shlex
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -84,6 +85,7 @@ from ..calibrator.runner import (  # noqa: E402
 )
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import buildcache, s8b_floor_stats, source_digest  # noqa: E402
+from . import silo_ladder_rung1 as _silo_ladder  # noqa: E402
 from . import toolchain_binding  # noqa: E402
 from .build_admission import (  # noqa: E402
     GeneratorId,
@@ -116,6 +118,16 @@ from .layout import (  # noqa: E402
 )
 from .p2_2 import ENV_TAG  # noqa: E402  (machine-pin 用のみ。CLK/NUMA は contract 経由)
 from .s1_direct_comparison import prepare_cell  # noqa: E402
+from .sort_swo_oracle import (  # noqa: E402
+    INFRASTRUCTURE_REASON_CODE,
+    OracleEnvironmentCandidate,
+    OracleEnvironmentResolutionFailure,
+    OracleInfrastructureFailure,
+    OracleStatus,
+    SortSwoOracleResult,
+    SortSwoOracleUnavailable,
+    private_attempt_record,
+)
 from .s8b_materialization import (  # noqa: E402
     MaterializationError,
     prepared_binding,
@@ -146,6 +158,61 @@ _APPROVED_SCALE_ADEQUACY = _floor_contract._APPROVED_SCALE_ADEQUACY
 _APPROVED_REASONS = list(_floor_contract._APPROVED_REASONS)
 
 _FLOOR_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
+_THIRD_PARTY_CACHE_ENV = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
+_FLOOR_JOB_STAGING_ENV = "IZANAGI_FLOOR_JOB_STAGING"
+_PRIVATE_DIAGNOSTIC_MAX_BYTES = 128 * 1024
+_FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
+_FLOOR_PREFLIGHT_MATERIALIZED_SHA256 = hashlib.sha256(
+    b"floor-sort-swo-preflight:materialized-unavailable"
+).hexdigest()
+_FLOOR_PREFLIGHT_PROPOSAL_SHA256 = hashlib.sha256(
+    b"floor-sort-swo-preflight:proposal-unavailable"
+).hexdigest()
+_FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES = frozenset({
+    "floor-toolchain-receipt-type-invalid",
+    "floor-toolchain-receipt-missing",
+    "floor-toolchain-receipt-state-invalid",
+    "floor-toolchain-discovery-failed",
+    "floor-toolchain-tool-missing",
+    "floor-toolchain-tool-not-executable-regular-file",
+    "floor-toolchain-version-launch-failed",
+    "floor-toolchain-version-invalid",
+    "floor-toolchain-receipt-mismatch",
+    "floor-toolchain-cxx-manifest-missing",
+    "floor-toolchain-cxx-manifest-invalid",
+})
+_FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES = frozenset({
+    "floor-dependency-policy-unavailable",
+    "floor-dependency-policy-pin-nonunique",
+    "floor-dependency-policy-pin-invalid",
+    "floor-dependency-cache-unconfigured",
+    "floor-dependency-cache-path-invalid",
+    "floor-dependency-cache-unavailable",
+    "floor-dependency-cache-not-directory",
+    "floor-dependency-cache-boundary-unavailable",
+    "floor-dependency-cache-inside-repository",
+    "floor-dependency-source-missing",
+    "floor-dependency-source-not-directory",
+    "floor-dependency-head-probe-unavailable",
+    "floor-dependency-head-nonunique",
+    "floor-dependency-git-root-unavailable",
+    "floor-dependency-git-root-mismatch",
+    "floor-dependency-head-mismatch",
+    "floor-dependency-config-missing",
+    "floor-dependency-config-not-regular",
+    "floor-dependency-config-hash-unavailable",
+})
+_FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES = frozenset({
+    "not-configured",
+    "not-found",
+    "selected",
+    "not-executable",
+    "not-regular-file",
+    "missing",
+    "config-h-not-regular-file",
+    "config-h-missing",
+    "invalid-path",
+})
 _HOLDOUT_FREEZE_REL = "output/s8b-freeze/holdout_freeze.json"
 _SELECTOR_PREDICTIONS_REL = "output/s8b-freeze/selector_predictions.json"
 _SELECTOR_RUNS_REL = "output/s8b-freeze/selector-runs"
@@ -1201,6 +1268,508 @@ def _project_scalepoint(scale_point, *, reps: int, expected_use_perf: bool) -> d
 # build 12 cells (oracle と同一経路, trace-disabled)                           #
 # --------------------------------------------------------------------------- #
 
+@dataclass(frozen=True)
+class _FloorOraclePreflightDiagnostic:
+    detail_code: str
+    origin: str
+    outcome: str
+    path: Optional[Path] = None
+
+    def __post_init__(self) -> None:
+        if self.detail_code not in (
+                _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES
+                | _FLOOR_DEPENDENCY_PREFLIGHT_DETAIL_CODES):
+            raise ValueError("未知の floor oracle preflight detail_code")
+        if type(self.origin) is not str or not self.origin or len(self.origin) > 128:
+            raise ValueError("floor oracle preflight origin が不正")
+        if self.outcome not in _FLOOR_PREFLIGHT_CANDIDATE_OUTCOMES:
+            raise ValueError("floor oracle preflight outcome が不正")
+        if self.path is not None and not isinstance(self.path, Path):
+            raise TypeError("floor oracle preflight path が Path でない")
+
+    @property
+    def phase(self) -> str:
+        if self.detail_code in _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES:
+            return "floor-toolchain-preflight"
+        return "floor-dependency-preflight"
+
+    @property
+    def failed_leg(self) -> str:
+        if self.detail_code in _FLOOR_TOOLCHAIN_PREFLIGHT_DETAIL_CODES:
+            return "compiler"
+        return "dependency"
+
+
+class _FloorOraclePreflightError(FloorCampaignError):
+    """production floor の oracle 前検査を閉じた診断へ運ぶ内部例外。"""
+
+    def __init__(
+            self, message: str, *, detail_code: str, origin: str,
+            outcome: str, path: Optional[Path] = None):
+        super().__init__(message)
+        self.diagnostic = _FloorOraclePreflightDiagnostic(
+            detail_code=detail_code,
+            origin=origin,
+            outcome=outcome,
+            path=path,
+        )
+
+
+def _preflight_candidate_path(value: object) -> Optional[Path]:
+    if value is None:
+        return None
+    try:
+        if os.fspath(value) == "":
+            return None
+        return Path(value)
+    except (TypeError, ValueError):
+        return None
+
+
+@dataclass(frozen=True)
+class _FloorOracleDependencyBinding:
+    source_root: Path
+    expected_head: str
+    observed_head: str
+    config_sha256: str
+
+    def private_dict(self) -> dict[str, object]:
+        return {
+            "dependency_root": str(self.source_root),
+            "dependency_expected_head": self.expected_head,
+            "dependency_head": self.observed_head,
+            "dependency_config_sha256": self.config_sha256,
+        }
+
+
+def _masstree_policy_pin(repo_root: Path) -> str:
+    policy_path = _silo_ladder.third_party_policy_path(Path(repo_root))
+    try:
+        sources = _silo_ladder.third_party_policy(repo_root)
+    except Exception as exc:
+        raise _FloorOraclePreflightError(
+            "共有 third-party policy の検証に失敗",
+            detail_code="floor-dependency-policy-unavailable",
+            origin="shared-policy:masstree",
+            outcome="invalid-path",
+            path=policy_path,
+        ) from exc
+    matches = [item for item in sources if item.get("name") == "masstree"]
+    if len(matches) != 1:
+        raise _FloorOraclePreflightError(
+            "共有 policy の masstree pin が一意でない",
+            detail_code="floor-dependency-policy-pin-nonunique",
+            origin="shared-policy:masstree",
+            outcome="invalid-path",
+            path=policy_path,
+        )
+    pin = matches[0].get("pin")
+    if type(pin) is not str or re.fullmatch(r"[0-9a-f]{40}", pin) is None:
+        raise _FloorOraclePreflightError(
+            "共有 policy の masstree pin が不正",
+            detail_code="floor-dependency-policy-pin-invalid",
+            origin="shared-policy:masstree",
+            outcome="invalid-path",
+            path=policy_path,
+        )
+    return pin
+
+
+def _floor_git_environment() -> dict[str, str]:
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+    }
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+    })
+    return env
+
+
+def _sha256_regular_file(path: Path) -> str:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "masstree config.h が存在しない",
+            detail_code="floor-dependency-config-missing",
+            origin="floor-dependency:masstree",
+            outcome="config-h-missing",
+            path=path.parent,
+        ) from exc
+    if path.is_symlink() or not stat.S_ISREG(info.st_mode):
+        raise _FloorOraclePreflightError(
+            "masstree config.h が non-symlink regular file でない",
+            detail_code="floor-dependency-config-not-regular",
+            origin="floor-dependency:masstree",
+            outcome="config-h-not-regular-file",
+            path=path.parent,
+        )
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(64 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise _FloorOraclePreflightError(
+            "masstree config.h を hash できない",
+            detail_code="floor-dependency-config-hash-unavailable",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=path.parent,
+        ) from exc
+    return digest.hexdigest()
+
+
+def _verify_floor_oracle_dependency_source(
+        cache_root: Path, *, repo_root: Path,
+        expected_head: str) -> _FloorOracleDependencyBinding:
+    if (type(expected_head) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", expected_head) is None):
+        raise _FloorOraclePreflightError(
+            "共有 policy の masstree pin が不正",
+            detail_code="floor-dependency-policy-pin-invalid",
+            origin="shared-policy:masstree",
+            outcome="invalid-path",
+            path=_silo_ladder.third_party_policy_path(Path(repo_root)),
+        )
+    try:
+        raw_cache = Path(cache_root)
+    except (TypeError, ValueError) as exc:
+        raise _FloorOraclePreflightError(
+            "third-party cache root が path として不正",
+            detail_code="floor-dependency-cache-path-invalid",
+            origin="floor-cache-root",
+            outcome="invalid-path",
+        ) from exc
+    if not raw_cache.is_absolute():
+        raise _FloorOraclePreflightError(
+            "third-party cache root は絶対 path 必須",
+            detail_code="floor-dependency-cache-path-invalid",
+            origin="floor-cache-root",
+            outcome="invalid-path",
+            path=raw_cache,
+        )
+    try:
+        resolved_repo = Path(repo_root).resolve(strict=True)
+        resolved_cache = raw_cache.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise _FloorOraclePreflightError(
+            "third-party cache root を解決できない",
+            detail_code="floor-dependency-cache-unavailable",
+            origin="floor-cache-root",
+            outcome="missing" if not raw_cache.exists() else "invalid-path",
+            path=raw_cache,
+        ) from exc
+    if raw_cache.is_symlink() or not resolved_cache.is_dir():
+        raise _FloorOraclePreflightError(
+            "third-party cache root が実 directory でない",
+            detail_code="floor-dependency-cache-not-directory",
+            origin="floor-cache-root",
+            outcome="not-regular-file",
+            path=raw_cache,
+        )
+    try:
+        inside_repo = os.path.commonpath((
+            str(resolved_cache), str(resolved_repo),
+        )) == str(resolved_repo)
+    except ValueError as exc:
+        raise _FloorOraclePreflightError(
+            "third-party cache root の境界を比較できない",
+            detail_code="floor-dependency-cache-boundary-unavailable",
+            origin="floor-cache-root",
+            outcome="invalid-path",
+            path=raw_cache,
+        ) from exc
+    if inside_repo:
+        raise _FloorOraclePreflightError(
+            "third-party cache root は repo 外でなければならない",
+            detail_code="floor-dependency-cache-inside-repository",
+            origin="floor-cache-root",
+            outcome="invalid-path",
+            path=raw_cache,
+        )
+
+    unresolved_source = resolved_cache / "masstree"
+    try:
+        source_root = unresolved_source.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise _FloorOraclePreflightError(
+            "masstree source root が存在しない",
+            detail_code="floor-dependency-source-missing",
+            origin="floor-dependency:masstree",
+            outcome="missing",
+            path=unresolved_source,
+        ) from exc
+    if unresolved_source.is_symlink() or not source_root.is_dir():
+        raise _FloorOraclePreflightError(
+            "masstree source root が実 directory でない",
+            detail_code="floor-dependency-source-not-directory",
+            origin="floor-dependency:masstree",
+            outcome="not-regular-file",
+            path=unresolved_source,
+        )
+    try:
+        completed = subprocess.run(
+            [
+                "git", "-c", "core.fsmonitor=", "-c", "core.hooksPath=",
+                "-c", "core.useReplaceRefs=false", "-C", str(source_root),
+                "rev-parse", "--show-toplevel", "--verify", "HEAD",
+            ],
+            env=_floor_git_environment(),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise _FloorOraclePreflightError(
+            "masstree source HEAD を検査できない",
+            detail_code="floor-dependency-head-probe-unavailable",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=source_root,
+        ) from exc
+    lines = completed.stdout.splitlines()
+    if completed.returncode != 0 or len(lines) != 2:
+        raise _FloorOraclePreflightError(
+            "masstree source HEAD を一意に解決できない",
+            detail_code="floor-dependency-head-nonunique",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=source_root,
+        )
+    try:
+        top_level = Path(lines[0]).resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise _FloorOraclePreflightError(
+            "masstree Git top-level を解決できない",
+            detail_code="floor-dependency-git-root-unavailable",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=source_root,
+        ) from exc
+    observed_head = lines[1]
+    if top_level != source_root:
+        raise _FloorOraclePreflightError(
+            "masstree source root が Git top-level でない",
+            detail_code="floor-dependency-git-root-mismatch",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=source_root,
+        )
+    if observed_head != expected_head:
+        raise _FloorOraclePreflightError(
+            "masstree source HEAD が共有 policy pin と不一致",
+            detail_code="floor-dependency-head-mismatch",
+            origin="floor-dependency:masstree",
+            outcome="invalid-path",
+            path=source_root,
+        )
+    config_sha256 = _sha256_regular_file(source_root / "config.h")
+    return _FloorOracleDependencyBinding(
+        source_root=source_root,
+        expected_head=expected_head,
+        observed_head=observed_head,
+        config_sha256=config_sha256,
+    )
+
+
+def _resolve_floor_oracle_dependency(
+        cache_root: Optional[os.PathLike[str] | str] = None,
+        *, repo_root: Path = ROOT) -> _FloorOracleDependencyBinding:
+    configured = cache_root
+    origin = "argument:third-party-cache-root"
+    if configured is None:
+        configured = os.environ.get(_THIRD_PARTY_CACHE_ENV)
+        origin = f"environment:{_THIRD_PARTY_CACHE_ENV}"
+    try:
+        unconfigured = configured is None or os.fspath(configured) == ""
+    except (TypeError, ValueError) as exc:
+        raise _FloorOraclePreflightError(
+            "third-party cache root が path として不正",
+            detail_code="floor-dependency-cache-path-invalid",
+            origin=origin,
+            outcome="invalid-path",
+        ) from exc
+    if unconfigured:
+        raise _FloorOraclePreflightError(
+            "third-party cache root は明示引数または "
+            f"{_THIRD_PARTY_CACHE_ENV} で必須",
+            detail_code="floor-dependency-cache-unconfigured",
+            origin=origin,
+            outcome="not-configured",
+        )
+    expected_head = _masstree_policy_pin(Path(repo_root))
+    return _verify_floor_oracle_dependency_source(
+        Path(configured), repo_root=Path(repo_root),
+        expected_head=expected_head,
+    )
+
+
+def _phase_marker_root(
+        configured: Optional[os.PathLike[str] | str],
+) -> Path:
+    value = configured
+    if value is None:
+        value = os.environ.get(_FLOOR_JOB_STAGING_ENV)
+    try:
+        missing = value is None or os.fspath(value) == ""
+    except (TypeError, ValueError) as exc:
+        raise FloorCampaignError("floor job staging が path として不正") from exc
+    if missing:
+        raise FloorCampaignError(
+            "floor job staging は明示引数または "
+            f"{_FLOOR_JOB_STAGING_ENV} で必須"
+        )
+    try:
+        unresolved = Path(value)
+    except (TypeError, ValueError) as exc:
+        raise FloorCampaignError("floor job staging が path として不正") from exc
+    if not unresolved.is_absolute():
+        raise FloorCampaignError("floor job staging は絶対 path 必須")
+    try:
+        resolved = unresolved.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise FloorCampaignError("floor job staging を解決できない") from exc
+    if unresolved.is_symlink() or not resolved.is_dir():
+        raise FloorCampaignError("floor job staging が実 directory でない")
+    return resolved
+
+
+def _create_private_json(path: Path, document: Mapping[str, object]) -> None:
+    payload = (
+        json.dumps(
+            dict(document), ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        ) + "\n"
+    ).encode("utf-8")
+    if len(payload) > _PRIVATE_DIAGNOSTIC_MAX_BYTES:
+        raise FloorCampaignError("private job marker が byte 上限を超えた")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb", closefd=False) as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            os.close(descriptor)
+        directory_flags = os.O_RDONLY
+        if hasattr(os, "O_DIRECTORY"):
+            directory_flags |= os.O_DIRECTORY
+        directory_descriptor = os.open(path.parent, directory_flags)
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    except OSError as exc:
+        raise FloorCampaignError("private job marker を create-only で保存できない") from exc
+
+
+def _write_phase_marker(
+        root: Path, *, cell: str, phase: str, compiler: str,
+        dependency: Optional[_FloorOracleDependencyBinding]) -> Path:
+    if phase not in {"preflight", "oracle", "build"}:
+        raise FloorCampaignError("未知の floor phase marker")
+    if type(cell) is not str or not cell or len(cell) > 512:
+        raise FloorCampaignError("floor phase marker の cell が不正")
+    cell_digest = hashlib.sha256(cell.encode("utf-8")).hexdigest()[:16]
+    destination = root / f"phase-{phase}-{cell_digest}.json"
+    document: dict[str, object] = {
+        "cell": cell,
+        "phase": phase,
+        "pid": os.getpid(),
+        "started": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "compiler": compiler,
+    }
+    if dependency is not None:
+        document.update({
+            "dependency_root": str(dependency.source_root),
+            "dependency_head": dependency.observed_head,
+            "dependency_expected_head": dependency.expected_head,
+            "dependency_config_sha256": dependency.config_sha256,
+        })
+    _create_private_json(destination, document)
+    return destination
+
+
+def _floor_oracle_preflight_unavailable_result(
+        diagnostic: _FloorOraclePreflightDiagnostic, *,
+        verified_compiler: Optional[str],
+) -> SortSwoOracleResult:
+    if diagnostic.failed_leg == "compiler":
+        compiler_candidates = (
+            OracleEnvironmentCandidate(
+                diagnostic.origin, diagnostic.path, diagnostic.outcome,
+            ),
+        )
+        dependency_candidates = (
+            OracleEnvironmentCandidate(
+                "floor-preflight:dependency-not-attempted",
+                None,
+                "not-configured",
+            ),
+        )
+        resolution_detail = "oracle-environment-compiler-unresolved"
+    else:
+        compiler_path = (
+            Path(verified_compiler)
+            if type(verified_compiler) is str and verified_compiler else None
+        )
+        compiler_candidates = (
+            OracleEnvironmentCandidate(
+                "floor-toolchain:cxx",
+                compiler_path,
+                "selected" if compiler_path is not None else "not-configured",
+            ),
+        )
+        dependency_candidates = (
+            OracleEnvironmentCandidate(
+                diagnostic.origin, diagnostic.path, diagnostic.outcome,
+            ),
+        )
+        resolution_detail = "oracle-environment-dependency-unresolved"
+    resolution = OracleEnvironmentResolutionFailure(
+        resolution_detail,
+        compiler_candidates,
+        dependency_candidates,
+    )
+    return SortSwoOracleResult(
+        OracleStatus.UNAVAILABLE,
+        _FLOOR_PREFLIGHT_MATERIALIZED_SHA256,
+        _FLOOR_PREFLIGHT_PROPOSAL_SHA256,
+        infrastructure=OracleInfrastructureFailure(
+            INFRASTRUCTURE_REASON_CODE,
+            diagnostic.phase,
+            diagnostic.detail_code,
+            environment_resolution=resolution,
+        ),
+    )
+
+
+def _persist_floor_oracle_preflight_failure(
+        marker_root: Path, error: _FloorOraclePreflightError, *,
+        verified_compiler: Optional[str],
+) -> SortSwoOracleUnavailable:
+    result = _floor_oracle_preflight_unavailable_result(
+        error.diagnostic,
+        verified_compiler=verified_compiler,
+    )
+    _create_private_json(
+        marker_root / _FLOOR_PREFLIGHT_FAILURE_FILENAME,
+        private_attempt_record(result),
+    )
+    return SortSwoOracleUnavailable(result)
+
+
 @contextlib.contextmanager
 def _prepared_binding(
         *, freeze: Mapping, holdout_id: str, configuration_id: str,
@@ -1235,21 +1804,39 @@ class _ObservedFloorTool:
 
 def _observe_floor_tool(requested: str, role: str) -> _ObservedFloorTool:
     """Floor gate 用に実体と ``--version`` 全文を一度に観測する。"""
+    origin = f"floor-toolchain:{role}"
+    requested_path = _preflight_candidate_path(requested)
     try:
         found = shutil.which(requested)
     except (OSError, TypeError) as exc:
-        raise FloorCampaignError(
-            f"floor toolchain {role} の探索に失敗: {requested!r}: {exc}"
+        raise _FloorOraclePreflightError(
+            f"floor toolchain {role} の探索に失敗: {requested!r}: {exc}",
+            detail_code="floor-toolchain-discovery-failed",
+            origin=origin,
+            outcome="invalid-path",
+            path=requested_path,
         ) from exc
     if not found:
-        raise FloorCampaignError(
-            f"floor toolchain {role} が PATH に存在しない: {requested!r}"
+        raise _FloorOraclePreflightError(
+            f"floor toolchain {role} が PATH に存在しない: {requested!r}",
+            detail_code="floor-toolchain-tool-missing",
+            origin=origin,
+            outcome="not-found",
+            path=requested_path,
         )
     realpath = os.path.realpath(found)
     if not os.path.isfile(realpath) or not os.access(realpath, os.X_OK):
-        raise FloorCampaignError(
+        outcome = (
+            "not-executable" if os.path.isfile(realpath)
+            else "not-regular-file"
+        )
+        raise _FloorOraclePreflightError(
             f"floor toolchain {role} の実体が実行可能な通常ファイルでない: "
-            f"{realpath!r}"
+            f"{realpath!r}",
+            detail_code="floor-toolchain-tool-not-executable-regular-file",
+            origin=origin,
+            outcome=outcome,
+            path=Path(realpath),
         )
     try:
         result = subprocess.run(
@@ -1257,16 +1844,24 @@ def _observe_floor_tool(requested: str, role: str) -> _ObservedFloorTool:
             encoding="utf-8", errors="replace",
         )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise FloorCampaignError(
-            f"floor toolchain {role} --version を実行できない: {realpath}: {exc}"
+        raise _FloorOraclePreflightError(
+            f"floor toolchain {role} --version を実行できない: {realpath}: {exc}",
+            detail_code="floor-toolchain-version-launch-failed",
+            origin=origin,
+            outcome="invalid-path",
+            path=Path(realpath),
         ) from exc
     lines = result.stdout.splitlines()
     version = (result.stdout + result.stderr).strip()
     if (result.returncode != 0 or not lines or not lines[0].strip()
             or not version):
-        raise FloorCampaignError(
+        raise _FloorOraclePreflightError(
             f"floor toolchain {role} --version の取得に失敗 "
-            f"(rc={result.returncode}): {realpath}"
+            f"(rc={result.returncode}): {realpath}",
+            detail_code="floor-toolchain-version-invalid",
+            origin=origin,
+            outcome="invalid-path",
+            path=Path(realpath),
         )
     return _ObservedFloorTool(
         requested=requested,
@@ -1281,8 +1876,11 @@ def _bind_current_toolchain(
 ) -> dict[str, dict[str, str]]:
     """Hash 検証済み calibration receipt と current toolchain を束縛する。"""
     if not isinstance(verified_calibration, env_attestation.VerifiedCalibration):
-        raise FloorCampaignError(
-            "floor toolchain binding に VerifiedCalibration が渡されていない"
+        raise _FloorOraclePreflightError(
+            "floor toolchain binding に VerifiedCalibration が渡されていない",
+            detail_code="floor-toolchain-receipt-type-invalid",
+            origin="calibration:verified-receipt",
+            outcome="invalid-path",
         )
     calibration = verified_calibration.calibration
     if calibration is None:
@@ -1295,11 +1893,17 @@ def _bind_current_toolchain(
             live_cxx_version="",
             live_cmake_version="",
         ):
-            raise FloorCampaignError(
-                "floor toolchain binding に acquisition receipt がない"
+            raise _FloorOraclePreflightError(
+                "floor toolchain binding に acquisition receipt がない",
+                detail_code="floor-toolchain-receipt-missing",
+                origin="calibration:acquisition-receipt",
+                outcome="not-configured",
             )
-        raise FloorCampaignError(
-            "floor toolchain binding が receipt 不在を誤受理した"
+        raise _FloorOraclePreflightError(
+            "floor toolchain binding が receipt 不在を誤受理した",
+            detail_code="floor-toolchain-receipt-state-invalid",
+            origin="calibration:acquisition-receipt",
+            outcome="invalid-path",
         )
 
     receipt = calibration.acquisition_receipt
@@ -1321,8 +1925,12 @@ def _bind_current_toolchain(
             live_cc_version=observed["cc"].version,
             live_cxx_version=observed["cxx"].version,
             live_cmake_version=observed["cmake"].version):
-        raise FloorCampaignError(
-            "floor toolchain が registered calibration receipt と不一致"
+        raise _FloorOraclePreflightError(
+            "floor toolchain が registered calibration receipt と不一致",
+            detail_code="floor-toolchain-receipt-mismatch",
+            origin="calibration:toolchain-binding",
+            outcome="invalid-path",
+            path=Path(observed["cxx"].realpath),
         )
     return {
         role: observation.manifest_entry()
@@ -1330,27 +1938,139 @@ def _bind_current_toolchain(
     }
 
 
-def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
-                out_root: Path, prepare_fn, contract, verified_calibration,
-                build_fn=None) -> dict[str, dict]:
+def build_cells(
+        freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
+        out_root: Path, prepare_fn, contract, verified_calibration,
+        build_fn=None,
+        third_party_cache_root: Optional[os.PathLike[str] | str] = None,
+        phase_marker_root: Optional[os.PathLike[str] | str] = None,
+) -> dict[str, dict]:
     """全セルを実体化し、runner/store 専用の absolute-path runtime view を返す。"""
     build_fn = build_fn or buildcache.build_v2
     # Human-reviewed admission では generator id は persistent receipt に入らない。API が要求する
     # run context の registered member として、S8b の直前 producer である S8a を選ぶ。
     build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     cache_root = str(out_root / "s8b-build-cache")
-    cc, cxx = buildcache.compilers_for_current_site()
-    expected_toolchain_manifest = _bind_current_toolchain(
-        verified_calibration, cc=cc, cxx=cxx,
+    production_floor_path = prepare_fn is prepare_cell
+    marker_configured = (
+        phase_marker_root is not None
+        or os.environ.get(_FLOOR_JOB_STAGING_ENV) is not None
     )
+    marker_root = (
+        _phase_marker_root(phase_marker_root)
+        if production_floor_path or marker_configured else None
+    )
+    try:
+        cc, cxx = buildcache.compilers_for_current_site()
+    except Exception as exc:
+        preflight_error = _FloorOraclePreflightError(
+            "floor toolchain の site compiler 選択に失敗",
+            detail_code="floor-toolchain-discovery-failed",
+            origin="floor-toolchain:site-selection",
+            outcome="invalid-path",
+        )
+        if production_floor_path:
+            assert marker_root is not None
+            raise _persist_floor_oracle_preflight_failure(
+                marker_root,
+                preflight_error,
+                verified_compiler=None,
+            ) from exc
+        raise preflight_error from exc
+    if production_floor_path:
+        assert marker_root is not None
+        for cell in cells:
+            _write_phase_marker(
+                marker_root,
+                cell=cell["cell_id"],
+                phase="preflight",
+                compiler=cxx,
+                dependency=None,
+            )
+
+    dependency_binding = None
+    verified_oracle_compiler = None
+    try:
+        expected_toolchain_manifest = _bind_current_toolchain(
+            verified_calibration, cc=cc, cxx=cxx,
+        )
+        if production_floor_path and any(
+                cell.get("configuration_id") == "sort_best" for cell in cells):
+            try:
+                verified_oracle_compiler = expected_toolchain_manifest[
+                    "cxx"
+                ]["realpath"]
+            except (KeyError, TypeError) as exc:
+                raise _FloorOraclePreflightError(
+                    "検証済み floor cxx realpath が toolchain manifest にない",
+                    detail_code="floor-toolchain-cxx-manifest-missing",
+                    origin="floor-toolchain:cxx-manifest",
+                    outcome="not-configured",
+                ) from exc
+            if (type(verified_oracle_compiler) is not str
+                    or not os.path.isabs(verified_oracle_compiler)):
+                raise _FloorOraclePreflightError(
+                    "検証済み floor cxx realpath が絶対 path でない",
+                    detail_code="floor-toolchain-cxx-manifest-invalid",
+                    origin="floor-toolchain:cxx-manifest",
+                    outcome="invalid-path",
+                    path=_preflight_candidate_path(verified_oracle_compiler),
+                )
+            dependency_binding = _resolve_floor_oracle_dependency(
+                third_party_cache_root,
+            )
+            _create_private_json(
+                marker_root / "sort-swo-oracle-dependency.json",
+                {
+                    "event": "sort-swo-oracle-dependency-attempt",
+                    **dependency_binding.private_dict(),
+                },
+            )
+    except _FloorOraclePreflightError as exc:
+        if not production_floor_path:
+            raise
+        assert marker_root is not None
+        raise _persist_floor_oracle_preflight_failure(
+            marker_root,
+            exc,
+            verified_compiler=verified_oracle_compiler,
+        ) from exc
     built: dict[str, dict] = {}
     for cell in cells:
         holdout_id = cell["holdout_id"]
         configuration_id = cell["configuration_id"]
+        effective_prepare_fn = prepare_fn
+        if dependency_binding is not None and prepare_fn is prepare_cell:
+            oracle_marker = None
+            if configuration_id == "sort_best":
+                assert marker_root is not None
+                oracle_marker = lambda: _write_phase_marker(
+                    marker_root,
+                    cell=cell["cell_id"],
+                    phase="oracle",
+                    compiler=verified_oracle_compiler,
+                    dependency=dependency_binding,
+                )
+
+            def floor_prepare(
+                    prepared_cell, prepared_pin, *, cxx,
+                    _marker=oracle_marker,
+                    _dependency=dependency_binding,
+                    _compiler=verified_oracle_compiler):
+                return prepare_fn(
+                    prepared_cell,
+                    prepared_pin,
+                    cxx=cxx,
+                    oracle_dependency_root=_dependency.source_root,
+                    oracle_compiler=_compiler,
+                    oracle_phase_marker=_marker,
+                )
+
+            effective_prepare_fn = floor_prepare
         with _prepared_binding(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
-                cxx=cxx, prepare_fn=prepare_fn) as (identity, prepared):
+                cxx=cxx, prepare_fn=effective_prepare_fn) as (identity, prepared):
             evidence = source_digest.resolve_evidence(
                 prepared.genome,
                 ccbench_pin,
@@ -1382,6 +2102,16 @@ def build_cells(freeze: Mapping, cells: list[dict], *, ccbench_pin: str,
             admission = derive_build_admission(
                 build_context, evidence, review_receipt=review,
             )
+            if production_floor_path:
+                assert marker_root is not None
+            if marker_root is not None:
+                _write_phase_marker(
+                    marker_root,
+                    cell=cell["cell_id"],
+                    phase="build",
+                    compiler=(verified_oracle_compiler or cxx),
+                    dependency=dependency_binding,
+                )
             result = build_fn(
                 prepared.genome,
                 admission=admission, build_context=build_context,
@@ -4261,6 +4991,93 @@ def _load_verified_freeze(path, expected_hash=None):
         raise FloorCampaignError(str(exc)) from exc
 
 
+def _bounded_diagnostic_line(document: Mapping[str, object]) -> str:
+    line = json.dumps(
+        dict(document), ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"), allow_nan=False,
+    ) + "\n"
+    if len(line.encode("utf-8")) > _PRIVATE_DIAGNOSTIC_MAX_BYTES:
+        raise ValueError("oracle diagnostic exceeds byte bound")
+    return line
+
+
+def _diagnostic_emission_failure(
+        *, stage: str, detail_code: str) -> dict[str, object]:
+    return {
+        "status": "error",
+        "error": (
+            "SortSwoOracleUnavailable: "
+            "sort-swo-oracle-infrastructure-unavailable"
+        ),
+        "diagnostic_emission_failure": {
+            "event": "diagnostic-emission-failed",
+            "stage": stage,
+            "detail_code": detail_code,
+        },
+    }
+
+
+def _write_diagnostic_line(stream, line: str) -> None:
+    written = stream.write(line)
+    if written != len(line):
+        raise OSError("short diagnostic write")
+    stream.flush()
+
+
+def _emit_sort_swo_unavailable(
+        exc: SortSwoOracleUnavailable, *, stdout=None, stderr=None) -> int:
+    """元の UNAVAILABLE を rc=1 のまま、bounded な private JSON へ射影する。"""
+    output = sys.stdout if stdout is None else stdout
+    error_output = sys.stderr if stderr is None else stderr
+    try:
+        if exc.result is None:
+            raise TypeError("oracle result is absent")
+        primary = {
+            "status": "error",
+            "error": f"{type(exc).__name__}: {exc}",
+            "sort_swo_oracle": private_attempt_record(exc.result),
+        }
+        line = _bounded_diagnostic_line(primary)
+    except Exception as diagnostic_exc:
+        detail_code = (
+            "oracle-result-missing"
+            if exc.result is None
+            else f"diagnostic-payload-{type(diagnostic_exc).__name__}"
+        )
+        fallback = _diagnostic_emission_failure(
+            stage="payload", detail_code=detail_code,
+        )
+        try:
+            _write_diagnostic_line(output, _bounded_diagnostic_line(fallback))
+        except Exception as write_exc:
+            terminal = _diagnostic_emission_failure(
+                stage="stdout-write",
+                detail_code=f"diagnostic-write-{type(write_exc).__name__}",
+            )
+            try:
+                _write_diagnostic_line(
+                    error_output, _bounded_diagnostic_line(terminal),
+                )
+            except Exception:
+                pass
+        return 1
+
+    try:
+        _write_diagnostic_line(output, line)
+    except Exception as write_exc:
+        fallback = _diagnostic_emission_failure(
+            stage="stdout-write",
+            detail_code=f"diagnostic-write-{type(write_exc).__name__}",
+        )
+        try:
+            _write_diagnostic_line(
+                error_output, _bounded_diagnostic_line(fallback),
+            )
+        except Exception:
+            pass
+    return 1
+
+
 def main(argv=None) -> int:
     cli_argv = list(sys.argv[1:] if argv is None else argv)
     if cli_argv and cli_argv[0] == "freeze-protocol":
@@ -4298,6 +5115,8 @@ def main(argv=None) -> int:
             protocol, verified, out_root=out_root, mode=args.mode,
             resume_dir=args.resume,
         )
+    except SortSwoOracleUnavailable as exc:
+        return _emit_sort_swo_unavailable(exc)
     except FloorCampaignError as exc:
         print(json.dumps({
             "status": "error", "error": f"{type(exc).__name__}: {exc}",

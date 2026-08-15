@@ -1,0 +1,242 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/702da454a23229666eee0f87533d41de/izdw-702da454a2.o911011",
+      "receipt_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/702da454a23229666eee0f87533d41de/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................................  [100%]\n71 passed in 4.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "8d1c7d2528c4e2b457ce55ce0520e5617005f98993d1d83d69a9ccd425a5306a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "838f4d9f91a2d5fd16cc72e81ef8ac22bbb4c5638caab7db170fb459e289a643",
+    "duration_s": 26.897,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c74463290d02f02f3174b062cdc461158842d61082b87b1ca069d99d656d5063",
+    "repo_head": "b486eaf2e22e02588cbd0dec808c7b3a1dc4fbb4",
+    "runner_sha256": "a8f76ae04ab0195b5f7c27b8b1a8324f8d37fcb01a32a1f24bf5f2188c0843f7",
+    "spec_sha256": "301b43862cbb66628d128783bce910d0e87c11ad7222e41885b79815fdd598e9",
+    "status": "PASSED",
+    "test_output_sha256": "8d1c7d2528c4e2b457ce55ce0520e5617005f98993d1d83d69a9ccd425a5306a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "7c213ec00034d9e70b8bf13c2c020b50f2eee377608a37a8a3d5ae6867d603ac"
+  },
+  "date": "2026-08-14T15:32:19.072485+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1176a3566ada365b293862462a77c770/izdw-1176a3566a.o911013",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/1176a3566ada365b293862462a77c770/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................................  [100%]\n71 passed in 4.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "d1fff9260eaffb08204cb26f5ad7545e2e4e0fcd67443442975a45b922af239f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "838f4d9f91a2d5fd16cc72e81ef8ac22bbb4c5638caab7db170fb459e289a643",
+      "duration_s": 26.893,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M06",
+      "injection_diff_sha256": "ad077de7841407ad4ad913ae3e3b57f06ac32ff101d4b3eab6a9416234a0ed02",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "c3238742e4a554a6aef8d3f88dfd4792f9b9015f8440781b123a24cb1a589b19",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_verdict.py",
+          "new": "",
+          "old": "    _assert_plain_json_values(\n        oracle.document,\n        label=\"VerifiedOracleVerdict.document\",\n    )\n"
+        }
+      ],
+      "repo_head": "b486eaf2e22e02588cbd0dec808c7b3a1dc4fbb4",
+      "runner_sha256": "a8f76ae04ab0195b5f7c27b8b1a8324f8d37fcb01a32a1f24bf5f2188c0843f7",
+      "spec_sha256": "301b43862cbb66628d128783bce910d0e87c11ad7222e41885b79815fdd598e9",
+      "status": "SURVIVED",
+      "test_output_sha256": "d1fff9260eaffb08204cb26f5ad7545e2e4e0fcd67443442975a45b922af239f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "7c213ec00034d9e70b8bf13c2c020b50f2eee377608a37a8a3d5ae6867d603ac"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8af9b5da81b794e4c3e6b818d1ae736f/izdw-8af9b5da81.o911010",
+        "receipt_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8af9b5da81b794e4c3e6b818d1ae736f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_verdict.py::test_condition1_holds_when_a_holdout_differs\norchestrator/tests/test_s8b_verdict.py::test_condition1_refuted_when_all_holdouts_identical\norchestrator/tests/test_s8b_verdict.py::test_condition1_indeterminate_when_missing_and_no_difference\norchestrator/tests/test_s8b_verdict.py::test_condition2_holds_when_both_holdouts_follow\norchestrator/tests/test_s8b_verdict.py::test_condition2_refuted_when_one_holdout_does_not_follow\norchestrator/tests/test_s8b_verdict.py::test_condition2_indeterminate_when_a_swapped_cell_is_missing\norchestrator/tests/test_s8b_verdict.py::test_condition3_holds_when_directional_diff_exceeds_floor\norchestrator/tests/test_s8b_verdict.py::test_condition3_refuted_when_diff_within_floor\norchestrator/tests/test_s8b_verdict.py::test_condition3_refuted_directionally_when_off_beats_on\norchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_null\norchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[0.0]\norchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[-5.0]\norchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[inf]\norchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[True]\norchestrator/tests/test_s8b_verdict.py::test_on_equals_off_is_refuted_without_floor_query\norchestrator/tests/test_s8b_verdict.py::test_projector_query_resolves_choice_to_binding\norchestrator/tests/test_s8b_verdict.py::test_projector_rejects_choice_id_keyed_floor_table\norchestrator/tests/test_s8b_verdict.py::test_projector_off_not_stock_records_violation\norchestrator/tests/test_s8b_verdict.py::test_projector_on_equals_off_short_circuits_before_floor_lookup\norchestrator/tests/test_s8b_verdict.py::test_judge_records_off_not_stock_protocol_violation\norchestrator/tests/test_s8b_verdict.py::test_scale_gate_boundary_exactly_tolerance_is_adequate\norchestrator/tests/test_s8b_verdict.py::test_scale_gate_over_tolerance_is_inadequate_and_condition3_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_scale_gate_stock_ineligible_makes_condition3_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_scale_gate_scale_ref_null_makes_condition3_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_invalid_scale_tolerance_is_rejected\norchestrator/tests/test_s8b_verdict.py::test_oracle_exact_tie_maps_to_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_oracle_indeterminate_holdout_maps_to_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_disqualified_predicted_config_is_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_same_holdout_binding_refutes_cross_holdout_evidence\norchestrator/tests/test_s8b_verdict.py::test_conclusion_holds_when_all_conditions_hold_on_same_holdout\norchestrator/tests/test_s8b_verdict.py::test_conclusion_indeterminate_propagates_from_a_condition\norchestrator/tests/test_s8b_verdict.py::test_malformed_prediction_is_fully_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_evidence_pointers_are_recorded\norchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_unverified_raw_dict\norchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_unverified_official_oracle_verdict\norchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_duck_typed_oracle_wrapper\norchestrator/tests/test_s8b_verdict.py::test_verified_oracle_verdict_rejects_direct_construction\norchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_post_issuance_oracle_document_tampering\norchestrator/tests/test_s8b_verdict.py::test_off_stock_check_accepts_valid_static_default\norchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_non_static_default_decision_method\norchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_non_stock_off\norchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_off_binding_not_stock\norchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_illegal_choice_id\norchestrator/tests/test_s8b_verdict.py::test_verify_prediction_happy_path_returns_verified\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_accepts_rederived_exact_match\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_boolean_median_type_confusion\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_wrong_authority_observations\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_extra_top_level_key\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_requires_exact_authority_types\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_approved_spec_from_other_manifest\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_post_issuance_manifest_tampering\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_semantic_sha256_subclass\norchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_nested_semantic_dict_subclass\norchestrator/tests/test_s8b_verdict.py::test_single_holdout_prediction_cannot_conclude_holds\norchestrator/tests/test_s8b_verdict.py::test_single_holdout_would_hold_without_cardinality_guard\norchestrator/tests/test_s8b_verdict.py::test_unexpected_holdout_in_prediction_is_structural_indeterminate\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected0]\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected1]\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[h1]\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[None]\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected4]\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected5]\norchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected6]\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_removed_floors_and_holdouts_args\norchestrator/tests/test_s8b_verdict.py::test_cli_derives_floor_and_tolerance_from_freeze\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[None]\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[unknown/v1]\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-observations/v1]\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-exploration-artifact/v1]\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_sha_mismatch\norchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_identity_mismatch_before_consumers\n\n71 tests collected in 0.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "fa0150d57a29f9eb88f6234074e358ba095509eaa35e0fbfee480273f500c853"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_verdict.py::test_condition1_holds_when_a_holdout_differs",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition1_refuted_when_all_holdouts_identical",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition1_indeterminate_when_missing_and_no_difference",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition2_holds_when_both_holdouts_follow",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition2_refuted_when_one_holdout_does_not_follow",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition2_indeterminate_when_a_swapped_cell_is_missing",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_holds_when_directional_diff_exceeds_floor",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_refuted_when_diff_within_floor",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_refuted_directionally_when_off_beats_on",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_null",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[0.0]",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[-5.0]",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[inf]",
+        "orchestrator/tests/test_s8b_verdict.py::test_condition3_indeterminate_when_pair_floor_is_not_positive_finite[True]",
+        "orchestrator/tests/test_s8b_verdict.py::test_on_equals_off_is_refuted_without_floor_query",
+        "orchestrator/tests/test_s8b_verdict.py::test_projector_query_resolves_choice_to_binding",
+        "orchestrator/tests/test_s8b_verdict.py::test_projector_rejects_choice_id_keyed_floor_table",
+        "orchestrator/tests/test_s8b_verdict.py::test_projector_off_not_stock_records_violation",
+        "orchestrator/tests/test_s8b_verdict.py::test_projector_on_equals_off_short_circuits_before_floor_lookup",
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_records_off_not_stock_protocol_violation",
+        "orchestrator/tests/test_s8b_verdict.py::test_scale_gate_boundary_exactly_tolerance_is_adequate",
+        "orchestrator/tests/test_s8b_verdict.py::test_scale_gate_over_tolerance_is_inadequate_and_condition3_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_scale_gate_stock_ineligible_makes_condition3_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_scale_gate_scale_ref_null_makes_condition3_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_scale_tolerance_is_rejected",
+        "orchestrator/tests/test_s8b_verdict.py::test_oracle_exact_tie_maps_to_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_oracle_indeterminate_holdout_maps_to_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_disqualified_predicted_config_is_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_same_holdout_binding_refutes_cross_holdout_evidence",
+        "orchestrator/tests/test_s8b_verdict.py::test_conclusion_holds_when_all_conditions_hold_on_same_holdout",
+        "orchestrator/tests/test_s8b_verdict.py::test_conclusion_indeterminate_propagates_from_a_condition",
+        "orchestrator/tests/test_s8b_verdict.py::test_malformed_prediction_is_fully_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_evidence_pointers_are_recorded",
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_unverified_raw_dict",
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_unverified_official_oracle_verdict",
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_duck_typed_oracle_wrapper",
+        "orchestrator/tests/test_s8b_verdict.py::test_verified_oracle_verdict_rejects_direct_construction",
+        "orchestrator/tests/test_s8b_verdict.py::test_judge_combined_rejects_post_issuance_oracle_document_tampering",
+        "orchestrator/tests/test_s8b_verdict.py::test_off_stock_check_accepts_valid_static_default",
+        "orchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_non_static_default_decision_method",
+        "orchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_non_stock_off",
+        "orchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_off_binding_not_stock",
+        "orchestrator/tests/test_s8b_verdict.py::test_off_stock_check_rejects_illegal_choice_id",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_prediction_happy_path_returns_verified",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_accepts_rederived_exact_match",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_boolean_median_type_confusion",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_wrong_authority_observations",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_extra_top_level_key",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_requires_exact_authority_types",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_approved_spec_from_other_manifest",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_post_issuance_manifest_tampering",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_semantic_sha256_subclass",
+        "orchestrator/tests/test_s8b_verdict.py::test_verify_oracle_verdict_rejects_nested_semantic_dict_subclass",
+        "orchestrator/tests/test_s8b_verdict.py::test_single_holdout_prediction_cannot_conclude_holds",
+        "orchestrator/tests/test_s8b_verdict.py::test_single_holdout_would_hold_without_cardinality_guard",
+        "orchestrator/tests/test_s8b_verdict.py::test_unexpected_holdout_in_prediction_is_structural_indeterminate",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected0]",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected1]",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[h1]",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[None]",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected4]",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected5]",
+        "orchestrator/tests/test_s8b_verdict.py::test_invalid_expected_holdouts_is_indeterminate[bad_expected6]",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_removed_floors_and_holdouts_args",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_derives_floor_and_tolerance_from_freeze",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[None]",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[unknown/v1]",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-observations/v1]",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_non_verdict_oracle_schema_without_output[8b-oracle-exploration-artifact/v1]",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_sha_mismatch",
+        "orchestrator/tests/test_s8b_verdict.py::test_cli_rejects_freeze_identity_mismatch_before_consumers"
+      ],
+      "duration_s": 26.845,
+      "rc": 0,
+      "repo_head": "b486eaf2e22e02588cbd0dec808c7b3a1dc4fbb4",
+      "runner_sha256": "a8f76ae04ab0195b5f7c27b8b1a8324f8d37fcb01a32a1f24bf5f2188c0843f7",
+      "spec_sha256": "301b43862cbb66628d128783bce910d0e87c11ad7222e41885b79815fdd598e9",
+      "status": "PASSED",
+      "tool_sha256": "7c213ec00034d9e70b8bf13c2c020b50f2eee377608a37a8a3d5ae6867d603ac"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M06": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "ad077de7841407ad4ad913ae3e3b57f06ac32ff101d4b3eab6a9416234a0ed02",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_verdict.py",
+            "new": "",
+            "old": "    _assert_plain_json_values(\n        oracle.document,\n        label=\"VerifiedOracleVerdict.document\",\n    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c74463290d02f02f3174b062cdc461158842d61082b87b1ca069d99d656d5063",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8b_verdict.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "b486eaf2e22e02588cbd0dec808c7b3a1dc4fbb4",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8b_verdict.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "f43fdad788fc3acfe46234e3892f3bd4401686c38bc5297feb7a9b1b885bb400",
+    "dispatch_head_blob_sha256": "f43fdad788fc3acfe46234e3892f3bd4401686c38bc5297feb7a9b1b885bb400",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "d5f029fffa166e1f5796c5b900ddfa4acf73785b46f9a49e31859f4649b09488",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "d5f029fffa166e1f5796c5b900ddfa4acf73785b46f9a49e31859f4649b09488",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ebf62795c20b6b84f7e352361f7c3396b203ab3c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "a8f76ae04ab0195b5f7c27b8b1a8324f8d37fcb01a32a1f24bf5f2188c0843f7",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "301b43862cbb66628d128783bce910d0e87c11ad7222e41885b79815fdd598e9",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/home/SFC/tanab/.claude/jobs/ea4d193d/tmp/t856/mut-scratch4/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "7c213ec00034d9e70b8bf13c2c020b50f2eee377608a37a8a3d5ae6867d603ac",
+  "updated_at": "2026-08-14T15:33:15.976918+00:00"
+}

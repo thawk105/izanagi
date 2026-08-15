@@ -222,6 +222,7 @@ REAL_REPO_SERIAL_NODES = frozenset({
     "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration",
     "test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration",
     "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+    "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
 
     # module fixture が実 repo を clone し、実 submodule を local source として読む reader。
     "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",

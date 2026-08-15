@@ -862,10 +862,16 @@ def _dependency_pins(repo: Path | None = None) -> dict[str, str]:
     return dict(policy)
 
 
+def third_party_policy_path(repo: Path | None = None) -> Path:
+    """共有 third-party policy の所有側 path を返す。"""
+    root = repo if repo is not None else _repo_root()
+    return Path(root) / "tools/pegasus/policy.json"
+
+
 def third_party_policy(repo: Path | None = None) -> tuple[dict[str, str], ...]:
     """offline build source policy と CCBench FetchContent literal を同期検査する。"""
     root = (repo or _repo_root()).resolve()
-    document = _load_json(root / "tools/pegasus/policy.json")
+    document = _load_json(third_party_policy_path(root))
     value = document["silo_ladder_rung1"].get("third_party_sources")
     keys = {"name", "source_name", "url", "fetchcontent_ref", "pin"}
     if (

@@ -376,6 +376,9 @@ def _submit(
 ) -> subprocess.CompletedProcess[str]:
     env = _git_env(repo)
     env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
+    cache_root = repo.parent / "third-party-cache"
+    cache_root.mkdir(exist_ok=True)
+    env["IZANAGI_PEGASUS_THIRDPARTY_CACHE"] = str(cache_root)
     return subprocess.run(
         ["bash", str(repo / "tools" / "pegasus" / "submit_floor.sh"), *arguments],
         capture_output=True,
@@ -1043,6 +1046,10 @@ def test_floor_job_invokes_fixed_pilot_cli_without_bypass(tmp_path: Path) -> Non
     assert source_tokens.count("--mode") == 1
     source_mode_index = source_tokens.index("--mode")
     assert source_tokens[source_mode_index + 1] == "pilot"
+    assert 'export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"' in source
+    assert source.index('export IZANAGI_FLOOR_JOB_STAGING="$ATTEMPT_DIR"') < (
+        source.index('"$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"')
+    )
     assert "--mode official" not in source
     assert "--resume" not in source
     assert "eval " not in source
@@ -1058,16 +1065,41 @@ def test_floor_job_does_not_swallow_driver_rc() -> None:
     )
 
 
-def test_submit_floor_qsub_exports_nonce_only() -> None:
+def test_submit_floor_qsub_exports_nonce_and_explicit_third_party_cache() -> None:
     source = SUBMIT.read_text(encoding="utf-8")
     match = re.search(r'^export_spec="([^"]+)"$', source, re.MULTILINE)
     assert match is not None
-    assert match.group(1) == "IZANAGI_SUBMISSION_NONCE=$NONCE"
+    assert match.group(1) == (
+        "IZANAGI_SUBMISSION_NONCE=$NONCE,"
+        "IZANAGI_PEGASUS_THIRDPARTY_CACHE=$THIRD_PARTY_CACHE_ROOT"
+    )
     assert (
         'qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR"\n'
         '  -v "$export_spec" "$JOB_SCRIPT"'
     ) in source
     assert "IZANAGI_RESERVATION_" not in match.group(1)
+
+
+def test_submit_floor_requires_explicit_third_party_cache_before_artifacts(
+        tmp_path: Path) -> None:
+    repo = _fixture_repo(tmp_path)
+    bin_dir, sentinel = _sentinel_bin(tmp_path)
+    env = _git_env(repo)
+    env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
+    env.pop("IZANAGI_PEGASUS_THIRDPARTY_CACHE", None)
+    result = subprocess.run(
+        [
+            "bash", str(repo / "tools/pegasus/submit_floor.sh"),
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 2
+    assert "third-party cache root" in result.stderr
+    assert not (repo / "output/env").exists()
+    assert not sentinel.exists()
 
 
 def test_floor_scripts_use_create_only_leaves_and_json() -> None:
@@ -1220,7 +1252,11 @@ def test_submit_floor_non_dry_run_success_writes_real_submission_record(
         "-e",
         str(submission / "scheduler.stderr"),
         "-v",
-        "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"],
+        (
+            "IZANAGI_SUBMISSION_NONCE=" + receipt["nonce"]
+            + ",IZANAGI_PEGASUS_THIRDPARTY_CACHE="
+            + str((repo.parent / "third-party-cache").resolve())
+        ),
         str(repo / "tools" / "pegasus" / "floor_campaign.sh"),
     ]
     for option in ("-o", "-e"):
