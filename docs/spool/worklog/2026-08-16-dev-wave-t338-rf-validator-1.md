@@ -70,6 +70,11 @@ title: [T-338] Q11 validator は発火条件 (ii)(iii) の不成立で実装で�
 - **規律 2 の扱い:** 報告値を採る経路を新設していない。現状は RF を消費する経路そのものが 0 件で、
   producer 自己申告から正例へ昇格する経路は存在しない。規律 2 は「緩めなかった」のではなく
   「緩める対象がまだ無い」状態のままである。
+- **受入全走 1 走目は緑** — tested_main `7a7c41a2`、tested_tip `fbc07918`、request `912408.nqsv`、
+  **11159 passed / 65 skipped**、rc=0、`verdict = child-green`、赤 nodeid 0 件、テスト実行 147.57 秒。
+  実装差分ゼロだが `DW-S04` は受入全走を免除しないため実走した。記録後検査は
+  `check_docs.py` rc=0、`spool_fold.py --dry-run` rc=0 (status=planned)、provenance 監査
+  3424 件で新規違反なし。
 - 子は段 2 プラン 1 本 (`reasoning=max`、17 分) と段 3 敵対 2 本 (sol / luna、並列、
   それぞれ約 9 分 / 16 分)。3 本とも `check_codex_output.py` rc=0。実装子と fix 子は起動していない。
   実装差分ゼロのため変異 matrix は `DW-S04` の免除条項の対象。
