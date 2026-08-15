@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from orchestrator.campaign import p3_autonomous_workload_trial as producer
+from orchestrator.campaign import autonomous_trial_completeness as completeness
 from orchestrator.campaign import reflux_formal_consumer as formal
 from orchestrator.campaign import reflux_origin_binding as origin_binding
 from orchestrator.campaign import trial_registry as R
@@ -24,6 +25,13 @@ from orchestrator.tests import reflux_origin_fixture_builder as origin_fixtures
 
 _SOURCE_REPO = Path(__file__).resolve().parents[2]
 _ROLES = ("planner", "coder", "auditor", "critic")
+_GENERATION_DRIVER = {
+    "wrapper": "s8c-generation/v1",
+    "delegate": "trigger.drive_iteration",
+}
+_GATING_SPEC_SHA256 = hashlib.sha256(
+    producer.GATING_SPEC.encode("utf-8")
+).hexdigest()
 
 
 def _run(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -136,8 +144,88 @@ def _registered_repo(
     return repo, manifest_path, registry_path, R.load_trial_manifest(manifest_path)
 
 
-def _role_event(workload: str, role: str, seq: int, descriptor_hash: str) -> dict:
+def _payload_validation_receipt(event: dict, spec_key: str) -> dict:
+    role = event["role"]
+    fixed_literals = {
+        "schema_version": producer.SCHEMA_VERSION,
+        "pilot_scope": "exploratory-ycsb-abc",
+        "scientific_claim": False,
+        "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
+        "stop_policy": {
+            "performance_early_stop": False,
+            "generation_budget_is_fixed": True,
+        },
+    }
+    nested_key_sets = {
+        "$": producer.ROLE_PAYLOAD_KEY_SPEC[spec_key],
+        "$.attempt_policy": ["attempts_per_role_generation", "retry"],
+        "$.stop_policy": [
+            "generation_budget_is_fixed", "performance_early_stop",
+        ],
+    }
+    projection = {
+        "role": role,
+        "workload": event["workload"],
+        "generation": 1,
+        "descriptor_sha256": event["descriptor_sha256"],
+        "workload_descriptor_sha256": "1" * 64,
+        "descriptor_binding_sha256": "2" * 64,
+        "fixed_literals": fixed_literals,
+        "nested_key_sets": nested_key_sets,
+        "whiteboard_origin": [],
+        "whiteboard_origin_sha256": hashlib.sha256(b"[]").hexdigest(),
+    }
+    if role == "planner":
+        nested_key_sets.update({
+            "$.current_perf": sorted(completeness._PERF_KEYS),
+            "$.leading_indicators": [
+                "IPC_overall", "cache_miss_rate_pct", "contention_level",
+            ],
+        })
+        projection.update({
+            "current_perf_nullness": {
+                key: True for key in sorted(completeness._PERF_KEYS)
+            },
+            "leading_metric_nullness": {
+                key: True for key in sorted(completeness._LEADING_METRIC_KEYS)
+            },
+            "contention_level_sha256": hashlib.sha256(b'"high"').hexdigest(),
+            "critic_feedback": None,
+        })
+    else:
+        fixed_literals.update({
+            "leakproof_context": completeness._LEAKPROOF_CONTEXT,
+            "planner_axis": completeness._PLANNER_AXIS,
+        })
+        nested_key_sets.update({
+            "$.baseline": sorted(completeness._PERF_KEYS),
+            "$.planner_direction": ["axis", "direction", "magnitude"],
+        })
+        projection.update({
+            "baseline_nullness": {
+                key: True for key in sorted(completeness._PERF_KEYS)
+            },
+            "gating_spec_sha256": _GATING_SPEC_SHA256,
+            "planner_direction_sha256": "3" * 64,
+        })
+    projection_sha256 = hashlib.sha256(_canonical(projection)).hexdigest()
+    seal_preimage = {
+        "schema_version": completeness._VALIDATION_RECEIPT_SCHEMA_VERSION,
+        "role": role,
+        "payload_sha256": event["input_payload_sha256"],
+        "payload_allowlist_sha256": producer.ROLE_PAYLOAD_ALLOWLIST_SHA256,
+        "safe_projection_sha256": projection_sha256,
+    }
     return {
+        **seal_preimage,
+        "safe_projection": projection,
+        "seal_sha256": hashlib.sha256(_canonical(seal_preimage)).hexdigest(),
+    }
+
+
+def _role_event(workload: str, role: str, seq: int, descriptor_hash: str) -> dict:
+    spec_key = "planner-generation-1" if role == "planner" else role
+    event = {
         "event": "role-attempt",
         "workload": workload,
         "generation": 1,
@@ -158,7 +246,15 @@ def _role_event(workload: str, role: str, seq: int, descriptor_hash: str) -> dic
         ).hexdigest(),
         "parsed": {"fixture_role": role},
         "provenance": {"fixture": True},
+        "payload_exact_keys": producer.ROLE_PAYLOAD_KEY_SPEC[spec_key],
+        "payload_allowlist_sha256": producer.ROLE_PAYLOAD_ALLOWLIST_SHA256,
+        "role_query_ordinal": seq - 1,
     }
+    if role in {"planner", "coder"}:
+        event["payload_validation_receipt"] = _payload_validation_receipt(
+            event, spec_key,
+        )
+    return event
 
 
 def _base_start(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
@@ -174,6 +270,9 @@ def _base_start(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
         "do_build": False,
         "performance_early_stop": False,
         "scientific_claim": False,
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "honest_accounting_authority": "supervisor-authoritative",
         "prereg_commit": None,
         "measurement_head": measurement_head,
         "manifest_sha256": None,
@@ -201,6 +300,13 @@ def _base_report(trial: R.TrialSpec, run: Path, measurement_head: str) -> dict:
         },
         "claim_scope": {"scientific_claim": False},
         "attempt_journal": str(run / "attempts.jsonl"),
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "honest_accounting": {
+            "role_query_count": 0,
+            "bench_wall_seconds": 0.0,
+        },
+        "honest_accounting_authority": "supervisor-authoritative",
         "cells": [],
         "prereg_commit": None,
         "measurement_head": measurement_head,
@@ -218,6 +324,40 @@ def _persist(run: Path, events: list[dict], report: dict) -> Path:
         encoding="utf-8",
     )
     return run / "report.json"
+
+
+def _accounting_event(workload: str, seq: int) -> dict:
+    return {
+        "event": "generation-accounting",
+        "workload": workload,
+        "generation": 1,
+        "state": "generation-complete",
+        "provider_invoke_count": 4,
+        "auditor_pre_audit_skipped": False,
+        "bench_wall_seconds": 0.0,
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "accounting_authority": "supervisor-authoritative",
+        "seq": seq,
+        "ts": f"2026-08-01T00:00:{seq:02d}+00:00",
+    }
+
+
+def _finish_event(run: Path, status: str, seq: int, queries: int) -> dict:
+    return {
+        "event": "run-finish",
+        "status": status,
+        "report": str(run / "report.json"),
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "honest_accounting": {
+            "role_query_count": queries,
+            "bench_wall_seconds": 0.0,
+        },
+        "honest_accounting_authority": "supervisor-authoritative",
+        "seq": seq,
+        "ts": f"2026-08-01T00:01:{seq:02d}+00:00",
+    }
 
 
 def _fixture_launch_admission(
@@ -369,18 +509,18 @@ def _complete_report(
                 "stop_reason": "continue",
                 "iteration": 1,
                 "ran": True,
+                "critic_digest_generated": False,
             },
             "outcome": "dry-pass",
+            "bench_wall_seconds": 0.0,
+            "generation_driver": dict(_GENERATION_DRIVER),
+            "gating_spec_sha256": _GATING_SPEC_SHA256,
         }],
         "stop_reason": "fixed-generation-budget",
     }]
-    events.append({
-        "event": "run-finish",
-        "status": "complete",
-        "report": str(run / "report.json"),
-        "seq": 6,
-        "ts": "2026-08-01T00:01:06+00:00",
-    })
+    report["honest_accounting"]["role_query_count"] = 4
+    events.append(_accounting_event(workload, 6))
+    events.append(_finish_event(run, "complete", 7, 4))
     return _persist(run, events, report)
 
 
@@ -410,13 +550,7 @@ def _partial_report(
             "seq": 2,
             "ts": "2026-08-01T00:00:02+00:00",
         },
-        {
-            "event": "run-finish",
-            "status": "partial",
-            "report": str(run / "report.json"),
-            "seq": 3,
-            "ts": "2026-08-01T00:01:03+00:00",
-        },
+        _finish_event(run, "partial", 3, 0),
     ]
     return _persist(run, events, report)
 

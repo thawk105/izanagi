@@ -15,6 +15,7 @@ still requires the frozen H1/H2 on/off/swapped protocol from
 from __future__ import annotations
 
 import argparse
+import copy
 import contextlib
 import contextvars
 import dataclasses
@@ -28,6 +29,7 @@ import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
@@ -82,6 +84,15 @@ from .s8b_prediction_runner import (
     _sha256,
     _write_bytes_bound,
 )
+from .s8c_generation_projection import (
+    LEAKPROOF_CONTEXT,
+    GatingSpecSnapshot,
+    PayloadValidationReceipt,
+    apply_critic_feedback,
+    snapshot_gating_spec,
+    validate_coder_payload,
+    validate_planner_payload,
+)
 
 
 
@@ -103,9 +114,16 @@ from .build_admission import (  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
-REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
+REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v3"
 MAX_GENERATIONS = 10
-MAX_APPROVED_GENERATIONS = 1
+MAX_APPROVED_GENERATIONS = 2
+_INITIAL_ROLE_METRICS = MappingProxyType({
+    "throughput_ops_sec": None,
+    "abort_rate": None,
+    "latency_ns": None,
+    "llc_miss_rate": None,
+    "ipc": None,
+})
 DEFAULT_MAX_WALL_S = 3600
 PROVIDER_KINDS = frozenset(("fixture", "claude-headless"))
 _DRIVE_NOT_PROVIDED: Any = object()
@@ -117,6 +135,17 @@ DRIVER_STOP_REASONS = frozenset((
     "budget-iterations",
     "budget-walltime",
 ))
+GENERATION_DRIVER_WRAPPER = "s8c-generation/v1"
+_STANDARD_GENERATION_DRIVER = {
+    "wrapper": GENERATION_DRIVER_WRAPPER,
+    "delegate": "trigger.drive_iteration",
+}
+_INJECTED_GENERATION_DRIVER = {
+    "wrapper": GENERATION_DRIVER_WRAPPER,
+    "delegate": "caller-injected-unsupported",
+}
+_AUTHORITATIVE_ACCOUNTING = "supervisor-authoritative"
+_UNSUPPORTED_ACCOUNTING = "excluded-caller-injected-unsupported"
 _TRIAL_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{0,63}")
 _LOWER_HEX_RE = re.compile(r"[0-9a-f]{64}")
 _TRANSPORT_RECEIPT_KEYS = {
@@ -172,8 +201,10 @@ ROLE_CONTRACTS = {
 You are called by a bounded unattended Python supervisor. All usable evidence is
 in the single JSON object on stdin; do not request tools, files, clarification,
 or another turn. The workload_descriptor is causal input to this proposal.
-Null metrics mean not yet observed and must not be invented. Return JSON only,
-with exactly:
+Null metrics mean not yet observed and must not be invented.
+For generation 2 and later, critic_feedback is the complete supervisor-projected
+cross-generation diagnostic input; do not infer excluded critic prose.
+Return JSON only, with exactly:
 {"proposal":{"axis":"silo-backoff-trigger-gating","direction":"increase|decrease|explore_both","magnitude":"small|medium|large","justification":"string","uncertainty":"string"}}
 Keep justification brief and limited to named input fields and observation
 availability. Do not name abort reasons, predicates, or a concrete gate design;
@@ -221,6 +252,35 @@ this order: lock-conflict, update-absent, readvali-tid, readvali-locked,
 node-vali. 1 means back off for that reason and 0 means skip backoff. The
 frozen emitter exclusively adds the kUnset fail-safe and materializes the
 single assignment line. No source code or additional field is accepted."""
+
+_COMMON_PAYLOAD_KEYS = frozenset({
+    "schema_version", "pilot_scope", "scientific_claim", "workload",
+    "generation", "workload_descriptor", "descriptor_binding",
+    "attempt_policy", "stop_policy",
+})
+ROLE_PAYLOAD_KEY_SPEC = {
+    "planner-generation-1": sorted(_COMMON_PAYLOAD_KEYS | {
+        "current_perf", "leading_indicators", "whiteboard",
+    }),
+    "planner-generation-next": sorted(_COMMON_PAYLOAD_KEYS | {
+        "current_perf", "leading_indicators", "whiteboard", "critic_feedback",
+    }),
+    "coder": sorted(_COMMON_PAYLOAD_KEYS | {
+        "leakproof_context", "gating_spec", "planner_direction", "baseline",
+        "whiteboard",
+    }),
+    "auditor": sorted(_COMMON_PAYLOAD_KEYS | {
+        "working_diff", "diff_digest", "designated_source_context",
+        "correctness_digest",
+    }),
+    "auditor-skip": sorted(_COMMON_PAYLOAD_KEYS | {"pre_audit"}),
+    "critic": sorted(_COMMON_PAYLOAD_KEYS | {
+        "harness_result", "critic_digest",
+    }),
+}
+ROLE_PAYLOAD_ALLOWLIST_SHA256 = _sha256(
+    _canonical_json_bytes(ROLE_PAYLOAD_KEY_SPEC)
+)
 
 DESIGNATED_SOURCE_CONTEXT = """Axis: silo-backoff-trigger-gating.
 The template frame, abort-reason stores, sentinel reset, markers, #if/#else,
@@ -531,6 +591,9 @@ class AttemptJournal:
         self.path = Path(path)
         self.seq = 0
         self.failed = False
+        # role_query_count means provider.invoke call count.  It is not an
+        # estimate of external queries made inside a provider implementation.
+        self.role_query_count = 0
 
     def append(self, event: Mapping[str, Any]) -> dict[str, Any]:
         if self.failed:
@@ -974,6 +1037,220 @@ def _role_metric_payloads(
     return perf_payload, leading_payload
 
 
+def _planner_current_perf_payload(
+    frozen_perf: Mapping[str, Any],
+    *,
+    current_metrics: Mapping[str, Any],
+    contention_level: str,
+) -> dict[str, Any]:
+    """Assembly anchor: production ignores generation-updated metrics."""
+
+    del current_metrics, contention_level
+    return dict(frozen_perf)
+
+
+def _planner_leading_indicators_payload(
+    frozen_leading: Mapping[str, Any],
+    *,
+    current_metrics: Mapping[str, Any],
+    contention_level: str,
+) -> dict[str, Any]:
+    """Assembly anchor: production ignores generation-updated metrics."""
+
+    del current_metrics, contention_level
+    return dict(frozen_leading)
+
+
+def _coder_baseline_payload(
+    frozen_perf: Mapping[str, Any],
+    *,
+    current_metrics: Mapping[str, Any],
+    contention_level: str,
+) -> dict[str, Any]:
+    """Assembly anchor: production ignores generation-updated metrics."""
+
+    del current_metrics, contention_level
+    return dict(frozen_perf)
+
+
+def _generation_driver_identity(
+    drive: Callable[..., Mapping[str, Any]],
+) -> dict[str, str]:
+    return dict(
+        _STANDARD_GENERATION_DRIVER
+        if drive is trigger.drive_iteration
+        else _INJECTED_GENERATION_DRIVER
+    )
+
+
+def _accounting_authority(
+    drive: Callable[..., Mapping[str, Any]],
+) -> str:
+    return (
+        _AUTHORITATIVE_ACCOUNTING
+        if drive is trigger.drive_iteration
+        else _UNSUPPORTED_ACCOUNTING
+    )
+
+
+def _bench_wall_seconds(
+    outcome: Mapping[str, Any], *, authoritative: bool,
+) -> float:
+    """Project current-attempt bench time from pipeline bench_wall_s only."""
+
+    if not authoritative:
+        return 0.0
+    if outcome.get("outcome") == "duplicate" or outcome.get("ran") is False:
+        return 0.0
+    if outcome.get("outcome") in {"dry-pass", "rejected", "stopped-before"}:
+        return 0.0
+    records = outcome.get("records")
+    if not isinstance(records, Mapping):
+        return 0.0
+    candidates: list[float] = []
+    for record in records.values():
+        if not isinstance(record, Mapping) or "bench_wall_s" not in record:
+            continue
+        raw = record["bench_wall_s"]
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            raise AutonomousTrialError("bench_wall_s は有限非負 number 必須")
+        value = float(raw)
+        if not math.isfinite(value) or value < 0.0:
+            raise AutonomousTrialError("bench_wall_s は有限非負 number 必須")
+        candidates.append(value)
+    if len(candidates) > 1:
+        raise AutonomousTrialError("current attempt の bench_wall_s が一意でない")
+    return candidates[0] if candidates else 0.0
+
+
+def _new_generation_accounting(
+    *, workload: str, generation: int, journal: AttemptJournal,
+    generation_driver: Mapping[str, str], gating_spec_sha256: str,
+    authority: str,
+) -> dict[str, Any]:
+    return {
+        "workload": workload,
+        "generation": generation,
+        "state": "pending-pre-invoke-failure",
+        "role_query_start": journal.role_query_count,
+        "auditor_pre_audit_skipped": False,
+        "bench_wall_seconds": 0.0,
+        "generation_driver": dict(generation_driver),
+        "gating_spec_sha256": gating_spec_sha256,
+        "accounting_authority": authority,
+        "finalized": False,
+    }
+
+
+def _append_generation_accounting(
+    accounting: dict[str, Any], *, journal: AttemptJournal,
+    generation_record: dict[str, Any] | None,
+) -> None:
+    if accounting.get("finalized") is not False:
+        raise AutonomousTrialError("generation accounting は一度だけ確定可能")
+    accounting["finalized"] = True
+    bench = accounting["bench_wall_seconds"]
+    if generation_record is not None:
+        generation_record["bench_wall_seconds"] = bench
+        generation_record["generation_driver"] = dict(
+            accounting["generation_driver"]
+        )
+        generation_record["gating_spec_sha256"] = accounting[
+            "gating_spec_sha256"
+        ]
+    journal.append({
+        "event": "generation-accounting",
+        "workload": accounting["workload"],
+        "generation": accounting["generation"],
+        "state": accounting["state"],
+        "provider_invoke_count": (
+            journal.role_query_count - accounting["role_query_start"]
+        ),
+        "auditor_pre_audit_skipped": accounting[
+            "auditor_pre_audit_skipped"
+        ],
+        "bench_wall_seconds": bench,
+        "generation_driver": dict(accounting["generation_driver"]),
+        "gating_spec_sha256": accounting["gating_spec_sha256"],
+        "accounting_authority": accounting["accounting_authority"],
+    })
+
+
+def _drive_s8c_generation(
+    *, drive: Callable[..., Mapping[str, Any]], cfg: CampaignConfig,
+    perf: PerfConfig, planner: Any, coder: Any, auditor: AuditorVerdict,
+    prior_reverse: bool | None, sub: str, do_build: bool,
+    layout: CampaignLayout, cache_root: str, proposal_path: Path,
+    resolved_site: str, contract: env_contract.ExecutionEnvironmentContract,
+    build_context: BuildRunContext,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Call the selected generation delegate exactly once and bind identity."""
+
+    driver = _generation_driver_identity(drive)
+    drive_kwargs: dict[str, Any] = {
+        "layout": layout,
+        "cache_root": cache_root,
+        "proposal_path": str(proposal_path),
+        "extra_sources": ({
+            "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "role": "T-178 unattended Python supervisor and descriptor projection",
+        },),
+    }
+    if drive is trigger.drive_iteration:
+        drive_kwargs.update({
+            "_resolved_site": resolved_site,
+            "_contract": contract,
+        })
+    if do_build:
+        drive_kwargs["build_context"] = build_context
+    outcome = dict(drive(
+        cfg,
+        perf,
+        planner,
+        coder,
+        auditor,
+        prior_reverse,
+        sub,
+        do_build,
+        **drive_kwargs,
+    ))
+    # Caller-injected delegates predate the explicit digest-production signal.
+    # Absence is conservatively projected to false: no digest is consumed, even
+    # if a stale same-named file exists.  The standard delegate supplies the
+    # exact bool itself.
+    outcome.setdefault("critic_digest_generated", False)
+    required_harness = {
+        "outcome", "variant", "stop_reason", "iteration", "ran",
+        "critic_digest_generated",
+    }
+    missing_harness = sorted(required_harness - set(outcome))
+    if missing_harness:
+        raise AutonomousTrialError(
+            f"harness output に必須 field がない: {missing_harness}"
+        )
+    if type(outcome["critic_digest_generated"]) is not bool:
+        raise AutonomousTrialError(
+            "harness output の critic_digest_generated は exact bool 必須"
+        )
+    if (
+        not isinstance(outcome["stop_reason"], str)
+        or outcome["stop_reason"] not in DRIVER_STOP_REASONS
+    ):
+        raise AutonomousTrialError(
+            f"harness output の stop_reason が未知: {outcome['stop_reason']!r}"
+        )
+    if outcome["ran"] or "trigger_gate_binding_commitment" in outcome:
+        binding_commitment = outcome.get("trigger_gate_binding_commitment")
+        if (
+            type(binding_commitment) is not str
+            or len(binding_commitment) != 64
+            or any(character not in "0123456789abcdef"
+                   for character in binding_commitment)
+        ):
+            raise AutonomousTrialError("harness binding commitment が不正")
+    return outcome, driver
+
+
 def _jsonable_role_value(role: str, parsed: Any) -> dict[str, Any]:
     if role == "planner":
         return dataclasses.asdict(parsed)
@@ -1141,8 +1418,23 @@ def _invoke(
     *, role: str, provider: Any, invocation_id: str, payload: Mapping[str, Any],
     raw_root: Path, journal: AttemptJournal, workload: str, generation: int,
     transport_receipt: Mapping[str, Any] | None = None,
+    validation_receipt: PayloadValidationReceipt | None = None,
 ) -> tuple[Any | None, dict[str, Any]]:
     input_sha256 = _sha256(_canonical_json_bytes(payload))
+    if validation_receipt is not None:
+        if role not in {"planner", "coder"}:
+            raise AutonomousTrialError(
+                f"{role} に payload validation receipt を許可しない"
+            )
+        if type(validation_receipt) is not PayloadValidationReceipt:
+            raise AutonomousTrialError(
+                f"{role} payload validation receipt の型が不正"
+            )
+        validation_receipt.assert_bound_to(
+            role=role,
+            payload=payload,
+            payload_allowlist_sha256=ROLE_PAYLOAD_ALLOWLIST_SHA256,
+        )
     declassifications: list[dict[str, Any]] = []
     if role == "auditor":
         declassifications.append({
@@ -1176,8 +1468,16 @@ def _invoke(
         "attempt": 1,
         "retry": False,
         "declassifications": declassifications,
+        "payload_exact_keys": sorted(payload),
+        "payload_allowlist_sha256": ROLE_PAYLOAD_ALLOWLIST_SHA256,
     }
+    if validation_receipt is not None:
+        base["payload_validation_receipt"] = validation_receipt.as_dict()
     try:
+        # This is the single accounting point: every provider.invoke call,
+        # including calls that raise or later fail parsing, receives one ordinal.
+        journal.role_query_count += 1
+        base["role_query_ordinal"] = journal.role_query_count
         response = provider.invoke(invocation_id=invocation_id, payload=payload)
         if not isinstance(response, ProviderResponse):
             raise AutonomousTrialError("provider は ProviderResponse を返す必要がある")
@@ -1253,6 +1553,10 @@ def _journal_auditor_skip(
         "attempt": 1,
         "retry": False,
         "declassifications": [],
+        "payload_exact_keys": sorted(skip_payload),
+        "payload_allowlist_sha256": ROLE_PAYLOAD_ALLOWLIST_SHA256,
+        # No provider.invoke call occurred on the pre-audit skip path.
+        "role_query_ordinal": None,
         "status": "skipped",
         "skip_reason": "machine-pre-audit-rejection",
         "pre_audit": evidence,
@@ -1467,7 +1771,7 @@ def _finalize_cell_admission(
         cell["admission_decision"] = {"admission_status": "not-applicable"}
 
 
-def _run_pending_critics(
+def _run_one_pending_critic(
     cell: dict[str, Any],
     *,
     providers: Mapping[str, Any],
@@ -1475,9 +1779,28 @@ def _run_pending_critics(
     run_root: Path,
     transport_receipt: Mapping[str, Any] | None,
     preserve_stop_reason: bool = False,
-) -> None:
-    pending_critics = cell.pop("_pending_critics", [])
-    for pending in pending_critics:
+    require_recomputed_digest: bool = False,
+) -> dict[str, Any] | None:
+    pending_critics = cell.get("_pending_critics")
+    if type(pending_critics) is not list or not pending_critics:
+        raise AutonomousTrialError("pending critic が存在しない")
+    pending = pending_critics[0]
+    if type(pending) is not dict:
+        raise AutonomousTrialError("pending critic state は exact dict 必須")
+    attempted = pending.get("critic_attempted")
+    if type(attempted) is not bool:
+        raise AutonomousTrialError("pending critic attempted state は exact bool 必須")
+    if attempted:
+        raise AutonomousTrialError("pending critic の二重 attempt を拒否")
+    # Commit at-most-once state before admission, digest I/O, or provider work.
+    pending["critic_attempted"] = True
+    generation_record: dict[str, Any] | None = None
+    accounting = pending.get("accounting")
+    if type(accounting) is not dict:
+        raise AutonomousTrialError("pending critic accounting state がない")
+    accounting["state"] = "pending-pre-invoke-failure"
+    critic: dict[str, Any] | None = None
+    try:
         generation = pending["generation"]
         generation_record = next(
             record
@@ -1490,7 +1813,16 @@ def _run_pending_critics(
         digest_path = Path(cell["campaign_root"]) / trigger.DIGEST_BASENAME
         digest = None
         candidate_label = raw_variant
-        if digest_path.exists():
+        digest_generated = pending.get("critic_digest_generated")
+        if type(digest_generated) is not bool:
+            raise AutonomousTrialError(
+                "critic_digest_generated は pending に exact bool で必須"
+            )
+        if digest_generated:
+            if not digest_path.is_file() or digest_path.is_symlink():
+                raise AutonomousTrialError(
+                    "critic digest generated=true だが通常 file が存在しない"
+                )
             critic_view = require_admitted_campaign(cell["campaign_root"])
             identity_projection = loop_core.make_critic_identity_projection(
                 critic_view
@@ -1506,7 +1838,17 @@ def _run_pending_critics(
                 reflux=(cfg.search_config.get("reflux") == "on"),
                 identity_projection=identity_projection,
             )
+            if require_recomputed_digest:
+                try:
+                    persisted_digest = digest_path.read_text(encoding="utf-8")
+                except (OSError, UnicodeError) as exc:
+                    raise AutonomousTrialError("critic digest を読めない") from exc
+                if persisted_digest != digest:
+                    raise AutonomousTrialError(
+                        "critic digest が admitted campaign の再計算値と一致しない"
+                    )
         elif raw_variant:
+            # A stale same-named file is intentionally not read on this branch.
             candidate_label = loop_core.UNREGISTERED_CANDIDATE_LABEL
         critic_payload = {
             **pending["common"],
@@ -1534,9 +1876,47 @@ def _run_pending_critics(
         )
         generation_record["roles"]["critic"] = event
         if critic is None:
+            accounting["state"] = "partial-generation"
             if not preserve_stop_reason:
                 cell["stop_reason"] = "role-invalid"
+        else:
+            accounting["state"] = "generation-complete"
+        return critic
+    finally:
+        if pending in pending_critics:
+            pending_critics.remove(pending)
+        if not pending_critics:
+            cell.pop("_pending_critics", None)
+        _append_generation_accounting(
+            accounting,
+            journal=journal,
+            generation_record=generation_record,
+        )
+
+
+def _run_pending_critics(
+    cell: dict[str, Any],
+    *,
+    providers: Mapping[str, Any],
+    journal: AttemptJournal,
+    run_root: Path,
+    transport_receipt: Mapping[str, Any] | None,
+    preserve_stop_reason: bool = False,
+) -> None:
+    pending_critics = cell.get("_pending_critics", [])
+    while pending_critics:
+        critic = _run_one_pending_critic(
+            cell,
+            providers=providers,
+            journal=journal,
+            run_root=run_root,
+            transport_receipt=transport_receipt,
+            preserve_stop_reason=preserve_stop_reason,
+        )
+        if critic is None:
             break
+    if not pending_critics:
+        cell.pop("_pending_critics", None)
 
 
 def _finish_trial(
@@ -1561,6 +1941,9 @@ def _finish_trial(
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
     launch_admission: trial_registry.TrialLaunchAdmission,
+    gating_spec_snapshot: GatingSpecSnapshot,
+    generation_driver: Mapping[str, str] | None = None,
+    accounting_authority: str | None = None,
     effective_preregistration: (
         s8c_preregistration.EffectivePreregistration | None
     ) = None,
@@ -1568,6 +1951,12 @@ def _finish_trial(
     allow_unregistered_exploratory: bool = True,
     origin_runtime: OriginTrialRuntime | None = None,
 ) -> dict[str, Any]:
+    if type(gating_spec_snapshot) is not GatingSpecSnapshot:
+        raise AutonomousTrialError("run 単位 GATING_SPEC snapshot が必要")
+    if generation_driver is None:
+        generation_driver = _generation_driver_identity(drive)
+    if accounting_authority is None:
+        accounting_authority = _accounting_authority(drive)
     if origin_runtime is not None and type(origin_runtime) is not OriginTrialRuntime:
         raise TypeError("origin runtime has the wrong exact type")
     origin_capability = (
@@ -1636,6 +2025,7 @@ def _finish_trial(
                     transport_receipt=transport_receipt,
                     transport_admission=transport_admission,
                     build_context=build_context,
+                    gating_spec_snapshot=gating_spec_snapshot,
                 )
                 if origin_runtime is not None:
                     workload_arguments["origin_runtime"] = origin_runtime
@@ -1738,6 +2128,30 @@ def _finish_trial(
                 cell["stop_reason"] = "supervisor-error"
                 cell["error"] = dict(fatal_error)
                 break
+            deferred_wall_generation = cell.pop(
+                "_deferred_wall_generation", None
+            )
+            wall_terminal_emitted = cell.pop(
+                "_zero_work_wall_terminal_emitted", False
+            )
+            if deferred_wall_generation is not None:
+                fatal_error = {
+                    "type": "SupervisorWallBudget",
+                    "message": "wall budget expired before the next workload",
+                }
+                if not wall_terminal_emitted:
+                    journal.append(_event_with_transport_receipt(
+                        {
+                            "event": "supervisor-wall-budget",
+                            "workload": workload,
+                            "generation": deferred_wall_generation,
+                            "zero_work": True,
+                            "role_query_count": 0,
+                            "bench_wall_seconds": 0.0,
+                        },
+                        transport_receipt,
+                    ))
+                break
     status = (
         "complete"
         if len(cells) == len(selected)
@@ -1757,6 +2171,14 @@ def _finish_trial(
         )
     if origin_runtime is not None:
         _complete_origin_runtime(origin_runtime)
+    honest_accounting = {
+        "role_query_count": journal.role_query_count,
+        "bench_wall_seconds": sum(
+            generation["bench_wall_seconds"]
+            for cell in cells
+            for generation in cell.get("generations", [])
+        ),
+    }
     report = {
         "schema_version": REPORT_SCHEMA_VERSION,
         "trial_id": trial_id,
@@ -1785,6 +2207,10 @@ def _finish_trial(
         "launch_admission": _launch_admission_record(
             launch_admission, origin_capability
         ),
+        "generation_driver": dict(generation_driver),
+        "gating_spec_sha256": gating_spec_snapshot.sha256,
+        "honest_accounting": honest_accounting,
+        "honest_accounting_authority": accounting_authority,
         "cells": cells,
     }
     if fatal_error is not None:
@@ -1812,6 +2238,10 @@ def _finish_trial(
             "event": "run-finish",
             "status": status,
             "report": str(run_root / "report.json"),
+            "generation_driver": dict(generation_driver),
+            "gating_spec_sha256": gating_spec_snapshot.sha256,
+            "honest_accounting": honest_accounting,
+            "honest_accounting_authority": accounting_authority,
         },
         transport_receipt,
     ))
@@ -1851,6 +2281,7 @@ def _run_workload(
     transport_admission: ClaudeTransportAdmission | None = None,
     build_context: BuildRunContext | None = None,
     origin_runtime: OriginTrialRuntime | None = None,
+    gating_spec_snapshot: GatingSpecSnapshot,
 ) -> dict[str, Any]:
     if origin_runtime is not None and type(origin_runtime) is not OriginTrialRuntime:
         raise TypeError("origin runtime has the wrong exact type")
@@ -1893,6 +2324,8 @@ def _run_workload(
                 "[launch-binding] active binding differs from workload inputs"
             )
     _validate_generation_budget(generations)
+    if type(gating_spec_snapshot) is not GatingSpecSnapshot:
+        raise AutonomousTrialError("run 単位 GATING_SPEC snapshot が必要")
     resolved_site = trigger._current_site()
     _assert_build_transport_admitted_for_site(
         resolved_site,
@@ -1946,239 +2379,309 @@ def _run_workload(
         _partial["cell"] = result
     perf = _perf_for(flags)
     prior_reverse: bool | None = None
-    current_metrics = {
-        "throughput_ops_sec": None,
-        "abort_rate": None,
-        "latency_ns": None,
-        "llc_miss_rate": None,
-        "ipc": None,
-    }
-
-    for generation in range(1, generations + 1):
-        if time.monotonic() - started_monotonic >= max_wall_s:
-            result["stop_reason"] = "supervisor-wall-budget"
-            if transport_receipt is not None:
-                journal.append(_event_with_transport_receipt(
-                    {
-                        "event": "supervisor-wall-budget",
-                        "workload": workload,
-                        "generation": generation,
-                    },
-                    transport_receipt,
-                ))
-            break
-        generation_record: dict[str, Any] = {"generation": generation, "roles": {}}
-        if _partial is not None:
-            _partial["generation"] = generation_record
-        common = _common_payload(
-            workload=workload,
-            generation=generation,
-            descriptor=descriptor,
-            descriptor_record=descriptor_record,
-        )
-        whiteboard = _whiteboard(layout)
-        perf_payload, leading_payload = _role_metric_payloads(
-            current_metrics,
+    critic_feedback: Mapping[str, Any] | None = None
+    current_metrics = dict(_INITIAL_ROLE_METRICS)
+    # Freeze the role-facing metrics once per workload from the initial state.
+    # Later generation outcomes remain critic-only source material.
+    frozen_perf, frozen_leading = copy.deepcopy(
+        _role_metric_payloads(
+            dict(current_metrics),
             contention_level=descriptor["contention"]["label"],
         )
-        planner_payload = {
-            **common,
-            "current_perf": dict(perf_payload),
-            "leading_indicators": dict(leading_payload),
-            "whiteboard": whiteboard,
-        }
-        planner, event = _invoke(
-            role="planner",
-            provider=providers["planner"],
-            invocation_id=f"{workload}.g{generation}.planner",
-            payload=planner_payload,
-            raw_root=run_root / "raw",
-            journal=journal,
-            workload=workload,
-            generation=generation,
-            transport_receipt=transport_receipt,
-        )
-        generation_record["roles"]["planner"] = event
-        if planner is None:
-            generation_record["outcome"] = "planner-invalid"
-            result["generations"].append(generation_record)
-            if _partial is not None:
-                _partial["generation"] = None
-            result["stop_reason"] = "role-invalid"
-            break
+    )
+    generation_driver = _generation_driver_identity(drive)
+    authority = _accounting_authority(drive)
+    active_accounting: dict[str, Any] | None = None
+    active_generation_record: dict[str, Any] | None = None
+    try:
+        for generation in range(1, generations + 1):
+            if time.monotonic() - started_monotonic >= max_wall_s:
+                result["stop_reason"] = "supervisor-wall-budget"
+                if not result["_pending_critics"]:
+                    journal.append(_event_with_transport_receipt(
+                        {
+                            "event": "supervisor-wall-budget",
+                            "workload": workload,
+                            "generation": generation,
+                            "zero_work": True,
+                            "role_query_count": 0,
+                            "bench_wall_seconds": 0.0,
+                        },
+                        transport_receipt,
+                    ))
+                    result["_zero_work_wall_terminal_emitted"] = True
+                result["_deferred_wall_generation"] = generation
+                break
 
-        coder_payload = {
-            **common,
-            "leakproof_context": (
-                "Use only this campaign's projected descriptor, metrics, planner direction, "
-                "and abstract whiteboard. No prior sweep winner, candidate ranking, or "
-                "unmeasured performance is available."
-            ),
-            "gating_spec": GATING_SPEC,
-            # Planner mechanism text is intentionally not forwarded.  Only the
-            # abstract control signal crosses the planner→coder boundary.
-            "planner_direction": {
-                "axis": planner.axis,
-                "direction": planner.direction,
-                "magnitude": planner.magnitude,
-            },
-            "baseline": dict(perf_payload),
-            "whiteboard": whiteboard,
-        }
-        coder, event = _invoke(
-            role="coder",
-            provider=providers["coder"],
-            invocation_id=f"{workload}.g{generation}.coder",
-            payload=coder_payload,
-            raw_root=run_root / "raw",
-            journal=journal,
-            workload=workload,
-            generation=generation,
-            transport_receipt=transport_receipt,
-        )
-        generation_record["roles"]["coder"] = event
-        if coder is None:
-            generation_record["outcome"] = "coder-invalid"
-            result["generations"].append(generation_record)
-            if _partial is not None:
-                _partial["generation"] = None
-            result["stop_reason"] = "role-invalid"
-            break
+            if generation >= 2:
+                pending = result["_pending_critics"][0]
+                source_metrics = dict(pending["metrics"])
+                source_generation = pending["generation"]
+                critic = _run_one_pending_critic(
+                    result,
+                    providers=providers,
+                    journal=journal,
+                    run_root=run_root,
+                    transport_receipt=transport_receipt,
+                    require_recomputed_digest=True,
+                )
+                if critic is None:
+                    break
+                applied = apply_critic_feedback(
+                    critic,
+                    source_metrics=source_metrics,
+                    source_generation=source_generation,
+                )
+                critic_feedback = applied.planner_projection
+                prior_reverse = applied.prior_reverse
 
-        preview_result = dict(preview(coder, sub=sub))
-        generation_record["preview"] = {
-            key: value for key, value in preview_result.items() if key != "working_diff"
-        }
-        pre_audit_reject = (
-            not preview_result["passed"]
-            or bool(preview_result["forbidden_identifiers"])
-        )
-        if pre_audit_reject:
-            auditor = AuditorVerdict(
-                verdict="uncertain",
-                diff_digest=preview_result["diff_digest"],
-                uncertainty="not invoked: machine pre-audit rejection",
-            )
-            event = _journal_auditor_skip(
-                invocation_id=f"{workload}.g{generation}.auditor",
-                common=common,
-                preview_result=preview_result,
-                journal=journal,
+            active_accounting = _new_generation_accounting(
                 workload=workload,
                 generation=generation,
+                journal=journal,
+                generation_driver=generation_driver,
+                gating_spec_sha256=gating_spec_snapshot.sha256,
+                authority=authority,
             )
-            generation_record["roles"]["auditor"] = event
-        else:
-            auditor_payload = {
-                **common,
-                "working_diff": preview_result["working_diff"],
-                "diff_digest": preview_result["diff_digest"],
-                "designated_source_context": DESIGNATED_SOURCE_CONTEXT,
-                "correctness_digest": (
-                    "pre-build audit: no performance or post-run correctness result exists yet"
-                ),
+            generation_record: dict[str, Any] = {
+                "generation": generation,
+                "roles": {},
             }
-            auditor, event = _invoke(
-                role="auditor",
-                provider=providers["auditor"],
-                invocation_id=f"{workload}.g{generation}.auditor",
-                payload=auditor_payload,
+            active_generation_record = generation_record
+            if _partial is not None:
+                _partial["generation"] = generation_record
+            common = _common_payload(
+                workload=workload,
+                generation=generation,
+                descriptor=descriptor,
+                descriptor_record=descriptor_record,
+            )
+            whiteboard = _whiteboard(layout)
+            planner_payload = {
+                **common,
+                "current_perf": _planner_current_perf_payload(
+                    copy.deepcopy(frozen_perf),
+                    current_metrics=current_metrics,
+                    contention_level=descriptor["contention"]["label"],
+                ),
+                "leading_indicators": _planner_leading_indicators_payload(
+                    copy.deepcopy(frozen_leading),
+                    current_metrics=current_metrics,
+                    contention_level=descriptor["contention"]["label"],
+                ),
+                "whiteboard": whiteboard,
+            }
+            if generation >= 2:
+                planner_payload["critic_feedback"] = dict(critic_feedback or {})
+            planner_validation_receipt = validate_planner_payload(
+                planner_payload,
+                expected_workload=workload,
+                expected_generation=generation,
+                expected_workload_descriptor=descriptor,
+                expected_descriptor_binding=descriptor_record,
+                expected_whiteboard_origin=_whiteboard(layout),
+                expected_current_perf=copy.deepcopy(frozen_perf),
+                expected_leading_indicators=copy.deepcopy(frozen_leading),
+                expected_critic_feedback=critic_feedback,
+                payload_allowlist_sha256=ROLE_PAYLOAD_ALLOWLIST_SHA256,
+            )
+            planner, event = _invoke(
+                role="planner",
+                provider=providers["planner"],
+                invocation_id=f"{workload}.g{generation}.planner",
+                payload=planner_payload,
                 raw_root=run_root / "raw",
                 journal=journal,
                 workload=workload,
                 generation=generation,
                 transport_receipt=transport_receipt,
+                validation_receipt=planner_validation_receipt,
             )
-            generation_record["roles"]["auditor"] = event
-            if auditor is None:
-                generation_record["outcome"] = "auditor-invalid"
+            active_accounting["state"] = "partial-generation"
+            generation_record["roles"]["planner"] = event
+            if planner is None:
+                generation_record["outcome"] = "planner-invalid"
                 result["generations"].append(generation_record)
                 if _partial is not None:
                     _partial["generation"] = None
                 result["stop_reason"] = "role-invalid"
                 break
 
-        proposal_path = run_root / "proposals" / f"{workload}.g{generation}.json"
-        proposal_value = {
-            "planner": dataclasses.asdict(planner),
-            "coder": dataclasses.asdict(coder),
-            "auditor": dataclasses.asdict(auditor),
-            "prior_critic_reverse": prior_reverse,
-            "descriptor_sha256": descriptor_record["output_sha256"],
-        }
-        _write_bytes_bound(proposal_path, _canonical_json_bytes(proposal_value))
-        drive_kwargs = {
-            "layout": layout,
-            "cache_root": cache_root,
-            "proposal_path": str(proposal_path),
-            "extra_sources": ({
-                "path": "orchestrator/campaign/p3_autonomous_workload_trial.py",
-                "role": "T-178 unattended Python supervisor and descriptor projection",
-            },),
-        }
-        if drive is trigger.drive_iteration:
-            drive_kwargs.update({
-                "_resolved_site": resolved_site,
-                "_contract": contract,
+            coder_payload = {
+                **common,
+                "leakproof_context": LEAKPROOF_CONTEXT,
+                "gating_spec": gating_spec_snapshot.text,
+                # Planner mechanism text is intentionally not forwarded.  Only the
+                # abstract control signal crosses the planner-to-coder boundary.
+                "planner_direction": {
+                    "axis": planner.axis,
+                    "direction": planner.direction,
+                    "magnitude": planner.magnitude,
+                },
+                "baseline": _coder_baseline_payload(
+                    copy.deepcopy(frozen_perf),
+                    current_metrics=current_metrics,
+                    contention_level=descriptor["contention"]["label"],
+                ),
+                "whiteboard": whiteboard,
+            }
+            coder_validation_receipt = validate_coder_payload(
+                coder_payload,
+                expected_workload=workload,
+                expected_generation=generation,
+                expected_workload_descriptor=descriptor,
+                expected_descriptor_binding=descriptor_record,
+                expected_whiteboard_origin=_whiteboard(layout),
+                expected_baseline=copy.deepcopy(frozen_perf),
+                gating_spec_snapshot=gating_spec_snapshot,
+                payload_allowlist_sha256=ROLE_PAYLOAD_ALLOWLIST_SHA256,
+            )
+            coder, event = _invoke(
+                role="coder",
+                provider=providers["coder"],
+                invocation_id=f"{workload}.g{generation}.coder",
+                payload=coder_payload,
+                raw_root=run_root / "raw",
+                journal=journal,
+                workload=workload,
+                generation=generation,
+                transport_receipt=transport_receipt,
+                validation_receipt=coder_validation_receipt,
+            )
+            generation_record["roles"]["coder"] = event
+            if coder is None:
+                generation_record["outcome"] = "coder-invalid"
+                result["generations"].append(generation_record)
+                if _partial is not None:
+                    _partial["generation"] = None
+                result["stop_reason"] = "role-invalid"
+                break
+
+            preview_result = dict(preview(coder, sub=sub))
+            generation_record["preview"] = {
+                key: value
+                for key, value in preview_result.items()
+                if key != "working_diff"
+            }
+            pre_audit_reject = (
+                not preview_result["passed"]
+                or bool(preview_result["forbidden_identifiers"])
+            )
+            if pre_audit_reject:
+                active_accounting["auditor_pre_audit_skipped"] = True
+                auditor = AuditorVerdict(
+                    verdict="uncertain",
+                    diff_digest=preview_result["diff_digest"],
+                    uncertainty="not invoked: machine pre-audit rejection",
+                )
+                event = _journal_auditor_skip(
+                    invocation_id=f"{workload}.g{generation}.auditor",
+                    common=common,
+                    preview_result=preview_result,
+                    journal=journal,
+                    workload=workload,
+                    generation=generation,
+                )
+                generation_record["roles"]["auditor"] = event
+            else:
+                auditor_payload = {
+                    **common,
+                    "working_diff": preview_result["working_diff"],
+                    "diff_digest": preview_result["diff_digest"],
+                    "designated_source_context": DESIGNATED_SOURCE_CONTEXT,
+                    "correctness_digest": (
+                        "pre-build audit: no performance or post-run correctness result exists yet"
+                    ),
+                }
+                auditor, event = _invoke(
+                    role="auditor",
+                    provider=providers["auditor"],
+                    invocation_id=f"{workload}.g{generation}.auditor",
+                    payload=auditor_payload,
+                    raw_root=run_root / "raw",
+                    journal=journal,
+                    workload=workload,
+                    generation=generation,
+                    transport_receipt=transport_receipt,
+                )
+                generation_record["roles"]["auditor"] = event
+                if auditor is None:
+                    generation_record["outcome"] = "auditor-invalid"
+                    result["generations"].append(generation_record)
+                    if _partial is not None:
+                        _partial["generation"] = None
+                    result["stop_reason"] = "role-invalid"
+                    break
+
+            proposal_path = (
+                run_root / "proposals" / f"{workload}.g{generation}.json"
+            )
+            proposal_value = {
+                "planner": dataclasses.asdict(planner),
+                "coder": dataclasses.asdict(coder),
+                "auditor": dataclasses.asdict(auditor),
+                "prior_critic_reverse": prior_reverse,
+                "descriptor_sha256": descriptor_record["output_sha256"],
+            }
+            _write_bytes_bound(
+                proposal_path, _canonical_json_bytes(proposal_value)
+            )
+            outcome, observed_driver = _drive_s8c_generation(
+                drive=drive,
+                cfg=cfg,
+                perf=perf,
+                planner=planner,
+                coder=coder,
+                auditor=auditor,
+                prior_reverse=prior_reverse,
+                sub=sub,
+                do_build=do_build,
+                layout=layout,
+                cache_root=cache_root,
+                proposal_path=proposal_path,
+                resolved_site=resolved_site,
+                contract=contract,
+                build_context=build_context,
+            )
+            if observed_driver != generation_driver:
+                raise AutonomousTrialError("generation driver identity が変化した")
+            active_accounting["bench_wall_seconds"] = _bench_wall_seconds(
+                outcome,
+                authoritative=(authority == _AUTHORITATIVE_ACCOUNTING),
+            )
+            generation_record["harness"] = outcome
+            generation_record["outcome"] = outcome["outcome"]
+            current_metrics = _metric_projection(outcome)
+            result["generations"].append(generation_record)
+            if _partial is not None:
+                _partial["generation"] = None
+            raw_variant = outcome.get("variant")
+            if raw_variant is not None and type(raw_variant) is not str:
+                raise TypeError("harness output の variant は str/None が必要")
+            result.setdefault("_pending_critics", []).append({
+                "generation": generation,
+                "common": dict(common),
+                "outcome": dict(outcome),
+                "metrics": dict(current_metrics),
+                "raw_variant": raw_variant,
+                "critic_digest_generated": outcome[
+                    "critic_digest_generated"
+                ],
+                "critic_attempted": False,
+                "accounting": active_accounting,
             })
-        if do_build:
-            drive_kwargs["build_context"] = build_context
-        outcome = dict(
-            drive(
-                cfg,
-                perf,
-                planner,
-                coder,
-                auditor,
-                prior_reverse,
-                sub,
-                do_build,
-                **drive_kwargs,
+            active_accounting = None
+            active_generation_record = None
+            if outcome.get("stop_reason") != "continue":
+                result["stop_reason"] = str(outcome.get("stop_reason"))
+                break
+    finally:
+        if active_accounting is not None:
+            _append_generation_accounting(
+                active_accounting,
+                journal=journal,
+                generation_record=active_generation_record,
             )
-        )
-        required_harness = {
-            "outcome", "variant", "stop_reason", "iteration", "ran",
-        }
-        missing_harness = sorted(required_harness - set(outcome))
-        if missing_harness:
-            raise AutonomousTrialError(
-                f"harness output に必須 field がない: {missing_harness}"
-            )
-        if (
-            not isinstance(outcome["stop_reason"], str)
-            or outcome["stop_reason"] not in DRIVER_STOP_REASONS
-        ):
-            raise AutonomousTrialError(
-                f"harness output の stop_reason が未知: {outcome['stop_reason']!r}"
-            )
-        if outcome["ran"] or "trigger_gate_binding_commitment" in outcome:
-            binding_commitment = outcome.get("trigger_gate_binding_commitment")
-            if (
-                type(binding_commitment) is not str
-                or len(binding_commitment) != 64
-                or any(character not in "0123456789abcdef"
-                       for character in binding_commitment)
-            ):
-                raise AutonomousTrialError("harness binding commitment が不正")
-        generation_record["harness"] = outcome
-        generation_record["outcome"] = outcome["outcome"]
-        current_metrics = _metric_projection(outcome)
-        result["generations"].append(generation_record)
-        if _partial is not None:
-            _partial["generation"] = None
-        raw_variant = outcome.get("variant")
-        if raw_variant is not None and type(raw_variant) is not str:
-            raise TypeError("harness output の variant は str/None が必要")
-        result["_pending_critics"].append({
-            "generation": generation,
-            "common": dict(common),
-            "outcome": dict(outcome),
-            "metrics": dict(current_metrics),
-            "raw_variant": raw_variant,
-        })
-        if outcome.get("stop_reason") != "continue":
-            result["stop_reason"] = str(outcome.get("stop_reason"))
-            break
     return result
 
 
@@ -2355,6 +2858,10 @@ def run_trial(
     unknown = sorted(set(selected) - set(WORKLOADS))
     if unknown:
         raise AutonomousTrialError(f"unknown workloads: {unknown}")
+    # Capture once per run, before any workload or artifact-producing role work.
+    gating_spec_snapshot = snapshot_gating_spec(GATING_SPEC)
+    generation_driver = _generation_driver_identity(drive)
+    accounting_authority = _accounting_authority(drive)
     _assert_build_site_opted_in(
         do_build,
         allow_pegasus_compute_transport=allow_pegasus_compute_transport,
@@ -2458,6 +2965,9 @@ def run_trial(
                 trial_admission,
                 None if origin_runtime is None else origin_runtime.capability,
             ),
+            "generation_driver": dict(generation_driver),
+            "gating_spec_sha256": gating_spec_snapshot.sha256,
+            "honest_accounting_authority": accounting_authority,
         }
         trial_binding = trial_admission.binding
         if trial_binding is not None:
@@ -2545,6 +3055,9 @@ def run_trial(
                 transport_admission=transport_admission,
                 build_context=build_context,
                 launch_admission=trial_admission,
+                gating_spec_snapshot=gating_spec_snapshot,
+                generation_driver=generation_driver,
+                accounting_authority=accounting_authority,
                 effective_preregistration=effective_preregistration,
                 trial_manifest=trial_manifest,
                 allow_unregistered_exploratory=(

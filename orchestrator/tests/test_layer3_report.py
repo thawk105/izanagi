@@ -758,7 +758,7 @@ def certifying_completeness_chain(tmp_path: Path, monkeypatch):
     descriptor_binding = {"output_sha256": "a" * 64}
 
     producer = SimpleNamespace(
-        MAX_APPROVED_GENERATIONS=1,
+        MAX_APPROVED_GENERATIONS=2,
         WORKLOADS={"ycsb-a": workload_flags},
         GeneratorId=SimpleNamespace(S8A_TRIGGER_SWEEP="fixture"),
         ident=SimpleNamespace(campaign_id=lambda _cfg: campaign_id),

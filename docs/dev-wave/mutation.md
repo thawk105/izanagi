@@ -43,6 +43,9 @@ fail-closed から fail-open へ倒れた証拠として記録し、harness 全�
 
 fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node を再検証してから本走する。
 mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
+本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
+local は同一 target set の 2 巡目以降で予算 attest が落ち収集段が `rc=16` になる。
+`--attempt-out` と `--wrapper-attempt` は dispatch 専用で、local 指定は起動前に中止する。
 
 ## DW-M08 — 失敗 node と検出力
 

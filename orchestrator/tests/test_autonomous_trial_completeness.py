@@ -42,7 +42,7 @@ from orchestrator.tests.campaign_lock_test_support import build_v2_lock  # noqa:
 
 _ROLES = ("planner", "coder", "auditor", "critic")
 _TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
-_REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v2"
+_REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v3"
 _LAYER3_SCHEMA_VERSION = "layer3-material-report/v3"
 _LAYER3_GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
 _TRANSPORT_RECEIPT = {
@@ -65,6 +65,11 @@ _TRANSPORT_RECEIPT = {
     "forwarded_tls_trust_override_keys": [],
     "pbs_jobid": "987654.pegasus",
 }
+_GENERATION_DRIVER = {
+    "wrapper": "s8c-generation/v1",
+    "delegate": "trigger.drive_iteration",
+}
+_GATING_SPEC_SHA256 = hashlib.sha256(A.GATING_SPEC.encode("utf-8")).hexdigest()
 
 _GOLDEN_WORKLOADS = {
     "ycsb-a": {
@@ -289,10 +294,111 @@ def _golden_cell_metadata(
     }
 
 
+def _fixture_payload_validation_receipt(event: dict, spec_key: str) -> dict:
+    role = event["role"]
+    generation = event["generation"]
+    fixed_literals = {
+        "schema_version": _TRIAL_SCHEMA_VERSION,
+        "pilot_scope": "exploratory-ycsb-abc",
+        "scientific_claim": False,
+        "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
+        "stop_policy": {
+            "performance_early_stop": False,
+            "generation_budget_is_fixed": True,
+        },
+    }
+    nested_key_sets = {
+        "$": A.ROLE_PAYLOAD_KEY_SPEC[spec_key],
+        "$.attempt_policy": ["attempts_per_role_generation", "retry"],
+        "$.stop_policy": [
+            "generation_budget_is_fixed", "performance_early_stop",
+        ],
+    }
+    projection = {
+        "role": role,
+        "workload": event["workload"],
+        "generation": generation,
+        "descriptor_sha256": event["descriptor_sha256"],
+        "workload_descriptor_sha256": "1" * 64,
+        "descriptor_binding_sha256": "2" * 64,
+        "fixed_literals": fixed_literals,
+        "nested_key_sets": nested_key_sets,
+        "whiteboard_origin": [],
+        "whiteboard_origin_sha256": hashlib.sha256(b"[]").hexdigest(),
+    }
+    if role == "planner":
+        nested_key_sets.update({
+            "$.current_perf": sorted(C._PERF_KEYS),
+            "$.leading_indicators": [
+                "IPC_overall", "cache_miss_rate_pct", "contention_level",
+            ],
+        })
+        feedback = None
+        if generation >= 2:
+            feedback = {
+                "source_generation": generation - 1,
+                "diagnostics": [
+                    {
+                        "metric": metric,
+                        "value_is_null": True,
+                        "value_sha256": hashlib.sha256(b"null").hexdigest(),
+                    }
+                    for metric in C._DIAGNOSTIC_METRICS
+                ],
+                "uncertainty_present": True,
+                "reverse_recommended": False,
+            }
+        projection.update({
+            "current_perf_nullness": {key: True for key in sorted(C._PERF_KEYS)},
+            "leading_metric_nullness": {
+                key: True for key in sorted(C._LEADING_METRIC_KEYS)
+            },
+            "contention_level_sha256": hashlib.sha256(b'"high"').hexdigest(),
+            "critic_feedback": feedback,
+        })
+    else:
+        fixed_literals.update({
+            "leakproof_context": C._LEAKPROOF_CONTEXT,
+            "planner_axis": C._PLANNER_AXIS,
+        })
+        nested_key_sets.update({
+            "$.baseline": sorted(C._PERF_KEYS),
+            "$.planner_direction": ["axis", "direction", "magnitude"],
+        })
+        projection.update({
+            "baseline_nullness": {key: True for key in sorted(C._PERF_KEYS)},
+            "gating_spec_sha256": _GATING_SPEC_SHA256,
+            "planner_direction_sha256": "3" * 64,
+        })
+    projection_sha256 = C._receipt_sha256(projection)
+    seal_preimage = {
+        "schema_version": C._VALIDATION_RECEIPT_SCHEMA_VERSION,
+        "role": role,
+        "payload_sha256": event["input_payload_sha256"],
+        "payload_allowlist_sha256": A.ROLE_PAYLOAD_ALLOWLIST_SHA256,
+        "safe_projection_sha256": projection_sha256,
+    }
+    return {
+        **seal_preimage,
+        "safe_projection": projection,
+        "seal_sha256": C._receipt_sha256(seal_preimage),
+    }
+
+
 def _role_event(
     workload: str, role: str, seq: int, *, status: str = "valid",
     generation: int = 1, pre_audit: dict | None = None,
+    role_query_ordinal: int | None = None,
 ) -> dict:
+    spec_key = (
+        "planner-generation-1"
+        if role == "planner" and generation == 1
+        else "planner-generation-next"
+        if role == "planner"
+        else "auditor-skip"
+        if role == "auditor" and status == "skipped"
+        else role
+    )
     event = {
         "event": "role-attempt",
         "workload": workload,
@@ -314,7 +420,18 @@ def _role_event(
         ).hexdigest(),
         "parsed": {"fixture_role": role},
         "provenance": {"fixture": True},
+        "payload_exact_keys": A.ROLE_PAYLOAD_KEY_SPEC[spec_key],
+        "payload_allowlist_sha256": A.ROLE_PAYLOAD_ALLOWLIST_SHA256,
+        "role_query_ordinal": (
+            None
+            if status == "skipped"
+            else seq - 1 if role_query_ordinal is None else role_query_ordinal
+        ),
     }
+    if role in {"planner", "coder"}:
+        event["payload_validation_receipt"] = (
+            _fixture_payload_validation_receipt(event, spec_key)
+        )
     if status == "invalid":
         for key in ("raw_response_path", "raw_response_sha256", "parsed", "provenance"):
             event.pop(key)
@@ -349,6 +466,9 @@ def _start(run: Path, workloads: list[str], *, budget: int = 1) -> dict:
         "performance_early_stop": False,
         "scientific_claim": False,
         "launch_admission": _launch_admission(workloads),
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "honest_accounting_authority": "supervisor-authoritative",
         "seq": 1,
         "ts": "2026-08-01T00:00:01+00:00",
     }
@@ -373,6 +493,13 @@ def _report(run: Path, workloads: list[str], *, budget: int = 1) -> dict:
         "claim_scope": {"scientific_claim": False},
         "attempt_journal": str(run / "attempts.jsonl"),
         "launch_admission": _launch_admission(workloads),
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "honest_accounting": {
+            "role_query_count": 0,
+            "bench_wall_seconds": 0.0,
+        },
+        "honest_accounting_authority": "supervisor-authoritative",
         "cells": [],
     }
 
@@ -447,13 +574,44 @@ def _origin_terminal_projection(*, rejected: bool) -> dict:
     }
 
 
-def _finish(run: Path, status: str, seq: int) -> dict:
+def _finish(
+    run: Path, status: str, seq: int, *, role_query_count: int = 0,
+    bench_wall_seconds: float = 0.0,
+) -> dict:
     return {
         "event": "run-finish",
         "status": status,
         "report": str(run / "report.json"),
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "honest_accounting": {
+            "role_query_count": role_query_count,
+            "bench_wall_seconds": bench_wall_seconds,
+        },
+        "honest_accounting_authority": "supervisor-authoritative",
         "seq": seq,
         "ts": f"2026-08-01T00:01:{seq:02d}+00:00",
+    }
+
+
+def _generation_accounting(
+    workload: str, generation: int, seq: int, *, provider_invoke_count: int,
+    auditor_skipped: bool = False, state: str = "generation-complete",
+    bench_wall_seconds: float = 0.0,
+) -> dict:
+    return {
+        "event": "generation-accounting",
+        "workload": workload,
+        "generation": generation,
+        "state": state,
+        "provider_invoke_count": provider_invoke_count,
+        "auditor_pre_audit_skipped": auditor_skipped,
+        "bench_wall_seconds": bench_wall_seconds,
+        "generation_driver": dict(_GENERATION_DRIVER),
+        "gating_spec_sha256": _GATING_SPEC_SHA256,
+        "accounting_authority": "supervisor-authoritative",
+        "seq": seq,
+        "ts": f"2026-08-01T00:00:{seq:02d}+00:00",
     }
 
 
@@ -482,13 +640,21 @@ def _complete_trial(
     report = _report(run, requested)
     events = [_start(run, requested)]
     seq = 2
+    ordinal = 1
     for workload in requested:
         roles = {}
         for role in _ROLES:
-            event = _role_event(workload, role, seq)
+            event = _role_event(
+                workload, role, seq, role_query_ordinal=ordinal,
+            )
             events.append(event)
             roles[role] = copy.deepcopy(event)
             seq += 1
+            ordinal += 1
+        events.append(_generation_accounting(
+            workload, 1, seq, provider_invoke_count=4,
+        ))
+        seq += 1
         report["cells"].append({
             "workload": workload,
             **_golden_cell_metadata(run, workload),
@@ -505,12 +671,19 @@ def _complete_trial(
                     "stop_reason": "continue",
                     "iteration": 1,
                     "ran": True,
+                    "critic_digest_generated": False,
                 },
                 "outcome": "dry-pass",
+                "bench_wall_seconds": 0.0,
+                "generation_driver": dict(_GENERATION_DRIVER),
+                "gating_spec_sha256": _GATING_SPEC_SHA256,
             }],
             "stop_reason": "fixed-generation-budget",
         })
-    events.append(_finish(run, "complete", seq))
+    report["honest_accounting"]["role_query_count"] = ordinal - 1
+    events.append(_finish(
+        run, "complete", seq, role_query_count=ordinal - 1,
+    ))
     _persist(run, events, report)
     return run, events, report
 
@@ -530,7 +703,9 @@ def _pre_audit_trial(tmp_path: Path):
     )
     events.append(auditor)
     roles["auditor"] = copy.deepcopy(auditor)
-    critic = _role_event("ycsb-a", "critic", 5)
+    critic = _role_event(
+        "ycsb-a", "critic", 5, role_query_ordinal=3,
+    )
     events.append(critic)
     roles["critic"] = copy.deepcopy(critic)
     report["cells"] = [{
@@ -546,12 +721,20 @@ def _pre_audit_trial(tmp_path: Path):
                 "stop_reason": "continue",
                 "iteration": 1,
                 "ran": True,
+                "critic_digest_generated": False,
             },
             "outcome": "pre-audit-reject",
+            "bench_wall_seconds": 0.0,
+            "generation_driver": dict(_GENERATION_DRIVER),
+            "gating_spec_sha256": _GATING_SPEC_SHA256,
         }],
         "stop_reason": "fixed-generation-budget",
     }]
-    events.append(_finish(run, "complete", 6))
+    events.append(_generation_accounting(
+        "ycsb-a", 1, 6, provider_invoke_count=3, auditor_skipped=True,
+    ))
+    report["honest_accounting"]["role_query_count"] = 3
+    events.append(_finish(run, "complete", 7, role_query_count=3))
     _persist(run, events, report)
     return run, events, report
 
@@ -568,10 +751,21 @@ def _role_invalid_trial(tmp_path: Path):
             "generation": 1,
             "roles": {"planner": copy.deepcopy(invalid)},
             "outcome": "planner-invalid",
+            "bench_wall_seconds": 0.0,
+            "generation_driver": dict(_GENERATION_DRIVER),
+            "gating_spec_sha256": _GATING_SPEC_SHA256,
         }],
         "stop_reason": "role-invalid",
     }]
-    events = [_start(run, ["ycsb-a"]), invalid, _finish(run, "partial", 3)]
+    accounting = _generation_accounting(
+        "ycsb-a", 1, 3, provider_invoke_count=1,
+        state="partial-generation",
+    )
+    report["honest_accounting"]["role_query_count"] = 1
+    events = [
+        _start(run, ["ycsb-a"]), invalid, accounting,
+        _finish(run, "partial", 4, role_query_count=1),
+    ]
     _persist(run, events, report)
     return run, events, report
 
@@ -596,9 +790,9 @@ def _provider_init_trial(tmp_path: Path):
     return run, events, report
 
 
-def _generation_wall_trial(tmp_path: Path):
+def _generation_wall_trial(tmp_path: Path, *, budget: int = 1):
     run = tmp_path / "run"
-    report = _report(run, ["ycsb-a"])
+    report = _report(run, ["ycsb-a"], budget=budget)
     report["status"] = "partial"
     report["cells"] = [{
         "workload": "ycsb-a",
@@ -606,7 +800,25 @@ def _generation_wall_trial(tmp_path: Path):
         "generations": [],
         "stop_reason": "supervisor-wall-budget",
     }]
-    events = [_start(run, ["ycsb-a"]), _finish(run, "partial", 2)]
+    events = [_start(run, ["ycsb-a"], budget=budget)]
+    if budget >= 2:
+        report["fatal_error"] = {
+            "type": "SupervisorWallBudget",
+            "message": "wall budget expired before the next workload",
+        }
+        events.extend([
+            {
+                "event": "supervisor-wall-budget",
+                "workload": "ycsb-a",
+                "generation": 1,
+                "zero_work": True,
+                "role_query_count": 0,
+                "bench_wall_seconds": 0.0,
+                "seq": 2,
+                "ts": "2026-08-01T00:00:02+00:00",
+            },
+        ])
+    events.append(_finish(run, "partial", len(events) + 1))
     _persist(run, events, report)
     return run, events, report
 
@@ -666,9 +878,189 @@ def test_p5_generation_boundary_wall_budget_empty_generations_passes(tmp_path) -
     _verify(run, report)
 
 
+def test_multigeneration_in_cell_zero_work_wall_budget_is_accepted(
+    tmp_path,
+) -> None:
+    run, _events, report = _generation_wall_trial(tmp_path, budget=2)
+    _verify(run, report)
+
+
+def test_multigeneration_zero_work_wall_requires_terminal_accounting(
+    tmp_path,
+) -> None:
+    run, events, report = _generation_wall_trial(tmp_path, budget=2)
+    events[-2].pop("zero_work")
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[generation-accounting\] zero-work wall terminal fields differ$",
+    ):
+        _verify(run, report)
+
+
+def test_multigeneration_in_cell_wall_budget_requires_its_cell(tmp_path) -> None:
+    run, events, report = _generation_wall_trial(tmp_path, budget=2)
+    report["cells"] = []
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[workload-coverage\] requested workload suffix is unexplained$",
+    ):
+        _verify(run, report)
+
+
 def test_transport_admission_bound_shape_and_projection_passes(tmp_path) -> None:
     run, _events, report = _transport_admitted_trial(tmp_path)
     _verify(run, report)
+
+
+def test_query_ordinals_must_be_contiguous_and_exclude_skips(tmp_path) -> None:
+    run, events, report = _pre_audit_trial(tmp_path)
+    critic = next(
+        event for event in events
+        if event.get("event") == "role-attempt" and event.get("role") == "critic"
+    )
+    critic["role_query_ordinal"] = 4
+    report["cells"][0]["generations"][0]["roles"]["critic"][
+        "role_query_ordinal"
+    ] = 4
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[query-ordinal\] provider query ordinals are not contiguous$",
+    ):
+        _verify(run, report)
+
+
+def test_generation_accounting_must_be_bijective(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    events.pop(-2)
+    events[-1]["seq"] = 6
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[generation-accounting\] missing accounting pair",
+    ):
+        _verify(run, report)
+
+
+def test_report_accounting_must_equal_journal_derived_totals(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    report["honest_accounting"]["role_query_count"] = 5
+    events[-1]["honest_accounting"]["role_query_count"] = 5
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[generation-accounting\] report role query total differs$",
+    ):
+        _verify(run, report)
+
+
+def test_accounting_rejects_negative_bench_values(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    accounting = events[-2]
+    accounting["bench_wall_seconds"] = -1.0
+    report["cells"][0]["generations"][0]["bench_wall_seconds"] = -1.0
+    report["honest_accounting"]["bench_wall_seconds"] = -1.0
+    events[-1]["honest_accounting"]["bench_wall_seconds"] = -1.0
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[run-envelope\] bench_wall_seconds is not finite and nonnegative$",
+    ):
+        _verify(run, report)
+
+
+def test_large_consistent_bench_time_is_not_a_budget_gate(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    large = 10_000_000.0
+    events[-2]["bench_wall_seconds"] = large
+    report["cells"][0]["generations"][0]["bench_wall_seconds"] = large
+    report["honest_accounting"]["bench_wall_seconds"] = large
+    events[-1]["honest_accounting"]["bench_wall_seconds"] = large
+    _persist(run, events, report)
+    _verify(run, report)
+
+
+@pytest.mark.parametrize("field", ["generation_driver", "gating_spec_sha256"])
+def test_generation_driver_and_gating_spec_digest_must_be_stable(
+    tmp_path, field,
+) -> None:
+    run, events, report = _complete_trial(tmp_path / field)
+    events[-2][field] = (
+        {"wrapper": "wrong", "delegate": "trigger.drive_iteration"}
+        if field == "generation_driver"
+        else "0" * 64
+    )
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=rf"\[generation-accounting\].*{'driver identity' if field == 'generation_driver' else 'GATING_SPEC digest'} differs$",
+    ):
+        _verify(run, report)
+
+
+def test_role_payload_exact_keys_are_independently_rechecked(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    planner = events[1]
+    planner["payload_exact_keys"] = sorted(
+        [*planner["payload_exact_keys"], "unlisted-performance-channel"]
+    )
+    report["cells"][0]["generations"][0]["roles"]["planner"][
+        "payload_exact_keys"
+    ] = list(planner["payload_exact_keys"])
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"\[payload-allowlist\].*exact payload keys differ$",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing", "is not a Mapping"),
+        ("payload-digest", "receipt payload digest differs"),
+        ("fixed-literal", "fixed literals differ"),
+        ("whiteboard-origin", "whiteboard origin digest differs"),
+        ("seal", "receipt seal differs"),
+    ],
+)
+def test_payload_validation_receipt_is_independently_rechecked(
+    tmp_path, mutation, message,
+) -> None:
+    run, events, report = _complete_trial(tmp_path / mutation)
+    planner = events[1]
+    report_planner = report["cells"][0]["generations"][0]["roles"]["planner"]
+    if mutation == "missing":
+        planner.pop("payload_validation_receipt")
+        report_planner.pop("payload_validation_receipt")
+    else:
+        for target in (planner, report_planner):
+            receipt = target["payload_validation_receipt"]
+            if mutation == "payload-digest":
+                receipt["payload_sha256"] = "0" * 64
+            elif mutation == "fixed-literal":
+                receipt["safe_projection"]["fixed_literals"][
+                    "scientific_claim"
+                ] = True
+                receipt["safe_projection_sha256"] = C._receipt_sha256(
+                    receipt["safe_projection"]
+                )
+            elif mutation == "whiteboard-origin":
+                receipt["safe_projection"]["whiteboard_origin_sha256"] = "0" * 64
+                receipt["safe_projection_sha256"] = C._receipt_sha256(
+                    receipt["safe_projection"]
+                )
+            else:
+                receipt["seal_sha256"] = "0" * 64
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=rf"\[payload-validation-receipt\].*{message}$",
+    ):
+        _verify(run, report)
 
 
 @pytest.mark.parametrize(
@@ -881,18 +1273,18 @@ def test_report_and_run_start_schema_versions_are_required(tmp_path, target) -> 
         _verify(run, report)
 
 
-def test_role_schema_v3_and_report_schema_v2_are_required(tmp_path) -> None:
+def test_role_schema_v3_and_report_schema_v3_are_required(tmp_path) -> None:
     assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
-    assert A.REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v2"
+    assert A.REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v3"
     assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
-    assert _REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v2"
+    assert _REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v3"
     for target in ("start", "report"):
         run, events, report = _complete_trial(tmp_path / target)
         if target == "start":
             events[0]["schema_version"] = "p3-autonomous-workload-trial/v2"
             expected = "run-start.schema_version does not match producer version"
         else:
-            report["schema_version"] = "p3-autonomous-workload-trial-report/v1"
+            report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
             expected = "report.schema_version does not match producer version"
         _persist(run, events, report)
         with pytest.raises(
@@ -1002,8 +1394,8 @@ def test_verifier_rejects_generation_budget_above_current_producer_limit(
     tmp_path,
 ) -> None:
     run, events, report = _complete_trial(tmp_path)
-    events[0]["generation_budget_per_workload"] = 2
-    report["generation_budget_per_workload"] = 2
+    events[0]["generation_budget_per_workload"] = 3
+    report["generation_budget_per_workload"] = 3
     _persist(run, events, report)
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
@@ -1058,18 +1450,33 @@ def test_role_invalid_rejects_prior_terminal_harness_stop(
                     "stop_reason": "converged",
                     "iteration": 1,
                     "ran": True,
+                    "critic_digest_generated": False,
                 },
                 "outcome": "fixture-terminal",
+                "bench_wall_seconds": 0.0,
+                "generation_driver": dict(_GENERATION_DRIVER),
+                "gating_spec_sha256": _GATING_SPEC_SHA256,
             },
             {
                 "generation": 2,
                 "roles": {"planner": copy.deepcopy(invalid)},
                 "outcome": "planner-invalid",
+                "bench_wall_seconds": 0.0,
+                "generation_driver": dict(_GENERATION_DRIVER),
+                "gating_spec_sha256": _GATING_SPEC_SHA256,
             },
         ],
         "stop_reason": "role-invalid",
     }]
-    events.append(_finish(run, "partial", 7))
+    events.append(_generation_accounting(
+        "ycsb-a", 1, 7, provider_invoke_count=4,
+    ))
+    events.append(_generation_accounting(
+        "ycsb-a", 2, 8, provider_invoke_count=1,
+        state="partial-generation",
+    ))
+    report["honest_accounting"]["role_query_count"] = 5
+    events.append(_finish(run, "partial", 9, role_query_count=5))
     _persist(run, events, report)
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
@@ -1099,6 +1506,8 @@ def test_auditor_skip_is_journaled_and_has_no_carve_out(tmp_path) -> None:
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "critic_digest_generated": False,
+            "trigger_gate_binding_commitment": "b" * 64,
         }
 
     run = tmp_path / "run"
@@ -1117,6 +1526,8 @@ def test_auditor_skip_is_journaled_and_has_no_carve_out(tmp_path) -> None:
     auditor = report["cells"][0]["generations"][0]["roles"]["auditor"]
     assert auditor["event"] == "role-attempt"
     assert auditor["status"] == "skipped"
+    assert auditor["role_query_ordinal"] is None
+    assert report["honest_accounting"]["role_query_count"] == 3
     disk_events = [
         json.loads(line)
         for line in (run / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
@@ -1140,12 +1551,12 @@ def test_auditor_skip_is_journaled_and_has_no_carve_out(tmp_path) -> None:
 
 def test_m1_unknown_journal_event_is_rejected_only_by_closed_set(tmp_path) -> None:
     run, events, report = _complete_trial(tmp_path)
-    events[-1]["seq"] = 7
-    events.insert(-1, {"event": "unknown-event", "seq": 6, "ts": "fixture"})
+    events[-1]["seq"] = 8
+    events.insert(-1, {"event": "unknown-event", "seq": 7, "ts": "fixture"})
     _persist(run, events, report)
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
-        match=r"\[closed-event-set\] journal event 5 has unknown kind: 'unknown-event'$",
+        match=r"\[closed-event-set\] journal event 6 has unknown kind: 'unknown-event'$",
     ):
         _verify(run, report)
 
@@ -1948,6 +2359,8 @@ def test_journal_change_after_verifier_read_is_fail_closed(
                 "stop_reason": "continue",
                 "iteration": 1,
                 "ran": True,
+                "critic_digest_generated": False,
+                "trigger_gate_binding_commitment": "b" * 64,
             },
             preview=lambda _coder, sub: {
                 "passed": True,
