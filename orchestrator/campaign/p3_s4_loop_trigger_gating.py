@@ -807,7 +807,10 @@ def drive_iteration(cfg: CampaignConfig, perf, planner: L.PlannerProposal,
     L.save_loop_state(layout, state)
 
     if do_build and out["outcome"] != "dry-pass":
-        critic_view = L.require_admitted_campaign(layout.root)
+        critic_view = L.require_admitted_campaign(
+            layout.root,
+            purpose=L.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+        )
         digest_txt = L.make_critic_digest(
             critic_view,
             tag=CRITIC_TAG,

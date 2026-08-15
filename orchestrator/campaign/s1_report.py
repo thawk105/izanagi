@@ -31,6 +31,13 @@ _ORCHESTRATOR = _HERE.parent
 ROOT = _ORCHESTRATOR.parent
 
 from . import model, pipeline, s1_stats, wal  # noqa: E402
+from .artifact_admission import (  # noqa: E402
+    ArtifactAdmissionError,
+    CampaignReadPurpose,
+    CampaignVerifierEpoch,
+    CampaignVerifierEpochRejected,
+    require_campaign_verifier_epoch,
+)
 from .layout import repo_output_root  # noqa: E402
 from .s1_direct_comparison import (  # noqa: E402
     BUDGET_REL,
@@ -88,6 +95,8 @@ class CampaignAssessment:
     retries: List[Dict]
     budget_refusals: List[Dict]
     rejected_commit_count: int
+    campaign_verifier_epoch: Optional[Dict]
+    epoch_issue: Optional[Dict]
 
 
 def _reason(code: str, message: str, **fields: object) -> Dict:
@@ -104,6 +113,26 @@ def _dedupe_reasons(reasons: Iterable[Mapping]) -> List[Dict]:
             seen.add(key)
             out.append(value)
     return out
+
+
+def _epoch_projection(epoch: CampaignVerifierEpoch) -> Dict:
+    return {
+        "campaign_verifier_epoch": epoch.campaign_verifier_epoch,
+        "state": epoch.state,
+        "reason_code": epoch.reason_code,
+        "identity_scope": epoch.identity_scope,
+        "excluded_scope": epoch.excluded_scope,
+    }
+
+
+def _rejected_epoch_projection(exc: CampaignVerifierEpochRejected) -> Dict:
+    return {
+        "campaign_verifier_epoch": exc.campaign_verifier_epoch,
+        "state": exc.epoch_state,
+        "reason_code": exc.reason_code,
+        "identity_scope": exc.identity_scope,
+        "excluded_scope": exc.excluded_scope,
+    }
 
 
 def _sha256(path: Path) -> Optional[str]:
@@ -345,9 +374,52 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
     retries: List[Dict] = []
     budget_refusals: List[Dict] = []
     rejected_commit_count = 0
+    epoch_projection: Optional[Dict] = None
+    epoch_issue: Optional[Dict] = None
     try:
         schedule = schedule_for_role(document, role)
         layout = layout_for(document, role, output_root=output_root)
+        # S1 は破損行と切断末尾を valid prefix とともに収集するため、WAL 全体を
+        # admission reader へ渡さない。中央の lock-only gate を WAL 読取前に通す。
+        try:
+            epoch = require_campaign_verifier_epoch(
+                layout,
+                purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+            )
+            epoch_projection = _epoch_projection(epoch)
+        except CampaignVerifierEpochRejected as exc:
+            epoch_projection = _rejected_epoch_projection(exc)
+            epoch_issue = _reason(
+                "campaign_verifier_epoch_rejected",
+                "campaign verifier epoch が certified S1 標本を受理しない",
+                campaign=role,
+                **epoch_projection,
+            )
+            schedule_gate["reasons"].append(epoch_issue)
+            schedule_gate["reasons"] = _dedupe_reasons(schedule_gate["reasons"])
+            return CampaignAssessment(
+                role=role, schedule_gate=schedule_gate, samples=samples,
+                sample_issues=[], retries=retries,
+                budget_refusals=budget_refusals,
+                rejected_commit_count=rejected_commit_count,
+                campaign_verifier_epoch=epoch_projection,
+                epoch_issue=epoch_issue,
+            )
+        except ArtifactAdmissionError as exc:
+            epoch_issue = _reason(
+                "campaign_verifier_epoch_validation_failed",
+                str(exc), campaign=role, error_type=type(exc).__name__,
+            )
+            schedule_gate["reasons"].append(epoch_issue)
+            schedule_gate["reasons"] = _dedupe_reasons(schedule_gate["reasons"])
+            return CampaignAssessment(
+                role=role, schedule_gate=schedule_gate, samples=samples,
+                sample_issues=[], retries=retries,
+                budget_refusals=budget_refusals,
+                rejected_commit_count=rejected_commit_count,
+                campaign_verifier_epoch=None,
+                epoch_issue=epoch_issue,
+            )
         # 物理問題を収集する read は 1 回だけ。問題があっても valid prefix の解析を続ける。
         records, line_issues, truncated_tail = wal.read_records_collected(layout)
         if truncated_tail:
@@ -432,6 +504,8 @@ def _assess_campaign(document: Mapping, role: str, output_root: str) -> Campaign
         sample_issues=_dedupe_reasons(issues), retries=retries,
         budget_refusals=budget_refusals,
         rejected_commit_count=rejected_commit_count,
+        campaign_verifier_epoch=epoch_projection,
+        epoch_issue=epoch_issue,
     )
 
 
@@ -817,16 +891,26 @@ def build_report(
                     "freeze_unavailable", "freeze 照合失敗のため schedule を評価しない",
                     campaign=role)]},
                 samples={}, sample_issues=[], retries=[], budget_refusals=[],
-                rejected_commit_count=0)
+                rejected_commit_count=0, campaign_verifier_epoch=None,
+                epoch_issue=None)
 
     budget = _assess_budget(budget_path, assessments)
     certified_issues = _develop_match_issues(assessments) if document is not None else []
     all_sample_issues = [issue for assessment in assessments.values()
                          for issue in assessment.sample_issues]
+    epoch_issues = [assessment.epoch_issue for assessment in assessments.values()
+                    if assessment.epoch_issue is not None]
     certified_gate = {
         "status": ("pass" if document is not None
-                   and not all_sample_issues and not certified_issues else "fail"),
-        "issues": _dedupe_reasons([*all_sample_issues, *certified_issues]),
+                   and not all_sample_issues and not certified_issues
+                   and not epoch_issues else "fail"),
+        "issues": _dedupe_reasons([
+            *all_sample_issues, *certified_issues, *epoch_issues,
+        ]),
+        "campaign_verifier_epochs": {
+            role: assessment.campaign_verifier_epoch
+            for role, assessment in assessments.items()
+        },
         "accepted_samples": {
             role: sum(len(samples) for samples in assessment.samples.values())
             for role, assessment in assessments.items()

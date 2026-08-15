@@ -21,11 +21,15 @@ provenance ヘッダに「どの campaign のどの commit / ファイルから�
 """
 import sys, os, json, re, glob, hashlib, datetime
 
-# この script を cwd/PYTHONPATH に依存せず直接起動できるよう、repo 内の共有 WAL parser
-# への import root を __file__ から解決する。plotting 独自の JSON reader は持たない。
+# この script を cwd/PYTHONPATH に依存せず直接起動できるよう、repo 内の中央 campaign
+# admission 層への import root を __file__ から解決する。独自の WAL reader は持たない。
 _REPO_ROOT=os.path.abspath(os.path.join(os.path.dirname(__file__),"..",".."))
 if _REPO_ROOT not in sys.path: sys.path.insert(0,_REPO_ROOT)
-from orchestrator.campaign import wal as campaign_wal
+from orchestrator.campaign import wal
+from orchestrator.campaign.artifact_admission import (
+    CampaignReadPurpose,
+    require_admitted_campaign,
+)
 
 np=mpl=plt=FixedLocator=FixedFormatter=NullLocator=None
 
@@ -109,38 +113,39 @@ def _ci95_half_M(reps):
 
 def load_campaign(cdir):
     """1 campaign を読み、workload ラベル・sweep 点・baseline を返す。"""
-    wal_path=os.path.join(cdir,"runs","wal.jsonl")
+    historical_view=require_admitted_campaign(
+        cdir, purpose=CampaignReadPurpose.HISTORICAL_RAW)
+    wal_path=historical_view.wal_file
+    # Historical admission may preserve a crash-prefix tail for forensic reads.
+    # Plot inputs must be complete: validate every physical frame before using
+    # the immutable partial projection returned by the historical view.
+    for _ in wal.iter_lines(wal_path):
+        pass
     dat_paths=glob.glob(os.path.join(cdir,"reports","*.dat"))
-    if not os.path.exists(wal_path):
-        raise FileNotFoundError(f"WAL がない: {wal_path}")
     if not dat_paths:
         raise FileNotFoundError(f"dat がない: {cdir}/reports/*.dat")
     dat_path=dat_paths[0]
 
-    recs=[]
-    for _,line,_ in campaign_wal.iter_lines(wal_path):
-        parsed=campaign_wal.parse_line(line)
-        recs.append({"variant":parsed.variant,"stage":parsed.stage,
-                     "env_tag":parsed.env_tag,"ts":parsed.ts,"payload":parsed.payload})
-    genome={x["variant"]:_parse_genome(x["payload"]["genome"])
-            for x in recs if x.get("stage")=="build_start"}
+    recs=historical_view.records
+    genome={x.variant:_parse_genome(x.payload["genome"])
+            for x in recs if x.stage=="build_start"}
     thread_nums=set()
     for x in recs:
-        rc=x.get("payload",{}).get("run_cmd","")
+        rc=x.payload.get("run_cmd","")
         m=re.search(r"thread_num=(\d+)", rc or "")
         if m: thread_nums.add(int(m.group(1)))
 
-    pending_bench={}; certified_bench={}
+    pending_bench={}; committed_bench={}
     for x in recs:
-        variant=x.get("variant")
-        if x.get("stage")=="bench_done":
+        variant=x.variant
+        if x.stage=="bench_done":
             pending_bench[variant]=x
-        elif x.get("stage")=="commit" and variant in pending_bench:
-            certified_bench[variant]=pending_bench.pop(variant)
+        elif x.stage=="commit" and variant in pending_bench:
+            committed_bench[variant]=pending_bench.pop(variant)
     excluded_uncertified=sorted(pending_bench)
     pts=[]; none=None; adapt=None
-    for x in certified_bench.values():
-        g=genome.get(x["variant"],{}); p=x["payload"]
+    for x in committed_bench.values():
+        g=genome.get(x.variant,{}); p=x.payload
         reps=p.get("tps",[]); bf=g.get("BACKOFF_FIXED","-1"); bo=g.get("BACK_OFF","0")
         if bo=="1" and bf not in ("-1",None): pts.append((int(bf),reps))
         elif bo=="0": none=reps
@@ -168,6 +173,15 @@ def load_campaign(cdir):
         "threads":sorted(thread_nums), "pts":pts, "none":none, "adapt":adapt,
         "abort_ipc":abort_ipc,
         "excluded_uncertified":excluded_uncertified,
+        "read_purpose":historical_view.read_purpose.value,
+        "campaign_verifier_epoch":{
+            "campaign_verifier_epoch":(
+                historical_view.campaign_verifier_epoch.campaign_verifier_epoch),
+            "state":historical_view.campaign_verifier_epoch.state,
+            "reason_code":historical_view.campaign_verifier_epoch.reason_code,
+            "identity_scope":historical_view.campaign_verifier_epoch.identity_scope,
+            "excluded_scope":historical_view.campaign_verifier_epoch.excluded_scope,
+        },
     }
 
 def _sha256(path):
@@ -181,6 +195,13 @@ def _short_wl(wl):
     # "read-heavy (ycsb_rmw=0, ...)" -> "read-heavy"
     return wl.split("(")[0].strip() if wl else "?"
 
+def _figure_epoch_label(camps):
+    """Return the exact recorded epoch label shown on the figure."""
+    epochs=sorted({
+        c["campaign_verifier_epoch"]["campaign_verifier_epoch"] for c in camps
+    })
+    return epochs[0] if len(epochs)==1 else ", ".join(epochs)
+
 def make_figure(camps, out_prefix):
     _load_plot_deps()
     _style()
@@ -192,7 +213,7 @@ def make_figure(camps, out_prefix):
         wl=_short_wl(c["workload"]); pts=c["pts"]
         if not pts:
             raise ValueError(
-                f"{c['campaign']}: certified static-backoff pointが無い "
+                f"{c['campaign']}: historical committed static-backoff pointが無い "
                 f"(excluded uncertified BENCH_DONE={len(c['excluded_uncertified'])})")
         xs=[bf for bf,_ in pts]
         ms=[_ci95(r)[0]/1e6 for _,r in pts]; cis=[_ci95_half_M(r) for _,r in pts]
@@ -235,7 +256,10 @@ def make_figure(camps, out_prefix):
             axb.text(0.05,0.83,"IPC",transform=axb.transAxes,color=IPC,fontsize=6.8,fontweight="bold")
         facts[wl]={"best_bf":xs[pk],"best_M":ms[pk],
                    "none_M":none_m,"adapt_M":adapt_m,
-                   "n_reps":len(pts[0][1]) if pts else 0}
+                   "n_reps":len(pts[0][1]) if pts else 0,
+                   "campaign_verifier_epoch":c["campaign_verifier_epoch"][
+                       "campaign_verifier_epoch"],
+                   "read_purpose":c["read_purpose"]}
     axes[0,0].set_ylabel("throughput (M tps)")
     axes[1,0].set_ylabel("abort rate (%)",color=ABORT)
     twins[-1][1].set_ylabel("IPC",color=IPC)
@@ -246,8 +270,10 @@ def make_figure(camps, out_prefix):
     env=camps[0]["env"]
     thr_s = f"{thr[0]} threads" if len(thr)==1 else f"threads={thr}"
     nrep = facts[list(facts)[0]]["n_reps"]
+    epoch_label=_figure_epoch_label(camps)
     fig.suptitle(f"Silo static backoff sweep — {thr_s}, {env}  "
-                 f"(n={nrep} reps; top error bars = 95% CI)", fontsize=9, y=1.00)
+                 f"(n={nrep} reps; top error bars = 95% CI; epoch={epoch_label})",
+                 fontsize=9, y=1.00)
     fig.tight_layout()
     os.makedirs(os.path.dirname(out_prefix) or ".", exist_ok=True)
     # bottom x軸ラベルを twin 上書き後に再適用
@@ -282,6 +308,14 @@ def main(argv):
     out_prefix=argv[1]; cdirs=argv[2:]
     camps=[load_campaign(d) for d in cdirs]
     facts=make_figure(camps, out_prefix)
+    for c in camps:
+        wl=_short_wl(c["workload"])
+        if wl in facts:
+            facts[wl].setdefault(
+                "campaign_verifier_epoch",
+                c["campaign_verifier_epoch"]["campaign_verifier_epoch"],
+            )
+            facts[wl].setdefault("read_purpose", c["read_purpose"])
     prov={
         "generated_utc": datetime.datetime.utcnow().isoformat()+"Z",
         "generator": os.path.basename(__file__),
@@ -289,6 +323,8 @@ def main(argv):
                     "wal":c["wal"],"wal_sha256":c["wal_sha256"],
                     "dat":c["dat"],"dat_sha256":c["dat_sha256"],
                     "threads":c["threads"],"env":c["env"],
+                    "read_purpose":c["read_purpose"],
+                    "campaign_verifier_epoch":c["campaign_verifier_epoch"],
                     "excluded_uncertified_bench_done":c["excluded_uncertified"]}
                    for c in camps],
         "facts": facts,
@@ -302,8 +338,9 @@ def main(argv):
             print(f"  {c['campaign']}: excluded {len(excluded)} uncertified BENCH_DONE "
                   f"(後続COMMITなし): {', '.join(excluded)}")
     for wl,f in facts.items():
-        print(f"  {wl}: best {f['best_M']:.2f}M @ {f['best_bf']}\u00b5s "
-              f"(none={f['none_M']:.2f}M adapt={f['adapt_M']:.2f}M n={f['n_reps']})")
+        print(f"  {wl}: historical best {f['best_M']:.2f}M @ {f['best_bf']}\u00b5s "
+              f"(epoch={f['campaign_verifier_epoch']}; "
+              f"none={f['none_M']:.2f}M adapt={f['adapt_M']:.2f}M n={f['n_reps']})")
     return 0
 
 if __name__=="__main__":

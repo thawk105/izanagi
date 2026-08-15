@@ -8160,7 +8160,11 @@ def test_loop_resume_recovery_aborts_real_pipeline_crash_after_start():
     assert state.attempts[first_start.payload["build_attempt_id"]].aborted
     assert state.attempts[retry_start.payload["build_attempt_id"]].committed
     assert summary.committed == 1 and summary.skipped == 0
-    assert artifact_admission.require_admitted_campaign(lay).decision.admitted
+    admitted = artifact_admission.require_admitted_campaign(
+        lay,
+        purpose=artifact_admission.CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    assert admitted.decision.admitted
 
 
 def test_loop_identity_skip_is_visible_when_stock_id_terminal():

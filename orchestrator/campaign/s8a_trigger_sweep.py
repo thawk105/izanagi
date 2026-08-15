@@ -77,7 +77,12 @@ from . import axis_trigger_gating as T                     # noqa: E402
 from . import (env_contract, ident, pipeline, screening_driver,  # noqa: E402
                       source_digest, wal)
 from . import p3_s4_loop as L                              # noqa: E402
-from .artifact_admission import require_admitted_campaign  # noqa: E402
+from .artifact_admission import (                          # noqa: E402
+    CampaignReadPurpose,
+    CertifiedCampaignView,
+    require_admitted_campaign,
+    require_certified_campaign_view,
+)
 from .build_admission import (BuildAdmissionError,         # noqa: E402
                                       BuildRunContext, GeneratorId,
                                       attest_generator_output,
@@ -531,8 +536,11 @@ def _write_provenance(layout, tag: str, trial: str, effective: Sequence[str],
 
 # ==== 集計 (記述統計のみ — 断定 verdict を出さない) ============================
 
-def _load_rows(layout, prov_entries: Dict[str, Dict]) -> List[Dict]:
-    view = require_admitted_campaign(layout)
+def _rows_from_certified_view(
+        view: CertifiedCampaignView,
+        prov_entries: Dict[str, Dict],
+) -> List[Dict]:
+    view = require_certified_campaign_view(view)
     by_variant: Dict[str, Dict[str, Dict]] = {}
     for record in view.records:
         by_variant.setdefault(record.variant, {})[record.stage] = record.payload
@@ -562,6 +570,19 @@ def _load_rows(layout, prov_entries: Dict[str, Dict]) -> List[Dict]:
     return rows
 
 
+def _load_certified_rows(
+        layout, prov_entries: Dict[str, Dict],
+) -> tuple[CertifiedCampaignView, List[Dict]]:
+    view = require_certified_campaign_view(require_admitted_campaign(
+        layout, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    ))
+    return view, _rows_from_certified_view(view, prov_entries)
+
+
+def _load_rows(layout, prov_entries: Dict[str, Dict]) -> List[Dict]:
+    return _load_certified_rows(layout, prov_entries)[1]
+
+
 def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     """WAL 直読みの記述統計レポート。比較基準 = ident_all (恒等 gate、D49 申し送り (a))。
     退化点は subset レンジ集計から分離。unstable 点はレンジ集計から除外。"""
@@ -577,7 +598,7 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
         return None
     with open(ppath, encoding="utf-8") as f:
         prov = json.load(f)
-    rows = _load_rows(layout, prov["entries"])
+    view, rows = _load_certified_rows(layout, prov["entries"])
 
     ok = [r for r in rows if r["certified"] and r["median_tps"] is not None]
     ident_row = next((r for r in ok if r["name"] == IDENT_NAME), None)
@@ -600,6 +621,12 @@ def report(tag: str, trial: str = TRIAL_MAIN, log=print) -> Optional[str]:
     lines: List[str] = []
     w = lines.append
     w(f"# s8a trigger-gating sweep 偵察レポート — workload={tag} trial={trial}")
+    w("")
+    w(f"- **受理目的**: `{view.read_purpose.value}`")
+    w("- **campaign_verifier_epoch**: "
+      f"`{view.campaign_verifier_epoch.campaign_verifier_epoch}`")
+    w(f"- **epoch identity scope**: {view.campaign_verifier_epoch.identity_scope}")
+    w(f"- **epoch excluded scope**: {view.campaign_verifier_epoch.excluded_scope}")
     w("")
     w("**位置づけ:** 偵察 (preliminary、事前登録外カテゴリ)。断定 verdict なし。")
     w("**限定 (必読):** (1) 失敗条件 (c) の判定は出さない。(2) floor "
