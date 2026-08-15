@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -283,6 +284,127 @@ def _baseline_structure(value: object) -> dict[str, list[list[object]]]:
     return _normalize_main_derived_leaves(compacted)
 
 
+_T244_REPORT_ADDITIONS = {
+    "honest_accounting",
+    "honest_accounting_authority",
+    "generation_driver",
+    "gating_spec_sha256",
+}
+_T244_DRIVER = {
+    "wrapper": "s8c-generation/v1",
+    "delegate": "caller-injected-unsupported",
+}
+_T244_ACCOUNTING_AUTHORITY = "excluded-caller-injected-unsupported"
+_T244_GATING_SPEC_SHA256 = hashlib.sha256(
+    A.GATING_SPEC.encode("utf-8")
+).hexdigest()
+_T244_ADJUDICATED_PLANNER_EFFECTIVE_PROMPT_DELTA = {
+    "pre_wave": "f7f461a798b5a1745a26fdc51860853c4c95327f2234ec050ec3f9b46271542d",
+    "current": "55c52d5ea8afdd9c9a26f9ef2f8696e3740423b4461096ce2bc6a49003389b53",
+}
+
+
+def _project_planner_effective_prompt_delta(event: dict[str, object]) -> None:
+    if event["role"] != "planner":
+        return
+    provenance = event["provenance"]
+    assert isinstance(provenance, dict)
+    # 段 4 裁定 §1 / 第 2 巡の親裁定で ROLE_CONTRACTS["planner"] へ critic_feedback の記述を追加したため。
+    assert provenance["effective_prompt_sha256"] == (
+        _T244_ADJUDICATED_PLANNER_EFFECTIVE_PROMPT_DELTA["current"]
+    )
+    provenance["effective_prompt_sha256"] = (
+        _T244_ADJUDICATED_PLANNER_EFFECTIVE_PROMPT_DELTA["pre_wave"]
+    )
+
+
+def _consume_role_validation_evidence(event: dict[str, object]) -> None:
+    role = event["role"]
+    generation = event["generation"]
+    spec_key = (
+        "planner-generation-1"
+        if role == "planner" and generation == 1
+        else "planner-generation-next"
+        if role == "planner"
+        else role
+    )
+    assert event.pop("payload_exact_keys") == A.ROLE_PAYLOAD_KEY_SPEC[spec_key]
+    assert event.pop("payload_allowlist_sha256") == A.ROLE_PAYLOAD_ALLOWLIST_SHA256
+    ordinal = event.pop("role_query_ordinal")
+    assert type(ordinal) is int and ordinal >= 1
+    if role in {"planner", "coder"}:
+        receipt = event.pop("payload_validation_receipt")
+        assert set(receipt) == {
+            "schema_version", "role", "payload_sha256",
+            "payload_allowlist_sha256", "safe_projection",
+            "safe_projection_sha256", "seal_sha256",
+        }
+        assert receipt["role"] == role
+        assert receipt["payload_sha256"] == event["input_payload_sha256"]
+        assert receipt["payload_allowlist_sha256"] == A.ROLE_PAYLOAD_ALLOWLIST_SHA256
+    else:
+        assert "payload_validation_receipt" not in event
+
+
+def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, object]:
+    """Consume each adjudicated addition explicitly, then expose the old view."""
+
+    projected = copy.deepcopy(bundle)
+    for report in projected["reports"]:
+        assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
+        report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
+        assert _T244_REPORT_ADDITIONS <= set(report)
+        assert report.pop("honest_accounting") == {
+            "role_query_count": 4,
+            "bench_wall_seconds": 0.0,
+        }
+        assert report.pop("honest_accounting_authority") == _T244_ACCOUNTING_AUTHORITY
+        assert report.pop("generation_driver") == _T244_DRIVER
+        assert report.pop("gating_spec_sha256") == _T244_GATING_SPEC_SHA256
+        for cell in report["cells"]:
+            for generation in cell["generations"]:
+                assert generation.pop("bench_wall_seconds") == 0.0
+                assert generation.pop("generation_driver") == _T244_DRIVER
+                assert generation.pop("gating_spec_sha256") == _T244_GATING_SPEC_SHA256
+                for event in generation["roles"].values():
+                    _project_planner_effective_prompt_delta(event)
+                    _consume_role_validation_evidence(event)
+
+    for journal in projected["journals"]:
+        legacy_events = []
+        for event in journal:
+            event_name = event["event"]
+            if event_name == "run-start":
+                assert event.pop("generation_driver") == _T244_DRIVER
+                assert event.pop("gating_spec_sha256") == _T244_GATING_SPEC_SHA256
+                assert event.pop("honest_accounting_authority") == _T244_ACCOUNTING_AUTHORITY
+            elif event_name == "role-attempt":
+                _project_planner_effective_prompt_delta(event)
+                _consume_role_validation_evidence(event)
+            elif event_name == "generation-accounting":
+                assert event["state"] == "generation-complete"
+                assert event["provider_invoke_count"] == 4
+                assert event["auditor_pre_audit_skipped"] is False
+                assert event["bench_wall_seconds"] == 0.0
+                assert event["generation_driver"] == _T244_DRIVER
+                assert event["gating_spec_sha256"] == _T244_GATING_SPEC_SHA256
+                assert event["accounting_authority"] == _T244_ACCOUNTING_AUTHORITY
+                continue
+            elif event_name == "run-finish":
+                assert event["seq"] == 7
+                event["seq"] = 6
+                assert event.pop("generation_driver") == _T244_DRIVER
+                assert event.pop("gating_spec_sha256") == _T244_GATING_SPEC_SHA256
+                assert event.pop("honest_accounting") == {
+                    "role_query_count": 4,
+                    "bench_wall_seconds": 0.0,
+                }
+                assert event.pop("honest_accounting_authority") == _T244_ACCOUNTING_AUTHORITY
+            legacy_events.append(event)
+        journal[:] = legacy_events
+    return projected
+
+
 def test_originless_harness_rebuild_is_deterministic_control(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -305,14 +427,18 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
     omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)
     shutil.rmtree(bundle_root)
     explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)
-    assert _baseline_structure(omitted) == _PRE_WAVE_ORIGINLESS_BASELINE
-    assert _baseline_structure(explicit_none) == _PRE_WAVE_ORIGINLESS_BASELINE
+    assert _baseline_structure(
+        _project_t244_additions_to_pre_wave(omitted)
+    ) == _PRE_WAVE_ORIGINLESS_BASELINE
+    assert _baseline_structure(
+        _project_t244_additions_to_pre_wave(explicit_none)
+    ) == _PRE_WAVE_ORIGINLESS_BASELINE
     _assert_same_structure(omitted, explicit_none)
     originless_key_mutant = copy.deepcopy(omitted)
     originless_key_mutant["reports"][0]["origin_runtime"] = None
     with pytest.raises(AssertionError):
         assert _baseline_structure(
-            originless_key_mutant
+            _project_t244_additions_to_pre_wave(originless_key_mutant)
         ) == _PRE_WAVE_ORIGINLESS_BASELINE
     with pytest.raises(AssertionError):
         _assert_same_structure(omitted, originless_key_mutant)
@@ -320,7 +446,7 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
     unknown_key_mutant["reports"][0]["stable_unknown_top_level_key"] = "stable-value"
     with pytest.raises(AssertionError):
         assert _baseline_structure(
-            unknown_key_mutant
+            _project_t244_additions_to_pre_wave(unknown_key_mutant)
         ) == _PRE_WAVE_ORIGINLESS_BASELINE
 
     for bundle in (omitted, explicit_none):
