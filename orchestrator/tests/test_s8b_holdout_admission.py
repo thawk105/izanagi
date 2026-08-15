@@ -202,7 +202,7 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
     assert set(admitted) == {cell["cell_id"] for cell in cells}
     effect_key = {
         "freeze_sha256", "freeze_holdout_key", "configuration_id",
-        "ccbench_pin", "env_tag",
+        "ccbench_pin", "env_tag", "observation_role",
     }
     claims = [
         json.loads(path.read_text())
@@ -217,8 +217,34 @@ def test_admission_rows_use_effect_key_and_issue_frozen_attempt_count(tmp_path):
         assert "manifest_sha256" in row
         assert "holdout_id" not in row
         assert effect_key <= row.keys()
+        assert row["observation_role"] == (
+            admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN
+        )
         assert row["irreversible_pilot_approved"] is True
     assert "confirm_user_freeze" not in protocol
+
+
+def test_observation_role_is_closed_and_separates_two_authorized_producers():
+    common = {
+        "freeze_sha256": "a" * 64,
+        "freeze_holdout_key": "rr80",
+        "configuration_id": "stock_common",
+        "ccbench_pin": "fixture-pin",
+        "env_tag": "fixture-env",
+    }
+    floor = admission._key_fields(  # noqa: SLF001 - closed-key boundary
+        **common,
+        observation_role=admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    )
+    oracle = admission._key_fields(  # noqa: SLF001 - closed-key boundary
+        **common,
+        observation_role=admission.OBSERVATION_ROLE_ORACLE_DRIVER,
+    )
+    assert admission._claim_digest(floor) != admission._claim_digest(oracle)  # noqa: SLF001
+    with pytest.raises(admission.HoldoutAdmissionError, match="not recognized"):
+        admission._key_fields(  # noqa: SLF001 - unknown role must fail closed
+            **common, observation_role="caller_selected_role",
+        )
 
 
 def test_pilot_claim_requires_irreversible_approval_before_claim(tmp_path):
@@ -371,8 +397,13 @@ def test_attempt_ticket_is_durably_single_use(tmp_path):
     assert token.permitted_run_once_calls == protocol["reps"]
     with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
         admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
-    consumed = admission.shared_admission_root(root) / "consumed"
+    shared = admission.shared_admission_root(root)
+    consumed = shared / "consumed"
     assert len(list(consumed.iterdir())) == 1
+    attempt_rows = admission._read_ledger(shared / "attempt-ledger.jsonl")
+    assert attempt_rows[0]["observation_role"] == (
+        admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN
+    )
 
 
 def test_ticket_consumption_precedes_crashing_measure_callback_m5(tmp_path):

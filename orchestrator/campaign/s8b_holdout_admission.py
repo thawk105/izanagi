@@ -30,15 +30,22 @@ from ..holdout_observation import (
     assert_issued_holdout_observation,
 )
 from . import s8b_floor_contract as _floor_contract
+from . import s8b_oracle_manifest as _oracle_manifest
+from . import s8b_ratified_freeze as _ratified_freeze
 
 __all__ = (
     "CellHoldoutAdmission",
     "FloorHoldoutReservation",
     "HoldoutAdmissionError",
+    "OracleCellHoldoutAdmission",
+    "OBSERVATION_ROLE_FLOOR_CAMPAIGN",
+    "OBSERVATION_ROLE_ORACLE_DRIVER",
     "assert_cell_holdout_admission",
     "consume_attempt_ticket",
+    "consume_oracle_attempt_ticket",
     "finalize_floor_holdout_admissions",
     "provision_shared_admission_root",
+    "reserve_oracle_holdout_observations",
     "reserve_floor_holdout_observations",
     "shared_admission_root",
 )
@@ -54,6 +61,12 @@ _LEDGER_SCHEMA = "s8b-holdout-observation-ledger/v1"
 _ATTEMPT_SCHEMA = "s8b-holdout-attempt-consumption/v1"
 _MAX_LEDGER_BYTES = 16 * 1024 * 1024
 _HEX64 = frozenset("0123456789abcdef")
+OBSERVATION_ROLE_FLOOR_CAMPAIGN = "floor_campaign"
+OBSERVATION_ROLE_ORACLE_DRIVER = "oracle_driver"
+_OBSERVATION_ROLES = frozenset({
+    OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    OBSERVATION_ROLE_ORACLE_DRIVER,
+})
 
 
 class HoldoutAdmissionError(RuntimeError):
@@ -73,6 +86,17 @@ class FloorHoldoutReservation:
 @dataclass(frozen=True, slots=True)
 class CellHoldoutAdmission:
     """Opaque cell capability whose attempt tickets are consumed separately."""
+
+    freeze_holdout_key: str
+    freeze_candidate_id: str
+    trial_workload_name: str
+    configuration_id: str
+    cell_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class OracleCellHoldoutAdmission:
+    """Oracle cell capability whose manifest-derived tickets are separate."""
 
     freeze_holdout_key: str
     freeze_candidate_id: str
@@ -116,8 +140,21 @@ class _CellState:
     protocol_reps: int
 
 
+@dataclass(frozen=True, slots=True)
+class _OracleCellState:
+    token: OracleCellHoldoutAdmission
+    root: Path
+    row: dict[str, Any]
+    claim_digest: str
+    attempt_ids_by_schedule_index: Mapping[int, str]
+    verified_freeze: dict[str, Any]
+    neutral_holdouts: Mapping[str, Mapping[str, object]]
+    oracle_reps: int
+
+
 _reservation_states: dict[int, _ReservationState] = {}
 _cell_states: dict[int, _CellState] = {}
+_oracle_cell_states: dict[int, _OracleCellState] = {}
 _state_lock = threading.RLock()
 
 
@@ -138,6 +175,16 @@ def _canonical_line(value: object) -> bytes:
 
 def _sha256(value: object) -> str:
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _mutable_json_tree(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {key: _mutable_json_tree(child) for key, child in value.items()}
+    if isinstance(value, Sequence) and not isinstance(
+        value, (str, bytes, bytearray),
+    ):
+        return [_mutable_json_tree(child) for child in value]
+    return value
 
 
 def _require_text(value: object, field: str) -> str:
@@ -358,9 +405,14 @@ def _authority(
 
 def _key_fields(
     *, freeze_sha256: str, freeze_holdout_key: str, configuration_id: str,
-    ccbench_pin: str, env_tag: str,
+    ccbench_pin: str, env_tag: str, observation_role: str,
 ) -> dict[str, str]:
     # protocol_sha256 is deliberately evidence only and must never enter here.
+    observation_role = _require_text(observation_role, "observation_role")
+    if observation_role not in _OBSERVATION_ROLES:
+        raise HoldoutAdmissionError(
+            f"observation_role is not recognized: {observation_role}"
+        )
     return {
         "freeze_sha256": _require_sha256(freeze_sha256, "freeze_sha256"),
         "freeze_holdout_key": _require_text(
@@ -368,6 +420,7 @@ def _key_fields(
         "configuration_id": _require_text(configuration_id, "configuration_id"),
         "ccbench_pin": _require_text(ccbench_pin, "ccbench_pin"),
         "env_tag": _require_text(env_tag, "env_tag"),
+        "observation_role": observation_role,
     }
 
 
@@ -731,6 +784,7 @@ def _reserve_floor_holdout_observations_core(
             configuration_id=configuration_id,
             ccbench_pin=fixed_protocol["ccbench_pin"],
             env_tag=fixed_protocol["env_tag"],
+            observation_role=OBSERVATION_ROLE_FLOOR_CAMPAIGN,
         )
         attempts = _attempt_ids(
             cell_id=cell_id, schedule=normalized_schedule, retry_slots=retry_slots,
@@ -851,6 +905,7 @@ def finalize_floor_holdout_admissions(
                     freeze_holdout_key=row["freeze_holdout_key"],
                     configuration_id=row["configuration_id"],
                     ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
+                    observation_role=row["observation_role"],
                 ))
             except (KeyError, HoldoutAdmissionError) as exc:
                 raise HoldoutAdmissionError("admission ledger row key is invalid") from exc
@@ -864,6 +919,7 @@ def finalize_floor_holdout_admissions(
                 freeze_holdout_key=expected["freeze_holdout_key"],
                 configuration_id=expected["configuration_id"],
                 ccbench_pin=expected["ccbench_pin"], env_tag=expected["env_tag"],
+                observation_role=expected["observation_role"],
             )
             digest = _claim_digest(key)
             claim = _read_canonical_document(_claim_path(state.root, digest))
@@ -901,6 +957,7 @@ def finalize_floor_holdout_admissions(
                 freeze_holdout_key=row["freeze_holdout_key"],
                 configuration_id=row["configuration_id"],
                 ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
+                observation_role=row["observation_role"],
             )),
             attempt_ids=frozenset(row["attempt_ids"]),
             run_dir=state.run_dir, schedule=state.schedule,
@@ -911,6 +968,292 @@ def finalize_floor_holdout_admissions(
             _cell_states[id(token)] = cell_state
         admissions[token.cell_id] = token
     return admissions
+
+
+def reserve_oracle_holdout_observations(
+    *, repo_root: Path, verified_manifest: object,
+    launch_validated: object, block_id: str,
+) -> dict[int, OracleCellHoldoutAdmission]:
+    """Atomically reserve manifest-enumerated oracle cells before measurement.
+
+    Cell identities, attempt tickets, environment pins, and the run-once
+    allowance all come from the already-verified oracle manifest.  The caller
+    selects only a manifest-owned block and cannot submit its own cells or rep
+    allowance.
+    """
+
+    if type(verified_manifest) is not _oracle_manifest.VerifiedManifest:
+        raise HoldoutAdmissionError(
+            "oracle authority requires an exact VerifiedManifest"
+        )
+    manifest = verified_manifest.document
+    manifest_sha256 = _require_sha256(
+        verified_manifest.sha256, "manifest_sha256",
+    )
+    if _sha256(manifest) != manifest_sha256:
+        raise HoldoutAdmissionError(
+            "verified oracle manifest digest does not match its document"
+        )
+    if type(launch_validated) is not _ratified_freeze.LaunchValidatedFreeze:
+        raise HoldoutAdmissionError(
+            "oracle authority requires an exact LaunchValidatedFreeze"
+        )
+    freeze_sha256 = _require_sha256(
+        launch_validated.ratified.sha256, "freeze_sha256",
+    )
+    freeze_ref = manifest.get("freeze")
+    if not isinstance(freeze_ref, Mapping) or freeze_ref.get("sha256") != freeze_sha256:
+        raise HoldoutAdmissionError(
+            "verified oracle manifest is not bound to the verified freeze hash"
+        )
+    fixed_freeze = _mutable_json_tree(launch_validated.ratified.document)
+    if not isinstance(fixed_freeze, dict):
+        raise HoldoutAdmissionError(
+            "launch-validated oracle freeze document is invalid"
+        )
+    try:
+        signatures = _protected_signatures_from_verified_freeze_core(fixed_freeze)
+        block = _oracle_manifest.config_for_block(manifest, block_id)
+    except (HoldoutObservationError, _oracle_manifest.ManifestError) as exc:
+        raise HoldoutAdmissionError(
+            f"cannot derive oracle admission authority: {exc}"
+        ) from exc
+    run_contract = block.get("run_contract")
+    if not isinstance(run_contract, Mapping):
+        raise HoldoutAdmissionError("verified oracle run_contract is unavailable")
+    oracle_reps = run_contract.get("reps")
+    if type(oracle_reps) is not int or oracle_reps <= 0:
+        raise HoldoutAdmissionError("verified oracle reps is invalid")
+    ccbench_pin = _require_text(run_contract.get("ccbench_pin"), "ccbench_pin")
+    env_tag = _require_text(run_contract.get("env_tag"), "env_tag")
+    schedule_sha256 = _require_sha256(
+        manifest.get("schedule_sha256"), "schedule_sha256",
+    )
+    campaign_id = _require_text(block.get("campaign_id"), "campaign_id")
+    block_id = _require_text(block.get("block_id"), "block_id")
+    schedule = block.get("schedule")
+    if not isinstance(schedule, Sequence) or isinstance(
+        schedule, (str, bytes, bytearray),
+    ):
+        raise HoldoutAdmissionError("verified oracle block schedule is invalid")
+
+    signature_by_key = {item.freeze_holdout_key: item for item in signatures}
+    neutral_holdouts = {
+        item.freeze_holdout_key: {
+            "candidate_id": item.freeze_candidate_id,
+            "ycsb": {"ycsb_rratio": item.ycsb_rratio},
+        }
+        for item in signatures
+    }
+    rows_by_cell: dict[tuple[str, str], list[Mapping[str, object]]] = {}
+    seen_schedule_indexes: set[int] = set()
+    for raw_row in schedule:
+        if not isinstance(raw_row, Mapping):
+            raise HoldoutAdmissionError("verified oracle schedule row is invalid")
+        schedule_index = raw_row.get("schedule_index")
+        if type(schedule_index) is not int or schedule_index < 0:
+            raise HoldoutAdmissionError("verified oracle schedule_index is invalid")
+        if schedule_index in seen_schedule_indexes:
+            raise HoldoutAdmissionError("verified oracle schedule_index is duplicated")
+        seen_schedule_indexes.add(schedule_index)
+        pair = (
+            _require_text(raw_row.get("holdout_id"), "holdout_id"),
+            _require_text(raw_row.get("configuration_id"), "configuration_id"),
+        )
+        rows_by_cell.setdefault(pair, []).append(raw_row)
+    if not rows_by_cell:
+        raise HoldoutAdmissionError("verified oracle block schedule is empty")
+
+    claims: list[dict[str, Any]] = []
+    ledger_rows: list[dict[str, Any]] = []
+    for (freeze_holdout_key, configuration_id), cell_rows in rows_by_cell.items():
+        signature = signature_by_key.get(freeze_holdout_key)
+        if signature is None:
+            raise HoldoutAdmissionError("oracle schedule freeze key is not protected")
+        freeze_entry = fixed_freeze.get("holdouts", {}).get(freeze_holdout_key)
+        if not isinstance(freeze_entry, Mapping):
+            raise HoldoutAdmissionError("oracle freeze holdout entry is invalid")
+        workload = freeze_entry.get("ycsb")
+        if not isinstance(workload, Mapping):
+            raise HoldoutAdmissionError("oracle freeze workload is invalid")
+        cell_id = f"{freeze_holdout_key}::{configuration_id}"
+        key = _key_fields(
+            freeze_sha256=freeze_sha256,
+            freeze_holdout_key=freeze_holdout_key,
+            configuration_id=configuration_id,
+            ccbench_pin=ccbench_pin,
+            env_tag=env_tag,
+            observation_role=OBSERVATION_ROLE_ORACLE_DRIVER,
+        )
+        attempt_ids = [
+            f"{campaign_id}::{block_id}::schedule{row['schedule_index']}"
+            for row in cell_rows
+        ]
+        claim = {
+            "schema_version": _CLAIM_SCHEMA,
+            "event": "claim",
+            "key": key,
+            "manifest_sha256": manifest_sha256,
+            "schedule_sha256": schedule_sha256,
+            "freeze_candidate_id": signature.freeze_candidate_id,
+            "trial_workload_name": signature.trial_workload_name,
+            "cell_id": cell_id,
+            "records": freeze_entry.get("records"),
+            "threads": freeze_entry.get("threads"),
+            "workload": dict(workload),
+            "campaign_id": campaign_id,
+            "block_id": block_id,
+            "schedule_indexes": [row["schedule_index"] for row in cell_rows],
+            "attempt_ids": attempt_ids,
+        }
+        claims.append(claim)
+        ledger_rows.append({
+            "schema_version": _LEDGER_SCHEMA,
+            "event": "admit",
+            **key,
+            "manifest_sha256": manifest_sha256,
+            "schedule_sha256": schedule_sha256,
+            "freeze_candidate_id": signature.freeze_candidate_id,
+            "trial_workload_name": signature.trial_workload_name,
+            "cell_id": cell_id,
+            "records": freeze_entry.get("records"),
+            "threads": freeze_entry.get("threads"),
+            "workload": dict(workload),
+            "campaign_id": campaign_id,
+            "block_id": block_id,
+            "schedule_indexes": [row["schedule_index"] for row in cell_rows],
+            "attempt_ids": attempt_ids,
+            "attempt_count": len(attempt_ids),
+        })
+
+    root = provision_shared_admission_root(Path(repo_root))
+    with _locked(root):
+        indexed: dict[str, dict[str, Any]] = {}
+        for row in _read_ledger(root / _LEDGER_NAME):
+            if row.get("schema_version") != _LEDGER_SCHEMA or row.get("event") != "admit":
+                raise HoldoutAdmissionError("admission ledger contains an unknown row")
+            try:
+                key = _key_fields(
+                    freeze_sha256=row["freeze_sha256"],
+                    freeze_holdout_key=row["freeze_holdout_key"],
+                    configuration_id=row["configuration_id"],
+                    ccbench_pin=row["ccbench_pin"],
+                    env_tag=row["env_tag"],
+                    observation_role=row["observation_role"],
+                )
+            except (KeyError, HoldoutAdmissionError) as exc:
+                raise HoldoutAdmissionError("admission ledger row key is invalid") from exc
+            digest = _claim_digest(key)
+            if digest in indexed:
+                raise HoldoutAdmissionError("admission ledger has a duplicate cell key")
+            indexed[digest] = row
+        for claim in claims:
+            digest = _claim_digest(claim["key"])
+            try:
+                _write_exclusive(_claim_path(root, digest), claim)
+            except FileExistsError as exc:
+                raise HoldoutAdmissionError(
+                    "oracle holdout cell key was already consumed"
+                ) from exc
+            if digest in indexed:
+                raise HoldoutAdmissionError(
+                    "oracle ledger evidence existed without its durable claim"
+                )
+        _append_ledger(root / _LEDGER_NAME, ledger_rows)
+
+    admissions_by_schedule_index: dict[int, OracleCellHoldoutAdmission] = {}
+    for claim, row in zip(claims, ledger_rows, strict=True):
+        token = OracleCellHoldoutAdmission(
+            freeze_holdout_key=row["freeze_holdout_key"],
+            freeze_candidate_id=row["freeze_candidate_id"],
+            trial_workload_name=row["trial_workload_name"],
+            configuration_id=row["configuration_id"],
+            cell_id=row["cell_id"],
+        )
+        attempt_ids_by_schedule_index = dict(zip(
+            row["schedule_indexes"], row["attempt_ids"], strict=True,
+        ))
+        state = _OracleCellState(
+            token=token,
+            root=root,
+            row=row,
+            claim_digest=_claim_digest(claim["key"]),
+            attempt_ids_by_schedule_index=attempt_ids_by_schedule_index,
+            verified_freeze=fixed_freeze,
+            neutral_holdouts=neutral_holdouts,
+            oracle_reps=oracle_reps,
+        )
+        with _state_lock:
+            _oracle_cell_states[id(token)] = state
+        for schedule_index in row["schedule_indexes"]:
+            admissions_by_schedule_index[schedule_index] = token
+    if set(admissions_by_schedule_index) != seen_schedule_indexes:
+        raise HoldoutAdmissionError("oracle schedule admission coverage is incomplete")
+    return admissions_by_schedule_index
+
+
+def _oracle_cell_state(admission: object) -> _OracleCellState:
+    with _state_lock:
+        state = _oracle_cell_states.get(id(admission))
+    if state is None or state.token is not admission:
+        raise HoldoutAdmissionError("oracle cell holdout admission was not issued")
+    return state
+
+
+def consume_oracle_attempt_ticket(
+    admission: OracleCellHoldoutAdmission, *, schedule_index: int,
+) -> HoldoutObservationAdmission:
+    """Consume one manifest schedule ticket and issue its reps-bound token."""
+
+    state = _oracle_cell_state(admission)
+    if type(schedule_index) is not int or schedule_index < 0:
+        raise HoldoutAdmissionError("schedule_index must be a nonnegative exact int")
+    attempt_id = state.attempt_ids_by_schedule_index.get(schedule_index)
+    if attempt_id is None:
+        raise HoldoutAdmissionError(
+            "schedule_index is not in the oracle manifest ticket set"
+        )
+    marker = {
+        "schema_version": _ATTEMPT_SCHEMA,
+        "event": "consume",
+        "claim_digest": state.claim_digest,
+        "attempt_id": attempt_id,
+        "manifest_sha256": state.row["manifest_sha256"],
+        "campaign_id": state.row["campaign_id"],
+        "block_id": state.row["block_id"],
+        "schedule_index": schedule_index,
+        "cell_id": state.row["cell_id"],
+        "freeze_holdout_key": state.row["freeze_holdout_key"],
+        "configuration_id": state.row["configuration_id"],
+        "observation_role": OBSERVATION_ROLE_ORACLE_DRIVER,
+    }
+    marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
+    path = state.root / "consumed" / f"{state.claim_digest}-{marker_digest}.json"
+    with _locked(state.root):
+        try:
+            _write_exclusive(path, marker)
+        except FileExistsError as exc:
+            raise HoldoutAdmissionError(
+                "oracle attempt ticket was already consumed"
+            ) from exc
+        _append_ledger(state.root / _ATTEMPT_LEDGER_NAME, [marker])
+    try:
+        receipt = _new_durable_attempt_consumption_receipt(
+            attempt_id=attempt_id,
+            permitted_run_once_calls=state.oracle_reps,
+        )
+        observation = _issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=state.verified_freeze,
+            freeze_holdout_key=state.row["freeze_holdout_key"],
+            _neutral_holdouts=state.neutral_holdouts,
+        )
+        assert_issued_holdout_observation(observation)
+    except HoldoutObservationError as exc:
+        raise HoldoutAdmissionError(
+            f"cannot issue oracle attempt observation: {exc}"
+        ) from exc
+    return observation
 
 
 def _cell_state(admission: object) -> _CellState:
@@ -1008,6 +1351,7 @@ def consume_attempt_ticket(
         "cell_id": state.row["cell_id"],
         "freeze_holdout_key": state.row["freeze_holdout_key"],
         "configuration_id": state.row["configuration_id"],
+        "observation_role": OBSERVATION_ROLE_FLOOR_CAMPAIGN,
     }
     marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
     path = state.root / "consumed" / f"{state.claim_digest}-{marker_digest}.json"

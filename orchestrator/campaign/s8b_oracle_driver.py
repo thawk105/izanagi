@@ -38,6 +38,7 @@ from . import s8b_abort_reason_contract as _abort_reason_contract  # noqa: E402
 from . import campaign_claim as _campaign_claim  # noqa: E402
 from . import s8b_freeze_io as _freeze_io  # noqa: E402
 from . import s8b_oracle_manifest as _oracle_manifest  # noqa: E402
+from . import s8b_holdout_admission as _holdout_admission  # noqa: E402
 from . import s8b_oracle_spec  # noqa: E402
 from . import env_contract as _env_contract  # noqa: E402
 from . import env_attestation as _env_attestation  # noqa: E402
@@ -1349,6 +1350,20 @@ def run_block(
         )
         return {"status": "refused", **asdict(decision)}
 
+    try:
+        oracle_admissions = _holdout_admission.reserve_oracle_holdout_observations(
+            repo_root=root,
+            verified_manifest=verified_manifest,
+            launch_validated=validated,
+            block_id=block_id,
+        )
+    except _holdout_admission.HoldoutAdmissionError as exc:
+        decision = _make_gate_decision(
+            t080_resolution,
+            refusals=[f"holdout-observation-admission: {exc}"],
+        )
+        return {"status": "refused", **asdict(decision)}
+
     campaign_start_resolution = _resolve_t080_receipt(root=root)
     if _t080_epoch_identity(campaign_start_resolution) != _t080_epoch_identity(t080_resolution):
         decision = _make_gate_decision(
@@ -1476,6 +1491,27 @@ def run_block(
                         row_done = True
                         break
 
+                    try:
+                        observation_admission = (
+                            _holdout_admission.consume_oracle_attempt_ticket(
+                                oracle_admissions[schedule_index],
+                                schedule_index=schedule_index,
+                            )
+                        )
+                    except (KeyError, _holdout_admission.HoldoutAdmissionError) as exc:
+                        _append_session(layout, env_tag, "deviation", {
+                            "message": (
+                                "oracle holdout observation admission failed: "
+                                f"{type(exc).__name__}: {exc}"
+                            ),
+                            "kind": "holdout-observation-admission",
+                            "schedule_index": schedule_index,
+                        })
+                        error_stopped = True
+                        error_message = str(exc)
+                        row_done = True
+                        break
+
                     prepared_for_eval = PreparedCell(
                         genome=prepared.genome,
                         src_token=prepared.src_token,
@@ -1524,6 +1560,9 @@ def run_block(
                                     (holdout_id, configuration_id)
                                 ],
                                 record_rep_returncodes=True,
+                                holdout_observation_admission=(
+                                    observation_admission
+                                ),
                             )
                     except (wal.WalAppendError, wal.WalFramingError):
                         # 不確かな同一 WAL へ trial-result/deviation を重ねない。
