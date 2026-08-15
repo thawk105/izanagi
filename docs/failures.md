@@ -1950,6 +1950,16 @@
   これは [T-139] land2 の K5 (受入 lease を他 wave の codex 子まで広げるか) の
   親推奨「現状維持」を支持する実測である。
   本 wave の差分は docs のみで launcher 実装へ到達しえず、`DW-O18` により帰属しない。
+
+- **再発: 2026-08-16** — docs-only wave の受入全走 (request 912424、計算ノード 48 worker、
+  11,224 items、152.97 秒) が `test_codex_worker_launch.py` の 2 node
+  (`test_cli_reported_running_max_latches_usage_rollback`、
+  `test_fake_can_reproduce_thread_id_change_and_multiple_sessions`) で赤になった。
+  前者は `cli_reported` が 1000 でなく 0、後者は `codex_exit_code=-9` /
+  `wall_clock_s=1.08` で、いずれも本エントリが「未確定」として挙げた **fake の既定 wall 上限 3 秒**
+  と整合する。本 wave の差分は docs のみ (spool fragment 3 件と output/insights) で当該 test file に
+  1 行も触れていない。計算ノードでの単独再走 (request 912438) が 3 node まとめて
+  **3 passed / 3.27 秒**で緑になり、非帰属と判定した。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -4536,6 +4546,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `docs/skill-self-improvement.md` の「予算に収まらなければ止めてユーザー裁定へ返す」に従って
   撤回し、次の一手へ裁定候補として起票した。**現時点で本型の再発を止める機械的・規範的な
   新しい防壁は無い。**
+
+- **再発: 2026-08-16** — [T-338] Q11 validator wave の段 1 で、親は発火条件 (i) を
+  「事前登録が実走より後だから不成立」とユーザーへ中間報告した。実際に見ていたのは本走用の
+  別文書 (`output/insights/2026-08-07_t139-mainrun-design/preregistration.md`) で、
+  当該計測 (`892042.nqsv`) の事前登録は `output/insights/2026-08-05_t139-alt-x-probe/preregistration.md`
+  であり実走前に凍結されていた。前回は条件 (ii) の 4 項を印象で成立と判断し、今回は条件 (i) を
+  **別 study の artifact で**不成立と判断した。型は同じ — **条件の各項を、その項を証拠立てる
+  正しい artifact の field で照合していない**。段 2 の起草子が `preregistration-witness.tsv` の
+  `preregistration_sha256` 束縛を示して倒し、親が一次資料で確認して撤回した。
+  恒久対応は F157 のまま変えない (`DW-G03` — 単発ではなくなったが、既存の `DW-S03`
+  「親自身の実測値とその一般化もレンズへ入れる」が 2 度とも投入前に止めており、機構は足りている)。
 ### F158. 裁定前のレビュー案を「decision 本文」と見なし、承認されていない要素を実装した [手順漏れ] [権限逸脱]
 
 - 事象: [T-625] の wave 段 1〜5 で、親は条件 24 の発火条件を **4 要素**
@@ -7470,6 +7491,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F306 の既知の再発検知は「変異 baseline の赤 node が族内で移動すること」だが、
   **本件は変異でなく受入全走で、しかも待ち手の非帰属 checker が `attributable` と分類した**。
   族のフレークが受入の帰属判定を誤らせる経路がある。
+
+- **再発: 2026-08-16** — 上と同じ受入全走で
+  `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` が
+  同時に赤になった。2026-08-15 の再発と**同一 node** である。単独再走は上記のとおり緑。
+  待ち手の非帰属 checker は今回も 3 件すべてを `attributable` と分類した (rc=70) — docs-only の
+  差分でも `attributable` になる経路は塞がれていない。
 ### F307. conftest の出力を 1 行増やして別機構の末尾契約を壊した [テスト代表性]
 
 - 事象: 実効 scheduler の marker を `pytest_unconfigure` の最後 (failure digest より後) に出した
@@ -7729,3 +7756,69 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   既存 record schema の `clean` の意味を上書きすると旧凍結 evidence を誤読するため、
   新 field による新旧分離が要る。
 - 再発検知: pinned-clean を名乗る検査が `--porcelain` だけを根拠にしていること。
+
+### F320. 新規 worktree の入れ子 submodule 未初期化が受入を走行ゼロで止める [手順漏れ]
+
+- 事象: 受入全走が `stage=preflight-submodule-ready rc=2` で、テストを 1 件も走らせずに落ちた。
+  wave 開始時に worktree 内で submodule を初期化していたにもかかわらず発生した。
+- 根本原因: 初期化が非再帰だった。CCBench 配下の入れ子 submodule
+  (`third_party/shirakami` とその配下の googletest) が未初期化のまま残り、受入の前検査が拒否した。
+  現行の運用節は worktree 作成時に非再帰の初期化を指示し、受入直前には
+  `--recursive` だけを指示している。**`--recursive` は未初期化の submodule を clone しない**ため、
+  新規 worktree ではどちらの指示でも入れ子まで届かない。
+  加えて、この環境では素の submodule 初期化が transport 制限で必ず失敗するが、
+  その回避設定はどちらの指示にも書かれていない。
+- 影響: 受入 lease を 1 回取得したうえで走行ゼロで失敗した。lease は競合する複数 wave が
+  争う資源であり、走行ゼロの取得はその窓を捨てることになる。
+- 恒久対応: **未実施 (ユーザー裁定へ返す)。** 該当運用節は 996 bytes で単節予算 1,000 bytes に対し
+  残り 4 bytes しかなく、初期化を再帰化する記述と transport 設定を追記できない。
+  意味等価な圧縮は同族の docs で exact pin を壊した実績があり、
+  本 wave では計算ノードが停止していて検査を走らせられないため実施しない。
+  裁定と実施は [T-1139] が持つ。
+- 再発検知: 受入の前検査そのものが fails-closed で検出する
+  (本事象はその検査が実際に発火して判明した)。検査の存在は確認済みで、
+  欠けているのは検査を踏まないための手順記述である。
+
+### F321. `single_process` を名乗る床値 claim が、同一 protocol の二重投入を排除しない [恒真ゲート]
+
+- 事象: (2026-08-16、静的検査) 床値 campaign は `isolation_policy.single_process` が真のとき
+  claim を取得するが、その claim identity は `_fresh_run_id(protocol_sha256, started_at)` =
+  **秒精度の UTC 時刻 + protocol hash 先頭 8 桁**である
+  (`orchestrator/campaign/s8b_floor_campaign.py:4235-4239`, `:4618-4619`)。
+  `O_EXCL` が排他するのは同一 identity のファイルだけなので、**同一 protocol を別の秒に投入した
+  2 job は別 claim を取得し、同時に走れる**。
+- 根本原因: 排他の単位を「campaign の同一性 (protocol)」ではなく「この run の識別子」に取った。
+  `orchestrator/campaign/campaign_claim.py:167-174` の docstring 自身が
+  「clone ごとに別 out_root を与えた実行同士はこの leaf では排他できない」と明記しており、
+  同一 out_root でも identity が秒で分かれる以上、同じ穴が out_root 内にも残っていた。
+  あわせて `orchestrator/campaign/reservation.py:218-270` は現在の `PBS_JOBID`・boot ID・時刻・
+  残容量しか照合せず、現在 hostname・実行 script SHA・submission nonce を検証しない。
+  claim には未検証の `binding.host` が転記される (`s8b_floor_campaign.py:4253-4262`)。
+- 影響: 単独性の主張が計測値の proof chain 上で成立しない。ただし本 wave は二重投入が実際に
+  起きた記録を発見しておらず、**既存の床値値を疑わしいとは主張しない**。
+  単独性の実効的な担保は現状 runbook の手続 (計測ノード上での `pgrep` 確認) 側にある。
+- 恒久対応: **未実施。** claim identity を protocol 単位へ変える案と、reservation を
+  scheduler 所有の create-only receipt から照合する案を再裁定へ返した
+  (材料 = `output/insights/2026-08-16_t330-scr-single-process/s4-adjudication.md` の決定 3)。
+- 再発検知: 「単独性」「single process」を名乗る排他が、campaign の同一性ではなく
+  run 単位の識別子 (時刻・PID・UUID) を key にしていること。
+
+### F322. 計測 sink が `single_process` / `allow_resume=False` を宣言だけして一度も強制しない [恒真ゲート]
+
+- 事象: (2026-08-16、静的検査) `orchestrator/campaign/loop.py:61-89 _authorize_measurement` は
+  required attestation を最初の書込みより前に発火させる一方、claim 取得・reservation 検査・
+  `allow_resume=False` の拒否をいずれも行わない。Pegasus 契約は
+  `single_process=True` / `allow_resume=False` を宣言している
+  (`orchestrator/campaign/env_contract.py:245-253`)。
+- 根本原因: 宣言 (env 契約 registry) と強制 (sink) を別レイヤに置いたまま、強制側の実装が
+  「発火する caller が無い」という理由で見送られ、その後に caller 側だけが 8c live pilot として
+  実装された。宣言は契約 hash に載るため、**強制の不在は台帳からは見えない**。
+- 影響: 8c live pilot の transport 欠陥が解消した時点で、この sink は単独性を一度も検査しないまま
+  exploratory の WAL・report・binary SHA・throughput を受理し始める。certified 選択・材料レポート・
+  proof chain・凍結 bytes は現時点では不変である。
+- 恒久対応: **未実施。** `contract.isolation_policy.single_process is True` のときだけ発火する
+  sink-local な強制を入れる案を、2026-08-03 の「発火 caller を持たない部分実装は採らない」という
+  裁定の明示解除とセットで再裁定へ返した
+  (材料 = `output/insights/2026-08-16_t330-scr-single-process/s4-adjudication.md`)。
+- 再発検知: 環境契約が bool を宣言しているのに、その field を読む production consumer が
+  dataclass 定義とテスト以外に存在しないこと。
