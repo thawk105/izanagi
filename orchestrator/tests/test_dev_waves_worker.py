@@ -305,8 +305,13 @@ def test_worker_process_spawn_forces_no_bytecode_environment() -> None:
         with mock.patch.dict(os.environ, {}, clear=True), \
                 mock.patch.object(worker_mod.subprocess, "Popen", side_effect=capture):
             worker_mod.spawn_worker(spec_path, termination_grace_s=0.05)
-        environment = captured.pop()[1]["env"]
-        assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
+        assert len(captured) == 1
+        popen_args, popen_kwargs = captured[0]
+        assert len(popen_args) == 1
+        assert popen_args[0][:3] == [
+            sys.executable, "-m", "tools.dev_waves.worker",
+        ]
+        assert popen_kwargs["env"]["PYTHONDONTWRITEBYTECODE"] == "1"
 
 
 def test_worker_and_child_popen_flags_include_containment_preexec() -> None:
