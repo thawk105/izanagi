@@ -46,6 +46,15 @@ title: verifier epoch を導出ラベルとして入れ、certified を名乗る
 - **焦点走の赤 8 件のうち 6 件は非帰属だった。** 5 件は login node に `/tmp/.git`
   (2026-07-28 作成の空ディレクトリ) が実在して `_has_git_ancestor` が発火する [T-698] の環境要因、
   1 件は `codex_roles` の import 経路依存の既知偽赤である。
+- **受入 1 走目は赤 2 件で受領証が出ず、うち 1 件が F301 の再発だった。** 帰属 1 件は
+  `test_t671_source_binding.py` の exact pin — epoch 導出が `artifact_admission.py` へ足した
+  `capture_contract_loader_binding()` の呼び出し位置を pin している側を数え落としていた。
+  **焦点走 28 file にこの pin test が入っておらず、受入で初めて出た。**
+  fix 後に live な exact pin / golden を 17 面数え上げて全面一致を確認し、
+  `output/**/*.json` の歴史 record 607 件のうち不一致 93 件はすべて過去 wave の mutation anchor と
+  凍結 source hash (生成時点の HEAD を記録した歴史成果物) で live pin ではないと切り分けた。
+  非帰属 1 件は `test_dev_wave_wait.py` の signal handler 検査で、単独走 312 passed で緑
+  ([T-1107] 族の既知フレーク)。
 - **計算資源が本 wave の実質的な律速だった。** 2026-08-15 21:57–23:20 JST の間、`gen_S` は
   実行中ジョブ 0 のまま待機列だけが残り、dispatch 経路は 15 分の `queue-wait-timeout` を 3 回
   返した。bounded local も代替にならず、予算が「前回ピーク × 1.25」でしか伸びないため

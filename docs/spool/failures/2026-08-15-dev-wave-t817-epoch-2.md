@@ -41,3 +41,17 @@ seq: 2
   うち production 16/16・test 48/49 という数え上げで穴が特定できた。
 - 再発検知: 合成監査の報告に「満たさない件数」欄を必須にする。ゼロと書くなら何を母集合として
   数えたかを併記させる (`DW-O17` の実装面 path 判定だけでは行が競合しない破壊を捕まえられない)。
+
+## 再発
+
+### F301
+
+- **再発: 2026-08-16** — [T-817] wave の受入全走で
+  `test_t671_source_binding.py::test_production_contract_loader_binding_call_sites_are_exact`
+  が赤になった。本 wave が epoch 導出のため `artifact_admission.py` へ
+  `contract_loader_binding.capture_contract_loader_binding()` を 1 箇所足したが、
+  同 file の呼び出し位置を exact な Counter で pin している側を数え落としていた。
+  **前回は bytes hash の pin、今回は呼び出し位置 (file 名 + 関数名 + 属性名) の pin** で、
+  いずれも「編集面 path を key にした検索」を実行していれば段 1 で見つかっていた。
+  焦点走 28 file にこの pin test が入っておらず、**受入で初めて出た**。
+  fix 後に live な exact pin / golden を 17 面数え上げ、全面一致を確認している。
