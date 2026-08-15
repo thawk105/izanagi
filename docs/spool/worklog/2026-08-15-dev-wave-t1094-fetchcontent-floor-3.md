@@ -75,7 +75,7 @@ title: 床値の FetchContent 前提を計算ノードで反証し、oracle と 
   実装する場合の条件 (records を transport 専用に降格し権威を凍結 policy と Git 現物の再解決に
   置く / hardened verifier の再利用 / `clean` の意味を上書きせず schema を分離する /
   空 records 拒否を関数 identity でなく実 build sink で判定する) も同 D に列挙済み。
-  base: 8cae1a758c85f7bcd7a927418503ef321c54c05d6a5333d142ca34cdef8ac5a3
+  base: 404b9a1dbc0266f4a6cf80c30a4a435df2619f307aa0a34543412bca5df693ca
 - [T-971] **P1・残件 (a) 完了、(b) は [T-1094] へ従属**: 計算ノードでの end-to-end 実測を
   `Request 911191.nqsv` (`bnode030`) で実走した。resolver 解決と CMake configure を同一 job・
   同一の使い捨て checkout で同時に測り、さらに masstree build target まで踏んだ。
@@ -83,7 +83,7 @@ title: 床値の FetchContent 前提を計算ノードで反証し、oracle と 
   `OracleEnvironment` を返した** — T-971 が追加した経路は効いている。
   ただし解決先は汚染された共有 cache であり、build が使う tree とは別物だった
   ({{D:floor-oracle-and-build-use-different-masstree}})。残件 (b) は [T-1094] の裁定に従属する。
-  base: 67cb7df0ebc9bb32bec1257324c0303accc3de8b69aef9fc24d31f11b060007d
+  base: 36ef76b4375ac5aaa649d5a0fbf5b42bc567d2a0e778683c924942da079a1376
 
 ### 新規
 
