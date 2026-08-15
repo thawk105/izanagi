@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240.0,
+  "timeout_seconds": 5400.0,
+  "hang_timeout_seconds": 1200.0,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/worker.py",
+          "old": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/worker.py",
+          "old": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\n",
+          "new": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

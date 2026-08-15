@@ -1,0 +1,366 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/767c399fe580ad1c186a41bff4477f93/izdw-767c399fe5.o911145",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/767c399fe580ad1c186a41bff4477f93/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [128 items]\n\n........................................................................ [ 56%]\n........................................................                 [100%]\n============================= 128 passed in 23.37s =============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "1ffdaad0152d413662985d4fae59bf34f895662d17bb247be35addae1b1732c2"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2f823bfb37e87e1ed6cca5d3fe3b86ffe3ad4e937dc7e893277c6023d5e92002",
+    "duration_s": 47.272,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f54cdfcf8dab2b1f40e2eff0dd8c09c476a00ac39c0911a9dd64611b64ce795e",
+    "repo_head": "2a357ff1fab9fb8503cbf431836ff0860cf77cc1",
+    "runner_sha256": "53bdff2d335bfe8b65ff713760582766401620786225a788de55813fdbf297c1",
+    "spec_sha256": "548398f2b5ab3e4cc090f5a4bbd089f0bf971cb71484a37f32b3e3cb3d40ed01",
+    "status": "PASSED",
+    "test_output_sha256": "1ffdaad0152d413662985d4fae59bf34f895662d17bb247be35addae1b1732c2",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "61d1d38ff97a5e7fb774e525097c8fc85b5754a5feab84f8770e95e3d0a2cb43"
+  },
+  "date": "2026-08-15T00:05:00.259440+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7eb30ae1c005c86c63b13cd5b8b03f68/izdw-7eb30ae1c0.o911146",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7eb30ae1c005c86c63b13cd5b8b03f68/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [128 items]\n\n.........F.............................................................. [ 56%]\n........................................................                 [100%]\n=================================== FAILURES ===================================\n___________ test_worker_process_spawn_forces_no_bytecode_environment ___________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_worker_process_spawn_forces_no_bytecode_environment() -> None:\n        with _fresh_dir() as tmp:\n            root = Path(tmp)\n            fake = _fake(root, \"print('{}',end='')\\n\")\n            spec_path = root / \"worker-spec.json\"\n            spec_path.write_bytes(canonical_bytes(_spec(root, fake)))\n            captured = []\n    \n            def capture(*args, **kwargs):\n                captured.append((args, kwargs))\n                return object()\n    \n            with mock.patch.dict(os.environ, {}, clear=True), \\\n                    mock.patch.object(worker_mod.subprocess, \"Popen\", side_effect=capture):\n                worker_mod.spawn_worker(spec_path, termination_grace_s=0.05)\n            assert len(captured) == 1\n            popen_args, popen_kwargs = captured[0]\n            assert len(popen_args) == 1\n            assert popen_args[0][:3] == [\n                sys.executable, \"-m\", \"tools.dev_waves.worker\",\n            ]\n>           assert popen_kwargs[\"env\"][\"PYTHONDONTWRITEBYTECODE\"] == \"1\"\nE           KeyError: 'PYTHONDONTWRITEBYTECODE'\n\norchestrator/tests/test_dev_waves_worker.py:314: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment\n======================== 1 failed, 127 passed in 23.32s ========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1181 retained_bytes=1181 omitted_bytes=0 rendered_excerpt_bytes=1242 sha256=bd26a2abeb48095974bd6113076d48f6594268e849e2e5a2933f8507eb124c70\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_worker_process_spawn_forces_no_bytecode_environment() -> None:\n>         with _fresh_dir() as tmp:\n>             root = Path(tmp)\n>             fake = _fake(root, \"print('{}',end='')\\x5cn\")\n>             spec_path = root / \"worker-spec.json\"\n>             spec_path.write_bytes(canonical_bytes(_spec(root, fake)))\n>             captured = []\n>     \n>             def capture(*args, **kwargs):\n>                 captured.append((args, kwargs))\n>                 return object()\n>     \n>             with mock.patch.dict(os.environ, {}, clear=True), \\x5c\n>                     mock.patch.object(worker_mod.subprocess, \"Popen\", side_effect=capture):\n>                 worker_mod.spawn_worker(spec_path, termination_grace_s=0.05)\n>             assert len(captured) == 1\n>             popen_args, popen_kwargs = captured[0]\n>             assert len(popen_args) == 1\n>             assert popen_args[0][:3] == [\n>                 sys.executable, \"-m\", \"tools.dev_waves.worker\",\n>             ]\n> >           assert popen_kwargs[\"env\"][\"PYTHONDONTWRITEBYTECODE\"] == \"1\"\n> E           KeyError: 'PYTHONDONTWRITEBYTECODE'\n> \n> orchestrator/tests/test_dev_waves_worker.py:314: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1181 retained_bytes=1181 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1971 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b8910ff7e5b1c8b96ec48904043ee5d5e3ff59cf77e6242507c71cd7f7eab602"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2f823bfb37e87e1ed6cca5d3fe3b86ffe3ad4e937dc7e893277c6023d5e92002",
+      "duration_s": 47.248,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+      ],
+      "hang_risk": false,
+      "id": "M01",
+      "injection_diff_sha256": "3df5b72c5a33cac8d990f36db9c7d36de490fdbd1b71048e34601d52b3c7a521",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5742c0f655ea3038dd0ffd71c9ea0e74682816eca9a8762a6e18dec7ee60a55c",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/worker.py",
+          "new": "",
+          "old": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\n"
+        }
+      ],
+      "repo_head": "2a357ff1fab9fb8503cbf431836ff0860cf77cc1",
+      "runner_sha256": "53bdff2d335bfe8b65ff713760582766401620786225a788de55813fdbf297c1",
+      "spec_sha256": "548398f2b5ab3e4cc090f5a4bbd089f0bf971cb71484a37f32b3e3cb3d40ed01",
+      "status": "KILLED",
+      "test_output_sha256": "b8910ff7e5b1c8b96ec48904043ee5d5e3ff59cf77e6242507c71cd7f7eab602",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "61d1d38ff97a5e7fb774e525097c8fc85b5754a5feab84f8770e95e3d0a2cb43"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/619dfbf990714bf75fa27887e9b9f6d1/izdw-619dfbf990.o911148",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/619dfbf990714bf75fa27887e9b9f6d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [128 items]\n\n.........F.............................................................. [ 56%]\n........................................................                 [100%]\n=================================== FAILURES ===================================\n___________ test_worker_process_spawn_forces_no_bytecode_environment ___________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_worker_process_spawn_forces_no_bytecode_environment() -> None:\n        with _fresh_dir() as tmp:\n            root = Path(tmp)\n            fake = _fake(root, \"print('{}',end='')\\n\")\n            spec_path = root / \"worker-spec.json\"\n            spec_path.write_bytes(canonical_bytes(_spec(root, fake)))\n            captured = []\n    \n            def capture(*args, **kwargs):\n                captured.append((args, kwargs))\n                return object()\n    \n            with mock.patch.dict(os.environ, {}, clear=True), \\\n                    mock.patch.object(worker_mod.subprocess, \"Popen\", side_effect=capture):\n                worker_mod.spawn_worker(spec_path, termination_grace_s=0.05)\n            assert len(captured) == 1\n            popen_args, popen_kwargs = captured[0]\n            assert len(popen_args) == 1\n            assert popen_args[0][:3] == [\n                sys.executable, \"-m\", \"tools.dev_waves.worker\",\n            ]\n>           assert popen_kwargs[\"env\"][\"PYTHONDONTWRITEBYTECODE\"] == \"1\"\nE           AssertionError: assert '' == '1'\nE             \nE             - 1\n\norchestrator/tests/test_dev_waves_worker.py:314: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment\n======================== 1 failed, 127 passed in 23.43s ========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1217 retained_bytes=1217 omitted_bytes=0 rendered_excerpt_bytes=1282 sha256=f9e7e29b6f62b1d53d1aa92b61820aacb97fc19eb482511800b3a1774c5c1a39\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_worker_process_spawn_forces_no_bytecode_environment() -> None:\n>         with _fresh_dir() as tmp:\n>             root = Path(tmp)\n>             fake = _fake(root, \"print('{}',end='')\\x5cn\")\n>             spec_path = root / \"worker-spec.json\"\n>             spec_path.write_bytes(canonical_bytes(_spec(root, fake)))\n>             captured = []\n>     \n>             def capture(*args, **kwargs):\n>                 captured.append((args, kwargs))\n>                 return object()\n>     \n>             with mock.patch.dict(os.environ, {}, clear=True), \\x5c\n>                     mock.patch.object(worker_mod.subprocess, \"Popen\", side_effect=capture):\n>                 worker_mod.spawn_worker(spec_path, termination_grace_s=0.05)\n>             assert len(captured) == 1\n>             popen_args, popen_kwargs = captured[0]\n>             assert len(popen_args) == 1\n>             assert popen_args[0][:3] == [\n>                 sys.executable, \"-m\", \"tools.dev_waves.worker\",\n>             ]\n> >           assert popen_kwargs[\"env\"][\"PYTHONDONTWRITEBYTECODE\"] == \"1\"\n> E           AssertionError: assert '' == '1'\n> E             \n> E             - 1\n> \n> orchestrator/tests/test_dev_waves_worker.py:314: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1217 retained_bytes=1217 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2011 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0f525e2b785a922ab4ddbf03499876849c1d2e14a94a894dbfe55c35f8395c99"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2f823bfb37e87e1ed6cca5d3fe3b86ffe3ad4e937dc7e893277c6023d5e92002",
+      "duration_s": 47.329,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+      ],
+      "hang_risk": false,
+      "id": "M02",
+      "injection_diff_sha256": "44fdd836279bc769fd01f669d39a89e7431c38a78593d35f9b28443ce12f9f4a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "628edc62d454a1fa94d96e197843bae2190e8318455c8b03398a39e2dfa5c6a8",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/worker.py",
+          "new": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"\"\n",
+          "old": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\n"
+        }
+      ],
+      "repo_head": "2a357ff1fab9fb8503cbf431836ff0860cf77cc1",
+      "runner_sha256": "53bdff2d335bfe8b65ff713760582766401620786225a788de55813fdbf297c1",
+      "spec_sha256": "548398f2b5ab3e4cc090f5a4bbd089f0bf971cb71484a37f32b3e3cb3d40ed01",
+      "status": "KILLED",
+      "test_output_sha256": "0f525e2b785a922ab4ddbf03499876849c1d2e14a94a894dbfe55c35f8395c99",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "61d1d38ff97a5e7fb774e525097c8fc85b5754a5feab84f8770e95e3d0a2cb43"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cf0fb0229a8059b21bc33acdd14850ff/izdw-cf0fb0229a.o911143",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cf0fb0229a8059b21bc33acdd14850ff/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_waves_worker.py::test_exact_argv_comes_from_schema_grammar_and_has_no_forbidden_token\norchestrator/tests/test_dev_waves_worker.py::test_persisted_unknown_effort_is_rejected_by_child_argv_path\norchestrator/tests/test_dev_waves_worker.py::test_sigstop_identity_is_durable_before_fake_exec_and_environment_is_closed\norchestrator/tests/test_dev_waves_worker.py::test_cont_waits_for_the_child_to_be_observed_stopped\norchestrator/tests/test_dev_waves_worker.py::test_observed_stop_precedes_every_cont_signal\norchestrator/tests/test_dev_waves_worker.py::test_stop_handshake_is_bounded_and_fails_closed_when_no_stop_arrives\norchestrator/tests/test_dev_waves_worker.py::test_stop_handshake_rejects_a_child_whose_identity_stopped_matching\norchestrator/tests/test_dev_waves_worker.py::test_child_that_died_before_stopping_is_not_signalled\norchestrator/tests/test_dev_waves_worker.py::test_verified_state_reads_state_and_identity_from_one_stat\norchestrator/tests/test_dev_waves_worker.py::test_a_child_that_never_led_its_own_group_is_never_signalled\norchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_is_noninteractive_and_runs_one_spec\norchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment\norchestrator/tests/test_dev_waves_worker.py::test_worker_and_child_popen_flags_include_containment_preexec\norchestrator/tests/test_dev_waves_worker.py::test_fake_handshake_rejects_version_style_response_before_child_spawn\norchestrator/tests/test_dev_waves_worker.py::test_typed_pid_identity_digest_binds_every_field\norchestrator/tests/test_dev_waves_worker.py::test_pid_reuse_mismatch_causes_no_signal\norchestrator/tests/test_dev_waves_worker.py::test_timeout_sends_term_then_kill_to_verified_process_group\norchestrator/tests/test_dev_waves_worker.py::test_timeout_still_applies_after_child_closes_both_output_pipes\norchestrator/tests/test_dev_waves_worker.py::test_leader_exit_with_live_group_is_rejected_and_group_terminated\norchestrator/tests/test_dev_waves_worker.py::test_rlimit_fsize_is_measured_in_child\norchestrator/tests/test_dev_waves_worker.py::test_stdout_stderr_have_one_combined_cap\norchestrator/tests/test_dev_waves_worker.py::test_stdout_stderr_combined_cap_minus_exact_plus_one_boundaries\norchestrator/tests/test_dev_waves_worker.py::test_crash_injection_before_cont_leaves_only_stopped_inactive_child\norchestrator/tests/test_dev_waves_worker.py::test_worker_exit_is_create_only_and_parent_directory_fsynced\norchestrator/tests/test_dev_waves_integration.py::test_one_wave_success_accepts_exact_fake_receipt_and_landing\norchestrator/tests/test_dev_waves_integration.py::test_fold_success_scenario_declares_a_verified_direct_child_fold\norchestrator/tests/test_dev_waves_integration.py::test_fake_manifest_run_id_is_bound_to_path_namespace\norchestrator/tests/test_dev_waves_integration.py::test_fake_manifest_wave_index_is_bound_to_wNNN_namespace\norchestrator/tests/test_dev_waves_integration.py::test_three_wave_success_uses_distinct_pid_start_and_session_markers_without_transcript_carryover\norchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[nonzero-nonzero-exit]\norchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[sleep_timeout-timeout]\norchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[grandchild_residual-nonzero-exit]\norchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[log_cap-log-limit]\norchestrator/tests/test_dev_waves_integration.py::test_cancel_running_child_persists_signal_prepare_then_observe\norchestrator/tests/test_dev_waves_integration.py::test_shutdown_running_child_uses_same_prepared_signal_path\norchestrator/tests/test_dev_waves_integration.py::test_fake_handshake_failure_persists_exact_terminal_reason\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[malformed_json]\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[truncated]\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[multiple]\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[trailing_bytes]\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[oversize]\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[delayed_partial]\norchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[wrong_type]\norchestrator/tests/test_dev_waves_integration.py::test_valid_receipt_with_wrong_binding_is_receipt_invalid[wrong_run]\norchestrator/tests/test_dev_waves_integration.py::test_valid_receipt_with_wrong_binding_is_receipt_invalid[wrong_wave]\norchestrator/tests/test_dev_waves_integration.py::test_valid_receipt_with_wrong_binding_is_receipt_invalid[wrong_base]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[same_main-main-unchanged]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[dirty_main-main-dirty]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[diverged_main-main-not-ff]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[commit_mismatch-commit-mismatch]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[commit_reordered-commit-mismatch]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[extra_commit-commit-mismatch]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[external_main_advance-commit-mismatch]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[task_run_incomplete-task-run-incomplete]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[worklog_conservation_broken-worklog-invalid]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[handoff_leaked-handoff-leaked]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[submodule_dirty-submodule-dirty]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[push_attempt-remote-ref-changed]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[provenance_failed-trust-root-changed]\norchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[check_failed-check-failed]\norchestrator/tests/test_dev_waves_integration.py::test_same_request_id_and_digest_returns_same_run_after_disconnect_and_restart\norchestrator/tests/test_dev_waves_integration.py::test_second_distinct_submit_is_busy_while_run_active\norchestrator/tests/test_dev_waves_integration.py::test_active_check_failure_occurs_only_after_passive_gates\norchestrator/tests/test_dev_waves_integration.py::test_dedicated_provenance_and_code_dirty_reasons_are_wired[provenance-provenance-failed]\norchestrator/tests/test_dev_waves_integration.py::test_dedicated_provenance_and_code_dirty_reasons_are_wired[codex-agents-code-dirty]\norchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[before-child-0]\norchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[running-None]\norchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[after-exit-1]\norchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[after-land-1]\norchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[after-decision-1]\norchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves0-1-child-running-1]\norchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves1-1-verifying-1]\norchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves2-2-child-running-2]\norchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_after_accepted_reconciles_without_child_rerun\norchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun[main]\norchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun[submodule]\norchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rebinds_repo_identity_and_main_branch[identity]\norchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rebinds_repo_identity_and_main_branch[branch]\norchestrator/tests/test_dev_waves_integration.py::test_invalid_request_audit_has_capacity_and_creates_no_run\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_separates_capability_loss_from_regression\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[partial-bind]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-absent-pending-true]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-absent-pending-false]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-present]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[eperm-absent]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[eio-absent]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[success-present]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity[regular-file]\norchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity[broken-symlink]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-pass]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-skip]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-fail-keyboard-interrupt]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-fail-system-exit]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[malformed-json]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[missing-key]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[extra-key]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[wrong-field-type]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[noncanonical-pass]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[skip-without-reason]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[fail-without-traceback]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[duplicate-key]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[pass-exit-mismatch]\norchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[fail-exit-mismatch]\norchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path\norchestrator/tests/test_dev_waves_integration.py::test_linked_worktree_repo_root_resolves_common_identity_and_runtime_main\norchestrator/tests/test_dev_waves_integration.py::test_nested_environment_rejects_serve_and_resume_but_client_can_connect\norchestrator/tests/test_dev_waves_integration.py::test_settings_strict_parse_and_required_hook_wiring_fail_closed\norchestrator/tests/test_dev_waves_integration.py::test_budget_accumulates_across_waves_and_deadline_boundary_is_clipped\norchestrator/tests/test_dev_waves_integration.py::test_max_run_bytes_counts_wal_and_all_artifacts_but_excludes_git_worktree\norchestrator/tests/test_dev_waves_integration.py::test_vanished_rewrite_scratch_is_skipped_but_lost_artifact_fails_closed\norchestrator/tests/test_dev_waves_integration.py::test_capacity_gate_stays_closed_when_an_artifact_vanishes_mid_measure\norchestrator/tests/test_dev_waves_integration.py::test_artifact_aggregate_cap_stops_before_next_wave_side_effect\norchestrator/tests/test_dev_waves_integration.py::test_expired_deadline_prevents_next_real_artifact_side_effect\norchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[success-1-completed-max-waves-reached]\norchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[no_actionable_task-2-completed-no-actionable-task]\norchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[user_ruling_required-2-blocked-user-ruling-required]\norchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[blocked-2-blocked-check-failed]\norchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[failed-2-failed-nonzero-exit]\norchestrator/tests/test_dev_waves_integration.py::test_blocked_receipt_with_main_move_is_failed_not_blocked\norchestrator/tests/test_dev_waves_integration.py::test_spawn_identity_read_failure_kills_and_reaps_exact_popen\norchestrator/tests/test_dev_waves_integration.py::test_cancel_identity_mismatch_records_ambiguous_not_signalled\norchestrator/tests/test_dev_waves_integration.py::test_wal_partial_tail_validate_is_fail_closed\norchestrator/tests/test_dev_waves_integration.py::test_supervisor_wal_fsync_failure_orders_real_worker_spawn_side_effect[before-spawn-0]\norchestrator/tests/test_dev_waves_integration.py::test_supervisor_wal_fsync_failure_orders_real_worker_spawn_side_effect[after-spawn-1]\norchestrator/tests/test_dev_waves_integration.py::test_supervisor_command_audit_contains_no_cleanup_land_or_push_api\norchestrator/tests/test_dev_waves_integration.py::test_auto_unavailable_or_permission_abort_never_rebuilds_dangerous_argv\norchestrator/tests/test_dev_waves_integration.py::test_wait_idle_is_bound_to_the_run_thread_and_reports_timeout_without_raising\norchestrator/tests/test_dev_waves_integration.py::test_terminal_state_precedes_quiescence_and_wait_idle_leaves_no_run_thread\n\n128 tests collected in 0.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f5c671a1e6fcea590fc75a4619672002c70e001cb86348b9315c3baa004ad1be"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_waves_worker.py::test_exact_argv_comes_from_schema_grammar_and_has_no_forbidden_token",
+        "orchestrator/tests/test_dev_waves_worker.py::test_persisted_unknown_effort_is_rejected_by_child_argv_path",
+        "orchestrator/tests/test_dev_waves_worker.py::test_sigstop_identity_is_durable_before_fake_exec_and_environment_is_closed",
+        "orchestrator/tests/test_dev_waves_worker.py::test_cont_waits_for_the_child_to_be_observed_stopped",
+        "orchestrator/tests/test_dev_waves_worker.py::test_observed_stop_precedes_every_cont_signal",
+        "orchestrator/tests/test_dev_waves_worker.py::test_stop_handshake_is_bounded_and_fails_closed_when_no_stop_arrives",
+        "orchestrator/tests/test_dev_waves_worker.py::test_stop_handshake_rejects_a_child_whose_identity_stopped_matching",
+        "orchestrator/tests/test_dev_waves_worker.py::test_child_that_died_before_stopping_is_not_signalled",
+        "orchestrator/tests/test_dev_waves_worker.py::test_verified_state_reads_state_and_identity_from_one_stat",
+        "orchestrator/tests/test_dev_waves_worker.py::test_a_child_that_never_led_its_own_group_is_never_signalled",
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_is_noninteractive_and_runs_one_spec",
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment",
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_and_child_popen_flags_include_containment_preexec",
+        "orchestrator/tests/test_dev_waves_worker.py::test_fake_handshake_rejects_version_style_response_before_child_spawn",
+        "orchestrator/tests/test_dev_waves_worker.py::test_typed_pid_identity_digest_binds_every_field",
+        "orchestrator/tests/test_dev_waves_worker.py::test_pid_reuse_mismatch_causes_no_signal",
+        "orchestrator/tests/test_dev_waves_worker.py::test_timeout_sends_term_then_kill_to_verified_process_group",
+        "orchestrator/tests/test_dev_waves_worker.py::test_timeout_still_applies_after_child_closes_both_output_pipes",
+        "orchestrator/tests/test_dev_waves_worker.py::test_leader_exit_with_live_group_is_rejected_and_group_terminated",
+        "orchestrator/tests/test_dev_waves_worker.py::test_rlimit_fsize_is_measured_in_child",
+        "orchestrator/tests/test_dev_waves_worker.py::test_stdout_stderr_have_one_combined_cap",
+        "orchestrator/tests/test_dev_waves_worker.py::test_stdout_stderr_combined_cap_minus_exact_plus_one_boundaries",
+        "orchestrator/tests/test_dev_waves_worker.py::test_crash_injection_before_cont_leaves_only_stopped_inactive_child",
+        "orchestrator/tests/test_dev_waves_worker.py::test_worker_exit_is_create_only_and_parent_directory_fsynced",
+        "orchestrator/tests/test_dev_waves_integration.py::test_one_wave_success_accepts_exact_fake_receipt_and_landing",
+        "orchestrator/tests/test_dev_waves_integration.py::test_fold_success_scenario_declares_a_verified_direct_child_fold",
+        "orchestrator/tests/test_dev_waves_integration.py::test_fake_manifest_run_id_is_bound_to_path_namespace",
+        "orchestrator/tests/test_dev_waves_integration.py::test_fake_manifest_wave_index_is_bound_to_wNNN_namespace",
+        "orchestrator/tests/test_dev_waves_integration.py::test_three_wave_success_uses_distinct_pid_start_and_session_markers_without_transcript_carryover",
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[nonzero-nonzero-exit]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[sleep_timeout-timeout]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[grandchild_residual-nonzero-exit]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_child_failure_injection_stops_before_next_wave[log_cap-log-limit]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_cancel_running_child_persists_signal_prepare_then_observe",
+        "orchestrator/tests/test_dev_waves_integration.py::test_shutdown_running_child_uses_same_prepared_signal_path",
+        "orchestrator/tests/test_dev_waves_integration.py::test_fake_handshake_failure_persists_exact_terminal_reason",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[malformed_json]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[truncated]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[multiple]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[trailing_bytes]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[oversize]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[delayed_partial]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[wrong_type]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_valid_receipt_with_wrong_binding_is_receipt_invalid[wrong_run]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_valid_receipt_with_wrong_binding_is_receipt_invalid[wrong_wave]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_valid_receipt_with_wrong_binding_is_receipt_invalid[wrong_base]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[same_main-main-unchanged]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[dirty_main-main-dirty]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[diverged_main-main-not-ff]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[commit_mismatch-commit-mismatch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[commit_reordered-commit-mismatch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[extra_commit-commit-mismatch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[external_main_advance-commit-mismatch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[task_run_incomplete-task-run-incomplete]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[worklog_conservation_broken-worklog-invalid]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[handoff_leaked-handoff-leaked]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[submodule_dirty-submodule-dirty]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[push_attempt-remote-ref-changed]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[provenance_failed-trust-root-changed]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_independent_gate_failure_stops_next_wave[check_failed-check-failed]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_same_request_id_and_digest_returns_same_run_after_disconnect_and_restart",
+        "orchestrator/tests/test_dev_waves_integration.py::test_second_distinct_submit_is_busy_while_run_active",
+        "orchestrator/tests/test_dev_waves_integration.py::test_active_check_failure_occurs_only_after_passive_gates",
+        "orchestrator/tests/test_dev_waves_integration.py::test_dedicated_provenance_and_code_dirty_reasons_are_wired[provenance-provenance-failed]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_dedicated_provenance_and_code_dirty_reasons_are_wired[codex-agents-code-dirty]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[before-child-0]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[running-None]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[after-exit-1]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[after-land-1]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_resume_never_duplicates_child_or_land[after-decision-1]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves0-1-child-running-1]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves1-1-verifying-1]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_restart_closes_recovery_gate_at_three_points[waves2-2-child-running-2]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_real_daemon_sigkill_after_accepted_reconciles_without_child_rerun",
+        "orchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun[main]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rejects_dirty_repo_without_child_rerun[submodule]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rebinds_repo_identity_and_main_branch[identity]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_accepted_reconciliation_rebinds_repo_identity_and_main_branch[branch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_invalid_request_audit_has_capacity_and_creates_no_run",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_separates_capability_loss_from_regression",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[partial-bind]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-absent-pending-true]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-absent-pending-false]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[fnf-present]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[eperm-absent]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[eio-absent]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_enforces_cleanup_fault_policy[success-present]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity[regular-file]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_short_alias_bind_probe_rejects_preexisting_entry_without_replacing_identity[broken-symlink]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-pass]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-skip]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-fail-keyboard-interrupt]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[canonical-fail-system-exit]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[malformed-json]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[missing-key]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[extra-key]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[wrong-field-type]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[noncanonical-pass]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[skip-without-reason]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[fail-without-traceback]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[duplicate-key]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[pass-exit-mismatch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_serve_child_result_parser_accepts_only_canonical_envelopes[fail-exit-mismatch]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_socket_roundtrip_works_beyond_108_byte_repository_path",
+        "orchestrator/tests/test_dev_waves_integration.py::test_linked_worktree_repo_root_resolves_common_identity_and_runtime_main",
+        "orchestrator/tests/test_dev_waves_integration.py::test_nested_environment_rejects_serve_and_resume_but_client_can_connect",
+        "orchestrator/tests/test_dev_waves_integration.py::test_settings_strict_parse_and_required_hook_wiring_fail_closed",
+        "orchestrator/tests/test_dev_waves_integration.py::test_budget_accumulates_across_waves_and_deadline_boundary_is_clipped",
+        "orchestrator/tests/test_dev_waves_integration.py::test_max_run_bytes_counts_wal_and_all_artifacts_but_excludes_git_worktree",
+        "orchestrator/tests/test_dev_waves_integration.py::test_vanished_rewrite_scratch_is_skipped_but_lost_artifact_fails_closed",
+        "orchestrator/tests/test_dev_waves_integration.py::test_capacity_gate_stays_closed_when_an_artifact_vanishes_mid_measure",
+        "orchestrator/tests/test_dev_waves_integration.py::test_artifact_aggregate_cap_stops_before_next_wave_side_effect",
+        "orchestrator/tests/test_dev_waves_integration.py::test_expired_deadline_prevents_next_real_artifact_side_effect",
+        "orchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[success-1-completed-max-waves-reached]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[no_actionable_task-2-completed-no-actionable-task]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[user_ruling_required-2-blocked-user-ruling-required]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[blocked-2-blocked-check-failed]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_each_outcome_has_one_terminal_mapping_and_never_starts_next_child[failed-2-failed-nonzero-exit]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_blocked_receipt_with_main_move_is_failed_not_blocked",
+        "orchestrator/tests/test_dev_waves_integration.py::test_spawn_identity_read_failure_kills_and_reaps_exact_popen",
+        "orchestrator/tests/test_dev_waves_integration.py::test_cancel_identity_mismatch_records_ambiguous_not_signalled",
+        "orchestrator/tests/test_dev_waves_integration.py::test_wal_partial_tail_validate_is_fail_closed",
+        "orchestrator/tests/test_dev_waves_integration.py::test_supervisor_wal_fsync_failure_orders_real_worker_spawn_side_effect[before-spawn-0]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_supervisor_wal_fsync_failure_orders_real_worker_spawn_side_effect[after-spawn-1]",
+        "orchestrator/tests/test_dev_waves_integration.py::test_supervisor_command_audit_contains_no_cleanup_land_or_push_api",
+        "orchestrator/tests/test_dev_waves_integration.py::test_auto_unavailable_or_permission_abort_never_rebuilds_dangerous_argv",
+        "orchestrator/tests/test_dev_waves_integration.py::test_wait_idle_is_bound_to_the_run_thread_and_reports_timeout_without_raising",
+        "orchestrator/tests/test_dev_waves_integration.py::test_terminal_state_precedes_quiescence_and_wait_idle_leaves_no_run_thread"
+      ],
+      "duration_s": 26.867,
+      "rc": 0,
+      "repo_head": "2a357ff1fab9fb8503cbf431836ff0860cf77cc1",
+      "runner_sha256": "53bdff2d335bfe8b65ff713760582766401620786225a788de55813fdbf297c1",
+      "spec_sha256": "548398f2b5ab3e4cc090f5a4bbd089f0bf971cb71484a37f32b3e3cb3d40ed01",
+      "status": "PASSED",
+      "tool_sha256": "61d1d38ff97a5e7fb774e525097c8fc85b5754a5feab84f8770e95e3d0a2cb43"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M01": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3df5b72c5a33cac8d990f36db9c7d36de490fdbd1b71048e34601d52b3c7a521",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/worker.py",
+            "new": "",
+            "old": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\n"
+          }
+        ]
+      },
+      "M02": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_worker.py::test_worker_process_spawn_forces_no_bytecode_environment"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "44fdd836279bc769fd01f669d39a89e7431c38a78593d35f9b28443ce12f9f4a",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/worker.py",
+            "new": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"\"\n",
+            "old": "    environment[\"PYTHONDONTWRITEBYTECODE\"] = \"1\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f54cdfcf8dab2b1f40e2eff0dd8c09c476a00ac39c0911a9dd64611b64ce795e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_dev_waves_worker.py",
+      "orchestrator/tests/test_dev_waves_integration.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "2a357ff1fab9fb8503cbf431836ff0860cf77cc1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_dev_waves_worker.py",
+      "orchestrator/tests/test_dev_waves_integration.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "f43fdad788fc3acfe46234e3892f3bd4401686c38bc5297feb7a9b1b885bb400",
+    "dispatch_head_blob_sha256": "f43fdad788fc3acfe46234e3892f3bd4401686c38bc5297feb7a9b1b885bb400",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "d5f029fffa166e1f5796c5b900ddfa4acf73785b46f9a49e31859f4649b09488",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "d5f029fffa166e1f5796c5b900ddfa4acf73785b46f9a49e31859f4649b09488",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "47e184c184d725cdfb93efd74601840169bf0ea6",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "53bdff2d335bfe8b65ff713760582766401620786225a788de55813fdbf297c1",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "548398f2b5ab3e4cc090f5a4bbd089f0bf971cb71484a37f32b3e3cb3d40ed01",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/2026-08-15_t1087-acceptance-red-check/mut-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "e47cbeda37de26af53974f13e003fd26e419302b632aa689f7fd020bbc3881c3"
+  },
+  "tool_sha256": "61d1d38ff97a5e7fb774e525097c8fc85b5754a5feab84f8770e95e3d0a2cb43",
+  "updated_at": "2026-08-15T00:07:27.278761+00:00"
+}
