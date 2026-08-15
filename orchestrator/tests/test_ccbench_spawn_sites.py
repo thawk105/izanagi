@@ -327,9 +327,7 @@ def test_backoff_profile_public_path_rejects_protected_ratio_before_build(
         backoff_profile.profile_point(
             2,
             {
-                "ycsb_zipf_skew": "0.9",
                 "ycsb_rratio": ratio,
-                "ycsb_rmw": "0",
             },
         )
     assert effects == []

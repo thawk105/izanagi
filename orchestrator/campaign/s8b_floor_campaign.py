@@ -4236,9 +4236,10 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     ``_holdout_signature_source`` のどちらでも、claim・ledger・ticket・authority・identity の
     全検査を実行する。
 
-    Cell claim は全ての非計測 preflight と manifest sealing の後、``runner.run()`` の直前に
-    取得する。それ以前に保護比率を実測しようとしても、最下層 ``run_once`` gateway が
-    attempt token 無しで拒否するため、claim を遅らせても未記録観測の穴は開かない。
+    Cell claim は ``runner.run()`` の外側で行う非計測 preflight と manifest sealing の後、
+    ``runner.run()`` の直前に取得する。live admission の再検査、host provenance、process
+    identity、session competition probe は ``runner.run()`` 内で claim 後に行う。それ以前に
+    保護比率を実測しようとしても、最下層 ``run_once`` gateway が attempt token 無しで拒否する。
     """
     mode = _validate_mode(mode)
     if type(confirm_irreversible_pilot_holdout) is not bool:
@@ -4723,10 +4724,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         expected_contract_sha256=contract.contract_sha256,
     )
 
-    # Cell claims are intentionally the final durable pre-measurement action.
-    # Environment, reservation, clean-scan, perf, output, build, and manifest
-    # preflights have completed.  The session competition probe remains inside
-    # runner.run(), after this claim.  Production rejects caller callables.
+    # Cell claims are the final durable pre-measurement action outside
+    # runner.run().  Environment, reservation, clean-scan, perf, output, build,
+    # and manifest preflights have completed.  Live admission revalidation,
+    # host provenance, process identity, and the session competition probe
+    # remain inside runner.run(), after this claim.
     try:
         holdout_reservation = (
             _holdout_admission._reserve_floor_holdout_observations_core(
