@@ -15,6 +15,14 @@ title: [T-396] の起票前提が 3 点とも失効しており、実装候補�
   実測 = **`11034 passed, 65 skipped` (failed 0)**、145.40 秒、Pegasus gen_S request 911163、
   tested_main `152767ee` / tested_tip `5571810e`。receipt の `verdict` は `child-green`、
   `red_nodeids` は空。land する tip では同じ受入を再走して緑を再確認した
+- **[T-1107] のフレークが本 wave でも発火し、受入を 1 回やり直させた。** 記録 commit を足した最終 tip の
+  受入 (09:32 JST) が `test_dev_wave_wait.py::test_public_main_real_signal_releases_lease` で
+  `status=attributable-red` になった。失敗内容は既知どおりで、SIGTERM 到達より先に
+  `acceptance-scheduler-attestation` が `marker-count` (`observed=[]`) で発火し rc=143 でなく rc=70 になる。
+  親が同 node を焦点走で回すと **1 passed / 2.16 秒**で緑 (docs のみの差分は当該 file に到達しない)。
+  `DW-O18` に従い非帰属のフレークとして扱い、新しい T は起こさない。
+  **新事実は頻度である** — 同じ node は 08:51 JST にも別の docs-only wave の受入を止めており、
+  **約 40 分の間に連続する 2 wave を止めた**。[T-1107] は「たまに踏む」ではなく現に律速している
 - **受入 attempt 1 は走行前に停止した (走行の失敗ではない)。** `preflight-submodule-ready` が rc=2 で、
   原因は入れ子 submodule `external/ccbench/third_party/shirakami` の未初期化である。
   `DW-O20` は新規 worktree について最上位の `git submodule update --init` しか書いておらず、
