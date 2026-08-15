@@ -47,6 +47,9 @@ _V2_SCHEMA = "buildcache/v2"
 _V2_COMPLETION_MANIFEST = "completion.json"
 _LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
 _LEGACY_ADMISSION_SIDECAR = "admission.json"
+_FETCHCONTENT_RECEIPT_KEYS = frozenset({
+    "masstree_head", "config_sha256", "archive_sha256",
+})
 
 _SECURE_FLAG_NAMES = (
     "O_CLOEXEC", "O_DIRECTORY", "O_EXCL", "O_NOFOLLOW", "O_NONBLOCK",
@@ -106,6 +109,16 @@ class BuildError(RuntimeError):
 
 class BuildCacheError(RuntimeError):
     """build cache の namespace・claim・完成 entry・metadata が信用できない。"""
+
+
+class MasstreeFetchContentError(BuildError):
+    """floor 用 masstree prebuild の閉じた実行段を保持する。"""
+
+    def __init__(self, stage: str, message: str):
+        if stage not in {"configure", "target"}:
+            raise ValueError("未知の masstree FetchContent prebuild stage")
+        super().__init__(message)
+        self.stage = stage
 
 
 class BinaryDigestError(RuntimeError):
@@ -635,6 +648,9 @@ class BuildResult:
     ccbench_root: str = ""
     # v2 build namespace の provenance。legacy build() は additive default None を保つ。
     contract_sha256: Optional[str] = None
+    # floor sort_best 専用の runtime 診断。空の既定 caller は従来どおり。
+    fetchcontent_base_dir: str = ""
+    masstree_source_root_sha256: str = ""
 
     @property
     def bin_hash(self) -> str:
@@ -645,10 +661,156 @@ class BuildResult:
         return self.bin_sha256[:16]
 
 
+@dataclass(frozen=True)
+class MasstreeFetchContentPreparation:
+    fetchcontent_base_dir: str
+    build_dir: str
+    configure_argv: tuple[str, ...]
+    build_argv: tuple[str, ...]
+
+
 def _canonical_json_bytes(value: Any) -> bytes:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
     ).encode("utf-8")
+
+
+def _validate_fetchcontent_dependency_receipt(
+        receipt: Optional[Mapping[str, object]],
+) -> Optional[Dict[str, str]]:
+    if receipt is None:
+        return None
+    if not isinstance(receipt, Mapping) or set(receipt) != _FETCHCONTENT_RECEIPT_KEYS:
+        raise BuildCacheError("FetchContent dependency receipt の exact key 集合が不正")
+    normalized = {key: receipt[key] for key in sorted(_FETCHCONTENT_RECEIPT_KEYS)}
+    if (type(normalized["masstree_head"]) is not str
+            or re.fullmatch(r"[0-9a-f]{40}", normalized["masstree_head"]) is None):
+        raise BuildCacheError("FetchContent dependency receipt の masstree HEAD が不正")
+    for key in ("config_sha256", "archive_sha256"):
+        if not is_full_sha256(normalized[key]):
+            raise BuildCacheError(f"FetchContent dependency receipt の {key} が不正")
+    return normalized
+
+
+def _canonical_fetchcontent_base(value: object) -> str:
+    try:
+        raw = os.fspath(value)
+    except TypeError as exc:
+        raise BuildCacheError("FETCHCONTENT_BASE_DIR が path-like でない") from exc
+    if type(raw) is not str or not raw or "\0" in raw or not os.path.isabs(raw):
+        raise BuildCacheError("FETCHCONTENT_BASE_DIR は NUL なし絶対 path 必須")
+    if os.path.islink(raw) or not os.path.isdir(raw):
+        raise BuildCacheError("FETCHCONTENT_BASE_DIR は non-symlink directory 必須")
+    canonical = os.path.realpath(raw)
+    if canonical != os.path.abspath(raw):
+        raise BuildCacheError("FETCHCONTENT_BASE_DIR は canonical path 必須")
+    return canonical
+
+
+def _fetchcontent_git_environment() -> Dict[str, str]:
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("GIT_")
+    }
+    env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+    })
+    return env
+
+
+def _sha256_fetchcontent_file(path: str, *, label: str) -> str:
+    try:
+        info = os.lstat(path)
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise BuildCacheError(
+                f"FetchContent dependency {label} が non-symlink regular file でない"
+            )
+        digest = hashlib.sha256()
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(64 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise BuildCacheError(
+            f"FetchContent dependency {label} を再照合できない"
+        ) from exc
+    return digest.hexdigest()
+
+
+def _observe_fetchcontent_dependency_receipt(
+        fetchcontent_base_dir: str,
+) -> Dict[str, str]:
+    """completion publish 前に現在の masstree 内容 receipt を再取得する。"""
+    source_root = os.path.join(fetchcontent_base_dir, "masstree-src")
+    try:
+        info = os.lstat(source_root)
+        canonical_source = os.path.realpath(source_root)
+    except OSError as exc:
+        raise BuildCacheError(
+            "FetchContent dependency source root を再照合できない"
+        ) from exc
+    if (stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode)
+            or canonical_source != os.path.abspath(source_root)):
+        raise BuildCacheError(
+            "FetchContent dependency source root が canonical directory でない"
+        )
+    try:
+        completed = subprocess.run(
+            [
+                "git", "-c", "core.fsmonitor=", "-c", "core.hooksPath=",
+                "-c", "core.useReplaceRefs=false", "-C", canonical_source,
+                "rev-parse", "--show-toplevel", "--verify", "HEAD",
+            ],
+            env=_fetchcontent_git_environment(),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise BuildCacheError(
+            "FetchContent dependency HEAD を再照合できない"
+        ) from exc
+    lines = completed.stdout.splitlines()
+    if (completed.returncode != 0 or len(lines) != 2
+            or os.path.realpath(lines[0]) != canonical_source
+            or re.fullmatch(r"[0-9a-f]{40}", lines[1]) is None):
+        raise BuildCacheError(
+            "FetchContent dependency HEAD を一意に再取得できない"
+        )
+    return {
+        "masstree_head": lines[1],
+        "config_sha256": _sha256_fetchcontent_file(
+            os.path.join(canonical_source, "config.h"), label="config.h",
+        ),
+        "archive_sha256": _sha256_fetchcontent_file(
+            os.path.join(canonical_source, "libkohler_masstree_json.a"),
+            label="libkohler_masstree_json.a",
+        ),
+    }
+
+
+def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
+    """build 自身の CMakeCache から実効 masstree source root を一意に読む。"""
+    cache = os.path.join(build_dir, "CMakeCache.txt")
+    try:
+        info = os.lstat(cache)
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+            raise BuildCacheError("CMakeCache.txt が non-symlink regular file でない")
+        with open(cache, encoding="utf-8", errors="strict") as handle:
+            matches = []
+            for line in handle:
+                match = re.fullmatch(r"masstree_SOURCE_DIR(?::[^=\r\n]*)?=([^\r\n]+)\r?\n?", line)
+                if match is not None:
+                    matches.append(match.group(1))
+    except (OSError, UnicodeError) as exc:
+        raise BuildCacheError(f"CMakeCache.txt から masstree source root を読めない: {cache}") from exc
+    if len(matches) != 1 or not os.path.isabs(matches[0]) or "\0" in matches[0]:
+        raise BuildCacheError("CMakeCache.txt の masstree_SOURCE_DIR が一意な絶対 path でない")
+    return os.path.realpath(matches[0])
 
 
 def _tool_version(requested: str, role: str) -> Dict[str, str]:
@@ -752,6 +914,7 @@ def _v2_identity(
         cc: str, cxx: str, toolchain: Dict[str, Dict[str, str]],
         *, site: str, dependency_prefix: List[str],
         admission: Dict[str, Any],
+        fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     toolchain_sha256 = hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest()
@@ -767,6 +930,11 @@ def _v2_identity(
         "dependency_prefix": dependency_prefix,
         "admission": admission,
     }
+    receipt = _validate_fetchcontent_dependency_receipt(
+        fetchcontent_dependency_receipt,
+    )
+    if receipt is not None:
+        preimage["fetchcontent_dependency_receipt"] = receipt
     return preimage, hashlib.sha256(_canonical_json_bytes(preimage)).hexdigest()
 
 
@@ -921,7 +1089,7 @@ def _validate_v2_entry(
         contract_sha256: str, admission: Dict[str, Any],
         build_context: BuildRunContext, source_evidence: SourceEvidence,
         parent_fd: Optional[int] = None, bdir_name: Optional[str] = None,
-) -> tuple[str, str, int]:
+) -> tuple[str, str, int, str]:
     """完成 entry の host metadata と binary を held fd beneath-only で検証する。
 
     cache contract は ``binary + host-generated metadata`` である。旧実装が発行した
@@ -941,6 +1109,9 @@ def _validate_v2_entry(
             "schema_version", "completion_marker", "full_build_digest",
             "contract_sha256", "preimage", "toolchain", "binary", "admission",
         }
+        dependency_receipt = preimage.get("fetchcontent_dependency_receipt")
+        if dependency_receipt is not None:
+            expected_keys.add("fetchcontent_dependency")
         if set(manifest) != expected_keys:
             raise BuildCacheError(
                 f"v2 completion manifest field 集合が不一致: {manifest_path}: "
@@ -983,6 +1154,17 @@ def _validate_v2_entry(
         if hashlib.sha256(_canonical_json_bytes(toolchain)).hexdigest() != \
                 preimage["toolchain_manifest_sha256"]:
             raise BuildCacheError(f"v2 toolchain manifest sha256 不一致: {manifest_path}")
+        source_root_sha256 = ""
+        if dependency_receipt is not None:
+            dependency = manifest["fetchcontent_dependency"]
+            if (type(dependency) is not dict
+                    or set(dependency) != {"source_root_sha256", "source_subdir"}
+                    or dependency.get("source_subdir") != "masstree-src"
+                    or not is_full_sha256(dependency.get("source_root_sha256"))):
+                raise BuildCacheError(
+                    f"v2 FetchContent dependency manifest が不正: {manifest_path}"
+                )
+            source_root_sha256 = dependency["source_root_sha256"]
         binary_record = manifest["binary"]
         if type(binary_record) is not dict or set(binary_record) != {"relative_path", "sha256"}:
             raise BuildCacheError(f"v2 binary manifest の field 集合が不一致: {manifest_path}")
@@ -1002,7 +1184,7 @@ def _validate_v2_entry(
             )
         result_fd = binary_fd
         binary_fd = -1
-        return binary, binary_record["sha256"], result_fd
+        return binary, binary_record["sha256"], result_fd, source_root_sha256
     finally:
         try:
             _close_fds_best_effort([binary_fd, bdir_fd])
@@ -1077,6 +1259,7 @@ def _v2_commands(
         genome: Genome, trace: bool, sub: str, bdir: str,
         toolchain: Dict[str, Dict[str, str]], jobs: Optional[int] = None,
         *, site: Optional[str] = None, dependency_prefix: str = "",
+        fetchcontent_base_dir: str = "",
 ) -> tuple[List[str], List[str]]:
     resolved_jobs = _resolve_build_jobs(jobs, site)
     target = f"ycsb_{genome.protocol}.exe"
@@ -1084,12 +1267,29 @@ def _v2_commands(
     prefix_define = (
         [f"-DCMAKE_PREFIX_PATH={dependency_prefix}"] if dependency_prefix else []
     )
+    fetchcontent_define = (
+        [f"-DFETCHCONTENT_BASE_DIR={fetchcontent_base_dir}"]
+        if fetchcontent_base_dir else []
+    )
     configure = [
         toolchain["cmake"]["realpath"], "-S", sub, "-B", bdir,
         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
         f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
         f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
-    ] + prefix_define + defines
+    ] + prefix_define + fetchcontent_define + defines
+    if fetchcontent_base_dir:
+        if any(
+                token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
+                for token in configure):
+            raise BuildCacheError(
+                "FetchContent floor configure に SOURCE_DIR override がある"
+            )
+        if sum(
+                token.startswith("-DFETCHCONTENT_BASE_DIR=")
+                for token in configure) != 1:
+            raise BuildCacheError(
+                "FetchContent floor configure の BASE_DIR define 数が不正"
+            )
     build_cmd = [
         toolchain["cmake"]["realpath"], "--build", bdir,
         "--target", target, "-j", str(resolved_jobs),
@@ -1097,15 +1297,81 @@ def _v2_commands(
     return configure, build_cmd
 
 
+def prepare_masstree_fetchcontent(
+        *, ccbench_dir: str, fetchcontent_base_dir: str,
+        expected_toolchain_manifest: Mapping[str, object],
+        configure_timeout_s: int, target_timeout_s: int,
+        site: Optional[str] = None, dependency_prefix: str = "",
+) -> MasstreeFetchContentPreparation:
+    """floor oracle 前に共有 base の masstree target だけを一度 build する。"""
+    base = _canonical_fetchcontent_base(fetchcontent_base_dir)
+    if (type(ccbench_dir) is not str or not os.path.isabs(ccbench_dir)
+            or not os.path.isdir(ccbench_dir)):
+        raise BuildCacheError("masstree prebuild の CCBench root が実 absolute directory でない")
+    if (type(configure_timeout_s) is not int or configure_timeout_s <= 0
+            or type(target_timeout_s) is not int or target_timeout_s <= 0):
+        raise TypeError("masstree prebuild timeout は正整数必須")
+    toolchain, _versions = _split_expected_toolchain_manifest(
+        expected_toolchain_manifest,
+    )
+    resolved_site = _resolve_site(site)
+    resolved_prefix = ""
+    if dependency_prefix:
+        _elements, resolved_prefix = _canonical_explicit_dependency_prefix(
+            dependency_prefix,
+        )
+    build_dir = os.path.join(base, "izanagi-masstree-prebuild")
+    prefix_define = (
+        [f"-DCMAKE_PREFIX_PATH={resolved_prefix}"] if resolved_prefix else []
+    )
+    configure = [
+        toolchain["cmake"]["realpath"], "-S", os.path.realpath(ccbench_dir),
+        "-B", build_dir,
+        "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+        f"-DCMAKE_C_COMPILER={toolchain['cc']['realpath']}",
+        f"-DCMAKE_CXX_COMPILER={toolchain['cxx']['realpath']}",
+        f"-DFETCHCONTENT_BASE_DIR={base}",
+    ] + prefix_define
+    build_cmd = [
+        toolchain["cmake"]["realpath"], "--build", build_dir,
+        "--target", "masstree_build", "-j",
+        str(_resolve_build_jobs(None, resolved_site)),
+    ]
+    if any(token.startswith("-DFETCHCONTENT_SOURCE_DIR_") for token in configure):
+        raise BuildCacheError("masstree prebuild configure に SOURCE_DIR override がある")
+    if sum(token.startswith("-DFETCHCONTENT_BASE_DIR=") for token in configure) != 1:
+        raise BuildCacheError("masstree prebuild configure の BASE_DIR define 数が不正")
+    try:
+        _run(configure, "configure", timeout_s=configure_timeout_s, site=resolved_site)
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        raise MasstreeFetchContentError(
+            "configure", f"masstree FetchContent configure 失敗: {exc}",
+        ) from exc
+    try:
+        _run(build_cmd, "build", timeout_s=target_timeout_s, site=resolved_site)
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        raise MasstreeFetchContentError(
+            "target", f"masstree FetchContent target 失敗: {exc}",
+        ) from exc
+    return MasstreeFetchContentPreparation(
+        fetchcontent_base_dir=base,
+        build_dir=build_dir,
+        configure_argv=tuple(configure),
+        build_argv=tuple(build_cmd),
+    )
+
+
 def _v2_result(
         genome: Genome, trace: bool, binary: str, bin_sha256: str, bdir: str,
         cached: bool, sub: str, root: str,
         toolchain: Dict[str, Dict[str, str]], contract_sha256: str, site: str,
-        dependency_prefix: str,
+        dependency_prefix: str, fetchcontent_base_dir: str = "",
+        masstree_source_root_sha256: str = "",
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
         genome, trace, sub, bdir, toolchain, site=site,
         dependency_prefix=dependency_prefix,
+        fetchcontent_base_dir=fetchcontent_base_dir,
     )
     return BuildResult(
         genome=genome, trace=trace, binary=binary, bin_sha256=bin_sha256,
@@ -1114,6 +1380,8 @@ def _v2_result(
         configure_argv=tuple(configure), build_argv=tuple(build_cmd),
         cache_root=os.path.abspath(root), ccbench_root=os.path.abspath(sub),
         contract_sha256=contract_sha256,
+        fetchcontent_base_dir=fetchcontent_base_dir,
+        masstree_source_root_sha256=masstree_source_root_sha256,
     )
 
 
@@ -1236,6 +1504,8 @@ def build_v2(
         timeout_s: Optional[int] = None, site: Optional[str] = None,
         dependency_prefix: str = "",
         expected_toolchain_manifest: Optional[Mapping[str, object]] = None,
+        fetchcontent_base_dir: str = "",
+        fetchcontent_dependency_receipt: Optional[Mapping[str, object]] = None,
 ) -> BuildResult:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -1295,6 +1565,17 @@ def build_v2(
             "dependency_prefix は NUL を含まない str でなければならない: "
             f"{dependency_prefix!r}"
         )
+    dependency_receipt = _validate_fetchcontent_dependency_receipt(
+        fetchcontent_dependency_receipt,
+    )
+    if bool(fetchcontent_base_dir) != (dependency_receipt is not None):
+        raise BuildCacheError(
+            "FETCHCONTENT_BASE_DIR と dependency receipt は同時指定必須"
+        )
+    canonical_fetchcontent_base = (
+        _canonical_fetchcontent_base(fetchcontent_base_dir)
+        if fetchcontent_base_dir else ""
+    )
     try:
         root = os.fspath(cache_root)
     except TypeError as exc:
@@ -1344,6 +1625,7 @@ def build_v2(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
+        fetchcontent_dependency_receipt=dependency_receipt,
     )
     parent = os.path.join(root, "contracts", contract_sha256)
     bdir = os.path.join(parent, digest)
@@ -1361,7 +1643,7 @@ def build_v2(
                 f"v2 build claim が既に存在する: {claim} — build 中または stale; 手動回収が必要"
             )
         if _entry_lexists_at(parent_fd, bdir_name):
-            binary, bin_sha256, binary_fd = _validate_v2_entry(
+            binary, bin_sha256, binary_fd, masstree_source_root_sha256 = _validate_v2_entry(
                 bdir, preimage=preimage, digest=digest, toolchain=toolchain,
                 binary_relpath=binary_relpath, contract_sha256=contract_sha256,
                 admission=admission_identity,
@@ -1383,6 +1665,7 @@ def build_v2(
             return _v2_result(
                 genome, trace, binary, bin_sha256, bdir, True, sub, root, toolchain,
                 contract_sha256, resolved_site, configure_dependency_prefix,
+                canonical_fetchcontent_base, masstree_source_root_sha256,
             )
 
         nonce = secrets.token_hex(16)
@@ -1408,6 +1691,7 @@ def build_v2(
             configure, build_cmd = _v2_commands(
                 genome, trace, sub, staging, toolchain, site=resolved_site,
                 dependency_prefix=configure_dependency_prefix,
+                fetchcontent_base_dir=canonical_fetchcontent_base,
             )
             run_env = {}
             if configure_dependency_prefix:
@@ -1429,6 +1713,22 @@ def build_v2(
                     )
             except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
                 raise BuildError(f"v2 build 実行失敗 (staging={staging}): {exc}") from exc
+
+            masstree_source_root_sha256 = ""
+            if dependency_receipt is not None:
+                effective_root = _masstree_source_root_from_cmake_cache(staging)
+                masstree_source_root_sha256 = hashlib.sha256(
+                    effective_root.encode("utf-8")
+                ).hexdigest()
+                observed_dependency_receipt = (
+                    _observe_fetchcontent_dependency_receipt(
+                        canonical_fetchcontent_base,
+                    )
+                )
+                if observed_dependency_receipt != dependency_receipt:
+                    raise BuildCacheError(
+                        "FetchContent dependency 内容が build 中に変化した"
+                    )
 
             clean_fd, clean_identity = _mkdir_open_at(
                 parent_fd, clean_name, label="v2 clean publish candidate",
@@ -1465,6 +1765,11 @@ def build_v2(
                 "toolchain": toolchain,
                 "binary": {"relative_path": binary_relpath, "sha256": bin_sha256},
             }
+            if dependency_receipt is not None:
+                completion["fetchcontent_dependency"] = {
+                    "source_root_sha256": masstree_source_root_sha256,
+                    "source_subdir": "masstree-src",
+                }
             _write_fsynced_json_at(clean_fd, _V2_COMPLETION_MANIFEST, completion)
             copied.fsync_directories()
             os.fsync(clean_fd)
@@ -1506,6 +1811,7 @@ def build_v2(
         return _v2_result(
             genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
             contract_sha256, resolved_site, configure_dependency_prefix,
+            canonical_fetchcontent_base, masstree_source_root_sha256,
         )
     finally:
         os.close(parent_fd)
