@@ -20,7 +20,7 @@ _SUBMODULE_GIT = Path("external/ccbench/.git")
 _HANDOFF_DIR = Path("docs/handoff")
 _MAIN_REF = "refs/heads/main"
 _READ_ONLY_GIT_SUBCOMMANDS = frozenset(
-    {"rev-list", "rev-parse", "status", "symbolic-ref"}
+    {"ls-files", "rev-list", "rev-parse", "status", "symbolic-ref"}
 )
 _ALLOWED_GIT_ENV = frozenset({"GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT"})
 
@@ -44,8 +44,7 @@ def _git_env() -> dict[str, str]:
     return env
 
 
-def _git(repo: Path, *args: str) -> GitResult:
-    """許可した読み取り専用 git command だけを、optional lock 無しで実行する。"""
+def _run_git(repo: Path, *args: str, strip_stdout: bool) -> GitResult:
     if not args or args[0] not in _READ_ONLY_GIT_SUBCOMMANDS:
         raise ValueError(f"mutating or unknown git subcommand is forbidden: {args!r}")
     try:
@@ -68,7 +67,18 @@ def _git(repo: Path, *args: str) -> GitResult:
         )
     except OSError as exc:
         return GitResult(127, "", str(exc))
-    return GitResult(completed.returncode, completed.stdout.strip(), completed.stderr.strip())
+    stdout = completed.stdout.strip() if strip_stdout else completed.stdout
+    return GitResult(completed.returncode, stdout, completed.stderr.strip())
+
+
+def _git(repo: Path, *args: str) -> GitResult:
+    """許可した読み取り専用 git command だけを、optional lock 無しで実行する。"""
+    return _run_git(repo, *args, strip_stdout=True)
+
+
+def _git_raw(repo: Path, *args: str) -> GitResult:
+    """NUL 区切りを壊さず、許可した読み取り専用 git command を実行する。"""
+    return _run_git(repo, *args, strip_stdout=False)
 
 
 def _one_line(text: str) -> str:
@@ -223,22 +233,138 @@ def _check_submodule_marker(repo: Path) -> list[str]:
         "submodule is not initialized "
         f"({_SUBMODULE_MARKER} must be a non-symlink regular file and "
         f"{_SUBMODULE_GIT} must exist without being a symlink): "
-        "親セッションで submodule を初期化する"
+        "検査対象の worktree root で git -c protocol.file.allow=always "
+        "submodule update --init を実行し再検査する"
     ]
 
 
 def _check_worktree_handoff(repo: Path) -> list[str]:
+    """main との内容一致は check_repository の先行 clean-tree gate と連言で保証する。
+
+    clean/smudge filter や EOL 変換がある path では raw bytes の一致までは含意しない。
+    """
+    tracked = _git_raw(
+        repo,
+        "ls-files",
+        "-v",
+        "--stage",
+        "-z",
+        "--",
+        _HANDOFF_DIR.as_posix(),
+    )
+    if tracked.returncode != 0:
+        return [_git_failure("worktree handoff index", tracked)]
+    if tracked.stdout and not tracked.stdout.endswith("\0"):
+        return [
+            "worktree handoff index: git ls-files -v --stage -z の出力が "
+            "NUL 終端でない: repository を確認する"
+        ]
+
+    direct_records: dict[str, tuple[str, str, str, str] | None] = {}
+    records = tracked.stdout[:-1].split("\0") if tracked.stdout else []
+    for record in records:
+        index_metadata, separator, relative_path = record.partition("\t")
+        fields = index_metadata.split()
+        if not separator or len(fields) != 4 or not relative_path:
+            return [
+                "worktree handoff index: git ls-files -v --stage -z の record を"
+                "解釈できない: repository を確認する"
+            ]
+        tag, mode, object_id, stage = fields
+        index_path = Path(relative_path)
+        if relative_path != _HANDOFF_DIR.as_posix() and index_path.parent != _HANDOFF_DIR:
+            continue
+        if relative_path in direct_records:
+            direct_records[relative_path] = None
+        else:
+            direct_records[relative_path] = (tag, mode, object_id, stage)
+
+    root_record = _HANDOFF_DIR.as_posix() in direct_records
+    index_failures: list[str] = []
+    accepted_names: set[str] = set()
+    for relative_path, metadata in direct_records.items():
+        if metadata is None:
+            index_failures.append(
+                "worktree handoff index contains duplicate path "
+                f"({relative_path}): 重複 record を解消する"
+            )
+            continue
+        if relative_path == _HANDOFF_DIR.as_posix():
+            continue
+        tag, mode, object_id, stage = metadata
+        record_failures: list[str] = []
+        if tag != "H":
+            record_failures.append(
+                "worktree handoff index tag is not H "
+                f"({relative_path}: {tag}): assume-unchanged / skip-worktree 等の flag を解除する"
+            )
+        if stage != "0":
+            record_failures.append(
+                "worktree handoff index stage is not 0 "
+                f"({relative_path}: {stage}): 未 merge の index record を解消する"
+            )
+        if mode not in {"100644", "100755"}:
+            record_failures.append(
+                "worktree handoff index mode is not 100644/100755 "
+                f"({relative_path}: {mode}): regular file mode に修復する"
+            )
+        if record_failures:
+            index_failures.extend(record_failures)
+            continue
+        main_entry = _git(
+            repo,
+            "rev-parse",
+            "--verify",
+            f"{_MAIN_REF}:{relative_path}",
+        )
+        if main_entry.returncode != 0:
+            index_failures.append(
+                "worktree handoff index entry is absent from main "
+                f"({relative_path}): main に land してから再検査する"
+            )
+        elif main_entry.stdout != object_id:
+            index_failures.append(
+                "worktree handoff index OID differs from main "
+                f"({relative_path}): index を main と同じ内容へ戻す"
+            )
+        else:
+            accepted_names.add(Path(relative_path).name)
+
+    root_record_failure = (
+        f"worktree handoff index contains {_HANDOFF_DIR} itself: "
+        "gitlink 等の root entry を除去する"
+    )
+
     handoff = repo / _HANDOFF_DIR
     try:
         metadata = handoff.lstat()
     except FileNotFoundError:
-        return []
+        if root_record:
+            index_failures.append(root_record_failure)
+        return index_failures
     except OSError as exc:
-        return [f"{_HANDOFF_DIR} を検査できない ({exc}): handoff path を修復する"]
+        filesystem_failure = (
+            f"{_HANDOFF_DIR} を検査できない ({exc}): handoff path を修復する"
+        )
+        if root_record:
+            index_failures.append(root_record_failure)
+        return [filesystem_failure, *index_failures]
     if stat.S_ISLNK(metadata.st_mode):
-        return [f"{_HANDOFF_DIR} is a symlink: worktree 内の symlink を除去する"]
+        filesystem_failure = f"{_HANDOFF_DIR} is a symlink: worktree 内の symlink を除去する"
+        if root_record:
+            index_failures.append(root_record_failure)
+        return [filesystem_failure, *index_failures]
     if not stat.S_ISDIR(metadata.st_mode):
-        return [f"{_HANDOFF_DIR} is not a directory: worktree 内の handoff path を修復する"]
+        filesystem_failure = (
+            f"{_HANDOFF_DIR} is not a directory: worktree 内の handoff path を修復する"
+        )
+        if root_record:
+            index_failures.append(root_record_failure)
+        return [filesystem_failure, *index_failures]
+    if root_record:
+        index_failures.append(root_record_failure)
+    if index_failures:
+        return index_failures
     leftovers: list[str] = []
     try:
         entries = list(handoff.iterdir())
@@ -250,7 +376,7 @@ def _check_worktree_handoff(repo: Path) -> list[str]:
         except OSError:
             leftovers.append(path.name)
             continue
-        if path.name != "README.md" or not stat.S_ISREG(entry_metadata.st_mode):
+        if not stat.S_ISREG(entry_metadata.st_mode) or path.name not in accepted_names:
             leftovers.append(path.name)
     leftovers.sort()
     if not leftovers:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import ast
 import base64
+import copy
 import contextlib
 import dataclasses
 import gc
@@ -37,6 +38,7 @@ from orchestrator.campaign import s8b_prediction_runner as S
 from orchestrator.campaign import wal
 from orchestrator.campaign.claude_projected_provider import ClaudeProjectedRoleProvider
 from orchestrator.campaign.s8b_prediction_runner import PredictionRunnerError
+from orchestrator.campaign.s8c_generation_projection import PayloadValidationError
 from orchestrator.campaign.reflux_ir import RefluxIRError, emit_predicate
 from orchestrator.critic.digest import DiffQuarantineRejection
 from orchestrator.calibrator import runner as calibrator_runner
@@ -107,6 +109,9 @@ def _exploratory_scope(trial_id: str, workloads: list[str]):
 
 
 def _run_workload_with_scope(**kwargs):
+    kwargs.setdefault(
+        "gating_spec_snapshot", A.snapshot_gating_spec(A.GATING_SPEC),
+    )
     with _exploratory_scope(kwargs["trial_id"], [kwargs["workload"]]):
         return A._run_workload(**kwargs)
 
@@ -121,6 +126,16 @@ def _fake_drive(
     assert perf.workload == cfg.search_config["ycsb"]
     assert auditor.diff_digest == hashlib.sha256(b"fixture diff").hexdigest()
     Path(layout.root).mkdir(parents=True, exist_ok=True)
+    state = A.loop_core.load_loop_state(layout) or A.loop_core.LoopState()
+    state.iteration += 1
+    state.whiteboard.append(A.loop_core.WhiteboardEntry(
+        iteration=state.iteration,
+        direction=planner.direction,
+        magnitude=planner.magnitude,
+        result="success",
+        delta_pct=None,
+    ))
+    A.loop_core.save_loop_state(layout, state)
     return {
         "outcome": "dry-pass",
         "variant": None,
@@ -208,6 +223,24 @@ def _write_admitted_rejection_digest(cfg, layout, coder) -> str:
     return variant
 
 
+def _drive_with_raw_identity_digest(
+    cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+    cache_root="", proposal_path="", extra_sources=(),
+):
+    assert do_build is False
+    variant = _write_admitted_rejection_digest(cfg, layout, coder)
+    return {
+        "outcome": "rejected",
+        "variant": variant,
+        "verdict": "auditor-pass",
+        "stop_reason": "continue",
+        "iteration": 1,
+        "ran": True,
+        "trigger_gate_binding_commitment": "b" * 64,
+        "critic_digest_generated": True,
+    }
+
+
 def _fake_drive_with_finite_metrics(
     cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
     cache_root="", proposal_path="", extra_sources=(),
@@ -240,7 +273,7 @@ def _fake_drive_with_finite_metrics(
                 }
             }
         },
-        "critic_digest_generated": True,
+        "critic_digest_generated": False,
     })
     return outcome
 
@@ -455,6 +488,7 @@ def _assert_workload_campaign_uses_site_contract(
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "critic_digest_generated": False,
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
@@ -661,8 +695,9 @@ def test_preview_uses_canonical_emitter(tmp_path, monkeypatch) -> None:
 
 def test_generation_budget_boundary_at_ratified_launch() -> None:
     A._validate_generation_budget(1)
+    A._validate_generation_budget(2)
     with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
-        A._validate_generation_budget(2)
+        A._validate_generation_budget(3)
 
 
 def test_generation_budget_rejects_bool() -> None:
@@ -690,6 +725,16 @@ def test_generation_budget_rejects_below_minimum() -> None:
 def test_generation_budget_rejects_non_int_float() -> None:
     with pytest.raises(A.AutonomousTrialError):
         A._validate_generation_budget(1.0)
+
+
+def test_generation_budget_absolute_upper_bound_rejects_eleven(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        A, "MAX_APPROVED_GENERATIONS", A.MAX_GENERATIONS + 1,
+    )
+    with pytest.raises(A.AutonomousTrialError, match="1..10 必須"):
+        A._validate_generation_budget(11)
 
 
 def test_metric_projection_uses_ratio_keys_and_units() -> None:
@@ -908,7 +953,15 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         allow_unregistered_exploratory=True,
     )
     assert report["status"] == "complete"
-    assert report["schema_version"] == "p3-autonomous-workload-trial-report/v2"
+    assert report["schema_version"] == "p3-autonomous-workload-trial-report/v3"
+    assert report["generation_driver"] == {
+        "wrapper": "s8c-generation/v1",
+        "delegate": "caller-injected-unsupported",
+    }
+    assert report["honest_accounting"] == {
+        "role_query_count": 12,
+        "bench_wall_seconds": 0.0,
+    }
     assert report["stop_policy"]["performance_early_stop"] is False
     assert report["claim_scope"]["scientific_claim"] is False
     ratios = [
@@ -1647,6 +1700,13 @@ def test_invalid_role_is_single_attempt_and_stops_cell(tmp_path, monkeypatch) ->
     assert cell["generations"][0]["roles"]["planner"]["attempt"] == 1
     assert cell["generations"][0]["roles"]["planner"]["retry"] is False
     assert cell["generations"][0]["roles"]["planner"]["status"] == "invalid"
+    assert cell["generations"][0]["roles"]["planner"][
+        "role_query_ordinal"
+    ] == 1
+    assert report["honest_accounting"] == {
+        "role_query_count": 1,
+        "bench_wall_seconds": 0.0,
+    }
     assert planner.calls == 1
 
 
@@ -1656,7 +1716,7 @@ def test_run_trial_rejects_unapproved_budget_before_artifact_creation(tmp_path) 
         A.run_trial(
             trial_id="unapproved-programmatic-budget",
             workloads=["ycsb-a"],
-            generations=2,
+            generations=3,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -1727,6 +1787,7 @@ def test_run_workload_direct_call_without_sealed_scope_is_rejected(
             journal=_Poison(), run_root=tmp_path / "run", sub="/unused",
             do_build=True, cache_root="", trial_id="compute-direct-rejected",
             started_monotonic=time.monotonic(), max_wall_s=60,
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
     assert not (tmp_path / "run").exists()
 
@@ -1754,6 +1815,7 @@ def test_public_run_trial_scope_preserves_t276_worker_gate(
             started_monotonic=kwargs["started_monotonic"],
             max_wall_s=60,
             build_context=kwargs["build_context"],
+            gating_spec_snapshot=kwargs["gating_spec_snapshot"],
         )
 
     monkeypatch.setattr(A, "_finish_trial", exercise_worker)
@@ -1794,6 +1856,7 @@ def test_finish_trial_direct_compute_build_rejects_before_provider(
                 fatal_error=None,
                 transport_receipt=None,
                 launch_admission=admission,
+                gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
             )
     assert not (tmp_path / "run").exists()
 
@@ -1832,6 +1895,7 @@ def test_finish_trial_rejects_copied_seal_from_different_admission(
                 fatal_error={"type": "Fixture", "message": "stop"},
                 transport_receipt=None,
                 launch_admission=copied,
+                gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
             )
 
 
@@ -1943,7 +2007,7 @@ def test_run_workload_direct_call_rejects_unapproved_budget(tmp_path) -> None:
     with pytest.raises(A.AutonomousTrialError, match="承認済み上限"):
         _run_workload_with_scope(
             workload="ycsb-a",
-            generations=2,
+            generations=3,
             providers={},
             journal=SimpleNamespace(),
             run_root=tmp_path / "run",
@@ -1984,6 +2048,7 @@ def test_run_workload_rejects_existing_campaign_state(tmp_path, monkeypatch) -> 
             started_monotonic=time.monotonic(),
             max_wall_s=60,
             build_context=_no_build_context(),
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
 
@@ -2053,6 +2118,7 @@ def test_run_workload_rejects_actual_existing_campaign_state(tmp_path) -> None:
             started_monotonic=time.monotonic(),
             max_wall_s=60,
             build_context=_no_build_context(),
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
 
@@ -2133,6 +2199,7 @@ def test_run_workload_build_passes_exploration_layout_to_trigger(
             "stop_reason": "continue",
             "iteration": 1,
             "ran": True,
+            "critic_digest_generated": False,
             "trigger_gate_binding_commitment": "b" * 64,
         }
 
@@ -2532,6 +2599,20 @@ def test_pending_critic_phase_sets_role_invalid_directly(tmp_path) -> None:
     def exercise(initial_stop_reason: str, label: str) -> dict[str, Any]:
         run_root = tmp_path / label
         (run_root / "raw").mkdir(parents=True)
+        journal = A.AttemptJournal(run_root / "attempts.jsonl")
+        accounting = A._new_generation_accounting(
+            workload="ycsb-a",
+            generation=1,
+            journal=journal,
+            generation_driver={
+                "wrapper": "s8c-generation/v1",
+                "delegate": "caller-injected-unsupported",
+            },
+            gating_spec_sha256=hashlib.sha256(
+                A.GATING_SPEC.encode("utf-8")
+            ).hexdigest(),
+            authority="excluded-caller-injected-unsupported",
+        )
         cell = {
             "workload": "ycsb-a",
             "campaign_root": str(run_root / "campaign"),
@@ -2557,12 +2638,15 @@ def test_pending_critic_phase_sets_role_invalid_directly(tmp_path) -> None:
                     "ipc": None,
                 },
                 "raw_variant": None,
+                "critic_digest_generated": False,
+                "critic_attempted": False,
+                "accounting": accounting,
             }],
         }
         A._run_pending_critics(
             cell,
             providers={"critic": _MalformedRecordingCritic()},
-            journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+            journal=journal,
             run_root=run_root,
             transport_receipt=None,
         )
@@ -2816,30 +2900,28 @@ def test_residual_pending_critics_block_report_publish(
     assert not (run_root / "report.json").exists()
 
 
-def test_multi_generation_deferred_critic_fails_closed(
+def test_two_generation_critic_feedback_precedes_next_planner(
     tmp_path, monkeypatch,
 ) -> None:
-    monkeypatch.setattr(A, "MAX_APPROVED_GENERATIONS", 2)
     providers = {
         role: _RecordingFixture(role)
         for role in ("planner", "coder", "auditor", "critic")
     }
     run_root = tmp_path / "run"
 
-    with pytest.raises(RuntimeError, match="journal role attempts"):
-        A.run_trial(
-            trial_id="multi-generation-deferred-critic",
-            workloads=["ycsb-a"],
-            generations=2,
-            provider_kind="fixture",
-            run_root=run_root,
-            sub="/unused",
-            do_build=False,
-            providers=providers,
-            drive=_fake_drive,
-            preview=_fake_preview,
-            allow_unregistered_exploratory=True,
-        )
+    report = A.run_trial(
+        trial_id="multi-generation-critic-feedback",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
 
     events = [
         json.loads(line)
@@ -2855,16 +2937,958 @@ def test_multi_generation_deferred_critic_fails_closed(
         (1, "planner"),
         (1, "coder"),
         (1, "auditor"),
+        (1, "critic"),
         (2, "planner"),
         (2, "coder"),
         (2, "auditor"),
-        (1, "critic"),
         (2, "critic"),
     ]
     assert [
         payload["generation"] for payload in providers["critic"].payloads
     ] == [1, 2]
-    assert not (run_root / "report.json").exists()
+    assert report["status"] == "complete"
+    assert "critic_feedback" not in providers["planner"].payloads[0]
+    feedback = providers["planner"].payloads[1]["critic_feedback"]
+    assert feedback["source_generation"] == 1
+    assert set(feedback) == {
+        "source_generation", "diagnostics", "uncertainty_present",
+        "reverse_recommended",
+    }
+    for payload in providers["planner"].payloads:
+        assert all(value is None for value in payload["current_perf"].values())
+        assert payload["leading_indicators"]["cache_miss_rate_pct"] is None
+        assert payload["leading_indicators"]["IPC_overall"] is None
+    for payload in providers["coder"].payloads:
+        assert all(value is None for value in payload["baseline"].values())
+    assert report["honest_accounting"] == {
+        "role_query_count": 8,
+        "bench_wall_seconds": 0.0,
+    }
+    assert (run_root / "report.json").is_file()
+
+
+def test_payload_validation_receipts_are_durable_in_journal_and_report(
+    tmp_path,
+) -> None:
+    run_root = tmp_path / "durable-validation-receipts"
+    report = A.run_trial(
+        trial_id="durable-validation-receipts",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive_with_finite_metrics,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    journal_roles = {
+        (event["generation"], event["role"]): event
+        for event in (
+            json.loads(line)
+            for line in (run_root / "attempts.jsonl").read_text(
+                encoding="utf-8"
+            ).splitlines()
+        )
+        if event["event"] == "role-attempt"
+    }
+    for generation in report["cells"][0]["generations"]:
+        for role in ("planner", "coder"):
+            event = generation["roles"][role]
+            receipt = event["payload_validation_receipt"]
+            assert receipt == journal_roles[(generation["generation"], role)][
+                "payload_validation_receipt"
+            ]
+            assert receipt["payload_sha256"] == event["input_payload_sha256"]
+            assert receipt["payload_allowlist_sha256"] == (
+                A.ROLE_PAYLOAD_ALLOWLIST_SHA256
+            )
+            assert receipt["safe_projection_sha256"] == hashlib.sha256(
+                A._canonical_json_bytes(receipt["safe_projection"])
+            ).hexdigest()
+            assert "fitness_tps" not in json.dumps(
+                receipt["safe_projection"], sort_keys=True,
+            )
+
+
+def test_two_generation_role_metric_snapshot_fields_are_byte_identical(
+    tmp_path, monkeypatch,
+) -> None:
+    expected_perf = {
+        "throughput_ops_sec": 12345.0,
+        "abort_rate_pct": 7.9,
+        "latency_ns": 456.0,
+        "llc_miss_rate": 0.124,
+        "ipc": 2.5,
+    }
+    expected_leading = {
+        "contention_level": "fixture-contention",
+        "cache_miss_rate_pct": 12.4,
+        "IPC_overall": 2.5,
+    }
+
+    def role_projection(current_metrics, *, contention_level):
+        return dict(expected_perf), dict(expected_leading)
+
+    monkeypatch.setattr(A, "_role_metric_payloads", role_projection)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="two-generation-role-metric-snapshot-bytes",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["status"] == "complete"
+    assert providers["planner"].payloads[0]["current_perf"] == expected_perf
+    assert providers["planner"].payloads[0][
+        "leading_indicators"
+    ] == expected_leading
+    assert providers["coder"].payloads[0]["baseline"] == expected_perf
+    for role, field in (
+        ("planner", "current_perf"),
+        ("planner", "leading_indicators"),
+        ("coder", "baseline"),
+    ):
+        first, second = providers[role].payloads
+        assert A._canonical_json_bytes(first[field]) == A._canonical_json_bytes(
+            second[field]
+        )
+
+
+def test_finite_generation_one_metrics_do_not_refresh_generation_two_payload(
+    tmp_path,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="finite-metrics-do-not-refresh-role-snapshot",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive_with_finite_metrics,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["cells"][0]["generations"][0]["harness"][
+        "fitness_tps"
+    ] == 12345.0
+    for payload in providers["planner"].payloads:
+        assert all(value is None for value in payload["current_perf"].values())
+        assert payload["leading_indicators"]["cache_miss_rate_pct"] is None
+        assert payload["leading_indicators"]["IPC_overall"] is None
+    for payload in providers["coder"].payloads:
+        assert all(value is None for value in payload["baseline"].values())
+
+
+@pytest.mark.parametrize(
+    ("anchor", "expected_message", "target_role"),
+    [
+        (
+            "_planner_current_perf_payload",
+            "payload.current_perf.throughput_ops_sec",
+            "planner",
+        ),
+        (
+            "_planner_leading_indicators_payload",
+            "payload.leading_indicators.cache_miss_rate_pct",
+            "planner",
+        ),
+        (
+            "_coder_baseline_payload",
+            "payload.baseline.throughput_ops_sec",
+            "coder",
+        ),
+    ],
+)
+def test_generation_updated_metric_reinsertion_fails_before_target_provider(
+    tmp_path, monkeypatch, anchor, expected_message, target_role,
+) -> None:
+    def reinsert_generation_metrics(
+        frozen, *, current_metrics, contention_level,
+    ):
+        del frozen
+        perf, leading = A._role_metric_payloads(
+            current_metrics, contention_level=contention_level,
+        )
+        return leading if "leading" in anchor else perf
+
+    monkeypatch.setattr(A, anchor, reinsert_generation_metrics)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / anchor
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    with pytest.raises(PayloadValidationError, match=expected_message):
+        _run_workload_with_scope(
+            workload="ycsb-a",
+            generations=2,
+            providers=providers,
+            journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id=f"metric-reinsertion-{target_role}-{anchor[-8:]}",
+            started_monotonic=time.monotonic(),
+            max_wall_s=60,
+            drive=_fake_drive_with_finite_metrics,
+            preview=_fake_preview,
+            build_context=_no_build_context(),
+        )
+    assert len(providers[target_role].payloads) == 1
+
+
+def test_allowed_whiteboard_origin_substitution_fails_before_planner(
+    tmp_path, monkeypatch,
+) -> None:
+    original = A._whiteboard
+    substituted = False
+
+    def substitute_once(layout):
+        nonlocal substituted
+        whiteboard = original(layout)
+        if whiteboard and not substituted:
+            substituted = True
+            changed = copy.deepcopy(whiteboard)
+            changed[0]["direction"] = (
+                "increase"
+                if changed[0]["direction"] != "increase"
+                else "decrease"
+            )
+            return changed
+        return whiteboard
+
+    monkeypatch.setattr(A, "_whiteboard", substitute_once)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / "whiteboard-origin-substitution"
+    run_root.mkdir()
+    for child in ("raw", "proposals"):
+        (run_root / child).mkdir()
+    with pytest.raises(PayloadValidationError, match="whiteboard.*外部期待値"):
+        _run_workload_with_scope(
+            workload="ycsb-a",
+            generations=2,
+            providers=providers,
+            journal=A.AttemptJournal(run_root / "attempts.jsonl"),
+            run_root=run_root,
+            sub="/unused",
+            do_build=False,
+            cache_root="",
+            trial_id="whiteboard-origin-substitution",
+            started_monotonic=time.monotonic(),
+            max_wall_s=60,
+            drive=_fake_drive,
+            preview=_fake_preview,
+            build_context=_no_build_context(),
+        )
+    assert substituted is True
+    assert len(providers["planner"].payloads) == 1
+
+
+def test_role_metric_payload_and_validation_projections_use_initial_state(
+    tmp_path, monkeypatch,
+) -> None:
+    calls = []
+    original = A._role_metric_payloads
+
+    def recording_projection(current_metrics, *, contention_level):
+        calls.append((dict(current_metrics), contention_level))
+        return original(current_metrics, contention_level=contention_level)
+
+    monkeypatch.setattr(A, "_role_metric_payloads", recording_projection)
+    report = A.run_trial(
+        trial_id="one-role-metric-snapshot-per-workload",
+        workloads=["ycsb-a", "ycsb-b"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive_with_finite_metrics,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["status"] == "complete"
+    assert len(calls) == 2
+    assert all(
+        all(value is None for value in metrics.values())
+        for metrics, _contention_level in calls
+    )
+
+
+def test_role_metric_payloads_do_not_alias_frozen_validator_expectations(
+    tmp_path, monkeypatch,
+) -> None:
+    planner_aliases = []
+    coder_aliases = []
+    original_planner_validator = A.validate_planner_payload
+    original_coder_validator = A.validate_coder_payload
+
+    def planner_validator(payload, **kwargs):
+        planner_aliases.append((
+            payload["current_perf"] is kwargs["expected_current_perf"],
+            payload["leading_indicators"]
+            is kwargs["expected_leading_indicators"],
+        ))
+        return original_planner_validator(payload, **kwargs)
+
+    def coder_validator(payload, **kwargs):
+        coder_aliases.append(
+            payload["baseline"] is kwargs["expected_baseline"]
+        )
+        return original_coder_validator(payload, **kwargs)
+
+    monkeypatch.setattr(A, "validate_planner_payload", planner_validator)
+    monkeypatch.setattr(A, "validate_coder_payload", coder_validator)
+    report = A.run_trial(
+        trial_id="role-metric-snapshot-no-alias",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive_with_finite_metrics,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["status"] == "complete"
+    assert planner_aliases == [(False, False), (False, False)]
+    assert coder_aliases == [False, False]
+
+
+def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(
+    tmp_path, monkeypatch,
+) -> None:
+    from orchestrator.campaign import patchharness
+
+    ccbench = tmp_path / "ccbench"
+    source = ccbench / A.trigger.SOURCE_REL
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        """// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating
+#if BACKOFF_TRIGGER_GATING
+  izanagi_gate_pass = true;
+#else
+  Backoff::backoff(FLAGS_clocks_per_us);
+#endif
+// EVOLVE-BLOCK-END silo-backoff-trigger-gating
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(A, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        A, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext(),
+    )
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="standard-drive-two-generation",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub=str(ccbench),
+        do_build=False,
+        providers=providers,
+        allow_unregistered_exploratory=True,
+    )
+    cell = report["cells"][0]
+    assert [
+        generation["harness"]["iteration"]
+        for generation in cell["generations"]
+    ] == [1, 2]
+    provenance = json.loads(
+        (
+            Path(cell["campaign_root"])
+            / "reports"
+            / A.trigger.PROVENANCE_BASENAME
+        ).read_text(encoding="utf-8")
+    )
+    assert sorted(provenance["entries"]) == ["1", "2"]
+    assert report["generation_driver"] == {
+        "wrapper": "s8c-generation/v1",
+        "delegate": "trigger.drive_iteration",
+    }
+    assert report["honest_accounting_authority"] == "supervisor-authoritative"
+
+
+def test_generation_one_payload_bytes_are_exactly_legacy_shape(tmp_path) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="generation-one-payload-bytes",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    cell = report["cells"][0]
+    common = {
+        "schema_version": "p3-autonomous-workload-trial/v3",
+        "pilot_scope": "exploratory-ycsb-abc",
+        "scientific_claim": False,
+        "workload": "ycsb-a",
+        "generation": 1,
+        "workload_descriptor": cell["descriptor"],
+        "descriptor_binding": cell["descriptor_binding"],
+        "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
+        "stop_policy": {
+            "performance_early_stop": False,
+            "generation_budget_is_fixed": True,
+        },
+    }
+    null_perf = {
+        "throughput_ops_sec": None,
+        "abort_rate_pct": None,
+        "latency_ns": None,
+        "llc_miss_rate": None,
+        "ipc": None,
+    }
+    expected_planner = {
+        **common,
+        "current_perf": null_perf,
+        "leading_indicators": {
+            "contention_level": cell["descriptor"]["contention"]["label"],
+            "cache_miss_rate_pct": None,
+            "IPC_overall": None,
+        },
+        "whiteboard": [],
+    }
+    assert providers["planner"].payload_bytes[0] == A._canonical_json_bytes(
+        expected_planner
+    )
+    assert "critic_feedback" not in expected_planner
+    expected_coder = {
+        **common,
+        "leakproof_context": (
+            "Use only this campaign's projected descriptor, metrics, planner direction, "
+            "and abstract whiteboard. No prior sweep winner, candidate ranking, or "
+            "unmeasured performance is available."
+        ),
+        "gating_spec": A.GATING_SPEC,
+        "planner_direction": {
+            "axis": "silo-backoff-trigger-gating",
+            "direction": "explore_both",
+            "magnitude": "small",
+        },
+        "baseline": null_perf,
+        "whiteboard": [],
+    }
+    assert providers["coder"].payload_bytes[0] == A._canonical_json_bytes(
+        expected_coder
+    )
+
+
+def test_generation_one_never_uses_intermediate_critic_projection(
+    tmp_path, monkeypatch,
+) -> None:
+    def forbidden_projection(*args, **kwargs):
+        pytest.fail("generation=1 reached intermediate critic projection")
+
+    monkeypatch.setattr(A, "apply_critic_feedback", forbidden_projection)
+    report = A.run_trial(
+        trial_id="generation-one-no-intermediate-critic",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+
+
+def test_role_payload_validators_are_immediately_before_provider_invoke_by_ast(
+) -> None:
+    tree = ast.parse(Path(A.__file__).read_text(encoding="utf-8"))
+    run_workload = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_run_workload"
+    )
+    body = next(
+        node.body
+        for node in ast.walk(run_workload)
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "generation"
+    )
+    for role, validator in (
+        ("planner", "validate_planner_payload"),
+        ("coder", "validate_coder_payload"),
+    ):
+        invoke_index = next(
+            index for index, statement in enumerate(body)
+            if isinstance(statement, ast.Assign)
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == "_invoke"
+            and any(
+                keyword.arg == "role"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value == role
+                for keyword in statement.value.keywords
+            )
+        )
+        prior = body[invoke_index - 1]
+        assert isinstance(prior, ast.Assign)
+        assert isinstance(prior.value, ast.Call)
+        assert isinstance(prior.value.func, ast.Name)
+        assert prior.value.func.id == validator
+
+
+def test_intermediate_critic_projection_failure_is_at_most_once(
+    tmp_path, monkeypatch,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+
+    def fail_after_critic(*args, **kwargs):
+        raise RuntimeError("fixture projection failure")
+
+    monkeypatch.setattr(A, "apply_critic_feedback", fail_after_critic)
+    report = A.run_trial(
+        trial_id="critic-projection-at-most-once",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "partial"
+    assert len(providers["critic"].payloads) == 1
+    assert report["honest_accounting"]["role_query_count"] == 4
+
+
+def test_pending_critic_reentry_is_blocked_by_attempt_flag_while_still_queued(
+    tmp_path,
+) -> None:
+    run_root = tmp_path / "critic-reentry"
+    (run_root / "raw").mkdir(parents=True)
+    journal = A.AttemptJournal(run_root / "attempts.jsonl")
+    accounting = A._new_generation_accounting(
+        workload="ycsb-a",
+        generation=1,
+        journal=journal,
+        generation_driver={
+            "wrapper": "s8c-generation/v1",
+            "delegate": "caller-injected-unsupported",
+        },
+        gating_spec_sha256=hashlib.sha256(
+            A.GATING_SPEC.encode("utf-8")
+        ).hexdigest(),
+        authority="excluded-caller-injected-unsupported",
+    )
+    cell = {
+        "workload": "ycsb-a",
+        "campaign_root": str(run_root / "campaign"),
+        "generations": [{"generation": 1, "roles": {}}],
+        "stop_reason": "fixed-generation-budget",
+        "_pending_critics": [{
+            "generation": 1,
+            "common": {
+                "generation": 1,
+                "descriptor_binding": {"output_sha256": "d" * 64},
+            },
+            "outcome": {
+                "outcome": "dry-pass",
+                "verdict": None,
+                "stop_reason": "continue",
+            },
+            "metrics": dict(A._INITIAL_ROLE_METRICS),
+            "raw_variant": None,
+            "critic_digest_generated": False,
+            "critic_attempted": False,
+            "accounting": accounting,
+        }],
+    }
+
+    class ReentrantCritic(A.FixtureRoleProvider):
+        def __init__(self):
+            super().__init__("critic")
+            self.calls = 0
+            self.reentry_error = None
+
+        def invoke(self, *, invocation_id, payload):
+            self.calls += 1
+            assert cell["_pending_critics"]
+            try:
+                A._run_one_pending_critic(
+                    cell,
+                    providers={"critic": self},
+                    journal=journal,
+                    run_root=run_root,
+                    transport_receipt=None,
+                )
+            except A.AutonomousTrialError as exc:
+                self.reentry_error = str(exc)
+            else:  # pragma: no cover - mutation must make this branch reachable
+                pytest.fail("reentrant critic was not rejected")
+            return super().invoke(invocation_id=invocation_id, payload=payload)
+
+    provider = ReentrantCritic()
+    critic = A._run_one_pending_critic(
+        cell,
+        providers={"critic": provider},
+        journal=journal,
+        run_root=run_root,
+        transport_receipt=None,
+    )
+    assert critic is not None
+    assert provider.calls == 1
+    assert provider.reentry_error == "pending critic の二重 attempt を拒否"
+    assert "_pending_critics" not in cell
+
+
+def test_duplicate_records_contribute_zero_current_attempt_bench() -> None:
+    assert A._bench_wall_seconds(
+        {
+            "outcome": "duplicate",
+            "ran": True,
+            "records": {"bench_done": {"bench_wall_s": 123.0}},
+        },
+        authoritative=True,
+    ) == 0.0
+
+
+def test_bench_accounting_uses_only_pipeline_bench_record() -> None:
+    assert A._bench_wall_seconds(
+        {
+            "outcome": "certified",
+            "ran": True,
+            "bench_wall_s": 999.0,
+            "records": {"bench_done": {"bench_wall_s": 7.5}},
+        },
+        authoritative=True,
+    ) == 7.5
+
+
+@pytest.mark.parametrize(
+    ("outcome", "ran", "authoritative"),
+    [
+        ("certified", True, False),
+        ("dry-pass", True, True),
+        ("rejected", True, True),
+        ("stopped-before", False, True),
+    ],
+)
+def test_non_authoritative_and_prebench_branches_account_zero(
+    outcome, ran, authoritative,
+) -> None:
+    assert A._bench_wall_seconds(
+        {
+            "outcome": outcome,
+            "ran": ran,
+            "records": {"bench_done": {"bench_wall_s": 7.5}},
+        },
+        authoritative=authoritative,
+    ) == 0.0
+
+
+def test_zero_work_wall_stop_accounts_before_terminal_event(
+    tmp_path, monkeypatch,
+) -> None:
+    ticks = iter((0.0, 0.0, 61.0))
+    monkeypatch.setattr(A.time, "monotonic", lambda: next(ticks, 61.0))
+    report = A.run_trial(
+        trial_id="zero-work-wall-accounting",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        max_wall_s=60,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    events = [
+        json.loads(line)
+        for line in (tmp_path / "run" / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert [event["event"] for event in events] == [
+        "run-start",
+        "supervisor-wall-budget",
+        "run-finish",
+    ]
+    assert events[1]["generation"] == 1
+    assert events[1]["zero_work"] is True
+    assert events[1]["role_query_count"] == 0
+    assert events[1]["bench_wall_seconds"] == 0.0
+    assert report["honest_accounting"] == {
+        "role_query_count": 0,
+        "bench_wall_seconds": 0.0,
+    }
+
+
+def test_stale_digest_is_not_reused_when_generation_reports_no_digest(
+    tmp_path,
+) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+
+    def stale_drive(*args, layout, **kwargs):
+        outcome = _fake_drive(*args, layout=layout, **kwargs)
+        Path(layout.root, A.trigger.DIGEST_BASENAME).write_text(
+            "stale-digest", encoding="utf-8",
+        )
+        return outcome
+
+    report = A.run_trial(
+        trial_id="stale-digest-not-reused",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=stale_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert providers["critic"].payloads[0]["critic_digest"] is None
+
+
+def test_intermediate_critic_digest_mismatch_fails_closed(tmp_path) -> None:
+    providers = {
+        role: (
+            _WireRecordingFixture(role, wire="00000")
+            if role == "coder"
+            else _RecordingFixture(role)
+        )
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="intermediate-critic-digest-mismatch",
+        workloads=["ycsb-a"],
+        generations=2,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_drive_with_raw_identity_digest,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    assert report["status"] == "partial"
+    assert report["fatal_error"] == {
+        "type": "AutonomousTrialError",
+        "message": "critic digest が admitted campaign の再計算値と一致しない",
+    }
+    assert providers["critic"].payloads == []
+
+
+def test_final_generation_critic_rebuilds_projected_digest(
+    tmp_path, monkeypatch,
+) -> None:
+    calls = []
+    original = A.loop_core.make_critic_digest
+
+    def recording_digest(*args, **kwargs):
+        calls.append(kwargs["identity_projection"])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(A.loop_core, "make_critic_digest", recording_digest)
+    providers = {
+        role: (
+            _WireRecordingFixture(role, wire="00000")
+            if role == "coder"
+            else _RecordingFixture(role)
+        )
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    report = A.run_trial(
+        trial_id="final-critic-rebuilt-projected-digest",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_drive_with_raw_identity_digest,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+
+    persisted = Path(
+        report["cells"][0]["campaign_root"], A.trigger.DIGEST_BASENAME,
+    ).read_text(encoding="utf-8")
+    critic_view = A.require_admitted_campaign(
+        report["cells"][0]["campaign_root"],
+        purpose=A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
+    identity_projection = A.loop_core.make_critic_identity_projection(
+        critic_view,
+    )
+    cfg = A.trigger.default_cfg(reflux=True)
+    rebuilt = original(
+        critic_view,
+        tag=A.trigger.CRITIC_TAG,
+        reflux=(cfg.search_config.get("reflux") == "on"),
+        identity_projection=identity_projection,
+    )
+    critic_payload = providers["critic"].payloads[0]
+    assert report["status"] == "complete"
+    assert len(calls) == 2
+    assert calls[0] is A.loop_core.IdentityProjection.RAW
+    assert critic_payload["harness_result"]["candidate_label"] == "candidate-0001"
+    assert critic_payload["critic_digest"] == rebuilt
+    assert critic_payload["critic_digest"] != persisted
+
+
+def test_generated_digest_must_exist_before_critic(tmp_path) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+
+    def missing_digest_drive(*args, **kwargs):
+        outcome = _fake_drive(*args, **kwargs)
+        outcome["critic_digest_generated"] = True
+        return outcome
+
+    report = A.run_trial(
+        trial_id="generated-digest-missing",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=missing_digest_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "partial"
+    assert report["fatal_error"]["type"] == "AutonomousTrialError"
+    assert providers["critic"].payloads == []
+    events = [
+        json.loads(line)
+        for line in (tmp_path / "run" / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    accounting_index = next(
+        index for index, event in enumerate(events)
+        if event["event"] == "generation-accounting"
+    )
+    terminal_index = next(
+        index for index, event in enumerate(events)
+        if event["event"] == "supervisor-error"
+    )
+    assert accounting_index < terminal_index
+    assert events[accounting_index]["state"] == "pending-pre-invoke-failure"
+    assert events[accounting_index]["provider_invoke_count"] == 3
+
+
+def test_all_workloads_share_one_gating_spec_snapshot(tmp_path, monkeypatch) -> None:
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    original = A.GATING_SPEC
+    calls = 0
+
+    def mutating_drive(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            monkeypatch.setattr(A, "GATING_SPEC", "mutated-after-run-snapshot")
+        return _fake_drive(*args, **kwargs)
+
+    report = A.run_trial(
+        trial_id="run-scope-gating-snapshot",
+        workloads=["ycsb-a", "ycsb-b"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "run",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=mutating_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert [payload["gating_spec"] for payload in providers["coder"].payloads] == [
+        original,
+        original,
+    ]
+    assert report["gating_spec_sha256"] == hashlib.sha256(
+        original.encode("utf-8")
+    ).hexdigest()
+
+
+def test_internal_trial_entries_require_exact_gating_spec_snapshot() -> None:
+    for entry in (A._finish_trial, A._run_workload):
+        parameter = inspect.signature(entry).parameters["gating_spec_snapshot"]
+        assert parameter.default is inspect.Parameter.empty
+        assert parameter.annotation in {
+            "GatingSpecSnapshot", A.GatingSpecSnapshot,
+        }
 
 
 def test_direct_run_workload_defers_critic_to_finish_trial(tmp_path) -> None:
@@ -2899,6 +3923,7 @@ def test_direct_run_workload_defers_critic_to_finish_trial(tmp_path) -> None:
     pending = result["_pending_critics"][0]
     assert set(pending) == {
         "generation", "common", "outcome", "metrics", "raw_variant",
+        "critic_digest_generated", "critic_attempted", "accounting",
     }
     assert pending == {
         "generation": 1,
@@ -2936,6 +3961,25 @@ def test_direct_run_workload_defers_critic_to_finish_trial(tmp_path) -> None:
             "ipc": None,
         },
         "raw_variant": None,
+        "critic_digest_generated": False,
+        "critic_attempted": False,
+        "accounting": {
+            "workload": "ycsb-a",
+            "generation": 1,
+            "state": "partial-generation",
+            "role_query_start": 0,
+            "auditor_pre_audit_skipped": False,
+            "bench_wall_seconds": 0.0,
+            "generation_driver": {
+                "wrapper": "s8c-generation/v1",
+                "delegate": "caller-injected-unsupported",
+            },
+            "gating_spec_sha256": hashlib.sha256(
+                A.GATING_SPEC.encode("utf-8")
+            ).hexdigest(),
+            "accounting_authority": "excluded-caller-injected-unsupported",
+            "finalized": False,
+        },
     }
     assert set(result["generations"][0]["roles"]) == {
         "planner", "coder", "auditor",
@@ -3240,7 +4284,7 @@ def test_main_rejects_unapproved_budget_before_build_preparation(
         A.main([
             "--trial-id", "unapproved-cli-budget",
             "--provider", "claude-headless",
-            "--max-generations", "2",
+            "--max-generations", "3",
             "--ccbench-dir", str(ccbench_dir),
             "--run-root", str(run_root),
         ])
@@ -4105,6 +5149,8 @@ def test_p9_exploratory_run_with_absent_registry_preserves_report_shape(
         "generation_budget_per_workload", "stop_policy", "claim_scope",
         "attempt_journal", "launch_admission", "cells",
         "attempt_journal_sha256",
+        "honest_accounting", "honest_accounting_authority",
+        "generation_driver", "gating_spec_sha256",
     }
     assert report["launch_admission"]["certifying"] is False
     assert _t325_run_start(run_root)["launch_admission"] == report["launch_admission"]
@@ -4429,6 +5475,7 @@ def test_registered_trial_id_direct_run_workload_requires_run_scope(
             started_monotonic=time.monotonic(),
             max_wall_s=60,
             build_context=_no_build_context(),
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
     assert not run_root.exists()
 
@@ -4455,6 +5502,7 @@ def test_direct_workload_rejects_registry_binding_without_run_scope(
                 started_monotonic=time.monotonic(),
                 max_wall_s=60,
                 build_context=_no_build_context(),
+                gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
             )
     finally:
         A._ACTIVE_TRIAL_BINDING.reset(token)
@@ -4990,7 +6038,10 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
             "schema_version": "fixture-generator-closure/v1",
             "generator_sha256": "a" * 64,
         },
-        terminal_operation_id="public-origin-terminal",
+        terminal_operation_id=(
+            "public-origin-terminal-"
+            + hashlib.sha256(str(tmp_path).encode("utf-8")).hexdigest()
+        ),
     )
     fresh_admission = A._trial_launch_admission(
         trial_manifest=registered.manifest_path,

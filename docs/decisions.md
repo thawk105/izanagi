@@ -16973,3 +16973,354 @@ gate 導入より前に起動された process も本契約の被覆外である
   含むときだけ拒否する) — 巻き添えが無く、狙った母集団だけを正確に落とせる。本 wave では
   実装しないが、rollout 被覆を閉じる案としては最も筋がよい。gate 導入 commit の sha は
   その commit を作る前には書けないため、2 段活性化が要る。設計裁定はユーザーへ返す。
+
+## D405. oracle verdict の封印は再導出と canonical 型厳密比較で行う (2026-08-15)
+
+**決定:** `judge_combined` は `VerifiedOracleVerdict` 封印 token だけを受理する。token は
+`verify_oracle_verdict` が (1) strict load、(2) `ReviewedSpec` exact type、(3) 両 sha256 が
+exact `str`、(4) manifest document の nested 値が plain JSON 型ちょうど、(5) schedule 射影、
+(6) manifest document の canonical hash 再導出照合、(7) manifest の `spec_sha256` と
+approved spec の束縛、(8) oracle の `manifest_sha256` と検証済み manifest の束縛、
+(9) observations からの `judge_oracle` 再導出、(10) 再導出結果と入力文書の canonical JSON
+**文字列**一致 をすべて通したときだけ発行する。token は発行時の document canonical hash を
+束縛し、`judge_combined` は plain 型と hash を再照合してから中身を取り出す。
+
+**理由:**
+- schema 名と manifest sha の照合だけでは、正しい公開 sha を転記した改竄 verdict が通る。
+  これは D304 が「公開 pin との比較は迂回者が転記すれば満たせる」と決めた型と同一である。
+  再導出まで行って初めて、単独の verdict 文書の改竄が閉じる。
+- 比較に dict 等値を使うと Python の `True == 1.0` が成立し、median を `true` へ差し替えた
+  verdict が一致と判定される。実測では、その verdict は下流の実数判定で拒否されるため
+  結論が成立から判定不能へ倒れる。canonical JSON 文字列比較はこの型混同を落とす。
+- 全文書 1 本の比較にすると、余剰 top-level key・malformed holdouts・別 schema は
+  すべて不一致として落ちる。個別 guard を並べると冗長 gate になり、変異の単一理由性が壊れる。
+- (6) は発行時と同じ canonical hash 関数を使うため、正当な token を誤って落とさない。
+
+**却下した選択肢:**
+- **manifest sha 束縛だけを足す** — 公開 sha を転記した semantic 改竄が残る。
+- **掲載だけの証拠 field を足す** — 恒真化であり、起票時に却下済み。
+- **observations 層にも封印 token 境界を新設する** — D304 がレポート層と判定層の間の
+  改竄防御まで広げる権威の設計判断として明示的に scope 外に置いている。
+
+## D406. 封印 token の信頼境界は反射操作の有無で引く (2026-08-15)
+
+**決定:** izanagi の封印 token (検証済み文書を表す型) が防ぐ範囲は、**通常の Python 操作で
+成立する迂回まで**とする。具体的には、発行済み token の内包 dict の item 代入、
+`str` / `dict` の subclass を作って渡すこと、duck typing で `.document` を持つ別 object を
+渡すことは**防ぐ**。`object.__setattr__` / `object.__new__` / `__closure__` 参照など
+**反射操作**を要する偽造は信頼境界外とし、防御を足さず docstring に明記する。
+
+**理由:**
+- 「in-process 偽造は信頼境界外」とだけ書くと範囲が曖昧で、通常の dict 代入だけで結論を
+  変えられる状態を「境界外だから仕方ない」と見逃す。実際にレビューはこの穴を突いた。
+- 反射操作まで防ごうとすると、封印は言語機能との軍拡になり、検査の維持費が
+  防いでいるリスクを上回る。境界を反射の有無で引くと、実装も docstring も一意に決まる。
+- 通常操作側は安価に閉じられる。発行時 hash の束縛、`type(x) is str`、
+  nested 値の plain JSON 型検査はいずれも数行で、それぞれ独立に入力を落とす。
+
+**却下した選択肢:**
+- **「in-process 偽造は境界外」だけを書いて何も足さない** — 通常の dict 代入で結論が
+  変わる状態が残る。
+- **document を再帰的に不変化する** — consumer が Mapping として読む前提を壊し、
+  既存の三値判定本体まで書き換えが波及する。
+
+## D407. acceptance-receipt 段の失敗は reason と判定観測値を必ず出す (2026-08-15)
+
+**決定:** `tools/dev_wave_wait.py` の `acceptance-receipt` 段の各失敗地点は、
+互いに一意な `receipt-*` の reason と、**その判定に実際に使った観測値**を
+`_attestation_detail` の `{"reason": ..., "observed": ...}` 形式で出す。
+出力は stderr の既存 `error:` 行へ `detail=` を足し、**加えて** stdout へ別接頭辞の 1 行を出す。
+判定条件・分岐・rc・stage 名・受理集合は変えない。失敗時の `raise` へ引数を足すだけとする。
+
+載せてよいのは判定に使った値だけとする。短絡で未評価だった条件は `null` を明示し、
+再評価して観測値を作らない。例外は**型名と整数 errno のみ**とし、例外メッセージ・`repr`・
+絶対 path・環境変数値・stdout 原像の hash は載せない。自由文字列は 256 bytes、
+serialized detail 全体は 2048 bytes で切り詰める。診断生成は例外を出さない構造にし、
+rc と stage を置換しない。
+
+cleanup の失敗が一次 outcome を置換するときは、**返す outcome の選択を変えずに**
+一次側の stage と detail を入れ子で保存する。
+
+テスト側の期待 reason / failure_kind は **production の定数を参照せず literal 文字列**で書く。
+両側が同じ定数を共有すると、reason の取り違えが同時に動いて緑のまま通るためである。
+
+**理由:**
+- 受入全走が完全に緑でも `stage=acceptance-receipt rc=70` だけが出て land できない事故で、
+  git 履歴・全 log・source を持つ親が約 14 の失敗地点のどれかを特定できなかった。
+  1 走 300 秒と受入 lease 1 枠が理由不明で捨てられ、影響は全 wave に及ぶ。
+- 診断の仕組み (`_Outcome.detail` / `_attestation_detail` / `_print_outcome`) は既存で、
+  隣の段は使っていた。欠けていたのはこの段が値を渡していないことだけだった。
+- 判定に使っていない値まで載せると、短絡で未評価だった式を評価することになり、
+  追加評価の例外が stage を変えうる。観測値は判定の写像に限る。
+- 診断を足す変更は「緩める」方向だけでなく「過剰に拒否する」方向にも壊れる。
+  受入証を書き終えた後の失敗は成功を覆してはならない。
+
+**却下した選択肢:**
+- stderr だけに出す — 確定裁定の文言は stdout であり、`2>&1` は特定 launcher の
+  リダイレクトであって stderr を stdout 契約に変えない。親が読み替えてはならない。
+- 失敗時に receipt を書いて診断を載せる — publish は成功経路にしかなく、新機構になる。
+- 失敗後に全条件を再評価して観測値を揃える — 短絡で未評価だった値を「判定に使った値」と
+  偽ることになり、追加評価の例外が rc と stage を置換する。
+- 入れ子保存で一次 detail の `observed` を落として stage と reason だけ残す —
+  出力は減るが、この決定が残そうとしている原因値そのものを失う。
+
+## D408. 非帰属 checker の dispatch 副作用は、清浄性検査の緩和ではなく受領証の即時削除で解く (2026-08-15)
+
+**決定:** probe worktree の清浄性検査 (`git status --porcelain=v1 --untracked-files=all
+--ignored=matching --ignore-submodules=none` が空 tree の sha256 と一致すること) は 1 bit も
+緩めない。checker 自身が投入した dispatch の受領証は、権威 stdout を読み終えた直後に、
+検証済み nonce directory・fallback receipt・exact `output/pegasus-dispatch` root の順で削除し、
+削除完了を fail-closed で検証する。root が空でなければ削除せず判定不能 (rc=2) で止める。
+再帰削除も glob も使わない。
+
+**理由:**
+- 除外案 (清浄性検査から dispatch 受領証 path を落とす) は、ignored な副作用の検出力を
+  そのぶん落とす。既存契約は rerun node が作った ignored file を必ず拒否することを要求しており、
+  path 単位の除外はこの防壁に穴を開ける。正しさゲートを緩める方向の変更であり採らない (規律 2)。
+- 外出し案 (受領証を probe worktree の外へ置く) は D216 が既に実測で却下している。
+  `.gitignore` の `output/pegasus-dispatch/` は末尾スラッシュ付きのため symlink を ignore せず、
+  clean gate に映る。producer 側の出力先を checker のために動かす影響面も広い。
+- 削除案は「作らせない」ではなく「作った直後に消す」なので、検出力を 1 bit も落とさずに済む。
+  異物があれば保持して止めるため、他者の成果物を巻き添えにもしない。
+- **実測で成立を確認した (2026-08-15、Pegasus)。** 合成 log 1 red = 78 秒 rc=1、
+  実受入 log 2 red = 155 秒 rc=1。いずれも実 dispatch (PBS request_id 実在) で受領証が
+  probe worktree 内へ書かれ、後続の清浄性検査を計 6 回すべて通過して判定へ到達した。
+  受領証が残っていれば必ずそこで判定不能になるため、この通過が削除の証拠である。
+  receipt の削除 path field は削除より前に組み立てられる自己申告なので根拠にしない。
+
+**主張の射程:** 不再現を実証したのは**正常な preferred / fallback child receipt 経路**に限る。
+告知が無い・非一意・child rc 不一致の経路は削除へ入る前に例外となり、root が空でなければ
+削除もしない。いずれも倒れる向きは判定不能であって受理集合は緩まないが、
+「残渣経路は存在しない」という主張はしない。
+
+**却下した選択肢:**
+- 清浄性検査から dispatch 受領証 path を除外する — 上記のとおり検出力を落とす。
+- 受領証を probe worktree の外へ出す — D216 の実測却下と同じ面。
+- checker が作った ignored file を一括削除する — bytecode 等まで巻き込み、
+  rerun node の副作用を検出する既存防壁を壊す。bytecode 側は producer の env allowlist で
+  「作らせない」向きに解決済みであり、削除で解いてはならない。
+
+## D409. 起動検査の handoff 受理条件は index 登録でなく main provenance にする (2026-08-15)
+
+**決定:** `tools/check_wave_startup.py` の `_check_worktree_handoff` は、`docs/handoff` 直下の
+entry を次の連言を満たすときだけ通す。
+
+1. index record の tag が `H` (assume-unchanged / skip-worktree 等の flag が付いていない)
+2. stage が `0` (未 merge でない)
+3. index mode が `100644` または `100755`
+4. `refs/heads/main:<path>` が解決でき、その OID が index の OID と一致する
+5. worktree の entry が regular file である
+
+条件を満たさない直下 index record は、worktree に同名 entry が無くてもそれ自体を failure にする。
+述語ごとに別の診断文字列を出す。`README.md` の名前による無条件例外は廃止し、同じ規則で判定する。
+
+**理由:**
+
+- 裁定文の「tracked file を foreign control-plane として通す」の *foreign* は、land が
+  `docs/handoff` 直下の削除を rc=21 で拒んで守っている対象、すなわち main が持つ file を指す。
+  自 wave が自 branch へ commit した handoff は foreign ではない。
+- index 登録だけを条件にすると `git add docs/handoff/x.md && git commit` の 1 手で起動 gate を
+  黙らせられる。正しさゲートを 1 コマンドで迂回できる形は絶対規律 2 が禁じている。
+- 不適格 record を「受理候補から外す」だけにすると、`git update-index --skip-worktree` で
+  worktree から file を消したときにその index 状態がどこにも現れず、集約経路でも rc=0 になる。
+  拒否を failure として保持することでこの経路が閉じる。
+- 述語ごとに独立した failure を出すことで、mode / stage / tag の各検査が後続の `rev-parse` の
+  成否に依存せず単独で発火する。これは検出力の問題でもある — 分類前の実装では、
+  これらの述語を無効化する変異が後続検査に隠れて生存した。
+
+**却下した選択肢:**
+
+- **index 登録だけを条件にする (裁定文の literal)** — 上記の 1 手迂回が残る。
+  狭める方向の逸脱なので実装したうえで、literal が意図だった場合の緩和方法を裁定へ返す。
+- **`git status` から untracked を引いて判定する** — 未知の XY 状態・ignored・rename record を
+  「tracked」と誤読する fail-open になりやすい。「tracked である」を肯定的に測るほうが安全。
+- **worktree の raw bytes を blob hash して main と照合する** — clean/smudge filter や EOL 変換の
+  ある path では clean-tree との連言が raw bytes 一致を含意しない、という指摘は正しい。
+  ただし対象 path に filter が適用されないことを `git check-attr` で実測したうえで、
+  checker の出力がいかなる成果物の provenance にも記録されないため成果物影響を書けないと判断した。
+  残存限界として docstring と台帳に明記する。
+- **main 側 mode も検査する** — `ls-tree` を read-only subcommand allowlist へ足す必要があり、
+  防壁を 1 つ狭めるために別の面を広げる取引になる。成立条件 (main が symlink、worktree が
+  同一 bytes の regular file、両者とも commit 済み) も極めて限定的である。
+- **`README.md` の名前例外を残す** — untracked な `README.md` を無条件で通すため、
+  「untracked は拒否」という不変条件に穴が残る。名前例外を廃止すると規則が 1 本になり、
+  main が持つ `README.md` は provenance 条件で自然に通る。
+
+## D410. 8c の世代間還流は key 集合を保ったまま更新経路を断ち、診断値だけを supervisor が機械射影して運ぶ (2026-08-15)
+
+**背景:** 2026-08-13 のユーザー裁定は「世代間で運んでよいものは descriptor + abstract whiteboard +
+critic 二層射影 (勝ち筋の値は落とし診断数値は保持、recommend 除外) に限る」と閉じた列挙をし、
+許可の根拠を「人間ループが世代間で運んでいたものと同じだから」に置いた。D114 の承認上限 1 を 2 へ上げる。
+
+**決定 (1): `current_perf` / `leading_indicators` / `baseline` の key と shape を全世代で維持し、
+世代を跨ぐ更新経路だけを断つ。** `_role_metric_payloads` は workload あたり 1 回だけ、初期 metrics
+定数で呼び、結果を deep copy で凍結する。全世代の payload はその凍結 snapshot から組み立てる。
+段 3 のレンズ A は閉列挙を優先して 3 field の削除を支持し、レンズ B は削除が世代 1 の payload bytes を
+変えて D121 P8 と規律 2 を破ると判定した。**両方 real であり、本決定は第三の形でどちらも満たす** —
+世代 1 の payload bytes は base と byte 単位で一致し (planner 1146 bytes / coder 1729 bytes、SHA 一致を実測)、
+世代 N の測定値が世代 N+1 へ渡る非白名単経路は消える。
+
+**決定 (2): critic の自由文は第二層へ 1 byte も通さない。診断値は supervisor が source metrics から
+canonical に再構築する。** critic に metric を選ばせない。運ぶのは (i) 固定順の診断 4 値
+(`abort_rate` / `latency_ns` / `llc_miss_rate` / `ipc`)、(ii) `uncertainty` の非空 bool、
+(iii) `reverse_recommended` の bool、(iv) source generation 番号だけである。
+`recommend` と `avoid` は完全除外する (`avoid` は負の recommendation なので同格に扱う)。
+`throughput_ops_sec` は射影対象から構造的に外す。段 3 のレンズ A が指摘したとおり、
+critic に metric の有無を選ばせると 4 bit + 1 bit の隠しチャネルが残るため、選択権を渡さない。
+自然文への正規表現適用は採らない (言い換えと数値表現で漏れる)。
+
+**決定 (3): validator の期待値は payload と別経路で導出する。** 段 6 の敵対レビュー 2 本が独立に
+「caller が payload と期待値へ同じ実体を渡すため、両方書き換えれば通る」= **恒真** と判定した。
+凍結 snapshot の deep copy を期待値として渡し、payload 側とは object を共有しない。
+whiteboard origin も payload と別に authoritative state から再構成する。
+`None` の hardcode は採らない — 既存 pre-wave テストが目印値の疎通を exact 比較で証明しており
+(F69 が推奨する形)、hardcode するとその検出力が消えるためである。
+
+**決定 (4): validator 通過は sealed receipt として durable に残し、completeness が独立再検証する。**
+receipt は canonical payload SHA-256、allowlist digest、固定 literal・nested key・metric nullness・
+whiteboard origin・critic projection の安全な射影とその SHA、seal を封印する。
+completeness は production validator を呼ばず独自定数で再計算する。
+これが無いと validator 呼出しを 1 行消しても journal / report の自己整合だけで通る。
+
+**決定 (5): 正直な計数は「数えて出す」だけとし、停止 gate を作らない。**
+`role_query_count` は `provider.invoke` の呼出し回数と定義する (外部 query 数と混同しない)。
+auditor の pre-audit skip は呼んでいないので数えない。duplicate record の bench は current-attempt 0。
+bench は pipeline の `bench_wall_s` を唯一の値源とする。注入 delegate の走行は accounting の
+権威から除外する。**上限で止める gate・警告 threshold・性能早期停止は 1 つも足さない** —
+予算値が未確定なので、止める値を機械側が決めると未裁定の受理集合変更になる。
+
+**決定 (6): `SCHEMA_VERSION` (role payload 共用) は bump せず、`REPORT_SCHEMA_VERSION` だけ上げる。**
+D217 が schema bump を却下した理由 (全 role の payload bytes と hash が変わり旧 artifact が
+verifier と台帳の受理集合から外れる) がそのまま効く。report schema は role payload に入らない。
+
+**保証の限界 (これ以上を主張しない):**
+- **「人間ループと同一」とは名乗らない。** 運ぶのは人間ループが運んだものの**部分集合**である。
+- `reverse_recommended` の 1 bit と診断 4 値は**明示的に許可された情報**であり、ゼロ漏洩は名乗らない。
+- planner→coder の 3 field は構造上維持されるが**意味的な非干渉ではない**。
+  direction 3 値 × magnitude 3 値の 9 記号で順位を符号化できる。保証は「3 field 以外を渡さない」に限る。
+- `run_trial(drive=/providers=/preview=)` の注入 seam と `drive_iteration()` の直接反復は
+  D114 のとおり**保証対象外**のままである。本決定は report 上で区別し、accounting の権威から
+  除外するだけで、seam を閉じてはいない。
+- P9 の一般閉包は行っていない。8c の payload validator が whiteboard entry の exact int iteration・
+  範囲・件数・狭義単調増加を検査するのは **8c 経路だけ**で、`state_from_dict` の iteration 整合、
+  `project_whiteboard` の in-memory 値域、`layer3_report` の独立 reader は未閉包である。
+- s8c C11 は `machine_checkable: false` のまま `EVIDENCE_UNDEFINED` = **未充足**であり、
+  cap 引き上げの権威根拠には使えない。sample-plan / cap-lift artifact は作っていない。
+
+**却下した選択肢:**
+- 3 field の削除 — 世代 1 の payload bytes を変え、D121 P8 と規律 2 に触れる。
+- validator で metric 値を `None` に hardcode — pre-wave の目印テストの検出力を潰す (F69 型)。
+- critic の `attribution` を構造化 metric リストへ変更 — critic role の出力契約そのものの変更で、
+  role file / effective prompt の SHA と既存 fixture へ波及する。第二層へ自由文を通さない形で
+  同じ安全性が得られるため不要。
+- 自然文への禁止トークン正規表現 — 言い換え・単位変更・序数表現で漏れる。
+
+## D411. 中間世代の critic は当該世代の campaign admission 後に置き、最終世代は D217 の形を維持する (2026-08-15)
+
+**背景:** D217 は裁定 U-8 (2026-08-05 批准、「critic を Layer 3 admission・ledger seal・
+proof 書き込みの後へ移す」) のうち **8c に実在する唯一の anchor である Layer 3 admission への
+後置だけ**を実装し、「本決定は U-8 を完了させない」と明記した。その後置理由は
+「承認上限 1 世代では critic の出力が制御流へ還らない」ことだった。
+
+**実測 (本 wave):** `test_multi_generation_deferred_critic_fails_closed` が
+「cap=2 の 2 世代運転は `RuntimeError` (`journal role attempts`) で止まる」を**既にテストで固定
+していた**。すなわち承認上限だけを上げても report は 1 件も発行できず、critic の実行位置を
+決めない限り多世代開放は 1 件も実行できない。D217 自身がこの帰結を予告している。
+
+**決定: 次世代が存在する場合にのみ、世代 N の critic を当該世代の campaign admission
+(`require_admitted_campaign` と再計算 digest の一致) の後、世代 N+1 の planner の前に走らせる。
+最終世代の critic は従来どおり cell の Layer 3 admission 後とする。**
+
+- `generations=1` では「次世代」が存在しないため全 critic が最終世代扱いとなり、
+  **D217 の批准済み挙動は 1 bit も変わらない。** 新経路は `generations>=2` でのみ発火する。
+- critic は **at-most-once** を機械強制する。pending に exact state を持たせ、fallible 処理の前に
+  attempt を確定し、最終 drain は既存 role event を持つ generation を再 invoke しない。
+- 再計算 digest の exact 一致検査は**中間世代の新経路にだけ**適用する。最終世代は
+  admitted campaign から identity projection つきで digest を再構築する base の形をそのまま使う。
+  **この identity projection が非干渉の関所**であり、生の variant 名を匿名ラベルへ射影している。
+
+**理由:** U-8 が守る性質は「結果が commit される前に critic が metrics を見ない」ことで、
+campaign WAL の commit と `require_admitted_campaign` が世代ごとにそれを与える。
+cell の Layer 3 admission は複数世代の集約段であって、個々の世代の metrics の commit ではない。
+U-8 が anchor に挙げた ledger seal は D201 / D211 と 2026-08-13 裁定により**作らないと確定済み**で、
+永久に存在しない。cell 粒度は D217 自身の実装選択であって批准された粒度ではない。
+
+**名乗りの上限:** **U-8 の完了は名乗らない。** ledger seal と proof issuance への後置は依然未達で、
+そもそも作らないと裁定済みである。本決定が主張するのは「中間世代 critic を当該世代の
+campaign admission 後に限定して置いた」までである。
+
+**ユーザー裁定へ返す:** 2026-08-13 裁定は D217 / U-8 を「この裁定が動かす既存の記録」に
+挙げていない。本決定は**未見の事実に対する親の判断**であり、承認済み運転 (1 世代) の挙動は
+不変だが、多世代を実際に開ける前にユーザーの追認を求める。
+
+**却下した選択肢:**
+- 世代ごとの子 Layer 3 report / admission の新設 — identity・report schema・admission 単位を
+  広げる別タスク級の変更である。
+- critic 射影を落とす — ユーザー裁定の scope (d) を未達にする。
+- 独立した `generation-accounting` event を zero-work wall stop でも発行する —
+  wave 前の terminal event 契約 (内側 event はちょうど 1 件) を破る。作業ゼロなら数える
+  query もベンチ時間も無いため、既存の terminal event に欄を載せる形を採った。
+
+## D412. 床値 build 経路への FetchContent source 差し替えは実装せず、先に計算ノードで測る (2026-08-15)
+
+**決定:** `orchestrator/campaign/buildcache.py` へ `FETCHCONTENT_SOURCE_DIR_*` の注入 seam を
+実装しない。代わりに repo 外の PBS probe で、床値と同じ形 (使い捨て checkout・`TMPDIR=/scr/$PBS_JOBID`)
+における resolver 解決・configure・masstree build を 1 job 内で実測する。
+seam の要否は実測を根拠に別 wave で裁定する。
+
+**理由:**
+
+- **起票時の前提が実測で反証された。** 起票文は「計算ノードは直結 network 不可であり、これが
+  解けない限り床値は 0 件のままである」を前提にしていた。本 wave の probe は、床値と同じ
+  使い捨て checkout に対し `SOURCE_DIR` を 1 つも渡さない configure が
+  **rc=0 / 5.520 秒**で通り、`_deps` に 9 entry (3 source × src/build/subbuild) が
+  生成されることを実測した。したがって `SOURCE_DIR` 配線は blocker の解除ではなく、
+  再現性と offline fallback のための選択肢である。
+- **実装案は正しさで現状より劣る。** network 経路の FetchContent は GIT_TAG pin で毎回
+  fresh clone するため、汚染された tree を build 入力に持ち込まない。一方 `SOURCE_DIR` 経路は
+  共有 source tree を build 入力にするが、その tree は build 自身が生成物を書き込む対象であり、
+  実測した共有 cache は既に 71 件の ignored 生成物を抱えていた
+  (F319)。**塞ぐはずの穴を新しい経路で作り直す形になる。**
+- **敵対 2 レンズが独立に NO-GO を返した。** 一致した指摘は (a) 弱い検証と
+  非 hardened な Git driver が D152 の防壁を迂回する、(b) 供給が
+  `clone --no-hardlinks --no-checkout` でなく copytree である、の 2 件。
+  `tools/pegasus/fetch_third_party.py` は skip-worktree / assume-unchanged / alternates /
+  grafts / sparse / shallow / replace refs / `core.fsmonitor` を拒否する強い verifier を既に持ち、
+  実装案はその弱い側を再利用していた。
+- **`DW-G01` (生死実験先行) が正面から効く場面である。** 共有 build path は全 campaign へ
+  波及するため、床値が実際にどこで止まるかを測らずに変更するのは順序として誤りである。
+
+**却下した選択肢:**
+
+- **裁定どおり seam を実装してから測る** — 共有 build path を、両レンズが blocker と判定した
+  形で先に変えることになる。前提が反証された後では正当化できない。
+- **probe を configure までに限定する** — masstree の `config.h` と archive は configure ではなく
+  `cmake --build` の custom command が生成するため、configure だけでは
+  「clean な source では oracle が解決できない」という中核の因果を観測できない。
+- **共有 staging を SOURCE_DIR へ直接渡す** — build が source tree を書き換えるため、
+  並行 job と同一 job 内の後続 cell が互いの tree を汚染する。
+
+## D413. 床値の oracle 依存 root と build の source root が別 tree である問題を独立の欠陥として起票する (2026-08-15)
+
+**決定:** 床値が oracle 依存を検証する tree と、build が実際にコンパイルする tree が
+別物である構造を、FetchContent 配線の要否とは**独立の欠陥**として扱い、
+本 wave では修正せず裁定へ返す。
+
+**理由:**
+
+- probe が同一 job 内で両者を並べて実測した。
+  `oracle_dependency_root = <third-party cache>/masstree`、
+  `configure_source_root = /scr/<job>/ccbench-c1-build/_deps/masstree-src`、`same_root = false`。
+- 床値は `_resolve_floor_oracle_dependency(third_party_cache_root)` の結果を
+  `oracle_dependency_root` として prepare へ渡す一方、build は FetchContent が展開した別 tree を使う。
+- **oracle が要求しているのは「pin された source」ではなく「build 済みの masstree」である。**
+  `resolve_oracle_environment` は `config.h` を探すが、それは pin された clean な source には
+  存在せず、build が source tree の中へ生成する。過去に oracle が解決できていたのは
+  cache が汚染されていたからであり、これは pin の問題ではなく build 順序の問題である。
+- したがって `SOURCE_DIR` を通しても、oracle と build を同一 root へ揃えない限り
+  「証拠と実体の不一致」は残る。**seam を入れれば床値が通る、という筋書きは成立しない。**
+
+**却下した選択肢:**
+
+- **本 wave で oracle 側も同時に直す** — 受理集合が変わる変更を、前提が反証された直後に
+  測定なしで重ねることになる。probe の実測を材料として別 wave で裁定する。

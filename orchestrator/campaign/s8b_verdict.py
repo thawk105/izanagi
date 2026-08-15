@@ -44,14 +44,16 @@ scale inadequate / stock 非 eligible / scale_ref null は、当該 holdout の 
 exact tie (oracle 非一意)、excluded 観測を含む holdout、floor 未確定・scale 不適はいずれも当該
 条件を判定不能へ倒し、§6 結論行へ伝播する。REFUTED (不成立) は関連データが完全なときにのみ返す。
 
-**型分離 (C3-2):** ``judge_combined`` は検証済み ``VerifiedPrediction`` のみを受理する。
-未検証の生 prediction 文書を渡すと fail-closed に拒否する。``VerifiedPrediction`` は
-``verify_prediction`` 経由でのみ構築され、その内部で prediction freeze の全検証 + off=stock
-の機械検査 + choice_id の catalog 合法性検査を通す。
+**型分離 (C3-2):** ``judge_combined`` は検証済み ``VerifiedPrediction`` と
+``VerifiedOracleVerdict`` のみを受理する。未検証の生文書を渡すと fail-closed に拒否する。
+``VerifiedPrediction`` は ``verify_prediction`` で prediction freeze の全検証 + off=stock の
+機械検査 + choice_id の catalog 合法性検査を通す。``VerifiedOracleVerdict`` は
+``verify_oracle_verdict`` で observations から再導出し、検証済み manifest/spec へ束縛する。
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -85,6 +87,8 @@ from .s8b_descriptor import DescriptorError
 
 
 from . import s8b_oracle_artifacts as _artifacts  # noqa: E402
+from . import s8b_oracle_judge, s8b_oracle_manifest, s8b_oracle_spec  # noqa: E402
+from . import s8b_ratified_freeze  # noqa: E402
 
 
 
@@ -115,6 +119,176 @@ _ARMS = ("on", "off", "swapped")
 
 class VerdictError(RuntimeError):
     """verdict 層の fail-closed 拒否 (型分離違反・tolerance 契約違反・入力破綻)。"""
+
+
+def _verified_oracle_verdict_api():
+    seal = object()
+
+    @dataclass(frozen=True, init=False)
+    class VerifiedOracleVerdict:
+        """``verify_oracle_verdict`` 経由でのみ構築される oracle verdict token。
+
+        production consumer が本型を要求し、正規構築を verifier に閉じる規律的保証である。
+        任意 Python コードによる ``object.__new__`` 等の in-process 偽造は信頼境界外。
+        発行後の document 改竄は ``judge_combined`` が canonical hash と plain-type で
+        検出する。``object.__setattr__`` による field 差し替えは信頼境界外。
+        """
+
+        document: _artifacts.OfficialVerdict
+        document_sha256: str
+
+        def __init__(self, document, *, _seal=None):
+            if _seal is not seal:
+                raise VerdictError(
+                    "VerifiedOracleVerdict は verify_oracle_verdict の検証結果からのみ構築できる"
+                )
+            if type(document) is not _artifacts.OfficialVerdict:
+                raise VerdictError(
+                    "VerifiedOracleVerdict.document は OfficialVerdict exact type でなければならない"
+                )
+            object.__setattr__(self, "document", document)
+            object.__setattr__(
+                self,
+                "document_sha256",
+                hashlib.sha256(_canonical_json_text(document).encode("utf-8")).hexdigest(),
+            )
+
+    def seal_verifier(function):
+        def verified(
+                oracle_source, *, observations_source, verified_manifest, approved_spec):
+            return function(
+                oracle_source,
+                observations_source=observations_source,
+                verified_manifest=verified_manifest,
+                approved_spec=approved_spec,
+                _seal=seal,
+            )
+
+        verified.__name__ = function.__name__
+        verified.__qualname__ = function.__qualname__
+        verified.__doc__ = function.__doc__
+        verified.__annotations__ = {
+            key: (VerifiedOracleVerdict if key == "return" else value)
+            for key, value in function.__annotations__.items()
+            if key != "_seal"
+        }
+        return verified
+
+    return VerifiedOracleVerdict, seal_verifier
+
+
+VerifiedOracleVerdict, _seal_verified_oracle_verdict = _verified_oracle_verdict_api()
+del _verified_oracle_verdict_api
+
+
+def _canonical_json_text(value: object) -> str:
+    try:
+        return json.dumps(
+            value, sort_keys=True, ensure_ascii=False, allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise VerdictError(f"oracle verdict を canonical JSON に変換できない: {exc}") from exc
+
+
+_PLAIN_JSON_TYPES = (dict, list, str, int, float, bool, type(None))
+
+
+def _assert_plain_json_values(container, *, label: str) -> None:
+    """nested 値が plain JSON 型ちょうどであることを再帰的に確認する。
+
+    top-level は marker 型の dict subclass を許すが、その中身に subclass を混ぜることを
+    禁じる。``__getitem__`` を上書きした dict subclass で canonical bytes と consumer が
+    見る値を分離する攻撃を落とす。
+    """
+    if not isinstance(container, (dict, list)):
+        raise VerdictError(f"{label} は JSON container でなければならない")
+
+    def walk(value, *, path: str) -> None:
+        value_type = type(value)
+        if value_type not in _PLAIN_JSON_TYPES:
+            raise VerdictError(
+                f"{label} の nested 値は plain JSON 型でなければならない: {path}"
+            )
+        if value_type is dict:
+            for key, item in value.items():
+                if type(key) is not str:
+                    raise VerdictError(
+                        f"{label} の object key は plain str でなければならない: {path}"
+                    )
+                walk(item, path=f"{path}.{key}")
+        elif value_type is list:
+            for index, item in enumerate(value):
+                walk(item, path=f"{path}[{index}]")
+
+    if isinstance(container, dict):
+        for key, value in container.items():
+            if type(key) is not str:
+                raise VerdictError(
+                    f"{label} の object key は plain str でなければならない: $"
+                )
+            walk(value, path=f"$.{key}")
+    else:
+        for index, value in enumerate(container):
+            walk(value, path=f"$[{index}]")
+
+
+@_seal_verified_oracle_verdict
+def verify_oracle_verdict(
+        oracle_source, *, observations_source, verified_manifest, approved_spec, _seal,
+) -> VerifiedOracleVerdict:
+    """oracle verdict を authority に束縛して observations から再導出する。
+
+    strict loader で両文書を一度だけ読み、authority token と SHA field の exact type、
+    manifest document の plain JSON 型、schedule 射影、manifest document hash、spec 束縛、
+    oracle の manifest authority、observations からの再導出、全文書の canonical JSON 型厳密一致
+    を順に検査する。全検査通過時だけ封印 token を返す。
+    """
+    document = _artifacts.load_official_verdict(oracle_source)
+    observations = _artifacts.load_official_observations(observations_source)
+
+    if type(verified_manifest) is not s8b_oracle_manifest.VerifiedManifest:
+        raise TypeError("VerifiedManifest exact type が必要")
+    if type(approved_spec) is not s8b_oracle_spec.ReviewedSpec:
+        raise VerdictError("approved_spec は ReviewedSpec exact type でなければならない")
+    if type(verified_manifest.sha256) is not str:
+        raise VerdictError("VerifiedManifest.sha256 は plain str でなければならない")
+    if type(approved_spec.sha256) is not str:
+        raise VerdictError("ReviewedSpec.sha256 は plain str でなければならない")
+
+    _assert_plain_json_values(
+        verified_manifest.document,
+        label="VerifiedManifest.document",
+    )
+    schedule_projection = s8b_oracle_judge.project_verified_manifest_schedule(
+        verified_manifest,
+    )
+    if (s8b_oracle_manifest._canonical_sha256(verified_manifest.document)
+            != verified_manifest.sha256):
+        raise VerdictError(
+            "VerifiedManifest.document が発行時の canonical hash と一致しない (事後改竄)"
+        )
+    if verified_manifest.document.get("spec_sha256") != approved_spec.sha256:
+        raise VerdictError(
+            "approved_spec が検証済み manifest の spec_sha256 と一致しない"
+        )
+    if document.get("manifest_sha256") != verified_manifest.sha256:
+        raise VerdictError(
+            "oracle verdict の manifest_sha256 が検証済み manifest の実値と一致しない"
+        )
+
+    rederived = s8b_oracle_judge.judge_oracle(
+        observations,
+        schedule_projection=schedule_projection,
+        verified_manifest_sha256=verified_manifest.sha256,
+        approved_spec_sha256=approved_spec.sha256,
+    )
+    if _canonical_json_text(rederived) != _canonical_json_text(document):
+        raise VerdictError("oracle verdict が observations からの再導出結果と一致しない")
+
+    return VerifiedOracleVerdict(document=document, _seal=_seal)
+
+
+del _seal_verified_oracle_verdict
 
 
 def _reason(code: str, message: str) -> dict:
@@ -530,13 +704,13 @@ def _conjunction(verdicts: Sequence[str]) -> str:
     return REFUTED
 
 
-def judge_combined(*, prediction: VerifiedPrediction, oracle: _artifacts.OfficialVerdict,
+def judge_combined(*, prediction: VerifiedPrediction, oracle: VerifiedOracleVerdict,
                    floor_by_holdout: Mapping, expected_holdouts: object,
                    scale_tolerance: object) -> dict:
     """検証済み prediction・oracle verdict・per-pair floor から §6 の 3 条件と結論を判定する。
 
     ``prediction`` は ``VerifiedPrediction`` (未検証 dict は fail-closed に拒否)、
-    ``oracle`` は ``judge_oracle`` の出力 (``8b-oracle-verdict/v1``)、``floor_by_holdout`` は
+    ``oracle`` は ``verify_oracle_verdict`` が封印した再導出済み verdict、``floor_by_holdout`` は
     ``freeze.floor.by_holdout`` の per-pair 表 (holdout → {pairs, scale_ref, scalar_alt})、
     ``expected_holdouts`` は凍結 holdout ID 集合 (裁定 5 項 1 の全称量化の領域)、
     ``scale_tolerance`` は protocol 由来の ``scale_adequacy_rel_tolerance`` (暗黙 default 禁止)。
@@ -548,18 +722,30 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: _artifacts.Officia
     if not isinstance(prediction, VerifiedPrediction):
         raise VerdictError(
             "judge_combined は VerifiedPrediction のみ受理する (未検証 object は渡せない)")
-    if type(oracle) is not _artifacts.OfficialVerdict:
+    if type(oracle) is not VerifiedOracleVerdict:
         raise VerdictError(
-            "judge_combined は OfficialVerdict exact type のみ受理する")
+            "judge_combined は VerifiedOracleVerdict exact type のみ受理する")
+    _assert_plain_json_values(
+        oracle.document,
+        label="VerifiedOracleVerdict.document",
+    )
+    oracle_document_sha256 = hashlib.sha256(
+        _canonical_json_text(oracle.document).encode("utf-8")
+    ).hexdigest()
+    if oracle_document_sha256 != oracle.document_sha256:
+        raise VerdictError(
+            "VerifiedOracleVerdict.document が発行時の canonical hash と一致しない (事後改竄)"
+        )
     tolerance = _tolerance_fraction(scale_tolerance)
     if tolerance is None or tolerance < 0:
         raise VerdictError(
             "scale_tolerance が非負の有限値でない (protocol 由来値を明示引数で渡す。暗黙 default 禁止)")
 
     document = prediction.document
+    oracle_document = oracle.document
     pred_index, pred_reasons = _prediction_index(document)
     expectations, exp_reasons = _swapped_expectations(document)
-    oracle_holdouts, oracle_reasons = _oracle_holdouts(oracle)
+    oracle_holdouts, oracle_reasons = _oracle_holdouts(oracle_document)
     expected_domain, holdout_reasons = _expected_holdout_set(expected_holdouts)
     structural_reasons = pred_reasons + exp_reasons + oracle_reasons + holdout_reasons
 
@@ -580,9 +766,8 @@ def judge_combined(*, prediction: VerifiedPrediction, oracle: _artifacts.Officia
                               if isinstance(document, Mapping) else None)
     selector_basis_sha256 = (document.get("selector_basis_sha256")
                              if isinstance(document, Mapping) else None)
-    oracle_manifest_sha256 = (oracle.get("manifest_sha256")
-                              if isinstance(oracle, Mapping) else None)
-    oracle_status = oracle.get("status") if isinstance(oracle, Mapping) else None
+    oracle_manifest_sha256 = oracle_document.get("manifest_sha256")
+    oracle_status = oracle_document.get("status")
 
     targets = expected_domain
 
@@ -799,7 +984,11 @@ def _parser() -> argparse.ArgumentParser:
     judge.add_argument("--prediction", type=Path, required=True,
                        help="prediction freeze 文書 (verify_prediction で全検証する)")
     judge.add_argument("--oracle", type=Path, required=True,
-                       help="judge_oracle 出力 (8b-oracle-verdict/v1)")
+                       help="judge_oracle 出力 (verify_oracle_verdict で再導出検証する)")
+    judge.add_argument("--manifest", type=Path, required=True,
+                       help="oracle verdict を束縛する official manifest")
+    judge.add_argument("--observations", type=Path, required=True,
+                       help="oracle verdict の再導出元 observations")
     judge.add_argument("--freeze", type=Path, required=True,
                        help="検証済み holdout freeze (v2 per-pair floor)。sha256 一致を強制する")
     judge.add_argument("--freeze-sha256", required=True,
@@ -814,27 +1003,50 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parser().parse_args(argv)
     try:
         verified_freeze = load_verified_freeze(args.freeze, args.freeze_sha256)
+        root = Path(args.root)
+        ratified = s8b_ratified_freeze.load_ratified_freeze(root)
+        reverified = s8b_ratified_freeze.reverify_published_freeze(ratified, root)
+        approved = s8b_oracle_spec.load_approved_spec(root)
+        verified_manifest = s8b_oracle_manifest.verify_manifest(
+            args.manifest,
+            root=root,
+            freeze_document=reverified.ratified.document,
+            freeze_sha256=reverified.ratified.sha256,
+            approved_spec=approved,
+        )
+        if verified_freeze.sha256 != reverified.ratified.sha256:
+            raise VerdictError(
+                "--freeze が published ratified freeze の実値と一致しない"
+            )
+
         freeze_document = verified_freeze.document
         holdout_ids = _holdout_ids(freeze_document)
         # per-pair floor / budget を manifest と同等の validator で strict 検査する (二重定義回避)。
         _validate_execution_snapshot(freeze_document, holdout_ids=holdout_ids)
         floor_by_holdout = freeze_document["floor"]["by_holdout"]
-        scale_tolerance = _resolve_scale_tolerance(freeze_document, root=args.root)
+        scale_tolerance = _resolve_scale_tolerance(freeze_document, root=root)
 
         prediction_document = _load_json_object(args.prediction)
         verified_prediction = verify_prediction(
-            prediction_document, freeze=freeze_document, root=args.root)
-        oracle = _artifacts.load_official_verdict(args.oracle)
+            prediction_document, freeze=freeze_document, root=root)
+        verified_oracle = verify_oracle_verdict(
+            args.oracle,
+            observations_source=args.observations,
+            verified_manifest=verified_manifest,
+            approved_spec=approved,
+        )
 
         verdict = judge_combined(
-            prediction=verified_prediction, oracle=oracle,
+            prediction=verified_prediction, oracle=verified_oracle,
             floor_by_holdout=floor_by_holdout, expected_holdouts=set(holdout_ids),
             scale_tolerance=scale_tolerance)
         _write_create_only(args.out, verdict)
     except (OSError, json.JSONDecodeError, TypeError, ValueError,
             VerdictError, _artifacts.OracleArtifactTypeError,
             FreezeIOError, ManifestError, SelectorFreezeError,
-            SelectorInputError, DescriptorError) as exc:
+            SelectorInputError, DescriptorError,
+            s8b_ratified_freeze.RatifiedFreezeError,
+            s8b_oracle_spec.ReviewedSpecError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0

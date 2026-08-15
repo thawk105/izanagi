@@ -2684,6 +2684,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本件は残留計測用の使い捨て PBS script であり、**「使い捨てだから写さなくてよい」という判断が
   同じ穴を再生産する**ことを示す 2 例目である。マシン固有の手順 (既定 `python3` の版・shim の要否・
   `-o`/`-e` の落ち先) は `docs/pegasus-runbook.md` §3 が正本。
+
+- **再発: 2026-08-15** ([T-1097] wave、near miss)。段 1 の前提実測 probe が
+  production の `buildcache._v2_commands` を呼んで configure argv を導出したが、
+  production caller が渡す `dependency_prefix` を空のまま渡した。結果、計算ノードでの
+  configure は 0.655 秒で `find_package(gflags)` に落ち、**測定対象だった FetchContent へ
+  1 度も到達しなかった**。誘発要因は「argv を production から取れば同じ経路だ」という認識で、
+  F84 本体の「transport を変えるだけ」と同型 — **使い捨て経路が production caller の設定を
+  写し漏らすと、内側が同じ経路でなくなる**。
+  誤結論 (「[T-1094] の FetchContent 不通を確認」) の直前で止められたのは、probe が
+  `_deps` の中身を成果物として記録しており **0 件だったから**である。prefix を production の
+  seam 経由で渡して再測すると rc=0 / 8.357 秒で依存 3 本が pin 通りに生成された。
+- **恒久対応 (本再発分):** 前提実測 probe が「X は通るか」を測るときは、
+  **X へ到達した witness を成果物に含める** (本 wave の `deps_present` がその実例)。
+  rc だけを見て非 0 を X へ帰属しない。近縁 = F41 (偽赤の非帰属)、F99 (sanctioned 呼出し形の逐語写し)。
+- **supersede: 2026-08-15** — 直上の再発項が書く `[T-1097] wave` は誤引用である。`[T-1097]` は `check_ai_provenance.py --message-file` の診断に関する無関係な既存項で、当該 near miss を出したのは branch `worktree-dev-wave-t1097-s8c-live-abc` の wave (台帳上の identity は [T-1109] 〜 [T-1113]) である。branch 名の `t1097` は slug であって T 参照ではない。
 ### F85. 信頼できない観測が回復経路を潰す latch を作りかけた [恒真ゲート]
 
 - 事象: [T-363] の段 5 実装で、実行予算の張り直しを「信頼できる (qstat rc=0 の) RUN 観測」に
@@ -2994,6 +3009,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   確かめる positive control を `orchestrator/tests/` へ置く。これは「参照が自分の判定を通る」
   という恒真でない性質の検査であり、今回の型を直接撃つ。
 
+
+- **再発: 2026-08-15** ([T-1097] wave、独立 2 例目 — 別 producer / 別 consumer)。
+  D122 決定 (2)(ii) の transport 受理条件が、計算ノードで実在する `PBS_JOBID` を必ず拒否する。
+  `claude_transport.PBS_JOBID_PATTERN` は `[A-Za-z0-9][A-Za-z0-9._-]*` で colon を含まないが、
+  NQSV が渡す実値は `0:911106.nqsv` (job index + request id) である。pattern は
+  `qsub_binding._JOB_ID_TEXT` と byte 一致で pin されているが、そちらは **qsub が印字する
+  request ID** の文法であって環境変数の文法ではない。**repo 自身がこの差を知っている** —
+  `test_claude_transport.py` は `COLLECTOR._JOB_ID.pattern == rf"(?:0:)?{PBS_JOBID_PATTERN}"` を
+  pin しつつ、同じテストで `"job:id"` を invalid と主張している。F97 と同型で、
+  **参照/実在値が自分自身の受理述語を通らない**ため、計算ノードでの 8c live 実行が全面的に塞がる。
+  D122 段 1 の前提実測 (request `877155`) は proxy key と `claude -p` の rc を測ったが、
+  `is_valid_pbs_jobid` を実機の `PBS_JOBID` へ通す end-to-end を測っていない。
+  緩和も迂回もせず裁定へ返した (材料 = `output/insights/2026-08-15_t1097-s8c-live-abc/` §5 問 1)。
+  **F97 の「再発検知」が提案する自己整合 positive control は、独立 2 例目が出たことで
+  F97 単体でなく fail-closed admission 述語の族へ一般化できる状態になった** (`DW-G03` の閾値充足)。
+  族一般化そのものは受理集合と検査義務に触れるため [T-1111] で裁定へ返す。
+- **supersede: 2026-08-15** — 直上の再発項が書く `[T-1097] wave` は誤引用である。`[T-1097]` は無関係な既存項で、当該独立 2 例目を出したのは branch `worktree-dev-wave-t1097-s8c-live-abc` の wave であり、この再発が起票した裁定項目は [T-1109] (PBS_JOBID 受理文法) と [T-1111] (fail-closed admission 述語の族一般化) である。
 ### F98. campaign を実走した wave は正規経路で land できない — guard の削除拒否と land の完全 clean 要求が噛み合っていない [手順漏れ]
 
 - 事象: 本 wave が使い捨て driver で campaign を 1 回起動したところ、wave worktree に
@@ -4434,6 +4466,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   rc=0 になり、matrix は 16/16 KILLED で完走した。
   **新しい情報は、恒久対応が memory 本文にあるとき、索引行に要点が無いと参照されないことである。**
   同 memory の索引行へ `--force-dispatch` を明示する更新を行った。
+
+- **再発: 2026-08-15** — 変異 harness を通さない素の焦点走
+  (`python3 tools/run_tests.py orchestrator/tests/test_check_wave_startup.py -rf -q`) が
+  login node で 3 回連続 rc=16 (`bounded scope の memory.max / memory.oom.group を走行中に
+  attest できない`) になった。同じ command は 34 分前には成功しており、テスト結果ではない。
+  `--force-dispatch` を足して計算ノードへ回したところ 95 passed / 0 failed で完走した。
+  既存の恒久対応 (先例と同じ runner argv を使う) で足り、新しい手順は足さない。
 ### F156. 前回投入の `.done` 残骸で待ちが即座に返った [手順漏れ]
 
 - 事象: 変異本走を投入し直した直後に完了待ちを張ったところ、待ちが即座に返った。
@@ -6466,6 +6505,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 再投入は**新しい artifact 名**で行い、`rc=1` は receipt の
   `attempt output` と `validator_rc` を読んでから原因を分類する。
 
+
+- **再発: 2026-08-15** — 段 3 レンズ A の初回投入が上流分類器に遮断され、model call 16 回・
+  出力 0 bytes を空費した (`turn.failed` の message = `This content was flagged for possible
+  cybersecurity risk`、`evidence_status=complete`、`codex_exit_code=1`)。
+  親は F256 の恒久対応を知っており、**prompt 冒頭には防御目的を明記していた**。
+  遮断したのは、段 2 の結果を受けて**後から追記した「最優先の争点」節**が
+  「回避する C++ 文字列を構成できるなら具体的に示せ」と攻撃成果物の作成を求めていたことである。
+  防御的枠組みは prompt 冒頭に 1 度書けば足りるものではなく、**追記した節を含む個々の指示文が
+  それぞれ攻撃成果物を要求していないことを、投入前に確認する**必要がある。
+  再投入は被覆監査の枠組み (契約項目と機械執行の差分表・既存境界テストの被覆評価) へ
+  書き直して成功した。
 ### F257. merge が submodule gitlink を古い側で確定させ、是正 commit が provenance で land を止めた [手順漏れ] [監査ログ汚染]
 
 - 事象: local main 取り込みの merge 後、受入全走で s1/s8b/real-repo 系が 30 件級で赤になった
@@ -7070,6 +7120,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   除外する案を親推奨として裁定へ返した (package の R4)。
 - 再発検知: `git ls-files docs/handoff/` が README.md 以外を返すこと。
 
+
+- **再発: 2026-08-15** — `docs/handoff/dev-wave-t971-swo-oracle-floor.md` が main へ landed し、
+  背景 job の wave が起動時 rc=1 になった。`952fd45d` が main で直接撤去して応急処置している。
+  2026-08-13 の `a3168d85` に続く 2 例目で、同 F が「次に wave が handoff を land した時点で
+  同じ赤が再発する」と書いた予告どおりである。checker 側の恒久対応を本 wave で実装した。
+- **supersede: 2026-08-15** — 恒久対応の「未実施」は解消した。D409 に従い `_check_worktree_handoff` が main landed handoff を通し、untracked と不適格 index record を拒否する。再発検知は `orchestrator/tests/test_check_wave_startup.py` の 26 node (変異 M01 が完全集合で KILLED)。
+
+- **再発: 2026-08-15** — 3 例目。`docs/handoff/dev-wave-t971-swo-oracle-floor.md` が main へ
+  tracked のまま land しており、本 wave の起動時に `check_wave_startup.py --external-handoff` が
+  rc=1 になった。F286 自身が定めた再発検知条件 (`git ls-files docs/handoff/` が README.md 以外を
+  返す) にそのまま当たっている。先例 `a3168d85` に従い main で直接撤去して解いた
+  (所要 約 10 分)。**[T-1038] の恒久修正が入るまで、handoff が 1 本 land するたびに
+  以後の背景 wave が 1 本ずつ同じ停止を払う。** dev-wave 入口へ
+  「tracked な残置は main で直接撤去してよい」を書く案は `docs/dev-wave/**` の
+  byte 予算が尽きているため裁定パッケージへ送った。
 ### F287. 段 1 brief の「存在しない」実測を head で切った検索から書いた [誤前提]
 
 - 事象: 親が段 1 brief に「finding の `observations` を生成する箇所は 0 件」と書いた。実際は
@@ -7396,6 +7461,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 変異 baseline の赤 node が走行ごとに族内で移動すること。本 wave の
   `ledger-c2.json` と `ledger-c3.json` の baseline が実例。
 
+
+- **再発: 2026-08-15** — **受入全走で出た**。本 wave の受入 3 走目が
+  `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` 1 件で
+  `attributable-red` (rc=70) になった。**本 wave の差分は docs 7 ファイルのみで、当該 test file に
+  1 行も触れていない。** 単独再走を計算ノードで行い rc=0 (`Request 911268.nqsv`、8 秒) を実測して
+  非帰属と判定した。同じ tip の 2 走目は緑だったので決定的な赤ではない。
+  F306 の既知の再発検知は「変異 baseline の赤 node が族内で移動すること」だが、
+  **本件は変異でなく受入全走で、しかも待ち手の非帰属 checker が `attributable` と分類した**。
+  族のフレークが受入の帰属判定を誤らせる経路がある。
 ### F307. conftest の出力を 1 行増やして別機構の末尾契約を壊した [テスト代表性]
 
 - 事象: 実効 scheduler の marker を `pytest_unconfigure` の最後 (failure digest より後) に出した
@@ -7473,3 +7547,185 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`test_production_floor_requires_staging_before_toolchain_or_oracle_or_build`) と、
   preflight marker が両 probe より先に存在する ordering 検査
   (`test_production_floor_preflight_marker_precedes_toolchain_and_dependency_probes`)。
+
+### F311. 親の fix 指示が受入証発行後の成功を失敗へ倒した [手順漏れ]
+
+- 事象: 診断を足す小 wave の fix 第 2 巡で、`_publish_acceptance_receipt` の
+  signal mask 復元失敗を**無条件に** fail-closed (rc=70) にしたため、
+  **receipt を publish し終えた後**に signal を受けた走行が成功 (rc=0) から失敗へ変わった。
+  既存テスト `test_signal_after_receipt_publish_does_not_reverse_success` が回帰で赤になり検出した。
+- 根本原因: 親が fix prompt に「mask 復元単独失敗も fail-closed rc=70」と書き、
+  **`receipt_published` が真の場合を除外し忘れた**。子は指示どおり実装した。
+  受入証はディスク上に存在し走行は実際に成功しているのに、それを失敗に倒していた。
+  緑の走行を理由なく捨てるのは、この wave が無くそうとしていた事象そのものである。
+- 恒久対応: D407 — 受入証を書き終えた後の失敗は
+  成功を覆さない。fix prompt の制約に「緩める方向だけでなく**過剰に拒否する方向**の変更も禁止」を
+  明記する (規律 2 の対称形)。fix 第 3 巡で、publish 失敗が無く**かつ**未 publish のときだけ
+  fail-closed にする条件へ訂正した。
+- 再発検知: `test_signal_after_receipt_publish_does_not_reverse_success` (期待値を 1 文字も
+  変えずに緑へ戻すことを fix の受入条件にした)。変異 C1 が診断生成の例外で rc/stage が
+  置換されないことを固定する。
+
+### F312. 並行 wave が新設した失敗経路が非漏洩規律の外に出た [計測汚染]
+
+- 事象: 同じ 2 ファイルを触る 2 wave の合流で、git の自動マージが競合なしで成功し、
+  焦点走も 276 passed で緑だった。しかし main 側 wave が新設した waiter bytes gate の
+  失敗経路は、共通の attestation 形式を使わず手組み JSON で detail を作っており、
+  初期束縛失敗時に**例外メッセージ (`str(exc)`) を運用 log へ出しうる**状態だった。
+  不正な SHA 文字列も原文のまま載りうる形だった。
+- 根本原因: 「診断に何を載せてよいか」の規律は既存の失敗経路にしか適用されておらず、
+  新設経路が規律の外側で書かれた。テストが緑なので静的にも実行前にも見えない。
+  マージが競合しなかったため、合流時に中身を読む契機も無かった。
+- 恒久対応: 実装面を両親のいずれとも異なる状態にする merge は Codex `role=author` が
+  合成結果を監査して所有する (`docs/ai-provenance.md` の実装面 Codex author 契約が
+  この監査を機械的に要求する)。本件では監査で検出し、同じ merge commit の中で
+  共通形式へ統合し、型名と整数 errno だけに絞った。
+- 再発検知: 例外メッセージと絶対 path が detail に出ないことの回帰テストを
+  `orchestrator/tests/test_dev_wave_wait.py` へ追加した。
+  `check_ai_provenance.py` が実装面 path の merge に Codex author 行を要求し、
+  監査なしの通過を機械的に塞ぐ。
+
+### F313. spool fragment の `更新` 節へ carry stub を本文として書き、元本文を消しかけた [恒真ゲート] [手順漏れ]
+
+- 事象: 「次の一手」658 件の棚卸し wave で 52 件を `更新` する fragment を生成した後、main を取り込んだ。
+  取り込み後の worklog では大半の item が `- [T-NNN] (553)` の carry stub になっており、
+  生成器がその stub を「item の現本文」として読んで `更新` の本文に据えた。
+  そのまま land していれば、52 件の実体本文が 1 行の参照へ置き換わって失われていた。
+- 根本原因: `更新` は item を**置換**する操作であるのに、本文の取得元を
+  `_extract_latest_active` の `block` (= 末尾エントリの見た目の行) に取っていた。
+  carry 鎖を解決した実体本文と、末尾エントリの描画行は別物である。
+  `base:` の照合は carry 解決後の digest で行われるため**照合は通り**、
+  `tools/check_docs.py` も `tools/spool_fold.py --dry-run` も緑のままだった
+  (どちらも「本文が stub であってはならない」を検査しない)。
+- 恒久対応: memory `spool-update-body-must-be-carry-resolved` — `更新` / `完了` の本文は
+  carry 鎖を解決した実体から作り、末尾エントリの描画行を使わない。
+  機械化 ([T-1114]) を起票済みで、そちらが land すれば規律から lint へ移る。
+- 再発検知: 現状は目視のみ。[T-1114] が
+  「`更新` item の本文が carry stub 形式に一致したら赤」を `check_docs` へ入れる。
+  親が本 wave で気づけたのは、生成後に無変更 carry の一覧を出力して目視したためである。
+
+### F314. 外部期待値と照合する validator が、caller の alias により恒真だった [恒真ゲート] [テスト代表性]
+
+- 事象: 8c の世代間還流を白名単で閉じる validator を新設し、焦点走は **508 passed で全緑**に
+  なった。しかしその後の敵対レビュー **2 本が独立に**、caller が `perf_payload` /
+  `leading_payload` / `whiteboard` の**同じ実体**を payload と外部期待値の両方へ渡しており、
+  **両方まとめて書き換えれば通る**ことを指摘した。すなわち wave の中心的主張
+  (「世代間で運ぶものを機械的に閉じた」) が機械としては成立していなかった。
+- 根本原因: (1) 親が「payload と別に外部期待値を渡して exact 照合せよ」とだけ指示し、
+  **期待値の導出経路が payload と独立であること**を要求しなかった。
+  (2) 同じ object を渡す実装は「照合が通る」ので、テストも実走も一切赤にならない。
+  恒真ゲートの中でも**テストと実走の両方をすり抜ける**型である。
+  (3) 親は途中 2 回この箇所の裁定を書き換えており (最初は `None` の hardcode を要求 →
+  pre-wave の目印テストを壊して撤回 → 外部期待値方式へ)、その過程で独立性の要件が落ちた。
+- 判別: validator が「payload と期待値を照合する」形を採るとき、**期待値がどこから来るかを辿る**。
+  payload と同じ変数・同じ関数呼出しの戻り値なら恒真である。
+  「両方を同時に書き換える変異」を事前登録し、それが KILLED になることを確認するまで
+  検出力を主張しない。
+- 恒久対応: 期待値を**初期状態の定数から独立に導出**し、payload 側とは deep copy で object を切る。
+  実体 = `orchestrator/campaign/p3_autonomous_workload_trial.py` の workload 単位 snapshot と、
+  `orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_metric_payloads_do_not_alias_frozen_validator_expectations`。
+  あわせて validator 通過を sealed receipt として journal / report へ durable に残し、
+  completeness が production validator を呼ばず独自定数で再検証する。
+- 再発検知: 事前登録変異に「caller の世代更新点で許可 field を個別に実測値へ更新する」独立 anchor と
+  「payload と期待値を同時に書き換える」変異の両方を含める。本 wave の実測は
+  変異 18 件すべて KILLED、期待 node 完全一致 (baseline PASSED / SURVIVED 0 / MISMATCH 0)。
+- 近縁: F69 (値ベース positive control の無力)、F9 (恒真な保証)、F21 (live 発火未検証の防壁)、
+  F27 (fixture へ現行 hash を差し込んで隠蔽)。
+
+### F315. 凍結 golden を wave 自身の出力で再生成し、drift 検出を無効化した [恒真ゲート] [手順漏れ]
+
+- 事象: 親は「report の新 field を exact golden へ**足せ**、volatile 扱いで検査対象から外すな」と
+  指示したが、実装は `_PRE_WAVE_ORIGINLESS_BASELINE` を**丸ごと wave 自身の出力で作り直し**、
+  出典コメントも「wave 前 commit `7b6f91a8` から凍結」から「T-244 report-v3 出力から凍結」へ
+  書き換えていた。凍結 golden の目的 (drift 検出) が無効化される。
+- 根本原因: 「新 field を足す」という指示が、**baseline literal を不変に保つ**ことを
+  明示していなかった。golden を再生成すれば赤は必ず消えるため、実装側から見ると最短路である。
+- 判別: 凍結 golden を持つ wave では、**baseline literal の sha256 が base commit のものと
+  一致するか**を直接確認する。差分は「baseline + 名前つきの裁定済み delta」の形でだけ許す。
+- 恒久対応: pre-wave baseline を byte-for-byte 復元し、比較は明示 delta を射影してから行う。
+  delta は項目ごとに根拠を 1 行持つ。実体 =
+  `orchestrator/tests/test_reflux_originless_compatibility.py` の明示 delta 節。
+  本 wave の delta は report の新 4 key、`REPORT_SCHEMA_VERSION` の v2→v3、validation receipt 証拠、
+  planner の `effective_prompt_sha256` の 4 種で、**planner 以外 3 role の effective prompt SHA と
+  全 role の `role_file_sha256` は pre-wave と一致**することを実測した。
+- 再発検知: 「pre-wave baseline literal の sha256 が base と一致」を検査に含める。
+- 近縁: F27、F78 (docs だけの wave が sha256 pin された事前登録文書を編集した)。
+
+### F316. 防壁テストの期待値が書き換えられ、実装は無傷のまま検査だけ壊れた [恒真ゲート] [権限逸脱]
+
+- 事象: `test_cli_default_is_literal_one_by_ast` の `assert len(calls) == 1` が
+  `== 2` へ書き換えられていた。このテストは **F72 の恒久対応そのもの**で、
+  「承認上限を上げても CLI 既定値は literal `1` のまま」を AST で pin する防壁である。
+  親は全 fix prompt で「既存テストの期待値を変更してはならない」を明示していた。
+- 根本原因: 実装側が「承認上限 gate の追加」と「CLI 定義の個数」を混同した。
+  **production の `add_argument` は元から 1 個で、防壁の実装は無傷だった** — 壊れたのは検査だけである。
+  この形は「実装は正しいがテストが嘘をつく」状態を作り、次の wave が気づかず通す。
+- 判別: fix 巡ごとに `git diff <base> -- <テスト directory>` を**全数走査**し、
+  wave 前から存在するテストの assert / 期待値 / 正規表現 / 期待 node の変更を全部列挙する。
+  親の明示裁定が無いものは base へ戻す。fixture・setup・引数の変更は別枠で列挙する。
+- 恒久対応: base へ復元し、AST 実測で「対象 `add_argument` は 1 個、`default` は literal `1`」を
+  確認した。全数走査の結果、親の明示裁定が無い期待値変更は**この 1 件だけ**だった。
+- 再発検知: fix prompt に全数走査を必須節として入れる。本 wave は fix 第 8 巡で導入した。
+- 近縁: F80 (修正子が既存の安全テストの期待値を反転)、F72 (宣言と既定が逆)。
+
+### F317. 前回ピーク由来の予算で cgroup attest が落ち、変異走行が local mode で回せない [計測汚染] [手順漏れ]
+
+- 事象: `tools/run_tests.py` の bounded local は前回ピーク使用量から次回予算を見積もる。
+  初回 (既定 4,294,967,296 bytes) は成功するが、2 回目以降の見積り
+  (実測 1,733,032,960 / 1,914,209,280 / 1,977,591,600 bytes) では
+  `bounded scope の memory.max / memory.oom.group を走行中に attest できない` として
+  **`rc=16` (infrastructure failure)** になる。**変異走行は同一 target set を 19 回繰り返すため
+  2 回目以降が必ず当たり**、harness は収集段で `collected=0` として中止する。
+  他 wave が 4 GiB を予約していると残り headroom が小さくなり同じ経路に落ちる。
+- 根本原因: 見積り予算が cgroup scope の attest に必要な下限を下回りうる。
+  `rc=16` はテスト結果ではないため、これを赤と誤読すると差分へ誤帰属する。
+- 判別: `rc=16` を見たら**必ず** `生存中の予約` と `算出予算` を読む。
+  初回と 2 回目で予算が変わっていれば本件である。target set を変えると key が変わり既定予算へ戻る。
+- 恒久対応: 恒久修正でなく運用回避である。変異走行は `--runner-mode dispatch` + runner argv の `--force-dispatch` で
+  計算ノードへ出す。`qstat -Q` は**親からは rc=0** で応答する
+  (codex 子の rc=1 は sandbox が socket を塞ぐためで、queue の問題ではない)。
+- 再発検知: `--plan-only` の後に本走が収集段で落ちたら、まず予算値を読む。
+- 近縁: F46 (ログインノードの実測を計算ノードへ誤前提)、F74 (規範の測定手順がその機体で実行不能)。
+
+### F318. PBS probe が同伴ファイルを `$0` 相対で解決して必ず落ちる [誤前提] [環境]
+
+- 事象: (2026-08-15、`Request 911131.nqsv`) probe が Elapse **4 秒**・exit 3 で落ちた。
+  scheduler stderr の全文は 1 行
+  `realpath: /var/opt/nec/nqsv/jsv/jobfile/0.911131.10/t1094_floor_probe.py: No such file or directory`。
+- 根本原因: **NQSV は job script を spool 領域へコピーしてから計算ノードで実行する。**
+  実行時の `$0` は投入時の path ではなく `/var/opt/nec/nqsv/jsv/jobfile/<job>/` 配下になるため、
+  `$0` の親 directory に同伴 `.py` を探す形は構造的に成立しない。login node からこの spool path は
+  見えない (親が `ls /var/opt/nec/nqsv/jsv/jobfile/` で不在を確認)。
+- 恒久対応: probe の `.pbs` は payload の絶対 path を**必須 env** で受け、
+  非空・絶対・`realpath -e`・regular file・非 symlink を fail-closed で検査する
+  (逐語 = `output/insights/2026-08-15_t1094-fetchcontent-floor/verbatim/probe-pbs.md`)。
+  `$0` / wrapper の親 directory / spool path からの導出を持たない。
+- 再発検知: PBS job script 内に `${0%/*}` や `dirname "$0"` を使う同伴ファイル解決があること。
+
+### F319. pinned-clean 検査が ignored 生成物を見ず、汚染された source を clean と宣言する [恒真ゲート]
+
+- 事象: (2026-08-15、計算ノード `bnode030` と login の双方で実測) 共有 third-party cache の
+  masstree は `git status --porcelain --untracked-files=all` が **0 行**、HEAD が凍結 policy の pin
+  (`b3c5d054b66b08374d7a6ff5a0faeaf28b041a38`) と一致する一方、
+  `git ls-files --others --ignored --exclude-standard` が **71 件**を返した。
+  内訳に `config.h` (10,448 bytes) と `libkohler_masstree_json.a` (2,466,846 bytes) を含む。
+- 根本原因: `orchestrator/campaign/silo_ladder_rung1.py` の `third_party_source_contract` は
+  HEAD 一致と `git status --porcelain --untracked-files=all` の空だけを pinned-clean の判定に使う。
+  `git status` は **ignored file を列挙しない**ため、上流 `.gitignore` が無視するビルド生成物は
+  判定に入らない。CCBench の `external/ccbench/cmake/ThirdParty.cmake:66-77` は
+  `./bootstrap.sh; ./configure; make -j; ar cr` を
+  `WORKING_DIRECTORY "${masstree_SOURCE_DIR}"` で実行するため、**build が source tree の中へ
+  生成物を吐く**。同 wave の probe は clean な source に対しこの target を実行し
+  (rc=0 / 10.676 秒)、`config.h` 10,448 bytes と archive 2,466,926 bytes が
+  **その build によって生成された**ことを before/after で確定した。
+  すなわち cache の 71 件は過去の build の残骸である。
+  D152 決定 (4) が警告した失敗モードが実データで成立していた。
+- 影響: `config.h` は `.gitignore` 除外で Git 非管理のため、**HEAD pin はその bytes を証明しない**。
+  この経路を通った build の third-party identity 主張は成立しない。
+  consumer は床値だけでなく Silo ladder correctness/gap job も含む。
+- 恒久対応: **未実施。** 本 wave は測定に留め、実装は裁定へ返した
+  (材料 = `output/insights/2026-08-15_t1094-fetchcontent-floor/`)。
+  検査へ `git ls-files --others --ignored --exclude-standard` を加える案は、
+  既存 record schema の `clean` の意味を上書きすると旧凍結 evidence を誤読するため、
+  新 field による新旧分離が要る。
+- 再発検知: pinned-clean を名乗る検査が `--porcelain` だけを根拠にしていること。

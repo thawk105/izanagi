@@ -1270,6 +1270,9 @@ def _append_run_start(
         "launch_admission": A.trial_registry.launch_admission_record(
             launch_admission
         ),
+        "generation_driver": A._generation_driver_identity(_dry_drive),
+        "gating_spec_sha256": A.snapshot_gating_spec(A.GATING_SPEC).sha256,
+        "honest_accounting_authority": A._accounting_authority(_dry_drive),
     })
 
 
@@ -1701,6 +1704,7 @@ def test_success_consumer_keeps_valid_receipt_in_journal_and_report(
             transport_receipt=run_receipt,
             build_context=_no_build_context(),
             launch_admission=launch_admission,
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
     report = _run_with_public_exploratory_scope(
@@ -1994,6 +1998,7 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             transport_receipt=receipt,
             build_context=_no_build_context(),
             launch_admission=launch_admission,
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
     try:
@@ -2056,6 +2061,7 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             transport_receipt=receipt,
             build_context=_no_build_context(),
             launch_admission=launch_admission,
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
     try:
@@ -2100,6 +2106,7 @@ def test_terminal_events_keep_transport_receipt(tmp_path: Path) -> None:
             max_wall_s=1,
             transport_receipt=receipt,
             build_context=_no_build_context(),
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
         return {"status": "captured", "cell": cell}
 
@@ -2167,6 +2174,7 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
             fatal_error=opt_fatal_error,
             transport_receipt=receipt,
             launch_admission=launch_admission,
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
     opt_report = _run_with_public_exploratory_scope(
@@ -2217,6 +2225,7 @@ def test_opt_in_report_and_opt_out_report_field_boundaries(tmp_path: Path) -> No
             fatal_error=default_fatal_error,
             transport_receipt=None,
             launch_admission=launch_admission,
+            gating_spec_snapshot=A.snapshot_gating_spec(A.GATING_SPEC),
         )
 
     default_report = _run_with_public_exploratory_scope(

@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import sys
 from collections import Counter
@@ -39,6 +40,7 @@ _EVENTS = frozenset({
     "transport-admission",
     "run-start",
     "role-attempt",
+    "generation-accounting",
     "supervisor-error",
     "supervisor-wall-budget",
     "provider-init-error",
@@ -90,6 +92,64 @@ _FORMAL_REASON_CODES = frozenset({
     "FC01", "FC02", "FC03", "FC04", "FC05a", "FC05b", "FC05c", "FC06",
     "FC07", "FC09", "FC10", "P6Unavailable",
 })
+_GENERATION_DRIVER_WRAPPER = "s8c-generation/v1"
+_STANDARD_GENERATION_DRIVER = {
+    "wrapper": _GENERATION_DRIVER_WRAPPER,
+    "delegate": "trigger.drive_iteration",
+}
+_INJECTED_GENERATION_DRIVER = {
+    "wrapper": _GENERATION_DRIVER_WRAPPER,
+    "delegate": "caller-injected-unsupported",
+}
+_COMMON_PAYLOAD_KEYS = frozenset({
+    "schema_version", "pilot_scope", "scientific_claim", "workload",
+    "generation", "workload_descriptor", "descriptor_binding",
+    "attempt_policy", "stop_policy",
+})
+_ROLE_PAYLOAD_KEY_SPEC = {
+    "planner-generation-1": sorted(_COMMON_PAYLOAD_KEYS | {
+        "current_perf", "leading_indicators", "whiteboard",
+    }),
+    "planner-generation-next": sorted(_COMMON_PAYLOAD_KEYS | {
+        "current_perf", "leading_indicators", "whiteboard", "critic_feedback",
+    }),
+    "coder": sorted(_COMMON_PAYLOAD_KEYS | {
+        "leakproof_context", "gating_spec", "planner_direction", "baseline",
+        "whiteboard",
+    }),
+    "auditor": sorted(_COMMON_PAYLOAD_KEYS | {
+        "working_diff", "diff_digest", "designated_source_context",
+        "correctness_digest",
+    }),
+    "auditor-skip": sorted(_COMMON_PAYLOAD_KEYS | {"pre_audit"}),
+    "critic": sorted(_COMMON_PAYLOAD_KEYS | {
+        "harness_result", "critic_digest",
+    }),
+}
+_ROLE_PAYLOAD_ALLOWLIST_SHA256 = hashlib.sha256(
+    json.dumps(
+        _ROLE_PAYLOAD_KEY_SPEC,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+).hexdigest()
+_VALIDATION_RECEIPT_SCHEMA_VERSION = "s8c-role-payload-validation-receipt/v1"
+_ROLE_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
+_PILOT_SCOPE = "exploratory-ycsb-abc"
+_LEAKPROOF_CONTEXT = (
+    "Use only this campaign's projected descriptor, metrics, planner direction, "
+    "and abstract whiteboard. No prior sweep winner, candidate ranking, or "
+    "unmeasured performance is available."
+)
+_PLANNER_AXIS = "silo-backoff-trigger-gating"
+_PERF_KEYS = {
+    "throughput_ops_sec", "abort_rate_pct", "latency_ns", "llc_miss_rate", "ipc",
+}
+_LEADING_METRIC_KEYS = {"IPC_overall", "cache_miss_rate_pct"}
+_WHITEBOARD_KEYS = {"iteration", "direction", "magnitude", "result", "delta_pct"}
+_DIAGNOSTIC_METRICS = ("abort_rate", "latency_ns", "llc_miss_rate", "ipc")
 
 
 class AutonomousTrialCompletenessError(RuntimeError):
@@ -232,11 +292,311 @@ def _sha256_field(value: Any, *, label: str) -> None:
         _fail("role-event-shape", f"{label} is not a lowercase SHA-256")
 
 
+def _expected_payload_keys(record: Mapping[str, Any]) -> list[str]:
+    role = record.get("role")
+    if role == "planner":
+        generation = record.get("generation")
+        key = (
+            "planner-generation-1"
+            if generation == 1
+            else "planner-generation-next"
+        )
+    elif role == "auditor" and record.get("status") == "skipped":
+        key = "auditor-skip"
+    else:
+        key = role
+    if key not in _ROLE_PAYLOAD_KEY_SPEC:
+        _fail("payload-allowlist", f"unknown role payload key spec: {key!r}")
+    return _ROLE_PAYLOAD_KEY_SPEC[key]
+
+
+def _receipt_sha256(value: Any) -> str:
+    try:
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError) as exc:
+        _fail("payload-validation-receipt", f"receipt is not canonical JSON: {exc}")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _receipt_sha256_field(value: Any, *, label: str) -> str:
+    if type(value) is not str or _SHA256_RE.fullmatch(value) is None:
+        _fail("payload-validation-receipt", f"{label} is not a lowercase SHA-256")
+    return value
+
+
+def _check_bool_map(value: Any, expected_keys: set[str], *, label: str) -> None:
+    mapping = _mapping(value, gate="payload-validation-receipt", label=label)
+    if set(mapping) != expected_keys or any(type(item) is not bool for item in mapping.values()):
+        _fail("payload-validation-receipt", f"{label} is not the exact nullness map")
+
+
+def _check_whiteboard_receipt(
+    value: Any, *, generation: int, label: str,
+) -> None:
+    entries = _list(value, gate="payload-validation-receipt", label=label)
+    if len(entries) > generation - 1:
+        _fail("payload-validation-receipt", f"{label} exceeds generation bound")
+    previous = 0
+    for index, raw in enumerate(entries):
+        entry = _mapping(
+            raw,
+            gate="payload-validation-receipt",
+            label=f"{label}[{index}]",
+        )
+        if set(entry) != _WHITEBOARD_KEYS:
+            _fail("payload-validation-receipt", f"{label}[{index}] keys differ")
+        iteration = entry.get("iteration")
+        if type(iteration) is not int or not previous < iteration <= generation - 1:
+            _fail("payload-validation-receipt", f"{label} is not strictly increasing")
+        previous = iteration
+        if entry.get("direction") not in {"increase", "decrease", "explore_both"}:
+            _fail("payload-validation-receipt", f"{label} direction is outside allowlist")
+        if entry.get("magnitude") not in {"small", "medium", "large"}:
+            _fail("payload-validation-receipt", f"{label} magnitude is outside allowlist")
+        if entry.get("result") not in {"success", "fail", "rejected"}:
+            _fail("payload-validation-receipt", f"{label} result is outside allowlist")
+        if entry.get("delta_pct") is not None:
+            _fail("payload-validation-receipt", f"{label} delta_pct is not null")
+
+
+def _check_payload_validation_receipt(
+    record: Mapping[str, Any], *, label: str,
+) -> None:
+    role = record.get("role")
+    raw_receipt = record.get("payload_validation_receipt")
+    if not isinstance(raw_receipt, Mapping):
+        _fail(
+            "payload-validation-receipt",
+            f"{label}.payload_validation_receipt is not a Mapping",
+        )
+    receipt = _mapping(
+        raw_receipt,
+        gate="payload-validation-receipt",
+        label=f"{label}.payload_validation_receipt",
+    )
+    receipt_keys = {
+        "schema_version", "role", "payload_sha256", "payload_allowlist_sha256",
+        "safe_projection", "safe_projection_sha256", "seal_sha256",
+    }
+    if set(receipt) != receipt_keys:
+        _fail("payload-validation-receipt", f"{label} receipt keys differ")
+    if receipt.get("schema_version") != _VALIDATION_RECEIPT_SCHEMA_VERSION:
+        _fail("payload-validation-receipt", f"{label} receipt schema differs")
+    if receipt.get("role") != role:
+        _fail("payload-validation-receipt", f"{label} receipt role differs")
+    if receipt.get("payload_sha256") != record.get("input_payload_sha256"):
+        _fail("payload-validation-receipt", f"{label} receipt payload digest differs")
+    if receipt.get("payload_allowlist_sha256") != _ROLE_PAYLOAD_ALLOWLIST_SHA256:
+        _fail("payload-validation-receipt", f"{label} receipt allowlist digest differs")
+
+    projection = _mapping(
+        receipt.get("safe_projection"),
+        gate="payload-validation-receipt",
+        label=f"{label}.safe_projection",
+    )
+    common_projection_keys = {
+        "role", "workload", "generation", "descriptor_sha256",
+        "workload_descriptor_sha256", "descriptor_binding_sha256",
+        "fixed_literals", "nested_key_sets", "whiteboard_origin",
+        "whiteboard_origin_sha256",
+    }
+    role_projection_keys = (
+        {
+            "current_perf_nullness", "leading_metric_nullness",
+            "contention_level_sha256", "critic_feedback",
+        }
+        if role == "planner"
+        else {
+            "baseline_nullness", "gating_spec_sha256",
+            "planner_direction_sha256",
+        }
+    )
+    if set(projection) != common_projection_keys | role_projection_keys:
+        _fail("payload-validation-receipt", f"{label} safe projection keys differ")
+    generation = record.get("generation")
+    if type(generation) is not int or generation < 1:
+        _fail("payload-validation-receipt", f"{label} generation is invalid")
+    if (
+        projection.get("role") != role
+        or projection.get("workload") != record.get("workload")
+        or projection.get("generation") != generation
+        or projection.get("descriptor_sha256") != record.get("descriptor_sha256")
+    ):
+        _fail("payload-validation-receipt", f"{label} safe identity differs")
+    for field in (
+        "workload_descriptor_sha256", "descriptor_binding_sha256",
+        "whiteboard_origin_sha256",
+    ):
+        _receipt_sha256_field(projection.get(field), label=f"{label}.{field}")
+
+    fixed = _mapping(
+        projection.get("fixed_literals"),
+        gate="payload-validation-receipt",
+        label=f"{label}.fixed_literals",
+    )
+    expected_fixed = {
+        "schema_version": _ROLE_SCHEMA_VERSION,
+        "pilot_scope": _PILOT_SCOPE,
+        "scientific_claim": False,
+        "attempt_policy": {"attempts_per_role_generation": 1, "retry": False},
+        "stop_policy": {
+            "performance_early_stop": False,
+            "generation_budget_is_fixed": True,
+        },
+    }
+    if role == "coder":
+        expected_fixed.update({
+            "leakproof_context": _LEAKPROOF_CONTEXT,
+            "planner_axis": _PLANNER_AXIS,
+        })
+    if fixed != expected_fixed:
+        _fail("payload-validation-receipt", f"{label} fixed literals differ")
+
+    nested = _mapping(
+        projection.get("nested_key_sets"),
+        gate="payload-validation-receipt",
+        label=f"{label}.nested_key_sets",
+    )
+    if nested.get("$") != record.get("payload_exact_keys"):
+        _fail("payload-validation-receipt", f"{label} top-level receipt keys differ")
+    required_nested = {
+        "$.attempt_policy": ["attempts_per_role_generation", "retry"],
+        "$.stop_policy": ["generation_budget_is_fixed", "performance_early_stop"],
+    }
+    if role == "planner":
+        required_nested.update({
+            "$.current_perf": sorted(_PERF_KEYS),
+            "$.leading_indicators": [
+                "IPC_overall", "cache_miss_rate_pct", "contention_level",
+            ],
+        })
+    else:
+        required_nested.update({
+            "$.baseline": sorted(_PERF_KEYS),
+            "$.planner_direction": ["axis", "direction", "magnitude"],
+        })
+    for path, keys in required_nested.items():
+        if nested.get(path) != keys:
+            _fail("payload-validation-receipt", f"{label} nested keys differ at {path}")
+
+    _check_whiteboard_receipt(
+        projection.get("whiteboard_origin"),
+        generation=generation,
+        label=f"{label}.whiteboard_origin",
+    )
+    if _receipt_sha256(projection["whiteboard_origin"]) != projection["whiteboard_origin_sha256"]:
+        _fail("payload-validation-receipt", f"{label} whiteboard origin digest differs")
+
+    if role == "planner":
+        _check_bool_map(
+            projection.get("current_perf_nullness"),
+            _PERF_KEYS,
+            label=f"{label}.current_perf_nullness",
+        )
+        _check_bool_map(
+            projection.get("leading_metric_nullness"),
+            _LEADING_METRIC_KEYS,
+            label=f"{label}.leading_metric_nullness",
+        )
+        _receipt_sha256_field(
+            projection.get("contention_level_sha256"),
+            label=f"{label}.contention_level_sha256",
+        )
+        feedback = projection.get("critic_feedback")
+        if generation == 1:
+            if feedback is not None:
+                _fail("payload-validation-receipt", f"{label} generation 1 has feedback")
+        else:
+            feedback_map = _mapping(
+                feedback,
+                gate="payload-validation-receipt",
+                label=f"{label}.critic_feedback",
+            )
+            if set(feedback_map) != {
+                "source_generation", "diagnostics", "uncertainty_present",
+                "reverse_recommended",
+            } or feedback_map.get("source_generation") != generation - 1:
+                _fail("payload-validation-receipt", f"{label} critic identity differs")
+            if type(feedback_map.get("uncertainty_present")) is not bool or type(
+                feedback_map.get("reverse_recommended")
+            ) is not bool:
+                _fail("payload-validation-receipt", f"{label} critic bool differs")
+            diagnostics = _list(
+                feedback_map.get("diagnostics"),
+                gate="payload-validation-receipt",
+                label=f"{label}.critic_feedback.diagnostics",
+            )
+            if len(diagnostics) != len(_DIAGNOSTIC_METRICS):
+                _fail("payload-validation-receipt", f"{label} diagnostic length differs")
+            for index, metric in enumerate(_DIAGNOSTIC_METRICS):
+                diagnostic = _mapping(
+                    diagnostics[index],
+                    gate="payload-validation-receipt",
+                    label=f"{label}.diagnostics[{index}]",
+                )
+                if set(diagnostic) != {"metric", "value_is_null", "value_sha256"}:
+                    _fail("payload-validation-receipt", f"{label} diagnostic keys differ")
+                if diagnostic.get("metric") != metric or type(
+                    diagnostic.get("value_is_null")
+                ) is not bool:
+                    _fail("payload-validation-receipt", f"{label} diagnostic value differs")
+                _receipt_sha256_field(
+                    diagnostic.get("value_sha256"),
+                    label=f"{label}.diagnostics[{index}].value_sha256",
+                )
+    else:
+        _check_bool_map(
+            projection.get("baseline_nullness"),
+            _PERF_KEYS,
+            label=f"{label}.baseline_nullness",
+        )
+        for field in ("gating_spec_sha256", "planner_direction_sha256"):
+            _receipt_sha256_field(projection.get(field), label=f"{label}.{field}")
+
+    projection_sha256 = _receipt_sha256(projection)
+    if receipt.get("safe_projection_sha256") != projection_sha256:
+        _fail("payload-validation-receipt", f"{label} safe projection digest differs")
+    seal_preimage = {
+        "schema_version": _VALIDATION_RECEIPT_SCHEMA_VERSION,
+        "role": role,
+        "payload_sha256": receipt["payload_sha256"],
+        "payload_allowlist_sha256": receipt["payload_allowlist_sha256"],
+        "safe_projection_sha256": projection_sha256,
+    }
+    if receipt.get("seal_sha256") != _receipt_sha256(seal_preimage):
+        _fail("payload-validation-receipt", f"{label} receipt seal differs")
+
+
+def _check_payload_validation_receipts(
+    records: Sequence[Mapping[str, Any]],
+) -> None:
+    for record in records:
+        label = (
+            f"{record.get('workload')}.g{record.get('generation')}."
+            f"{record.get('role')}"
+        )
+        if record.get("role") in {"planner", "coder"}:
+            _check_payload_validation_receipt(record, label=label)
+        elif "payload_validation_receipt" in record:
+            _fail(
+                "payload-validation-receipt",
+                f"{label} non-validated role carries a receipt",
+            )
+
+
 def _check_role_event_shape(record: Mapping[str, Any], *, label: str) -> None:
     required = {
         "event", "workload", "generation", "role", "status", "seq", "ts",
         "invocation_id", "input_payload_sha256", "descriptor_sha256",
         "attempt", "retry",
+        "payload_exact_keys", "payload_allowlist_sha256",
+        "role_query_ordinal",
     }
     missing = sorted(required - set(record))
     if missing:
@@ -253,7 +613,11 @@ def _check_role_event_shape(record: Mapping[str, Any], *, label: str) -> None:
         _fail("attempt-policy", f"{label}.attempt must be exactly 1")
     if record.get("retry") is not False:
         _fail("attempt-policy", f"{label}.retry must be false")
-
+    if record.get("payload_allowlist_sha256") != _ROLE_PAYLOAD_ALLOWLIST_SHA256:
+        _fail("payload-allowlist", f"{label} allowlist digest differs")
+    exact_keys = record.get("payload_exact_keys")
+    if exact_keys != _expected_payload_keys(record):
+        _fail("payload-allowlist", f"{label} exact payload keys differ")
     status = record.get("status")
     if status == "valid":
         status_required = {
@@ -297,6 +661,12 @@ def _check_role_event_shape(record: Mapping[str, Any], *, label: str) -> None:
             _fail("role-event-shape", f"{label}.pre_audit does not prove rejection")
     else:
         _fail("role-event-shape", f"{label}.status is unknown: {status!r}")
+    ordinal = record.get("role_query_ordinal")
+    if status == "skipped":
+        if ordinal is not None:
+            _fail("query-ordinal", f"{label} skipped attempt has an ordinal")
+    elif type(ordinal) is not int or ordinal < 1:
+        _fail("query-ordinal", f"{label} provider attempt lacks an ordinal")
 
 
 def _logical_id(record: Mapping[str, Any], *, label: str) -> tuple[Any, ...]:
@@ -664,6 +1034,59 @@ def _check_run_envelope(
         _fail("run-envelope", "run-start workloads do not match report order")
     if finish.get("status") != report.get("status"):
         _fail("run-envelope", "run-finish status does not match report")
+    driver = _mapping(
+        report.get("generation_driver"),
+        gate="run-envelope",
+        label="report.generation_driver",
+    )
+    if dict(driver) not in (
+        _STANDARD_GENERATION_DRIVER,
+        _INJECTED_GENERATION_DRIVER,
+    ):
+        _fail("run-envelope", "generation_driver is outside the closed set")
+    if start.get("generation_driver") != driver:
+        _fail("run-envelope", "run-start generation_driver differs")
+    if finish.get("generation_driver") != driver:
+        _fail("run-envelope", "run-finish generation_driver differs")
+    gating_digest = report.get("gating_spec_sha256")
+    if not isinstance(gating_digest, str) or _SHA256_RE.fullmatch(gating_digest) is None:
+        _fail("run-envelope", "gating_spec_sha256 is not a lowercase SHA-256")
+    if start.get("gating_spec_sha256") != gating_digest:
+        _fail("run-envelope", "run-start GATING_SPEC digest differs")
+    if finish.get("gating_spec_sha256") != gating_digest:
+        _fail("run-envelope", "run-finish GATING_SPEC digest differs")
+    expected_authority = (
+        "supervisor-authoritative"
+        if dict(driver) == _STANDARD_GENERATION_DRIVER
+        else "excluded-caller-injected-unsupported"
+    )
+    if report.get("honest_accounting_authority") != expected_authority:
+        _fail("run-envelope", "report accounting authority differs from driver")
+    if start.get("honest_accounting_authority") != expected_authority:
+        _fail("run-envelope", "run-start accounting authority differs")
+    if finish.get("honest_accounting_authority") != expected_authority:
+        _fail("run-envelope", "run-finish accounting authority differs")
+    accounting = _mapping(
+        report.get("honest_accounting"),
+        gate="run-envelope",
+        label="report.honest_accounting",
+    )
+    if set(accounting) != {"role_query_count", "bench_wall_seconds"}:
+        _fail("run-envelope", "honest_accounting exact keys differ")
+    role_queries = accounting.get("role_query_count")
+    bench_seconds = accounting.get("bench_wall_seconds")
+    if type(role_queries) is not int or role_queries < 0:
+        _fail("run-envelope", "role_query_count is not a nonnegative exact int")
+    if (
+        isinstance(bench_seconds, bool)
+        or not isinstance(bench_seconds, (int, float))
+        or not isinstance(float(bench_seconds), float)
+        or not math.isfinite(float(bench_seconds))
+        or float(bench_seconds) < 0.0
+    ):
+        _fail("run-envelope", "bench_wall_seconds is not finite and nonnegative")
+    if finish.get("honest_accounting") != accounting:
+        _fail("run-envelope", "run-finish honest_accounting differs")
     journal_ref = _path_identity(
         report.get("attempt_journal"), gate="run-envelope",
         label="report.attempt_journal",
@@ -702,6 +1125,18 @@ def _check_terminal_projection(
             _fail("terminal-projection", "fatal_error has no terminal journal event")
         if any(cell.get("stop_reason") == "supervisor-error" for cell in cells):
             _fail("terminal-projection", "supervisor-error cell has no terminal journal event")
+        if (
+            type(report.get("generation_budget_per_workload")) is int
+            and report["generation_budget_per_workload"] >= 2
+            and any(
+                cell.get("stop_reason") == "supervisor-wall-budget"
+                for cell in cells
+            )
+        ):
+            _fail(
+                "terminal-projection",
+                "supervisor-wall-budget cell has no terminal journal event",
+            )
         return None
     terminal = terminals[0]
     if len(events) < 2 or events[-2] is not terminal:
@@ -759,7 +1194,10 @@ def _check_harness(generation: Mapping[str, Any], *, label: str) -> Mapping[str,
     harness = _mapping(generation.get("harness"), gate="state-machine", label=f"{label}.harness")
     if not harness:
         _fail("state-machine", f"{label}.harness is empty")
-    required = {"outcome", "variant", "stop_reason", "iteration", "ran"}
+    required = {
+        "outcome", "variant", "stop_reason", "iteration", "ran",
+        "critic_digest_generated",
+    }
     missing = sorted(required - set(harness))
     if missing:
         _fail("state-machine", f"{label}.harness is missing required fields: {missing}")
@@ -778,6 +1216,11 @@ def _check_harness(generation: Mapping[str, Any], *, label: str) -> Mapping[str,
         _fail("state-machine", f"{label}.harness.iteration is invalid")
     if type(harness["ran"]) is not bool:
         _fail("state-machine", f"{label}.harness.ran is not a bool")
+    if type(harness["critic_digest_generated"]) is not bool:
+        _fail(
+            "state-machine",
+            f"{label}.harness.critic_digest_generated is not a bool",
+        )
     if generation.get("outcome") != harness["outcome"]:
         _fail("state-machine", f"{label}.outcome differs from harness.outcome")
     return harness
@@ -1036,9 +1479,28 @@ def _check_workload_coverage(
     if len(actual) != len(set(actual)) or actual != requested[:len(actual)]:
         _fail("workload-coverage", "cell workloads are not a unique requested prefix")
     terminal_kind = terminal.get("event") if terminal is not None else None
+    multigeneration = (
+        type(report.get("generation_budget_per_workload")) is int
+        and report["generation_budget_per_workload"] >= 2
+    )
     if len(actual) == len(requested):
         if terminal_kind == "supervisor-wall-budget":
-            _fail("workload-coverage", "wall-budget terminal event has no missing workload")
+            if not multigeneration:
+                _fail(
+                    "workload-coverage",
+                    "wall-budget terminal event has no missing workload",
+                )
+            if (
+                not actual
+                or terminal.get("workload") != actual[-1]
+                or cells[-1].get("stop_reason") != "supervisor-wall-budget"
+                or type(terminal.get("generation")) is not int
+            ):
+                _fail(
+                    "workload-coverage",
+                    "wall-budget terminal does not identify an in-cell zero-work stop",
+                )
+            return
         if (
             terminal_kind == "supervisor-error"
             and (not actual or terminal.get("workload") != actual[-1])
@@ -1051,6 +1513,17 @@ def _check_workload_coverage(
     if kind == "provider-init-error" and not actual:
         return
     if kind == "supervisor-wall-budget" and terminal.get("workload") == requested[len(actual)]:
+        if multigeneration and type(terminal.get("generation")) is int:
+            _fail("workload-coverage", "requested workload suffix is unexplained")
+        return
+    if (
+        multigeneration
+        and kind == "supervisor-wall-budget"
+        and actual
+        and terminal.get("workload") == actual[-1]
+        and cells[-1].get("stop_reason") == "supervisor-wall-budget"
+        and type(terminal.get("generation")) is int
+    ):
         return
     if (
         kind == "supervisor-error"
@@ -1078,6 +1551,153 @@ def _check_status_projection(
     expected = "complete" if complete else "partial"
     if report.get("status") != expected:
         _fail("terminal-projection", f"report status must be {expected!r}")
+
+
+def _check_generation_accounting(
+    *, report: Mapping[str, Any], events: Sequence[Mapping[str, Any]],
+    cells: Sequence[Mapping[str, Any]],
+    terminal: Mapping[str, Any] | None,
+) -> None:
+    accounting_events = [
+        event for event in events
+        if event.get("event") == "generation-accounting"
+    ]
+    attempts = [event for event in events if event.get("event") == "role-attempt"]
+    ordinals = [
+        event.get("role_query_ordinal")
+        for event in attempts
+        if event.get("status") != "skipped"
+    ]
+    if ordinals != list(range(1, len(ordinals) + 1)):
+        _fail("query-ordinal", "provider query ordinals are not contiguous")
+
+    driver = report["generation_driver"]
+    gating_digest = report["gating_spec_sha256"]
+    authority = report["honest_accounting_authority"]
+    expected_event_keys = {
+        "event", "workload", "generation", "state", "provider_invoke_count",
+        "auditor_pre_audit_skipped", "bench_wall_seconds",
+        "generation_driver", "gating_spec_sha256", "accounting_authority",
+        "seq", "ts",
+    }
+    by_pair: dict[tuple[str, int], Mapping[str, Any]] = {}
+    for index, event in enumerate(accounting_events):
+        label = f"generation-accounting[{index}]"
+        if set(event) != expected_event_keys:
+            _fail("generation-accounting", f"{label} exact keys differ")
+        workload = event.get("workload")
+        generation = event.get("generation")
+        if not isinstance(workload, str) or not workload:
+            _fail("generation-accounting", f"{label}.workload is invalid")
+        if type(generation) is not int or generation < 1:
+            _fail("generation-accounting", f"{label}.generation is invalid")
+        pair = (workload, generation)
+        if pair in by_pair:
+            _fail("generation-accounting", f"duplicate accounting pair: {pair}")
+        by_pair[pair] = event
+        if event.get("state") not in {
+            "generation-complete", "partial-generation",
+            "pending-pre-invoke-failure",
+        }:
+            _fail("generation-accounting", f"{label}.state is unknown")
+        count = event.get("provider_invoke_count")
+        if type(count) is not int or count < 0:
+            _fail("generation-accounting", f"{label} provider count is invalid")
+        skipped = event.get("auditor_pre_audit_skipped")
+        if type(skipped) is not bool:
+            _fail("generation-accounting", f"{label} auditor skip is not bool")
+        bench = event.get("bench_wall_seconds")
+        if (
+            isinstance(bench, bool)
+            or not isinstance(bench, (int, float))
+            or not math.isfinite(float(bench))
+            or float(bench) < 0.0
+        ):
+            _fail("generation-accounting", f"{label} bench time is invalid")
+        if event.get("generation_driver") != driver:
+            _fail("generation-accounting", f"{label} driver identity differs")
+        if event.get("gating_spec_sha256") != gating_digest:
+            _fail("generation-accounting", f"{label} GATING_SPEC digest differs")
+        if event.get("accounting_authority") != authority:
+            _fail("generation-accounting", f"{label} authority differs")
+        if authority != "supervisor-authoritative" and float(bench) != 0.0:
+            _fail("generation-accounting", f"{label} injected bench is nonzero")
+        pair_attempts = [
+            attempt for attempt in attempts
+            if (attempt.get("workload"), attempt.get("generation")) == pair
+        ]
+        invoked = [
+            attempt for attempt in pair_attempts
+            if attempt.get("status") != "skipped"
+        ]
+        if len(invoked) != count:
+            _fail("generation-accounting", f"{label} provider count differs")
+        observed_skip = any(
+            attempt.get("role") == "auditor"
+            and attempt.get("status") == "skipped"
+            for attempt in pair_attempts
+        )
+        if observed_skip is not skipped:
+            _fail("generation-accounting", f"{label} auditor skip differs")
+        if pair_attempts and event["seq"] <= max(
+            attempt["seq"] for attempt in pair_attempts
+        ):
+            _fail("generation-accounting", f"{label} precedes its role attempts")
+
+    recorded_pairs: set[tuple[str, int]] = set()
+    for cell in cells:
+        workload = cell.get("workload")
+        generations = cell.get("generations", [])
+        if not isinstance(generations, list):
+            continue
+        for generation in generations:
+            if not isinstance(generation, Mapping):
+                continue
+            pair = (workload, generation.get("generation"))
+            recorded_pairs.add(pair)
+            event = by_pair.get(pair)
+            if event is None:
+                _fail("generation-accounting", f"missing accounting pair: {pair}")
+            if generation.get("bench_wall_seconds") != event["bench_wall_seconds"]:
+                _fail("generation-accounting", f"{pair} bench projection differs")
+            if generation.get("generation_driver") != driver:
+                _fail("generation-accounting", f"{pair} driver projection differs")
+            if generation.get("gating_spec_sha256") != gating_digest:
+                _fail("generation-accounting", f"{pair} GATING_SPEC projection differs")
+        if (
+            cell.get("stop_reason") == "supervisor-wall-budget"
+            and report.get("generation_budget_per_workload", 0) >= 2
+        ):
+            zero_generation = len(generations) + 1
+            if (
+                terminal is None
+                or terminal.get("event") != "supervisor-wall-budget"
+                or terminal.get("workload") != workload
+                or terminal.get("generation") != zero_generation
+                or terminal.get("zero_work") is not True
+                or terminal.get("role_query_count") != 0
+                or type(terminal.get("role_query_count")) is not int
+                or terminal.get("bench_wall_seconds") != 0.0
+                or isinstance(terminal.get("bench_wall_seconds"), bool)
+                or not isinstance(
+                    terminal.get("bench_wall_seconds"), (int, float)
+                )
+            ):
+                _fail(
+                    "generation-accounting",
+                    "zero-work wall terminal fields differ",
+                )
+    if set(by_pair) != recorded_pairs:
+        _fail("generation-accounting", "accounting/generation correspondence differs")
+
+    honest = report["honest_accounting"]
+    if honest["role_query_count"] != len(ordinals):
+        _fail("generation-accounting", "report role query total differs")
+    bench_total = sum(
+        event["bench_wall_seconds"] for event in accounting_events
+    )
+    if honest["bench_wall_seconds"] != bench_total:
+        _fail("generation-accounting", "report bench total differs")
 
 
 def assert_autonomous_trial_completeness(
@@ -1144,7 +1764,11 @@ def assert_autonomous_trial_completeness(
     ):
         _fail("role-bijection", "journal/report role-attempt multisets differ")
     _check_workload_coverage(report=report, cells=cells, terminal=terminal)
+    _check_generation_accounting(
+        report=report, events=events, cells=cells, terminal=terminal,
+    )
     _check_status_projection(report, cells)
+    _check_payload_validation_receipts(report_attempts)
 
 
 def _canonical_bytes(value: Any) -> bytes:
