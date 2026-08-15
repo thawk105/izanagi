@@ -21,8 +21,15 @@ title: [T-396] の起票前提が 3 点とも失効しており、実装候補�
   `acceptance-scheduler-attestation` が `marker-count` (`observed=[]`) で発火し rc=143 でなく rc=70 になる。
   親が同 node を焦点走で回すと **1 passed / 2.16 秒**で緑 (docs のみの差分は当該 file に到達しない)。
   `DW-O18` に従い非帰属のフレークとして扱い、新しい T は起こさない。
-  **新事実は頻度である** — 同じ node は 08:51 JST にも別の docs-only wave の受入を止めており、
-  **約 40 分の間に連続する 2 wave を止めた**。[T-1107] は「たまに踏む」ではなく現に律速している
+  **新事実は 2 つある。** (1) 頻度 — 同じ node は 08:51 JST にも別の docs-only wave の受入を
+  止めており、**約 40 分の間に連続する 2 wave を止めた**。「たまに踏む」ではなく現に律速している。
+  (2) **族の広がり** — 続く受入 (09:40 JST) は別の 2 件
+  `test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler` と
+  `test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation` で赤に
+  なった。**[T-1107] は単一 node のフレークではなく、受入全走の高並列下で signal handler の
+  到達順に依存するテスト族である** (別 file にも member がいる)。この 2 件も焦点走では
+  **2 passed / 3.20 秒**で緑。3 回連続の受入で毎回異なる member が当たっており、
+  受入 1 走あたりの成功率が実質の律速になっている。修正は node 単位でなく族単位で設計する必要がある
 - **受入 attempt 1 は走行前に停止した (走行の失敗ではない)。** `preflight-submodule-ready` が rc=2 で、
   原因は入れ子 submodule `external/ccbench/third_party/shirakami` の未初期化である。
   `DW-O20` は新規 worktree について最上位の `git submodule update --init` しか書いておらず、
