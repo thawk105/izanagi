@@ -6498,6 +6498,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 再投入は**新しい artifact 名**で行い、`rc=1` は receipt の
   `attempt output` と `validator_rc` を読んでから原因を分類する。
 
+
+- **再発: 2026-08-15** — 段 3 レンズ A の初回投入が上流分類器に遮断され、model call 16 回・
+  出力 0 bytes を空費した (`turn.failed` の message = `This content was flagged for possible
+  cybersecurity risk`、`evidence_status=complete`、`codex_exit_code=1`)。
+  親は F256 の恒久対応を知っており、**prompt 冒頭には防御目的を明記していた**。
+  遮断したのは、段 2 の結果を受けて**後から追記した「最優先の争点」節**が
+  「回避する C++ 文字列を構成できるなら具体的に示せ」と攻撃成果物の作成を求めていたことである。
+  防御的枠組みは prompt 冒頭に 1 度書けば足りるものではなく、**追記した節を含む個々の指示文が
+  それぞれ攻撃成果物を要求していないことを、投入前に確認する**必要がある。
+  再投入は被覆監査の枠組み (契約項目と機械執行の差分表・既存境界テストの被覆評価) へ
+  書き直して成功した。
 ### F257. merge が submodule gitlink を古い側で確定させ、是正 commit が provenance で land を止めた [手順漏れ] [監査ログ汚染]
 
 - 事象: local main 取り込みの merge 後、受入全走で s1/s8b/real-repo 系が 30 件級で赤になった
@@ -7542,3 +7553,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `orchestrator/tests/test_dev_wave_wait.py` へ追加した。
   `check_ai_provenance.py` が実装面 path の merge に Codex author 行を要求し、
   監査なしの通過を機械的に塞ぐ。
+
+### F313. spool fragment の `更新` 節へ carry stub を本文として書き、元本文を消しかけた [恒真ゲート] [手順漏れ]
+
+- 事象: 「次の一手」658 件の棚卸し wave で 52 件を `更新` する fragment を生成した後、main を取り込んだ。
+  取り込み後の worklog では大半の item が `- [T-NNN] (553)` の carry stub になっており、
+  生成器がその stub を「item の現本文」として読んで `更新` の本文に据えた。
+  そのまま land していれば、52 件の実体本文が 1 行の参照へ置き換わって失われていた。
+- 根本原因: `更新` は item を**置換**する操作であるのに、本文の取得元を
+  `_extract_latest_active` の `block` (= 末尾エントリの見た目の行) に取っていた。
+  carry 鎖を解決した実体本文と、末尾エントリの描画行は別物である。
+  `base:` の照合は carry 解決後の digest で行われるため**照合は通り**、
+  `tools/check_docs.py` も `tools/spool_fold.py --dry-run` も緑のままだった
+  (どちらも「本文が stub であってはならない」を検査しない)。
+- 恒久対応: memory `spool-update-body-must-be-carry-resolved` — `更新` / `完了` の本文は
+  carry 鎖を解決した実体から作り、末尾エントリの描画行を使わない。
+  機械化 ([T-1114]) を起票済みで、そちらが land すれば規律から lint へ移る。
+- 再発検知: 現状は目視のみ。[T-1114] が
+  「`更新` item の本文が carry stub 形式に一致したら赤」を `check_docs` へ入れる。
+  親が本 wave で気づけたのは、生成後に無変更 carry の一覧を出力して目視したためである。
