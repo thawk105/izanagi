@@ -55,6 +55,14 @@ title: verifier epoch を導出ラベルとして入れ、certified を名乗る
   凍結 source hash (生成時点の HEAD を記録した歴史成果物) で live pin ではないと切り分けた。
   非帰属 1 件は `test_dev_wave_wait.py` の signal handler 検査で、単独走 312 passed で緑
   ([T-1107] 族の既知フレーク)。
+- **受入 2 走目も緑にならず、今度は [T-1107] 族の 4 file 目に止められた。** 1 走目で帰属した
+  exact pin は解消したが、`test_t139_r4_env_probe.py` の SIGTERM 系 2 node
+  (`test_shell_sigterm_trap_finalizes_before_reporting_completion` /
+  `test_sigterm_path_can_only_complete_after_all_publishes`) が `attributable-red` になった。
+  **本 wave はこの file を 1 bit も触っていない。** 焦点走は 65 passed / 2.53 秒で完全に緑であり、
+  高並列下でだけ落ちる同族の性質と一致する。既知 3 file (`test_dev_wave_wait.py` /
+  `test_mutation_harness.py` / `test_mutation_worktree.py`) に続く 4 file 目である。
+  **これで直近 5 回以上の受入全走が、連続して別々の member に止められたことになる。**
 - **計算資源が本 wave の実質的な律速だった。** 2026-08-15 21:57–23:20 JST の間、`gen_S` は
   実行中ジョブ 0 のまま待機列だけが残り、dispatch 経路は 15 分の `queue-wait-timeout` を 3 回
   返した。bounded local も代替にならず、予算が「前回ピーク × 1.25」でしか伸びないため
@@ -81,6 +89,13 @@ title: verifier epoch を導出ラベルとして入れ、certified を名乗る
 
 ### 更新
 
+- [T-1107] **P2・フレーク**: 族の member に **4 つ目の file** が加わった。2026-08-16 01:38 JST の
+  受入で `orchestrator/tests/test_t139_r4_env_probe.py` の
+  `test_shell_sigterm_trap_finalizes_before_reporting_completion` と
+  `test_sigterm_path_can_only_complete_after_all_publishes` が `status=attributable-red` になり、
+  焦点走では 65 passed / 2.53 秒で緑だった。触っていない wave が止められた点も前回までと同じ。
+  既知 3 file に続く 4 file 目で、直近 5 回以上の受入全走が連続して別々の member に止められている。
+  base: 11876412bffcc733808b5a68849c80718ba24b1bca297d76b7f5f8b673ee62fd
 - [T-834] **P2・ユーザー裁定待ち**: 旧 certified / 旧 fitness を読む生きた consumer の分類は
   本 wave が 16 経路で完了し、全経路に受理目的を機械的に表明させた (段 3 の敵対 2 レンズが
   当初の 8〜10 経路に 7 経路を追加発見)。**これで本項を閉じてよいかがユーザー裁定**である
