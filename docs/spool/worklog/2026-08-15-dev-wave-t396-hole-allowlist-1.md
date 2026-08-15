@@ -11,7 +11,15 @@ title: [T-396] の起票前提が 3 点とも失効しており、実装候補�
 
 - **[T-396] は本 wave で実装しない。設計・実測を凍結し、ユーザー択一 4 件を返す。**
   正本 = `output/insights/2026-08-15_t396-hole-allowlist-refuted/` (逐語は同 dir `verbatim/`)。
-  実装差分が無いため変異 matrix は対象外。受入全走は実施した (下記)
+  実装差分が無いため変異 matrix は対象外 (`DW-S04`)。**受入全走は免除せず実施し、赤ゼロだった** —
+  実測 = **`11034 passed, 65 skipped` (failed 0)**、145.40 秒、Pegasus gen_S request 911163、
+  tested_main `152767ee` / tested_tip `5571810e`。receipt の `verdict` は `child-green`、
+  `red_nodeids` は空。land する tip では同じ受入を再走して緑を再確認した
+- **受入 attempt 1 は走行前に停止した (走行の失敗ではない)。** `preflight-submodule-ready` が rc=2 で、
+  原因は入れ子 submodule `external/ccbench/third_party/shirakami` の未初期化である。
+  `DW-O20` は新規 worktree について最上位の `git submodule update --init` しか書いておらず、
+  そのとおりに実行すると入れ子が残る。`--init --recursive` で解消した。
+  背景 job の wave は必ず踏むため、手順の是正を択一 D の材料として添える
 - **起票の前提は 3 点とも現行 main で失効していた。** 台帳 (`docs/archive/worklog-phase3-0804-148.md`) は
   2026-08-04 起票で、trigger 軸の hole を「任意 1 行」「機械 gate は識別子 5 個の blacklist だけ」
   「関所は auditor だけ」と書く。並行 wave [T-428] (2026-08-04 着地) が受理経路を固定 5-bit wire +
@@ -73,4 +81,4 @@ title: [T-396] の起票前提が 3 点とも失効しており、実装候補�
   C (verifier の予定操作数検査を起票するか)、D (段 8 候補の gate inventory 1 文が L1 予算を
   85 bytes 超過したため本文編集を止めた件)。正本 =
   `output/insights/2026-08-15_t396-hole-allowlist-refuted/`
-  base: 12197a7f708f6662456e0d0f3c8cadfd7d8235ac478dd9396de1c26c937f7d3a
+  base: 16cde725e76d0e553c3fb58834603a929fe9d7614f3b7d297f596b7fdfe33f92
