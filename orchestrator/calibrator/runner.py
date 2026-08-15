@@ -23,6 +23,11 @@ import tempfile
 import time
 from typing import Callable, Dict, List, Optional, Sequence
 
+from orchestrator.holdout_observation import (
+    HoldoutObservationAdmission,
+    assert_holdout_observation_admitted,
+)
+
 from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
                          parse_latency_ns, parse_bench_stdout, throughput_tps)
 from .model import PerfCounters, ScalePoint
@@ -397,15 +402,22 @@ def run_once(binary: str, gflags: Sequence[str],
              subprocess_runner: Callable[..., object] = subprocess.run,
              rep_returncodes: Optional[List[int]] = None,
              perf_raw_sink: Optional[Dict[str, Optional[int]]] = None, *,
-             use_perf: bool = True):
+             use_perf: bool = True,
+             holdout_observation_admission: Optional[
+                 HoldoutObservationAdmission
+             ] = None):
     """ccbench を perf 下で 1 回回し (bench_metrics, perf_counters, walltime) を返す。
 
     extra_env (D36 決定4-5): verify run にのみ設定される環境変数 (IZANAGI_TRACE_DIR
-    等) を perf run にも対称に設定するための差し込み口。既定 None は環境変数を
-    一切足さず (親プロセスの環境をそのまま継承)、既存呼び出し元の挙動を変えない。
+    等) を perf run にも対称に設定するための差し込み口。親環境と extra_env は
+    FLAGS_ 接頭辞だけを除いた閉じた環境へ統合する。
     rep_returncodes を指定した場合は subprocess 完了直後、出力や strict rc の検査より
     前に return code を追記する。perf_raw_sink は parser の集約値とは独立した 4 event
     の証跡を受け取る。戻り値の 3-tuple は変えない。"""
+    assert_holdout_observation_admitted(
+        gflags=gflags,
+        admission=holdout_observation_admission,
+    )
     # TMPDIR 配下 (明示されていなければ環境既定の /tmp)。
     tmp = tempfile.mkdtemp(prefix="izanagi_run_")
     try:
@@ -416,7 +428,11 @@ def run_once(binary: str, gflags: Sequence[str],
         # cwd を使い捨て tmp にし log/ を用意する (binary/perf_out は絶対パスなので
         # cwd 変更に非依存、tmp は finally で rmtree → WAL log も一緒に消える)。
         os.makedirs(os.path.join(tmp, "log"), exist_ok=True)
-        env = dict(os.environ, **extra_env) if extra_env else None
+        env = dict(os.environ)
+        if extra_env:
+            env.update(extra_env)
+        env = {key: value for key, value in env.items()
+               if not key.startswith("FLAGS_")}
         t0 = time.monotonic()
         proc = subprocess_runner(cmd, capture_output=True, text=True,
                                  timeout=timeout_s, cwd=tmp, env=env)
@@ -464,7 +480,10 @@ def measure_point(binary: str, records: int, threads: int,
                   subprocess_runner: Callable[..., object] = subprocess.run,
                   rep_returncodes: Optional[List[int]] = None,
                   rep_observations: Optional[List[Dict[str, object]]] = None, *,
-                  use_perf: bool = True) -> ScalePoint:
+                  use_perf: bool = True,
+                  holdout_observation_admission: Optional[
+                      HoldoutObservationAdmission
+                  ] = None) -> ScalePoint:
     """1 測定点を reps 回反復して ScalePoint を組む。
 
     throughput は全 rep 分を残す (分布として扱う, roadmap §3.6)。perf counters は
@@ -531,6 +550,10 @@ def measure_point(binary: str, records: int, threads: int,
                 run_kwargs["rep_returncodes"] = rep_returncodes
             if not use_perf:
                 run_kwargs["use_perf"] = False
+            if holdout_observation_admission is not None:
+                run_kwargs["holdout_observation_admission"] = (
+                    holdout_observation_admission
+                )
             metrics, counters, wall = run_once(binary, base_flags, **run_kwargs)
         except (RuntimeError, subprocess.TimeoutExpired) as e:
             if require_all_reps:
