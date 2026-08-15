@@ -740,10 +740,9 @@ def _sha256_fetchcontent_file(path: str, *, label: str) -> str:
 
 
 def _observe_fetchcontent_dependency_receipt(
-        fetchcontent_base_dir: str,
+        source_root: str,
 ) -> Dict[str, str]:
-    """completion publish 前に現在の masstree 内容 receipt を再取得する。"""
-    source_root = os.path.join(fetchcontent_base_dir, "masstree-src")
+    """completion publish 前に実効 masstree root の内容 receipt を再取得する。"""
     try:
         info = os.lstat(source_root)
         canonical_source = os.path.realpath(source_root)
@@ -1720,9 +1719,16 @@ def build_v2(
                 masstree_source_root_sha256 = hashlib.sha256(
                     effective_root.encode("utf-8")
                 ).hexdigest()
+                expected_root = os.path.join(
+                    canonical_fetchcontent_base, "masstree-src",
+                )
+                if effective_root != expected_root:
+                    raise BuildCacheError(
+                        "FetchContent dependency の実効 source root が期待値と不一致"
+                    )
                 observed_dependency_receipt = (
                     _observe_fetchcontent_dependency_receipt(
-                        canonical_fetchcontent_base,
+                        effective_root,
                     )
                 )
                 if observed_dependency_receipt != dependency_receipt:

@@ -342,6 +342,7 @@ def test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage
         token.startswith("-DFETCHCONTENT_SOURCE_DIR_")
         for token in result.configure_argv
     )
+    assert not result.cached
     assert hit.cached
     assert hit.masstree_source_root_sha256 == result.masstree_source_root_sha256
     manifest = json.loads(
@@ -350,6 +351,7 @@ def test_v2_fetchcontent_base_is_canonical_single_define_and_receipt_in_preimage
     assert manifest["preimage"]["fetchcontent_dependency_receipt"] == (
         receipt
     )
+    assert manifest["completion_marker"] == "complete"
     assert str(base.resolve()) not in json.dumps(
         manifest["preimage"], sort_keys=True,
     )
@@ -418,6 +420,53 @@ def test_v2_dependency_drift_before_publish_leaves_no_completed_cache_entry(
     shutil.rmtree(claims[0])
     rebuilt = _build(
         tmp_path, _contract(1), fetchcontent_base_dir=str(base.resolve()),
+        fetchcontent_dependency_receipt=receipt,
+    )
+    assert not rebuilt.cached
+
+
+def test_v2_wrong_effective_root_never_publishes_or_hits_same_key(
+        tmp_path, monkeypatch):
+    _install_toolchain(tmp_path, monkeypatch)
+    _fake_build_environment(monkeypatch, tmp_path)
+    expected_base = tmp_path / "fetchcontent-expected"
+    expected_base.mkdir()
+    receipt = _write_fetchcontent_dependency(expected_base)
+    wrong_base = tmp_path / "fetchcontent-wrong"
+    wrong_base.mkdir()
+    shutil.copytree(
+        expected_base / "masstree-src", wrong_base / "masstree-src",
+    )
+    original_run = buildcache._run
+    inject_wrong_root = True
+
+    def replace_effective_root_after_configure(cmd, what, **kwargs):
+        original_run(cmd, what, **kwargs)
+        if what == "configure" and inject_wrong_root:
+            staging = Path(cmd[cmd.index("-B") + 1])
+            (staging / "CMakeCache.txt").write_text(
+                f"masstree_SOURCE_DIR:STATIC={wrong_base / 'masstree-src'}\n",
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(buildcache, "_run", replace_effective_root_after_configure)
+    with pytest.raises(
+            buildcache.BuildCacheError,
+            match="実効 source root が期待値と不一致"):
+        _build(
+            tmp_path, _contract(1),
+            fetchcontent_base_dir=str(expected_base.resolve()),
+            fetchcontent_dependency_receipt=receipt,
+        )
+    assert list((tmp_path / "cache").rglob("completion.json")) == []
+
+    claims = list((tmp_path / "cache").rglob("*.building"))
+    assert len(claims) == 1
+    shutil.rmtree(claims[0])
+    inject_wrong_root = False
+    rebuilt = _build(
+        tmp_path, _contract(1),
+        fetchcontent_base_dir=str(expected_base.resolve()),
         fetchcontent_dependency_receipt=receipt,
     )
     assert not rebuilt.cached
