@@ -290,6 +290,30 @@ def test_worker_process_spawn_is_noninteractive_and_runs_one_spec():
         assert (root / "stdout.json").read_text() == "{}"
 
 
+def test_worker_process_spawn_forces_no_bytecode_environment() -> None:
+    with _fresh_dir() as tmp:
+        root = Path(tmp)
+        fake = _fake(root, "print('{}',end='')\n")
+        spec_path = root / "worker-spec.json"
+        spec_path.write_bytes(canonical_bytes(_spec(root, fake)))
+        captured = []
+
+        def capture(*args, **kwargs):
+            captured.append((args, kwargs))
+            return object()
+
+        with mock.patch.dict(os.environ, {}, clear=True), \
+                mock.patch.object(worker_mod.subprocess, "Popen", side_effect=capture):
+            worker_mod.spawn_worker(spec_path, termination_grace_s=0.05)
+        assert len(captured) == 1
+        popen_args, popen_kwargs = captured[0]
+        assert len(popen_args) == 1
+        assert popen_args[0][:3] == [
+            sys.executable, "-m", "tools.dev_waves.worker",
+        ]
+        assert popen_kwargs["env"]["PYTHONDONTWRITEBYTECODE"] == "1"
+
+
 def test_worker_and_child_popen_flags_include_containment_preexec() -> None:
     with _fresh_dir() as tmp:
         root = Path(tmp)
