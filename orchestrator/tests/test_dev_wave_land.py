@@ -2315,34 +2315,162 @@ test_land_lock_wait_closes_fd_on_non_success_exit._plain_cases = (
 )
 
 
+@pytest.mark.parametrize(
+    ("exit_kind", "expected_exception"),
+    [
+        ("reject", None),
+        ("os-error", OSError),
+        ("keyboard-interrupt", KeyboardInterrupt),
+    ],
+)
+def test_land_lock_closes_fd_on_post_acquire_verification_exit(
+    exit_kind: str,
+    expected_exception: type[BaseException] | None,
+) -> None:
+    """M8: real flock 成功後の検証失敗でも caller 所有 fd を閉じる。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        opened: list[int] = []
+        verified: list[int] = []
+        real_open = LAND._open_lock
+
+        def record_open(repository, lock) -> None:
+            real_open(repository, lock)
+            opened.append(lock.fd)
+
+        def fail_verification(_repository, lock) -> None:
+            verified.append(lock.fd)
+            contender = os.open(
+                repo.main / ".git" / "dev-wave-land.lock",
+                os.O_RDWR | os.O_NOFOLLOW,
+            )
+            try:
+                with pytest.raises(BlockingIOError):
+                    fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            finally:
+                os.close(contender)
+            if exit_kind == "reject":
+                raise LAND._Reject(LAND.RC_IDENTITY, "synthetic binding rejection")
+            if exit_kind == "os-error":
+                raise OSError(errno.EIO, "synthetic binding I/O failure")
+            raise KeyboardInterrupt("synthetic post-acquire interrupt")
+
+        with (
+            _patched_land_attr("_open_lock", record_open),
+            _patched_land_attr("_verify_land_lock_binding", fail_verification),
+        ):
+            if expected_exception is None:
+                result = _land(repo.request(wave, tip=tip))
+                assert (result.rc, result.status) == (
+                    LAND.RC_IDENTITY,
+                    "rejected",
+                ), result
+                assert result.reason == "synthetic binding rejection"
+            else:
+                with pytest.raises(expected_exception):
+                    _land(repo.request(wave, tip=tip))
+
+        assert verified == opened
+        assert opened
+        with pytest.raises(OSError) as closed:
+            os.fstat(opened[-1])
+        assert closed.value.errno == errno.EBADF
+
+
+test_land_lock_closes_fd_on_post_acquire_verification_exit._plain_cases = (
+    ("reject", None),
+    ("os-error", OSError),
+    ("keyboard-interrupt", KeyboardInterrupt),
+)
+
+
+def test_pre_provenance_release_does_not_close_reused_fd() -> None:
+    """監査前の意図的解放後、再利用された同番号 fd を cleanup で閉じない。"""
+
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "wave.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        opened: list[int] = []
+        reused_fd = -1
+        real_open = LAND._open_lock
+
+        def record_open(repository, lock) -> None:
+            real_open(repository, lock)
+            opened.append(lock.fd)
+
+        def reuse_released_fd_then_interrupt(_repository):
+            nonlocal reused_fd
+            assert opened
+            with pytest.raises(OSError) as released:
+                os.fstat(opened[-1])
+            assert released.value.errno == errno.EBADF
+            reused_fd = os.open(request.acceptance_receipt, os.O_RDONLY)
+            assert reused_fd == opened[-1]
+            raise KeyboardInterrupt("synthetic audit interrupt after fd reuse")
+
+        try:
+            with (
+                _patched_land_attr("_open_lock", record_open),
+                _patched_land_attr(
+                    "_audit_provenance_history",
+                    reuse_released_fd_then_interrupt,
+                ),
+            ):
+                with pytest.raises(KeyboardInterrupt):
+                    _land(request)
+
+            assert reused_fd >= 0
+            os.fstat(reused_fd)
+        finally:
+            if reused_fd >= 0:
+                os.close(reused_fd)
+
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
 def test_waited_initial_lock_rechecks_main_and_reports_stale() -> None:
     """M6: 待機後も main の監査閉包外移動を同じ理由で拒否する。"""
 
     with _repo() as repo:
         wave = repo.waves["one"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".codex/worktrees/\n",
+            encoding="utf-8",
+        )
         marker = repo.root / "provenance-checker-started"
         checker = (
             "from pathlib import Path\n"
             f"Path({str(marker)!r}).write_text('started')\n"
         )
-        repo.commit(wave, "tools/check_ai_provenance.py", checker)
+        tested_main = repo.commit(wave, "tools/check_ai_provenance.py", checker)
         tip = repo.commit(wave, "wave.txt", "wave\n")
+        tested_main_parent = _git(wave, "rev-parse", f"{tested_main}^")
+        assert _git(
+            wave,
+            "merge-base",
+            "--is-ancestor",
+            tested_main_parent,
+            tip,
+        ) == ""
+        _git(repo.main, "reset", "--hard", tested_main)
         runtime = _FakeLandLockRuntime()
         with _held_land_lock(repo) as holder:
             def move_main(_runtime) -> None:
                 runtime.on_sleep = None
-                (repo.main / "outside.txt").write_text("outside closure\n", encoding="utf-8")
-                _git(repo.main, "add", "outside.txt")
-                _git(repo.main, "commit", "-qm", "move main outside closure")
+                _git(repo.main, "reset", "--hard", tested_main_parent)
                 fcntl.flock(holder, fcntl.LOCK_UN)
 
             runtime.on_sleep = move_main
             with runtime.patch():
-                result = _land(repo.request(wave, tip=tip))
+                result = _land(repo.request(wave, base=tested_main, tip=tip))
 
         assert (result.rc, result.status) == (LAND.RC_STALE_MAIN, "stale-main"), result
         assert result.reason == "main moved outside the tested audited closure while locking"
         assert not marker.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == tested_main_parent
         assert _git(repo.main, "status", "--porcelain=v1") == ""
 
 
