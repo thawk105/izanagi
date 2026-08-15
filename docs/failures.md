@@ -4536,6 +4536,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `docs/skill-self-improvement.md` の「予算に収まらなければ止めてユーザー裁定へ返す」に従って
   撤回し、次の一手へ裁定候補として起票した。**現時点で本型の再発を止める機械的・規範的な
   新しい防壁は無い。**
+
+- **再発: 2026-08-16** — [T-338] Q11 validator wave の段 1 で、親は発火条件 (i) を
+  「事前登録が実走より後だから不成立」とユーザーへ中間報告した。実際に見ていたのは本走用の
+  別文書 (`output/insights/2026-08-07_t139-mainrun-design/preregistration.md`) で、
+  当該計測 (`892042.nqsv`) の事前登録は `output/insights/2026-08-05_t139-alt-x-probe/preregistration.md`
+  であり実走前に凍結されていた。前回は条件 (ii) の 4 項を印象で成立と判断し、今回は条件 (i) を
+  **別 study の artifact で**不成立と判断した。型は同じ — **条件の各項を、その項を証拠立てる
+  正しい artifact の field で照合していない**。段 2 の起草子が `preregistration-witness.tsv` の
+  `preregistration_sha256` 束縛を示して倒し、親が一次資料で確認して撤回した。
+  恒久対応は F157 のまま変えない (`DW-G03` — 単発ではなくなったが、既存の `DW-S03`
+  「親自身の実測値とその一般化もレンズへ入れる」が 2 度とも投入前に止めており、機構は足りている)。
 ### F158. 裁定前のレビュー案を「decision 本文」と見なし、承認されていない要素を実装した [手順漏れ] [権限逸脱]
 
 - 事象: [T-625] の wave 段 1〜5 で、親は条件 24 の発火条件を **4 要素**
@@ -7729,3 +7740,25 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   既存 record schema の `clean` の意味を上書きすると旧凍結 evidence を誤読するため、
   新 field による新旧分離が要る。
 - 再発検知: pinned-clean を名乗る検査が `--porcelain` だけを根拠にしていること。
+
+### F320. 新規 worktree の入れ子 submodule 未初期化が受入を走行ゼロで止める [手順漏れ]
+
+- 事象: 受入全走が `stage=preflight-submodule-ready rc=2` で、テストを 1 件も走らせずに落ちた。
+  wave 開始時に worktree 内で submodule を初期化していたにもかかわらず発生した。
+- 根本原因: 初期化が非再帰だった。CCBench 配下の入れ子 submodule
+  (`third_party/shirakami` とその配下の googletest) が未初期化のまま残り、受入の前検査が拒否した。
+  現行の運用節は worktree 作成時に非再帰の初期化を指示し、受入直前には
+  `--recursive` だけを指示している。**`--recursive` は未初期化の submodule を clone しない**ため、
+  新規 worktree ではどちらの指示でも入れ子まで届かない。
+  加えて、この環境では素の submodule 初期化が transport 制限で必ず失敗するが、
+  その回避設定はどちらの指示にも書かれていない。
+- 影響: 受入 lease を 1 回取得したうえで走行ゼロで失敗した。lease は競合する複数 wave が
+  争う資源であり、走行ゼロの取得はその窓を捨てることになる。
+- 恒久対応: **未実施 (ユーザー裁定へ返す)。** 該当運用節は 996 bytes で単節予算 1,000 bytes に対し
+  残り 4 bytes しかなく、初期化を再帰化する記述と transport 設定を追記できない。
+  意味等価な圧縮は同族の docs で exact pin を壊した実績があり、
+  本 wave では計算ノードが停止していて検査を走らせられないため実施しない。
+  裁定と実施は [T-1139] が持つ。
+- 再発検知: 受入の前検査そのものが fails-closed で検出する
+  (本事象はその検査が実際に発火して判明した)。検査の存在は確認済みで、
+  欠けているのは検査を踏まないための手順記述である。
