@@ -50,3 +50,16 @@ seq: 1
   既存 record schema の `clean` の意味を上書きすると旧凍結 evidence を誤読するため、
   新 field による新旧分離が要る。
 - 再発検知: pinned-clean を名乗る検査が `--porcelain` だけを根拠にしていること。
+
+## 再発
+
+### F286
+
+- **再発: 2026-08-15** — 3 例目。`docs/handoff/dev-wave-t971-swo-oracle-floor.md` が main へ
+  tracked のまま land しており、本 wave の起動時に `check_wave_startup.py --external-handoff` が
+  rc=1 になった。F286 自身が定めた再発検知条件 (`git ls-files docs/handoff/` が README.md 以外を
+  返す) にそのまま当たっている。先例 `a3168d85` に従い main で直接撤去して解いた
+  (所要 約 10 分)。**[T-1038] の恒久修正が入るまで、handoff が 1 本 land するたびに
+  以後の背景 wave が 1 本ずつ同じ停止を払う。** dev-wave 入口へ
+  「tracked な残置は main で直接撤去してよい」を書く案は `docs/dev-wave/**` の
+  byte 予算が尽きているため裁定パッケージへ送った。
