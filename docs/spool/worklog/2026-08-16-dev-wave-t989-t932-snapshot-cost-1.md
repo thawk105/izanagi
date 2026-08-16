@@ -76,6 +76,26 @@ D335 の保留追加 (本 wave の成果物そのもの) が BLOCKER 判定さ�
 (「毎 session の実 direct payer を守る」→「payer が恒久保留に入っていることを assert する」) は
 real であり、保留一覧でユーザーへ提示する。
 
+### 受入が保留の 1 件を差し戻した
+
+受入全走の 1 走目が **11,648 passed / 93 skipped / 1 failed** (pytest wall 80.72 秒) で、
+帰属赤 1 件を出した。`test_s8b_floor_campaign.py::test_deterministic_artifacts_across_roots_and_subprocess_environments`
+である。原因は本 wave が同 file へ足した保留の guard binding だった。
+
+このテストは**自分自身の module をサブプロセスで
+`spec_from_file_location("floor_test_helper", __file__)` として読み込む** characterization test で、
+`enforce_held_functions` は pytest 経由でも解除 env でもない読み込みを必ず拒否する。
+サブプロセスは別名で読むので `plain_runner` にどの値を与えても通らない。**設計上の衝突である。**
+
+親は **この file の保留を取り消した** (57 → 56)。helper 閉包の切り出しは
+`_freeze_document` / `_init_real_clean_repo` など多数への依存があり contained でない。
+保留を維持したままテストを通す道が無い以上、通っていたテストを壊さない方を採った (規律 2)。
+実 ROOT を `git clone --no-hardlinks` する事実は変わらないので、成長比例の負債は残る。
+
+**この差し戻しは、保留対象を「実行コストの比例だけ」で選んではいけないことを示した。**
+guard binding を持てるかどうか (= その file に standalone 読み込みの正規 consumer が無いか) が
+保留可能性の前提条件である。段 2・段 4 のどちらもこの条件を見ていなかった。
+
 ### ユーザー提示事項
 
 正しさゲートを担う 27 件を保留した。D335 は提示を要求する。
@@ -107,8 +127,9 @@ real であり、保留一覧でユーザーへ提示する。
   `pack-objects` は source の object 数に弱く比例する (実測 0.32 秒 対 0.065 秒)。
   base: cd8886a146ce2216cfaea138b1820529e8e30d74df01edf1245f31eed3cd493b
 - [T-932] **P1・部分完了 (母集合が閉じていない)**: `REAL_REPO_SERIAL_NODES` 66 件のうち
-  未登録の 47 件を選別し、成長比例と判定した 30 件から snapshot 系 3 本を除いた
-  **27 件を恒久保留へ登録した** (登録後の総数 57、全件 correctness_gate=True、
+  未登録の 47 件を選別し、成長比例と判定した 30 件から snapshot 系 3 本を除き、
+  さらに受入が差し戻した `test_s8b_floor_campaign.py` の 1 件を取り消して
+  **26 件を恒久保留へ登録した** (登録後の総数 56、全件 correctness_gate=True、
   解除条件は explicit-user-command-only)。併せて [T-989] で事実と食い違うようになった
   理由文 14 行の `hold_axis` を `commits` から `output_artifacts` へ訂正した (**解除はしない**)。
   **残件**: 母集合が閉じていない。`test_s8b_ratified_verify.py` /
@@ -146,6 +167,23 @@ real であり、保留一覧でユーザーへ提示する。
   必ず PARSE_ERROR になる。** 本 wave はテスト側を実効 gate へ再照準して回避したが、
   同型は共有 fixture を持つ全 suite で起きる。`ERROR ` 行も読むか、
   pytest の `-rfE` と併せて別枠で記録するかを裁定する。
+- {{T:hold-guard-blocks-standalone-module-load}} **P1・新規**: 恒久保留の guard binding
+  (`enforce_held_functions`) は、pytest 経由でも解除 env でもない module 読み込みを
+  **必ず拒否する**。そのため、**自分自身を standalone module として読み込む正規の consumer を
+  内部に持つ test file は保留できない。** 本 wave は `test_s8b_floor_campaign.py` で
+  受入の帰属赤を踏み、保留を取り消した (`test_deterministic_official_artifacts...` が
+  `spec_from_file_location("floor_test_helper", __file__)` でサブプロセスから自 module を読む)。
+  同 file の `test_real_seal_protocol_to_floor_official_core_e2e` は実 ROOT を
+  `git clone --no-hardlinks` するので**成長比例の負債は残ったままである**。
+  解は 2 つある。(a) guard に「module の読み込みは許すが held function の**呼出**だけ拒否する」
+  モードを足す (現状の `_wrap_held_function` は既に呼出時 wrap なので、
+  module 末尾の一律 raise を条件付きにできる可能性がある)。
+  (b) helper 閉包を guard の掛からない module へ切り出す
+  (`_freeze_document` / `_verified_freeze` / `_protocol` / `_freeze_sha` /
+  `_init_real_clean_repo` / `_make_fake_build` / `_fixture_src_token` /
+  `_FIXTURE_CELL_BY_TOKEN` への依存があり contained でない)。
+  **併せて、保留候補の選別条件に「guard binding を持てるか」を加える。**
+  実行コストの比例だけで選ぶと本件のように受入で差し戻される。
 - {{T:ratified-memo-payer-contract-inversion}} **P2・新規**:
   `test_ratified_memo_has_a_real_resolution_payer` が本 wave で
   「毎 session の実 direct payer を守る」検査から「payer が恒久保留に入っていることを

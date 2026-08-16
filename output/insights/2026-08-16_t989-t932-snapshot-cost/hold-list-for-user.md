@@ -3,7 +3,7 @@
 本 wave (`dev-wave-t989-t932-snapshot-cost`、2026-08-16) が新規に登録した保留である。
 **D335 は「正しさゲートを担うテストを保留する場合は保留一覧でユーザーへ提示する」ことを要求している。** 下の全件が `correctness_gate=True` であり、解除条件は `explicit-user-command-only` (ユーザーの明示命令のみ) である。
 
-- 追加件数: **27**（登録後の総数 57）
+- 追加件数: **26**（登録後の総数 56）
 - 軸を訂正した既存項目: **14**（解除はしていない）
 
 ## 追加した保留
@@ -107,13 +107,6 @@
   - 成長軸: `commits`
   - 保留理由: Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.
   - **同時に止まる固定検査**: Holding this node also removes the fixed-size binding-manifest schema refusal aggregation check.
-
-### `test_s8b_floor_campaign.py` — 1 件
-
-- **`test_real_seal_protocol_to_floor_official_core_e2e`**
-  - 成長軸: `commits`
-  - 保留理由: Clones the real repository without hardlinks, so cost grows with commit history.
-  - **同時に止まる固定検査**: Holding this node also removes fixed-size sealed protocol, freeze, prediction, journal, receipt, schedule, and floor binding checks; real Git ancestry and the 14-path seal diff; artifact hashes; producer non-invocation; attestation and clean digest; trace=False, 12 builds, and 96 measurements; the reservation claim; and source/clone immutability.
 
 ### `test_s8b_oracle_driver.py` — 3 件
 

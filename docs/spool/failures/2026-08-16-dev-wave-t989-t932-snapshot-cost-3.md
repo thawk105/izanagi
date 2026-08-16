@@ -61,6 +61,30 @@ seq: 3
 - 再発検知: wrapper の走行後検査が現に落ちた (fail-closed)。
   検知は効いており、失われたのは走行 1 回分の時間だけである。
 
+### {{F:hold-guard-breaks-self-loading-test-module}}. 保留 guard が同 file 内の正規 consumer を壊し、受入で差し戻された [受理集合の過剰縮小] [手順漏れ]
+
+- 事象: 成長比例テストの恒久保留を `test_s8b_floor_campaign.py` へ登録し、
+  契約どおり module 末尾へ guard binding を置いた。受入全走
+  (11,648 passed / 93 skipped) で同 file の
+  `test_deterministic_artifacts_across_roots_and_subprocess_environments` が**帰属赤**になった。
+  このテストは自分自身の module をサブプロセスで
+  `spec_from_file_location("floor_test_helper", __file__)` として読み込む characterization test で、
+  guard がその読み込みを `GrowthTestHoldBypassRefused` で拒否した。
+- 根本原因: `enforce_held_functions` は、pytest 経由でも解除 env でもなく
+  `__name__ == "__main__"` でもない module 読み込みを**必ず拒否する**設計である
+  (T-930 の plain runner 迂回を塞ぐため)。サブプロセスは別名で読むので
+  `plain_runner` にどの値を与えても通らない。
+  **保留可能性の前提条件「その file に standalone 読み込みの正規 consumer が無いこと」を、
+  段 2 の選別も段 4 の裁定も見ていなかった。** 選別は実行コストの比例だけで行われた。
+- 恒久対応: 本 wave は当該 1 件の保留を取り消した (登録 57 → 56)。
+  機構側の解 (guard に「読み込みは許すが呼出だけ拒否する」モードを足すか、
+  helper 閉包を切り出すか) と、選別条件への追加は
+  {{T:hold-guard-blocks-standalone-module-load}} へ起票した。
+- 再発検知: 受入全走が現に検出した (fail-closed)。
+  ただし検出は受入 lease を 1 本消費した後である。
+  静的に前倒しするには、保留登録時に「同 file 内に `spec_from_file_location(..., __file__)` /
+  `runpy` / `exec(open(...))` 相当の自己読み込みがあるか」を検査する必要がある (未実装)。
+
 ## 再発
 
 ### F45
