@@ -2413,10 +2413,15 @@ def _cleanup_after_claim(
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
     if pthread_sigmask is not None:
         try:
-            previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+            previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
         except (OSError, ValueError):
             previous_mask = None
     try:
+        if previous_mask is not None:
+            try:
+                pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+            except (OSError, ValueError):
+                previous_mask = None
         if merge_pending:
             abort_outcome = _abort_pending_merge(effects, repo)
             if abort_outcome.rc != RC_OK:
@@ -2880,8 +2885,9 @@ def _publish_acceptance_receipt(
                     {"pthread_sigmask_available": False},
                 ),
             )
+        previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
         lifecycle.ownership = _LeaseOwnership.RETAINED
-        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
         failure_reason = "receipt-publish-rename"
         try:
             rename(temp_path, receipt_file)
@@ -3371,9 +3377,11 @@ def _restore_signal_handlers(previous: dict[int, object]) -> None:
     previous_mask: set[signal.Signals] | None = None
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
     if pthread_sigmask is not None:
-        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
     failure: BaseException | None = None
     try:
+        if pthread_sigmask is not None:
+            pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
         for signum, handler in previous.items():
             try:
                 signal.signal(signum, handler)
