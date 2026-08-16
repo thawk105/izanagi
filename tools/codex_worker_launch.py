@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import shutil
 import stat
 import subprocess
@@ -65,8 +66,8 @@ from tools.dev_waves.time_values import (  # noqa: E402
 from tools.dev_waves.worker import (  # noqa: E402
     PidIdentity,
     read_pid_identity,
-    terminate_verified_group,
 )
+from tools.dev_waves import worker as _worker_module  # noqa: E402
 
 
 _MAX_JSON_BYTES = 16 * 1024 * 1024
@@ -352,6 +353,238 @@ class AttemptState:
     limit_trigger: str | None = None
     evidence_forced_stop: bool = False
     manifested_session_ids: set[str] = field(default_factory=set)
+
+
+def _elapsed_s(now_ns: int, started_ns: int) -> Decimal:
+    return Decimal(now_ns - started_ns) / Decimal(1_000_000_000)
+
+
+@dataclass
+class AttemptDiagnosticsState:
+    attempt_index: int
+    job_started_ns: int
+    attempt_started_ns: int
+    evidence_forced_stop: bool = False
+    residual_final_count: int | None = None
+    residual_final_unknown_source: str | None = None
+    residual_unknown_sources_seen: set[str] = field(default_factory=set)
+    proc_stat_malformed: bool = False
+    boundaries_ns: dict[str, int] = field(default_factory=dict)
+    limit_condition_snapshots: dict[str, dict[str, Any]] = field(
+        default_factory=dict
+    )
+    control_limit_trigger: str | None = None
+    termination_signals_sent: list[dict[str, Any]] = field(
+        default_factory=list
+    )
+
+    def note_boundary(self, name: str, now_ns: int) -> None:
+        self.boundaries_ns[name] = now_ns
+
+    def note_unknown(self, reason: str) -> None:
+        self.residual_unknown_sources_seen.add(reason)
+        self.residual_final_unknown_source = reason
+
+    def note_malformed(self) -> None:
+        self.proc_stat_malformed = True
+
+    def note_signal(self, signal_name: str, now_ns: int) -> None:
+        self.termination_signals_sent.append(
+            {
+                "signal": signal_name,
+                "job_elapsed_s_at": _elapsed_s(now_ns, self.job_started_ns),
+                "attempt_elapsed_s_at": _elapsed_s(
+                    now_ns, self.attempt_started_ns
+                ),
+            }
+        )
+
+    @property
+    def termination_initiated_by_launcher(self) -> bool:
+        return bool(self.termination_signals_sent)
+
+    def as_document(self) -> dict[str, Any]:
+        ordered_boundaries = (
+            "attempt_state_created",
+            "attempt_preflight_completed",
+            "spawn_completed",
+            "supervision_drain_completed",
+            "process_reap_completed",
+            "final_drain_completed",
+            "artifact_handles_closed",
+            "attempt_wall_clock_sampled",
+            "attempt_sealed",
+        )
+        phase_pairs = (
+            (
+                "attempt_preflight",
+                "attempt_state_created",
+                "attempt_preflight_completed",
+            ),
+            ("spawn", "attempt_preflight_completed", "spawn_completed"),
+            (
+                "supervision_drain",
+                "spawn_completed",
+                "supervision_drain_completed",
+            ),
+            (
+                "process_reap",
+                "supervision_drain_completed",
+                "process_reap_completed",
+            ),
+            (
+                "final_drain",
+                "process_reap_completed",
+                "final_drain_completed",
+            ),
+            (
+                "artifact_handle_close",
+                "final_drain_completed",
+                "artifact_handles_closed",
+            ),
+            (
+                "attempt_wall_clock_sample",
+                "artifact_handles_closed",
+                "attempt_wall_clock_sampled",
+            ),
+            (
+                "attempt_seal",
+                "attempt_wall_clock_sampled",
+                "attempt_sealed",
+            ),
+        )
+        job_elapsed = {
+            name: _elapsed_s(self.boundaries_ns[name], self.job_started_ns)
+            for name in ordered_boundaries
+            if name in self.boundaries_ns
+        }
+        attempt_elapsed = {
+            name: _elapsed_s(
+                self.boundaries_ns[name], self.attempt_started_ns
+            )
+            for name in ordered_boundaries
+            if name in self.boundaries_ns
+        }
+        phase_duration = {
+            phase: _elapsed_s(
+                self.boundaries_ns[end], self.boundaries_ns[start]
+            )
+            for phase, start, end in phase_pairs
+            if start in self.boundaries_ns and end in self.boundaries_ns
+        }
+        return {
+            "attempt_index": self.attempt_index,
+            "evidence_forced_stop": self.evidence_forced_stop,
+            "control_limit_trigger": self.control_limit_trigger,
+            "residual_observation": {
+                "final_count": self.residual_final_count,
+                "final_unknown_source": self.residual_final_unknown_source,
+                "unknown_sources_seen": sorted(
+                    self.residual_unknown_sources_seen
+                ),
+                "proc_stat_malformed": self.proc_stat_malformed,
+            },
+            "job_elapsed_s_at": job_elapsed,
+            "attempt_elapsed_s_at": attempt_elapsed,
+            "phase_duration_s": phase_duration,
+            "limit_condition_snapshots": list(
+                self.limit_condition_snapshots.values()
+            ),
+            "termination_initiated_by_launcher": (
+                self.termination_initiated_by_launcher
+            ),
+            "termination_signals_sent": list(
+                self.termination_signals_sent
+            ),
+        }
+
+
+@dataclass
+class LauncherDiagnosticsState:
+    job_id: str
+    job_started_ns: int
+    receipt_path: Path
+    attempts: list[AttemptDiagnosticsState] = field(default_factory=list)
+    job_boundaries_ns: dict[str, int] = field(default_factory=dict)
+    receipt_published_by_run: bool = False
+
+    def note_job_boundary(self, name: str, now_ns: int) -> None:
+        self.job_boundaries_ns[name] = now_ns
+
+    def new_attempt(
+        self, *, attempt_index: int, started_ns: int
+    ) -> AttemptDiagnosticsState:
+        state = AttemptDiagnosticsState(
+            attempt_index=attempt_index,
+            job_started_ns=self.job_started_ns,
+            attempt_started_ns=started_ns,
+        )
+        state.note_boundary("attempt_state_created", started_ns)
+        self.attempts.append(state)
+        return state
+
+
+def _limit_conditions_met(
+    *,
+    site: str,
+    elapsed: Decimal,
+    model_calls: int,
+    cli_reported: int,
+    limits: argparse.Namespace,
+) -> tuple[str, list[str]]:
+    comparison = (
+        ">=" if site in {"running_poll", "retry_admission"} else ">"
+    )
+    compare = (
+        (lambda actual, limit: actual >= limit)
+        if comparison == ">="
+        else (lambda actual, limit: actual > limit)
+    )
+    values = {
+        "max_wall_clock_s": (elapsed, limits.max_wall_clock_s),
+        "max_model_calls": (model_calls, limits.max_model_calls),
+        "max_cli_reported_tokens": (
+            cli_reported,
+            limits.max_cli_reported_tokens,
+        ),
+    }
+    return comparison, [
+        reason
+        for reason in _LIMIT_REASONS
+        if compare(*values[reason])
+    ]
+
+
+def _record_limit_conditions(
+    diagnostics: AttemptDiagnosticsState | None,
+    *,
+    site: str,
+    elapsed: Decimal,
+    model_calls: int,
+    cli_reported: int,
+    limits: argparse.Namespace,
+) -> None:
+    if diagnostics is None:
+        return
+    comparison, conditions = _limit_conditions_met(
+        site=site,
+        elapsed=elapsed,
+        model_calls=model_calls,
+        cli_reported=cli_reported,
+        limits=limits,
+    )
+    diagnostics.limit_condition_snapshots[site] = {
+        "site": site,
+        "comparison": comparison,
+        "conditions_met": conditions,
+        "elapsed_s": elapsed,
+        "model_calls": model_calls,
+        "cli_reported": cli_reported,
+        "max_wall_clock_s": limits.max_wall_clock_s,
+        "max_model_calls": limits.max_model_calls,
+        "max_cli_reported_tokens": limits.max_cli_reported_tokens,
+        "job_elapsed_s_at": elapsed,
+    }
 
 
 def _positive_int(text: str) -> int:
@@ -1138,13 +1371,22 @@ def _evidence_status(state: AttemptState) -> str:
     return "complete"
 
 
-def _group_member_count(identity: PidIdentity | None) -> int | None:
+def _group_member_count(
+    identity: PidIdentity | None,
+    *,
+    on_unknown: Callable[[str], None] | None = None,
+    on_malformed: Callable[[], None] | None = None,
+) -> int | None:
     if identity is None:
+        if on_unknown is not None:
+            on_unknown("pid_identity_unavailable")
         return None
     count = 0
     try:
         entries = os.scandir("/proc")
     except OSError:
+        if on_unknown is not None:
+            on_unknown("proc_scandir_oserror")
         return None
     with entries:
         for entry in entries:
@@ -1155,28 +1397,95 @@ def _group_member_count(identity: PidIdentity | None) -> int | None:
                 raw = stat_path.read_text(encoding="ascii")
                 end = raw.rfind(")")
                 fields = raw[end + 2 :].split()
-                if end > 0 and len(fields) > 2 and int(fields[2]) == identity.pid:
+                if end <= 0 or len(fields) <= 2:
+                    if on_malformed is not None:
+                        on_malformed()
+                    continue
+                if int(fields[2]) == identity.pid:
                     count += 1
             except FileNotFoundError:
                 # scan 後に消滅した PID は現在の residual ではない。存在が
                 # 続くのに読めない場合だけ unknown とする。
                 if stat_path.exists():
+                    if on_unknown is not None:
+                        on_unknown("proc_stat_read_error")
                     return None
                 continue
-            except (OSError, ValueError):
+            except OSError:
+                if on_unknown is not None:
+                    on_unknown("proc_stat_read_error")
+                return None
+            except ValueError:
+                if on_malformed is not None:
+                    on_malformed()
+                if on_unknown is not None:
+                    on_unknown("proc_stat_parse_error")
                 return None
     return count
 
 
 def _wait_for_group_exit(
-    identity: PidIdentity | None, *, timeout_s: float
+    identity: PidIdentity | None,
+    *,
+    timeout_s: float,
+    on_unknown: Callable[[str], None] | None = None,
+    on_malformed: Callable[[], None] | None = None,
 ) -> int | None:
     deadline = time.monotonic() + timeout_s
     while True:
-        residual = _group_member_count(identity)
+        if on_unknown is None and on_malformed is None:
+            residual = _group_member_count(identity)
+        else:
+            residual = _group_member_count(
+                identity,
+                on_unknown=on_unknown,
+                on_malformed=on_malformed,
+            )
         if residual == 0 or time.monotonic() >= deadline:
             return residual
         time.sleep(0.01)
+
+
+def _terminate_verified_group_observed(
+    identity: PidIdentity,
+    grace_s: float,
+    on_signal: Callable[[str, int], None] | None,
+) -> bool:
+    """TERM/KILL a verified group and attribute only successful sends.
+
+    The worker helper's identity predicates remain authoritative, but signal
+    observation is launcher-local.  In particular, this never replaces the
+    worker module's process-global ``os`` binding.
+    """
+    if not isinstance(identity, PidIdentity):
+        raise TypeError("identity must be PidIdentity")
+    if grace_s < 0:
+        raise ValueError("grace_s must be non-negative")
+    if not _worker_module._verified_group_exists(identity):
+        return False
+    try:
+        os.killpg(identity.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return True
+    if on_signal is not None:
+        on_signal("SIGTERM", _monotonic_ns())
+    deadline = _worker_module._boottime_ns() + int(
+        grace_s * 1_000_000_000
+    )
+    while _worker_module._boottime_ns() < deadline:
+        if not _worker_module._group_members(identity.pid):
+            return True
+        time.sleep(min(0.01, grace_s or 0.001))
+    if not _worker_module._verified_group_exists(identity):
+        return False
+    try:
+        os.killpg(identity.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    else:
+        if on_signal is not None:
+            on_signal("SIGKILL", _monotonic_ns())
+    return True
 
 
 def _terminate(
@@ -1184,11 +1493,16 @@ def _terminate(
     identity: PidIdentity | None,
     *,
     grace_s: float,
+    on_unknown: Callable[[str], None] | None = None,
+    on_malformed: Callable[[], None] | None = None,
+    on_signal: Callable[[str, int], None] | None = None,
 ) -> tuple[int | None, bool]:
     verified = False
     if identity is not None:
         try:
-            verified = terminate_verified_group(identity, grace_s)
+            verified = _terminate_verified_group_observed(
+                identity, grace_s, on_signal
+            )
         except (OSError, ValueError):
             verified = False
     elif process.poll() is None:
@@ -1196,6 +1510,9 @@ def _terminate(
             process.kill()
         except ProcessLookupError:
             pass
+        else:
+            if on_signal is not None:
+                on_signal("SIGKILL", _monotonic_ns())
     try:
         process.wait(timeout=max(1.0, grace_s + 1.0))
     except subprocess.TimeoutExpired:
@@ -1203,16 +1520,33 @@ def _terminate(
             process.kill()
         except ProcessLookupError:
             pass
+        else:
+            if on_signal is not None:
+                on_signal("SIGKILL", _monotonic_ns())
         process.wait(timeout=5)
-    residual = _wait_for_group_exit(identity, timeout_s=1.0)
+    residual = _wait_for_group_exit(
+        identity,
+        timeout_s=1.0,
+        on_unknown=on_unknown,
+        on_malformed=on_malformed,
+    )
     return residual, bool(verified and residual == 0)
 
 
 def _normal_reap(
-    process: subprocess.Popen[bytes], identity: PidIdentity | None
+    process: subprocess.Popen[bytes],
+    identity: PidIdentity | None,
+    *,
+    on_unknown: Callable[[str], None] | None = None,
+    on_malformed: Callable[[], None] | None = None,
 ) -> tuple[int | None, bool]:
     process.wait()
-    residual = _wait_for_group_exit(identity, timeout_s=0.5)
+    residual = _wait_for_group_exit(
+        identity,
+        timeout_s=0.5,
+        on_unknown=on_unknown,
+        on_malformed=on_malformed,
+    )
     return residual, residual == 0
 
 
@@ -1236,6 +1570,7 @@ def _seal_attempt(
     prior_actuals: Mapping[str, int],
     limits: argparse.Namespace,
     force_not_accepted: bool = False,
+    diagnostics: AttemptDiagnosticsState | None = None,
 ) -> dict[str, Any]:
     stdout_sha, stdout_bytes = _hash_file(state.stdout_path)
     stderr_sha, stderr_bytes = _hash_file(state.stderr_path)
@@ -1247,6 +1582,16 @@ def _seal_attempt(
     actuals = _rollout_actuals(state)
     evidence_status = _evidence_status(state)
     metering_status = _metering_status(state)
+    _record_limit_conditions(
+        diagnostics,
+        site="attempt_seal",
+        elapsed=job_wall_clock_s,
+        model_calls=prior_actuals["model_calls"] + actuals["model_calls"],
+        cli_reported=(
+            prior_actuals["cli_reported"] + actuals["cli_reported"]
+        ),
+        limits=limits,
+    )
     if state.limit_trigger is None:
         if job_wall_clock_s > limits.max_wall_clock_s:
             state.limit_trigger = "max_wall_clock_s"
@@ -1317,6 +1662,7 @@ def _attempt_loop(
     prior_actuals: Mapping[str, int],
     codex_path: Path,
     expected_binary_sha256: str,
+    diagnostics: LauncherDiagnosticsState | None = None,
 ) -> dict[str, Any]:
     requirement: LaunchRequirement = args.launch_requirement
     if requirement.effort is None:
@@ -1349,12 +1695,20 @@ def _attempt_loop(
         os.fspath(attempt_output),
         args.prompt_text,
     ]
+    attempt_started_ns = _monotonic_ns()
     state = AttemptState(
         attempt_index=attempt_index,
-        started_ns=_monotonic_ns(),
+        started_ns=attempt_started_ns,
         stdout_path=stdout_path,
         stderr_path=stderr_path,
         output_path=attempt_output,
+    )
+    attempt_diagnostics = (
+        diagnostics.new_attempt(
+            attempt_index=attempt_index, started_ns=attempt_started_ns
+        )
+        if diagnostics is not None
+        else None
     )
     process: subprocess.Popen[bytes] | None = None
     identity: PidIdentity | None = None
@@ -1408,13 +1762,18 @@ def _attempt_loop(
     try:
         try:
             _require_attempt_hook_installation(args.repo_root, args.cwd)
+            preflight_now_ns = _monotonic_ns()
             if (
-                Decimal(_monotonic_ns() - job_started_ns)
+                Decimal(preflight_now_ns - job_started_ns)
                 / Decimal(1_000_000_000)
                 >= args.max_wall_clock_s
             ):
                 raise LaunchError(
                     "Codex 起動前検証後に max_wall_clock_s へ到達した"
+                )
+            if attempt_diagnostics is not None:
+                attempt_diagnostics.note_boundary(
+                    "attempt_preflight_completed", preflight_now_ns
                 )
             process = subprocess.Popen(
                 argv,
@@ -1431,6 +1790,10 @@ def _attempt_loop(
             identity = read_pid_identity(process.pid)
         except (OSError, ValueError):
             identity = None
+        if attempt_diagnostics is not None:
+            attempt_diagnostics.note_boundary(
+                "spawn_completed", _monotonic_ns()
+            )
         evidence_deadline_ns = (
             state.started_ns
             + decimal_seconds_to_nanoseconds(args.evidence_grace_s)
@@ -1444,6 +1807,7 @@ def _attempt_loop(
             if process_rc is not None:
                 # 終了と limit 観測が同 poll の場合は最終 drain を先に確定する。
                 observe(register_manifest=True)
+                now_ns = _monotonic_ns()
                 current = _rollout_actuals(state)
                 totals = {
                     key: prior_actuals[key] + current[key]
@@ -1454,6 +1818,14 @@ def _attempt_loop(
                 }
                 elapsed = Decimal(now_ns - job_started_ns) / Decimal(
                     1_000_000_000
+                )
+                _record_limit_conditions(
+                    attempt_diagnostics,
+                    site="natural_exit",
+                    elapsed=elapsed,
+                    model_calls=totals["model_calls"],
+                    cli_reported=totals["cli_reported"],
+                    limits=args,
                 )
                 if elapsed > args.max_wall_clock_s:
                     state.limit_trigger = "max_wall_clock_s"
@@ -1467,6 +1839,18 @@ def _attempt_loop(
                 break
 
             elapsed = Decimal(now_ns - job_started_ns) / Decimal(1_000_000_000)
+            _record_limit_conditions(
+                attempt_diagnostics,
+                site="running_poll",
+                elapsed=elapsed,
+                model_calls=(
+                    prior_actuals["model_calls"] + current["model_calls"]
+                ),
+                cli_reported=(
+                    prior_actuals["cli_reported"] + current["cli_reported"]
+                ),
+                limits=args,
+            )
             pending_limit: str | None = None
             if elapsed >= args.max_wall_clock_s:
                 pending_limit = "max_wall_clock_s"
@@ -1507,15 +1891,55 @@ def _attempt_loop(
                 break
             time.sleep(float(args.poll_interval_s))
 
+        if attempt_diagnostics is not None:
+            attempt_diagnostics.note_boundary(
+                "supervision_drain_completed", now_ns
+            )
         if forced_stop:
             residual, termination_verified = _terminate(
                 process,
                 identity,
                 grace_s=float(args.termination_grace_s),
+                on_unknown=(
+                    attempt_diagnostics.note_unknown
+                    if attempt_diagnostics is not None
+                    else None
+                ),
+                on_malformed=(
+                    attempt_diagnostics.note_malformed
+                    if attempt_diagnostics is not None
+                    else None
+                ),
+                on_signal=(
+                    attempt_diagnostics.note_signal
+                    if attempt_diagnostics is not None
+                    else None
+                ),
             )
         else:
-            residual, termination_verified = _normal_reap(process, identity)
+            residual, termination_verified = _normal_reap(
+                process,
+                identity,
+                on_unknown=(
+                    attempt_diagnostics.note_unknown
+                    if attempt_diagnostics is not None
+                    else None
+                ),
+                on_malformed=(
+                    attempt_diagnostics.note_malformed
+                    if attempt_diagnostics is not None
+                    else None
+                ),
+            )
+        if attempt_diagnostics is not None:
+            attempt_diagnostics.note_boundary(
+                "process_reap_completed", _monotonic_ns()
+            )
         observe(register_manifest=True)
+        if attempt_diagnostics is not None:
+            attempt_diagnostics.note_boundary(
+                "final_drain_completed", _monotonic_ns()
+            )
     except BaseException as exc:
         caught = exc
         if process is not None:
@@ -1524,13 +1948,40 @@ def _attempt_loop(
                     process,
                     identity,
                     grace_s=float(args.termination_grace_s),
+                    on_unknown=(
+                        attempt_diagnostics.note_unknown
+                        if attempt_diagnostics is not None
+                        else None
+                    ),
+                    on_malformed=(
+                        attempt_diagnostics.note_malformed
+                        if attempt_diagnostics is not None
+                        else None
+                    ),
+                    on_signal=(
+                        attempt_diagnostics.note_signal
+                        if attempt_diagnostics is not None
+                        else None
+                    ),
                 )
             except BaseException:
                 residual, termination_verified = None, False
+                if attempt_diagnostics is not None:
+                    attempt_diagnostics.note_unknown(
+                        "termination_observer_error"
+                    )
+            if attempt_diagnostics is not None:
+                attempt_diagnostics.note_boundary(
+                    "process_reap_completed", _monotonic_ns()
+                )
             try:
                 observe(register_manifest=False)
             except BaseException:
                 state.stdout_invalid = True
+            if attempt_diagnostics is not None:
+                attempt_diagnostics.note_boundary(
+                    "final_drain_completed", _monotonic_ns()
+                )
     finally:
         stdout_handle.flush()
         os.fsync(stdout_handle.fileno())
@@ -1538,6 +1989,10 @@ def _attempt_loop(
         stderr_handle.flush()
         os.fsync(stderr_handle.fileno())
         stderr_handle.close()
+        if attempt_diagnostics is not None:
+            attempt_diagnostics.note_boundary(
+                "artifact_handles_closed", _monotonic_ns()
+            )
     if caught is not None and process is None:
         if isinstance(caught, Exception):
             if isinstance(caught, LaunchError):
@@ -1545,12 +2000,21 @@ def _attempt_loop(
             raise LaunchError(f"attempt 起動前に失敗: {caught}") from caught
         raise caught
     assert process is not None
-    wall_clock_s = Decimal(_monotonic_ns() - state.started_ns) / Decimal(
+    attempt_wall_now_ns = _monotonic_ns()
+    wall_clock_s = Decimal(attempt_wall_now_ns - state.started_ns) / Decimal(
         1_000_000_000
     )
     job_wall_clock_s = Decimal(
         _monotonic_ns() - job_started_ns
     ) / Decimal(1_000_000_000)
+    if attempt_diagnostics is not None:
+        attempt_diagnostics.note_boundary(
+            "attempt_wall_clock_sampled", attempt_wall_now_ns
+        )
+        attempt_diagnostics.evidence_forced_stop = state.evidence_forced_stop
+        attempt_diagnostics.residual_final_count = residual
+        if residual is not None:
+            attempt_diagnostics.residual_final_unknown_source = None
     attempt = _seal_attempt(
         state,
         process=process,
@@ -1561,7 +2025,13 @@ def _attempt_loop(
         prior_actuals=prior_actuals,
         limits=args,
         force_not_accepted=caught is not None,
+        diagnostics=attempt_diagnostics,
     )
+    if attempt_diagnostics is not None:
+        attempt_diagnostics.control_limit_trigger = attempt["limit_trigger"]
+        attempt_diagnostics.note_boundary(
+            "attempt_sealed", _monotonic_ns()
+        )
     if caught is not None:
         raise AttemptLoopError(
             f"spawn 後の attempt 処理に失敗: {caught}", attempt
@@ -1964,13 +2434,24 @@ def _latch_final_job_limit(
     attempts: Sequence[dict[str, Any]],
     *,
     job_started_ns: int,
+    diagnostics: LauncherDiagnosticsState | None = None,
+    site: str = "final_job_latch",
 ) -> None:
     if not attempts:
         return
     actuals = _sum_attempts(attempts)
-    elapsed = Decimal(
-        _monotonic_ns() - job_started_ns
-    ) / Decimal(1_000_000_000)
+    now_ns = _monotonic_ns()
+    elapsed = Decimal(now_ns - job_started_ns) / Decimal(1_000_000_000)
+    _record_limit_conditions(
+        diagnostics.attempts[-1]
+        if diagnostics is not None and diagnostics.attempts
+        else None,
+        site=site,
+        elapsed=elapsed,
+        model_calls=actuals["model_calls"],
+        cli_reported=actuals["cli_reported"],
+        limits=args,
+    )
     reason: str | None = None
     if elapsed > args.max_wall_clock_s:
         reason = "max_wall_clock_s"
@@ -2008,6 +2489,7 @@ def _run_supervised(
     codex_sha256: str,
     codex_version: str,
     attempts: list[dict[str, Any]],
+    diagnostics: LauncherDiagnosticsState | None = None,
 ) -> int:
     started_ns = args.launcher_started_ns
     if (
@@ -2024,6 +2506,11 @@ def _run_supervised(
             force_launcher_error=True,
         )
         _publish_complete_receipt(args.receipt, receipt)
+        if diagnostics is not None:
+            diagnostics.receipt_published_by_run = True
+            diagnostics.note_job_boundary(
+                "receipt_published", _monotonic_ns()
+            )
         return 2
     prior = {
         "model_calls": 0,
@@ -2038,6 +2525,7 @@ def _run_supervised(
                 prior_actuals=prior,
                 codex_path=codex_path,
                 expected_binary_sha256=codex_sha256,
+                diagnostics=diagnostics,
             )
         except AttemptLoopError as exc:
             attempts.append(exc.attempt)
@@ -2052,6 +2540,11 @@ def _run_supervised(
             )
             _validate_receipt(receipt)
             _publish_complete_receipt(args.receipt, receipt)
+            if diagnostics is not None:
+                diagnostics.receipt_published_by_run = True
+                diagnostics.note_job_boundary(
+                    "receipt_published", _monotonic_ns()
+                )
             return 2
         attempts.append(attempt)
         prior["model_calls"] += attempt["model_calls"]
@@ -2061,20 +2554,38 @@ def _run_supervised(
         if attempt_index >= args.max_attempts:
             continue
         retry_limit: str | None = None
+        retry_now_ns = _monotonic_ns()
         if prior["model_calls"] >= args.max_model_calls:
             retry_limit = "max_model_calls"
         elif prior["cli_reported"] >= args.max_cli_reported_tokens:
             retry_limit = "max_cli_reported_tokens"
         elif (
-            Decimal(_monotonic_ns() - started_ns)
+            Decimal(retry_now_ns - started_ns)
             / Decimal(1_000_000_000)
             >= args.max_wall_clock_s
         ):
             retry_limit = "max_wall_clock_s"
+        _record_limit_conditions(
+            diagnostics.attempts[-1]
+            if diagnostics is not None and diagnostics.attempts
+            else None,
+            site="retry_admission",
+            elapsed=Decimal(retry_now_ns - started_ns)
+            / Decimal(1_000_000_000),
+            model_calls=prior["model_calls"],
+            cli_reported=prior["cli_reported"],
+            limits=args,
+        )
         if retry_limit is not None:
             attempt["limit_trigger"] = retry_limit
             break
-    _latch_final_job_limit(args, attempts, job_started_ns=started_ns)
+    _latch_final_job_limit(
+        args,
+        attempts,
+        job_started_ns=started_ns,
+        diagnostics=diagnostics,
+        site="post_attempt",
+    )
     receipt = _receipt(
         args,
         attempts=attempts,
@@ -2090,7 +2601,13 @@ def _run_supervised(
         expectations={},
         check_published_output=False,
     )
-    _latch_final_job_limit(args, attempts, job_started_ns=started_ns)
+    _latch_final_job_limit(
+        args,
+        attempts,
+        job_started_ns=started_ns,
+        diagnostics=diagnostics,
+        site="post_first_receipt_audit",
+    )
     receipt = _receipt(
         args,
         attempts=attempts,
@@ -2130,7 +2647,11 @@ def _run_supervised(
                 )
                 staged_receipt = _stage_receipt_write(args.receipt, receipt)
                 _latch_final_job_limit(
-                    args, attempts, job_started_ns=started_ns
+                    args,
+                    attempts,
+                    job_started_ns=started_ns,
+                    diagnostics=diagnostics,
+                    site="post_receipt_staging",
                 )
                 if not attempts[-1]["accepted"]:
                     staged_receipt.unlink()
@@ -2172,6 +2693,11 @@ def _run_supervised(
                 publication_temp,
                 replace_invalid=replace_invalid,
             )
+            if diagnostics is not None:
+                diagnostics.receipt_published_by_run = True
+                diagnostics.note_job_boundary(
+                    "receipt_published", _monotonic_ns()
+                )
             return receipt["launcher_rc"]
         finally:
             if staged_receipt is not None:
@@ -2231,35 +2757,151 @@ def _publish_launcher_error_receipt(
                     pass
 
 
+def _launcher_diagnostics_document(
+    diagnostics: LauncherDiagnosticsState,
+    *,
+    receipt_attempts: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    receipt_sha256: str | None = None
+    receipt_bytes: int | None = None
+    try:
+        receipt_sha256, receipt_bytes = _hash_file(
+            diagnostics.receipt_path
+        )
+    except OSError:
+        pass
+    for attempt_diagnostics, receipt_attempt in zip(
+        diagnostics.attempts, receipt_attempts
+    ):
+        attempt_diagnostics.control_limit_trigger = receipt_attempt.get(
+            "limit_trigger"
+        )
+    return {
+        "schema": "codex-worker-launch-diagnostics/v1",
+        "job_id": diagnostics.job_id,
+        "receipt_binding": {
+            "path": os.fspath(diagnostics.receipt_path),
+            "sha256": receipt_sha256,
+            "bytes": receipt_bytes,
+            "status": (
+                "sealed"
+                if diagnostics.receipt_published_by_run
+                else "foreign"
+            ),
+        },
+        "job_elapsed_s_at": {
+            name: _elapsed_s(now_ns, diagnostics.job_started_ns)
+            for name, now_ns in diagnostics.job_boundaries_ns.items()
+        },
+        "attempts": [item.as_document() for item in diagnostics.attempts],
+    }
+
+
+def _publish_launcher_diagnostics(
+    args: argparse.Namespace,
+    diagnostics: LauncherDiagnosticsState,
+    *,
+    receipt_attempts: Sequence[Mapping[str, Any]],
+) -> Path:
+    path = args.artifact_dir / (
+        f"launcher-diagnostics.{os.getpid()}.{uuid.uuid4().hex}.json"
+    )
+    raw = _json_bytes(
+        _launcher_diagnostics_document(
+            diagnostics, receipt_attempts=receipt_attempts
+        )
+    )
+    flags = (
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    fd = os.open(path, flags, 0o600)
+    try:
+        view = memoryview(raw)
+        while view:
+            written = os.write(fd, view)
+            view = view[written:]
+    except BaseException:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        raise
+    finally:
+        os.close(fd)
+    return path
+
+
+def _publish_launcher_diagnostics_without_changing_result(
+    args: argparse.Namespace,
+    diagnostics: LauncherDiagnosticsState,
+    *,
+    receipt_attempts: Sequence[Mapping[str, Any]],
+) -> None:
+    try:
+        _publish_launcher_diagnostics(
+            args, diagnostics, receipt_attempts=receipt_attempts
+        )
+    except BaseException as exc:
+        try:
+            print(
+                "launcher diagnostics write failed: "
+                f"{type(exc).__name__}",
+                file=sys.stderr,
+            )
+        except BaseException:
+            pass
+
+
 def _run(args: argparse.Namespace) -> int:
     codex_path, codex_sha256, codex_version = _preflight_run(args)
     attempts: list[dict[str, Any]] = []
     args.output_published_by_run = False
+    diagnostics = LauncherDiagnosticsState(
+        job_id=args.job_id,
+        job_started_ns=args.launcher_started_ns,
+        receipt_path=args.receipt,
+    )
+    diagnostics.note_job_boundary(
+        "run_preflight_completed", _monotonic_ns()
+    )
     try:
-        return _run_supervised(
-            args,
-            codex_path=codex_path,
-            codex_sha256=codex_sha256,
-            codex_version=codex_version,
-            attempts=attempts,
-        )
-    except BaseException as exc:
         try:
-            _publish_launcher_error_receipt(
+            return _run_supervised(
                 args,
-                attempts=attempts,
                 codex_path=codex_path,
                 codex_sha256=codex_sha256,
                 codex_version=codex_version,
+                attempts=attempts,
+                diagnostics=diagnostics,
             )
-        except BaseException:
-            # receipt 競合の敗者は勝者の完全 receipt を上書きしない。
-            pass
-        if isinstance(exc, (LaunchError, OSError, ValueError)):
-            raise
-        if not isinstance(exc, Exception):
-            raise
-        raise LaunchError(f"run 最終化に失敗: {exc}") from exc
+        except BaseException as exc:
+            try:
+                _publish_launcher_error_receipt(
+                    args,
+                    attempts=attempts,
+                    codex_path=codex_path,
+                    codex_sha256=codex_sha256,
+                    codex_version=codex_version,
+                )
+                diagnostics.receipt_published_by_run = True
+                diagnostics.note_job_boundary(
+                    "receipt_published", _monotonic_ns()
+                )
+            except BaseException:
+                # receipt 競合の敗者は勝者の完全 receipt を上書きしない。
+                pass
+            if isinstance(exc, (LaunchError, OSError, ValueError)):
+                raise
+            if not isinstance(exc, Exception):
+                raise
+            raise LaunchError(f"run 最終化に失敗: {exc}") from exc
+    finally:
+        _publish_launcher_diagnostics_without_changing_result(
+            args, diagnostics, receipt_attempts=attempts
+        )
 
 
 def _validate_attempt(value: Any, *, index: int) -> dict[str, Any]:

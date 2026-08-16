@@ -1,0 +1,260 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 360,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "t190.m01-evidence-default-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    limit_trigger: str | None = None\n    evidence_forced_stop: bool = False\n    manifested_session_ids: set[str] = field(default_factory=set)\n",
+          "new": "    limit_trigger: str | None = None\n    evidence_forced_stop: bool = True\n    manifested_session_ids: set[str] = field(default_factory=set)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m02-all-limit-conditions",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    return comparison, [\n        reason\n        for reason in _LIMIT_REASONS\n        if compare(*values[reason])\n    ]\n",
+          "new": "    return comparison, list(_LIMIT_REASONS)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_limit_conditions_negative_and_exact_boundary",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_records_all_conditions_and_site_values",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output",
+        "orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m03-sample-phases-at-end",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    attempt_diagnostics = (\n        diagnostics.new_attempt(\n            attempt_index=attempt_index, started_ns=attempt_started_ns\n        )\n        if diagnostics is not None\n        else None\n    )\n",
+          "new": "    attempt_diagnostics = (\n        diagnostics.new_attempt(\n            attempt_index=attempt_index, started_ns=attempt_started_ns\n        )\n        if diagnostics is not None\n        else None\n    )\n    if attempt_diagnostics is not None:\n        deferred_boundary_names = attempt_diagnostics.boundaries_ns\n\n        def sample_all_boundaries_at_attempt_end(\n            name: str, now_ns: int\n        ) -> None:\n            if name == \"attempt_sealed\":\n                for boundary_name in (*deferred_boundary_names, name):\n                    deferred_boundary_names[boundary_name] = now_ns\n            else:\n                deferred_boundary_names.setdefault(name, 0)\n\n        attempt_diagnostics.note_boundary = sample_all_boundaries_at_attempt_end\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_production_phase_wiring_has_exact_durations"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m04-drop-terminate-unknown",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    residual = _wait_for_group_exit(\n        identity,\n        timeout_s=1.0,\n        on_unknown=on_unknown,\n        on_malformed=on_malformed,\n    )\n",
+          "new": "    residual = _wait_for_group_exit(\n        identity,\n        timeout_s=1.0,\n        on_malformed=on_malformed,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_unknown_residual_source_propagates_through_terminate",
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_forced_stop_propagates_unknown_residual_to_sidecar"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m05-archive-hook-trylast",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "    @pytest.hookimpl(tryfirst=True)\n",
+          "new": "    @pytest.hookimpl(trylast=True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_reporter_hook_is_tryfirst",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_reporter_live_wiring"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m06-copy-noop",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "                shutil.copyfile(\n                    source_path,\n                    destination_path,\n                    follow_symlinks=False,\n                )\n",
+          "new": "                pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_failure_archive_copies_exact_bytes_from_new_root",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_paths_are_collision_free",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_copy_error_does_not_mask_failure",
+        "orchestrator/tests/test_codex_worker_launch.py::test_failure_archive_copies_critical_set_before_optional_files",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_reporter_live_wiring"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m07-reuse-fixed-leaf",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "        leaf = Path(\n            tempfile.mkdtemp(\n                prefix=(\n                    f\"{node_digest}--pid{os.getpid()}--{time.time_ns()}--\"\n                ),\n                dir=worker_dir,\n            )\n        )\n",
+          "new": "        leaf = worker_dir / \"fixed\"\n        leaf.mkdir(exist_ok=True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_paths_are_collision_free"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m08-always-sealed-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "            \"status\": (\n                \"sealed\"\n                if diagnostics.receipt_published_by_run\n                else \"foreign\"\n            ),\n",
+          "new": "            \"status\": \"sealed\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_complete_receipt_publication_is_atomic_create_only_at_run_callsite"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m09-omit-path-map",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "        _write_archive_json(\n            leaf / \"path-map.json\",\n            {\n                \"schema\": \"pytest-launcher-failure-path-map/v1\",\n                \"paths\": path_map,\n            },\n        )\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_failure_archive_writes_path_map"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m10-propagate-archive-error",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "        status = _archive_launcher_failure_without_masking(\n            nodeid=item.nodeid,\n            tmp_path=tmp_path,\n            exception=exception,\n            call_duration_s=getattr(call, \"duration\", None),\n        )\n",
+          "new": "        bundle = _archive_launcher_failure(\n            nodeid=item.nodeid,\n            tmp_path=tmp_path,\n            exception=exception,\n            call_duration_s=getattr(call, \"duration\", None),\n        )\n        status = f\"archive_status=complete bundle={bundle}\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_artifact_exception_safety_live"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m11-launcher-termination-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    @property\n    def termination_initiated_by_launcher(self) -> bool:\n        return bool(self.termination_signals_sent)\n",
+          "new": "    @property\n    def termination_initiated_by_launcher(self) -> bool:\n        return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_evidence_forced_stop_propagates_unknown_residual_to_sidecar",
+        "orchestrator/tests/test_codex_worker_launch.py::test_rollout_missing_after_grace_is_stopped_and_not_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_thread_missing_after_grace_kills_process_group"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m12-drop-malformed-flag",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    def note_malformed(self) -> None:\n        self.proc_stat_malformed = True\n",
+          "new": "    def note_malformed(self) -> None:\n        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_group_member_count_reports_stat_parse_failure_source",
+        "orchestrator/tests/test_codex_worker_launch.py::test_group_member_count_records_malformed_without_changing_count"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m13-omit-index-append",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_codex_worker_launch.py",
+          "old": "        _append_failure_index(\n            run_dir,\n            {\n                \"nodeid\": nodeid,\n                \"worker\": worker,\n                \"pbs_jobid\": os.environ.get(\"PBS_JOBID\"),\n                \"bundle\": bundle_relative,\n                \"time_ns\": time.time_ns(),\n            },\n        )\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_failure_archive_appends_index"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.m14-natural-exit-greater-equal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "    comparison = (\n        \">=\" if site in {\"running_poll\", \"retry_admission\"} else \">\"\n    )\n",
+          "new": "    comparison = (\n        \">=\"\n        if site in {\"running_poll\", \"retry_admission\", \"natural_exit\"}\n        else \">\"\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted",
+        "orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_limit_conditions_negative_and_exact_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t190.p01-sidecar-oserror-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/codex_worker_launch.py",
+          "old": "        _publish_launcher_diagnostics(\n            args, diagnostics, receipt_attempts=receipt_attempts\n        )\n",
+          "new": "        try:\n            _publish_launcher_diagnostics(\n                args, diagnostics, receipt_attempts=receipt_attempts\n            )\n        finally:\n            raise OSError(\"synthetic sidecar writer failure\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

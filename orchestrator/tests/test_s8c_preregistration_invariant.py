@@ -161,6 +161,76 @@ def test_candidate_freeze_matches_contract_and_generation_chain(
         assert latest["supersedes_sha256"] is None
 
 
+@CANDIDATE_XDIST_GROUP
+def test_repository_tip_binds_current_decider_version_without_activation(
+    repository_candidate_commit: str,
+) -> None:
+    candidate = repository_candidate_commit
+    report = prereg.activation_report_at(ROOT, candidate)
+    assert report.commit == candidate
+    assert report.condition_freeze_valid is True
+    assert report.freeze_reason_code == "valid"
+    assert report.freeze_generation is not None
+
+    tip_raw = prereg.read_blob_at(
+        ROOT,
+        report.commit,
+        prereg.generation_path(report.freeze_generation),
+    )
+    assert tip_raw is not None
+    tip = json.loads(tip_raw)
+
+    assert tip["schema_version"] == prereg.SCHEMA_VERSION
+    assert tip["decider_version"] == prereg.DECIDER_VERSION
+    assert report.decider_version == prereg.DECIDER_VERSION
+    assert report.decider_version_matches is True
+    assert report.decider_version_reason_code == "decider-version-match"
+    assert report.effective is False
+
+
+def test_generation_4_changes_revision_procedure_without_changing_condition_contract(
+) -> None:
+    generation_3_raw = (ROOT / prereg.generation_path(3)).read_bytes()
+    generation_4_raw = (ROOT / prereg.generation_path(4)).read_bytes()
+    generation_3 = prereg._load_freeze_record(
+        generation_3_raw,
+        expected_generation=3,
+    )
+    generation_4 = prereg._load_freeze_record(
+        generation_4_raw,
+        expected_generation=4,
+    )
+
+    assert (
+        generation_4.section5_field_names_sha256
+        == generation_3.section5_field_names_sha256
+    )
+    assert (
+        generation_4.section6_conditions_sha256
+        == generation_3.section6_conditions_sha256
+    )
+    assert len(generation_3.section6_condition_hashes) == 12
+    assert len(generation_4.section6_condition_hashes) == 12
+    assert (
+        generation_4.section6_condition_hashes
+        == generation_3.section6_condition_hashes
+    )
+    assert (
+        generation_4.evidence_contract_sha256
+        == generation_3.evidence_contract_sha256
+    )
+
+    assert (
+        generation_4.normative_body_sha256
+        != generation_3.normative_body_sha256
+    )
+    assert generation_4.protected_sha256 != generation_3.protected_sha256
+    assert generation_4.supersedes_sha256 == generation_3.raw_sha256
+    assert generation_4.ruling_reference == "D458"
+    assert generation_4.schema_version == "s8c-prereg-condition-freeze/v2"
+    assert generation_4.decider_version == "s8c-decider/v1"
+
+
 @pytest.mark.parametrize("generation", (1, 2, 3))
 def test_repository_legacy_v1_generations_remain_readable(generation: int) -> None:
     raw = (ROOT / prereg.generation_path(generation)).read_bytes()

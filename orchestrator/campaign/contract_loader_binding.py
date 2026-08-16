@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""歴史名 ``contract_loader_*`` が表す exact 12 path closure の binding。"""
+"""歴史名 ``contract_loader_*`` が表す exact 14 path closure の binding。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -46,10 +46,10 @@ class ContractLoaderBindingError(Exception):
 
 @dataclass(frozen=True)
 class ContractLoaderBinding:
-    """記録 commit と enforcement source closure 12 path の SHA-256。
+    """記録 commit と enforcement source closure 14 path の SHA-256。
 
     ``contract_loader_*`` 識別子は歴史的名称であり、値は loader 2 path では
-    なく enforcement source closure 12 path を表す。
+    なく enforcement source closure 14 path を表す。
     """
 
     contract_loader_commit: str
