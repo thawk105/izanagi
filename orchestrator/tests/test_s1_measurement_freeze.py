@@ -20,6 +20,7 @@ import s1_expected_goldens  # noqa: E402
 from orchestrator.campaign import s1_known_axes_freeze as K  # noqa: E402
 from orchestrator.campaign import s1_measurement_freeze as M  # noqa: E402
 from orchestrator.campaign import t080_freeze_migration as T080  # noqa: E402
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 from skiputil import skip  # noqa: E402
 
 
@@ -316,3 +317,6 @@ def test_build_comparisons_structure_without_submodule():
     assert sum(c["family"] == "S-1b" for c in comparisons) == 3
     assert {c["alternative"] for c in comparisons} == {"greater"}
     assert all("stock_common" in c["note"] for c in comparisons)
+
+
+enforce_held_functions(globals(), __file__, plain_runner="none")

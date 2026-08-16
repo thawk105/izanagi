@@ -38,6 +38,7 @@ from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign import s8b_approved  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign as fc  # noqa: E402
 from orchestrator.tests import repo_tree_util  # noqa: E402
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 from orchestrator.tests.skiputil import Skip, skip  # noqa: E402
 
 # 固定 golden 引数。env_tag は登録済み linux-baremetal、freeze/ccbench は実 repo を要求する。
@@ -1434,6 +1435,9 @@ def _run():
                 shutil.rmtree(tmp, ignore_errors=True)
     print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
+
+
+enforce_held_functions(globals(), __file__, plain_runner="manual")
 
 
 if __name__ == "__main__":
