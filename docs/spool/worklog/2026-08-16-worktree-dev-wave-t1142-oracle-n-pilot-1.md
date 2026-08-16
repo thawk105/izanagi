@@ -83,6 +83,26 @@ authority 不足を確認し、代替発行・private API 直呼び・迂回の�
 却下した案は「pilot を floor campaign に偽装させる」— 正本 protocol と schedule の
 同一性を騙ることになり、floor 台帳を汚し、schedule も oracle 型でなくなる。
 
+**役追加の直後に変異が本物の穴を出した。** `n_pilot` 経路へ変異 3 件を実走したところ
+N2 (`irreversible_pilot_approved is not True` を `not ...` へ緩める) が **SURVIVED** した。
+`1` や `"true"` のような truthy 値で承認が成立してしまう状態をテストが検出できていなかった。
+**production は正しく、足りなかったのはテストの検出力である**ため、admission module は
+1 行も変えず、truthy 5 値 (`1` / `"true"` / `False` / `0` / `None`) で拒否され、かつ
+claims / ledger / attempt-ledger が 1 件も作られないことを検査するテストを足した。
+**本 wave で変異が静的レビューの見逃しを検出したのは 2 件目である** (1 件目は
+containment テストの過剰決定)。防壁の受理集合を広げる変更を、主張でなく実測で裏付けた。
+
+**規模は事前登録に届かなかった (R=33 の予定が 11)。** 原因は親の設計判断の誤りである。
+admission の cell claim は `_write_exclusive` による排他作成で、**1 cell につき 1 走行**しか
+claim できない。したがって 33 round は **1 本の job で取るべき**だった。3 allocation へ
+分割する裁定 ({{D:oracle-n-pilot-lower-bound}}) が、本 wave 中に着地した防壁の計上モデルと
+衝突し、allocation 1 が 12 cell すべてを 11 round 分の allowance で claim した時点で
+allocation 2 / 3 は `n pilot holdout cell key was already consumed` で拒否された。
+R=11 の分散相対標準誤差は sqrt(2/10) = **44.7%** で、事前登録の 25% 以下を満たさない
+(R=8 の 53.5% よりは改善)。**未達であることを明記したうえで分布は残す** — 対象条件
+(Pegasus / rr20・rr80 / extime=5) の between-run 実測はこれが初めてであり、
+0 件よりは 11 round の実測が価値を持つ。次の取得は 33 round を 1 job で行う。
+
 **ユーザー指摘 (方法論):** 「この commit でしかこの数値は使えない」は言わない。
 判断基準は**その変更が測った量に効きうるか**の一点である。事前登録の条件付けを
 「pin と binary SHA は記録する (provenance)。再利用の可否は測定量に効きうるかで判断する」
