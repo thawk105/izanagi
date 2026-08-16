@@ -1,0 +1,91 @@
+あなたは izanagi の dev-wave 段 3 敵対検証者 (レンズ A) である。sandbox は read-only。
+
+**目的は防御である。** 本 wave は実行環境契約の世代を g1 から g2 へ活性化する。この作業は
+正しさ防壁 (規律 2: 正しさゲートを緩める変異を許さない) の真上を通るため、着手前に
+**受理集合を広げる穴・防壁を骨抜きにする経路を先に見つけて塞ぐ**ことが目的である。
+あなたの仕事は攻撃者の視点で欠陥を暴くことだが、それは修正して守るためであり、
+発見した弱点を悪用する手順を書くためではない。
+
+## 必読 (読めなければ即停止し、その旨だけを出力せよ)
+
+- 親 brief: /work/1/SFC/tanab/dev-wave-jobs/wave-t419-generation-migration/brief.md
+- 段 2 プラン: /work/1/SFC/tanab/dev-wave-jobs/wave-t419-generation-migration/s2-plan.md
+- ユーザー裁定控え: /work/1/SFC/tanab/dev-wave-jobs/wave-t419-generation-migration/ruling.md
+
+repo root は本 worktree。**プランを守ってはならない。親 brief 自身も攻撃対象である。**
+
+## レンズ A の攻撃面 — 受理集合と正しさ防壁
+
+1. **移行によって受理集合が広がる箇所を探せ。** 「今まで拒否していた入力が通るようになる」
+   経路が 1 つでもあれば real 所見である。特に:
+   - `ever_active_contract_sha256s` に g1 と g2 の両方が入ることで、
+     **どちらの世代の成果物も受理される** 状態が生まれていないか。
+     世代を混在させた campaign / WAL / receipt / trial ledger を作れないか。
+   - 既知例外 `KNOWN_SELF_INCONSISTENT_CALIBRATIONS` を空にする変更が、
+     「例外なしを検査する」形でなく「検査そのものを消す」形になっていないか。
+   - g2 活性化後に g1 較正が **依然として `resolve_by_contract_sha256` 経由で
+     `_ensure_calibration_verified` を通る**。自己不整合な較正が検証済み扱いになる経路が
+     残っていないか。
+2. **親自身の実測値とその一般化を攻撃せよ。** brief の「前提実測」8 件それぞれについて、
+   (a) 実測が本当にその結論を支えるか、(b) 過度に一般化していないか、を検査せよ。
+   特に「D143 (b) の取得時受入検査は既 land」という主張は、裁定文が要求する内容と
+   実装が本当に一致するか (裁定は「取得手順側に『全要素が帯内であること』の受入検査」を
+   要求している) を `orchestrator/calibrator/cli.py` の実装まで読んで判定せよ。
+3. **g2 較正そのものを疑え。** `output/env/pegasus/calibration/registered/
+   calibration-94a4b79fa31bba3c.json` の `acquisition_receipt` / `quality` / `host` を読み、
+   これを active にしてよい根拠が成果物だけから再計算できるかを検査せよ。
+   「accepted と書いてあるから accepted」になっていないか。
+   g1 と同じ穴 (取得経路の source acquisition proof 欠落) を g2 も持つなら、
+   それが本 wave の主張をどこまで弱めるかを述べよ。
+4. **プランの変更が「テストを甘くして緑にする」形になっていないか。**
+   期待値の付け替え、negative vector の削除、assert の緩和、xfail 化を 1 件ずつ検査せよ。
+5. **裁定の逸脱を探せ。** ユーザー裁定は択 (b) = 「述語を正とし、較正を取り直して登録し直す
+   + 取得時受入検査」である。プランがこれより広い・狭い・別のことをしていないか。
+
+6. **本 wave 最大の争点に判定を下せ (最重要)。**
+   段 2 プラン §6 P1 と §7 は「versioned protocol path/hash seam を **活性化より先に**
+   実装せよ」と主張する。理由は、g2 活性化後は旧固定 path の floor protocol が live 拒否され、
+   新 protocol を発行する sanctioned 経路が存在しないため床値 v2 を投入できない、というものである。
+   これに対し親の対案は次のとおりである。
+
+   **親の対案 (X)**: 「活性化を先に行う。なぜなら**移行前の状態はもっと悪い**からである。
+   現在 g1 が active である限り、Pegasus 計算ノードの campaign は
+   `execution_guard` の clock 比較で**全面的に落ちる** (F97 / D143 が塞いでいる壁 1)。
+   floor 投入経路が閉じているかどうか以前に、何も走らない。
+   活性化すれば壁 1 が開き、閉じたままなのは floor protocol 発行経路 1 本だけになる。
+   したがって活性化は厳密に改善であり、seam は後続段の最初の仕事でよい。」
+
+   **あなたの仕事は (X) を攻撃することである。** 具体的に:
+   - 「移行前は何も走らない」は本当か。g1 active のまま**実際に成功する** Pegasus 実行経路が
+     1 つでも存在しないか (fixture provider、login node 実行、attestation_mode を要求しない経路、
+     既に凍結済み成果物だけを読む経路など) を実装で探せ。1 つでも見つかれば (X) は崩れる。
+   - 活性化によって **新たに失われる**能力を列挙せよ。段 2 プラン §5 は
+     `s8b_ratified_freeze.launch_validate`、`ident.py` の live resume、
+     `silo_ladder_rung1` の current binding、`s8b_holdout_freeze` の producer、
+     `s8b_prediction_runner` の seal が拒否へ転じるとしている。
+     これらは**移行前は実際に使えていたのか**、それとも壁 1 で既に使えなかったのかを判定せよ。
+     「使えていた」ものがあれば、それは (X) に対する real な反証である。
+   - 逆に、seam を先に作る案が **受理集合を広げる**危険を持たないかも検査せよ
+     (protocol path を可変にすることは、admission が読む対象を攻撃者が選べるようにしないか)。
+
+## 制約
+
+- read-only。書込可能 tmp は無い。**pytest 緑を要求しない。静的検査でよい。**
+  実測は親が行う。実走していないものを「確認済み」と書いてはならない。
+- **Web 検索を使ってはならない。** 使うと本 wave の証拠が無効化される。
+- grep/find は対象 path を限定し、1 コマンドの出力を数百行以内に収めよ。
+- 結合文字 U+0300〜U+036F を使わない。
+- 予算が尽きそうなら、そこまでの結論を出力形式どおり書いて終われ。**無出力が最悪である。**
+- 日本語で書け。
+
+## 出力形式
+
+```
+## 判定 (GO / NO-GO)
+## 所見 (1 件 1 節。id / 主張 / 証拠 file:line / 成果物影響 1 行 / 推奨)
+## 親 brief の誤り
+## プランの誤り
+## 攻撃したが崩せなかったもの (反証できた項目を明記する)
+```
+
+最後に fence の外へ `## 総括` 見出しを置き、5〜15 行で結論を書け。
