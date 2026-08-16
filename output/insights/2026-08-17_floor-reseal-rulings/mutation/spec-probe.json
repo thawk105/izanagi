@@ -1,0 +1,92 @@
+{
+ "estimated_run_seconds": 60.0,
+ "hang_timeout_seconds": 900.0,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "new": "    same_contract = sorted(\n        record.path\n        for (contract_sha256, _pin), record in index.items()\n        if contract_sha256 == pair[0]\n    )\n    if same_contract:\n        raise FloorCampaignError(\n            \"floor protocol index に同一 contract_sha256 が複数ある: \"\n            f\"contract_sha256={pair[0]} paths={same_contract + [path]}\"\n        )\n    index[pair] = IndexedFloorProtocol(\n",
+     "old": "    index[pair] = IndexedFloorProtocol(\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "new": "    occupied_contract_paths = sorted(\n        record.path\n        for (contract_sha256, _pin), record in index.items()\n        if contract_sha256 == target_pair[0]\n    )\n    if occupied_contract_paths:\n        raise FloorCampaignError(\n            \"AI reseal は同じ contract_sha256 に 2 件目の protocol を発行できない: \"\n            f\"contract_sha256={target_pair[0]} existing={occupied_contract_paths}\"\n        )\n",
+     "old": "    if target_pair in index:\n        raise FloorCampaignError(\n            \"AI reseal は同一組の protocol を再発行できない: \"\n            f\"pair={target_pair!r} existing={index[target_pair].path}\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "new": "",
+     "old": "    if pair in index:\n        raise FloorCampaignError(\n            \"floor protocol index に同一組が複数ある: \"\n            f\"pair={pair!r} paths={[index[pair].path, path]}\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "new": "",
+     "old": "    if target_pair in index:\n        raise FloorCampaignError(\n            \"AI reseal は同一組の protocol を再発行できない: \"\n            f\"pair={target_pair!r} existing={index[target_pair].path}\"\n        )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "new": "        try:\n            os.link(tmp, destination)\n        except FileExistsError:\n            os.replace(tmp, destination)\n",
+     "old": "        try:\n            os.link(tmp, destination)\n        except FileExistsError as exc:\n            raise FloorCampaignError(\n                f\"protocol document が既に存在する (create-only): {destination}\"\n            ) from exc\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M6",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "new": "    if True:\n        raise FloorCampaignError(\n            \"AI reseal は同一組の protocol を再発行できない: \"\n            f\"pair={target_pair!r} existing=always-reject\"\n        )\n",
+     "old": "    if target_pair in index:\n        raise FloorCampaignError(\n            \"AI reseal は同一組の protocol を再発行できない: \"\n            f\"pair={target_pair!r} existing={index[target_pair].path}\"\n        )\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 5400.0
+}
