@@ -51,7 +51,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pytest
 
@@ -1644,6 +1644,17 @@ def _synthetic_relocatable_nested_snapshot(tmp_path: Path) -> Path:
     (snapshot / "mode-probe").write_bytes(b"mode\n")
     (snapshot / "mode-probe").chmod(0o750)
     (snapshot / "symlink-probe").symlink_to("root.txt")
+    repositories, _ = TOOL._submodule_inventory(
+        snapshot, allow_builder_transport=True
+    )
+    for repository in repositories:
+        subprocess.run(
+            ["git", "checkout", "--detach", "HEAD"],
+            cwd=repository,
+            check=True,
+            capture_output=True,
+        )
+    TOOL._seal_git_object_closure(snapshot)
     return snapshot
 
 
@@ -1843,35 +1854,46 @@ def test_derived_preflight_rejects_path_dependent_absolute_core_worktree(
     base = _synthetic_relocatable_nested_snapshot(tmp_path)
     derived = tmp_path / "derived"
     submodule_relative = Path("deps/child")
-    submodule = base / submodule_relative
-    git_dir = TOOL._git_dir(submodule)
-    derived_git_dir = derived / git_dir.relative_to(base)
-    included = git_dir / "derived-only.conf"
-    subprocess.run(
-        [
-            "git",
-            "config",
-            "--file",
-            os.fspath(included),
-            "core.worktree",
-            os.fspath((derived / submodule_relative).resolve()),
-        ],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        [
-            "git",
-            "config",
-            "--file",
-            os.fspath(git_dir / "config"),
-            f"includeIf.gitdir:{derived_git_dir}.path",
-            included.name,
-        ],
-        check=True,
-        capture_output=True,
-    )
-    TOOL._preflight_snapshot_relocation(base)
+    delegated_copytree = shutil.copytree
+
+    def copy_with_absolute_worktree(
+        src: Any,
+        dst: Any,
+        symlinks: bool = False,
+        ignore: Any = None,
+        copy_function: Callable[..., Any] = shutil.copy2,
+        ignore_dangling_symlinks: bool = False,
+        dirs_exist_ok: bool = False,
+    ) -> Any:
+        copied = delegated_copytree(
+            src,
+            dst,
+            symlinks,
+            ignore,
+            copy_function,
+            ignore_dangling_symlinks,
+            dirs_exist_ok,
+        )
+        if Path(src).resolve() != base:
+            return copied
+        destination = Path(dst)
+        submodule = destination / submodule_relative
+        git_dir = TOOL._git_dir(submodule)
+        subprocess.run(
+            [
+                "git",
+                "config",
+                "--file",
+                os.fspath(git_dir / "config"),
+                "core.worktree",
+                os.fspath(submodule.resolve()),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return copied
+
+    monkeypatch.setattr(TOOL.shutil, "copytree", copy_with_absolute_worktree)
     monkeypatch.setattr(
         TOOL,
         "_finish_snapshot_case",
@@ -1892,8 +1914,42 @@ def test_derived_preflight_rejects_path_dependent_absolute_core_worktree(
     assert caught.value.rc == TOOL.RC_SNAPSHOT
 
 
+def test_derived_preflight_rejects_forbidden_includeif_config(
+    tmp_path: Path,
+) -> None:
+    base = _synthetic_relocatable_nested_snapshot(tmp_path)
+    derived = tmp_path / "derived"
+    submodule = base / "deps/child"
+    git_dir = TOOL._git_dir(submodule)
+    derived_git_dir = derived / git_dir.relative_to(base)
+    key = f"includeIf.gitdir:{derived_git_dir}.path"
+    subprocess.run(
+        [
+            "git",
+            "config",
+            "--file",
+            os.fspath(git_dir / "config"),
+            key,
+            "derived-only.conf",
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._preflight_snapshot_relocation(base)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "snapshot repository local config is not allowlisted: "
+        f"deps/child: {[key.lower()]}",
+    )
+
+
 def _synthetic_nested_submodule_snapshot(
     tmp_path: Path,
+    *,
+    seal: bool = False,
 ) -> tuple[Path, Path, str]:
     child = tmp_path / "child-source"
     child.mkdir()
@@ -1998,12 +2054,18 @@ def _synthetic_nested_submodule_snapshot(
         check=True,
         capture_output=True,
     )
+    if seal:
+        TOOL._seal_git_object_closure(snapshot)
     return snapshot, submodule, nested_gitlink
 
 
 def _synthetic_verify_snapshot_with_submodules(
     tmp_path: Path,
     submodules: tuple[tuple[str, bool], ...],
+    *,
+    source_setup: Callable[[Path, int], None] | None = None,
+    initialized_setup: Callable[[Path, int], None] | None = None,
+    ignore_all: bool = False,
 ) -> Path:
     source_rows: list[tuple[str, bool, Path, str]] = []
     for index, (relative, initialized) in enumerate(submodules):
@@ -2013,7 +2075,9 @@ def _synthetic_verify_snapshot_with_submodules(
         (source / "child.txt").write_text(
             f"child {index}\n", encoding="utf-8"
         )
-        subprocess.run(["git", "add", "child.txt"], cwd=source, check=True)
+        if source_setup is not None:
+            source_setup(source, index)
+        subprocess.run(["git", "add", "--all"], cwd=source, check=True)
         subprocess.run(
             [
                 "git",
@@ -2042,6 +2106,7 @@ def _synthetic_verify_snapshot_with_submodules(
             f'[submodule "child-{index}"]\n'
             f"\tpath = {relative}\n"
             f"\turl = {source}\n"
+            + ("\tignore = all\n" if ignore_all else "")
             for index, (relative, _, source, _) in enumerate(source_rows)
         )
         (snapshot / ".gitmodules").write_text(modules, encoding="utf-8")
@@ -2080,7 +2145,7 @@ def _synthetic_verify_snapshot_with_submodules(
         check=True,
         capture_output=True,
     )
-    for relative, initialized, _, _ in source_rows:
+    for index, (relative, initialized, _, _) in enumerate(source_rows):
         if initialized:
             subprocess.run(
                 [
@@ -2097,6 +2162,8 @@ def _synthetic_verify_snapshot_with_submodules(
                 check=True,
                 capture_output=True,
             )
+            if initialized_setup is not None:
+                initialized_setup(snapshot / relative, index)
     TOOL._seal_git_object_closure(snapshot)
     return snapshot
 
@@ -2105,11 +2172,12 @@ def _synthetic_verify_snapshot_spec(
     snapshot: Path,
     *,
     enforce_closure: bool,
+    pin_submodule_manifest: bool = False,
 ) -> dict[str, Any]:
     verified_paths = ["root.txt"]
     if (snapshot / ".gitmodules").is_file():
         verified_paths.append(".gitmodules")
-    return {
+    spec = {
         "case": "POS",
         "head": TOOL._git(snapshot, "rev-parse", "HEAD").decode().strip(),
         "branch": TOOL.BRANCH,
@@ -2126,6 +2194,12 @@ def _synthetic_verify_snapshot_spec(
         "forbidden": [],
         "git_object_closure": enforce_closure,
     }
+    if pin_submodule_manifest:
+        _, manifest = TOOL._submodule_inventory(snapshot)
+        spec["submodule_manifest_sha256"] = TOOL._submodule_manifest_sha256(
+            manifest
+        )
+    return spec
 
 
 def _assert_uninitialized_submodule_reason(
@@ -2134,6 +2208,220 @@ def _assert_uninitialized_submodule_reason(
 ) -> None:
     assert caught.value.rc == TOOL.RC_SNAPSHOT
     assert f"submodule is not initialized: {relative}" in caught.value.reasons
+
+
+def _submodule_content_reasons(snapshot: Path) -> list[str]:
+    preflight_cache: dict[Path, tuple[str, ...]] = {}
+    root_reasons = TOOL._cached_repository_preflight_reasons(
+        snapshot, snapshot, preflight_cache
+    )
+    if root_reasons:
+        return list(root_reasons)
+    repositories, _ = TOOL._submodule_inventory(
+        snapshot, preflight_cache=preflight_cache
+    )
+    return TOOL._submodule_content_identity_reasons(
+        snapshot,
+        repositories,
+        preflight_cache=preflight_cache,
+    )
+
+
+def _assert_snapshot_rejected_with_single_reason(
+    snapshot: Path,
+    spec: dict[str, Any],
+    expected_reason: str,
+) -> None:
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (expected_reason,)
+
+
+def _assert_snapshot_rejected_contains_reason(
+    snapshot: Path,
+    spec: dict[str, Any],
+    expected_reason: str,
+) -> None:
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert expected_reason in caught.value.reasons
+
+
+def _child_head(snapshot: Path, relative: str = "deps/child") -> str:
+    return TOOL._git(
+        snapshot, "--no-replace-objects", "rev-parse", f"HEAD:{relative}"
+    ).decode().strip()
+
+
+def _empty_submodule_index_and_worktree(snapshot: Path) -> str:
+    child = snapshot / "deps/child"
+    subprocess.run(
+        ["git", "read-tree", "--empty"],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    (child / "child.txt").unlink()
+    return "initialized submodule index/HEAD tree mismatch: deps/child"
+
+
+def test_submodule_content_identity_reasons_rejects_empty_index_and_worktree(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _empty_submodule_index_and_worktree(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_empty_index_and_worktree(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _empty_submodule_index_and_worktree(snapshot)
+
+    # End-to-end closure also reports git fsck and object-store unreachable objects.
+    _assert_snapshot_rejected_contains_reason(snapshot, spec, expected_reason)
+
+
+def _mutate_child_bytes_preserving_stat(snapshot: Path) -> str:
+    path = snapshot / "deps/child/child.txt"
+    before = path.stat()
+    payload = path.read_bytes()
+    replacement = payload.swapcase()
+    assert len(replacement) == len(payload)
+    assert replacement != payload
+    path.write_bytes(replacement)
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    return (
+        "initialized submodule worktree/index mismatch: "
+        "deps/child: child.txt"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_worktree_blob_mismatch(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _mutate_child_bytes_preserving_stat(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_worktree_blob_mismatch_with_preserved_stat(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _mutate_child_bytes_preserving_stat(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _add_index_entry_absent_from_head(snapshot: Path) -> str:
+    child = snapshot / "deps/child"
+    payload = (child / "child.txt").read_bytes()
+    object_id = TOOL._git(
+        child, "ls-files", "--stage", "--", "child.txt"
+    ).decode().split()[1]
+    (child / "extra.txt").write_bytes(payload)
+    subprocess.run(
+        [
+            "git",
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            f"100644,{object_id},extra.txt",
+        ],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    return "initialized submodule index/HEAD tree mismatch: deps/child"
+
+
+def test_submodule_content_identity_reasons_rejects_index_entry_absent_from_head_tree(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _add_index_entry_absent_from_head(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_index_entry_absent_from_head_tree(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _add_index_entry_absent_from_head(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _bind_child_marker_to_rogue_admin(snapshot: Path) -> str:
+    admin = snapshot / ".git/modules/child-0"
+    rogue = snapshot / ".git/modules/rogue"
+    shutil.copytree(admin, rogue)
+    (snapshot / "deps/child/.git").write_text(
+        "gitdir: ../../.git/modules/rogue\n", encoding="utf-8"
+    )
+    return "initialized submodule gitdir/admin mismatch: deps/child"
+
+
+def test_submodule_worktree_state_rejects_marker_bound_to_rogue_admin_dir(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _bind_child_marker_to_rogue_admin(snapshot)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._submodule_worktree_state(
+            snapshot,
+            "child-0",
+            "deps/child",
+            _child_head(snapshot),
+            snapshot,
+        )
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (expected_reason,)
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_git_marker_bound_to_rogue_admin_dir(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _bind_child_marker_to_rogue_admin(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
 
 
 def test_verify_snapshot_submodule_gate_rejects_custom_spec_without_closure(
@@ -2238,6 +2526,1219 @@ def test_verify_snapshot_submodule_gate_accepts_all_initialized(
     ]
 
 
+def test_verify_snapshot_oracle_and_submodule_row_key_sets_are_literal(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    oracle = TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    assert set(oracle) == {
+        "schema_version",
+        "case",
+        "snapshot",
+        "head",
+        "branch",
+        "dirty",
+        "untracked",
+        "numstat",
+        "files",
+        "submodules",
+        "submodule_manifest_sha256",
+        "git_object_closure",
+        "filesystem_files",
+        "manifest_sha256",
+    }
+    assert oracle["submodules"]
+    assert all(
+        set(row) == {"path", "gitlink_commit", "initialization"}
+        for row in oracle["submodules"]
+    )
+
+
+def test_git_closure_reuses_precomputed_submodule_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    inventory = TOOL._submodule_inventory
+    calls = 0
+
+    def counted(candidate: Path) -> tuple[list[Path], list[dict[str, str]]]:
+        nonlocal calls
+        calls += 1
+        return inventory(candidate)
+
+    monkeypatch.setattr(TOOL, "_submodule_inventory", counted)
+
+    reasons, _, _ = TOOL._git_closure_reasons(snapshot, ())
+
+    assert reasons == []
+    assert calls == 1
+
+
+def _add_ignored_extra_file(snapshot: Path) -> str:
+    (snapshot / "deps/child/payload.txt").write_text(
+        "ignored but observable\n", encoding="utf-8"
+    )
+    return (
+        "initialized submodule worktree file-set mismatch: deps/child: "
+        "extra=['payload.txt'], missing=[]"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_ignored_extra_file(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _add_ignored_extra_file(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_submodule_content_identity_reasons_rejects_walk_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    child = snapshot / "deps/child"
+    denied = child / "denied"
+    denied.mkdir()
+    (denied / "payload.txt").write_text("hidden bytes\n", encoding="utf-8")
+    original_mode = stat.S_IMODE(denied.stat().st_mode)
+    os.chmod(denied, 0o000)
+    try:
+        try:
+            with os.scandir(denied) as entries:
+                next(entries, None)
+        except PermissionError:
+            pass
+        else:
+            original_walk = TOOL.os.walk
+
+            def injected_walk(
+                top: Path,
+                topdown: bool = True,
+                onerror: Callable[[OSError], None] | None = None,
+                followlinks: bool = False,
+            ) -> Any:
+                assert Path(top) == child
+                assert onerror is not None
+                onerror(
+                    PermissionError(
+                        13, "injected unreadable directory", os.fspath(denied)
+                    )
+                )
+                yield from original_walk(
+                    top,
+                    topdown=topdown,
+                    onerror=onerror,
+                    followlinks=followlinks,
+                )
+
+            monkeypatch.setattr(TOOL.os, "walk", injected_walk)
+
+        assert _submodule_content_reasons(snapshot) == [
+            "initialized submodule content cannot be inspected: "
+            "deps/child: PermissionError"
+        ]
+    finally:
+        os.chmod(denied, original_mode)
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_ignored_extra_file_without_closure(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=False, pin_submodule_manifest=True
+    )
+    expected_reason = _add_ignored_extra_file(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _install_replacement_tree(snapshot: Path) -> str:
+    child = snapshot / "deps/child"
+    original = _child_head(snapshot)
+    (child / "child.txt").write_text("other 0\n", encoding="utf-8")
+    subprocess.run(["git", "add", "child.txt"], cwd=child, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=T1262",
+            "-c",
+            "user.email=t1262@example.invalid",
+            "commit",
+            "-m",
+            "replacement",
+        ],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    replacement = TOOL._git(child, "rev-parse", "HEAD").decode().strip()
+    replacement_tree = TOOL._git(
+        child,
+        "--no-replace-objects",
+        "rev-parse",
+        f"{replacement}^{{tree}}",
+    ).decode().strip()
+    subprocess.run(
+        ["git", "checkout", "--detach", original],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "replace", original, replacement],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "--no-replace-objects", "read-tree", replacement_tree],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    (child / "child.txt").write_text("other 0\n", encoding="utf-8")
+    assert TOOL._git(child, "rev-parse", "HEAD").decode().strip() == original
+    return "initialized submodule index/HEAD tree mismatch: deps/child"
+
+
+def test_submodule_content_identity_reasons_rejects_replacement_ref_tree(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _install_replacement_tree(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_replacement_ref_without_closure(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=False, pin_submodule_manifest=True
+    )
+    expected_reason = _install_replacement_tree(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _replace_admin_with_symlink(snapshot: Path) -> str:
+    admin = snapshot / ".git/modules/child-0"
+    rogue = snapshot / ".git/modules/rogue"
+    admin.rename(rogue)
+    admin.symlink_to("rogue", target_is_directory=True)
+    return (
+        "initialized submodule administrative path contains a symlink: "
+        "deps/child"
+    )
+
+
+def test_submodule_worktree_state_rejects_symlinked_expected_admin_path(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _replace_admin_with_symlink(snapshot)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._submodule_worktree_state(
+            snapshot,
+            "child-0",
+            "deps/child",
+            _child_head(snapshot),
+            snapshot,
+        )
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (expected_reason,)
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_symlinked_expected_admin_path(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _replace_admin_with_symlink(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _redirect_child_common_dir(snapshot: Path) -> str:
+    admin = snapshot / ".git/modules/child-0"
+    rogue = snapshot / ".git/modules/rogue"
+    shutil.copytree(admin, rogue)
+    (admin / "commondir").write_text("../rogue\n", encoding="utf-8")
+    return "initialized submodule common-dir/admin mismatch: deps/child"
+
+
+def test_submodule_worktree_state_rejects_external_common_dir(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _redirect_child_common_dir(snapshot)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._submodule_worktree_state(
+            snapshot,
+            "child-0",
+            "deps/child",
+            _child_head(snapshot),
+            snapshot,
+        )
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (expected_reason,)
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_external_common_dir(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _redirect_child_common_dir(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _source_with_symlink(source: Path, _index: int) -> None:
+    (source / "link.txt").symlink_to("target-one")
+
+
+def _mutate_symlink_target(snapshot: Path) -> str:
+    path = snapshot / "deps/child/link.txt"
+    path.unlink()
+    path.symlink_to("target-two")
+    return (
+        "initialized submodule worktree/index mismatch: "
+        "deps/child: link.txt"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_symlink_target_mismatch(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_symlink,
+        ignore_all=True,
+    )
+    expected_reason = _mutate_symlink_target(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_symlink_target_mismatch(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_symlink,
+        ignore_all=True,
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _mutate_symlink_target(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _source_with_executable(source: Path, _index: int) -> None:
+    executable = source / "run.sh"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+
+
+def _mutate_executable_bit(snapshot: Path) -> str:
+    path = snapshot / "deps/child/run.sh"
+    path.chmod(path.stat().st_mode & ~stat.S_IXUSR)
+    return (
+        "initialized submodule worktree/index mode mismatch: "
+        "deps/child: run.sh"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_executable_bit_mismatch(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_executable,
+        ignore_all=True,
+    )
+    expected_reason = _mutate_executable_bit(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_executable_bit_mismatch(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_executable,
+        ignore_all=True,
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _mutate_executable_bit(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def _source_with_lf_attributes(source: Path, _index: int) -> None:
+    (source / ".gitattributes").write_text(
+        "*.txt text eol=lf\n", encoding="utf-8"
+    )
+
+
+def _checkout_child_as_crlf(submodule: Path, _index: int) -> None:
+    path = submodule / "child.txt"
+    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+
+
+def test_submodule_content_identity_reasons_rejects_crlf_worktree_bytes(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_lf_attributes,
+        initialized_setup=_checkout_child_as_crlf,
+        ignore_all=True,
+    )
+
+    assert _submodule_content_reasons(snapshot) == [
+        "initialized submodule worktree/index mismatch: "
+        "deps/child: child.txt"
+    ]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_crlf_worktree_bytes(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_lf_attributes,
+        initialized_setup=_checkout_child_as_crlf,
+        ignore_all=True,
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+
+    _assert_snapshot_rejected_with_single_reason(
+        snapshot,
+        spec,
+        "initialized submodule worktree/index mismatch: "
+        "deps/child: child.txt",
+    )
+
+
+def _source_with_nested_file(source: Path, _index: int) -> None:
+    nested = source / "dir"
+    nested.mkdir()
+    (nested / "payload.txt").write_text("nested\n", encoding="utf-8")
+
+
+def _replace_tracked_directory_with_symlink(
+    snapshot: Path, tmp_path: Path
+) -> str:
+    directory = snapshot / "deps/child/dir"
+    rogue = tmp_path / "rogue-tracked-directory"
+    directory.rename(rogue)
+    directory.symlink_to(rogue, target_is_directory=True)
+    return (
+        "initialized submodule tracked path crosses unsafe component: "
+        "deps/child: dir/payload.txt"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_intermediate_directory_symlink(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_nested_file,
+        ignore_all=True,
+    )
+    expected_reason = _replace_tracked_directory_with_symlink(snapshot, tmp_path)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_intermediate_directory_symlink(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_nested_file,
+        ignore_all=True,
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _replace_tracked_directory_with_symlink(snapshot, tmp_path)
+
+    # End-to-end inventory also reports filesystem allowlist has extra files.
+    _assert_snapshot_rejected_contains_reason(snapshot, spec, expected_reason)
+
+
+def _add_forbidden_local_config(snapshot: Path) -> str:
+    child = snapshot / "deps/child"
+    subprocess.run(
+        ["git", "config", "submodule.attack.url", "https://example.invalid"],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    return (
+        "snapshot repository local config is not allowlisted: "
+        "deps/child: ['submodule.attack.url']"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_post_seal_config(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    expected_reason = _add_forbidden_local_config(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    (
+        ("core.fsmonitor", "false"),
+        ("core.autocrlf", "true"),
+        ("filter.attack.clean", "false"),
+        ("init.templateDir", "/tmp/template"),
+        ("include.path", "missing-config"),
+        ("extensions.worktreeConfig", "true"),
+    ),
+    ids=(
+        "fsmonitor",
+        "autocrlf",
+        "filter",
+        "template-dir",
+        "include",
+        "worktree-config",
+    ),
+)
+def test_submodule_content_identity_reasons_rejects_forbidden_config_key(
+    tmp_path: Path,
+    key: str,
+    value: str,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    child = snapshot / "deps/child"
+    subprocess.run(
+        ["git", "config", key, value],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+
+    assert _submodule_content_reasons(snapshot) == [
+        "snapshot repository local config is not allowlisted: "
+        f"deps/child: ['{key.lower()}']"
+    ]
+
+
+def _local_config_keys(repository: Path) -> set[str]:
+    output = subprocess.run(
+        ["git", "config", "--local", "--name-only", "--list"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return set(output.splitlines())
+
+
+def test_submodule_local_config_allowlist_matches_builder_outputs(
+    tmp_path: Path,
+) -> None:
+    snapshot, child, _ = _synthetic_nested_submodule_snapshot(tmp_path)
+    assert _local_config_keys(snapshot) == {
+        "core.repositoryformatversion",
+        "core.filemode",
+        "core.bare",
+        "core.logallrefupdates",
+        "submodule.deps/child.url",
+        "submodule.deps/child.active",
+    }
+    child_keys = _local_config_keys(child)
+    branch_keys = {key for key in child_keys if key.startswith("branch.")}
+    assert {key.rsplit(".", 1)[1] for key in branch_keys} == {
+        "remote",
+        "merge",
+    }
+    assert len({key.rsplit(".", 1)[0] for key in branch_keys}) == 1
+    assert child_keys - branch_keys == {
+        "core.repositoryformatversion",
+        "core.filemode",
+        "core.bare",
+        "core.logallrefupdates",
+        "core.worktree",
+        "remote.origin.url",
+        "remote.origin.fetch",
+    }
+    assert TOOL._local_config_allowlist_reasons(
+        snapshot,
+        (snapshot, child),
+        allow_builder_transport=True,
+    ) == []
+
+    TOOL._seal_git_object_closure(snapshot)
+
+    assert _local_config_keys(snapshot) == {
+        "core.repositoryformatversion",
+        "core.filemode",
+        "core.bare",
+        "core.logallrefupdates",
+    }
+    assert _local_config_keys(child) == {
+        "core.repositoryformatversion",
+        "core.filemode",
+        "core.bare",
+        "core.logallrefupdates",
+        "core.worktree",
+    }
+
+
+def test_seal_allows_preseal_transport_but_strict_inventory_rejects_postseal(
+    tmp_path: Path,
+) -> None:
+    snapshot, child, _ = _synthetic_nested_submodule_snapshot(tmp_path)
+    assert "remote.origin.url" in _local_config_keys(child)
+
+    TOOL._seal_git_object_closure(snapshot)
+
+    subprocess.run(
+        ["git", "config", "remote.postseal.url", "https://example.invalid"],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._submodule_inventory(snapshot)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "snapshot repository local config is not allowlisted: "
+        "deps/child: ['remote.postseal.url']",
+    )
+
+
+def test_seal_preflight_rejects_forbidden_static_config(
+    tmp_path: Path,
+) -> None:
+    snapshot, child, _ = _synthetic_nested_submodule_snapshot(tmp_path)
+    subprocess.run(
+        ["git", "config", "core.fsmonitor", "false"],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._seal_git_object_closure(snapshot)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "snapshot repository local config is not allowlisted: "
+        "deps/child: ['core.fsmonitor']",
+    )
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    (
+        ("core.ignorecase", "true"),
+        ("core.symlinks", "false"),
+        ("core.precomposeunicode", "true"),
+    ),
+    ids=("ignorecase", "symlinks", "precomposeunicode"),
+)
+def test_submodule_content_identity_allows_filesystem_probe_config_keys(
+    tmp_path: Path,
+    key: str,
+    value: str,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    subprocess.run(
+        ["git", "config", key, value],
+        cwd=snapshot / "deps/child",
+        check=True,
+        capture_output=True,
+    )
+
+    assert _submodule_content_reasons(snapshot) == []
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_post_seal_config(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _add_forbidden_local_config(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
+def test_submodule_content_identity_reasons_rejects_root_local_config(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    subprocess.run(
+        ["git", "config", "core.autocrlf", "false"],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+
+    assert _submodule_content_reasons(snapshot) == [
+        "snapshot repository local config is not allowlisted: "
+        ".: ['core.autocrlf']"
+    ]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_root_local_config(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=False, pin_submodule_manifest=True
+    )
+    subprocess.run(
+        ["git", "config", "core.autocrlf", "false"],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+
+    _assert_snapshot_rejected_with_single_reason(
+        snapshot,
+        spec,
+        "snapshot repository local config is not allowlisted: "
+        ".: ['core.autocrlf']",
+    )
+
+
+def test_verify_snapshot_root_preflight_precedes_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=False)
+    subprocess.run(
+        ["git", "config", "core.fsmonitor", "false"],
+        cwd=snapshot,
+        check=True,
+        capture_output=True,
+    )
+    inventory_calls = 0
+    inventory = TOOL._submodule_inventory
+
+    def counted_inventory(*args: Any, **kwargs: Any) -> Any:
+        nonlocal inventory_calls
+        inventory_calls += 1
+        return inventory(*args, **kwargs)
+
+    monkeypatch.setattr(TOOL, "_submodule_inventory", counted_inventory)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    assert caught.value.reasons == (
+        "snapshot repository local config is not allowlisted: "
+        ".: ['core.fsmonitor']",
+    )
+    assert inventory_calls == 0
+
+
+def test_verify_snapshot_submodule_preflight_skips_worktree_git_and_aggregates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    child = snapshot / "deps/child"
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=False)
+    spec["head"] = "0" * 40
+    subprocess.run(
+        ["git", "config", "core.fsmonitor", "false"],
+        cwd=child,
+        check=True,
+        capture_output=True,
+    )
+    delegated = TOOL._run
+    child_git_calls: list[tuple[str, ...]] = []
+
+    def recording_run(argv: tuple[str, ...], **kwargs: Any) -> Any:
+        if Path(kwargs["cwd"]).resolve() == child.resolve():
+            child_git_calls.append(tuple(argv))
+        return delegated(argv, **kwargs)
+
+    monkeypatch.setattr(TOOL, "_run", recording_run)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    assert caught.value.reasons == (
+        "HEAD mismatch: "
+        f"{TOOL._git(snapshot, 'rev-parse', 'HEAD').decode().strip()} != "
+        f"{'0' * 40}",
+        "snapshot repository local config is not allowlisted: "
+        "deps/child: ['core.fsmonitor']",
+    )
+    assert child_git_calls == [
+        (
+            "git",
+            "--no-replace-objects",
+            "rev-parse",
+            "--show-object-format",
+        ),
+        (
+            "git",
+            "--no-replace-objects",
+            "config",
+            "--local",
+            "--name-only",
+            "--null",
+            "--list",
+        ),
+    ]
+
+
+def test_verify_snapshot_runs_each_repository_preflight_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    child = snapshot / "deps/child"
+    spec = _synthetic_verify_snapshot_spec(snapshot, enforce_closure=False)
+    delegated = TOOL._run
+    counts: dict[tuple[Path, str], int] = {}
+
+    def recording_run(argv: tuple[str, ...], **kwargs: Any) -> Any:
+        command = tuple(argv)
+        kind = None
+        if command[-2:] == ("rev-parse", "--show-object-format"):
+            kind = "object-format"
+        elif "config" in command and "--local" in command:
+            kind = "local-config"
+        if kind is not None:
+            key = (Path(kwargs["cwd"]).resolve(), kind)
+            counts[key] = counts.get(key, 0) + 1
+        return delegated(argv, **kwargs)
+
+    monkeypatch.setattr(TOOL, "_run", recording_run)
+
+    oracle = TOOL.verify_snapshot(snapshot, "POS", spec=spec)
+
+    assert oracle["submodules"][0]["initialization"] == "initialized"
+    assert counts == {
+        (snapshot.resolve(), "object-format"): 1,
+        (snapshot.resolve(), "local-config"): 1,
+        (child.resolve(), "object-format"): 1,
+        (child.resolve(), "local-config"): 1,
+    }
+
+
+def test_submodule_content_identity_reasons_rejects_non_sha1_object_format(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "sha256-repository"
+    repository.mkdir()
+    subprocess.run(
+        ["git", "init", "--object-format=sha256"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+    )
+
+    assert TOOL._submodule_content_identity_reasons(repository, ()) == [
+        "snapshot repository object format is not sha1: .: sha256"
+    ]
+
+
+def test_submodule_content_identity_reasons_returns_reason_for_uninspectable_repo(
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "missing"
+
+    reasons = TOOL._submodule_content_identity_reasons(missing, ())
+
+    assert reasons == [
+        "snapshot repository object format cannot be inspected: .: "
+        "FileNotFoundError"
+    ]
+
+
+def test_submodule_content_identity_reasons_returns_reason_for_escaped_repo(
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / "snapshot"
+    outside = tmp_path / "outside"
+    snapshot.mkdir()
+    outside.mkdir()
+
+    reasons = TOOL._submodule_content_identity_reasons(
+        snapshot, (outside,)
+    )
+
+    assert reasons == [
+        "initialized submodule repository escapes snapshot: "
+        "<outside-snapshot>"
+    ]
+
+
+def test_submodule_content_identity_gate_uses_no_git_content_writer_or_filter(
+) -> None:
+    tree = ast.parse(_TOOL_PATH.read_text(encoding="utf-8"))
+    selected = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name
+        in {
+            "_raw_blob_object_id",
+            "_one_submodule_content_identity_reasons",
+            "_submodule_content_identity_reasons",
+        }
+    }
+    assert set(selected) == {
+        "_raw_blob_object_id",
+        "_one_submodule_content_identity_reasons",
+        "_submodule_content_identity_reasons",
+    }
+    string_literals = {
+        node.value
+        for function in selected.values()
+        for node in ast.walk(function)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    assert "write-tree" not in string_literals
+    assert "hash-object" not in string_literals
+
+
+def test_submodule_identity_discovery_git_calls_disable_replace_objects() -> None:
+    tree = ast.parse(_TOOL_PATH.read_text(encoding="utf-8"))
+    selected = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name in {"_git_dir", "_direct_submodules"}
+    }
+    assert set(selected) == {"_git_dir", "_direct_submodules"}
+    for function in selected.values():
+        literals = {
+            node.value
+            for node in ast.walk(function)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
+        assert "--no-replace-objects" in literals
+
+
+def _clone_without_submodules(source: Path, destination: Path) -> Path:
+    subprocess.run(
+        ["git", "clone", "--no-local", os.fspath(source), os.fspath(destination)],
+        check=True,
+        capture_output=True,
+    )
+    return destination
+
+
+def test_init_submodules_from_local_source_allows_dirty_source_content(
+    tmp_path: Path,
+) -> None:
+    source = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    committed = (source / "deps/child/child.txt").read_bytes()
+    (source / "deps/child/child.txt").write_bytes(b"dirty source only\n")
+    destination = _clone_without_submodules(
+        source, tmp_path / "destination"
+    )
+
+    TOOL._init_submodules_from_local_source(source, destination)
+
+    assert (destination / "deps/child/child.txt").read_bytes() == committed
+    assert (destination / "deps/child/child.txt").read_bytes() != (
+        source / "deps/child/child.txt"
+    ).read_bytes()
+
+
+def test_init_submodules_from_local_source_rejects_forbidden_source_config(
+    tmp_path: Path,
+) -> None:
+    source = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    subprocess.run(
+        ["git", "config", "filter.attack.clean", "false"],
+        cwd=source / "deps/child",
+        check=True,
+        capture_output=True,
+    )
+    destination = _clone_without_submodules(
+        source, tmp_path / "destination"
+    )
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._init_submodules_from_local_source(source, destination)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "snapshot repository local config is not allowlisted: "
+        "deps/child: ['filter.attack.clean']",
+    )
+    assert not (destination / "deps/child/.git").exists()
+
+
+def test_init_submodules_from_local_source_allows_source_only_config_keys(
+    tmp_path: Path,
+) -> None:
+    source = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    child = source / "deps/child"
+    allowed = {
+        "submodule.probe.update": "checkout",
+        "submodule.probe.branch": "main",
+        "submodule.probe.fetchRecurseSubmodules": "false",
+        "submodule.probe.ignore": "dirty",
+        "user.name": "T1262 Source",
+        "user.email": "t1262-source@example.invalid",
+    }
+    for key, value in allowed.items():
+        subprocess.run(
+            ["git", "config", key, value],
+            cwd=child,
+            check=True,
+            capture_output=True,
+        )
+    destination = _clone_without_submodules(
+        source, tmp_path / "destination"
+    )
+
+    TOOL._init_submodules_from_local_source(source, destination)
+
+    assert (destination / "deps/child/child.txt").read_bytes() == (
+        child / "child.txt"
+    ).read_bytes()
+
+
+def test_init_submodules_from_local_source_rejects_unexpanded_source_key(
+    tmp_path: Path,
+) -> None:
+    source = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),)
+    )
+    subprocess.run(
+        ["git", "config", "core.fsmonitor", "false"],
+        cwd=source / "deps/child",
+        check=True,
+        capture_output=True,
+    )
+    destination = _clone_without_submodules(
+        source, tmp_path / "destination"
+    )
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._init_submodules_from_local_source(source, destination)
+
+    assert caught.value.reasons == (
+        "snapshot repository local config is not allowlisted: "
+        "deps/child: ['core.fsmonitor']",
+    )
+    assert not (destination / "deps/child/.git").exists()
+
+
+def test_init_submodules_from_local_source_rejects_rogue_source_admin(
+    tmp_path: Path,
+) -> None:
+    source = _synthetic_verify_snapshot_with_submodules(
+        tmp_path, (("deps/child", True),), ignore_all=True
+    )
+    destination = _clone_without_submodules(
+        source, tmp_path / "destination"
+    )
+    expected_reason = _bind_child_marker_to_rogue_admin(source)
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._init_submodules_from_local_source(source, destination)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (expected_reason,)
+    assert not (destination / "deps/child/.git").exists()
+
+
+def _source_with_initialized_grandchild(source: Path, _index: int) -> None:
+    grandchild = source.parent / "grandchild-source"
+    grandchild.mkdir()
+    subprocess.run(
+        ["git", "init"], cwd=grandchild, check=True, capture_output=True
+    )
+    (grandchild / "grandchild.txt").write_text(
+        "grandchild\n", encoding="utf-8"
+    )
+    subprocess.run(
+        ["git", "add", "grandchild.txt"], cwd=grandchild, check=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=T1262",
+            "-c",
+            "user.email=t1262@example.invalid",
+            "commit",
+            "-m",
+            "grandchild",
+        ],
+        cwd=grandchild,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            os.fspath(grandchild),
+            "third_party/grandchild",
+        ],
+        cwd=source,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _initialize_grandchild(submodule: Path, _index: int) -> None:
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "update",
+            "--init",
+            "--",
+            "third_party/grandchild",
+        ],
+        cwd=submodule,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _mutate_initialized_grandchild(snapshot: Path) -> str:
+    path = snapshot / "deps/child/third_party/grandchild/grandchild.txt"
+    path.write_text("changed!!!\n", encoding="utf-8")
+    return (
+        "initialized submodule worktree/index mismatch: "
+        "deps/child/third_party/grandchild: grandchild.txt"
+    )
+
+
+def test_submodule_content_identity_reasons_rejects_initialized_grandchild_change(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_initialized_grandchild,
+        initialized_setup=_initialize_grandchild,
+        ignore_all=True,
+    )
+    expected_reason = _mutate_initialized_grandchild(snapshot)
+
+    assert _submodule_content_reasons(snapshot) == [expected_reason]
+
+
+def test_verify_snapshot_submodule_content_gate_rejects_initialized_grandchild_change(
+    tmp_path: Path,
+) -> None:
+    snapshot = _synthetic_verify_snapshot_with_submodules(
+        tmp_path,
+        (("deps/child", True),),
+        source_setup=_source_with_initialized_grandchild,
+        initialized_setup=_initialize_grandchild,
+        ignore_all=True,
+    )
+    spec = _synthetic_verify_snapshot_spec(
+        snapshot, enforce_closure=True, pin_submodule_manifest=True
+    )
+    expected_reason = _mutate_initialized_grandchild(snapshot)
+
+    _assert_snapshot_rejected_with_single_reason(snapshot, spec, expected_reason)
+
+
 def test_verify_snapshot_submodule_gate_accepts_empty_manifest(
     tmp_path: Path,
 ) -> None:
@@ -2334,7 +3835,9 @@ def test_option_named_untracked_path_is_hashed_not_stdin(
 def test_uninitialized_nested_submodule_gitlink_pin_rejects_change(
     tmp_path: Path,
 ) -> None:
-    snapshot, submodule, _ = _synthetic_nested_submodule_snapshot(tmp_path)
+    snapshot, submodule, _ = _synthetic_nested_submodule_snapshot(
+        tmp_path, seal=True
+    )
     _, before = TOOL._submodule_inventory(snapshot)
     expected_sha256 = TOOL._submodule_manifest_sha256(before)
     replacement = TOOL._git(submodule, "rev-parse", "HEAD").decode().strip()
@@ -2350,11 +3853,31 @@ def test_uninitialized_nested_submodule_gitlink_pin_rejects_change(
         capture_output=True,
     )
     _, after = TOOL._submodule_inventory(snapshot)
-    with pytest.raises(
-        TOOL.ValidationError,
-        match="submodule initialization or gitlink state mismatch",
-    ):
+    with pytest.raises(TOOL.ValidationError) as caught:
         TOOL._assert_submodule_manifest_sha256(after, expected_sha256)
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "scheduled submodule initialization or gitlink state mismatch",
+    )
+
+
+def test_submodule_inventory_rejects_initialized_submodule_with_unresolvable_head(
+    tmp_path: Path,
+) -> None:
+    snapshot, submodule, _ = _synthetic_nested_submodule_snapshot(
+        tmp_path, seal=True
+    )
+    (TOOL._git_dir(submodule) / "HEAD").write_text(
+        "ref: refs/heads/missing\n", encoding="utf-8"
+    )
+
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL._submodule_inventory(snapshot)
+
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        "initialized submodule HEAD cannot be resolved: deps/child",
+    )
 
 
 def test_initialized_submodule_answer_object_injection_is_rejected(
