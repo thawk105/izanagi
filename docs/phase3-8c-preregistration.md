@@ -244,6 +244,12 @@ canonical 綴りで書くと**この文書自身が hit となり**、未既知�
 **改訂手続き**: 凍結範囲を変更するときは、同じ commit で `output/s8c-preregistration/condition-freeze/`
 へ次世代の record (`condition-freeze.v1.gN.json` 形式、N は連番) を追加する。世代 record は
 直前世代の bytes hash・変更理由・**裁定の参照** (`docs/decisions.md` の決定見出し) を持つ。
+新たに発行する世代 record は schema v2 とし、判定器の版 (`DECIDER_VERSION`) を持つ。既存の
+schema v1 record は版を持たない legacy として改変せずに残す。判定器・評価器・射影のいずれかで
+受理集合・拒否理由・射影された判定入力の意味を変える変更は、bytes 差の有無に関わらず
+`DECIDER_VERSION` を bump し、その版を持つ新世代の record を発行しなければならない。整形など
+意味が変わらない変更では bump しない。版の一致検査が止めるのは、明示的に bump したあとで
+古い版の record を使い続けることだけであり、bump の忘れは機械検出しない (D458)。
 無記録の変更、記録のない差し戻し、
 世代を伴わない条件文の変更、世代だけを増やす空改訂は機械検査で赤になる。改訂は事前登録の改訂で
 あり、結果を見た後の改訂を当該結果の事前登録として数えない (§1)。8b が凍結する事項を変える場合は
