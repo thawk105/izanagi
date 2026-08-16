@@ -41,6 +41,20 @@ from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
 ROOT = Path(__file__).resolve().parents[2]
 CERTIFIED = A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
 HISTORICAL = A.CampaignReadPurpose.HISTORICAL_RAW
+_EXPECTED_E1_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+)
 LEDGER_RAW_SHA256 = "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93"
 EXPECTED_RECORDS = (
     (
@@ -310,18 +324,18 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 8-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 12-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
     for index, relative in enumerate(
-        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+        _EXPECTED_E1_CLOSURE_PATHS, start=1,
     ):
         path = repo / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"epoch closure fixture {index}\n".encode("ascii"))
     _fixture_git(
-        repo, "add", "--", *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+        repo, "add", "--", *_EXPECTED_E1_CLOSURE_PATHS,
     )
     _fixture_git(
         repo,
@@ -340,7 +354,7 @@ def _expected_fixture_epoch() -> str:
             f"epoch closure fixture {index}\n".encode("ascii")
         ).digest()
         for index, relative in enumerate(
-            campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+            _EXPECTED_E1_CLOSURE_PATHS, start=1,
         )
     )
     return f"E1:{hashlib.sha256(payload).hexdigest()}"
@@ -936,9 +950,14 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.campaign_verifier_epoch == "E0"
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
-    assert "exact 8 path" in excinfo.value.identity_scope
-    assert "pipeline.py" in excinfo.value.identity_scope
-    assert "orchestrator/verifier/*" in excinfo.value.excluded_scope
+    assert excinfo.value.identity_scope == (
+        "enforcement source closure (exact 12 path; witness gate 本体 pipeline.py と "
+        "verifier 実装 core/dsg/model/parse を含む)"
+    )
+    assert excinfo.value.excluded_scope == (
+        "verifier package のうち orchestrator/verifier/"
+        "{__init__,__main__,cli,report}.py の implementation bytes は束縛しない"
+    )
 
 
 def test_real_e0_historical_raw_succeeds_with_recorded_epoch() -> None:
@@ -1055,7 +1074,7 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 8
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 12
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
@@ -1103,6 +1122,60 @@ def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
         == "recorded-current-closure-mismatch"
     )
     assert excinfo.value.campaign_verifier_epoch == _expected_fixture_epoch()
+
+
+@pytest.mark.parametrize(
+    "verifier_path",
+    (
+        "orchestrator/verifier/core.py",
+        "orchestrator/verifier/dsg.py",
+        "orchestrator/verifier/model.py",
+        "orchestrator/verifier/parse.py",
+    ),
+    ids=lambda path: Path(path).name,
+)
+def test_certified_acceptance_rejects_each_verifier_drift_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verifier_path: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_path = campaign / "campaign.lock"
+    wal_path = campaign / "runs/wal.jsonl"
+    before_lock = lock_path.read_bytes()
+    before_wal = wal_path.read_bytes()
+    historical = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    expected_epoch = (
+        historical.campaign_verifier_epoch.campaign_verifier_epoch
+    )
+    verifier = repo / verifier_path
+
+    try:
+        verifier.write_bytes(verifier.read_bytes() + b"uncommitted verifier drift\n")
+        with pytest.raises(A.CampaignVerifierEpochRejected) as uncommitted:
+            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert uncommitted.value.epoch_state == "E1-stale"
+        assert uncommitted.value.reason_code == "current-closure-unavailable"
+        assert uncommitted.value.campaign_verifier_epoch == expected_epoch
+
+        _fixture_git(repo, "add", "--", verifier_path)
+        _fixture_git(
+            repo,
+            "-c", "user.email=epoch-fixture@example.invalid",
+            "-c", "user.name=epoch fixture",
+            "commit", "-q", "-m", "record verifier drift",
+        )
+        with pytest.raises(A.CampaignVerifierEpochRejected) as committed:
+            A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+        assert committed.value.epoch_state == "E1-stale"
+        assert (
+            committed.value.reason_code
+            == "recorded-current-closure-mismatch"
+        )
+        assert committed.value.campaign_verifier_epoch == expected_epoch
+    finally:
+        assert lock_path.read_bytes() == before_lock
+        assert wal_path.read_bytes() == before_wal
 
 
 def test_certified_acceptance_distinguishes_current_closure_unavailable(
