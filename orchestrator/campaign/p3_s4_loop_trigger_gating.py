@@ -68,7 +68,8 @@ from .diff_quarantine import DiffQuarantineResult          # noqa: E402
 from .layout import (CampaignLayout,                       # noqa: E402
                              exploration_campaign_layout)
 from .loop import run_campaign                             # noqa: E402
-from .model import CampaignConfig, Genome, STAGE_BUILD_START  # noqa: E402
+from .model import (CampaignConfig, Genome, STAGE_ABORT,  # noqa: E402
+                    STAGE_BUILD_START)
 from .pipeline import SEARCH_CONFIG_VERIFY_KEY             # noqa: E402
 from .pipeline import VERIFY_LEGACY_PLUS_S2                # noqa: E402
 from .projection_guard import (                            # noqa: E402
@@ -521,9 +522,53 @@ def _assert_layout_matches_campaign(
         )
 
 
-def _wal_binding_commitment(records: Dict[str, Dict]) -> str:
+class WalBuildStartEvidenceMissingError(RuntimeError):
+    """A WAL attempt lacks build-start evidence needed by the binding gate."""
+
+    def __init__(self, *, variant: object, records: Dict[str, Dict],
+                 failure_reason: str) -> None:
+        self.variant = variant
+        self.available_stages = tuple(sorted(records))
+        self.stages = self.available_stages
+        self.failure_reason = failure_reason
+        self.abort_record_present = STAGE_ABORT in records
+        abort_record = records.get(STAGE_ABORT)
+        self.abort_details = {
+            field: abort_record[field]
+            for field in ("reason", "error", "build_attempt_id")
+            if isinstance(abort_record, dict) and field in abort_record
+        }
+        self.abort_reason = self.abort_details.get("reason")
+        self.abort_error = self.abort_details.get("error")
+        self.abort_build_attempt_id = self.abort_details.get("build_attempt_id")
+        abort_summary = "abort レコードなし"
+        if self.abort_record_present:
+            fields = ", ".join(
+                f"{field}={value}"
+                for field, value in self.abort_details.items()
+            )
+            abort_summary = f"abort={{ {fields} }}"
+        super().__init__(
+            "WAL build_start evidence missing: "
+            f"failure_reason={failure_reason!r}, variant={variant!r}, "
+            f"stages={list(self.available_stages)!r}, {abort_summary}"
+        )
+
+
+def _wal_binding_commitment(records: Dict[str, Dict], *, variant: object) -> str:
     """Return the commitment already validated against the raw WAL binding."""
-    return records[STAGE_BUILD_START][wal.TRIGGER_BINDING_COMMITMENT_KEY]
+    if STAGE_BUILD_START not in records:
+        raise WalBuildStartEvidenceMissingError(
+            variant=variant, records=records,
+            failure_reason="build_start_missing",
+        )
+    start = records[STAGE_BUILD_START]
+    if wal.TRIGGER_BINDING_COMMITMENT_KEY not in start:
+        raise WalBuildStartEvidenceMissingError(
+            variant=variant, records=records,
+            failure_reason="binding_commitment_missing",
+        )
+    return start[wal.TRIGGER_BINDING_COMMITMENT_KEY]
 
 
 def _wal_attempt_provenance(layout: CampaignLayout, variant: object) -> Dict:
@@ -616,13 +661,14 @@ def _run_one_iteration_resolved(
         duplicate = _resolve_duplicate(layout, planner, state, summary, log=log)
         duplicate.get("records", {}).pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
         duplicate["trigger_gate_binding_commitment"] = _wal_binding_commitment(
-            duplicate["records"]
+            duplicate["records"], variant=duplicate["variant"],
         )
         return _with_campaign_location(duplicate, campaign_cfg, layout)
     recs = wal.records_by_stage(layout, v) if v else {}
     recs.pop(TRIGGER_GATE_BINDING_WAL_STAGE, None)
     binding_commitment = (
-        _wal_binding_commitment(recs) if v is not None else commitment(binding)
+        _wal_binding_commitment(recs, variant=v)
+        if v is not None else commitment(binding)
     )
     r = summary.results[0] if summary.results else None
     if r and r.certified and not r.aborted:
