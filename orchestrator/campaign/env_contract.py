@@ -47,6 +47,14 @@ class EnvContractError(ValueError):
     """契約検証・lookup の fail-closed 失敗。"""
 
 
+class ActivationArtifactError(EnvContractError):
+    """Activation successor の較正 artifact が特定の検査面を満たさない。"""
+
+    def __init__(self, face: str, message: str):
+        super().__init__(f"activation artifact {face} 検証失敗: {message}")
+        self.face = face
+
+
 def _require_bool(name: str, value: object) -> bool:
     if type(value) is not bool:
         raise EnvContractError(f"{name} は bool でなければならない: {value!r}")
@@ -432,50 +440,108 @@ def _is_valid_activation_successor(
     )
 
 
-def _is_valid_activation_successor_with_artifact(
-    predecessor: ActiveContract,
-    successor: ActiveContract,
-) -> bool:
-    """構造と較正 artifact の両方を満たす activation successor かを返す。"""
-    if not _is_valid_activation_successor(predecessor, successor):
-        return False
-    successor_entry = _resolve_activation_entry(successor)
-    if successor_entry is None:
-        return False
-
+def _validate_activation_successor_artifact(
+    successor_entry: GenerationEntry,
+    repo_root: Path,
+) -> str:
+    """Replay 安定な較正 3 面を検査し、記録済み clock method を返す。"""
     from . import calibration_verify
-    from . import env_attestation
     from . import execution_guard
 
-    repo_root = _repository_root()
+    # 共有 checker は較正を返さないため、ここで同じ admission を 1 回だけ行う。
+    # 二重 parse で acquisition-receipt 面の拒否理由を mask しないためである。
+    contract = successor_entry.contract
+    if contract.attestation_mode == "required":
+        expected_path = PurePosixPath(
+            "output", "env", contract.env_tag, "calibration", "registered",
+            f"calibration-{contract.calibration_ref.sha256[:16]}.json",
+        )
+        if PurePosixPath(contract.calibration_ref.path) != expected_path:
+            raise ActivationArtifactError(
+                "content-address",
+                "required calibration path が content-addressed registered path でない: "
+                f"{contract.calibration_ref.path!r}",
+            )
     try:
-        # 既存の型付き admission が content-addressed path、quality、および
-        # acquisition receipt の内部束縛を検査する。
-        _verify_entry_calibration(successor_entry, repo_root)
         verified = calibration_verify.load_verified_calibration(
-            env_tag=successor_entry.contract.env_tag,
-            clocks_per_us=successor_entry.contract.clocks_per_us,
-            attestation_mode=successor_entry.contract.attestation_mode,
-            calibration_path=successor_entry.contract.calibration_ref.path,
-            calibration_sha256=successor_entry.contract.calibration_ref.sha256,
+            env_tag=contract.env_tag,
+            clocks_per_us=contract.clocks_per_us,
+            attestation_mode=contract.attestation_mode,
+            calibration_path=contract.calibration_ref.path,
+            calibration_sha256=contract.calibration_ref.sha256,
             repo_root=repo_root,
         )
-    except (EnvContractError, calibration_verify.AttestationError):
-        return False
+    except calibration_verify.AttestationError as exc:
+        raise ActivationArtifactError("acquisition-receipt", str(exc)) from exc
 
     calibration = verified.calibration
     if calibration is None:
-        return False
+        raise ActivationArtifactError(
+            "acquisition-receipt", "較正を必要とする successor に calibration が無い",
+        )
+    if (contract.attestation_mode == "required"
+            and calibration.quality.status != "accepted"):
+        raise ActivationArtifactError(
+            "acquisition-receipt", "required calibration quality.status が accepted でない",
+        )
     clock = calibration.attestation_profile.effective_clock
     expected = {
         "samples_mhz": list(clock.samples_mhz),
         "tolerance_pct": clock.tolerance_pct,
     }
     observed = {"samples_mhz": list(clock.samples_mhz)}
-    return bool(
-        execution_guard.effective_clock_comparison_passes(expected, observed)
-        and clock.method == env_attestation.EFFECTIVE_CLOCK_METHOD
+    if not execution_guard.effective_clock_comparison_passes(expected, observed):
+        raise ActivationArtifactError(
+            "self-consistency", "effective clock samples が記録済み許容帯を外れる",
+        )
+    return clock.method
+
+
+def _validated_activation_successor_method(
+    predecessor: ActiveContract,
+    successor: ActiveContract,
+) -> str | None:
+    if not _is_valid_activation_successor(predecessor, successor):
+        return None
+    successor_entry = _resolve_activation_entry(successor)
+    if successor_entry is None:
+        return None
+    return _validate_activation_successor_artifact(
+        successor_entry, _repository_root(),
     )
+
+
+def _is_valid_activation_successor_with_artifact(
+    predecessor: ActiveContract,
+    successor: ActiveContract,
+) -> bool:
+    """構造と replay 安定な較正 3 面を満たす successor かを返す。"""
+    # Replay は記録済み artifact bytes だけに束縛する。現行 probe の方式名は
+    # 発行時ポリシなので、過去 transition の再生には適用しない。
+    return _validated_activation_successor_method(predecessor, successor) is not None
+
+
+def _is_valid_activation_successor_for_issue(
+    predecessor: ActiveContract,
+    successor: ActiveContract,
+    *,
+    existing_ever_active_contract_sha256s: frozenset[str] = frozenset(),
+) -> bool:
+    """Replay 3 面と、未 active successor の現行 clock method を検査する。"""
+    from . import env_attestation
+
+    recorded_method = _validated_activation_successor_method(predecessor, successor)
+    if recorded_method is None:
+        return False
+    if (
+        successor.contract_sha256 not in existing_ever_active_contract_sha256s
+        and recorded_method != env_attestation.EFFECTIVE_CLOCK_METHOD
+    ):
+        raise ActivationArtifactError(
+            "clock-method",
+            f"recorded={recorded_method!r} current={env_attestation.EFFECTIVE_CLOCK_METHOD!r}",
+        )
+    return True
 
 
 @dataclass(frozen=True)
