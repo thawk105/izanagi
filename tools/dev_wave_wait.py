@@ -243,12 +243,15 @@ _TASK_RUN_ID_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUNS_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _PYTEST_ENV_KEYS = ("PYTEST_ADDOPTS", "PYTEST_PLUGINS")
 _GIT_EXE = "/usr/bin/git"
-_GIT_CONFIG = (
+_GIT_AUTHORITY_CONFIG = (
     "-c", "core.hooksPath=/dev/null",
     "-c", "core.fsmonitor=false",
     "-c", "core.useBuiltinFSMonitor=false",
     "-c", "maintenance.auto=false",
     "-c", "gc.auto=0",
+)
+_GIT_CONFIG = (
+    *_GIT_AUTHORITY_CONFIG,
     "-c", "protocol.file.allow=never",
 )
 _GIT_ENV_OVERRIDES = {
@@ -275,21 +278,26 @@ _GIT_ENV_KEYS = frozenset(
         "GIT_CONFIG_NOSYSTEM",
     }
 )
+_RED_CHECKER_GIT_ENV_OVERRIDES = {
+    key: _GIT_ENV_OVERRIDES[key]
+    for key in (
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+        "GIT_ATTR_NOSYSTEM",
+        "GIT_NO_REPLACE_OBJECTS",
+    )
+}
 _RED_CHECKER_PATH = "tools/check_acceptance_reds.py"
 _RED_CHECKER_BOOTSTRAP = (
     "import os,subprocess,sys\n"
     f"_git_exe = {_GIT_EXE!r}\n"
-    f"_git_config = {_GIT_CONFIG!r}\n"
-    f"_git_env_overrides = {_GIT_ENV_OVERRIDES!r}\n"
+    f"_git_config = {_GIT_AUTHORITY_CONFIG!r}\n"
+    f"_git_env_overrides = {_RED_CHECKER_GIT_ENV_OVERRIDES!r}\n"
     "def command_runner(command, *args, **kwargs):\n"
     "    if not command or command[0] != 'git':\n"
     "        return subprocess.run(command, *args, **kwargs)\n"
     "    values = [_git_exe, *_git_config, *command[1:]]\n"
-    "    environment = {\n"
-    "        key: value\n"
-    "        for key, value in dict(kwargs.get('env') or {}).items()\n"
-    "        if not key.startswith('GIT_')\n"
-    "    }\n"
+    "    environment = dict(kwargs.get('env') or {})\n"
     "    environment.update(_git_env_overrides)\n"
     "    kwargs['env'] = environment\n"
     "    return subprocess.run(values, *args, **kwargs)\n"

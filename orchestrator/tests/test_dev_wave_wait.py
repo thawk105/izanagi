@@ -2539,6 +2539,37 @@ def main(
     return int(os.environ.get("IZANAGI_CHECKER_TEST_RC", "0"))
 '''
 
+_BOOTSTRAP_GIT_PROBE_SOURCE = b'''\
+import json
+import subprocess
+from pathlib import Path
+
+def main(argv=None, *, repo_root=None, command_runner=subprocess.run):
+    observed = {}
+    def recording_run(command, *args, **kwargs):
+        observed["command"] = command
+        observed["environment"] = kwargs.get("env")
+        return subprocess.CompletedProcess(command, 0, "", "")
+    subprocess.run = recording_run
+    completed = command_runner(
+        ["git", "status"],
+        cwd=repo_root,
+        env={
+            "GIT_ALLOW_PROTOCOL": "file",
+            "GIT_ATTR_NOSYSTEM": "0",
+            "GIT_CONFIG_GLOBAL": "/attacker/global",
+            "GIT_CONFIG_SYSTEM": "/attacker/system",
+            "GIT_NO_REPLACE_OBJECTS": "0",
+            "GIT_OPTIONAL_LOCKS": "checker-value",
+            "NON_GIT_SENTINEL": "preserved",
+        },
+    )
+    Path(repo_root, "bootstrap-git-probe.json").write_text(
+        json.dumps(observed), encoding="ascii"
+    )
+    return completed.returncode
+'''
+
 _REAL_REPLACE_NODEID = "orchestrator/tests/test_known.py::test_known"
 
 
@@ -2776,6 +2807,56 @@ def test_red_checker_bootstrap_ignores_pythonpath_shadow(
     result = _verify_real_red_checker(repo, tested_main, tested_tip, tmp_path)
 
     assert result.checker_status == "non-attributable-only"
+
+
+def _run_bootstrap_git_probe(repo: Path) -> dict[str, object]:
+    completed = DW._default_run_with_input(
+        DW._red_checker_argv(
+            repo=repo,
+            log_file=repo / "acceptance.log",
+            checker_receipt=repo / "checker-receipt.json",
+            probe_root=repo,
+            tested_main=_SHA_A,
+            tested_tip=_SHA_B,
+        ),
+        repo,
+        False,
+        _BOOTSTRAP_GIT_PROBE_SOURCE,
+    )
+    assert completed.returncode == 0
+    return json.loads((repo / "bootstrap-git-probe.json").read_text("ascii"))
+
+
+def test_red_checker_bootstrap_preserves_explicit_git_environment_and_forces_authority(
+    tmp_path: Path,
+) -> None:
+    observed = _run_bootstrap_git_probe(tmp_path)
+    environment = observed["environment"]
+
+    assert isinstance(environment, dict)
+    assert environment["GIT_ALLOW_PROTOCOL"] == "file"
+    assert environment["GIT_OPTIONAL_LOCKS"] == "checker-value"
+    assert environment["NON_GIT_SENTINEL"] == "preserved"
+    assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert environment["GIT_CONFIG_SYSTEM"] == os.devnull
+    assert environment["GIT_ATTR_NOSYSTEM"] == "1"
+    assert environment["GIT_NO_REPLACE_OBJECTS"] == "1"
+
+
+def test_red_checker_bootstrap_does_not_forbid_file_protocol(
+    tmp_path: Path,
+) -> None:
+    observed = _run_bootstrap_git_probe(tmp_path)
+    command = observed["command"]
+
+    assert isinstance(command, list)
+    assert command[0] == DW._GIT_EXE
+    assert command[1:1 + len(DW._GIT_AUTHORITY_CONFIG)] == list(
+        DW._GIT_AUTHORITY_CONFIG
+    )
+    assert "core.hooksPath=/dev/null" in command
+    assert "protocol.file.allow=never" not in command
+    assert command[-1] == "status"
 
 
 def test_red_checker_blob_lookup_uses_hardened_git(
