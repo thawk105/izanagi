@@ -18,6 +18,9 @@ from orchestrator.campaign.build_admission import (
 )
 from orchestrator.campaign.s8b_materialization import reviewed_source_capability
 from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence
+from orchestrator.tests.s8b_floor_evidence_fixture import (
+    expected_portable_sort_swo_pass_receipt,
+)
 
 
 _ENTRY_SHA = hashlib.sha256(b"freeze-entry").hexdigest()
@@ -53,7 +56,8 @@ def _binding() -> dict:
 
 def _honest_record(
     tmp_path: Path, *, root_name: str = "root-a", cell_id: str = "h1::cfg",
-    holdout_id: str = "h1", binary_bytes: bytes = b"honest-s8b-binary",
+    holdout_id: str = "h1", configuration_id: str = "cfg",
+    binary_bytes: bytes = b"honest-s8b-binary",
 ) -> dict:
     source_root = tmp_path / root_name
     source_root.mkdir(parents=True, exist_ok=True)
@@ -79,14 +83,14 @@ def _honest_record(
     binding = _binding()
     receipt = A.issue_binary_admission_receipt(
         admission=admission, expected_policy=context.policy, source=source,
-        cell_id=cell_id, holdout_id=holdout_id, configuration_id="cfg",
+        cell_id=cell_id, holdout_id=holdout_id, configuration_id=configuration_id,
         binding=binding, binary=binary, binary_sha256=binary_sha,
         contract_sha256=_CONTRACT_SHA, trace=False,
     )
-    return {
+    record = {
         "cell_id": cell_id,
         "holdout_id": holdout_id,
-        "configuration_id": "cfg",
+        "configuration_id": configuration_id,
         "binary": "build/fixture.bin",
         "binary_sha256": binary_sha,
         "bin_hash_short": binary_sha[:16],
@@ -97,6 +101,13 @@ def _honest_record(
         "store_path": f"store/{binary_sha}",
         "admission_receipt": receipt,
     }
+    if configuration_id == "sort_best":
+        record["sort_swo_oracle"] = expected_portable_sort_swo_pass_receipt(
+            cell_id=cell_id, holdout_id=holdout_id,
+            configuration_id=configuration_id, entry_sha256=_ENTRY_SHA,
+            binary_sha256=binary_sha,
+        )
+    return record
 
 
 def _validate(
@@ -119,6 +130,59 @@ def test_issue_and_validate_binary_admission_receipt_round_trip(tmp_path: Path):
     record = _honest_record(tmp_path)
     assert _validate(record) == record["admission_receipt"]
     assert set(record) == set(A.PORTABLE_BUILT_KEYS)
+
+
+def test_conditional_portable_key_sets_and_sort_round_trip(tmp_path: Path):
+    sort_record = _honest_record(
+        tmp_path, cell_id="h1::sort_best", configuration_id="sort_best",
+    )
+    assert A.PORTABLE_SORT_BEST_BUILT_KEYS == A.PORTABLE_BUILT_KEYS | {
+        "sort_swo_oracle"
+    }
+    assert A.portable_built_keys_for("sort_best") is A.PORTABLE_SORT_BEST_BUILT_KEYS
+    assert A.portable_built_keys_for("stock_common") is A.PORTABLE_BUILT_KEYS
+    assert set(sort_record) == set(A.portable_built_keys_for("sort_best"))
+    assert _validate(sort_record) == sort_record["admission_receipt"]
+
+
+@pytest.mark.parametrize("configuration_id", ["cfg", "sort_best"])
+def test_central_validator_rejects_unexpected_top_level_key(
+    tmp_path: Path, configuration_id: str,
+):
+    cell_id = f"h1::{configuration_id}"
+    record = _honest_record(
+        tmp_path, cell_id=cell_id, configuration_id=configuration_id,
+    )
+    record["unexpected"] = True
+    with pytest.raises(A.BinaryAdmissionError, match="exact key"):
+        _validate(record)
+
+
+def test_sort_best_requires_receipt_and_non_sort_forbids_it(tmp_path: Path):
+    sort_record = _honest_record(
+        tmp_path, cell_id="h1::sort_best", configuration_id="sort_best",
+    )
+    sort_record.pop("sort_swo_oracle")
+    with pytest.raises(A.BinaryAdmissionError, match="exact key"):
+        _validate(sort_record)
+
+    non_sort = _honest_record(tmp_path)
+    non_sort["sort_swo_oracle"] = expected_portable_sort_swo_pass_receipt(
+        cell_id=non_sort["cell_id"], holdout_id=non_sort["holdout_id"],
+        configuration_id=non_sort["configuration_id"], entry_sha256=_ENTRY_SHA,
+        binary_sha256=non_sort["binary_sha256"],
+    )
+    with pytest.raises(A.BinaryAdmissionError, match="exact key"):
+        _validate(non_sort)
+
+
+def test_sort_receipt_identity_must_match_binary_record(tmp_path: Path):
+    record = _honest_record(
+        tmp_path, cell_id="h1::sort_best", configuration_id="sort_best",
+    )
+    record["sort_swo_oracle"]["binary_sha256"] = "0" * 64
+    with pytest.raises(A.BinaryAdmissionError, match="SWO receipt"):
+        _validate(record)
 
 
 def test_receipt_is_canonical_and_root_neutral(tmp_path: Path):

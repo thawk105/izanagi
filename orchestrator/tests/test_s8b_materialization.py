@@ -25,6 +25,12 @@ from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from s8b_floor_evidence_fixture import (  # noqa: E402
+    expected_portable_sort_swo_pass_receipt,
+    fake_sort_swo_pass_attempt,
+)
+
 
 def _prepared(protocol: str, flags: dict, src_token: str) -> PreparedCell:
     return PreparedCell(
@@ -459,13 +465,17 @@ def test_floor_manifest_golden_stable(tmp_path):
     from orchestrator.campaign import s8b_floor_campaign as floor
 
     entry_stock = {"configuration": "stock", "flags": {"BACKOFF_FIXED": 0}}
-    entry_v1 = {"configuration": "v1", "flags": {"BACKOFF_FIXED": 5, "SPIN": 1}}
+    entry_v1 = {
+        "configuration": "sort_best",
+        "flags": {"BACKOFF_FIXED": 5, "SPIN": 1},
+    }
     freeze = {"holdouts": {"H1": {"variant_binding": {"entries": {
-        "stock": entry_stock, "v1": entry_v1}}}}}
+        "stock": entry_stock, "sort_best": entry_v1}}}}}
     cells = [
         {"cell_id": "H1::stock", "holdout_id": "H1", "configuration_id": "stock",
          "records": 100, "threads": 4, "workload": "wl"},
-        {"cell_id": "H1::v1", "holdout_id": "H1", "configuration_id": "v1",
+        {"cell_id": "H1::sort_best", "holdout_id": "H1",
+         "configuration_id": "sort_best",
          "records": 100, "threads": 4, "workload": "wl"},
     ]
 
@@ -475,7 +485,12 @@ def test_floor_manifest_golden_stable(tmp_path):
         genome = Genome("silo", dict(entry["flags"]))
         token = hashlib.sha256(genome.canonical().encode("utf-8")).hexdigest()
         yield PreparedCell(genome=genome, src_token=token,
-                           ccbench_dir=str(tmp_path / "cc"), cache_root=str(tmp_path / "ca"))
+                           ccbench_dir=str(tmp_path / "cc"),
+                           cache_root=str(tmp_path / "ca"),
+                           oracle_attempt=(
+                               fake_sort_swo_pass_attempt()
+                               if cell["configuration"] == "sort_best" else None
+                           ))
 
     contract = ec.lookup("linux-baremetal")
     verified_calibration = floor.env_attestation.load_verified_calibration(
@@ -542,9 +557,18 @@ def test_floor_manifest_golden_stable(tmp_path):
     assert built["H1::stock"]["binding"]["binding_sha256"] == (
         "3cc28be2200a465d44e74641c3949624718205283ba6113edb529a33e657a37a"
     )
+    sort_record = built["H1::sort_best"]
+    assert sort_record["sort_swo_oracle"] == (
+        expected_portable_sort_swo_pass_receipt(
+            cell_id="H1::sort_best", holdout_id="H1",
+            configuration_id="sort_best",
+            entry_sha256=sort_record["binding"]["entry_sha256"],
+            binary_sha256=sort_record["binary_sha256"],
+        )
+    )
 
-    # protocol/manifest は v2 形状 (blocks/replicates_per_block を廃し session_cv_max/
-    # cell_cv_max を持つ; schedule は {seq, round, cell_id})。
+    # protocol は v2 形状 (blocks/replicates_per_block を廃し session_cv_max/
+    # cell_cv_max を持つ)。manifest は v3、schedule は {seq, round, cell_id}。
     protocol = {
         "freeze": {"path": "p", "sha256": "f" * 64},
         "env_tag": "env-x", "ccbench_pin": "pin-x", "stock_configuration": "stock",
@@ -554,7 +578,7 @@ def test_floor_manifest_golden_stable(tmp_path):
     }
     schedule = [
         {"seq": 0, "round": 1, "cell_id": "H1::stock"},
-        {"seq": 1, "round": 1, "cell_id": "H1::v1"},
+        {"seq": 1, "round": 1, "cell_id": "H1::sort_best"},
     ]
     manifest = floor.assemble_manifest(
         protocol=protocol, protocol_sha256="p" * 64, freeze_sha256="f" * 64,
@@ -562,9 +586,10 @@ def test_floor_manifest_golden_stable(tmp_path):
     # _write_create_only_json と同一の serialize (indent=2, sort_keys, ensure_ascii=False)。
     payload = json.dumps(
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    assert hashlib.sha256(payload.encode("utf-8")).hexdigest() == (
-        "4860905ed2c9bf994886564bad0b3185f3d6e512230e85db43e57503f261fbc8"
-    )
+    actual_sha256 = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    assert actual_sha256 == (
+        "868e43d75a6f1f5d7973791fb912f04e17967ecff561e179e4bfa3440712031f"
+    ), actual_sha256
 
 
 # --------------------------------------------------------------------------- #

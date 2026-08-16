@@ -809,6 +809,14 @@
   恒久対応は `DW-O09` から変更しない (本文は既に両向きの列挙を要求している)。
   **今回効かなかったのは規約ではなく遵守であり、pin の向きを両方数える義務が
   4 度目・5 度目と続けて破られている事実を顕在化させる。**
+
+- **再発: 2026-08-16** — 本 wave の親が `DW-O09` の pin 閉包で `output/` を検索対象から除外し、
+  `output/s8b-freeze/holdout_freeze.json` の `/generator/sha256` が
+  `orchestrator/campaign/s8b_holdout_freeze.py` の bytes を pin している事実を落とした
+  (現行 bytes は既に不一致で `freeze_verification_hold` 下)。
+  F30 は「成果物を bytes で pin している台帳」を数え落とす型だったが、本件は**逆向き** —
+  **成果物 JSON の中に埋まった source pin** である。段 3 の敵対レンズが検出し、親が独立に裏取りした。
+  pin 閉包は成果物側 (`output/`) も検索対象に含める。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -5980,6 +5988,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: receipt の `attempts[].limit_trigger` が非 null かつ `output_bytes=0` の組合せ。
   待ち手の `stage=producer-files` はこの型の症状として現れる (原因は receipt を見るまで確定しない)。
 
+
+- **再発: 2026-08-13** — 段 3 敵対レンズ B が既定 `--max-cli-reported-tokens` 1,000,000 に
+  1,006,920 (超過 0.7%) で到達し 877 秒目に SIGTERM、出力 0 byte で失われた。
+  `evidence_status` は `complete` で、Web 検索や evidence 破損ではない。
+  変更面に 191KB / 155KB の Python file を含む wave で、子が行域を絞らず読んだことが直接原因。
+  F222 の恒久対応「起動 script の argv に `--max-cli-reported-tokens` を明示する」は
+  本 wave の起動 script で守られておらず、**恒久対応が 2 例目で効いていない**ことを示す。
+  再投入時は上限を 4,000,000 へ引き上げ、加えて prompt へ
+  「60KB 超の file は全文読みせず、先行成果物の file:line 地図から行域だけ開く」
+  「予算が尽きそうなら途中結論を出力形式どおり書いて終われ」を明記して完走した。
+  同 wave の段 5 / 段 6 の重い子も同様に上限を明示して起動し、以後の欠落はない。
 ### F223. repo 内のたった 2 行の非 NFC 文字が、それを読んだ Codex 子の成果物を丸ごと捨てさせる [恒真ゲート] [手順漏れ]
 
 - 事象: 段 3 の敵対レンズ 1 本が `codex_exit_code=0`、`validator_rc=0`、rollout 健全
@@ -6959,6 +6978,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   追加の恒久対応: memory `measure-state-dont-infer-from-proxy` — 作業を止める判断の前に、
   状態を返す CLI があるなら必ず実行して実測値を根拠にする。実測手段が無いときだけ推測してよく、
   その場合は推測であることを報告へ明記する。
+
+- **再発: 2026-08-16** — 三度目。取り残し branch 3 本の回収を依頼する wave brief が、
+  各 branch の未着地量を `git diff --stat main...<branch>` の insertions で数えていた
+  (2,246 insertions / 889 行)。**三点記法は merge-base から branch tip までの branch 側全作業を
+  出すため、既に着地した branch でも同じ数字を返す。** 実測では 3 本のうち 2 本が着地済みで、
+  数字どおりに回収していれば、後続版が実環境欠陥を修正した checker と、期待表 135 件・
+  変異 8/8 KILLED を伴う `hooks/guard_bash.py` の上位互換実装を、どちらも旧版で上書きする
+  退行になっていた。代理指標は本体 (path 実在) と 2 例目 (lease 混雑の worktree 数推定) に続いて
+  3 種類目であり、**族としては「安価に測れる量を状態の代わりに読む」で同一**である。
+- 併記する実測: 判定を反転させたのは 2 手だった。(a) `git cherry main <branch>` の patch-id 照合
+  — (1) は非 merge 3 commit が全て `-`。(b) **branch 名でなくタスク ID での台帳・archive 検索**
+  — (2) は branch 名 `t1025-impl` では worklog / archive に 0 件だが、`T-1025` では
+  `docs/archive/worklog-phase3-0816-569-570.md` に完了記録があり、着地 commit `4f47bc74` の
+  `git merge-base --is-ancestor` が rc=0 だった。既存 memory
+  `check-withdrawal-rulings-before-wave` は「機構名で検索する」を求めており、
+  **branch 名は機構名でもタスク ID でもない**ため、branch 名 grep だけでは構造的に当たらない。
+- 恒久対応: 新規の機械検査は本 wave では入れず、lint 化の可否を
+  [T-1239] へ起票した (F270 本体の恒久対応が「lint 化の可否は裁定へ返す」で
+  止まっているため、同じ場所へ戻さず独立 3 例目の実測を添えて起票する)。
+  当面の防壁は本項と memory `cherry-plus-judged-by-content-not-path` である。
+- 再発検知: **機械検査は無い (prompt 規律)。** F270 本体と同じく恒真な保証にしないため明記する。
+  代理指標の型を 1 つ足す: 着地/未着地の判断に `git diff` の三点記法の行数を使った報告。
 ### F271. 複数 branch を 1 commit で束ねた land が全 wave の受入を決定的に赤にした [手順漏れ]
 
 - 事象: 2026-08-13 00:45:56 JST、rulings 系の land wave が **4 親の merge commit `d1de13ad`**
@@ -8667,3 +8708,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (D454)。
 - 再発検知: 変異 M5 (timeout 判定の削除) と M12 (receipt 判定の削除) が、この二重化を
   消すと赤になることを固定する。両者とも本 wave の matrix で KILLED を実測した。
+
+### F355. 待ち手が producer 生存中に空振り終了した [恒真ゲート]
+
+- 事象: 2026-08-16 の本 wave 段 6 で、`tools/dev_wave_wait.py producer` が
+  **producer プロセス生存中・`.done` 不在・成果物不在**のまま、出力ゼロで rc=0 終了した。
+  親が 3 点照合 (pid file の pid を `ps -p` で確認 = 生存、`qstat` で計算ノード job が RUN、
+  `.rc` 不在) を行って空振りと判定し、待ち手を張り直して回復した。
+  arming 前に pid file の実在は確認済みで、既知の「pid file 不在で即空振り」型ではない。
+- 根本原因: **未特定**。同 wave の他 8 本の待ち手は同じ手順で正常に待機しており再現していない。
+- 恒久対応: 待ち手の rc=0 を完了の証拠にしない。完了判定は
+  **成果物実在 + `.done` + producer 死亡**の 3 点照合に限る
+  (memory `background-task-notifications-can-be-fabricated` の運用を待ち手 rc にも適用する)。
+  照合せずに次段へ進むと、テスト未完了のまま commit へ進む。
+- 再発検知: 本エントリへ再発を追記する。2 例目が出た時点で機序を特定し、
+  待ち手側の fails-closed 検査として実装する。
