@@ -18810,3 +18810,171 @@ docstring と台帳へ既知限界として明記する。
 
 - **「publish 経路を閉じた」と無条件に記録する** — 実態より強い主張になり、
   後続が耐性を前提に設計してしまう。
+
+## D449. snapshot base は BASE 閉包だけを転送し、upload-pack の受理方針に依存しない (2026-08-16)
+
+**決定:** `tools/codex_reasoning_ab.py` の `_build_snapshot_base` は、実 repository 全体を
+clone してから seal で捨てる形をやめ、`git init` →
+`git pack-objects --revs --stdout`(BASE 固定 commit) → `git index-pack --stdin --fix-thin` →
+`git update-ref` の 4 操作で **BASE 閉包だけを転送する**。
+`git fetch` に生 SHA を渡す案は採らない。
+
+**理由:**
+- 旧構造は全履歴をコピーしてから `repack -Ad` で固定 commit 到達分だけを残していた。
+  転送も repack も commit 数に比例するのに、残す量は固定である。
+  親の実測 (静かな窓、3 走中央値) で root seal 26.30 秒 → 0.33 秒、
+  `_build_snapshot_base` 35.02 秒 → 10.31 秒になった。
+- `git fetch` に生 SHA を渡す案は同等に速いが、upload-pack が「到達可能な生 SHA の want」を
+  受ける挙動に依存する。元 repository に `uploadpack.allowAnySHA1InWant` /
+  `allowReachableSHA1InWant` の設定は無く、文書上の既定は false である。
+  親も子も rc=0 の一意な理由を確定できなかった。`pack-objects` は upload-pack を経由せず
+  source の object database を直接歩くので、この不確実性を構造的に持たない。
+- 転送方式を変えても closure の観測値は 1 つも変わらない
+  (reason 0 件 / object 8,209 / commit 834 / `.git` 35,132 KB /
+  commit-graph 不在 / 残留 pseudo ref 0 件、9 走 + 改修後 1 走で一致)。
+
+**却下した選択肢:**
+- `git clone --local` の hardlink — snapshot 先が別 filesystem のため hardlink は成立せず、
+  git は copy へ fallback する。速度が変わらない。
+- shallow clone — `.git/shallow` を残す。snapshot は自己完結でなければならない。
+- 現状維持 + 保留 — 共有 module fixture は consumer が 1 本でも走れば丸ごと構築されるので、
+  保留を足しても構築費は 1 円も減らない。
+
+## D450. snapshot の closure 検査は非空の shallow 境界を拒否する (2026-08-16)
+
+**決定:** `_one_git_closure_reasons` の `closure_paths` へ `shallow` を足し、
+非空の `.git/shallow` を reason にする。既存 6 種 (reflog / replace refs / alternates /
+http-alternates / grafts / packed-refs) と同じ扱いとする。
+受理集合を縮小する変更なので、正常 snapshot が reason 0 件で通る正例と、
+shallow を置くと単一の reason が出る負例を対で置く。
+
+**理由:**
+- `.git/shallow` は seal も verifier も列挙しておらず、`git fsck` も shallow 境界を
+  正当な履歴端として扱う。HEAD・working tree の hash・ref を変えないまま
+  **commit 数だけ減らした snapshot を `git_object_closure.base_only=true` のまま通せる**
+  唯一の経路だった。
+- 本 wave の中心的な主張が「object 閉包が固定 commit の閉包と同一」である以上、
+  その主張を機械検査を通り抜けたまま偽にできる経路を残せない。1 行の fail-closed で塞げる。
+- 転送方式の変更自体は shallow を作らない。既存の穴であり、本 wave が広げたものではない。
+
+**却下した選択肢:**
+- 新設テストの assert だけで済ませる — 新設 node は synthetic repository を見るだけで、
+  production の verifier が実 snapshot を受理する経路は塞がらない。
+- lstat 基底への全面移行 — dangling symlink の抜け道は `shallow` に固有ではなく
+  既存 6 種と共通なので、別裁定へ送る。本決定の射程を広げない。
+
+## D451. 成長比例の保留は、その防壁を守る最後の走行 node には掛けない (2026-08-16)
+
+**決定:** 恒久保留 (D335) の対象を選ぶとき、**保留すると当該防壁を守る既定走行 node が
+ゼロになる**場合は保留しない。費用の比例源が別軸で除去できるなら、そちらを先に行う。
+保留しなかった事実と理由は保留一覧へ書き、ユーザー提示に含める。
+
+**理由:**
+- 本 wave では共有 module fixture の consumer 17 本のうち 14 本が既に保留済みで、
+  残り 3 本を保留すれば構築費は消えるが、clean な `verify_snapshot` を呼ぶ既定 node が
+  ゼロになる。失うのは closure reason 集合の全部と forbidden object 検査、
+  sandbox / Git 環境 scrub の検査である。規律 2 は性能のために検査を消すことを禁じる。
+- 提示された比例軸 (session corpus) の親実測は 0.13 秒であり、
+  35 秒を占めていたのは同 wave で除去した別軸だった。**0.13 秒の軸のために
+  防壁を消す取引は成立しない。** 軸ごとの実測なしに保留を決めてはならない。
+- module scope の fixture は consumer が 1 本でも走れば丸ごと構築される。
+  部分保留は検出力だけを削って費用を残す純損失になる。
+
+**却下した選択肢:**
+- 3 本とも保留して費用を消す — 上記のとおり防壁が全滅する。
+- 2 本だけ保留する — 残り 1 本が fixture を構築するので費用は下がらず、検出力だけ減る。
+- 保留せず費用も放置する — 比例源を別軸で除去できたので不要。
+
+## D452. 変異の期待赤 node は、既定で走り、かつ失敗として記録できる node に限る (2026-08-16)
+
+**決定:** 変異事前登録の `expected_nodes` には、(a) 恒久保留などで既定 skip されない node、
+(b) 変異時に **error でなく failure** として記録される node、
+(c) `xdist_group` に属さない node だけを使う。
+いずれかを満たせない性質は、満たす node へ実効 gate を再照準するか、
+登録せず親の直接実測で裏を取って記録する。
+
+**理由:**
+- 保留が広く効いている repository では、子が挙げた期待 node が skip され、
+  変異は必ず SURVIVED になる。本 wave の初回登録は 6 件中 4 件がこれに該当した。
+- 共有 module fixture を壊す変異は consumer を **error** にする。変異 harness の
+  失敗 node 抽出は短縮要約の `FAILED ` 行しか読まないので、error だけの走行からは
+  node を 1 件も取り出せず PARSE_ERROR になる。
+- `xdist_group` に属する node は、collection 空間では接尾辞を持たず、
+  失敗要約では `@<group>` 接尾辞を持つ。harness の事前検査は前者を要求し、
+  突き合わせは後者を要求するため、**両方を同時に満たす記述が存在しない。**
+- 3 条件はいずれも「変異が生きているのに緑に見える」方向へ倒れるので、
+  事前に排除しないと変異検査そのものが無意味になる。
+
+**却下した選択肢:**
+- 保留を一時解除して走らせる — 解除条件はユーザーの明示命令のみである。
+- 期待 node を空にして SURVIVED 期待にする — 検出力の主張ができない。
+- harness 側を先に直す — 受理集合を変える改修であり、本 wave の scope 外。別途起票する。
+
+## D453. build cell admission の契約上の失敗を診断可能な partial report へ変換し、免除の根拠を verifier の独立再導出に置く (2026-08-16)
+
+**決定:**
+
+1. `p3_autonomous_workload_trial._finalize_cell_admission` は
+   `_finalize_build_cell_admission` 由来の **`AutonomousTrialError` だけ**を捕捉し、
+   exact な failure decision へ変換して `partial` report を publish する。
+   `KeyError` 等の予期しない例外は従来どおり伝播させ、report を残さない。
+   これは D217 の「例外境界: admission finalizer の失敗は回復させず伝播させ report を
+   publish しない」を**その部分だけ** supersede する。D217 が却下した
+   「後始末で admission が無い cell を推測して再確定する」は維持し、
+   report 構築直前の decision 欠落 fail-closed 検査も変更しない。
+
+2. **failure decision は自己申告として信用しない。**
+   `assert_campaign_layer3_chain` は failure decision を見て検査を飛ばしてはならず、
+   免除の前に verifier 自身が次の 2 つを**独立に再導出**する。
+   (i) `campaign_root/reports/layer3_report.json` が存在しない、
+   (ii) `require_admitted_campaign(campaign_root, CERTIFIED_ACCEPTANCE)` が
+   `ArtifactAdmissionError` を送出する。
+   どちらかが偽なら **拒否する**。campaign identity を持たない fallback cell の免除は、
+   producer が実際に作る exact shape (identity key 不在・空 generations・
+   `stop_reason=supervisor-error`・critic 破棄件数 0) に閉じる。
+
+3. **新しい journal event を作らない。** 失敗の durable な記録は既存 `run-finish` event へ
+   exact projection として持たせ、完全性検査が report の cell decision と完全一致で照合する。
+
+4. **generation accounting は緩和しない。** failure 経路で accounting event を新規に「追加」しない。
+   ただし harness 成功後に admission が失敗した場合に限り、
+   **未確定の pending accounting を既存 literal `partial-generation` で 1 回だけ「確定」する**。
+   代償として、critic 破棄件数 1 が指す最終 generation の accounting へ
+   `partial-generation` 完全一致を要求する。
+
+5. **certifying 経路は 1 文字も変えない。** `layer3_report` の certifying 判定と
+   完全性検査の certifying 要求は `admission_status == "admitted"` の完全一致のままとする。
+   trial status は producer と verifier が同一の positive 述語を共有し、
+   build cell が全件 admitted でなければ `complete` にしない。
+
+6. **top-level report schema の版は上げない。** nested decision の union を増やすだけとする。
+
+**理由:**
+
+- 完全性検査は「書かれた report を後から検証するもの」ではなく **report を書くこと自体の関門**
+  である (F332)。同型の関門がその手前の cell admission にも残っており、
+  実機の自律試行で role 出力が 1 回壊れるたびに試行台帳が丸ごと欠落していた。
+  `run-finish` が指す report path は存在しないまま残り、診断材料は attempt journal だけになる。
+- 免除の根拠を cell dict の自己申告に置くと、**admission 成功後に positive decision を
+  failure 形へ置換する単一変異が生存し、Layer 3 chain 検査を丸ごと迂回できる**。
+  独立再導出にすると、置換された cell の campaign は実体として admitted のままなので必ず落ちる。
+  段 3 の敵対レンズがこの経路を指摘し、変異 matrix で kill を実証した。
+- 新しい journal event を足すと terminal event の配置契約 (terminal は `run-finish` の直前) を
+  巻き込む。F332 の恒久対応が 6 面同時になったのはこの連鎖が理由であり、既存 event への
+  projection なら配置契約に触れずに済む。
+- pending accounting を確定しないと accounting bijection が落ち、
+  harness 成功後の admission 失敗だけが救えなくなる。新しい状態値は導入していない。
+
+**却下した選択肢:**
+
+- **failure cell を report から落とす** — 診断が消える。目的そのものに反する。
+- **`Exception` 一括で report 化する** — fail-closed 境界を広げる。
+  予期しないプログラミング例外まで「正常な失敗」に見せかけることになる。
+- **failure 用に新しい accounting 状態 (`pending-pre-invoke-failure` 等) を要求する** —
+  producer が生成しない形を verifier が要求することになり、実測された実失敗
+  (role-invalid 経路、accounting は既に `partial-generation`) が**また拒否される**。
+  段 3 の 2 レンズが独立にこれを指摘した。
+- **失敗記録用の journal event を新設する** — terminal 配置契約と event 閉集合を同時に
+  変えることになり、受理集合の変更面が本 wave の目的を超えて広がる。
+- **report schema を v4 へ上げる** — 既存 artifact と fixture の受理集合が大きく変わる一方、
+  nested decision の union だけなら旧 consumer は影響を受けない。

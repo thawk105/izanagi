@@ -30,6 +30,7 @@ ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 from skiputil import Skip, skip  # noqa: E402
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 
 
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
@@ -1119,19 +1120,23 @@ def test_protocol_builder_repo_tree_guard_is_wired_to_real_root():
 
 
 def test_ratified_memo_has_a_real_resolution_payer():
-    """active 世代解決の実走を毎 session 保証する正本 payer が memo を使わない ([T-117])。
+    """direct payer と実 memo consumer がすべて恒久保留へ閉じている。
 
     `real_repo_ratified_memo` は実 repo の `load_ratified_freeze` (git 39 本・4.4 秒) を
-    process 内 1 回へ畳む。畳んだ node が増えても「解決失敗 → freeze-ratify refusal」の
-    実走査を必ず 1 node が担う、という不変条件をここで固定する。全 node が memo へ
-    移る退行 (= 実履歴走査が node 順序次第でしか走らなくなる) を殺す。
+    process 内 1 回へ畳む。D335 後も、明示 opt-in 時の direct payer は memo を使わず、
+    実 memo consumer と合わせて保留集合の外へ漏れないことを固定する。
     """
     _require_pytest()
     from orchestrator.tests import test_s8b_binding_driftguards as driftguard_tests
     from orchestrator.tests import test_s8b_oracle_driver as driver_tests
+    from orchestrator.tests.growth_test_holds import GROWTH_TEST_HOLDS
 
     payer = driver_tests.test_nonnull_floor_without_active_generation_is_refused
-    payer_source = inspect.getsource(payer)
+    payer_node = f"test_s8b_oracle_driver.py::{payer.__name__}"
+    assert payer_node in GROWTH_TEST_HOLDS, (
+        f"direct payer が恒久保留集合の外にある: {payer_node}"
+    )
+    payer_source = inspect.getsource(inspect.unwrap(payer))
     for token in ("ratified_memo", "patch_ratified_loader"):
         assert token not in payer_source, (
             f"正本 payer {payer.__name__} が active 世代 memo を使っている: {token}"
@@ -1140,15 +1145,29 @@ def test_ratified_memo_has_a_real_resolution_payer():
         f"正本 payer {payer.__name__} が実 repo root を渡していない"
     )
 
-    opted_in = (
+    memo_consumers = (
         driver_tests.test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing,
         driver_tests.test_active_resolution_and_manifest_structure_refusals_are_aggregated,
         driftguard_tests.test_run_block_broken_binding_manifest_refuses_and_writes_nothing,
         driftguard_tests.test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal,
     )
-    for function in opted_in:
-        assert "patch_ratified_loader" in inspect.getsource(function), (
-            f"opt-in 面 {function.__name__} が memo を使っていない (配線の取り残し)"
+    memo_nodes = {
+        f"{Path(inspect.getsourcefile(inspect.unwrap(function))).name}::{function.__name__}"
+        for function in memo_consumers
+    }
+    assert memo_nodes == {
+        "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+        "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
+        "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+        "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+    }
+    assert memo_nodes <= set(GROWTH_TEST_HOLDS), (
+        "実 memo consumer が恒久保留集合の外にある: "
+        f"missing={sorted(memo_nodes - set(GROWTH_TEST_HOLDS))!r}"
+    )
+    for function in memo_consumers:
+        assert "patch_ratified_loader" in inspect.getsource(inspect.unwrap(function)), (
+            f"memo consumer {function.__name__} が memo を使っていない (配線の取り残し)"
         )
 
 
@@ -1646,6 +1665,9 @@ def _run() -> int:
             failed += 1
     print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
+
+
+enforce_held_functions(globals(), __file__, plain_runner="manual")
 
 
 if __name__ == "__main__":
