@@ -68,7 +68,7 @@ import tempfile
 import time
 import uuid
 from dataclasses import asdict, dataclass
-from typing import Callable, Mapping, Optional
+from typing import Callable, Mapping, Optional, Sequence
 from pathlib import Path
 
 _DEFAULT_SLEEP_FN = time.sleep
@@ -138,6 +138,10 @@ from .s8b_materialization import (  # noqa: E402
     prepared_binding,
     reviewed_source_capability,
 )
+from .s8b_sort_swo_receipt import (  # noqa: E402
+    SortSwoReceiptError,
+    project_sort_swo_pass_attempt,
+)
 from .s8b_launch_cert import (  # noqa: E402
     LAUNCH_CERT_SCHEMA,
     LaunchCertError,
@@ -171,6 +175,7 @@ _FLOOR_JOB_STAGING_ENV = "IZANAGI_FLOOR_JOB_STAGING"
 _PRIVATE_DIAGNOSTIC_MAX_BYTES = 128 * 1024
 _FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
 _FLOOR_POSTFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-postflight-failure.json"
+_PRIVATE_SORT_SWO_EVIDENCE_SCHEMA = "s8b-sort-swo-private-evidence/v1"
 _FLOOR_PREFLIGHT_MATERIALIZED_SHA256 = hashlib.sha256(
     b"floor-sort-swo-preflight:materialized-unavailable"
 ).hexdigest()
@@ -2936,6 +2941,18 @@ def build_cells(
                 freeze=freeze, holdout_id=holdout_id,
                 configuration_id=configuration_id, ccbench_pin=ccbench_pin,
                 cxx=cxx, prepare_fn=effective_prepare_fn) as (identity, prepared):
+            oracle_attempt = prepared.oracle_attempt
+            if configuration_id == "sort_best":
+                if oracle_attempt is None:
+                    raise FloorCampaignError(
+                        "sort_best cell に SWO PASS receipt がない: "
+                        f"cell={cell['cell_id']}"
+                    )
+            elif oracle_attempt is not None:
+                raise FloorCampaignError(
+                    "non-sort cell に SWO receipt がある: "
+                    f"cell={cell['cell_id']}"
+                )
             evidence = source_digest.resolve_evidence(
                 prepared.genome,
                 ccbench_pin,
@@ -3066,7 +3083,36 @@ def build_cells(
                 raise FloorCampaignError(
                     f"binary admission receipt を発行できない: {exc}"
                 ) from exc
-            built[cell["cell_id"]] = {
+            sort_receipt = None
+            if configuration_id == "sort_best":
+                try:
+                    sort_receipt = project_sort_swo_pass_attempt(
+                        oracle_attempt,
+                        cell_id=cell["cell_id"],
+                        holdout_id=holdout_id,
+                        configuration_id=configuration_id,
+                        entry_sha256=identity["entry_sha256"],
+                        binary_sha256=result.bin_sha256,
+                    )
+                except SortSwoReceiptError as exc:
+                    raise FloorCampaignError(
+                        f"sort_best SWO PASS receipt が不正: "
+                        f"cell={cell['cell_id']}: {exc}"
+                    ) from exc
+                if marker_root is not None:
+                    cell_digest = hashlib.sha256(
+                        cell["cell_id"].encode("utf-8")
+                    ).hexdigest()[:16]
+                    _create_private_json(
+                        marker_root / f"sort-swo-oracle-pass-{cell_digest}.json",
+                        {
+                            "schema": _PRIVATE_SORT_SWO_EVIDENCE_SCHEMA,
+                            "cell_id": cell["cell_id"],
+                            "oracle_attempt": oracle_attempt,
+                            "portable_receipt": sort_receipt,
+                        },
+                    )
+            record = {
                 "cell_id": cell["cell_id"],
                 "holdout_id": holdout_id,
                 "configuration_id": configuration_id,
@@ -3082,6 +3128,9 @@ def build_cells(
                     getattr(result, "ccbench_root", None) or prepared.ccbench_dir
                 ).absolute()),
             }
+            if sort_receipt is not None:
+                record["sort_swo_oracle"] = sort_receipt
+            built[cell["cell_id"]] = record
             if dependency_binding is not None and configuration_id == "sort_best":
                 built[cell["cell_id"]]["_fetchcontent_base_dir"] = str(
                     fetchcontent_base
@@ -3184,7 +3233,11 @@ def _validate_portable_built(
         record = built[cell_id]
         if not isinstance(cell_id, str) or not cell_id:
             raise FloorCampaignError("portable binaries の cell_id key が不正")
-        if not isinstance(record, Mapping) or set(record) != set(_PORTABLE_BUILT_KEYS):
+        configuration_id = (
+            record.get("configuration_id") if isinstance(record, Mapping) else None
+        )
+        expected_keys = _binary_admission.portable_built_keys_for(configuration_id)
+        if not isinstance(record, Mapping) or set(record) != set(expected_keys):
             raise FloorCampaignError(f"portable binaries[{cell_id}] の exact key 集合が不一致")
         if record["cell_id"] != cell_id:
             raise FloorCampaignError(f"portable binaries[{cell_id}].cell_id が key と不一致")
@@ -3220,12 +3273,18 @@ def _validate_portable_built(
             raise FloorCampaignError(
                 f"portable binaries[{cell_id}] admission receipt が不正: {exc}"
             ) from exc
-        validated[cell_id] = {
+        validated_record = {
             key: (dict(value) if key == "binding" else receipt
                   if key == "admission_receipt" else list(value)
                   if key in {"configure_argv", "build_argv"} else value)
             for key, value in record.items()
         }
+        if "sort_swo_oracle" in record:
+            validated_record["sort_swo_oracle"] = json.loads(json.dumps(
+                record["sort_swo_oracle"], ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"), allow_nan=False,
+            ))
+        validated[cell_id] = validated_record
     return validated
 
 
@@ -3242,15 +3301,20 @@ def project_built_records(
     artifact: dict[str, dict] = {}
     for cell_id in sorted(runtime_built):
         rec = runtime_built[cell_id]
+        configuration_id = (
+            rec.get("configuration_id") if isinstance(rec, Mapping) else None
+        )
+        has_fetchcontent_base = (
+            isinstance(rec, Mapping) and "_fetchcontent_base_dir" in rec
+        )
         if (not isinstance(rec, Mapping)
-                or frozenset(rec) not in {
-                    _RUNTIME_STORED_KEYS,
-                    _RUNTIME_FETCHCONTENT_STORED_KEYS,
-                }):
+                or frozenset(rec) != _runtime_built_keys_for(
+                    configuration_id, stored=True,
+                    fetchcontent=has_fetchcontent_base,
+                )):
             raise FloorCampaignError(
                 f"runtime binaries[{cell_id}] の exact key 集合が不一致"
             )
-        has_fetchcontent_base = "_fetchcontent_base_dir" in rec
         is_sort_best = rec.get("configuration_id") == "sort_best"
         if has_fetchcontent_base and not is_sort_best:
             raise FloorCampaignError(
@@ -3261,7 +3325,7 @@ def project_built_records(
         if not isinstance(ccbench_root, str) or not ccbench_root:
             raise FloorCampaignError(f"runtime binaries[{cell_id}] の ccbench root がない")
         fetchcontent_base = rec.get("_fetchcontent_base_dir")
-        artifact[cell_id] = {
+        artifact_record = {
             "cell_id": rec["cell_id"],
             "holdout_id": rec["holdout_id"],
             "configuration_id": rec["configuration_id"],
@@ -3285,6 +3349,12 @@ def project_built_records(
             "store_path": _portable_relpath(
                 rec["store_path"], out_root=out_root, field="store_path"),
         }
+        if is_sort_best:
+            artifact_record["sort_swo_oracle"] = json.loads(json.dumps(
+                rec["sort_swo_oracle"], ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"), allow_nan=False,
+            ))
+        artifact[cell_id] = artifact_record
     return _validate_portable_built(
         artifact, expected_ccbench_pin=expected_ccbench_pin,
         expected_contract_sha256=expected_contract_sha256,
@@ -3314,11 +3384,68 @@ def resolve_portable_built(
 # manifest (create-only)                                                        #
 # --------------------------------------------------------------------------- #
 
+def _validate_binaries_cover_cells(
+        binaries: Mapping, cells: Sequence[Mapping]) -> None:
+    """producer 出力の binary 集合を外部 cell 列へ完全束縛する。"""
+    if not isinstance(binaries, Mapping):
+        raise FloorCampaignError("binaries が Mapping でない")
+    if (not isinstance(cells, Sequence)
+            or isinstance(cells, (str, bytes, bytearray)) or not cells):
+        raise FloorCampaignError("cells が非空 Sequence でない")
+
+    cell_by_id: dict[str, Mapping] = {}
+    sort_count_by_holdout: dict[str, int] = {}
+    for index, cell in enumerate(cells):
+        if not isinstance(cell, Mapping):
+            raise FloorCampaignError(f"cells[{index}] が Mapping でない")
+        cell_id = cell.get("cell_id")
+        holdout_id = cell.get("holdout_id")
+        configuration_id = cell.get("configuration_id")
+        if any(type(value) is not str or not value for value in (
+                cell_id, holdout_id, configuration_id)):
+            raise FloorCampaignError(f"cells[{index}] identity が不正")
+        if cell_id in cell_by_id:
+            raise FloorCampaignError(f"cells の cell_id が重複: {cell_id}")
+        cell_by_id[cell_id] = cell
+        sort_count_by_holdout.setdefault(holdout_id, 0)
+        if configuration_id == "sort_best":
+            sort_count_by_holdout[holdout_id] += 1
+
+    invalid_holdouts = sorted(
+        holdout_id for holdout_id, count in sort_count_by_holdout.items()
+        if count != 1
+    )
+    if invalid_holdouts:
+        raise FloorCampaignError(
+            "各 holdout の sort_best cell がちょうど 1 件でない: "
+            f"{invalid_holdouts}"
+        )
+
+    got_ids = set(binaries)
+    expected_ids = set(cell_by_id)
+    if got_ids != expected_ids:
+        missing = sorted(expected_ids - got_ids, key=repr)
+        extra = sorted(got_ids - expected_ids, key=repr)
+        raise FloorCampaignError(
+            "binaries が cells を完全被覆しない: "
+            f"missing={missing}, extra={extra}"
+        )
+    for cell_id, cell in cell_by_id.items():
+        record = binaries[cell_id]
+        if not isinstance(record, Mapping):
+            raise FloorCampaignError(f"binaries[{cell_id}] が Mapping でない")
+        for field in ("cell_id", "holdout_id", "configuration_id"):
+            if record.get(field) != cell[field]:
+                raise FloorCampaignError(
+                    f"binaries[{cell_id}].{field} が対応 cell と不一致"
+                )
+
 def assemble_manifest(*, protocol: Mapping, protocol_sha256: str,
                       freeze_sha256: str, cells: list[dict],
                       built: Mapping, schedule: list[dict],
                       perf_preflight=None, mode=None) -> dict:
     """参照 hash と build identity・schedule を持つ floor manifest を組み立てる (純粋)。"""
+    _validate_binaries_cover_cells(built, cells)
     portable_built = _validate_portable_built(
         built, expected_ccbench_pin=protocol["ccbench_pin"],
         expected_contract_sha256=protocol.get("contract_sha256"),
@@ -3916,10 +4043,19 @@ def _revalidate_issued_certificate(
 # content-addressed binary store (C3-7) — 計測 bytes を hash 名で永続化         #
 # --------------------------------------------------------------------------- #
 
-_RUNTIME_FRESH_KEYS = (_PORTABLE_BUILT_KEYS - {"store_path"}) | {"_ccbench_root"}
-_RUNTIME_STORED_KEYS = _PORTABLE_BUILT_KEYS | {"_ccbench_root"}
-_RUNTIME_FETCHCONTENT_FRESH_KEYS = _RUNTIME_FRESH_KEYS | {"_fetchcontent_base_dir"}
-_RUNTIME_FETCHCONTENT_STORED_KEYS = _RUNTIME_STORED_KEYS | {"_fetchcontent_base_dir"}
+def _runtime_built_keys_for(
+        configuration_id: object, *, stored: bool,
+        fetchcontent: bool) -> frozenset[str]:
+    """runtime binary record の条件付き exact key 集合を返す。"""
+    if type(stored) is not bool or type(fetchcontent) is not bool:
+        raise FloorCampaignError("runtime binary key selector が exact bool でない")
+    keys = _binary_admission.portable_built_keys_for(configuration_id)
+    if not stored:
+        keys = keys - {"store_path"}
+    keys = keys | {"_ccbench_root"}
+    if fetchcontent:
+        keys = keys | {"_fetchcontent_base_dir"}
+    return frozenset(keys)
 
 
 def _preflight_runtime_store_record(
@@ -3933,10 +4069,17 @@ def _preflight_runtime_store_record(
     if not isinstance(rec, Mapping):
         raise FloorCampaignError(f"binary store runtime record が Mapping でない: {cell_id}")
     keys = frozenset(rec)
-    if keys not in (
-            _RUNTIME_FRESH_KEYS, _RUNTIME_STORED_KEYS,
-            _RUNTIME_FETCHCONTENT_FRESH_KEYS, _RUNTIME_FETCHCONTENT_STORED_KEYS,
-            _PORTABLE_BUILT_KEYS):
+    configuration_id = rec.get("configuration_id")
+    stored = "store_path" in rec
+    fetchcontent = "_fetchcontent_base_dir" in rec
+    expected_runtime_keys = _runtime_built_keys_for(
+        configuration_id, stored=stored, fetchcontent=fetchcontent,
+    )
+    expected_portable_keys = _binary_admission.portable_built_keys_for(
+        configuration_id,
+    )
+    if keys != expected_runtime_keys and not (
+            stored and not fetchcontent and keys == expected_portable_keys):
         raise FloorCampaignError(
             f"binary store runtime record の exact key 集合が不一致: cell={cell_id}"
         )
@@ -4643,8 +4786,36 @@ class _Runner:
         for cell_id in sorted(self.binaries):
             record = self.binaries[cell_id]
             try:
+                if not isinstance(record, Mapping):
+                    raise _binary_admission.BinaryAdmissionError(
+                        "runtime binary record が Mapping でない"
+                    )
+                configuration_id = record.get("configuration_id")
+                portable_keys = _binary_admission.portable_built_keys_for(
+                    configuration_id,
+                )
+                has_fetchcontent_base = "_fetchcontent_base_dir" in record
+                runtime_keys = _runtime_built_keys_for(
+                    configuration_id, stored=True,
+                    fetchcontent=has_fetchcontent_base,
+                )
+                record_keys = frozenset(record)
+                if record_keys not in {portable_keys, runtime_keys}:
+                    raise _binary_admission.BinaryAdmissionError(
+                        "runtime binary record の configuration 条件付き "
+                        "exact key 集合が不一致"
+                    )
+                if (has_fetchcontent_base
+                        and configuration_id != "sort_best"):
+                    raise _binary_admission.BinaryAdmissionError(
+                        "runtime binary record の FetchContent base は "
+                        "sort_best にだけ許可される"
+                    )
+                portable_record = {
+                    key: record[key] for key in portable_keys
+                }
                 _binary_admission.validate_portable_binary_record(
-                    record, expected_policy=current_policy,
+                    portable_record, expected_policy=current_policy,
                     expected_ccbench_pin=self.protocol["ccbench_pin"],
                     expected_contract_sha256=self.contract.contract_sha256,
                     expected_cell_id=cell_id,
@@ -4723,6 +4894,14 @@ def _session_records(records: list[dict]) -> list[dict]:
     return [r for r in records if r.get("event") == "session"]
 
 
+def _attempt_lifecycle_records(records: list[dict]) -> list[dict]:
+    """Project only attempt authorization/completion records for admission inspection."""
+
+    return [
+        r for r in records if r.get("event") in {"session-start", "session"}
+    ]
+
+
 def _journal_expected_binaries(records: list[dict]) -> dict:
     """journal の session receipt から cell_id → binary_sha256_at_measure を集約する (C3-6)。
 
@@ -4775,8 +4954,57 @@ def _expected_protocol(protocol: Mapping, cells: list[dict]) -> dict:
     return expected
 
 
+def _inspect_holdout_admission(
+        *, repo_root: Path, protocol: Mapping, freeze: Mapping,
+        freeze_sha256: str, manifest_sha256: str, campaign_run_id: str,
+        run_relpath: str, mode: str, cells: Sequence[Mapping],
+        schedule: Sequence[Mapping], records: list[dict]) -> dict[str, object]:
+    """公開 result 発行直前に private/shared admission evidence を再検査する。"""
+    return _holdout_admission.inspect_floor_holdout_admission_evidence(
+        repo_root=repo_root,
+        protocol=protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=freeze_sha256,
+        manifest_sha256=manifest_sha256,
+        campaign_run_id=campaign_run_id,
+        run_relpath=run_relpath,
+        mode=mode,
+        cells=cells,
+        schedule=schedule,
+        sessions=_attempt_lifecycle_records(records),
+    )
+
+
+def _verify_result_with_live_admission(
+        result: Mapping, expected_protocol: Mapping,
+        expected_binaries: Mapping, *, repo_root: Path,
+        protocol: Mapping, freeze: Mapping, freeze_sha256: str,
+        manifest_sha256: str, campaign_run_id: str, run_relpath: str,
+        mode: str, cells: Sequence[Mapping], schedule: Sequence[Mapping],
+        records: list[dict], expected_use_perf: bool) -> list:
+    """U2 の公開 live-admission verifier 入口だけを自己検査に使う。"""
+    return s8b_floor_stats.verify_floor_artifact_with_live_admission(
+        result,
+        expected_protocol,
+        expected_binaries=expected_binaries,
+        repo_root=repo_root,
+        protocol=protocol,
+        verified_freeze_document=freeze,
+        freeze_sha256=freeze_sha256,
+        manifest_sha256=manifest_sha256,
+        campaign_run_id=campaign_run_id,
+        run_relpath=run_relpath,
+        mode=mode,
+        cells=cells,
+        schedule=schedule,
+        sessions=_attempt_lifecycle_records(records),
+        expected_use_perf=expected_use_perf,
+    )
+
+
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
                     manifest_sha256, cells, binaries, records,
+                    holdout_admission,
                     perf_preflight=None) -> dict:
     """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
@@ -4791,10 +5019,21 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         _normalize_perf_preflight(perf_preflight)
         if perf_preflight is not None else None
     )
+    _validate_binaries_cover_cells(binaries, cells)
     portable_binaries = _validate_portable_built(
         binaries, expected_ccbench_pin=protocol["ccbench_pin"],
         expected_contract_sha256=protocol["contract_sha256"],
     )
+    try:
+        normalized_holdout_admission = (
+            _floor_contract.validate_floor_holdout_admission_receipt(
+                holdout_admission,
+            )
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(
+            f"holdout admission receipt が不正: {exc}"
+        ) from exc
     n_sessions = protocol["n_sessions"]
     reps = protocol["reps"]
     session_cv_max = protocol["session_cv_max"]
@@ -4885,6 +5124,7 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "protocol_sha256": protocol_sha256,
         "freeze_sha256": freeze_sha256,
         "manifest_sha256": manifest_sha256,
+        "holdout_admission": normalized_holdout_admission,
         "stock_configuration": stock_configuration,
         "wired_min_rel_floor": wired_min_rel_floor,
         "reps": protocol["reps"],
@@ -5623,6 +5863,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 resume_records, run_dir=run_dir, mode=mode, schedule=schedule,
                 protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
                 manifest_sha256=None, resume_state=resume_state,
+                retry_slots_per_cell=protocol["retry_slots_per_cell"],
             )
             if mode == "pilot":
                 perf_preflight_receipt = perform_perf_preflight()
@@ -5668,6 +5909,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             manifest, manifest_sha256, artifact_built, runtime_built = _load_resume_manifest(
                 manifest_path, protocol_sha256=protocol_sha256,
                 freeze_sha256=freeze_sha256, out_root=out_root,
+                protocol=protocol, cells=cells, schedule=schedule, mode=mode,
                 expected_ccbench_pin=protocol["ccbench_pin"],
                 expected_contract_sha256=contract.contract_sha256,
             )
@@ -5695,31 +5937,51 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
             manifest_sha256=manifest_sha256, resume_state=resume_state,
             expected_use_perf=_assert_perf_mode(mode, perf_preflight_receipt),
+            retry_slots_per_cell=protocol["retry_slots_per_cell"],
         )
         _transition_pre_measure_journal_to_v3(
             journal_path, resume_records, write_capability=run_write_capability,
         )
 
     if resume_state == "M-finalize-pending":
+        try:
+            holdout_admission = _inspect_holdout_admission(
+                repo_root=holdout_repo_root, protocol=protocol, freeze=freeze,
+                freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+                campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+                mode=mode, cells=cells, schedule=schedule,
+                records=resume_records,
+            )
+        except _holdout_admission.FloorHoldoutEvidenceError as exc:
+            raise FloorCampaignError(
+                "finalize-pending floor admission evidence が不正: "
+                f"category={exc.category}, reason={exc.reason}"
+            ) from exc
         result = assemble_result(
             protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
             freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
             cells=cells, binaries=artifact_built, records=resume_records,
+            holdout_admission=holdout_admission,
             perf_preflight=perf_preflight_receipt,
         )
         apply_refreeze_eligibility()
-        staged = _stage_finalize_files(
-            run_dir, result, _render_result_md(result),
-            write_capability=run_write_capability,
-        )
-        problems = s8b_floor_stats.verify_floor_artifact(
+        problems = _verify_result_with_live_admission(
             result, _expected_protocol(protocol, cells),
             expected_binaries=_journal_expected_binaries(resume_records),
+            repo_root=holdout_repo_root, protocol=protocol, freeze=freeze,
+            freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+            campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+            mode=mode, cells=cells, schedule=schedule,
+            records=resume_records,
             expected_use_perf=_assert_perf_mode(mode, perf_preflight_receipt),
         )
         if problems:
             raise FloorCampaignError(
                 f"finalize-pending artifact self-check が非空: {problems}")
+        staged = _stage_finalize_files(
+            run_dir, result, _render_result_md(result),
+            write_capability=run_write_capability,
+        )
         _finalize(
             run_dir, staged, journal_path, terminal_already_completed=True,
             write_capability=run_write_capability,
@@ -5825,31 +6087,66 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         )
         raise
 
+    try:
+        holdout_admission = _inspect_holdout_admission(
+            repo_root=holdout_repo_root, protocol=protocol, freeze=freeze,
+            freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+            campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+            mode=mode, cells=cells, schedule=schedule,
+            records=runner.records,
+        )
+    except _holdout_admission.FloorHoldoutEvidenceError as exc:
+        reason = f"floor-admission-{exc.category}"
+        _journal_append(
+            journal_path, {
+                "event": "terminal", "status": "artifact-invalid",
+                "reason": reason, "cause": exc.reason,
+                "problems": [f"{reason}: {exc.reason}"],
+            }, write_capability=run_write_capability,
+        )
+        raise FloorCampaignError(
+            "floor admission evidence が不正: "
+            f"category={exc.category}, reason={exc.reason}"
+        ) from exc
+
     result = assemble_result(
         protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
         cells=cells, binaries=artifact_built, records=runner.records,
+        holdout_admission=holdout_admission,
         perf_preflight=perf_preflight_receipt,
     )
     apply_refreeze_eligibility()
 
-    # phase 1: result/md bytes を pending file へ fsync。まだ public artifact は存在しない。
-    staged = _stage_finalize_files(
-        run_dir, result, _render_result_md(result),
-        write_capability=run_write_capability,
-    )
-
-    # 自己検査: verify_floor_artifact(result, expected_protocol) == [] を満たさなければ書かない。
+    # 自己検査: live admission 公開入口が [] を返すまでは pending bytes も作らない。
     # C3-6/W3 申し送り: journal receipt (session ごとの実測直前 binary_sha256_at_measure) を
     # expected_binaries として渡し、binaries section の突合を恒真検査でなく実発火にする。
     # measured_bin_sha は build 記録 sha と食い違えば _run_session が CampaignAbort するため、
     # 完走した campaign では全 session が一致し、artifact.binaries と完全一致する。
     expected = _expected_protocol(protocol, cells)
     expected_binaries = _journal_expected_binaries(runner.records)
-    problems = s8b_floor_stats.verify_floor_artifact(
-        result, expected, expected_binaries=expected_binaries,
-        expected_use_perf=use_perf,
-    )
+    try:
+        problems = _verify_result_with_live_admission(
+            result, expected, expected_binaries,
+            repo_root=holdout_repo_root, protocol=protocol, freeze=freeze,
+            freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
+            campaign_run_id=campaign_run_id, run_relpath=run_relpath,
+            mode=mode, cells=cells, schedule=schedule,
+            records=runner.records, expected_use_perf=use_perf,
+        )
+    except _holdout_admission.FloorHoldoutEvidenceError as exc:
+        reason = f"floor-admission-{exc.category}"
+        _journal_append(
+            journal_path, {
+                "event": "terminal", "status": "artifact-invalid",
+                "reason": reason, "cause": exc.reason,
+                "problems": [f"{reason}: {exc.reason}"],
+            }, write_capability=run_write_capability,
+        )
+        raise FloorCampaignError(
+            "live admission self-check が不正: "
+            f"category={exc.category}, reason={exc.reason}"
+        ) from exc
     if problems:
         _journal_append(
             journal_path, {
@@ -5858,6 +6155,12 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             }, write_capability=run_write_capability,
         )
         raise FloorCampaignError(f"verify_floor_artifact が非空: {problems}")
+
+    # phase 1: 検査済み result/md bytes を pending file へ fsyncする。
+    staged = _stage_finalize_files(
+        run_dir, result, _render_result_md(result),
+        write_capability=run_write_capability,
+    )
 
     _finalize(
         run_dir, staged, journal_path, write_capability=run_write_capability,
@@ -5893,6 +6196,8 @@ def _fresh_run_dir(out_root: Path, protocol: Mapping, mode: str,
 def _load_resume_manifest(
         manifest_path: Path, *, protocol_sha256: str,
         freeze_sha256: str, out_root: Path,
+        protocol: Mapping, cells: Sequence[Mapping], schedule: Sequence[Mapping],
+        mode: str,
         expected_ccbench_pin: str | None = None,
         expected_contract_sha256: str | None = None,
 ) -> tuple:
@@ -5911,13 +6216,22 @@ def _load_resume_manifest(
         raise FloorCampaignError("resume: manifest が object でない")
     if manifest.get("schema_version") != MANIFEST_SCHEMA:
         raise FloorCampaignError(
-            f"resume: manifest.schema_version が {MANIFEST_SCHEMA} でない (v1 交差受理を拒否)"
+            f"resume: manifest.schema_version が {MANIFEST_SCHEMA} でない "
+            "(v1/v2 交差受理を拒否)"
         )
     manifest_sha256 = hashlib.sha256(raw).hexdigest()
     if manifest.get("protocol_sha256") != protocol_sha256:
         raise FloorCampaignError("resume: protocol sha256 が manifest と不一致")
     if manifest.get("freeze_sha256") != freeze_sha256:
         raise FloorCampaignError("resume: freeze sha256 が manifest と不一致")
+    try:
+        _floor_contract.validate_manifest_v3(
+            manifest, protocol=protocol, protocol_sha256=protocol_sha256,
+            freeze_sha256=freeze_sha256, expected_cells=cells,
+            expected_schedule=schedule, mode=mode,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(f"resume: manifest v3 共有契約が不正: {exc}") from exc
     if "perf_preflight" in manifest:
         manifest["perf_preflight"] = _normalize_perf_preflight(
             manifest["perf_preflight"]
@@ -5977,7 +6291,8 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
                            schedule: list[dict], protocol_sha256: str,
                            freeze_sha256: str, manifest_sha256: Optional[str],
                            resume_state: str = "M-running",
-                           expected_use_perf: Optional[bool] = None) -> Optional[str]:
+                           expected_use_perf: Optional[bool] = None,
+                           retry_slots_per_cell: int) -> Optional[str]:
     """resume: journal を状態機械で全件検証する (β-6)。
 
     official は先頭 launch-start・certificate bytes/意味・campaign-start 束縛を検証する。
@@ -6149,6 +6464,16 @@ def _verify_resume_journal(records: list[dict], *, run_dir: Path, mode: str,
             seen_retry.add(key)
         else:
             raise FloorCampaignError(f"resume: session-start の kind が未知: {kind!r}")
+
+    try:
+        _floor_contract.validate_session_start_authorizations(
+            [r for r in records if r.get("event") == "session-start"],
+            schedule=schedule, retry_slots_per_cell=retry_slots_per_cell,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(
+            f"resume: session-start authorization が正準でない: {exc}"
+        ) from exc
 
     for r in records:
         if r.get("event") != "session":
