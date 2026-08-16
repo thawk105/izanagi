@@ -1144,7 +1144,10 @@ def test_certified_acceptance_rejects_each_verifier_drift_fail_closed(
     wal_path = campaign / "runs/wal.jsonl"
     before_lock = lock_path.read_bytes()
     before_wal = wal_path.read_bytes()
-    expected_epoch = _expected_fixture_epoch()
+    historical = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    expected_epoch = (
+        historical.campaign_verifier_epoch.campaign_verifier_epoch
+    )
     verifier = repo / verifier_path
 
     try:
