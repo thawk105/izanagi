@@ -256,10 +256,40 @@ def _record_raw(
     )
 
 
+def _legacy_record_raw(
+    root: Path,
+    generation: int,
+    *,
+    supersedes: str | None,
+    ruling: str | None,
+    reason: str = "fixture revision",
+) -> bytes:
+    document = json.loads(
+        _record_raw(
+            root,
+            generation,
+            supersedes=supersedes,
+            ruling=ruling,
+            reason=reason,
+        )
+    )
+    document["schema_version"] = M.LEGACY_SCHEMA_VERSION
+    del document["decider_version"]
+    return M._canonical_bytes(document)
+
+
 def _install_g1(root: Path) -> tuple[str, bytes]:
     raw = _record_raw(root, 1, supersedes=None, ruling=None, reason="initial contract")
     _write(root, M.generation_path(1), raw)
     return _commit(root, "install g1"), raw
+
+
+def _install_legacy_v1_g1(root: Path) -> tuple[str, bytes]:
+    raw = _legacy_record_raw(
+        root, 1, supersedes=None, ruling=None, reason="initial legacy contract"
+    )
+    _write(root, M.generation_path(1), raw)
+    return _commit(root, "install legacy v1 g1"), raw
 
 
 def _install_legacy_nul_bound_g1(root: Path) -> str:
@@ -1248,6 +1278,9 @@ def test_activation_report_marks_legacy_nul_bound_freeze_invalid(
     assert report.freeze_reason_code == "evidence-contract-path-nul"
     assert report.freeze_generation is None
     assert report.protected_sha256 is None
+    assert report.decider_version is None
+    assert report.decider_version_matches is False
+    assert report.decider_version_reason_code == "decider-version-unavailable"
     assert report.effective is False
 
 
@@ -1339,6 +1372,9 @@ def test_activation_report_marks_legacy_crlf_bound_freeze_invalid(
     assert report.freeze_reason_code == "evidence-contract-path-crlf"
     assert report.freeze_generation is None
     assert report.protected_sha256 is None
+    assert report.decider_version is None
+    assert report.decider_version_matches is False
+    assert report.decider_version_reason_code == "decider-version-unavailable"
     assert report.effective is False
 
 
@@ -1406,6 +1442,74 @@ def test_generation_gap_bad_supersedes_unknown_key_and_noncanonical_are_rejected
         _assert_reason(reason, M.validate_condition_freeze_at, root, head)
 
 
+def test_record_schema_version_selects_exact_key_set_and_canonical_bytes(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo(tmp_path)
+    v2_raw = _record_raw(root, 1, supersedes=None, ruling=None)
+    v2 = M._load_freeze_record(v2_raw, expected_generation=1)
+    assert v2.schema_version == M.SCHEMA_VERSION
+    assert v2.decider_version == M.DECIDER_VERSION
+
+    v1_raw = _legacy_record_raw(root, 1, supersedes=None, ruling=None)
+    v1 = M._load_freeze_record(v1_raw, expected_generation=1)
+    assert v1.schema_version == M.LEGACY_SCHEMA_VERSION
+    assert v1.decider_version is None
+
+    unknown = json.loads(v2_raw)
+    unknown["schema_version"] = "s8c-prereg-condition-freeze/v999"
+    unknown.pop("decider_version")
+    _assert_reason(
+        "record-schema-version",
+        M._load_freeze_record,
+        M._canonical_bytes(unknown),
+        expected_generation=1,
+    )
+
+    v1_extra = json.loads(v1_raw)
+    v1_extra["decider_version"] = M.DECIDER_VERSION
+    _assert_reason(
+        "record-schema-keys",
+        M._load_freeze_record,
+        M._canonical_bytes(v1_extra),
+        expected_generation=1,
+    )
+
+    v2_missing = json.loads(v2_raw)
+    v2_missing.pop("decider_version")
+    _assert_reason(
+        "record-schema-keys",
+        M._load_freeze_record,
+        M._canonical_bytes(v2_missing),
+        expected_generation=1,
+    )
+
+    for raw in (v1_raw, v2_raw):
+        noncanonical = json.dumps(json.loads(raw), ensure_ascii=False, indent=2).encode()
+        _assert_reason(
+            "record-not-canonical",
+            M._load_freeze_record,
+            noncanonical,
+            expected_generation=1,
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, 1, "s8c-decider/v0", "s8c-decider/v01", "s8c-decider/v1/extra"],
+)
+def test_v2_record_decider_version_has_closed_format(tmp_path: Path, value: object) -> None:
+    root = _init_repo(tmp_path)
+    document = json.loads(_record_raw(root, 1, supersedes=None, ruling=None))
+    document["decider_version"] = value
+    _assert_reason(
+        "record-decider-version",
+        M._load_freeze_record,
+        M._canonical_bytes(document),
+        expected_generation=1,
+    )
+
+
 def test_generation_mutation_and_delete_readd_are_rejected(tmp_path: Path) -> None:
     mutated = _init_repo(tmp_path / "mutated")
     _, g1 = _install_g1(mutated)
@@ -1422,6 +1526,16 @@ def test_generation_mutation_and_delete_readd_are_rejected(tmp_path: Path) -> No
     _write(deleted, M.generation_path(1), original)
     readded = _commit(deleted, "readd g1")
     _assert_reason("generation-deleted", M.validate_condition_freeze_at, deleted, readded)
+
+
+def test_decider_version_mutation_is_generation_mutated(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path)
+    _, raw = _install_g1(root)
+    document = json.loads(raw)
+    document["decider_version"] = "s8c-decider/v2"
+    _write(root, M.generation_path(1), M._canonical_bytes(document))
+    head = _commit(root, "mutate g1 decider version")
+    _assert_reason("generation-mutated", M.validate_condition_freeze_at, root, head)
 
 
 def test_generation_added_without_protected_change_is_spurious(tmp_path: Path) -> None:
@@ -1872,13 +1986,97 @@ def test_record_schema_has_no_self_or_commit_hash_fields(tmp_path: Path) -> None
     root = _init_repo(tmp_path)
     raw = _record_raw(root, 1, supersedes=None, ruling=None)
     keys = set(json.loads(raw))
-    assert keys == M._FREEZE_KEYS
+    assert keys == M._FREEZE_KEYS_V2
     assert not keys & {
         "self_sha256",
         "record_sha256",
         "introduction_commit",
         "activation_commit",
     }
+
+
+def test_matching_decider_version_preserves_activation_conjunction(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    assert report.condition_freeze_valid is True
+    assert report.decider_version == M.DECIDER_VERSION
+    assert report.decider_version_matches is True
+    assert report.decider_version_reason_code == "decider-version-match"
+    assert report.effective is True
+
+
+def test_mismatched_decider_version_is_not_effective(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    document = json.loads(_record_raw(root, 1, supersedes=None, ruling=None))
+    document["decider_version"] = "s8c-decider/v2"
+    _write(root, M.generation_path(1), M._canonical_bytes(document))
+    head = _commit(root, "install mismatched v2 g1")
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    assert report.condition_freeze_valid is True
+    assert report.freeze_reason_code == "valid"
+    assert report.decider_version == "s8c-decider/v2"
+    assert report.decider_version_matches is False
+    assert report.decider_version_reason_code == "decider-version-mismatch"
+    assert report.effective is False
+
+
+def test_legacy_v1_tip_is_readable_but_not_effective(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_legacy_v1_g1(root)
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    assert report.condition_freeze_valid is True
+    assert report.freeze_reason_code == "valid"
+    assert report.decider_version is None
+    assert report.decider_version_matches is False
+    assert report.decider_version_reason_code == "decider-version-unbound"
+    assert report.effective is False
+
+
+def test_invalid_running_decider_version_cannot_activate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class InvalidRuntimeDecider(str):
+        def __eq__(self, other: object) -> bool:
+            return True
+
+        __hash__ = str.__hash__
+
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    monkeypatch.setattr(M, "DECIDER_VERSION", InvalidRuntimeDecider("invalid-version"))
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    assert report.decider_version == "s8c-decider/v1"
+    assert report.decider_version_matches is False
+    assert report.decider_version_reason_code == "decider-version-mismatch"
+    assert report.effective is False
+
+
+def test_activation_report_digest_binds_decider_and_projection_fields(tmp_path: Path) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    original = M._activation_report_digest(report)
+    replacements = (
+        {"decider_version": "s8c-decider/v2"},
+        {"decider_version_matches": False},
+        {"decider_version_reason_code": "decider-version-mismatch"},
+        {"projection_module_blob_sha256": "0" * 64},
+    )
+    assert all(
+        M._activation_report_digest(dataclasses.replace(report, **change)) != original
+        for change in replacements
+    )
 
 
 @pytest.mark.parametrize(
@@ -1930,19 +2128,51 @@ def test_missing_evaluator_module_yields_twelve_evidence_undefined(tmp_path: Pat
     assert report.evaluator_module_blob_sha256 is None
 
 
-def test_activation_report_records_both_module_blob_hashes_at_commit(tmp_path: Path) -> None:
+def test_activation_report_records_all_module_blob_hashes_at_commit(tmp_path: Path) -> None:
     root = _init_repo(tmp_path, filled=True)
     core_bytes = Path(M.__file__).read_bytes()
     from orchestrator.campaign import s8c_preregistration_evidence as evaluator_module
 
     evaluator = Path(evaluator_module.__file__).read_bytes()
+    projection = Path(M.__file__).with_name("s8c_generation_projection.py").read_bytes()
     _write(root, M.CORE_MODULE_PATH, core_bytes)
     _write(root, M.EVALUATOR_MODULE_PATH, evaluator)
+    _write(root, M.PROJECTION_MODULE_PATH, projection)
     _commit(root, "add evaluator fixture")
     head, _ = _install_g1(root)
     report = M.activation_report_at(root, head)
     assert report.core_module_blob_sha256 == hashlib.sha256(core_bytes).hexdigest()
     assert report.evaluator_module_blob_sha256 == hashlib.sha256(evaluator).hexdigest()
+    assert report.projection_module_blob_sha256 == hashlib.sha256(projection).hexdigest()
+
+
+@pytest.mark.parametrize(
+    ("projection", "reason"),
+    (
+        pytest.param(None, "projection-module-absent-at-commit", id="absent"),
+        pytest.param(b"# mismatched projection\n", "projection-blob-mismatch", id="mismatch"),
+    ),
+)
+def test_projection_blob_must_match_live_module(
+    tmp_path: Path, projection: bytes | None, reason: str
+) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    core_bytes = Path(M.__file__).read_bytes()
+    from orchestrator.campaign import s8c_preregistration_evidence as evaluator_module
+
+    _write(root, M.CORE_MODULE_PATH, core_bytes)
+    _write(root, M.EVALUATOR_MODULE_PATH, Path(evaluator_module.__file__).read_bytes())
+    if projection is not None:
+        _write(root, M.PROJECTION_MODULE_PATH, projection)
+    _commit(root, "install runtime module fixtures")
+    head, _ = _install_g1(root)
+    report = M.activation_report_at(root, head)
+    assert len(report.predicates) == 12
+    assert {item.status for item in report.predicates} == {M.PredicateStatus.ERROR}
+    assert {item.reason_code for item in report.predicates} == {reason}
+    expected_hash = hashlib.sha256(projection).hexdigest() if projection is not None else None
+    assert report.projection_module_blob_sha256 == expected_hash
+    assert report.effective is False
 
 
 def test_private_conjunction_helper_reads_commit_blob_not_dirty_worktree(tmp_path: Path) -> None:
@@ -1968,6 +2198,24 @@ def test_cli_has_only_check_and_prepare_revision_commands() -> None:
     )
     assert set(subparser_action.choices) == {"check", "prepare-revision"}
     assert not {"approve", "activate", "revoke"} & set(subparser_action.choices)
+
+
+def test_non_json_cli_reports_decider_reason(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    root = _init_repo(tmp_path, filled=True)
+    head, _ = _install_g1(root)
+    report = M._activation_report_at_for_test(
+        root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
+    )
+    monkeypatch.setattr(M, "activation_report_at", lambda repo_root, commit: report)
+    assert M.main(["check", "--repo-root", str(root), "--commit", head]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert [line for line in lines if line.startswith("decider_version ")] == [
+        "decider_version decider-version-match"
+    ]
 
 
 def test_effective_preregistration_cannot_be_constructed_or_dataclass_replaced(tmp_path: Path) -> None:
@@ -2105,7 +2353,13 @@ def test_prepare_revision_is_exclusive_create(tmp_path: Path) -> None:
     )
     assert destination == root / M.generation_path(1)
     raw = destination.read_bytes()
-    assert M._canonical_bytes(json.loads(raw)) == raw
+    document = json.loads(raw)
+    assert M._canonical_bytes(document) == raw
+    assert document["schema_version"] == M.SCHEMA_VERSION
+    assert document["decider_version"] == M.DECIDER_VERSION
+    loaded = M._load_freeze_record(raw, expected_generation=1)
+    assert loaded.schema_version == M.SCHEMA_VERSION
+    assert loaded.decider_version == M.DECIDER_VERSION
     with pytest.raises(M.PreregistrationError) as caught:
         M.prepare_revision(
             root,
