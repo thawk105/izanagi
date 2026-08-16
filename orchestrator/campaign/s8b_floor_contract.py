@@ -17,21 +17,23 @@ import json
 import math
 import posixpath
 import random
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import PurePosixPath
 from typing import Optional
 
 from . import s8b_experiment_numbers as _experiment_numbers
 
 
-# protocol/manifest は凍結 v2、rep 証跡を必須化した result/journal は v3。
+# protocol は凍結 v2、admission receipt を必須化した result/manifest は v4/v3。
 # freeze schema は v1 freeze を読むため据置。
 PROTOCOL_SCHEMA = "s8b-floor-protocol/v2"
 FREEZE_SCHEMA = "8b-holdout-freeze/v1"
 SCHEDULE_ALGORITHM = "round-permutation/v2"
-RESULT_SCHEMA = "s8b-floor-result/v3"
-MANIFEST_SCHEMA = "s8b-floor-manifest/v2"
+RESULT_SCHEMA = "s8b-floor-result/v4"
+MANIFEST_SCHEMA = "s8b-floor-manifest/v3"
 JOURNAL_SCHEMA = "s8b-floor-journal/v3"
 FORMULA_ID = "s8b-floor-stats/v2"
+FLOOR_HOLDOUT_ADMISSION_SCHEMA = "s8b-floor-holdout-admission-receipt/v1"
 
 _PROTOCOL_KEYS = frozenset({
     "schema", "formula", "env_tag", "ccbench_pin", "freeze", "stock_configuration",
@@ -41,6 +43,29 @@ _PROTOCOL_KEYS = frozenset({
     "allowed_excluded_reasons", "contract_sha256",
 })
 _FREEZE_RECORD_KEYS = frozenset({"path", "sha256"})
+_FLOOR_HOLDOUT_ADMISSION_KEYS = frozenset({
+    "schema", "campaign_run_id", "run_relpath", "mode", "protocol_sha256",
+    "freeze_sha256", "manifest_sha256", "claim_identities",
+    "admission_row_count", "attempt_row_count", "ledger_projection_sha256",
+})
+_MANIFEST_KEYS = frozenset({
+    "schema_version", "protocol_sha256", "freeze", "freeze_sha256", "env_tag",
+    "ccbench_pin", "stock_configuration", "schedule_algorithm", "master_seed",
+    "n_sessions", "reps", "extime_s", "session_cv_max", "cell_cv_max", "cells",
+    "binaries", "schedule",
+})
+_MANIFEST_CELL_KEYS = frozenset({
+    "cell_id", "holdout_id", "configuration_id", "records", "threads", "workload",
+})
+_SCHEDULE_KEYS = frozenset({"seq", "round", "cell_id"})
+_RESULT_KEYS = frozenset({
+    "schema", "formula", "mode", "eligible_for_refreeze", "env_tag", "ccbench_pin",
+    "protocol_sha256", "freeze_sha256", "manifest_sha256", "stock_configuration",
+    "wired_min_rel_floor", "reps", "n_sessions", "scale_adequacy_rel_tolerance",
+    "holdouts", "configurations", "binaries", "config", "sessions", "cells", "floors",
+    "wall_ledger", "excluded", "attempts", "holdout_admission",
+})
+_HEX64 = frozenset("0123456789abcdef")
 
 # 承認済み標本設計の凍結値。共有 validator が別実験への変質を開始前に拒否する。
 _APPROVED_N_SESSIONS = 8
@@ -74,6 +99,221 @@ _RUN_CMD_PERF_EVENTS = (
 
 class FloorContractError(RuntimeError):
     """floor 共有契約を検証できない場合の fail-closed 拒否。"""
+
+
+def result_keys_for_mode(mode: object) -> frozenset[str]:
+    """result v4 の mode 条件付き top-level exact key 集合を返す。"""
+
+    if mode == "official":
+        return _RESULT_KEYS
+    if mode == "pilot":
+        return _RESULT_KEYS | {"perf_preflight"}
+    raise FloorContractError("result.mode が exact {'pilot','official'} でない")
+
+
+def validate_session_start_authorizations(
+    records: Sequence[Mapping[str, object]], *,
+    schedule: Sequence[Mapping[str, object]], retry_slots_per_cell: int,
+) -> dict[str, Mapping[str, object]]:
+    """planned/retry ``session-start`` の正準 authorization を完全検査する。
+
+    attempt ID は自己申告として扱わず、planned は ``cell_id::seqN``、retry は
+    ``cell_id::retryN`` を再導出する。seq、attempt ID、retry 枠の一意性も同時に要求する。
+    """
+
+    if (
+        not isinstance(records, Sequence)
+        or isinstance(records, (str, bytes, bytearray))
+        or not isinstance(schedule, Sequence)
+        or isinstance(schedule, (str, bytes, bytearray))
+        or type(retry_slots_per_cell) is not int
+        or retry_slots_per_cell < 0
+    ):
+        raise FloorContractError("session-start authorization 入力が不正")
+    planned_by_seq: dict[int, Mapping[str, object]] = {}
+    for row in schedule:
+        if not isinstance(row, Mapping) or set(row) != set(_SCHEDULE_KEYS):
+            raise FloorContractError("authorization schedule の exact key 集合が不一致")
+        seq = row["seq"]
+        if type(seq) is not int or seq < 0 or seq in planned_by_seq:
+            raise FloorContractError("authorization schedule の seq が不正/重複")
+        planned_by_seq[seq] = row
+
+    by_attempt: dict[str, Mapping[str, object]] = {}
+    seen_seq: set[int] = set()
+    seen_retry: set[tuple[str, int]] = set()
+    for record in records:
+        if not isinstance(record, Mapping) or record.get("event") != "session-start":
+            raise FloorContractError("authorization record が session-start でない")
+        seq = record.get("seq")
+        attempt_id = record.get("attempt_id")
+        cell_id = record.get("cell_id")
+        if (
+            type(seq) is not int or seq < 0 or seq in seen_seq
+            or type(attempt_id) is not str or not attempt_id or attempt_id in by_attempt
+            or type(cell_id) is not str or not cell_id
+        ):
+            raise FloorContractError("session-start の seq/attempt/cell が不正または重複")
+        seen_seq.add(seq)
+        kind = record.get("kind")
+        if kind == "planned":
+            scheduled = planned_by_seq.get(seq)
+            if (
+                scheduled is None
+                or record.get("cell_id") != scheduled.get("cell_id")
+                or record.get("round") != scheduled.get("round")
+                or record.get("retry_ordinal") is not None
+                or record.get("trigger") is not None
+                or attempt_id != f"{cell_id}::seq{seq}"
+            ):
+                raise FloorContractError("planned session-start が正準 schedule/attempt と不一致")
+        elif kind == "retry":
+            ordinal = record.get("retry_ordinal")
+            retry_key = (cell_id, ordinal)
+            if (
+                seq in planned_by_seq
+                or seq < len(schedule)
+                or type(ordinal) is not int
+                or not 1 <= ordinal <= retry_slots_per_cell
+                or attempt_id != f"{cell_id}::retry{ordinal}"
+                or retry_key in seen_retry
+            ):
+                raise FloorContractError("retry session-start が正準 seq/ordinal/attempt と不一致")
+            seen_retry.add(retry_key)
+        else:
+            raise FloorContractError("session-start.kind が未知")
+        by_attempt[attempt_id] = record
+    return by_attempt
+
+
+def validate_manifest_v3(
+    document: Mapping[str, object], *, protocol: Mapping[str, object],
+    protocol_sha256: str, freeze_sha256: str,
+    expected_cells: Sequence[Mapping[str, object]],
+    expected_schedule: Sequence[Mapping[str, object]], mode: str,
+) -> dict[str, object]:
+    """manifest v3 の exact shape と protocol/cells/binaries/schedule 束縛を検査する。"""
+
+    allowed_keys = _MANIFEST_KEYS | ({"perf_preflight"} if mode == "pilot" else set())
+    received_keys = set(document) if isinstance(document, Mapping) else set()
+    valid_keysets = (set(_MANIFEST_KEYS), set(allowed_keys))
+    if mode not in {"pilot", "official"} or received_keys not in valid_keysets:
+        raise FloorContractError("manifest v3 の mode 条件付き exact key 集合が不一致")
+    if document["schema_version"] != MANIFEST_SCHEMA:
+        raise FloorContractError(f"manifest.schema_version が {MANIFEST_SCHEMA} でない")
+    mirrors = {
+        "protocol_sha256": protocol_sha256,
+        "freeze": dict(protocol["freeze"]),
+        "freeze_sha256": freeze_sha256,
+        "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "stock_configuration": protocol["stock_configuration"],
+        "schedule_algorithm": protocol["schedule_algorithm"],
+        "master_seed": protocol["master_seed"],
+        "n_sessions": protocol["n_sessions"],
+        "reps": protocol["reps"],
+        "extime_s": protocol["extime_s"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
+    }
+    for key, expected in mirrors.items():
+        if document[key] != expected or type(document[key]) is not type(expected):
+            raise FloorContractError(f"manifest.{key} が protocol/anchor と不一致")
+    if type(document["cells"]) is not list:
+        raise FloorContractError("manifest.cells が list でない")
+    for cell in document["cells"]:
+        if not isinstance(cell, Mapping) or set(cell) != set(_MANIFEST_CELL_KEYS):
+            raise FloorContractError("manifest cell の exact key 集合が不一致")
+    if document["cells"] != list(expected_cells):
+        raise FloorContractError("manifest.cells が外部期待列と不一致")
+    if type(document["schedule"]) is not list:
+        raise FloorContractError("manifest.schedule が list でない")
+    for row in document["schedule"]:
+        if not isinstance(row, Mapping) or set(row) != set(_SCHEDULE_KEYS):
+            raise FloorContractError("manifest schedule row の exact key 集合が不一致")
+    if document["schedule"] != list(expected_schedule):
+        raise FloorContractError("manifest.schedule が外部期待列と不一致")
+    binaries = document["binaries"]
+    cell_by_id = {cell["cell_id"]: cell for cell in expected_cells}
+    if len(cell_by_id) != len(expected_cells):
+        raise FloorContractError("expected_cells の cell_id が重複")
+    if not isinstance(binaries, Mapping) or set(binaries) != set(cell_by_id):
+        raise FloorContractError("manifest.binaries の cell 集合が cells と不一致")
+    for cell_id, record in binaries.items():
+        if not isinstance(record, Mapping):
+            raise FloorContractError(f"manifest.binaries[{cell_id}] が object でない")
+        cell = cell_by_id[cell_id]
+        for field in ("cell_id", "holdout_id", "configuration_id"):
+            if record.get(field) != cell[field] or type(record.get(field)) is not str:
+                raise FloorContractError(
+                    f"manifest.binaries[{cell_id}].{field} が cell と不一致"
+                )
+    return json.loads(json.dumps(
+        dict(document), ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ))
+
+
+def _is_sha256(value: object) -> bool:
+    return (
+        type(value) is str and len(value) == 64
+        and all(char in _HEX64 for char in value)
+    )
+
+
+def _canonical_relative_path(value: object, *, field: str) -> str:
+    if type(value) is not str or not value or "\\" in value:
+        raise FloorContractError(f"{field} が canonical POSIX relative path でない")
+    path = PurePosixPath(value)
+    if (
+        path.is_absolute() or value == "." or "." in path.parts or ".." in path.parts
+        or str(path) != value
+    ):
+        raise FloorContractError(f"{field} が canonical POSIX relative path でない")
+    return value
+
+
+def validate_floor_holdout_admission_receipt(value: object) -> dict:
+    """floor holdout admission receipt の exact shape と scalar 束縛を検証する。"""
+
+    if not isinstance(value, Mapping) or set(value) != set(_FLOOR_HOLDOUT_ADMISSION_KEYS):
+        raise FloorContractError("holdout admission receipt の exact key 集合が不一致")
+    if value["schema"] != FLOOR_HOLDOUT_ADMISSION_SCHEMA:
+        raise FloorContractError("holdout admission receipt schema が不一致")
+    for field in ("campaign_run_id", "mode"):
+        if type(value[field]) is not str or not value[field]:
+            raise FloorContractError(f"holdout admission {field} が空でない str でない")
+    _canonical_relative_path(value["run_relpath"], field="holdout admission run_relpath")
+    for field in (
+        "protocol_sha256", "freeze_sha256", "manifest_sha256",
+        "ledger_projection_sha256",
+    ):
+        if not _is_sha256(value[field]):
+            raise FloorContractError(f"holdout admission {field} が SHA-256 でない")
+    identities = value["claim_identities"]
+    if not isinstance(identities, Mapping) or not identities:
+        raise FloorContractError("holdout admission claim_identities が非空 mapping でない")
+    normalized_identities: dict[str, str] = {}
+    for cell_id, digest in identities.items():
+        if type(cell_id) is not str or not cell_id or not _is_sha256(digest):
+            raise FloorContractError("holdout admission claim identity が不正")
+        normalized_identities[cell_id] = digest
+    for field in ("admission_row_count", "attempt_row_count"):
+        if type(value[field]) is not int or value[field] < 0:
+            raise FloorContractError(f"holdout admission {field} が非負 exact int でない")
+    if value["admission_row_count"] != len(normalized_identities):
+        raise FloorContractError(
+            "holdout admission admission_row_count と claim_identities 件数が不一致"
+        )
+    normalized = dict(value)
+    normalized["claim_identities"] = normalized_identities
+    try:
+        return json.loads(json.dumps(
+            normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            allow_nan=False,
+        ))
+    except (TypeError, ValueError) as exc:
+        raise FloorContractError("holdout admission receipt が canonical JSON 化不能") from exc
 
 
 def _pos_int(value, *, field: str) -> int:
@@ -348,6 +588,8 @@ def enumerate_cells(freeze: Mapping, *, stock_configuration: str) -> list[dict]:
         per_holdout[holdout_id] = _holdout_workload(holdout, holdout_id=holdout_id)
 
     assert configurations is not None
+    if "sort_best" not in configurations:
+        raise FloorContractError("各 holdout の構成集合に sort_best がない")
     cells: list[dict] = []
     for holdout_id in holdout_ids:
         info = per_holdout[holdout_id]

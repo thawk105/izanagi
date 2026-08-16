@@ -946,6 +946,12 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
             raise OracleDriverError(
                 f"[admission-missing] floor binary admission receipt が無い: {cell}"
             )
+        expected_binary_keys = _binary_admission.portable_built_keys_for(cell[1])
+        if not isinstance(rec, Mapping) or set(rec) != set(expected_binary_keys):
+            raise OracleDriverError(
+                f"[admission-mismatch] floor binary の configuration 条件付き "
+                f"exact key 集合が不一致: {cell}"
+            )
         try:
             _binary_admission.validate_portable_binary_record(
                 rec, expected_policy=current_admission_policy,
