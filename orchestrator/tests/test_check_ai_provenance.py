@@ -20,6 +20,7 @@ sys.path.insert(0, str(REPO / "tools"))
 
 import check_ai_provenance as provenance  # noqa: E402
 import check_docs  # noqa: E402
+import run_tests as run_tests_tool  # noqa: E402
 from orchestrator.campaign import login_headroom as LH  # noqa: E402
 
 site_policy = provenance.site_policy
@@ -4668,6 +4669,235 @@ def test_provenance_scope_marker_writes_oom_group_then_requires_cap_and_group(
     assert (scope / "memory.oom.group").read_text(encoding="utf-8") == "1\n"
     (scope / "memory.max").write_text(f"{cap + 1}\n", encoding="utf-8")
     assert provenance._bounded_scope_membership() is False
+
+
+def _write_provenance_scope_properties(
+    scope: Path,
+    memory_max: str,
+    *,
+    oom_group: str = "1",
+) -> None:
+    (scope / "memory.max").write_text(f"{memory_max}\n", encoding="utf-8")
+    (scope / "memory.oom.group").write_text(f"{oom_group}\n", encoding="utf-8")
+
+
+_FULLWIDTH_DIGIT_TRANSLATION = str.maketrans(
+    "0123456789",
+    "０１２３４５６７８９",
+)
+
+
+def _stub_page_size(name: str, value: object) -> object:
+    assert name == "SC_PAGE_SIZE", (
+        f"unexpected os.sysconf key {name!r}; expected 'SC_PAGE_SIZE'"
+    )
+    return value
+
+
+def _fullwidth_decimal(value: int) -> str:
+    return str(value).translate(_FULLWIDTH_DIGIT_TRANSLATION)
+
+
+@pytest.mark.parametrize("page_size", [4096, 65536], ids=["page-4k", "page-64k"])
+def test_provenance_scope_properties_accept_page_floor_and_reject_other_values(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    page_size: int,
+):
+    cap = 3 * page_size + page_size // 4 + 17
+    floor = cap - cap % page_size
+    assert cap % page_size != 0
+    assert floor != cap
+    monkeypatch.setattr(
+        provenance.os,
+        "sysconf",
+        lambda name: _stub_page_size(name, page_size),
+    )
+    scope = tmp_path / "scope"
+    scope.mkdir()
+
+    _write_provenance_scope_properties(scope, str(floor))
+    assert provenance._scope_properties_are_enforced(scope, cap) is True
+    _write_provenance_scope_properties(scope, str(cap))
+    assert provenance._scope_properties_are_enforced(scope, cap) is True
+
+    for rejected in (
+        str(cap + 1),
+        str(floor + 1),
+        str(floor - 1),
+        str(cap - 1),
+        "max",
+        "",
+        "   ",
+        f"+{cap}",
+        f"0{cap}",
+        _fullwidth_decimal(cap),
+        _fullwidth_decimal(floor),
+    ):
+        _write_provenance_scope_properties(scope, rejected)
+        assert provenance._scope_properties_are_enforced(scope, cap) is False
+
+    _write_provenance_scope_properties(scope, str(floor), oom_group="0")
+    assert provenance._scope_properties_are_enforced(scope, cap) is False
+
+
+@pytest.mark.parametrize("page_size", [4096, 65536], ids=["page-4k", "page-64k"])
+@pytest.mark.parametrize(
+    "invalid_page_size",
+    [
+        pytest.param(OSError("unavailable"), id="oserror"),
+        pytest.param(ValueError("unavailable"), id="valueerror"),
+        pytest.param(0, id="zero"),
+        pytest.param(-1, id="negative"),
+        pytest.param(True, id="bool"),
+        pytest.param(None, id="none"),
+        pytest.param("4096", id="string"),
+    ],
+)
+def test_provenance_scope_properties_sysconf_failure_or_invalid_is_exact_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    page_size: int,
+    invalid_page_size: object,
+):
+    cap = 3 * page_size + page_size // 4 + 17
+    floor = cap - cap % page_size
+    assert cap % page_size != 0
+    assert floor != cap
+    monkeypatch.setattr(
+        provenance.os,
+        "sysconf",
+        lambda name: _stub_page_size(name, page_size),
+    )
+    scope = tmp_path / "scope"
+    scope.mkdir()
+    _write_provenance_scope_properties(scope, str(floor))
+    assert provenance._scope_properties_are_enforced(scope, cap) is True
+
+    if isinstance(invalid_page_size, BaseException):
+        def fail_sysconf(name: str) -> int:
+            _stub_page_size(name, None)
+            raise invalid_page_size
+
+        monkeypatch.setattr(provenance.os, "sysconf", fail_sysconf)
+    else:
+        monkeypatch.setattr(
+            provenance.os,
+            "sysconf",
+            lambda name: _stub_page_size(name, invalid_page_size),
+        )
+    _write_provenance_scope_properties(scope, str(floor))
+    assert provenance._scope_properties_are_enforced(scope, cap) is False
+    _write_provenance_scope_properties(scope, str(cap))
+    assert provenance._scope_properties_are_enforced(scope, cap) is True
+
+
+@pytest.mark.parametrize("page_size", [4096, 65536], ids=["page-4k", "page-64k"])
+def test_provenance_scope_properties_preserve_cap_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    page_size: int,
+):
+    detector_cap = 3 * page_size + page_size // 4 + 17
+    detector_floor = detector_cap - detector_cap % page_size
+    assert detector_cap % page_size != 0
+    assert detector_floor != detector_cap
+    monkeypatch.setattr(
+        provenance.os,
+        "sysconf",
+        lambda name: _stub_page_size(name, page_size),
+    )
+    scope = tmp_path / "scope"
+    scope.mkdir()
+    _write_provenance_scope_properties(scope, str(detector_floor))
+    assert provenance._scope_properties_are_enforced(scope, detector_cap) is True
+
+    for cap, accepted, rejected in (
+        (1, ("1", "0"), ("2",)),
+        (page_size, (str(page_size),), (str(page_size - 1),)),
+        (
+            page_size + 1,
+            (str(page_size + 1), str(page_size)),
+            (str(page_size - 1), str(page_size + 2)),
+        ),
+        (0, ("0",), (str(-page_size),)),
+        (-1, ("-1",), (str(-page_size),)),
+    ):
+        for memory_max in accepted:
+            _write_provenance_scope_properties(scope, memory_max)
+            assert provenance._scope_properties_are_enforced(scope, cap) is True
+        for memory_max in rejected:
+            _write_provenance_scope_properties(scope, memory_max)
+            assert provenance._scope_properties_are_enforced(scope, cap) is False
+
+    monkeypatch.setattr(
+        provenance.os,
+        "sysconf",
+        lambda _name: (_ for _ in ()).throw(
+            AssertionError("nonpositive cap must not query page size"),
+        ),
+    )
+    for cap in (0, -1):
+        _write_provenance_scope_properties(scope, str(cap))
+        assert provenance._scope_properties_are_enforced(scope, cap) is True
+
+
+@pytest.mark.parametrize("page_size", [4096, 65536], ids=["page-4k", "page-64k"])
+def test_scope_property_implementations_have_behavior_parity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    page_size: int,
+):
+    cap = 3 * page_size + page_size // 4 + 17
+    floor = cap - cap % page_size
+    assert cap % page_size != 0
+    assert floor != cap
+    scope = tmp_path / "scope"
+    scope.mkdir()
+    monkeypatch.setattr(
+        provenance.os,
+        "sysconf",
+        lambda name: _stub_page_size(name, page_size),
+    )
+    _write_provenance_scope_properties(scope, str(floor))
+    assert (
+        run_tests_tool._scope_properties_are_enforced(scope, cap),
+        provenance._scope_properties_are_enforced(scope, cap),
+    ) == (True, True)
+
+    cases = (
+        (page_size, cap, str(cap), "1", True),
+        (page_size, cap, str(floor), "1", True),
+        (page_size, cap, str(floor + 1), "1", False),
+        (page_size, cap, str(cap + 1), "1", False),
+        (page_size, cap, "max", "1", False),
+        (page_size, cap, _fullwidth_decimal(cap), "1", False),
+        (page_size, cap, _fullwidth_decimal(floor), "1", False),
+        (page_size, cap, str(floor), "0", False),
+        (page_size, 1, "0", "1", True),
+        (page_size, page_size, str(page_size), "1", True),
+        (page_size, page_size + 1, str(page_size), "1", True),
+        (page_size, 0, "0", "1", True),
+        (page_size, -1, "-1", "1", True),
+        (None, cap, str(cap), "1", True),
+        (None, cap, str(floor), "1", False),
+    )
+    for page_value, case_cap, memory_max, oom_group, expected in cases:
+        monkeypatch.setattr(
+            provenance.os,
+            "sysconf",
+            lambda name: _stub_page_size(name, page_value),
+        )
+        _write_provenance_scope_properties(
+            scope,
+            memory_max,
+            oom_group=oom_group,
+        )
+        actual = (
+            run_tests_tool._scope_properties_are_enforced(scope, case_cap),
+            provenance._scope_properties_are_enforced(scope, case_cap),
+        )
+        assert actual == (expected, expected)
 
 
 @pytest.mark.parametrize(

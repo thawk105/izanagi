@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import FrozenInstanceError
@@ -54,6 +55,17 @@ _EXPECTED_E1_CLOSURE_PATHS = (
     "orchestrator/verifier/dsg.py",
     "orchestrator/verifier/model.py",
     "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+)
+_GIT_ENV_ALLOWLIST = (
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "PATH",
+    "SYSTEMROOT",
+    "TMPDIR",
+    "TZ",
 )
 LEDGER_RAW_SHA256 = "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93"
 EXPECTED_RECORDS = (
@@ -303,20 +315,48 @@ def _rewrite_wal(campaign: Path, mutate) -> None:
 def _fixture_git(repo: Path, *args: str) -> bytes:
     executable = shutil.which("git")
     if executable is None:
-        pytest.fail("git is required for artifact admission fixtures")
+        pytest.fail(
+            "artifact-admission Git infrastructure failure: git executable is unavailable"
+        )
+    git_env = {
+        key: os.environ[key]
+        for key in _GIT_ENV_ALLOWLIST
+        if key in os.environ
+    }
+    git_env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
     try:
         completed = subprocess.run(
-            [executable, "-C", str(repo), *args],
+            [
+                executable,
+                "-c", "core.autocrlf=false",
+                "-c", "core.fileMode=false",
+                "-C", str(repo),
+                *args,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
+            env=git_env,
             timeout=30,
         )
+    except subprocess.TimeoutExpired as exc:
+        pytest.fail(
+            "artifact-admission Git infrastructure failure: command timed out: "
+            f"args={args!r}: {exc}"
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        pytest.fail(f"git fixture command could not run: {exc}")
+        pytest.fail(
+            "artifact-admission Git infrastructure failure: command could not run: "
+            f"args={args!r}: {exc}"
+        )
     if completed.returncode != 0:
         pytest.fail(
-            "git fixture command failed: "
+            "artifact-admission Git infrastructure failure: command returned nonzero: "
             f"args={args!r} rc={completed.returncode} "
             f"stderr={completed.stderr.decode('utf-8', errors='replace')!r}"
         )
@@ -324,7 +364,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 
 
 def _committed_closure_repo(tmp_path: Path) -> Path:
-    """現行 checkout の hash を使わない exact 12-path E1 fixture。"""
+    """現行 checkout の hash を使わない exact 14-path E1 fixture。"""
     repo = tmp_path / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
@@ -951,12 +991,13 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (exact 12 path; witness gate 本体 pipeline.py と "
-        "verifier 実装 core/dsg/model/parse を含む)"
+        "enforcement source closure (exact 14 path; witness gate 本体 pipeline.py、"
+        "verifier dispatch __init__.py、verifier 実装 core/dsg/model/parse/report.py を含む)"
     )
     assert excinfo.value.excluded_scope == (
-        "verifier package のうち orchestrator/verifier/"
-        "{__init__,__main__,cli,report}.py の implementation bytes は束縛しない"
+        "verifier package のうち orchestrator/verifier/__main__.py と "
+        "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
+        "implementation bytes は束縛しない"
     )
 
 
@@ -1074,7 +1115,7 @@ def test_valid_v2_campaign_is_admitted(tmp_path: Path) -> None:
     )
     assert decoded.is_v2
     assert decoded.authority is not None
-    assert len(decoded.authority.contract_loader_blob_sha256s) == 12
+    assert len(decoded.authority.contract_loader_blob_sha256s) == 14
     assert A.classify_campaign(campaign).admission_status == "admitted"
 
 
@@ -1131,6 +1172,8 @@ def test_certified_acceptance_rejects_e1_stale_exact_map_mismatch(
         "orchestrator/verifier/dsg.py",
         "orchestrator/verifier/model.py",
         "orchestrator/verifier/parse.py",
+        "orchestrator/verifier/__init__.py",
+        "orchestrator/verifier/report.py",
     ),
     ids=lambda path: Path(path).name,
 )

@@ -616,7 +616,7 @@ def _fixture_git(repo: Path, *args: str) -> bytes:
 def _install_fixed_e1_closure(
     root: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """単位 A と同じ固定 bytes の exact 12-path closure を用意する。"""
+    """単位 A と同じ固定 bytes の exact 14-path closure を用意する。"""
     repo = root / "closure-repo"
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
