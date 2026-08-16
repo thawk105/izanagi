@@ -74,6 +74,32 @@ collection record に無い」で停止するためである。外した結果 M
 不変条件テストの競合は、main 側 tip 束縛テストへ本 wave 固有の assert を統合して解いた
 (落とした assert は 0 件)。詳細は `verbatim/s6-merge-audit.md`。
 
+## consumer の取り残しと、切り取られた出力を 2 度信じたこと
+
+初回の受入全走は 12270 passed / 1 failed で止まった。赤は
+`test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set` の 1 件で、
+非帰属ではなく**本 wave に帰属**した (main 単独の作業木では緑、本 wave の木では単独走行でも再現)。
+
+原因は consumer の取り残しである。C12 の証拠契約・拒否理由・判定器の版・凍結世代はすべて
+活性化報告の入力であり、報告の全 field の canonical JSON を domain-separated SHA-256 にした
+digest が変わる。実 repository から再導出したこの digest を pin している箇所が古いままだった。
+同じ pin は [T-1186] が判定器版の束縛を入れたときにも同じ理由で更新されている。
+
+**取り残しの範囲を 2 度続けて誤って読んだ。** 1 度目は受入の失敗出力に出た差分 1 件を全件と
+扱ったが、その出力自身が `...Full output truncated (4 lines hidden)` と明示していた。2 度目は
+`-vv` を付けて撮り直したが、その走行も `omitted_bytes=450948` で予算により切られていた。
+正しい根拠は 2 つあった — (a) 台帳側で旧 digest の occurrence を全件検索すると 4 件ちょうど、
+(b) このテストは構造の完全一致検査なので、4 件すべてを更新して緑になることが完全性の証明になる。
+実際に 4 件を更新し、13 file の焦点走で 1209 passed / rc=0 となった。
+
+4 件が同時に動くのは、登録済み launch admission が取り込んだ 1 つの digest を journal /
+report / lifecycle / acceptance receipt の 4 視点へ投影しているためである
+(`orchestrator/campaign/trial_registry.py` の admission 投影)。
+
+**焦点走の設計を是正した。** 初回は「変更したテストファイル」だけを焦点走に入れたため、
+変更した production コードを入力に持つ検査側が漏れ、受入 1 本を失った。是正後の焦点集合は
+13 file で、production の出力を実 repository fixture 経由で pin する検査を明示的に含む。
+
 ## `ruling_reference` の限界
 
 第 5 世代 record の `ruling_reference` は `D441` である。D441 は択一集合を記録した決定であって
