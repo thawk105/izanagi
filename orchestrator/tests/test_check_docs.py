@@ -570,6 +570,55 @@ def _archive_readme(*names: str) -> str:
     )
 
 
+def _numbered_archive_claim_line(
+    name: str,
+    date: str,
+    lo: int,
+    hi: int | None = None,
+    *,
+    end_date: str | None = None,
+    continuation: str | None = None,
+) -> str:
+    value = f"- `{name}` — worklog の {date} ({lo})"
+    if hi is not None:
+        value += "〜"
+        if end_date is not None:
+            value += f"{end_date} "
+        value += f"({hi})"
+    value += " 分"
+    if continuation is not None:
+        value += f"\n  {continuation}"
+    return value + "\n"
+
+
+def _archive_with_entries(
+    *entries: tuple[str, str],
+    extra_h2: str | None = None,
+) -> str:
+    chunks = ["# numbered synthetic archive\n"]
+    for date, ordinal in entries:
+        chunks.append(
+            f"\n## {date} ({ordinal}) — synthetic entry {ordinal}\n\n"
+            "### 次の一手\n"
+        )
+    if extra_h2 is not None:
+        chunks.append(
+            f"\n## {extra_h2}\n\n"
+            "### 次の一手\n"
+        )
+    return "".join(chunks)
+
+
+def _write_archive_index(root: str, *lines: str) -> None:
+    _write(
+        root,
+        "docs/archive/README.md",
+        "# archive\n\n## 現在の収容物\n\n"
+        f"- `{_PLACEHOLDER_ARCHIVE_NAME}`\n"
+        + "".join(lines),
+    )
+
+
 def _write_command_guard_docs(root: str) -> None:
     def refs(pairs: set[tuple[str, str]] | frozenset[tuple[str, str]]) -> str:
         grouped: dict[str, list[str]] = {}
@@ -9012,6 +9061,373 @@ def test_backlog_guard_latest_archive_structure_is_fail_closed():
             _assert_violation(root, archive_name, expected)
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "carry_item",
+    (
+        "- [T-002] (1)",
+        "- [T-002] 変わらず ((1) 参照)",
+        "- [T-002] **継続**: 変わらず ((1) 参照)。末尾注記",
+    ),
+)
+def test_backlog_guard_carry_reference_existing_in_current_is_clean(carry_item: str):
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", carry_item)
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "carry_item",
+    (
+        "- [T-002] (999)",
+        "- [T-002] 変わらず ((999) 参照)",
+        "- [T-002] **継続**: 変わらず ((999) 参照)。末尾注記",
+    ),
+)
+def test_backlog_guard_dangling_carry_reference_is_violation(carry_item: str):
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", carry_item)
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _assert_violation(root, "[T-002]", "(999)", "宙吊り参照")
+        assert "docs/worklog.md:" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_new_carry_syntax_in_prose_is_not_a_reference():
+    root = _build_min_repo()
+    try:
+        worklog = _CLEAN_WORKLOG.replace(
+            "1. [T-002] continue",
+            "- [T-002] prose mentions [T-003] (999) without carrying it",
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "宙吊り参照" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_numbered_archive_entry_is_carry_target():
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-1000.md"
+        _write(root, f"docs/archive/{name}", _archive_with_entries(("2026-07-30", "1000")))
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(name, "2026-07-30", 1000),
+        )
+        worklog = _CLEAN_WORKLOG.replace("1. [T-002] continue", "- [T-002] (1000)")
+        _write_backlog_docs(root, worklog_text=worklog)
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "worklog-phase3-0730.md",
+        "worklog-phase1-2.md",
+        "worklog-synthetic.md",
+    ),
+)
+def test_backlog_guard_unnumbered_archive_carry_is_out_of_scope(name: str):
+    root = _build_min_repo()
+    try:
+        archive = """# unnumbered archive
+
+## 2026-07-30 (10) — carry source
+
+### 次の一手
+- [T-050] (999)
+
+## 2026-07-31 (11) — carry sink
+
+- [T-050] consumed
+
+### 次の一手
+"""
+        _write(root, f"docs/archive/{name}", archive)
+        _write_archive_index(root, f"- `{name}`\n")
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "宙吊り参照" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_archive_non_phase_numeric_token_filename_is_malformed():
+    root = _build_min_repo()
+    try:
+        name = "worklog-broken-106-110.md"
+        _write(
+            root,
+            f"docs/archive/{name}",
+            _archive_with_entries(
+                *(("2026-07-30", str(number)) for number in range(106, 111))
+            ),
+        )
+        _write_archive_index(root, f"- `{name}`\n")
+        _assert_violation(root, name, "malformed filename")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_backlog_guard_duplicate_global_entry_number_is_violation():
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-1.md"
+        _write(root, f"docs/archive/{name}", _archive_with_entries(("2026-07-30", "1")))
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(name, "2026-07-30", 1),
+        )
+        res = _assert_violation(root, "全域 entry 番号 (1) が複数箇所に実在")
+        assert "docs/worklog.md:" in res.stdout
+        assert f"docs/archive/{name}:" in res.stdout
+        assert "宙吊り参照" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_archive_claims_accept_single_and_cross_date_ranges():
+    root = _build_min_repo()
+    try:
+        single = "worklog-phase4-0729-1000.md"
+        ranged = "worklog-phase4-0730-1001-0731-1003.md"
+        _write(root, f"docs/archive/{single}", _archive_with_entries(("2026-07-29", "1000")))
+        _write(
+            root,
+            f"docs/archive/{ranged}",
+            _archive_with_entries(
+                ("2026-07-30", "1001"),
+                ("2026-07-30", "1002"),
+                ("2026-07-31", "1003"),
+            ),
+        )
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(single, "2026-07-29", 1000),
+            _numbered_archive_claim_line(
+                ranged,
+                "2026-07-30",
+                1001,
+                1003,
+                end_date="07-31",
+                continuation="folded range annotation",
+            ),
+        )
+        res = _run_check(root)
+        assert res.returncode == 0, res.stdout + res.stderr
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_archive_filename_and_readme_reject_interior_gap():
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-10-12.md"
+        _write(
+            root,
+            f"docs/archive/{name}",
+            _archive_with_entries(("2026-07-30", "10"), ("2026-07-30", "12")),
+        )
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(name, "2026-07-30", 10, 12),
+        )
+        res = _assert_violation(root, "欠番=11")
+        assert f"docs/archive/{name}: filename が名乗る" in res.stdout
+        assert f"docs/archive/README.md:" in res.stdout
+        assert f"{name} が名乗る" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_archive_readme_range_must_match_actual_set():
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-10-12.md"
+        _write(
+            root,
+            f"docs/archive/{name}",
+            _archive_with_entries(
+                ("2026-07-30", "10"),
+                ("2026-07-30", "11"),
+                ("2026-07-30", "12"),
+            ),
+        )
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(name, "2026-07-30", 10, 11),
+        )
+        res = _assert_violation(root, f"{name} が名乗る", "範囲外=12")
+        assert f"docs/archive/{name}: filename が名乗る" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize("listing", ("missing", "bare"))
+def test_numbered_archive_readme_requires_range_syntax(listing: str):
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-10.md"
+        _write(root, f"docs/archive/{name}", _archive_with_entries(("2026-07-30", "10")))
+        lines = () if listing == "missing" else (f"- `{name}`\n",)
+        _write_archive_index(root, *lines)
+        res = _assert_violation(
+            root,
+            name,
+            "正規な「現在の収容物」行が 0 件",
+        )
+        if listing == "bare":
+            assert "entry 範囲を抽出できない" in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.mark.parametrize(
+    ("name", "entries", "readme_line"),
+    (
+        (
+            "worklog-phase3-0730-106-110-copy.md",
+            tuple(str(number) for number in range(106, 111)),
+            None,
+        ),
+        (
+            "worklog-phase3-106-110.md",
+            tuple(str(number) for number in range(106, 111)),
+            None,
+        ),
+        (
+            "worklog-phase10-0730-10-999-12.md",
+            ("10", "11", "12"),
+            _numbered_archive_claim_line(
+                "worklog-phase10-0730-10-999-12.md", "2026-07-30", 10, 12
+            ),
+        ),
+        (
+            "worklog-phase3-0730-0731-0732.md",
+            ("10",),
+            None,
+        ),
+    ),
+)
+def test_archive_malformed_filename_is_violation(
+    name: str,
+    entries: tuple[str, ...],
+    readme_line: str | None,
+):
+    root = _build_min_repo()
+    try:
+        _write(
+            root,
+            f"docs/archive/{name}",
+            _archive_with_entries(
+                *(("2026-07-30", number) for number in entries)
+            ),
+        )
+        _write_archive_index(root, readme_line or f"- `{name}`\n")
+        _assert_violation(root, name, "malformed filename")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_archive_readme_items_are_streamed_as_logical_items():
+    items = check_docs._archive_readme_items(
+        "preface\n- first\n  continuation\n- second\ntrailing prose\n",
+        7,
+    )
+    assert iter(items) is items
+    assert next(items) == ("- first continuation", 15)
+    assert next(items) == ("- second", 38)
+    with pytest.raises(StopIteration):
+        next(items)
+
+
+def test_numbered_archive_rejects_entry_without_global_number():
+    root = _build_min_repo()
+    try:
+        name = "worklog-phase3-0730-10.md"
+        _write(
+            root,
+            f"docs/archive/{name}",
+            _archive_with_entries(
+                ("2026-07-30", "10"),
+                extra_h2="2026-07-30 (続き) — synthetic continuation",
+            ),
+        )
+        _write_archive_index(
+            root,
+            _numbered_archive_claim_line(name, "2026-07-30", 10),
+        )
+        res = _assert_violation(root, "番号付き archive 内の H2", "全域 entry 番号がない")
+        assert "entry 範囲 (10)〜(10) と実体 entry 集合が不一致" not in res.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_spool_fold_rotation_output_passes_real_check_docs():
+    root = _build_min_repo()
+    module_name = "_t329_spool_fold_integration"
+    try:
+        worklog = _read(root, "docs/worklog.md").replace(
+            "### 次の一手\n1. [T-001] carry",
+            ("rotation filler " * 7500) + "\n\n### 次の一手\n1. [T-001] carry",
+            1,
+        )
+        _write_backlog_docs(root, worklog_text=worklog)
+        subprocess.run(["git", "-C", root, "init", "-q"], check=True)
+        subprocess.run(["git", "-C", root, "config", "user.name", "Fixture"], check=True)
+        subprocess.run(
+            ["git", "-C", root, "config", "user.email", "fixture@example.invalid"],
+            check=True,
+        )
+        subprocess.run(["git", "-C", root, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", root, "commit", "-qm", "base"], check=True)
+        _write(
+            root,
+            "docs/spool/worklog/2026-08-03-t329-1.md",
+            "---\n"
+            "schema: izanagi-spool-v1\n"
+            "ledger: worklog\n"
+            "authored: 2026-08-03\n"
+            "wave: t329\n"
+            "seq: 1\n"
+            "title: rotation integration\n"
+            "---\n"
+            "## 本文\n\n- rotation integration\n\n"
+            "## 次の一手差分\n\n### carry\n\n- [T-002]\n",
+        )
+        subprocess.run(["git", "-C", root, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", root, "commit", "-qm", "fragment"], check=True)
+
+        source = os.path.join(root, "tools", "spool_fold.py")
+        spec = importlib.util.spec_from_file_location(module_name, source)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        plan = module.plan_fold(root, fold_date="2026-08-03")
+        assert plan.rotation_path is not None
+        module.apply_fold(root, plan)
+
+        res = _run_check(root, "--expect-active-transaction", plan.transaction_id)
+        assert res.returncode == 0, res.stdout + res.stderr
+        assert "違反なし" in res.stdout
+    finally:
+        sys.modules.pop(module_name, None)
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_real_repo_clean():

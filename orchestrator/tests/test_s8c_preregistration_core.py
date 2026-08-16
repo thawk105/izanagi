@@ -607,7 +607,7 @@ def test_evidence_contract_hash_is_semantic_canonical_json() -> None:
 
 
 def test_contract_path_inventory_has_expected_count() -> None:
-    assert len(EVIDENCE_CONTRACT_PATH_CASES) == 38
+    assert len(EVIDENCE_CONTRACT_PATH_CASES) == 39
 
 
 @pytest.mark.parametrize(
@@ -731,17 +731,17 @@ def test_evidence_contract_hash_rejects_crlf_path_controls(
     [
         pytest.param(
             "\x00",
-            "77cd405fcc67ebd51416d4329edee3a2ecd9ed8ef0be71855d94c32486915735",
+            "8b8aafceb9dd5c83bde977c106facb4257318222a8a36cab38a4f18d3ab87fdc",
             id="nul",
         ),
         pytest.param(
             "\r",
-            "43776aacfa0793d7d8e20fdfa45d7d97e8ef49a9d26de0179e7d7b4b2c7a8e50",
+            "818001ee2e0cc0315809e5b2d72e0d565e78f43fca68743ed46ff99568dfa19b",
             id="cr",
         ),
         pytest.param(
             "\n",
-            "8218499e58e1643e3c0488c49c7f81e718a37fc7165b2280543ae0585089da8e",
+            "0773bb625645523ed4104bbd23f5c9e23da74e3c2d5c99f02fe7f8fb65c878da",
             id="lf",
         ),
     ],
@@ -1122,7 +1122,7 @@ def test_evidence_contract_hash_preserves_canonicalization_reason_before_crlf(
 
 def test_current_evidence_contract_hash_is_frozen() -> None:
     assert M.evidence_contract_sha256(EVIDENCE_CONTRACT_FILE.read_bytes()) == (
-        "c4f3740202de302c9dafc9cecac39165bc2213ebf425d2da8cf7ede91b264471"
+        "983f5d7c3b20e653dcf9518d76d8bbfbd9607fadcdd1b9d0a7118dbd578adb89"
     )
 
 

@@ -514,17 +514,6 @@ def _evaluate_c10(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
-def _artifact_object(probe: _ConditionProbe, kind: str) -> Mapping[str, Any] | None:
-    raw = probe.read_kind(kind)
-    if raw is None:
-        return None
-    try:
-        value = json.loads(raw.decode("utf-8", "strict"), object_pairs_hook=_unique_object)
-    except (UnicodeError, json.JSONDecodeError, EvidenceContractError) as exc:
-        raise EvidenceContractError("artifact-json-invalid", kind) from exc
-    return value if isinstance(value, dict) else {}
-
-
 def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
     tree = probe.python_kind("generation_supervisor")
     if tree is None:
@@ -542,32 +531,29 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
     workload = functions["_run_workload"]
     if "apply_critic_feedback" not in _called_names(workload):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CRITIC_FEEDBACK_CONSUMER_ABSENT)
-    sample = _artifact_object(probe, "sample_plan")
-    if sample is None:
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.SAMPLE_PLAN_ABSENT)
-    if not (
-        sample.get("schema_version") == "s8c-sample-plan/v1"
-        and type(sample.get("minimum_generations")) is int
-        and sample["minimum_generations"] >= 2
-        and sample.get("critic_feedback_required") is True
-        and type(sample.get("sample_count")) is int
-        and sample["sample_count"] > 0
+    projection = probe.python_kind("generation_projection")
+    if projection is None:
+        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CRITIC_FEEDBACK_CONSUMER_ABSENT)
+    projection_functions = _functions(projection)
+    projection_assignments = {
+        target.id
+        for node in projection.body
+        for target in (
+            node.targets
+            if isinstance(node, ast.Assign)
+            else (node.target,) if isinstance(node, ast.AnnAssign) else ()
+        )
+        if isinstance(target, ast.Name)
+    }
+    if (
+        not {"_CRITIC_KEYS", "_DIAGNOSTIC_METRICS"} <= projection_assignments
+        or not {
+            "apply_critic_feedback",
+            "_validate_critic_projection",
+            "validate_planner_payload",
+        } <= projection_functions.keys()
     ):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.SAMPLE_PLAN_INVALID)
-    lift = _artifact_object(probe, "cap_lift")
-    if lift is None:
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CAP_LIFT_RECEIPT_ABSENT)
-    if not (
-        lift.get("schema_version") == "s8c-generation-cap-lift/v1"
-        and type(lift.get("minimum_generations")) is int
-        and lift["minimum_generations"] >= 2
-        and lift.get("entrypoints") == ["main", "run_trial", "_run_workload"]
-        and isinstance(lift.get("ruling_reference"), str)
-        and lift["ruling_reference"]
-    ):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CAP_LIFT_RECEIPT_INVALID)
-    if not {"sample_plan_sha256", "cap_lift_sha256"} <= _strings(workload):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.GENERATION_ARTIFACT_BINDING_ABSENT)
+        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CRITIC_FEEDBACK_CONSUMER_ABSENT)
     return _result(
         probe,
         core.PredicateStatus.EVIDENCE_UNDEFINED,
@@ -618,6 +604,9 @@ _MACHINE_EVALUATORS = {
     11: _evaluate_c11,
     12: _evaluate_c12,
 }
+MACHINE_CHECKABLE_CONDITION_IDS: frozenset[str] = frozenset(
+    f"C{number:02d}" for number in _MACHINE_EVALUATORS
+)
 SATISFIABLE_CONDITION_IDS: frozenset[str] = frozenset()
 
 
