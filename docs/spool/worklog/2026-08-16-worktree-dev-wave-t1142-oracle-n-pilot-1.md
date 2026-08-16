@@ -116,12 +116,19 @@ pilot は非公式の探索計測であり、出力 schema の `eligibility` 4 f
 
 ### 更新
 
-- [T-1142] **P2・pilot 実装完了、実測進行中**: n を統計的に導出可能にする pilot を実装し、
+- [T-1142] **P2・pilot 実装完了、対象条件の分布を初取得 (規模は事前登録に未達)**:
+  n を統計的に導出可能にする pilot を実装し、
   目標を実測前に凍結した。誤選択は indifference-zone (真の best より相対 δ を超えて劣る
   構成を選ぶこと、tie は誤りに数えない) と定義し、(δ, α) の格子を事前登録して
   表 `n(δ, α)` を出す形にした。実測は Pegasus・rr20/rr80・extime=5・6 configuration の
-  12 cell で、1 巡 = 320 秒 (12 cell 各 26.7 秒、min 26.6 / max 26.8) を実測済み。
-  R=33 を 3 allocation へ分割して取得中。**n の値は本 wave では確定しない** —
+  12 cell。**132 session (12 cell × 11 round) を完走**し、対象条件の between-run 分布を
+  初めて取得した。cell ごとの CV は **0.0022〜0.0126**、事前登録したドリフト診断は
+  全 12 cell が閾値通過 (`valid_for_n_analysis=true`、無効化理由なし)。
+  [T-987] が「差の分散に要る」と指摘した 6 構成の同時共分散・相関も取得済み。
+  実測は `output/insights/2026-08-16_t1142-n-pilot-prereg/measured_distributions.md`。
+  **規模は事前登録 (R≥32) に未達で R=11** — 分散の相対標準誤差 44.7%。
+  したがって**本値から n を確定してはならない**。次は 33 round を 1 job で取る。
+  **n の値は本 wave では確定しない** —
   集約規則の再凍結 (D143 (b) + [T-987] (b) + 世代移行) に従属する。
   per-pair floor も埋めない。
   base: 1bab5574f1604aabddd5f62bb71af1e432c484ce6b759d71e41d191d4f6f6a46
