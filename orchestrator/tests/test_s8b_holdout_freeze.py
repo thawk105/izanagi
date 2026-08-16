@@ -1408,6 +1408,168 @@ def test_v2_candidate_rejects_floor_not_eligible_for_refreeze(
         )
 
 
+def test_v2_candidate_rejects_unreachable_floor_admission_root(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    admission_root.rename(admission_root.with_name("admission-unavailable"))
+
+    with pytest.raises(M.FreezeError, match="^floor-admission-unverifiable:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_floor_admission_claim_mismatch(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    claims = sorted(
+        (root / ".git/izanagi/s8b-holdout-admission-v1/claims").glob("*.claim")
+    )
+    assert claims
+    claims[0].write_bytes(b"{}\n")
+
+    with pytest.raises(M.FreezeError, match="^floor-admission-mismatch:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_sibling_manifest_bytes_mismatch(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    manifest_path = root / fixture["result_rel"].rsplit("/", 1)[0] / "manifest.json"
+    manifest_path.write_bytes(b'{"changed":true}')
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-mismatch: result.manifest_sha256"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_completed_sessions_without_session_starts(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    run_dir = root / fixture["result_rel"].rsplit("/", 1)[0]
+    journal_path = run_dir / "journal.jsonl"
+    records = [
+        json.loads(line) for line in journal_path.read_text(encoding="utf-8").splitlines()
+    ]
+    journal_path.write_bytes(b"".join(
+        V2FIX.canonical_bytes(record) + b"\n"
+        for record in records if record["event"] != "session-start"
+    ))
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-mismatch: session-start-coverage-mismatch$"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_result_only_session_throughput_tamper(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    result["sessions"][0]["throughputs"][0] += 1.0
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-mismatch: journal sessions と result.sessions が不一致$"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+@pytest.mark.parametrize("manifest_kind", ["empty", "v2"])
+def test_v2_candidate_rejects_semantically_invalid_manifest_with_consistent_evidence(
+        tmp_path, monkeypatch, manifest_kind):
+    fixture = V2FIX.candidate_repository(
+        tmp_path, M, manifest_kind=manifest_kind,
+    )
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-mismatch: sibling-manifest-invalid:"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_result_only_binary_and_swo_identity_tamper(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    cell_id = next(
+        key for key, record in result["binaries"].items()
+        if record["configuration_id"] == "sort_best"
+    )
+    record = result["binaries"][cell_id]
+    forged_sha256 = "f" * 64
+    record["binary_sha256"] = forged_sha256
+    record["bin_hash_short"] = forged_sha256[:16]
+    record["sort_swo_oracle"]["binary_sha256"] = forged_sha256
+    receipt = record["admission_receipt"]
+    receipt["subject"]["binary_sha256"] = forged_sha256
+    unsigned = dict(receipt)
+    unsigned.pop("receipt_sha256")
+    receipt["receipt_sha256"] = hashlib.sha256(
+        V2FIX.canonical_bytes(unsigned)
+    ).hexdigest()
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-mismatch: result.binaries が sibling manifest と不一致$"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_unreachable_sibling_manifest(
+        tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    manifest_path = root / fixture["result_rel"].rsplit("/", 1)[0] / "manifest.json"
+    manifest_path.rename(manifest_path.with_name("manifest-unavailable.json"))
+
+    with pytest.raises(
+            M.FreezeError,
+            match="^floor-admission-unverifiable: sibling-manifest-unavailable"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
 def test_v2_candidate_rejects_closure_hit_absent_from_captured_head(
         tmp_path, monkeypatch):
     fixture = V2FIX.candidate_repository(tmp_path, M)
