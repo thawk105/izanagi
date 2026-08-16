@@ -750,16 +750,6 @@ def _index_protocol_record(
             "floor protocol index に同一組が複数ある: "
             f"pair={pair!r} paths={[index[pair].path, path]}"
         )
-    same_contract = sorted(
-        record.path
-        for (contract_sha256, _pin), record in index.items()
-        if contract_sha256 == pair[0]
-    )
-    if same_contract:
-        raise FloorCampaignError(
-            "floor protocol index に同一 contract_sha256 が複数ある: "
-            f"contract_sha256={pair[0]} paths={same_contract + [path]}"
-        )
     index[pair] = IndexedFloorProtocol(
         path=path,
         document=document,
@@ -963,15 +953,10 @@ def _reseal_protocol_at_root(root: Path) -> dict[str, object]:
     target_pair = _validate_floor_protocol_pair(
         target_contract.contract_sha256, target_pin,
     )
-    occupied_contract_paths = sorted(
-        record.path
-        for (contract_sha256, _pin), record in index.items()
-        if contract_sha256 == target_pair[0]
-    )
-    if occupied_contract_paths:
+    if target_pair in index:
         raise FloorCampaignError(
-            "AI reseal は同じ contract_sha256 に 2 件目の protocol を発行できない: "
-            f"contract_sha256={target_pair[0]} existing={occupied_contract_paths}"
+            "AI reseal は同一組の protocol を再発行できない: "
+            f"pair={target_pair!r} existing={index[target_pair].path}"
         )
 
     successor = copy.deepcopy(anchor.document)

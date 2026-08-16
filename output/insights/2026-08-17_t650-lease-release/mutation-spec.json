@@ -1,0 +1,231 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "t650.m0-no-release-at-all",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    if result.release_safe and not result.retryable_same_request:\n",
+          "new": "    if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_main_binds_release_to_wave_main_and_flushed_core_json",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_receipt_digest_change_blocks_release",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_releases_owned_lease_after_success_and_preserves_core_result",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_verified_receipt_digest_mismatch_blocks_release",
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_checker_violation_rc_is_release_safe_and_releases",
+        "orchestrator/tests/test_dev_wave_land.py::test_release_failure_never_overwrites_land_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m1-release-safe-default-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    release_safe: bool = field(default=False, compare=False)\n",
+          "new": "    release_safe: bool = field(default=True, compare=False)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_compact_core_json_preserves_legacy_64k_message_boundary",
+        "orchestrator/tests/test_dev_wave_land.py::test_finalize_failure_keeps_verified_fold_commit_and_never_rolls_back",
+        "orchestrator/tests/test_dev_wave_land.py::test_fold_rollback_failure_reason_reports_preserved_state",
+        "orchestrator/tests/test_dev_wave_land.py::test_land_result_release_contract_defaults_fail_closed_and_is_in_json",
+        "orchestrator/tests/test_dev_wave_land.py::test_successful_fold_rollback_remains_held_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m2-drop-retryable-guard",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "    if result.release_safe and not result.retryable_same_request:\n",
+          "new": "    if result.release_safe:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_locked_status_git_io_failure_is_retryable_and_retains",
+        "orchestrator/tests/test_dev_wave_land.py::test_main_requires_release_safe_and_not_retryable_same_request"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m7-any-nonzero-is-deterministic",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        if receipt.returncode == _PROVENANCE_VIOLATION_RC:\n",
+          "new": "        if receipt.returncode != 0:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_checker_infrastructure_rc_is_retryable_and_retains",
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_checker_signal_returncode_is_retryable_and_retains"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m8-violation-rc-never-release-safe",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        if receipt.returncode == _PROVENANCE_VIOLATION_RC:\n",
+          "new": "        if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_provenance_checker_violation_rc_is_release_safe_and_releases"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m9-authority-unverified-still-releases",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        if authority_digest is None:\n            release_state = \"unavailable\"\n            release_reason = \"receipt-authority-unverified\"\n",
+          "new": "        if False:\n            release_state = \"unavailable\"\n            release_reason = \"receipt-authority-unverified\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m11-drop-expected-main-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "                            expected_main_sha=request.tested_main_sha,\n",
+          "new": "                            expected_main_sha=None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_main_binds_release_to_wave_main_and_flushed_core_json"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m12a-drop-verified-digest-mismatch-guard",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        elif (\n            result.acceptance_receipt_sha256 is not None\n            and result.acceptance_receipt_sha256 != authority_digest\n        ):\n",
+          "new": "        elif False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_main_verified_receipt_digest_mismatch_blocks_release"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m12b-drop-reread-digest-guard",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "            if not receipt_unchanged:\n                release_state = \"unavailable\"\n                release_reason = \"receipt-digest-changed\"\n",
+          "new": "            if False:\n                release_state = \"unavailable\"\n                release_reason = \"receipt-digest-changed\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_main_receipt_digest_change_blocks_release"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m14-release-failure-overwrites-rc",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "                    except (Exception, KeyboardInterrupt):\n                        release_state = \"unavailable\"\n                        release_reason = \"release-internal-error\"\n",
+          "new": "                    except (Exception, KeyboardInterrupt):\n                        return 2\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_release_failure_never_overwrites_land_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m10-drop-holder-guard-in-release",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                if lease.holder != self_holder:\n                    return _lease_result(\"not-owner\", lease, self_holder)\n",
+          "new": "                if False:\n                    return _lease_result(\"not-owner\", lease, self_holder)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_cancels_own_wait_ticket_only",
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_never_removes_lease"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m11b-drop-main-sha-guard-in-release",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/wave_land_window.py",
+          "old": "                if (\n                    expected_main_sha is not None\n                    and lease.main_sha != expected_main_sha\n                ):\n",
+          "new": "                if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_wave_land_window.py::test_release_expected_main_sha_does_not_delete_reclaimed_same_slug"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "t650.m9x-two-layer-authority-and-reread-digest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "        if authority_digest is None:\n            release_state = \"unavailable\"\n            release_reason = \"receipt-authority-unverified\"\n",
+          "new": "        if False:\n            release_state = \"unavailable\"\n            release_reason = \"receipt-authority-unverified\"\n"
+        },
+        {
+          "file": "tools/dev_wave_land.py",
+          "old": "            if not receipt_unchanged:\n                release_state = \"unavailable\"\n                release_reason = \"receipt-digest-changed\"\n",
+          "new": "            if False:\n                release_state = \"unavailable\"\n                release_reason = \"receipt-digest-changed\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_land.py::test_main_receipt_digest_change_blocks_release"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

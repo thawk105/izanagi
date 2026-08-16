@@ -63,12 +63,13 @@ _TRIGGER_PROVENANCE_BASENAME = "p3_s8a_trigger_loop_provenance.json"
 _CAMPAIGN_VERIFIER_EPOCH_DOMAIN = b"campaign-verifier-epoch/v1"
 _CERTIFIED_VIEW_TOKEN = object()
 CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
-    "enforcement source closure (exact 12 path; witness gate 本体 pipeline.py と "
-    "verifier 実装 core/dsg/model/parse を含む)"
+    "enforcement source closure (exact 14 path; witness gate 本体 pipeline.py、"
+    "verifier dispatch __init__.py、verifier 実装 core/dsg/model/parse/report.py を含む)"
 )
 CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
-    "verifier package のうち orchestrator/verifier/"
-    "{__init__,__main__,cli,report}.py の implementation bytes は束縛しない"
+    "verifier package のうち orchestrator/verifier/__main__.py と "
+    "orchestrator/verifier/cli.py、および package 外の orchestrator/verify.py の "
+    "implementation bytes は束縛しない"
 )
 
 
@@ -99,10 +100,11 @@ class CampaignReadPurpose(str, Enum):
 class CampaignVerifierEpoch:
     """記録された enforcement source closure の epoch 診断。
 
-    ``campaign_verifier_epoch`` が束縛するのは exact 12 path の enforcement
-    source closure の同一性であり、witness gate 本体 ``pipeline.py`` と verifier
-    実装 ``core/dsg/model/parse`` を含む。verifier package の
-    ``__init__/__main__/cli/report.py`` の implementation bytes は束縛しない。
+    ``campaign_verifier_epoch`` が束縛するのは exact 14 path の enforcement
+    source closure の同一性であり、witness gate 本体 ``pipeline.py``、verifier
+    dispatch ``__init__.py``、verifier 実装 ``core/dsg/model/parse/report.py`` を含む。
+    verifier package の ``__main__.py`` と ``cli.py``、package 外の
+    ``orchestrator/verify.py`` の implementation bytes は束縛しない。
     """
 
     campaign_verifier_epoch: str
@@ -719,9 +721,10 @@ def _recorded_campaign_verifier_epoch(
 ) -> _RecordedCampaignVerifierEpoch:
     """記録値だけから enforcement closure epoch を導出する。
 
-    束縛対象は exact 12 path（witness gate 本体 ``pipeline.py`` と verifier 実装
-    ``core/dsg/model/parse`` を含む）である。verifier package の
-    ``__init__/__main__/cli/report.py`` の implementation bytes は束縛しない。
+    束縛対象は exact 14 path（witness gate 本体 ``pipeline.py``、verifier dispatch
+    ``__init__.py``、verifier 実装 ``core/dsg/model/parse/report.py`` を含む）である。
+    verifier package の ``__main__.py`` と ``cli.py``、package 外の
+    ``orchestrator/verify.py`` の implementation bytes は束縛しない。
     v2 の記録 map は記録 commit に対して真正と検証してから表示 ID を作る。
     """
     authority = decoded.authority
@@ -803,10 +806,11 @@ def require_campaign_verifier_epoch(
 ) -> CampaignVerifierEpoch:
     """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
 
-    診断する同一性は enforcement source closure exact 12 path（witness gate
-    本体 ``pipeline.py`` と verifier 実装 ``core/dsg/model/parse`` を含む）に限る。
-    verifier package の ``__init__/__main__/cli/report.py`` の implementation
-    bytes は束縛しない。
+    診断する同一性は enforcement source closure exact 14 path（witness gate
+    本体 ``pipeline.py``、verifier dispatch ``__init__.py``、verifier 実装
+    ``core/dsg/model/parse/report.py`` を含む）に限る。verifier package の
+    ``__main__.py`` と ``cli.py``、package 外の ``orchestrator/verify.py`` の
+    implementation bytes は束縛しない。
     """
     _validate_read_purpose(purpose)
     layout = _layout(campaign)

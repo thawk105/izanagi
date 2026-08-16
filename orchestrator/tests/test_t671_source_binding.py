@@ -6,6 +6,7 @@ import ast
 from collections import Counter
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -19,7 +20,7 @@ from orchestrator.campaign.layout import CampaignLayout
 from orchestrator.campaign.model import CampaignConfig
 
 
-_EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
+_PRE_WAVE_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/campaign/env_contract.py",
     "orchestrator/campaign/env_contract_activation.py",
     "orchestrator/campaign/execution_guard.py",
@@ -33,26 +34,68 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/verifier/model.py",
     "orchestrator/verifier/parse.py",
 )
+_EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
+    *_PRE_WAVE_ENFORCEMENT_SOURCE_PATHS,
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+)
+_GIT_ENV_ALLOWLIST = (
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "PATH",
+    "SYSTEMROOT",
+    "TMPDIR",
+    "TZ",
+)
 
 
 def _git(repo: Path, *args: str) -> bytes:
     """Run Git fail-closed; an unavailable/broken Git is a test failure, not a skip."""
     executable = shutil.which("git")
     if executable is None:
-        pytest.fail("git executable is required for the source-binding fixture")
+        pytest.fail(
+            "source-binding Git infrastructure failure: git executable is unavailable"
+        )
+    git_env = {
+        key: os.environ[key]
+        for key in _GIT_ENV_ALLOWLIST
+        if key in os.environ
+    }
+    git_env.update({
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+    })
     try:
         completed = subprocess.run(
-            [executable, "-C", str(repo), *args],
+            [
+                executable,
+                "-c", "core.autocrlf=false",
+                "-c", "core.fileMode=false",
+                "-C", str(repo),
+                *args,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
+            env=git_env,
             timeout=30,
         )
+    except subprocess.TimeoutExpired as exc:
+        pytest.fail(
+            "source-binding Git infrastructure failure: command timed out: "
+            f"args={args!r}: {exc}"
+        )
     except (OSError, subprocess.SubprocessError) as exc:
-        pytest.fail(f"git fixture command could not run: {exc}")
+        pytest.fail(
+            "source-binding Git infrastructure failure: command could not run: "
+            f"args={args!r}: {exc}"
+        )
     if completed.returncode != 0:
         pytest.fail(
-            "git fixture command failed: "
+            "source-binding Git infrastructure failure: command returned nonzero: "
             f"args={args!r} rc={completed.returncode} "
             f"stderr={completed.stderr.decode('utf-8', errors='replace')!r}"
         )
@@ -120,7 +163,7 @@ def _canonical_json(value: object) -> str:
     )
 
 
-def test_enforcement_source_closure_is_the_independent_exact_twelve_paths() -> None:
+def test_enforcement_source_closure_is_the_independent_exact_fourteen_paths() -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
 
     assert campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS == (
@@ -130,6 +173,146 @@ def test_enforcement_source_closure_is_the_independent_exact_twelve_paths() -> N
         contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
         is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
     )
+
+
+@pytest.mark.parametrize(
+    ("mutated_path", "old_bytes", "new_bytes"),
+    (
+        (
+            "orchestrator/verifier/__init__.py",
+            b"from .core import verify_trace_dir",
+            b"from .parse import parse_trace_dir as verify_trace_dir",
+        ),
+        (
+            "orchestrator/verifier/report.py",
+            b'"certified": res.certified,',
+            b'"certified": True,',
+        ),
+    ),
+    ids=("verifier-init-dispatch", "verifier-report-payload"),
+)
+def test_pre_wave_exact_twelve_misses_but_exact_fourteen_rejects_new_enforcement_face(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutated_path: str,
+    old_bytes: bytes,
+    new_bytes: bytes,
+) -> None:
+    from orchestrator.campaign import campaign_lock, contract_loader_binding
+
+    production_paths = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    assert contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS is production_paths
+    assert production_paths[:12] == _PRE_WAVE_ENFORCEMENT_SOURCE_PATHS
+    assert mutated_path in production_paths
+    repo, _commit, _blob_sha256s = _committed_loader_repo(
+        tmp_path, copy_current_loaders=True,
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    clean_binding = contract_loader_binding.capture_contract_loader_binding()
+    contract_loader_binding.verify_live_contract_loader_binding(clean_binding)
+
+    target = repo / mutated_path
+    original = target.read_bytes()
+    assert original.count(old_bytes) == 1
+    assert original.count(new_bytes) == 0
+    mutated = original.replace(old_bytes, new_bytes)
+    assert mutated != original
+    target.write_bytes(mutated)
+
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "CONTRACT_LOADER_RELATIVE_PATHS",
+        _PRE_WAVE_ENFORCEMENT_SOURCE_PATHS,
+    )
+    pre_wave_binding = contract_loader_binding.capture_contract_loader_binding()
+    assert tuple(pre_wave_binding.contract_loader_blob_sha256s) == (
+        _PRE_WAVE_ENFORCEMENT_SOURCE_PATHS
+    )
+    contract_loader_binding.verify_live_contract_loader_binding(pre_wave_binding)
+
+    monkeypatch.setattr(
+        contract_loader_binding,
+        "CONTRACT_LOADER_RELATIVE_PATHS",
+        production_paths,
+    )
+    assert contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS is production_paths
+    assert (
+        contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
+        == campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+    ) as capture_error:
+        contract_loader_binding.capture_contract_loader_binding()
+    assert "contract-loader-drift" in str(capture_error.value)
+    assert mutated_path in str(capture_error.value)
+
+    with pytest.raises(
+        contract_loader_binding.ContractLoaderBindingError,
+    ) as live_error:
+        contract_loader_binding.verify_live_contract_loader_binding(clean_binding)
+    assert "contract-loader-drift" in str(live_error.value)
+    assert mutated_path in str(live_error.value)
+
+
+def test_exact_fourteen_clean_closure_capture_and_live_verify(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.campaign import campaign_lock, contract_loader_binding
+
+    repo, commit, _blob_sha256s = _committed_loader_repo(
+        tmp_path, copy_current_loaders=True,
+    )
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    binding = contract_loader_binding.capture_contract_loader_binding()
+    contract_loader_binding.verify_live_contract_loader_binding(binding)
+
+    assert campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
+    assert (
+        contract_loader_binding.CONTRACT_LOADER_RELATIVE_PATHS
+        is campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+    )
+    assert tuple(binding.contract_loader_blob_sha256s) == (
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
+    assert set(binding.contract_loader_blob_sha256s) == set(
+        _EXPECTED_ENFORCEMENT_SOURCE_PATHS
+    )
+    for relative in _EXPECTED_ENFORCEMENT_SOURCE_PATHS:
+        committed_blob = _git(
+            repo, "cat-file", "blob", f"{commit}:{relative}",
+        )
+        assert (
+            hashlib.sha256(committed_blob).hexdigest()
+            == binding.contract_loader_blob_sha256s[relative]
+        )
+
+
+def test_verifier_package_module_census_requires_ruling_for_new_modules() -> None:
+    """新 module を閉包へ入れるか除外するかは、赤をユーザー裁定へ返す。"""
+    verifier_dir = Path(__file__).resolve().parents[1] / "verifier"
+    closure_members = frozenset({
+        "__init__.py",
+        "core.py",
+        "dsg.py",
+        "model.py",
+        "parse.py",
+        "report.py",
+    })
+    intentional_exclusions = frozenset({"__main__.py", "cli.py"})
+    actual = frozenset(
+        path.name
+        for path in verifier_dir.iterdir()
+        if path.is_file() and path.suffix == ".py"
+    )
+
+    assert len(closure_members) == 6
+    assert len(intentional_exclusions) == 2
+    assert closure_members.isdisjoint(intentional_exclusions)
+    assert actual == closure_members | intentional_exclusions
 
 
 @pytest.mark.parametrize(

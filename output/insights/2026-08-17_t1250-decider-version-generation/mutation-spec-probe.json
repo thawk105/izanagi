@@ -1,0 +1,117 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"decider_version\":\"s8c-decider/v1\",",
+          "new": ""
+        },
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"schema_version\":\"s8c-prereg-condition-freeze/v2\"",
+          "new": "\"schema_version\":\"s8c-prereg-condition-freeze/v1\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"decider_version\":\"s8c-decider/v1\"",
+          "new": "\"decider_version\":\"s8c-decider/v2\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/phase3-8c-preregistration.md",
+          "old": "新たに発行する世代 record は schema v2 とし、判定器の版 (`DECIDER_VERSION`) を持つ。既存の\nschema v1 record は版を持たない legacy として改変せずに残す。判定器・評価器・射影のいずれかで\n受理集合・拒否理由・射影された判定入力の意味を変える変更は、bytes 差の有無に関わらず\n`DECIDER_VERSION` を bump し、その版を持つ新世代の record を発行しなければならない。整形など\n意味が変わらない変更では bump しない。版の一致検査が止めるのは、明示的に bump したあとで\n古い版の record を使い続けることだけであり、bump の忘れは機械検出しない (D458)。\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"supersedes_sha256\":\"2b28cde32feaa4509ff6c8cfe382240d7b4d2d8f919608a6199f2b282c2f23e1\"",
+          "new": "\"supersedes_sha256\":\"d3c6a3dea39e8d05560091c1286f9a0b803e42b70512f7bf8cac009ed4244225\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "docs/phase3-8c-preregistration.md",
+          "old": "4. **crash 時の扱い**が 8b §9 項 8 (実験全体を判定不能、再走なし) に整合している。\n",
+          "new": "4. **crash 時の扱い**が 8b §9 項 8 に整合しているか、再走を 1 回まで許している。\n"
+        },
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"normative_body_sha256\":\"1dcc079ea29ebacbd8eecd3040a6647115487f7dcb35b6efaaf87da41608eeb4\"",
+          "new": "\"normative_body_sha256\":\"c73e4d38d7c46195831164d15e9237afa31b2cc6cfd5e6486756ab6a33a1575d\""
+        },
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"protected_sha256\":\"a755402f33adc528d436a4944f06dfd4c9a701230d67a3bbeaa4de2b1de7be2c\"",
+          "new": "\"protected_sha256\":\"44c982914c754036911c57c25cad23cea6bf71dd7db517526ac180b28a3d96c6\""
+        },
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "\"section6_conditions_sha256\":\"79568c0362c759cceb6c430fc3b8ebc8426e473d1ede5fc4f7076d162df46290\"",
+          "new": "\"section6_conditions_sha256\":\"8109ef9f333fc2bcc20cac982dc2dd54fff0d751d1575d419674e54b1db1f358\""
+        },
+        {
+          "file": "output/s8c-preregistration/condition-freeze/condition-freeze.v1.g4.json",
+          "old": "{\"number\":4,\"sha256\":\"4ae2f59ce487ecd61f666bd091e26c7ab4696c295b62b12aa933509bc7532a6d\"}",
+          "new": "{\"number\":4,\"sha256\":\"0df6d029795dabd8bc92146c98bad9d13b3ee14c1b5ea207c3cf72daff6c79d5\"}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_preregistration.py",
+          "old": "DECIDER_VERSION = \"s8c-decider/v1\"\n",
+          "new": "DECIDER_VERSION = \"s8c-decider/v2\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

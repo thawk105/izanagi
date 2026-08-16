@@ -19477,3 +19477,270 @@ test の汚染 payload は `HOLDOUTS` から実行時に組み立てる。
   hash を置く必要がない。置けば「復元できるのでは」という誤解だけが残る。
 - **凍結ディレクトリへ出力** — そこは除外領域だが writer が拒否する保護領域でもある。
 - **書き手の注意に委ねる** — 「気をつける」は gate ではない。機械検査にする。
+
+## D469. land が到達点ごとに解放可否を宣言し、終端でだけ受入 lease を自分で解放する (2026-08-17)
+
+**決定:** `tools/dev_wave_land.py` は結果へ 2 つの直交する述語を持たせ、両方が成立するときだけ
+受入 lease を自分で解放する。
+
+- `release_safe`: main・fold transaction・mutation が quiescent で、lease を手放しても
+  別 wave が中間状態の上で受入を始めないか。
+- `retryable_same_request`: 同じ request をそのまま再実行して成功しうるか。
+- 解放条件は `release_safe and not retryable_same_request` のみ。
+
+**両述語の既定は False とし、明示的に宣言した到達点だけが値を上げる。** rc からは導出しない。
+未宣言の経路・予期しない例外・中断はすべて自動的に保持側へ落ちる。
+
+**解放の権限は 3 段で束縛する。** 受入 receipt bytes の digest、wave slug、
+lease payload の `main_sha`。`tools/wave_land_window.py` の `release()` へ optional な
+`expected_main_sha` を足し、指定時だけ holder 一致に加えて `main_sha` 一致を unlink の条件にする。
+未指定時の挙動は現行と完全に同一とする。
+
+**core 結果 JSON は解放より前に stdout へ flush し、解放結果は stderr へ 1 行で出す。**
+JSON へ入れるのは 2 つの述語だけで、解放結果は入れない。JSON は compact separators で出力する。
+
+**land の受理条件・全史 provenance 監査・ff-only・fold・lock・lease TTL・待ち札 FIFO・
+通知の意味論は変更しない。**
+
+**理由:**
+
+- 解放は入口の契約文が親 (LLM セッション) へ要求するだけで、機械が保証する箇所が 1 つも無かった。
+  D239 は claim〜release を包む機械的 transaction が無いことを受容した限界として明記し、
+  D253 は「release 忘れが連鎖すれば待ち時間が lease TTL に比例する」と明文で予見していた。
+  その限界が実害として発火したため、受容をやめる。
+- **rc は解放安全性を表現できない。** 同一 rc に決定的拒否と一時障害の両方が畳まれている経路がある。
+  全史 provenance 監査の rc は、checker が違反を返した場合だけでなく、timeout・中断・
+  binding 読取失敗・dispatch の infrastructure failure・signal 由来の負値も同じ値へ畳む。
+  したがって checker が違反を報告したと言い切れる終了 code だけを決定的として扱う。
+- **既定を保持側に倒すのが正しさ側である。** 終端を再試行可能と誤る最悪値は
+  「TTL または誤った loop が続く間の停止」であり時間損失にとどまる。一方、再試行可能・未知・
+  中断状態を終端と誤る最悪値は「元の lander が再開可能な間に排他を解き、別 wave の受入を重ねる」で、
+  正しさに隣接する。安全側は可用性側ではない。
+- **rollback 成功後は解放しない。** ref・index・worktree・journal・symbolic HEAD の 4 状態を
+  安く証明できないため、証明できるまでは保持する。
+- **fold の finalize 失敗と active recovery 失敗は再試行可能だが解放安全ではない。**
+  同一 request の recovery が実装されている一方、journal が open のままだからである。
+  再試行可能性と解放安全性を同じ 1 bit へ畳まない理由がここにある。
+- 解放結果を JSON へ入れないのは、main と canonical 台帳が進んだのに結果 JSON が
+  書かれないまま終わる窓を作らないため、および通知経路の JSON 上限へ近づけないためである。
+
+**却下した選択肢:**
+
+- **claim から release までを 1 つの process の finally へ束ねる** — 起票時の想定はこれだったが、
+  束ねると land を駆動する呼び手の形を全部変えることになる。land の終端に置けば
+  呼び手を変えずに同じ保証が得られる。
+- **rc の allowlist で終端性を決める** — 同一 rc に決定的拒否と一時障害が畳まれている以上、
+  rc では表現できない。到達点ごとの宣言に替えた。
+- **未知の rc を解放側の既定にする** — 可用性側であって安全側ではない。上記理由のとおり。
+- **lease TTL の短縮・heartbeat の追加・fencing token の発行** — TTL は生存判定と最大窓の
+  両方を兼ねており、短縮すると遅い holder から lease を奪う側の危険が増す。fencing token は
+  別途見送り済みである。本決定は TTL に触れない。
+- **`release()` の holder 照合だけに頼る** — 同一 slug の別 invocation が取り直した lease を
+  古い invocation が削除できることを、敵対レビューが I/O seam 実行で実測した
+  (別 slug は unlink 0 回、同一 slug の新世代は unlink 1 回)。`main_sha` の
+  compare-and-delete を足して塞ぐ。
+
+**受容した限界:** 別 invocation が**同じ main_sha で**claim し直した場合は区別できない。
+完全な世代束縛には claim 側の generation 発行が要り、それは別途見送り済みである。
+また land へ到達しないまま終わる経路 (argparse 失敗・context 死亡・SIGKILL) は本決定では塞がらない。
+
+## D470. 受入赤の非帰属を「wave が test file を触っていない」で決めない (2026-08-17)
+
+**決定:** 受入全走の赤について、`tested_main..wave_tip` の差分が当該 node の test file を
+含まないことを、その赤が wave の差分に帰属しないことの十分条件として採らない。
+非帰属の判定は D371 のとおり再実行で決め、差分 path の非接触は補助的な絞り込みにしか使わない。
+
+**理由:**
+- 単独 node 再走は全走 (分散走行) でのみ再現する赤を構造的に再現できない。原因が test file か
+  否かは、この観測では区別できない。
+- 実際に、wave が production code だけ、`conftest.py` だけ、共有 fixture だけ、pytest plugin
+  だけを変更しても全走限定の赤を作れる。いずれの経路でも単独再走は tested main 側でも
+  wave tip 側でも緑になり、test file は未接触のままである。
+- 差分到達可能性の完全な写像 (import 閉包、fixture、plugin、subprocess、共有 filesystem を
+  含むもの) は現 repo に存在しない。それが無い状態で非接触を非帰属の証明に使うと、
+  「謳うだけで発火しない保証」になる。
+- `git diff --name-only A..B` は tree の差だけを見るため、endpoint tree が同じなら空になる。
+  空 path 集合を安全証明として読むと、履歴・commit identity に依存する赤を受理する。
+
+**却下した選択肢:**
+- 非接触を非帰属の十分条件として採る — 上記 4 経路が受理集合へ入る。受理集合を広げる方向の
+  変更を、閉包になっていない述語で正当化することになる (規律 2)。
+- 単独再走を N 回繰り返す — 分散走行の文脈を再現しないので観測が変わらず、費用だけが N 倍になる。
+- 赤の test file 全体を再走する — 同 file 内の別失敗を帰属へ混ぜるうえ、cross-file の順序汚染と
+  worker 間競合はやはり再現しない。
+
+## D471. 床値 protocol の契約単位封鎖を撤去し、組単位の発行前拒否だけを残す (2026-08-17)
+
+**決定 (2026-08-16 ユーザー裁定 = 案 3、機械化なし、`FROZEN_MANIFEST` へ載せない):**
+
+D444 決定 5 (target の `contract_sha256` が組 index に既出なら発行を拒否する) を**撤去する**。
+撤去は issuer と index 不変条件の両方で行う。同じ `contract_sha256` のまま `ccbench_pin` だけを
+進めた 2 件目の protocol は、index が受理し issuer が発行できる。
+
+代わりに issuer へ**組単位の発行前拒否**を置く。target の組 `(contract_sha256, ccbench_pin)` が
+走査済み index の key に既出なら、create-only writer を呼ぶ**前に**拒否する。この拒否は artifact を
+作らないため、復旧用の exact path 文言 (D444 決定 7 の「取り除くまで発行できない」) を載せない。
+載せると、今回作っていない正規の既存 artifact の削除を誘導する。
+
+versioned artifact を `FROZEN_MANIFEST` へ登録しない。登録を強制する scan・meta test・allowlist・
+checker は実在しないことを実測した (23 key の明示 mapping であり namespace の directory scan はない)。
+「登録してはならない」という逆向きの検査も新設しない。
+
+`resolve_current_floor_protocol` は変更しない。
+
+**維持するもの:** D444 決定 1〜4・6・7 (組からの path 一意導出、chain record pattern 登録、
+不変 16 field の byte-exact 継承、固定 HEAD blob からの anchor 読み、恒真ゲート不採用、
+失敗した発行の artifact を自動削除しない)、組単位一意性、create-only、既存の凍結 bytes、
+凍結チェーン検証の保留状態、D460 の resolver 契約。
+
+**理由:**
+
+- 既定方針 3 本 (粗い provenance で足りる / 凍結チェーン検証は保留 / 防御的堅牢化は見送り) が
+  いずれも束縛機構を増やす側と衝突する。「環境契約 1 世代につき床値 1 件」は世代が進むたび
+  再取得を義務づけ、計測コストを構造的に増やす。
+- 契約単位の封鎖は、採られた案 3 の唯一の実行形 (contract 据え置き・pin 前進) を機械拒否していた。
+  実測: 封印済み protocol の組は (contract `e576e9cd…`, pin `d706650c…`)、現行 env 契約は同じ
+  `e576e9cd…`、HEAD の `external/ccbench` gitlink は `511c9538…`。撤去しなければ床値 protocol を
+  今後 1 件も発行できない。
+- 組単位の拒否を writer より前に置くのは、後段の post-write full index 検査だけに任せると、
+  無効な artifact をディスクへ書いてから拒否することになるためである。
+
+**却下した選択肢:**
+
+- **resolver を「現行 (contract, HEAD pin) の組に exact 一致があればそれ、無ければ現行 contract に
+  exact 1 件」へ変える** — 親が段 1 で提案し、段 3 の敵対検証と一次資料で撤回した。
+  (i) D460 が「選択条件に ccbench pin を入れてはならない」と明記しており、本裁定は D460 に
+  触れていない。(ii) 実 driver `tools/pegasus/floor_campaign.sh` は固定 legacy path を `--protocol` に
+  渡すため、admission が versioned protocol を authority として通し実測は legacy protocol で走る
+  **authority 分裂**が起こりうる。fail-closed で止まるほうが良い。
+  (iii) 配線は [T-419] (3)、実発行は [T-1255] が所有する。
+- **contract 単位拒否を丸ごと消して組単位の発行前拒否を置かない** — 段 2 プランの初稿。
+  組が legacy anchor 側で埋まっている場合に versioned path が空いているため writer が成功し、
+  post-write の full index 検査で初めて赤になる。無効 artifact が残り、例外 message が
+  正規 artifact の削除を誘導する。
+- **`FROZEN_MANIFEST` へ versioned artifact を登録する** — 裁定が明示的に否定した。
+  23 key 固定の assert と held/keep 分割が動き、凍結台帳の件数という provenance の数字が変わる。
+
+**残る限界 (この決定では閉じない):**
+
+- 契約単位の封鎖が消えたことで、同一 contract の record が 2 件ある状態が**到達可能になった**。
+  この状態では `resolve_current_floor_protocol` が `count=2` で fail-closed になり、
+  `certified_writer_admission` の床値 admission が停止する。D460 の却下理由が前提にしていた
+  「index が同一 contract hash の 2 件目を上流で既に拒否しており production では到達不能」は、
+  本決定以後は成り立たない。これは事実の記録であって D460 の決定の変更ではない。
+- したがって**実 artifact の発行は、consumer 配線より先に行ってはならない**。
+  発行だけを先行させると床値 submit の受理集合が空になり、pilot result・レポート・試行台帳が
+  新規生成されなくなる。段 6 の独立レビュー 2 本が同じ結論に達した。
+- 削除すれば同じ組を再発行できる点、protocol 単位であって run 単位でない点、
+  ratified pointer が sanctioned namespace 外を指せる点は D444 の残る限界のまま変わらない。
+
+## D472. bounded scope の cap attest は要求値と page 切り捨て値のちょうど 2 値だけを受理する (2026-08-17)
+
+**決定:** cgroup の `memory.max` を要求 cap と照合する 3 箇所
+(`tools/run_tests.py` と `tools/check_ai_provenance.py` の `_scope_properties_are_enforced`、
+`tools/mutation_fanout.py` の `_bounded_scope_cgroup`) は、観測値が
+`str(cap)` または `str(cap - cap % P)` の**ちょうど 2 値**のときだけ受理する。
+`P` は `os.sysconf("SC_PAGE_SIZE")` が返す正の `int` で、取得できない・型や符号が不正な場合は
+`{str(cap)}` のみへ fail-closed する。`cap <= 0` に対する挙動は変更しない。
+
+**理由:**
+- kernel は `memory.max` を page 境界へ**切り捨てて**保持する (実測: `getconf PAGESIZE` = 4096 の
+  login node で `2913920000` → `2913918976`、cgroup へ直接 write しても同じ)。
+  厳密文字列比較は、page 整列していない cap の走行を**決定的に**拒否していた。
+- 任意の正の `P` について `cap - cap % P <= cap` が恒真なので、この受理集合は
+  **要求より緩い実効上限を 1 つも通さない**。上限の意味は保たれる。
+- 予算算出側 (`ceil(peak * 5/4)`) を page 整列させる案は却下した。予約台帳へ記録する
+  budget 値と受理集合が変わり、下限付近の既存 LOCAL 期待を壊す。観測側の照合を直せば
+  台帳値は保守的なまま `rc=16` が実結果へ戻る。
+- 観測値から `P` を逆算する形は採らない。guard が観測を自己正当化して恒真化する。
+  production に page size を焼き込むのも採らない (別 page size の環境で誤った上限を通す)。
+
+**却下した選択肢:**
+- `floor <= v <= cap` の区間比較 — 上限は緩まないが、切り捨て値でも要求値でもない
+  中間値 (例 `P=4096, cap=9216` に対する `8193`) を「要求どおり」と認めてしまう。
+- `abs(v - cap) < P` の page 近傍 — 上方向丸めの kernel へ可搬になる代わりに
+  `v = cap + 1` を受理し、要求より緩い上限を明示的に通す。上方向丸めは本環境で観測されない。
+- 検査そのものを外す・環境変数で無効化する — 正しさ防壁を緩める方向であり採らない。
+- 3 箇所を共有 module へ括り出す — 2 つの tool は単独起動される入口で、
+  共有化は新しい import failure 面を増やす。代わりに逐語同型の 2 実装へ、
+  有限入力表に対する挙動 parity のメタテストを置いた。
+
+## D473. enforcement source closure を exact 14 path へ広げ、verifier の dispatch 面と report 面を束縛する (2026-08-17)
+
+**決定:**
+
+1. **閉包を exact 14 path にする。** `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS` へ
+   `orchestrator/verifier/__init__.py` と `orchestrator/verifier/report.py` をこの順で末尾へ加える。
+   D442 決定 1 の「exact 12 path」を supersede する。既存 12 path の順序と綴りは変えない
+   (順序は epoch preimage に効く)。検証の意味論 (記録 commit の blob と現在の disk bytes の一致)、
+   停止点、fail-closed は変えない。これは 2026-08-16 のユーザー裁定 (択 (c)) の実装であり、
+   D442 が「却下した選択肢」に挙げた exact 13 以上を批准された裁定として採る。
+2. **識別子・wire key・hash domain は変えない。** `contract_loader_*` は歴史的名称として残し、
+   `campaign-verifier-epoch/v1` の domain 文字列も据え置く (D442 決定 2 を継承)。
+   実 corpus の physical な campaign lock は 32 本すべて v1 で v2 は 0 本という実測に基づき、
+   壊れる既存成果物が無い今の窓で広げる。
+3. **scope 診断を実際の束縛範囲と一致させる。** identity scope は exact 14 path と
+   dispatch 面・report 面の包含を明記し、excluded scope は brace 短縮をやめて
+   `orchestrator/verifier/__main__.py`、`orchestrator/verifier/cli.py`、
+   package 外の `orchestrator/verify.py` を実 path で列挙する。D442 決定 3 を supersede する。
+4. **閉包の完全性を test-only の package census で守る。** 閉包は固定 exact list なので、
+   verifier package へ module を 1 つ足して `__init__.py` の 1 行でそれを読ませれば、
+   epoch を変えずに dispatch 先を差し替えられる。実 package directory を走査して
+   `.py` が exact 8 件であり、うち 6 件が閉包 member、2 件が意図的除外であることを検査する。
+   新 module の追加は赤で止まり、閉包へ入れるか意図的除外かをユーザー裁定へ返す。
+   これは repo 不変条件のテストであって成果物の受理集合を変える gate ではない。
+
+**理由:**
+
+- 従来は E1 lock を作った後に `__init__.py` の 1 行を書き換えるだけで、
+  `pipeline.py` が呼ぶ enforcement dispatch の解決先を別実装へ向けられた。
+  同様に `report.py` の 1 行で rejection payload の `certified` field を実結果から離せた。
+  どちらも exact 12 の閉包検査を緑のまま通ることを実測した。
+- 実 corpus に v2 lock が 0 本である今が費用最小の窓である。成果物が積まれてから広げると
+  既存成果物を壊す。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+> `require_environment_contract=True` で `ident.ensure_campaign_identity` の source 検査が
+> 実際に完了した呼出しについて、**各 path を検査が読み取ったそれぞれの時点の** enforcement
+> source closure exact 14 path の disk bytes は、その呼出しが authority に採用した
+> `contract_loader_commit` の同 path Git blob と一致した。
+> exact 12 から増えた保証は、後続の source 検査が `orchestrator/verifier/__init__.py` と
+> `orchestrator/verifier/report.py` の**記録後 drift** も拒否することに限る。
+
+D442 と D268 の制限箇条書きはすべて継承する。加えて次を明記する。
+
+- **「gate を無効化できる」とは名乗らない。** 実証したのは (a) exact 12 の閉包検査が
+  両 file の変更を見ないこと、(b) dispatch の解決先と rejection payload がその 2 file から
+  制御できること、までである。棄却判定そのもの (`vr.certified`) は `core.py` 由来で閉包内にある。
+  anomaly を含む run が certified 集合へ入ることは実証していない。
+- **弱化してから作る fresh lock は exact 14 でも拒否しない。** 本閉包が検出するのは
+  lock 記録後の drift だけである。
+- **fixed-list 外の module は永久に閉包外である。** census テストは追加を赤で止めるが、
+  runtime の束縛ではない。
+- **certified sink の支配点は無い。** 低層 WAL writer と `pipeline.evaluate` の COMMIT は
+  verifier receipt を要求せず、ident の停止点を通らずに書ける。
+- **epoch の cross-version 認証は無い。** 同じ `campaign-verifier-epoch/v1` domain が
+  12-path grammar と 14-path grammar の双方を歴史上指す。旧定義の `E1` を新閉包の
+  certified 選択から排除する機構は存在しない。
+- **別閉包は追随しない。** T126 qualification の code identity は verifier では `core.py` しか
+  含まない。
+
+**受理集合の変化:**
+
+- 既存 artifact は不変。physical な v2 lock は 0 本のままである。
+- v2 wire の受理言語は exact-12 key から **exact-14 key への置換**であって部分集合化ではない。
+  旧 exact-12 map は拒否になる。
+- 閉包 14 path のいずれかに未 commit 差分がある working tree からの certified 実行は、
+  `ident` の停止点で拒否される。dispatch 面と report 面がこの対象へ加わったことが本決定の目的である。
+
+**却下した選択肢:**
+
+- **exact 16 (CLI と `__main__.py` と wrapper を含む)。** 批准された裁定が名指ししたのは
+  dispatch 面と report 面の 2 file である。閉包を広げる判断は脅威モデルの選択そのものであり、
+  親が独断で 1 点を選ばない。
+- **domain を `/v2` へ上げる。** 変更面が `E1` prefix を固定する下流の golden まで広がり、
+  批准された裁定の範囲を超える。cross-version の曖昧さは裁定パッケージへ返す。
+- **oracle 側で現行 scope の exact 一致を要求する。** 受理集合を変える新設 gate であり本裁定の範囲外。
+- **census を runtime gate にする。** 閉包 member 判定を実行時の directory 走査へ変えると、
+  epoch が checkout の file 集合に依存して非決定になる。test-only に留める。
