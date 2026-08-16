@@ -390,7 +390,7 @@ def _helper(
     return argv + (("--main-sha", sha) if sha is not None else ())
 
 
-def _preflight(fake: _FakeEffects) -> None:
+def _preflight(fake: _FakeEffects, *, claim_guards: bool = True) -> None:
     fake.expect_run(
         ("git", "rev-parse", "--is-inside-work-tree"),
         DW._CommandResult(0, "true\n"),
@@ -410,6 +410,13 @@ def _preflight(fake: _FakeEffects) -> None:
     fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
     fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
     fake.expect_run(_SUBMODULE_READY_ARGV, DW._CommandResult(0, ""))
+    if not claim_guards:
+        return
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(_history_provenance_argv())
 
 
 def _prerun_status(
@@ -448,7 +455,7 @@ def _message_provenance(fake: _FakeEffects, result: object = None) -> None:
     )
 
 
-_PREFLIGHT_EVENTS = [
+_BASE_PREFLIGHT_EVENTS = [
     ("run", ("git", "rev-parse", "--is-inside-work-tree"), _REPO, True),
     ("run", ("git", "rev-parse", "--show-toplevel"), _REPO, True),
     ("run", ("git", "symbolic-ref", "--quiet", "--short", "HEAD"), _REPO, True),
@@ -457,6 +464,16 @@ _PREFLIGHT_EVENTS = [
     ("run", _SUBMODULE_INDEX_FLAGS_ARGV, _REPO, True),
     ("run", _SUBMODULE_READY_ARGV, _REPO, True),
 ]
+_PRECLAIM_GUARD_EVENTS = [
+    (
+        "run",
+        ("git", "rev-list", "--count", "HEAD..main"),
+        _REPO,
+        True,
+    ),
+    ("run", _history_provenance_argv(), _REPO, True),
+]
+_PREFLIGHT_EVENTS = [*_BASE_PREFLIGHT_EVENTS, *_PRECLAIM_GUARD_EVENTS]
 _FINGERPRINT_EVENTS = [
     ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
     ("run", _DIFF_ARGV, _REPO, True),
@@ -947,6 +964,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self,
         *,
         branch: str = f"feature-{_WAVE}",
+        preclaim_behind: int = 0,
         behind: list[int] | None = None,
         message: str = "merge\nAI-Agent: codex\n",
         head_shas: list[str] | None = None,
@@ -955,6 +973,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         command_result: object = None,
         postclaim_rc: int = 0,
         merge_result: object = None,
+        preclaim_history_provenance_result: object = None,
         history_provenance_result: object = None,
         provenance_result: object = None,
         lease_dir: Path = _LEASE,
@@ -962,6 +981,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
     ) -> None:
         super().__init__()
         self.branch = branch
+        self.preclaim_behind = preclaim_behind
         self.behind = list([0] if behind is None else behind)
         self.message = message
         self.head_shas = list([] if head_shas is None else head_shas)
@@ -976,6 +996,11 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self.postclaim_rc = postclaim_rc
         self.merge_result = (
             DW._CommandResult(0) if merge_result is None else merge_result
+        )
+        self.preclaim_history_provenance_result = (
+            DW._CommandResult(0)
+            if preclaim_history_provenance_result is None
+            else preclaim_history_provenance_result
         )
         self.history_provenance_result = (
             DW._CommandResult(0)
@@ -1024,6 +1049,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
                 _held_self_payload(main_sha=_SHA_A),
             )
         if actual == ("git", "rev-list", "--count", "HEAD..main"):
+            if self.claims == 0:
+                return DW._CommandResult(0, f"{self.preclaim_behind}\n")
             assert self.behind
             return DW._CommandResult(0, f"{self.behind.pop(0)}\n")
         if actual == ("git", "diff", "--name-only", "HEAD...main"):
@@ -1031,6 +1058,8 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         if actual == ("git", "merge", "--no-ff", "--no-commit", "main"):
             return self.merge_result
         if actual == _history_provenance_argv():
+            if self.claims == 0:
+                return self.preclaim_history_provenance_result
             return self.history_provenance_result
         if actual == _provenance_argv():
             return self.provenance_result
@@ -4582,7 +4611,7 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
 )
 def test_receipt_path_rejected_before_claim(case: str) -> None:
     fake = _FakeEffects()
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
     if case == "inside-repo":
         receipt = _REPO / "receipt.json"
     elif case == "reserved-temp-name":
@@ -4609,7 +4638,7 @@ def test_receipt_path_rejected_before_claim(case: str) -> None:
 def test_existing_log_path_is_rejected_before_claim() -> None:
     fake = _FakeEffects()
     fake.existing_paths.add(_LOG)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -4624,7 +4653,7 @@ def test_existing_log_path_is_rejected_before_claim() -> None:
 def test_dangling_log_path_is_rejected_before_claim() -> None:
     fake = _FakeEffects()
     fake.symlinks.add(_LOG)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -4655,7 +4684,7 @@ def test_red_checker_paths_are_rejected_before_claim(case: str) -> None:
         fake.symlinks.add(_LOG.parent)
         if case == "dangling-symlink-probe-root":
             fake.directories.remove(_LOG.parent)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -4691,7 +4720,7 @@ def test_dangling_probe_root_is_rejected_before_claim(
         return original_is_dir(path)
 
     monkeypatch.setattr(fake, "is_dir", is_dir)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake, log_file=log_file)
 
@@ -4715,7 +4744,7 @@ def test_dangling_probe_root_is_rejected_before_claim(
 def test_acceptance_environment_rejected_before_claim(key: str, value: str) -> None:
     fake = _FakeEffects()
     fake.env[key] = value
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -5377,6 +5406,120 @@ def test_acquired_reloads_main_before_behind_check() -> None:
     fake.assert_drained()
 
 
+def test_preclaim_merge_message_requirement_never_claims_or_creates_waiter(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=13,
+        lease_dir=lease_dir,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome == DW._Outcome(
+        2,
+        "merge-message-preflight",
+        detail="main が 13 commit 進んでいるので `--merge-message-file` が必要",
+    )
+    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
+    assert list(lease_dir.iterdir()) == []
+    assert not any(
+        event[0] == "run" and "claim" in event[1]
+        for event in fake.events
+    )
+    DW._print_outcome(outcome)
+    assert (
+        "main が 13 commit 進んでいるので `--merge-message-file` が必要"
+        in capsys.readouterr().err
+    )
+
+
+def test_preclaim_behind_with_merge_message_reaches_claim() -> None:
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=1,
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 0
+    assert fake.claims == 2
+    first_claim = next(
+        index
+        for index, event in enumerate(fake.events)
+        if event[0] == "run" and "claim" in event[1]
+    )
+    preclaim_behind = fake.events.index(
+        (
+            "run",
+            ("git", "rev-list", "--count", "HEAD..main"),
+            _REPO,
+            True,
+        )
+    )
+    preclaim_provenance = fake.events.index(
+        ("run", _history_provenance_argv(), _REPO, True)
+    )
+    assert preclaim_behind < preclaim_provenance < first_claim
+
+
+def test_preclaim_not_behind_reaches_claim() -> None:
+    fake = _RoutingAcceptanceEffects(behind=[0, 0])
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 0
+    assert fake.claims == 2
+
+
+def test_postclaim_merge_message_requirement_still_catches_main_race() -> None:
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=0,
+        behind=[1],
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "merge-message")
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
+
+
+def test_preclaim_history_provenance_failure_never_claims_and_returns_reason(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    violation = (
+        "21582897ece7: 実装面に Codex role=author がない — "
+        "paths=tools/example.py"
+    )
+    fake = _RoutingAcceptanceEffects(
+        preclaim_history_provenance_result=DW._CommandResult(
+            1,
+            stderr=violation + "\n",
+        ),
+        lease_dir=lease_dir,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome == DW._Outcome(
+        70,
+        "preclaim-history-provenance",
+        source_rc=1,
+        detail=violation,
+    )
+    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
+    assert list(lease_dir.iterdir()) == []
+    DW._print_outcome(outcome)
+    assert violation in capsys.readouterr().err
+
+
 def test_merge_required_without_message_file_releases_before_submission() -> None:
     fake = _FakeEffects()
     _preflight(fake)
@@ -5435,8 +5578,9 @@ def test_owned_path_overlap_blocks_before_merge_and_releases(
     assert outcome.rc == 70
     assert outcome.stage == "owned-path-overlap"
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -5492,8 +5636,9 @@ def test_owned_path_diff_nonzero_fails_closed_and_releases() -> None:
     assert outcome.stage == "owned-path-diff"
     assert outcome.source_rc == 9
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -5547,6 +5692,7 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
         }
     ]
     assert selected_calls == [
+        _history_provenance_argv(),
         ("git", "diff", "--name-only", "HEAD...main"),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
         _history_provenance_argv(),
@@ -5589,6 +5735,7 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
         }
     ]
     assert selected_calls == [
+        _history_provenance_argv(),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
         _history_provenance_argv(),
         _provenance_argv(),
@@ -5604,14 +5751,14 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
 
 def test_missing_message_preflight_does_not_release_foreign_lease() -> None:
     fake = _FakeEffects()
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
     fake.is_file_queue.append((_MESSAGE, False))
 
     outcome = _run_acceptance(fake, message=_MESSAGE)
 
     assert outcome.rc == 2
     assert outcome.stage == "merge-message-preflight"
-    assert fake.events == [*_PREFLIGHT_EVENTS, ("is_file", _MESSAGE)]
+    assert fake.events == [*_BASE_PREFLIGHT_EVENTS, ("is_file", _MESSAGE)]
     fake.assert_drained()
 
 
@@ -5807,9 +5954,16 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
 
     assert outcome.rc == 70
     assert outcome.stage == stage
-    expected = [*_PREFLIGHT_EVENTS]
+    expected = [
+        *(
+            _BASE_PREFLIGHT_EVENTS
+            if stage in merge_stages
+            else _PREFLIGHT_EVENTS
+        )
+    ]
     if stage in merge_stages:
         expected.append(("is_file", _MESSAGE))
+        expected.extend(_PRECLAIM_GUARD_EVENTS)
     expected.extend(
         [
             ("monotonic",),
@@ -6103,8 +6257,9 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
     )
     fake.assert_drained(
         [
-            *_PREFLIGHT_EVENTS,
+            *_BASE_PREFLIGHT_EVENTS,
             ("is_file", _MESSAGE),
+            *_PRECLAIM_GUARD_EVENTS,
             ("monotonic",),
             ("run", ("git", "rev-parse", "main"), _REPO, True),
             ("monotonic",),
@@ -6250,8 +6405,9 @@ def test_malformed_ai_agent_message_fails_provenance_before_commit() -> None:
     )
     fake.assert_drained(
         [
-            *_PREFLIGHT_EVENTS,
+            *_BASE_PREFLIGHT_EVENTS,
             ("is_file", _MESSAGE),
+            *_PRECLAIM_GUARD_EVENTS,
             ("monotonic",),
             ("run", ("git", "rev-parse", "main"), _REPO, True),
             ("monotonic",),
@@ -6381,8 +6537,9 @@ def test_merge_failure_aborts_before_release() -> None:
     outcome = _run_acceptance(fake, message=_MESSAGE)
     assert outcome.rc == 70
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -6708,8 +6865,9 @@ def test_merge_abort_nonzero_is_cleanup_failure() -> None:
     assert outcome.rc == 74
     assert outcome.stage == "merge-abort"
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -7084,8 +7242,9 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
     assert outcome.rc == 70
     assert outcome.stage == "commit-message-postcheck"
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -7335,6 +7494,7 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
         "raise SystemExit(result.returncode)\n",
         encoding="utf-8",
     )
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7357,6 +7517,7 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
         "tracked.txt",
         "tools/wave_land_window.py",
         "tools/wave_land_window_real.py",
+        "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-dirty-real")
@@ -7795,6 +7956,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     helper = repo / "tools" / "wave_land_window.py"
     shutil.copy2(_LEASE_HELPER, helper)
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7815,7 +7977,13 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-deadlock")
     main_sha = git("rev-parse", "main")
@@ -7891,6 +8059,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7907,7 +8076,13 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal")
     signal_child = (
@@ -7952,6 +8127,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7968,7 +8144,13 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal-success")
     runner = tmp_path / "success-boundary.py"

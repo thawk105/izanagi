@@ -2989,6 +2989,31 @@ def run_acceptance(
         acceptance_environment = _acceptance_environment_preflight(effects, repo)
         if merge_message_file is not None and not effects.is_file(merge_message_file):
             raise _StageFailure("merge-message-preflight", RC_USAGE)
+        preclaim_behind = _behind_count(
+            effects,
+            repo,
+            "preclaim-behind-count",
+        )
+        if preclaim_behind > 0 and merge_message_file is None:
+            raise _StageFailure(
+                "merge-message-preflight",
+                RC_USAGE,
+                detail=(
+                    f"main が {preclaim_behind} commit 進んでいるので "
+                    "`--merge-message-file` が必要"
+                ),
+            )
+        _run_capture(
+            effects,
+            (
+                sys.executable,
+                str(repo / "tools" / "check_ai_provenance.py"),
+            ),
+            repo,
+            "preclaim-history-provenance",
+            diagnostic_reason="full-history-provenance",
+            capture_failure_output=True,
+        )
         if not owned_paths:
             print(
                 "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
