@@ -1123,7 +1123,8 @@ def _wilson_upper(errors: int, trials: int, confidence: float) -> float:
     denominator = 1.0 + z * z / trials
     centre = p + z * z / (2.0 * trials)
     radius = z * math.sqrt(p * (1.0 - p) / trials + z * z / (4.0 * trials * trials))
-    return min(1.0, (centre + radius) / denominator)
+    upper = 1.0 if errors == trials else (centre + radius) / denominator
+    return max(0.0, min(1.0, upper))
 
 
 def _conservative_candidate_selection(
