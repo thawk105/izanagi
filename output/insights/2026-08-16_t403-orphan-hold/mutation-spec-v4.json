@@ -1,6 +1,6 @@
 {
   "schema": "izanagi-dev-wave-mutation-spec/v1",
-  "estimated_run_seconds": 300,
+  "estimated_run_seconds": 60,
   "timeout_seconds": 2400,
   "hang_timeout_seconds": 3000,
   "mutations": [
@@ -163,9 +163,10 @@
         "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_always_blocks_should_teardown_between_observation_points[False-0-True]",
         "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_always_blocks_should_teardown_between_observation_points[False-1-True]",
         "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_always_blocks_should_teardown_between_observation_points[True-None-False]",
+        "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_lstat_error_preserves_container_without_teardown",
         "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_preserves_container_and_wrapper_receipt_between_observation_points[False]",
         "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_preserves_container_and_wrapper_receipt_between_observation_points[True]",
-        "orchestrator/tests/test_mutation_worktree.py::test_orphan_hold_lstat_error_preserves_container_without_teardown"
+        "orchestrator/tests/test_mutation_worktree.py::test_orphan_stop_sidecar_preserves_container_and_receipt_without_hold"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -181,7 +182,8 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_mutation_worktree.py::test_plan_only_exception_fallback_preserves_orphan_hold_container_between_observation_points"
+        "orchestrator/tests/test_mutation_worktree.py::test_plan_only_exception_fallback_preserves_orphan_hold_container_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_plan_only_exception_fallback_preserves_sidecar_only_container"
       ],
       "expected_status": "KILLED",
       "hang_risk": false
@@ -230,7 +232,82 @@
         }
       ],
       "expected_nodes": [
-        "orchestrator/tests/test_mutation_harness.py::test_dispatch_non_timeout_parse_error_is_not_an_orphan_condition"
+        "orchestrator/tests/test_mutation_harness.py::test_abnormal_rc_with_expected_failed_node_flushes_parse_error_and_stops",
+        "orchestrator/tests/test_mutation_harness.py::test_applied_diff_must_equal_registration_preflight",
+        "orchestrator/tests/test_mutation_harness.py::test_apply_mutation_calls_restore_at_the_production_callsite",
+        "orchestrator/tests/test_mutation_harness.py::test_completed_record_is_flushed_before_next_runner_sigkill",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_hold_write_failure_stops_harness_without_restore_or_next_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_non_timeout_parse_error_is_not_an_orphan_condition",
+        "orchestrator/tests/test_mutation_harness.py::test_dispatch_timeout_latches_hold_preserves_bytes_stops_next_and_writes_stop",
+        "orchestrator/tests/test_mutation_harness.py::test_expected_node_must_exist_in_pytest_collection",
+        "orchestrator/tests/test_mutation_harness.py::test_expected_spec_hash_mismatch_stops_before_runner_and_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_fake_runner_is_rejected_before_execution",
+        "orchestrator/tests/test_mutation_harness.py::test_hang_risk_uses_short_timeout_records_evidence_and_restores",
+        "orchestrator/tests/test_mutation_harness.py::test_normal_run_uses_cumulative_replacements_and_full_failed_line",
+        "orchestrator/tests/test_mutation_harness.py::test_orphan_stop_records_origin_and_verification_errors_without_restoring",
+        "orchestrator/tests/test_mutation_harness.py::test_parameter_suffix_is_matched_exactly",
+        "orchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[\"x\"-anchor count=2]",
+        "orchestrator/tests/test_mutation_harness.py::test_replacement_anchor_must_be_exactly_one[ABSENT-anchor count=0]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_corrupt_json",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_head",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_different_spec_hash",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_duplicate_record_id",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_every_missing_terminal_and_baseline_field_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_incomplete_running_record_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_minimal_forged_terminal_record",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_orphan_stop_sidecar_before_runner_without_hold",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[expected_nodes-value1-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[injection_diff_sha256-0000000000000000000000000000000000000000000000000000000000000000-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[rc-0-status /u304c rc/node/artifact evidence /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_terminal_record_poison[tool_sha256-0000000000000000000000000000000000000000000000000000000000000000-/u73fe spec/evidence]",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_reruns_parse_error_and_skips_terminal_record",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[out]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[spec]",
+        "orchestrator/tests/test_mutation_harness.py::test_runtime_artifacts_inside_checkout_are_rejected_before_baseline[temp]",
+        "orchestrator/tests/test_mutation_harness.py::test_signal_unwind_with_hold_marks_restore_skipped_and_preserves_mutation",
+        "orchestrator/tests/test_mutation_harness.py::test_sigterm_handler_stops_child_and_restores_active_mutation",
+        "orchestrator/tests/test_mutation_harness.py::test_startup_rejects_one_byte_head_mismatch_before_runner_or_ledger",
+        "orchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[False]",
+        "orchestrator/tests/test_mutation_harness.py::test_tracked_or_indexed_test_dirt_is_rejected_before_runner[True]",
+        "orchestrator/tests/test_mutation_harness.py::test_unknown_spec_schema_is_rejected",
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_attempt_sidecar_records_every_request_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_real_harness_local_e2e_uses_disposable_tree_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-sidecar-startup-gate-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    orphan_stop = _orphan_stop_path(out)\n    if _path_present_fail_closed(orphan_stop):\n        raise HarnessError(_orphan_stop_gate_message(orphan_stop))",
+          "new": "    orphan_stop = _orphan_stop_path(out)\n    if False:\n        raise HarnessError(_orphan_stop_gate_message(orphan_stop))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_fresh_rejects_orphan_stop_sidecar_before_runner_without_hold",
+        "orchestrator/tests/test_mutation_harness.py::test_orphan_stop_sidecar_lstat_error_rejects_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_orphan_stop_sidecar_before_runner_without_hold"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-wrapper-sidecar-term-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    return _path_present_fail_closed(hold) or _path_present_fail_closed(sidecar)",
+          "new": "    return _path_present_fail_closed(hold)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_orphan_stop_sidecar_preserves_container_and_receipt_without_hold",
+        "orchestrator/tests/test_mutation_worktree.py::test_plan_only_exception_fallback_preserves_sidecar_only_container"
       ],
       "expected_status": "KILLED",
       "hang_risk": false

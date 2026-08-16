@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-08-16
 wave: dev-wave-t403-orphan-job-hold
 seq: 1
-title: 孤児 job が生きうる間の投入・復元・廃棄・受入掃除を fail-closed で止めた — 署名を job_may_remain 1 語へ単純化し、ハーネス側に dispatcher 非依存の二重化を置いた (コード + テスト、branch worktree-dev-wave-t403-orphan-job-hold、変異 matrix = 13/13 KILLED、焦点走 1493 passed)
+title: 孤児 job が生きうる間の投入・復元・廃棄・受入掃除を fail-closed で止めた — 署名を job_may_remain 1 語へ単純化し、ハーネス側に dispatcher 非依存の二重化を置いた (コード + テスト + docs、branch worktree-dev-wave-t403-orphan-job-hold、変異 matrix = 15/15 KILLED、焦点走 1493 passed)
 ---
 
 ## 本文
@@ -32,14 +32,20 @@ title: 孤児 job が生きうる間の投入・復元・廃棄・受入掃除�
 - 段 4 の過剰拒否正例 1 本は、5 つの独立した検出面を 1 変異にまとめており単一理由性を
   満たさないと段 6 レビューが指摘した。1 面 (ハーネス検出) だけを登録し、残り 4 面は
   完全集合を静的に確定できないため**登録しなかった** (DW-M01 の「確認できなければ登録しない」)。
-- 変異 matrix は使い捨て worktree (`tools/mutation_worktree.py`、runner=dispatch) で 2 回走らせた。
-  1 回目は否定変異 12/12 KILLED、正例 1 本が MISMATCH。ただし期待ノードは落ちたうえで
-  6 件多く落ちており、殺せていないのではなく期待集合が不完全だった。完全集合で再登録した
-  2 回目が **13/13 KILLED、MISMATCH 0、baseline PASSED**。1 回目は probe として扱い、
-  台帳は `/work/1/SFC/tanab/dev-wave-jobs/t403-mutation-out/ledger-run2.json`。
+- 焦点再レビューが land 阻止の所見を 1 件出した。dispatcher と harness が同じ storage 原因で
+  hold file を書けないと、停止が `<--out>.orphan-stop.json` だけになり、その状態からの再開が
+  機械的に止まらない。起きる条件は 3 つ重なる必要があるが、成立時の結果はこの機構が防ぐはずの
+  事象そのものなので 2 巡目の fix を投じ、停止記録を fresh / `--resume` 双方の起動 gate にした。
+- 変異 matrix は使い捨て worktree (`tools/mutation_worktree.py`、runner=dispatch) で 4 回走らせた。
+  権威は 4 回目で **15/15 KILLED、MISMATCH 0、baseline PASSED、wrapper rc=0**。
+  台帳は `output/insights/2026-08-16_t403-orphan-hold/mutation-ledger-run4.json`。
+  1 回目と 3 回目の MISMATCH はいずれも「期待より多く落ちた」側で、殺せなかった変異はゼロだった。
+  3 回目のずれは fix 2 巡目が足した検査が同じ分岐を共有し始めたためで、
+  期待 node は fix 後の最終 commit で `--junitxml` から再導出し直す必要があることを再確認した。
 - 1 回目の wrapper は matrix 完走後の evidence 退避だけ EXDEV で失敗した
   (`--out` が `/home`、scratch が `/work` で別デバイス)。matrix 自体は完走しており、
   再走では出力先を scratch と同一デバイスへ置いて teardown まで rc=0 になった。
+  この知見は段 8 で `docs/dev-wave/mutation.md` の `DW-M07` へ入れた。
 - 背景待ち手の完了通知が 1 度**偽**だった。成果物も完了印も無く producer は生存していたため、
   3 点照合 (成果物実在・完了印・producer 死) で検出して張り直した。
 - この wave が保証しないことを明示する。hold は latch であって相互排他 lock ではない。
@@ -54,7 +60,7 @@ title: 孤児 job が生きうる間の投入・復元・廃棄・受入掃除�
 ### 完了
 
 - [T-403] 孤児 job の後始末を 4 層 (発行・投入・復元・廃棄) + 受入 probe 掃除で fail-closed にした。
-  変異 13/13 KILLED、焦点走 1493 passed。残余と scope 外は本エントリ本文と {{D:orphan-hold-latch}} に明記した。
+  変異 15/15 KILLED、焦点走 1493 passed。残余と scope 外は本エントリ本文と {{D:orphan-hold-latch}} に明記した。
   remaining: none
   base: cdb120627cd7372bf05f7bed0537a82bb4e262235e973dacc0cef826e83703a6
 

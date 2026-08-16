@@ -25,6 +25,10 @@ qsub の結果を観測できないまま抜ける経路でも latch を先に�
 (c) receipt 由来の `job_may_remain` / hold 書込み失敗を独立に判定する。latch を書けなかった場合と
 dispatcher が強制終了された場合を、この二重化が塞ぐ。
 
+**latch 自体を書けない storage 障害では、harness が書く停止記録 `<--out>.orphan-stop.json` が
+権威になる。** この記録が残る限り harness は fresh でも `--resume` でも runner を 1 本も起動せず、
+変異 worktree も container を保全する。判定不能 (`lstat` の `OSError`) は成立側へ倒す。
+
 **理由:**
 - 不在・終端の「実証」に見える観測は偽陽性になりうる。照会が rc=0 でも対象が見えないのは
   投入直後の未反映と区別できず、監視ループの終端観測は対象非束縛 parser 由来のことがある。

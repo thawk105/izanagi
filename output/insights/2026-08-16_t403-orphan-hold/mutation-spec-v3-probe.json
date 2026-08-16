@@ -240,6 +240,41 @@
       ],
       "expected_status": "KILLED",
       "hang_risk": false
+    },
+    {
+      "id": "M13-sidecar-startup-gate-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "    orphan_stop = _orphan_stop_path(out)\n    if _path_present_fail_closed(orphan_stop):\n        raise HarnessError(_orphan_stop_gate_message(orphan_stop))",
+          "new": "    orphan_stop = _orphan_stop_path(out)\n    if False:\n        raise HarnessError(_orphan_stop_gate_message(orphan_stop))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_fresh_rejects_orphan_stop_sidecar_before_runner_without_hold",
+        "orchestrator/tests/test_mutation_harness.py::test_orphan_stop_sidecar_lstat_error_rejects_before_runner",
+        "orchestrator/tests/test_mutation_harness.py::test_resume_rejects_orphan_stop_sidecar_before_runner_without_hold"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-wrapper-sidecar-term-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_worktree.py",
+          "old": "    return _path_present_fail_closed(hold) or _path_present_fail_closed(sidecar)",
+          "new": "    return _path_present_fail_closed(hold)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_orphan_stop_sidecar_preserves_container_and_receipt_without_hold",
+        "orchestrator/tests/test_mutation_worktree.py::test_plan_only_exception_fallback_preserves_sidecar_only_container"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
     }
   ]
 }
