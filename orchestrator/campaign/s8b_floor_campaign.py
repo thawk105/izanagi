@@ -40,13 +40,13 @@ config の数値はコードに既定値を持たず入力必須にする (F14 �
 
 official mode の無条件拒否は private core 自体で行い、public wrapper の迂回を許さない。さらに
 official core は ``build_fn`` 注入を副作用前に拒否し、admission-aware な ``buildcache.build_v2``
-だけを materializer として使う。pilot artifact は ``eligible_for_refreeze: false``、official の
-private core 完走 artifact は二相 finalize の completed terminal 後 publish に限って true となる。
+だけを materializer として使う。pilot、resume、または非既定 seam を使った artifact は
+``eligible_for_refreeze: false`` とし、fresh official の既定実引数だけを true にできる。
 
-既知限界: ``eligible_for_refreeze`` は依然として receipt chain ではなく ``mode`` 由来であり、
-eligible_for_refreeze は依然として receipt chain ではない。binary 側は発行時に検証した
-admission を store、resume、floor 実測直前まで連続束縛するが、gateway 発行の証明や
-暗号学的保証ではない。
+既知限界: ``eligible_for_refreeze`` は durable receipt chain ではない。同一 interpreter 内の
+module 属性差し替えは任意コード実行と同値であり、この argument 境界はその攻撃への耐性を
+主張しない。binary 側は発行時に検証した admission を store、resume、floor 実測直前まで
+連続束縛するが、gateway 発行の証明や暗号学的保証ではない。
 """
 from __future__ import annotations
 
@@ -335,9 +335,9 @@ def _assert_perf_mode(mode: str, receipt) -> bool:
 
 def _validate_mode(mode) -> str:
     """core 呼出しの mode を閉じた集合で検証し、path segment への注入を防ぐ。"""
-    if not isinstance(mode, str) or mode not in {"pilot", "official"}:
+    if type(mode) is not str or mode not in {"pilot", "official"}:
         raise FloorCampaignError("mode は exact {'pilot','official'} のいずれかでなければならない")
-    return mode
+    return "pilot" if mode == "pilot" else "official"
 
 
 def _assert_official_permitted(mode: str) -> None:
@@ -4287,7 +4287,7 @@ def _expected_protocol(protocol: Mapping, cells: list[dict]) -> dict:
 
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
                     manifest_sha256, cells, binaries, records,
-                    eligible_for_refreeze=False, perf_preflight=None) -> dict:
+                    perf_preflight=None) -> dict:
     """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
     cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v2) が正本。artifact の
@@ -4296,10 +4296,6 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     wall_ledger は journal から読むだけの純粋関数なので resume を跨いで決定的 (β-11 の冪等
     finalization が hash 照合に依存する)。
     """
-    if type(eligible_for_refreeze) is not bool:
-        raise FloorCampaignError("eligible_for_refreeze が bool でない")
-    if eligible_for_refreeze and mode != "official":
-        raise FloorCampaignError("pilot result は eligible_for_refreeze=True にできない")
     _assert_perf_mode(mode, perf_preflight)
     normalized_perf = (
         _normalize_perf_preflight(perf_preflight)
@@ -4391,10 +4387,9 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "schema": RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": mode,
-        # True bytes は official の二相 finalize staging にだけ組み立てられ、completed terminal
-        # fsync 後に初めて publish される。pilot/abort/invalid/terminal 前 crash は False または
-        # 未 publish のままなので、flag 単独を完走証拠にしない。
-        "eligible_for_refreeze": eligible_for_refreeze,
+        # Assembly 単体は authority を持たない。core 入口で raw seam と freshness から導いた
+        # lexical finalizer だけが、二相 finalize staging 前にこの値を上書きできる。
+        "eligible_for_refreeze": False,
         "env_tag": protocol["env_tag"],
         "ccbench_pin": protocol["ccbench_pin"],
         "protocol_sha256": protocol_sha256,
@@ -4630,17 +4625,25 @@ def _after_certificate_issued_noop(cert_path: Path) -> None:
     return None
 
 
-def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
-                 measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-                 monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
-                 host_provenance_fn=None, process_identity_fn=None,
-                 execution_receipt_fn=None, build_fn=None, repo_root=None,
-                 after_certificate_issued_fn=None,
-                 durable_root_policy=None, perf_preflight_fn=None,
-                 confirm_irreversible_pilot_holdout=False) -> dict:
-    """Production wrapper with no caller-provided callable seams."""
-    mode = _validate_mode(mode)
-    callable_seams = sorted(name for name, present in {
+_PUBLIC_CALLABLE_SEAM_NAMES = frozenset({
+    "measure_fn", "probe_fn", "sleep_fn", "monotonic_fn", "prepare_fn",
+    "now_fn", "host_provenance_fn", "process_identity_fn",
+    "execution_receipt_fn", "build_fn", "after_certificate_issued_fn",
+    "perf_preflight_fn",
+})
+
+
+def _nondefault_campaign_seams(
+        *, measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
+        monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+        host_provenance_fn=None, process_identity_fn=None,
+        execution_receipt_fn=None, build_fn=None, repo_root=None,
+        after_certificate_issued_fn=None, durable_root_policy=None,
+        _floor_preflight_fn=None, perf_preflight_fn=None,
+        _holdout_repo_root=None, _holdout_signature_source=None,
+) -> frozenset[str]:
+    """Raw campaign 実引数から refreeze 不適格 seam 名を単一源で分類する。"""
+    return frozenset(name for name, present in {
         "measure_fn": measure_fn is not None,
         "probe_fn": probe_fn is not None,
         "sleep_fn": sleep_fn is not time.sleep,
@@ -4651,31 +4654,56 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         "process_identity_fn": process_identity_fn is not None,
         "execution_receipt_fn": execution_receipt_fn is not None,
         "build_fn": build_fn is not None,
+        "repo_root": repo_root is not None,
         "after_certificate_issued_fn": after_certificate_issued_fn is not None,
+        "durable_root_policy": durable_root_policy is not None,
+        "_floor_preflight_fn": _floor_preflight_fn is not None,
         "perf_preflight_fn": perf_preflight_fn is not None,
+        "_holdout_repo_root": _holdout_repo_root is not None,
+        "_holdout_signature_source": _holdout_signature_source is not None,
     }.items() if present)
+
+
+def _derive_refreeze_eligibility(
+        *, mode, resume_dir, nondefault_seams: frozenset[str],
+) -> bool:
+    """Canonical official・fresh・非既定 seam ゼロだけを適格化する。"""
+    return (
+        type(mode) is str
+        and mode == "official"
+        and resume_dir is None
+        and not nondefault_seams
+    )
+
+
+def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
+                 measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
+                 monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                 host_provenance_fn=None, process_identity_fn=None,
+                 execution_receipt_fn=None, build_fn=None, repo_root=None,
+                 after_certificate_issued_fn=None,
+                 durable_root_policy=None, perf_preflight_fn=None,
+                 confirm_irreversible_pilot_holdout=False) -> dict:
+    """Production wrapper with no caller-provided callable seams."""
+    mode = _validate_mode(mode)
+    nondefault_seams = _nondefault_campaign_seams(
+        measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
+        monotonic_fn=monotonic_fn, prepare_fn=prepare_fn, now_fn=now_fn,
+        host_provenance_fn=host_provenance_fn,
+        process_identity_fn=process_identity_fn,
+        execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
+        repo_root=repo_root,
+        after_certificate_issued_fn=after_certificate_issued_fn,
+        durable_root_policy=durable_root_policy,
+        perf_preflight_fn=perf_preflight_fn,
+    )
+    callable_seams = sorted(nondefault_seams & _PUBLIC_CALLABLE_SEAM_NAMES)
     if callable_seams:
         raise FloorCampaignError(
             f"production mode への caller callable seam 注入を拒否する: {callable_seams}"
         )
     if mode == "official":
-        injected = {
-            "measure_fn": measure_fn is not None,
-            "probe_fn": probe_fn is not None,
-            "sleep_fn": sleep_fn is not time.sleep,
-            "monotonic_fn": monotonic_fn is not time.monotonic,
-            "prepare_fn": prepare_fn is not None,
-            "now_fn": now_fn is not None,
-            "host_provenance_fn": host_provenance_fn is not None,
-            "process_identity_fn": process_identity_fn is not None,
-            "execution_receipt_fn": execution_receipt_fn is not None,
-            "build_fn": build_fn is not None,
-            "repo_root": repo_root is not None,
-            "after_certificate_issued_fn": after_certificate_issued_fn is not None,
-            "durable_root_policy": durable_root_policy is not None,
-            "perf_preflight_fn": perf_preflight_fn is not None,
-        }
-        non_default = sorted(name for name, present in injected.items() if present)
+        non_default = sorted(nondefault_seams)
         if non_default:
             raise FloorCampaignError(
                 f"official mode への非 default seam 注入を拒否する: {non_default}")
@@ -4722,6 +4750,30 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     保護比率を実測しようとしても、最下層 ``run_once`` gateway が attempt token 無しで拒否する。
     """
     mode = _validate_mode(mode)
+    nondefault_seams = _nondefault_campaign_seams(
+        measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
+        monotonic_fn=monotonic_fn, prepare_fn=prepare_fn, now_fn=now_fn,
+        host_provenance_fn=host_provenance_fn,
+        process_identity_fn=process_identity_fn,
+        execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
+        repo_root=repo_root,
+        after_certificate_issued_fn=after_certificate_issued_fn,
+        durable_root_policy=durable_root_policy,
+        _floor_preflight_fn=_floor_preflight_fn,
+        perf_preflight_fn=perf_preflight_fn,
+        _holdout_repo_root=_holdout_repo_root,
+        _holdout_signature_source=_holdout_signature_source,
+    )
+    eligible_for_refreeze = _derive_refreeze_eligibility(
+        mode=mode, resume_dir=resume_dir, nondefault_seams=nondefault_seams,
+    )
+    result = None
+
+    def apply_refreeze_eligibility() -> None:
+        if result is None:  # pragma: no cover - local call order invariant
+            raise AssertionError("result assembly より前に refreeze finalizer が呼ばれた")
+        result["eligible_for_refreeze"] = eligible_for_refreeze
+
     if type(confirm_irreversible_pilot_holdout) is not bool:
         raise FloorCampaignError(
             "confirm_irreversible_pilot_holdout が exact bool でない"
@@ -5153,9 +5205,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
             freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
             cells=cells, binaries=artifact_built, records=resume_records,
-            eligible_for_refreeze=(mode == "official"),
             perf_preflight=perf_preflight_receipt,
         )
+        apply_refreeze_eligibility()
         staged = _stage_finalize_files(
             run_dir, result, _render_result_md(result),
             write_capability=run_write_capability,
@@ -5277,9 +5329,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         protocol=protocol, mode=mode, protocol_sha256=protocol_sha256,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
         cells=cells, binaries=artifact_built, records=runner.records,
-        eligible_for_refreeze=(mode == "official"),
         perf_preflight=perf_preflight_receipt,
     )
+    apply_refreeze_eligibility()
 
     # phase 1: result/md bytes を pending file へ fsync。まだ public artifact は存在しない。
     staged = _stage_finalize_files(

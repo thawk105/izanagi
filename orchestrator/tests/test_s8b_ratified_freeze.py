@@ -938,6 +938,9 @@ def build_production_emitter_g1(
         "result": json.loads((root / paths["result"]).read_bytes()),
         "paths": paths,
     }
+    # Consumer topology fixture は producer core の publish 判定を試すものではない。
+    # downstream の accepted artifact を明示的に組み立て、seam 注入の有無から切り離す。
+    state["result"]["eligible_for_refreeze"] = True
     original_cert = _json_bytes(state["cert"])
     assert original_cert == (root / paths["cert"]).read_bytes()
     if mutate is not None:

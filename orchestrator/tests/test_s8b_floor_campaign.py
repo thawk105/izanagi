@@ -3391,6 +3391,14 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
             perf_preflight=_perf_receipt(),
         )
 
+    assembled = s8b_floor_campaign.assemble_result(
+        protocol=protocol, mode="pilot", protocol_sha256="p" * 64,
+        freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+        cells=cells, binaries=outcome["result"]["binaries"], records=records,
+        perf_preflight=_perf_receipt(),
+    )
+    assert assembled["eligible_for_refreeze"] is False
+
 
 # =========================================================================== #
 # 3. official mode は常に拒否 (§8 未裁定) — CLI + core 直接 (δ-3)               #
@@ -3398,15 +3406,31 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
 
 @pytest.mark.parametrize("mode", ["pilot", "official"])
 def test_validate_mode_accepts_only_known_modes(mode):
-    assert s8b_floor_campaign._validate_mode(mode) == mode
+    validated = s8b_floor_campaign._validate_mode(mode)
+    assert validated == mode
+    assert type(validated) is str
 
 
 @pytest.mark.parametrize("mode", ["", "PILOT", "pilot/../../escape", None, 1])
 def test_validate_mode_rejects_unknown_and_path_traversal(mode, tmp_path):
     out_root = tmp_path / "out"
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="mode"):
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError, match="mode は exact"):
         s8b_floor_campaign.run_campaign(
             None, None, out_root=out_root, mode=mode,
+        )
+    assert not out_root.exists()
+
+
+def test_validate_mode_rejects_str_subclass_before_side_effects(tmp_path):
+    class StatefulMode(str):
+        pass
+
+    out_root = tmp_path / "out"
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError, match="mode は exact"):
+        s8b_floor_campaign.run_campaign(
+            None, None, out_root=out_root, mode=StatefulMode("official"),
         )
     assert not out_root.exists()
 
@@ -3753,6 +3777,118 @@ def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
             out_root=out_root, mode="pilot", **{seam_name: seam_value},
         )
     assert not out_root.exists()
+
+
+@pytest.mark.parametrize("seam_name,seam_value", [
+    ("measure_fn", object()),
+    ("probe_fn", object()),
+    ("sleep_fn", object()),
+    ("monotonic_fn", object()),
+    ("prepare_fn", object()),
+    ("now_fn", object()),
+    ("host_provenance_fn", object()),
+    ("process_identity_fn", object()),
+    ("execution_receipt_fn", object()),
+    ("build_fn", object()),
+    ("repo_root", object()),
+    ("after_certificate_issued_fn", object()),
+    ("durable_root_policy", object()),
+    ("_floor_preflight_fn", object()),
+    ("perf_preflight_fn", object()),
+    ("_holdout_repo_root", object()),
+    ("_holdout_signature_source", object()),
+])
+def test_refreeze_seam_classifier_reports_each_nondefault_raw_argument(
+        seam_name, seam_value):
+    assert s8b_floor_campaign._nondefault_campaign_seams(
+        **{seam_name: seam_value},
+    ) == frozenset({seam_name})
+
+
+def test_refreeze_seam_classifier_covers_every_core_keyword_only_argument():
+    excluded = {
+        "out_root", "mode", "resume_dir",
+        "confirm_irreversible_pilot_holdout",
+    }
+    core_keyword_only = {
+        name for name, parameter in inspect.signature(
+            s8b_floor_campaign._run_campaign_core,
+        ).parameters.items()
+        if parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    }
+    classifier_keyword_only = {
+        name for name, parameter in inspect.signature(
+            s8b_floor_campaign._nondefault_campaign_seams,
+        ).parameters.items()
+        if parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    }
+    assert core_keyword_only - classifier_keyword_only == excluded
+    assert classifier_keyword_only - core_keyword_only == set()
+
+
+def test_core_derives_refreeze_eligibility_at_entry_and_finalizes_without_args():
+    source = textwrap.dedent(inspect.getsource(
+        s8b_floor_campaign._run_campaign_core,
+    ))
+    tree = ast.parse(source)
+    core = tree.body[0]
+    finalizers = [
+        node for node in core.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "apply_refreeze_eligibility"
+    ]
+    assert len(finalizers) == 1
+    finalizer = finalizers[0]
+    assert finalizer.args.args == []
+    assert finalizer.args.posonlyargs == []
+    assert finalizer.args.kwonlyargs == []
+    assert finalizer.args.vararg is None
+    assert finalizer.args.kwarg is None
+    assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
+        "if type(confirm_irreversible_pilot_holdout) is not bool:"
+    )
+    assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
+        "    try:\n        runner.run()"
+    )
+
+
+def test_fresh_official_default_context_is_refreeze_eligible():
+    nondefault_seams = s8b_floor_campaign._nondefault_campaign_seams()
+    assert nondefault_seams == frozenset()
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=None, nondefault_seams=nondefault_seams,
+    ) is True
+
+
+def test_default_official_refreeze_eligibility_does_not_depend_on_rep_failure():
+    assert tuple(inspect.signature(
+        s8b_floor_campaign._derive_refreeze_eligibility,
+    ).parameters) == ("mode", "resume_dir", "nondefault_seams")
+    nondefault_seams = s8b_floor_campaign._nondefault_campaign_seams()
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=None, nondefault_seams=nondefault_seams,
+    ) is True
+
+
+def test_pilot_default_context_is_not_refreeze_eligible():
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="pilot", resume_dir=None,
+        nondefault_seams=s8b_floor_campaign._nondefault_campaign_seams(),
+    ) is False
+
+
+def test_official_resume_is_not_refreeze_eligible_even_without_seams():
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=Path("existing-run"),
+        nondefault_seams=s8b_floor_campaign._nondefault_campaign_seams(),
+    ) is False
+
+
+def test_assemble_result_caller_cannot_supply_refreeze_eligibility():
+    signature = inspect.signature(s8b_floor_campaign.assemble_result)
+    assert "eligible_for_refreeze" not in signature.parameters
+    with pytest.raises(TypeError):
+        signature.bind_partial(eligible_for_refreeze=True)
 
 
 def test_production_entrypoints_have_no_holdout_gate_disabling_seam():
@@ -4935,7 +5071,8 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     out_root = tmp_path / "out"
     measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
-                            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""))
+                            measure_fn=measure_fn, probe_fn=lambda: (1, "", ""),
+                            mode="official")
     run_dir = Path(outcome["run_dir"])
     original_result = (run_dir / "result.json").read_bytes()
 
@@ -4948,8 +5085,9 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     measure_fn2 = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid])
     outcome2 = _run_campaign(protocol, verified, out_root=out_root, build_root=tmp_path / "bin",
                              resume_dir=run_dir, measure_fn=measure_fn2,
-                             probe_fn=lambda: (1, "", ""))
+                             probe_fn=lambda: (1, "", ""), mode="official")
     assert outcome2["status"] == "completed"
+    assert outcome2["result"]["eligible_for_refreeze"] is False
     assert measure_fn2.calls == []  # 全 session 済みなので新規計測なし
     assert (run_dir / "result.json").read_bytes() == original_result
     assert (run_dir / "result.md").exists()
@@ -6606,7 +6744,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     } == expected_rratios
 
     result = outcome["result"]
-    assert result["eligible_for_refreeze"] is True
+    assert result["eligible_for_refreeze"] is False
     assert result["mode"] == "official"
     assert result["env_tag"] == "pegasus"
     assert result["ccbench_pin"] == ccbench_pin
@@ -6748,7 +6886,7 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
         assert any("${OUT_ROOT}" in token for token in record["configure_argv"])
         assert any("${CCBENCH_ROOT}" in token for token in record["configure_argv"])
         assert "configure_cmd" not in record and "build_cmd" not in record
-    assert result["eligible_for_refreeze"] is True
+    assert result["eligible_for_refreeze"] is False
 
 
 def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
@@ -7326,7 +7464,7 @@ def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monke
     wall_start = next(r for r in outcome["result"]["wall_ledger"]
                       if r.get("event") == "campaign-start")
     assert wall_start["launch_certificate_sha256"] == cert_sha
-    assert outcome["result"]["eligible_for_refreeze"] is True
+    assert outcome["result"]["eligible_for_refreeze"] is False
     assert repo_before == _real_output_snapshot()
 
 
@@ -7553,6 +7691,7 @@ def test_official_resume_validates_certificate_and_completes(tmp_path, monkeypat
             resume_dir=run_dir,
         )
     assert outcome["status"] == "completed"
+    assert outcome["result"]["eligible_for_refreeze"] is False
     assert repo_before == _real_output_snapshot()
 
 
