@@ -19543,3 +19543,124 @@ JSON へ入れるのは 2 つの述語だけで、解放結果は入れない。
 **受容した限界:** 別 invocation が**同じ main_sha で**claim し直した場合は区別できない。
 完全な世代束縛には claim 側の generation 発行が要り、それは別途見送り済みである。
 また land へ到達しないまま終わる経路 (argparse 失敗・context 死亡・SIGKILL) は本決定では塞がらない。
+
+## D470. 受入赤の非帰属を「wave が test file を触っていない」で決めない (2026-08-17)
+
+**決定:** 受入全走の赤について、`tested_main..wave_tip` の差分が当該 node の test file を
+含まないことを、その赤が wave の差分に帰属しないことの十分条件として採らない。
+非帰属の判定は D371 のとおり再実行で決め、差分 path の非接触は補助的な絞り込みにしか使わない。
+
+**理由:**
+- 単独 node 再走は全走 (分散走行) でのみ再現する赤を構造的に再現できない。原因が test file か
+  否かは、この観測では区別できない。
+- 実際に、wave が production code だけ、`conftest.py` だけ、共有 fixture だけ、pytest plugin
+  だけを変更しても全走限定の赤を作れる。いずれの経路でも単独再走は tested main 側でも
+  wave tip 側でも緑になり、test file は未接触のままである。
+- 差分到達可能性の完全な写像 (import 閉包、fixture、plugin、subprocess、共有 filesystem を
+  含むもの) は現 repo に存在しない。それが無い状態で非接触を非帰属の証明に使うと、
+  「謳うだけで発火しない保証」になる。
+- `git diff --name-only A..B` は tree の差だけを見るため、endpoint tree が同じなら空になる。
+  空 path 集合を安全証明として読むと、履歴・commit identity に依存する赤を受理する。
+
+**却下した選択肢:**
+- 非接触を非帰属の十分条件として採る — 上記 4 経路が受理集合へ入る。受理集合を広げる方向の
+  変更を、閉包になっていない述語で正当化することになる (規律 2)。
+- 単独再走を N 回繰り返す — 分散走行の文脈を再現しないので観測が変わらず、費用だけが N 倍になる。
+- 赤の test file 全体を再走する — 同 file 内の別失敗を帰属へ混ぜるうえ、cross-file の順序汚染と
+  worker 間競合はやはり再現しない。
+
+## D471. 床値 protocol の契約単位封鎖を撤去し、組単位の発行前拒否だけを残す (2026-08-17)
+
+**決定 (2026-08-16 ユーザー裁定 = 案 3、機械化なし、`FROZEN_MANIFEST` へ載せない):**
+
+D444 決定 5 (target の `contract_sha256` が組 index に既出なら発行を拒否する) を**撤去する**。
+撤去は issuer と index 不変条件の両方で行う。同じ `contract_sha256` のまま `ccbench_pin` だけを
+進めた 2 件目の protocol は、index が受理し issuer が発行できる。
+
+代わりに issuer へ**組単位の発行前拒否**を置く。target の組 `(contract_sha256, ccbench_pin)` が
+走査済み index の key に既出なら、create-only writer を呼ぶ**前に**拒否する。この拒否は artifact を
+作らないため、復旧用の exact path 文言 (D444 決定 7 の「取り除くまで発行できない」) を載せない。
+載せると、今回作っていない正規の既存 artifact の削除を誘導する。
+
+versioned artifact を `FROZEN_MANIFEST` へ登録しない。登録を強制する scan・meta test・allowlist・
+checker は実在しないことを実測した (23 key の明示 mapping であり namespace の directory scan はない)。
+「登録してはならない」という逆向きの検査も新設しない。
+
+`resolve_current_floor_protocol` は変更しない。
+
+**維持するもの:** D444 決定 1〜4・6・7 (組からの path 一意導出、chain record pattern 登録、
+不変 16 field の byte-exact 継承、固定 HEAD blob からの anchor 読み、恒真ゲート不採用、
+失敗した発行の artifact を自動削除しない)、組単位一意性、create-only、既存の凍結 bytes、
+凍結チェーン検証の保留状態、D460 の resolver 契約。
+
+**理由:**
+
+- 既定方針 3 本 (粗い provenance で足りる / 凍結チェーン検証は保留 / 防御的堅牢化は見送り) が
+  いずれも束縛機構を増やす側と衝突する。「環境契約 1 世代につき床値 1 件」は世代が進むたび
+  再取得を義務づけ、計測コストを構造的に増やす。
+- 契約単位の封鎖は、採られた案 3 の唯一の実行形 (contract 据え置き・pin 前進) を機械拒否していた。
+  実測: 封印済み protocol の組は (contract `e576e9cd…`, pin `d706650c…`)、現行 env 契約は同じ
+  `e576e9cd…`、HEAD の `external/ccbench` gitlink は `511c9538…`。撤去しなければ床値 protocol を
+  今後 1 件も発行できない。
+- 組単位の拒否を writer より前に置くのは、後段の post-write full index 検査だけに任せると、
+  無効な artifact をディスクへ書いてから拒否することになるためである。
+
+**却下した選択肢:**
+
+- **resolver を「現行 (contract, HEAD pin) の組に exact 一致があればそれ、無ければ現行 contract に
+  exact 1 件」へ変える** — 親が段 1 で提案し、段 3 の敵対検証と一次資料で撤回した。
+  (i) D460 が「選択条件に ccbench pin を入れてはならない」と明記しており、本裁定は D460 に
+  触れていない。(ii) 実 driver `tools/pegasus/floor_campaign.sh` は固定 legacy path を `--protocol` に
+  渡すため、admission が versioned protocol を authority として通し実測は legacy protocol で走る
+  **authority 分裂**が起こりうる。fail-closed で止まるほうが良い。
+  (iii) 配線は [T-419] (3)、実発行は [T-1255] が所有する。
+- **contract 単位拒否を丸ごと消して組単位の発行前拒否を置かない** — 段 2 プランの初稿。
+  組が legacy anchor 側で埋まっている場合に versioned path が空いているため writer が成功し、
+  post-write の full index 検査で初めて赤になる。無効 artifact が残り、例外 message が
+  正規 artifact の削除を誘導する。
+- **`FROZEN_MANIFEST` へ versioned artifact を登録する** — 裁定が明示的に否定した。
+  23 key 固定の assert と held/keep 分割が動き、凍結台帳の件数という provenance の数字が変わる。
+
+**残る限界 (この決定では閉じない):**
+
+- 契約単位の封鎖が消えたことで、同一 contract の record が 2 件ある状態が**到達可能になった**。
+  この状態では `resolve_current_floor_protocol` が `count=2` で fail-closed になり、
+  `certified_writer_admission` の床値 admission が停止する。D460 の却下理由が前提にしていた
+  「index が同一 contract hash の 2 件目を上流で既に拒否しており production では到達不能」は、
+  本決定以後は成り立たない。これは事実の記録であって D460 の決定の変更ではない。
+- したがって**実 artifact の発行は、consumer 配線より先に行ってはならない**。
+  発行だけを先行させると床値 submit の受理集合が空になり、pilot result・レポート・試行台帳が
+  新規生成されなくなる。段 6 の独立レビュー 2 本が同じ結論に達した。
+- 削除すれば同じ組を再発行できる点、protocol 単位であって run 単位でない点、
+  ratified pointer が sanctioned namespace 外を指せる点は D444 の残る限界のまま変わらない。
+
+## D472. bounded scope の cap attest は要求値と page 切り捨て値のちょうど 2 値だけを受理する (2026-08-17)
+
+**決定:** cgroup の `memory.max` を要求 cap と照合する 3 箇所
+(`tools/run_tests.py` と `tools/check_ai_provenance.py` の `_scope_properties_are_enforced`、
+`tools/mutation_fanout.py` の `_bounded_scope_cgroup`) は、観測値が
+`str(cap)` または `str(cap - cap % P)` の**ちょうど 2 値**のときだけ受理する。
+`P` は `os.sysconf("SC_PAGE_SIZE")` が返す正の `int` で、取得できない・型や符号が不正な場合は
+`{str(cap)}` のみへ fail-closed する。`cap <= 0` に対する挙動は変更しない。
+
+**理由:**
+- kernel は `memory.max` を page 境界へ**切り捨てて**保持する (実測: `getconf PAGESIZE` = 4096 の
+  login node で `2913920000` → `2913918976`、cgroup へ直接 write しても同じ)。
+  厳密文字列比較は、page 整列していない cap の走行を**決定的に**拒否していた。
+- 任意の正の `P` について `cap - cap % P <= cap` が恒真なので、この受理集合は
+  **要求より緩い実効上限を 1 つも通さない**。上限の意味は保たれる。
+- 予算算出側 (`ceil(peak * 5/4)`) を page 整列させる案は却下した。予約台帳へ記録する
+  budget 値と受理集合が変わり、下限付近の既存 LOCAL 期待を壊す。観測側の照合を直せば
+  台帳値は保守的なまま `rc=16` が実結果へ戻る。
+- 観測値から `P` を逆算する形は採らない。guard が観測を自己正当化して恒真化する。
+  production に page size を焼き込むのも採らない (別 page size の環境で誤った上限を通す)。
+
+**却下した選択肢:**
+- `floor <= v <= cap` の区間比較 — 上限は緩まないが、切り捨て値でも要求値でもない
+  中間値 (例 `P=4096, cap=9216` に対する `8193`) を「要求どおり」と認めてしまう。
+- `abs(v - cap) < P` の page 近傍 — 上方向丸めの kernel へ可搬になる代わりに
+  `v = cap + 1` を受理し、要求より緩い上限を明示的に通す。上方向丸めは本環境で観測されない。
+- 検査そのものを外す・環境変数で無効化する — 正しさ防壁を緩める方向であり採らない。
+- 3 箇所を共有 module へ括り出す — 2 つの tool は単独起動される入口で、
+  共有化は新しい import failure 面を増やす。代わりに逐語同型の 2 実装へ、
+  有限入力表に対する挙動 parity のメタテストを置いた。

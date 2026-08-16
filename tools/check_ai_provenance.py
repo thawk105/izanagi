@@ -2140,7 +2140,16 @@ def _scope_properties_are_enforced(cgroup: Path, cap: int) -> bool:
         ).strip()
     except (OSError, UnicodeError):
         return False
-    return memory_max == str(cap) and oom_group == "1"
+    accepted_memory_max = {str(cap)}
+    if cap > 0:
+        try:
+            page_size = os.sysconf("SC_PAGE_SIZE")
+        except (OSError, ValueError):
+            pass
+        else:
+            if type(page_size) is int and page_size > 0:
+                accepted_memory_max.add(str(cap - cap % page_size))
+    return memory_max in accepted_memory_max and oom_group == "1"
 
 
 def _attest_scope_oom_group(cgroup: Path) -> bool:
