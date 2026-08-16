@@ -613,6 +613,24 @@ def _dispatch_root(preflight: Preflight) -> Path:
     return preflight.checkout / "output" / "pegasus-dispatch"
 
 
+def _path_present_fail_closed(path: Path) -> bool:
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _orphan_hold_present(preflight: Preflight) -> bool:
+    """container 内 hold または外部 sidecar を保全側へ写像する。"""
+
+    hold = _dispatch_root(preflight) / "orphan-hold.json"
+    sidecar = Path(f"{preflight.out}.orphan-stop.json")
+    return _path_present_fail_closed(hold) or _path_present_fail_closed(sidecar)
+
+
 def _rehydrate_dispatch_evidence(preflight: Preflight) -> bool:
     source = preflight.evidence
     destination = _dispatch_root(preflight)
@@ -929,8 +947,14 @@ def _teardown(
     return relocated
 
 
-def _should_teardown(*, plan_only: bool, child_rc: int | None, terminal: bool) -> bool:
-    return plan_only or (child_rc in {0, 1} and terminal)
+def _should_teardown(
+    *,
+    plan_only: bool,
+    child_rc: int | None,
+    terminal: bool,
+    orphan_hold: bool,
+) -> bool:
+    return not orphan_hold and (plan_only or (child_rc in {0, 1} and terminal))
 
 
 def _select_return_code(
@@ -1022,12 +1046,30 @@ def _wrapper_resume_command(preflight: Preflight, args: argparse.Namespace) -> s
     return shlex.join(command)
 
 
-def _print_preserved_resume(preflight: Preflight, args: argparse.Namespace) -> None:
+def _print_preserved_resume(
+    preflight: Preflight,
+    args: argparse.Namespace,
+    *,
+    orphan_hold: bool = False,
+) -> None:
     print(
         f"未完了 run の container を保持しました: {preflight.container}",
         file=sys.stderr,
         flush=True,
     )
+    if orphan_hold:
+        print(
+            "復旧順序: qstat で対象の不在または終端を確認し、source を復元し、"
+            "clean/HEAD を確認してから orphan hold と orphan-stop sidecar を"
+            "手動削除してください。",
+            file=sys.stderr,
+            flush=True,
+        )
+        print(
+            "次の --resume は orphan hold を解除した後にだけ有効です。",
+            file=sys.stderr,
+            flush=True,
+        )
     print(
         "resume command: " + _wrapper_resume_command(preflight, args),
         file=sys.stderr,
@@ -1128,10 +1170,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                             state.failure = (
                                 "child は完走 rc を返したが terminal ledger を検証できない"
                             )
+                        orphan_hold = (
+                            args.runner_mode == "dispatch"
+                            and _orphan_hold_present(preflight)
+                        )
+                        if orphan_hold:
+                            wrapper_failed = True
+                            state.failure = "orphan-hold"
                         if _should_teardown(
                             plan_only=args.plan_only,
                             child_rc=state.child_rc,
                             terminal=state.terminal_ledger,
+                            orphan_hold=orphan_hold,
                         ):
                             state.teardown_attempted = True
                             state.evidence_relocated = _teardown(
@@ -1147,13 +1197,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                             _raise_if_signaled(signal_state)
                         else:
                             state.container_preserved = True
-                            if terminal_failure:
+                            if orphan_hold:
+                                print(
+                                    "mutation worktree aborted: orphan-hold; "
+                                    f"container と source を保全しました: {preflight.container}",
+                                    file=sys.stderr,
+                                    flush=True,
+                                )
+                            elif terminal_failure:
                                 print(
                                     f"mutation worktree aborted: {state.failure}",
                                     file=sys.stderr,
                                     flush=True,
                                 )
-                            _print_preserved_resume(preflight, args)
+                            _print_preserved_resume(
+                                preflight, args, orphan_hold=orphan_hold
+                            )
                     except SignalAbort as exc:
                         signum = exc.signum
                         if exc.child_rc is not None:
@@ -1163,18 +1222,34 @@ def main(argv: Sequence[str] | None = None) -> int:
                             and state.preflight.container.exists()
                         )
                         if state.container_preserved and state.preflight is not None:
-                            _print_preserved_resume(state.preflight, args)
+                            signal_orphan_hold = (
+                                args.runner_mode == "dispatch"
+                                and _orphan_hold_present(state.preflight)
+                            )
+                            _print_preserved_resume(
+                                state.preflight,
+                                args,
+                                orphan_hold=signal_orphan_hold,
+                            )
                     except Exception as exc:
                         wrapper_failed = True
                         if isinstance(exc, TeardownError):
                             state.evidence_relocated = exc.evidence_relocated
                         state.failure = str(exc)
+                        fallback_orphan_hold = (
+                            args.runner_mode == "dispatch"
+                            and state.preflight is not None
+                            and _orphan_hold_present(state.preflight)
+                        )
+                        if fallback_orphan_hold:
+                            state.failure = "orphan-hold"
                         if (
                             args.plan_only
                             and state.preflight is not None
                             and state.admin is not None
                             and state.preflight.container.exists()
                             and not state.teardown_attempted
+                            and not fallback_orphan_hold
                         ):
                             state.teardown_attempted = True
                             try:
@@ -1207,7 +1282,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                             flush=True,
                         )
                         if state.container_preserved and state.preflight is not None:
-                            _print_preserved_resume(state.preflight, args)
+                            _print_preserved_resume(
+                                state.preflight,
+                                args,
+                                orphan_hold=fallback_orphan_hold,
+                            )
                     finally:
                         if state.preflight is not None:
                             try:

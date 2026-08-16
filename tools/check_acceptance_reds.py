@@ -380,7 +380,25 @@ def _read_dispatch_receipt(
     )
 
 
+def _orphan_hold_present(dispatch_root: Path) -> bool:
+    """hold の存在または stat 判定不能なら destructive cleanup を拒否する。"""
+
+    hold = dispatch_root / "orphan-hold.json"
+    try:
+        os.lstat(hold)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def _cleanup_dispatch_artifacts(artifacts: _DispatchArtifacts) -> None:
+    if _orphan_hold_present(artifacts.root):
+        raise InvalidInput(
+            "orphan-hold: dispatch artifacts are preserved; "
+            f"hold={artifacts.root / 'orphan-hold.json'}"
+        )
     failures: list[str] = []
     try:
         shutil.rmtree(artifacts.submission_dir)
@@ -820,6 +838,12 @@ def _cleanup_probe(
     added: bool,
     command_runner: CommandRunner,
 ) -> None:
+    dispatch_root = worktree / "output" / "pegasus-dispatch"
+    if _orphan_hold_present(dispatch_root):
+        raise InvalidInput(
+            "orphan-hold: probe worktree is preserved; "
+            f"hold={dispatch_root / 'orphan-hold.json'}"
+        )
     failures: list[str] = []
     if added or worktree.exists():
         try:

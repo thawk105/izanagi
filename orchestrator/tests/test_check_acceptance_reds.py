@@ -1715,6 +1715,132 @@ def test_dispatch_cleanup_refuses_nonempty_exact_root(tmp_path: Path) -> None:
     assert not (dispatch_root / "receipt-fallback-fixture-dispatch.json").exists()
 
 
+def test_dispatch_cleanup_preserves_everything_when_orphan_hold_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "probe" / "output" / "pegasus-dispatch"
+    submission = root / "nonce"
+    submission.mkdir(parents=True)
+    receipt = submission / "receipt.json"
+    receipt.write_text("{}\n", encoding="utf-8")
+    hold = root / "orphan-hold.json"
+    hold.write_text("{}\n", encoding="utf-8")
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce")
+    rmtree_calls: list[Path] = []
+    rmdir_calls: list[Path] = []
+
+    monkeypatch.setattr(
+        CAR.shutil,
+        "rmtree",
+        lambda path: rmtree_calls.append(Path(path)),
+    )
+    monkeypatch.setattr(
+        Path,
+        "rmdir",
+        lambda path: rmdir_calls.append(Path(path)),
+    )
+
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_dispatch_artifacts(artifacts)
+
+    assert rmtree_calls == []
+    assert rmdir_calls == []
+    assert receipt.is_file()
+    assert hold.is_file()
+
+
+def test_dispatch_cleanup_lstat_error_preserves_everything(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "probe" / "output" / "pegasus-dispatch"
+    submission = root / "nonce"
+    submission.mkdir(parents=True)
+    receipt = submission / "receipt.json"
+    receipt.write_text("{}\n", encoding="utf-8")
+    hold = root / "orphan-hold.json"
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce")
+    real_lstat = os.lstat
+    rmtree_calls: list[Path] = []
+    rmdir_calls: list[Path] = []
+
+    def indeterminate(path, *args, **kwargs):
+        if Path(path) == hold:
+            raise OSError("injected lstat failure")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(CAR.os, "lstat", indeterminate)
+    monkeypatch.setattr(
+        CAR.shutil,
+        "rmtree",
+        lambda path: rmtree_calls.append(Path(path)),
+    )
+    monkeypatch.setattr(
+        Path,
+        "rmdir",
+        lambda path: rmdir_calls.append(Path(path)),
+    )
+
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_dispatch_artifacts(artifacts)
+
+    assert rmtree_calls == []
+    assert rmdir_calls == []
+    assert receipt.is_file()
+    assert submission.is_dir()
+
+
+def test_dispatch_cleanup_without_hold_keeps_existing_positive_behavior(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "probe" / "output" / "pegasus-dispatch"
+    submission = root / "nonce"
+    submission.mkdir(parents=True)
+    receipt = submission / "receipt.json"
+    receipt.write_text("{}\n", encoding="utf-8")
+    artifacts = CAR._DispatchArtifacts(root, receipt, submission, None, "nonce")
+
+    CAR._cleanup_dispatch_artifacts(artifacts)
+
+    assert not root.exists()
+
+
+def test_probe_cleanup_runs_no_command_or_rmdir_when_orphan_hold_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    parent = tmp_path / "probe-parent"
+    worktree = parent / "probe"
+    hold = worktree / "output" / "pegasus-dispatch" / "orphan-hold.json"
+    hold.parent.mkdir(parents=True)
+    hold.write_text("{}\n", encoding="utf-8")
+    commands: list[list[str]] = []
+    rmdir_calls: list[Path] = []
+
+    def command_runner(command: Sequence[str], **_kwargs):
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(
+        Path,
+        "rmdir",
+        lambda path: rmdir_calls.append(Path(path)),
+    )
+
+    with pytest.raises(CAR.InvalidInput, match="orphan-hold"):
+        CAR._cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=True,
+            command_runner=command_runner,
+        )
+
+    assert commands == []
+    assert rmdir_calls == []
+    assert hold.is_file()
+
+
 @pytest.mark.parametrize(
     "collection_stdout",
     [

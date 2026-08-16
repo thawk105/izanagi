@@ -46,6 +46,7 @@ mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
 local は同一 target set の 2 巡目以降で予算 attest が落ち収集段が `rc=16` になる。
 `--attempt-out` と `--wrapper-attempt` は dispatch 専用で、local 指定は起動前に中止する。
+`--out` は `--scratch-root` と同一 device に置く（別 device は evidence 退避の rename が落ちる）。
 
 ## DW-M08 — 失敗 node と検出力
 

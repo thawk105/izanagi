@@ -632,6 +632,86 @@ def test_resume_reruns_parse_error_and_skips_terminal_record(repo: Path) -> None
     assert _calls(calls) == ["0", "1", "2", "2"]
 
 
+def test_resume_rejects_orphan_stop_sidecar_before_runner_without_hold(
+    repo: Path,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _write_spec(
+        spec,
+        [
+            _mutation("M1", "VALUE = 0", "VALUE = 1", "one"),
+            _mutation("M2", "VALUE = 0", "VALUE = 2", "two"),
+        ],
+    )
+    mode.write_text("parse-two\n", encoding="utf-8")
+    with pytest.raises(MH.HarnessError, match="failed node"):
+        MH.main(_argv(repo, spec, out, calls, mode))
+    before = _calls(calls)
+    sidecar = Path(f"{out.resolve()}.orphan-stop.json")
+    sidecar_payload = {
+        "reason": {
+            "code": "orphan-hold",
+            "hold_error": "injected double hold write failure",
+        }
+    }
+    sidecar.write_text(json.dumps(sidecar_payload) + "\n", encoding="utf-8")
+    original_sidecar = sidecar.read_bytes()
+    mode.write_text("normal\n", encoding="utf-8")
+
+    with pytest.raises(MH.HarnessError) as caught:
+        MH.main(_argv(repo, spec, out, calls, mode, resume=True))
+
+    message = str(caught.value)
+    assert str(sidecar) in message
+    assert "reason.hold_error=injected double hold write failure" in message
+    assert message.index("対象の不在または終端") < message.index("dirty path の復元")
+    assert message.index("dirty path の復元") < message.index("clean/HEAD 確認")
+    assert message.index("clean/HEAD 確認") < message.index("hold と sidecar の手動削除")
+    assert _calls(calls) == before
+    assert sidecar.read_bytes() == original_sidecar
+    assert not (repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME).exists()
+
+
+def test_fresh_rejects_orphan_stop_sidecar_before_runner_without_hold(
+    repo: Path,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    sidecar = Path(f"{out.resolve()}.orphan-stop.json")
+    sidecar.write_text('{"reason": {"code": "orphan-hold"}}\n', encoding="utf-8")
+
+    with pytest.raises(MH.HarnessError) as caught:
+        MH.main(_argv(repo, spec, out, calls, mode))
+
+    assert str(sidecar) in str(caught.value)
+    assert not calls.exists()
+    assert not out.exists()
+    assert not (repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME).exists()
+
+
+def test_orphan_stop_sidecar_lstat_error_rejects_before_runner(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    sidecar = Path(f"{out.resolve()}.orphan-stop.json")
+    real_lstat = os.lstat
+
+    def indeterminate(path, *args, **kwargs):
+        if Path(path) == sidecar:
+            raise OSError("injected sidecar lstat failure")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(MH.os, "lstat", indeterminate)
+
+    with pytest.raises(MH.HarnessError) as caught:
+        MH.main(_argv(repo, spec, out, calls, mode))
+
+    assert str(sidecar) in str(caught.value)
+    assert not calls.exists()
+    assert not out.exists()
+
+
 def test_resume_rejects_incomplete_running_record_before_runner(repo: Path) -> None:
     spec, out, calls, mode = _paths(repo)
     _single_spec(spec)
@@ -815,6 +895,447 @@ def test_hang_risk_uses_short_timeout_records_evidence_and_restores(repo: Path) 
     assert (repo / "target.py").read_text(encoding="utf-8") == _git(
         repo, "show", "HEAD:target.py"
     )
+
+
+def test_dispatch_timeout_latches_hold_preserves_bytes_stops_next_and_writes_stop(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _write_spec(
+        spec,
+        [
+            _mutation("M1", "VALUE = 0", "VALUE = 1", "one"),
+            _mutation("M2", "VALUE = 0", "VALUE = 2", "two"),
+        ],
+    )
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    argv = _argv(repo, spec, out, calls, mode)
+    argv[argv.index("--runner-mode") + 1] = "dispatch"
+    run_count = 0
+
+    monkeypatch.setattr(MH, "_runner_identity", lambda *args, **kwargs: {"runner": "fixture"})
+    monkeypatch.setattr(MH, "_tool_identity", lambda *args, **kwargs: {"tool": "fixture"})
+    monkeypatch.setattr(
+        MH,
+        "_collect_expected_nodes",
+        lambda *args, **kwargs: {"status": "fixture-collection"},
+    )
+    monkeypatch.setattr(MH, "_validate_collection_record", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        MH,
+        "_baseline",
+        lambda *args, **kwargs: {
+            "status": "PASSED",
+            "rc": 0,
+            "failed_nodes": [],
+        },
+    )
+    monkeypatch.setattr(MH, "_validate_baseline_record", lambda *args, **kwargs: None)
+
+    def timed_out(*args: object, **kwargs: object) -> dict[str, object]:
+        nonlocal run_count
+        run_count += 1
+        return {
+            "rc": None,
+            "timed_out": True,
+            "output": "dispatcher timed out",
+            "job_stdout": "dispatcher timed out",
+            "duration_s": 1.0,
+            "artifact_error": None,
+            "request": None,
+        }
+
+    monkeypatch.setattr(MH, "_run_tests", timed_out)
+
+    assert MH.main(argv) == 2
+
+    assert run_count == 1
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 1\n")
+    hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    assert hold.is_file()
+    ledger_path = out
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert ledger["schema"] == MH.LEDGER_SCHEMA
+    out = MH._orphan_stop_path(ledger_path)
+    stop = json.loads(out.read_text(encoding="utf-8"))
+    assert stop["schema"] == MH.ORPHAN_STOP_SCHEMA
+    assert stop["reason"]["code"] == "orphan-hold"
+    assert stop["reason"]["phase"] == "mutation"
+    assert stop["reason"]["mutation_id"] == "M1"
+    assert stop["reason"]["source_state"] == "mutation-left-in-place"
+    assert stop["reason"]["dirty_paths"] == ["target.py"]
+    assert stop["ledger_path"] == str(ledger_path)
+    assert "partial_ledger" not in stop
+
+
+def test_dispatch_hold_write_failure_stops_harness_without_restore_or_next_runner(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _write_spec(
+        spec,
+        [
+            _mutation("M1", "VALUE = 0", "VALUE = 1", "one"),
+            _mutation("M2", "VALUE = 0", "VALUE = 2", "two"),
+        ],
+    )
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    runner = repo.parent / "dispatch_hold_failure.py"
+    runner_calls = repo.parent / "dispatch-runner-calls.txt"
+    runner.write_text(
+        """\
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.environ["IZANAGI_SOURCE_ROOT"])
+from tools.pegasus import dispatch_compute as DC
+
+
+class Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+class Scheduler:
+    def __call__(self, command, **kwargs):
+        values = list(command)
+        if values == ["qstat", "-Q"]:
+            return subprocess.CompletedProcess(values, 0, "gen_S enabled\\n", "")
+        if values[0] == "qsub":
+            return subprocess.CompletedProcess(
+                values, 0, "Request 123.server submitted to queue: gen_S.\\n", ""
+            )
+        if values[:2] == ["qstat", "-f"]:
+            return subprocess.CompletedProcess(
+                values, 0, "Request ID = 123.server\\nRequest State = HLD\\n", ""
+            )
+        if values[0] == "qdel":
+            return subprocess.CompletedProcess(values, 153, "", "not deleted")
+        raise AssertionError(values)
+
+
+calls = Path(os.environ["IZANAGI_DISPATCH_RUNNER_CALLS"])
+with calls.open("a", encoding="utf-8") as stream:
+    stream.write("run\\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+
+real_write = DC._write_json_x
+
+
+def fail_hold(path, payload, **kwargs):
+    if Path(path).name == DC._ORPHAN_HOLD_NAME:
+        raise OSError("injected dispatcher hold write failure")
+    return real_write(path, payload, **kwargs)
+
+
+DC._write_json_x = fail_hold
+clock = Clock()
+raise SystemExit(
+    DC.dispatch(
+        [],
+        repo_root=Path.cwd(),
+        output_root=Path.cwd() / "output" / "pegasus-dispatch",
+        run_command=Scheduler(),
+        clock=clock,
+        sleep=clock.sleep,
+        queue_wait_timeout_s=0,
+        accounting_grace_s=0,
+        poll_interval_s=1,
+        immediate_qstat_attempts=1,
+        cleanup_budget_s=1,
+        nonce="hold-write-failure",
+    )
+)
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("IZANAGI_SOURCE_ROOT", str(_REPO))
+    monkeypatch.setenv("IZANAGI_DISPATCH_RUNNER_CALLS", str(runner_calls))
+    argv = _argv(repo, spec, out, calls, mode)
+    argv[argv.index("--runner-mode") + 1] = "dispatch"
+    separator = argv.index("--")
+    argv[separator + 1 :] = [sys.executable, str(runner), "-rf"]
+    monkeypatch.setattr(MH, "_runner_identity", lambda *args, **kwargs: {"runner": "fixture"})
+    monkeypatch.setattr(MH, "_tool_identity", lambda *args, **kwargs: {"tool": "fixture"})
+    monkeypatch.setattr(
+        MH,
+        "_collect_expected_nodes",
+        lambda *args, **kwargs: {"status": "fixture-collection"},
+    )
+    monkeypatch.setattr(MH, "_validate_collection_record", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        MH,
+        "_baseline",
+        lambda *args, **kwargs: {"status": "PASSED", "rc": 0, "failed_nodes": []},
+    )
+    monkeypatch.setattr(MH, "_validate_baseline_record", lambda *args, **kwargs: None)
+
+    assert MH.main(argv) == 2
+
+    assert runner_calls.read_text(encoding="utf-8").splitlines() == ["run"]
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 1\n")
+    hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    assert hold.is_file()
+    ledger = json.loads(out.read_text(encoding="utf-8"))
+    assert ledger["schema"] == MH.LEDGER_SCHEMA
+    assert ledger["mutations"] == []
+    stop_path = MH._orphan_stop_path(out)
+    assert stop_path.is_file()
+    stop = json.loads(stop_path.read_text(encoding="utf-8"))
+    assert stop["reason"]["code"] == "orphan-hold"
+    assert stop["reason"]["mutation_id"] == "M1"
+    assert stop["ledger_path"] == str(out)
+
+
+def test_dispatch_non_timeout_parse_error_is_not_an_orphan_condition(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec_path, _out, _calls_path, _mode = _paths(repo)
+    _single_spec(spec_path)
+    spec, spec_sha256 = MH._load_spec(spec_path)
+    head = MH._repo_head(repo)
+    originals = MH._read_head_sources(repo, head, spec)
+    registration = MH._validate_registrations(repo, spec, originals)
+    monkeypatch.setattr(
+        MH,
+        "_run_tests",
+        lambda *args, **kwargs: {
+            "rc": 3,
+            "timed_out": False,
+            "output": "parse failure",
+            "job_stdout": "parse failure",
+            "duration_s": 0.1,
+            "artifact_error": None,
+        },
+    )
+
+    record = MH._apply_mutation(
+        repo,
+        head,
+        originals,
+        spec.mutations[0],
+        spec,
+        [sys.executable, "ignored", "-rf"],
+        "dispatch",
+        registration["M1"],
+        spec_sha256=spec_sha256,
+        runner_sha256="runner",
+        tool_sha256="tool",
+        collection_sha256="collection",
+    )
+
+    assert record["status"] == "PARSE_ERROR"
+    assert not (repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME).exists()
+    assert (repo / "target.py").read_text(encoding="utf-8") == originals["target.py"]
+
+
+def test_orphan_stop_records_origin_and_verification_errors_without_restoring(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    argv = _argv(repo, spec, out, calls, mode)
+    argv[argv.index("--runner-mode") + 1] = "dispatch"
+    monkeypatch.setattr(MH, "_runner_identity", lambda *args, **kwargs: {"runner": "fixture"})
+    monkeypatch.setattr(MH, "_tool_identity", lambda *args, **kwargs: {"tool": "fixture"})
+    monkeypatch.setattr(
+        MH,
+        "_collect_expected_nodes",
+        lambda *args, **kwargs: {"status": "fixture-collection"},
+    )
+    monkeypatch.setattr(MH, "_validate_collection_record", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        MH,
+        "_baseline",
+        lambda *args, **kwargs: {"status": "PASSED", "rc": 0, "failed_nodes": []},
+    )
+    monkeypatch.setattr(MH, "_validate_baseline_record", lambda *args, **kwargs: None)
+
+    def runner_failure(*args: object, **kwargs: object) -> dict[str, object]:
+        hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+        hold.parent.mkdir(parents=True)
+        hold.write_text("{}\n", encoding="utf-8")
+        raise RuntimeError("injected runner failure")
+
+    real_assert_dirt = MH._assert_only_expected_dirt
+    dirt_checks = 0
+
+    def verification_failure(*args: object, **kwargs: object) -> None:
+        nonlocal dirt_checks
+        dirt_checks += 1
+        if dirt_checks == 2:
+            raise MH.HarnessError("injected preservation verification failure")
+        real_assert_dirt(*args, **kwargs)
+
+    monkeypatch.setattr(MH, "_run_tests", runner_failure)
+    monkeypatch.setattr(MH, "_assert_only_expected_dirt", verification_failure)
+
+    assert MH.main(argv) == 2
+
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 1\n")
+    stop = json.loads(MH._orphan_stop_path(out).read_text(encoding="utf-8"))
+    reason = stop["reason"]
+    assert reason["origin_error_type"] == "RuntimeError"
+    assert reason["origin_error_message"] == "injected runner failure"
+    assert reason["verification_error_type"] == "HarnessError"
+    assert reason["verification_error_message"] == (
+        "injected preservation verification failure"
+    )
+
+
+def test_signal_unwind_with_hold_marks_restore_skipped_and_preserves_mutation(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec_path, _out, _calls_path, _mode = _paths(repo)
+    _single_spec(spec_path)
+    spec, spec_sha256 = MH._load_spec(spec_path)
+    head = MH._repo_head(repo)
+    originals = MH._read_head_sources(repo, head, spec)
+    registration = MH._validate_registrations(repo, spec, originals)
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+
+    def interrupted(*args: object, **kwargs: object) -> dict[str, object]:
+        hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+        hold.parent.mkdir(parents=True)
+        hold.write_text("{}\n", encoding="utf-8")
+        raise MH.SignalAbort(signal.SIGTERM)
+
+    monkeypatch.setattr(MH, "_run_tests", interrupted)
+
+    with pytest.raises(MH.SignalAbort) as raised:
+        MH._apply_mutation(
+            repo,
+            head,
+            originals,
+            spec.mutations[0],
+            spec,
+            [sys.executable, "ignored", "-rf"],
+            "dispatch",
+            registration["M1"],
+            spec_sha256=spec_sha256,
+            runner_sha256="runner",
+            tool_sha256="tool",
+            collection_sha256="collection",
+        )
+
+    assert raised.value.orphan_stop is not None
+    assert raised.value.orphan_stop.source_state == "mutation-left-in-place"
+    assert (repo / "target.py").read_text(encoding="utf-8").startswith("VALUE = 1\n")
+
+
+@pytest.mark.parametrize("phase", ["collection", "baseline"])
+def test_preexisting_hold_blocks_collection_and_baseline_runner_start(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    phase: str,
+) -> None:
+    spec_path, _out, _calls_path, _mode = _paths(repo)
+    _single_spec(spec_path)
+    spec, spec_sha256 = MH._load_spec(spec_path)
+    head = MH._repo_head(repo)
+    (repo / ".git" / "info" / "exclude").write_text(
+        "/output/\n", encoding="utf-8"
+    )
+    hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    hold.parent.mkdir(parents=True)
+    hold.write_text("{}\n", encoding="utf-8")
+    starts = 0
+
+    def forbidden(*args: object, **kwargs: object) -> dict[str, object]:
+        nonlocal starts
+        starts += 1
+        raise AssertionError("runner started despite orphan hold")
+
+    monkeypatch.setattr(MH, "_run_tests", forbidden)
+    with pytest.raises(MH.OrphanHoldStop):
+        if phase == "collection":
+            MH._collect_expected_nodes(
+                repo,
+                spec,
+                [sys.executable, "ignored", "-rf"],
+                "dispatch",
+                head=head,
+                spec_sha256=spec_sha256,
+                runner_sha256="runner",
+                tool_sha256="tool",
+            )
+        else:
+            MH._baseline(
+                repo,
+                spec,
+                [sys.executable, "ignored", "-rf"],
+                "dispatch",
+                head=head,
+                spec_sha256=spec_sha256,
+                registration_sha256="registration",
+                runner_sha256="runner",
+                tool_sha256="tool",
+                collection_sha256="collection",
+            )
+    assert starts == 0
+
+
+def test_harness_lstat_error_blocks_before_mutation_runner(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec_path, _out, _calls_path, _mode = _paths(repo)
+    _single_spec(spec_path)
+    spec, spec_sha256 = MH._load_spec(spec_path)
+    head = MH._repo_head(repo)
+    originals = MH._read_head_sources(repo, head, spec)
+    registration = MH._validate_registrations(repo, spec, originals)
+    hold = repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME
+    real_lstat = os.lstat
+    starts = 0
+
+    def indeterminate(path, *args, **kwargs):
+        if Path(path) == hold:
+            raise OSError("injected lstat failure")
+        return real_lstat(path, *args, **kwargs)
+
+    def forbidden(*args: object, **kwargs: object) -> dict[str, object]:
+        nonlocal starts
+        starts += 1
+        raise AssertionError("runner started after indeterminate hold check")
+
+    monkeypatch.setattr(MH.os, "lstat", indeterminate)
+    monkeypatch.setattr(MH, "_run_tests", forbidden)
+
+    with pytest.raises(MH.OrphanHoldStop):
+        MH._apply_mutation(
+            repo,
+            head,
+            originals,
+            spec.mutations[0],
+            spec,
+            [sys.executable, "ignored", "-rf"],
+            "dispatch",
+            registration["M1"],
+            spec_sha256=spec_sha256,
+            runner_sha256="runner",
+            tool_sha256="tool",
+            collection_sha256="collection",
+        )
+    assert starts == 0
+    assert (repo / "target.py").read_text(encoding="utf-8") == originals["target.py"]
 
 
 def test_restore_verification_rejects_content_different_from_head(repo: Path) -> None:
