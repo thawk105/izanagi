@@ -11,7 +11,7 @@ import ast
 import enum
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -52,6 +52,7 @@ class ReasonCode(str, enum.Enum):
     BLOB_READ_ERROR = "commit-blob-read-error"
     PYTHON_PARSE_ERROR = "evidence-python-parse-error"
     EVALUATOR_INTERNAL_ERROR = "evaluator-internal-error"
+    REACHABILITY_LIMIT_EXCEEDED = "reachability-limit-exceeded"
     WORKLOAD_SUPERVISOR_ABSENT = "workload-supervisor-absent"
     WORKLOAD_PROJECTION_MISMATCH = "workload-projection-mismatch"
     WORKLOAD_CONSUMER_UNREACHABLE = "workload-consumer-unreachable"
@@ -338,24 +339,147 @@ def _assigned_integer(tree: ast.Module, name: str) -> int | None:
     return None
 
 
-def _reachable_functions(tree: ast.Module, start: str) -> set[str]:
-    functions = _functions(tree)
-    reached: set[str] = set()
-    pending = [start]
-    while pending:
-        name = pending.pop()
-        if name in reached or name not in functions:
-            continue
-        reached.add(name)
-        pending.extend(_called_names(functions[name]) & functions.keys())
-    return reached
+_MAX_REACHABILITY_MODULES = 512
+_MAX_REACHABILITY_DEPTH = 64
+_MAX_REACHABILITY_STATES = 2048
+_MAX_REACHABILITY_BYTES = 16 * 1024 * 1024
+_PRODUCTION_PYTHON_ROOT = PurePosixPath("orchestrator/campaign")
+
+_CallableTarget = tuple[str, str]
 
 
-def _reachable_calls(tree: ast.Module, start: str) -> set[str]:
-    functions = _functions(tree)
-    return set().union(
-        *(_called_names(functions[name]) for name in _reachable_functions(tree, start))
-    ) if start in functions else set()
+@dataclass(frozen=True)
+class _ModuleBinding:
+    path: str
+    root_imports: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class _CallableBinding:
+    target: _CallableTarget
+
+
+_Binding = _ModuleBinding | _CallableBinding
+
+
+@dataclass(frozen=True)
+class _ReachabilityLimits:
+    modules: int = _MAX_REACHABILITY_MODULES
+    depth: int = _MAX_REACHABILITY_DEPTH
+    states: int = _MAX_REACHABILITY_STATES
+    total_bytes: int = _MAX_REACHABILITY_BYTES
+
+
+@dataclass(frozen=True)
+class _Reachability:
+    functions: frozenset[_CallableTarget]
+    calls: frozenset[_CallableTarget]
+    attributes: frozenset[str]
+    modules: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _CallState:
+    target: _CallableTarget
+    bindings: tuple[tuple[str, _CallableTarget], ...] = ()
+    blocked: tuple[str, ...] = ()
+    depth: int = 0
+
+    def key(self) -> tuple[object, ...]:
+        return (self.target, self.bindings, self.blocked)
+
+
+def _production_python_path(path: str) -> bool:
+    pure = PurePosixPath(path)
+    try:
+        pure.relative_to(_PRODUCTION_PYTHON_ROOT)
+    except ValueError:
+        return False
+    return pure.suffix == ".py" and "tests" not in pure.parts
+
+
+def _module_name(path: str) -> tuple[str, ...]:
+    pure = PurePosixPath(path)
+    parts = pure.parts[:-1] if pure.name == "__init__.py" else (*pure.parts[:-1], pure.stem)
+    return tuple(parts)
+
+
+def _package_name(path: str) -> tuple[str, ...]:
+    module = _module_name(path)
+    return module if PurePosixPath(path).name == "__init__.py" else module[:-1]
+
+
+def _bound_names_in_target(target: ast.AST) -> set[str]:
+    return {node.id for node in ast.walk(target) if isinstance(node, ast.Name)}
+
+
+def _statement_bound_names(node: ast.stmt) -> set[str]:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return {node.name}
+    if isinstance(node, ast.Import):
+        return {alias.asname or alias.name.split(".", 1)[0] for alias in node.names}
+    if isinstance(node, ast.ImportFrom):
+        return {alias.asname or alias.name for alias in node.names if alias.name != "*"}
+    if isinstance(node, ast.Assign):
+        return set().union(*(_bound_names_in_target(target) for target in node.targets))
+    if isinstance(node, ast.AnnAssign):
+        return _bound_names_in_target(node.target)
+    return set()
+
+
+def _function_parameters(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[str, ...]:
+    args = node.args
+    return tuple(
+        item.arg
+        for item in (*args.posonlyargs, *args.args, *args.kwonlyargs)
+    ) + (() if args.vararg is None else (args.vararg.arg,)) + (
+        () if args.kwarg is None else (args.kwarg.arg,)
+    )
+
+
+def _live_nodes(node: ast.AST) -> list[ast.AST]:
+    """Function body nodes excluding nested scopes and constant-false branches."""
+    values: list[ast.AST] = []
+
+    def visit(current: ast.AST, *, root: bool = False) -> None:
+        if root and isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            values.append(current)
+            for child in current.body:
+                visit(child)
+            return
+        if not root and isinstance(
+            current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+        ):
+            return
+        values.append(current)
+        if isinstance(current, ast.If):
+            false_branch = (
+                isinstance(current.test, ast.Constant)
+                and (current.test.value is False or current.test.value == 0)
+            )
+            branches = current.orelse if false_branch else (*current.body, *current.orelse)
+            visit(current.test)
+            for child in branches:
+                visit(child)
+            return
+        for child in ast.iter_child_nodes(current):
+            visit(child)
+
+    visit(node, root=True)
+    return values
+
+
+def _callable_defaults(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """Names whose defaults are callable expressions; these are never witnesses."""
+    positional = (*node.args.posonlyargs, *node.args.args)
+    defaults = (None,) * (len(positional) - len(node.args.defaults)) + tuple(node.args.defaults)
+    pairs = list(zip((item.arg for item in positional), defaults))
+    pairs.extend(zip((item.arg for item in node.args.kwonlyargs), node.args.kw_defaults))
+    return {
+        name
+        for name, default in pairs
+        if isinstance(default, (ast.Attribute, ast.Lambda, ast.Call))
+    }
 
 
 @dataclass
@@ -366,6 +490,10 @@ class _ConditionProbe:
     contract_ref: core.EvidenceRef
     refs: dict[str, core.EvidenceRef]
     cache: dict[str, bytes | None]
+    python_cache: dict[str, ast.Module | None] = field(default_factory=dict)
+    reachability_modules: set[str] = field(default_factory=set)
+    reachability_bytes: int = 0
+    reachability_elapsed_s: float = 0.0
 
     def requirement(self, kind: str) -> RequiredEvidence:
         matches = [item for item in self.contract.required_evidence if item.artifact_kind == kind]
@@ -374,7 +502,9 @@ class _ConditionProbe:
         return matches[0]
 
     def read_kind(self, kind: str) -> bytes | None:
-        path = self.requirement(kind).path
+        return self.read_path(self.requirement(kind).path)
+
+    def read_path(self, path: str) -> bytes | None:
         if path not in self.cache:
             raw = core.read_blob_at(self.repo_root, self.commit, path, required=False)
             self.cache[path] = raw
@@ -383,17 +513,467 @@ class _ConditionProbe:
         return self.cache[path]
 
     def python_kind(self, kind: str) -> ast.Module | None:
-        raw = self.read_kind(kind)
+        return self.python_path(self.requirement(kind).path)
+
+    def python_path(
+        self, path: str, *, limits: _ReachabilityLimits | None = None
+    ) -> ast.Module | None:
+        if path in self.python_cache:
+            cached = self.python_cache[path]
+            raw = self.cache.get(path)
+            if (
+                limits is not None
+                and cached is not None
+                and raw is not None
+                and path not in self.reachability_modules
+            ):
+                if len(self.reachability_modules) + 1 > limits.modules:
+                    raise EvidenceContractError(
+                        ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value,
+                        f"module>{limits.modules}",
+                    )
+                if self.reachability_bytes + len(raw) > limits.total_bytes:
+                    raise EvidenceContractError(
+                        ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value,
+                        f"bytes>{limits.total_bytes}",
+                    )
+                self.reachability_modules.add(path)
+                self.reachability_bytes += len(raw)
+            return cached
+        raw = self.read_path(path)
         if raw is None:
+            self.python_cache[path] = None
             return None
+        if limits is not None:
+            if len(self.reachability_modules) + 1 > limits.modules:
+                raise EvidenceContractError(
+                    ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value,
+                    f"module>{limits.modules}",
+                )
+            if self.reachability_bytes + len(raw) > limits.total_bytes:
+                raise EvidenceContractError(
+                    ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value,
+                    f"bytes>{limits.total_bytes}",
+                )
+            self.reachability_modules.add(path)
+            self.reachability_bytes += len(raw)
         try:
-            return ast.parse(raw.decode("utf-8", "strict"), filename=self.requirement(kind).path)
+            tree = ast.parse(raw.decode("utf-8", "strict"), filename=path)
         except (UnicodeError, SyntaxError) as exc:
             raise EvidenceContractError("evidence-python-parse-error", str(exc)) from exc
+        self.python_cache[path] = tree
+        return tree
 
     def evidence(self) -> tuple[core.EvidenceRef, ...]:
         values = {self.contract_ref.path: self.contract_ref, **self.refs}
         return tuple(values[path] for path in sorted(values))
+
+
+class _ReachabilityExplorer:
+    """Bounded, deterministic resolver over committed production Python blobs."""
+
+    def __init__(
+        self, probe: _ConditionProbe, limits: _ReachabilityLimits | None = None
+    ) -> None:
+        self.probe = probe
+        self.limits = limits or _ReachabilityLimits()
+        self._bindings: dict[str, dict[str, _Binding]] = {}
+        self._binding_in_progress: set[str] = set()
+
+    def _tree(self, path: str) -> ast.Module | None:
+        if not _production_python_path(path):
+            return None
+        return self.probe.python_path(path, limits=self.limits)
+
+    def _functions(
+        self, path: str
+    ) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+        tree = self._tree(path)
+        if tree is None:
+            return {}
+        candidates: dict[str, list[ast.FunctionDef | ast.AsyncFunctionDef]] = {}
+        rebound: set[str] = set()
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                candidates.setdefault(node.name, []).append(node)
+            else:
+                rebound.update(_statement_bound_names(node))
+        return {
+            name: rows[0]
+            for name, rows in candidates.items()
+            if len(rows) == 1 and name not in rebound
+        }
+
+    def _module_path(self, parts: tuple[str, ...]) -> str | None:
+        if not parts or any(not part.isidentifier() for part in parts):
+            return None
+        candidates = (
+            "/".join(parts) + ".py",
+            "/".join(parts) + "/__init__.py",
+        )
+        existing = [path for path in candidates if self._tree(path) is not None]
+        return existing[0] if len(existing) == 1 else None
+
+    def _import_parts(self, path: str, node: ast.ImportFrom) -> tuple[str, ...] | None:
+        if node.level:
+            package = _package_name(path)
+            if node.level > len(package) + 1:
+                return None
+            prefix = package[: len(package) - node.level + 1]
+        else:
+            prefix = ()
+        suffix = () if node.module is None else tuple(node.module.split("."))
+        parts = (*prefix, *suffix)
+        return parts if all(part.isidentifier() for part in parts) else None
+
+    def _initializer_shadows(self, package: tuple[str, ...], name: str) -> bool:
+        init_path = "/".join(package) + "/__init__.py"
+        tree = self._tree(init_path)
+        if tree is None:
+            return False
+        return any(name in _statement_bound_names(node) for node in tree.body)
+
+    def _resolve_from_module(self, path: str, name: str) -> _Binding | None:
+        functions = self._functions(path)
+        if name in functions:
+            return _CallableBinding((path, name))
+        return None
+
+    def _bindings_for(self, path: str) -> dict[str, _Binding]:
+        cached = self._bindings.get(path)
+        if cached is not None:
+            return cached
+        if path in self._binding_in_progress:
+            return {}
+        self._binding_in_progress.add(path)
+        tree = self._tree(path)
+        bindings: dict[str, _Binding] = {}
+        counts: dict[str, int] = {}
+        if tree is not None:
+            for node in tree.body:
+                for name in _statement_bound_names(node):
+                    counts[name] = counts.get(name, 0) + 1
+            for node in tree.body:
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        parts = tuple(alias.name.split("."))
+                        module_path = self._module_path(parts)
+                        if module_path is None:
+                            continue
+                        local = alias.asname or parts[0]
+                        if alias.asname is None:
+                            previous = bindings.get(local)
+                            imported = {module_path}
+                            if isinstance(previous, _ModuleBinding):
+                                imported.update(previous.root_imports or (previous.path,))
+                            bindings[local] = _ModuleBinding(
+                                module_path, tuple(sorted(imported))
+                            )
+                        else:
+                            bindings[local] = _ModuleBinding(module_path)
+                elif isinstance(node, ast.ImportFrom):
+                    base = self._import_parts(path, node)
+                    if base is None:
+                        continue
+                    for alias in node.names:
+                        if alias.name == "*":
+                            continue
+                        local = alias.asname or alias.name
+                        if node.module is None:
+                            if self._initializer_shadows(base, alias.name):
+                                continue
+                            module_path = self._module_path((*base, alias.name))
+                            if module_path is not None:
+                                bindings[local] = _ModuleBinding(module_path)
+                        else:
+                            module_path = self._module_path(base)
+                            if module_path is None:
+                                continue
+                            binding = self._resolve_from_module(module_path, alias.name)
+                            if binding is not None:
+                                bindings[local] = binding
+            # Resolve exact, single module-level callable aliases after imports.
+            for node in tree.body:
+                target: ast.Name | None = None
+                value: ast.AST | None = None
+                if (
+                    isinstance(node, ast.Assign)
+                    and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                ):
+                    target, value = node.targets[0], node.value
+                elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                    target, value = node.target, node.value
+                if target is None or value is None or counts.get(target.id) != 1:
+                    continue
+                resolved = self._resolve_expr(path, value, {}, set(), bindings=bindings)
+                if resolved is not None:
+                    bindings[target.id] = _CallableBinding(resolved)
+        self._binding_in_progress.remove(path)
+        self._bindings[path] = bindings
+        return bindings
+
+    def _resolve_expr(
+        self,
+        path: str,
+        expr: ast.AST,
+        local: Mapping[str, _CallableTarget],
+        shadowed: set[str],
+        *,
+        bindings: Mapping[str, _Binding] | None = None,
+    ) -> _CallableTarget | None:
+        module_bindings = self._bindings_for(path) if bindings is None else bindings
+        if isinstance(expr, ast.Name):
+            if expr.id in local:
+                return local[expr.id]
+            if expr.id in shadowed:
+                return None
+            binding = module_bindings.get(expr.id)
+            if isinstance(binding, _CallableBinding):
+                return binding.target
+            if expr.id in self._functions(path):
+                return (path, expr.id)
+            return None
+        if isinstance(expr, ast.Attribute):
+            chain: list[str] = []
+            current: ast.AST = expr
+            while isinstance(current, ast.Attribute):
+                chain.append(current.attr)
+                current = current.value
+            if not isinstance(current, ast.Name) or current.id in shadowed:
+                return None
+            chain.reverse()
+            binding = module_bindings.get(current.id)
+            if not isinstance(binding, _ModuleBinding) or not chain:
+                return None
+            module_path = binding.path
+            if len(chain) > 1:
+                bound_parts = _module_name(module_path)
+                if binding.root_imports:
+                    requested = (current.id, *chain[:-1])
+                    matches = [
+                        candidate
+                        for candidate in binding.root_imports
+                        if _module_name(candidate) == requested
+                    ]
+                    if len(matches) != 1:
+                        return None
+                    module_path = matches[0]
+                elif tuple(chain[:-1]) != bound_parts[1:]:
+                    module_parts = (*bound_parts, *chain[:-1])
+                    resolved_path = self._module_path(module_parts)
+                    if resolved_path is None:
+                        return None
+                    module_path = resolved_path
+            return (
+                (module_path, chain[-1])
+                if chain[-1] in self._functions(module_path)
+                else None
+            )
+        return None
+
+    @staticmethod
+    def _assignment_rows(
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> dict[str, list[tuple[ast.AST, ast.AST | None]]]:
+        rows: dict[str, list[tuple[ast.AST, ast.AST | None]]] = {}
+        for current in _live_nodes(node):
+            if isinstance(current, ast.Assign):
+                for target in current.targets:
+                    if isinstance(target, ast.Name):
+                        rows.setdefault(target.id, []).append((current.value, current))
+            elif isinstance(current, ast.AnnAssign) and isinstance(current.target, ast.Name):
+                rows.setdefault(current.target.id, []).append((current.value, current))
+        return rows
+
+    @staticmethod
+    def _sentinel_assignment(
+        node: ast.FunctionDef | ast.AsyncFunctionDef, name: str, assignment: ast.AST
+    ) -> bool:
+        # The only admitted conditional assignment is ``if p is SENTINEL: p = f``
+        # for an omitted parameter whose default is a non-callable Name sentinel.
+        positional = (*node.args.posonlyargs, *node.args.args)
+        defaults = (None,) * (len(positional) - len(node.args.defaults)) + tuple(node.args.defaults)
+        default_map = dict(zip((item.arg for item in positional), defaults))
+        default_map.update(
+            zip((item.arg for item in node.args.kwonlyargs), node.args.kw_defaults)
+        )
+        default = default_map.get(name)
+        if not isinstance(default, ast.Name):
+            return False
+        for current in _live_nodes(node):
+            if not isinstance(current, ast.If):
+                continue
+            test = current.test
+            if not (
+                isinstance(test, ast.Compare)
+                and isinstance(test.left, ast.Name)
+                and test.left.id == name
+                and len(test.ops) == 1
+                and isinstance(test.ops[0], ast.Is)
+                and len(test.comparators) == 1
+                and isinstance(test.comparators[0], ast.Name)
+                and test.comparators[0].id == default.id
+            ):
+                continue
+            if any(assignment is candidate for candidate in ast.walk(current)):
+                return True
+        return False
+
+    def _local_bindings(
+        self,
+        path: str,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        incoming: Mapping[str, _CallableTarget],
+        blocked: set[str],
+    ) -> tuple[dict[str, _CallableTarget], set[str]]:
+        local = dict(incoming)
+        assignments = self._assignment_rows(node)
+        parameters = set(_function_parameters(node))
+        callable_defaults = _callable_defaults(node)
+        scope_declarations = {
+            name
+            for current in _live_nodes(node)
+            if isinstance(current, (ast.Global, ast.Nonlocal))
+            for name in current.names
+        }
+        shadowed = (
+            parameters
+            | set(assignments)
+            | callable_defaults
+            | blocked
+            | scope_declarations
+        )
+        for name in sorted(assignments):
+            rows = assignments[name]
+            if len(rows) != 1 or name in callable_defaults:
+                local.pop(name, None)
+                continue
+            value, assignment = rows[0]
+            if name in parameters:
+                if name in incoming or name in blocked:
+                    continue
+                if not self._sentinel_assignment(node, name, assignment):
+                    continue
+            elif assignment not in node.body:
+                # Conditional/loop/exception assignments are not a witness.
+                continue
+            resolved = self._resolve_expr(path, value, local, shadowed - {name})
+            if resolved is not None:
+                local[name] = resolved
+        return local, shadowed
+
+    def _dict_keywords(
+        self,
+        path: str,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        local: Mapping[str, _CallableTarget],
+        shadowed: set[str],
+    ) -> dict[str, dict[str, _CallableTarget | None]]:
+        result: dict[str, dict[str, _CallableTarget | None]] = {}
+        assignments = self._assignment_rows(node)
+        for name, rows in assignments.items():
+            if len(rows) != 1:
+                continue
+            value, _assignment = rows[0]
+            if not (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "dict"
+                and not value.args
+                and all(keyword.arg is not None for keyword in value.keywords)
+            ):
+                continue
+            result[name] = {
+                keyword.arg: self._resolve_expr(path, keyword.value, local, shadowed)
+                for keyword in value.keywords
+                if keyword.arg is not None
+            }
+        return result
+
+    def walk(self, start: _CallableTarget) -> _Reachability:
+        pending = [_CallState(start)]
+        visited: set[tuple[object, ...]] = set()
+        functions: set[_CallableTarget] = set()
+        calls: set[_CallableTarget] = set()
+        attributes: set[str] = set()
+        while pending:
+            pending.sort(key=lambda item: (item.depth, item.target, item.bindings, item.blocked))
+            state = pending.pop(0)
+            if state.depth > self.limits.depth:
+                raise EvidenceContractError(
+                    ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value,
+                    f"depth>{self.limits.depth}",
+                )
+            key = state.key()
+            if key in visited:
+                continue
+            if len(visited) + 1 > self.limits.states:
+                raise EvidenceContractError(
+                    ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value,
+                    f"states>{self.limits.states}",
+                )
+            visited.add(key)
+            path, name = state.target
+            function = self._functions(path).get(name)
+            if function is None:
+                continue
+            functions.add(state.target)
+            incoming = dict(state.bindings)
+            blocked = set(state.blocked)
+            local, shadowed = self._local_bindings(path, function, incoming, blocked)
+            dicts = self._dict_keywords(path, function, local, shadowed)
+            live = _live_nodes(function)
+            attributes.update(
+                current.attr for current in live if isinstance(current, ast.Attribute)
+            )
+            successors: list[_CallState] = []
+            for current in live:
+                if not isinstance(current, ast.Call):
+                    continue
+                target = self._resolve_expr(path, current.func, local, shadowed)
+                if target is None:
+                    continue
+                calls.add(target)
+                target_function = self._functions(target[0]).get(target[1])
+                if target_function is None:
+                    continue
+                target_params = set(_function_parameters(target_function))
+                propagated: dict[str, _CallableTarget] = {}
+                target_blocked: set[str] = set()
+                for keyword in current.keywords:
+                    if keyword.arg is None:
+                        if isinstance(keyword.value, ast.Name):
+                            for arg, value in dicts.get(keyword.value.id, {}).items():
+                                if arg not in target_params:
+                                    continue
+                                if value is None:
+                                    target_blocked.add(arg)
+                                else:
+                                    propagated[arg] = value
+                        continue
+                    if keyword.arg not in target_params:
+                        continue
+                    value = self._resolve_expr(path, keyword.value, local, shadowed)
+                    if value is None:
+                        target_blocked.add(keyword.arg)
+                    else:
+                        propagated[keyword.arg] = value
+                successors.append(
+                    _CallState(
+                        target,
+                        tuple(sorted(propagated.items())),
+                        tuple(sorted(target_blocked - propagated.keys())),
+                        state.depth + 1,
+                    )
+                )
+            pending.extend(successors)
+        return _Reachability(
+            frozenset(functions),
+            frozenset(calls),
+            frozenset(attributes),
+            tuple(sorted(self.probe.reachability_modules)),
+        )
 
 
 def _result(
@@ -410,6 +990,7 @@ def _result(
 
 
 def _evaluate_c01(probe: _ConditionProbe) -> core.PredicateResult:
+    workload_path = probe.requirement("workload_supervisor").path
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
@@ -419,17 +1000,18 @@ def _evaluate_c01(probe: _ConditionProbe) -> core.PredicateResult:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.WORKLOAD_CONSUMER_UNREACHABLE)
     if any(not {1_000_000, 48} <= _integers(functions[name]) for name in sinks):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.WORKLOAD_PROJECTION_MISMATCH)
-    reached = _reachable_functions(tree, "run_trial")
-    if not set(sinks) <= reached or "run_trial" not in _reachable_functions(tree, "main"):
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "main"))
+    if not {(workload_path, name) for name in sinks} <= graph.functions or (
+        workload_path, "run_trial"
+    ) not in graph.functions:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.WORKLOAD_CONSUMER_UNREACHABLE)
     ratified = probe.python_kind("ratified_generation_reference")
-    calls = _reachable_calls(tree, "run_trial")
-    attributes = set().union(*(_attributes(functions[name]) for name in reached))
+    ratified_path = probe.requirement("ratified_generation_reference").path
     if (
         ratified is None
         or "load_ratified_freeze" not in _functions(ratified)
-        or "load_ratified_freeze" not in calls
-        or not {"sha256", "holdouts"} <= attributes
+        or (ratified_path, "load_ratified_freeze") not in graph.calls
+        or not {"sha256", "holdouts"} <= graph.attributes
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.RATIFIED_GENERATION_REFERENCE_ABSENT)
     return _result(
@@ -440,11 +1022,18 @@ def _evaluate_c01(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
+    workload_path = probe.requirement("workload_supervisor").path
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
-    calls = _reachable_calls(tree, "run_trial")
-    if not {"mark_experiment_indeterminate", "forbid_trial_restart"} <= calls:
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "main"))
+    if (workload_path, "run_trial") not in graph.functions:
+        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CRASH_POLICY_CELL_PARTIAL)
+    registry_path = probe.requirement("trial_registry").path
+    if not {
+        (workload_path, "mark_experiment_indeterminate"),
+        (registry_path, "forbid_trial_restart"),
+    } <= graph.calls:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.CRASH_POLICY_CELL_PARTIAL)
     registry = probe.python_kind("trial_registry")
     if registry is None or "forbid_trial_restart" not in _functions(registry):
@@ -457,8 +1046,16 @@ def _evaluate_c04(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _evaluate_c09(probe: _ConditionProbe) -> core.PredicateResult:
+    producer_path = probe.requirement("layer3_producer").path
     producer = probe.python_kind("layer3_producer")
-    if producer is None or "assert_campaign_layer3_chain" not in _reachable_calls(producer, "run_trial"):
+    graph = (
+        None
+        if producer is None
+        else _ReachabilityExplorer(probe).walk((producer_path, "main"))
+    )
+    if graph is None or not any(
+        name == "assert_campaign_layer3_chain" for _path, name in graph.calls
+    ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.LAYER3_PRODUCER_UNREACHABLE)
     registry = probe.python_kind("trial_registry")
     functions = _functions(registry) if registry is not None else {}
@@ -562,31 +1159,41 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
 
 
 def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
+    workload_path = probe.requirement("workload_supervisor").path
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
     functions = _functions(tree)
-    run_trial = functions.get("run_trial")
-    if run_trial is None:
+    if functions.get("run_trial") is None or functions.get("main") is None:
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
-    calls = _reachable_calls(tree, "run_trial")
-    attributes = set().union(*(_attributes(functions[name]) for name in _reachable_functions(tree, "run_trial")))
+    graph = _ReachabilityExplorer(probe).walk((workload_path, "main"))
+    if (workload_path, "run_trial") not in graph.functions:
+        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
     environment = probe.python_kind("environment_contract")
     guard = probe.python_kind("execution_guard")
     allocation = probe.python_kind("allocation_consumer")
+    environment_target = (probe.requirement("environment_contract").path, "lookup")
+    guard_target = (
+        probe.requirement("execution_guard").path,
+        "attest_and_build_receipt",
+    )
+    allocation_target = (
+        probe.requirement("allocation_consumer").path,
+        "single_process_required",
+    )
     if (
         environment is None
         or guard is None
         or "lookup" not in _functions(environment)
         or "attest_and_build_receipt" not in _functions(guard)
-        or not {"lookup", "attest_and_build_receipt"} <= calls
+        or not {environment_target, guard_target} <= graph.calls
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
     if (
         allocation is None
         or "single_process_required" not in _functions(allocation)
-        or "single_process_required" not in calls
-        or not {"single_process", "allow_resume"} <= attributes
+        or allocation_target not in graph.calls
+        or not {"single_process", "allow_resume"} <= graph.attributes
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT)
     return _result(
@@ -698,11 +1305,13 @@ class PredicateRegistry:
                 else:
                     result = _evaluate_undefined(probe)
             except (core.PreregistrationError, EvidenceContractError) as exc:
-                reason = (
-                    ReasonCode.PYTHON_PARSE_ERROR
-                    if getattr(exc, "reason_code", "") == "evidence-python-parse-error"
-                    else ReasonCode.BLOB_READ_ERROR
-                )
+                error_reason = getattr(exc, "reason_code", "")
+                if error_reason == "evidence-python-parse-error":
+                    reason = ReasonCode.PYTHON_PARSE_ERROR
+                elif error_reason == ReasonCode.REACHABILITY_LIMIT_EXCEEDED.value:
+                    reason = ReasonCode.REACHABILITY_LIMIT_EXCEEDED
+                else:
+                    reason = ReasonCode.BLOB_READ_ERROR
                 result = _result(probe, core.PredicateStatus.ERROR, reason)
             except Exception:  # fail-closed。自由文を reason_code にしない。
                 result = _result(

@@ -314,6 +314,11 @@ def _install_legacy_nul_bound_g1(root: Path) -> str:
     return _commit(root, "install legacy NUL-bound g1")
 
 
+def _different_decider_version() -> str:
+    prefix, version = M.DECIDER_VERSION.rsplit("/v", 1)
+    return f"{prefix}/v{int(version) + 1}"
+
+
 def _install_legacy_crlf_bound_g1(
     root: Path,
     *,
@@ -1532,7 +1537,7 @@ def test_decider_version_mutation_is_generation_mutated(tmp_path: Path) -> None:
     root = _init_repo(tmp_path)
     _, raw = _install_g1(root)
     document = json.loads(raw)
-    document["decider_version"] = "s8c-decider/v2"
+    document["decider_version"] = _different_decider_version()
     _write(root, M.generation_path(1), M._canonical_bytes(document))
     head = _commit(root, "mutate g1 decider version")
     _assert_reason("generation-mutated", M.validate_condition_freeze_at, root, head)
@@ -2008,18 +2013,23 @@ def test_matching_decider_version_preserves_activation_conjunction(tmp_path: Pat
     assert report.effective is True
 
 
+def test_decider_version_binds_cross_module_semantics_to_v2() -> None:
+    assert M.DECIDER_VERSION == "s8c-decider/v2"
+
+
 def test_mismatched_decider_version_is_not_effective(tmp_path: Path) -> None:
     root = _init_repo(tmp_path, filled=True)
     document = json.loads(_record_raw(root, 1, supersedes=None, ruling=None))
-    document["decider_version"] = "s8c-decider/v2"
+    mismatched_version = _different_decider_version()
+    document["decider_version"] = mismatched_version
     _write(root, M.generation_path(1), M._canonical_bytes(document))
-    head = _commit(root, "install mismatched v2 g1")
+    head = _commit(root, "install mismatched decider version g1")
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
     assert report.condition_freeze_valid is True
     assert report.freeze_reason_code == "valid"
-    assert report.decider_version == "s8c-decider/v2"
+    assert report.decider_version == mismatched_version
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2049,12 +2059,13 @@ def test_invalid_running_decider_version_cannot_activate(
         __hash__ = str.__hash__
 
     root = _init_repo(tmp_path, filled=True)
-    head, _ = _install_g1(root)
+    head, raw = _install_g1(root)
+    recorded_version = json.loads(raw)["decider_version"]
     monkeypatch.setattr(M, "DECIDER_VERSION", InvalidRuntimeDecider("invalid-version"))
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v1"
+    assert report.decider_version == recorded_version
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2070,14 +2081,15 @@ def test_valid_hostile_str_subclass_cannot_fake_decider_version_match(
         __hash__ = str.__hash__
 
     root = _init_repo(tmp_path, filled=True)
-    head, _ = _install_g1(root)
+    head, raw = _install_g1(root)
+    recorded_version = json.loads(raw)["decider_version"]
     monkeypatch.setattr(
-        M, "DECIDER_VERSION", HostileRuntimeDecider("s8c-decider/v2")
+        M, "DECIDER_VERSION", HostileRuntimeDecider(M.DECIDER_VERSION)
     )
     report = M._activation_report_at_for_test(
         root, head, registry=_Registry(M.PredicateStatus.SATISFIED)
     )
-    assert report.decider_version == "s8c-decider/v1"
+    assert report.decider_version == recorded_version
     assert report.decider_version_matches is False
     assert report.decider_version_reason_code == "decider-version-mismatch"
     assert report.effective is False
@@ -2091,7 +2103,7 @@ def test_activation_report_digest_binds_decider_and_projection_fields(tmp_path: 
     )
     original = M._activation_report_digest(report)
     replacements = (
-        {"decider_version": "s8c-decider/v2"},
+        {"decider_version": _different_decider_version()},
         {"decider_version_matches": False},
         {"decider_version_reason_code": "decider-version-mismatch"},
         {"projection_module_blob_sha256": "0" * 64},
