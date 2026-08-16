@@ -21,6 +21,9 @@ for variable in IZANAGI_PILOT_PROTOCOL IZANAGI_PILOT_OUTPUT_ROOT \
 done
 [[ "$IZANAGI_PILOT_ATTEMPT" =~ ^[A-Za-z0-9._-]+$ ]] || fail "unsafe attempt id"
 [[ "${IZANAGI_PILOT_BUILD_ONLY:-0}" =~ ^[01]$ ]] || fail "unsafe build-only flag"
+IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT=${IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT:-0}
+[[ "$IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT" =~ ^[01]$ ]] \
+  || fail "unsafe irreversible holdout confirmation"
 if [[ -n "${IZANAGI_PILOT_ROUNDS:-}" ]]; then
   [[ "$IZANAGI_PILOT_ROUNDS" =~ ^[1-9][0-9]*$ ]] || fail "unsafe rounds"
 fi
@@ -238,6 +241,9 @@ driver=(
 )
 if [[ "$IZANAGI_PILOT_BUILD_ONLY" == 1 ]]; then
   driver+=(--build-only)
+fi
+if [[ "$IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT" == 1 ]]; then
+  driver+=(--confirm-irreversible-pilot-holdout)
 fi
 if [[ -n "${IZANAGI_PILOT_ROUNDS:-}" ]]; then
   driver+=(--rounds "$IZANAGI_PILOT_ROUNDS")

@@ -64,6 +64,30 @@ runbook §7.3 が「待ち手を自分で書き起こさない ([T-740])」と�
 判定材料をスケジューラの会計サマリ (`Ended Request Time:`) へ変え、成功・失敗双方で
 書かれることを実測してから張り直した。
 
+**本走中に main が新しい正しさ防壁を着地させ、3 割当が全滅した。** 取り込んだ
+`orchestrator/holdout_observation.py` が `run_once` の冒頭で
+`assert_holdout_observation_admitted` を呼ぶようになり、holdout (rr20/rr80) の観測には
+attempt 束縛の admission token が必要になった。**迂回してはならない防壁なので迂回していない。**
+
+承認 flag `irreversible_pilot_approved` (既定拒否) は存在するが、**それだけでは通らなかった。**
+`_OBSERVATION_ROLES` が `{floor_campaign, oracle_driver}` の 2 役しかなく、n 導出 pilot は
+どちらにも所属できない — floor 経路は正本 `floor_protocol.json` と固定 schedule との
+完全一致を要求し、oracle 経路は verified manifest と ratified freeze を要求する
+(後者は [T-987] の詰まりそのもので不在)。fix 子が両経路の必要入力を全列挙して
+authority 不足を確認し、代替発行・private API 直呼び・迂回のいずれもせずに停止した。
+
+**ユーザー裁定 (2026-08-16): 第 3 の役 `n_pilot` を追加してよい。**
+防壁の目的は「holdout 観測を人の承認つきで台帳に消えない形で計上すること」であり、
+本変更は計上の有無を変えず**計上できる主体を増やすだけ**である。承認は据え置き (既定拒否)、
+台帳記録は据え置き、ticket は attempt 束縛のまま、既存 2 役の挙動は不変とした。
+却下した案は「pilot を floor campaign に偽装させる」— 正本 protocol と schedule の
+同一性を騙ることになり、floor 台帳を汚し、schedule も oracle 型でなくなる。
+
+**ユーザー指摘 (方法論):** 「この commit でしかこの数値は使えない」は言わない。
+判断基準は**その変更が測った量に効きうるか**の一点である。事前登録の条件付けを
+「pin と binary SHA は記録する (provenance)。再利用の可否は測定量に効きうるかで判断する」
+へ改めた。逆に「pin を跨いで不変」と実測なしに断定もしない。
+
 pilot は非公式の探索計測であり、出力 schema の `eligibility` 4 flag
 (certified / floor_input / oracle_input / n_decision) はすべて false に固定されている。
 `n` の値・`holdout_freeze.json` の floor/budget・oracle spec の承認値には触れていない。

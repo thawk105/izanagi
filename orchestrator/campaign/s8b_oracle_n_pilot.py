@@ -31,7 +31,13 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 from ..calibrator import perf_preflight as _perf_preflight
 from ..calibrator.runner import measure_point
 
-from . import buildcache, env_contract, s8b_floor_contract, s8b_oracle_manifest
+from . import (
+    buildcache,
+    env_contract,
+    s8b_floor_contract,
+    s8b_holdout_admission,
+    s8b_oracle_manifest,
+)
 from .build_admission import (
     GeneratorId,
     ReviewId,
@@ -914,8 +920,19 @@ def run_sessions(
     perf_preflight_fn: Callable[..., object] = _perf_preflight.probe_perf_availability,
     perf_candidates_fn: Callable[[Path], Sequence[str]] = _policy_perf_candidates,
     repo_root: Path = ROOT,
+    irreversible_pilot_holdout_approved: bool = False,
+    n_pilot_admissions: Mapping[int, object] | None = None,
+    consume_n_pilot_attempt_ticket_fn: Callable[..., object] = (
+        s8b_holdout_admission.consume_n_pilot_attempt_ticket
+    ),
 ) -> tuple[tuple[SessionObservation, ...], PerfMode]:
     """Measure the complete blocked schedule with no retry or partial completion."""
+    if irreversible_pilot_holdout_approved is not True:
+        raise PilotError(
+            "holdout observation requires --confirm-irreversible-pilot-holdout"
+        )
+    if n_pilot_admissions is None or set(n_pilot_admissions) != set(range(len(schedule))):
+        raise PilotError("n pilot holdout admission coverage is incomplete")
     perf_mode = resolve_perf_mode(
         repo_root=repo_root,
         perf_preflight_fn=perf_preflight_fn,
@@ -945,6 +962,12 @@ def run_sessions(
         point = None
         measure_error: BaseException | None = None
         try:
+            observation_admission = consume_n_pilot_attempt_ticket_fn(
+                n_pilot_admissions[expected_seq], schedule_index=expected_seq,
+            )
+        except s8b_holdout_admission.HoldoutAdmissionError as exc:
+            raise PilotError(f"n pilot attempt admission failed: {exc}") from exc
+        try:
             point = measure_fn(
                 str(binary.binary_path),
                 int(cell["records"]),
@@ -958,6 +981,7 @@ def run_sessions(
                 require_all_reps=True,
                 rep_returncodes=returncodes,
                 use_perf=perf_mode.use_perf,
+                holdout_observation_admission=observation_admission,
             )
         except BaseException as exc:  # post-check is mandatory even for measurement failure
             measure_error = exc
@@ -1764,6 +1788,8 @@ def aggregate_results(
         }
         if any(identity.get(key) != value for key, value in expected_identity.items()):
             raise PilotError("aggregate result identity が protocol と不一致")
+        if identity.get("irreversible_pilot_holdout_approved") is not True:
+            raise PilotError("aggregate result irreversible approval が不正")
         try:
             normalized_perf = _perf_preflight.validate_perf_preflight_receipt(
                 identity.get("perf_preflight")
@@ -1819,6 +1845,11 @@ def aggregate_results(
         attempt_id = allocation["attempt_id"]
         if not attempt_id or attempt_id in attempts:
             raise PilotError("aggregate result attempt identity が空または重複")
+        if allocation.get("holdout_admission") != {
+            "role": s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT,
+            "campaign_run_id": attempt_id,
+        }:
+            raise PilotError("aggregate result holdout admission identity が不正")
         attempts.add(attempt_id)
         schedule = document["schedule"]
         if not isinstance(schedule, list) or not schedule:
@@ -1933,6 +1964,7 @@ def aggregate_results(
             "ccbench_pin": protocol.ccbench_pin,
             "contract_sha256": protocol.contract_sha256,
             "observed_repo_heads": sorted(observed_repo_heads),
+            "irreversible_pilot_holdout_approved": True,
             "use_perf": canonical_identity["use_perf"],
             "perf_preflight": canonical_identity["perf_preflight"],
         },
@@ -1971,6 +2003,8 @@ def _result_document(
     run_wall_time_s: float | None,
     perf_mode: PerfMode,
     n_analysis_null_reason: str | None = None,
+    irreversible_pilot_holdout_approved: bool = False,
+    holdout_admission_identifier: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     if n_analysis is not None:
         raise PilotError("allocation result は n_analysis を持てない; aggregate を使う")
@@ -1988,6 +2022,19 @@ def _result_document(
         raise PilotError(f"result perf preflight が不正: {exc}") from exc
     if type(perf_mode.use_perf) is not bool or perf_mode.use_perf is not derived_use_perf:
         raise PilotError("result use_perf が perf preflight と不一致")
+    if type(irreversible_pilot_holdout_approved) is not bool:
+        raise PilotError("result irreversible pilot approval が exact bool でない")
+    if not build_only:
+        expected_identifier = {
+            "role": s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT,
+            "campaign_run_id": attempt_id,
+        }
+        if irreversible_pilot_holdout_approved is not True:
+            raise PilotError("completed pilot result lacks irreversible approval")
+        if holdout_admission_identifier != expected_identifier:
+            raise PilotError("completed pilot result admission identifier is invalid")
+    elif holdout_admission_identifier is not None:
+        raise PilotError("build-only result cannot carry a holdout admission identifier")
     return {
         "schema_version": RESULT_SCHEMA,
         "status": "built" if build_only else "completed",
@@ -2011,6 +2058,9 @@ def _result_document(
             "activation_generation": inputs.protocol.activation_generation,
             "freeze_verification_status": inputs.freeze_verification_status,
             "freeze_verification_held_markers": list(inputs.held_markers),
+            "irreversible_pilot_holdout_approved": (
+                irreversible_pilot_holdout_approved
+            ),
             "use_perf": perf_mode.use_perf,
             "perf_preflight": normalized_perf,
         },
@@ -2050,6 +2100,10 @@ def _result_document(
             "boot_id": _read_boot_id(),
             "run_wall_time_s": run_wall_time_s,
             "one_round_wall_time_s": run_wall_time_s if rounds == 1 else None,
+            "holdout_admission": (
+                None if holdout_admission_identifier is None
+                else dict(holdout_admission_identifier)
+            ),
         },
         "measurement_declaration": dict(inputs.protocol.measurement_declaration),
         "schedule": [dict(row) for row in schedule],
@@ -2082,6 +2136,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--observed-repo-head")
     parser.add_argument("--cache-root", type=Path)
     parser.add_argument("--build-only", action="store_true")
+    parser.add_argument(
+        "--confirm-irreversible-pilot-holdout", action="store_true",
+    )
     parser.add_argument("--rounds", type=int)
     parser.add_argument("--aggregate", type=Path, nargs="+")
     return parser.parse_args(argv)
@@ -2097,11 +2154,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 or args.observed_repo_head is not None
                 or args.cache_root is not None
                 or args.build_only
+                or args.confirm_irreversible_pilot_holdout
                 or args.rounds is not None
             ):
                 raise PilotError(
                     "--aggregate は --attempt-id/--observed-repo-head/--cache-root/"
-                    "--build-only/--rounds と併用できない"
+                    "--build-only/--confirm-irreversible-pilot-holdout/--rounds "
+                    "と併用できない"
                 )
             write_guarded_result(args.output, aggregate_results(protocol, args.aggregate))
             return 0
@@ -2137,6 +2196,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         if not args.build_only and rounds is None:
             raise PilotError("実走には protocol.pilot_rounds または --rounds が必要")
+        if not args.build_only and not args.confirm_irreversible_pilot_holdout:
+            raise PilotError(
+                "holdout observation requires "
+                "--confirm-irreversible-pilot-holdout"
+            )
         inputs = load_inputs(protocol, observed_repo_head=args.observed_repo_head)
         binaries = build_binaries(inputs, cache_root=args.cache_root)
         schedule: tuple[Mapping[str, object], ...] = ()
@@ -2146,13 +2210,45 @@ def main(argv: Sequence[str] | None = None) -> int:
         n_analysis_null_reason = "build-only-result" if args.build_only else None
         run_wall_time = None
         perf_mode = None
+        n_pilot_admissions = None
+        holdout_admission_identifier = None
         if not args.build_only:
             assert rounds is not None
             schedule = build_pilot_schedule(
                 inputs, master_seed=protocol.master_seed, rounds=rounds,
             )
+            try:
+                n_pilot_admissions = (
+                    s8b_holdout_admission.reserve_n_pilot_holdout_observations(
+                        repo_root=ROOT,
+                        protocol=protocol.document,
+                        protocol_sha256=protocol.protocol_sha256,
+                        verified_freeze_document=inputs.freeze,
+                        freeze_sha256=inputs.freeze_sha256,
+                        cells=inputs.cells,
+                        schedule=schedule,
+                        campaign_run_id=args.attempt_id,
+                        irreversible_pilot_approved=(
+                            args.confirm_irreversible_pilot_holdout
+                        ),
+                    )
+                )
+            except s8b_holdout_admission.HoldoutAdmissionError as exc:
+                raise PilotError(f"n pilot holdout reservation failed: {exc}") from exc
+            holdout_admission_identifier = {
+                "role": s8b_holdout_admission.OBSERVATION_ROLE_N_PILOT,
+                "campaign_run_id": args.attempt_id,
+            }
             run_start = time.monotonic()
-            observations, perf_mode = run_sessions(inputs, binaries, schedule)
+            observations, perf_mode = run_sessions(
+                inputs,
+                binaries,
+                schedule,
+                irreversible_pilot_holdout_approved=(
+                    args.confirm_irreversible_pilot_holdout
+                ),
+                n_pilot_admissions=n_pilot_admissions,
+            )
             run_wall_time = time.monotonic() - run_start
             statistics_document = summarize_sessions(inputs, observations)
             n_analysis_null_reason = "per-allocation-result-does-not-derive-n"
@@ -2172,6 +2268,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             run_wall_time_s=run_wall_time,
             perf_mode=perf_mode,
             n_analysis_null_reason=n_analysis_null_reason,
+            irreversible_pilot_holdout_approved=(
+                args.confirm_irreversible_pilot_holdout
+            ),
+            holdout_admission_identifier=holdout_admission_identifier,
         )
         write_guarded_result(args.output, result)
         return 0

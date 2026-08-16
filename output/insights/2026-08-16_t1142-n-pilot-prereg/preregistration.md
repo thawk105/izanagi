@@ -92,8 +92,13 @@ configuration を「真の best」とし、**選ばれた configuration の真�
 - `three-allocations`: 母集団は「割当内の連続 round」である。R を 3 allocation へ均等分割し、
   allocation 差は**有無と向きだけ**を報告する。K=3 (自由度 2) は分散成分の推定にも
   UCL にも使わない。
-- `exact-pin-and-binaries`: 使用した ccbench pin と全 binary SHA に条件付ける。
-  **noise 分布が pin に対して不変という仮定は置かない** (未検証のため)。
+- `exact-pin-and-binaries`: 使用した ccbench pin と全 binary SHA を**記録する**。
+  これは provenance であって再利用条件ではない。
+  **再利用の可否は「その変更が測った量に効きうるか」で判断する** —
+  測定量に効きえない変更 (docs、無関係な module、呼ばれない分岐など) を跨いで、
+  本値はそのまま適用できると考える。
+  逆に「pin を跨いで不変である」と実測なしに断定もしない。
+  測定量に効きうる変更 (CC 実装・build flag・環境契約) があれば再測定する。
 
 **帰結: 得られる `n(δ, α)` は下限である。** cold-boot・温度ドリフト・
 allocation 間変動を部分的にしか含まないため、実際に必要な n はこれ以上になりうる。

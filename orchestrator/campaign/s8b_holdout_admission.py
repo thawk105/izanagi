@@ -37,15 +37,19 @@ __all__ = (
     "CellHoldoutAdmission",
     "FloorHoldoutReservation",
     "HoldoutAdmissionError",
+    "NPilotCellHoldoutAdmission",
     "OracleCellHoldoutAdmission",
     "OBSERVATION_ROLE_FLOOR_CAMPAIGN",
+    "OBSERVATION_ROLE_N_PILOT",
     "OBSERVATION_ROLE_ORACLE_DRIVER",
     "assert_cell_holdout_admission",
     "consume_attempt_ticket",
+    "consume_n_pilot_attempt_ticket",
     "consume_oracle_attempt_ticket",
     "finalize_floor_holdout_admissions",
     "provision_shared_admission_root",
     "reserve_oracle_holdout_observations",
+    "reserve_n_pilot_holdout_observations",
     "reserve_floor_holdout_observations",
     "shared_admission_root",
 )
@@ -62,9 +66,11 @@ _ATTEMPT_SCHEMA = "s8b-holdout-attempt-consumption/v1"
 _MAX_LEDGER_BYTES = 16 * 1024 * 1024
 _HEX64 = frozenset("0123456789abcdef")
 OBSERVATION_ROLE_FLOOR_CAMPAIGN = "floor_campaign"
+OBSERVATION_ROLE_N_PILOT = "n_pilot"
 OBSERVATION_ROLE_ORACLE_DRIVER = "oracle_driver"
 _OBSERVATION_ROLES = frozenset({
     OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+    OBSERVATION_ROLE_N_PILOT,
     OBSERVATION_ROLE_ORACLE_DRIVER,
 })
 
@@ -97,6 +103,17 @@ class CellHoldoutAdmission:
 @dataclass(frozen=True, slots=True)
 class OracleCellHoldoutAdmission:
     """Oracle cell capability whose manifest-derived tickets are separate."""
+
+    freeze_holdout_key: str
+    freeze_candidate_id: str
+    trial_workload_name: str
+    configuration_id: str
+    cell_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class NPilotCellHoldoutAdmission:
+    """Pilot cell capability whose complete-block tickets are separate."""
 
     freeze_holdout_key: str
     freeze_candidate_id: str
@@ -152,9 +169,22 @@ class _OracleCellState:
     oracle_reps: int
 
 
+@dataclass(frozen=True, slots=True)
+class _NPilotCellState:
+    token: NPilotCellHoldoutAdmission
+    root: Path
+    row: dict[str, Any]
+    claim_digest: str
+    attempt_ids_by_schedule_index: Mapping[int, str]
+    verified_freeze: dict[str, Any]
+    neutral_holdouts: Mapping[str, Mapping[str, object]]
+    pilot_reps: int
+
+
 _reservation_states: dict[int, _ReservationState] = {}
 _cell_states: dict[int, _CellState] = {}
 _oracle_cell_states: dict[int, _OracleCellState] = {}
+_n_pilot_cell_states: dict[int, _NPilotCellState] = {}
 _state_lock = threading.RLock()
 
 
@@ -1252,6 +1282,321 @@ def consume_oracle_attempt_ticket(
     except HoldoutObservationError as exc:
         raise HoldoutAdmissionError(
             f"cannot issue oracle attempt observation: {exc}"
+        ) from exc
+    return observation
+
+
+def reserve_n_pilot_holdout_observations(
+    *, repo_root: Path, protocol: Mapping[str, object], protocol_sha256: str,
+    verified_freeze_document: Mapping[str, object], freeze_sha256: str,
+    cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
+    campaign_run_id: str, irreversible_pilot_approved: bool,
+) -> dict[int, NPilotCellHoldoutAdmission]:
+    """Reserve pilot complete-block cells with protocol-owned rep allowances."""
+
+    if irreversible_pilot_approved is not True:
+        raise HoldoutAdmissionError(
+            "n pilot holdout observation requires irreversible one-shot approval"
+        )
+    campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
+    protocol_sha256 = _require_sha256(protocol_sha256, "protocol_sha256")
+    protocol_document = _mutable_json_tree(protocol)
+    if not isinstance(protocol_document, dict):
+        raise HoldoutAdmissionError("n pilot protocol document is invalid")
+    if hashlib.sha256(_canonical_line(protocol_document)).hexdigest() != protocol_sha256:
+        raise HoldoutAdmissionError(
+            "n pilot protocol digest does not match its canonical document"
+        )
+    freeze_sha256 = _require_sha256(freeze_sha256, "freeze_sha256")
+    freeze_ref = protocol_document.get("freeze")
+    if not isinstance(freeze_ref, Mapping) or freeze_ref.get("sha256") != freeze_sha256:
+        raise HoldoutAdmissionError("n pilot protocol is not bound to the freeze hash")
+    environment = protocol_document.get("environment")
+    design = protocol_document.get("design")
+    if not isinstance(environment, Mapping) or not isinstance(design, Mapping):
+        raise HoldoutAdmissionError("n pilot protocol authority fields are unavailable")
+    ccbench_pin = _require_text(environment.get("ccbench_pin"), "ccbench_pin")
+    env_tag = _require_text(environment.get("env_tag"), "env_tag")
+    pilot_reps = design.get("reps")
+    if type(pilot_reps) is not int or pilot_reps <= 0:
+        raise HoldoutAdmissionError("n pilot protocol reps is invalid")
+
+    fixed_freeze = _mutable_json_tree(verified_freeze_document)
+    if not isinstance(fixed_freeze, dict):
+        raise HoldoutAdmissionError("n pilot verified freeze document is invalid")
+    try:
+        signatures = _protected_signatures_from_verified_freeze_core(fixed_freeze)
+    except HoldoutObservationError as exc:
+        raise HoldoutAdmissionError(
+            f"cannot derive n pilot protected signatures: {exc}"
+        ) from exc
+    signature_by_key = {item.freeze_holdout_key: item for item in signatures}
+    neutral_holdouts = {
+        item.freeze_holdout_key: {
+            "candidate_id": item.freeze_candidate_id,
+            "ycsb": {"ycsb_rratio": item.ycsb_rratio},
+        }
+        for item in signatures
+    }
+    holdouts = fixed_freeze.get("holdouts")
+    if not isinstance(holdouts, Mapping):
+        raise HoldoutAdmissionError("n pilot freeze holdouts are unavailable")
+
+    normalized_cells = [dict(cell) for cell in cells]
+    cell_keys = {
+        "cell_id", "holdout_id", "configuration_id",
+        "records", "threads", "workload",
+    }
+    if len(normalized_cells) != 12 or any(
+        set(cell) != cell_keys for cell in normalized_cells
+    ):
+        raise HoldoutAdmissionError("n pilot cell set is not exact 12-cell schema")
+    cells_by_id: dict[str, dict[str, Any]] = {}
+    for cell in normalized_cells:
+        freeze_holdout_key = _require_text(cell.get("holdout_id"), "holdout_id")
+        configuration_id = _require_text(
+            cell.get("configuration_id"), "configuration_id"
+        )
+        cell_id = _require_text(cell.get("cell_id"), "cell_id")
+        if cell_id != f"{freeze_holdout_key}::{configuration_id}":
+            raise HoldoutAdmissionError(
+                "n pilot cell_id does not bind holdout and configuration"
+            )
+        if cell_id in cells_by_id:
+            raise HoldoutAdmissionError("n pilot cell_id is duplicated")
+        signature = signature_by_key.get(freeze_holdout_key)
+        freeze_entry = holdouts.get(freeze_holdout_key)
+        if signature is None or not isinstance(freeze_entry, Mapping):
+            raise HoldoutAdmissionError("n pilot cell freeze key is not protected")
+        variant_binding = freeze_entry.get("variant_binding")
+        entries = (
+            variant_binding.get("entries")
+            if isinstance(variant_binding, Mapping) else None
+        )
+        if not isinstance(entries, Mapping) or configuration_id not in entries:
+            raise HoldoutAdmissionError("n pilot configuration is not freeze-bound")
+        workload = freeze_entry.get("ycsb")
+        if not isinstance(workload, Mapping) or (
+            cell.get("records") != freeze_entry.get("records")
+            or cell.get("threads") != freeze_entry.get("threads")
+            or cell.get("workload") != dict(workload)
+        ):
+            raise HoldoutAdmissionError("n pilot cell differs from freeze projection")
+        cells_by_id[cell_id] = cell
+
+    normalized_schedule = [dict(row) for row in schedule]
+    schedule_indexes_by_cell: dict[str, list[int]] = {
+        cell_id: [] for cell_id in cells_by_id
+    }
+    cells_by_round: dict[int, set[str]] = {}
+    for expected_seq, row in enumerate(normalized_schedule):
+        if set(row) != {"seq", "pilot_round", "cell_id"}:
+            raise HoldoutAdmissionError("n pilot schedule row schema is invalid")
+        if row.get("seq") != expected_seq:
+            raise HoldoutAdmissionError("n pilot schedule seq is not contiguous")
+        pilot_round = row.get("pilot_round")
+        if type(pilot_round) is not int or pilot_round <= 0:
+            raise HoldoutAdmissionError("n pilot schedule round is invalid")
+        cell_id = _require_text(row.get("cell_id"), "cell_id")
+        if cell_id not in cells_by_id:
+            raise HoldoutAdmissionError("n pilot schedule contains an unknown cell")
+        if cell_id in cells_by_round.setdefault(pilot_round, set()):
+            raise HoldoutAdmissionError("n pilot schedule repeats a cell within a round")
+        cells_by_round[pilot_round].add(cell_id)
+        schedule_indexes_by_cell[cell_id].append(expected_seq)
+    rounds = sorted(cells_by_round)
+    if (
+        not rounds
+        or rounds != list(range(1, len(rounds) + 1))
+        or any(cell_set != set(cells_by_id) for cell_set in cells_by_round.values())
+        or len(normalized_schedule) != len(cells_by_id) * len(rounds)
+    ):
+        raise HoldoutAdmissionError("n pilot schedule is not complete blocks")
+    schedule_sha256 = hashlib.sha256(
+        _canonical_line(normalized_schedule)
+    ).hexdigest()
+
+    claims: list[dict[str, Any]] = []
+    ledger_rows: list[dict[str, Any]] = []
+    for cell_id, cell in cells_by_id.items():
+        freeze_holdout_key = str(cell["holdout_id"])
+        configuration_id = str(cell["configuration_id"])
+        signature = signature_by_key[freeze_holdout_key]
+        schedule_indexes = schedule_indexes_by_cell[cell_id]
+        attempt_ids = [
+            f"{campaign_run_id}::{cell_id}::schedule{schedule_index}"
+            for schedule_index in schedule_indexes
+        ]
+        key = _key_fields(
+            freeze_sha256=freeze_sha256,
+            freeze_holdout_key=freeze_holdout_key,
+            configuration_id=configuration_id,
+            ccbench_pin=ccbench_pin,
+            env_tag=env_tag,
+            observation_role=OBSERVATION_ROLE_N_PILOT,
+        )
+        claim = {
+            "schema_version": _CLAIM_SCHEMA,
+            "event": "claim",
+            "key": key,
+            "protocol_sha256": protocol_sha256,
+            "schedule_sha256": schedule_sha256,
+            "freeze_candidate_id": signature.freeze_candidate_id,
+            "trial_workload_name": signature.trial_workload_name,
+            "cell_id": cell_id,
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": dict(cell["workload"]),
+            "campaign_run_id": campaign_run_id,
+            "irreversible_pilot_approved": True,
+            "schedule_indexes": schedule_indexes,
+            "attempt_ids": attempt_ids,
+        }
+        claims.append(claim)
+        ledger_rows.append({
+            "schema_version": _LEDGER_SCHEMA,
+            "event": "admit",
+            **key,
+            "protocol_sha256": protocol_sha256,
+            "schedule_sha256": schedule_sha256,
+            "freeze_candidate_id": signature.freeze_candidate_id,
+            "trial_workload_name": signature.trial_workload_name,
+            "cell_id": cell_id,
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": dict(cell["workload"]),
+            "campaign_run_id": campaign_run_id,
+            "irreversible_pilot_approved": True,
+            "reps": pilot_reps,
+            "schedule_indexes": schedule_indexes,
+            "attempt_ids": attempt_ids,
+            "attempt_count": len(attempt_ids),
+        })
+
+    root = provision_shared_admission_root(Path(repo_root))
+    with _locked(root):
+        indexed: dict[str, dict[str, Any]] = {}
+        for row in _read_ledger(root / _LEDGER_NAME):
+            if row.get("schema_version") != _LEDGER_SCHEMA or row.get("event") != "admit":
+                raise HoldoutAdmissionError("admission ledger contains an unknown row")
+            try:
+                key = _key_fields(
+                    freeze_sha256=row["freeze_sha256"],
+                    freeze_holdout_key=row["freeze_holdout_key"],
+                    configuration_id=row["configuration_id"],
+                    ccbench_pin=row["ccbench_pin"],
+                    env_tag=row["env_tag"],
+                    observation_role=row["observation_role"],
+                )
+            except (KeyError, HoldoutAdmissionError) as exc:
+                raise HoldoutAdmissionError("admission ledger row key is invalid") from exc
+            digest = _claim_digest(key)
+            if digest in indexed:
+                raise HoldoutAdmissionError("admission ledger has a duplicate cell key")
+            indexed[digest] = row
+        for claim in claims:
+            digest = _claim_digest(claim["key"])
+            try:
+                _write_exclusive(_claim_path(root, digest), claim)
+            except FileExistsError as exc:
+                raise HoldoutAdmissionError(
+                    "n pilot holdout cell key was already consumed"
+                ) from exc
+            if digest in indexed:
+                raise HoldoutAdmissionError(
+                    "n pilot ledger evidence existed without its durable claim"
+                )
+        _append_ledger(root / _LEDGER_NAME, ledger_rows)
+
+    admissions_by_schedule_index: dict[int, NPilotCellHoldoutAdmission] = {}
+    for claim, row in zip(claims, ledger_rows, strict=True):
+        token = NPilotCellHoldoutAdmission(
+            freeze_holdout_key=row["freeze_holdout_key"],
+            freeze_candidate_id=row["freeze_candidate_id"],
+            trial_workload_name=row["trial_workload_name"],
+            configuration_id=row["configuration_id"],
+            cell_id=row["cell_id"],
+        )
+        state = _NPilotCellState(
+            token=token,
+            root=root,
+            row=row,
+            claim_digest=_claim_digest(claim["key"]),
+            attempt_ids_by_schedule_index=dict(zip(
+                row["schedule_indexes"], row["attempt_ids"], strict=True,
+            )),
+            verified_freeze=fixed_freeze,
+            neutral_holdouts=neutral_holdouts,
+            pilot_reps=pilot_reps,
+        )
+        with _state_lock:
+            _n_pilot_cell_states[id(token)] = state
+        for schedule_index in row["schedule_indexes"]:
+            admissions_by_schedule_index[schedule_index] = token
+    if set(admissions_by_schedule_index) != set(range(len(normalized_schedule))):
+        raise HoldoutAdmissionError("n pilot schedule admission coverage is incomplete")
+    return admissions_by_schedule_index
+
+
+def _n_pilot_cell_state(admission: object) -> _NPilotCellState:
+    with _state_lock:
+        state = _n_pilot_cell_states.get(id(admission))
+    if state is None or state.token is not admission:
+        raise HoldoutAdmissionError("n pilot cell holdout admission was not issued")
+    return state
+
+
+def consume_n_pilot_attempt_ticket(
+    admission: NPilotCellHoldoutAdmission, *, schedule_index: int,
+) -> HoldoutObservationAdmission:
+    """Consume one pilot schedule ticket and issue its protocol-reps token."""
+
+    state = _n_pilot_cell_state(admission)
+    if type(schedule_index) is not int or schedule_index < 0:
+        raise HoldoutAdmissionError("schedule_index must be a nonnegative exact int")
+    attempt_id = state.attempt_ids_by_schedule_index.get(schedule_index)
+    if attempt_id is None:
+        raise HoldoutAdmissionError("schedule_index is not in the n pilot ticket set")
+    marker = {
+        "schema_version": _ATTEMPT_SCHEMA,
+        "event": "consume",
+        "claim_digest": state.claim_digest,
+        "attempt_id": attempt_id,
+        "protocol_sha256": state.row["protocol_sha256"],
+        "freeze_sha256": state.row["freeze_sha256"],
+        "schedule_sha256": state.row["schedule_sha256"],
+        "campaign_run_id": state.row["campaign_run_id"],
+        "schedule_index": schedule_index,
+        "cell_id": state.row["cell_id"],
+        "freeze_holdout_key": state.row["freeze_holdout_key"],
+        "configuration_id": state.row["configuration_id"],
+        "observation_role": OBSERVATION_ROLE_N_PILOT,
+    }
+    marker_digest = hashlib.sha256(attempt_id.encode("utf-8")).hexdigest()
+    path = state.root / "consumed" / f"{state.claim_digest}-{marker_digest}.json"
+    with _locked(state.root):
+        try:
+            _write_exclusive(path, marker)
+        except FileExistsError as exc:
+            raise HoldoutAdmissionError(
+                "n pilot attempt ticket was already consumed"
+            ) from exc
+        _append_ledger(state.root / _ATTEMPT_LEDGER_NAME, [marker])
+    try:
+        receipt = _new_durable_attempt_consumption_receipt(
+            attempt_id=attempt_id,
+            permitted_run_once_calls=state.pilot_reps,
+        )
+        observation = _issue_holdout_observation_admission_from_receipt(
+            receipt=receipt,
+            verified_freeze_document=state.verified_freeze,
+            freeze_holdout_key=state.row["freeze_holdout_key"],
+            _neutral_holdouts=state.neutral_holdouts,
+        )
+        assert_issued_holdout_observation(observation)
+    except HoldoutObservationError as exc:
+        raise HoldoutAdmissionError(
+            f"cannot issue n pilot attempt observation: {exc}"
         ) from exc
     return observation
 

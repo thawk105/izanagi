@@ -65,6 +65,10 @@ def _perf_mode(status: str = "available") -> M.PerfMode:
     )
 
 
+def _holdout_admission_identifier(attempt_id: str) -> dict[str, str]:
+    return {"role": "n_pilot", "campaign_run_id": attempt_id}
+
+
 def _protocol_document() -> dict:
     return {
         "schema_version": M.PROTOCOL_SCHEMA,
@@ -274,6 +278,13 @@ def test_driver_has_no_round_default_and_supports_build_only_mode(tmp_path):
     ])
     assert args.build_only is True
     assert args.rounds is None
+    assert args.confirm_irreversible_pilot_holdout is False
+    confirmed = M._parse_args([
+        "--protocol", str(tmp_path / "protocol.json"),
+        "--output", str(tmp_path / "result.json"),
+        "--confirm-irreversible-pilot-holdout",
+    ])
+    assert confirmed.confirm_irreversible_pilot_holdout is True
 
 
 @pytest.mark.parametrize("mutation", ["duplicate", "nonfinite", "unknown", "short-rounds"])
@@ -591,6 +602,13 @@ def _run_one_round(
             preflight_calls.append(kwargs) or _perf_receipt(perf_status)
         ),
         perf_candidates_fn=lambda _root: ("/policy/perf",),
+        irreversible_pilot_holdout_approved=True,
+        n_pilot_admissions={index: object() for index in range(len(schedule))},
+        consume_n_pilot_attempt_ticket_fn=(
+            lambda admission, *, schedule_index: {
+                "admission": admission, "schedule_index": schedule_index,
+            }
+        ),
     )
     return (
         inputs,
@@ -618,6 +636,7 @@ def test_m5_measure_gateway_uses_perf_and_approved_shape(tmp_path):
         assert kwargs["extime"] == M.APPROVED_EXTIME_S
         assert kwargs["settle_first"] is False
         assert kwargs["require_all_reps"] is True
+        assert kwargs["holdout_observation_admission"] is not None
         assert kwargs["workload"] in [cell["workload"] for cell in inputs.cells]
     assert all(item.cache_hit in {True, False} for item in observations)
     assert all(item.materialize_elapsed_s > 0 for item in observations)
@@ -641,6 +660,8 @@ def test_measure_gateway_uses_no_perf_only_when_preflight_is_unavailable(tmp_pat
         n_analysis=None,
         run_wall_time_s=1.0,
         perf_mode=perf_mode,
+        irreversible_pilot_holdout_approved=True,
+        holdout_admission_identifier=_holdout_admission_identifier("no-perf"),
     )
     assert result["input_identity"]["use_perf"] is False
     assert result["input_identity"]["perf_preflight"]["status"] == "unavailable"
@@ -659,8 +680,47 @@ def test_probe_error_refuses_before_measurement(tmp_path):
             measure_fn=lambda *_args, **_kwargs: measure_calls.append("called"),
             perf_preflight_fn=lambda **_kwargs: _perf_receipt("probe_error"),
             perf_candidates_fn=lambda _root: (),
+            irreversible_pilot_holdout_approved=True,
+            n_pilot_admissions={index: object() for index in range(len(schedule))},
+            consume_n_pilot_attempt_ticket_fn=lambda *_args, **_kwargs: object(),
         )
     assert measure_calls == []
+
+
+def test_missing_irreversible_approval_refuses_before_measure_fn(tmp_path):
+    inputs = _inputs()
+    binaries = _binary_receipts(tmp_path, inputs)
+    schedule = M.build_pilot_schedule(inputs, master_seed="schedule-seed", rounds=1)
+    measure_calls = []
+    with pytest.raises(M.PilotError, match="confirm-irreversible-pilot-holdout"):
+        M.run_sessions(
+            inputs,
+            binaries,
+            schedule,
+            measure_fn=lambda *_args, **_kwargs: measure_calls.append("called"),
+            irreversible_pilot_holdout_approved=False,
+        )
+    assert measure_calls == []
+
+
+def test_main_without_confirmation_refuses_before_loading_measurement_inputs(
+    tmp_path, monkeypatch,
+):
+    calls = []
+    monkeypatch.setattr(M, "load_protocol", lambda _path: _protocol())
+    monkeypatch.setattr(
+        M, "load_inputs", lambda *_args, **_kwargs: calls.append("load_inputs")
+    )
+    rc = M.main([
+        "--protocol", str(tmp_path / "protocol.json"),
+        "--output", str(tmp_path / "result.json"),
+        "--attempt-id", "attempt-without-confirmation",
+        "--observed-repo-head", "a" * 40,
+        "--cache-root", str(tmp_path / "cache"),
+        "--rounds", "1",
+    ])
+    assert rc == 2
+    assert calls == []
 
 
 def test_m6_measure_gateway_uses_nonstandard_freeze_scale_for_every_cell(tmp_path):
@@ -1129,6 +1189,10 @@ def test_complete_fake_scalepoint_result_discards_run_cmd_and_workload_object(tm
         run_wall_time_s=12.5,
         perf_mode=perf_mode,
         n_analysis_null_reason="per-allocation-result-does-not-derive-n",
+        irreversible_pilot_holdout_approved=True,
+        holdout_admission_identifier=(
+            _holdout_admission_identifier("attempt-complete")
+        ),
     )
     destination = tmp_path / "published" / "result.json"
     M.write_guarded_result(destination, result)
@@ -1137,6 +1201,10 @@ def test_complete_fake_scalepoint_result_discards_run_cmd_and_workload_object(tm
     M.assert_holdout_safe_bytes(destination.name, payload)
     loaded = json.loads(payload)
     assert loaded["allocation"]["one_round_wall_time_s"] == 12.5
+    assert loaded["input_identity"]["irreversible_pilot_holdout_approved"] is True
+    assert loaded["allocation"]["holdout_admission"] == (
+        _holdout_admission_identifier("attempt-complete")
+    )
     assert loaded["n_analysis"] is None
     assert loaded["n_analysis_null_reason"] == "per-allocation-result-does-not-derive-n"
 
@@ -1189,6 +1257,10 @@ def _allocation_result_files(tmp_path: Path):
             run_wall_time_s=100.0,
             perf_mode=_perf_mode(),
             n_analysis_null_reason="per-allocation-result-does-not-derive-n",
+            irreversible_pilot_holdout_approved=True,
+            holdout_admission_identifier=_holdout_admission_identifier(
+                f"allocation-{allocation_index + 1}"
+            ),
         )
         path = tmp_path / f"allocation-{allocation_index + 1}.json"
         path.write_bytes(M.canonical_result_bytes(result))
@@ -1343,6 +1415,15 @@ def test_job_script_passes_observed_head_and_preserves_clean_tree_gates():
     assert "ls-files --others --exclude-standard" in source
     assert 'REPO_HEAD=$(git -C "$REPO_ROOT" rev-parse --verify HEAD)' in source
     assert '--observed-repo-head "$REPO_HEAD"' in source
+    assert (
+        "IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT="
+        "${IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT:-0}"
+    ) in source
+    assert (
+        '[[ "$IZANAGI_PILOT_CONFIRM_IRREVERSIBLE_HOLDOUT" =~ ^[01]$ ]]'
+        in source
+    )
+    assert 'driver+=(--confirm-irreversible-pilot-holdout)' in source
 
 
 def test_new_python_and_shell_sources_are_nfc_and_holdout_literal_safe():
