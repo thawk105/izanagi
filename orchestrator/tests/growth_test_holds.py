@@ -82,13 +82,19 @@ _REPO_STATUS_REASON = (
     "so cost grows with tracked files."
 )
 _CHECK_DOCS_REASON = (
-    "Runs the real tools/check_docs.py with no arguments and reads the full "
-    "documentation corpus, so cost grows with docs bytes."
+    "Runs the real tools/check_docs.py with no arguments across a variable "
+    "input set: enumerated living docs, the rotating docs/archive worklog set, "
+    "the handoff directory, and discovered skill, command, reference, and "
+    "provenance files. Its cost therefore grows with docs bytes."
 )
 _CHECK_DOCS_LAND_COLLATERAL = (
-    "The same checker is still run by default by land (tools/dev_wave_land.py) "
-    "and the wave checker (tools/dev_waves/checker.py), but its trigger point "
-    "regresses from acceptance to land."
+    "Land's _validate_generated_docs calls the checker with "
+    "--expect-active-transaction after a non-noop fold; a noop fold returns "
+    "before the check. The wave checker requires check-docs to be specified "
+    "exactly once, but executes it in an isolated checkout only for a completed, "
+    "passive-green run; incomplete or passive-failing runs do not execute it. "
+    "A no-argument tools/check_docs.py invocation remains mandatory for class "
+    "2/3 completion; it is not required for other task classes."
 )
 _SHARED_FIXTURE_COLLATERAL = (
     "Holding this node also prevents the shared module fixture from starting, "
