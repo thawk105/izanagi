@@ -21,7 +21,7 @@ import re
 import stat
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -767,7 +767,7 @@ FENCE_OPEN_RE = re.compile(r"^[ \t]{0,3}(?P<marker>`{3,}|~{3,}).*$")
 WORKLOG_H2_RE = re.compile(r"^##[ \t]+(?P<title>[^\n]+?)[ \t]*$", re.MULTILINE)
 ROTATION_RE = re.compile(r"^## ローテーション[^\n]*$", re.MULTILINE)
 WORKLOG_ENTRY_TITLE_RE = re.compile(
-    r"\d{4}-\d{2}-\d{2} \([1-9][0-9]*\) — .+"
+    r"\d{4}-\d{2}-\d{2} \((?P<order>[1-9][0-9]*)\) — .+"
 )
 ARCHIVE_WORKLOG_ENTRY_TITLE_RE = re.compile(
     r"(?P<date>\d{4}-\d{2}-\d{2})"
@@ -777,6 +777,26 @@ NEXT_ACTION_RE = re.compile(
     r"^### 次の一手(?:[ \t][^\n]*)?$\n?(?P<body>.*?)(?=^###[ \t]|^##[ \t]|\Z)",
     re.MULTILINE | re.DOTALL,
 )
+CARRY_REFERENCE_RE = re.compile(
+    rf"^(?P<id>{TASK_ID_PATTERN}) \((?P<target>[1-9][0-9]*)\)$"
+)
+LEGACY_CARRY_REFERENCE_RE = re.compile(
+    rf"^(?P<id>{TASK_ID_PATTERN})(?=$|[ \t]).*?"
+    r"変わらず \(\((?P<target>[1-9][0-9]*)\) 参照\)"
+)
+ARCHIVE_PHASE_TOKEN_RE = re.compile(r"phase[0-9]+")
+ARCHIVE_MMDD_TOKEN_RE = re.compile(
+    r"(?:0[1-9]|1[0-2])(?:0[1-9]|[12][0-9]|3[01])"
+)
+ARCHIVE_ENTRY_TOKEN_RE = re.compile(r"[1-9][0-9]*")
+ARCHIVE_README_CLAIM_RE = re.compile(
+    r"`(?P<name>worklog-[^`/]+\.md)`\s*—\s*worklog の\s*"
+    r"(?P<date1>[0-9]{4}-[0-9]{2}-[0-9]{2})\s*"
+    r"\((?P<lo>[1-9][0-9]*)\)"
+    r"(?:\s*〜\s*(?:(?P<date2>(?:[0-9]{4}-)?[0-9]{2}-[0-9]{2})\s*)?"
+    r"\((?P<hi>[1-9][0-9]*)\))?\s*分"
+)
+ARCHIVE_README_NAME_RE = re.compile(r"`(?P<name>worklog-[^`/]+\.md)`")
 DEFERRED_LEDGER_HEADING_RE = re.compile(
     r"^## 見送り台帳(?:[ \t][^\n]*)?$", re.MULTILINE
 )
@@ -792,6 +812,25 @@ class _ArchiveWorklog:
     entries: list[tuple[str, str, int]]
     next_actions: list[tuple[str, int] | None]
     sources: list[set[str]]
+
+
+@dataclass(frozen=True)
+class _CarryReference:
+    path: str
+    line: int
+    task_id: str
+
+
+@dataclass(frozen=True)
+class _ArchiveFilenameClaim:
+    classification: str
+    entry_range: tuple[int, int] | None = None
+
+
+@dataclass
+class _BacklogCheckResult:
+    numbered_archive_entries: dict[str, frozenset[int] | None]
+    archive_scan_complete: bool
 
 # --- 参照実在性 (2026-07-11 追加、docs 整備) ---
 # living docs 中の「実在しない D 番号」「実在しないファイルパス」への参照 = 腐敗。
@@ -1205,6 +1244,7 @@ def _validate_next_action_items(
     entry: tuple[str, str, int],
     section: tuple[str, int],
     findings: list[str],
+    carry_references: dict[int, _CarryReference] | None = None,
     *,
     latest: bool = False,
 ) -> None:
@@ -1237,6 +1277,243 @@ def _validate_next_action_items(
                 f"{rel}:{lineno}: {label} の `### 次の一手` 内で ID {task_id} が重複"
             )
         seen.add(task_id)
+
+        if carry_references is not None:
+            carry = CARRY_REFERENCE_RE.fullmatch(item_text)
+            if carry is None:
+                carry = LEGACY_CARRY_REFERENCE_RE.search(item_text)
+            if carry is not None:
+                target = int(carry.group("target"))
+                carry_references.setdefault(
+                    target,
+                    _CarryReference(rel, lineno, carry.group("id")),
+                )
+
+
+def _archive_filename_entry_range(path: Path) -> _ArchiveFilenameClaim:
+    """archive 名を正規文法で非採番・採番・malformed に分類する。"""
+
+    name = path.name
+    if not name.startswith("worklog-"):
+        return _ArchiveFilenameClaim("unnumbered")
+    remainder = name[len("worklog-"):]
+    if re.match(r"phase[0-9]+-", remainder) is None:
+        return _ArchiveFilenameClaim("unnumbered")
+    if not name.endswith(".md"):
+        return _ArchiveFilenameClaim("malformed")
+    tokens = name[len("worklog-"):-len(".md")].split("-")
+    phase_token, tail = tokens[0], tokens[1:]
+    if ARCHIVE_PHASE_TOKEN_RE.fullmatch(phase_token) is None:
+        return _ArchiveFilenameClaim("unnumbered")
+
+    phase_number = phase_token[len("phase"):]
+    if (
+        re.fullmatch(r"[1-9][0-9]?", phase_number) is not None
+        and len(tail) == 1
+        and re.fullmatch(r"[1-9][0-9]?", tail[0]) is not None
+    ):
+        # Phase 1〜2 のような phase 範囲名。
+        return _ArchiveFilenameClaim("unnumbered")
+
+    is_mmdd = lambda token: ARCHIVE_MMDD_TOKEN_RE.fullmatch(token) is not None
+    is_entry = lambda token: ARCHIVE_ENTRY_TOKEN_RE.fullmatch(token) is not None
+    if len(tail) in {1, 2} and all(is_mmdd(token) for token in tail):
+        return _ArchiveFilenameClaim("unnumbered")
+    if len(tail) == 2 and is_mmdd(tail[0]) and is_entry(tail[1]):
+        entry_tokens = (tail[1], tail[1])
+    elif (
+        len(tail) == 3
+        and is_mmdd(tail[0])
+        and is_entry(tail[1])
+        and is_entry(tail[2])
+    ):
+        entry_tokens = (tail[1], tail[2])
+    elif (
+        len(tail) == 4
+        and is_mmdd(tail[0])
+        and is_entry(tail[1])
+        and is_mmdd(tail[2])
+        and is_entry(tail[3])
+    ):
+        entry_tokens = (tail[1], tail[3])
+    else:
+        return _ArchiveFilenameClaim("malformed")
+    return _ArchiveFilenameClaim("numbered", tuple(map(int, entry_tokens)))
+
+
+def _entry_number_from_title(title: str) -> int | None:
+    match = ARCHIVE_WORKLOG_ENTRY_TITLE_RE.fullmatch(title)
+    if match is None:
+        raise ValueError(f"invalid archive entry title: {title!r}")
+    order = match.group("order")
+    return int(order) if order is not None and order.isdigit() else None
+
+
+def _compact_number_ranges(numbers: list[int]) -> str:
+    if not numbers:
+        return "なし"
+    chunks: list[str] = []
+    start = previous = numbers[0]
+    for number in numbers[1:]:
+        if number == previous + 1:
+            previous = number
+            continue
+        chunks.append(str(start) if start == previous else f"{start}〜{previous}")
+        start = previous = number
+    chunks.append(str(start) if start == previous else f"{start}〜{previous}")
+    return ",".join(chunks)
+
+
+def _missing_entry_ranges(actual: list[int], lo: int, hi: int) -> str:
+    if lo > hi:
+        return "範囲逆転"
+    chunks: list[str] = []
+    expected = lo
+    for number in actual:
+        if number < lo or number > hi:
+            continue
+        if number > expected:
+            end = number - 1
+            chunks.append(str(expected) if expected == end else f"{expected}〜{end}")
+        expected = number + 1
+    if expected <= hi:
+        chunks.append(str(expected) if expected == hi else f"{expected}〜{hi}")
+    return ",".join(chunks) if chunks else "なし"
+
+
+def _validate_claimed_entry_range(
+    label: str,
+    claim: tuple[int, int],
+    actual_entries: frozenset[int],
+    findings: list[str],
+) -> None:
+    lo, hi = claim
+    actual = sorted(actual_entries)
+    outside = [number for number in actual if number < lo or number > hi]
+    missing = _missing_entry_ranges(actual, lo, hi)
+    if lo <= hi and not outside and missing == "なし":
+        return
+    findings.append(
+        f"{label} が名乗る entry 範囲 ({lo})〜({hi}) と実体 entry 集合が不一致 — "
+        f"欠番={missing}, 範囲外={_compact_number_ranges(outside)}"
+    )
+
+
+def _validate_entry_universe(
+    locations: dict[int, list[str]],
+    carry_references: dict[int, _CarryReference],
+    findings: list[str],
+    *,
+    numbered_archive_input_complete: bool,
+) -> None:
+    duplicated = {
+        number for number, number_locations in locations.items()
+        if len(number_locations) > 1
+    }
+    for number in sorted(duplicated):
+        findings.append(
+            f"docs/worklog.md / docs/archive: 全域 entry 番号 ({number}) が複数箇所に実在 — "
+            + ", ".join(locations[number])
+        )
+    if not numbered_archive_input_complete:
+        findings.append(
+            "docs/archive: 番号付き archive 入力が不完全 — "
+            "carry 参照先の実在検査を停止"
+        )
+        return
+    for target, carry in sorted(carry_references.items()):
+        if target in locations or target in duplicated:
+            continue
+        findings.append(
+            f"{carry.path}:{carry.line}: {carry.task_id} の carry 参照先 entry "
+            f"({target}) が全域番号 universe に実在しない — 宙吊り参照"
+        )
+
+
+def _archive_readme_items(
+    body: str,
+    body_offset: int,
+) -> Iterator[tuple[str, int]]:
+    """「現在の収容物」の物理行を継続行込みの論理項目へ畳む。"""
+
+    current: list[str] | None = None
+    current_offset = 0
+    offset = 0
+    while offset < len(body):
+        line_end = offset
+        while line_end < len(body) and body[line_end] not in "\r\n":
+            line_end += 1
+        next_offset = line_end
+        if next_offset < len(body):
+            next_offset += 1
+            if body[line_end] == "\r" and next_offset < len(body) and body[next_offset] == "\n":
+                next_offset += 1
+        visible = body[offset:line_end]
+        if visible.startswith("- "):
+            if current is not None:
+                yield " ".join(current), body_offset + current_offset
+            current = [visible]
+            current_offset = offset
+        elif current is not None and visible[:1] in {" ", "\t"}:
+            current.append(visible.strip())
+        offset = next_offset
+    if current is not None:
+        yield " ".join(current), body_offset + current_offset
+
+
+def _validate_archive_readme_claims(
+    readme_text: str,
+    section_body: str,
+    section_offset: int,
+    backlog: _BacklogCheckResult,
+    findings: list[str],
+) -> None:
+    """README の採番 archive 主張を既読本文の実体集合と照合する。"""
+
+    if not backlog.archive_scan_complete:
+        return
+    valid_counts = {
+        name: 0 for name, entries in backlog.numbered_archive_entries.items()
+        if entries is not None
+    }
+    for item, offset in _archive_readme_items(section_body, section_offset):
+        item_names = [match.group("name") for match in ARCHIVE_README_NAME_RE.finditer(item)]
+        numbered_names = [
+            name for name in item_names
+            if name in backlog.numbered_archive_entries
+            and backlog.numbered_archive_entries[name] is not None
+        ]
+        if not numbered_names:
+            continue
+        lineno = _line_number(readme_text, offset)
+        claims = list(ARCHIVE_README_CLAIM_RE.finditer(item))
+        for name in numbered_names:
+            matching = [claim for claim in claims if claim.group("name") == name]
+            if len(matching) != 1:
+                findings.append(
+                    f"docs/archive/README.md:{lineno}: 番号付き archive {name} の"
+                    "「現在の収容物」行から entry 範囲を抽出できない"
+                )
+                continue
+            claim = matching[0]
+            valid_counts[name] += 1
+            lo = int(claim.group("lo"))
+            hi = int(claim.group("hi") or claim.group("lo"))
+            actual = backlog.numbered_archive_entries[name]
+            assert actual is not None
+            _validate_claimed_entry_range(
+                f"docs/archive/README.md:{lineno}: {name}",
+                (lo, hi),
+                actual,
+                findings,
+            )
+
+    for name, count in sorted(valid_counts.items()):
+        if count != 1:
+            findings.append(
+                "docs/archive/README.md: 実在する番号付き archive "
+                f"{name} の正規な「現在の収容物」行が {count} 件 — ちょうど 1 件必要"
+            )
 
 
 def _archive_entry_point(title: str) -> tuple[str, int | None]:
@@ -1557,7 +1834,7 @@ def _check_backlog_guard(
     *,
     previously_unreadable: frozenset[Path] | set[Path] = frozenset(),
     phase3_text: str | None | object = _UNREAD,
-) -> None:
+) -> _BacklogCheckResult:
     """worklog の次アクション保存則と見送り台帳の ID 構造を検査する。"""
 
     worklog_text: str | None = None
@@ -1635,10 +1912,19 @@ def _check_backlog_guard(
                     )
 
     if worklog_text is None:
-        return
+        return _BacklogCheckResult({}, False)
     entries = _extract_current_entries(worklog_text, findings)
     if entries is None:
-        return
+        return _BacklogCheckResult({}, False)
+
+    entry_locations: dict[int, list[str]] = {}
+    carry_references: dict[int, _CarryReference] = {}
+    for entry in entries:
+        match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
+        assert match is not None
+        number = int(match.group("order"))
+        lineno = _line_number(worklog_text, entry[2])
+        entry_locations.setdefault(number, []).append(f"docs/worklog.md:{lineno}")
 
     next_actions: list[tuple[str, int] | None] = [
         _extract_next_action("docs/worklog.md", worklog_text, entry, findings)
@@ -1662,6 +1948,7 @@ def _check_backlog_guard(
                 entry,
                 section,
                 findings,
+                carry_references,
                 latest=i == len(entries) - 1,
             )
 
@@ -1687,11 +1974,13 @@ def _check_backlog_guard(
             check_transition(entries[i], sources[i], entries[i + 1], "docs/worklog.md")
 
     archive_worklogs: list[_ArchiveWorklog] = []
+    numbered_archive_entries: dict[str, frozenset[int] | None] = {}
     archive_blocked = any(
         path == ARCHIVE_DIR or ARCHIVE_DIR in path.parents
         for path in previously_unreadable
     )
     archive_input_complete = not archive_blocked
+    numbered_archive_input_complete = not archive_blocked
     if archive_blocked:
         findings.append(
             "docs/archive: placeholder 検査で archive worklog 族の入力が読取不能 — "
@@ -1703,11 +1992,23 @@ def _check_backlog_guard(
         else sorted(ARCHIVE_DIR.glob("worklog-*.md"), key=lambda path: path.name)
     )
     for archive_path in archive_paths:
+        filename_claim = _archive_filename_entry_range(archive_path)
+        if filename_claim.classification == "malformed":
+            findings.append(
+                f"docs/archive/{archive_path.name}: MMDD で始まる worklog archive 名が"
+                "位置文法に合わない — malformed filename"
+            )
+        elif filename_claim.classification == "numbered":
+            numbered_archive_entries[archive_path.name] = None
         if archive_path in previously_unreadable:
             archive_input_complete = False
+            if filename_claim.classification == "numbered":
+                numbered_archive_input_complete = False
             continue
         if archive_path.is_symlink() or not archive_path.is_file():
             archive_input_complete = False
+            if filename_claim.classification == "numbered":
+                numbered_archive_input_complete = False
             continue
         archive_rel = str(archive_path.relative_to(REPO))
         archive_text = _safe_read_text(
@@ -1718,15 +2019,44 @@ def _check_backlog_guard(
         )
         if archive_text is None:
             archive_input_complete = False
+            if filename_claim.classification == "numbered":
+                numbered_archive_input_complete = False
             continue
         archive_entries = _extract_archive_entries(archive_path, archive_text, findings)
         if archive_entries is None:
             archive_input_complete = False
+            if filename_claim.classification == "numbered":
+                numbered_archive_input_complete = False
             findings.append(
                 f"{archive_rel}: archive entry の構造抽出失敗 — "
                 "archive 族全体に依存する順序・境界遷移検査を停止"
             )
             continue
+
+        actual_entry_numbers = frozenset(
+            number for title, _, _ in archive_entries
+            if (number := _entry_number_from_title(title)) is not None
+        )
+        if filename_claim.classification == "numbered":
+            numbered_archive_entries[archive_path.name] = actual_entry_numbers
+            assert filename_claim.entry_range is not None
+            _validate_claimed_entry_range(
+                f"{archive_rel}: filename",
+                filename_claim.entry_range,
+                actual_entry_numbers,
+                findings,
+            )
+            for title, _, title_offset in archive_entries:
+                number = _entry_number_from_title(title)
+                if number is None:
+                    findings.append(
+                        f"{archive_rel}:{_line_number(archive_text, title_offset)}: "
+                        f"番号付き archive 内の H2 {title!r} に全域 entry 番号がない"
+                    )
+                    continue
+                entry_locations.setdefault(number, []).append(
+                    f"{archive_rel}:{_line_number(archive_text, title_offset)}"
+                )
 
         archive_next_actions: list[tuple[str, int] | None] = []
         archive_sources: list[set[str]] = []
@@ -1748,7 +2078,14 @@ def _check_backlog_guard(
             archive_sources.append(source_ids)
             if entry_has_id and section is not None:
                 _validate_next_action_items(
-                    archive_rel, archive_text, entry, section, findings
+                    archive_rel,
+                    archive_text,
+                    entry,
+                    section,
+                    findings,
+                    carry_references
+                    if filename_claim.classification == "numbered"
+                    else None,
                 )
 
         archive = _ArchiveWorklog(
@@ -1812,6 +2149,17 @@ def _check_backlog_guard(
                 entries[0],
                 str(latest_archive.path.relative_to(REPO)),
             )
+
+    _validate_entry_universe(
+        entry_locations,
+        carry_references,
+        findings,
+        numbered_archive_input_complete=numbered_archive_input_complete,
+    )
+    return _BacklogCheckResult(
+        numbered_archive_entries,
+        not archive_blocked,
+    )
 
 
 @dataclass
@@ -4969,7 +5317,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 findings.append(f"{rel}:{lineno}: 実在しないパス参照: {p!r}")
 
     placeholder_unreadable = _check_literal_placeholder_guard(findings)
-    _check_backlog_guard(
+    backlog_result = _check_backlog_guard(
         findings,
         previously_unreadable=placeholder_unreadable,
         phase3_text=phase3_text,
@@ -5007,6 +5355,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         archive_section = None
 
     if archive_readme_text is not None and archive_section is not None:
+        _validate_archive_readme_claims(
+            archive_readme_text,
+            archive_section.group("body"),
+            archive_section.start("body"),
+            backlog_result,
+            findings,
+        )
         # 到達性 = archive の実在物を README の索引から辿れること。git-history-only の墓標は
         # working tree に実在しないことが契約なので、索引から実在物への逆方向検査を免除する。
         for archived in sorted(ARCHIVE_DIR.iterdir()):
