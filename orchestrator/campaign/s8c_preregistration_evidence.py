@@ -561,19 +561,36 @@ def _evaluate_c11(probe: _ConditionProbe) -> core.PredicateResult:
     )
 
 
+def _c12_allocation_binding_verdict(
+    workload_supervisor: ast.Module,
+    allocation_consumer: ast.Module | None,
+) -> tuple[core.PredicateStatus, ReasonCode] | None:
+    required_functions = {"read_binding", "check_reservation"}
+    if (
+        allocation_consumer is None
+        or not required_functions <= _functions(allocation_consumer).keys()
+        or not required_functions
+        <= _reachable_calls(workload_supervisor, "run_trial")
+    ):
+        return (
+            core.PredicateStatus.UNSATISFIED,
+            ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT,
+        )
+    return None
+
+
 def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
     tree = probe.python_kind("workload_supervisor")
     if tree is None:
         return _result(probe, core.PredicateStatus.EVIDENCE_UNDEFINED, ReasonCode.WORKLOAD_SUPERVISOR_ABSENT)
-    functions = _functions(tree)
-    run_trial = functions.get("run_trial")
-    if run_trial is None:
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
+    allocation = probe.python_kind("allocation_consumer")
+    allocation_verdict = _c12_allocation_binding_verdict(tree, allocation)
+    if allocation_verdict is not None:
+        status, reason = allocation_verdict
+        return _result(probe, status, reason)
     calls = _reachable_calls(tree, "run_trial")
-    attributes = set().union(*(_attributes(functions[name]) for name in _reachable_functions(tree, "run_trial")))
     environment = probe.python_kind("environment_contract")
     guard = probe.python_kind("execution_guard")
-    allocation = probe.python_kind("allocation_consumer")
     if (
         environment is None
         or guard is None
@@ -582,13 +599,6 @@ def _evaluate_c12(probe: _ConditionProbe) -> core.PredicateResult:
         or not {"lookup", "attest_and_build_receipt"} <= calls
     ):
         return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ENVIRONMENT_CONTRACT_CONSUMER_ABSENT)
-    if (
-        allocation is None
-        or "single_process_required" not in _functions(allocation)
-        or "single_process_required" not in calls
-        or not {"single_process", "allow_resume"} <= attributes
-    ):
-        return _result(probe, core.PredicateStatus.UNSATISFIED, ReasonCode.ALLOCATION_ENFORCEMENT_CONSUMER_ABSENT)
     return _result(
         probe,
         core.PredicateStatus.EVIDENCE_UNDEFINED,
