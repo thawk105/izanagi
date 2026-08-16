@@ -7281,25 +7281,6 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
     assert commit.payload.get("verify_configs") == ["legacy"]
 
 
-def test_pipeline_extra_correctness_requires_numactl():
-    """fullscale の未解決・契約外 prefix を gate 固有診断で早期拒否する。"""
-    message = "verify/bench launch prefix が環境契約の numactl と一致しない"
-    for numactl in (None, ("numactl", "--membind=0")):
-        lay = _tmp_layout()
-        with _assert_raises_contains(ValueError, message):
-            pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay,
-                _AUTH_CONTRACT.env_tag, "deadbeef",
-                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-                numactl=numactl, authorization_contract=_AUTHORIZATION,
-                extra_correctness=[
-                    (pipeline.S2_TAG, pipeline.s2_correctness_workload())
-                ],
-                do_bench=False, log=lambda *a: None,
-                build_context=_BUILD_CONTEXT)
-        assert list(wal.read_records(lay)) == []
-
-
 def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
     """fullscale verify と 2 本の bench 呼出しを同じ numactl 式へ固定する。"""
     with open(pipeline.__file__, encoding="utf-8") as stream:
@@ -7393,30 +7374,29 @@ def test_pipeline_fullscale_verify_and_bench_share_immutable_numactl():
             assert bench_prefix is verify_prefix
 
 
-def test_pipeline_extra_correctness_accepts_registered_empty_numactl():
-    """Pegasus の空 tuple/list は immutable な空 prefix として S2 trace に届く。"""
+def test_pipeline_extra_correctness_normalizes_empty_list_numactl():
+    """Pegasus の空 list は immutable な空 prefix として S2 trace に届く。"""
     authorization = ec.authorize("pegasus")
     contract = ec.lookup("pegasus")
-    for supplied in ((), []):
-        lay = _tmp_layout()
-        with _mock_pipeline_multipass(
-                [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
-            result = pipeline.evaluate(
-                Genome("silo", {"BACK_OFF": 1}), lay,
-                contract.env_tag, "deadbeef",
-                PerfConfig(records=1000, threads=2),
-                clocks_per_us=contract.clocks_per_us,
-                numactl=supplied, env_contract=None,
-                authorization_contract=authorization,
-                extra_correctness=[
-                    (pipeline.S2_TAG, pipeline.s2_correctness_workload())
-                ],
-                do_bench=False, log=lambda *a: None,
-                build_context=_BUILD_CONTEXT)
-        assert result.certified and not result.aborted
-        trace_prefix = calls["trace"][1]["numactl"]
-        assert type(trace_prefix) is tuple
-        assert trace_prefix == ()
+    lay = _tmp_layout()
+    with _mock_pipeline_multipass(
+            [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            contract.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2),
+            clocks_per_us=contract.clocks_per_us,
+            numactl=[], env_contract=None,
+            authorization_contract=authorization,
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=False, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+    assert result.certified and not result.aborted
+    trace_prefix = calls["trace"][1]["numactl"]
+    assert type(trace_prefix) is tuple
+    assert trace_prefix == ()
 
 
 def test_pipeline_qualification_rejects_list_numactl_before_sink_writes():
@@ -7467,24 +7447,40 @@ def test_pipeline_qualification_rejects_list_numactl_before_sink_writes():
     assert not sink_path.exists()
 
 
-def test_pipeline_fullscale_unknown_env_tag_raises_exact_error_without_writes():
-    """未登録 fullscale 環境は lookup 由来の exact 例外で sink 前に閉じる。"""
+def test_pipeline_extra_correctness_allows_empty_prefix_when_contract_is_empty():
+    """T-1174: Pegasus の bench 契約も verify prefix も空なら S2 を実行できる。
+
+    prefix の非空性を要求する旧 gate への回帰を防ぎ、legacy + S2 の両 pass が実際に
+    certified まで到達することを固定する。
+    """
+    authorization = ec.authorize("pegasus")
+    contract = authorization.contract
     lay = _tmp_layout()
-    try:
+    with _mock_pipeline_multipass(
+            [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            contract.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=contract.clocks_per_us,
+            numactl=contract.numactl, authorization_contract=authorization,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
+    assert result.certified and not result.aborted
+    assert [call["numactl"] for call in calls["trace"]] == [None, ()]
+
+
+def test_pipeline_extra_correctness_rejects_empty_prefix_when_contract_requires_numactl():
+    """T-1174/D36 決定4-4: linux-baremetal の bench 契約が numactl prefix を
+    持つとき、prefix 無しの S2 verify は build/verify 前に fail-closed で拒否する。"""
+    lay = _tmp_layout()
+    with _assert_raises_contains(ValueError, "bench と同じメモリ配置"):
         pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay,
-            "unregistered-fullscale-env", "deadbeef",
+            _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
-            numactl=_AUTH_CONTRACT.numactl,
-            authorization_contract=_AUTHORIZATION,
-            extra_correctness=[
-                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
-            ],
-            do_bench=False, log=lambda *a: None,
-            build_context=_BUILD_CONTEXT)
-        assert False, "未登録 env_tag は EnvContractError で拒否すべき"
-    except ec.EnvContractError as exc:
-        assert type(exc) is ec.EnvContractError
+            numactl=(), authorization_contract=_AUTHORIZATION,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert list(wal.read_records(lay)) == []
 
 
@@ -7508,6 +7504,21 @@ def test_pipeline_fullscale_invalid_numactl_type_keeps_authorization_error_path(
     except expected_type as exc:
         assert type(exc) is expected_type
         assert "str の list/tuple" in str(exc)
+
+
+def test_pipeline_extra_correctness_rejects_nonempty_prefix_different_from_contract():
+    """T-1174 の新しい拒否面: prefix が非空でも bench の環境契約と異なる配置なら
+    受理しない。旧 ``not numactl`` 述語へ戻す変異をこのケースが検出する。"""
+    lay = _tmp_layout()
+    with _assert_raises_contains(ValueError, "bench と同じメモリ配置"):
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            _AUTH_CONTRACT.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=("numactl", "--membind=0"),
+            authorization_contract=_AUTHORIZATION,
+            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
+            do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert list(wal.read_records(lay)) == []
 
 

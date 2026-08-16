@@ -491,6 +491,153 @@ def _reject_case(monkeypatch, *, site, wire=_CLEAN_WIRE,
     return invoke, lay
 
 
+# ==== WAL binding commitment diagnostics =======================================
+
+def test_wal_binding_missing_build_start_exposes_abort_context():
+    reason = "eval-exception: ValueError: required numactl prefix is empty"
+    records = {
+        "verify_done": {"verdict": "reject"},
+        "abort": {
+            "reason": reason,
+            "error": "fixture stderr",
+            "build_attempt_id": "attempt-fixture",
+        },
+    }
+
+    with pytest.raises(T.WalBuildStartEvidenceMissingError) as exc_info:
+        T._wal_binding_commitment(records, variant="variant-fixture")
+
+    exc = exc_info.value
+    assert reason in str(exc)
+    assert "fixture stderr" in str(exc)
+    assert "attempt-fixture" in str(exc)
+    assert "variant-fixture" in str(exc)
+    assert "stages=['abort', 'verify_done']" in str(exc)
+    assert exc.variant == "variant-fixture"
+    assert exc.failure_reason == "build_start_missing"
+    assert exc.available_stages == ("abort", "verify_done")
+    assert exc.stages == exc.available_stages
+    assert exc.abort_record_present is True
+    assert exc.abort_details == {
+        "reason": reason,
+        "error": "fixture stderr",
+        "build_attempt_id": "attempt-fixture",
+    }
+    assert exc.abort_reason == reason
+    assert exc.abort_error == "fixture stderr"
+    assert exc.abort_build_attempt_id == "attempt-fixture"
+
+
+@pytest.mark.parametrize(
+    ("records", "expected_stages"),
+    [
+        pytest.param({}, (), id="empty-records"),
+        pytest.param(
+            {"verify_done": {"verdict": "reject"}},
+            ("verify_done",),
+            id="nonempty-without-abort",
+        ),
+    ],
+)
+def test_wal_binding_missing_build_start_without_abort_is_structured(
+        records, expected_stages):
+    with pytest.raises(T.WalBuildStartEvidenceMissingError) as exc_info:
+        T._wal_binding_commitment(records, variant="variant-fixture")
+
+    exc = exc_info.value
+    assert exc.failure_reason == "build_start_missing"
+    assert exc.available_stages == expected_stages
+    assert exc.abort_record_present is False
+    assert exc.abort_details == {}
+    assert "abort レコードなし" in str(exc)
+
+
+def test_wal_binding_missing_commitment_is_distinct_structured_error():
+    # helper の局所契約を固定する。実 WAL 経路では先に AttemptTopologyError になる。
+    records = {"build_start": {"build_attempt_id": "attempt-fixture"}}
+
+    with pytest.raises(T.WalBuildStartEvidenceMissingError) as exc_info:
+        T._wal_binding_commitment(records, variant="variant-fixture")
+
+    exc = exc_info.value
+    assert exc.failure_reason == "binding_commitment_missing"
+    assert "binding_commitment_missing" in str(exc)
+    assert exc.available_stages == ("build_start",)
+    assert exc.abort_record_present is False
+    assert exc.abort_details == {}
+    assert "abort レコードなし" in str(exc)
+
+
+def test_wal_binding_commitment_success_is_unchanged():
+    expected = "a" * 64
+    records = {
+        "build_start": {wal.TRIGGER_BINDING_COMMITMENT_KEY: expected},
+    }
+
+    assert T._wal_binding_commitment(
+        records, variant="variant-fixture",
+    ) == expected
+
+
+@pytest.mark.parametrize("path", ["duplicate", "normal"])
+def test_missing_build_start_propagates_from_both_iteration_paths(
+        monkeypatch, path):
+    expected_variant = f"variant-{path}"
+    reason = f"eval-exception: fixture {path} failure"
+    records = {"abort": {"reason": reason}}
+    records_by_stage_calls = []
+    invoke, _lay, _calls = _measurement_case(
+        monkeypatch, site=site_policy.OTHER, lookup=env_contract.lookup,
+    )
+    if path == "duplicate":
+        monkeypatch.setattr(
+            T, "run_campaign",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                results=[], skipped=1, execution_receipt=None,
+            ),
+        )
+        monkeypatch.setattr(
+            T, "_resolve_duplicate",
+            lambda *_args, **_kwargs: {
+                "outcome": "aborted", "variant": expected_variant,
+                "records": records,
+            },
+        )
+    else:
+        monkeypatch.setattr(
+            T, "run_campaign",
+            lambda *_args, **_kwargs: SimpleNamespace(
+                results=[SimpleNamespace(
+                    variant=expected_variant,
+                    certified=False,
+                    aborted=True,
+                    verdict="reject",
+                    fitness_tps=0.0,
+                )],
+                skipped=0, execution_receipt=None,
+            ),
+        )
+
+        def records_by_stage_spy(layout_arg, variant_arg):
+            records_by_stage_calls.append((layout_arg, variant_arg))
+            return records
+
+        monkeypatch.setattr(
+            wal, "records_by_stage", records_by_stage_spy,
+        )
+
+    with pytest.raises(T.WalBuildStartEvidenceMissingError) as exc_info:
+        invoke()
+
+    assert exc_info.value.variant == expected_variant
+    assert exc_info.value.abort_reason == reason
+    if path == "normal":
+        assert len(records_by_stage_calls) == 1
+        layout_arg, variant_arg = records_by_stage_calls[0]
+        assert layout_arg is not None
+        assert variant_arg == expected_variant
+
+
 # ==== environment contract admission ===========================================
 
 def test_site_admission_matrix():
