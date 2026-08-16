@@ -77,8 +77,9 @@ bump 忘れの検出、import 済みコードの束縛 ([T-1251])、認証閉包
 改善候補は 1 件。`DW-M08` へ「xdist group を持つ test は記録側の nodeid にだけ `@<group>` が
 付き collection 照合と食い違う。runner を `-n 0` で直列化して両経路を素の nodeid へ揃える」を
 足したい。本 wave が実測した罠であり、他 wave も同じ形で 1 走を失いうる。
-2 行 (約 245 bytes) を足して `tools/check_docs.py` を走らせたところ
-`L1.5 unique footprint 9741 bytes > 予算 9566 bytes` で赤になった。残り余裕は約 70 bytes で、
+2 行 (195 bytes) を足して `tools/check_docs.py` を走らせたところ
+`L1.5 unique footprint 9741 bytes > 予算 9566 bytes` で赤になった。追加前の footprint は
+9546 bytes で**残り余裕は 20 bytes** しかない (main 取り込み後に再実測した値)。
 意味を保った縮約は入らない。既存文の圧縮は exact pin を壊す。`DW-S08` に従い実装せず、
 **予算値の引き上げか本候補の見送りかをユーザー裁定へ返す**。編集は revert 済みで
 `check_docs` は緑に戻している。
