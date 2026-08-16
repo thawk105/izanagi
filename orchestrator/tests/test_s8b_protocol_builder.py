@@ -942,6 +942,91 @@ def test_floor_protocol_index_includes_legacy_and_rejects_duplicate_pair(tmp_pat
         fc.scan_floor_protocol_index(root=repo)
 
 
+def test_current_floor_protocol_resolver_selects_exact_index_record():
+    observed = {}
+    original_scan = fc.scan_floor_protocol_index
+
+    def capture_index(*, root):
+        index = original_scan(root=root)
+        observed["index"] = index
+        return index
+
+    with mock.patch.object(
+            fc, "scan_floor_protocol_index", side_effect=capture_index,
+    ) as scan_mock:
+        resolved = fc.resolve_current_floor_protocol(root=ROOT)
+
+    current_hash = ec.lookup(resolved.document["env_tag"]).contract_sha256
+    matching = [
+        record for record in observed["index"].values()
+        if record.contract_sha256 == current_hash
+    ]
+    assert type(resolved) is fc.IndexedFloorProtocol
+    assert len(matching) == 1 and matching[0] is resolved
+    assert resolved.path == fc._FLOOR_PROTOCOL_REL
+    assert resolved.ccbench_pin != s8b_approved.CCBENCH_FULL_SHA
+    scan_mock.assert_called_once_with(root=ROOT)
+
+
+def test_current_floor_protocol_resolver_has_only_root_selection_argument():
+    parameters = inspect.signature(fc.resolve_current_floor_protocol).parameters
+    assert tuple(parameters) == ("root",)
+    assert parameters["root"].kind is inspect.Parameter.KEYWORD_ONLY
+
+
+def test_current_floor_protocol_resolver_rejects_zero_current_matches():
+    current = ec.GENERATIONS["pegasus"][0].contract
+    record = fc.IndexedFloorProtocol(
+        path="output/s8b-freeze/protocols/fixture.json",
+        document={
+            "env_tag": current.env_tag,
+            "contract_sha256": "0" * 64,
+            "ccbench_pin": "1" * 40,
+        },
+        raw_bytes=b"fixture",
+        sha256=hashlib.sha256(b"fixture").hexdigest(),
+    )
+    with mock.patch.object(
+            fc, "scan_floor_protocol_index", return_value={
+                (record.contract_sha256, record.ccbench_pin): record,
+            },
+    ), mock.patch.object(fc._env_contract, "lookup", return_value=current):
+        with pytest.raises(fc.FloorCampaignError, match="exact 1 件でない: count=0"):
+            fc.resolve_current_floor_protocol(root=ROOT)
+
+
+def test_floor_protocol_path_literals_match_current_resolver():
+    resolved_path = fc.resolve_current_floor_protocol(root=ROOT).path
+    assignments = {
+        "orchestrator/campaign/s8b_floor_campaign.py": (
+            r'^_FLOOR_PROTOCOL_REL = "([^"]+)"$',
+        ),
+        "orchestrator/campaign/s8b_holdout_admission.py": (
+            r'^_PROTOCOL_REL = "([^"]+)"$',
+        ),
+        "orchestrator/campaign/s8b_holdout_freeze.py": (
+            r'^FLOOR_PROTOCOL_REL = "([^"]+)"$',
+        ),
+        "orchestrator/campaign/s8b_prediction_runner.py": (
+            r'^_PROTOCOL_PATH = Path\("([^"]+)"\)$',
+        ),
+        "orchestrator/campaign/s8b_ratified_freeze.py": (
+            r'^_SELECTOR_PROTOCOL_PATH = "([^"]+)"$',
+        ),
+        "tools/pegasus/floor_campaign.sh": (
+            r'^PROTOCOL_PATH="([^"]+)"$',
+        ),
+    }
+    observed = {}
+    for relative, (pattern,) in assignments.items():
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        matches = re.findall(pattern, source, flags=re.MULTILINE)
+        assert len(matches) == 1, f"{relative}: protocol path assignment が exact 1 件でない"
+        observed[relative] = matches[0]
+    assert set(observed) == set(assignments)
+    assert set(observed.values()) == {resolved_path}
+
+
 def test_floor_protocol_index_rejects_same_contract_with_different_pin(tmp_path):
     repo = _init_reseal_protocol_repo(tmp_path)
     candidate = fc.validate_protocol(fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL))

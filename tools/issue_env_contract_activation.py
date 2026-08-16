@@ -205,7 +205,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         activation.validate_activation_records(
             (*existing_records, (filename, raw)),
             registered_contracts=contract._REGISTERED_CONTRACT_CATALOG,
-            is_valid_registered_successor=contract._is_valid_activation_successor,
+            is_valid_registered_successor=(
+                contract._is_valid_activation_successor_with_artifact
+            ),
             expected_head_serial=document["activation_serial"],
             expected_head_state_sha256=document["activation_state_sha256"],
         )

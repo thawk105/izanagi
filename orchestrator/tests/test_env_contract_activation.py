@@ -31,6 +31,9 @@ if str(REPO_ROOT) not in sys.path:
 
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator.campaign import env_contract_activation as activation  # noqa: E402
+from orchestrator.campaign import env_attestation as ea  # noqa: E402
+from orchestrator.campaign import execution_guard as eg  # noqa: E402
+from orchestrator.calibrator import schema_v2  # noqa: E402
 
 
 INITIAL_STATE_SHA256 = (
@@ -1450,6 +1453,142 @@ def test_production_successor_adapter_rejects_rows_that_do_not_resolve(
     assert calls == []
 
 
+def _synthetic_pegasus_successor_with_one_broken_face(
+    tmp_path: Path,
+    broken_face: str,
+):
+    predecessor_entry = ec.GENERATIONS["pegasus"][0]
+    source = REPO_ROOT / ec.GENERATIONS["pegasus"][1].contract.calibration_ref.path
+    document = json.loads(source.read_bytes())
+    if broken_face == "self-consistency":
+        samples = document["attestation_profile"]["effective_clock"]["samples_mhz"]
+        samples[-1] = 3080.0
+    elif broken_face == "method":
+        document["attestation_profile"]["effective_clock"]["method"] += "-drift"
+    elif broken_face == "acquisition-receipt":
+        document["acquisition_receipt"]["allocation"]["pbs_jobid"] = "999999.nqsv"
+    elif broken_face != "content-address":
+        raise AssertionError(f"未知の broken face: {broken_face}")
+
+    raw = json.dumps(
+        document, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    calibration_sha256 = hashlib.sha256(raw).hexdigest()
+    expected_path = PurePosixPath(
+        "output", "env", "pegasus", "calibration", "registered",
+        f"calibration-{calibration_sha256[:16]}.json",
+    )
+    calibration_path = (
+        PurePosixPath(
+            "output", "env", "pegasus", "calibration", "registered",
+            "calibration-not-content-addressed.json",
+        )
+        if broken_face == "content-address"
+        else expected_path
+    )
+    artifact = tmp_path / Path(calibration_path)
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_bytes(raw)
+
+    successor_entry = ec.GenerationEntry(
+        generation=2,
+        contract=replace(
+            predecessor_entry.contract,
+            calibration_ref=ec.CalibrationRef(
+                path=calibration_path.as_posix(),
+                sha256=calibration_sha256,
+            ),
+        ),
+    )
+    clock = document["attestation_profile"]["effective_clock"]
+    independently_broken = set()
+    if not eg.effective_clock_comparison_passes(
+        {
+            "samples_mhz": list(clock["samples_mhz"]),
+            "tolerance_pct": clock["tolerance_pct"],
+        },
+        {"samples_mhz": list(clock["samples_mhz"])},
+    ):
+        independently_broken.add("self-consistency")
+    if clock["method"] != ea.EFFECTIVE_CLOCK_METHOD:
+        independently_broken.add("method")
+    if calibration_path != expected_path:
+        independently_broken.add("content-address")
+    try:
+        schema_v2.validate_calibration_v2(raw)
+    except schema_v2.CalibrationSchemaError:
+        independently_broken.add("acquisition-receipt")
+    assert independently_broken == {broken_face}
+
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, predecessor_entry.contract.contract_sha256,
+    )
+    successor = activation.ActiveContract(
+        "pegasus", 2, successor_entry.contract.contract_sha256,
+    )
+    generations = MappingProxyType({
+        "pegasus": (predecessor_entry, successor_entry),
+    })
+    return generations, predecessor, successor
+
+
+@pytest.mark.parametrize("broken_face", [
+    "self-consistency",
+    "method",
+    "content-address",
+    "acquisition-receipt",
+])
+def test_activation_admission_rejects_each_missing_basis(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    broken_face: str,
+):
+    generations, predecessor, successor = (
+        _synthetic_pegasus_successor_with_one_broken_face(tmp_path, broken_face)
+    )
+    monkeypatch.setattr(ec, "GENERATIONS", generations)
+    monkeypatch.setattr(ec, "_repository_root", lambda: tmp_path)
+    assert ec._is_valid_activation_successor(predecessor, successor) is True
+    assert (
+        ec._is_valid_activation_successor_with_artifact(predecessor, successor)
+        is False
+    )
+
+
+def test_real_pegasus_g2_passes_activation_admission_without_advancing_head():
+    authority = REPO_ROOT / Path(ec._ACTIVATION_DIRECTORY)
+    before = tuple(
+        (path.name, hashlib.sha256(path.read_bytes()).hexdigest())
+        for path in sorted(authority.glob(
+            "[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].json"
+        ))
+    )
+    state_before = ec.current_activation_state()
+    predecessor_entry, successor_entry = ec.GENERATIONS["pegasus"]
+    predecessor = activation.ActiveContract(
+        "pegasus", 1, predecessor_entry.contract.contract_sha256,
+    )
+    successor = activation.ActiveContract(
+        "pegasus", 2, successor_entry.contract.contract_sha256,
+    )
+    assert ec._is_valid_activation_successor(predecessor, successor) is True
+    assert (
+        ec._is_valid_activation_successor_with_artifact(predecessor, successor)
+        is True
+    )
+    state_after = ec.current_activation_state()
+    after = tuple(
+        (path.name, hashlib.sha256(path.read_bytes()).hexdigest())
+        for path in sorted(authority.glob(
+            "[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].json"
+        ))
+    )
+    assert state_before.activation_serial == state_after.activation_serial == 1
+    assert ec._ACTIVATION_HEAD_SERIAL == 1
+    assert before == after
+    assert len(after) == 1
+
+
 def test_validate_activation_records_requires_successor_predicate(tmp_path: Path):
     first = _record1()
     records = (("00000001.json", _raw(first)),)
@@ -1657,7 +1796,7 @@ def test_production_loader_passes_source_head_constants_to_leaf(monkeypatch):
     )
     assert (
         observed["is_valid_registered_successor"]
-        is ec._is_valid_activation_successor
+        is ec._is_valid_activation_successor_with_artifact
     )
 
 
@@ -2298,7 +2437,7 @@ def test_issue_main_passes_production_successor_adapter_by_identity(
         "--active", "pegasus=2",
     ]) == 0
     assert len(observed) == 1
-    assert observed[0] is ec._is_valid_activation_successor
+    assert observed[0] is ec._is_valid_activation_successor_with_artifact
 
 
 def test_issue_main_rejects_when_production_successor_adapter_rejects(
@@ -2516,6 +2655,13 @@ def test_issue_main_accepts_65_env_plus_one_and_publishes(
 
     monkeypatch.setattr(ec, "GENERATIONS", _PIN_GENERATIONS)
     monkeypatch.setattr(ec, "_REGISTERED_CONTRACT_CATALOG", _PIN_CATALOG)
+    # この scale pin の合成 registry は calibration artifact を持たない。
+    # artifact admission は実在 g2 と 4 個の単一理由テストで別に固定する。
+    monkeypatch.setattr(
+        ec,
+        "_is_valid_activation_successor_with_artifact",
+        ec._is_valid_activation_successor,
+    )
     monkeypatch.setattr(ec, "current_activation_state", current_activation_state_spy)
     monkeypatch.setattr(
         ec, "_ACTIVATION_DIRECTORY", PurePosixPath(authority.as_posix())

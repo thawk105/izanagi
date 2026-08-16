@@ -432,6 +432,52 @@ def _is_valid_activation_successor(
     )
 
 
+def _is_valid_activation_successor_with_artifact(
+    predecessor: ActiveContract,
+    successor: ActiveContract,
+) -> bool:
+    """構造と較正 artifact の両方を満たす activation successor かを返す。"""
+    if not _is_valid_activation_successor(predecessor, successor):
+        return False
+    successor_entry = _resolve_activation_entry(successor)
+    if successor_entry is None:
+        return False
+
+    from . import calibration_verify
+    from . import env_attestation
+    from . import execution_guard
+
+    repo_root = _repository_root()
+    try:
+        # 既存の型付き admission が content-addressed path、quality、および
+        # acquisition receipt の内部束縛を検査する。
+        _verify_entry_calibration(successor_entry, repo_root)
+        verified = calibration_verify.load_verified_calibration(
+            env_tag=successor_entry.contract.env_tag,
+            clocks_per_us=successor_entry.contract.clocks_per_us,
+            attestation_mode=successor_entry.contract.attestation_mode,
+            calibration_path=successor_entry.contract.calibration_ref.path,
+            calibration_sha256=successor_entry.contract.calibration_ref.sha256,
+            repo_root=repo_root,
+        )
+    except (EnvContractError, calibration_verify.AttestationError):
+        return False
+
+    calibration = verified.calibration
+    if calibration is None:
+        return False
+    clock = calibration.attestation_profile.effective_clock
+    expected = {
+        "samples_mhz": list(clock.samples_mhz),
+        "tolerance_pct": clock.tolerance_pct,
+    }
+    observed = {"samples_mhz": list(clock.samples_mhz)}
+    return bool(
+        execution_guard.effective_clock_comparison_passes(expected, observed)
+        and clock.method == env_attestation.EFFECTIVE_CLOCK_METHOD
+    )
+
+
 @dataclass(frozen=True)
 class _AuthoritySnapshot:
     state: object
@@ -524,7 +570,9 @@ def _load_authority_snapshot() -> _AuthoritySnapshot:
         state = activation.load_activation_state(
             repo_root / Path(_ACTIVATION_DIRECTORY),
             registered_contracts=_REGISTERED_CONTRACT_CATALOG,
-            is_valid_registered_successor=_is_valid_activation_successor,
+            is_valid_registered_successor=(
+                _is_valid_activation_successor_with_artifact
+            ),
             expected_head_serial=_ACTIVATION_HEAD_SERIAL,
             expected_head_state_sha256=_ACTIVATION_HEAD_STATE_SHA256,
         )
