@@ -7085,6 +7085,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
     pass_results = [(ncommit, rc, aborts, certified), ...] — _run_trace/
     verify_trace_dir が呼ばれた順に 1 要素ずつ消費する。yield する dict:
       trace  = 各 _run_trace 呼び出しの {"flags":..., "numactl":...} 記録
+      bench = 各 measure_point 呼び出しの {"numactl":...} 記録
       bench_lock_enters = bench_lock() で入った回数 (verify pass 分 + bench 分)
     """
     saved = {}
@@ -7093,7 +7094,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
         saved[name] = getattr(pipeline, name)
         setattr(pipeline, name, val)
 
-    calls = {"trace": [], "bench_lock_enters": 0}
+    calls = {"trace": [], "bench": [], "bench_lock_enters": 0}
 
     @contextlib.contextmanager
     def fake_lock(*a, **k):
@@ -7134,6 +7135,7 @@ def _mock_pipeline_multipass(pass_results, median=12345.0, cv=0.01, competing=No
                                      configure_cmd="<cfg>", build_cmd="<build>")
 
     def fake_measure(*a, **k):
+        calls["bench"].append({"numactl": k.get("numactl")})
         return types.SimpleNamespace(
             throughputs=[median, median], run_cmd="<run>",
             leading_indicators=lambda: {"throughput_tps": median, "abort_rate": 0.0,
@@ -7196,7 +7198,7 @@ def test_pipeline_extra_correctness_both_pass_tags_commit_and_uses_numactl_lock(
             log=lambda *a: None, build_context=_BUILD_CONTEXT)
     assert r.certified and not r.aborted
     assert calls["trace"][0]["numactl"] is None           # legacy パス: numactl 無し
-    assert calls["trace"][1]["numactl"] == numa            # S2 パス: numactl あり
+    assert calls["trace"][1]["numactl"] == tuple(numa)     # S2 パス: immutable prefix
     assert calls["bench_lock_enters"] == 2                 # S2 verify パス 1 + bench 1
     verify_recs = [rec for rec in wal.read_records(lay) if rec.stage == STAGE_VERIFY_DONE]
     assert [rec.payload["workload"]["tag"] for rec in verify_recs] == ["legacy", "s2"]
@@ -7250,22 +7252,164 @@ def test_pipeline_no_extra_correctness_matches_legacy_only_behavior():
 
 
 def test_pipeline_extra_correctness_requires_numactl():
-    """D36 決定4-4: use_numactl=True を含む extra_correctness (S2 相当) は numactl
-    必須。無指定を黙って劣化させず fails-closed で ValueError にする
-    (敵対レビュー 2026-07-09 CONFIRMED: numactl 無しで S2 が静かに較正条件から
-    乖離しうる欠落の修正)。build/verify に一切触れる前に即エラーになる。"""
+    """fullscale の未解決・契約外 prefix を gate 固有診断で早期拒否する。"""
+    message = "verify/bench launch prefix が環境契約の numactl と一致しない"
+    for numactl in (None, ("numactl", "--membind=0")):
+        lay = _tmp_layout()
+        with _assert_raises_contains(ValueError, message):
+            pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay,
+                _AUTH_CONTRACT.env_tag, "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=numactl, authorization_contract=_AUTHORIZATION,
+                extra_correctness=[
+                    (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+                ],
+                do_bench=False, log=lambda *a: None,
+                build_context=_BUILD_CONTEXT)
+        assert list(wal.read_records(lay)) == []
+
+
+def test_pipeline_fullscale_verify_and_bench_share_numactl_expression():
+    """fullscale verify と 2 本の bench 呼出しを同じ numactl 式へ固定する。"""
+    with open(pipeline.__file__, encoding="utf-8") as stream:
+        tree = ast.parse(stream.read(), filename=pipeline.__file__)
+    evaluate_node = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "evaluate"
+    )
+    fullscale_if = next(
+        node for node in ast.walk(evaluate_node)
+        if isinstance(node, ast.If)
+        and isinstance(node.test, ast.Name)
+        and node.test.id == "fullscale_isolated"
+    )
+    verify_calls = [
+        call
+        for statement in fullscale_if.body
+        for call in ast.walk(statement)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "_run_one_pass"
+    ]
+    bench_calls = [
+        node for node in ast.walk(evaluate_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_run_bench"
+    ]
+    assert len(verify_calls) == 1
+    assert len(bench_calls) == 2
+    prefixes = [verify_calls[0].args[2], *(call.args[3] for call in bench_calls)]
+    assert all(
+        isinstance(prefix, ast.Name) and prefix.id == "numactl"
+        for prefix in prefixes
+    )
+    expected = ast.dump(prefixes[0], include_attributes=False)
+    assert all(
+        ast.dump(prefix, include_attributes=False) == expected
+        for prefix in prefixes[1:]
+    )
+
+
+def test_pipeline_fullscale_verify_and_bench_share_immutable_numactl():
+    """screening・通常の双方で helper 末端まで同じ immutable prefix を渡す。"""
+    for use_screening in (False, True):
+        lay = _tmp_layout()
+        screening = _screening() if use_screening else None
+        if screening is not None:
+            locked_cfg = _cfg(search_config={
+                **_cfg().search_config,
+                **ident.screening_search_config(screening),
+            })
+            _write_certified_lock(lay, locked_cfg)
+        supplied = list(_AUTH_CONTRACT.numactl)
+        with _mock_pipeline_multipass(
+                [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+            result = pipeline.evaluate(
+                Genome("silo", {"BACK_OFF": 1}), lay,
+                _AUTH_CONTRACT.env_tag, "deadbeef",
+                PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+                numactl=supplied, authorization_contract=_AUTHORIZATION,
+                extra_correctness=[
+                    (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+                ],
+                screening=screening, log=lambda *a: None,
+                build_context=_BUILD_CONTEXT)
+        assert result.certified and not result.aborted
+        assert len(calls["trace"]) == 2 and len(calls["bench"]) == 1
+        verify_prefix = calls["trace"][1]["numactl"]
+        bench_prefix = calls["bench"][0]["numactl"]
+        assert type(verify_prefix) is tuple
+        assert verify_prefix == _AUTH_CONTRACT.numactl
+        assert bench_prefix is verify_prefix
+
+
+def test_pipeline_extra_correctness_accepts_registered_empty_numactl():
+    """Pegasus の解決済み空 prefix は certified まで進み S2 trace に届く。"""
+    authorization = ec.authorize("pegasus")
+    contract = ec.lookup("pegasus")
     lay = _tmp_layout()
+    with _mock_pipeline_multipass(
+            [(100, 0, 5, True), (900000, 0, 50000, True)]) as calls:
+        result = pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            contract.env_tag, "deadbeef",
+            PerfConfig(records=1000, threads=2),
+            clocks_per_us=contract.clocks_per_us,
+            numactl=(), env_contract=None,
+            authorization_contract=authorization,
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=False, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+    assert result.certified and not result.aborted
+    assert calls["trace"][1]["numactl"] == ()
+
+
+def test_pipeline_fullscale_unknown_env_tag_raises_exact_error_without_writes():
+    """未登録 fullscale 環境は lookup 由来の exact 例外で sink 前に閉じる。"""
+    lay = _tmp_layout()
+    try:
+        pipeline.evaluate(
+            Genome("silo", {"BACK_OFF": 1}), lay,
+            "unregistered-fullscale-env", "deadbeef",
+            PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl=_AUTH_CONTRACT.numactl,
+            authorization_contract=_AUTHORIZATION,
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=False, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+        assert False, "未登録 env_tag は EnvContractError で拒否すべき"
+    except ec.EnvContractError as exc:
+        assert type(exc) is ec.EnvContractError
+    assert list(wal.read_records(lay)) == []
+
+
+def test_pipeline_fullscale_invalid_numactl_type_keeps_authorization_error_path():
+    """list/tuple 以外は正規化せず、既存の認可型エラーへ渡す。"""
+    lay = _tmp_layout()
+    expected_type = pipeline.execution_guard.CertifiedWriterAuthorizationError
     try:
         pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay,
             _AUTH_CONTRACT.env_tag, "deadbeef",
             PerfConfig(records=1000, threads=2), clocks_per_us=1800,
+            numactl="numactl --interleave=all",
             authorization_contract=_AUTHORIZATION,
-            extra_correctness=[(pipeline.S2_TAG, pipeline.s2_correctness_workload())],
-            do_bench=False, log=lambda *a: None, build_context=_BUILD_CONTEXT)
-        assert False, "should raise ValueError"
-    except ValueError:
-        pass
+            extra_correctness=[
+                (pipeline.S2_TAG, pipeline.s2_correctness_workload())
+            ],
+            do_bench=False, log=lambda *a: None,
+            build_context=_BUILD_CONTEXT)
+        assert False, "不正な numactl 型は認可検査で拒否すべき"
+    except expected_type as exc:
+        assert type(exc) is expected_type
+        assert "str の list/tuple" in str(exc)
+    assert list(wal.read_records(lay)) == []
 
 
 def test_pipeline_extra_correctness_second_pass_competing_tenant_aborts():

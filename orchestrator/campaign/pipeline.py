@@ -690,15 +690,20 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     passes: List[Tuple[str, CorrectnessWorkload, bool]] = [(LEGACY_TAG, correctness, False)]
     for tag, wl in (extra_correctness or []):
         passes.append((tag, wl, True))
-    if (any(fullscale_isolated for _, _, fullscale_isolated in passes)
-            and not numactl and qualification_policy is None):
-        # S2 相当 (use_numactl=True) は D36 決定4-4 で numactl interleave=all が必須。
-        # numactl 無しで黙って通すと較正済み contention 条件からの静かな乖離になる
-        # (敵対レビュー 2026-07-09 で確認)。ycsb_tuple_num の既存ガードと同じ流儀
-        # (raise → run_campaign の except Exception が eval-exception abort に変換)。
-        raise ValueError(
-            "extra_correctness に numactl 必須の構成があるが numactl 未指定 "
-            "(D36 決定4-4: S2 相当は bench と同じメモリ配置 numactl interleave=all で回す)")
+    if type(numactl) in {list, tuple}:
+        # 呼び手の可変 list を契約照合後に変更できないよう、gate・認可・verify・bench が
+        # 共有する launch prefix を一度だけ immutable snapshot にする。
+        numactl = tuple(numactl)
+    if any(fullscale_isolated for _, _, fullscale_isolated in passes):
+        registered_numactl = _env_contract.lookup(env_tag).numactl
+        if (numactl is None
+                or (type(numactl) is tuple and numactl != registered_numactl)):
+            # D36 決定4-4: S2 相当の verify と bench は、登録環境契約が定める
+            # 同じ launch prefix を使う。空 tuple は解決済みの正当な prefix である。
+            raise ValueError(
+                "extra_correctness に環境契約束縛が必要な構成があるが "
+                "verify/bench launch prefix が環境契約の numactl と一致しない "
+                "(D36 決定4-4)")
     authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
