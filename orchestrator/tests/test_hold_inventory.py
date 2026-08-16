@@ -63,10 +63,11 @@ EXPECTED_TEST_HOLD_GROUPS = (
             "test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested",
             "test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment",
         },
-        "commits",
+        "output_artifacts",
         (
-            "Copies the real repository without hardlinks, so cost grows with "
-            "commit history."
+            "Constructs the shared real snapshot fixture by recursively "
+            "enumerating the real Codex session corpus, so cost grows with "
+            "output artifacts."
         ),
     ),
     (
@@ -130,7 +131,91 @@ EXPECTED_TEST_HOLD_GROUPS = (
         "tracked_files",
         "Scans the real checkout, so cost grows with tracked files.",
     ),
+    (
+        {
+            "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper",
+            "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
+            "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
+            "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+            "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin",
+            "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper",
+            "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head",
+            "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+            "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy",
+        },
+        "output_artifacts",
+        (
+            "Builds or verifies the real known-axes freeze by globbing and "
+            "parsing campaign artifacts, so cost grows with output artifacts."
+        ),
+    ),
+    (
+        {
+            "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics",
+            "test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule",
+            "test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze",
+            "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict",
+            "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control",
+            "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+            "test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible",
+            "test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper",
+            "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+            "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper",
+            "test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper",
+        },
+        "output_artifacts",
+        (
+            "Consumes the module-scoped real known-axes fixture, which globs "
+            "and parses campaign artifacts, so cost grows with output artifacts."
+        ),
+    ),
+    (
+        {
+            "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+            "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+            "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+            "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+        },
+        "commits",
+        (
+            "Runs real-repository receipt and active-generation history "
+            "resolution over the reachable commit graph, so cost grows with "
+            "commit history."
+        ),
+    ),
+    (
+        {
+            "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+        },
+        "commits",
+        (
+            "Clones the real repository without hardlinks, so cost grows with "
+            "commit history."
+        ),
+    ),
+    (
+        {
+            "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+            "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+        },
+        "tracked_files",
+        (
+            "Runs full real-repository git status snapshots before and after "
+            "the action, so cost grows with tracked files."
+        ),
+    ),
 )
+_SHARED_FIXTURE_COLLATERAL = (
+    "Holding this node also prevents the shared module fixture from starting, "
+    "so its fixed checks for full SHA format, CURRENT_PIN prefix, an independent "
+    "golden, and K.verify_document stop too."
+)
+
+
+def _fixture_collateral(detail: str) -> str:
+    return f"{_SHARED_FIXTURE_COLLATERAL} {detail}"
+
+
 EXPECTED_TEST_COLLATERAL_NOTES = {
     "test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies": (
         "Holding this node also removes fixed-size checks for corpus count 48, "
@@ -140,6 +225,87 @@ EXPECTED_TEST_COLLATERAL_NOTES = {
         "Holding this node also removes fixed-size checks for the maximum "
         "package, MAX_CANDIDATES/MAX_QUERY_COUNT/MAX_SIGNAL_TOKENS, independent "
         "inspect/pickaxe evidence, and the 45/60-second preflight boundaries."
+    ),
+    "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper": _fixture_collateral(
+        "The node's fixed self-consistency and single-field tamper rejection checks stop too."
+    ),
+    "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze": _fixture_collateral(
+        "The node's fixed create-only refusal check stops too."
+    ),
+    "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points": _fixture_collateral(
+        "The node's fixed golden checks for registered P2, backoff, and sort selections stop too."
+    ),
+    "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags": _fixture_collateral(
+        "The node's fixed S-1b mismatched-flags rejection check stops too."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin": _fixture_collateral(
+        "The node's fixed held/released ccbench-pin positive control stops too."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper": _fixture_collateral(
+        "The node's fixed generator-hash tamper rejection check stops too."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head": _fixture_collateral(
+        "The node's fixed non-ancestor HEAD rejection check stops too."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper": _fixture_collateral(
+        "The node's fixed one-byte freeze tamper rejection check stops too."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy": _fixture_collateral(
+        "The node's fixed copied-source hash tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics": _fixture_collateral(
+        "The node's fixed known-axes semantic tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule": _fixture_collateral(
+        "The node's fixed checks for 18 cells, 12 comparisons, schedule shape, seeds, and operating-point flags stop too."
+    ),
+    "test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze": _fixture_collateral(
+        "The node's fixed measurement create-only refusal check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict": _fixture_collateral(
+        "The node's fixed legacy-verifier isolation from the T-080 adapter stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control": _fixture_collateral(
+        "The node's fixed recorded-pin hold and release positive control stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags": _fixture_collateral(
+        "The node's fixed measurement S-1b mismatched-flags rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible": _fixture_collateral(
+        "The node's fixed schedule balance and reproducibility checks stop too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper": _fixture_collateral(
+        "The node's fixed known-axes material-hash tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper": _fixture_collateral(
+        "The node's fixed one-byte measurement freeze tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper": _fixture_collateral(
+        "The node's fixed one-byte workload-flag tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper": _fixture_collateral(
+        "The node's fixed statistics-implementation hash tamper rejection check stops too."
+    ),
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal": (
+        "Holding this node also removes the fixed-size binding-manifest schema refusal aggregation check."
+    ),
+    "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e": (
+        "Holding this node also removes fixed-size sealed protocol, freeze, prediction, journal, receipt, schedule, and floor binding checks."
+    ),
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated": (
+        "Holding this node also removes the fixed-size independent-refusal aggregation and zero-side-effect checks."
+    ),
+    "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused": (
+        "Holding this node also removes the fixed-size no-active error translation, no-prepare, no-evaluate, and no-write checks."
+    ),
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing": (
+        "Holding this node also removes fixed-size refusal, no-prepare, no-evaluate, and zero-output checks."
+    ),
+    "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root": (
+        "Holding this node also removes fixed-size checks for exact ROOT wiring, single guard invocation, and builder/writer execution inside that guard."
+    ),
+    "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged": (
+        "Holding this node also removes fixed-size top-level and nested writer checks and the frozen-output refusal check."
     ),
 }
 

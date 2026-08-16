@@ -53,6 +53,7 @@ from orchestrator.campaign import s8b_binary_admission  # noqa: E402
 from orchestrator.campaign import s8b_materialization  # noqa: E402
 from orchestrator.campaign import s8b_launch_cert  # noqa: E402
 from orchestrator.campaign import s8b_prediction_runner  # noqa: E402
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 from orchestrator.campaign import s8b_selector_freeze  # noqa: E402
 from orchestrator.campaign import sort_swo_oracle  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
@@ -8291,3 +8292,6 @@ def test_pilot_cli_broken_freeze_emits_structured_error_not_traceback(tmp_path):
     assert payload["status"] == "error"
     assert "FloorCampaignError" in payload["error"]
     assert "expected_hash" in payload["error"]
+
+
+enforce_held_functions(globals(), __file__, plain_runner="none")

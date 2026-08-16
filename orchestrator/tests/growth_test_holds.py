@@ -55,28 +55,57 @@ def _hold(
     )
 
 
-_CLONE_REASON = (
-    "Copies the real repository without hardlinks, so cost grows with commit history."
+_SNAPSHOT_CORPUS_REASON = (
+    "Constructs the shared real snapshot fixture by recursively enumerating "
+    "the real Codex session corpus, so cost grows with output artifacts."
 )
 _ROLLOUT_REASON = (
     "Recursively enumerates the real Codex session corpus, so cost grows with output artifacts."
 )
+_KNOWN_AXES_ARTIFACT_REASON = (
+    "Builds or verifies the real known-axes freeze by globbing and parsing "
+    "campaign artifacts, so cost grows with output artifacts."
+)
+_MEASUREMENT_FIXTURE_REASON = (
+    "Consumes the module-scoped real known-axes fixture, which globs and parses "
+    "campaign artifacts, so cost grows with output artifacts."
+)
+_REAL_HISTORY_REASON = (
+    "Runs real-repository receipt and active-generation history resolution "
+    "over the reachable commit graph, so cost grows with commit history."
+)
+_REAL_REPO_CLONE_REASON = (
+    "Clones the real repository without hardlinks, so cost grows with commit history."
+)
+_REPO_STATUS_REASON = (
+    "Runs full real-repository git status snapshots before and after the action, "
+    "so cost grows with tracked files."
+)
+_SHARED_FIXTURE_COLLATERAL = (
+    "Holding this node also prevents the shared module fixture from starting, "
+    "so its fixed checks for full SHA format, CURRENT_PIN prefix, an independent "
+    "golden, and K.verify_document stop too."
+)
+
+
+def _fixture_collateral(detail: str) -> str:
+    return f"{_SHARED_FIXTURE_COLLATERAL} {detail}"
 
 _HOLD_ROWS = (
-    ("test_codex_reasoning_ab.py::test_m3_focus_artifact_directions", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_m3_snapshot_mode_change", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected", _hold("commits", _CLONE_REASON)),
-    ("test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned", _hold("commits", _CLONE_REASON)),
+    ("test_codex_reasoning_ab.py::test_m3_focus_artifact_directions", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_verify_replays_complete_fake_codex_experiment", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_m3_ignored_extra_and_missing", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_m3_snapshot_mode_change", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_f3_4_prelaunch_exception_completes_pair_and_allows_next_generation", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_m3_symbolic_head_is_required", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_m1_snapshot_head_pin_is_independent", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
+    ("test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned", _hold("output_artifacts", _SNAPSHOT_CORPUS_REASON)),
     ("test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes", _hold("output_artifacts", _ROLLOUT_REASON)),
     ("test_codex_reasoning_ab.py::test_prompt_replacement_count_zero_expected_and_excess", _hold("output_artifacts", _ROLLOUT_REASON)),
     (
@@ -154,6 +183,288 @@ _HOLD_ROWS = (
                 "Holding this node also removes fixed-size checks for corpus count "
                 "48, disjoint success/failure sets, and the complete JSON-pair "
                 "partition."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed self-consistency and single-field tamper "
+                "rejection checks stop too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed create-only refusal check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed golden checks for registered P2, backoff, "
+                "and sort selections stop too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed S-1b mismatched-flags rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed held/released ccbench-pin positive control stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed generator-hash tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed non-ancestor HEAD rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed one-byte freeze tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy",
+        _hold(
+            "output_artifacts",
+            _KNOWN_AXES_ARTIFACT_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed copied-source hash tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed known-axes semantic tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed checks for 18 cells, 12 comparisons, schedule "
+                "shape, seeds, and operating-point flags stop too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed measurement create-only refusal check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed legacy-verifier isolation from the T-080 "
+                "adapter stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed recorded-pin hold and release positive control stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed measurement S-1b mismatched-flags rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed schedule balance and reproducibility checks stop too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed known-axes material-hash tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed one-byte measurement freeze tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed one-byte workload-flag tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper",
+        _hold(
+            "output_artifacts",
+            _MEASUREMENT_FIXTURE_REASON,
+            collateral_note=_fixture_collateral(
+                "The node's fixed statistics-implementation hash tamper rejection check stops too."
+            ),
+        ),
+    ),
+    (
+        "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
+        _hold(
+            "commits",
+            _REAL_HISTORY_REASON,
+            collateral_note=(
+                "Holding this node also removes the fixed-size binding-manifest "
+                "schema refusal aggregation check."
+            ),
+        ),
+    ),
+    (
+        "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+        _hold(
+            "commits",
+            _REAL_REPO_CLONE_REASON,
+            collateral_note=(
+                "Holding this node also removes fixed-size sealed protocol, freeze, "
+                "prediction, journal, receipt, schedule, and floor binding checks."
+            ),
+        ),
+    ),
+    (
+        "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+        _hold(
+            "commits",
+            _REAL_HISTORY_REASON,
+            collateral_note=(
+                "Holding this node also removes the fixed-size independent-refusal "
+                "aggregation and zero-side-effect checks."
+            ),
+        ),
+    ),
+    (
+        "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+        _hold(
+            "commits",
+            _REAL_HISTORY_REASON,
+            collateral_note=(
+                "Holding this node also removes the fixed-size no-active error "
+                "translation, no-prepare, no-evaluate, and no-write checks."
+            ),
+        ),
+    ),
+    (
+        "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+        _hold(
+            "commits",
+            _REAL_HISTORY_REASON,
+            collateral_note=(
+                "Holding this node also removes fixed-size refusal, no-prepare, "
+                "no-evaluate, and zero-output checks."
+            ),
+        ),
+    ),
+    (
+        "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+        _hold(
+            "tracked_files",
+            _REPO_STATUS_REASON,
+            collateral_note=(
+                "Holding this node also removes fixed-size checks for exact ROOT "
+                "wiring, single guard invocation, and builder/writer execution "
+                "inside that guard."
+            ),
+        ),
+    ),
+    (
+        "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
+        _hold(
+            "tracked_files",
+            _REPO_STATUS_REASON,
+            collateral_note=(
+                "Holding this node also removes fixed-size top-level and nested "
+                "writer checks and the frozen-output refusal check."
             ),
         ),
     ),

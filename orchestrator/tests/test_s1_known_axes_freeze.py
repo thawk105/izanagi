@@ -22,6 +22,7 @@ sys.path.insert(0, _HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import s1_known_axes_freeze as M  # noqa: E402
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 from s1_expected_goldens import (  # noqa: E402
     EXPECTED_BACKOFF,
     EXPECTED_P2,
@@ -672,6 +673,9 @@ def _run():
                 shutil.rmtree(tmp, ignore_errors=True)
     print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
+
+
+enforce_held_functions(globals(), __file__, plain_runner="manual")
 
 
 if __name__ == "__main__":
