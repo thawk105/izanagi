@@ -42,6 +42,10 @@ from orchestrator.campaign.durable_root import DurableRootPolicy  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.s1_direct_comparison import PreparedCell  # noqa: E402
 from orchestrator.campaign.s8b_freeze_io import VerifiedFreeze  # noqa: E402
+from s8b_floor_evidence_fixture import (  # noqa: E402
+    build_floor_admission_evidence,
+    fake_sort_swo_pass_attempt,
+)
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
@@ -407,6 +411,10 @@ def _fixed_prepare(cell, ccbench_pin, *, cxx):
         genome=genome, src_token=token,
         ccbench_dir=_fixed_prepare.ccbench_dir,
         cache_root=_fixed_prepare.cache_root,
+        oracle_attempt=(
+            fake_sort_swo_pass_attempt()
+            if configuration == "sort_best" else None
+        ),
     )
 
 
@@ -938,6 +946,11 @@ def build_production_emitter_g1(
         "result": json.loads((root / paths["result"]).read_bytes()),
         "paths": paths,
     }
+    admission_cells = json.loads(json.dumps(state["manifest"]["cells"]))
+    admission_schedule = json.loads(json.dumps(state["manifest"]["schedule"]))
+    admission_sessions = json.loads(json.dumps([
+        row for row in state["journal"] if row.get("event") == "session"
+    ]))
     # Consumer topology fixture は producer core の publish 判定を試すものではない。
     # downstream の accepted artifact を明示的に組み立て、seam 注入の有無から切り離す。
     state["result"]["eligible_for_refreeze"] = True
@@ -958,6 +971,18 @@ def build_production_emitter_g1(
     cert_raw = _json_bytes(state["cert"])
     manifest_raw = _json_bytes(state["manifest"])
     journal_raw = _jsonl_bytes(state["journal"])
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    if admission_root.exists():
+        shutil.rmtree(admission_root)
+    evidence = build_floor_admission_evidence(
+        admission_root, protocol=state["protocol"], freeze=v1,
+        freeze_sha256=M.V1_FREEZE_SHA256,
+        manifest_sha256=_sha(manifest_raw), campaign_run_id=run_dir.name,
+        run_relpath=run_dir.relative_to(out_root).as_posix(), mode="official",
+        cells=admission_cells, schedule=admission_schedule,
+        sessions=admission_sessions,
+    )
+    state["result"]["holdout_admission"] = evidence.expected_receipt
     result_record_raw = _json_bytes(state["result"])
     result_raw = result_record_raw + state.get("post_hash_result_suffix", b"")
     _write(root, paths["protocol"], protocol_raw)
@@ -1116,16 +1141,36 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
     )
     run_dir = Path(outcome["run_dir"])
     paths = _emitter_artifact_paths(run_dir, root)
-    protocol_raw = _json_bytes(protocol)
-    _write(root, paths["protocol"], protocol_raw)
-    _write(root, paths["closure80"], _RR80_PARAMS)
-    _write(root, paths["closure20"], _RR20_PARAMS)
+    manifest_raw = (root / paths["manifest"]).read_bytes()
+    manifest = json.loads(manifest_raw)
+    journal = [
+        json.loads(line)
+        for line in (root / paths["journal"]).read_text(
+            encoding="utf-8",
+        ).splitlines()
+    ]
     result = json.loads((root / paths["result"]).read_bytes())
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    if admission_root.exists():
+        shutil.rmtree(admission_root)
+    evidence = build_floor_admission_evidence(
+        admission_root, protocol=protocol, freeze=v1,
+        freeze_sha256=M.V1_FREEZE_SHA256,
+        manifest_sha256=_sha(manifest_raw), campaign_run_id=run_dir.name,
+        run_relpath=run_dir.relative_to(out_root).as_posix(), mode="official",
+        cells=manifest["cells"], schedule=manifest["schedule"],
+        sessions=[row for row in journal if row.get("event") == "session"],
+    )
+    result["holdout_admission"] = evidence.expected_receipt
     # Consumer topology fixture は producer core の publish 判定に依存させない。
     # g2 の accepted result と floor_source hash を同じ bytes から再構成する。
     result["eligible_for_refreeze"] = True
     result_raw = _json_bytes(result)
     _write(root, paths["result"], result_raw)
+    protocol_raw = _json_bytes(protocol)
+    _write(root, paths["protocol"], protocol_raw)
+    _write(root, paths["closure80"], _RR80_PARAMS)
+    _write(root, paths["closure20"], _RR20_PARAMS)
     result_md_raw = (root / paths["result_md"]).read_bytes()
     result_md_hits = HF.holdout_conjunction_hits({
         paths["result_md"]: result_md_raw.decode("utf-8"),

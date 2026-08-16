@@ -670,8 +670,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     (verify 2 本立て、既存 CorrectnessWorkload は置き換えず併存、決定2)。各構成は
     WAL に "workload":{"tag":...} で残り、次手生成 (critic) がどの構成で壊れたか
     帰属できる (決定4-3)。S2 相当 (t48 フルロード規模) は bench 並みの負荷ゆえ
-    bench_lock + numactl 下で回す (決定4-4)。既定 legacy は軽量ゆえ従来どおり
-    並列可 (lock.py の設計方針)。"""
+    bench_lock + bench と同一の launch prefix 下で回す (決定4-4)。既定 legacy は
+    軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     if trigger_gate_binding is not None and type(trigger_gate_binding) is not TriggerGateBinding:
@@ -735,14 +735,16 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
     for tag, wl in (extra_correctness or []):
         passes.append((tag, wl, True))
     if (any(fullscale_isolated for _, _, fullscale_isolated in passes)
-            and not numactl and qualification_policy is None):
-        # S2 相当 (use_numactl=True) は D36 決定4-4 で numactl interleave=all が必須。
-        # numactl 無しで黙って通すと較正済み contention 条件からの静かな乖離になる
-        # (敵対レビュー 2026-07-09 で確認)。ycsb_tuple_num の既存ガードと同じ流儀
-        # (raise → run_campaign の except Exception が eval-exception abort に変換)。
+            and qualification_policy is None
+            and tuple(numactl or ()) != authorization_contract.contract.numactl):
+        # S2 相当 (fullscale_isolated=True) は D36 決定4-4 で bench と同じメモリ配置が必須。
+        # launch prefix の非空性ではなく、bench の権威である解決済み環境契約との
+        # exact 一致を要求する。これにより prefix 無しが契約である Pegasus は通し、
+        # 非空でも bench と異なる配置を指定した verify は fail-closed で拒否する。
+        # raise は run_campaign の except Exception が eval-exception abort に変換する。
         raise ValueError(
-            "extra_correctness に numactl 必須の構成があるが numactl 未指定 "
-            "(D36 決定4-4: S2 相当は bench と同じメモリ配置 numactl interleave=all で回す)")
+            "extra_correctness の launch prefix が bench の環境契約 numactl と一致しない "
+            "(D36 決定4-4: S2 相当は bench と同じメモリ配置で回す)")
     authorized_contract = execution_guard.require_certified_writer_authorization(
         authorization_contract,
         env_tag=env_tag,
