@@ -39,6 +39,10 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
 )
 from orchestrator.campaign.s8b_materialization import reviewed_source_capability  # noqa: E402
 from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence  # noqa: E402
+from s8b_floor_evidence_fixture import (  # noqa: E402
+    build_floor_admission_evidence,
+    expected_portable_sort_swo_pass_receipt,
+)
 import test_s8b_ratified_freeze as B  # noqa: E402  (fixture 共用)
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
@@ -308,7 +312,7 @@ def _portable_binaries(
             binary=root / binary_rel, binary_sha256=binary_sha,
             contract_sha256=protocol["contract_sha256"], trace=False,
         )
-        out[cell_id] = {
+        record = {
             "cell_id": cell_id,
             "holdout_id": cell["holdout_id"],
             "configuration_id": cell["configuration_id"],
@@ -322,6 +326,13 @@ def _portable_binaries(
             "store_path": f"output/fixture-store/{binary_sha}",
             "admission_receipt": receipt,
         }
+        if cell["configuration_id"] == "sort_best":
+            record["sort_swo_oracle"] = expected_portable_sort_swo_pass_receipt(
+                cell_id=cell_id, holdout_id=cell["holdout_id"],
+                configuration_id=cell["configuration_id"],
+                entry_sha256=binding["entry_sha256"], binary_sha256=binary_sha,
+            )
+        out[cell_id] = record
     return out
 
 
@@ -567,6 +578,14 @@ def _build_independent_launch_repo(tmp_path: Path, *, mutate=None, cert_mutate=N
     cert_raw = _lraw(cert)
     manifest_raw = _lraw(manifest)
     journal_raw = b"".join(_ljline(record) for record in journal)
+    admission = build_floor_admission_evidence(
+        root / ".git/izanagi/s8b-holdout-admission-v1",
+        protocol=protocol, freeze=freeze, freeze_sha256=M.V1_FREEZE_SHA256,
+        manifest_sha256=_lsha(manifest_raw), campaign_run_id=run_id,
+        run_relpath=run_dir.removeprefix("output/"), mode="official",
+        cells=cells, schedule=schedule, sessions=sessions,
+    )
+    result["holdout_admission"] = admission.expected_receipt
     result_raw = _lraw(result)
     result_record_sha = _lsha(result_raw)
     post_hash_suffix = state.get("post_hash_result_suffix", b"")
@@ -781,6 +800,29 @@ def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     assert lv.floor_artifact.path.endswith("/result.json")
     assert lv.floor_artifact.sha256 == _lsha(lv.floor_artifact.raw_bytes)
     assert set(lv.binaries_by_cell) == set(topology["manifest"]["binaries"])
+
+
+def test_reverify_rejects_unreachable_admission_root(tmp_path):
+    root, freeze, _ = _build_independent_launch_repo(tmp_path)
+    admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
+    admission_root.rename(admission_root.with_name("admission-unavailable"))
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(freeze, root)
+    assert caught.value.reason == "floor-admission-unverifiable"
+    assert caught.value.cause == "root-missing"
+
+
+def test_reverify_rejects_admission_claim_content_mismatch(tmp_path):
+    root, freeze, _ = _build_independent_launch_repo(tmp_path)
+    claims = sorted(
+        (root / ".git/izanagi/s8b-holdout-admission-v1/claims").glob("*.claim")
+    )
+    assert claims
+    claims[0].write_bytes(b"{}\n")
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M.launch_validate(freeze, root)
+    assert caught.value.reason == "floor-admission-mismatch"
+    assert caught.value.cause == "claim-file-mismatch"
 
 
 def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses(
@@ -2193,6 +2235,42 @@ def test_raw_scanner_and_occurrence_validator_equivalent_for_encodings():
     assert hits == raw_hits
     assert structured_path in hits["rr80"]
     assert closure_path in hits["rr80"]
+
+
+def test_axis_scanner_allows_only_enumerated_sort_receipt_leaf():
+    token = _first_axis_tokens()[0]
+    path = "output/fixture/result.json"
+    record = {
+        "binaries": {
+            "rr80::sort_best": {
+                "sort_swo_oracle": {"corpus_version": token},
+            },
+        },
+    }
+    M._validate_axis_occurrences(
+        artifacts=[(path, record, _ljline(record))],
+        protocol={"env_tag": "linux-baremetal"}, binaries={},
+        contract=EC.lookup("linux-baremetal"),
+    )
+
+
+def test_axis_scanner_does_not_allow_sort_receipt_subtree():
+    token = _first_axis_tokens()[0]
+    path = "output/fixture/result.json"
+    record = {
+        "binaries": {
+            "rr80::sort_best": {
+                "sort_swo_oracle": {"free_text": token},
+            },
+        },
+    }
+    with pytest.raises(M.RatifiedFreezeError) as caught:
+        M._validate_axis_occurrences(
+            artifacts=[(path, record, _ljline(record))],
+            protocol={"env_tag": "linux-baremetal"}, binaries={},
+            contract=EC.lookup("linux-baremetal"),
+        )
+    assert caught.value.cause == "axis-occurrence"
 
 
 def test_closure_role_collision_with_result_rejected(tmp_path):

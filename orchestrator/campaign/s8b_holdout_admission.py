@@ -4,6 +4,11 @@
 The cell claim, not the JSONL evidence row, is the one-shot authority.  Claims
 and attempt-consumption markers use ``O_EXCL`` under a root derived only from
 Git's common directory, so linked worktrees contend on the same inodes.
+
+保証境界: read-only inspector は現在状態だけを見る。
+台帳を削除して同一 bytes を再構成する攻撃は検出できない。全 field は公開かつ決定的で、
+``O_EXCL`` は file が存在する間だけ効く。
+この耐性は本 wave の保証範囲外である。
 """
 from __future__ import annotations
 
@@ -18,7 +23,7 @@ from pathlib import Path, PurePosixPath
 import stat
 import subprocess
 import threading
-from typing import Any
+from typing import Any, Literal
 
 from ..holdout_observation import (
     HoldoutObservationAdmission,
@@ -35,6 +40,7 @@ from . import s8b_ratified_freeze as _ratified_freeze
 
 __all__ = (
     "CellHoldoutAdmission",
+    "FloorHoldoutEvidenceError",
     "FloorHoldoutReservation",
     "HoldoutAdmissionError",
     "OracleCellHoldoutAdmission",
@@ -44,6 +50,7 @@ __all__ = (
     "consume_attempt_ticket",
     "consume_oracle_attempt_ticket",
     "finalize_floor_holdout_admissions",
+    "inspect_floor_holdout_admission_evidence",
     "provision_shared_admission_root",
     "reserve_oracle_holdout_observations",
     "reserve_floor_holdout_observations",
@@ -59,6 +66,7 @@ _ATTEMPT_LEDGER_NAME = "attempt-ledger.jsonl"
 _CLAIM_SCHEMA = "s8b-holdout-cell-claim/v1"
 _LEDGER_SCHEMA = "s8b-holdout-observation-ledger/v1"
 _ATTEMPT_SCHEMA = "s8b-holdout-attempt-consumption/v1"
+_LEDGER_PROJECTION_SCHEMA = "s8b-floor-admission-ledger-projection/v1"
 _MAX_LEDGER_BYTES = 16 * 1024 * 1024
 _HEX64 = frozenset("0123456789abcdef")
 OBSERVATION_ROLE_FLOOR_CAMPAIGN = "floor_campaign"
@@ -71,6 +79,24 @@ _OBSERVATION_ROLES = frozenset({
 
 class HoldoutAdmissionError(RuntimeError):
     """The fixed authority or durable one-shot admission cannot be proven."""
+
+
+class FloorHoldoutEvidenceError(HoldoutAdmissionError):
+    """Read-only floor evidence inspection の構造化された拒否。"""
+
+    category: Literal["unverifiable", "mismatch"]
+    reason: str
+
+    def __init__(
+        self, *, category: Literal["unverifiable", "mismatch"], reason: str,
+    ):
+        if category not in {"unverifiable", "mismatch"}:
+            raise ValueError("unknown floor holdout evidence category")
+        if type(reason) is not str or not reason:
+            raise ValueError("floor holdout evidence reason must be nonempty")
+        self.category = category
+        self.reason = reason
+        super().__init__(f"{category}: {reason}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +164,7 @@ class _CellState:
     verified_freeze: dict[str, Any]
     neutral_holdouts: Mapping[str, Mapping[str, object]]
     protocol_reps: int
+    retry_slots_per_cell: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -315,6 +342,36 @@ def _locked(root: Path):
         if not stat.S_ISREG(mode):
             raise HoldoutAdmissionError("admission lock fd is not regular")
         fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
+@contextmanager
+def _locked_readonly(root: Path):
+    """既存 lock inode を変更せず shared lock 下で現在状態を読む。"""
+
+    path = root / _LOCK_NAME
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if nofollow is None:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason="nofollow-unavailable",
+        )
+    try:
+        fd = os.open(path, os.O_RDONLY | nofollow)
+    except OSError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason="lock-unavailable",
+        ) from exc
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise FloorHoldoutEvidenceError(
+                category="unverifiable", reason="lock-not-regular",
+            )
+        fcntl.flock(fd, fcntl.LOCK_SH)
         yield
     finally:
         try:
@@ -963,6 +1020,7 @@ def finalize_floor_holdout_admissions(
             run_dir=state.run_dir, schedule=state.schedule,
             verified_freeze=state.freeze, neutral_holdouts=state.neutral_holdouts,
             protocol_reps=state.protocol_reps,
+            retry_slots_per_cell=state.protocol["retry_slots_per_cell"],
         )
         with _state_lock:
             _cell_states[id(token)] = cell_state
@@ -1296,6 +1354,16 @@ def _assert_attempt_authorized_by_journal(
     records = _read_run_journal(state.run_dir / "journal.jsonl")
     if any(row.get("event") == "terminal" for row in records):
         raise HoldoutAdmissionError("terminal run cannot consume another attempt")
+    try:
+        _floor_contract.validate_session_start_authorizations(
+            [row for row in records if row.get("event") == "session-start"],
+            schedule=state.schedule,
+            retry_slots_per_cell=state.retry_slots_per_cell,
+        )
+    except _floor_contract.FloorContractError as exc:
+        raise HoldoutAdmissionError(
+            f"session-start authorization is not canonical: {exc}"
+        ) from exc
     starts = [
         row for row in records
         if row.get("event") == "session-start"
@@ -1376,3 +1444,556 @@ def consume_attempt_ticket(
     except HoldoutObservationError as exc:
         raise HoldoutAdmissionError(f"cannot issue attempt observation: {exc}") from exc
     return observation
+
+
+_FLOOR_CLAIM_KEYS = frozenset({
+    "schema_version", "event", "key", "measurement_head", "protocol_sha256",
+    "freeze_candidate_id", "trial_workload_name", "cell_id", "records", "threads",
+    "workload", "campaign_run_id", "run_relpath", "mode",
+    "irreversible_pilot_approved", "attempt_ids",
+})
+_FLOOR_LEDGER_KEYS = frozenset({
+    "schema_version", "event", "freeze_sha256", "freeze_holdout_key",
+    "configuration_id", "ccbench_pin", "env_tag", "observation_role",
+    "measurement_head", "protocol_sha256", "manifest_sha256",
+    "freeze_candidate_id", "trial_workload_name", "cell_id", "records", "threads",
+    "workload", "campaign_run_id", "run_relpath", "mode",
+    "irreversible_pilot_approved", "attempt_ids", "attempt_count",
+})
+_FLOOR_ATTEMPT_KEYS = frozenset({
+    "schema_version", "event", "claim_digest", "attempt_id", "campaign_run_id",
+    "manifest_sha256", "run_relpath", "cell_id", "freeze_holdout_key",
+    "configuration_id", "observation_role",
+})
+
+
+def _portable_admission_projection_row(
+    row: Mapping[str, object],
+) -> dict[str, object]:
+    """Project an exact live row without its repository-local Git identity.
+
+    ``measurement_head`` is checked above as an exact claim/ledger field, but it
+    identifies the measurement authority repository rather than the portable
+    campaign result.  Keeping it in the result receipt would make otherwise
+    identical artifact bytes depend on which clean repository performed the run.
+
+    ``measurement_head`` は台帳内部の非権威的な同値確認用 field であり、成果物の
+    identity を束縛しない。ledger と claim を同期して書き換えれば portable receipt も
+    受理集合も変わらない。測定 commit の権威的束縛は本 wave の保証範囲外である。
+    """
+
+    if set(row) != set(_FLOOR_LEDGER_KEYS):
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason="main-ledger-shape-mismatch",
+        )
+    return {
+        key: row[key]
+        for key in sorted(_FLOOR_LEDGER_KEYS - {"measurement_head"})
+    }
+
+
+def _evidence_path_kind(path: Path, *, kind: str, missing_reason: str) -> None:
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=missing_reason,
+        ) from exc
+    except OSError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=f"{missing_reason}-unavailable",
+        ) from exc
+    expected = stat.S_ISDIR(mode) if kind == "directory" else stat.S_ISREG(mode)
+    if not expected or path.is_symlink():
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=f"{missing_reason}-unsafe-type",
+        )
+
+
+def _read_evidence_ledger(
+    path: Path, *, missing_reason: str, empty_reason: str,
+    allow_missing: bool = False, allow_empty: bool = False,
+    empty_category: Literal["unverifiable", "mismatch"] = "mismatch",
+) -> list[dict[str, Any]]:
+    try:
+        info = path.lstat()
+    except FileNotFoundError as exc:
+        if allow_missing:
+            return []
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=missing_reason,
+        ) from exc
+    except OSError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=f"{missing_reason}-unavailable",
+        ) from exc
+    if not stat.S_ISREG(info.st_mode) or path.is_symlink():
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=f"{missing_reason}-unsafe-type",
+        )
+    if info.st_size == 0:
+        if allow_empty:
+            return []
+        raise FloorHoldoutEvidenceError(
+            category=empty_category, reason=empty_reason,
+        )
+    try:
+        return _read_ledger(path)
+    except HoldoutAdmissionError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason=f"{path.name}-malformed",
+        ) from exc
+
+
+def _read_evidence_document(path: Path, *, missing_reason: str) -> dict[str, Any]:
+    try:
+        path.lstat()
+    except FileNotFoundError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=missing_reason,
+        ) from exc
+    except OSError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason=f"{missing_reason}-unavailable",
+        ) from exc
+    try:
+        return _read_canonical_document(path)
+    except HoldoutAdmissionError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason=f"{path.name}-malformed",
+        ) from exc
+
+
+def _floor_row_claim_digest(row: Mapping[str, object]) -> str:
+    try:
+        return _claim_digest(_key_fields(
+            freeze_sha256=row["freeze_sha256"],
+            freeze_holdout_key=row["freeze_holdout_key"],
+            configuration_id=row["configuration_id"],
+            ccbench_pin=row["ccbench_pin"], env_tag=row["env_tag"],
+            observation_role=row["observation_role"],
+        ))
+    except (KeyError, HoldoutAdmissionError) as exc:
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason="main-ledger-key-invalid",
+        ) from exc
+
+
+def inspect_floor_holdout_admission_evidence(
+    *, repo_root: Path, protocol: Mapping[str, object],
+    verified_freeze_document: Mapping[str, object], freeze_sha256: str,
+    manifest_sha256: str, campaign_run_id: str, run_relpath: str, mode: str,
+    cells: Sequence[Mapping[str, object]], schedule: Sequence[Mapping[str, object]],
+    sessions: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    """共有 admission filesystem の現在状態を変更せず検査し receipt を返す。
+
+    保証境界: この inspector は現在状態だけを見る。
+    台帳を削除して同一 bytes を再構成する攻撃は検出できない。全 field は公開かつ決定的で、
+    ``O_EXCL`` は file が存在する間だけ効く。この耐性は本 wave の保証範囲外である。
+    """
+
+    if not isinstance(cells, Sequence) or isinstance(cells, (str, bytes, bytearray)):
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="cells-invalid")
+    if not cells:
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="cells-empty")
+    if not isinstance(schedule, Sequence) or isinstance(schedule, (str, bytes, bytearray)):
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="schedule-invalid")
+    if not isinstance(sessions, Sequence) or isinstance(sessions, (str, bytes, bytearray)):
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="sessions-invalid")
+    try:
+        freeze_sha256 = _require_sha256(freeze_sha256, "freeze_sha256")
+        manifest_sha256 = _require_sha256(manifest_sha256, "manifest_sha256")
+        campaign_run_id = _require_text(campaign_run_id, "campaign_run_id")
+        run_relpath = _portable_run_relpath(run_relpath)
+        mode = _require_text(mode, "mode")
+    except HoldoutAdmissionError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="mismatch", reason="inspection-identity-invalid",
+        ) from exc
+    if run_relpath == "." or "\\" in run_relpath:
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="run-relpath-invalid")
+    if not isinstance(protocol, Mapping) or not isinstance(
+        verified_freeze_document, Mapping,
+    ):
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="authority-invalid")
+    protocol_sha256 = _sha256(dict(protocol))
+    ccbench_pin = protocol.get("ccbench_pin")
+    env_tag = protocol.get("env_tag")
+    retry_slots = protocol.get("retry_slots_per_cell")
+    if (
+        type(ccbench_pin) is not str or not ccbench_pin
+        or type(env_tag) is not str or not env_tag
+        or type(retry_slots) is not int or retry_slots < 0
+    ):
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="protocol-invalid")
+
+    holdouts = verified_freeze_document.get("holdouts")
+    if not isinstance(holdouts, Mapping) or not holdouts:
+        raise FloorHoldoutEvidenceError(category="mismatch", reason="freeze-holdouts-invalid")
+    cell_by_id: dict[str, dict[str, object]] = {}
+    claim_identities: dict[str, str] = {}
+    expected_claims: dict[str, dict[str, object]] = {}
+    expected_attempt_ids: dict[str, frozenset[str]] = {}
+    for raw_cell in cells:
+        if not isinstance(raw_cell, Mapping):
+            raise FloorHoldoutEvidenceError(category="mismatch", reason="cell-invalid")
+        try:
+            cell_id = _require_text(raw_cell.get("cell_id"), "cell_id")
+            holdout_id = _require_text(raw_cell.get("holdout_id"), "holdout_id")
+            configuration_id = _require_text(
+                raw_cell.get("configuration_id"), "configuration_id",
+            )
+        except HoldoutAdmissionError as exc:
+            raise FloorHoldoutEvidenceError(category="mismatch", reason="cell-invalid") from exc
+        if cell_id in cell_by_id or cell_id != f"{holdout_id}::{configuration_id}":
+            raise FloorHoldoutEvidenceError(category="mismatch", reason="cell-identity-invalid")
+        freeze_entry = holdouts.get(holdout_id)
+        if not isinstance(freeze_entry, Mapping):
+            raise FloorHoldoutEvidenceError(category="mismatch", reason="cell-holdout-missing")
+        candidate_id = freeze_entry.get("candidate_id")
+        if type(candidate_id) is not str or not candidate_id:
+            raise FloorHoldoutEvidenceError(category="mismatch", reason="freeze-candidate-invalid")
+        key = _key_fields(
+            freeze_sha256=freeze_sha256, freeze_holdout_key=holdout_id,
+            configuration_id=configuration_id, ccbench_pin=ccbench_pin,
+            env_tag=env_tag, observation_role=OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        )
+        digest = _claim_digest(key)
+        attempt_ids = _attempt_ids(
+            cell_id=cell_id, schedule=schedule, retry_slots=retry_slots,
+        )
+        claim_identities[cell_id] = digest
+        expected_attempt_ids[cell_id] = frozenset(attempt_ids)
+        cell_by_id[cell_id] = dict(raw_cell)
+        expected_claims[cell_id] = {
+            "key": key,
+            "freeze_candidate_id": candidate_id,
+            "trial_workload_name": holdout_id,
+            "records": raw_cell.get("records"),
+            "threads": raw_cell.get("threads"),
+            "workload": dict(raw_cell.get("workload", {}))
+            if isinstance(raw_cell.get("workload"), Mapping) else None,
+            "attempt_ids": list(attempt_ids),
+        }
+        if expected_claims[cell_id]["workload"] is None:
+            raise FloorHoldoutEvidenceError(category="mismatch", reason="cell-workload-invalid")
+
+    try:
+        root = shared_admission_root(Path(repo_root))
+    except HoldoutAdmissionError as exc:
+        raise FloorHoldoutEvidenceError(
+            category="unverifiable", reason="shared-root-unavailable",
+        ) from exc
+    _evidence_path_kind(root, kind="directory", missing_reason="root-missing")
+    claims_root = root / "claims"
+    consumed_root = root / "consumed"
+    _evidence_path_kind(claims_root, kind="directory", missing_reason="claims-missing")
+    _evidence_path_kind(consumed_root, kind="directory", missing_reason="consumed-missing")
+    _evidence_path_kind(root / _LOCK_NAME, kind="file", missing_reason="lock-missing")
+
+    with _locked_readonly(root):
+        try:
+            if not any(claims_root.iterdir()):
+                raise FloorHoldoutEvidenceError(
+                    category="unverifiable", reason="claims-empty",
+                )
+        except OSError as exc:
+            raise FloorHoldoutEvidenceError(
+                category="unverifiable", reason="claims-unavailable",
+            ) from exc
+        main_rows = _read_evidence_ledger(
+            root / _LEDGER_NAME, missing_reason="main-ledger-missing",
+            empty_reason="main-ledger-empty",
+        )
+        selected_main = [
+            row for row in main_rows if row.get("campaign_run_id") == campaign_run_id
+        ]
+        if not selected_main:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="main-ledger-campaign-missing",
+            )
+        main_by_cell: dict[str, dict[str, Any]] = {}
+        for row in selected_main:
+            if set(row) != set(_FLOOR_LEDGER_KEYS):
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="main-ledger-shape-mismatch",
+                )
+            cell_id = row.get("cell_id")
+            if type(cell_id) is not str or cell_id in main_by_cell:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="main-ledger-cell-duplicate",
+                )
+            main_by_cell[cell_id] = row
+        if set(main_by_cell) != set(cell_by_id):
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="main-ledger-cell-coverage-mismatch",
+            )
+
+        for cell_id, row in main_by_cell.items():
+            cell = cell_by_id[cell_id]
+            expected = expected_claims[cell_id]
+            digest = claim_identities[cell_id]
+            if _floor_row_claim_digest(row) != digest:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="main-ledger-claim-identity-mismatch",
+                )
+            measurement_head = row.get("measurement_head")
+            approval = row.get("irreversible_pilot_approved")
+            if (
+                type(measurement_head) is not str or len(measurement_head) != 40
+                or any(char not in _HEX64 for char in measurement_head)
+                or type(approval) is not bool or (mode == "pilot" and approval is not True)
+            ):
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="main-ledger-run-authority-mismatch",
+                )
+            expected_row = {
+                "schema_version": _LEDGER_SCHEMA,
+                "event": "admit",
+                **expected["key"],
+                "measurement_head": measurement_head,
+                "protocol_sha256": protocol_sha256,
+                "manifest_sha256": manifest_sha256,
+                "freeze_candidate_id": expected["freeze_candidate_id"],
+                "trial_workload_name": expected["trial_workload_name"],
+                "cell_id": cell_id,
+                "records": cell.get("records"),
+                "threads": cell.get("threads"),
+                "workload": expected["workload"],
+                "campaign_run_id": campaign_run_id,
+                "run_relpath": run_relpath,
+                "mode": mode,
+                "irreversible_pilot_approved": approval,
+                "attempt_ids": expected["attempt_ids"],
+                "attempt_count": len(expected["attempt_ids"]),
+            }
+            if row != expected_row:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="main-ledger-row-mismatch",
+                )
+            expected_claim = {
+                "schema_version": _CLAIM_SCHEMA,
+                "event": "claim",
+                "key": expected["key"],
+                "measurement_head": measurement_head,
+                "protocol_sha256": protocol_sha256,
+                "freeze_candidate_id": expected["freeze_candidate_id"],
+                "trial_workload_name": expected["trial_workload_name"],
+                "cell_id": cell_id,
+                "records": cell.get("records"),
+                "threads": cell.get("threads"),
+                "workload": expected["workload"],
+                "campaign_run_id": campaign_run_id,
+                "run_relpath": run_relpath,
+                "mode": mode,
+                "irreversible_pilot_approved": approval,
+                "attempt_ids": expected["attempt_ids"],
+            }
+            claim = _read_evidence_document(
+                _claim_path(root, digest), missing_reason="claim-file-missing",
+            )
+            if set(claim) != set(_FLOOR_CLAIM_KEYS) or claim != expected_claim:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="claim-file-mismatch",
+                )
+
+        # session-start is the durable authorization, not proof that a ticket was
+        # consumed.  A crash may leave only that start either before or after
+        # consume_attempt_ticket().  For an authorized start, the O_EXCL marker is
+        # therefore the durable fact from which exact ledger coverage is derived.
+        # Completed sessions still constrain that fact in both directions:
+        # non-competing must have consumed, while pre-probe competing must not.
+        starts_by_attempt: dict[tuple[str, str], Mapping[str, object]] = {}
+        completed_by_attempt: dict[tuple[str, str], Mapping[str, object]] = {}
+        for session in sessions:
+            if not isinstance(session, Mapping):
+                raise FloorHoldoutEvidenceError(category="mismatch", reason="session-invalid")
+            event = session.get("event")
+            is_start = event == "session-start"
+            if event not in (None, "session", "session-start"):
+                raise FloorHoldoutEvidenceError(category="mismatch", reason="session-invalid")
+            cell_id = session.get("cell_id")
+            attempt_id = session.get("attempt_id")
+            if (
+                type(cell_id) is not str or cell_id not in cell_by_id
+                or type(attempt_id) is not str
+                or attempt_id not in expected_attempt_ids[cell_id]
+            ):
+                raise FloorHoldoutEvidenceError(category="mismatch", reason="session-invalid")
+            session_key = (cell_id, attempt_id)
+            destination = starts_by_attempt if is_start else completed_by_attempt
+            if session_key in destination:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="session-attempt-duplicate",
+                )
+            destination[session_key] = session
+            if not is_start:
+                probe_before = session.get("probe_before")
+                if (
+                    not isinstance(probe_before, Mapping)
+                    or type(probe_before.get("competing")) is not bool
+                ):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="session-invalid",
+                    )
+
+        if not set(completed_by_attempt).issubset(starts_by_attempt):
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="session-start-coverage-mismatch",
+            )
+        try:
+            _floor_contract.validate_session_start_authorizations(
+                list(starts_by_attempt.values()), schedule=schedule,
+                retry_slots_per_cell=retry_slots,
+            )
+        except _floor_contract.FloorContractError as exc:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="session-start-invalid",
+            ) from exc
+        for session_key, start in starts_by_attempt.items():
+            cell_id, _attempt_id = session_key
+            if start.get("kind") == "retry":
+                trigger = start.get("trigger")
+                triggering = [
+                    session for (_cell, candidate), session
+                    in completed_by_attempt.items() if candidate == trigger
+                ]
+                if (
+                    type(trigger) is not str or len(triggering) != 1
+                    or triggering[0].get("cell_id") != cell_id
+                    or triggering[0].get("kind") != "planned"
+                    or triggering[0].get("valid") is not False
+                ):
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="session-start-invalid",
+                    )
+
+        frozen_markers: dict[tuple[str, str], dict[str, object]] = {}
+        for cell_id, attempt_ids in expected_attempt_ids.items():
+            cell = cell_by_id[cell_id]
+            digest = claim_identities[cell_id]
+            for attempt_id in attempt_ids:
+                frozen_markers[(digest, attempt_id)] = {
+                    "schema_version": _ATTEMPT_SCHEMA,
+                    "event": "consume",
+                    "claim_digest": digest,
+                    "attempt_id": attempt_id,
+                    "campaign_run_id": campaign_run_id,
+                    "manifest_sha256": manifest_sha256,
+                    "run_relpath": run_relpath,
+                    "cell_id": cell_id,
+                    "freeze_holdout_key": cell["holdout_id"],
+                    "configuration_id": cell["configuration_id"],
+                    "observation_role": OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+                }
+
+        expected_attempt_rows: dict[tuple[str, str], dict[str, object]] = {}
+        for key, expected_marker in frozen_markers.items():
+            digest, attempt_id = key
+            marker_path = consumed_root / (
+                f"{digest}-{hashlib.sha256(attempt_id.encode('utf-8')).hexdigest()}.json"
+            )
+            try:
+                marker_path.lstat()
+            except FileNotFoundError:
+                marker = None
+            except OSError as exc:
+                raise FloorHoldoutEvidenceError(
+                    category="unverifiable", reason="consumed-marker-unavailable",
+                ) from exc
+            else:
+                marker = _read_evidence_document(
+                    marker_path, missing_reason="consumed-marker-missing",
+                )
+                if (expected_marker["cell_id"], attempt_id) not in starts_by_attempt:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch",
+                        reason="attempt-ledger-coverage-mismatch",
+                    )
+                if marker != expected_marker:
+                    raise FloorHoldoutEvidenceError(
+                        category="mismatch", reason="consumed-marker-mismatch",
+                    )
+                expected_attempt_rows[key] = expected_marker
+
+            completed = completed_by_attempt.get((expected_marker["cell_id"], attempt_id))
+            if completed is None:
+                continue
+            competing = completed["probe_before"]["competing"]
+            if (competing is False and marker is None) or (
+                competing is True and marker is not None
+            ):
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="attempt-ledger-coverage-mismatch",
+                )
+
+        attempt_rows = _read_evidence_ledger(
+            root / _ATTEMPT_LEDGER_NAME,
+            missing_reason="attempt-ledger-missing",
+            empty_reason="attempt-ledger-empty",
+            allow_missing=not expected_attempt_rows,
+            allow_empty=not expected_attempt_rows,
+        )
+        selected_attempts = [
+            row for row in attempt_rows if row.get("campaign_run_id") == campaign_run_id
+        ]
+        actual_attempt_rows: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in selected_attempts:
+            if set(row) != set(_FLOOR_ATTEMPT_KEYS):
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="attempt-ledger-shape-mismatch",
+                )
+            key = (row.get("claim_digest"), row.get("attempt_id"))
+            if not all(type(item) is str for item in key) or key in actual_attempt_rows:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="attempt-ledger-row-duplicate",
+                )
+            actual_attempt_rows[key] = row
+        if set(actual_attempt_rows) != set(expected_attempt_rows):
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="attempt-ledger-coverage-mismatch",
+            )
+        for key, expected_marker in expected_attempt_rows.items():
+            row = actual_attempt_rows[key]
+            if row != expected_marker:
+                raise FloorHoldoutEvidenceError(
+                    category="mismatch", reason="attempt-ledger-row-mismatch",
+                )
+
+        sorted_main = sorted(
+            selected_main, key=lambda row: (row["cell_id"], _floor_row_claim_digest(row)),
+        )
+        sorted_attempts = sorted(
+            selected_attempts,
+            key=lambda row: (row["cell_id"], row["attempt_id"], row["claim_digest"]),
+        )
+        projection = {
+            "schema": _LEDGER_PROJECTION_SCHEMA,
+            "campaign_run_id": campaign_run_id,
+            "admission_rows": [
+                _portable_admission_projection_row(row) for row in sorted_main
+            ],
+            "attempt_rows": sorted_attempts,
+        }
+        receipt = {
+            "schema": _floor_contract.FLOOR_HOLDOUT_ADMISSION_SCHEMA,
+            "campaign_run_id": campaign_run_id,
+            "run_relpath": run_relpath,
+            "mode": mode,
+            "protocol_sha256": protocol_sha256,
+            "freeze_sha256": freeze_sha256,
+            "manifest_sha256": manifest_sha256,
+            "claim_identities": dict(sorted(claim_identities.items())),
+            "admission_row_count": len(sorted_main),
+            "attempt_row_count": len(sorted_attempts),
+            "ledger_projection_sha256": hashlib.sha256(
+                _canonical_bytes(projection)
+            ).hexdigest(),
+        }
+        try:
+            return _floor_contract.validate_floor_holdout_admission_receipt(receipt)
+        except _floor_contract.FloorContractError as exc:
+            raise FloorHoldoutEvidenceError(
+                category="mismatch", reason="receipt-invalid",
+            ) from exc
