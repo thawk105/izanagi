@@ -73,3 +73,42 @@ seq: 3
     次に実 bundle が取れたら、green 走の `wall_clock_s` 分布と併せて判定する。
   - 予算是正 (fixture harden) は行っていない。D249 の「計装が先、予算拡大は実 artifact の後」に従う。
   - 恒久対応は引き続き原因分離であり、[T-190] も本エントリも open のままとする。
+
+- **初の実測帰属: 2026-08-17 (本 wave の受入全走 request `914871`、bnode004、48 worker)。**
+  **本エントリ 20 回以上の再発で初めて、落ちた瞬間の判定材料が保存され、機序が確定した。**
+  同走で 3 件が落ちた (12203 passed / 3 failed / 95 skipped / 116.98 秒)。
+  3 件とも本 wave が触っていない既存 node で、`DW-O18` により帰属しない。
+  退避 bundle は本走で自動生成され、**3 件すべてに receipt・sidecar・attempt stream が揃った**
+  (`critical_set_complete=true`)。逐語は
+  `output/insights/2026-08-17_t190-launcher-failure-artifact/first-real-bundle/`。
+
+  | worker | nodeid の述語 | attempt 1 preflight | attempt 2 preflight | 強制停止 | receipt 公開 / wall 予算 |
+  |---|---|---|---|---|---|
+  | gw27 | `FileNotFoundError` (attempt-0002.output.md 不在) | 0.343 秒 | **1.053 秒** | SIGTERM 1.054 → SIGKILL 1.109 | 2.625 / 3.0 秒 |
+  | gw33 | `assert False is True` | 0.285 秒 | **1.042 秒** | SIGTERM 1.043 → SIGKILL 1.100 | 2.456 / 3.0 秒 |
+  | gw47 | `assert 'max_attempts' == 'max_model_calls'` | 0.292 秒 | **1.105 秒** | SIGTERM 1.106 → SIGKILL 1.163 | 2.647 / 3.0 秒 |
+
+  **確定した機序:** 3 件とも同一である。retry の attempt 2 で preflight が
+  attempt 1 の **3.6 倍前後 (1.04〜1.11 秒)** に膨らみ、
+  fixture の `--evidence-grace-s 1.0` を**食い切る**。child が rollout evidence を出す前に
+  evidence deadline が満了するため `evidence_forced_stop=true` となり、launcher 自身が
+  SIGTERM → 約 57 ms 後に SIGKILL を送って attempt を殺す。
+  `limit_trigger` はどの attempt でも立たない (**全 snapshot が `conditions_met: []`**) ので
+  `_writer_truth` は `max_attempts` へ落ち、各テストが期待した終端状態と食い違う。
+
+  **この帰属が覆した既存の見立ては 2 つある。**
+  - **wall clock は律速ではない。** 3 件とも receipt 公開が **2.46〜2.65 秒**で、3.0 秒予算に
+    0.35〜0.54 秒の余裕を残している。F285 の「予算 3.0 秒の縁に常時張り付いている」は
+    走 A (`limit_trigger=max_wall_clock_s` 21 件) で観測された**別の sub-mode** であり、
+    F57 族の唯一の機序ではない。**本エントリが 2026-07-30 から
+    「3 秒超過そのものを根本原因と断定しない」と留保してきたのは正しかった。**
+  - **`-9` 型の終了は外部 kill とは限らない。** 本件は
+    `termination_initiated_by_launcher=true` と送信 signal 2 本が記録されており、
+    **launcher 自身の強制停止**だと確定できる。F285 が「原理的に事後判定できない」とした
+    区別が、launcher が元々持っていた情報を記録するだけで付いた。
+
+  **後続への含意:** fixture harden は **wall (`3`) ではなく evidence grace (`1.0`) が対象**である。
+  ただし本 wave では変えない (D249 の順序と、絶対規律 2 の「予算拡大は根拠を得てから」)。
+  「なぜ retry の preflight だけが 3.6 倍になるか」(`_attempt_loop` 冒頭の
+  codex executable 再 hash と hook 再検証の I/O が疑わしい) は未分離で、
+  これを詰めてから予算値を決めるべきである。

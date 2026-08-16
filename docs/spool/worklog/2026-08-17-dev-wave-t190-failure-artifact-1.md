@@ -54,9 +54,20 @@ title: F57 族の失敗時 receipt と stop reason を保存し、20 回以上�
   launcher テスト本体 (予算 1.94 GB) は
   `bounded scope の memory.max / memory.oom.group を走行中に attest できない` で
   dispatcher infrastructure failure になる。**launcher 系の実走と変異はすべて計算ノードが要る。**
-- **[T-190] と F57 は閉じない。** 本 wave が達成したのは「次回再発を観測可能にした」ところまでで、
-  実 bundle を得て原因を帰属するのは後続である。段 6 レビュー A も同じ指摘を独立に出しており、
-  親はそれを採用して記録の言い切りを制限した。
+- **機構は受入全走で即座に発火し、F57 の機序を初めて確定させた。** 本 wave の受入全走
+  (request `914871`、bnode004、48 worker) で 3 件が落ち、**3 件すべての bundle が自動退避された**
+  (receipt・sidecar・attempt stream 揃い、`critical_set_complete=true`)。
+  読んだ結果、3 件は同一機序だった — retry の attempt 2 で preflight が attempt 1 の
+  **3.6 倍前後 (1.04〜1.11 秒)** に膨らみ、fixture の evidence grace `1.0` 秒を食い切って
+  `evidence_forced_stop` に至る。**wall は律速ではなく、3 件とも 3.0 秒予算に対し
+  receipt 公開が 2.46〜2.65 秒**だった。詳細と逐語は F57 の 2026-08-17 エントリと
+  `output/insights/2026-08-17_t190-launcher-failure-artifact/first-real-bundle/`。
+  **F285 の「予算 3.0 秒の縁」仮説は走 A で観測された別の sub-mode であり、
+  F57 族の唯一の機序ではないことが実測で分かった。**
+  後続の fixture harden は wall ではなく evidence grace を対象にすべきである。
+- **[T-190] と F57 は閉じない。** 機序は 1 つ確定したが、F285 の走 A / 走 B 型は未帰属のままで、
+  「なぜ retry の preflight だけが 3.6 倍になるか」も未分離である。
+  段 6 レビュー A も「計装だけで閉じるな」と独立に指摘しており、親はそれを採用した。
 - 設計判断は {{D:launcher-diagnostics-sidecar}}、実装の失敗は
   {{F:launcher-stop-reason-unobserved}} に記録した。
 
@@ -68,10 +79,12 @@ title: F57 族の失敗時 receipt と stop reason を保存し、20 回以上�
   独立 sidecar を入れ、失敗した launcher テストの `tmp_path` を共有 FS へ退避する機構を land した。
   記録される観測量は latch の全成立集合とその判定点の実測値、evidence 強制停止、
   `residual=None` の 4 出所、phase 別時刻、launcher 自身が送った signal の 5 種。
-  **残るのは実 bundle の取得と原因帰属である。** 受入全走で F57 が再発したら
-  `output/runs/pytest-launcher-failures/` の bundle を読み、F285 の 3 バーストのどれに当たるかを
-  判定して台帳へ帰属する。**それまで本項も F57 も閉じない。**
-  fixture harden (予算是正) はその判定結果を見てから別 wave で起票する (D249 の順序)。
+  **本 wave の受入全走で機構が即座に発火し、1 つ目の機序を確定させた** — retry 時の
+  preflight 肥大が evidence grace `1.0` 秒を食い切る型で、wall は律速ではない (F57 の
+  2026-08-17 エントリ)。**残るのは F285 の走 A / 走 B 型の帰属と、
+  「なぜ retry の preflight だけが 3.6 倍になるか」の分離である。それまで本項も F57 も閉じない。**
+  fixture harden は **wall ではなく evidence grace が対象**と判明したが、
+  上記が詰まってから別 wave で起票する (D249 の順序)。
   base: b91ae7c8146dd81f601ce060a321e3c3c8e1d19b091e55a4a3eea2a3056bcad1
 
 ### 新規
@@ -85,4 +98,11 @@ title: F57 族の失敗時 receipt と stop reason を保存し、20 回以上�
   本 wave の所有 file の外だった。
 - {{T:launcher-failure-bundle-reader}} **P3・新規**: 退避 bundle の run 単位 index は
   `index.jsonl` まで作ったが、列挙・読解の CLI は作っていない。
-  実 bundle を人間が読む段になって不足が判明したら起票する。
+  親は初回の 3 bundle を 20 行程度の使い捨て script で読めたので急がないが、
+  再発が常態化したら起票する。
+- {{T:retry-preflight-inflation}} **P2・新規 (本 wave の実測から)**: retry の attempt 2 で
+  preflight が attempt 1 の 3.6 倍 (0.29 秒 → 1.10 秒) に膨らむ原因を分離する。
+  `_attempt_loop` 冒頭の codex executable 再 hash と hook 再検証の I/O が疑わしいが未確認。
+  **これが F57 の evidence-grace 型の直接の原因**であり、
+  fixture の evidence grace を上げる前にここを詰めるべきである (D249 の順序)。
+  上げるだけだと「遅くなっても通る」方向に受理集合を広げることになる。
