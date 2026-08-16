@@ -51,8 +51,26 @@ title: 床値 protocol の再封印を AI へ開放した — issuer と組 inde
   pytest が rc=16 (`qstat -Q` preflight rc=1) となり、テストの実走は毎回親が行った。
   焦点走は 4 回、いずれも `--force-dispatch` 経由。bounded local は本 login node で
   cgroup attest 失敗により rc=16 になる。
-- **計算資源:** PBS job = 焦点走 4 本 (913217 / 913218 / 913228 / 913276) + 変異 2 走 (probe / 本走)。
-  codex 子 9 本 (plan 1 / consult 2 / author 1 / review 2 / fix 2 / focus 2)。
+- **受入全走が、焦点走 5 file では出なかった赤を 1 型出した。** 1 走目は
+  `2 failed, 11617 passed, 65 skipped in 134.76s` で、赤 2 件はいずれも
+  `test_ccbench_spawn_sites.py` の process 起動箇所 exact 棚卸しだった。本 wave が
+  `s8b_floor_campaign.py` へ追加した Git 読取 (`_head_commit_oid` 1 箇所 /
+  `_head_blob_100644` 2 箇所) が未登録だったためで、**本 wave 帰属の正しい赤である**。
+  棚卸しを一致させるのではなく実在箇所を非 CCBench 起動として分類して登録し、
+  追加後の差分が双方向に空であることを親が read-only で実測して閉じた。
+  **新しい subprocess を足す変更は、起動箇所を数えるメタテストに当たる** — 段 5 / fix 子への
+  「制約 meta-test を自ら洗い出して走らせる」指示が、この file を洗い出せていなかった。
+- **受入 2 走目の唯一の赤は非帰属だった。** `1 failed, 11618 passed, 65 skipped in 133.32s`。
+  赤は `test_codex_worker_launch.py::test_delayed_thread_and_rollout_are_read_from_byte_zero` で、
+  偽子 process の `codex_exit_code=-9` (SIGKILL = cgroup OOM) が失敗理由である。
+  本 wave の差分は `s8b_floor_campaign.py` / `s8b_floor_contract.py` /
+  `test_s8b_protocol_builder.py` / `test_ccbench_spawn_sites.py` の 4 file だけで、
+  この赤へ到達しえない。**単独再走を計算ノードで実測して `1 passed in 3.14s` / rc=0**
+  (request 913595.nqsv)。**非帰属 checker は今回も attributable と分類した** —
+  2026-08-15 / 08-16 に記録された過剰帰属は塞がっていない。
+- **計算資源:** PBS job = 焦点走 4 本 (913217 / 913218 / 913228 / 913276) +
+  変異 2 走 (probe / 本走) + 受入全走 + 単独再走 (913595)。
+  codex 子 10 本 (plan 1 / consult 2 / author 1 / review 2 / fix 3 / focus 2)。
 
 ## 次の一手差分
 
