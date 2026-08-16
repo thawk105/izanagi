@@ -224,19 +224,35 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
     configs = ("stock_common", "alt_a")
-    shape = {"records": 730079, "threads": 17,
-             "ycsb": {"ycsb_zipf_skew": "0.42", "ycsb_rratio": "79", "ycsb_rmw": "1"}}
-    entries = {c: {"holdout_id": "rrX", "label": f"fx-{c}", "flags": {"BACK_OFF": i}}
-               for i, c in enumerate(configs)}
-    freeze = {"schema_version": floor.FREEZE_SCHEMA,
-              "holdouts": {"rrX": {**shape, "variant_binding": {"entries": entries}}}}
+    holdouts = {}
+    for holdout_id, candidate_id, ratio in (
+            ("rr80", "H1", "80"), ("rr20", "H2", "20")):
+        entries = {
+            c: {
+                "holdout_id": holdout_id, "label": f"fx-{holdout_id}-{c}",
+                "flags": {"BACK_OFF": i},
+            }
+            for i, c in enumerate(configs)
+        }
+        holdouts[holdout_id] = {
+            "candidate_id": candidate_id, "records": 730079, "threads": 17,
+            "ycsb": {
+                "ycsb_zipf_skew": "0.42", "ycsb_rratio": ratio,
+                "ycsb_rmw": "1",
+            },
+            "variant_binding": {"entries": entries},
+        }
+    freeze = {"schema_version": floor.FREEZE_SCHEMA, "holdouts": holdouts}
     freeze_sha = hashlib.sha256(json.dumps(
         freeze, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")).hexdigest()
     protocol = {
         "schema": floor.PROTOCOL_SCHEMA, "formula": floor.s8b_floor_stats.FORMULA_ID,
         "env_tag": ENV_TAG, "ccbench_pin": "0" * 40,
-        "freeze": {"path": "output/s8b-freeze/fx.json", "sha256": freeze_sha},
+        "freeze": {
+            "path": "output/s8b-freeze/holdout_freeze.json",
+            "sha256": freeze_sha,
+        },
         "stock_configuration": "stock_common", "n_sessions": 8, "reps": 5,
         "master_seed": "seed", "schedule_algorithm": floor.SCHEDULE_ALGORITHM,
         "extime_s": 5, "wired_min_rel_floor": 0.05, "retry_slots_per_cell": 2,
@@ -375,6 +391,36 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         return SimpleNamespace(throughputs=[1000.0] * 5, notes=[],
                                run_cmd=shlex.join(argv))
 
+    authority = tmp_path / "holdout-authority"
+    authority.mkdir()
+    subprocess.run(
+        ["git", "-C", str(authority), "init"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    fixed = authority / "output/s8b-freeze"
+    fixed.mkdir(parents=True)
+    normalized_protocol = floor.validate_protocol(protocol)
+    (fixed / "floor_protocol.json").write_text(
+        json.dumps(
+            normalized_protocol, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"),
+        ), encoding="utf-8",
+    )
+    (fixed / "holdout_freeze.json").write_text(
+        json.dumps(
+            freeze, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ), encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "-C", str(authority), "add", "output/s8b-freeze"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "-C", str(authority), "-c", "user.name=fixture", "-c",
+         "user.email=fixture@example.invalid", "commit", "-m", "fixture authority"],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+
     with mock.patch.object(
             floor.env_attestation, "load_verified_calibration",
             side_effect=fixture_calibration_loader), \
@@ -386,14 +432,18 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
          mock.patch.object(floor.buildcache, "build_v2", fake_build), \
          mock.patch.object(floor.source_digest, "resolve_evidence", fixture_evidence), \
          mock.patch.object(floor, "measure_point", spy_measure_point):
-        floor.run_campaign(protocol, verified, out_root=tmp_path / "out", mode="pilot",
-                           measure_fn=None, probe_fn=lambda: (1, "", ""),
-                           perf_preflight_fn=fixture_perf_preflight,
-                           prepare_fn=fake_prepare, now_fn=lambda: __import__("datetime")
-                           .datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
-                           monotonic_fn=lambda: 0.0,
-                           durable_root_policy=floor.DurableRootPolicy(
-                               approved_roots=(tmp_path.resolve(),), forbidden_roots=()))
+        floor._run_campaign_core(
+            protocol, verified, out_root=tmp_path / "out", mode="pilot",
+            measure_fn=None, probe_fn=lambda: (1, "", ""),
+            perf_preflight_fn=fixture_perf_preflight,
+            prepare_fn=fake_prepare, now_fn=lambda: __import__("datetime")
+            .datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc),
+            monotonic_fn=lambda: 0.0,
+            durable_root_policy=floor.DurableRootPolicy(
+                approved_roots=(tmp_path.resolve(),), forbidden_roots=()),
+            _holdout_repo_root=authority,
+            confirm_irreversible_pilot_holdout=True,
+        )
     assert seen["clocks_per_us"] == contract.clocks_per_us
     assert seen["numactl"] == list(contract.numactl)
 
