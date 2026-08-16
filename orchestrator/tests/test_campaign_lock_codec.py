@@ -196,6 +196,34 @@ def test_v2_rejects_legacy_exact_two_source_blob_keys() -> None:
         campaign_lock.decode_campaign_lock(_canonical(value))
 
 
+def test_v2_rejects_pre_wave_exact_twelve_source_blob_keys() -> None:
+    pre_wave_paths = (
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_contract_activation.py",
+        "orchestrator/campaign/execution_guard.py",
+        "orchestrator/campaign/loop.py",
+        "orchestrator/campaign/pipeline.py",
+        "orchestrator/campaign/wal.py",
+        "orchestrator/campaign/ident.py",
+        "orchestrator/campaign/artifact_admission.py",
+        "orchestrator/verifier/core.py",
+        "orchestrator/verifier/dsg.py",
+        "orchestrator/verifier/model.py",
+        "orchestrator/verifier/parse.py",
+    )
+    value = _v2_value()
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    value["authority"]["contract_loader_blob_sha256s"] = {
+        path: blobs[path] for path in pre_wave_paths
+    }
+
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError,
+        match="contract_loader_blob_sha256s の exact key",
+    ):
+        campaign_lock.decode_campaign_lock(_canonical(value))
+
+
 @pytest.mark.parametrize("serial", [True, False, 0, -1, 1.0, "1", None])
 def test_v2_rejects_non_positive_or_non_exact_activation_serial(
         serial: object,
