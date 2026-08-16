@@ -20,6 +20,7 @@ import tempfile
 import textwrap
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -2737,6 +2738,10 @@ def test_required_existing_claim_refuses_production_entry_without_new_side_effec
         schedule_sha256=fixture["document"]["schedule_sha256"],
         campaign_id=fixture["document"]["campaign_ids"]["b0"], identity=identity,
     )
+    claim_paths = list((fixture["output_root"] / "claims").glob("*.claim"))
+    assert len(claim_paths) == 1
+    claim_payload = json.loads(claim_paths[0].read_text(encoding="utf-8"))
+    assert claim_payload["protocol_digest"] == claim_payload["campaign_identity"]
     before = _tree_file_snapshot(fixture["output_root"])
 
     result = _run_required_fixture(fixture)
@@ -2749,6 +2754,46 @@ def test_required_existing_claim_refuses_production_entry_without_new_side_effec
     ])
     assert _tree_file_snapshot(fixture["output_root"]) == before
     assert not fixture["budget_path"].exists()
+
+
+def test_oracle_claim_schema_uses_identity_preimage_as_protocol_digest(tmp_path):
+    """Oracle follows the required schema without claiming a new gate surface."""
+    claim_root = tmp_path / "claims"
+    claim_root.mkdir()
+    plan = SimpleNamespace(
+        contract=SimpleNamespace(
+            isolation_policy=ec.IsolationPolicy(
+                single_process=True, allow_resume=False,
+            ),
+        ),
+    )
+    inputs = {
+        "manifest_sha256": "a" * 64,
+        "freeze_sha256": "b" * 64,
+        "schedule_sha256": "c" * 64,
+        "campaign_id": "fixture-campaign",
+    }
+    driver._acquire_g12_claim(
+        plan=plan,
+        claim_root=claim_root,
+        identity={
+            "job": "fixture-job",
+            "host": "fixture-host",
+            "boot": Path(
+                "/proc/sys/kernel/random/boot_id"
+            ).read_text(encoding="ascii").strip(),
+            "pid": os.getpid(),
+            "starttime": driver._campaign_claim.read_proc_starttime(),
+        },
+        **inputs,
+    )
+
+    claim_paths = list(claim_root.glob("*.claim"))
+    assert len(claim_paths) == 1
+    payload = json.loads(claim_paths[0].read_text(encoding="utf-8"))
+    expected = driver._claim_identity(**inputs)
+    assert payload["campaign_identity"] == expected
+    assert payload["protocol_digest"] == expected
 
 
 def test_required_recheck_real_reservation_shortfall_writes_aborted_terminal(

@@ -7,11 +7,12 @@ import json
 import os
 import time
 from dataclasses import asdict, dataclass
+from enum import Enum
 from pathlib import Path
 
 
 class ClaimError(ValueError):
-    """claim record の型・値・UTC 表記が不正。"""
+    """claim の policy refusal または fail-closed operational error。"""
 
     def __init__(
         self,
@@ -19,10 +20,14 @@ class ClaimError(ValueError):
         *,
         existing_record: "ClaimRecord | None" = None,
         claim_path: Path | None = None,
+        raw_payload: bytes | None = None,
+        conflict: "ClaimConflict | None" = None,
     ) -> None:
         super().__init__(message)
         self.existing_record = existing_record
         self.claim_path = claim_path
+        self.raw_payload = raw_payload
+        self.conflict = conflict
 
 
 def _text(value: object, field: str) -> None:
@@ -35,6 +40,7 @@ class ClaimRecord:
     """campaign identity と所有 process を束縛する immutable record。"""
 
     campaign_identity: str
+    protocol_digest: str
     job_id: str
     host: str
     boot_id: str
@@ -45,6 +51,12 @@ class ClaimRecord:
     def __post_init__(self) -> None:
         for field in ("campaign_identity", "job_id", "host", "boot_id"):
             _text(getattr(self, field), field)
+        if (
+            type(self.protocol_digest) is not str
+            or len(self.protocol_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.protocol_digest)
+        ):
+            raise ClaimError("protocol_digest は 64 桁小文字 hex でなければならない")
         for field in ("pid", "proc_starttime"):
             value = getattr(self, field)
             if type(value) is not int or value <= 0:
@@ -67,14 +79,34 @@ class AcquiredClaim:
     record: ClaimRecord
 
 
-def read_proc_starttime(*, stat_text: str | None = None) -> int:
-    """``/proc/self/stat`` の第 22 field (process starttime) を strict に読む。"""
-    if stat_text is None:
-        try:
-            with open("/proc/self/stat", "r", encoding="ascii") as stream:
-                stat_text = stream.read()
-        except OSError as exc:
-            raise ClaimError("/proc/self/stat を読み取れない") from exc
+class _OwnerState(Enum):
+    LIVE = "live"
+    DEAD = "dead"
+    INDETERMINATE = "indeterminate"
+
+
+@dataclass(frozen=True)
+class _OwnerObservation:
+    owner_state: _OwnerState
+    observed_boot_id: str
+    observed_state: str | None
+    observed_starttime: int | None
+    classification_reason: str
+
+
+@dataclass(frozen=True)
+class ClaimConflict:
+    """同一 protocol の live owner と、その分類に使った観測値。"""
+
+    path: Path
+    record: ClaimRecord
+    observed_boot_id: str
+    observed_state: str | None
+    observed_starttime: int | None
+    classification_reason: str
+
+
+def _parse_proc_stat(stat_text: str) -> tuple[str, int]:
     if type(stat_text) is not str or not stat_text:
         raise ClaimError("proc stat は非空 str でなければならない")
 
@@ -86,13 +118,53 @@ def read_proc_starttime(*, stat_text: str | None = None) -> int:
     starttime_index = 22 - 3
     if len(fields_from_three) <= starttime_index:
         raise ClaimError("proc stat に第 22 field がない")
+    state = fields_from_three[0]
+    if len(state) != 1 or state not in "RSDZTtXxKWPI":
+        raise ClaimError("proc stat の state field が不正")
     try:
         starttime = int(fields_from_three[starttime_index], 10)
     except ValueError as exc:
         raise ClaimError("proc stat 第 22 field が整数でない") from exc
     if starttime <= 0:
         raise ClaimError("proc stat 第 22 field は正整数でなければならない")
-    return starttime
+    return state, starttime
+
+
+def read_proc_starttime(*, stat_text: str | None = None) -> int:
+    """``/proc/self/stat`` の第 22 field (process starttime) を strict に読む。"""
+    if stat_text is None:
+        try:
+            with open("/proc/self/stat", "r", encoding="ascii") as stream:
+                stat_text = stream.read()
+        except OSError as exc:
+            raise ClaimError("/proc/self/stat を読み取れない") from exc
+    return _parse_proc_stat(stat_text)[1]
+
+
+def _read_boot_id() -> str:
+    try:
+        with open("/proc/sys/kernel/random/boot_id", "r", encoding="ascii") as stream:
+            boot_id = stream.read().strip()
+    except OSError as exc:
+        raise ClaimError("current boot_id を読み取れない") from exc
+    if not boot_id:
+        raise ClaimError("current boot_id が空")
+    return boot_id
+
+
+def _read_proc_stat_for_pid(pid: int) -> tuple[str, int] | None:
+    path = f"/proc/{pid}/stat"
+    try:
+        with open(path, "r", encoding="ascii") as stream:
+            stat_text = stream.read()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ClaimError(f"{path} を読み取れない") from exc
+    try:
+        return _parse_proc_stat(stat_text)
+    except ClaimError as exc:
+        raise ClaimError(f"{path} を構造化して読めない") from exc
 
 
 def _claim_path(claim_root: Path, identity: str) -> Path:
@@ -103,7 +175,7 @@ def _claim_path(claim_root: Path, identity: str) -> Path:
     return claim_root / f"{identity}.claim"
 
 
-def _decode_record(raw: bytes, path: Path) -> ClaimRecord:
+def _decode_payload(raw: bytes, path: Path) -> dict:
     def no_duplicates(pairs):
         result = {}
         for key, value in pairs:
@@ -115,16 +187,33 @@ def _decode_record(raw: bytes, path: Path) -> ClaimRecord:
     try:
         payload = json.loads(raw.decode("utf-8"), object_pairs_hook=no_duplicates)
     except (UnicodeDecodeError, json.JSONDecodeError, ClaimError) as exc:
-        raise ClaimError("既存 claim record を構造化して読めない", claim_path=path) from exc
+        raise ClaimError(
+            "既存 claim record を構造化して読めない",
+            claim_path=path,
+            raw_payload=raw,
+        ) from exc
     if type(payload) is not dict:
-        raise ClaimError("既存 claim record が JSON object でない", claim_path=path)
+        raise ClaimError(
+            "既存 claim record が JSON object でない",
+            claim_path=path,
+            raw_payload=raw,
+        )
+    return payload
+
+
+def _decode_record(raw: bytes, path: Path) -> ClaimRecord:
+    payload = _decode_payload(raw, path)
     try:
         return ClaimRecord(**payload)
     except (TypeError, ClaimError) as exc:
-        raise ClaimError("既存 claim record の schema が不正", claim_path=path) from exc
+        raise ClaimError(
+            "既存 claim record の schema が不正",
+            claim_path=path,
+            raw_payload=raw,
+        ) from exc
 
 
-def _read_existing_record(path: Path) -> ClaimRecord:
+def _read_existing_payload(path: Path) -> bytes:
     flags = os.O_RDONLY
     nofollow = getattr(os, "O_NOFOLLOW", None)
     if nofollow is None:
@@ -137,35 +226,162 @@ def _read_existing_record(path: Path) -> ClaimRecord:
     try:
         chunks = []
         total = 0
-        while True:
-            chunk = os.read(fd, 4096)
-            if not chunk:
-                break
-            total += len(chunk)
-            if total > 1 << 20:
-                raise ClaimError("既存 claim record が大きすぎる", claim_path=path)
-            chunks.append(chunk)
+        try:
+            while True:
+                chunk = os.read(fd, 4096)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > 1 << 20:
+                    raise ClaimError("既存 claim record が大きすぎる", claim_path=path)
+                chunks.append(chunk)
+        except OSError as exc:
+            raise ClaimError("既存 claim record を読み取れない", claim_path=path) from exc
     finally:
         os.close(fd)
-    return _decode_record(b"".join(chunks), path)
+    return b"".join(chunks)
 
 
-def _existing_owner_after_collision(path: Path) -> ClaimRecord:
-    # O_EXCL の directory entry は winner の write より先に見える。短い競合窓だけ
-    # bounded retry し、winner crash/破損時は削除せず fail-closed にする。
-    last_error = None
-    for _ in range(50):
+def _read_existing_record(path: Path) -> ClaimRecord:
+    raw = _read_existing_payload(path)
+    return _decode_record(raw, path)
+
+
+_LEGACY_RECORD_KEYS = {
+    "campaign_identity",
+    "job_id",
+    "host",
+    "boot_id",
+    "pid",
+    "proc_starttime",
+    "created_utc",
+}
+
+
+def _decode_scanned_record(raw: bytes, path: Path) -> ClaimRecord | None:
+    payload = _decode_payload(raw, path)
+    if "protocol_digest" not in payload:
+        if set(payload) != _LEGACY_RECORD_KEYS:
+            raise ClaimError(
+                "既存 claim record の schema が不正",
+                claim_path=path,
+                raw_payload=raw,
+            )
         try:
-            return _read_existing_record(path)
-        except ClaimError as exc:
-            last_error = exc
-            time.sleep(0.001)
-    assert last_error is not None
-    raise last_error
+            ClaimRecord(protocol_digest="0" * 64, **payload)
+        except (TypeError, ClaimError) as exc:
+            raise ClaimError(
+                "legacy claim record の schema が不正",
+                claim_path=path,
+                raw_payload=raw,
+            ) from exc
+        return None
+    return _decode_record(raw, path)
+
+
+def _claim_entries(claim_root: Path) -> list[Path]:
+    try:
+        with os.scandir(claim_root) as entries:
+            paths = [
+                claim_root / entry.name
+                for entry in entries
+                if entry.name.endswith(".claim")
+            ]
+    except OSError as exc:
+        raise ClaimError("claim root を列挙できない", claim_path=claim_root) from exc
+    return sorted(paths, key=lambda path: path.name)
+
+
+def _owner_state(record: ClaimRecord, *, current_boot_id: str) -> _OwnerObservation:
+    if record.boot_id != current_boot_id:
+        return _OwnerObservation(
+            owner_state=_OwnerState.INDETERMINATE,
+            observed_boot_id=current_boot_id,
+            observed_state=None,
+            observed_starttime=None,
+            classification_reason="boot-id-mismatch",
+        )
+    stat = _read_proc_stat_for_pid(record.pid)
+    if stat is None:
+        return _OwnerObservation(
+            owner_state=_OwnerState.DEAD,
+            observed_boot_id=current_boot_id,
+            observed_state=None,
+            observed_starttime=None,
+            classification_reason="proc-not-found",
+        )
+    state, starttime = stat
+    if state == "Z":
+        owner_state = _OwnerState.DEAD
+        reason = "zombie"
+    elif starttime != record.proc_starttime:
+        owner_state = _OwnerState.DEAD
+        reason = "proc-starttime-mismatch"
+    else:
+        owner_state = _OwnerState.LIVE
+        reason = "live-owner"
+    return _OwnerObservation(
+        owner_state=owner_state,
+        observed_boot_id=current_boot_id,
+        observed_state=state,
+        observed_starttime=starttime,
+        classification_reason=reason,
+    )
+
+
+_SCAN_DECODE_ATTEMPTS = 50
+_SCAN_DECODE_RETRY_SECONDS = 0.01
+
+
+def _read_scanned_record(path: Path) -> ClaimRecord | None:
+    for attempt in range(_SCAN_DECODE_ATTEMPTS):
+        raw = _read_existing_payload(path)
+        try:
+            return _decode_scanned_record(raw, path)
+        except ClaimError:
+            if attempt + 1 == _SCAN_DECODE_ATTEMPTS:
+                raise
+            time.sleep(_SCAN_DECODE_RETRY_SECONDS)
+    raise AssertionError("scan decode retry loop が終端しなかった")
+
+
+def _scan_protocol_conflicts(
+    claim_root: Path,
+    *,
+    excluding_path: Path,
+    protocol_digest: str,
+    current_boot_id: str,
+) -> ClaimConflict | None:
+    for path in _claim_entries(claim_root):
+        if path == excluding_path:
+            continue
+        existing = _read_scanned_record(path)
+        if existing is None or existing.protocol_digest != protocol_digest:
+            continue
+        observation = _owner_state(existing, current_boot_id=current_boot_id)
+        if observation.owner_state is _OwnerState.LIVE:
+            return ClaimConflict(
+                path=path,
+                record=existing,
+                observed_boot_id=observation.observed_boot_id,
+                observed_state=observation.observed_state,
+                observed_starttime=observation.observed_starttime,
+                classification_reason=observation.classification_reason,
+            )
+    return None
+
+
+def _raise_protocol_conflict(conflict: ClaimConflict, *, path: Path) -> None:
+    raise ClaimError(
+        f"同一 protocol の campaign claim は既に {conflict.record.pid} が所有している",
+        existing_record=conflict.record,
+        claim_path=path,
+        conflict=conflict,
+    )
 
 
 def acquire_claim(claim_root: Path, record: ClaimRecord) -> AcquiredClaim:
-    """``<identity>.claim`` を O_EXCL で一度だけ獲得し JSON を fsync する。
+    """同一 protocol の live owner を走査後、claim を O_EXCL で獲得する。
 
     claim は crash 後も残す。stale 判定、自動削除、release は意図的に存在しない。
     atomic ``O_EXCL`` が保証される Lustre / NFSv4 を前提とする。NFSv3 は対象外。
@@ -182,6 +398,22 @@ def acquire_claim(claim_root: Path, record: ClaimRecord) -> AcquiredClaim:
     if not claim_root.is_dir():
         raise ClaimError("claim_root は既存 directory でなければならない")
     path = _claim_path(claim_root, record.campaign_identity)
+    current_boot_id = _read_boot_id()
+    current_starttime = read_proc_starttime()
+    if (
+        record.pid != os.getpid()
+        or record.proc_starttime != current_starttime
+        or record.boot_id != current_boot_id
+    ):
+        raise ClaimError("claim record の process identity が self の実測値と一致しない")
+    conflict = _scan_protocol_conflicts(
+        claim_root,
+        excluding_path=path,
+        protocol_digest=record.protocol_digest,
+        current_boot_id=current_boot_id,
+    )
+    if conflict is not None:
+        _raise_protocol_conflict(conflict, path=path)
     payload = (
         json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         + "\n"
@@ -194,7 +426,7 @@ def acquire_claim(claim_root: Path, record: ClaimRecord) -> AcquiredClaim:
     try:
         fd = os.open(path, flags, 0o600)
     except FileExistsError as exc:
-        existing = _existing_owner_after_collision(path)
+        existing = _read_existing_record(path)
         raise ClaimError(
             f"campaign claim は既に {existing.pid} が所有している",
             existing_record=existing,
@@ -225,4 +457,12 @@ def acquire_claim(claim_root: Path, record: ClaimRecord) -> AcquiredClaim:
             os.close(directory_fd)
     except OSError as exc:
         raise ClaimError("campaign claim directory の fsync に失敗", claim_path=path) from exc
+    conflict = _scan_protocol_conflicts(
+        claim_root,
+        excluding_path=path,
+        protocol_digest=record.protocol_digest,
+        current_boot_id=current_boot_id,
+    )
+    if conflict is not None:
+        _raise_protocol_conflict(conflict, path=path)
     return AcquiredClaim(path=path, record=record)

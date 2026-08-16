@@ -1024,11 +1024,13 @@ def _acquire_g12_claim(*, plan: _V2Plan, claim_root: Path,
     """
     if not _reservation.is_reservation_required(plan.contract.isolation_policy):
         return
+    claim_identity = _claim_identity(
+        manifest_sha256=manifest_sha256, freeze_sha256=freeze_sha256,
+        schedule_sha256=schedule_sha256, campaign_id=campaign_id,
+    )
     record = _campaign_claim.ClaimRecord(
-        campaign_identity=_claim_identity(
-            manifest_sha256=manifest_sha256, freeze_sha256=freeze_sha256,
-            schedule_sha256=schedule_sha256, campaign_id=campaign_id,
-        ),
+        campaign_identity=claim_identity,
+        protocol_digest=claim_identity,
         job_id=str(identity["job"]), host=str(identity["host"]),
         boot_id=str(identity["boot"]), pid=int(identity["pid"]),
         proc_starttime=int(identity["starttime"]), created_utc=_iso_now(),

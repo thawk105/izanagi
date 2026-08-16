@@ -495,7 +495,8 @@ def test_durable_root_policy_positive_and_field_negatives(tmp_path):
 
 def test_claim_record_positive_and_field_negatives():
     valid = dict(
-        campaign_identity="campaign", job_id="123.server", host="node-a", boot_id="boot",
+        campaign_identity="campaign", protocol_digest="a" * 64,
+        job_id="123.server", host="node-a", boot_id="boot",
         pid=123, proc_starttime=456, created_utc="2026-07-18T00:00:00+00:00",
     )
     assert ClaimRecord(**valid).pid == 123
@@ -506,6 +507,10 @@ def test_claim_record_positive_and_field_negatives():
     for field, bad in bad_values.items():
         candidate = dict(valid)
         candidate[field] = bad
+        with pytest.raises(ClaimError):
+            ClaimRecord(**candidate)
+    for bad_digest in ("", "a" * 63, "a" * 65, "A" * 64, 1):
+        candidate = dict(valid, protocol_digest=bad_digest)
         with pytest.raises(ClaimError):
             ClaimRecord(**candidate)
 

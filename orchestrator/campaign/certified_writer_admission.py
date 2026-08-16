@@ -15,7 +15,13 @@ from pathlib import Path
 from typing import Mapping
 
 from ..calibrator.schema_v2 import normalize_request_id
-from . import env_attestation, env_contract, s8b_floor_campaign, site_policy
+from . import (
+    env_attestation,
+    env_contract,
+    floor_submit_receipt,
+    s8b_floor_campaign,
+    site_policy,
+)
 from ..qualification import artifacts, attempt_ledger, contract, qsub_binding
 
 
@@ -24,11 +30,6 @@ _HEX40 = re.compile(r"[0-9a-f]{40}")
 _HEX64 = re.compile(r"[0-9a-f]{64}")
 _JOB_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _CAPTURE_KEYS = {"qstat_Q", "pegasusinfo", "rbudgetcheck", "check_quota"}
-_FLOOR_KEYS = {
-    "schema_version", "source_commit", "job_script_path",
-    "job_script_sha256", "job_id", "nonce", "submitted_at", "request",
-    "preflight", "dry_run",
-}
 _T126_KEYS = {
     "schema_version", "qualification_lineage", "authority", "hold_enforced",
     "job_id", "qualification_series_id", "qualification_attempt_id", "nonce",
@@ -178,24 +179,18 @@ def _admit_floor(
         repo_root: Path, receipt_path: Path, environ: Mapping[str, str],
 ) -> None:
     try:
-        receipt = artifacts.load_json_strict(receipt_path)
-    except Exception as exc:
-        raise AdmissionRejected("floor receipt strict read failed") from exc
-    row = _exact(receipt, _FLOOR_KEYS, "floor receipt")
+        row = floor_submit_receipt.load_floor_submit_receipt(receipt_path)
+    except floor_submit_receipt.FloorSubmitReceiptError as exc:
+        raise AdmissionRejected(str(exc)) from exc
     nonce, pbs_job_id = _required_environment(environ)
-    if (row["schema_version"] != "pegasus-floor-submit-receipt/v1"
-            or row["dry_run"] is not False
-            or row["nonce"] != nonce
-            or type(row["submitted_at"]) is not int
-            or row["submitted_at"] <= 0
-            or type(row["job_id"]) is not str
-            or _JOB_ID.fullmatch(row["job_id"]) is None
-            or normalize_request_id(row["job_id"]) != normalize_request_id(pbs_job_id)
-            or row["job_script_path"] != "tools/pegasus/floor_campaign.sh"):
-        raise AdmissionRejected("floor receipt envelope mismatch")
-    commit = _require_hash(row["source_commit"], _HEX40, "source commit")
-    script_sha = _require_hash(row["job_script_sha256"], _HEX64, "job script hash")
-    _require_hash(row["nonce"], _HEX32, "nonce")
+    try:
+        floor_submit_receipt.require_floor_submit_job_binding(
+            row, expected_job_id=pbs_job_id, expected_nonce=nonce,
+        )
+    except floor_submit_receipt.FloorSubmitReceiptError as exc:
+        raise AdmissionRejected(str(exc)) from exc
+    commit = row["source_commit"]
+    script_sha = row["job_script_sha256"]
     policy = _policy(repo_root)
     _validate_request(
         row["request"], policy, walltime_s=policy.get("floor_walltime_s"),
