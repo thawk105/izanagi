@@ -28,6 +28,10 @@ _EXPECTED_ENFORCEMENT_SOURCE_PATHS = (
     "orchestrator/campaign/wal.py",
     "orchestrator/campaign/ident.py",
     "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
 )
 
 
@@ -116,7 +120,7 @@ def _canonical_json(value: object) -> str:
     )
 
 
-def test_enforcement_source_closure_is_the_independent_exact_eight_paths() -> None:
+def test_enforcement_source_closure_is_the_independent_exact_twelve_paths() -> None:
     from orchestrator.campaign import campaign_lock, contract_loader_binding
 
     assert campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS == (

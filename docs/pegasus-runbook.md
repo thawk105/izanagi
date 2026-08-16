@@ -1288,6 +1288,64 @@ floor / oracle の集約は expected cell 集合との完全一致を要求す�
   「コア数を使い切る並列化」= job 内並列で、job 間 fan-out を探索軸に含めていない。
   **「並列化は調査済み」と読まない。**
 
+### 7.6 孤児 job の hold (`orphan-hold.json`) — 止まったときの読み方と解除 ([T-403]、2026-08-16)
+
+自動 qdel は「直前の照会が取消可能だった」ときだけ発行する (D142)。見送られた job は
+**孤児として計算ノードに残り得る**。署名は保守側に倒してあり、実際には既に終端していた job でも
+止まることがある (qdel が非ゼロ・例外を返した場合、dispatch mode の timeout など)。
+孤児が生きうる間、次の 4 経路が fail-closed で止まる。
+
+判定の権威は dispatch 出力 root 直下の **`output/pegasus-dispatch/orphan-hold.json`** で、
+create-only の latch である。**lock ではない** — 「同一 checkout で harness を経由しない
+並行 dispatch を作らない」運用契約の下でのみ後続を止める。自動解除はしない。
+**この file 自体を書けなかった場合** (権限・容量など) は、変異 harness が書く停止記録
+`<--out>.orphan-stop.json` が権威になる。その `reason.hold_error` に書込み失敗の理由が入る。
+
+| 止まる経路 | 症状 |
+|---|---|
+| 次回投入 | scheduler command を 1 本も打たずに `rc=16`。nonce directory も作られない |
+| 変異 source の復元 | 変異 harness が `rc=2`。**変異 bytes を作業ツリーに残したまま止まる** |
+| 変異 worktree の廃棄 | container を保全して `failure="orphan-hold"` を wrapper receipt に書く |
+| 受入赤の再確認 probe | probe worktree も dispatch 成果物も削除せず判定不能で止まる |
+
+F47 型ラッチ (`submission-disabled.json`) と両方あるときは **F47 の文言が先に出る**。
+F47 だけ解除しても hold で再び止まる。
+
+**解除の手順 (順序を守る)。**
+
+1. `qstat` で hold record の `request_id` を確認する。**RUN なら終端まで待つ。**
+   **変異 harness が作った hold は `job_name` が null で、timeout 経路では `request_id` と
+   `submission_dir` も null になり得る。** その場合は dispatch receipt → attempt sidecar
+   (`--attempt-out`) → `output/pegasus-dispatch/` の submission directory 一覧、の順で照合する。
+2. **手動 qdel は最後の手段。** 自分の dispatch job を qdel すると F47 ラッチが武装し、
+   その解除もユーザー手番になる。
+3. 対象の不在または終端を確認してから、変異 harness が残した dirty path を
+   `git checkout --` で復元する。dirty path は停止記録の `reason.dirty_paths` にある。
+4. `git status` の clean と HEAD を確認する。
+5. **最後に** hold file と停止記録 (`<--out>.orphan-stop.json`) の**両方**を手で削除する。
+   停止記録が残っている限り、変異 harness は fresh でも `--resume` でも起動しない。
+
+**変異 harness の停止記録は `<--out>.orphan-stop.json` (別 file)** で、`--out` の通常台帳
+(`izanagi-dev-wave-mutation/v4`) は壊さない。表示される `--resume` コマンドは
+**hold と停止記録を解除した後にだけ有効**である。
+
+**受入全走の最中に hold が立つと acceptance receipt は発行されない。** 受入 lease の解放と、
+probe worktree / dispatch 成果物の掃除は別物である — lease が解放されても、
+保全された probe worktree と evidence は人手で処理するまで残る。
+
+**fan-out では hold は shard の checkout 単位。** 兄弟 shard は完走するが merge されない。
+**driver report と top-level stderr は hold path・request ID・`hold_error` を転記しない**ので、
+どの shard が止まったかは driver report の preserved container から辿る。
+
+**この機構が保護しない範囲 (誤読しないこと)。**
+
+- `tools/pegasus/dispatch_compute.py` 経由の dispatch と、変異 harness / 変異 worktree /
+  受入赤 checker だけを止める。
+- `tools/pegasus/submit_*.sh` の直接 qsub、`orchestrator/campaign/patchharness.py` の
+  checkout 復元・worktree 強制削除、ログインノードの local 実行は**対象外**である。
+- qsub 前の永続 claim を持たないため、**SIGKILL と request ID 照会中の再 signal では
+  hold が立たないまま終了しうる**。「全 job が fail-closed になった」とは読まない。
+
 ## 8. 投入前チェックリスト
 
 - `qstat -Q` で現在利用可能なキューを確認した

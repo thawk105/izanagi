@@ -18417,3 +18417,615 @@ tested main の blob へ束縛する。具体的には次の 3 層を同時に�
 - **判定コード内の git 呼び出しを判定コード自身で固定する** — 上と同じ理由で判定コードを
   編集できない。呼び出し側から `command_runner` を注入すれば、判定コードを変えずに
   内側の git だけを固定できる。
+
+## D441. 8c 事前登録 C12 は構成上充足不能であり、配線でも単純削除でも閉じない (2026-08-16)
+
+**決定 (1): 「8c launch path へ配線する」「契約から明示的に外す」の二択を、どちらも本 wave では
+実装しない。** 二択の前提が実測で覆ったため、択一そのものを裁定パッケージとしてユーザーへ返す。
+
+**決定 (2): C12 は未配線なのではなく、構成上充足不能である。** 実測は 2 点。
+
+- 契約が要求する `single_process_required` は `reservation.py` に存在しない。同 module が持つのは
+  `check_reservation` と `is_reservation_required` である。
+- 評価器の到達判定は**同一 module 内の top-level 定義しか辿らない**
+  (`s8c_preregistration_evidence.py` の `_reachable_functions`)。C12 は
+  `p3_autonomous_workload_trial.py` の `run_trial` から `lookup`・`attest_and_build_receipt`・
+  allocation 検査の 3 名すべてが到達可能であることを要求するが、これらは設計上いずれも別 module に
+  ある。したがって**正しく cross-module 実装しても C12 は永久に充足できない。**
+
+**決定 (3): C12 の現在の緑は、捏造した被検体に対する緑である。** 契約は 12 条件すべてを
+`machine_checkable: false` としており、実 tree に対して `_evaluate_c12` は一度も走っていない
+(実測: 現在値は `EVIDENCE_UNDEFINED` / `completion-proof-not-machine-checkable`)。
+C12 の既存テストは `def single_process_required(): pass` だけを持つ捏造 module に述語を撃っている。
+これは「検査すると謳って発火しない保証」の型である。
+
+**決定 (4): `machine_checkable` を反転すると、C12 は誤った診断を出す。** 実測 (契約 row を
+in-memory で反転し実 HEAD の blob に対して評価器を実行) では
+`UNSATISFIED` / `environment-contract-consumer-absent` を返す。しかしこの reason が指す
+`lookup` と `attest_and_build_receipt` は**実際には 8c で走っている**。
+
+- `lookup` は `p3_s4_loop_trigger_gating.py` の `_lookup` 別名経由で `_admit_env_contract` が呼ぶ。
+- `attest_and_build_receipt` は `loop.py` の `_authorize_measurement` が呼ぶ。
+- 実行 chain は `run_trial` → `_run_workload` → `_drive_s8c_generation` →
+  `p3_s4_loop_trigger_gating.drive_iteration` → `loop.run_campaign` → `_authorize_measurement`。
+
+したがって反転は単に赤を出すのではなく、**実在する強制を「不在」と誤って報告する**。
+この値は契約を改訂する側が反転前に知る必要がある。
+
+**決定 (5): 実際に欠けているのは allocation 検査だけである。** reservation は
+`p3_autonomous_workload_trial.py` / `p3_s4_loop_trigger_gating.py` / `loop.py` のいずれにも無い。
+8c は `_perf_for` 経由で実測するので、確保証跡の関門を持たないまま計測する。
+**ただし `attestation_mode` が `required` なのは pegasus 契約だけで、linux-baremetal は `none` かつ
+`single_process=False` である。** 「8c は attestation を通る」は pegasus 経路に限った主張であり、
+無条件に一般化してはならない。
+
+**決定 (6): 配線側の実装可否は本決定では開かない。** D419 は「強制だけを先に入れる」を却下し、
+その解除を**ユーザー手番**と明記した。8c 用 tracked wrapper の新設も同決定が
+他タスクの所有境界とした。実測でも `IZANAGI_RESERVATION_*` を供給する production launcher は
+床値 campaign と t126 の 2 本だけで、8c 用は存在しない。よって今 fail-closed 検査を置けば、
+捏造 fixture だけが通り正当な計算ノード実行は落ちる。
+
+**決定 (7): 外す側を採る場合に消える保証を明記する。** ユーザー指示に対する回答である。
+
+- **現に成立している保証は 1 つも消えない。** D431 member 6 は 8c launch を保護対象外と既に明記し、
+  member 6 の control は t126 と床値・oracle 経路だけを守る。
+- 消えるのは**事前登録された意図**である。すなわち「正式 8c の受理条件が allocation・PBS job・
+  boot・期限の証拠と single-process / resume 禁止の証明を要求する」という宣言。
+  外した後は、予約期限を越えて開始した世代や、他プロセスと同居した計測が
+  8c 側のどの検査でも拒否されなくなる。
+- あわせて負の対照 1 件が現在の意味を失う。
+
+**決定 (8): reservation 述語自身の権威不足は本決定の所有ではない。** `check_reservation` が
+`host` / `script_sha256` / `nonce` を何とも照合していないことは実測したが、これは既に裁定済みの
+別タスクが所有する。本決定はその境界を開かない。
+
+**理由:**
+- 二択のまま片方を実装すると、どちらでも誤った台帳が残る。配線側は「保護した」と読める gate を
+  実際には保護しないまま置き、外す側は「乖離を閉じた」と読めるが構成上の充足不能を隠す。
+- 充足不能の原因は名前の不一致ではなく述語の表現力である。名前を合わせる改修は
+  規律 2 が禁じる「述語を満たすための細工」に落ちる。
+- 反転後に誤った診断が出ることは、契約を改訂する側が反転前に知らなければ、
+  実在する強制を消す方向の改修を誘発する。
+
+**却下した選択肢:**
+- `single_process_required` を正本 def にし `is_reservation_required` を委譲 wrapper にする —
+  C12 の AST が FunctionDef を要求するから名前を作る、という理由であり保証の実体を伴わない。
+  加えて名前を揃えても module-local の到達判定が塞ぐため C12 は充足しない。
+- 契約から allocation 節を単純削除する — 充足不能の原因が allocation 節だけではないため、
+  削除しても `lookup` / `attest` 節の誤診断が残る。
+- 本 wave で契約 JSON・評価器・凍結世代を改訂する — 稼働中の別 wave が同一面を所有しており、
+  凍結 hash と世代鎖を二重に進めることになる。
+- 実測 sink へ無条件の reservation 検査を置く — linux-baremetal の正当な計測を fail-closed で
+  落とし、供給側 launcher も無いため計算ノード実行も落ちる。
+
+## D442. enforcement source closure を exact 12 path へ広げ、verifier 実装を epoch へ束縛する (2026-08-16)
+
+**決定:**
+
+1. **閉包を exact 12 path にする。** `campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS` へ
+   `orchestrator/verifier/core.py` / `dsg.py` / `model.py` / `parse.py` を末尾へ加える。
+   D268 決定 1 の「exact 8 path」を supersede する。既存 8 path の順序は変えない
+   (順序は epoch preimage に効く)。検証の意味論 (記録 commit の blob と現在の disk bytes の
+   一致)、停止点、fail-closed は変えない。
+2. **識別子・wire key・hash domain は変えない。** `contract_loader_*` は歴史的名称として残す
+   (D268 決定 2 を継承)。`campaign-verifier-epoch/v1` の domain 文字列も据え置く。
+   実 corpus に v2 lock が 0 本なので旧定義と新定義が同居する実物が無く、domain を上げると
+   `E1` prefix を固定する layer3 / S1 / S8b の golden まで変更面が広がるためである。
+3. **`campaign_verifier_epoch` の scope 診断を真になる文言へ直す。** identity scope は
+   exact 12 path と verifier 実装 4 file の包含を明記し、excluded scope は verifier package の
+   うち束縛しない `__init__.py` / `__main__.py` / `cli.py` / `report.py` を exact に列挙する。
+
+**理由:**
+
+- 従来は E1 lock を作った後に verifier の実装 bytes だけを書き換えても epoch が変わらなかった。
+  正しさ判定の実体が identity の外にあり、anomaly を含む run が同じ epoch の certified 集合へ
+  入りうる状態は規律 2 に抵触する。
+- 実 corpus の `output/**/campaign.lock` は 32 本すべて v1 で v2 は 0 本である (実測)。
+  壊れる既存成果物が無い今が費用最小の窓であり、成果物が積まれてから広げるより安い。
+
+**名乗ってよい範囲 (これを超えて書いてはならない):**
+
+> `require_environment_contract=True` で `ident.ensure_campaign_identity` の source 検査が
+> 実際に完了した呼出しについて、**各 path を検査が読み取ったそれぞれの時点の** enforcement
+> source closure exact 12 path の disk bytes は、その呼出しが authority に採用した
+> `contract_loader_commit` の同 path Git blob と一致した。
+
+D268 の制限箇条書きはすべて継承する。加えて次を明記する。
+
+- **verifier package の dispatch 面は閉じていない。** `pipeline.py` は
+  `orchestrator/verifier/__init__.py` の再 export を通じて `verify_trace_dir` を解決する。
+  この shim を別実装へ向ければ、束縛した 4 file の bytes を 1 byte も変えずに正しさゲートを
+  無効化できる。`report.py` / `cli.py` / `__main__.py` と wrapper `orchestrator/verify.py` も
+  閉包外である。
+- **弱化してから作る fresh lock は拒否しない。** 本閉包が検出するのは lock 記録後の drift だけで
+  ある。verifier を弱めて commit し、その bytes で新しい lock を作れば、新しい `E1` として
+  受理される。「規律 2 の穴を塞いだ」とは名乗らない。
+- **epoch の cross-version 認証は無い。** oracle の artifact validator は scope を非空文字列
+  としか検査せず、judge は `state=E1` と `certified_eligible=true` だけで採用する。
+  旧定義の `E1` を新閉包の certified 選択から排除する機構は存在しない。
+- **別閉包は追随しない。** T126 qualification の code identity は verifier では `core.py` しか
+  含まず、`dsg/model/parse` の変更に反応しない。
+
+**受理集合の変化:**
+
+- 既存 artifact は不変。v2 lock は 0 本のままである。
+- v2 wire の受理言語は exact-8 key から **exact-12 key への置換**であって部分集合化ではない。
+  旧 exact-8 map は拒否になる。
+- 閉包 12 path のいずれかに未 commit 差分がある working tree からの certified 実行は、
+  `ident` の停止点で拒否される。verifier 4 file がこの対象へ加わったことが本決定の目的である。
+
+**却下した選択肢:**
+
+- **`__init__.py` を含む exact 13 以上。** 段 2 プランと段 3・段 6 の敵対レビューがいずれも
+  推したが、批准された裁定文が名指ししたのは 4 file である。12 / 13 / 14 / 16 の選択は
+  脅威モデルの選択そのものであり、親が独断で 1 点を選ばずユーザー裁定へ返す。
+- **domain を `/v2` へ上げる。** 上記 2 のとおり変更面が裁定の範囲を超える。
+- **oracle 側で現行 scope の exact 一致を要求する。** 受理集合を変える新設 gate であり、
+  本裁定の範囲外。択一として裁定へ返す。
+
+## D443. 8c 正式系列の世代数は manifest が宣言し、受入は宣言と実行の矛盾だけを拒否し、実効的な閂は起動側に置く (2026-08-16)
+
+**決定 (1): 世代数の正本は `manifest.trials[].generations` とし、値は整数 2 に閉じる。**
+manifest / registration schema を `p3-8c-trial-manifest/v2` / `p3-8c-trial-registration/v2` へ上げ、
+trial 行の exact key へ `generations` を足す。`type(value) is int and value == 2` を要求して
+`bool` を通さない。拒否 message は `trials[<index>].generations` の位置を含め、6 cell の
+どれが不正かを運用者が特定できるようにする。top-level ではなく trial 単位に置く理由は、
+registry・binding・admission・receipt がいずれも `trial_id` 単位の capability であり、
+選択された 1 trial の起動条件を自己完結させる必要があるためである。
+
+**決定 (2): 受入は 6 report 全件について、manifest の宣言値と report の
+`generation_budget_per_workload` の一致を要求する。不一致は `[generation-binding]` で拒否する。**
+これは「判定不能」ではなく**証拠と事前登録の矛盾**である。manifest が 2 世代の試行として
+登録したものが budget 1 で実行された report は、決定 (3) の起動 gate を通っていないことを
+意味する。したがって拒否されるのは「正当に起動できなかったはずの実行」であり、欠測でも
+crash でもない。先頭 1 件での早期 return や `zip` の暗黙短縮に頼らず、全件を回ることが
+構造的に保証される形で書く。負の対照は**末尾**の cell に不一致を置く。
+
+**決定 (3): registered 起動は runtime の generations が manifest 宣言値と一致しなければ、
+campaign identity 導出と run root 作成より前に fail-closed で拒否する。**
+ここが実効的な閂であり、**落とす対象がそもそも生成されない**。CLI 既定値 1 を manifest の
+2 へ自動補正することはしない — 事前登録文書が「世代数を明示的に指定しない起動を本系列の試行として
+数えない」と規範化しており、補正は明示の要求を骨抜きにする。
+
+**決定 (4): 実走世代数が宣言に届かなかった cell は、従来どおり partial として receipt に記録し、
+拒否しない。** crash・supervisor-error・early-stop で 2 世代に届かなかった cell の扱いは変えない。
+`stop_reason == "fixed-generation-budget"` のときに実走長 == budget を要求する既存規則
+(`autonomous_trial_completeness.py`) をそのまま使う。全件報告・判定不能の契約を破らない。
+
+**決定 (5): 世代数を `TrialBinding` / launch admission / lifecycle / 受入 receipt へ伝播しない。
+run/report schema に v4 を作らない。** 起動時検査は manifest を再読して等価性を得るため、
+封印値を binding に持たせなくても同じ保証が立つ。伝播すると launch admission の exact key 契約と
+originless 互換 golden の bytes が変わり、等価な保証に対して影響半径だけが大きくなる。
+
+**理由:**
+
+- 承認上限 `MAX_APPROVED_GENERATIONS = 2` は上限しか強制せず、予算 validator は 1 以上を受理し、
+  CLI 既定値は 1 である。budget=1 の 6 cell は manifest 登録・launch binding・完全性検査・
+  受入 gate をすべて通過できた。上限を下限へ流用せず、宣言と実行の間に別の束縛を置く。
+- **「拒否」だけでも「記録」だけでも成立しない。** 正式受入で partial report を拒否する案は、
+  file-drawer を受入側で開け直す (走らせた試行が receipt に一切残らない経路ができる)。
+  一方、受入 receipt の `certifying` は literal `False` に固定されているため、
+  「exact 2 でなければ non-certifying にする」だけの案は受理集合を 1 bit も変えず**恒真**になる。
+  budget (宣言・起動意図) と actual (実際に起きたこと) の間に線を引くことで両方を避ける。
+- 決定 (2) の比較は恒真ではない。manifest 側は parse 時点で 2 に閉じているが、report 側の
+  budget は 1 を取りうるので分岐が生きている。変異で裏取りした
+  (比較の無効化が末尾 cell の負例だけを赤にする)。
+
+**却下した選択肢:**
+
+- **正式受入で partial を拒否し `report.cells` を 1 個へ狭める** — 欠測・crash・不一致を
+  「判定不能として残す」でなく「台帳から落とす」に変える。file-drawer を塞ぐために積み上げた
+  registry・lifecycle・全件報告の設計と正面から矛盾する。
+- **manifest を触らず定数だけで exact 2 を検査する** — 事前登録 artifact に宣言が残らず、
+  「何世代の試行として登録されたか」を後から証拠で辿れない。
+- **CLI 既定値を 2 へ変える** — 「明示しない起動を数えない」という規範に反する。
+  既定値が literal 1 であることは AST で意図的に釘付けされている。
+- **`MAX_APPROVED_GENERATIONS` を exact 下限として流用する** — 上限と下限は別の概念であり、
+  上限の引き上げ (多世代開放) と正式系列の固定予算を同じ定数へ縛ると両方を動かせなくなる。
+- **run/report を exploratory v3 / registered v4 の tagged union へ割る** — 正式系列だけを
+  狭めるには有効だが、本決定の目的 (宣言と実行の突き合わせ) は既存の
+  `generation_budget_per_workload` と `cells[].generations` で足りる。schema を割ると
+  verifier の検査順序変更まで必要になり、pilot の受理集合へ波及する危険が増える。
+
+## D444. 床値 protocol の束縛の張り替えだけを AI へ開放し、組ごとに 1 件で機械封鎖する (2026-08-16)
+
+**決定 (2026-08-16 ユーザー裁定 = 案 1 + 案 3。案 2 は不採用):**
+
+床値 protocol のうち **AI が更新してよいのは `contract_sha256` と `ccbench_pin` の 2 field だけ**とする。
+残る 16 field (`schema` / `formula` / `env_tag` / `freeze` / `stock_configuration` / `n_sessions` /
+`reps` / `master_seed` / `schedule_algorithm` / `extime_s` / `wired_min_rel_floor` /
+`retry_slots_per_cell` / `session_cv_max` / `cell_cv_max` / `scale_adequacy_rel_tolerance` /
+`allowed_excluded_reasons`) は不変で、その改訂は引き続き人間手番である。
+床値 protocol は **(contract_sha256, ccbench_pin) の組ごとに 1 件**とし、同じ組への 2 件目を
+機械的に拒否する。既存の凍結 bytes は 1 件も上書きしない (追加のみ)。
+
+実装の確定形は次のとおり。
+
+1. 格納 path は `output/s8b-freeze/floor-protocols/<contract_sha256>--<ccbench_pin>.json` とし、
+   組から一意に導出する。issuer の公開 API は零引数で、path・contract・pin・先行 protocol の
+   いずれも呼び手が指定できない。
+2. 新 namespace を launch certificate の chain record pattern へ登録する。
+   **登録しなければ、versioned protocol を 1 件置いた瞬間に freeze namespace の未知 file 拒否が
+   発火し、既存の床値 campaign が起動できなくなる。**
+3. 不変 16 field は先行 protocol から field ごとの canonical bytes で byte-exact に継承し、
+   承認定数から再導出しない。定数は人間が編集できるため、定数経由で不変 field が動く経路を塞ぐ。
+4. lineage anchor は working tree でなく、一度だけ解決した固定 HEAD commit の exact 100644 blob から
+   読む。issuer の全 Git read は同じ commit OID と衛生化した環境 (repository / object / config /
+   replacement 系の環境変数を除去し `GIT_NO_REPLACE_OBJECTS` を設定、argv にも
+   `--no-replace-objects`) で行う。
+5. 既裁定 Q3 (両成分がともに交代) の機械化として、**target の `contract_sha256` が組 index に
+   既出なら発行を拒否する**。この拒否は issuer だけでなく組 index 自身の不変条件でもあり、
+   何らかの経路で同一 contract の 2 件が入った repository は以後の全 scan が fail-closed になる。
+6. 撃てないゲートは積まない。publish 直前の環境契約再照合は、authority snapshot が
+   PID ごとに cache されるため必ず一致する恒真ゲートであり、実装しない。
+   代わりに publish 直後の HEAD commit 移動検査を置く。
+7. 発行後の検査失敗では artifact を自動削除しない (既存の人間手番 seal と同じ方針)。
+   ただし例外 message に作成された artifact の exact path と、
+   取り除くまで新しい床値 protocol を発行できない旨を必ず載せる。
+
+**この決定が変えないもの:** 規律 2、凍結の履歴不変条件、較正 (環境側) の取得手順と受入検査、
+人間手番の seal 経路 (`--confirm-user-freeze` + 対話 shell + T-080 receipt)、
+承認定数、凍結台帳の 23 key、凍結チェーン検証の保留状態。
+
+**理由:**
+- ワークロード・受理閾値・seed・実験手順・除外理由が動かせないため、
+  「低い床値が出る設計を選ぶ」自由度が構造的に存在しない。動くのは束縛の張り替えだけである。
+- 組ごとに 1 件へ固定すると、同一条件で測り直して良い結果を選ぶ経路が消える。
+  追加のみで既存 bytes を上書きしないため、凍結の履歴不変条件とも両立する。
+- 環境契約 hash と ccbench pin は実 repository から機械的に決まる。呼び手が渡せる面を持たせないと
+  決めれば、「どの条件で測るか」を submitter が選ぶ経路そのものが無くなる。
+- 撃てないゲートを防壁として数えると、防壁台帳の件数と実効防壁が食い違う。
+  恒真な再照合を残すより、発火しうる検査 1 本に置き換えるほうが強い。
+
+**却下した選択肢:**
+- **測り直しの事前登録 + 全走行の記録 (案 2)** — ユーザーが不採用と裁定した。
+  案 1 と案 3 で設計の自由度が消えるため追加機構は要らない、が理由である。
+- **path を receipt や引数で選ばせる** — 検証対象を submitter が選べる受理拡大になる。
+  組からの決定的導出であれば、path と document の相互束縛を機械検査できる。
+- **不変 16 field を承認定数から再導出する** — 定数は人間が編集できるため、
+  定数の drift が AI 発行の protocol へ黙って入る経路が残る。
+- **anchor を working tree から読む** — 単体 validator は `master_seed` を非空文字列、
+  `wired_min_rel_floor` を範囲でしか検査しない。working tree の改変値が
+  validator を通過し、全 successor へ正確に継承される。
+- **共有 Git env helper 側を直す** — 同型の穴を持つ第 2 の consumer をまだ実測していない。
+  単発事故の族一般化は独立 2 例を要する。
+
+**残る限界 (この決定では閉じない):**
+- ccbench pin を前進させれば新しい組ができるため、消えたのは「同じ組で 2 本目」であって
+  「pin を進めて新しい組で測り直す」ではない。
+- 組の一意性は sanctioned namespace 内に限る。ratified freeze の pointer は
+  任意 canonical path を受理する。
+- protocol 単位の封鎖であって run 単位ではない。同一 protocol の複数回実走は現在許されている。
+- 発行済み artifact を削除すれば同じ組を再発行できる。履歴不変条件の検査は凍結チェーン保留の対象である。
+
+**supersede:** D437 は「環境世代 g2 の活性化は上位権限束の人間 lockstep に従属する」と結論し、
+その根拠に 2026-08-10 / 08-11 の Q2 (承認 A・発効 X ともに人間) を挙げた。
+**2026-08-16 のユーザー裁定は、束縛の張り替え (環境契約 hash と ccbench pin の更新) に限り
+Q2 を解除した。** D437 のうちこの限定範囲に関する部分は本決定が supersede する。
+Q3 (lockstep) と、ワークロード・閾値の改訂が人間手番である点は D437 のまま不変である。
+
+**研究状態への影響:** 本決定は certified 選択・材料レポート・試行台帳の**現在値を 1 件も変えない**。
+実 repository へ protocol artifact を追加しないためである。変わるのは launch certificate の
+受理集合の 1 点だけで、chain record pattern に合致する path が「未知 file」から
+「chain record」へ移る。現在その path に file は無いため、今日の launch 判定も変わらない。
+
+## D445. archive 名は位置文法で三値分類し、判別鍵を先頭ゼロにする (2026-08-16)
+
+**決定:** `docs/archive/worklog-*.md` のファイル名を、正規文法の完全一致で
+非採番 / 採番 / malformed の三値に分類する。日付 token と entry 番号 token の判別鍵は
+**先頭ゼロの有無**とする (日付 token は `0724` のように先頭ゼロを持ち、entry 番号は
+`[1-9][0-9]*` で先頭ゼロを持たない)。正規文法のいずれにも合わない名前は malformed として
+赤にし、「名乗らない」へ落とさない。
+
+**理由:**
+- 「entry 範囲を名乗らない」は全検査の免除であり、そこへ落ちる経路がそのまま gate の
+  迂回路になる。実際に敵対レビューが 2 度、範囲を名乗る破損 archive を免除側へ落とす名前を
+  構成した (MMDD を外す形と、phase を外す形)。どちらも README にファイル名さえ載っていれば
+  既存の到達性検査も通り、rc=0 のまま受理された。
+- 先頭ゼロを鍵にすると、4 桁の entry 番号 (1000 以上) を MMDD と取り違えない。
+  桁数だけを見る規則はここで必ず破れる。
+- 免除を allowlist でなく構文条件で書くと、凍結済みの旧 archive (日付だけの名前、
+  `phase<lo>-<hi>` の phase 範囲名) を名指しせずに外せる。合成テスト fixture も
+  「entry 番号の形の token を持たない」という同じ構文条件で自然に外れる。
+
+**却下した選択肢:**
+- **桁数規則 (4 桁は日付、それ以外は entry)** — `worklog-phase3-0722-0724.md` を entry 範囲と
+  誤読する。この規則で書いた診断 script が重複 entry 番号 22 件の偽陽性を出して実証した。
+- **免除ファイル名の allowlist** — 凍結 archive を名指しすることになり、新しい破損名は
+  常に免除側へ落ちる。fail-open の方向に既定値がある。
+- **正規文法に合わない名前をすべて無条件 malformed にする** — `worklog-` で始まるだけの
+  合成 fixture 名 (数値 token を持たないもの) まで赤にし、既存テストを広範囲に巻き込む。
+  entry 番号の形の token を持つかどうかで切り分ければ、迂回路だけを塞げる。
+
+## D446. floor の publish 適格性を mode でなく実引数の seam 集合から導く (2026-08-16)
+
+**決定:** `s8b_floor_campaign` の `eligible_for_refreeze` は `mode` 一語から導かない。
+`_run_campaign_core` の入口で raw 実引数から非既定 seam 集合を算出し、
+「canonical plain str の `"official"` **かつ** `resume_dir is None` **かつ** 非既定 seam ゼロ」
+のときだけ真とする。判定値は caller が渡せる引数にせず、`assemble_result` は常に偽を生成し、
+core 内の引数を取らない finalizer だけが上書きする。
+seam 集合の定義は public wrapper の拒否表と同じ helper を単一源とする。
+
+**理由:**
+
+- 従来は private core へ外部 measure を注入した実行でも、通常の `result.json` が
+  refreeze 適格として発行できた。外部 measure は attempt marker を 1 件消費するだけで
+  callback 内の spawn 回数を数えられず、選別した値を載せられる。
+  下流 (`s8b_ratified_freeze` / `s8b_holdout_freeze`) はこの 1 bit しか検査しない。
+  これは規律 2 の直接の攻撃面である。
+- 旧式に条件を追加するだけなので、今まで偽だったものが真になることはない。
+  受理集合は縮小方向にしか動かない。
+- 判定を caller 引数から外したので、`assemble_result` を直接呼ぶ経路から
+  真の artifact を作れない。
+
+**却下した選択肢:**
+
+- **gateway 観測証跡の in-process 台帳を publish の必須条件にする** — 段 2 プランの中核だったが、
+  外部 measure を使う実行は seam 集合だけで必ず偽になるため純増検出力がゼロで、
+  既定 measure では `run_once` が subprocess より前に allowance を消費し rep 失敗でも
+  残 rep を回すため事実上つねに真になる。恒真に近い保証であり、
+  module 属性差し替えには seam 集合と同様に耐えられない。
+  台帳を artifact へ載せない以上、下流も再検証できない。
+- **result へ証跡 field を足す** — 下流が result の key 集合を exact に検査しており、
+  field 追加は consumer 変更なしでは拒否される。durable で下流が検証できる証跡は別タスクの所有。
+- **警告を出して通す・flag や環境変数で無効化できる形** — 受理集合を緩める方向であり、
+  攻撃面そのものなので採らない。
+
+## D447. 権威 artifact を補助 artifact より後に publish する (2026-08-16)
+
+**決定:** floor campaign の二相 finalize では、補助の `result.md` を先に、
+consumer の権威である `result.json` を最後に publish する。
+
+**理由:**
+
+- publish 適格性を fresh・seam ゼロへ束縛した結果、二つの publish の間で停止すると、
+  真の `result.json` が残る一方で resume は偽を再構成して bytes 不一致で停止するため、
+  真を撤回できなくなる。下流の ratified consumer は `result.md` を閉包に含めないので、
+  この取り残しをそのまま受理できてしまう。
+- 権威ファイルを最後にすれば、中断で可視になるのは補助ファイルだけになる。
+  一般に、閉包に入る権威 artifact は閉包外の補助 artifact より後に可視化するのが安全側である。
+
+**却下した選択肢:**
+
+- **resume 側で取り残しを回収して撤回する** — 撤回のために既 publish の権威 bytes を
+  書き換える経路を作ることになり、create-only の不変条件を壊す。
+- **下流の閉包へ `result.md` を足す** — consumer の受理条件を増やす変更であり、
+  producer 側の順序 1 行で閉じるものに対して過大である。
+
+## D448. 同一 interpreter 内の argument 境界に monkeypatch 耐性を主張しない (2026-08-16)
+
+**決定:** 実引数から導く publish gate は、**supported API 経由の経路**を閉じるものとして記録する。
+同一 interpreter 内での module 属性差し替えに対する耐性は主張しない。
+docstring と台帳へ既知限界として明記する。
+
+**理由:**
+
+- 同一 interpreter 内の module 属性差し替えは任意コード実行と同値であり、
+  引数を検査するどんな gate でも防げない。防げると書けば、謳うだけで発火しない保証になる。
+- 実際に、既定 callable を module 属性経由で差し替えてから同じ実体を引数に渡すと
+  identity 比較を迂回できた。import 時の private sentinel で この経路は塞いだが、
+  これは限界を縮めただけであり、耐性の証明ではない。
+
+**却下した選択肢:**
+
+- **「publish 経路を閉じた」と無条件に記録する** — 実態より強い主張になり、
+  後続が耐性を前提に設計してしまう。
+
+## D449. snapshot base は BASE 閉包だけを転送し、upload-pack の受理方針に依存しない (2026-08-16)
+
+**決定:** `tools/codex_reasoning_ab.py` の `_build_snapshot_base` は、実 repository 全体を
+clone してから seal で捨てる形をやめ、`git init` →
+`git pack-objects --revs --stdout`(BASE 固定 commit) → `git index-pack --stdin --fix-thin` →
+`git update-ref` の 4 操作で **BASE 閉包だけを転送する**。
+`git fetch` に生 SHA を渡す案は採らない。
+
+**理由:**
+- 旧構造は全履歴をコピーしてから `repack -Ad` で固定 commit 到達分だけを残していた。
+  転送も repack も commit 数に比例するのに、残す量は固定である。
+  親の実測 (静かな窓、3 走中央値) で root seal 26.30 秒 → 0.33 秒、
+  `_build_snapshot_base` 35.02 秒 → 10.31 秒になった。
+- `git fetch` に生 SHA を渡す案は同等に速いが、upload-pack が「到達可能な生 SHA の want」を
+  受ける挙動に依存する。元 repository に `uploadpack.allowAnySHA1InWant` /
+  `allowReachableSHA1InWant` の設定は無く、文書上の既定は false である。
+  親も子も rc=0 の一意な理由を確定できなかった。`pack-objects` は upload-pack を経由せず
+  source の object database を直接歩くので、この不確実性を構造的に持たない。
+- 転送方式を変えても closure の観測値は 1 つも変わらない
+  (reason 0 件 / object 8,209 / commit 834 / `.git` 35,132 KB /
+  commit-graph 不在 / 残留 pseudo ref 0 件、9 走 + 改修後 1 走で一致)。
+
+**却下した選択肢:**
+- `git clone --local` の hardlink — snapshot 先が別 filesystem のため hardlink は成立せず、
+  git は copy へ fallback する。速度が変わらない。
+- shallow clone — `.git/shallow` を残す。snapshot は自己完結でなければならない。
+- 現状維持 + 保留 — 共有 module fixture は consumer が 1 本でも走れば丸ごと構築されるので、
+  保留を足しても構築費は 1 円も減らない。
+
+## D450. snapshot の closure 検査は非空の shallow 境界を拒否する (2026-08-16)
+
+**決定:** `_one_git_closure_reasons` の `closure_paths` へ `shallow` を足し、
+非空の `.git/shallow` を reason にする。既存 6 種 (reflog / replace refs / alternates /
+http-alternates / grafts / packed-refs) と同じ扱いとする。
+受理集合を縮小する変更なので、正常 snapshot が reason 0 件で通る正例と、
+shallow を置くと単一の reason が出る負例を対で置く。
+
+**理由:**
+- `.git/shallow` は seal も verifier も列挙しておらず、`git fsck` も shallow 境界を
+  正当な履歴端として扱う。HEAD・working tree の hash・ref を変えないまま
+  **commit 数だけ減らした snapshot を `git_object_closure.base_only=true` のまま通せる**
+  唯一の経路だった。
+- 本 wave の中心的な主張が「object 閉包が固定 commit の閉包と同一」である以上、
+  その主張を機械検査を通り抜けたまま偽にできる経路を残せない。1 行の fail-closed で塞げる。
+- 転送方式の変更自体は shallow を作らない。既存の穴であり、本 wave が広げたものではない。
+
+**却下した選択肢:**
+- 新設テストの assert だけで済ませる — 新設 node は synthetic repository を見るだけで、
+  production の verifier が実 snapshot を受理する経路は塞がらない。
+- lstat 基底への全面移行 — dangling symlink の抜け道は `shallow` に固有ではなく
+  既存 6 種と共通なので、別裁定へ送る。本決定の射程を広げない。
+
+## D451. 成長比例の保留は、その防壁を守る最後の走行 node には掛けない (2026-08-16)
+
+**決定:** 恒久保留 (D335) の対象を選ぶとき、**保留すると当該防壁を守る既定走行 node が
+ゼロになる**場合は保留しない。費用の比例源が別軸で除去できるなら、そちらを先に行う。
+保留しなかった事実と理由は保留一覧へ書き、ユーザー提示に含める。
+
+**理由:**
+- 本 wave では共有 module fixture の consumer 17 本のうち 14 本が既に保留済みで、
+  残り 3 本を保留すれば構築費は消えるが、clean な `verify_snapshot` を呼ぶ既定 node が
+  ゼロになる。失うのは closure reason 集合の全部と forbidden object 検査、
+  sandbox / Git 環境 scrub の検査である。規律 2 は性能のために検査を消すことを禁じる。
+- 提示された比例軸 (session corpus) の親実測は 0.13 秒であり、
+  35 秒を占めていたのは同 wave で除去した別軸だった。**0.13 秒の軸のために
+  防壁を消す取引は成立しない。** 軸ごとの実測なしに保留を決めてはならない。
+- module scope の fixture は consumer が 1 本でも走れば丸ごと構築される。
+  部分保留は検出力だけを削って費用を残す純損失になる。
+
+**却下した選択肢:**
+- 3 本とも保留して費用を消す — 上記のとおり防壁が全滅する。
+- 2 本だけ保留する — 残り 1 本が fixture を構築するので費用は下がらず、検出力だけ減る。
+- 保留せず費用も放置する — 比例源を別軸で除去できたので不要。
+
+## D452. 変異の期待赤 node は、既定で走り、かつ失敗として記録できる node に限る (2026-08-16)
+
+**決定:** 変異事前登録の `expected_nodes` には、(a) 恒久保留などで既定 skip されない node、
+(b) 変異時に **error でなく failure** として記録される node、
+(c) `xdist_group` に属さない node だけを使う。
+いずれかを満たせない性質は、満たす node へ実効 gate を再照準するか、
+登録せず親の直接実測で裏を取って記録する。
+
+**理由:**
+- 保留が広く効いている repository では、子が挙げた期待 node が skip され、
+  変異は必ず SURVIVED になる。本 wave の初回登録は 6 件中 4 件がこれに該当した。
+- 共有 module fixture を壊す変異は consumer を **error** にする。変異 harness の
+  失敗 node 抽出は短縮要約の `FAILED ` 行しか読まないので、error だけの走行からは
+  node を 1 件も取り出せず PARSE_ERROR になる。
+- `xdist_group` に属する node は、collection 空間では接尾辞を持たず、
+  失敗要約では `@<group>` 接尾辞を持つ。harness の事前検査は前者を要求し、
+  突き合わせは後者を要求するため、**両方を同時に満たす記述が存在しない。**
+- 3 条件はいずれも「変異が生きているのに緑に見える」方向へ倒れるので、
+  事前に排除しないと変異検査そのものが無意味になる。
+
+**却下した選択肢:**
+- 保留を一時解除して走らせる — 解除条件はユーザーの明示命令のみである。
+- 期待 node を空にして SURVIVED 期待にする — 検出力の主張ができない。
+- harness 側を先に直す — 受理集合を変える改修であり、本 wave の scope 外。別途起票する。
+
+## D453. build cell admission の契約上の失敗を診断可能な partial report へ変換し、免除の根拠を verifier の独立再導出に置く (2026-08-16)
+
+**決定:**
+
+1. `p3_autonomous_workload_trial._finalize_cell_admission` は
+   `_finalize_build_cell_admission` 由来の **`AutonomousTrialError` だけ**を捕捉し、
+   exact な failure decision へ変換して `partial` report を publish する。
+   `KeyError` 等の予期しない例外は従来どおり伝播させ、report を残さない。
+   これは D217 の「例外境界: admission finalizer の失敗は回復させず伝播させ report を
+   publish しない」を**その部分だけ** supersede する。D217 が却下した
+   「後始末で admission が無い cell を推測して再確定する」は維持し、
+   report 構築直前の decision 欠落 fail-closed 検査も変更しない。
+
+2. **failure decision は自己申告として信用しない。**
+   `assert_campaign_layer3_chain` は failure decision を見て検査を飛ばしてはならず、
+   免除の前に verifier 自身が次の 2 つを**独立に再導出**する。
+   (i) `campaign_root/reports/layer3_report.json` が存在しない、
+   (ii) `require_admitted_campaign(campaign_root, CERTIFIED_ACCEPTANCE)` が
+   `ArtifactAdmissionError` を送出する。
+   どちらかが偽なら **拒否する**。campaign identity を持たない fallback cell の免除は、
+   producer が実際に作る exact shape (identity key 不在・空 generations・
+   `stop_reason=supervisor-error`・critic 破棄件数 0) に閉じる。
+
+3. **新しい journal event を作らない。** 失敗の durable な記録は既存 `run-finish` event へ
+   exact projection として持たせ、完全性検査が report の cell decision と完全一致で照合する。
+
+4. **generation accounting は緩和しない。** failure 経路で accounting event を新規に「追加」しない。
+   ただし harness 成功後に admission が失敗した場合に限り、
+   **未確定の pending accounting を既存 literal `partial-generation` で 1 回だけ「確定」する**。
+   代償として、critic 破棄件数 1 が指す最終 generation の accounting へ
+   `partial-generation` 完全一致を要求する。
+
+5. **certifying 経路は 1 文字も変えない。** `layer3_report` の certifying 判定と
+   完全性検査の certifying 要求は `admission_status == "admitted"` の完全一致のままとする。
+   trial status は producer と verifier が同一の positive 述語を共有し、
+   build cell が全件 admitted でなければ `complete` にしない。
+
+6. **top-level report schema の版は上げない。** nested decision の union を増やすだけとする。
+
+**理由:**
+
+- 完全性検査は「書かれた report を後から検証するもの」ではなく **report を書くこと自体の関門**
+  である (F332)。同型の関門がその手前の cell admission にも残っており、
+  実機の自律試行で role 出力が 1 回壊れるたびに試行台帳が丸ごと欠落していた。
+  `run-finish` が指す report path は存在しないまま残り、診断材料は attempt journal だけになる。
+- 免除の根拠を cell dict の自己申告に置くと、**admission 成功後に positive decision を
+  failure 形へ置換する単一変異が生存し、Layer 3 chain 検査を丸ごと迂回できる**。
+  独立再導出にすると、置換された cell の campaign は実体として admitted のままなので必ず落ちる。
+  段 3 の敵対レンズがこの経路を指摘し、変異 matrix で kill を実証した。
+- 新しい journal event を足すと terminal event の配置契約 (terminal は `run-finish` の直前) を
+  巻き込む。F332 の恒久対応が 6 面同時になったのはこの連鎖が理由であり、既存 event への
+  projection なら配置契約に触れずに済む。
+- pending accounting を確定しないと accounting bijection が落ち、
+  harness 成功後の admission 失敗だけが救えなくなる。新しい状態値は導入していない。
+
+**却下した選択肢:**
+
+- **failure cell を report から落とす** — 診断が消える。目的そのものに反する。
+- **`Exception` 一括で report 化する** — fail-closed 境界を広げる。
+  予期しないプログラミング例外まで「正常な失敗」に見せかけることになる。
+- **failure 用に新しい accounting 状態 (`pending-pre-invoke-failure` 等) を要求する** —
+  producer が生成しない形を verifier が要求することになり、実測された実失敗
+  (role-invalid 経路、accounting は既に `partial-generation`) が**また拒否される**。
+  段 3 の 2 レンズが独立にこれを指摘した。
+- **失敗記録用の journal event を新設する** — terminal 配置契約と event 閉集合を同時に
+  変えることになり、受理集合の変更面が本 wave の目的を超えて広がる。
+- **report schema を v4 へ上げる** — 既存 artifact と fixture の受理集合が大きく変わる一方、
+  nested decision の union だけなら旧 consumer は影響を受けない。
+
+## D454. 孤児 job の後始末は「残っているかもしれない」を唯一の署名とし、create-only latch で 4 層を止める (2026-08-16)
+
+**決定:** D142 の gate が qdel を見送った場合の後始末を、dispatch receipt の
+`qdel.job_may_remain is True` **だけ**を署名とする create-only latch
+(`output/pegasus-dispatch/orphan-hold.json`) で表現する。免除条項は置かない。
+成立中は次の 4 経路を fail-closed で止める。
+
+1. 次回投入 — 既存 F47 ラッチ検査の直後、nonce 作成と scheduler command より前に拒否する。
+2. 変異 source の復元 — 変異 harness は変異 bytes を残したまま停止し、別 file の停止記録を書く。
+3. 変異 worktree の廃棄 — 通常経路と plan-only 例外 fallback の双方で container を保全する。
+4. 受入赤の再確認 probe の掃除 — worktree 強制削除も成果物削除も行わず判定不能で止める。
+
+qsub の結果を観測できないまま抜ける経路でも latch を先に作り、request ID の照会は後に行う。
+**この決定は qdel を実行する経路を 1 本も増やさない。**
+
+変異 harness は dispatcher の生存に依存せず、(a) latch の存在、(b) dispatch 試行の timeout、
+(c) receipt 由来の `job_may_remain` / hold 書込み失敗を独立に判定する。latch を書けなかった場合と
+dispatcher が強制終了された場合を、この二重化が塞ぐ。
+
+**latch 自体を書けない storage 障害では、harness が書く停止記録 `<--out>.orphan-stop.json` が
+権威になる。** この記録が残る限り harness は fresh でも `--resume` でも runner を 1 本も起動せず、
+変異 worktree も container を保全する。判定不能 (`lstat` の `OSError`) は成立側へ倒す。
+
+**理由:**
+- 不在・終端の「実証」に見える観測は偽陽性になりうる。照会が rc=0 でも対象が見えないのは
+  投入直後の未反映と区別できず、監視ループの終端観測は対象非束縛 parser 由来のことがある。
+  段 3 の敵対レンズが既存テストの固定値からこの false negative を実証した。
+- D142 の非対称性 (走行中を殺すと受入証拠が失われて取り戻せない / 止め過ぎは人間が確認して
+  解除できる) を、qdel の可否だけでなく後始末側へそのまま延長する。
+- 計算ノードの job は login 側 checkout の source をその場で読む。孤児が生きている間に
+  復元・再変異・削除を行うと、変異台帳の「注入して走らせた」記録と実際に走った bytes が
+  食い違い、KILLED / SURVIVED の判定値そのものが誤りになる。
+
+**保証の射程:** latch は latch であって相互排他 lock ではない。同一 checkout で harness を
+経由しない並行 dispatch を運用上作らない契約の下でのみ、後続 consumer を止める。
+qsub 前の永続 claim を作らないため、SIGKILL と照会中の再 signal の窓は残る。
+保護範囲は `dispatch_compute` 経由の dispatch と変異 harness / 受入 checker に限り、
+直接 qsub する submit script 群、campaign の patch harness、local 実行経路は対象外である。
+これらは謳わず、実装の docstring・停止記録・runbook で射程を明示する。
+
+**却下した選択肢:**
+- 免除条項つきの署名 (照会で不在 / 終端観測を安全側とする) — 上記の偽陽性で false negative になる。
+- qsub 前の永続 claim を本 wave で導入する案 — 解決 (削除) 経路を新設することになり、
+  その経路の欠陥が全 dispatch を恒久停止させる。解除の安全性設計を先に済ませる別作業とした。
+- F47 の submission-disabled ラッチへ相乗りする案 — 原因も回復手順も異なり、
+  既存 F47 の受理集合と文言を変える。
+- 過去 receipt の走査で孤児を判定する案 — 既存の孤児 receipt が残る checkout では
+  dispatch を永久に封じる。evidence の再実体化で worktree を分けても隔離されない。
+- 停止記録を通常の変異台帳へ上書きする案 — 保全した campaign の `--resume` が
+  schema 不一致で必ず失敗し、一時停止が campaign 再作成へ悪化する。

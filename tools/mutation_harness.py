@@ -29,6 +29,9 @@ from typing import Any
 SPEC_SCHEMA = "izanagi-dev-wave-mutation-spec/v1"
 LEDGER_SCHEMA = "izanagi-dev-wave-mutation/v4"
 ATTEMPT_SCHEMA = "izanagi-dev-wave-mutation-attempts/v1"
+ORPHAN_STOP_SCHEMA = "izanagi-dev-wave-mutation-orphan-stop/v1"
+ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
+ORPHAN_HOLD_NAME = "orphan-hold.json"
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RECEIPT_LINE_RE = re.compile(
     r"^\[Pegasus dispatch\] receipt を (.+) へ保存しました \(child rc=(-?\d+)\)$"
@@ -126,12 +129,189 @@ class HarnessError(RuntimeError):
     """検査の信頼性を維持できない場合の fail-closed 停止。"""
 
 
+class OrphanHoldStop(HarnessError):
+    """dispatch job が残り得るため source を保全して停止する。"""
+
+    def __init__(
+        self,
+        *,
+        phase: str,
+        mutation_id: str | None,
+        hold_path: Path,
+        source_state: str,
+        dirty_paths: Sequence[str],
+        active_record: dict[str, Any] | None = None,
+        hold_error: str | None = None,
+        origin_error_type: str | None = None,
+        origin_error_message: str | None = None,
+        verification_error_type: str | None = None,
+        verification_error_message: str | None = None,
+    ) -> None:
+        self.phase = phase
+        self.mutation_id = mutation_id
+        self.hold_path = hold_path
+        self.source_state = source_state
+        self.dirty_paths = tuple(sorted(dirty_paths))
+        self.active_record = active_record
+        self.hold_error = hold_error
+        self.origin_error_type = origin_error_type
+        self.origin_error_message = origin_error_message
+        self.verification_error_type = verification_error_type
+        self.verification_error_message = verification_error_message
+        super().__init__(f"orphan hold: phase={phase}, hold={hold_path}")
+
+    def record_origin_error(self, exc: BaseException) -> None:
+        self.origin_error_type = type(exc).__name__
+        self.origin_error_message = str(exc)
+
+    def record_verification_error(self, exc: BaseException) -> None:
+        self.verification_error_type = type(exc).__name__
+        self.verification_error_message = str(exc)
+
+
 class SignalAbort(BaseException):
-    """SIGINT/SIGTERM を unwind へ変換し、親側の復元を必ず通す。"""
+    """SIGINT/SIGTERM を unwind へ変換し、親側の復元判断を必ず通す。"""
 
     def __init__(self, signum: int) -> None:
         self.signum = signum
+        self.orphan_stop: OrphanHoldStop | None = None
         super().__init__(f"signal {signum}")
+
+
+def _dispatch_orphan_hold_path(repo: Path) -> Path:
+    return repo / "output" / "pegasus-dispatch" / ORPHAN_HOLD_NAME
+
+
+def _path_present_fail_closed(path: Path) -> bool:
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _write_json_create_only(path: Path, document: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            descriptor = -1
+            json.dump(document, stream, ensure_ascii=False, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _latch_dispatch_orphan_hold(
+    repo: Path,
+    *,
+    phase: str,
+    mutation_id: str | None,
+    result: dict[str, Any],
+    reason: str,
+) -> tuple[Path, str | None]:
+    path = _dispatch_orphan_hold_path(repo)
+    request = result.get("request")
+    request = request if isinstance(request, dict) else {}
+    payload = {
+        "schema_version": ORPHAN_HOLD_SCHEMA,
+        "reason": reason,
+        "submission_dir": request.get("submission_dir"),
+        "request_id": request.get("request_id"),
+        "job_name": None,
+        "qdel": {
+            "job_may_remain": True,
+            "attempted": False,
+            "returncode": None,
+            "exception": None,
+            "gate": {"reason": reason},
+        },
+        "source": {
+            "producer": "mutation-harness",
+            "phase": phase,
+            "mutation_id": mutation_id,
+        },
+        "recovery": {
+            "order": (
+                "qstat で対象の不在または終端を確認し、dirty source を復元し、"
+                "clean/HEAD を確認してから hold を手動削除する"
+            ),
+            "manual-qdel-warning": (
+                "手動 qdel は F47 の submission-disabled.json を武装させ、"
+                "その解除もユーザー手番になる"
+            ),
+        },
+    }
+    try:
+        _write_json_create_only(path, payload)
+    except FileExistsError:
+        return path, None
+    except OSError as exc:
+        return path, f"{type(exc).__name__}: {exc}"
+    return path, None
+
+
+def _dispatch_orphan_stop(
+    repo: Path,
+    *,
+    runner_mode: str,
+    phase: str,
+    mutation_id: str | None,
+    source_state: str,
+    dirty_paths: Sequence[str],
+    result: dict[str, Any] | None = None,
+) -> OrphanHoldStop | None:
+    if runner_mode != "dispatch":
+        return None
+    hold = _dispatch_orphan_hold_path(repo)
+    hold_error: str | None = None
+    timed_out = result is not None and result.get("timed_out") is True
+    receipt_requires_hold = result is not None and (
+        result.get("job_may_remain") is True
+        or result.get("hold_error") is not None
+    )
+    if timed_out or receipt_requires_hold:
+        if not _path_present_fail_closed(hold):
+            hold, hold_error = _latch_dispatch_orphan_hold(
+                repo,
+                phase=phase,
+                mutation_id=mutation_id,
+                result=result,
+                reason=(
+                    "dispatch-runner-timeout"
+                    if timed_out
+                    else "dispatch-receipt-job-may-remain"
+                ),
+            )
+        return OrphanHoldStop(
+            phase=phase,
+            mutation_id=mutation_id,
+            hold_path=hold,
+            source_state=source_state,
+            dirty_paths=dirty_paths,
+            active_record=result,
+            hold_error=hold_error,
+        )
+    if _path_present_fail_closed(hold):
+        return OrphanHoldStop(
+            phase=phase,
+            mutation_id=mutation_id,
+            hold_path=hold,
+            source_state=source_state,
+            dirty_paths=dirty_paths,
+            active_record=result,
+        )
+    return None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1113,6 +1293,16 @@ def _collect_expected_nodes(
     attempt_recorder: AttemptRecorder | None = None,
 ) -> dict[str, Any]:
     _assert_only_expected_dirt(repo, head, ())
+    stop = _dispatch_orphan_stop(
+        repo,
+        runner_mode=runner_mode,
+        phase="collection",
+        mutation_id=None,
+        source_state="unchanged",
+        dirty_paths=(),
+    )
+    if stop is not None:
+        raise stop
     result = _run_tests(
         repo,
         _collection_command(repo, command, runner_mode),
@@ -1121,6 +1311,17 @@ def _collect_expected_nodes(
         attempt_recorder=attempt_recorder,
         attempt_phase="collection" if attempt_recorder is not None else None,
     )
+    stop = _dispatch_orphan_stop(
+        repo,
+        runner_mode=runner_mode,
+        phase="collection",
+        mutation_id=None,
+        source_state="unchanged",
+        dirty_paths=(),
+        result=result,
+    )
+    if stop is not None:
+        raise stop
     output = result.get("job_stdout", "")
     collected = _collected_nodes(output, repo)
     if (
@@ -1196,30 +1397,40 @@ def _read_dispatch_stdout(console_output: str, repo: Path, rc: int) -> dict[str,
     if not isinstance(receipt, dict):
         return {"artifact_error": "receipt JSON root が object でない"}
 
+    qdel = receipt.get("qdel")
+    qdel = qdel if isinstance(qdel, dict) else {}
+    orphan_fields = {
+        "job_may_remain": qdel.get("job_may_remain"),
+        "hold_error": qdel.get("hold_error"),
+    }
+
+    def artifact_error(message: str) -> dict[str, Any]:
+        return {"artifact_error": message, **orphan_fields}
+
     submission_value = receipt.get("submission_dir")
     if not isinstance(submission_value, str):
-        return {"artifact_error": "receipt.submission_dir が文字列でない"}
+        return artifact_error("receipt.submission_dir が文字列でない")
     try:
         submission_dir = Path(submission_value).resolve(strict=True)
     except OSError as exc:
-        return {"artifact_error": f"submission_dir を開けない: {exc}"}
+        return artifact_error(f"submission_dir を開けない: {exc}")
     if (
         not submission_dir.is_dir()
         or not _path_within(submission_dir, dispatch_root)
         or (receipt_path.name == "receipt.json" and receipt_path.parent != submission_dir)
     ):
-        return {"artifact_error": "receipt と submission_dir の束縛が不正"}
+        return artifact_error("receipt と submission_dir の束縛が不正")
     outcome = receipt.get("outcome")
     receipt_rc = outcome.get("rc") if isinstance(outcome, dict) else None
     if receipt_rc != rc:
-        return {"artifact_error": f"receipt outcome rc={receipt_rc!r} と rc={rc} が不一致"}
+        return artifact_error(f"receipt outcome rc={receipt_rc!r} と rc={rc} が不一致")
     request = receipt.get("request")
     request_id = receipt.get("request_id")
     if not isinstance(request, dict) or not isinstance(request_id, str):
-        return {"artifact_error": "receipt request/request_id が不正"}
+        return artifact_error("receipt request/request_id が不正")
     job_name = request.get("job_name")
     if not isinstance(job_name, str) or re.fullmatch(r"izdw-[A-Za-z0-9._-]+", job_name) is None:
-        return {"artifact_error": "receipt request.job_name が不正"}
+        return artifact_error("receipt request.job_name が不正")
     numeric_request_id = request_id.rstrip(".").split(".", 1)[0]
     expected_names = {
         f"{job_name}.o{numeric_request_id}",
@@ -1229,27 +1440,28 @@ def _read_dispatch_stdout(console_output: str, repo: Path, rc: int) -> dict[str,
     stdout_record = logs.get("stdout") if isinstance(logs, dict) else None
     stdout_value = stdout_record.get("path") if isinstance(stdout_record, dict) else None
     if not isinstance(stdout_value, str):
-        return {"artifact_error": "receipt scheduler_logs.stdout.path がない"}
+        return artifact_error("receipt scheduler_logs.stdout.path がない")
     raw_stdout = Path(stdout_value)
     try:
         if raw_stdout.is_symlink():
             raise OSError("job stdout が symlink")
         stdout_path = raw_stdout.resolve(strict=True)
     except OSError as exc:
-        return {"artifact_error": f"job stdout を開けない: {exc}"}
+        return artifact_error(f"job stdout を開けない: {exc}")
     if (
         not stdout_path.is_file()
         or stdout_path.parent != submission_dir
         or JOB_STDOUT_RE.fullmatch(stdout_path.name) is None
         or stdout_path.name not in expected_names
     ):
-        return {"artifact_error": f"job stdout の path/name 束縛が不正: {stdout_path}"}
+        return artifact_error(f"job stdout の path/name 束縛が不正: {stdout_path}")
     try:
         job_stdout = stdout_path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
-        return {"artifact_error": f"job stdout を読めない: {exc}"}
+        return artifact_error(f"job stdout を読めない: {exc}")
     return {
         "artifact_error": None,
+        **orphan_fields,
         "receipt_path": str(receipt_path),
         "job_stdout_path": str(stdout_path),
         "job_stdout": job_stdout,
@@ -1465,6 +1677,16 @@ def _baseline(
     attempt_recorder: AttemptRecorder | None = None,
 ) -> dict[str, Any]:
     _assert_only_expected_dirt(repo, head, ())
+    stop = _dispatch_orphan_stop(
+        repo,
+        runner_mode=runner_mode,
+        phase="baseline",
+        mutation_id=None,
+        source_state="unchanged",
+        dirty_paths=(),
+    )
+    if stop is not None:
+        raise stop
     result = _run_tests(
         repo,
         command,
@@ -1473,6 +1695,17 @@ def _baseline(
         attempt_recorder=attempt_recorder,
         attempt_phase="baseline" if attempt_recorder is not None else None,
     )
+    stop = _dispatch_orphan_stop(
+        repo,
+        runner_mode=runner_mode,
+        phase="baseline",
+        mutation_id=None,
+        source_state="unchanged",
+        dirty_paths=(),
+        result=result,
+    )
+    if stop is not None:
+        raise stop
     output = result.get("job_stdout", "")
     try:
         failed = _failed_nodes(output, repo)
@@ -1529,6 +1762,16 @@ def _apply_mutation(
 ) -> dict[str, Any]:
     _assert_head(repo, head)
     _verify_originals(repo, originals)
+    stop = _dispatch_orphan_stop(
+        repo,
+        runner_mode=runner_mode,
+        phase="mutation",
+        mutation_id=mutation.id,
+        source_state="unchanged",
+        dirty_paths=(),
+    )
+    if stop is not None:
+        raise stop
     mutated, diff, counts = _mutated_sources(mutation, originals)
     diff_sha256 = hashlib.sha256(diff.encode("utf-8")).hexdigest()
     if (
@@ -1537,6 +1780,11 @@ def _apply_mutation(
     ):
         raise HarnessError(f"{mutation.id}: preflight と実適用の injection evidence が不一致")
     touched = tuple(sorted(mutated))
+    pending_stop: OrphanHoldStop | None = None
+    signal_abort: SignalAbort | None = None
+    origin_error: BaseException | None = None
+    injection_complete = False
+    result: dict[str, Any] | None = None
     try:
         for rel in touched:
             target = repo / rel
@@ -1548,6 +1796,17 @@ def _apply_mutation(
                 raise HarnessError(f"{mutation.id}: 注入 read-back が不一致: {rel}")
         _purge_pycache(repo, touched)
         _assert_only_expected_dirt(repo, head, touched)
+        injection_complete = True
+        pending_stop = _dispatch_orphan_stop(
+            repo,
+            runner_mode=runner_mode,
+            phase="mutation",
+            mutation_id=mutation.id,
+            source_state="mutation-left-in-place",
+            dirty_paths=touched,
+        )
+        if pending_stop is not None:
+            raise pending_stop
         timeout_s = (
             spec.hang_timeout_seconds if mutation.hang_risk else spec.timeout_seconds
         )
@@ -1560,6 +1819,17 @@ def _apply_mutation(
             attempt_phase="mutation" if attempt_recorder is not None else None,
             mutation_id=mutation.id if attempt_recorder is not None else None,
         )
+        pending_stop = _dispatch_orphan_stop(
+            repo,
+            runner_mode=runner_mode,
+            phase="mutation",
+            mutation_id=mutation.id,
+            source_state="mutation-left-in-place",
+            dirty_paths=touched,
+            result=result,
+        )
+        if pending_stop is not None:
+            raise pending_stop
         output = result.get("job_stdout", "")
         try:
             failed = _failed_nodes(output, repo)
@@ -1599,9 +1869,56 @@ def _apply_mutation(
             "tool_sha256": tool_sha256,
             "collection_sha256": collection_sha256,
         }
+    except BaseException as exc:
+        if isinstance(exc, SignalAbort):
+            signal_abort = exc
+        if exc is not pending_stop:
+            origin_error = exc
+        raise
     finally:
-        _restore_targets(repo, {rel: originals[rel] for rel in touched})
-        _assert_head(repo, head)
+        hold_present = (
+            runner_mode == "dispatch"
+            and _path_present_fail_closed(_dispatch_orphan_hold_path(repo))
+        )
+        preserve = pending_stop is not None or hold_present
+        if preserve:
+            verification_error: BaseException | None = None
+            try:
+                _assert_only_expected_dirt(repo, head, touched)
+                _assert_head(repo, head)
+                if injection_complete:
+                    for rel in touched:
+                        if (repo / rel).read_text(encoding="utf-8") != mutated[rel]:
+                            raise HarnessError(
+                                f"{mutation.id}: orphan hold 後の変異 bytes が不一致: {rel}"
+                            )
+            except BaseException as exc:
+                verification_error = exc
+            had_pending_stop = pending_stop is not None
+            if pending_stop is None:
+                pending_stop = OrphanHoldStop(
+                    phase="mutation",
+                    mutation_id=mutation.id,
+                    hold_path=_dispatch_orphan_hold_path(repo),
+                    source_state="mutation-left-in-place",
+                    dirty_paths=touched,
+                    active_record=result,
+                )
+            if origin_error is not None:
+                pending_stop.record_origin_error(origin_error)
+            if verification_error is not None:
+                pending_stop.record_verification_error(verification_error)
+            if signal_abort is not None:
+                signal_abort.orphan_stop = pending_stop
+            elif origin_error is not None:
+                raise pending_stop from origin_error
+            elif verification_error is not None:
+                raise pending_stop from verification_error
+            elif not had_pending_stop:
+                raise pending_stop
+        else:
+            _restore_targets(repo, {rel: originals[rel] for rel in touched})
+            _assert_head(repo, head)
 
 
 def _summary(spec: MutationSpec, records: Sequence[dict[str, Any]]) -> dict[str, int]:
@@ -2087,6 +2404,91 @@ def _write_ledger(path: Path, ledger: dict[str, Any]) -> None:
     _write_json_atomic(path, ledger)
 
 
+def _orphan_stop_path(ledger_path: Path) -> Path:
+    return Path(f"{ledger_path}.orphan-stop.json")
+
+
+def _orphan_stop_gate_message(path: Path) -> str:
+    hold_error: str | None = None
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        document = None
+    if isinstance(document, dict):
+        reason = document.get("reason")
+        if isinstance(reason, dict) and reason.get("hold_error") is not None:
+            hold_error = str(reason["hold_error"])
+    hold_error_detail = (
+        f"、reason.hold_error={hold_error}" if hold_error is not None else ""
+    )
+    return (
+        "orphan-stop sidecar が存在または判定不能のため停止: "
+        f"sidecar path={path}{hold_error_detail}。"
+        "復旧順序: 対象の不在または終端を確認 → dirty path の復元 → "
+        "clean/HEAD 確認 → hold と sidecar の手動削除"
+    )
+
+
+def _orphan_recovery(stop: OrphanHoldStop) -> str:
+    dirty = " ".join(stop.dirty_paths) if stop.dirty_paths else "<なし>"
+    return (
+        "qstat で対象の不在または終端を確認し、"
+        f"dirty path ({dirty}) を git checkout -- で復元し、"
+        "clean/HEAD を確認してから hold と sidecar を手動削除する。"
+        "手動 qdel は F47 ラッチを武装させ、その解除もユーザー手番になる。"
+    )
+
+
+def _write_orphan_stop_ledger(
+    path: Path,
+    *,
+    stop: OrphanHoldStop,
+    head: str,
+    spec_sha256: str,
+    ledger_path: Path,
+) -> None:
+    reason = {
+        "code": "orphan-hold",
+        "phase": stop.phase,
+        "mutation_id": stop.mutation_id,
+        "hold_path": str(stop.hold_path),
+        "source_state": stop.source_state,
+        "dirty_paths": list(stop.dirty_paths),
+        "recovery": _orphan_recovery(stop),
+    }
+    if stop.hold_error is not None:
+        reason["hold_error"] = stop.hold_error
+    if stop.origin_error_type is not None:
+        reason["origin_error_type"] = stop.origin_error_type
+        reason["origin_error_message"] = stop.origin_error_message
+    if stop.verification_error_type is not None:
+        reason["verification_error_type"] = stop.verification_error_type
+        reason["verification_error_message"] = stop.verification_error_message
+    _write_ledger(
+        path,
+        {
+            "schema": ORPHAN_STOP_SCHEMA,
+            "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "repo_head": head,
+            "spec_sha256": spec_sha256,
+            "reason": reason,
+            "ledger_path": str(ledger_path),
+            "active_record": stop.active_record,
+        },
+    )
+
+
+def _print_orphan_stop(stop: OrphanHoldStop) -> None:
+    dirty = ", ".join(stop.dirty_paths) if stop.dirty_paths else "なし"
+    print(
+        "mutation harness aborted: orphan-hold。"
+        f"変異を残した状態={stop.source_state}、dirty path={dirty}、"
+        f"hold path={stop.hold_path}。復旧順序: {_orphan_recovery(stop)}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def _lock_path_for(repo: Path) -> Path:
     key = hashlib.sha256(str(repo).encode("utf-8")).hexdigest()[:20]
     return Path(tempfile.gettempdir()) / f"izanagi-mutation-{key}.lock"
@@ -2192,6 +2594,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except OSError as exc:
         raise HarnessError(f"--repo を解決できない: {exc}") from exc
     out = args.out.resolve()
+    orphan_stop = _orphan_stop_path(out)
+    if _path_present_fail_closed(orphan_stop):
+        raise HarnessError(_orphan_stop_gate_message(orphan_stop))
     spec_path = args.spec.resolve()
     attempt_out = args.attempt_out.resolve() if args.attempt_out is not None else None
     _assert_runtime_artifacts_outside_repo(
@@ -2207,6 +2612,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"expected={expected_spec_sha256}, actual={spec_sha256}"
         )
     lock_stream = _lock_for(repo)
+    ledger: dict[str, Any] | None = None
+    head = ""
     try:
         head = _repo_head(repo)
         originals = _read_head_sources(repo, head, spec)
@@ -2250,7 +2657,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             if out.exists():
                 raise HarnessError("--out が既に存在する; 続行は --resume を明示する")
-            ledger = None
             collection = None
 
         completed_ids = (
@@ -2394,6 +2800,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         _verify_originals(repo, originals)
         _assert_head(repo, head)
         return 0 if all(record["matches_expectation"] for record in ledger["mutations"]) else 1
+    except OrphanHoldStop as stop:
+        _write_orphan_stop_ledger(
+            _orphan_stop_path(out),
+            stop=stop,
+            head=head,
+            spec_sha256=spec_sha256,
+            ledger_path=out,
+        )
+        _print_orphan_stop(stop)
+        return 2
+    except SignalAbort as exc:
+        if exc.orphan_stop is not None:
+            _write_orphan_stop_ledger(
+                _orphan_stop_path(out),
+                stop=exc.orphan_stop,
+                head=head,
+                spec_sha256=spec_sha256,
+                ledger_path=out,
+            )
+            _print_orphan_stop(exc.orphan_stop)
+        raise
     finally:
         lock_stream.close()
 
@@ -2402,10 +2829,18 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except SignalAbort as exc:
-        print(
-            f"mutation harness interrupted by signal {exc.signum}; active mutation restore attempted",
-            file=sys.stderr,
-        )
+        if exc.orphan_stop is None:
+            print(
+                f"mutation harness interrupted by signal {exc.signum}; "
+                "active mutation restore attempted",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"mutation harness interrupted by signal {exc.signum}; "
+                "orphan hold のため復元を意図的に見送り、変異を残した",
+                file=sys.stderr,
+            )
         raise SystemExit(128 + exc.signum)
     except HarnessError as exc:
         print(f"mutation harness aborted: {exc}", file=sys.stderr)

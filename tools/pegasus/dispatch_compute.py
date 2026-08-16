@@ -40,6 +40,8 @@ _TASK_RUN_ENV = "IZANAGI_TASK_RUN_ID"
 _TASK_RUN_ROOT_ENV = "IZANAGI_TASK_RUNS_ROOT"
 _TASK_RUN_SIDECAR_ENV = "IZANAGI_TASK_RUN_SIDECAR"
 _COMPUTE_MARKER_NAME = "compute-visible.json"
+_ORPHAN_HOLD_NAME = "orphan-hold.json"
+_ORPHAN_HOLD_SCHEMA = "pegasus-orphan-hold/v1"
 
 
 @dataclass(frozen=True)
@@ -976,6 +978,102 @@ def _latch_submission_disabled(
     return path
 
 
+def _orphan_hold_path(output_root: Path) -> Path:
+    return output_root / _ORPHAN_HOLD_NAME
+
+
+def _orphan_hold_present(output_root: Path) -> bool:
+    """hold は latch であり相互排他 lock ではない。判定不能も成立側へ倒す。"""
+
+    path = _orphan_hold_path(output_root)
+    try:
+        os.lstat(path)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _orphan_hold_required(qdel: Mapping[str, Any]) -> bool:
+    """既存 receipt field だけから保守的な hold 署名を判定する。"""
+
+    return qdel.get("job_may_remain") is True
+
+
+def _latch_orphan_hold(
+    output_root: Path,
+    *,
+    qdel: dict[str, Any],
+    submission_dir: Path,
+    request_id: Optional[str],
+    job_name: str,
+) -> Optional[Path]:
+    """job が残り得る証拠を create-only で保存する。
+
+    この file は lifecycle の相互排他ではない。同一 checkout で harness を
+    経由しない並行 dispatch を運用上作らない契約の下で、後続 consumer を
+    fail-closed に止める latch である。
+    """
+
+    if not _orphan_hold_required(qdel):
+        return None
+    gate = qdel.get("gate")
+    gate_reason = gate.get("reason") if isinstance(gate, Mapping) else None
+    returncode = qdel.get("returncode")
+    exception = qdel.get("exception")
+    path = _orphan_hold_path(output_root)
+    payload = {
+        "schema_version": _ORPHAN_HOLD_SCHEMA,
+        "reason": "job-may-remain-without-terminal-evidence",
+        "submission_dir": str(submission_dir),
+        "request_id": request_id,
+        "job_name": job_name,
+        "qdel": {
+            "job_may_remain": True,
+            "attempted": qdel.get("attempted") is True,
+            "returncode": returncode if type(returncode) is int else None,
+            "exception": exception if type(exception) is str else None,
+            "gate": {"reason": gate_reason if type(gate_reason) is str else None},
+        },
+        "recovery": {
+            "request-visible-active": (
+                "request_id を qstat で確認し、終端まで待つかユーザー自身が手動で対処する"
+            ),
+            "request-absent-or-terminal": (
+                "qstat で対象の不在または終端を確認してから dirty source を復元する"
+            ),
+            "qstat-unavailable": (
+                "scheduler を確認できるまで source と worktree と hold を保全する"
+            ),
+            "manual-qdel-warning": (
+                "手動 qdel は F47 の submission-disabled.json を武装させ、"
+                "その解除もユーザー手番になる"
+            ),
+            "final-step": "source の clean/HEAD を確認した後だけ hold を手動削除する",
+        },
+    }
+    try:
+        _write_json_x(path, payload)
+        _fsync_dir(output_root)
+    except FileExistsError:
+        return path
+    except OSError as exc:
+        qdel["hold_error"] = f"{type(exc).__name__}: {exc}"
+        print(
+            f"Pegasus orphan hold を {path} へ保存できませんでした: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return None
+    print(
+        f"Pegasus orphan hold を create-only で保存しました: {path}",
+        file=sys.stderr,
+        flush=True,
+    )
+    return path
+
+
 def _print_terminal_handoff(latch: Path, reason: str) -> None:
     print(
         f"Pegasus 自動投入を停止しました ({reason})。"
@@ -1352,6 +1450,16 @@ def _dispatch_impl(
     if latch.exists():
         _print_terminal_handoff(latch, "既存の F47 型ラッチ")
         return INFRA_RC
+    orphan_hold = _orphan_hold_path(root)
+    if _orphan_hold_present(root):
+        print(
+            "Pegasus orphan hold があるため scheduler command を起動しません。"
+            f"hold: {orphan_hold}。qstat で対象の不在または終端を確認し、"
+            "source を復元してから hold を手動削除してください。",
+            file=sys.stderr,
+            flush=True,
+        )
+        return INFRA_RC
 
     nonce_value = nonce or secrets.token_hex(16)
     if re.fullmatch(r"[A-Za-z0-9._-]+", nonce_value) is None:
@@ -1401,6 +1509,7 @@ def _dispatch_impl(
 
     request_id: Optional[str] = None
     active = False
+    qsub_result_unknown = False
     request_was_visible = False
     run_seen = False
     run_deadline_rebased = False
@@ -1439,21 +1548,30 @@ def _dispatch_impl(
         }
         receipt["qdel"] = qdel_record
         cleanup_claimed = True
-        return _fresh_qstat_gated_qdel(
-            run_command,
-            request_id=request_id,
-            cwd=submission_dir if submission_dir.exists() else root,
-            environ=command_env,
-            qstat_attempts=immediate_qstat_attempts,
-            cleanup_budget_s=cleanup_budget_s,
-            retry_interval_s=poll_interval_s,
-            terminal_history_end=terminal_history_end,
-            clock=clock,
-            sleep=sleep,
-            job_name=job_name,
-            submission_dir=submission_dir,
-            record=qdel_record,
-        )
+        try:
+            return _fresh_qstat_gated_qdel(
+                run_command,
+                request_id=request_id,
+                cwd=submission_dir if submission_dir.exists() else root,
+                environ=command_env,
+                qstat_attempts=immediate_qstat_attempts,
+                cleanup_budget_s=cleanup_budget_s,
+                retry_interval_s=poll_interval_s,
+                terminal_history_end=terminal_history_end,
+                clock=clock,
+                sleep=sleep,
+                job_name=job_name,
+                submission_dir=submission_dir,
+                record=qdel_record,
+            )
+        finally:
+            _latch_orphan_hold(
+                root,
+                qdel=qdel_record,
+                submission_dir=submission_dir,
+                request_id=request_id,
+                job_name=job_name,
+            )
 
     for signum in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -1476,6 +1594,7 @@ def _dispatch_impl(
             raise DispatchError(f"qstat -Q preflight rc={preflight.returncode}")
 
         _progress(f"job を {DEFAULT_QUEUE} へ投入します ({job_name})")
+        qsub_result_unknown = True
         qsub = _run(
             run_command,
             [
@@ -1495,6 +1614,7 @@ def _dispatch_impl(
             # SIGINT/SIGTERM でも discovery + fresh-qstat gate を通し、
             # 直前 snapshot が許可した場合だけ qdel を要求する。
             active = True
+        qsub_result_unknown = False
         receipt["qsub"] = _capture(qsub)
         if qsub.returncode != 0:
             raise DispatchError(f"qsub rc={qsub.returncode}")
@@ -1783,7 +1903,36 @@ def _dispatch_impl(
             "reason": f"{type(exc).__name__}: {exc}",
             "rc": INFRA_RC,
         }
-        if active:
+        if qsub_result_unknown:
+            qdel_record = {
+                "attempted": False,
+                "cleanup_policy": _QDEL_CLEANUP_POLICY,
+                "job_may_remain": True,
+                "gate": {"reason": "qsub-result-unobserved"},
+            }
+            receipt["qdel"] = qdel_record
+            _latch_orphan_hold(
+                root,
+                qdel=qdel_record,
+                submission_dir=submission_dir,
+                request_id=request_id,
+                job_name=job_name,
+            )
+            discovered, discovery = _discover_request_id(
+                run_command,
+                job_name=job_name,
+                submission_dir=submission_dir,
+                environ=command_env,
+            )
+            receipt["request_id_discovery"] = discovery
+            if discovered is not None:
+                request_id = discovered
+                receipt["request_id"] = discovered
+                try:
+                    receipt["normalized_request_id"] = _normalize_request_id(discovered)
+                except DispatchError:
+                    pass
+        elif active:
             if request_id is None:
                 discovered, discovery = _discover_request_id(
                     run_command,
@@ -1802,7 +1951,9 @@ def _dispatch_impl(
                     except DispatchError:
                         pass
             receipt["qdel"] = claim_cleanup_once()
-        _persist_receipt(submission_dir, root, receipt)
+        persisted = _persist_receipt(submission_dir, root, receipt)
+        if persisted is not None:
+            _progress(f"receipt を {persisted} へ保存しました (child rc={INFRA_RC})")
         if pending_cleanup_signal is not None:
             return INFRA_RC
         print(

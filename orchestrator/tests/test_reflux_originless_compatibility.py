@@ -44,7 +44,7 @@ def _bundle(
         arguments = dict(
             trial_id=trial.trial_id,
             workloads=[workload],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -88,6 +88,36 @@ def _bundle(
             ).read_bytes().splitlines()
         ],
         "acceptance": json.loads((fixture.repo / summary.receipt_path).read_bytes()),
+    }
+
+
+def _origin_enabled_bundle(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> dict[str, object]:
+    """Build the matching origin-enabled G=2 report and journal."""
+
+    root.mkdir(parents=True)
+    fixture = p3_test.t325_registered_trial.__wrapped__(root, monkeypatch)
+    request, producer = p3_test._origin_public_inputs(root, monkeypatch, fixture)
+    run_root = fixture.repo / "output" / "origin-enabled" / fixture.trial_id
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        **p3_test._origin_trial_arguments(fixture, run_root),
+    )
+    assert type(outcome) is A.OriginCompletedTrialReport
+    report = json.loads((run_root / "report.json").read_bytes())
+    assert "origin_binding" in report["launch_admission"]
+    assert "origin_terminal_projection" in report
+    return {
+        "reports": [report],
+        "journals": [
+            [
+                json.loads(line)
+                for line in (run_root / "attempts.jsonl").read_bytes().splitlines()
+            ]
+        ],
     }
 
 
@@ -251,6 +281,76 @@ def _assert_same_structure(left: object, right: object, path=()) -> None:
         assert left == right, path
 
 
+def _generation_two_views(
+    bundle: dict[str, object],
+) -> dict[str, tuple[dict[str, object], list[dict[str, object]]]]:
+    reports = bundle["reports"]
+    journals = bundle["journals"]
+    assert type(reports) is list
+    assert type(journals) is list
+    journal_by_trial = {}
+    for journal in journals:
+        assert type(journal) is list
+        run_start = next(event for event in journal if event["event"] == "run-start")
+        trial_id = run_start["trial_id"]
+        assert trial_id not in journal_by_trial
+        journal_by_trial[trial_id] = journal
+
+    views = {}
+    for report in reports:
+        assert type(report) is dict
+        trial_id = report["trial_id"]
+        assert trial_id not in views
+        cells = report["cells"]
+        assert type(cells) is list and len(cells) == 1
+        generations = cells[0]["generations"]
+        assert [item["generation"] for item in generations] == [1, 2]
+        generation_two = generations[1]
+        journal_events = [
+            event
+            for event in journal_by_trial.pop(trial_id)
+            if event.get("generation") == 2
+        ]
+        assert [
+            (event["event"], event.get("role")) for event in journal_events
+        ] == [
+            ("role-attempt", "planner"),
+            ("role-attempt", "coder"),
+            ("role-attempt", "auditor"),
+            ("role-attempt", "critic"),
+            ("generation-accounting", None),
+        ]
+        views[trial_id] = (generation_two, journal_events)
+    assert not journal_by_trial
+    return views
+
+
+def _assert_generation_two_matches(
+    reference: dict[str, object],
+    candidate: dict[str, object],
+) -> None:
+    reference_views = _generation_two_views(reference)
+    candidate_views = _generation_two_views(candidate)
+    assert candidate_views
+    assert set(candidate_views) <= set(reference_views)
+    for trial_id, (candidate_report, candidate_journal) in candidate_views.items():
+        reference_report, reference_journal = reference_views[trial_id]
+        _assert_same_structure(
+            reference_report,
+            candidate_report,
+            ("reports", 0, "cells", 0, "generations", 1),
+        )
+        assert len(reference_journal) == len(candidate_journal)
+        for index, (reference_event, candidate_event) in enumerate(
+            zip(reference_journal, candidate_journal, strict=True)
+        ):
+            _assert_same_structure(
+                reference_event,
+                candidate_event,
+                ("journals", 0, index),
+            )
+
+
 def _baseline_structure(value: object) -> dict[str, list[list[object]]]:
     observed: dict[str, list[object]] = {}
 
@@ -346,10 +446,70 @@ def _consume_role_validation_evidence(event: dict[str, object]) -> None:
         assert "payload_validation_receipt" not in event
 
 
+def _project_t1185_generation_binding_to_generation_one(
+    bundle: dict[str, object],
+) -> dict[str, object]:
+    """Consume the intended formal G=2 delta before the older golden view."""
+
+    projected = copy.deepcopy(bundle)
+    for report in projected["reports"]:
+        assert report["generation_budget_per_workload"] == 2
+        report["generation_budget_per_workload"] = 1
+        assert report["honest_accounting"]["role_query_count"] == 8
+        report["honest_accounting"]["role_query_count"] = 4
+        for cell in report["cells"]:
+            generations = cell["generations"]
+            assert [item["generation"] for item in generations] == [1, 2]
+            first, second = generations
+            assert list(first) == list(second)
+            assert list(first["roles"]) == list(second["roles"])
+            for role in first["roles"]:
+                assert list(first["roles"][role]) == list(second["roles"][role])
+            cell["generations"] = [first]
+
+    for journal in projected["journals"]:
+        generation_one_roles = {
+            event["role"]: event
+            for event in journal
+            if event["event"] == "role-attempt" and event["generation"] == 1
+        }
+        generation_one_accounting = next(
+            event for event in journal
+            if event["event"] == "generation-accounting"
+            and event["generation"] == 1
+        )
+        kept = []
+        removed = 0
+        for event in journal:
+            if event["event"] == "run-start":
+                assert event["generation_budget_per_workload"] == 2
+                event["generation_budget_per_workload"] = 1
+            elif event["event"] == "role-attempt" and event["generation"] == 2:
+                assert list(event) == list(generation_one_roles[event["role"]])
+                removed += 1
+                continue
+            elif (
+                event["event"] == "generation-accounting"
+                and event["generation"] == 2
+            ):
+                assert list(event) == list(generation_one_accounting)
+                removed += 1
+                continue
+            elif event["event"] == "run-finish":
+                assert event["seq"] == 12
+                event["seq"] = 7
+                assert event["honest_accounting"]["role_query_count"] == 8
+                event["honest_accounting"]["role_query_count"] = 4
+            kept.append(event)
+        assert removed == 5
+        journal[:] = kept
+    return projected
+
+
 def _project_t244_additions_to_pre_wave(bundle: dict[str, object]) -> dict[str, object]:
     """Consume each adjudicated addition explicitly, then expose the old view."""
 
-    projected = copy.deepcopy(bundle)
+    projected = _project_t1185_generation_binding_to_generation_one(bundle)
     for report in projected["reports"]:
         assert report["schema_version"] == A.REPORT_SCHEMA_VERSION
         report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
@@ -427,6 +587,23 @@ def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(
     omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)
     shutil.rmtree(bundle_root)
     explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)
+    origin_enabled = _origin_enabled_bundle(
+        _fixed_width_bundle_root(tmp_path, "origin-enabled"), monkeypatch
+    )
+    _assert_generation_two_matches(omitted, explicit_none)
+    _assert_generation_two_matches(omitted, origin_enabled)
+    generation_two_mutant = copy.deepcopy(origin_enabled)
+    generation_two_mutant["reports"][0]["cells"][0]["generations"][1]["roles"][
+        "planner"
+    ]["parsed"]["magnitude"] = "generation-two-mutant"
+    generation_two_planner = next(
+        event
+        for event in generation_two_mutant["journals"][0]
+        if event.get("generation") == 2 and event.get("role") == "planner"
+    )
+    generation_two_planner["parsed"]["magnitude"] = "generation-two-mutant"
+    with pytest.raises(AssertionError):
+        _assert_generation_two_matches(omitted, generation_two_mutant)
     assert _baseline_structure(
         _project_t244_additions_to_pre_wave(omitted)
     ) == _PRE_WAVE_ORIGINLESS_BASELINE

@@ -36,9 +36,9 @@ from orchestrator.tests.growth_test_holds import (
 from tools import run_tests as RT
 
 
-_EXPECTED_HOLD_COUNT = 30
-_EXPECTED_KEY_SHA256 = "8e4917269631347e1a78c2ac82875efc6ac509bba1181037ee7fab26208f6205"
-_EXPECTED_ROW_CONTRACT_SHA256 = "442229f582a373223c332c10f02936df51465ea5ca8b558830b8779166392509"
+_EXPECTED_HOLD_COUNT = 56
+_EXPECTED_KEY_SHA256 = "922510c85e7439818e224d64652b0357b3965bae842c4fe72edda33846ee8408"
+_EXPECTED_ROW_CONTRACT_SHA256 = "cfc9ba15bcbad25e3f9d5fc2031f96b76c96ef7f44b7f4a142df0cad9ecba11c"
 _HELD_SERIAL_NODE = (
     "test_s8b_repo_scan_invariant.py::"
     "test_real_repository_scan_matches_known_hits_and_has_positive_control"
@@ -46,6 +46,108 @@ _HELD_SERIAL_NODE = (
 _META_NODE = (
     "test_growth_test_holds_contract.py::test_contract_module_is_not_held"
 )
+_SHARED_FIXTURE_COLLATERAL = (
+    "Holding this node also prevents the shared module fixture from starting, "
+    "so its fixed checks for full SHA format, CURRENT_PIN prefix, an independent "
+    "golden, and K.verify_document stop too."
+)
+
+
+def _fixture_collateral(detail: str) -> str:
+    return f"{_SHARED_FIXTURE_COLLATERAL} {detail}"
+
+
+_EXPECTED_COLLATERAL_NOTES = {
+    "test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies": (
+        "Holding this node also removes fixed-size checks for corpus count 48, "
+        "disjoint success/failure sets, and the complete JSON-pair partition."
+    ),
+    "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight": (
+        "Holding this node also removes fixed-size checks for the maximum "
+        "package, MAX_CANDIDATES/MAX_QUERY_COUNT/MAX_SIGNAL_TOKENS, independent "
+        "inspect/pickaxe evidence, and the 45/60-second preflight boundaries."
+    ),
+    "test_s1_known_axes_freeze.py::test_build_document_is_self_consistent_and_detects_tamper": (
+        "Holding this node removes its fixed self-consistency and single-field "
+        "tamper rejection checks."
+    ),
+    "test_s1_known_axes_freeze.py::test_generate_refuses_existing_freeze": (
+        "Holding this node removes its fixed create-only refusal check."
+    ),
+    "test_s1_known_axes_freeze.py::test_generate_selects_registered_expected_points": (
+        "Holding this node removes its fixed golden checks for registered P2, "
+        "backoff, and sort selections."
+    ),
+    "test_s1_known_axes_freeze.py::test_s1b_pairing_rejects_mismatched_flags": (
+        "Holding this node removes its fixed S-1b mismatched-flags rejection check."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_foreign_ccbench_pin": (
+        "Holding this node removes its fixed held/released ccbench-pin positive control."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_generator_sha_tamper": (
+        "Holding this node removes its fixed generator-hash tamper rejection check."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_non_ancestor_head": (
+        "Holding this node removes its fixed non-ancestor HEAD rejection check."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_one_byte_freeze_tamper": (
+        "Holding this node removes its fixed one-byte freeze tamper rejection check."
+    ),
+    "test_s1_known_axes_freeze.py::test_verify_rejects_tampered_source_copy": (
+        "Holding this node removes its fixed copied-source hash tamper rejection check."
+    ),
+    "test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics": _fixture_collateral(
+        "The node's fixed known-axes semantic tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule": _fixture_collateral(
+        "The node's fixed checks for 18 cells, 12 comparisons, schedule shape, seeds, and operating-point flags stop too."
+    ),
+    "test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze": _fixture_collateral(
+        "The node's fixed measurement create-only refusal check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict": _fixture_collateral(
+        "The node's fixed legacy-verifier isolation from the T-080 adapter stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control": _fixture_collateral(
+        "The node's fixed recorded-pin hold and release positive control stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags": _fixture_collateral(
+        "The node's fixed measurement S-1b mismatched-flags rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible": _fixture_collateral(
+        "The node's fixed schedule balance and reproducibility checks stop too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper": _fixture_collateral(
+        "The node's fixed known-axes material-hash tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper": _fixture_collateral(
+        "The node's fixed one-byte measurement freeze tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper": _fixture_collateral(
+        "The node's fixed one-byte workload-flag tamper rejection check stops too."
+    ),
+    "test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper": _fixture_collateral(
+        "The node's fixed statistics-implementation hash tamper rejection check stops too."
+    ),
+    "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal": (
+        "Holding this node also removes the fixed-size binding-manifest schema refusal aggregation check."
+    ),
+    "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated": (
+        "Holding this node also removes the fixed-size independent-refusal aggregation and zero-side-effect checks."
+    ),
+    "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused": (
+        "Holding this node also removes the fixed-size no-active error translation, no-prepare, no-evaluate, and no-write checks."
+    ),
+    "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing": (
+        "Holding this node also removes fixed-size refusal, no-prepare, no-evaluate, and zero-output checks."
+    ),
+    "test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root": (
+        "Holding this node also removes fixed-size checks for exact ROOT wiring, single guard invocation, and builder/writer execution inside that guard."
+    ),
+    "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged": (
+        "Holding this node also removes fixed-size top-level and nested writer checks and the frozen-output refusal check."
+    ),
+}
 
 
 class _Item:
@@ -142,12 +244,17 @@ def test_registry_rows_preserve_current_wave_contract():
     assert not any(
         key.startswith("test_s8b_ratified_verify.py::")
         or key.startswith("test_silo_ladder_rung1_evidence.py::")
-        or key == (
-            "test_s8b_oracle_driver.py::"
-            "test_nonnull_floor_without_active_generation_is_refused"
-        )
         for key in GROWTH_TEST_HOLDS
     )
+    assert (
+        "test_s8b_oracle_driver.py::"
+        "test_nonnull_floor_without_active_generation_is_refused"
+    ) in GROWTH_TEST_HOLDS
+    assert {
+        "test_codex_reasoning_ab.py::test_git_answer_object_reinjection_is_rejected",
+        "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive",
+        "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
+    }.isdisjoint(GROWTH_TEST_HOLDS)
 
 
 @pytest.mark.parametrize(
@@ -269,18 +376,7 @@ def test_inventory_output_is_sorted_exact_and_marks_correctness_gates():
         key: row["collateral_note"]
         for key, row in rows.items()
         if row["collateral_note"] is not None
-    } == {
-        "test_ruleops.py::test_real_checkout_independent_maximum_package_and_runner_preflight": (
-            "Holding this node also removes fixed-size checks for the maximum "
-            "package, MAX_CANDIDATES/MAX_QUERY_COUNT/MAX_SIGNAL_TOKENS, "
-            "independent inspect/pickaxe evidence, and the 45/60-second "
-            "preflight boundaries."
-        ),
-        "test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies": (
-            "Holding this node also removes fixed-size checks for corpus count 48, "
-            "disjoint success/failure sets, and the complete JSON-pair partition."
-        ),
-    }
+    } == _EXPECTED_COLLATERAL_NOTES
 
 
 def test_opt_in_changes_only_suite_identity_not_acceptance_shape(monkeypatch):
@@ -495,10 +591,14 @@ def test_every_held_module_has_exact_top_level_guard_binding():
         "test_campaign_import_invariant.py",
         "test_codex_reasoning_ab.py",
         "test_env_attestation.py",
+        "test_real_repo_serialization.py",
         "test_ruleops.py",
+        "test_s1_known_axes_freeze.py",
+        "test_s1_measurement_freeze.py",
         "test_s8b_binding_driftguards.py",
         "test_s8b_holdout_freeze.py",
         "test_s8b_oracle_driver.py",
+        "test_s8b_protocol_builder.py",
         "test_s8b_repo_scan_invariant.py",
     )
     for filename in _held_filenames():

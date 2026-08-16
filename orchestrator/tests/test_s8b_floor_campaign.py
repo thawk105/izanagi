@@ -3467,6 +3467,23 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
             perf_preflight=_perf_receipt(),
         )
 
+    assembled = s8b_floor_campaign.assemble_result(
+        protocol=protocol, mode="pilot", protocol_sha256="p" * 64,
+        freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+        cells=cells, binaries=outcome["result"]["binaries"], records=records,
+        holdout_admission=outcome["result"]["holdout_admission"],
+        perf_preflight=_perf_receipt(),
+    )
+    assert assembled["eligible_for_refreeze"] is False
+    official_assembled = s8b_floor_campaign.assemble_result(
+        protocol=protocol, mode="official", protocol_sha256="p" * 64,
+        freeze_sha256="f" * 64, manifest_sha256="m" * 64,
+        cells=cells, binaries=outcome["result"]["binaries"], records=records,
+        holdout_admission=outcome["result"]["holdout_admission"],
+        perf_preflight=None,
+    )
+    assert official_assembled["eligible_for_refreeze"] is False
+
 
 def test_assemble_result_requires_holdout_admission_keyword():
     parameter = inspect.signature(
@@ -3482,17 +3499,42 @@ def test_assemble_result_requires_holdout_admission_keyword():
 
 @pytest.mark.parametrize("mode", ["pilot", "official"])
 def test_validate_mode_accepts_only_known_modes(mode):
-    assert s8b_floor_campaign._validate_mode(mode) == mode
+    validated = s8b_floor_campaign._validate_mode(mode)
+    assert validated == mode
+    assert type(validated) is str
 
 
 @pytest.mark.parametrize("mode", ["", "PILOT", "pilot/../../escape", None, 1])
 def test_validate_mode_rejects_unknown_and_path_traversal(mode, tmp_path):
     out_root = tmp_path / "out"
-    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="mode"):
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError, match="mode は exact"):
         s8b_floor_campaign.run_campaign(
             None, None, out_root=out_root, mode=mode,
         )
     assert not out_root.exists()
+
+
+def test_validate_mode_rejects_str_subclass_before_side_effects(tmp_path):
+    class StatefulMode(str):
+        pass
+
+    out_root = tmp_path / "out"
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError, match="mode は exact"):
+        s8b_floor_campaign.run_campaign(
+            None, None, out_root=out_root, mode=StatefulMode("official"),
+        )
+    assert not out_root.exists()
+
+
+def test_validate_mode_directly_rejects_str_subclass():
+    class StatefulMode(str):
+        pass
+
+    with pytest.raises(
+            s8b_floor_campaign.FloorCampaignError, match="mode は exact"):
+        s8b_floor_campaign._validate_mode(StatefulMode("official"))
 
 
 def test_main_official_mode_always_refused(tmp_path, capsys):
@@ -3837,6 +3879,216 @@ def test_public_pilot_rejects_effect_capable_seams_without_calling_them(
             out_root=out_root, mode="pilot", **{seam_name: seam_value},
         )
     assert not out_root.exists()
+
+
+def test_refreeze_seam_classifier_covers_and_classifies_every_core_seam():
+    excluded = {
+        "out_root", "mode", "resume_dir",
+        "confirm_irreversible_pilot_holdout",
+    }
+    core_keyword_only = {
+        name for name, parameter in inspect.signature(
+            s8b_floor_campaign._run_campaign_core,
+        ).parameters.items()
+        if parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    }
+    classifier_keyword_only = {
+        name for name, parameter in inspect.signature(
+            s8b_floor_campaign._nondefault_campaign_seams,
+        ).parameters.items()
+        if parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    }
+    assert core_keyword_only - classifier_keyword_only == excluded
+    assert classifier_keyword_only - core_keyword_only == set()
+    expected_seams = core_keyword_only - excluded
+    assert classifier_keyword_only == expected_seams
+    for seam_name in sorted(expected_seams):
+        sentinel = object()
+        assert s8b_floor_campaign._nondefault_campaign_seams(
+            **{seam_name: sentinel},
+        ) == frozenset({seam_name})
+
+
+def test_refreeze_seam_classifier_defaults_and_core_forwarding_are_exact():
+    core_signature = inspect.signature(s8b_floor_campaign._run_campaign_core)
+    classifier_signature = inspect.signature(
+        s8b_floor_campaign._nondefault_campaign_seams,
+    )
+    classifier_names = tuple(classifier_signature.parameters)
+    for name in classifier_names:
+        assert core_signature.parameters[name].default is \
+            classifier_signature.parameters[name].default
+
+    source = textwrap.dedent(inspect.getsource(
+        s8b_floor_campaign._run_campaign_core,
+    ))
+    tree = ast.parse(source)
+    calls = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_nondefault_campaign_seams"
+    ]
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.args == []
+    assert all(keyword.arg is not None for keyword in call.keywords)
+    assert [keyword.arg for keyword in call.keywords] == list(classifier_names)
+    for keyword in call.keywords:
+        assert isinstance(keyword.value, ast.Name)
+        assert keyword.value.id == keyword.arg
+
+
+def test_refreeze_callable_defaults_survive_time_module_monkeypatch(
+        tmp_path, monkeypatch):
+    fake_sleep = lambda _seconds: None
+    fake_monotonic = lambda: 0.0
+    for entrypoint in (
+            s8b_floor_campaign.run_campaign,
+            s8b_floor_campaign._run_campaign_core,
+            s8b_floor_campaign._nondefault_campaign_seams):
+        signature = inspect.signature(entrypoint)
+        assert signature.parameters["sleep_fn"].default is \
+            s8b_floor_campaign._DEFAULT_SLEEP_FN
+        assert signature.parameters["monotonic_fn"].default is \
+            s8b_floor_campaign._DEFAULT_MONOTONIC_FN
+    monkeypatch.setattr(s8b_floor_campaign.time, "sleep", fake_sleep)
+    monkeypatch.setattr(s8b_floor_campaign.time, "monotonic", fake_monotonic)
+    assert s8b_floor_campaign._nondefault_campaign_seams(
+        sleep_fn=fake_sleep,
+    ) == frozenset({"sleep_fn"})
+    assert s8b_floor_campaign._nondefault_campaign_seams(
+        monotonic_fn=fake_monotonic,
+    ) == frozenset({"monotonic_fn"})
+    for seam_name, seam_value in (
+            ("sleep_fn", fake_sleep), ("monotonic_fn", fake_monotonic)):
+        out_root = tmp_path / seam_name
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError, match=seam_name):
+            s8b_floor_campaign.run_campaign(
+                None, None, out_root=out_root, mode="pilot",
+                **{seam_name: seam_value},
+            )
+        assert not out_root.exists()
+
+
+def test_core_derives_refreeze_eligibility_at_entry_and_finalizes_without_args():
+    source = textwrap.dedent(inspect.getsource(
+        s8b_floor_campaign._run_campaign_core,
+    ))
+    tree = ast.parse(source)
+    core = tree.body[0]
+    finalizers = [
+        node for node in core.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "apply_refreeze_eligibility"
+    ]
+    assert len(finalizers) == 1
+    finalizer = finalizers[0]
+    assert finalizer.args.args == []
+    assert finalizer.args.posonlyargs == []
+    assert finalizer.args.kwonlyargs == []
+    assert finalizer.args.vararg is None
+    assert finalizer.args.kwarg is None
+    assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
+        "if type(confirm_irreversible_pilot_holdout) is not bool:"
+    )
+    assert source.index("eligible_for_refreeze = _derive_refreeze_eligibility(") < source.index(
+        "    try:\n        runner.run()"
+    )
+
+    assembly_pairs = []
+    for owner in ast.walk(core):
+        for _field, value in ast.iter_fields(owner):
+            if not isinstance(value, list):
+                continue
+            statements = [item for item in value if isinstance(item, ast.stmt)]
+            if len(statements) != len(value):
+                continue
+            for index, statement in enumerate(statements):
+                if not isinstance(statement, ast.Assign) or not isinstance(
+                        statement.value, ast.Call):
+                    continue
+                call = statement.value
+                if not isinstance(call.func, ast.Name) or call.func.id != "assemble_result":
+                    continue
+                assert index + 1 < len(statements)
+                following = statements[index + 1]
+                assert isinstance(following, ast.Expr)
+                assert isinstance(following.value, ast.Call)
+                assert isinstance(following.value.func, ast.Name)
+                assert following.value.func.id == "apply_refreeze_eligibility"
+                assert following.value.args == [] and following.value.keywords == []
+                assembly_pairs.append((statement.lineno, following.lineno))
+    assert len(assembly_pairs) == 2
+
+
+def test_policy_unit_fresh_official_default_context_is_refreeze_eligible():
+    """Policy-unit 正例。core binding と finalizer は独立 AST 契約で固定する。"""
+    nondefault_seams = s8b_floor_campaign._nondefault_campaign_seams()
+    assert nondefault_seams == frozenset()
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=None, nondefault_seams=nondefault_seams,
+    ) is True
+
+
+def test_refreeze_finalizer_is_unconditional_and_independent_of_run_outcomes():
+    """P2 の静的等価検査: rep failure を含む runner outcome へ依存させない。"""
+    source = textwrap.dedent(inspect.getsource(
+        s8b_floor_campaign._run_campaign_core,
+    ))
+    core = ast.parse(source).body[0]
+    finalizer = next(
+        node for node in core.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "apply_refreeze_eligibility"
+    )
+
+    def eligible_target(node):
+        return (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "result"
+            and isinstance(node.slice, ast.Constant)
+            and node.slice.value == "eligible_for_refreeze"
+        )
+
+    assignments = [
+        node for node in ast.walk(core)
+        if isinstance(node, ast.Assign)
+        and any(eligible_target(target) for target in node.targets)
+    ]
+    assert len(assignments) == 1
+    assignment = assignments[0]
+    assert assignment in finalizer.body
+    assert isinstance(assignment.value, ast.Name)
+    assert assignment.value.id == "eligible_for_refreeze"
+    loaded_names = {
+        node.id for node in ast.walk(finalizer)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+    }
+    assert loaded_names.isdisjoint({"runner", "excluded", "attempts", "records"})
+
+
+def test_pilot_default_context_is_not_refreeze_eligible():
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="pilot", resume_dir=None,
+        nondefault_seams=s8b_floor_campaign._nondefault_campaign_seams(),
+    ) is False
+
+
+def test_official_resume_is_not_refreeze_eligible_even_without_seams():
+    assert s8b_floor_campaign._derive_refreeze_eligibility(
+        mode="official", resume_dir=Path("existing-run"),
+        nondefault_seams=s8b_floor_campaign._nondefault_campaign_seams(),
+    ) is False
+
+
+def test_assemble_result_caller_cannot_supply_refreeze_eligibility():
+    signature = inspect.signature(s8b_floor_campaign.assemble_result)
+    assert "eligible_for_refreeze" not in signature.parameters
+    with pytest.raises(TypeError):
+        signature.bind_partial(eligible_for_refreeze=True)
 
 
 def test_production_entrypoints_have_no_holdout_gate_disabling_seam():
@@ -5040,6 +5292,147 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     journal = _read_journal_lines(journal_path)
     assert journal[-1] == {"event": "terminal", "status": "completed"}
     assert not any(r.get("event") == "resume-start" for r in journal)
+
+
+def test_official_finalize_pending_resume_reassembles_refreeze_ineligible(
+        tmp_path, monkeypatch):
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    fake_build = _make_fake_build(tmp_path / "bin")
+    common = {
+        "out_root": out_root,
+        "mode": "official",
+        "probe_fn": lambda: (1, "", ""),
+        "sleep_fn": lambda _seconds: None,
+        "monotonic_fn": lambda: 0.0,
+        "prepare_fn": _fake_prepare,
+        "now_fn": lambda: _FIXED_NOW,
+        "durable_root_policy": _durable_policy(out_root),
+    }
+
+    with _official_test_seam(monkeypatch) as scoped:
+        scoped.setattr(s8b_floor_campaign.buildcache, "build_v2", fake_build)
+        scoped.setattr(
+            s8b_floor_campaign, "_bind_current_toolchain",
+            _fixture_toolchain_binding,
+        )
+        scoped.setattr(
+            s8b_floor_campaign.source_digest, "resolve_evidence",
+            _fixture_source_evidence,
+        )
+        original_publish = s8b_floor_campaign._publish_finalize_files
+        scoped.setattr(
+            s8b_floor_campaign, "_publish_finalize_files",
+            lambda *_args: (_ for _ in ()).throw(
+                _SimulatedCrash("official terminal-after")),
+        )
+        with pytest.raises(_SimulatedCrash, match="official terminal-after"):
+            _private_run_campaign(
+                protocol, verified,
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+                _floor_preflight_fn=_fixture_floor_preflight,
+                **common,
+            )
+        scoped.setattr(
+            s8b_floor_campaign, "_publish_finalize_files", original_publish,
+        )
+        run_dir = _only_run_dir(out_root)
+        resume_measure = _make_measure_fn(
+            reps=5, value_fn=lambda cid: _BASE_TPS[cid])
+        outcome = _private_run_campaign(
+            protocol, verified, resume_dir=run_dir,
+            measure_fn=resume_measure, **common,
+        )
+
+    assert outcome["status"] == "completed"
+    assert outcome["result"]["eligible_for_refreeze"] is False
+    assert resume_measure.calls == []
+
+
+def test_result_json_stays_hidden_when_publish_stops_after_markdown(
+        tmp_path, monkeypatch):
+    """Default-policy True staging の途中停止でも権威 result を露出しない。"""
+    freeze = _freeze_document()
+    verified = _verified_freeze(freeze)
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    out_root = tmp_path / "out"
+    fake_build = _make_fake_build(tmp_path / "bin")
+    real_derive = s8b_floor_campaign._derive_refreeze_eligibility
+    real_publish = s8b_floor_campaign._publish_staged_create_only
+    published = []
+    assert real_derive(
+        mode="official", resume_dir=None, nondefault_seams=frozenset(),
+    ) is True
+
+    def stop_before_authoritative_result(pending, destination, payload):
+        destination = Path(destination)
+        if destination.name == "result.json":
+            raise _SimulatedCrash("between finalize publishes")
+        real_publish(pending, destination, payload)
+        if destination.name == "result.md":
+            published.append(destination.name)
+
+    with _official_test_seam(monkeypatch) as scoped:
+        scoped.setattr(s8b_floor_campaign.buildcache, "build_v2", fake_build)
+        scoped.setattr(
+            s8b_floor_campaign, "_bind_current_toolchain",
+            _fixture_toolchain_binding,
+        )
+        scoped.setattr(
+            s8b_floor_campaign.source_digest, "resolve_evidence",
+            _fixture_source_evidence,
+        )
+        scoped.setattr(
+            s8b_floor_campaign, "_derive_refreeze_eligibility",
+            # Full-run fixture seams are non-default only to avoid real measurement.
+            # Project the already-asserted fresh/default policy value into staged bytes.
+            lambda **_kwargs: True,
+        )
+        scoped.setattr(
+            s8b_floor_campaign, "_publish_staged_create_only",
+            stop_before_authoritative_result,
+        )
+        with pytest.raises(_SimulatedCrash, match="between finalize publishes"):
+            _private_run_campaign(
+                protocol, verified, out_root=out_root, mode="official",
+                measure_fn=_make_measure_fn(
+                    reps=5, value_fn=lambda cid: _BASE_TPS[cid]),
+                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+                now_fn=lambda: _FIXED_NOW,
+                durable_root_policy=_durable_policy(out_root),
+                _floor_preflight_fn=_fixture_floor_preflight,
+            )
+
+        run_dir = _only_run_dir(out_root)
+        assert published == ["result.md"]
+        assert (run_dir / "result.md").is_file()
+        assert not (run_dir / "result.json").exists()
+        staged_true = json.loads((run_dir / ".result.json.pending").read_bytes())
+        assert staged_true["eligible_for_refreeze"] is True
+
+        scoped.setattr(
+            s8b_floor_campaign, "_derive_refreeze_eligibility", real_derive,
+        )
+        scoped.setattr(
+            s8b_floor_campaign, "_publish_staged_create_only", real_publish,
+        )
+        with pytest.raises(
+                s8b_floor_campaign.FloorCampaignError,
+                match="staged bytes が再計算と不一致"):
+            _private_run_campaign(
+                protocol, verified, out_root=out_root, mode="official",
+                resume_dir=run_dir, measure_fn=_forbid_measure,
+                probe_fn=lambda: (1, "", ""), sleep_fn=lambda _seconds: None,
+                monotonic_fn=lambda: 0.0, prepare_fn=_fake_prepare,
+                now_fn=lambda: _FIXED_NOW,
+                durable_root_policy=_durable_policy(out_root),
+            )
+
+    assert not (run_dir / "result.json").exists()
 
 
 def test_finalize_pending_resume_rejects_tampered_staged_result(tmp_path, monkeypatch):
@@ -6705,7 +7098,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     } == expected_rratios
 
     result = outcome["result"]
-    assert result["eligible_for_refreeze"] is True
+    assert result["eligible_for_refreeze"] is False
     assert result["mode"] == "official"
     assert result["env_tag"] == "pegasus"
     assert result["ccbench_pin"] == ccbench_pin
@@ -6851,7 +7244,7 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
         assert any("${OUT_ROOT}" in token for token in record["configure_argv"])
         assert any("${CCBENCH_ROOT}" in token for token in record["configure_argv"])
         assert "configure_cmd" not in record and "build_cmd" not in record
-    assert result["eligible_for_refreeze"] is True
+    assert result["eligible_for_refreeze"] is False
 
 
 def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
@@ -7515,7 +7908,7 @@ def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monke
     wall_start = next(r for r in outcome["result"]["wall_ledger"]
                       if r.get("event") == "campaign-start")
     assert wall_start["launch_certificate_sha256"] == cert_sha
-    assert outcome["result"]["eligible_for_refreeze"] is True
+    assert outcome["result"]["eligible_for_refreeze"] is False
     assert repo_before == _real_output_snapshot()
 
 
@@ -7742,6 +8135,7 @@ def test_official_resume_validates_certificate_and_completes(tmp_path, monkeypat
             resume_dir=run_dir,
         )
     assert outcome["status"] == "completed"
+    assert outcome["result"]["eligible_for_refreeze"] is False
     assert repo_before == _real_output_snapshot()
 
 

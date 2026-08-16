@@ -66,6 +66,15 @@ _CAMPAIGN_VERIFIER_EPOCH_KEYS = frozenset({
     "campaign_verifier_epoch", "state", "reason_code", "identity_scope",
     "excluded_scope",
 })
+_CELL_ADMISSION_FAILURE_SCHEMA = (
+    "p3-autonomous-workload-trial-cell-admission-failure/v1"
+)
+_PENDING_CRITIC_DISPOSITION_SCHEMA = (
+    "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+)
+_PENDING_CRITIC_DISPOSITION_KEYS = frozenset({
+    "schema_version", "action", "reason", "count",
+})
 _LAUNCH_ADMISSION_BASE_KEYS = frozenset({
     "mode", "certifying", "reason_code", "trial_id", "workloads",
     "binding", "activation_report_digest_sha256",
@@ -108,6 +117,96 @@ _COMMON_PAYLOAD_KEYS = frozenset({
     "generation", "workload_descriptor", "descriptor_binding",
     "attempt_policy", "stop_policy",
 })
+
+
+def is_positive_cell_admission_decision(decision: Any) -> bool:
+    """Return the shared exact positive predicate for build cells."""
+    return (
+        isinstance(decision, Mapping)
+        and decision.get("schema_version")
+        == "campaign-artifact-admission-decision/v1"
+        and decision.get("admission_status") == "admitted"
+        and decision.get("classification") == "admitted-new-schema"
+    )
+
+
+def is_exact_cell_admission_failure_decision(decision: Any) -> bool:
+    """Recognize only the closed diagnostic failure decision shape."""
+    if not isinstance(decision, Mapping) or set(decision) != {
+        "schema_version", "admission_status", "error",
+    }:
+        return False
+    error = decision.get("error")
+    return (
+        decision.get("schema_version") == _CELL_ADMISSION_FAILURE_SCHEMA
+        and decision.get("admission_status") == "failed"
+        and isinstance(error, Mapping)
+        and set(error) == {"type", "message"}
+        and error.get("type") == "AutonomousTrialError"
+        and type(error.get("message")) is str
+        and bool(error["message"])
+    )
+
+
+def _is_exact_pending_critic_disposition(value: Any) -> bool:
+    if not isinstance(value, Mapping) or set(value) != (
+        _PENDING_CRITIC_DISPOSITION_KEYS
+    ):
+        return False
+    count = value.get("count")
+    return (
+        value.get("schema_version") == _PENDING_CRITIC_DISPOSITION_SCHEMA
+        and value.get("action") == "discarded"
+        and value.get("reason") == "cell-admission-failure"
+        and type(count) is int
+        and count in {0, 1}
+    )
+
+
+def _is_exact_campaignless_failure_fallback_cell(
+    cell: Mapping[str, Any],
+) -> bool:
+    """Recognize only the producer's no-campaign supervisor fallback cell."""
+    error = cell.get("error")
+    return (
+        set(cell) == {
+            "workload", "generations", "stop_reason", "error",
+            "admission_decision", "pending_critic_disposition",
+        }
+        and cell.get("generations") == []
+        and cell.get("stop_reason") == "supervisor-error"
+        and isinstance(error, Mapping)
+        and set(error) == {"type", "message"}
+        and type(error.get("type")) is str
+        and bool(error["type"])
+        and type(error.get("message")) is str
+        and is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
+        and _is_exact_pending_critic_disposition(
+            cell.get("pending_critic_disposition")
+        )
+        and cell["pending_critic_disposition"]["count"] == 0
+    )
+
+
+def cell_admission_failure_projection(
+    cells: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Project exact failure decisions into the existing run-finish event."""
+    return [
+        {
+            "cell_index": index,
+            "workload": cell.get("workload"),
+            "admission_decision": dict(cell["admission_decision"]),
+        }
+        for index, cell in enumerate(cells)
+        if is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
+    ]
+
+
 _ROLE_PAYLOAD_KEY_SPEC = {
     "planner-generation-1": sorted(_COMMON_PAYLOAD_KEYS | {
         "current_perf", "leading_indicators", "whiteboard",
@@ -1165,6 +1264,24 @@ def _check_run_envelope(
     expected_report = Path(attempt_journal).resolve().parent / "report.json"
     if finish_report != expected_report:
         _fail("run-envelope", "run-finish.report names a different report")
+    raw_cells = report.get("cells")
+    projection_cells = (
+        [cell for cell in raw_cells if isinstance(cell, Mapping)]
+        if isinstance(raw_cells, list)
+        else []
+    )
+    expected_failures = cell_admission_failure_projection(projection_cells)
+    if expected_failures:
+        if finish.get("cell_admission_failures") != expected_failures:
+            _fail(
+                "run-envelope",
+                "run-finish cell admission failures differ from report",
+            )
+    elif "cell_admission_failures" in finish:
+        _fail(
+            "run-envelope",
+            "run-finish has a cell admission failure absent from report",
+        )
     _check_launch_admission_projection(report=report, start=start)
 
 
@@ -1427,7 +1544,34 @@ def _scan_report_attempts(
             _fail("state-machine", f"cell {workload!r} generations are not contiguous from 1")
         if len(generations) > budget:
             _fail("state-machine", f"cell {workload!r} exceeds generation budget")
+        full = len(_ROLE_ORDER)
         stop_reason = cell.get("stop_reason")
+        admission_failed = is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
+        disposition = cell.get("pending_critic_disposition")
+        disposition_count = (
+            disposition.get("count")
+            if isinstance(disposition, Mapping)
+            else None
+        )
+        missing_final_critic = (
+            admission_failed
+            and _is_exact_pending_critic_disposition(disposition)
+            and disposition_count == 1
+            and bool(generations)
+            and prefix_lengths[-1] == full - 1
+            and "harness" in generations[-1]
+        )
+        if (
+            admission_failed
+            and disposition_count == 1
+            and not missing_final_critic
+        ):
+            _fail(
+                "state-machine",
+                f"cell {workload!r} critic discard does not match role history",
+            )
         producer = _producer_module()
         driver_terminal_reasons = producer.DRIVER_STOP_REASONS - {"continue"}
         known_stop_reasons = {
@@ -1436,9 +1580,16 @@ def _scan_report_attempts(
         } | set(driver_terminal_reasons)
         if not isinstance(stop_reason, str) or stop_reason not in known_stop_reasons:
             _fail("state-machine", f"cell {workload!r} has unknown stop_reason: {stop_reason!r}")
-        full = len(_ROLE_ORDER)
         if stop_reason == "fixed-generation-budget":
-            if len(generations) != budget or any(length != full for length in prefix_lengths):
+            invalid_prefix = any(
+                length != full
+                for length in (
+                    prefix_lengths[:-1]
+                    if missing_final_critic
+                    else prefix_lengths
+                )
+            )
+            if len(generations) != budget or invalid_prefix:
                 _fail("state-machine", f"fixed-budget cell {workload!r} is incomplete")
             for index, (generation, entries) in enumerate(zip(generations, generation_entries), 1):
                 if not all(_completion_status_is_valid(
@@ -1509,7 +1660,15 @@ def _scan_report_attempts(
                             f"supervisor-error cell {workload!r} has a terminal prior harness stop",
                         )
         else:
-            if not generations or any(length != full for length in prefix_lengths):
+            invalid_prefix = any(
+                length != full
+                for length in (
+                    prefix_lengths[:-1]
+                    if missing_final_critic
+                    else prefix_lengths
+                )
+            )
+            if not generations or invalid_prefix:
                 _fail("state-machine", f"stopped cell {workload!r} is incomplete")
             for index, (generation, entries) in enumerate(zip(generations, generation_entries), 1):
                 if not all(_completion_status_is_valid(
@@ -1578,6 +1737,18 @@ def _check_workload_coverage(
         ):
             _fail("workload-coverage", "supervisor-error cell is not the final cell")
         return
+    failure_indices = [
+        index
+        for index, cell in enumerate(cells)
+        if is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
+    ]
+    if (
+        failure_indices == [len(cells) - 1]
+        and report.get("status") == "partial"
+    ):
+        return
     if terminal is None:
         _fail("workload-coverage", "requested workload suffix is unexplained")
     kind = terminal_kind
@@ -1617,6 +1788,15 @@ def _check_status_projection(
             cell.get("stop_reason")
             not in {"role-invalid", "supervisor-error", "supervisor-wall-budget"}
             for cell in cells
+        )
+        and (
+            report.get("do_build") is not True
+            or all(
+                is_positive_cell_admission_decision(
+                    cell.get("admission_decision")
+                )
+                for cell in cells
+            )
         )
     )
     expected = "complete" if complete else "partial"
@@ -1721,6 +1901,23 @@ def _check_generation_accounting(
         generations = cell.get("generations", [])
         if not isinstance(generations, list):
             continue
+        disposition = cell.get("pending_critic_disposition")
+        if (
+            _is_exact_pending_critic_disposition(disposition)
+            and disposition.get("count") == 1
+        ):
+            final_generation = generations[-1] if generations else None
+            generation_number = (
+                final_generation.get("generation")
+                if isinstance(final_generation, Mapping)
+                else None
+            )
+            event = by_pair.get((workload, generation_number))
+            if event is None or event.get("state") != "partial-generation":
+                _fail(
+                    "generation-accounting",
+                    "discarded final critic requires partial-generation accounting",
+                )
         for generation in generations:
             if not isinstance(generation, Mapping):
                 continue
@@ -1793,6 +1990,7 @@ def assert_autonomous_trial_completeness(
         for index, cell in enumerate(raw_cells)
     ]
     do_build = report.get("do_build")
+    failure_indices: list[int] = []
     for index, cell in enumerate(cells):
         decision = cell.get("admission_decision")
         if do_build is False:
@@ -1801,21 +1999,52 @@ def assert_autonomous_trial_completeness(
                     "artifact-admission",
                     f"cells[{index}] no-build admission decision is not exact",
                 )
+            if "pending_critic_disposition" in cell:
+                _fail(
+                    "artifact-admission",
+                    f"cells[{index}] no-build cell has admission failure disposition",
+                )
         elif do_build is True:
             decision = _mapping(
                 decision, gate="artifact-admission",
                 label=f"cells[{index}].admission_decision",
             )
-            if (
-                decision.get("schema_version")
-                != "campaign-artifact-admission-decision/v1"
-                or decision.get("admission_status") != "admitted"
-                or decision.get("classification") != "admitted-new-schema"
-            ):
+            if is_positive_cell_admission_decision(decision):
+                if "pending_critic_disposition" in cell:
+                    _fail(
+                        "artifact-admission",
+                        f"cells[{index}] admitted cell has failure disposition",
+                    )
+            elif is_exact_cell_admission_failure_decision(decision):
+                if not _is_exact_pending_critic_disposition(
+                    cell.get("pending_critic_disposition")
+                ):
+                    _fail(
+                        "artifact-admission",
+                        f"cells[{index}] failure disposition is not exact",
+                    )
+                failure_indices.append(index)
+            else:
                 _fail(
                     "artifact-admission",
-                    f"cells[{index}] build admission decision is not positive",
+                    f"cells[{index}] build admission decision is neither positive nor exact failure",
                 )
+    if len(failure_indices) > 1:
+        _fail("artifact-admission", "multiple cell admission failures are forbidden")
+    if failure_indices:
+        if failure_indices != [len(cells) - 1]:
+            requested = report.get("workloads_requested")
+            if isinstance(requested, list) and len(cells) < len(requested):
+                _fail(
+                    "artifact-admission",
+                    "requested workload suffix is unexplained",
+                )
+            _fail(
+                "artifact-admission",
+                "cell admission failure must be the final cell",
+            )
+        if report.get("status") != "partial":
+            _fail("artifact-admission", "cell admission failure requires partial status")
     terminal = _check_terminal_projection(report=report, events=events, cells=cells)
     budget = report.get("generation_budget_per_workload")
     if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
@@ -2018,18 +2247,47 @@ def assert_campaign_layer3_chain(
     certifying_input = launch_admission.get("certifying")
     if type(certifying_input) is not bool:
         _fail("campaign-chain", "launch admission certifying is not a bool")
+    failure_indices = [
+        index
+        for index, cell in enumerate(cells)
+        if isinstance(cell, Mapping)
+        and is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
+    ]
+    if len(failure_indices) > 1:
+        _fail("campaign-chain", "multiple cell admission failures are forbidden")
+    if failure_indices and failure_indices != [len(cells) - 1]:
+        _fail("campaign-chain", "cell admission failure must be the final cell")
     for index, raw_cell in enumerate(cells):
         cell = _mapping(raw_cell, gate="campaign-chain", label=f"cells[{index}]")
+        failure_decision = is_exact_cell_admission_failure_decision(
+            cell.get("admission_decision")
+        )
+        if failure_decision and not _is_exact_pending_critic_disposition(
+            cell.get("pending_critic_disposition")
+        ):
+            _fail("campaign-chain", f"cells[{index}] failure disposition is not exact")
+        workload = cell.get("workload")
+        if not isinstance(workload, str) or workload not in producer.WORKLOADS:
+            _fail("campaign-chain", f"cells[{index}].workload is not producer-supported")
         campaign_id = cell.get("campaign_id")
         campaign_root_value = cell.get("campaign_root")
         if campaign_id is None and campaign_root_value is None:
+            if (
+                failure_decision
+                and _is_exact_campaignless_failure_fallback_cell(cell)
+            ):
+                continue
+            if failure_decision:
+                _fail(
+                    "campaign-chain",
+                    f"cells[{index}] campaignless failure is not the exact producer fallback",
+                )
             _fail("campaign-chain", f"cells[{index}] has no campaign identity")
         if not isinstance(campaign_id, str) or not campaign_id or campaign_id in seen:
             _fail("campaign-chain", f"cells[{index}] campaign_id is invalid or duplicated")
         seen.add(campaign_id)
-        workload = cell.get("workload")
-        if not isinstance(workload, str) or workload not in producer.WORKLOADS:
-            _fail("campaign-chain", f"cells[{index}].workload is not producer-supported")
         workload_flags = producer.WORKLOADS[workload]
         expected_descriptor, expected_binding = producer._descriptor_for(workload_flags)
         if cell.get("workload_flags") != workload_flags:
@@ -2045,6 +2303,24 @@ def assert_campaign_layer3_chain(
         expected_root = (output_root / "campaigns" / campaign_id).resolve()
         if campaign_root != expected_root:
             _fail("campaign-chain", f"cells[{index}] campaign identity/path mismatch")
+        persisted_path = campaign_root / "reports" / "layer3_report.json"
+        if failure_decision:
+            if persisted_path.exists() or persisted_path.is_symlink():
+                _fail(
+                    "campaign-chain",
+                    f"cells[{index}] failure campaign has a persisted layer3 report",
+                )
+            try:
+                require_admitted_campaign(
+                    campaign_root,
+                    purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+                )
+            except ArtifactAdmissionError:
+                continue
+            _fail(
+                "campaign-chain",
+                f"cells[{index}] failure campaign remains independently admitted",
+            )
         contract = _environment_contract_from_campaign_lock(
             campaign_root, producer=producer,
         )
@@ -2064,7 +2340,6 @@ def assert_campaign_layer3_chain(
         expected_campaign_id = str(producer.ident.campaign_id(expected_cfg))
         if campaign_id != expected_campaign_id:
             _fail("campaign-chain", f"cells[{index}] campaign_id differs from producer derivation")
-        persisted_path = campaign_root / "reports" / "layer3_report.json"
         try:
             persisted = _read_report(persisted_path)
         except AutonomousTrialCompletenessError as exc:

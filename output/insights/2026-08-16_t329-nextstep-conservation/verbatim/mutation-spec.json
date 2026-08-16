@@ -1,0 +1,168 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "MU-1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "            carry = CARRY_REFERENCE_RE.fullmatch(item_text)",
+          "new": "            carry = None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_dangling_carry_reference_is_violation[- [T-002] (999)]"
+      ]
+    },
+    {
+      "id": "MU-2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                carry = LEGACY_CARRY_REFERENCE_RE.search(item_text)",
+          "new": "                carry = None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_dangling_carry_reference_is_violation[- [T-002] **/u7d99/u7d9a**: /u5909/u308f/u3089/u305a ((999) /u53c2/u7167)/u3002/u672b/u5c3e/u6ce8/u8a18]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_dangling_carry_reference_is_violation[- [T-002] /u5909/u308f/u3089/u305a ((999) /u53c2/u7167)]"
+      ]
+    },
+    {
+      "id": "MU-3",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "        entry_locations.setdefault(number, []).append(f\"docs/worklog.md:{lineno}\")",
+          "new": "        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_reference_existing_in_current_is_clean[- [T-002] (1)]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_reference_existing_in_current_is_clean[- [T-002] **/u7d99/u7d9a**: /u5909/u308f/u3089/u305a ((1) /u53c2/u7167)/u3002/u672b/u5c3e/u6ce8/u8a18]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_carry_reference_existing_in_current_is_clean[- [T-002] /u5909/u308f/u3089/u305a ((1) /u53c2/u7167)]",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_duplicate_global_entry_number_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract",
+        "orchestrator/tests/test_check_docs.py::test_normative_exact_section_pins_accept_real_repo",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean",
+        "orchestrator/tests/test_check_docs.py::test_spool_fold_rotation_output_passes_real_check_docs"
+      ]
+    },
+    {
+      "id": "MU-4",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                entry_locations.setdefault(number, []).append(\n                    f\"{archive_rel}:{_line_number(archive_text, title_offset)}\"\n                )",
+          "new": "                pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_duplicate_global_entry_number_is_violation",
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_numbered_archive_entry_is_carry_target",
+        "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract",
+        "orchestrator/tests/test_check_docs.py::test_normative_exact_section_pins_accept_real_repo",
+        "orchestrator/tests/test_check_docs.py::test_real_repo_clean"
+      ]
+    },
+    {
+      "id": "MU-5",
+      "category": "both-layers",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    if lo <= hi and not outside and missing == \"なし\":",
+          "new": "    if lo <= hi and not outside:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_archive_filename_and_readme_reject_interior_gap"
+      ]
+    },
+    {
+      "id": "MU-6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    for name, count in sorted(valid_counts.items()):\n        if count != 1:",
+          "new": "    for name, count in sorted(valid_counts.items()):\n        if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_numbered_archive_readme_requires_range_syntax[bare]",
+        "orchestrator/tests/test_check_docs.py::test_numbered_archive_readme_requires_range_syntax[missing]"
+      ]
+    },
+    {
+      "id": "MU-7",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    else:\n        return _ArchiveFilenameClaim(\"malformed\")\n    return _ArchiveFilenameClaim(\"numbered\", tuple(map(int, entry_tokens)))",
+          "new": "    else:\n        return _ArchiveFilenameClaim(\"unnumbered\")\n    return _ArchiveFilenameClaim(\"numbered\", tuple(map(int, entry_tokens)))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_archive_malformed_filename_is_violation[worklog-phase10-0730-10-999-12.md-entries2-- `worklog-phase10-0730-10-999-12.md` /u2014 worklog /u306e 2026-07-30 (10)/u301c(12) /u5206/n]",
+        "orchestrator/tests/test_check_docs.py::test_archive_malformed_filename_is_violation[worklog-phase3-0730-0731-0732.md-entries3-None]",
+        "orchestrator/tests/test_check_docs.py::test_archive_malformed_filename_is_violation[worklog-phase3-0730-106-110-copy.md-entries0-None]",
+        "orchestrator/tests/test_check_docs.py::test_archive_malformed_filename_is_violation[worklog-phase3-106-110.md-entries1-None]"
+      ]
+    },
+    {
+      "id": "MU-8",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    is_mmdd = lambda token: ARCHIVE_MMDD_TOKEN_RE.fullmatch(token) is not None",
+          "new": "    is_mmdd = lambda token: len(token) == 4 and token.isdigit()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_backlog_guard_numbered_archive_entry_is_carry_target"
+      ]
+    },
+    {
+      "id": "MU-9",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "                if number is None:\n                    findings.append(",
+          "new": "                if False:\n                    findings.append("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_numbered_archive_rejects_entry_without_global_number"
+      ]
+    }
+  ]
+}

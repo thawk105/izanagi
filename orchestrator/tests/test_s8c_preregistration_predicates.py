@@ -116,18 +116,18 @@ def test_current_repository_gap_reason_snapshot_requires_cross_wave_review(
     assert {
         item.id: (item.status, item.reason_code) for item in results
     } == {
-        "C01": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
+        "C01": (core.PredicateStatus.UNSATISFIED, "workload-projection-mismatch"),
         "C02": (core.PredicateStatus.EVIDENCE_UNDEFINED, "arm-binding-declared-only"),
         "C03": (core.PredicateStatus.EVIDENCE_UNDEFINED, "manifest-registry-proof-undefined"),
-        "C04": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
+        "C04": (core.PredicateStatus.UNSATISFIED, "crash-policy-cell-partial"),
         "C05": (core.PredicateStatus.EVIDENCE_UNDEFINED, "schedule-schema-absent"),
         "C06": (core.PredicateStatus.EVIDENCE_UNDEFINED, "budget-consumer-contract-undefined"),
         "C07": (core.PredicateStatus.EVIDENCE_UNDEFINED, "floor-judge-contract-undefined"),
         "C08": (core.PredicateStatus.EVIDENCE_UNDEFINED, "prereg-binding-proof-undefined"),
-        "C09": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
-        "C10": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
+        "C09": (core.PredicateStatus.UNSATISFIED, "formal-acceptance-layer3-consumer-absent"),
+        "C10": (core.PredicateStatus.UNSATISFIED, "cross-binding-verifier-incomplete"),
         "C11": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
-        "C12": (core.PredicateStatus.EVIDENCE_UNDEFINED, "completion-proof-not-machine-checkable"),
+        "C12": (core.PredicateStatus.UNSATISFIED, "environment-contract-consumer-absent"),
     }
 
 
@@ -385,15 +385,21 @@ def _validate_generation_budget(): pass
 def apply_critic_feedback(): pass
 def _run_workload():
     _validate_generation_budget()
-    refs = ("sample_plan_sha256", "cap_lift_sha256")
     apply_critic_feedback()
-    return refs
 def run_trial():
     _validate_generation_budget()
     return _run_workload()
 def main():
     _validate_generation_budget()
     return run_trial()
+"""
+
+TOKEN_ONLY_C11_PROJECTION = """
+_CRITIC_KEYS = frozenset()
+_DIAGNOSTIC_METRICS = ()
+def apply_critic_feedback(): pass
+def _validate_critic_projection(): pass
+def validate_planner_payload(): pass
 """
 
 TOKEN_ONLY_C12 = """
@@ -452,22 +458,8 @@ def _negative_control_case(identifier: str) -> tuple[dict[str, str], str, str]:
     if identifier == "nc_c11_generation_cap_reverts_to_one":
         sources = {
             p3: TOKEN_ONLY_C11,
-            "output/s8c-preregistration/sample-plan.v1.json": json.dumps(
-                {
-                    "schema_version": "s8c-sample-plan/v1",
-                    "minimum_generations": 2,
-                    "critic_feedback_required": True,
-                    "sample_count": 6,
-                }
-            ),
-            "output/s8c-preregistration/generation-cap-lift.v1.json": json.dumps(
-                {
-                    "schema_version": "s8c-generation-cap-lift/v1",
-                    "minimum_generations": 2,
-                    "entrypoints": ["main", "run_trial", "_run_workload"],
-                    "ruling_reference": "T-244",
-                }
-            ),
+            "orchestrator/campaign/s8c_generation_projection.py":
+                TOKEN_ONLY_C11_PROJECTION,
         }
         return sources, p3, TOKEN_ONLY_C11.replace("MAX_APPROVED_GENERATIONS = 2", "MAX_APPROVED_GENERATIONS = 1")
     if identifier == "nc_c12_resume_or_multi_process_allowed":
@@ -503,11 +495,20 @@ def test_satisfiable_predicate_requires_negative_control() -> None:
     machine_checkable = {
         identifier for identifier, row in rows.items() if row.machine_checkable
     }
-    assert machine_checkable == M.SATISFIABLE_CONDITION_IDS == frozenset()
+    assert machine_checkable == M.MACHINE_CHECKABLE_CONDITION_IDS
+    assert machine_checkable == {"C01", "C04", "C09", "C10", "C11", "C12"}
+    assert M.SATISFIABLE_CONDITION_IDS == frozenset()
+    assert M.SATISFIABLE_CONDITION_IDS <= M.MACHINE_CHECKABLE_CONDITION_IDS
+    exercised = 0
     for identifier in machine_checkable:
+        exercised += 1
         row = rows[identifier]
         assert row.negative_control_id in NEGATIVE_CONTROL_CASES
         assert NEGATIVE_CONTROL_CASES[row.negative_control_id] == identifier
+    assert exercised == 6
+    assert set(NEGATIVE_CONTROL_CASES) == {
+        rows[identifier].negative_control_id for identifier in machine_checkable
+    }
 
 
 @pytest.mark.parametrize(
@@ -529,8 +530,16 @@ def test_noop_and_token_only_fixtures_never_satisfy(
     _write(root, mutated_path, mutated_source)
     mutated = _commit(root, f"mutated token only {negative_control_id}")
     mutated_result = _result(root, mutated, identifier)
-    assert mutated_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-    assert mutated_result.reason_code == "completion-proof-not-machine-checkable"
+    expected_reasons = {
+        "C01": "workload-projection-mismatch",
+        "C04": "crash-policy-cell-partial",
+        "C09": "formal-acceptance-layer3-consumer-absent",
+        "C10": "cross-binding-verifier-incomplete",
+        "C11": "generation-cap-not-lifted",
+        "C12": "allocation-enforcement-consumer-absent",
+    }
+    assert mutated_result.status is core.PredicateStatus.UNSATISFIED
+    assert mutated_result.reason_code == expected_reasons[identifier]
 
 
 def test_evidence_reads_commit_blob_not_dirty_worktree(tmp_path: Path) -> None:
@@ -583,5 +592,125 @@ def test_c11_prohibition_ruling_blob_alone_is_not_compliance(tmp_path: Path) -> 
     )
     head = _commit(root, "prohibition ruling only")
     result = _result(root, head, "C11")
-    assert result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
-    assert result.reason_code == "completion-proof-not-machine-checkable"
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "generation-cap-not-lifted"
+
+
+def test_machine_checkable_condition_without_evaluator_is_error(tmp_path: Path) -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    value["conditions"][1]["machine_checkable"] = True
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        core.EVIDENCE_CONTRACT_PATH,
+        json.dumps(value, ensure_ascii=False).encode("utf-8"),
+    )
+    head = _commit(root, "C02 falsely marked machine checkable")
+
+    result = _result(root, head, "C02")
+    assert result.status is core.PredicateStatus.ERROR
+    assert result.reason_code == "commit-blob-read-error"
+
+
+def test_legacy_contract_routes_machine_evaluators_to_undefined(
+    tmp_path: Path,
+) -> None:
+    value = json.loads(CONTRACT_FILE.read_bytes())
+    for row in value["conditions"]:
+        if f"C{row['condition_number']:02d}" in M.MACHINE_CHECKABLE_CONDITION_IDS:
+            row["machine_checkable"] = False
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        core.EVIDENCE_CONTRACT_PATH,
+        json.dumps(value, ensure_ascii=False).encode("utf-8"),
+    )
+    head = _commit(root, "legacy all-static contract")
+
+    results = {item.id: item for item in M.get_registry().evaluate_all(head, repo_root=root)}
+    for identifier in M.MACHINE_CHECKABLE_CONDITION_IDS:
+        assert results[identifier].status is core.PredicateStatus.EVIDENCE_UNDEFINED
+        assert results[identifier].reason_code == "completion-proof-not-machine-checkable"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "projection"),
+    [
+        pytest.param("missing", None, id="missing-blob"),
+        pytest.param(
+            "broken-identifier",
+            TOKEN_ONLY_C11_PROJECTION.replace(
+                "def _validate_critic_projection(): pass",
+                "def validate_critic_projection(): pass",
+            ),
+            id="broken-identifier",
+        ),
+    ],
+)
+def test_c11_generation_projection_is_required_before_terminal_undefined(
+    tmp_path: Path, mutation: str, projection: str | None
+) -> None:
+    root = _init_repo(tmp_path)
+    _write(
+        root,
+        "orchestrator/campaign/p3_autonomous_workload_trial.py",
+        TOKEN_ONLY_C11,
+    )
+    projection_path = "orchestrator/campaign/s8c_generation_projection.py"
+    _write(root, projection_path, TOKEN_ONLY_C11_PROJECTION)
+    baseline = _commit(root, "valid C11 projection shape")
+    baseline_result = _result(root, baseline, "C11")
+    assert baseline_result.status is core.PredicateStatus.EVIDENCE_UNDEFINED
+    assert baseline_result.reason_code == "completion-proof-not-machine-checkable"
+
+    if projection is None:
+        (root / projection_path).unlink()
+    else:
+        _write(root, projection_path, projection)
+    mutated = _commit(root, f"{mutation} C11 projection")
+    result = _result(root, mutated, "C11")
+    assert result.status is core.PredicateStatus.UNSATISFIED
+    assert result.reason_code == "critic-feedback-consumer-absent"
+
+
+def test_c03_c08_contract_uses_two_stage_binding_without_self_reference() -> None:
+    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
+    for number in (3, 8):
+        condition = contract.condition(number)
+        serialized = json.dumps(
+            json.loads(CONTRACT_FILE.read_bytes())["conditions"][number - 1],
+            ensure_ascii=False,
+        )
+        assert "prereg_commit" not in serialized
+        manifest = next(
+            item for item in condition.required_evidence
+            if item.artifact_kind == "trial_manifest"
+        )
+        assert set(manifest.field_paths).isdisjoint(
+            {"prereg_content_commit", "prereg_effective_commit", "manifest_sha256"}
+        )
+        binding = next(
+            item for item in condition.required_evidence
+            if item.artifact_kind == "prereg_effective_binding"
+        )
+        assert set(binding.field_paths) == {
+            "prereg_content_commit", "manifest_path", "manifest_sha256"
+        }
+
+    c08_proof = contract.condition(8).consumer_requirement.proof
+    assert "effective commit C to have the exact parent set {P}" in c08_proof
+    assert "prove ancestry from C to the measurement HEAD" in c08_proof
+    assert c08_proof.count("ancestry") == 1
+
+
+def test_machine_checkable_contract_and_evaluator_registry_are_bijective() -> None:
+    contract = M.load_contract_bytes(CONTRACT_FILE.read_bytes())
+    contract_ids = {
+        condition.identifier
+        for condition in contract.conditions
+        if condition.machine_checkable
+    }
+    evaluator_ids = frozenset(
+        f"C{number:02d}" for number in M._MACHINE_EVALUATORS
+    )
+    assert contract_ids == evaluator_ids == M.MACHINE_CHECKABLE_CONDITION_IDS

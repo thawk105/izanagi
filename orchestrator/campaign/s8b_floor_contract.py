@@ -42,6 +42,12 @@ _PROTOCOL_KEYS = frozenset({
     "session_cv_max", "cell_cv_max", "scale_adequacy_rel_tolerance",
     "allowed_excluded_reasons", "contract_sha256",
 })
+_AI_RESEAL_MUTABLE_FIELDS = frozenset({"contract_sha256", "ccbench_pin"})
+_AI_RESEAL_INHERITED_FIELDS = _PROTOCOL_KEYS - _AI_RESEAL_MUTABLE_FIELDS
+assert len(_AI_RESEAL_MUTABLE_FIELDS) == 2
+assert len(_AI_RESEAL_INHERITED_FIELDS) == 16
+assert _AI_RESEAL_MUTABLE_FIELDS | _AI_RESEAL_INHERITED_FIELDS == _PROTOCOL_KEYS
+assert not (_AI_RESEAL_MUTABLE_FIELDS & _AI_RESEAL_INHERITED_FIELDS)
 _FREEZE_RECORD_KEYS = frozenset({"path", "sha256"})
 _FLOOR_HOLDOUT_ADMISSION_KEYS = frozenset({
     "schema", "campaign_run_id", "run_relpath", "mode", "protocol_sha256",
@@ -481,6 +487,42 @@ def canonical_protocol_sha256(normalized_protocol: Mapping) -> str:
     except (TypeError, ValueError) as exc:
         raise FloorContractError(f"canonical JSON に変換できない: {exc}") from exc
     return hashlib.sha256(raw).hexdigest()
+
+
+def _canonical_protocol_field_bytes(value, *, field: str) -> bytes:
+    """AI reseal の継承比較用に field 値を型込み canonical bytes へ写す。"""
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, UnicodeError) as exc:
+        raise FloorContractError(
+            f"protocol.{field} を継承比較用 canonical JSON に変換できない: {exc}"
+        ) from exc
+
+
+def validate_ai_reseal_inheritance(
+        predecessor: Mapping, successor: Mapping) -> None:
+    """AI reseal が可変 2 field 以外の 16 field を byte-exact 継承したか検証する。"""
+    for label, document in (("predecessor", predecessor), ("successor", successor)):
+        if not isinstance(document, Mapping) or set(document) != set(_PROTOCOL_KEYS):
+            raise FloorContractError(
+                f"AI reseal {label} が exact 18-field protocol でない"
+            )
+    changed = []
+    for field in sorted(_AI_RESEAL_INHERITED_FIELDS):
+        before = _canonical_protocol_field_bytes(predecessor[field], field=field)
+        after = _canonical_protocol_field_bytes(successor[field], field=field)
+        if before != after:
+            changed.append(field)
+    if changed:
+        raise FloorContractError(
+            f"AI reseal が人間専有 field を変更した: {changed}"
+        )
 
 
 def project_protocol_for_floor_artifact(protocol: Mapping) -> dict:

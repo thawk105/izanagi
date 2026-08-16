@@ -148,6 +148,17 @@ if os.environ.get('IZANAGI_DISPATCH_EVIDENCE') == '1':
     dispatch = repo / 'output' / 'pegasus-dispatch'
     dispatch.mkdir(parents=True, exist_ok=False)
     (dispatch / 'receipt.json').write_text('evidence', encoding='utf-8')
+if os.environ.get('IZANAGI_ORPHAN_HOLD') == '1':
+    dispatch = repo / 'output' / 'pegasus-dispatch'
+    dispatch.mkdir(parents=True, exist_ok=True)
+    (dispatch / 'orphan-hold.json').write_text('{}\\n', encoding='utf-8')
+if os.environ.get('IZANAGI_ORPHAN_STOP') == '1':
+    Path(str(out) + '.orphan-stop.json').write_text(json.dumps({
+        'reason': {
+            'code': 'orphan-hold',
+            'hold_error': 'injected double hold write failure',
+        },
+    }), encoding='utf-8')
 print('fake-harness-stdout', flush=True)
 print('fake-harness-stderr', file=sys.stderr, flush=True)
 raise SystemExit(int(os.environ.get('IZANAGI_FAKE_HARNESS_RC', '0')))
@@ -502,6 +513,248 @@ def test_dispatch_evidence_is_relocated_before_delete_between_observation_points
     ) is True
     assert observed == [preflight.container, binding.admin_dir]
     assert (preflight.evidence / "receipt.json").read_text(encoding="utf-8") == "evidence\n"
+
+
+@_limited
+@pytest.mark.parametrize(
+    ("plan_only", "child_rc", "terminal"),
+    [(True, None, False), (False, 0, True), (False, 1, True)],
+)
+def test_orphan_hold_always_blocks_should_teardown_between_observation_points(
+    plan_only: bool, child_rc: int | None, terminal: bool,
+) -> None:
+    assert MW._should_teardown(
+        plan_only=plan_only,
+        child_rc=child_rc,
+        terminal=terminal,
+        orphan_hold=True,
+    ) is False
+
+
+@_limited
+@pytest.mark.parametrize(
+    ("plan_only", "child_rc", "terminal"),
+    [(True, None, False), (False, 0, True), (False, 1, True)],
+)
+def test_no_hold_keeps_positive_teardown_paths_between_observation_points(
+    plan_only: bool, child_rc: int | None, terminal: bool,
+) -> None:
+    assert MW._should_teardown(
+        plan_only=plan_only,
+        child_rc=child_rc,
+        terminal=terminal,
+        orphan_hold=False,
+    ) is True
+
+
+@_limited
+@pytest.mark.parametrize("plan_only", [True, False])
+def test_orphan_hold_preserves_container_and_wrapper_receipt_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+    plan_only: bool,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setenv("IZANAGI_ORPHAN_HOLD", "1")
+    if not plan_only:
+        monkeypatch.setenv("IZANAGI_LEDGER_MODE", "terminal")
+    rc = MW.main(
+        _wrapper_argv(
+            fixture,
+            runner_mode="dispatch",
+            plan_only=plan_only,
+        )
+    )
+
+    assert rc == MW.WRAPPER_FAILURE_RC
+    container = fixture.scratch / MW.CONTAINER_NAME
+    assert (container / "repo" / "output" / "pegasus-dispatch" / "orphan-hold.json").is_file()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] == "orphan-hold"
+    assert receipt["container_preserved"] is True
+    assert receipt["teardown_attempted"] is False
+    assert receipt["teardown_completed"] is False
+    assert receipt["dispatch_evidence"]["relocated"] is False
+    assert receipt["child_rc"] == 0
+    assert receipt["terminal_ledger"] is (not plan_only)
+    stderr = capfd.readouterr().err
+    assert stderr.index("復旧順序:") < stderr.index("resume command:")
+    assert "--resume は orphan hold を解除した後にだけ有効" in stderr
+
+
+@_limited
+def test_orphan_hold_lstat_error_preserves_container_without_teardown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setenv("IZANAGI_LEDGER_MODE", "terminal")
+    target = (
+        fixture.scratch
+        / MW.CONTAINER_NAME
+        / "repo"
+        / "output"
+        / "pegasus-dispatch"
+        / "orphan-hold.json"
+    )
+    real_lstat = os.lstat
+
+    def indeterminate(path, *args, **kwargs):
+        if Path(path) == target:
+            raise OSError("injected lstat failure")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(MW.os, "lstat", indeterminate)
+
+    assert MW.main(_wrapper_argv(fixture, runner_mode="dispatch")) == (
+        MW.WRAPPER_FAILURE_RC
+    )
+    container = fixture.scratch / MW.CONTAINER_NAME
+    assert container.is_dir()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] == "orphan-hold"
+    assert receipt["container_preserved"] is True
+    assert receipt["teardown_attempted"] is False
+    assert receipt["teardown_completed"] is False
+
+
+@_limited
+def test_plan_only_exception_fallback_preserves_orphan_hold_container_between_observation_points(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    teardown_calls = 0
+
+    def fail_after_hold(preflight, *_args, **_kwargs):
+        hold = MW._dispatch_root(preflight) / "orphan-hold.json"
+        hold.parent.mkdir(parents=True)
+        hold.write_text("{}\n", encoding="utf-8")
+        raise RuntimeError("injected plan-only failure")
+
+    def forbidden_teardown(*args, **kwargs):
+        nonlocal teardown_calls
+        teardown_calls += 1
+        raise AssertionError("teardown reached despite orphan hold")
+
+    monkeypatch.setattr(MW, "_run_harness", fail_after_hold)
+    monkeypatch.setattr(MW, "_teardown", forbidden_teardown)
+
+    assert MW.main(
+        _wrapper_argv(fixture, runner_mode="dispatch", plan_only=True)
+    ) == MW.WRAPPER_FAILURE_RC
+    assert teardown_calls == 0
+    assert (fixture.scratch / MW.CONTAINER_NAME).is_dir()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] == "orphan-hold"
+    assert receipt["teardown_attempted"] is False
+    assert receipt["container_preserved"] is True
+
+
+@_limited
+def test_orphan_stop_sidecar_preserves_container_and_receipt_without_hold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setenv("IZANAGI_LEDGER_MODE", "terminal")
+    monkeypatch.setenv("IZANAGI_ORPHAN_STOP", "1")
+
+    assert MW.main(_wrapper_argv(fixture, runner_mode="dispatch")) == (
+        MW.WRAPPER_FAILURE_RC
+    )
+
+    container = fixture.scratch / MW.CONTAINER_NAME
+    assert container.is_dir()
+    assert not (
+        container / "repo" / "output" / "pegasus-dispatch" / "orphan-hold.json"
+    ).exists()
+    assert Path(f"{fixture.out}.orphan-stop.json").is_file()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] == "orphan-hold"
+    assert receipt["container_preserved"] is True
+    assert receipt["teardown_attempted"] is False
+    assert receipt["teardown_completed"] is False
+    assert receipt["dispatch_evidence"]["relocated"] is False
+    stderr = capfd.readouterr().err
+    assert stderr.index("復旧順序:") < stderr.index("resume command:")
+    assert "orphan hold と orphan-stop sidecar を手動削除" in stderr
+
+
+@_limited
+def test_plan_only_exception_fallback_preserves_sidecar_only_container(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    teardown_calls = 0
+
+    def fail_after_sidecar(preflight, *_args, **_kwargs):
+        Path(f"{preflight.out}.orphan-stop.json").write_text(
+            '{"reason": {"code": "orphan-hold"}}\n', encoding="utf-8"
+        )
+        raise RuntimeError("injected plan-only sidecar failure")
+
+    def forbidden_teardown(*args, **kwargs):
+        nonlocal teardown_calls
+        teardown_calls += 1
+        raise AssertionError("teardown reached despite orphan-stop sidecar")
+
+    monkeypatch.setattr(MW, "_run_harness", fail_after_sidecar)
+    monkeypatch.setattr(MW, "_teardown", forbidden_teardown)
+
+    assert MW.main(
+        _wrapper_argv(fixture, runner_mode="dispatch", plan_only=True)
+    ) == MW.WRAPPER_FAILURE_RC
+    assert teardown_calls == 0
+    container = fixture.scratch / MW.CONTAINER_NAME
+    assert container.is_dir()
+    assert not (
+        container / "repo" / "output" / "pegasus-dispatch" / "orphan-hold.json"
+    ).exists()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] == "orphan-hold"
+    assert receipt["teardown_attempted"] is False
+    assert receipt["teardown_completed"] is False
+    assert receipt["container_preserved"] is True
+    assert receipt["dispatch_evidence"]["relocated"] is False
+    stderr = capfd.readouterr().err
+    assert stderr.index("復旧順序:") < stderr.index("resume command:")
+    assert "orphan hold と orphan-stop sidecar を手動削除" in stderr
+
+
+@_limited
+def test_dispatch_without_hold_or_sidecar_tears_down_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _make_repository(tmp_path, harness_source=_fake_harness_source())
+    monkeypatch.setenv("IZANAGI_LEDGER_MODE", "terminal")
+    monkeypatch.setenv("IZANAGI_DISPATCH_EVIDENCE", "1")
+
+    assert MW.main(_wrapper_argv(fixture, runner_mode="dispatch")) == 0
+    assert not (fixture.scratch / MW.CONTAINER_NAME).exists()
+    assert not Path(f"{fixture.out}.orphan-stop.json").exists()
+    receipt = json.loads(
+        Path(f"{fixture.out}.wrapper-receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["failure"] is None
+    assert receipt["container_preserved"] is False
+    assert receipt["teardown_attempted"] is True
+    assert receipt["teardown_completed"] is True
+    assert receipt["dispatch_evidence"]["relocated"] is True
 
 
 @_limited

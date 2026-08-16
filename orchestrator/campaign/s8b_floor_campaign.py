@@ -40,17 +40,18 @@ config の数値はコードに既定値を持たず入力必須にする (F14 �
 
 official mode の無条件拒否は private core 自体で行い、public wrapper の迂回を許さない。さらに
 official core は ``build_fn`` 注入を副作用前に拒否し、admission-aware な ``buildcache.build_v2``
-だけを materializer として使う。pilot artifact は ``eligible_for_refreeze: false``、official の
-private core 完走 artifact は二相 finalize の completed terminal 後 publish に限って true となる。
+だけを materializer として使う。pilot、resume、または非既定 seam を使った artifact は
+``eligible_for_refreeze: false`` とし、fresh official の既定実引数だけを true にできる。
 
-既知限界: ``eligible_for_refreeze`` は依然として receipt chain ではなく ``mode`` 由来であり、
-eligible_for_refreeze は依然として receipt chain ではない。binary 側は発行時に検証した
-admission を store、resume、floor 実測直前まで連続束縛するが、gateway 発行の証明や
-暗号学的保証ではない。
+既知限界: ``eligible_for_refreeze`` は durable receipt chain ではない。同一 interpreter 内の
+module 属性差し替えは任意コード実行と同値であり、この argument 境界はその攻撃への耐性を
+主張しない。binary 側は発行時に検証した admission を store、resume、floor 実測直前まで
+連続束縛するが、gateway 発行の証明や暗号学的保証ではない。
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import contextlib
 import datetime as dt
 import hashlib
@@ -69,6 +70,9 @@ import uuid
 from dataclasses import asdict, dataclass
 from typing import Callable, Mapping, Optional, Sequence
 from pathlib import Path
+
+_DEFAULT_SLEEP_FN = time.sleep
+_DEFAULT_MONOTONIC_FN = time.monotonic
 
 if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -161,8 +165,12 @@ _APPROVED_SESSION_CV_MAX = _floor_contract._APPROVED_SESSION_CV_MAX
 _APPROVED_CELL_CV_MAX = _floor_contract._APPROVED_CELL_CV_MAX
 _APPROVED_SCALE_ADEQUACY = _floor_contract._APPROVED_SCALE_ADEQUACY
 _APPROVED_REASONS = list(_floor_contract._APPROVED_REASONS)
+_AI_RESEAL_MUTABLE_FIELDS = _floor_contract._AI_RESEAL_MUTABLE_FIELDS
+_AI_RESEAL_INHERITED_FIELDS = _floor_contract._AI_RESEAL_INHERITED_FIELDS
 
 _FLOOR_PROTOCOL_REL = "output/s8b-freeze/floor_protocol.json"
+_FLOOR_PROTOCOLS_REL = "output/s8b-freeze/floor-protocols"
+_FLOOR_PROTOCOL_PAIR_RE = re.compile(r"[0-9a-f]{64}--[0-9a-f]{40}\.json")
 _FLOOR_JOB_STAGING_ENV = "IZANAGI_FLOOR_JOB_STAGING"
 _PRIVATE_DIAGNOSTIC_MAX_BYTES = 128 * 1024
 _FLOOR_PREFLIGHT_FAILURE_FILENAME = "sort-swo-oracle-preflight-failure.json"
@@ -260,10 +268,12 @@ _CHAIN_RECORD_PATTERNS = (
     re.compile(r"output/s8b-freeze/revocations/[0-9a-f]{64}\.json"),
     re.compile(r"output/s8b-freeze/active/[0-9a-f]{64}\.json"),
     re.compile(r"output/s8b-freeze/active-cancellations/[0-9a-f]{64}\.json"),
+    re.compile(r"output/s8b-freeze/floor-protocols/[0-9a-f]{64}--[0-9a-f]{40}\.json"),
 )
 
 # 新しい共有 API は leaf 実体を直接 re-export する。
 canonical_protocol_sha256 = _floor_contract.canonical_protocol_sha256
+validate_ai_reseal_inheritance = _floor_contract.validate_ai_reseal_inheritance
 project_protocol_for_floor_artifact = _floor_contract.project_protocol_for_floor_artifact
 derive_expected_cells = _floor_contract.derive_expected_cells
 build_portable_run_cmd = _floor_contract.build_portable_run_cmd
@@ -340,9 +350,9 @@ def _assert_perf_mode(mode: str, receipt) -> bool:
 
 def _validate_mode(mode) -> str:
     """core 呼出しの mode を閉じた集合で検証し、path segment への注入を防ぐ。"""
-    if not isinstance(mode, str) or mode not in {"pilot", "official"}:
+    if type(mode) is not str or mode not in {"pilot", "official"}:
         raise FloorCampaignError("mode は exact {'pilot','official'} のいずれかでなければならない")
-    return mode
+    return "pilot" if mode == "pilot" else "official"
 
 
 def _assert_official_permitted(mode: str) -> None:
@@ -567,12 +577,315 @@ class BuiltProtocol:
     sha256: str
 
 
-def _ccbench_gitlink(root: Path) -> str:
-    """``external/ccbench`` の HEAD gitlink (40 hex commit) を実測する (fail-closed)。"""
+@dataclass(frozen=True)
+class IndexedFloorProtocol:
+    """strict scan 済み floor protocol の path・組・bytes identity。"""
+
+    path: str
+    document: dict
+    raw_bytes: bytes
+    sha256: str
+
+    @property
+    def contract_sha256(self) -> str:
+        return self.document["contract_sha256"]
+
+    @property
+    def ccbench_pin(self) -> str:
+        return self.document["ccbench_pin"]
+
+    @property
+    def protocol_sha256(self) -> str:
+        return self.sha256
+
+    @property
+    def canonical_bytes(self) -> bytes:
+        return self.raw_bytes
+
+
+def _strict_parse_protocol_bytes(raw: bytes, *, source: str) -> dict:
+    """取得源を固定済みの raw bytes を duplicate-key 拒否で strict parse する。"""
+    try:
+        text = raw.decode("utf-8", "strict")
+    except UnicodeError as exc:
+        raise FloorCampaignError(f"protocol を UTF-8 decode できない: {source}: {exc}") from exc
+    try:
+        document = json.loads(
+            text,
+            object_pairs_hook=_no_duplicate_pairs,
+            parse_constant=_reject_json_constant,
+        )
+    except json.JSONDecodeError as exc:
+        raise FloorCampaignError(
+            f"protocol を strict parse できない: {source}: {exc}"
+        ) from exc
+    if not isinstance(document, dict):
+        raise FloorCampaignError(f"protocol top-level が object でない: {source}")
+    return document
+
+
+_FLOOR_GIT_AUTHORITY_ENV = frozenset({
+    "GIT_REPLACE_REF_BASE",
+    "GIT_CONFIG",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_CONFIG_COUNT",
+    "GIT_NAMESPACE",
+    "GIT_GRAFT_FILE",
+    "GIT_SHALLOW_FILE",
+})
+_FLOOR_GIT_CONFIG_ENTRY_RE = re.compile(r"GIT_CONFIG_(?:KEY|VALUE)_\d+")
+
+
+def _sanitized_floor_git_env() -> dict[str, str]:
+    """floor issuer の Git object/config authority を ambient 環境から切る。"""
+    env = source_digest._sanitized_git_env()
+    for name in _FLOOR_GIT_AUTHORITY_ENV:
+        env.pop(name, None)
+    for name in tuple(env):
+        if _FLOOR_GIT_CONFIG_ENTRY_RE.fullmatch(name):
+            env.pop(name, None)
+    env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    return env
+
+
+def _floor_git_read_command(*args: str) -> list[str]:
+    """replacement object を argv と環境の二層で無効化した Git read argv。"""
+    return ["git", "--no-replace-objects", *args]
+
+
+def _head_commit_oid(root: Path) -> str:
+    """ambient Git authority を除去して HEAD commit を一度だけ解決する。"""
+    try:
+        raw = subprocess.run(
+            _floor_git_read_command("rev-parse", "--verify", "HEAD^{commit}"),
+            cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_floor_git_env(),
+        ).stdout
+        commit_oid = raw.decode("ascii", "strict").strip()
+        if re.fullmatch(r"[0-9a-f]{40}", commit_oid) is None:
+            raise FloorCampaignError(
+                f"repository HEAD commit OID が 40 桁小文字 hex でない: {commit_oid!r}"
+            )
+        return commit_oid
+    except FloorCampaignError:
+        raise
+    except (OSError, UnicodeError, subprocess.CalledProcessError) as exc:
+        raise FloorCampaignError(f"repository HEAD commit を解決できない: {exc}") from exc
+
+
+def _head_blob_100644(root: Path, rel: str, commit_oid: str) -> bytes:
+    """固定 commit の exact 100644 blob OID を検査して bytes を読む。"""
+    try:
+        listed = subprocess.run(
+            _floor_git_read_command("ls-tree", "-z", commit_oid, "--", rel),
+            cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_floor_git_env(),
+        ).stdout
+        entries = [entry for entry in listed.split(b"\0") if entry]
+        if len(entries) != 1:
+            raise FloorCampaignError(
+                f"AI reseal anchor が HEAD 固定 commit に exact 1 blob ない: {rel}"
+            )
+        meta, separator, actual = entries[0].decode("utf-8", "strict").partition("\t")
+        mode, kind, blob_oid = meta.split(" ")
+        if not separator or actual != rel or mode != "100644" or kind != "blob":
+            raise FloorCampaignError(
+                f"AI reseal anchor が HEAD 固定 commit の 100644 blob でない: {rel}"
+            )
+        if re.fullmatch(r"[0-9a-f]{40}", blob_oid) is None:
+            raise FloorCampaignError(
+                f"AI reseal anchor の blob OID が 40 桁小文字 hex でない: {rel}"
+            )
+        return subprocess.run(
+            _floor_git_read_command("cat-file", "blob", blob_oid),
+            cwd=str(root), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=_sanitized_floor_git_env(),
+        ).stdout
+    except FloorCampaignError:
+        raise
+    except (OSError, UnicodeError, ValueError, subprocess.CalledProcessError) as exc:
+        raise FloorCampaignError(
+            f"AI reseal anchor の HEAD blob を検証できない: {rel}: {exc}"
+        ) from exc
+
+
+def _validate_floor_protocol_pair(contract_sha256: object, ccbench_pin: object) -> tuple[str, str]:
+    if (not isinstance(contract_sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", contract_sha256) is None):
+        raise FloorCampaignError(
+            f"floor protocol contract_sha256 が 64 桁小文字 hex でない: {contract_sha256!r}"
+        )
+    if (not isinstance(ccbench_pin, str)
+            or re.fullmatch(r"[0-9a-f]{40}", ccbench_pin) is None):
+        raise FloorCampaignError(
+            f"floor protocol ccbench_pin が 40 桁小文字 hex でない: {ccbench_pin!r}"
+        )
+    return contract_sha256, ccbench_pin
+
+
+def _derived_reseal_protocol_relpath(contract_sha256: object, ccbench_pin: object) -> str:
+    """呼び手指定面を持たず、組から sanctioned path を一意に導出する。"""
+    contract, pin = _validate_floor_protocol_pair(contract_sha256, ccbench_pin)
+    return f"{_FLOOR_PROTOCOLS_REL}/{contract}--{pin}.json"
+
+
+def _index_protocol_record(
+        index: dict[tuple[str, str], IndexedFloorProtocol], *, path: str,
+        document: dict, raw: bytes) -> None:
+    pair = _validate_floor_protocol_pair(
+        document["contract_sha256"], document["ccbench_pin"],
+    )
+    if pair in index:
+        raise FloorCampaignError(
+            "floor protocol index に同一組が複数ある: "
+            f"pair={pair!r} paths={[index[pair].path, path]}"
+        )
+    same_contract = sorted(
+        record.path
+        for (contract_sha256, _pin), record in index.items()
+        if contract_sha256 == pair[0]
+    )
+    if same_contract:
+        raise FloorCampaignError(
+            "floor protocol index に同一 contract_sha256 が複数ある: "
+            f"contract_sha256={pair[0]} paths={same_contract + [path]}"
+        )
+    index[pair] = IndexedFloorProtocol(
+        path=path,
+        document=document,
+        raw_bytes=raw,
+        sha256=hashlib.sha256(raw).hexdigest(),
+    )
+
+
+def _assert_floor_protocol_ancestors(root: Path) -> None:
+    """sanctioned namespace までの祖先が実 directory であることを検査する。"""
+    for rel in ("output", "output/s8b-freeze"):
+        directory = root / rel
+        if directory.is_symlink():
+            raise FloorCampaignError(f"floor protocol index 親が symlink: {rel}")
+        if directory.exists() and not directory.is_dir():
+            raise FloorCampaignError(
+                f"floor protocol index 親が実 directory でない: {rel}"
+            )
+    protocols_dir = root / _FLOOR_PROTOCOLS_REL
+    if protocols_dir.is_symlink():
+        raise FloorCampaignError(
+            f"floor protocol namespace が symlink: {protocols_dir}"
+        )
+    if protocols_dir.exists() and not protocols_dir.is_dir():
+        raise FloorCampaignError(
+            f"floor protocol namespace が directory でない: {protocols_dir}"
+        )
+
+
+def _scan_floor_protocol_index_at_commit(
+        *, root: Path, commit_oid: str,
+) -> dict[tuple[str, str], IndexedFloorProtocol]:
+    """固定 commit の anchor と sanctioned namespace を strict index 化する。"""
+    root = Path(root)
+    _assert_floor_protocol_ancestors(root)
+    legacy_path = root / _FLOOR_PROTOCOL_REL
+    try:
+        legacy_stat = legacy_path.lstat()
+    except OSError as exc:
+        raise FloorCampaignError(
+            f"floor protocol legacy anchor が無いか検査できない: {legacy_path}: {exc}"
+        ) from exc
+    if stat.S_ISLNK(legacy_stat.st_mode) or not stat.S_ISREG(legacy_stat.st_mode):
+        raise FloorCampaignError(
+            f"floor protocol legacy anchor が regular non-symlink file でない: {legacy_path}"
+        )
+
+    # working tree の legacy も strict scan するが、lineage authority には使わない。
+    try:
+        working_legacy_raw = legacy_path.read_bytes()
+    except OSError as exc:
+        raise FloorCampaignError(f"legacy floor protocol を読めない: {legacy_path}: {exc}") from exc
+    working_legacy = _strict_parse_protocol_bytes(
+        working_legacy_raw, source=str(legacy_path),
+    )
+    validate_protocol(working_legacy)
+
+    anchor_raw = _head_blob_100644(root, _FLOOR_PROTOCOL_REL, commit_oid)
+    anchor_source = f"{commit_oid}:{_FLOOR_PROTOCOL_REL}"
+    anchor_document_raw = _strict_parse_protocol_bytes(anchor_raw, source=anchor_source)
+    anchor_document = validate_protocol(anchor_document_raw)
+    index: dict[tuple[str, str], IndexedFloorProtocol] = {}
+    _index_protocol_record(
+        index, path=_FLOOR_PROTOCOL_REL, document=anchor_document, raw=anchor_raw,
+    )
+
+    protocols_dir = root / _FLOOR_PROTOCOLS_REL
+    if not protocols_dir.exists():
+        return index
+    try:
+        entries = sorted(protocols_dir.iterdir(), key=lambda path: path.name)
+    except OSError as exc:
+        raise FloorCampaignError(
+            f"floor protocol namespace を列挙できない: {protocols_dir}: {exc}"
+        ) from exc
+    for path in entries:
+        rel = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            raise FloorCampaignError(f"floor protocol namespace に symlink がある: {rel}")
+        try:
+            entry_stat = path.lstat()
+        except OSError as exc:
+            raise FloorCampaignError(f"floor protocol entry を検査できない: {rel}: {exc}") from exc
+        if not stat.S_ISREG(entry_stat.st_mode):
+            raise FloorCampaignError(
+                f"floor protocol namespace に非通常 file がある: {rel}"
+            )
+        if _FLOOR_PROTOCOL_PAIR_RE.fullmatch(path.name) is None:
+            raise FloorCampaignError(f"floor protocol namespace に予期しない名前がある: {rel}")
+        try:
+            raw = path.read_bytes()
+        except OSError as exc:
+            raise FloorCampaignError(f"floor protocol entry を読めない: {rel}: {exc}") from exc
+        document_raw = _strict_parse_protocol_bytes(raw, source=rel)
+        document = validate_protocol(document_raw)
+        expected_rel = _derived_reseal_protocol_relpath(
+            document["contract_sha256"], document["ccbench_pin"],
+        )
+        if rel != expected_rel:
+            raise FloorCampaignError(
+                f"floor protocol path が document の組からの導出値と不一致: {rel} != {expected_rel}"
+            )
+        try:
+            validate_ai_reseal_inheritance(anchor_document_raw, document_raw)
+        except _floor_contract.FloorContractError as exc:
+            raise FloorCampaignError(str(exc)) from exc
+        expected_document = copy.deepcopy(anchor_document)
+        expected_document["contract_sha256"] = document["contract_sha256"]
+        expected_document["ccbench_pin"] = document["ccbench_pin"]
+        expected_raw = _canonical_bytes(expected_document)
+        if raw != expected_raw:
+            raise FloorCampaignError(
+                f"floor protocol bytes が legacy anchor + target pair の canonical bytes でない: {rel}"
+            )
+        _index_protocol_record(
+            index, path=rel, document=document, raw=raw,
+        )
+    return index
+
+
+def scan_floor_protocol_index(
+        *, root=ROOT) -> dict[tuple[str, str], IndexedFloorProtocol]:
+    """legacy anchor と sanctioned namespace の閉集合を strict index 化する。"""
+    root = Path(root)
+    return _scan_floor_protocol_index_at_commit(
+        root=root, commit_oid=_head_commit_oid(root),
+    )
+
+
+def _ccbench_gitlink(root: Path, commit_oid: str) -> str:
+    """固定 commit の ``external/ccbench`` gitlink を読む (fail-closed)。"""
     try:
         completed = subprocess.run(
-            ["git", "ls-tree", "HEAD", "external/ccbench"],
+            _floor_git_read_command("ls-tree", commit_oid, "external/ccbench"),
             cwd=str(root), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+            env=_sanitized_floor_git_env(),
         )
         out = completed.stdout.decode("utf-8", "strict")
     except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
@@ -585,6 +898,161 @@ def _ccbench_gitlink(root: Path) -> str:
     if len(sha) != 40 or any(ch not in "0123456789abcdef" for ch in sha):
         raise FloorCampaignError(f"ccbench gitlink が 40 桁 hex でない: {sha!r}")
     return sha
+
+
+def _reseal_published_artifact_error(
+        destination_rel: str, detail: str,
+) -> FloorCampaignError:
+    """自動 rollback しない発行失敗へ、復旧に必要な exact path を載せる。"""
+    return FloorCampaignError(
+        f"{detail}。artifact={destination_rel}。"
+        "この file を取り除くまで、この repository では新しい床値 protocol を発行できない。"
+        "自動削除しないため commit 禁止であり、commit してはならない"
+    )
+
+
+def _reseal_protocol_at_root(root: Path) -> dict[str, object]:
+    """零引数 public issuer の tmp-repository テスト可能な private core。"""
+    root = Path(root)
+    head_commit = _head_commit_oid(root)
+    index = _scan_floor_protocol_index_at_commit(root=root, commit_oid=head_commit)
+    anchors = [record for record in index.values() if record.path == _FLOOR_PROTOCOL_REL]
+    if len(anchors) != 1:
+        raise FloorCampaignError("floor protocol index に legacy anchor が exact 1 件ない")
+    anchor = anchors[0]
+    env_tag = anchor.document["env_tag"]
+    try:
+        target_contract = _env_contract.lookup(env_tag)
+    except _env_contract.EnvContractError as exc:
+        raise FloorCampaignError(f"AI reseal target の current env 契約を解決できない: {exc}") from exc
+    if target_contract.env_tag != env_tag:
+        raise FloorCampaignError("AI reseal target contract の env_tag が anchor と不一致")
+    target_pin = _ccbench_gitlink(root, head_commit)
+    target_pair = _validate_floor_protocol_pair(
+        target_contract.contract_sha256, target_pin,
+    )
+    occupied_contract_paths = sorted(
+        record.path
+        for (contract_sha256, _pin), record in index.items()
+        if contract_sha256 == target_pair[0]
+    )
+    if occupied_contract_paths:
+        raise FloorCampaignError(
+            "AI reseal は同じ contract_sha256 に 2 件目の protocol を発行できない: "
+            f"contract_sha256={target_pair[0]} existing={occupied_contract_paths}"
+        )
+
+    successor = copy.deepcopy(anchor.document)
+    successor["contract_sha256"] = target_pair[0]
+    successor["ccbench_pin"] = target_pair[1]
+
+    def target_contract_lookup(candidate_env_tag: str) -> str:
+        if candidate_env_tag != env_tag:
+            raise _floor_contract.FloorContractError(
+                "AI reseal successor の env_tag が anchor と不一致"
+            )
+        return target_pair[0]
+
+    try:
+        normalized = _floor_contract.validate_protocol(
+            successor, contract_sha256_lookup=target_contract_lookup,
+        )
+        # deep copy と許可 2 field の代入後を再確認する post-condition assertion。
+        # 外部 artifact の入力防壁は scan_floor_protocol_index 側が担う。
+        validate_ai_reseal_inheritance(anchor.document, normalized)
+    except _floor_contract.FloorContractError as exc:
+        raise FloorCampaignError(str(exc)) from exc
+    canonical = _canonical_bytes(normalized)
+    built = BuiltProtocol(
+        document=normalized,
+        canonical_bytes=canonical,
+        sha256=hashlib.sha256(canonical).hexdigest(),
+    )
+    destination_rel = _derived_reseal_protocol_relpath(*target_pair)
+    destination = root / destination_rel
+
+    # 初回 scan 後の祖先差し替えを writer の直前でも拒否する。
+    _assert_floor_protocol_ancestors(root)
+    try:
+        _write_protocol_document_create_only(destination, built)
+    except FloorCampaignError as exc:
+        if os.path.lexists(destination):
+            raise _reseal_published_artifact_error(
+                destination_rel, f"AI reseal write 検証失敗: {exc}",
+            ) from exc
+        raise
+
+    root_real = os.path.realpath(root)
+    destination_real = os.path.realpath(destination)
+    try:
+        destination_inside_root = os.path.commonpath(
+            (root_real, destination_real),
+        ) == root_real
+    except ValueError:
+        destination_inside_root = False
+    if not destination_inside_root:
+        raise _reseal_published_artifact_error(
+            destination_rel,
+            f"destination realpath が repository 外: {destination_real}",
+        )
+
+    try:
+        published_head = _head_commit_oid(root)
+    except FloorCampaignError as exc:
+        raise _reseal_published_artifact_error(
+            destination_rel, f"AI reseal publish 後の HEAD 検証失敗: {exc}",
+        ) from exc
+    if published_head != head_commit:
+        raise _reseal_published_artifact_error(
+            destination_rel, "AI reseal publish 中に HEAD commit が変化した",
+        )
+
+    try:
+        read_back = destination.read_bytes()
+        reparsed = _strict_parse_protocol_bytes(read_back, source=destination_rel)
+    except (OSError, FloorCampaignError) as exc:
+        raise _reseal_published_artifact_error(
+            destination_rel, f"AI reseal post-write 検証失敗: {exc}",
+        ) from exc
+    problems = []
+    if read_back != built.canonical_bytes:
+        problems.append("read-back bytes が canonical bytes と不一致")
+    if reparsed != built.document:
+        problems.append("read-back strict parse が builder document と不一致")
+    if problems:
+        raise _reseal_published_artifact_error(
+            destination_rel,
+            "AI reseal post-write 検証失敗: " + "; ".join(problems),
+        )
+    try:
+        post_index = _scan_floor_protocol_index_at_commit(
+            root=root, commit_oid=head_commit,
+        )
+    except FloorCampaignError as exc:
+        raise _reseal_published_artifact_error(
+            destination_rel, f"AI reseal post-write full index 検証失敗: {exc}",
+        ) from exc
+    post_target_pair = target_pair
+    indexed = post_index.get(post_target_pair)
+    if indexed is None or indexed.path != destination_rel or indexed.raw_bytes != read_back:
+        raise _reseal_published_artifact_error(
+            destination_rel,
+            "AI reseal post-write 検証失敗: "
+            "post-write full index に target pair が exact path/bytes で無い",
+        )
+    return {
+        "status": "resealed",
+        "path": destination_rel,
+        "contract_sha256": target_pair[0],
+        "ccbench_pin": target_pair[1],
+        "byte_length": len(read_back),
+        "sha256": built.sha256,
+    }
+
+
+def reseal_protocol() -> dict[str, object]:
+    """active contract と HEAD gitlink だけから AI reseal を create-only 発行する。"""
+    return _reseal_protocol_at_root(ROOT)
 
 
 def build_protocol_document(master_seed, env_tag, *, stock_configuration,
@@ -625,7 +1093,7 @@ def build_protocol_document(master_seed, env_tag, *, stock_configuration,
         )
 
     # 実 gitlink を承認定数と照合してから焼く (現在値の追認を拒否、C4-4)。
-    actual_link = _ccbench_gitlink(root)
+    actual_link = _ccbench_gitlink(root, _head_commit_oid(root))
     if actual_link != s8b_approved.CCBENCH_FULL_SHA:
         raise FloorCampaignError(
             "ccbench gitlink が承認定数と不一致 (現在値の追認を拒否): "
@@ -4515,7 +4983,7 @@ def _verify_result_with_live_admission(
 def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
                     manifest_sha256, cells, binaries, records,
                     holdout_admission,
-                    eligible_for_refreeze=False, perf_preflight=None) -> dict:
+                    perf_preflight=None) -> dict:
     """journal の生 session から floor artifact (result) を組み立てる (formula v2)。
 
     cell_stats / holdout_floors は ``s8b_floor_stats`` (formula v2) が正本。artifact の
@@ -4524,10 +4992,6 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
     wall_ledger は journal から読むだけの純粋関数なので resume を跨いで決定的 (β-11 の冪等
     finalization が hash 照合に依存する)。
     """
-    if type(eligible_for_refreeze) is not bool:
-        raise FloorCampaignError("eligible_for_refreeze が bool でない")
-    if eligible_for_refreeze and mode != "official":
-        raise FloorCampaignError("pilot result は eligible_for_refreeze=True にできない")
     _assert_perf_mode(mode, perf_preflight)
     normalized_perf = (
         _normalize_perf_preflight(perf_preflight)
@@ -4630,10 +5094,9 @@ def assemble_result(*, protocol, mode, protocol_sha256, freeze_sha256,
         "schema": RESULT_SCHEMA,
         "formula": protocol["formula"],
         "mode": mode,
-        # True bytes は official の二相 finalize staging にだけ組み立てられ、completed terminal
-        # fsync 後に初めて publish される。pilot/abort/invalid/terminal 前 crash は False または
-        # 未 publish のままなので、flag 単独を完走証拠にしない。
-        "eligible_for_refreeze": eligible_for_refreeze,
+        # Assembly 単体は authority を持たない。core 入口で raw seam と freshness から導いた
+        # lexical finalizer だけが、二相 finalize staging 前にこの値を上書きできる。
+        "eligible_for_refreeze": False,
         "env_tag": protocol["env_tag"],
         "ccbench_pin": protocol["ccbench_pin"],
         "protocol_sha256": protocol_sha256,
@@ -4819,10 +5282,10 @@ def _append_completed_terminal(
 
 
 def _publish_finalize_files(run_dir: Path, staged: tuple) -> None:
-    """phase 3: terminal fsync 後に result/md を atomic create-only publish する。"""
+    """phase 3: terminal fsync 後、補助 md、権威 result の順で publish する。"""
     result_pending, result_payload, md_pending, md_payload = staged
-    _publish_staged_create_only(result_pending, Path(run_dir) / "result.json", result_payload)
     _publish_staged_create_only(md_pending, Path(run_dir) / "result.md", md_payload)
+    _publish_staged_create_only(result_pending, Path(run_dir) / "result.json", result_payload)
 
 
 def _finalize(run_dir: Path, staged: tuple, journal_path: Path, *,
@@ -4831,9 +5294,10 @@ def _finalize(run_dir: Path, staged: tuple, journal_path: Path, *,
     """二相 finalize: staged+fsync → completed terminal+fsync → atomic publish。
 
     terminal→publish 間 crash は ``M-finalize-pending`` として publish だけを再開する。
-    completed terminal は一意かつ journal 最終 record であり、result/md が先に可視になる
-    状態を作らない。``terminal_already_completed=True`` の uniqueness re-check は、通常の
-    classify 済み経路では恒真となる defense-in-depth であり、独立保証には数えない。
+    completed terminal は一意かつ journal 最終 record である。補助 ``result.md`` は
+    consumer の権威 ``result.json`` より先に publish し、二つの publish 間で停止しても
+    result.json を可視にしない。``terminal_already_completed=True`` の uniqueness re-check は、
+    通常の classify 済み経路では恒真となる defense-in-depth であり、独立保証には数えない。
     """
     if terminal_already_completed:
         records = _read_journal(journal_path)
@@ -4870,9 +5334,64 @@ def _after_certificate_issued_noop(cert_path: Path) -> None:
     return None
 
 
+_PUBLIC_CALLABLE_SEAM_NAMES = frozenset({
+    "measure_fn", "probe_fn", "sleep_fn", "monotonic_fn", "prepare_fn",
+    "now_fn", "host_provenance_fn", "process_identity_fn",
+    "execution_receipt_fn", "build_fn", "after_certificate_issued_fn",
+    "perf_preflight_fn",
+})
+
+
+def _nondefault_campaign_seams(
+        *, measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
+        monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
+        host_provenance_fn=None, process_identity_fn=None,
+        execution_receipt_fn=None, build_fn=None, repo_root=None,
+        after_certificate_issued_fn=None, durable_root_policy=None,
+        _floor_preflight_fn=None, perf_preflight_fn=None,
+        _holdout_repo_root=None, _holdout_signature_source=None,
+) -> frozenset[str]:
+    """Raw campaign 実引数から refreeze 不適格 seam 名を単一源で分類する。"""
+    return frozenset(name for name, present in {
+        "measure_fn": measure_fn is not None,
+        "probe_fn": probe_fn is not None,
+        "sleep_fn": sleep_fn is not _DEFAULT_SLEEP_FN,
+        "monotonic_fn": monotonic_fn is not _DEFAULT_MONOTONIC_FN,
+        "prepare_fn": prepare_fn is not None,
+        "now_fn": now_fn is not None,
+        "host_provenance_fn": host_provenance_fn is not None,
+        "process_identity_fn": process_identity_fn is not None,
+        "execution_receipt_fn": execution_receipt_fn is not None,
+        "build_fn": build_fn is not None,
+        "repo_root": repo_root is not None,
+        "after_certificate_issued_fn": after_certificate_issued_fn is not None,
+        "durable_root_policy": durable_root_policy is not None,
+        "_floor_preflight_fn": _floor_preflight_fn is not None,
+        "perf_preflight_fn": perf_preflight_fn is not None,
+        "_holdout_repo_root": _holdout_repo_root is not None,
+        "_holdout_signature_source": _holdout_signature_source is not None,
+    }.items() if present)
+
+
+def _derive_refreeze_eligibility(
+        *, mode, resume_dir, nondefault_seams: frozenset[str],
+) -> bool:
+    """Canonical official・fresh・非既定 seam ゼロだけを適格化する。
+
+    ``type(mode)`` は検証済み core local に対する defense-in-depth であり、独立保証には
+    数えない。入口の exact-type 検証が主防壁である。
+    """
+    return (
+        type(mode) is str
+        and mode == "official"
+        and resume_dir is None
+        and not nondefault_seams
+    )
+
+
 def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
-                 measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-                 monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                 measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
+                 monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                  host_provenance_fn=None, process_identity_fn=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
                  after_certificate_issued_fn=None,
@@ -4880,42 +5399,24 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  confirm_irreversible_pilot_holdout=False) -> dict:
     """Production wrapper with no caller-provided callable seams."""
     mode = _validate_mode(mode)
-    callable_seams = sorted(name for name, present in {
-        "measure_fn": measure_fn is not None,
-        "probe_fn": probe_fn is not None,
-        "sleep_fn": sleep_fn is not time.sleep,
-        "monotonic_fn": monotonic_fn is not time.monotonic,
-        "prepare_fn": prepare_fn is not None,
-        "now_fn": now_fn is not None,
-        "host_provenance_fn": host_provenance_fn is not None,
-        "process_identity_fn": process_identity_fn is not None,
-        "execution_receipt_fn": execution_receipt_fn is not None,
-        "build_fn": build_fn is not None,
-        "after_certificate_issued_fn": after_certificate_issued_fn is not None,
-        "perf_preflight_fn": perf_preflight_fn is not None,
-    }.items() if present)
+    nondefault_seams = _nondefault_campaign_seams(
+        measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
+        monotonic_fn=monotonic_fn, prepare_fn=prepare_fn, now_fn=now_fn,
+        host_provenance_fn=host_provenance_fn,
+        process_identity_fn=process_identity_fn,
+        execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
+        repo_root=repo_root,
+        after_certificate_issued_fn=after_certificate_issued_fn,
+        durable_root_policy=durable_root_policy,
+        perf_preflight_fn=perf_preflight_fn,
+    )
+    callable_seams = sorted(nondefault_seams & _PUBLIC_CALLABLE_SEAM_NAMES)
     if callable_seams:
         raise FloorCampaignError(
             f"production mode への caller callable seam 注入を拒否する: {callable_seams}"
         )
     if mode == "official":
-        injected = {
-            "measure_fn": measure_fn is not None,
-            "probe_fn": probe_fn is not None,
-            "sleep_fn": sleep_fn is not time.sleep,
-            "monotonic_fn": monotonic_fn is not time.monotonic,
-            "prepare_fn": prepare_fn is not None,
-            "now_fn": now_fn is not None,
-            "host_provenance_fn": host_provenance_fn is not None,
-            "process_identity_fn": process_identity_fn is not None,
-            "execution_receipt_fn": execution_receipt_fn is not None,
-            "build_fn": build_fn is not None,
-            "repo_root": repo_root is not None,
-            "after_certificate_issued_fn": after_certificate_issued_fn is not None,
-            "durable_root_policy": durable_root_policy is not None,
-            "perf_preflight_fn": perf_preflight_fn is not None,
-        }
-        non_default = sorted(name for name, present in injected.items() if present)
+        non_default = sorted(nondefault_seams)
         if non_default:
             raise FloorCampaignError(
                 f"official mode への非 default seam 注入を拒否する: {non_default}")
@@ -4935,8 +5436,8 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
 
 
 def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
-                       measure_fn=None, probe_fn=None, sleep_fn=time.sleep,
-                       monotonic_fn=time.monotonic, prepare_fn=None, now_fn=None,
+                       measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
+                       monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                        host_provenance_fn=None, process_identity_fn=None,
                        execution_receipt_fn=None, build_fn=None, repo_root=None,
                        after_certificate_issued_fn=None,
@@ -4962,6 +5463,35 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     保護比率を実測しようとしても、最下層 ``run_once`` gateway が attempt token 無しで拒否する。
     """
     mode = _validate_mode(mode)
+    nondefault_seams = _nondefault_campaign_seams(
+        measure_fn=measure_fn, probe_fn=probe_fn, sleep_fn=sleep_fn,
+        monotonic_fn=monotonic_fn, prepare_fn=prepare_fn, now_fn=now_fn,
+        host_provenance_fn=host_provenance_fn,
+        process_identity_fn=process_identity_fn,
+        execution_receipt_fn=execution_receipt_fn, build_fn=build_fn,
+        repo_root=repo_root,
+        after_certificate_issued_fn=after_certificate_issued_fn,
+        durable_root_policy=durable_root_policy,
+        _floor_preflight_fn=_floor_preflight_fn,
+        perf_preflight_fn=perf_preflight_fn,
+        _holdout_repo_root=_holdout_repo_root,
+        _holdout_signature_source=_holdout_signature_source,
+    )
+    eligible_for_refreeze = _derive_refreeze_eligibility(
+        mode=mode, resume_dir=resume_dir, nondefault_seams=nondefault_seams,
+    )
+    result = None
+
+    def apply_refreeze_eligibility() -> None:
+        """捕捉済み入口判定を result へ写す call-order invariant。
+
+        ``result is None`` は直接 helper 呼出し向け defense-in-depth であり、現行 core の
+        assembly 直後 callsite では到達不能なので独立保証には数えない。
+        """
+        if result is None:  # pragma: no cover - local call order invariant
+            raise AssertionError("result assembly より前に refreeze finalizer が呼ばれた")
+        result["eligible_for_refreeze"] = eligible_for_refreeze
+
     if type(confirm_irreversible_pilot_holdout) is not bool:
         raise FloorCampaignError(
             "confirm_irreversible_pilot_holdout が exact bool でない"
@@ -5410,9 +5940,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
             cells=cells, binaries=artifact_built, records=resume_records,
             holdout_admission=holdout_admission,
-            eligible_for_refreeze=(mode == "official"),
             perf_preflight=perf_preflight_receipt,
         )
+        apply_refreeze_eligibility()
         problems = _verify_result_with_live_admission(
             result, _expected_protocol(protocol, cells),
             expected_binaries=_journal_expected_binaries(resume_records),
@@ -5562,9 +6092,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         freeze_sha256=freeze_sha256, manifest_sha256=manifest_sha256,
         cells=cells, binaries=artifact_built, records=runner.records,
         holdout_admission=holdout_admission,
-        eligible_for_refreeze=(mode == "official"),
         perf_preflight=perf_preflight_receipt,
     )
+    apply_refreeze_eligibility()
 
     # 自己検査: live admission 公開入口が [] を返すまでは pending bytes も作らない。
     # C3-6/W3 申し送り: journal receipt (session ごとの実測直前 binary_sha256_at_measure) を
@@ -5996,6 +6526,20 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _reseal_protocol_parser() -> argparse.ArgumentParser:
+    return argparse.ArgumentParser(
+        prog=f"{Path(sys.argv[0]).name} reseal-protocol",
+        description="active contract と HEAD gitlink から floor protocol を AI reseal する",
+    )
+
+
+def _check_protocol_index_parser() -> argparse.ArgumentParser:
+    return argparse.ArgumentParser(
+        prog=f"{Path(sys.argv[0]).name} check-protocol-index",
+        description="floor protocol の legacy + versioned 組 index を read-only 検査する",
+    )
+
+
 def _freeze_protocol_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=f"{Path(sys.argv[0]).name} freeze-protocol",
@@ -6107,6 +6651,39 @@ def _emit_sort_swo_unavailable(
 
 def main(argv=None) -> int:
     cli_argv = list(sys.argv[1:] if argv is None else argv)
+    if cli_argv and cli_argv[0] == "reseal-protocol":
+        _reseal_protocol_parser().parse_args(cli_argv[1:])
+        try:
+            outcome = reseal_protocol()
+        except FloorCampaignError as exc:
+            print(json.dumps({
+                "status": "error", "error": f"{type(exc).__name__}: {exc}",
+            }, ensure_ascii=False))
+            return 1
+        print(json.dumps(outcome, ensure_ascii=False, sort_keys=True))
+        return 0
+    if cli_argv and cli_argv[0] == "check-protocol-index":
+        _check_protocol_index_parser().parse_args(cli_argv[1:])
+        try:
+            index = scan_floor_protocol_index(root=ROOT)
+        except FloorCampaignError as exc:
+            print(json.dumps({
+                "status": "error", "error": f"{type(exc).__name__}: {exc}",
+            }, ensure_ascii=False))
+            return 1
+        records = [
+            {
+                "path": record.path,
+                "contract_sha256": pair[0],
+                "ccbench_pin": pair[1],
+                "protocol_sha256": record.sha256,
+            }
+            for pair, record in sorted(index.items())
+        ]
+        print(json.dumps({
+            "status": "ok", "count": len(records), "protocols": records,
+        }, ensure_ascii=False, sort_keys=True))
+        return 0
     if cli_argv and cli_argv[0] == "freeze-protocol":
         freeze_args = _freeze_protocol_parser().parse_args(cli_argv[1:])
         try:

@@ -8,6 +8,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -688,6 +689,64 @@ def _complete_trial(
     return run, events, report
 
 
+def _pending_critic_admission_failure_trial(tmp_path: Path):
+    run, events, report = _complete_trial(tmp_path)
+    cell = report["cells"][0]
+    failure = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    report["status"] = "partial"
+    report["do_build"] = True
+    events[0]["do_build"] = True
+    events[-1]["status"] = "partial"
+    cell["admission_decision"] = failure
+    cell["pending_critic_disposition"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 1,
+    }
+    cell["generations"][0]["roles"].pop("critic")
+    critic_event = next(
+        event
+        for event in events
+        if event.get("event") == "role-attempt"
+        and event.get("role") == "critic"
+    )
+    events.remove(critic_event)
+    accounting = next(
+        event
+        for event in events
+        if event.get("event") == "generation-accounting"
+    )
+    accounting.update({
+        "state": "partial-generation",
+        "provider_invoke_count": 3,
+        "seq": 5,
+    })
+    events[-1].update({
+        "seq": 6,
+        "cell_admission_failures": [{
+            "cell_index": 0,
+            "workload": "ycsb-a",
+            "admission_decision": failure,
+        }],
+    })
+    report["honest_accounting"]["role_query_count"] = 3
+    events[-1]["honest_accounting"]["role_query_count"] = 3
+    _persist(run, events, report)
+    return run, events, report
+
+
 def _pre_audit_trial(tmp_path: Path):
     run = tmp_path / "run"
     report = _report(run, ["ycsb-a"])
@@ -1026,6 +1085,32 @@ def test_generation_accounting_must_be_bijective(tmp_path) -> None:
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=r"\[generation-accounting\] missing accounting pair",
+    ):
+        _verify(run, report)
+
+
+@pytest.mark.parametrize(
+    "mutated_state",
+    ["generation-complete", "pending-pre-invoke-failure"],
+)
+def test_discarded_final_critic_requires_partial_generation_accounting(
+    tmp_path, mutated_state,
+) -> None:
+    run, events, report = _pending_critic_admission_failure_trial(tmp_path)
+    _verify(run, report)
+    accounting = next(
+        event
+        for event in events
+        if event.get("event") == "generation-accounting"
+    )
+    accounting["state"] = mutated_state
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[generation-accounting\] discarded final critic requires "
+            r"partial-generation accounting$"
+        ),
     ):
         _verify(run, report)
 
@@ -2323,6 +2408,42 @@ def test_campaign_chain_reads_legacy_layer3_without_epoch(tmp_path) -> None:
     )
 
 
+def test_campaign_chain_accepts_verified_post_admission_schema(
+    tmp_path, monkeypatch,
+) -> None:
+    output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
+        tmp_path
+    )
+    decision = copy.deepcopy(persisted["admission_decision"])
+    decision["classification"] = "verified-post-admission-schema"
+    assert decision["admission_status"] == "admitted"
+    persisted["admission_decision"] = copy.deepcopy(decision)
+    persisted["certifying_input"] = True
+    cell["admission_decision"] = copy.deepcopy(decision)
+    persisted_path.write_text(
+        json.dumps(persisted, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    admitted = SimpleNamespace(
+        decision=SimpleNamespace(as_receipt=lambda: copy.deepcopy(decision)),
+        campaign_verifier_epoch=SimpleNamespace(
+            **persisted["campaign_verifier_epoch"]
+        ),
+    )
+    monkeypatch.setattr(
+        C, "require_admitted_campaign", lambda *_args, **_kwargs: admitted,
+    )
+    monkeypatch.setattr(
+        C,
+        "_fresh_layer3_for_comparison",
+        lambda **kwargs: kwargs["persisted"],
+    )
+    report = _campaign_report(cell)
+    report["launch_admission"]["certifying"] = True
+
+    C.assert_campaign_layer3_chain(report=report, output_root=output_root)
+
+
 def test_campaign_chain_rejects_persisted_epoch_mutation(tmp_path) -> None:
     output_root, _campaign, persisted_path, persisted, cell = _layer3_campaign(
         tmp_path
@@ -2435,6 +2556,385 @@ def test_campaign_chain_rejects_missing_persisted_report(tmp_path) -> None:
     output_root, _campaign, persisted_path, _persisted, cell = _layer3_campaign(tmp_path)
     persisted_path.unlink()
     report = _campaign_report(cell)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[campaign-chain\] persisted layer3 report cannot be read: "
+            r".*layer3_report\.json$"
+        ),
+    ):
+        C.assert_campaign_layer3_chain(report=report, output_root=output_root)
+
+
+def test_campaign_chain_rejects_failure_decision_for_admitted_campaign(
+    tmp_path,
+) -> None:
+    output_root, _campaign, _path, _persisted, cell = _layer3_campaign(tmp_path)
+    cell["admission_decision"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "forged admission failure",
+        },
+    }
+    cell["pending_critic_disposition"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 0,
+    }
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"failure campaign has a persisted layer3 report$",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+def test_campaign_chain_rejects_failure_when_independent_admission_passes(
+    tmp_path,
+) -> None:
+    output_root, _campaign, persisted_path, _persisted, cell = (
+        _layer3_campaign(tmp_path)
+    )
+    persisted_path.unlink()
+    cell["admission_decision"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "forged admission failure",
+        },
+    }
+    cell["pending_critic_disposition"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 0,
+    }
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"failure campaign remains independently admitted$",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+def _campaignless_failure_cell() -> dict:
+    return {
+        "workload": "ycsb-a",
+        "generations": [],
+        "stop_reason": "supervisor-error",
+        "error": {
+            "type": "RuntimeError",
+            "message": "fixture supervisor failure",
+        },
+        "admission_decision": {
+            "schema_version": (
+                "p3-autonomous-workload-trial-cell-admission-failure/v1"
+            ),
+            "admission_status": "failed",
+            "error": {
+                "type": "AutonomousTrialError",
+                "message": "build cell has no campaign_root for admission validation",
+            },
+        },
+        "pending_critic_disposition": {
+            "schema_version": (
+                "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+            ),
+            "action": "discarded",
+            "reason": "cell-admission-failure",
+            "count": 0,
+        },
+    }
+
+
+def test_campaign_chain_accepts_failure_without_any_campaign_identity(
+    tmp_path,
+) -> None:
+    cell = _campaignless_failure_cell()
+    C.assert_campaign_layer3_chain(
+        report=_campaign_report(cell), output_root=tmp_path / "output",
+    )
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        pytest.param("campaign_id", None, id="explicit-null-campaign-id"),
+        pytest.param("campaign_root", None, id="explicit-null-campaign-root"),
+        pytest.param("descriptor", {"extra": True}, id="extra-descriptor"),
+        pytest.param(
+            "pending_critic_disposition",
+            {
+                "schema_version": (
+                    "p3-autonomous-workload-trial-"
+                    "pending-critic-disposition/v1"
+                ),
+                "action": "discarded",
+                "reason": "cell-admission-failure",
+                "count": 1,
+            },
+            id="discarded-critic-without-generation",
+        ),
+    ],
+)
+def test_campaign_chain_rejects_nonexact_campaignless_failure_fallback(
+    tmp_path, key, value,
+) -> None:
+    cell = _campaignless_failure_cell()
+    cell[key] = value
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"campaignless failure is not the exact producer fallback$",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=tmp_path / "output",
+        )
+
+
+def test_campaign_chain_rejects_admitted_cell_with_identity_removed(
+    tmp_path,
+) -> None:
+    output_root, _campaign, _path, _persisted, cell = _layer3_campaign(
+        tmp_path,
+    )
+    cell.pop("campaign_id")
+    cell.pop("campaign_root")
+    cell["admission_decision"] = _campaignless_failure_cell()[
+        "admission_decision"
+    ]
+    cell["pending_critic_disposition"] = _campaignless_failure_cell()[
+        "pending_critic_disposition"
+    ]
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"campaignless failure is not the exact producer fallback$",
+    ):
+        C.assert_campaign_layer3_chain(
+            report=_campaign_report(cell), output_root=output_root,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda decision: decision.update({"extra": True}),
+        lambda decision: decision.update({"admission_status": "admitted"}),
+        lambda decision: decision.update({"schema_version": "wrong/v1"}),
+        lambda decision: decision["error"].update({"type": "KeyError"}),
+        lambda decision: decision["error"].update({"message": ""}),
+        lambda decision: decision["error"].update({"extra": True}),
+    ],
+)
+def test_cell_admission_failure_decision_shape_is_closed(mutate) -> None:
+    decision = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    mutate(decision)
+    assert C.is_exact_cell_admission_failure_decision(decision) is False
+
+
+def test_workload_suffix_rejects_failure_cell_that_is_not_final(tmp_path) -> None:
+    run, events, report = _complete_trial(
+        tmp_path, workloads=("ycsb-a", "ycsb-b"),
+    )
+    requested = ["ycsb-a", "ycsb-b", "ycsb-c"]
+    report["status"] = "partial"
+    report["do_build"] = True
+    report["workloads_requested"] = requested
+    report["launch_admission"]["workloads"] = requested
+    events[0]["do_build"] = True
+    events[0]["workloads"] = requested
+    events[0]["launch_admission"]["workloads"] = requested
+    events[-1]["status"] = "partial"
+    failure = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    report["cells"][0]["admission_decision"] = failure
+    report["cells"][0]["pending_critic_disposition"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 0,
+    }
+    report["cells"][1]["admission_decision"] = {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "admission_status": "admitted",
+        "classification": "admitted-new-schema",
+    }
+    events[-1]["cell_admission_failures"] = [{
+        "cell_index": 0,
+        "workload": "ycsb-a",
+        "admission_decision": failure,
+    }]
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"requested workload suffix is unexplained$",
+    ):
+        _verify(run, report)
+
+
+def test_completeness_rejects_nonfinal_failure_with_full_workload_coverage(
+    tmp_path,
+) -> None:
+    run, events, report = _complete_trial(
+        tmp_path, workloads=("ycsb-a", "ycsb-b"),
+    )
+    report["status"] = "partial"
+    report["do_build"] = True
+    events[0]["do_build"] = True
+    events[-1]["status"] = "partial"
+    failure = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    report["cells"][0]["admission_decision"] = failure
+    report["cells"][0]["pending_critic_disposition"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 0,
+    }
+    report["cells"][1]["admission_decision"] = {
+        "schema_version": "campaign-artifact-admission-decision/v1",
+        "admission_status": "admitted",
+        "classification": "admitted-new-schema",
+    }
+    events[-1]["cell_admission_failures"] = [{
+        "cell_index": 0,
+        "workload": "ycsb-a",
+        "admission_decision": failure,
+    }]
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=(
+            r"\[artifact-admission\] cell admission failure must be the "
+            r"final cell$"
+        ),
+    ):
+        _verify(run, report)
+
+
+def test_completeness_rejects_multiple_cell_admission_failures(tmp_path) -> None:
+    run, events, report = _complete_trial(
+        tmp_path, workloads=("ycsb-a", "ycsb-b"),
+    )
+    report["status"] = "partial"
+    report["do_build"] = True
+    events[0]["do_build"] = True
+    events[-1]["status"] = "partial"
+    projections = []
+    for index, cell in enumerate(report["cells"]):
+        decision = {
+            "schema_version": (
+                "p3-autonomous-workload-trial-cell-admission-failure/v1"
+            ),
+            "admission_status": "failed",
+            "error": {
+                "type": "AutonomousTrialError",
+                "message": f"fixture admission failure {index}",
+            },
+        }
+        cell["admission_decision"] = decision
+        cell["pending_critic_disposition"] = {
+            "schema_version": (
+                "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+            ),
+            "action": "discarded",
+            "reason": "cell-admission-failure",
+            "count": 0,
+        }
+        projections.append({
+            "cell_index": index,
+            "workload": cell["workload"],
+            "admission_decision": decision,
+        })
+    events[-1]["cell_admission_failures"] = projections
+    _persist(run, events, report)
+    with pytest.raises(
+        C.AutonomousTrialCompletenessError,
+        match=r"multiple cell admission failures are forbidden$",
+    ):
+        _verify(run, report)
+
+
+def test_campaign_chain_failed_peer_does_not_exempt_missing_admitted_report(
+    tmp_path,
+) -> None:
+    output_root, _campaign, admitted_path, _persisted, admitted_cell = (
+        _layer3_campaign(tmp_path, workload="ycsb-a")
+    )
+    (
+        _same_root,
+        failed_campaign,
+        failed_path,
+        _failed_persisted,
+        failed_cell,
+    ) = _layer3_campaign(
+        tmp_path, workload="ycsb-b", output_root=output_root,
+    )
+    admitted_path.unlink()
+    failed_path.unlink()
+    (failed_campaign / "campaign.lock").unlink()
+    failed_cell["admission_decision"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    failed_cell["pending_critic_disposition"] = {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 0,
+    }
+    report = _campaign_report(admitted_cell)
+    report["cells"] = [admitted_cell, failed_cell]
     with pytest.raises(
         C.AutonomousTrialCompletenessError,
         match=(

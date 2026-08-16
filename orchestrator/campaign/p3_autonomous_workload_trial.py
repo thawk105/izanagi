@@ -50,6 +50,8 @@ from .reflux_ir import emit_predicate, parse_wire
 from .autonomous_trial_completeness import (
     assert_campaign_layer3_chain,
     assert_autonomous_trial_completeness,
+    cell_admission_failure_projection,
+    is_positive_cell_admission_decision,
 )
 from .auditor_gate import AuditorVerdict, parse_auditor_dict
 from .claude_projected_provider import ClaudeProjectedRoleProvider
@@ -759,6 +761,24 @@ def _trial_launch_admission(
     if binding is None:  # pragma: no cover - sealed registry postcondition
         raise trial_registry.TrialRegistryError(
             "[launch-admission] registered admission has no binding"
+        )
+    manifest = trial_registry.load_trial_manifest(Path(trial_manifest))
+    if manifest.sha256 != binding.manifest_sha256:
+        raise trial_registry.TrialRegistryError(
+            "[generation-binding] manifest changed after registered admission"
+        )
+    trial = next(
+        (item for item in manifest.trials if item.trial_id == trial_id),
+        None,
+    )
+    if trial is None:  # pragma: no cover - registered admission postcondition
+        raise trial_registry.TrialRegistryError(
+            "[generation-binding] admitted trial is absent from the manifest"
+        )
+    if generations != trial.generations:
+        raise trial_registry.TrialRegistryError(
+            "[generation-binding] runtime generations differs from "
+            "manifest declaration"
         )
     identity_context = build_run_context(
         generator_id=GeneratorId.S8A_TRIGGER_SWEEP,
@@ -1758,20 +1778,93 @@ def _finalize_cell_admission(
     *,
     do_build: bool,
     launch_admission: trial_registry.TrialLaunchAdmission,
-) -> None:
+    journal: AttemptJournal,
+) -> bool:
     """Finalize only the cell admission boundary.
 
-    This call intentionally remains outside the supervisor-error recovery
-    boundary.  Pending critic preparation and invocation are handled by the
-    separate helper below so their infrastructure failures retain the legacy
-    partial-report contract.
+    Only an expected build finalizer failure becomes a diagnostic decision.
+    Unexpected exception types still cross this boundary unchanged.
     """
     if do_build:
-        _finalize_build_cell_admission(
-            cell, launch_admission=launch_admission,
-        )
+        try:
+            _finalize_build_cell_admission(
+                cell, launch_admission=launch_admission,
+            )
+        except AutonomousTrialError as exc:
+            failure_message = str(exc)
+            if not failure_message:
+                raise AutonomousTrialError(
+                    "cell admission failure has an empty diagnostic message"
+                ) from exc
+            pending_critics = cell.get("_pending_critics", [])
+            if type(pending_critics) is not list:
+                raise AutonomousTrialError(
+                    "pending critic state must be an exact list at admission failure"
+                ) from exc
+            if "pending_critic_disposition" in cell:
+                raise AutonomousTrialError(
+                    "pending critic disposition was already recorded"
+                ) from exc
+            discarded = len(pending_critics)
+            for pending in list(pending_critics):
+                if type(pending) is not dict:
+                    raise AutonomousTrialError(
+                        "pending critic entry must be an exact dict"
+                    ) from exc
+                if pending.get("critic_attempted") is not False:
+                    raise AutonomousTrialError(
+                        "admission failure cannot discard an attempted critic"
+                    ) from exc
+                accounting = pending.get("accounting")
+                if type(accounting) is not dict:
+                    raise AutonomousTrialError(
+                        "pending critic accounting state is absent"
+                    ) from exc
+                generation = pending.get("generation")
+                generation_record = next(
+                    (
+                        record
+                        for record in cell.get("generations", [])
+                        if isinstance(record, dict)
+                        and record.get("generation") == generation
+                    ),
+                    None,
+                )
+                # This pending generation has no accounting event yet.  Close
+                # its sole event with the already-supported partial state;
+                # role-invalid generations have no pending entry and therefore
+                # receive no duplicate append here.
+                accounting["state"] = "partial-generation"
+                _append_generation_accounting(
+                    accounting,
+                    journal=journal,
+                    generation_record=generation_record,
+                )
+            cell.pop("_pending_critics", None)
+            cell["pending_critic_disposition"] = {
+                "schema_version": (
+                    "p3-autonomous-workload-trial-"
+                    "pending-critic-disposition/v1"
+                ),
+                "action": "discarded",
+                "reason": "cell-admission-failure",
+                "count": discarded,
+            }
+            cell["admission_decision"] = {
+                "schema_version": (
+                    "p3-autonomous-workload-trial-"
+                    "cell-admission-failure/v1"
+                ),
+                "admission_status": "failed",
+                "error": {
+                    "type": "AutonomousTrialError",
+                    "message": failure_message,
+                },
+            }
+            return False
     else:
         cell["admission_decision"] = {"admission_status": "not-applicable"}
+    return True
 
 
 def _run_one_pending_critic(
@@ -2070,11 +2163,48 @@ def _finish_trial(
                         "error": dict(fatal_error),
                     }
                 cells.append(cell)
-                _finalize_cell_admission(
+                admission_succeeded = _finalize_cell_admission(
                     cell,
                     do_build=do_build,
                     launch_admission=launch_admission,
+                    journal=journal,
                 )
+                if admission_succeeded:
+                    try:
+                        _run_pending_critics(
+                            cell,
+                            providers=active_providers,
+                            journal=journal,
+                            run_root=run_root,
+                            transport_receipt=transport_receipt,
+                            preserve_stop_reason=True,
+                        )
+                    except Exception as exc:
+                        fatal_error = {
+                            "type": type(exc).__name__,
+                            "message": _redacted_transport_error(
+                                exc, transport_receipt,
+                            ),
+                        }
+                        journal.append(_event_with_transport_receipt(
+                            {
+                                "event": "supervisor-error",
+                                "workload": workload,
+                                **fatal_error,
+                            },
+                            transport_receipt,
+                        ))
+                        cell["stop_reason"] = "supervisor-error"
+                        cell["error"] = dict(fatal_error)
+                break
+            cells.append(cell)
+            admission_succeeded = _finalize_cell_admission(
+                cell,
+                do_build=do_build,
+                launch_admission=launch_admission,
+                journal=journal,
+            )
+            if admission_succeeded:
                 try:
                     _run_pending_critics(
                         cell,
@@ -2082,7 +2212,6 @@ def _finish_trial(
                         journal=journal,
                         run_root=run_root,
                         transport_receipt=transport_receipt,
-                        preserve_stop_reason=True,
                     )
                 except Exception as exc:
                     fatal_error = {
@@ -2101,39 +2230,7 @@ def _finish_trial(
                     ))
                     cell["stop_reason"] = "supervisor-error"
                     cell["error"] = dict(fatal_error)
-                break
-            cells.append(cell)
-            _finalize_cell_admission(
-                cell,
-                do_build=do_build,
-                launch_admission=launch_admission,
-            )
-            try:
-                _run_pending_critics(
-                    cell,
-                    providers=active_providers,
-                    journal=journal,
-                    run_root=run_root,
-                    transport_receipt=transport_receipt,
-                )
-            except Exception as exc:
-                fatal_error = {
-                    "type": type(exc).__name__,
-                    "message": _redacted_transport_error(
-                        exc, transport_receipt,
-                    ),
-                }
-                journal.append(_event_with_transport_receipt(
-                    {
-                        "event": "supervisor-error",
-                        "workload": workload,
-                        **fatal_error,
-                    },
-                    transport_receipt,
-                ))
-                cell["stop_reason"] = "supervisor-error"
-                cell["error"] = dict(fatal_error)
-                break
+                    break
             deferred_wall_generation = cell.pop(
                 "_deferred_wall_generation", None
             )
@@ -2158,6 +2255,8 @@ def _finish_trial(
                         transport_receipt,
                     ))
                 break
+            if not admission_succeeded:
+                break
     status = (
         "complete"
         if len(cells) == len(selected)
@@ -2166,6 +2265,15 @@ def _finish_trial(
             cell["stop_reason"]
             not in {"role-invalid", "supervisor-error", "supervisor-wall-budget"}
             for cell in cells
+        )
+        and (
+            not do_build
+            or all(
+                is_positive_cell_admission_decision(
+                    cell.get("admission_decision")
+                )
+                for cell in cells
+            )
         )
         else "partial"
     )
@@ -2239,16 +2347,20 @@ def _finish_trial(
             "measurement_head": trial_binding.measurement_head,
             "manifest_sha256": trial_binding.manifest_sha256,
         })
+    run_finish = {
+        "event": "run-finish",
+        "status": status,
+        "report": str(run_root / "report.json"),
+        "generation_driver": dict(generation_driver),
+        "gating_spec_sha256": gating_spec_snapshot.sha256,
+        "honest_accounting": honest_accounting,
+        "honest_accounting_authority": accounting_authority,
+    }
+    admission_failures = cell_admission_failure_projection(cells)
+    if admission_failures:
+        run_finish["cell_admission_failures"] = admission_failures
     journal.append(_event_with_transport_receipt(
-        {
-            "event": "run-finish",
-            "status": status,
-            "report": str(run_root / "report.json"),
-            "generation_driver": dict(generation_driver),
-            "gating_spec_sha256": gating_spec_snapshot.sha256,
-            "honest_accounting": honest_accounting,
-            "honest_accounting_authority": accounting_authority,
-        },
+        run_finish,
         transport_receipt,
     ))
     report["attempt_journal_sha256"] = _sha256((run_root / "attempts.jsonl").read_bytes())
@@ -2258,13 +2370,20 @@ def _finish_trial(
     )
     if do_build and cells:
         campaign_parents = {
-            Path(cell["campaign_root"]).resolve().parent.parent for cell in cells
+            Path(campaign_root).resolve().parent.parent
+            for cell in cells
+            if isinstance((campaign_root := cell.get("campaign_root")), str)
+            and campaign_root
         }
-        if len(campaign_parents) != 1:
+        if len(campaign_parents) > 1:
             raise AutonomousTrialError("build cells do not share one campaign output root")
         assert_campaign_layer3_chain(
             report=report,
-            output_root=next(iter(campaign_parents)),
+            output_root=(
+                next(iter(campaign_parents))
+                if campaign_parents
+                else run_root.resolve().parent
+            ),
         )
     if _sha256((run_root / "attempts.jsonl").read_bytes()) != report[
         "attempt_journal_sha256"

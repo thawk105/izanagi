@@ -2358,6 +2358,113 @@ def test_run_trial_build_public_entry_passes_exploration_layout_to_trigger(
     assert not (tmp_path / "campaigns" / report["cells"][0]["campaign_id"]).exists()
 
 
+def test_three_workload_build_positive_admission_passes_real_layer3_chain(
+    tmp_path, monkeypatch,
+) -> None:
+    # The campaign fixture lives outside the repository, so Layer 3 cannot
+    # discover a Git object ID from its ancestry.  Supply the same stable
+    # provenance input used by the dedicated Layer 3 fixtures; render itself
+    # and the complete campaign-chain verifier remain real.
+    monkeypatch.setattr(A.layer3_report, "_git_head", lambda _root: "a" * 40)
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    checked_campaigns = []
+    real_chain_check = A.assert_campaign_layer3_chain
+
+    def observe_real_chain(*, report, output_root):
+        real_chain_check(report=report, output_root=output_root)
+        checked_campaigns.append([
+            cell["campaign_id"] for cell in report["cells"]
+        ])
+
+    monkeypatch.setattr(A, "assert_campaign_layer3_chain", observe_real_chain)
+
+    def drive_build(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+    ):
+        assert do_build is True
+        assert type(build_context) is A.BuildRunContext
+        variant = _write_admitted_rejection_digest(cfg, layout, coder)
+        return {
+            "outcome": "rejected",
+            "variant": variant,
+            "verdict": "auditor-pass",
+            "stop_reason": "continue",
+            "iteration": 1,
+            "ran": True,
+            "critic_digest_generated": True,
+            "trigger_gate_binding_commitment": "b" * 64,
+        }
+
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="three-workload-build-positive-admission",
+        workloads=["ycsb-a", "ycsb-b", "ycsb-c"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=drive_build,
+        preview=_fake_preview,
+        coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
+    )
+
+    report_path = run_root / "report.json"
+    assert report["status"] == "complete"
+    assert report["do_build"] is True
+    assert report_path.is_file()
+    assert json.loads(report_path.read_bytes()) == report
+    assert [cell["workload"] for cell in report["cells"]] == [
+        "ycsb-a", "ycsb-b", "ycsb-c",
+    ]
+    assert [
+        (
+            cell["admission_decision"]["schema_version"],
+            cell["admission_decision"]["admission_status"],
+            cell["admission_decision"]["classification"],
+        )
+        for cell in report["cells"]
+    ] == [
+        (
+            "campaign-artifact-admission-decision/v1",
+            "admitted",
+            "admitted-new-schema",
+        ),
+        (
+            "campaign-artifact-admission-decision/v1",
+            "admitted",
+            "admitted-new-schema",
+        ),
+        (
+            "campaign-artifact-admission-decision/v1",
+            "admitted",
+            "admitted-new-schema",
+        ),
+    ]
+    assert checked_campaigns == [[
+        cell["campaign_id"] for cell in report["cells"]
+    ]]
+    assert all(
+        (Path(cell["campaign_root"]) / "reports" / "layer3_report.json").is_file()
+        for cell in report["cells"]
+    )
+
+
 def test_build_cell_admission_precedes_critic_invocation(
     tmp_path, monkeypatch,
 ) -> None:
@@ -2860,24 +2967,46 @@ def test_cell_admission_failure_is_not_converted_to_supervisor_error(
     }
     run_root = tmp_path / "run"
 
-    with pytest.raises(A.AutonomousTrialError, match="fixture admission failure"):
-        A.run_trial(
-            trial_id="cell-admission-failure",
-            workloads=["ycsb-a"],
-            generations=1,
-            provider_kind="fixture",
-            run_root=run_root,
-            sub="/unused",
-            do_build=True,
-            providers=providers,
-            drive=drive_build,
-            preview=_fake_preview,
-            coder_authority=_coder_authority(),
-            allow_unregistered_exploratory=True,
-        )
+    report = A.run_trial(
+        trial_id="cell-admission-failure",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=drive_build,
+        preview=_fake_preview,
+        coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
+    )
 
     assert providers["critic"].payloads == []
-    assert not (run_root / "report.json").exists()
+    report_path = run_root / "report.json"
+    assert report_path.is_file()
+    assert json.loads(report_path.read_bytes()) == report
+    assert report["status"] == "partial"
+    decision = report["cells"][0]["admission_decision"]
+    assert decision == {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    assert decision["admission_status"] != "admitted"
+    assert report["cells"][0]["pending_critic_disposition"] == {
+        "schema_version": (
+            "p3-autonomous-workload-trial-pending-critic-disposition/v1"
+        ),
+        "action": "discarded",
+        "reason": "cell-admission-failure",
+        "count": 1,
+    }
     events = [
         json.loads(line)
         for line in (run_root / "attempts.jsonl").read_text(
@@ -2885,6 +3014,213 @@ def test_cell_admission_failure_is_not_converted_to_supervisor_error(
         ).splitlines()
     ]
     assert all(event["event"] != "supervisor-error" for event in events)
+    accounting = [
+        event for event in events
+        if event["event"] == "generation-accounting"
+    ]
+    assert len(accounting) == 1
+    assert accounting[0]["state"] == "partial-generation"
+    assert events[-1]["event"] == "run-finish"
+    assert events[-1]["cell_admission_failures"] == [{
+        "cell_index": 0,
+        "workload": "ycsb-a",
+        "admission_decision": decision,
+    }]
+    mutated = copy.deepcopy(report)
+    mutated["cells"][0]["admission_decision"]["error"]["message"] = (
+        "mutated admission failure"
+    )
+    with pytest.raises(
+        completeness.AutonomousTrialCompletenessError,
+        match="run-finish cell admission failures differ from report",
+    ):
+        completeness.assert_autonomous_trial_completeness(
+            report=mutated,
+            attempt_journal=run_root / "attempts.jsonl",
+        )
+
+
+def test_cell_admission_does_not_catch_unexpected_finalizer_exception(
+    tmp_path, monkeypatch,
+) -> None:
+    def fail_finalize(cell, *, launch_admission):
+        raise KeyError("unexpected finalizer bug")
+
+    monkeypatch.setattr(A, "_finalize_build_cell_admission", fail_finalize)
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    journal = A.AttemptJournal(run_root / "attempts.jsonl")
+    cell = {"_pending_critics": []}
+    with _exploratory_scope("unexpected-finalizer", ["ycsb-a"]) as admission:
+        with pytest.raises(KeyError, match="unexpected finalizer bug"):
+            A._finalize_cell_admission(
+                cell,
+                do_build=True,
+                launch_admission=admission,
+                journal=journal,
+            )
+    assert "admission_decision" not in cell
+    assert "pending_critic_disposition" not in cell
+
+
+def test_three_workload_normal_return_admission_failure_writes_partial_report(
+    tmp_path, monkeypatch,
+) -> None:
+    def fail_finalize(cell, *, launch_admission):
+        raise A.AutonomousTrialError("fixture admission failure")
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    monkeypatch.setattr(A, "_finalize_build_cell_admission", fail_finalize)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "auditor", "critic")
+    }
+    providers["coder"] = _MalformedRecordingCritic()
+    run_root = tmp_path / "run"
+
+    report = A.run_trial(
+        trial_id="three-workload-normal-admission-failure",
+        workloads=["ycsb-a", "ycsb-b", "ycsb-c"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=lambda *_args, **_kwargs: pytest.fail(
+            "coder-invalid path must not invoke the harness"
+        ),
+        preview=_fake_preview,
+        coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
+    )
+
+    report_path = run_root / "report.json"
+    assert report_path.is_file()
+    assert json.loads(report_path.read_bytes()) == report
+    assert report["status"] == "partial"
+    assert [cell["workload"] for cell in report["cells"]] == ["ycsb-a"]
+    decision = report["cells"][0]["admission_decision"]
+    assert decision == {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    assert decision["admission_status"] != "admitted"
+    assert providers["critic"].payloads == []
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert all(event["event"] != "supervisor-error" for event in events)
+    accounting = [
+        event for event in events
+        if event["event"] == "generation-accounting"
+    ]
+    assert len(accounting) == 1
+    assert accounting[0]["state"] == "partial-generation"
+    assert events[-1]["cell_admission_failures"] == [{
+        "cell_index": 0,
+        "workload": "ycsb-a",
+        "admission_decision": decision,
+    }]
+
+
+def test_three_workload_supervisor_error_admission_failure_writes_partial_report(
+    tmp_path, monkeypatch,
+) -> None:
+    def fail_finalize(cell, *, launch_admission):
+        raise A.AutonomousTrialError("fixture admission failure")
+
+    def fail_drive(
+        cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,
+        cache_root="", proposal_path="", extra_sources=(), build_context=None,
+    ):
+        assert do_build is True
+        Path(layout.root).mkdir(parents=True, exist_ok=True)
+        raise KeyError("build_start")
+
+    monkeypatch.setattr(
+        A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER,
+    )
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(
+        A,
+        "exploration_campaign_layout",
+        lambda campaign_id: factory(campaign_id, str(tmp_path)),
+    )
+    monkeypatch.setattr(A, "_finalize_build_cell_admission", fail_finalize)
+    providers = {
+        role: _RecordingFixture(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    run_root = tmp_path / "run"
+
+    report = A.run_trial(
+        trial_id="three-workload-supervisor-admission-failure",
+        workloads=["ycsb-a", "ycsb-b", "ycsb-c"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=True,
+        providers=providers,
+        drive=fail_drive,
+        preview=_fake_preview,
+        coder_authority=_coder_authority(),
+        allow_unregistered_exploratory=True,
+    )
+
+    report_path = run_root / "report.json"
+    assert report_path.is_file()
+    assert json.loads(report_path.read_bytes()) == report
+    assert report["status"] == "partial"
+    assert report["fatal_error"] == {
+        "type": "KeyError",
+        "message": "'build_start'",
+    }
+    decision = report["cells"][0]["admission_decision"]
+    assert decision == {
+        "schema_version": (
+            "p3-autonomous-workload-trial-cell-admission-failure/v1"
+        ),
+        "admission_status": "failed",
+        "error": {
+            "type": "AutonomousTrialError",
+            "message": "fixture admission failure",
+        },
+    }
+    assert decision["admission_status"] != "admitted"
+    assert providers["critic"].payloads == []
+    events = [
+        json.loads(line)
+        for line in (run_root / "attempts.jsonl").read_text(
+            encoding="utf-8"
+        ).splitlines()
+    ]
+    assert [event["event"] for event in events][-2:] == [
+        "supervisor-error", "run-finish",
+    ]
+    assert events[-1]["cell_admission_failures"] == [{
+        "cell_index": 0,
+        "workload": "ycsb-a",
+        "admission_decision": decision,
+    }]
 
 
 def test_pending_critic_failure_is_converted_to_supervisor_error(
@@ -4876,7 +5212,7 @@ def t325_registered_trial(tmp_path, monkeypatch):
             prepared = A._prepare_campaign_identity(
                 workload=workload,
                 trial_id=trial_id,
-                generations=1,
+                generations=2,
                 site=A.trigger.site_policy.OTHER,
                 contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
@@ -4886,6 +5222,7 @@ def t325_registered_trial(tmp_path, monkeypatch):
                 "arm": arm,
                 "holdout": holdout,
                 "campaign_id": prepared.campaign_id,
+                "generations": 2,
             })
     manifest_path = repo / "manifests" / "trial.json"
     manifest_path.parent.mkdir()
@@ -4961,7 +5298,7 @@ def _t325_run(fixture, run_root: Path, **overrides):
     arguments = {
         "trial_id": fixture.trial_id,
         "workloads": ["rr80"],
-        "generations": 1,
+        "generations": 2,
         "provider_kind": "fixture",
         "run_root": run_root,
         "sub": "/unused",
@@ -5008,14 +5345,14 @@ def test_prepare_campaign_identity_exactly_matches_existing_derivation(
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=t325_registered_trial.trial_id,
-        generations=1,
+        generations=2,
         contract=_T530_CONTRACT,
         build_context=context,
     )
     prepared = A._prepare_campaign_identity(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
-        generations=1,
+        generations=2,
         site=A.trigger.site_policy.OTHER,
         contract=_T530_CONTRACT,
         build_context=context,
@@ -5038,7 +5375,7 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         trial_manifest=t325_registered_trial.manifest_path,
         trial_id=t325_registered_trial.trial_id,
         workloads=["rr80"],
-        generations=1,
+        generations=2,
         allow_unregistered_exploratory=False,
         effective_preregistration=t325_registered_trial.capability,
     )
@@ -5050,7 +5387,7 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
     prepared = A._prepare_campaign_identity(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
-        generations=1,
+        generations=2,
         site=A.trigger.site_policy.OTHER,
         contract=_T530_CONTRACT,
         build_context=context,
@@ -5359,6 +5696,7 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
         "--trial-manifest", str(t325_registered_trial.manifest_path),
         "--provider", "fixture",
         "--workloads", "rr80",
+        "--max-generations", "2",
         "--no-build",
         "--ccbench-dir", str(tmp_path / "ccbench"),
         "--run-root", str(tmp_path / "run"),
@@ -5369,6 +5707,54 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
     assert captured["trial_manifest"] == t325_registered_trial.manifest_path
     assert captured["trial_admission"].binding == t325_registered_trial.binding
     assert captured["effective_preregistration"] is t325_registered_trial.capability
+
+
+def test_t1185_m5_cli_default_generation_is_rejected_before_identity_or_run_root(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    def downstream(*args, **kwargs):
+        pytest.fail("generation mismatch reached campaign identity or artifact work")
+
+    monkeypatch.setattr(A, "build_run_context", downstream)
+    monkeypatch.setattr(A, "_prepare_campaign_identity", downstream)
+    monkeypatch.setattr(A, "assert_pinned_clean", downstream)
+    monkeypatch.setattr(A, "run_trial", downstream)
+    run_root = tmp_path / "t1185-m5-run"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[generation-binding\] runtime generations differs",
+    ):
+        A.main([
+            "--trial-id", t325_registered_trial.trial_id,
+            "--trial-manifest", str(t325_registered_trial.manifest_path),
+            "--provider", "fixture",
+            "--workloads", "rr80",
+            "--no-build",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(run_root),
+        ])
+    assert not run_root.exists()
+
+
+def test_t1185_pc_exploratory_generation_one_still_passes(
+    tmp_path, t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "t1185-pc-run"
+    report = A.run_trial(
+        trial_id="t1185-pc-exploratory",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert report["generation_budget_per_workload"] == 1
+    assert len(report["cells"][0]["generations"]) == 1
 
 
 def test_m23_prime_run_trial_registry_gate_rejects_before_run_root(
@@ -5601,7 +5987,7 @@ def test_run_trial_rejects_every_dataclass_replace_binding_field(
         A.run_trial(
             trial_id=t325_registered_trial.trial_id,
             workloads=["rr80"],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -5628,7 +6014,7 @@ def test_run_trial_rejects_head_move_after_cli_binding(
         A.run_trial(
             trial_id=t325_registered_trial.trial_id,
             workloads=["rr80"],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -5675,7 +6061,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
             prepared = A._prepare_campaign_identity(
                 workload=workload,
                 trial_id=trial_id,
-                generations=1,
+                generations=2,
                 site=A.trigger.site_policy.OTHER,
                 contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
@@ -5688,6 +6074,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 "arm": arm,
                 "holdout": holdout,
                 "campaign_id": campaign_id,
+                "generations": 2,
             })
     manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
     manifest_path.write_text(
@@ -5727,7 +6114,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
         A.run_trial(
             trial_id=target_trial_id,
             workloads=["rr80"],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -6109,7 +6496,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         trial_manifest=registered.manifest_path,
         trial_id=registered.trial_id,
         workloads=["rr80"],
-        generations=1,
+        generations=2,
         allow_unregistered_exploratory=False,
         effective_preregistration=registered.capability,
     )
@@ -6119,7 +6506,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         producer_inputs=provisional_producer,
         trial_id=registered.trial_id,
         selected=["rr80"],
-        generations=1,
+        generations=2,
         trial_manifest=registered.manifest_path,
         effective_preregistration=registered.capability,
         build_context=_no_build_context(),
@@ -6155,7 +6542,7 @@ def _origin_trial_arguments(registered, run_root: Path) -> dict[str, object]:
     return {
         "trial_id": registered.trial_id,
         "workloads": ["rr80"],
-        "generations": 1,
+        "generations": 2,
         "provider_kind": "fixture",
         "run_root": run_root,
         "sub": "/unused",

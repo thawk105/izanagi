@@ -951,6 +951,9 @@ def build_production_emitter_g1(
     admission_sessions = json.loads(json.dumps([
         row for row in state["journal"] if row.get("event") == "session"
     ]))
+    # Consumer topology fixture は producer core の publish 判定を試すものではない。
+    # downstream の accepted artifact を明示的に組み立て、seam 注入の有無から切り離す。
+    state["result"]["eligible_for_refreeze"] = True
     original_cert = _json_bytes(state["cert"])
     assert original_cert == (root / paths["cert"]).read_bytes()
     if mutate is not None:
@@ -1159,6 +1162,9 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
         sessions=[row for row in journal if row.get("event") == "session"],
     )
     result["holdout_admission"] = evidence.expected_receipt
+    # Consumer topology fixture は producer core の publish 判定に依存させない。
+    # g2 の accepted result と floor_source hash を同じ bytes から再構成する。
+    result["eligible_for_refreeze"] = True
     result_raw = _json_bytes(result)
     _write(root, paths["result"], result_raw)
     protocol_raw = _json_bytes(protocol)
