@@ -107,6 +107,12 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8a_trigger_freq.py", "<module>._run_freq"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._ccbench_gitlink"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._default_probe_fn"): 1,
+    # Sanitized read-only `git ... ls-tree -z ...` and `git ... cat-file blob`
+    # bind the lineage blob; neither argv names nor executes CCBench.
+    ("campaign/s8b_floor_campaign.py", "<module>._head_blob_100644"): 2,
+    # Sanitized read-only `git ... rev-parse --verify HEAD^{commit}` binds the
+    # lineage commit; its argv neither names nor executes CCBench.
+    ("campaign/s8b_floor_campaign.py", "<module>._head_commit_oid"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._observe_floor_tool"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._pre_oracle_blob"): 2,
     ("campaign/s8b_floor_campaign.py", "<module>._verify_floor_oracle_dependency_source"): 1,

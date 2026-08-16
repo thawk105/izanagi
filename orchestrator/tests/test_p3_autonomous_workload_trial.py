@@ -5212,7 +5212,7 @@ def t325_registered_trial(tmp_path, monkeypatch):
             prepared = A._prepare_campaign_identity(
                 workload=workload,
                 trial_id=trial_id,
-                generations=1,
+                generations=2,
                 site=A.trigger.site_policy.OTHER,
                 contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
@@ -5222,6 +5222,7 @@ def t325_registered_trial(tmp_path, monkeypatch):
                 "arm": arm,
                 "holdout": holdout,
                 "campaign_id": prepared.campaign_id,
+                "generations": 2,
             })
     manifest_path = repo / "manifests" / "trial.json"
     manifest_path.parent.mkdir()
@@ -5297,7 +5298,7 @@ def _t325_run(fixture, run_root: Path, **overrides):
     arguments = {
         "trial_id": fixture.trial_id,
         "workloads": ["rr80"],
-        "generations": 1,
+        "generations": 2,
         "provider_kind": "fixture",
         "run_root": run_root,
         "sub": "/unused",
@@ -5344,14 +5345,14 @@ def test_prepare_campaign_identity_exactly_matches_existing_derivation(
         descriptor=descriptor,
         descriptor_record=descriptor_record,
         trial_id=t325_registered_trial.trial_id,
-        generations=1,
+        generations=2,
         contract=_T530_CONTRACT,
         build_context=context,
     )
     prepared = A._prepare_campaign_identity(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
-        generations=1,
+        generations=2,
         site=A.trigger.site_policy.OTHER,
         contract=_T530_CONTRACT,
         build_context=context,
@@ -5374,7 +5375,7 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
         trial_manifest=t325_registered_trial.manifest_path,
         trial_id=t325_registered_trial.trial_id,
         workloads=["rr80"],
-        generations=1,
+        generations=2,
         allow_unregistered_exploratory=False,
         effective_preregistration=t325_registered_trial.capability,
     )
@@ -5386,7 +5387,7 @@ def test_manifest_identity_preflight_does_not_consume_coder_authority(
     prepared = A._prepare_campaign_identity(
         workload="rr80",
         trial_id=t325_registered_trial.trial_id,
-        generations=1,
+        generations=2,
         site=A.trigger.site_policy.OTHER,
         contract=_T530_CONTRACT,
         build_context=context,
@@ -5695,6 +5696,7 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
         "--trial-manifest", str(t325_registered_trial.manifest_path),
         "--provider", "fixture",
         "--workloads", "rr80",
+        "--max-generations", "2",
         "--no-build",
         "--ccbench-dir", str(tmp_path / "ccbench"),
         "--run-root", str(tmp_path / "run"),
@@ -5705,6 +5707,54 @@ def test_p10_cli_manifest_gate_precedes_build_preparation_and_forwards_manifest(
     assert captured["trial_manifest"] == t325_registered_trial.manifest_path
     assert captured["trial_admission"].binding == t325_registered_trial.binding
     assert captured["effective_preregistration"] is t325_registered_trial.capability
+
+
+def test_t1185_m5_cli_default_generation_is_rejected_before_identity_or_run_root(
+    tmp_path, monkeypatch, t325_registered_trial,
+) -> None:
+    def downstream(*args, **kwargs):
+        pytest.fail("generation mismatch reached campaign identity or artifact work")
+
+    monkeypatch.setattr(A, "build_run_context", downstream)
+    monkeypatch.setattr(A, "_prepare_campaign_identity", downstream)
+    monkeypatch.setattr(A, "assert_pinned_clean", downstream)
+    monkeypatch.setattr(A, "run_trial", downstream)
+    run_root = tmp_path / "t1185-m5-run"
+    with pytest.raises(
+        A.trial_registry.TrialRegistryError,
+        match=r"\[generation-binding\] runtime generations differs",
+    ):
+        A.main([
+            "--trial-id", t325_registered_trial.trial_id,
+            "--trial-manifest", str(t325_registered_trial.manifest_path),
+            "--provider", "fixture",
+            "--workloads", "rr80",
+            "--no-build",
+            "--ccbench-dir", str(tmp_path / "ccbench"),
+            "--run-root", str(run_root),
+        ])
+    assert not run_root.exists()
+
+
+def test_t1185_pc_exploratory_generation_one_still_passes(
+    tmp_path, t325_registered_trial,
+) -> None:
+    run_root = tmp_path / "t1185-pc-run"
+    report = A.run_trial(
+        trial_id="t1185-pc-exploratory",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=run_root,
+        sub="/unused",
+        do_build=False,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "complete"
+    assert report["generation_budget_per_workload"] == 1
+    assert len(report["cells"][0]["generations"]) == 1
 
 
 def test_m23_prime_run_trial_registry_gate_rejects_before_run_root(
@@ -5937,7 +5987,7 @@ def test_run_trial_rejects_every_dataclass_replace_binding_field(
         A.run_trial(
             trial_id=t325_registered_trial.trial_id,
             workloads=["rr80"],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -5964,7 +6014,7 @@ def test_run_trial_rejects_head_move_after_cli_binding(
         A.run_trial(
             trial_id=t325_registered_trial.trial_id,
             workloads=["rr80"],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -6011,7 +6061,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
             prepared = A._prepare_campaign_identity(
                 workload=workload,
                 trial_id=trial_id,
-                generations=1,
+                generations=2,
                 site=A.trigger.site_policy.OTHER,
                 contract=_T530_CONTRACT,
                 build_context=_no_build_context(),
@@ -6024,6 +6074,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 "arm": arm,
                 "holdout": holdout,
                 "campaign_id": campaign_id,
+                "generations": 2,
             })
     manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
     manifest_path.write_text(
@@ -6063,7 +6114,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
         A.run_trial(
             trial_id=target_trial_id,
             workloads=["rr80"],
-            generations=1,
+            generations=2,
             provider_kind="fixture",
             run_root=run_root,
             sub="/unused",
@@ -6445,7 +6496,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         trial_manifest=registered.manifest_path,
         trial_id=registered.trial_id,
         workloads=["rr80"],
-        generations=1,
+        generations=2,
         allow_unregistered_exploratory=False,
         effective_preregistration=registered.capability,
     )
@@ -6455,7 +6506,7 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         producer_inputs=provisional_producer,
         trial_id=registered.trial_id,
         selected=["rr80"],
-        generations=1,
+        generations=2,
         trial_manifest=registered.manifest_path,
         effective_preregistration=registered.capability,
         build_context=_no_build_context(),
@@ -6491,7 +6542,7 @@ def _origin_trial_arguments(registered, run_root: Path) -> dict[str, object]:
     return {
         "trial_id": registered.trial_id,
         "workloads": ["rr80"],
-        "generations": 1,
+        "generations": 2,
         "provider_kind": "fixture",
         "run_root": run_root,
         "sub": "/unused",

@@ -18562,3 +18562,177 @@ D268 の制限箇条書きはすべて継承する。加えて次を明記する
 - **domain を `/v2` へ上げる。** 上記 2 のとおり変更面が裁定の範囲を超える。
 - **oracle 側で現行 scope の exact 一致を要求する。** 受理集合を変える新設 gate であり、
   本裁定の範囲外。択一として裁定へ返す。
+
+## D443. 8c 正式系列の世代数は manifest が宣言し、受入は宣言と実行の矛盾だけを拒否し、実効的な閂は起動側に置く (2026-08-16)
+
+**決定 (1): 世代数の正本は `manifest.trials[].generations` とし、値は整数 2 に閉じる。**
+manifest / registration schema を `p3-8c-trial-manifest/v2` / `p3-8c-trial-registration/v2` へ上げ、
+trial 行の exact key へ `generations` を足す。`type(value) is int and value == 2` を要求して
+`bool` を通さない。拒否 message は `trials[<index>].generations` の位置を含め、6 cell の
+どれが不正かを運用者が特定できるようにする。top-level ではなく trial 単位に置く理由は、
+registry・binding・admission・receipt がいずれも `trial_id` 単位の capability であり、
+選択された 1 trial の起動条件を自己完結させる必要があるためである。
+
+**決定 (2): 受入は 6 report 全件について、manifest の宣言値と report の
+`generation_budget_per_workload` の一致を要求する。不一致は `[generation-binding]` で拒否する。**
+これは「判定不能」ではなく**証拠と事前登録の矛盾**である。manifest が 2 世代の試行として
+登録したものが budget 1 で実行された report は、決定 (3) の起動 gate を通っていないことを
+意味する。したがって拒否されるのは「正当に起動できなかったはずの実行」であり、欠測でも
+crash でもない。先頭 1 件での早期 return や `zip` の暗黙短縮に頼らず、全件を回ることが
+構造的に保証される形で書く。負の対照は**末尾**の cell に不一致を置く。
+
+**決定 (3): registered 起動は runtime の generations が manifest 宣言値と一致しなければ、
+campaign identity 導出と run root 作成より前に fail-closed で拒否する。**
+ここが実効的な閂であり、**落とす対象がそもそも生成されない**。CLI 既定値 1 を manifest の
+2 へ自動補正することはしない — 事前登録文書が「世代数を明示的に指定しない起動を本系列の試行として
+数えない」と規範化しており、補正は明示の要求を骨抜きにする。
+
+**決定 (4): 実走世代数が宣言に届かなかった cell は、従来どおり partial として receipt に記録し、
+拒否しない。** crash・supervisor-error・early-stop で 2 世代に届かなかった cell の扱いは変えない。
+`stop_reason == "fixed-generation-budget"` のときに実走長 == budget を要求する既存規則
+(`autonomous_trial_completeness.py`) をそのまま使う。全件報告・判定不能の契約を破らない。
+
+**決定 (5): 世代数を `TrialBinding` / launch admission / lifecycle / 受入 receipt へ伝播しない。
+run/report schema に v4 を作らない。** 起動時検査は manifest を再読して等価性を得るため、
+封印値を binding に持たせなくても同じ保証が立つ。伝播すると launch admission の exact key 契約と
+originless 互換 golden の bytes が変わり、等価な保証に対して影響半径だけが大きくなる。
+
+**理由:**
+
+- 承認上限 `MAX_APPROVED_GENERATIONS = 2` は上限しか強制せず、予算 validator は 1 以上を受理し、
+  CLI 既定値は 1 である。budget=1 の 6 cell は manifest 登録・launch binding・完全性検査・
+  受入 gate をすべて通過できた。上限を下限へ流用せず、宣言と実行の間に別の束縛を置く。
+- **「拒否」だけでも「記録」だけでも成立しない。** 正式受入で partial report を拒否する案は、
+  file-drawer を受入側で開け直す (走らせた試行が receipt に一切残らない経路ができる)。
+  一方、受入 receipt の `certifying` は literal `False` に固定されているため、
+  「exact 2 でなければ non-certifying にする」だけの案は受理集合を 1 bit も変えず**恒真**になる。
+  budget (宣言・起動意図) と actual (実際に起きたこと) の間に線を引くことで両方を避ける。
+- 決定 (2) の比較は恒真ではない。manifest 側は parse 時点で 2 に閉じているが、report 側の
+  budget は 1 を取りうるので分岐が生きている。変異で裏取りした
+  (比較の無効化が末尾 cell の負例だけを赤にする)。
+
+**却下した選択肢:**
+
+- **正式受入で partial を拒否し `report.cells` を 1 個へ狭める** — 欠測・crash・不一致を
+  「判定不能として残す」でなく「台帳から落とす」に変える。file-drawer を塞ぐために積み上げた
+  registry・lifecycle・全件報告の設計と正面から矛盾する。
+- **manifest を触らず定数だけで exact 2 を検査する** — 事前登録 artifact に宣言が残らず、
+  「何世代の試行として登録されたか」を後から証拠で辿れない。
+- **CLI 既定値を 2 へ変える** — 「明示しない起動を数えない」という規範に反する。
+  既定値が literal 1 であることは AST で意図的に釘付けされている。
+- **`MAX_APPROVED_GENERATIONS` を exact 下限として流用する** — 上限と下限は別の概念であり、
+  上限の引き上げ (多世代開放) と正式系列の固定予算を同じ定数へ縛ると両方を動かせなくなる。
+- **run/report を exploratory v3 / registered v4 の tagged union へ割る** — 正式系列だけを
+  狭めるには有効だが、本決定の目的 (宣言と実行の突き合わせ) は既存の
+  `generation_budget_per_workload` と `cells[].generations` で足りる。schema を割ると
+  verifier の検査順序変更まで必要になり、pilot の受理集合へ波及する危険が増える。
+
+## D444. 床値 protocol の束縛の張り替えだけを AI へ開放し、組ごとに 1 件で機械封鎖する (2026-08-16)
+
+**決定 (2026-08-16 ユーザー裁定 = 案 1 + 案 3。案 2 は不採用):**
+
+床値 protocol のうち **AI が更新してよいのは `contract_sha256` と `ccbench_pin` の 2 field だけ**とする。
+残る 16 field (`schema` / `formula` / `env_tag` / `freeze` / `stock_configuration` / `n_sessions` /
+`reps` / `master_seed` / `schedule_algorithm` / `extime_s` / `wired_min_rel_floor` /
+`retry_slots_per_cell` / `session_cv_max` / `cell_cv_max` / `scale_adequacy_rel_tolerance` /
+`allowed_excluded_reasons`) は不変で、その改訂は引き続き人間手番である。
+床値 protocol は **(contract_sha256, ccbench_pin) の組ごとに 1 件**とし、同じ組への 2 件目を
+機械的に拒否する。既存の凍結 bytes は 1 件も上書きしない (追加のみ)。
+
+実装の確定形は次のとおり。
+
+1. 格納 path は `output/s8b-freeze/floor-protocols/<contract_sha256>--<ccbench_pin>.json` とし、
+   組から一意に導出する。issuer の公開 API は零引数で、path・contract・pin・先行 protocol の
+   いずれも呼び手が指定できない。
+2. 新 namespace を launch certificate の chain record pattern へ登録する。
+   **登録しなければ、versioned protocol を 1 件置いた瞬間に freeze namespace の未知 file 拒否が
+   発火し、既存の床値 campaign が起動できなくなる。**
+3. 不変 16 field は先行 protocol から field ごとの canonical bytes で byte-exact に継承し、
+   承認定数から再導出しない。定数は人間が編集できるため、定数経由で不変 field が動く経路を塞ぐ。
+4. lineage anchor は working tree でなく、一度だけ解決した固定 HEAD commit の exact 100644 blob から
+   読む。issuer の全 Git read は同じ commit OID と衛生化した環境 (repository / object / config /
+   replacement 系の環境変数を除去し `GIT_NO_REPLACE_OBJECTS` を設定、argv にも
+   `--no-replace-objects`) で行う。
+5. 既裁定 Q3 (両成分がともに交代) の機械化として、**target の `contract_sha256` が組 index に
+   既出なら発行を拒否する**。この拒否は issuer だけでなく組 index 自身の不変条件でもあり、
+   何らかの経路で同一 contract の 2 件が入った repository は以後の全 scan が fail-closed になる。
+6. 撃てないゲートは積まない。publish 直前の環境契約再照合は、authority snapshot が
+   PID ごとに cache されるため必ず一致する恒真ゲートであり、実装しない。
+   代わりに publish 直後の HEAD commit 移動検査を置く。
+7. 発行後の検査失敗では artifact を自動削除しない (既存の人間手番 seal と同じ方針)。
+   ただし例外 message に作成された artifact の exact path と、
+   取り除くまで新しい床値 protocol を発行できない旨を必ず載せる。
+
+**この決定が変えないもの:** 規律 2、凍結の履歴不変条件、較正 (環境側) の取得手順と受入検査、
+人間手番の seal 経路 (`--confirm-user-freeze` + 対話 shell + T-080 receipt)、
+承認定数、凍結台帳の 23 key、凍結チェーン検証の保留状態。
+
+**理由:**
+- ワークロード・受理閾値・seed・実験手順・除外理由が動かせないため、
+  「低い床値が出る設計を選ぶ」自由度が構造的に存在しない。動くのは束縛の張り替えだけである。
+- 組ごとに 1 件へ固定すると、同一条件で測り直して良い結果を選ぶ経路が消える。
+  追加のみで既存 bytes を上書きしないため、凍結の履歴不変条件とも両立する。
+- 環境契約 hash と ccbench pin は実 repository から機械的に決まる。呼び手が渡せる面を持たせないと
+  決めれば、「どの条件で測るか」を submitter が選ぶ経路そのものが無くなる。
+- 撃てないゲートを防壁として数えると、防壁台帳の件数と実効防壁が食い違う。
+  恒真な再照合を残すより、発火しうる検査 1 本に置き換えるほうが強い。
+
+**却下した選択肢:**
+- **測り直しの事前登録 + 全走行の記録 (案 2)** — ユーザーが不採用と裁定した。
+  案 1 と案 3 で設計の自由度が消えるため追加機構は要らない、が理由である。
+- **path を receipt や引数で選ばせる** — 検証対象を submitter が選べる受理拡大になる。
+  組からの決定的導出であれば、path と document の相互束縛を機械検査できる。
+- **不変 16 field を承認定数から再導出する** — 定数は人間が編集できるため、
+  定数の drift が AI 発行の protocol へ黙って入る経路が残る。
+- **anchor を working tree から読む** — 単体 validator は `master_seed` を非空文字列、
+  `wired_min_rel_floor` を範囲でしか検査しない。working tree の改変値が
+  validator を通過し、全 successor へ正確に継承される。
+- **共有 Git env helper 側を直す** — 同型の穴を持つ第 2 の consumer をまだ実測していない。
+  単発事故の族一般化は独立 2 例を要する。
+
+**残る限界 (この決定では閉じない):**
+- ccbench pin を前進させれば新しい組ができるため、消えたのは「同じ組で 2 本目」であって
+  「pin を進めて新しい組で測り直す」ではない。
+- 組の一意性は sanctioned namespace 内に限る。ratified freeze の pointer は
+  任意 canonical path を受理する。
+- protocol 単位の封鎖であって run 単位ではない。同一 protocol の複数回実走は現在許されている。
+- 発行済み artifact を削除すれば同じ組を再発行できる。履歴不変条件の検査は凍結チェーン保留の対象である。
+
+**supersede:** D437 は「環境世代 g2 の活性化は上位権限束の人間 lockstep に従属する」と結論し、
+その根拠に 2026-08-10 / 08-11 の Q2 (承認 A・発効 X ともに人間) を挙げた。
+**2026-08-16 のユーザー裁定は、束縛の張り替え (環境契約 hash と ccbench pin の更新) に限り
+Q2 を解除した。** D437 のうちこの限定範囲に関する部分は本決定が supersede する。
+Q3 (lockstep) と、ワークロード・閾値の改訂が人間手番である点は D437 のまま不変である。
+
+**研究状態への影響:** 本決定は certified 選択・材料レポート・試行台帳の**現在値を 1 件も変えない**。
+実 repository へ protocol artifact を追加しないためである。変わるのは launch certificate の
+受理集合の 1 点だけで、chain record pattern に合致する path が「未知 file」から
+「chain record」へ移る。現在その path に file は無いため、今日の launch 判定も変わらない。
+
+## D445. archive 名は位置文法で三値分類し、判別鍵を先頭ゼロにする (2026-08-16)
+
+**決定:** `docs/archive/worklog-*.md` のファイル名を、正規文法の完全一致で
+非採番 / 採番 / malformed の三値に分類する。日付 token と entry 番号 token の判別鍵は
+**先頭ゼロの有無**とする (日付 token は `0724` のように先頭ゼロを持ち、entry 番号は
+`[1-9][0-9]*` で先頭ゼロを持たない)。正規文法のいずれにも合わない名前は malformed として
+赤にし、「名乗らない」へ落とさない。
+
+**理由:**
+- 「entry 範囲を名乗らない」は全検査の免除であり、そこへ落ちる経路がそのまま gate の
+  迂回路になる。実際に敵対レビューが 2 度、範囲を名乗る破損 archive を免除側へ落とす名前を
+  構成した (MMDD を外す形と、phase を外す形)。どちらも README にファイル名さえ載っていれば
+  既存の到達性検査も通り、rc=0 のまま受理された。
+- 先頭ゼロを鍵にすると、4 桁の entry 番号 (1000 以上) を MMDD と取り違えない。
+  桁数だけを見る規則はここで必ず破れる。
+- 免除を allowlist でなく構文条件で書くと、凍結済みの旧 archive (日付だけの名前、
+  `phase<lo>-<hi>` の phase 範囲名) を名指しせずに外せる。合成テスト fixture も
+  「entry 番号の形の token を持たない」という同じ構文条件で自然に外れる。
+
+**却下した選択肢:**
+- **桁数規則 (4 桁は日付、それ以外は entry)** — `worklog-phase3-0722-0724.md` を entry 範囲と
+  誤読する。この規則で書いた診断 script が重複 entry 番号 22 件の偽陽性を出して実証した。
+- **免除ファイル名の allowlist** — 凍結 archive を名指しすることになり、新しい破損名は
+  常に免除側へ落ちる。fail-open の方向に既定値がある。
+- **正規文法に合わない名前をすべて無条件 malformed にする** — `worklog-` で始まるだけの
+  合成 fixture 名 (数値 token を持たないもの) まで赤にし、既存テストを広範囲に巻き込む。
+  entry 番号の形の token を持つかどうかで切り分ければ、迂回路だけを塞げる。
