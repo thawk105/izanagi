@@ -41,6 +41,20 @@ from orchestrator.tests.campaign_lock_test_support import build_v2_campaign_lock
 ROOT = Path(__file__).resolve().parents[2]
 CERTIFIED = A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
 HISTORICAL = A.CampaignReadPurpose.HISTORICAL_RAW
+_EXPECTED_E1_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+)
 LEDGER_RAW_SHA256 = "f08ed2d0b265710286752cad74c12d1136ea0af7684e810b00e10867a71cef93"
 EXPECTED_RECORDS = (
     (
@@ -315,13 +329,13 @@ def _committed_closure_repo(tmp_path: Path) -> Path:
     repo.mkdir()
     _fixture_git(repo, "init", "-q")
     for index, relative in enumerate(
-        campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+        _EXPECTED_E1_CLOSURE_PATHS, start=1,
     ):
         path = repo / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"epoch closure fixture {index}\n".encode("ascii"))
     _fixture_git(
-        repo, "add", "--", *campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS,
+        repo, "add", "--", *_EXPECTED_E1_CLOSURE_PATHS,
     )
     _fixture_git(
         repo,
@@ -340,7 +354,7 @@ def _expected_fixture_epoch() -> str:
             f"epoch closure fixture {index}\n".encode("ascii")
         ).digest()
         for index, relative in enumerate(
-            campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS, start=1,
+            _EXPECTED_E1_CLOSURE_PATHS, start=1,
         )
     )
     return f"E1:{hashlib.sha256(payload).hexdigest()}"
