@@ -1341,3 +1341,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"D:red-checker-main-blob-authority":"D440"},"authored":"2026-08-16","base":"1dc79c0b27c6e44fa9baa4344088135362c7b30a","content_sha256":"efda8283a1d50a3c6fb7159400db0dce9537fcb855ed6bc19f83c5a4471ebdd4","seq":3,"tested_tip":"c8d71d9369a34b269649d306ecc112be98f36f33","wave":"dev-wave-t1131-checker-main-blob","wave_ref":"refs/heads/worktree-dev-wave-t1131-checker-main-blob"}
 
 - {"allocations":{},"authored":"2026-08-16","base":"2f7eeb220854d806f3686e0ffde3f19e8850bfaa","content_sha256":"a03b01e7f5065f318ae90b8a31ce9882aef286baf54f18bfd198a026f8e658aa","seq":1,"tested_tip":"3fd769e309f35ae8facc76b99b6ad5802835ef84","wave":"rulings-20260816-full2","wave_ref":"refs/heads/worktree-rulings-20260816-full2"}
+
+- {"allocations":{},"authored":"2026-08-16","base":"518a87e1afd52982b85e823831140eb1764904ea","content_sha256":"9f28ec7ffd8eae39f5c228cd9c3ded7ad2d7f6bcb9ed2bcc2ab23a689e8ba4e2","seq":2,"tested_tip":"0829f565f5c7343db85f141172c1943c769cef08","wave":"rulings-20260816-full2","wave_ref":"refs/heads/worktree-rulings-20260816-full2"}
