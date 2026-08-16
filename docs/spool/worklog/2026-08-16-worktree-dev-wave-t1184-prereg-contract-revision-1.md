@@ -119,6 +119,17 @@ loadgroup 実行では FAILED 行の node ID に `@<group>` が付く一方、`-
 いずれも受け入れられない状態にある。** 棚卸しは過去 2 wave が独立に「削除可能な節ゼロ件」を
 実証しており、圧縮では空かない。
 
+### 受入 1 回目はフレーク 1 件で緑を逃した
+
+受入全走は `1 failed, 11589 passed in 157.48s`。赤は
+`orchestrator/tests/test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release`
+の 1 件で、checker は帰属と判定し受領証は発行されなかった。**本 wave はこのファイルを 1 行も
+触っていない。** テストは待ち手の `main()` が失敗した後に SIGTERM handler が復元されたことを、
+自プロセスへ SIGTERM を送って確かめる形で、期待 `[SIGTERM]` に対し実測は `[]` だった。
+11,589 件の xdist 並列走行下ではシグナル配送が `finally` の復元より遅れうる。
+`DW-O18` に従い単独走で実測したところ `1 passed in 2.50s` で再現しなかったため、
+帰属せずフレークとして {{T:dev-wave-wait-sigterm-restore-flake}} へ起票し、受入を再投入した。
+
 ### 工数
 
 Codex 子 4 本 (段 5 実装 467 秒 / 段 6 レビュー 2 本並列 452・399 秒 / 段 6 fix 445 秒)。いずれも
@@ -185,6 +196,11 @@ bounded local が cgroup を attest できず `rc=16` で止まり、pytest を 
   現状 memory 止まりである。`DW-O09` へ書けなかったのは同節が 996 / 1000 bytes で
   余白 4 bytes しかなく、既存行の圧縮が dev-wave docs の exact pin を壊すためである。
   節予算を増やさずに機械化する形を設計する。
+- {{T:dev-wave-wait-sigterm-restore-flake}} **P3・新規**: 受入待ち手の
+  `test_public_main_failure_restores_handler_without_release` が全走 (11,589 件、xdist) で
+  1 回落ち、単独走では通った。自プロセスへ送った SIGTERM の配送が `finally` の handler 復元より
+  遅れると空リストになる形である。**受入全走 1 本を無駄にする**ため、配送を待ってから
+  assert する形へ直すか、シグナル経路を使わない検査へ置き換える。
 - {{T:mutation-expected-node-xdist-group-space}} **P3・新規**: 変異 harness の期待 node は
   `--collect-only` の空間で検査され、実際の照合は FAILED 行の空間で行われる。
   `pytest.mark.xdist_group` を持つテストは後者にだけ `@<group>` が付くため、**その node を
