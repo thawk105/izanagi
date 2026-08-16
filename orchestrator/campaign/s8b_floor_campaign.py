@@ -106,6 +106,7 @@ from . import campaign_claim, reservation  # noqa: E402
 from .durable_root import DurableRootError, DurableRootPolicy, WriteCapability  # noqa: E402
 from . import s8b_holdout_freeze as _holdout_freeze  # noqa: E402  (launch certificate の clean scan)
 from . import s8b_freeze_io as _freeze_io  # noqa: E402
+from . import s8b_holdout_admission as _holdout_admission  # noqa: E402
 from . import s8b_selector_freeze as _selector_freeze  # noqa: E402
 from . import s8b_prediction_runner as _prediction_runner  # noqa: E402
 from .layout import (  # noqa: E402
@@ -3697,6 +3698,77 @@ def _project_measure_run_cmd(
         )
     return shlex.join(portable)
 
+
+def _wrap_admission_aware_measure(
+        measure_fn, *, admissions, cell_by_id, binaries, protocol,
+        freeze_sha256, protocol_sha256, manifest_sha256,
+        assert_admission_fn=None, consume_ticket_fn=None,
+        pass_observation_to_internal_measure=False):
+    """Keep the external four-argument seam behind attempt consumption."""
+
+    if set(admissions) != set(cell_by_id):
+        raise CampaignAbort("holdout admission mapping does not exactly cover cells")
+    assert_admission_fn = (
+        _holdout_admission.assert_cell_holdout_admission
+        if assert_admission_fn is None else assert_admission_fn
+    )
+    consume_ticket_fn = (
+        _holdout_admission.consume_attempt_ticket
+        if consume_ticket_fn is None else consume_ticket_fn
+    )
+
+    def measure_attempt(cell_id, attempt_id, binary, records, threads, workload):
+        cell = cell_by_id.get(cell_id)
+        admission = admissions.get(cell_id)
+        binary_record = binaries.get(cell_id)
+        if cell is None or admission is None or binary_record is None:
+            raise CampaignAbort(f"holdout admission is absent: cell={cell_id}")
+        if (binary != binary_record.get("binary")
+                or records != cell.get("records")
+                or threads != cell.get("threads")
+                or workload != cell.get("workload")):
+            raise CampaignAbort(
+                f"measure callback coordinates differ from frozen cell: {cell_id}"
+            )
+        try:
+            assert_admission_fn(
+                admission, cell=_admission_cell(cell), protocol=protocol,
+                freeze_sha256=freeze_sha256,
+                protocol_sha256=protocol_sha256,
+                manifest_sha256=manifest_sha256,
+            )
+            observation = consume_ticket_fn(
+                admission, attempt_id=attempt_id,
+            )
+        except _holdout_admission.HoldoutAdmissionError as exc:
+            raise CampaignAbort(
+                f"holdout attempt admission refused: cell={cell_id}: {exc}"
+            ) from exc
+        # No operation may be inserted between durable consumption and this
+        # external four-argument callback.
+        if pass_observation_to_internal_measure:
+            return measure_fn(
+                binary, records, threads, workload,
+                _holdout_observation_admission=observation,
+            )
+        return measure_fn(binary, records, threads, workload)
+
+    return measure_attempt
+
+
+def _admission_cell(cell: Mapping[str, object]) -> dict[str, object]:
+    """Translate the legacy floor artifact name only at the admission boundary."""
+
+    return {
+        "cell_id": cell.get("cell_id"),
+        "freeze_holdout_key": cell.get("holdout_id"),
+        "configuration_id": cell.get("configuration_id"),
+        "records": cell.get("records"),
+        "threads": cell.get("threads"),
+        "workload": dict(cell.get("workload", {})),
+    }
+
+
 class _Runner:
     """schedule を直列・単一テナントで消化する実行エンジン (fresh/resume 共通)。
 
@@ -3709,12 +3781,14 @@ class _Runner:
 
     def __init__(self, *, protocol, contract, cells, cell_by_id, binaries,
                  artifact_binaries, schedule,
-                 journal_path, measure_fn, probe_fn, sleep_fn, monotonic_fn, now_fn,
+                 journal_path, measure_fn, holdout_admissions,
+                 probe_fn, sleep_fn, monotonic_fn, now_fn,
                  protocol_sha256, freeze_sha256, manifest_sha256,
                  execution_receipt=None, launch_certificate_sha256=None,
                  records=None, host_provenance_fn=None, process_identity_fn=None,
                  reservation_check=None, write_capability=None,
-                 perf_preflight=None, mode="official"):
+                 perf_preflight=None, mode="official",
+                 holdout_assert_fn=None):
         self.protocol = protocol
         self.contract = contract
         self.cells = cells
@@ -3724,6 +3798,13 @@ class _Runner:
         self.schedule = schedule
         self.journal_path = journal_path
         self.measure_fn = measure_fn
+        if not isinstance(holdout_admissions, Mapping):
+            raise CampaignAbort("holdout admission mapping is required")
+        self.holdout_admissions = dict(holdout_admissions)
+        self.holdout_assert_fn = (
+            _holdout_admission.assert_cell_holdout_admission
+            if holdout_assert_fn is None else holdout_assert_fn
+        )
         self.probe_fn = probe_fn
         self.sleep_fn = sleep_fn
         self.monotonic_fn = monotonic_fn
@@ -3907,7 +3988,8 @@ class _Runner:
         scale_point = None
         try:
             scale_point = self.measure_fn(
-                binary, cell["records"], cell["threads"], cell["workload"],
+                cell_id, attempt_id, binary, cell["records"], cell["threads"],
+                cell["workload"],
             )
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
             measure_error = exc
@@ -4048,6 +4130,25 @@ class _Runner:
 
     def _validate_live_admissions(self) -> None:
         """public runner 実走前に全 cell を current protocol へ束縛する。"""
+        expected_cell_ids = set(self.cell_by_id)
+        if set(self.holdout_admissions) != expected_cell_ids:
+            raise CampaignAbort(
+                "holdout admission mapping does not exactly cover every cell"
+            )
+        for cell_id in sorted(expected_cell_ids):
+            try:
+                self.holdout_assert_fn(
+                    self.holdout_admissions[cell_id],
+                    cell=_admission_cell(self.cell_by_id[cell_id]),
+                    protocol=self.protocol,
+                    freeze_sha256=self.freeze_sha256,
+                    protocol_sha256=self.protocol_sha256,
+                    manifest_sha256=self.manifest_sha256,
+                )
+            except _holdout_admission.HoldoutAdmissionError as exc:
+                raise CampaignAbort(
+                    f"holdout admission receipt mismatch: cell={cell_id}: {exc}"
+                ) from exc
         current_policy = resolve_current_build_admission_policy()
         for cell_id in sorted(self.binaries):
             record = self.binaries[cell_id]
@@ -4535,9 +4636,28 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                  host_provenance_fn=None, process_identity_fn=None,
                  execution_receipt_fn=None, build_fn=None, repo_root=None,
                  after_certificate_issued_fn=None,
-                 durable_root_policy=None, perf_preflight_fn=None) -> dict:
-    """production wrapper。official の seam 注入を副作用前に構造拒否する。"""
+                 durable_root_policy=None, perf_preflight_fn=None,
+                 confirm_irreversible_pilot_holdout=False) -> dict:
+    """Production wrapper with no caller-provided callable seams."""
     mode = _validate_mode(mode)
+    callable_seams = sorted(name for name, present in {
+        "measure_fn": measure_fn is not None,
+        "probe_fn": probe_fn is not None,
+        "sleep_fn": sleep_fn is not time.sleep,
+        "monotonic_fn": monotonic_fn is not time.monotonic,
+        "prepare_fn": prepare_fn is not None,
+        "now_fn": now_fn is not None,
+        "host_provenance_fn": host_provenance_fn is not None,
+        "process_identity_fn": process_identity_fn is not None,
+        "execution_receipt_fn": execution_receipt_fn is not None,
+        "build_fn": build_fn is not None,
+        "after_certificate_issued_fn": after_certificate_issued_fn is not None,
+        "perf_preflight_fn": perf_preflight_fn is not None,
+    }.items() if present)
+    if callable_seams:
+        raise FloorCampaignError(
+            f"production mode への caller callable seam 注入を拒否する: {callable_seams}"
+        )
     if mode == "official":
         injected = {
             "measure_fn": measure_fn is not None,
@@ -4570,6 +4690,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         after_certificate_issued_fn=after_certificate_issued_fn,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
+        confirm_irreversible_pilot_holdout=confirm_irreversible_pilot_holdout,
     )
 
 
@@ -4580,7 +4701,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        execution_receipt_fn=None, build_fn=None, repo_root=None,
                        after_certificate_issued_fn=None,
                        durable_root_policy=None, _floor_preflight_fn=None,
-                       perf_preflight_fn=None) -> dict:
+                       perf_preflight_fn=None, _holdout_repo_root=None,
+                       _holdout_signature_source=None,
+                       confirm_irreversible_pilot_holdout=False) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
     注入点 (テスト容易性): ``measure_fn(binary, records, threads, workload) -> ScalePoint`` /
@@ -4588,9 +4711,26 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     ``now_fn() -> datetime``。CLI main はこれらを実物で束ねるだけにする。
 
     public wrapper を通らない staged builder/test 専用 core。official permit gate と materializer
-    固定はこの core 自体が行い、wrapper 迂回時にも admission-aware gateway を外せない。
+    固定はこの core 自体が行う。holdout gate の関数注入点は持たない。場所を変える
+    ``_holdout_repo_root`` と合成 freeze の中立表だけを解決する
+    ``_holdout_signature_source`` のどちらでも、claim・ledger・ticket・authority・identity の
+    全検査を実行する。
+
+    Cell claim は ``runner.run()`` の外側で行う非計測 preflight と manifest sealing の後、
+    ``runner.run()`` の直前に取得する。live admission の再検査、host provenance、process
+    identity、session competition probe は ``runner.run()`` 内で claim 後に行う。それ以前に
+    保護比率を実測しようとしても、最下層 ``run_once`` gateway が attempt token 無しで拒否する。
     """
     mode = _validate_mode(mode)
+    if type(confirm_irreversible_pilot_holdout) is not bool:
+        raise FloorCampaignError(
+            "confirm_irreversible_pilot_holdout が exact bool でない"
+        )
+    if mode == "pilot" and not confirm_irreversible_pilot_holdout:
+        raise FloorCampaignError(
+            "pilot holdout は将来の official と共有する一回性 key を不可逆消費するため、"
+            "明示承認が必要"
+        )
     if mode == "official" and perf_preflight_fn is not None:
         raise FloorCampaignError(
             "official mode への非 default seam 注入を拒否する: ['perf_preflight_fn']"
@@ -4613,6 +4753,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     host_provenance_fn = host_provenance_fn or _host_provenance
     process_identity_fn = process_identity_fn or _process_identity
     repo_root = ROOT if repo_root is None else Path(repo_root)
+    holdout_repo_root = (
+        repo_root if _holdout_repo_root is None else Path(_holdout_repo_root)
+    )
     after_certificate_issued_fn = (
         after_certificate_issued_fn or _after_certificate_issued_noop)
 
@@ -4672,11 +4815,33 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
 
     cells = enumerate_cells(freeze, stock_configuration=protocol["stock_configuration"])
     cell_by_id = {cell["cell_id"]: cell for cell in cells}
+    admission_cells = [_admission_cell(cell) for cell in cells]
     schedule = build_schedule(
         cells=cells, master_seed=protocol["master_seed"],
         n_sessions=protocol["n_sessions"],
     )
     protocol_sha256 = _canonical_sha256(protocol)
+    out_root = Path(out_root)
+    started_at = now_fn() if resume_dir is None else None
+    campaign_run_id = (
+        _fresh_run_id(protocol_sha256, started_at)
+        if started_at is not None else Path(resume_dir).name
+    )
+    if resume_dir is None:
+        run_relpath = (
+            Path("env") / protocol["env_tag"] / "calibration"
+            / f"s8b-floor-{mode}" / campaign_run_id
+        ).as_posix()
+        early_resume_records = None
+    else:
+        early_run_dir = Path(resume_dir)
+        try:
+            run_relpath = early_run_dir.resolve(strict=False).relative_to(
+                out_root.resolve(strict=False)
+            ).as_posix()
+        except ValueError as exc:
+            raise FloorCampaignError("resume run_dir が out_root 配下でない") from exc
+        early_resume_records = _read_journal(early_run_dir / "journal.jsonl")
 
     reservation_binding = None
     reservation_check = None
@@ -4700,7 +4865,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         except reservation.ReservationError as exc:
             raise FloorCampaignError(f"reservation preflight 失敗: {exc}") from exc
 
-    out_root = Path(out_root)
     try:
         output_write_capability = authorize_output_root(
             str(out_root), policy=durable_root_policy,
@@ -4708,15 +4872,11 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     except DurableRootError as exc:
         raise FloorCampaignError(f"durable output root preflight 失敗: {exc}") from exc
     launch_certificate_sha256 = None
-    resume_records = None
+    resume_records = early_resume_records
     resume_state = None
     perf_preflight_receipt = None
 
-    started_at = now_fn() if resume_dir is None else None
-    claim_identity = (
-        _fresh_run_id(protocol_sha256, started_at)
-        if started_at is not None else Path(resume_dir).name
-    )
+    claim_identity = campaign_run_id
     if contract.isolation_policy.single_process:
         assert reservation_binding is not None
         claim_root = out_root / "claims"
@@ -4756,7 +4916,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         # fresh: official は run_dir mkdir より前に clean scan を完了させる。時刻は一度だけ捕捉し、
         # run id と certificate.started_utc に同じ値を使う。
         assert started_at is not None
-        campaign_run_id = _fresh_run_id(protocol_sha256, started_at)
         certificate = None
         if mode == "official":
             floor_preflight_fn = (
@@ -4785,6 +4944,14 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             out_root, protocol, mode, protocol_sha256, started_at,
             write_capability=output_write_capability,
         )
+        try:
+            actual_run_relpath = run_dir.resolve(strict=False).relative_to(
+                out_root.resolve(strict=False)
+            ).as_posix()
+        except ValueError as exc:
+            raise FloorCampaignError("fresh run_dir が out_root 配下でない") from exc
+        if actual_run_relpath != run_relpath or run_dir.name != campaign_run_id:
+            raise FloorCampaignError("fresh run coordinates differ from admission claim")
         try:
             run_write_capability = write_capability_for_directory(
                 run_dir.parent, policy=durable_root_policy,
@@ -4889,7 +5056,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
             raise FloorCampaignError(f"resume durable root 拒否: {exc}") from exc
         journal_path = run_dir / "journal.jsonl"
         manifest_path = run_dir / "manifest.json"
-        resume_records = _read_journal(journal_path)
+        assert resume_records is not None
         try:
             resume_state = _floor_contract.classify_journal_resume_state(
                 resume_records, manifest_exists=manifest_path.is_file(),
@@ -5008,24 +5175,33 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         return {"status": "completed", "run_dir": str(run_dir), "result": result}
 
     use_perf = _assert_perf_mode(mode, perf_preflight_receipt)
-    if measure_fn is None:
+    default_measure = measure_fn is None
+    if default_measure:
         extime_s = protocol["extime_s"]
         reps = protocol["reps"]
         clocks_per_us = contract.clocks_per_us
         numactl = list(contract.numactl)
 
-        def measure_fn(binary, records, threads, workload):  # noqa: ANN001
+        def measure_fn(  # noqa: ANN001
+                binary, records, threads, workload, *,
+                _holdout_observation_admission):
             rep_observations: list[dict] = []
+            admission_kw = (
+                {"holdout_observation_admission": _holdout_observation_admission}
+                if _holdout_observation_admission is not None else {}
+            )
             if use_perf:
                 return measure_point(
                     binary, records, threads, clocks_per_us,
                     extime=extime_s, reps=reps, workload=workload,
                     numactl=numactl, rep_observations=rep_observations,
+                    **admission_kw,
                 )
             return measure_point(
                 binary, records, threads, clocks_per_us,
                 extime=extime_s, reps=reps, workload=workload,
                 numactl=numactl, rep_observations=rep_observations, use_perf=False,
+                **admission_kw,
             )
 
     # floor 実走へ入る最後の artifact gate。current policy に加え、実行中 protocol の
@@ -5034,11 +5210,47 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         artifact_built, expected_ccbench_pin=protocol["ccbench_pin"],
         expected_contract_sha256=contract.contract_sha256,
     )
+
+    # Cell claims are the final durable pre-measurement action outside
+    # runner.run(). Environment, reservation, clean-scan, perf, output, build,
+    # shared dependency prebuild, and manifest preflights have completed.
+    # Live admission revalidation, host provenance, process identity, and the
+    # session competition probe remain inside runner.run(), after this claim.
+    try:
+        holdout_reservation = (
+            _holdout_admission._reserve_floor_holdout_observations_core(
+                repo_root=holdout_repo_root, protocol=protocol,
+                verified_freeze_document=freeze, freeze_sha256=freeze_sha256,
+                cells=admission_cells, schedule=schedule,
+                campaign_run_id=campaign_run_id, out_root=out_root,
+                run_dir=run_dir, run_relpath=run_relpath, mode=mode,
+                resume=resume_dir is not None,
+                irreversible_pilot_approved=confirm_irreversible_pilot_holdout,
+                _neutral_holdouts=_holdout_signature_source,
+            )
+        )
+        holdout_admissions = (
+            _holdout_admission.finalize_floor_holdout_admissions(
+                holdout_reservation,
+            )
+        )
+    except _holdout_admission.HoldoutAdmissionError as exc:
+        raise FloorCampaignError(f"holdout admission reservation failed: {exc}") from exc
+
+    measure_attempt_fn = _wrap_admission_aware_measure(
+        measure_fn, admissions=holdout_admissions, cell_by_id=cell_by_id,
+        binaries=runtime_built, protocol=protocol,
+        freeze_sha256=freeze_sha256, protocol_sha256=protocol_sha256,
+        manifest_sha256=manifest_sha256,
+        pass_observation_to_internal_measure=default_measure,
+    )
+
     runner = _Runner(
         protocol=protocol, contract=contract, cells=cells, cell_by_id=cell_by_id,
         binaries=runtime_built,
         artifact_binaries=artifact_built,
-        schedule=schedule, journal_path=journal_path, measure_fn=measure_fn,
+        schedule=schedule, journal_path=journal_path, measure_fn=measure_attempt_fn,
+        holdout_admissions=holdout_admissions,
         probe_fn=probe_fn, sleep_fn=sleep_fn, monotonic_fn=monotonic_fn, now_fn=now_fn,
         protocol_sha256=protocol_sha256, freeze_sha256=freeze_sha256,
         manifest_sha256=manifest_sha256, execution_receipt=execution_receipt,
@@ -5452,6 +5664,10 @@ def _parser() -> argparse.ArgumentParser:
                         help="floor protocol JSON (s8b-floor-protocol/v2)")
     parser.add_argument("--resume", type=Path, default=None,
                         help="既存 run_dir を forward-only で続行する")
+    parser.add_argument(
+        "--confirm-irreversible-pilot-holdout", action="store_true",
+        help="pilot が将来の official と共有する一回性 key を不可逆消費することを承認する",
+    )
     return parser
 
 
@@ -5591,15 +5807,27 @@ def main(argv=None) -> int:
         }, ensure_ascii=False))
         return 2
 
+    supplied_protocol_path = (
+        args.protocol if args.protocol.is_absolute() else Path.cwd() / args.protocol
+    ).absolute()
+
     try:
-        raw_protocol = load_protocol(args.protocol)
-        protocol = validate_protocol(raw_protocol)
+        raw_protocol = load_protocol(supplied_protocol_path)
+        try:
+            protocol = validate_protocol(raw_protocol)
+        except FloorCampaignError as exc:
+            raise FloorCampaignError(
+                f"canonical protocol validation failed: {exc}"
+            ) from exc
         freeze_path = _resolve_freeze_path(protocol["freeze"]["path"])
         verified = _load_verified_freeze(freeze_path, expected_hash=protocol["freeze"]["sha256"])
         out_root = Path(repo_output_root())
         outcome = run_campaign(
             protocol, verified, out_root=out_root, mode=args.mode,
             resume_dir=args.resume,
+            confirm_irreversible_pilot_holdout=(
+                args.confirm_irreversible_pilot_holdout
+            ),
         )
     except SortSwoOracleUnavailable as exc:
         return _emit_sort_swo_unavailable(exc)

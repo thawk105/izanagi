@@ -1,0 +1,138 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 45,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "            ycsb_rratio=ratio,\n        ))\n    return frozenset(signatures)\n",
+          "new": "            ycsb_rratio=ratio,\n        ))\n    return frozenset()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_rr80_gate_is_only_barrier_before_accepting_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "    gflags_snapshot = tuple(gflags)\n    assert_holdout_observation_admitted(\n        gflags=gflags_snapshot,\n        admission=holdout_observation_admission,\n    )\n",
+          "new": "    gflags_snapshot = tuple(gflags)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_tokenless_rr80_gate_is_only_barrier_before_accepting_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "_INDIRECT_GFLAGS = frozenset({\"flagfile\", \"fromenv\", \"tryfromenv\"})\n",
+          "new": "_INDIRECT_GFLAGS = frozenset({\"fromenv\", \"tryfromenv\"})\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_flagfile_gate_is_only_barrier_before_accepting_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "def _write_exclusive(path: Path, document: Mapping[str, object]) -> None:\n    payload = _canonical_line(document)\n    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL\n",
+          "new": "def _write_exclusive(path: Path, document: Mapping[str, object]) -> None:\n    payload = _canonical_line(document)\n    flags = os.O_WRONLY | os.O_CREAT\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_two_worktrees_parallel_fresh_runs_cannot_both_claim_the_same_keys"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "        try:\n            _write_exclusive(path, marker)\n        except FileExistsError as exc:\n            raise HoldoutAdmissionError(\"attempt ticket was already consumed\") from exc\n",
+          "new": "        try:\n            _write_exclusive(path, marker)\n        except FileExistsError:\n            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_attempt_ticket_is_durably_single_use"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "    if _neutral_holdouts is None:\n        if derived != _NEUTRAL_PROTECTED_SIGNATURES:\n            raise HoldoutObservationError(\n                \"verified freeze holdout signatures do not exactly match the neutral set\"\n            )\n        return derived\n",
+          "new": "    if _neutral_holdouts is None:\n        return derived\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_unknown_freeze_holdout_is_rejected_instead_of_classified_unprotected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "    _consume_holdout_observation_run_once(\n        admission,\n        effective_ycsb_rratio=ratio,\n    )\n",
+          "new": "    if not isinstance(admission, HoldoutObservationAdmission):\n        raise HoldoutObservationError(\"admission is not a HoldoutObservationAdmission\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_caller_constructed_token_cannot_reach_subprocess"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/holdout_observation.py",
+          "old": "    if admission is None:\n        signature = _NEUTRAL_BY_RATIO.get(ratio)\n        if signature is not None:\n            raise HoldoutObservationError(\n                \"holdout observation admission required for \"\n                f\"ycsb_rratio={signature.ycsb_rratio}\"\n            )\n        return\n",
+          "new": "    if admission is None:\n        raise HoldoutObservationError(\n            \"holdout observation admission required for \"\n            f\"ycsb_rratio={ratio}\"\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_holdout_observation.py::test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape[5]",
+        "orchestrator/tests/test_holdout_observation.py::test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape[50]",
+        "orchestrator/tests/test_holdout_observation.py::test_non_holdout_ratios_keep_tokenless_spawn_and_return_shape[95]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
