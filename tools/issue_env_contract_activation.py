@@ -7,6 +7,7 @@ import os
 import re
 import secrets
 import sys
+from functools import partial
 from pathlib import Path
 from typing import Sequence
 
@@ -202,16 +203,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         directory = contract._repository_root() / Path(contract._ACTIVATION_DIRECTORY)
         filename = f"{document['activation_serial']:08d}.json"
         existing_records = activation.read_activation_record_files(directory)
+        issue_successor_predicate = partial(
+            contract._is_valid_activation_successor_for_issue,
+            existing_ever_active_contract_sha256s=(
+                current_state.ever_active_contract_sha256s
+            ),
+        )
         activation.validate_activation_records(
             (*existing_records, (filename, raw)),
             registered_contracts=contract._REGISTERED_CONTRACT_CATALOG,
-            is_valid_registered_successor=contract._is_valid_activation_successor,
+            is_valid_registered_successor=issue_successor_predicate,
             expected_head_serial=document["activation_serial"],
             expected_head_state_sha256=document["activation_state_sha256"],
         )
         issued = _write_create_only(directory, filename, raw)
     except (contract.EnvContractError, activation.ActivationRecordError, OSError) as exc:
-        parser.exit(1, f"activation record を発行できない: {exc}\n")
+        messages = []
+        current: BaseException | None = exc
+        while current is not None:
+            messages.append(str(current))
+            current = current.__cause__
+        parser.exit(1, f"activation record を発行できない: {' <- '.join(messages)}\n")
     print(_activation_handoff(
         issued=issued,
         repo_root=repo_root,

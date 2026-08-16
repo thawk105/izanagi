@@ -1690,6 +1690,9 @@ def verify_snapshot(
     else:
         _, submodule_manifest = _submodule_inventory(snapshot)
     submodule_manifest_sha256 = _submodule_manifest_sha256(submodule_manifest)
+    for row in submodule_manifest:
+        if row["initialization"] != "initialized":
+            reasons.append(f"submodule is not initialized: {row['path']}")
     expected_submodule_manifest = expected.get("submodule_manifest_sha256")
     if (
         expected_submodule_manifest is not None

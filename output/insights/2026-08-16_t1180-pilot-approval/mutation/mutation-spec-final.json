@@ -1,0 +1,173 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "n1-driver-flag-appended-unconditionally",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "if [[ \"${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}\" == x ]]; then\n  driver_argv+=(--confirm-irreversible-pilot-holdout)\nfi\n",
+          "new": "driver_argv+=(--confirm-irreversible-pilot-holdout)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_confirmation_dataflow_and_admission_order_are_fixed",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_invokes_fixed_pilot_cli_without_bypass[unconfirmed-four-arguments]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n2-confirmation-compare-loosened-to-nonempty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "  if [[ \"$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT\" != \"$IZANAGI_SUBMISSION_NONCE\" ]]; then\n",
+          "new": "  if [[ -z \"$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_confirmation_dataflow_and_admission_order_are_fixed",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[asterisk]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[different-nonce]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[leading-hyphen]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[literal-one]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[literal-true]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[newline]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[question-mark]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n3-mismatch-does-not-stop",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "    write_failure 2 submit_binding \\\n      \"pilot holdout confirmation must exactly match submission nonce\"\n    exit 2\n",
+          "new": "    :\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[asterisk]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[different-nonce]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[empty]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[leading-hyphen]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[literal-one]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[literal-true]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[newline]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_rejects_confirmation_not_bound_to_submission_nonce[question-mark]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n4-submitter-default-flipped-to-approved",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_floor.sh",
+          "old": "CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=0\n",
+          "new": "CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=1\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_non_dry_run_success_writes_real_submission_record",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n5-export-spec-always-carries-confirmation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_floor.sh",
+          "old": "if [[ \"$CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT\" -eq 1 ]]; then\n  export_spec+=\",IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=$NONCE\"\nfi\n",
+          "new": "export_spec+=\",IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=$NONCE\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_non_dry_run_success_writes_real_submission_record",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n6-submitter-default-read-from-ambient-env",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_floor.sh",
+          "old": "CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=0\n",
+          "new": "CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT:-0}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n7-confirmation-reassigned-between-gate-and-driver",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "driver_argv=(\n  \"$PY\" -I -B \"$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py\"\n",
+          "new": "IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT=\"$IZANAGI_SUBMISSION_NONCE\"\ndriver_argv=(\n  \"$PY\" -I -B \"$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_confirmation_dataflow_and_admission_order_are_fixed",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_invokes_fixed_pilot_cli_without_bypass[unconfirmed-four-arguments]",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_submit_floor_qsub_argv_does_not_inherit_ambient_confirmation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n8-confirmation-added-to-leading-unset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "unset PYTHONPATH PYTHONHOME PYTHONSTARTUP\n",
+          "new": "unset PYTHONPATH PYTHONHOME PYTHONSTARTUP IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_confirmation_dataflow_and_admission_order_are_fixed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "p1-matching-confirmation-rejected-anyway",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/floor_campaign.sh",
+          "old": "  if [[ \"$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT\" != \"$IZANAGI_SUBMISSION_NONCE\" ]]; then\n",
+          "new": "  if true; then\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_confirmation_dataflow_and_admission_order_are_fixed",
+        "orchestrator/tests/test_pegasus_floor_tools.py::test_floor_job_invokes_fixed_pilot_cli_without_bypass[confirmed-flag-appended-once]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

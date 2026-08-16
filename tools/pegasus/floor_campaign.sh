@@ -348,6 +348,13 @@ if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" \
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE must be 32 lowercase hex"
   exit 2
 fi
+if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]; then
+  if [[ "$IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT" != "$IZANAGI_SUBMISSION_NONCE" ]]; then
+    write_failure 2 submit_binding \
+      "pilot holdout confirmation must exactly match submission nonce"
+    exit 2
+  fi
+fi
 SUBMISSION_DIR="$ATTEMPTS_ROOT/submissions/$IZANAGI_SUBMISSION_NONCE"
 SUBMIT_SOURCE="$SUBMISSION_DIR/submit-receipt.json"
 for ((receipt_wait=0; receipt_wait<60; receipt_wait++)); do
@@ -958,10 +965,16 @@ if [[ "$driver_setup_rc" -ne 0 ]]; then
   exit "$driver_setup_rc"
 fi
 printf '%s\n' "launch-attempted" >"$ATTEMPT_DIR/floor-driver.launch-attempted"
+driver_argv=(
+  "$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py"
+  --mode pilot
+  --protocol "$REPO_ROOT/$PROTOCOL_PATH"
+)
+if [[ "${IZANAGI_CONFIRM_IRREVERSIBLE_PILOT_HOLDOUT+x}" == x ]]; then
+  driver_argv+=(--confirm-irreversible-pilot-holdout)
+fi
 driver_rc=0
-"$PY" -I -B "$REPO_ROOT/orchestrator/campaign/s8b_floor_campaign.py" \
-  --mode pilot \
-  --protocol "$REPO_ROOT/$PROTOCOL_PATH" \
+"${driver_argv[@]}" \
   >&"$DRIVER_STDOUT_FD" 2>&"$DRIVER_STDERR_FD" || driver_rc=$?
 exec {DRIVER_STDOUT_FD}>&-
 exec {DRIVER_STDERR_FD}>&-
