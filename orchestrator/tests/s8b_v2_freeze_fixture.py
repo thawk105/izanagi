@@ -115,53 +115,60 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
     )
     from orchestrator.campaign.s8b_materialization import reviewed_source_capability
     from orchestrator.campaign.source_digest import SOURCE_EVIDENCE_SCHEMA, SourceEvidence
+    from orchestrator.tests.s8b_floor_evidence_fixture import (
+        expected_portable_sort_swo_pass_receipt,
+    )
 
     cells = contract.enumerate_cells(
         v1, stock_configuration=protocol["stock_configuration"],
     )
+    schedule = contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    cells_by_id = {cell["cell_id"]: cell for cell in cells}
     sessions = []
-    by_cell = {}
-    seq = 0
-    for cell in cells:
-        records = []
-        for _round in range(protocol["n_sessions"]):
-            observations = [
-                {
-                    "rep_index": index, "returncode": 0,
-                    "counter_status": "complete", "missing_perf_events": [],
-                    "perf_raw": {
-                        "LLC-load-misses": 1, "LLC-loads": 2,
-                        "instructions": 3, "cycles": 4,
-                    },
-                    "throughput": 1000.0,
-                }
-                for index in range(protocol["reps"])
-            ]
-            row = {
-                "cell_id": cell["cell_id"],
-                "holdout_id": cell["holdout_id"],
-                "configuration_id": cell["configuration_id"],
-                "seq": seq,
-                "throughputs": [1000.0] * protocol["reps"],
-                "reps_expected": protocol["reps"],
-                "exec_failures": 0,
-                "excluded_reason": None,
-                "retry": False,
-                "rep_observations": observations,
-                "rep_integrity_failures": 0,
-                "exclusion_class": None,
+    records_by_cell = {cell["cell_id"]: [] for cell in cells}
+    for scheduled in schedule:
+        cell = cells_by_id[scheduled["cell_id"]]
+        seq = scheduled["seq"]
+        observations = [
+            {
+                "rep_index": index, "returncode": 0,
+                "counter_status": "complete", "missing_perf_events": [],
+                "perf_raw": {
+                    "LLC-load-misses": 1, "LLC-loads": 2,
+                    "instructions": 3, "cycles": 4,
+                },
+                "throughput": 1000.0,
             }
-            sessions.append(row)
-            records.append(stats.SessionRecord(
-                cell_id=row["cell_id"], holdout_id=row["holdout_id"],
-                configuration_id=row["configuration_id"], seq=row["seq"],
-                throughputs=tuple(row["throughputs"]),
-                reps_expected=row["reps_expected"], exec_failures=0,
-                excluded_reason=None, retry=False,
-                rep_observations=tuple(observations), rep_integrity_failures=0,
-            ))
-            seq += 1
-        by_cell[cell["cell_id"]] = stats.cell_stats(
+            for index in range(protocol["reps"])
+        ]
+        row = {
+            "event": "session", "kind": "planned", "round": scheduled["round"],
+            "retry_ordinal": None, "trigger": None,
+            "cell_id": cell["cell_id"], "holdout_id": cell["holdout_id"],
+            "configuration_id": cell["configuration_id"], "seq": seq,
+            "throughputs": [1000.0] * protocol["reps"],
+            "reps_expected": protocol["reps"], "exec_failures": 0,
+            "excluded_reason": None, "retry": False,
+            "rep_observations": observations, "rep_integrity_failures": 0,
+            "exclusion_class": None,
+            "attempt_id": f"{cell['cell_id']}::seq{seq}",
+            "probe_before": {"competing": False},
+        }
+        sessions.append(row)
+        records_by_cell[cell["cell_id"]].append(stats.SessionRecord(
+            cell_id=row["cell_id"], holdout_id=row["holdout_id"],
+            configuration_id=row["configuration_id"], seq=row["seq"],
+            throughputs=tuple(row["throughputs"]),
+            reps_expected=row["reps_expected"], exec_failures=0,
+            excluded_reason=None, retry=False,
+            rep_observations=tuple(observations), rep_integrity_failures=0,
+        ))
+    by_cell = {}
+    for cell_id, records in records_by_cell.items():
+        by_cell[cell_id] = stats.cell_stats(
             records,
             n_sessions=protocol["n_sessions"],
             reps=protocol["reps"],
@@ -255,7 +262,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
             binary=binary_path, binary_sha256=sha256,
             contract_sha256=protocol["contract_sha256"], trace=False,
         )
-        binaries[cell["cell_id"]] = {
+        record = {
             "cell_id": cell["cell_id"],
             "holdout_id": cell["holdout_id"],
             "configuration_id": cell["configuration_id"],
@@ -269,6 +276,17 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
             "store_path": f"fixture-store/{sha256}",
             "admission_receipt": receipt,
         }
+        if cell["configuration_id"] == "sort_best":
+            record["sort_swo_oracle"] = expected_portable_sort_swo_pass_receipt(
+                cell_id=cell["cell_id"], holdout_id=cell["holdout_id"],
+                configuration_id=cell["configuration_id"],
+                entry_sha256=entry_sha256, binary_sha256=sha256,
+            )
+        binaries[cell["cell_id"]] = record
+    for session in sessions:
+        session["binary_sha256_at_measure"] = binaries[
+            session["cell_id"]
+        ]["binary_sha256"]
     protocol_sha256 = contract.canonical_protocol_sha256(protocol)
     configurations = sorted({cell["configuration_id"] for cell in cells})
     return {
@@ -299,7 +317,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
     }
 
 
-def candidate_repository(tmp_path: Path, module) -> dict:
+def candidate_repository(tmp_path: Path, module, *, manifest_kind: str = "v3") -> dict:
     """v2 producer 正例用の synthetic-only tmp git repository を作る。"""
     from orchestrator.campaign import env_contract
     from orchestrator.campaign import s8b_floor_contract as contract
@@ -347,11 +365,71 @@ def candidate_repository(tmp_path: Path, module) -> dict:
         f"20260811T000000Z-{protocol_sha256[:8]}"
     )
     result_rel = f"{run_dir}/result.json"
-    _write(root, result_rel, canonical_bytes(
-        _synthetic_floor_result(v1, protocol, root=root)
+    result = _synthetic_floor_result(v1, protocol, root=root)
+    cells = contract.enumerate_cells(
+        v1, stock_configuration=protocol["stock_configuration"],
+    )
+    schedule = contract.build_schedule(
+        cells=cells, master_seed=protocol["master_seed"],
+        n_sessions=protocol["n_sessions"],
+    )
+    manifest = {
+        "schema_version": contract.MANIFEST_SCHEMA,
+        "protocol_sha256": protocol_sha256,
+        "freeze": dict(protocol["freeze"]),
+        "freeze_sha256": protocol["freeze"]["sha256"],
+        "env_tag": protocol["env_tag"],
+        "ccbench_pin": protocol["ccbench_pin"],
+        "stock_configuration": protocol["stock_configuration"],
+        "schedule_algorithm": protocol["schedule_algorithm"],
+        "master_seed": protocol["master_seed"],
+        "n_sessions": protocol["n_sessions"],
+        "reps": protocol["reps"],
+        "extime_s": protocol["extime_s"],
+        "session_cv_max": protocol["session_cv_max"],
+        "cell_cv_max": protocol["cell_cv_max"],
+        "cells": cells,
+        "binaries": result["binaries"],
+        "schedule": schedule,
+    }
+    if manifest_kind == "empty":
+        manifest = {}
+    elif manifest_kind == "v2":
+        manifest["schema_version"] = "s8b-floor-manifest/v2"
+    elif manifest_kind != "v3":
+        raise ValueError(f"unknown manifest_kind: {manifest_kind}")
+    manifest_raw = canonical_bytes(manifest)
+    manifest_sha256 = hashlib.sha256(manifest_raw).hexdigest()
+    result["manifest_sha256"] = manifest_sha256
+    from orchestrator.tests.s8b_floor_evidence_fixture import (
+        build_floor_admission_evidence,
+    )
+    evidence = build_floor_admission_evidence(
+        root / ".git/izanagi/s8b-holdout-admission-v1",
+        protocol=protocol, freeze=v1,
+        freeze_sha256=protocol["freeze"]["sha256"],
+        manifest_sha256=manifest_sha256,
+        campaign_run_id=f"20260811T000000Z-{protocol_sha256[:8]}",
+        run_relpath=run_dir.removeprefix("output/"), mode="official",
+        cells=cells, schedule=schedule, sessions=result["sessions"],
+    )
+    result["holdout_admission"] = evidence.expected_receipt
+    journal_records = []
+    schedule_by_seq = {row["seq"]: row for row in schedule}
+    for session in result["sessions"]:
+        scheduled = schedule_by_seq[session["seq"]]
+        journal_records.append({
+            "event": "session-start", "seq": session["seq"],
+            "kind": "planned", "cell_id": session["cell_id"],
+            "round": scheduled["round"], "retry_ordinal": None,
+            "attempt_id": session["attempt_id"], "trigger": None,
+        })
+        journal_records.append(session)
+    _write(root, result_rel, canonical_bytes(result))
+    _write(root, f"{run_dir}/manifest.json", manifest_raw)
+    _write(root, f"{run_dir}/journal.jsonl", b"".join(
+        canonical_bytes(record) + b"\n" for record in journal_records
     ))
-    _write(root, f"{run_dir}/manifest.json", b"{}")
-    _write(root, f"{run_dir}/journal.jsonl", b"{}\n")
     _write(root, f"{run_dir}/launch_certificate.json", b"{}")
 
     budget_rel = "output/s8b-freeze-budget-inputs/g1.json"

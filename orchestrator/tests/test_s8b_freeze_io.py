@@ -26,6 +26,7 @@ if str(ORCHESTRATOR.parent) not in sys.path:
 from orchestrator.campaign import s8b_freeze_io as fio  # noqa: E402
 from orchestrator.calibrator import schema_v2 as calibration_v2  # noqa: E402
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
+from s8b_floor_evidence_fixture import fake_sort_swo_pass_attempt  # noqa: E402
 
 
 def _write(path: Path, text: str) -> Path:
@@ -223,7 +224,7 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     from orchestrator.campaign.p2_2 import ENV_TAG
     from orchestrator.campaign.s1_direct_comparison import PreparedCell
 
-    configs = ("stock_common", "alt_a")
+    configs = ("stock_common", "sort_best")
     holdouts = {}
     for holdout_id, candidate_id, ratio in (
             ("rr80", "H1", "80"), ("rr20", "H2", "20")):
@@ -324,7 +325,11 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
         assert cxx == "fixture-cxx"
         cell_id = f"{cell['variant']['holdout_id']}::{cell['configuration']}"
         yield PreparedCell(genome=Genome("silo", {}), src_token=cell_id,
-                           ccbench_dir="/fx/ccbench", cache_root="/fx/cache")
+                           ccbench_dir="/fx/ccbench", cache_root="/fx/cache",
+                           oracle_attempt=(
+                               fake_sort_swo_pass_attempt()
+                               if cell["configuration"] == "sort_best" else None
+                           ))
 
     def fake_build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
                    jobs=16, ccbench_dir="", src_token=None, contract=None,
