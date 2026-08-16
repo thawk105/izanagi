@@ -7484,10 +7484,10 @@ def test_pipeline_extra_correctness_rejects_empty_prefix_when_contract_requires_
     assert list(wal.read_records(lay)) == []
 
 
-def test_pipeline_fullscale_invalid_numactl_type_keeps_authorization_error_path():
-    """list/tuple 以外は正規化せず、既存の認可型エラーへ渡す。"""
+def test_pipeline_fullscale_invalid_numactl_type_rejected_before_sink_write():
+    """不正型は認可前の契約照合 gate が exact ValueError で拒否する。"""
     lay = _tmp_layout()
-    expected_type = pipeline.execution_guard.CertifiedWriterAuthorizationError
+    expected_type = ValueError
     try:
         pipeline.evaluate(
             Genome("silo", {"BACK_OFF": 1}), lay,
@@ -7500,10 +7500,11 @@ def test_pipeline_fullscale_invalid_numactl_type_keeps_authorization_error_path(
             ],
             do_bench=False, log=lambda *a: None,
             build_context=_BUILD_CONTEXT)
-        assert False, "不正な numactl 型は認可検査で拒否すべき"
+        assert False, "不正な numactl 型は契約照合 gate で拒否すべき"
     except expected_type as exc:
         assert type(exc) is expected_type
-        assert "str の list/tuple" in str(exc)
+        assert "bench と同じメモリ配置" in str(exc)
+    assert list(wal.read_records(lay)) == []
 
 
 def test_pipeline_extra_correctness_rejects_nonempty_prefix_different_from_contract():
