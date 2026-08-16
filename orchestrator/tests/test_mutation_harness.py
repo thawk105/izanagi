@@ -632,6 +632,86 @@ def test_resume_reruns_parse_error_and_skips_terminal_record(repo: Path) -> None
     assert _calls(calls) == ["0", "1", "2", "2"]
 
 
+def test_resume_rejects_orphan_stop_sidecar_before_runner_without_hold(
+    repo: Path,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _write_spec(
+        spec,
+        [
+            _mutation("M1", "VALUE = 0", "VALUE = 1", "one"),
+            _mutation("M2", "VALUE = 0", "VALUE = 2", "two"),
+        ],
+    )
+    mode.write_text("parse-two\n", encoding="utf-8")
+    with pytest.raises(MH.HarnessError, match="failed node"):
+        MH.main(_argv(repo, spec, out, calls, mode))
+    before = _calls(calls)
+    sidecar = Path(f"{out.resolve()}.orphan-stop.json")
+    sidecar_payload = {
+        "reason": {
+            "code": "orphan-hold",
+            "hold_error": "injected double hold write failure",
+        }
+    }
+    sidecar.write_text(json.dumps(sidecar_payload) + "\n", encoding="utf-8")
+    original_sidecar = sidecar.read_bytes()
+    mode.write_text("normal\n", encoding="utf-8")
+
+    with pytest.raises(MH.HarnessError) as caught:
+        MH.main(_argv(repo, spec, out, calls, mode, resume=True))
+
+    message = str(caught.value)
+    assert str(sidecar) in message
+    assert "reason.hold_error=injected double hold write failure" in message
+    assert message.index("対象の不在または終端") < message.index("dirty path の復元")
+    assert message.index("dirty path の復元") < message.index("clean/HEAD 確認")
+    assert message.index("clean/HEAD 確認") < message.index("hold と sidecar の手動削除")
+    assert _calls(calls) == before
+    assert sidecar.read_bytes() == original_sidecar
+    assert not (repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME).exists()
+
+
+def test_fresh_rejects_orphan_stop_sidecar_before_runner_without_hold(
+    repo: Path,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    sidecar = Path(f"{out.resolve()}.orphan-stop.json")
+    sidecar.write_text('{"reason": {"code": "orphan-hold"}}\n', encoding="utf-8")
+
+    with pytest.raises(MH.HarnessError) as caught:
+        MH.main(_argv(repo, spec, out, calls, mode))
+
+    assert str(sidecar) in str(caught.value)
+    assert not calls.exists()
+    assert not out.exists()
+    assert not (repo / "output" / "pegasus-dispatch" / MH.ORPHAN_HOLD_NAME).exists()
+
+
+def test_orphan_stop_sidecar_lstat_error_rejects_before_runner(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    spec, out, calls, mode = _paths(repo)
+    _single_spec(spec)
+    sidecar = Path(f"{out.resolve()}.orphan-stop.json")
+    real_lstat = os.lstat
+
+    def indeterminate(path, *args, **kwargs):
+        if Path(path) == sidecar:
+            raise OSError("injected sidecar lstat failure")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(MH.os, "lstat", indeterminate)
+
+    with pytest.raises(MH.HarnessError) as caught:
+        MH.main(_argv(repo, spec, out, calls, mode))
+
+    assert str(sidecar) in str(caught.value)
+    assert not calls.exists()
+    assert not out.exists()
+
+
 def test_resume_rejects_incomplete_running_record_before_runner(repo: Path) -> None:
     spec, out, calls, mode = _paths(repo)
     _single_spec(spec)

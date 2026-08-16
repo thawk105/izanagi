@@ -613,10 +613,7 @@ def _dispatch_root(preflight: Preflight) -> Path:
     return preflight.checkout / "output" / "pegasus-dispatch"
 
 
-def _orphan_hold_present(preflight: Preflight) -> bool:
-    """container 内 hold の存在・判定不能を保全側へ写像する。"""
-
-    path = _dispatch_root(preflight) / "orphan-hold.json"
+def _path_present_fail_closed(path: Path) -> bool:
     try:
         os.lstat(path)
     except FileNotFoundError:
@@ -624,6 +621,14 @@ def _orphan_hold_present(preflight: Preflight) -> bool:
     except OSError:
         return True
     return True
+
+
+def _orphan_hold_present(preflight: Preflight) -> bool:
+    """container 内 hold または外部 sidecar を保全側へ写像する。"""
+
+    hold = _dispatch_root(preflight) / "orphan-hold.json"
+    sidecar = Path(f"{preflight.out}.orphan-stop.json")
+    return _path_present_fail_closed(hold) or _path_present_fail_closed(sidecar)
 
 
 def _rehydrate_dispatch_evidence(preflight: Preflight) -> bool:
@@ -1055,7 +1060,8 @@ def _print_preserved_resume(
     if orphan_hold:
         print(
             "復旧順序: qstat で対象の不在または終端を確認し、source を復元し、"
-            "clean/HEAD を確認してから orphan hold を手動削除してください。",
+            "clean/HEAD を確認してから orphan hold と orphan-stop sidecar を"
+            "手動削除してください。",
             file=sys.stderr,
             flush=True,
         )

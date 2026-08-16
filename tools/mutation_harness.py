@@ -2408,12 +2408,33 @@ def _orphan_stop_path(ledger_path: Path) -> Path:
     return Path(f"{ledger_path}.orphan-stop.json")
 
 
+def _orphan_stop_gate_message(path: Path) -> str:
+    hold_error: str | None = None
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        document = None
+    if isinstance(document, dict):
+        reason = document.get("reason")
+        if isinstance(reason, dict) and reason.get("hold_error") is not None:
+            hold_error = str(reason["hold_error"])
+    hold_error_detail = (
+        f"、reason.hold_error={hold_error}" if hold_error is not None else ""
+    )
+    return (
+        "orphan-stop sidecar が存在または判定不能のため停止: "
+        f"sidecar path={path}{hold_error_detail}。"
+        "復旧順序: 対象の不在または終端を確認 → dirty path の復元 → "
+        "clean/HEAD 確認 → hold と sidecar の手動削除"
+    )
+
+
 def _orphan_recovery(stop: OrphanHoldStop) -> str:
     dirty = " ".join(stop.dirty_paths) if stop.dirty_paths else "<なし>"
     return (
         "qstat で対象の不在または終端を確認し、"
         f"dirty path ({dirty}) を git checkout -- で復元し、"
-        "clean/HEAD を確認してから hold を手動削除する。"
+        "clean/HEAD を確認してから hold と sidecar を手動削除する。"
         "手動 qdel は F47 ラッチを武装させ、その解除もユーザー手番になる。"
     )
 
@@ -2573,6 +2594,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except OSError as exc:
         raise HarnessError(f"--repo を解決できない: {exc}") from exc
     out = args.out.resolve()
+    orphan_stop = _orphan_stop_path(out)
+    if _path_present_fail_closed(orphan_stop):
+        raise HarnessError(_orphan_stop_gate_message(orphan_stop))
     spec_path = args.spec.resolve()
     attempt_out = args.attempt_out.resolve() if args.attempt_out is not None else None
     _assert_runtime_artifacts_outside_repo(
