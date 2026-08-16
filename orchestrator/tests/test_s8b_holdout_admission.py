@@ -320,6 +320,38 @@ def test_n_pilot_requires_exact_irreversible_approval_before_claim(tmp_path):
     assert not admission.shared_admission_root(root).exists()
 
 
+@pytest.mark.parametrize(
+    "approval",
+    [1, "true", False, 0, None],
+    ids=["truthy-int", "truthy-str", "false", "zero", "none"],
+)
+def test_n_pilot_rejects_non_true_approval_before_any_admission_write(
+    tmp_path, approval,
+):
+    root, floor_protocol, freeze = _init_repo(tmp_path)
+    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+        floor_protocol, freeze,
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
+        admission.reserve_n_pilot_holdout_observations(
+            repo_root=root,
+            protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            verified_freeze_document=freeze,
+            freeze_sha256=floor_protocol["freeze"]["sha256"],
+            cells=cells,
+            schedule=schedule,
+            campaign_run_id="n-pilot-attempt",
+            irreversible_pilot_approved=approval,
+        )
+
+    shared = admission.shared_admission_root(root)
+    assert not (shared / "claims").exists()
+    assert not (shared / "ledger.jsonl").exists()
+    assert not (shared / "attempt-ledger.jsonl").exists()
+
+
 def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp_path):
     root, floor_protocol, freeze = _init_repo(tmp_path)
     protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
