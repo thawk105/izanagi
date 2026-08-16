@@ -57,8 +57,22 @@ title: 床値 claim identity の protocol 単位化を実装差分ゼロで再�
   同型が別 wave で再発したら 2 例目として節の新設を裁定できる。
 - 子の工数: 段 2 plan 1 本 (codex, reasoning=max, read-only)、段 3 consult 2 本 (sol / luna)。
   いずれも `tools/check_codex_output.py` rc=0。実装子・fix 子は起動していない。
-- 受入: docs のみ・実装差分ゼロだが DW-S04 に従い免除しない。段 7 記録前に全走した
-  (結果は下記「受入」)。変異 matrix は DW-S04 の「実装しない裁定 + 実装差分ゼロ」により免除。
+- 受入: docs のみ・実装差分ゼロだが DW-S04 に従い免除しない。全走した。
+  変異 matrix は DW-S04 の「実装しない裁定 + 実装差分ゼロ」により免除。
+  - attempt 1 = rc=2 (`stage=preflight-submodule-ready`)。入れ子 submodule (shirakami 段) が
+    未初期化。**lease claim 前**の失敗のため他 wave の窓は消費していない。
+    `submodule update --init --recursive` で全階層 ready にして解消。
+  - attempt 2 = rc=70 (`stage=merge-message`)。待機中に main が進み、待ち手が lease 内 merge へ
+    入ったが `--merge-message-file` を渡していなかった。**lease は取得済みで 1 窓を消費した。**
+  - attempt 3 = rc=70 (`stage=acceptance-red-check`, source_rc=1)。走行は完走し、
+    非帰属 checker が赤 2 件を attributable と判定した:
+    `test_mutation_worktree.py::test_sigint_and_sigterm_are_forwarded_between_observation_points[Signals.SIGINT]`
+    と `test_t139_r4_env_probe.py::test_sigterm_path_can_only_complete_after_all_publishes`。
+    **単独再走は 3 passed in 2.34s で緑** (`run_tests.py` の bounded local、
+    log = job dir の `logs/red-rerun.txt`)。本 wave の差分は docs のみで、この 2 テストが触る
+    signal 転送経路へは到達しえない。**[T-1164] (signal 転送 2 テストの負荷依存を実測して直す) の
+    直接の実測材料である** — 負荷依存であることをこの走行が示した。
+  - attempt 4 以降 = 受領証を得るための再走。結果は commit 履歴と job dir の receipt が正本。
 - 裁定パッケージ (問 1 = 排他の寿命、問 2 = 予約照合の範囲、問 3 = 繰り越し) を
   `output/insights/2026-08-16_t1140-claim-identity/ruling-package.md` に置き、
   裁定 inbox へも控えた。親の推奨は問 1 が (a) 生存プロセス単位 → (c) scheduler 照合の 2 wave 分割、
