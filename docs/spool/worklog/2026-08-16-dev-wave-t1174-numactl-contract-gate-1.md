@@ -58,6 +58,15 @@ title: 裁定が受入条件に挙げた変異検査と敵対検証を [T-1174] 
   `ORIG_HEAD.lock: Read-only file system` により merge 開始前に失敗する。実装面の main 取り込みに
   Codex `role=author` の合成監査を要求する規律を満たすには、**親が merge を起こして競合マーカーを
   作り、子は working tree の競合解決だけを行う**分担にする必要がある ({{F:codex-child-cannot-git-merge}})。
+- **段 8 自己改善は予算で止め、裁定へ回した。** codex 子が merge を起動できない件は
+  `DW-O17` の merge 手順へ 1 行で統合するのが routing 上正しいが、同節は現状 940 bytes 台で
+  L2 単節予算 1000 bytes に対し余白が約 60 bytes しかない。最小語での織り込みでも 1048 bytes と
+  超過した。予算値を上げる変更は自己改善に含めない規約であり、収めるには既存文
+  (submodule pin を merge commit 内で揃える理由の説明) の削除が要る。これは意味等価な縮約では
+  なく独立審査の対象なので、**reference は変更せずユーザー裁定へ返す** ({{T:dw-o17-merge-division}})。
+  失敗自体は {{F:codex-child-cannot-git-merge}} に耐久記録した。
+  bounded local が `rc=16` になった件は 1 例のみで `DW-G03` の独立 2 例を満たさないため、
+  族一般化せず本エントリの記録に留める。
 - **工数**: codex 子 7 本 (plan 1、consult 2、author 1、review 2、fix 2 のうち merge 失敗 1 を含む
   実質 8 起動)。変異 harness は probe 2 巡 + 本走 2 巡 = 4 巡 (判定式が main の形へ変わったため
   anchor 5 件を再照準し期待 node を再導出した)。
@@ -79,6 +88,15 @@ title: 裁定が受入条件に挙げた変異検査と敵対検証を [T-1174] 
   「launch prefix が契約と一致しない」になり、真因 (型が不正) を指さない。fail-closed 性と
   sink 無書込みは保たれており成果物影響は無いので、運用診断の質だけの問題である。
   判定式の手前で型を検査するか、認可検査の型エラーを先に走らせるかの選択になる。
+- {{T:dw-o17-merge-division}} **P3・新規・ユーザー裁定待ち**: codex 子は `.git` が書込不可で
+  `git merge` を起動できないため、実装面の main 取り込みは「親が merge を起こし、子は working tree
+  の競合解決だけ、`add` と commit は親」という分担でしか規律を満たせない。これを `DW-O17` へ
+  1 行で書きたいが、同節は L2 単節予算 1000 bytes に対し余白が約 60 bytes しかなく、最小語でも
+  収まらない (実測 1048 bytes)。**択 (a)** 既存文のうち submodule pin の理由説明を削って空ける。
+  **択 (b)** 予算値の引き上げを独立審査にかける。**択 (c)** reference へは書かず
+  {{F:codex-child-cannot-git-merge}} の記録のみで運用する。親の推奨は (a) — 削る対象は手順では
+  なく理由の説明であり、義務そのものは直前の文に残る。ただし既存文の削除は意味等価な縮約では
+  ないため裁定を仰ぐ。
 - {{T:stale-authorization-numactl-divergence}} **P3・新規**: gate の権威 (保持された
   `authorization_contract.contract`) と現行 registry がずれると、gate だけが承認済み入力を
   拒否しうる。現行 registry では全 env_tag で numactl が世代を跨いで一意なため到達不能と実測した。
