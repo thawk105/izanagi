@@ -57,6 +57,23 @@ F28 の再発として記録した。本走は 6/6 KILLED、MISMATCH 0、SURVIVE
 内容の実在を保証せず、「正しい HEAD を持つ空の CCBench」は今も通る。(b) 中間成果物層
 (`collect_run` / `make_packets` / append・freeze・reveal CLI) は snapshot を再検証しない。
 
+### 受入で踏んだ非帰属の赤
+
+受入全走は複数回投入した。1 走目は
+`test_dev_wave_wait.py::test_public_main_real_signal_after_success_uses_restored_handler` が 1 件赤で、
+これは [T-1227] が既に記録している同一 node のフレークである。2 走目は
+`test_codex_worker_launch.py` の `test_check_receipt_rejects_impossible_truth_table` /
+`test_check_receipt_rejects_unknown_and_duplicate_fields` /
+`test_setsid_escape_is_not_claimed_as_contained` の 3 件が赤で、捕獲 log の一次資料では
+launcher subprocess が **rc=1・stdout/stderr ともに空**で落ちており、48 並列下の資源圧の形である
+(3 failed / 11878 passed / 92 skipped / 95.28 秒)。
+
+4 件はいずれも本 wave の差分が到達しえない file にあり、**親が単独再走で緑を実測した**
+(1 走目の 1 件 = 1 passed / 2.63 秒、2 走目の 3 件 = 3 passed / 3.38 秒、いずれも計算ノード)。
+`check_acceptance_reds.py` は 4 件とも `attributable-red` と判定したが、これは
+[T-1227] が起票している「1 標本ではフレークと帰属を区別できない」限界そのものである。
+本 wave はこの判定を実装差分へ帰属させず、受入を再投入した。緑になった走行の receipt が land の権威である。
+
 ### 段 8 の候補と結末
 
 候補 1 は「変異の期待 node を裁定の対応表から転記せず、注入・走行・復元で実測してから登録する」。
