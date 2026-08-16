@@ -26,6 +26,7 @@ from typing import Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 from ..calibrator.runner import (CompetingBenchProbeError,        # noqa: E402
                                competing_bench_pids, measure_point, settle)
 from ..calibrator.stability import remeasure_until_stable         # noqa: E402
+from ..holdout_observation import HoldoutObservationAdmission     # noqa: E402
 from ..verifier import result_to_dict, verify_trace_dir          # noqa: E402
 from ..verifier.parse import ParseError                           # noqa: E402
 
@@ -413,6 +414,9 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                require_all_reps: bool = False,
                require_settled: bool = False,
                emit: Optional[Callable[[object, str, str, str, Dict], None]] = None,
+               holdout_observation_admission: Optional[
+                   HoldoutObservationAdmission
+               ] = None,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     _require_measurement_site("campaign throughput 測定")
@@ -439,6 +443,10 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
             qualification_kwargs["timeout_s"] = bench_timeout_s
         if require_all_reps:
             qualification_kwargs["require_all_reps"] = True
+        if holdout_observation_admission is not None:
+            qualification_kwargs["holdout_observation_admission"] = (
+                holdout_observation_admission
+            )
         if not record_rep_returncodes:
             return measure_point(
                 perf_binary, perf.records, perf.threads, clocks_per_us,
@@ -588,7 +596,10 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
              source_evidence: Optional[SourceEvidence] = None,
-             trigger_gate_binding=None) -> EvalResult:
+             trigger_gate_binding=None,
+             holdout_observation_admission: Optional[
+                 HoldoutObservationAdmission
+             ] = None) -> EvalResult:
     """1 genome を評価し WAL に記録する。
 
     `ccbench_dir`/`cache_root` (段5 git worktree 隔離): 省略時は共有固定パス既定 (既存動作と
@@ -1113,7 +1124,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
             pf.binary, perf, clocks_per_us, numactl, do_settle,
             layout, v, env_tag, _abort, log, screening=True,
             bench_max_rounds=bench_max_rounds,
-            record_rep_returncodes=record_rep_returncodes)
+            record_rep_returncodes=record_rep_returncodes,
+            holdout_observation_admission=holdout_observation_admission)
         if aborted_result is not None:
             return aborted_result
         assert bench is not None
@@ -1225,7 +1237,8 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
                     qualification_policy.require_settled
                     if qualification_policy is not None else False
                 ),
-                emit=emit)
+                emit=emit,
+                holdout_observation_admission=holdout_observation_admission)
             if aborted_result is not None:
                 return aborted_result
         assert bench is not None

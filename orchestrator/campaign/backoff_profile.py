@@ -38,6 +38,9 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from ..calibrator.benchparse import (abort_rate as parse_abort,    # noqa: E402
                                    parse_bench_stdout, throughput_tps)
+from ..holdout_observation import (                         # noqa: E402
+    assert_holdout_observation_admitted,
+)
 from . import buildcache, source_digest                   # noqa: E402
 from .build_admission import (GeneratorId, attest_generator_output,  # noqa: E402
                                       build_run_context, derive_build_admission)
@@ -136,6 +139,10 @@ def _median(xs):
 
 def profile_point(backoff_us, workload, log=print):
     """1 backoff 量を REPS 回 profile し、有用 IPC を含む集計を返す。"""
+    workload_snapshot = dict(workload)
+    assert_holdout_observation_admitted(
+        gflags=tuple(_flags(workload_snapshot)), admission=None,
+    )
     g = _genome(backoff_us)
     build_context = build_run_context(generator_id=GeneratorId.BACKOFF_PROFILE)
     evidence = source_digest.resolve_evidence(g, CCBENCH_COMMIT)
@@ -157,7 +164,7 @@ def profile_point(backoff_us, workload, log=print):
     for _ in range(REPS):
         tmp = tempfile.mkdtemp(prefix="izanagi_prof_")
         try:
-            runs.append(_profile_run(br.binary, workload, tmp))
+            runs.append(_profile_run(br.binary, workload_snapshot, tmp))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     # 代表 = tps 中央値の run (spin%/ipc は安定なのでその run の値を採る)

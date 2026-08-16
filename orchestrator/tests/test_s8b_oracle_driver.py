@@ -1950,6 +1950,21 @@ def _durable_policy(path: Path):
     )
 
 
+@contextlib.contextmanager
+def _isolated_oracle_admission_root(tmp_path: Path):
+    admission_root = Path(tempfile.mkdtemp(
+        prefix="oracle-admission-", dir=tmp_path,
+    ))
+    (admission_root / "claims").mkdir()
+    (admission_root / "consumed").mkdir()
+    (admission_root / "ledger.lock").write_bytes(b"")
+    with mock.patch.object(
+            driver._holdout_admission,
+            "provision_shared_admission_root",
+            return_value=admission_root):
+        yield admission_root
+
+
 def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
          prepare_fn, evaluate_fn, *, output_root=None, budget_path=None,
          marker_root=None, memo_receipt: bool = True):
@@ -1963,7 +1978,6 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
     # process 内 memo で共有する。**解決の回数や世代差そのものを検査する node は
     # `memo_receipt=False` を渡すこと** (memo はその機序を消す)。
     validated = _fake_launch_validated(freeze_path)
-
     with contextlib.ExitStack() as stack:
         if memo_receipt:
             stack.enter_context(receipt_memo.patch_driver_resolver())
@@ -1978,6 +1992,7 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
             return_value=validated))
         stack.enter_context(
             mock.patch.object(driver, "_prepare_v2_execution", _canned_plan))
+        stack.enter_context(_isolated_oracle_admission_root(tmp_path))
         return driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
@@ -2000,7 +2015,8 @@ def _run_with_real_manifest_gate(
             driver.s8b_ratified_freeze, "launch_validate",
             return_value=validated), mock.patch.object(
             driver.s1_known_axes_freeze, "verify", return_value=None), mock.patch.object(
-            driver, "_prepare_v2_execution", side_effect=_canned_plan):
+            driver, "_prepare_v2_execution", side_effect=_canned_plan), \
+            _isolated_oracle_admission_root(Path(output_root).parent):
         return driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=root,
@@ -2196,7 +2212,8 @@ def _run_required_preflight(
                               return_value=(verified_override or verified)), \
             mock.patch.object(driver.execution_guard, "attest_and_build_receipt",
                               side_effect=issuer), \
-            mock.patch.dict(os.environ, env, clear=True):
+            mock.patch.dict(os.environ, env, clear=True), \
+            _isolated_oracle_admission_root(tmp_path):
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0", freeze_path=freeze_path,
             root=tmp_path, output_root=output_root, budget_path=budget_path,
@@ -2290,7 +2307,8 @@ def _run_required_fixture(fixture, *, receipt_side_effect=None, durable_policy=N
                               return_value=fixture["plan"]), \
             mock.patch.object(driver.execution_guard, "attest_and_build_receipt",
                               side_effect=issuer), \
-            mock.patch.dict(os.environ, fixture["environ"], clear=True):
+            mock.patch.dict(os.environ, fixture["environ"], clear=True), \
+            _isolated_oracle_admission_root(fixture["root"]):
         return driver.run_block(
             manifest_path=fixture["manifest_path"], block_id="b0",
             freeze_path=fixture["freeze_path"], root=fixture["root"],
@@ -3555,6 +3573,11 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
     approved = _APPROVED_BY_PATH[manifest_path.resolve()]
     output_root = tmp_path / "cli-out"
     budget_path = tmp_path / "cli-budget.json"
+    admission_root = tmp_path / "cli-admission"
+    admission_root.mkdir()
+    (admission_root / "claims").mkdir()
+    (admission_root / "consumed").mkdir()
+    (admission_root / "ledger.lock").write_bytes(b"")
 
     # 全行 binding-refused を CLI 経路で再現するため、driver.prepare_cell を
     # manifest とは異なる src_token を返す fixture に差し替える。
@@ -3637,6 +3660,9 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
              mock.patch.object(driver.s8b_oracle_spec,
                                "load_approved_spec", return_value=approved_spec), \\
              mock.patch.object(driver, "_prepare_v2_execution", fake_plan), \\
+             mock.patch.object(driver._holdout_admission,
+                               "provision_shared_admission_root",
+                               return_value=Path({str(admission_root)!r})), \\
              mock.patch.object(driver, "prepare_cell", fake_prepare):
             rc = driver.main([
                 "run-block", "--manifest", {str(manifest_path)!r},
@@ -3775,7 +3801,8 @@ def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
             mock.patch.object(driver.s8b_ratified_freeze,
                               "launch_validate", return_value=validated), \
             mock.patch.object(driver, "_prepare_v2_execution", recording_plan), \
-            mock.patch.object(driver, "_gate_check_validated", recording_gate):
+            mock.patch.object(driver, "_gate_check_validated", recording_gate), \
+            _isolated_oracle_admission_root(tmp_path):
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
@@ -3849,7 +3876,8 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
             mock.patch.object(driver.s8b_ratified_freeze,
                               "launch_validate", return_value=validated), \
             mock.patch.object(driver, "_prepare_v2_execution", _canned_plan), \
-            mock.patch.object(driver, "_gate_check_validated", recording_gate):
+            mock.patch.object(driver, "_gate_check_validated", recording_gate), \
+            _isolated_oracle_admission_root(tmp_path):
         result = driver.run_block(
             manifest_path=manifest_path, block_id="b0",
             freeze_path=freeze_path, root=ROOT,
@@ -4571,6 +4599,53 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
                for row in observations["rows"])
 
 
+def test_oracle_admission_uses_verified_manifest_schedule_and_reps(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path)
+    prepare_fn = _prepare_factory()
+    manifest_path, document = _write_manifest(
+        tmp_path, freeze_path, prepare_fn,
+    )
+    verified_freeze = s8b_freeze_io.load_verified_freeze(freeze_path)
+    verified_manifest = _verify_manifest(
+        manifest_path,
+        root=ROOT,
+        freeze_document=verified_freeze.document,
+        freeze_sha256=verified_freeze.sha256,
+    )
+    launch_validated = _fake_launch_validated(freeze_path)
+    api = driver._holdout_admission
+
+    with _isolated_oracle_admission_root(tmp_path) as admission_root:
+        admitted = api.reserve_oracle_holdout_observations(
+            repo_root=ROOT,
+            verified_manifest=verified_manifest,
+            launch_validated=launch_validated,
+            block_id="b0",
+        )
+        expected_indexes = {
+            row["schedule_index"] for row in document["schedule"]["rows"]
+        }
+        assert set(admitted) == expected_indexes
+        first_index = min(expected_indexes)
+        observation = api.consume_oracle_attempt_ticket(
+            admitted[first_index], schedule_index=first_index,
+        )
+        assert observation.permitted_run_once_calls == document["run_contract"]["reps"]
+        rows = api._read_ledger(admission_root / "ledger.jsonl")
+        assert rows
+        assert {row["observation_role"] for row in rows} == {
+            api.OBSERVATION_ROLE_ORACLE_DRIVER,
+        }
+        with pytest.raises(
+                api.HoldoutAdmissionError, match="already consumed"):
+            api.reserve_oracle_holdout_observations(
+                repo_root=ROOT,
+                verified_manifest=verified_manifest,
+                launch_validated=launch_validated,
+                block_id="b0",
+            )
+
+
 def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path):
     """M-P5: driver opt-in から run_once までを通し、subprocess だけを fake にする。"""
     from orchestrator.calibrator import runner as calibrator_runner
@@ -4584,6 +4659,7 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
     output_root = tmp_path / "producer-flow-out"
     subprocess_calls = []
     evaluate_flags = []
+    admission_allowances = []
     evaluate_errors = []
 
     def fake_subprocess(cmd, **kwargs):
@@ -4620,6 +4696,9 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
                             clocks_per_us, **kwargs):
         opted_in = kwargs.get("record_rep_returncodes") is True
         evaluate_flags.append(opted_in)
+        admission_allowances.append(
+            kwargs["holdout_observation_admission"].permitted_run_once_calls
+        )
         variant = pipeline.variant_id(genome, kwargs["src_token"])
 
         def abort(reason, note, extra=None):
@@ -4636,6 +4715,9 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
                 layout, variant, env_tag, abort, log=lambda _message: None,
                 bench_max_rounds=kwargs["bench_max_rounds"],
                 record_rep_returncodes=opted_in,
+                holdout_observation_admission=(
+                    kwargs["holdout_observation_admission"]
+                ),
             )
         except Exception as exc:
             evaluate_errors.append(f"{type(exc).__name__}: {exc}")
@@ -4661,6 +4743,9 @@ def test_official_driver_records_returncodes_through_real_producer_flow(tmp_path
     assert not evaluate_errors, evaluate_errors
     assert result["status"] == "completed", result
     assert evaluate_flags == [True] * len(document["schedule"]["rows"])
+    assert admission_allowances == [
+        document["run_contract"]["reps"]
+    ] * len(document["schedule"]["rows"])
     assert len(subprocess_calls) == 5 * len(evaluate_flags)
     layout = campaign_layout(result["campaign_id"], output_root=str(output_root))
     bench_records = [record for record in wal.read_records(layout)
