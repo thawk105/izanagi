@@ -22,7 +22,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Sequence
 
@@ -216,6 +216,12 @@ class _ControlSnapshot:
     handoffs: frozenset[bytes]
     worktree_prefixes: tuple[bytes, ...]
     identities: tuple[tuple[bytes, tuple[object, ...]], ...]
+    observed_worktree_identities: tuple[
+        tuple[bytes, tuple[object, ...]], ...
+    ] = field(default=(), compare=False, repr=False)
+    worktree_targets: tuple[bytes, ...] = field(
+        default=(), compare=False, repr=False
+    )
 
 
 @dataclass(frozen=True)
@@ -401,17 +407,17 @@ def _identity(metadata: os.stat_result) -> tuple[int, int, int]:
     )
 
 
-def _open_dir(path: Path, label: str) -> int:
+def _open_dir(path: Path, label: str, *, rc: int = RC_IDENTITY) -> int:
     raw = os.fsencode(path)
     try:
         before = os.lstat(raw)
         fd = os.open(raw, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         after = os.fstat(fd)
     except OSError as exc:
-        raise _Reject(RC_IDENTITY, f"{label}: directory open failed ({exc})") from exc
+        raise _Reject(rc, f"{label}: directory open failed ({exc})") from exc
     if not stat.S_ISDIR(after.st_mode) or not _same_inode(before, after):
         os.close(fd)
-        raise _Reject(RC_IDENTITY, f"{label}: symlink/race/non-directory")
+        raise _Reject(rc, f"{label}: symlink/race/non-directory")
     return fd
 
 
@@ -1037,18 +1043,48 @@ def _open_container(
 
 def _worktree_snapshot(
     repository: _Repository,
-) -> tuple[tuple[bytes, ...], tuple[tuple[bytes, tuple[object, ...]], ...]]:
+    protected_paths: Sequence[bytes] = (),
+) -> tuple[
+    tuple[bytes, ...],
+    tuple[tuple[bytes, tuple[object, ...]], ...],
+    tuple[tuple[bytes, tuple[object, ...]], ...],
+]:
+    """登録 child を検証し、land と重なる child だけを厳格集合へ返す。
+
+    container 自身と無関係 child の membership は snapshot identity に入れない。
+    ``observed_identities`` は比較窓で存続する同名 child の差し替えだけを
+    検出する補助値で、``_ControlSnapshot`` の等価比較と fingerprint には
+    参加しない。
+    """
+
     prefixes: list[bytes] = []
     identities: list[tuple[bytes, tuple[object, ...]]] = []
+    observed_identities: list[tuple[bytes, tuple[object, ...]]] = []
     common_path = os.fsencode(repository.common)
+    wave_path = os.fsencode(repository.wave)
+    rebound_wave_fd = _open_dir(
+        repository.wave,
+        "wave worktree control binding",
+        rc=RC_CONTROL_PLANE,
+    )
+    try:
+        wave_binding = _validate_admin_binding(
+            child_fd=rebound_wave_fd,
+            child_path=wave_path,
+            common_fd=repository.common_fd,
+            common_path=common_path,
+            label="wave worktree control binding",
+            rc=RC_CONTROL_PLANE,
+        )
+    finally:
+        os.close(rebound_wave_fd)
+    identities.append((b"wave-worktree", wave_binding))
     for relative in _CONTROL_CONTAINERS:
         opened = _open_container(repository, relative)
         if opened is None:
-            identities.append((relative, (None,)))
             continue
         container_fd, container_path = opened
         try:
-            container_before = os.fstat(container_fd)
             try:
                 names_before = sorted(
                     os.fsencode(name) for name in os.listdir(container_fd)
@@ -1058,18 +1094,33 @@ def _worktree_snapshot(
                     RC_CONTROL_PLANE,
                     f"container {relative!r}: list failed ({exc})",
                 ) from exc
-            identities.append((relative, _identity(container_before)))
+            protected_before: list[bytes] = []
             for name in names_before:
                 if _SAFE_CHILD_RE.fullmatch(name) is None:
                     raise _Reject(RC_CONTROL_PLANE, "unsafe worktree child name")
-                child_fd = _openat_dir(
-                    container_fd,
-                    name,
-                    f"container child {relative + b'/' + name!r}",
-                    rc=RC_CONTROL_PLANE,
+                child_relative = relative + b"/" + name
+                child_path = container_path + b"/" + name
+                protected = child_path == wave_path or any(
+                    _paths_overlap(child_relative, path)
+                    for path in protected_paths
                 )
+                if protected:
+                    protected_before.append(name)
                 try:
-                    child_path = container_path + b"/" + name
+                    child_fd = _openat_dir(
+                        container_fd,
+                        name,
+                        f"container child {child_relative!r}",
+                        rc=RC_CONTROL_PLANE,
+                    )
+                except _Reject as exc:
+                    if (
+                        not protected
+                        and isinstance(exc.__cause__, FileNotFoundError)
+                    ):
+                        continue
+                    raise
+                try:
                     binding = _validate_admin_binding(
                         child_fd=child_fd,
                         child_path=child_path,
@@ -1080,9 +1131,10 @@ def _worktree_snapshot(
                     )
                 finally:
                     os.close(child_fd)
-                child_relative = relative + b"/" + name
-                identities.append((child_relative, binding))
-                prefixes.append(child_relative + b"/")
+                observed_identities.append((child_relative, binding))
+                if protected:
+                    identities.append((child_relative, binding))
+                    prefixes.append(child_relative + b"/")
             try:
                 names_after = sorted(
                     os.fsencode(name) for name in os.listdir(container_fd)
@@ -1092,26 +1144,59 @@ def _worktree_snapshot(
                     RC_CONTROL_PLANE,
                     f"container {relative!r}: relist failed ({exc})",
                 ) from exc
-            if (
-                names_after != names_before
-                or not _same_inode(container_before, os.fstat(container_fd))
-            ):
+            for name in names_after:
+                if _SAFE_CHILD_RE.fullmatch(name) is None:
+                    raise _Reject(RC_CONTROL_PLANE, "unsafe worktree child name")
+            protected_after = [
+                name
+                for name in names_after
+                if (
+                    container_path + b"/" + name == wave_path
+                    or any(
+                        _paths_overlap(relative + b"/" + name, path)
+                        for path in protected_paths
+                    )
+                )
+            ]
+            if protected_after != protected_before:
                 raise _Reject(
                     RC_CONTROL_PLANE,
-                    f"container {relative!r} changed while validating",
+                    f"protected worktree set in {relative!r} changed while validating",
                 )
         finally:
             os.close(container_fd)
-    return tuple(prefixes), tuple(identities)
+    return tuple(prefixes), tuple(identities), tuple(observed_identities)
 
 
-def _control_snapshot(repository: _Repository) -> _ControlSnapshot:
+def _control_snapshot(
+    repository: _Repository,
+    protected_paths: Sequence[bytes] = (),
+) -> _ControlSnapshot:
     handoffs, handoff_identities = _handoff_snapshot(repository)
-    prefixes, worktree_identities = _worktree_snapshot(repository)
+    targets = tuple(protected_paths)
+    prefixes, worktree_identities, observed_identities = _worktree_snapshot(
+        repository, targets
+    )
     return _ControlSnapshot(
         handoffs=handoffs,
         worktree_prefixes=prefixes,
         identities=handoff_identities + worktree_identities,
+        observed_worktree_identities=observed_identities,
+        worktree_targets=targets,
+    )
+
+
+def _surviving_worktree_bindings_unchanged(
+    before: _ControlSnapshot,
+    after: _ControlSnapshot,
+) -> bool:
+    """同名 worktree の差し替えだけを検出し、起動・撤収は比較しない。"""
+
+    before_by_path = dict(before.observed_worktree_identities)
+    after_by_path = dict(after.observed_worktree_identities)
+    return all(
+        before_by_path[path] == after_by_path[path]
+        for path in before_by_path.keys() & after_by_path.keys()
     )
 
 
@@ -1137,10 +1222,13 @@ def _verify_main_clean(
     collision_paths: Sequence[bytes] | None = None,
     allowed_tracked_paths: Sequence[bytes] = (),
 ) -> _ControlSnapshot:
-    before = _control_snapshot(repository)
+    targets = tuple(collision_paths or ())
+    before = _control_snapshot(repository, targets)
     records = _status_records(repository.main, "main")
-    after = _control_snapshot(repository)
-    if before != after:
+    after = _control_snapshot(repository, targets)
+    if before != after or not _surviving_worktree_bindings_unchanged(
+        before, after
+    ):
         raise _Reject(
             RC_CONTROL_PLANE,
             "control-plane identity/binding changed around main status",
@@ -1601,7 +1689,11 @@ def _verify_land_lock_binding(
     try:
         main_fd = _open_dir(repository.main, "main worktree after lock acquisition")
         rebound.append(main_fd)
-        wave_fd = _open_dir(repository.wave, "wave worktree after lock acquisition")
+        wave_fd = _open_dir(
+            repository.wave,
+            "wave worktree after lock acquisition",
+            rc=RC_CONTROL_PLANE,
+        )
         rebound.append(wave_fd)
         common_fd = _open_dir(repository.common, "common git-dir after lock acquisition")
         rebound.append(common_fd)
@@ -1617,9 +1709,14 @@ def _verify_land_lock_binding(
                 RC_IDENTITY,
                 f"land lock binding changed after acquisition ({exc})",
             ) from exc
+        if not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd)):
+            raise _Reject(
+                RC_CONTROL_PLANE,
+                "wave worktree control-plane identity/binding changed "
+                "after lock acquisition",
+            )
         if (
             not _same_inode(os.fstat(repository.main_fd), os.fstat(main_fd))
-            or not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd))
             or not _same_inode(os.fstat(repository.common_fd), os.fstat(common_fd))
             or not _same_inode(lock_fd, lock_path)
             or not _lock_metadata_is_safe(lock_fd)
@@ -2712,8 +2809,15 @@ def land(request: LandRequest) -> LandResult:
                         window_started=lock_window_started,
                         tested_tip=tested_tip,
                     ))
-                refreshed_control = _control_snapshot(repository)
-                if refreshed_control != preflight.control:
+                refreshed_control = _control_snapshot(
+                    repository, preflight.control.worktree_targets
+                )
+                if (
+                    refreshed_control != preflight.control
+                    or not _surviving_worktree_bindings_unchanged(
+                        preflight.control, refreshed_control
+                    )
+                ):
                     raise _Reject(
                         RC_CONTROL_PLANE,
                         "control-plane identity/binding changed during "
@@ -2989,13 +3093,24 @@ def land(request: LandRequest) -> LandResult:
                     index_tree=index_tree,
                     state_path=state_path,
                 ))
+            collision_control = _control_snapshot(
+                repository, control.worktree_targets
+            )
             _verify_target_collisions(
                 repository,
                 current=locked_main,
                 tested_tip=tested_tip,
-                control=control,
+                control=collision_control,
             )
-            if _control_snapshot(repository) != control:
+            refreshed_collision_control = _control_snapshot(
+                repository, control.worktree_targets
+            )
+            if (
+                refreshed_collision_control != collision_control
+                or not _surviving_worktree_bindings_unchanged(
+                    collision_control, refreshed_collision_control
+                )
+            ):
                 raise _Reject(
                     RC_CONTROL_PLANE,
                     "control-plane identity/binding changed before main mutation",
