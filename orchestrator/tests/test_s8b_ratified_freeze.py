@@ -938,6 +938,9 @@ def build_production_emitter_g1(
         "result": json.loads((root / paths["result"]).read_bytes()),
         "paths": paths,
     }
+    # Consumer topology fixture は producer core の publish 判定を試すものではない。
+    # downstream の accepted artifact を明示的に組み立て、seam 注入の有無から切り離す。
+    state["result"]["eligible_for_refreeze"] = True
     original_cert = _json_bytes(state["cert"])
     assert original_cert == (root / paths["cert"]).read_bytes()
     if mutate is not None:
@@ -1117,7 +1120,12 @@ def append_production_emitter_g2(root: Path, g1: dict, g1_sha: str,
     _write(root, paths["protocol"], protocol_raw)
     _write(root, paths["closure80"], _RR80_PARAMS)
     _write(root, paths["closure20"], _RR20_PARAMS)
-    result_raw = (root / paths["result"]).read_bytes()
+    result = json.loads((root / paths["result"]).read_bytes())
+    # Consumer topology fixture は producer core の publish 判定に依存させない。
+    # g2 の accepted result と floor_source hash を同じ bytes から再構成する。
+    result["eligible_for_refreeze"] = True
+    result_raw = _json_bytes(result)
+    _write(root, paths["result"], result_raw)
     result_md_raw = (root / paths["result_md"]).read_bytes()
     result_md_hits = HF.holdout_conjunction_hits({
         paths["result_md"]: result_md_raw.decode("utf-8"),
