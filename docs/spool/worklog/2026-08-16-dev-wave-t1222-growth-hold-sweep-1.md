@@ -72,6 +72,19 @@ elapsed 総和であり、critical path と net wall 差は未測定である。
 1 つの registry 変異が contract 側 2 node と inventory 側 2 node を同時に赤にするためで、
 親の期待集合が不完全だった。probe の実測から完全集合を再導出して本走し 4/4 KILLED。
 
+### 受入 1 回目はフレーク 1 件で受領証が出なかった
+
+1 回目は **11,875 passed / 1 failed / 95 skipped** (pytest wall 101.30 秒)。赤は
+`test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` で、
+xdist worker 上で `os.kill(os.getpid(), SIGTERM)` の後に復元ハンドラが観測されなかった
+(`assert [] == [SIGTERM]`)。
+
+**本 wave はこの file を触っていない。** 同 tip で file 単独走は **297 passed / 2.85 秒 / rc=0**
+で再現しなかった。`check_acceptance_reds.py` は `attributable-red` と判定したが、
+checker は tested main で 1 回だけ再走して帰属を決めるので 1 標本ではフレークと区別できない。
+同族の署名 (`RESTORED=[]`) は 2026-08-16 の別 wave でも記録されている。
+差分が到達しえない・単独緑・同族の先例ありの 3 点で非帰属と判断し、再投入した。
+
 ### 段 8 の裁定
 
 候補は 2 件。(1) 段 6 レビュー A の待ち手が producer 生存中に rc=0・出力空で返った件は
