@@ -123,6 +123,36 @@ fresh checkout され、destination 側で生 bytes 照合される)。裁定パ
    が正規表現を外して落ちる。`env -u FORCE_COLOR -u COLORTERM` で解消することを実証した。
    **この 2 つはどちらも差分に帰属しない。**
 
+## 変異 matrix — 12/12 KILLED、生存 0
+
+`mutation-spec.json` / `mutation-result.json`。runner は `tools/run_tests.py --force-dispatch` の
+dispatch recipe、baseline は PASSED (276 passed / 20 skipped)。
+
+| # | 無効化した検査 | kill した node 数 |
+|---|---|---|
+| M01 | index と `HEAD^{tree}` の一致 (**wave 前の実コードの形 = 空 CCBench が通る形**) | 6 |
+| M02 | worktree の生 bytes と index blob id の一致 | 8 |
+| M03 | marker と admin dir の束縛 | 3 |
+| M04 | common-dir と admin dir の束縛 | 2 |
+| M05 | worktree file-set の完全性 | 2 |
+| M06 | 期待 admin path 成分の symlink 検査 | 2 |
+| M07 | tracked path 成分の symlink 検査 | 2 |
+| M08 | local config の allowlist | 17 |
+| M09 | object format が `sha1` であること | 1 |
+| M10 | 実行 bit / file 種別の照合 | 2 |
+| M11 | 走査エラーの fail-closed | 1 |
+| M12 | `--no-replace-objects` (replacement ref) | 2 |
+
+**1 回目の走行で 10 件が MISMATCH になった。** 生存は 0 で全件が rc=1 で発火していたが、
+親が登録した `expected_nodes` が実際より狭かった。新設 gate を外すと helper 直呼びの node に
+加えて end-to-end の node も落ちるためである。1 回目の `failed_nodes` から完全集合 (48 node) を
+再導出して登録し直し、2 回目で 12/12 KILLED になった。**1 回目の結果は消していない**
+(`mutation-spec.json` は再導出後の版、経緯は本節と worklog に残す)。
+
+**M01 は台帳が要求した「空 CCBench が通る現在の形を再現する正例」である。**
+`diff-index --cached` の判定を無効化すると内容照合が存在しない wave 前の形に戻り、
+空 index / 空 worktree の submodule 拒否 node が確実に赤くなる。
+
 ## scope 外 (裁定パッケージ)
 
 1. **[T-1263]** — `collect_run` / `make_packets` / verdict CLI が snapshot を再検証しない。
