@@ -37,6 +37,7 @@ from tools.dev_waves.git_state import (  # noqa: E402
     supervised_spool_wave_slug,
     verify_declared_fold_commit,
 )
+from tools import wave_land_window as _wave_land_window  # noqa: E402
 
 
 RC_OK = 0
@@ -62,6 +63,7 @@ _LAND_LOCK_MAX_POLL_SECONDS = 1.0
 _LAND_LOCK_RANDOM = random.SystemRandom()
 _MAX_METADATA_BYTES = 16 * 1024
 _MAX_ACCEPTANCE_RECEIPT_BYTES = 64 * 1024
+_PROVENANCE_VIOLATION_RC = 1
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _HOLDER_RE = re.compile(r"[0-9a-f]{12}\Z")
@@ -148,6 +150,8 @@ class LandResult:
     acceptance_receipt_sha256: str | None = None
     acceptance_verdict: str | None = None
     acceptance_red_nodeids: tuple[str, ...] | None = None
+    release_safe: bool = field(default=False, compare=False)
+    retryable_same_request: bool = field(default=False, compare=False)
 
     def as_json(self) -> dict[str, object]:
         return {
@@ -164,14 +168,25 @@ class LandResult:
                 if self.acceptance_red_nodeids is None
                 else list(self.acceptance_red_nodeids)
             ),
+            "release_safe": self.release_safe,
+            "retryable_same_request": self.retryable_same_request,
         }
 
 
 class _Reject(Exception):
-    def __init__(self, rc: int, reason: str):
+    def __init__(
+        self,
+        rc: int,
+        reason: str,
+        *,
+        release_safe: bool = False,
+        retryable_same_request: bool = False,
+    ):
         super().__init__(reason)
         self.rc = rc
         self.reason = reason
+        self.release_safe = release_safe
+        self.retryable_same_request = retryable_same_request
 
 
 @dataclass
@@ -383,7 +398,11 @@ def _detail(data: bytes) -> str:
 
 def _require_git(result: _GitResult, label: str, rc: int = RC_AUDIT) -> bytes:
     if result.returncode != 0:
-        raise _Reject(rc, f"{label}: git failed ({_detail(result.stderr) or 'no detail'})")
+        raise _Reject(
+            rc,
+            f"{label}: git failed ({_detail(result.stderr) or 'no detail'})",
+            retryable_same_request=True,
+        )
     return result.stdout
 
 
@@ -414,7 +433,11 @@ def _open_dir(path: Path, label: str, *, rc: int = RC_IDENTITY) -> int:
         fd = os.open(raw, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         after = os.fstat(fd)
     except OSError as exc:
-        raise _Reject(rc, f"{label}: directory open failed ({exc})") from exc
+        raise _Reject(
+            rc,
+            f"{label}: directory open failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
     if not stat.S_ISDIR(after.st_mode) or not _same_inode(before, after):
         os.close(fd)
         raise _Reject(rc, f"{label}: symlink/race/non-directory")
@@ -431,7 +454,11 @@ def _openat_dir(parent_fd: int, name: bytes, label: str, *, rc: int) -> int:
         )
         after = os.fstat(fd)
     except OSError as exc:
-        raise _Reject(rc, f"{label}: directory open failed ({exc})") from exc
+        raise _Reject(
+            rc,
+            f"{label}: directory open failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
     if not stat.S_ISDIR(after.st_mode) or not _same_inode(before, after):
         os.close(fd)
         raise _Reject(rc, f"{label}: symlink/race/non-directory")
@@ -454,7 +481,11 @@ def _read_regular_at(
             dir_fd=parent_fd,
         )
     except OSError as exc:
-        raise _Reject(rc, f"{label}: regular file open failed ({exc})") from exc
+        raise _Reject(
+            rc,
+            f"{label}: regular file open failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
     try:
         opened = os.fstat(fd)
         if not stat.S_ISREG(opened.st_mode) or not _same_inode(before, opened):
@@ -474,6 +505,12 @@ def _read_regular_at(
         if not _same_inode(opened, after) or not _same_inode(opened, final):
             raise _Reject(rc, f"{label}: inode changed while reading")
         return b"".join(chunks), opened
+    except OSError as exc:
+        raise _Reject(
+            rc,
+            f"{label}: regular file read/stat failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
     finally:
         os.close(fd)
 
@@ -489,8 +526,12 @@ def _no_duplicate_json_keys(
     return value
 
 
-def _acceptance_rejected() -> _Reject:
-    return _Reject(RC_AUDIT, "acceptance-receipt-rejected")
+def _acceptance_rejected(*, retryable_same_request: bool = False) -> _Reject:
+    return _Reject(
+        RC_AUDIT,
+        "acceptance-receipt-rejected",
+        retryable_same_request=retryable_same_request,
+    )
 
 
 def _read_acceptance_receipt(path: Path) -> bytes:
@@ -509,7 +550,12 @@ def _read_acceptance_receipt(path: Path) -> bytes:
         finally:
             os.close(parent_fd)
         return raw
-    except (OSError, UnicodeError, ValueError, TypeError, _Reject):
+    except _Reject as exc:
+        retryable = exc.retryable_same_request or isinstance(exc.__cause__, OSError)
+        raise _acceptance_rejected(retryable_same_request=retryable) from None
+    except OSError:
+        raise _acceptance_rejected(retryable_same_request=True) from None
+    except (UnicodeError, ValueError, TypeError):
         raise _acceptance_rejected() from None
 
 
@@ -524,6 +570,23 @@ def _receipt_object(raw: bytes) -> dict[str, object]:
     if not isinstance(value, dict) or set(value) != _ACCEPTANCE_RECEIPT_FIELDS:
         raise _acceptance_rejected()
     return value
+
+
+def _release_authority_digest(path: Path, acceptance_wave: str) -> str:
+    raw = _read_acceptance_receipt(path)
+    receipt = _receipt_object(raw)
+    try:
+        expected_holder = hashlib.sha256(
+            acceptance_wave.encode("utf-8")
+        ).hexdigest()[:12]
+    except UnicodeError:
+        raise _acceptance_rejected() from None
+    if (
+        receipt.get("acceptance_wave") != acceptance_wave
+        or receipt.get("lease_holder") != expected_holder
+    ):
+        raise _acceptance_rejected()
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _valid_fingerprint(value: object, tested_tip: str) -> bool:
@@ -660,19 +723,22 @@ def _verify_acceptance_receipt(
             checker_blob = checker_result.stdout.decode("ascii").strip()
         except UnicodeError:
             raise _acceptance_rejected() from None
+    receipt_git_results = [waiter_result, runner_blob]
+    if main_checker_result is not None:
+        receipt_git_results.append(main_checker_result)
+    if checker_result is not None:
+        receipt_git_results.append(checker_result)
+    if any(result.returncode != 0 for result in receipt_git_results):
+        raise _acceptance_rejected(retryable_same_request=True)
     if (
-        waiter_result.returncode != 0
-        or _SHA_RE.fullmatch(waiter_blob) is None
-        or runner_blob.returncode != 0
+        _SHA_RE.fullmatch(waiter_blob) is None
         or receipt.get("waiter_blob_sha") != waiter_blob
         or (
             verdict == "non-attributable-only"
             and (
                 main_checker_result is None
-                or main_checker_result.returncode != 0
                 or _SHA_RE.fullmatch(main_checker_blob) is None
                 or checker_result is None
-                or checker_result.returncode != 0
                 or _SHA_RE.fullmatch(checker_blob) is None
                 or main_checker_blob != checker_blob
                 or receipt.get("checker_blob_sha") != checker_blob
@@ -708,7 +774,11 @@ def _canonical_absolute(path: Path, label: str) -> Path:
     try:
         resolved = Path(os.fsdecode(os.path.realpath(raw, strict=True)))
     except OSError as exc:
-        raise _Reject(RC_IDENTITY, f"{label}: path resolution failed ({exc})") from exc
+        raise _Reject(
+            RC_IDENTITY,
+            f"{label}: path resolution failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
     if os.fsencode(resolved) != raw:
         raise _Reject(RC_IDENTITY, f"{label}: symlinked or aliased path is unsupported")
     return resolved
@@ -763,7 +833,11 @@ def _validate_admin_binding(
         try:
             path_stat = os.stat(admin_path, follow_symlinks=False)
         except OSError as exc:
-            raise _Reject(rc, f"{label}: admin path stat failed ({exc})") from exc
+            raise _Reject(
+                rc,
+                f"{label}: admin path stat failed ({exc})",
+                retryable_same_request=True,
+            ) from exc
         if not _same_inode(path_stat, os.fstat(admin_fd)):
             raise _Reject(rc, f"{label}: admin pathname/inode mismatch")
         admin_identity = _identity(os.fstat(admin_fd))
@@ -935,7 +1009,11 @@ def _verify_history_modifiers(repository: _Repository) -> None:
         except FileNotFoundError:
             continue
         except OSError as exc:
-            raise _Reject(RC_AUDIT, f"{label}: cannot inspect ({exc})") from exc
+            raise _Reject(
+                RC_AUDIT,
+                f"{label}: cannot inspect ({exc})",
+                retryable_same_request=True,
+            ) from exc
         raise _Reject(RC_AUDIT, f"{label} is unsupported")
     replace = _require_git(
         _git(repository.wave, "for-each-ref", "--format=%(refname)", "refs/replace/"),
@@ -963,6 +1041,7 @@ def _verify_effective_config(repository: _Repository) -> None:
             raise _Reject(
                 RC_AUDIT,
                 f"{label}: config inspection failed ({_detail(result.stderr)})",
+                retryable_same_request=True,
             )
         if result.returncode == 0 and result.stdout:
             raise _Reject(RC_AUDIT, f"{label} is unsupported")
@@ -992,7 +1071,9 @@ def _handoff_snapshot(
             names_before = sorted(os.fsencode(name) for name in os.listdir(handoff_fd))
         except OSError as exc:
             raise _Reject(
-                RC_CONTROL_PLANE, f"main/docs/handoff: list failed ({exc})"
+                RC_CONTROL_PLANE,
+                f"main/docs/handoff: list failed ({exc})",
+                retryable_same_request=True,
             ) from exc
         observed = frozenset(
             b"docs/handoff/" + name
@@ -1006,7 +1087,9 @@ def _handoff_snapshot(
             names_after = sorted(os.fsencode(name) for name in os.listdir(handoff_fd))
         except OSError as exc:
             raise _Reject(
-                RC_CONTROL_PLANE, f"main/docs/handoff: relist failed ({exc})"
+                RC_CONTROL_PLANE,
+                f"main/docs/handoff: relist failed ({exc})",
+                retryable_same_request=True,
             ) from exc
         if names_after != names_before:
             raise _Reject(RC_CONTROL_PLANE, "handoff directory changed while observing")
@@ -1093,6 +1176,7 @@ def _worktree_snapshot(
                 raise _Reject(
                     RC_CONTROL_PLANE,
                     f"container {relative!r}: list failed ({exc})",
+                    retryable_same_request=True,
                 ) from exc
             protected_before: list[bytes] = []
             for name in names_before:
@@ -1143,6 +1227,7 @@ def _worktree_snapshot(
                 raise _Reject(
                     RC_CONTROL_PLANE,
                     f"container {relative!r}: relist failed ({exc})",
+                    retryable_same_request=True,
                 ) from exc
             for name in names_after:
                 if _SAFE_CHILD_RE.fullmatch(name) is None:
@@ -1359,6 +1444,7 @@ def _existing_ignored_target_or_ancestor(
             raise _Reject(
                 RC_DIRT,
                 f"target ancestor inspection failed for {ancestor!r} ({exc})",
+                retryable_same_request=True,
             ) from exc
         if stat.S_ISDIR(metadata.st_mode) and index < len(parts):
             continue
@@ -1373,6 +1459,7 @@ def _existing_ignored_target_or_ancestor(
                 RC_DIRT,
                 f"target ancestor ignore inspection failed for {ancestor!r} "
                 f"({_detail(ignored.stderr) or 'no detail'})",
+                retryable_same_request=True,
             )
         return None
     return None
@@ -1463,6 +1550,7 @@ def _is_ancestor(repo: Path, older: str, newer: str) -> bool:
     raise _Reject(
         RC_AUDIT,
         f"ancestry inspection failed ({_detail(result.stderr) or 'no detail'})",
+        retryable_same_request=True,
     )
 
 
@@ -1708,6 +1796,7 @@ def _verify_land_lock_binding(
             raise _Reject(
                 RC_IDENTITY,
                 f"land lock binding changed after acquisition ({exc})",
+                retryable_same_request=True,
             ) from exc
         if not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd)):
             raise _Reject(
@@ -1792,24 +1881,33 @@ def _locked_preflight(
             reported_main_before,
             reported_main_before,
             tested_tip,
+            retryable_same_request=True,
         )
-    control = _verify_main_clean(
-        repository,
-        collision_paths=target_paths,
-        allowed_tracked_paths=active_fold_paths,
-    )
-    _verify_wave_clean(repository)
-    audited = _verify_audit(
-        repository,
-        tested_main,
-        tested_tip,
-        requested_audit,
-    )
-    base_gitlinks = _gitlink_map(repository.wave, tested_main)
-    target_gitlinks = _gitlink_map(repository.wave, tested_tip)
-    target_normal_entries = _normal_entry_paths(repository.wave, tested_tip)
-    gitlinks_changed = base_gitlinks != target_gitlinks
-    locked_main, wave_ref = _verify_heads(repository, tested_tip)
+    try:
+        control = _verify_main_clean(
+            repository,
+            collision_paths=target_paths,
+            allowed_tracked_paths=active_fold_paths,
+        )
+        _verify_wave_clean(repository)
+        audited = _verify_audit(
+            repository,
+            tested_main,
+            tested_tip,
+            requested_audit,
+        )
+        base_gitlinks = _gitlink_map(repository.wave, tested_main)
+        target_gitlinks = _gitlink_map(repository.wave, tested_tip)
+        target_normal_entries = _normal_entry_paths(repository.wave, tested_tip)
+        gitlinks_changed = base_gitlinks != target_gitlinks
+        locked_main, wave_ref = _verify_heads(repository, tested_tip)
+    except _Reject as exc:
+        raise _Reject(
+            exc.rc,
+            exc.reason,
+            release_safe=active_plan is None,
+            retryable_same_request=exc.retryable_same_request,
+        ) from exc
     if active_plan is None and not _main_is_allowed(
         repository, locked_main, tested_main, tested_tip, audited
     ):
@@ -1820,6 +1918,7 @@ def _locked_preflight(
             locked_main,
             locked_main,
             tested_tip,
+            release_safe=True,
         )
     fingerprint = _land_fingerprint(
         repository,
@@ -1852,7 +1951,11 @@ def _open_lock(repository: _Repository, lock: _LandLockHandle) -> None:
             dir_fd=repository.common_fd,
         )
     except OSError as exc:
-        raise _Reject(RC_IDENTITY, f"land lock open failed ({exc})") from exc
+        raise _Reject(
+            RC_IDENTITY,
+            f"land lock open failed ({exc})",
+            retryable_same_request=True,
+        ) from exc
     metadata = os.fstat(lock.fd)
     if not _lock_metadata_is_safe(metadata):
         raise _Reject(RC_IDENTITY, "land lock has unsafe metadata")
@@ -1939,6 +2042,25 @@ def _bind_provenance_checker(repository: _Repository) -> _ProvenanceCheckerBindi
         raise
 
 
+def _run_provenance_checker(
+    checker: _ProvenanceCheckerBinding,
+    repository: _Repository,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        [sys.executable, str(checker.path)],
+        cwd=repository.wave,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        shell=False,
+        close_fds=True,
+        timeout=480,
+    )
+
+
 def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
     """lock 外で wave tip の full-history provenance 監査を実行する。
 
@@ -1961,18 +2083,7 @@ def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
                     RC_PROVENANCE,
                     "provenance checker bound bytes do not match the committed blob",
                 )
-            completed = subprocess.run(
-                [sys.executable, str(checker.path)],
-                cwd=repository.wave,
-                env=env,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=False,
-                shell=False,
-                close_fds=True,
-                timeout=480,
-            )
+            completed = _run_provenance_checker(checker, repository, env)
             checker.verify(repository)
             after_bytes_sha = checker.bytes_sha256()
             if (
@@ -1993,8 +2104,18 @@ def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
         )
     except _Reject as exc:
         if exc.rc == RC_PROVENANCE:
-            raise
-        raise _Reject(RC_PROVENANCE, f"provenance audit failed ({exc.reason})") from exc
+            if exc.release_safe or exc.retryable_same_request:
+                raise
+            raise _Reject(
+                RC_PROVENANCE,
+                exc.reason,
+                retryable_same_request=True,
+            ) from exc
+        raise _Reject(
+            RC_PROVENANCE,
+            f"provenance audit failed ({exc.reason})",
+            retryable_same_request=True,
+        ) from exc
     except BaseException as exc:
         detail = ""
         if isinstance(exc, subprocess.TimeoutExpired):
@@ -2002,6 +2123,7 @@ def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
         raise _Reject(
             RC_PROVENANCE,
             f"provenance audit failed: {type(exc).__name__}{detail}: {exc}",
+            retryable_same_request=True,
         ) from exc
 
 
@@ -2032,22 +2154,38 @@ def _verify_provenance_receipt(
                 RC_PROVENANCE,
                 "provenance checker executed bytes do not match the committed blob",
             )
-        if receipt.returncode != 0:
+        if receipt.returncode == _PROVENANCE_VIOLATION_RC:
             raise _Reject(
                 RC_PROVENANCE,
                 f"provenance full-history audit rejected the wave (rc={receipt.returncode})",
+                release_safe=True,
+            )
+        if receipt.returncode != 0:
+            raise _Reject(
+                RC_PROVENANCE,
+                f"provenance full-history audit did not complete authoritatively "
+                f"(rc={receipt.returncode})",
+                retryable_same_request=True,
             )
     except _Reject as exc:
         if exc.rc == RC_PROVENANCE:
-            raise
+            if exc.release_safe or exc.retryable_same_request:
+                raise
+            raise _Reject(
+                RC_PROVENANCE,
+                exc.reason,
+                retryable_same_request=True,
+            ) from exc
         raise _Reject(
             RC_PROVENANCE,
             f"provenance receipt verification failed ({exc.reason})",
+            retryable_same_request=True,
         ) from exc
     except BaseException as exc:
         raise _Reject(
             RC_PROVENANCE,
             f"provenance receipt verification failed: {type(exc).__name__}: {exc}",
+            retryable_same_request=True,
         ) from exc
 
 
@@ -2505,6 +2643,7 @@ def _fold_main_locked(
             fold_commit,
             tested_tip,
             fold_commit,
+            release_safe=True,
         )
     except (Exception, KeyboardInterrupt) as exc:  # fold failure は必ず landed 以外へ畳む。
         rollback_failures = _rollback_fold(
@@ -2557,6 +2696,7 @@ def _fold_main_locked(
             fold_commit,
             tested_tip,
             fold_commit,
+            retryable_same_request=True,
         )
     return successful_fold
 
@@ -2607,6 +2747,7 @@ def _finalize_recovered_fold_commit(
             main_before,
             fold_commit,
             tested_tip,
+            retryable_same_request=True,
         )
     try:
         fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)
@@ -2619,6 +2760,7 @@ def _finalize_recovered_fold_commit(
             fold_commit,
             tested_tip,
             fold_commit,
+            retryable_same_request=True,
         )
     return LandResult(
         RC_OK,
@@ -2628,6 +2770,7 @@ def _finalize_recovered_fold_commit(
         fold_commit,
         tested_tip,
         fold_commit,
+        release_safe=True,
     )
 
 
@@ -2721,6 +2864,7 @@ def _postcondition(
         main_before,
         main_after,
         tested_tip,
+        release_safe=True,
     )
 
 
@@ -2742,6 +2886,7 @@ def _lock_busy_result(
         None,
         None,
         tested_tip,
+        retryable_same_request=True,
     )
 
 
@@ -2751,6 +2896,7 @@ def land(request: LandRequest) -> LandResult:
     main_before: str | None = None
     tested_tip: str | None = None
     acceptance_verification: _AcceptanceVerification | None = None
+    quiescent_rejection = False
 
     def finish(result: LandResult) -> LandResult:
         if acceptance_verification is None:
@@ -2818,10 +2964,26 @@ def land(request: LandRequest) -> LandResult:
                         preflight.control, refreshed_control
                     )
                 ):
+                    try:
+                        refreshed_active_plan = preflight.fold.load_active_plan(
+                            repository.main
+                        )
+                    except (Exception, KeyboardInterrupt) as exc:
+                        return finish(LandResult(
+                            RC_FOLD_RECOVERY_FAILED,
+                            "fold-recovery-failed",
+                            "fold transaction inspection failed: "
+                            f"{type(exc).__name__}: {exc}",
+                            main_before,
+                            main_before,
+                            tested_tip,
+                            retryable_same_request=True,
+                        ))
                     raise _Reject(
                         RC_CONTROL_PLANE,
                         "control-plane identity/binding changed during "
                         "the provenance audit",
+                        release_safe=refreshed_active_plan is None,
                     )
                 try:
                     refreshed_fingerprint = _land_fingerprint(
@@ -2844,6 +3006,7 @@ def land(request: LandRequest) -> LandResult:
                         RC_PROVENANCE,
                         "main/wave heads or collision paths changed during "
                         "the provenance audit",
+                        retryable_same_request=True,
                     )
                 preflight = _locked_preflight(
                     repository,
@@ -2854,14 +3017,9 @@ def land(request: LandRequest) -> LandResult:
                 )
                 if isinstance(preflight, LandResult):
                     return finish(preflight)
-                if preflight.fingerprint != initial_fingerprint:
-                    raise _Reject(
-                        RC_PROVENANCE,
-                        "main/wave heads or collision paths changed during "
-                        "the provenance audit",
-                    )
                 _verify_provenance_receipt(repository, receipt, tested_tip)
                 main_before = preflight.locked_main
+            quiescent_rejection = preflight.active_plan is None
             acceptance_verification = _verify_acceptance_receipt(
                 repository,
                 receipt_path=request.acceptance_receipt,
@@ -2892,6 +3050,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        retryable_same_request=True,
                     ))
                 try:
                     if origin is None or origin.kind != "land":
@@ -2923,6 +3082,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        retryable_same_request=True,
                     ))
                 if locked_main != tested_tip:
                     return finish(_finalize_recovered_fold_commit(
@@ -2943,6 +3103,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        retryable_same_request=True,
                     ))
                 try:
                     index_tree = _fold_ref_tree(repository, origin.rollback_ref)
@@ -2961,6 +3122,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        retryable_same_request=True,
                     ))
                 recovery = LandResult(
                     RC_OK,
@@ -3007,6 +3169,7 @@ def land(request: LandRequest) -> LandResult:
                 if set(pending_candidate) - set(fold_paths):
                     raise RuntimeError("fold plan does not cover every pending fragment candidate")
             except (Exception, KeyboardInterrupt) as exc:
+                interrupted = isinstance(exc, KeyboardInterrupt)
                 return finish(LandResult(
                     RC_FOLD_FAILED,
                     "fold-failed",
@@ -3014,6 +3177,8 @@ def land(request: LandRequest) -> LandResult:
                     main_before,
                     locked_main,
                     tested_tip,
+                    release_safe=not interrupted,
+                    retryable_same_request=interrupted,
                 ))
 
             fold_collision_paths = tuple(os.fsencode(path) for path in fold_paths)
@@ -3039,6 +3204,7 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        release_safe=True,
                     ))
             if locked_main == tested_tip:
                 if gitlinks_changed and not _gitlinks_synchronized(
@@ -3063,6 +3229,7 @@ def land(request: LandRequest) -> LandResult:
                     main_before,
                     locked_main,
                     tested_tip,
+                    release_safe=True,
                 )
                 if getattr(plan, "status", None) == "noop":
                     return finish(already_landed)
@@ -3071,6 +3238,7 @@ def land(request: LandRequest) -> LandResult:
                     index_tree = _fold_index_tree(repository)
                     state_path = fold._state_path(repository.main)
                 except (Exception, KeyboardInterrupt) as exc:
+                    interrupted = isinstance(exc, KeyboardInterrupt)
                     return finish(LandResult(
                         RC_FOLD_FAILED,
                         "fold-failed",
@@ -3078,6 +3246,8 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        release_safe=not interrupted,
+                        retryable_same_request=interrupted,
                     ))
                 return finish(_fold_main_locked(
                     repository,
@@ -3124,6 +3294,7 @@ def land(request: LandRequest) -> LandResult:
                     index_tree = _fold_index_tree(repository)
                     state_path = fold._state_path(repository.main)
                 except (Exception, KeyboardInterrupt) as exc:
+                    interrupted = isinstance(exc, KeyboardInterrupt)
                     return finish(LandResult(
                         RC_FOLD_FAILED,
                         "fold-failed",
@@ -3131,6 +3302,8 @@ def land(request: LandRequest) -> LandResult:
                         main_before,
                         locked_main,
                         tested_tip,
+                        release_safe=not interrupted,
+                        retryable_same_request=interrupted,
                     ))
             merge = _git(
                 repository.main,
@@ -3174,6 +3347,11 @@ def land(request: LandRequest) -> LandResult:
             main_before,
             main_before,
             tested_tip,
+            release_safe=(
+                exc.release_safe
+                or (quiescent_rejection and not exc.retryable_same_request)
+            ),
+            retryable_same_request=exc.retryable_same_request,
         ))
     finally:
         if repository is not None:
@@ -3201,7 +3379,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    result = land(LandRequest(
+    request = LandRequest(
         main_worktree=args.main_worktree,
         wave_worktree=args.wave_worktree,
         tested_main_sha=args.tested_main_sha,
@@ -3209,8 +3387,82 @@ def main(argv: Sequence[str] | None = None) -> int:
         audited_commits=tuple(args.audited_commit),
         acceptance_wave=args.acceptance_wave,
         acceptance_receipt=args.acceptance_receipt,
-    ))
-    print(json.dumps(result.as_json(), ensure_ascii=False, sort_keys=True))
+    )
+    try:
+        authority_digest = _release_authority_digest(
+            request.acceptance_receipt,
+            request.acceptance_wave,
+        )
+    except _Reject:
+        authority_digest = None
+
+    result = land(request)
+    print(
+        json.dumps(
+            result.as_json(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        flush=True,
+    )
+
+    release_state = "retained"
+    release_reason = "land-result-not-release-safe"
+    if result.release_safe and not result.retryable_same_request:
+        if authority_digest is None:
+            release_state = "unavailable"
+            release_reason = "receipt-authority-unverified"
+        elif (
+            result.acceptance_receipt_sha256 is not None
+            and result.acceptance_receipt_sha256 != authority_digest
+        ):
+            release_state = "unavailable"
+            release_reason = "receipt-digest-mismatch"
+        else:
+            receipt_unchanged = result.acceptance_receipt_sha256 is not None
+            if not receipt_unchanged:
+                try:
+                    receipt_unchanged = (
+                        _release_authority_digest(
+                            request.acceptance_receipt,
+                            request.acceptance_wave,
+                        )
+                        == authority_digest
+                    )
+                except _Reject:
+                    receipt_unchanged = False
+            if not receipt_unchanged:
+                release_state = "unavailable"
+                release_reason = "receipt-digest-changed"
+            else:
+                lease_dir = os.environ.get("IZANAGI_WAVE_LEASE_DIR")
+                if not lease_dir:
+                    release_state = "unavailable"
+                    release_reason = "lease-dir-required"
+                else:
+                    try:
+                        released = _wave_land_window.release(
+                            Path(lease_dir),
+                            request.acceptance_wave,
+                            expected_main_sha=request.tested_main_sha,
+                        )
+                        release_state = str(released.get("state", "unavailable"))
+                        source = released.get("source")
+                        source_reason = (
+                            source.get("reason") if isinstance(source, dict) else None
+                        )
+                        release_reason = (
+                            str(source_reason) if source_reason is not None else "none"
+                        )
+                    except (Exception, KeyboardInterrupt):
+                        release_state = "unavailable"
+                        release_reason = "release-internal-error"
+    print(
+        f"lease_release state={release_state} reason={release_reason}",
+        file=sys.stderr,
+        flush=True,
+    )
     return result.rc
 
 

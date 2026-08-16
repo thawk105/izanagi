@@ -633,18 +633,32 @@ def test_reseal_protocol_public_entry_accepts_unoccupied_contract_and_derived_pa
     assert hashlib.sha256(versioned[0].read_bytes()).hexdigest() == outcome["sha256"]
 
 
-def test_reseal_protocol_public_entry_rejects_contract_already_in_index(tmp_path):
+def test_reseal_protocol_public_entry_accepts_same_contract_with_new_pin(tmp_path):
     repo = _init_reseal_protocol_repo(tmp_path)
     g1 = ec.GENERATIONS["pegasus"][0].contract
+    legacy = repo / fc._FLOOR_PROTOCOL_REL
+    legacy_bytes = legacy.read_bytes()
+    anchor = fc.validate_protocol(fc.load_protocol(legacy))
+    assert anchor["contract_sha256"] == g1.contract_sha256
+    assert anchor["ccbench_pin"] != s8b_approved.CCBENCH_FULL_SHA
     with mock.patch.object(fc, "ROOT", repo), mock.patch.object(
             fc._env_contract, "lookup", return_value=g1,
     ):
-        with pytest.raises(fc.FloorCampaignError, match="同じ contract_sha256"):
-            fc.reseal_protocol()
-    assert not (repo / fc._FLOOR_PROTOCOLS_REL).exists()
+        outcome = fc.reseal_protocol()
+    expected_pair = (g1.contract_sha256, s8b_approved.CCBENCH_FULL_SHA)
+    expected_rel = fc._derived_reseal_protocol_relpath(*expected_pair)
+    index = fc.scan_floor_protocol_index(root=repo)
+    assert outcome["status"] == "resealed"
+    assert outcome["path"] == expected_rel
+    assert set(index) == {
+        (anchor["contract_sha256"], anchor["ccbench_pin"]),
+        expected_pair,
+    }
+    assert index[expected_pair].path == expected_rel
+    assert legacy.read_bytes() == legacy_bytes
 
 
-def test_reseal_protocol_second_issue_preserves_first_bytes(tmp_path):
+def test_reseal_protocol_rejects_second_issue_for_same_pair_before_write(tmp_path):
     repo = _init_reseal_protocol_repo(tmp_path)
     g2 = _pegasus_g2_contract()
     patches = (
@@ -659,9 +673,51 @@ def test_reseal_protocol_second_issue_preserves_first_bytes(tmp_path):
         first = fc.reseal_protocol()
         destination = repo / first["path"]
         first_bytes = destination.read_bytes()
-        with pytest.raises(fc.FloorCampaignError, match="同じ contract_sha256"):
-            fc.reseal_protocol()
+        with mock.patch.object(
+                fc, "_write_protocol_document_create_only",
+                wraps=fc._write_protocol_document_create_only,
+        ) as writer_mock:
+            with pytest.raises(fc.FloorCampaignError, match="同一組") as exc_info:
+                fc.reseal_protocol()
+    writer_mock.assert_not_called()
+    assert first["path"] in str(exc_info.value)
+    assert "artifact=" not in str(exc_info.value)
     assert destination.read_bytes() == first_bytes
+
+
+def test_reseal_protocol_rejects_pair_already_held_by_legacy_anchor(tmp_path):
+    repo = _init_reseal_protocol_repo(tmp_path)
+    legacy = repo / fc._FLOOR_PROTOCOL_REL
+    anchor = fc.validate_protocol(fc.load_protocol(legacy))
+    subprocess.run(
+        [
+            "git", "update-index", "--add", "--cacheinfo",
+            f"160000,{anchor['ccbench_pin']},external/ccbench",
+        ],
+        cwd=str(repo), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Izanagi Test",
+            "-c", "user.email=izanagi-test@example.invalid",
+            "commit", "-qm", "align fixture gitlink with legacy anchor",
+        ],
+        cwd=str(repo), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    current = ec.GENERATIONS["pegasus"][0].contract
+    assert anchor["contract_sha256"] == current.contract_sha256
+    with mock.patch.object(fc, "ROOT", repo), mock.patch.object(
+            fc._env_contract, "lookup", return_value=current,
+    ), mock.patch.object(
+            fc, "_write_protocol_document_create_only",
+            wraps=fc._write_protocol_document_create_only,
+    ) as writer_mock:
+        with pytest.raises(fc.FloorCampaignError, match="同一組") as exc_info:
+            fc.reseal_protocol()
+    writer_mock.assert_not_called()
+    assert fc._FLOOR_PROTOCOL_REL in str(exc_info.value)
+    assert "artifact=" not in str(exc_info.value)
+    assert not (repo / fc._FLOOR_PROTOCOLS_REL).exists()
 
 
 def test_reseal_protocol_rejects_head_move_immediately_after_publish(tmp_path):
@@ -995,6 +1051,39 @@ def test_current_floor_protocol_resolver_rejects_zero_current_matches():
             fc.resolve_current_floor_protocol(root=ROOT)
 
 
+def test_current_floor_protocol_resolver_rejects_two_current_contract_matches():
+    current = ec.GENERATIONS["pegasus"][0].contract
+    records = [
+        fc.IndexedFloorProtocol(
+            path=path,
+            document={
+                "env_tag": current.env_tag,
+                "contract_sha256": current.contract_sha256,
+                "ccbench_pin": pin,
+            },
+            raw_bytes=raw,
+            sha256=hashlib.sha256(raw).hexdigest(),
+        )
+        for path, pin, raw in (
+            (fc._FLOOR_PROTOCOL_REL, "1" * 40, b"first"),
+            (
+                fc._derived_reseal_protocol_relpath(current.contract_sha256, "2" * 40),
+                "2" * 40,
+                b"second",
+            ),
+        )
+    ]
+    index = {
+        (record.contract_sha256, record.ccbench_pin): record
+        for record in records
+    }
+    with mock.patch.object(
+            fc, "scan_floor_protocol_index", return_value=index,
+    ), mock.patch.object(fc._env_contract, "lookup", return_value=current):
+        with pytest.raises(fc.FloorCampaignError, match="exact 1 件でない: count=2"):
+            fc.resolve_current_floor_protocol(root=ROOT)
+
+
 def test_floor_protocol_path_literals_match_current_resolver():
     resolved_path = fc.resolve_current_floor_protocol(root=ROOT).path
     assignments = {
@@ -1027,7 +1116,7 @@ def test_floor_protocol_path_literals_match_current_resolver():
     assert set(observed.values()) == {resolved_path}
 
 
-def test_floor_protocol_index_rejects_same_contract_with_different_pin(tmp_path):
+def test_floor_protocol_index_accepts_same_contract_with_different_pin(tmp_path):
     repo = _init_reseal_protocol_repo(tmp_path)
     candidate = fc.validate_protocol(fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL))
     candidate["ccbench_pin"] = "a" * 40
@@ -1036,8 +1125,15 @@ def test_floor_protocol_index_rejects_same_contract_with_different_pin(tmp_path)
     )
     destination.parent.mkdir(parents=True)
     destination.write_bytes(_canonical_protocol_bytes(candidate))
-    with pytest.raises(fc.FloorCampaignError, match="同一 contract_sha256"):
-        fc.scan_floor_protocol_index(root=repo)
+    index = fc.scan_floor_protocol_index(root=repo)
+    anchor_pair = (
+        candidate["contract_sha256"],
+        fc.load_protocol(repo / fc._FLOOR_PROTOCOL_REL)["ccbench_pin"],
+    )
+    candidate_pair = (candidate["contract_sha256"], candidate["ccbench_pin"])
+    assert set(index) == {anchor_pair, candidate_pair}
+    assert index[anchor_pair].path == fc._FLOOR_PROTOCOL_REL
+    assert index[candidate_pair].path == destination.relative_to(repo).as_posix()
 
 
 @pytest.mark.parametrize("ancestor", ["output", "output/s8b-freeze"])
