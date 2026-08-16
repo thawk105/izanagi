@@ -8825,6 +8825,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/campaign/campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS` に
   載っている path を編集する wave では、焦点走の赤を実装へ帰属する前に
   統合 commit 後の再走で切り分ける。
+- **supersede: 2026-08-17** — enforcement source closure は D473 で exact 14 path になった。「12 path」は「14 path」と読み替える。加えて本 wave の実測で偽赤の範囲が確定した — 閉包 member を編集した状態でも、`_REPO_ROOT` を一時 repo へ差し替える node (T671 / artifact admission の E1 / S6 / S8a) は偽赤にならず、統合 commit 前に赤くなったのは実 checkout の live closure を capture する `orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch` の 1 件だけだった (commit 後の同範囲再走は 465 passed / 0 failed)。偽赤候補を「閉包 member を触る wave の広い consumer 群」と見積もるのは過大で、判定手順は既載どおり赤の理由行に `contract-loader-drift` があるかで行う。
 
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
