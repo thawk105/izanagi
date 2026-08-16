@@ -1,0 +1,121 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "M01",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for row in submodule_manifest:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n",
+     "new": "    for row in submodule_manifest:\n        if row[\"initialization\"] == \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_accepts_all_initialized",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_checks_every_manifest_row",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_with_closure",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_without_closure",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_default_spec_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M02",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for row in submodule_manifest:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_checks_every_manifest_row",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_with_closure",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_without_closure",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_default_spec_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M03",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for row in submodule_manifest:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n",
+     "new": "    if enforce_closure:\n        for row in submodule_manifest:\n            if row[\"initialization\"] != \"initialized\":\n                reasons.append(f\"submodule is not initialized: {row['path']}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_checks_every_manifest_row",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_without_closure"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M04",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for row in submodule_manifest:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n",
+     "new": "    for row in submodule_manifest[:1]:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_checks_every_manifest_row"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M05",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for row in submodule_manifest:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n",
+     "new": "    uninitialized_submodule_paths = [\n        row[\"path\"]\n        for row in submodule_manifest\n        if row[\"initialization\"] != \"initialized\"\n    ]\n"
+    },
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        \"submodule_manifest_sha256\": submodule_manifest_sha256,\n",
+     "new": "        \"submodule_manifest_sha256\": submodule_manifest_sha256,\n        \"uninitialized_submodules\": uninitialized_submodule_paths,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_accepts_all_initialized",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_checks_every_manifest_row",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_with_closure",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_custom_spec_without_closure",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_rejects_default_spec_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M06",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    for row in submodule_manifest:\n        if row[\"initialization\"] != \"initialized\":\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n",
+     "new": "    for row in submodule_manifest:\n        if row[\"initialization\"] is not None:\n            reasons.append(f\"submodule is not initialized: {row['path']}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_verify_snapshot_submodule_gate_accepts_all_initialized"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
