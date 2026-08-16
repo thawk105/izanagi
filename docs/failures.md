@@ -633,6 +633,15 @@
   変更前 HEAD 側 4/4 SURVIVED、いずれも事前登録と完全一致した。**総数を 13 kill と書かず、
   層ごとに何が言えるかを `output/insights/2026-08-10_t737-loader-issuer-pin/README.md` の表で
   書き分けたことが対応の本体である。**
+
+- **再発: 2026-08-16** — [T-1157] wave で、対象が変異ではなく **probe の positive control** で
+  同型が出た。「再 fetch を検出できる」ことを示すはずの正例が、pin された完全 SHA の object が
+  ローカルに在るため CMake update script の `fetch_required NO` 分岐に食われ、
+  **fetch せず checkout するだけ**で発火していた。probe はその HEAD 変化で
+  `refetch_detection_proven=true` を立てられたので、**検出力ゼロのまま
+  「再 fetch しない」を主張できる**状態だった。F28 の恒久対応 (i)「その位置より手前に
+  同じ入力を落とす検査が無いこと」を、変異だけでなく positive control にも適用する必要がある。
+  段 6 の焦点再レビューが実走前に検出し、実 `git fetch` を起こす正例へ差し替えて閉じた。
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -7558,6 +7567,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同時に赤になった。2026-08-15 の再発と**同一 node** である。単独再走は上記のとおり緑。
   待ち手の非帰属 checker は今回も 3 件すべてを `attributable` と分類した (rc=70) — docs-only の
   差分でも `attributable` になる経路は塞がれていない。
+
+- **再発: 2026-08-16** — [T-1157] wave の受入 2 走目が
+  `test_dev_wave_wait.py::test_public_main_failure_restores_handler_without_release` 1 件で
+  `attributable-red` (rc=70 / `source_rc=1`) になった。**同一 node での 3 度目の再発**であり、
+  2026-08-15 の再発とも同じ node である。全走の内訳は 11,539 passed / 1 failed / 65 skipped /
+  145.64 秒。**本 wave の差分は docs と output/insights のみで、Python を 1 file も変えていない**
+  (`git diff main...HEAD -- ':(exclude)docs' ':(exclude)output'` が空)。
+  単独再走を計算ノードで行い `1 passed in 2.50s` / rc=0 を実測した
+  (`Request 912956.nqsv`、Elapse 7 秒)。
+  待ち手の非帰属 checker は今回も `attributable` と分類しており、
+  **「docs-only の差分でも `attributable` になる経路」は 2026-08-15 の記録から塞がれていない。**
+  本 wave は受入を再走して緑の receipt を取る経路で処理した (checker 自体は直していない —
+  非帰属 checker は tested_main 側で走るため、本 wave では効かない)。
 ### F307. conftest の出力を 1 行増やして別機構の末尾契約を壊した [テスト代表性]
 
 - 事象: 実効 scheduler の marker を `pytest_unconfigure` の最後 (failure digest より後) に出した
@@ -8317,3 +8339,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   以後の全 artifact 追加時に走らせて混入 0 を維持した。
   受領証側では `attempts[].evidence_status` が `invalid` になるため、
   `launcher_rc=1` を見たら**まず evidence_status を読む**。
+
+### F343. 判定式に、狙った事象と無関係に動く field を入れて偽陽性を作った [テスト代表性]
+
+- 事象: 2026-08-16 の [T-1157] wave で、共有 FetchContent base の再利用を測る probe が
+  `REFETCHED` (再 fetch) の判定式に ExternalProject の `patch` step stamp を含めていた。
+  第 2 走 (`Request 912886.nqsv`) の実測では、production の 3 transition のうち 2 つで
+  この stamp が「変化」した。単独性検査が先に `INCONCLUSIVE` で止めていなければ、
+  **probe は `REFETCHED` を返し、床値本走へ根拠のない NO-GO を出していた。**
+- 根本原因: stamp の中身を見ずに「stamp が変われば再取得」と対応づけた。実測すると
+  変化していたのは `st_mtime_ns` だけで、`st_ino` も sha256 も (空 file のまま) 同一だった。
+  `PATCH_COMMAND` を持たない no-op step の stamp は populate のたびに touch されるだけで、
+  source の再取得とも置換とも関係がない。**「その field は、狙った事象が起きていなくても
+  動くか」を確かめていなかった。**
+- 恒久対応: 判定 field を `exists` / `st_ino` / `sha256` に限定し、`st_mtime_ns` は
+  診断系列 (`diagnostic_signature`) へ移した。ただし `FETCH_HEAD` の `st_mtime_ns` は判定に残す
+  — up-to-date な `git fetch` は内容も refs も変えずに `FETCH_HEAD` を書き直すため、
+  そこだけは mtime が唯一の信号である (同 wave の直接 fetch 正例で実測)。
+  **緩めていないことの担保は、変更後も置換・fetch の positive control 2 本が発火すること**を
+  判定順序に残した点にある (逐語 =
+  `output/insights/2026-08-16_t1157-fetchcontent-reuse/README.md` §4)。
+- 再発検知: 判定式へ field を入れるときは、その field が「狙った事象を起こさない操作」で
+  動かないことを確かめる。動くなら診断へ回す。偽陰性 (恒真ゲート) だけでなく
+  **偽陽性が実作業を止める側の害**も同じ台帳で数える。
