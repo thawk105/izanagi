@@ -1396,6 +1396,36 @@ def test_known_violation_ledger_matches_literal_entries():
         "`role=author` が commit 01d17293 で書き、main 側は各 wave land 時に監査済み；"
         "親作成 merge のため Codex 著者とは記さない"
     )
+    t1142_ruling = (
+        "2026-08-16 dev-wave-t1142-oracle-n-pilot land 前裁定 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t1142_main_merge_note = (
+        "親が作成した main 取り込み merge；実装面で両側が触ったのは "
+        "`orchestrator/tests/test_s8b_floor_campaign.py` の 1 file のみで、3 方向結合の結果が"
+        "両親のどちらとも異なるため checker が実装面著作と判定；競合なし・競合解決による"
+        "新規著作なし；wave 側の同 file の変更は Codex `role=author` が別 commit e5a86104 / "
+        "6162ade8 / 8a791531 で書いている；親作成 merge のため Codex 著者とは記さない"
+    )
+    t1142_pre_acceptance_merge_note = (
+        "受入直前に親が作成した main 取り込み merge；実装面で両側が触ったのは "
+        "`orchestrator/tests/test_s8b_floor_campaign.py` の 1 file のみで、3 方向結合の結果が"
+        "両親のどちらとも異なるため checker が実装面著作と判定；競合なし・競合解決による"
+        "新規著作なし；wave 側の同 file の変更は Codex `role=author` が別 commit e5a86104 / "
+        "6162ade8 / 8a791531 で書いている；親作成 merge のため Codex 著者とは記さない"
+    )
+    t1140_t330_ruling = (
+        "2026-08-16 dev-wave-t1140-t330-claim-authority land 前裁定 "
+        "(ユーザー選択: known-violation 登録)"
+    )
+    t1140_t330_note = (
+        "wave branch へ local main `0c689a96` を取り込んだ merge。実装面で両側が触ったのは"
+        "`s8b_floor_campaign.py` / `s8b_oracle_driver.py` とその 2 test file の計 4 file で、"
+        "`git diff-tree --cc 3df9b0aa` は SHA 行のみの完全な空 = 競合解決による新規著作なし、"
+        "結果は両側の変更の和集合。wave 側の実装面は Codex `role=author` が commit `6eb77ef9` / "
+        "`cdcb257d` / `30def5d5` で書き、main 側は各 wave の land 時に監査済み。"
+        "親作成 merge のため Codex 著者とは記さない。"
+    )
     observed = tuple(
         (
             spec.commit,
@@ -1458,6 +1488,9 @@ def test_known_violation_ledger_matches_literal_entries():
         ("c96803854911dd989954c20d0955ad423e7d1207", "missing-codex-author", dw8c_ruling, dw8c_retry_note, ""),
         ("8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e", "missing-codex-author", t316_ruling, t316_note, ""),
         ("98d07c3b0e7726a929e98381e4762973d8e4c681", "missing-codex-author", t897_ruling, t897_note, ""),
+        ("21582897ece7cf82317931a437dff61e9eaad33b", "missing-codex-author", t1142_ruling, t1142_main_merge_note, ""),
+        ("a8c73d747621d4b323024fc6ca6da6372ecfb668", "missing-codex-author", t1142_ruling, t1142_pre_acceptance_merge_note, ""),
+        ("3df9b0aa379f84500e3f59add9ad76e421019d50", "missing-codex-author", t1140_t330_ruling, t1140_t330_note, ""),
     )
     assert len(provenance.KNOWN_PROVENANCE_VIOLATIONS) == len(expected)
     assert observed == expected

@@ -2734,6 +2734,164 @@ def test_provenance_audit_accepts_absent_ignored_collision() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
+def test_provenance_audit_accepts_unrelated_worktree_appearing() -> None:
+    """無関係な wave の起動は audit fingerprint の対象外。"""
+
+    with _repo(waves=(("codex", "author"),)) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_add(repository):
+            receipt = real_audit(repository)
+            repo.add_wave("claude", "foreign")
+            return receipt
+
+        with _patched_land_attr("_audit_provenance_history", audit_then_add):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert repo.waves["foreign"].is_dir()
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_provenance_audit_accepts_unrelated_worktree_disappearing() -> None:
+    """無関係な wave の撤収は audit fingerprint の対象外。"""
+
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave = repo.waves["author"]
+        foreign = repo.waves["foreign"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_remove(repository):
+            receipt = real_audit(repository)
+            _git(repo.main, "worktree", "remove", "--force", str(foreign))
+            return receipt
+
+        with _patched_land_attr("_audit_provenance_history", audit_then_remove):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert not foreign.exists()
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+
+
+def test_provenance_audit_rejects_own_worktree_replacement() -> None:
+    """自分の wave worktree の binding は audit 中も厳格に束縛する。"""
+
+    with _repo(waves=(("codex", "author"),)) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        old_wave = repo.root / "author-before-replacement"
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_replace(repository):
+            receipt = real_audit(repository)
+            wave.rename(old_wave)
+            shutil.copytree(old_wave, wave)
+            return receipt
+
+        with _patched_land_attr("_audit_provenance_history", audit_then_replace):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_CONTROL_PLANE,
+            "rejected",
+        ), result
+        assert "control-plane identity/binding changed" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_audit_rejects_overlapping_worktree_appearing() -> None:
+    """target と重なる新規 worktree は無関係 wave として除外しない。"""
+
+    with _repo(waves=(("codex", "author"),)) as repo:
+        wave = repo.waves["author"]
+        (repo.main / ".git" / "info" / "exclude").write_text(
+            ".claude/worktrees/\n",
+            encoding="utf-8",
+        )
+        relative = ".claude/worktrees/overlap/payload.txt"
+        target = wave / relative
+        target.parent.mkdir(parents=True)
+        target.write_text("incoming\n", encoding="utf-8")
+        _git(wave, "add", "-f", "--", relative)
+        _git(wave, "commit", "-qm", "add target under future worktree")
+        tip = _git(wave, "rev-parse", "HEAD")
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_add_overlap(repository):
+            receipt = real_audit(repository)
+            repo.add_wave("claude", "overlap")
+            return receipt
+
+        with _patched_land_attr(
+            "_audit_provenance_history", audit_then_add_overlap
+        ):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_CONTROL_PLANE,
+            "rejected",
+        ), result
+        assert "control-plane identity/binding changed" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+@pytest.mark.parametrize("moved_head", ("main", "wave"))
+def test_provenance_audit_still_rejects_moved_land_heads(moved_head: str) -> None:
+    """worktree membership を外しても main/wave head の束縛は緩めない。"""
+
+    with _repo(waves=(("codex", "author"),)) as repo:
+        wave = repo.waves["author"]
+        tested_tip = repo.commit(wave, "author.txt", "author\n")
+        moved_tip = repo.commit(wave, "next.txt", "next\n")
+        _git(wave, "reset", "--hard", tested_tip)
+        wave_ref = _git(wave, "symbolic-ref", "HEAD")
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_move_head(repository):
+            receipt = real_audit(repository)
+            ref = "refs/heads/main" if moved_head == "main" else wave_ref
+            _git(repo.main, "update-ref", ref, moved_tip)
+            return receipt
+
+        with _patched_land_attr("_audit_provenance_history", audit_then_move_head):
+            result = _land(repo.request(wave, tip=tested_tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_PROVENANCE,
+            "rejected",
+        ), result
+        assert "heads or collision paths changed" in result.reason
+
+
+def test_provenance_audit_still_rejects_handoff_appearing() -> None:
+    """worktree membership を外しても docs/handoff の名前集合は束縛する。"""
+
+    with _repo(waves=(("codex", "author"),)) as repo:
+        wave = repo.waves["author"]
+        tip = repo.commit(wave, "author.txt", "author\n")
+        appearing = repo.main / "docs" / "handoff" / "appearing.md"
+        real_audit = LAND._audit_provenance_history
+
+        def audit_then_add_handoff(repository):
+            receipt = real_audit(repository)
+            appearing.write_text(_handoff_text(repo), encoding="utf-8")
+            return receipt
+
+        with _patched_land_attr("_audit_provenance_history", audit_then_add_handoff):
+            result = _land(repo.request(wave, tip=tip))
+
+        assert (result.rc, result.status) == (
+            LAND.RC_CONTROL_PLANE,
+            "rejected",
+        ), result
+        assert "control-plane identity/binding changed" in result.reason
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
 def test_provenance_receipt_rejects_each_bound_field() -> None:
     """M2/M4/M5: receipt の tip/blob/bytes/rc 四条件を独立に固定する。"""
 

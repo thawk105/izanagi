@@ -120,6 +120,10 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git_bytes"): 1,
     ("campaign/s8b_holdout_freeze.py", "<module>._run_git_z"): 1,
+    # Read-only git identity queries; argv cannot name or execute CCBench.
+    ("campaign/s8b_oracle_n_pilot.py", "<module>._git_output"): 1,
+    # Observes compiler and CMake versions only; never invokes a CCBench binary.
+    ("campaign/s8b_oracle_n_pilot.py", "<module>._observe_toolchain"): 1,
     ("campaign/s8b_prediction_runner.py", "<module>._git_bytes"): 1,
     ("campaign/s8b_ratified_freeze.py", "<module>._git"): 1,
     ("campaign/s8b_ratified_freeze.py", "<module>._git_ok"): 1,

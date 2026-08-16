@@ -61,6 +61,12 @@
       "primary_gate": "compute allocation owned by certify_calibration.sh",
       "evidence": "static compute-side call-site classification"
     },
+    "tools/pegasus/oracle_n_pilot.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS oracle n pilot job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/probes/t139_positive_control_probe.pbs": {
       "class": "unknown",
       "reason": "probe artifact has no login admission ruling",
@@ -186,6 +192,12 @@
       "reason": "login-side PBS floor submitter",
       "primary_gate": "qsub submission; compute work stays in job body",
       "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_oracle_n_pilot.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS oracle n pilot submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "login-side submitter; compute work stays in job body (未実測)"
     },
     "tools/pegasus/submit_silo_ladder_rung1.sh": {
       "class": "local-ok",

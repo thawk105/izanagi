@@ -14,7 +14,11 @@ from orchestrator.campaign import s8b_floor_campaign
 from orchestrator.campaign import s8b_floor_contract
 from orchestrator.campaign import s8b_holdout_admission as admission
 from orchestrator.calibrator import runner as calibrator_runner
-from orchestrator.holdout_observation import assert_issued_holdout_observation
+from orchestrator.holdout_observation import (
+    HoldoutObservationError,
+    assert_holdout_observation_admitted,
+    assert_issued_holdout_observation,
+)
 from orchestrator.tests.s8b_floor_evidence_fixture import (
     build_floor_admission_evidence,
     canonical_json_line,
@@ -244,11 +248,166 @@ def test_observation_role_is_closed_and_separates_two_authorized_producers():
         **common,
         observation_role=admission.OBSERVATION_ROLE_ORACLE_DRIVER,
     )
+    n_pilot = admission._key_fields(  # noqa: SLF001 - closed-key boundary
+        **common,
+        observation_role=admission.OBSERVATION_ROLE_N_PILOT,
+    )
+    assert admission._OBSERVATION_ROLES == frozenset({  # noqa: SLF001
+        admission.OBSERVATION_ROLE_FLOOR_CAMPAIGN,
+        admission.OBSERVATION_ROLE_N_PILOT,
+        admission.OBSERVATION_ROLE_ORACLE_DRIVER,
+    })
     assert admission._claim_digest(floor) != admission._claim_digest(oracle)  # noqa: SLF001
+    assert len({  # noqa: SLF001 - every producer owns a distinct effect key
+        admission._claim_digest(floor),
+        admission._claim_digest(oracle),
+        admission._claim_digest(n_pilot),
+    }) == 3
     with pytest.raises(admission.HoldoutAdmissionError, match="not recognized"):
         admission._key_fields(  # noqa: SLF001 - unknown role must fail closed
             **common, observation_role="caller_selected_role",
         )
+
+
+def _n_pilot_fixture(protocol: dict, freeze: dict):
+    floor_cells, floor_schedule = _cells_and_schedule(protocol, freeze)
+    cells = [
+        {
+            "cell_id": cell["cell_id"],
+            "holdout_id": cell["freeze_holdout_key"],
+            "configuration_id": cell["configuration_id"],
+            "records": cell["records"],
+            "threads": cell["threads"],
+            "workload": cell["workload"],
+        }
+        for cell in floor_cells
+    ]
+    schedule = [
+        {
+            "seq": row["seq"],
+            "pilot_round": row["round"],
+            "cell_id": row["cell_id"],
+        }
+        for row in floor_schedule
+    ]
+    pilot_protocol = {
+        "freeze": {"sha256": protocol["freeze"]["sha256"]},
+        "environment": {
+            "ccbench_pin": protocol["ccbench_pin"],
+            "env_tag": protocol["env_tag"],
+        },
+        "design": {"reps": protocol["reps"]},
+    }
+    protocol_sha256 = hashlib.sha256(
+        _canonical(pilot_protocol) + b"\n"
+    ).hexdigest()
+    return pilot_protocol, protocol_sha256, cells, schedule
+
+
+def test_n_pilot_requires_exact_irreversible_approval_before_claim(tmp_path):
+    root, floor_protocol, freeze = _init_repo(tmp_path)
+    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+        floor_protocol, freeze,
+    )
+    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
+        admission.reserve_n_pilot_holdout_observations(
+            repo_root=root,
+            protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            verified_freeze_document=freeze,
+            freeze_sha256=floor_protocol["freeze"]["sha256"],
+            cells=cells,
+            schedule=schedule,
+            campaign_run_id="n-pilot-attempt",
+            irreversible_pilot_approved=False,
+        )
+    assert not admission.shared_admission_root(root).exists()
+
+
+@pytest.mark.parametrize(
+    "approval",
+    [1, "true", False, 0, None],
+    ids=["truthy-int", "truthy-str", "false", "zero", "none"],
+)
+def test_n_pilot_rejects_non_true_approval_before_any_admission_write(
+    tmp_path, approval,
+):
+    root, floor_protocol, freeze = _init_repo(tmp_path)
+    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+        floor_protocol, freeze,
+    )
+
+    with pytest.raises(admission.HoldoutAdmissionError, match="irreversible"):
+        admission.reserve_n_pilot_holdout_observations(
+            repo_root=root,
+            protocol=protocol,
+            protocol_sha256=protocol_sha256,
+            verified_freeze_document=freeze,
+            freeze_sha256=floor_protocol["freeze"]["sha256"],
+            cells=cells,
+            schedule=schedule,
+            campaign_run_id="n-pilot-attempt",
+            irreversible_pilot_approved=approval,
+        )
+
+    shared = admission.shared_admission_root(root)
+    assert not (shared / "claims").exists()
+    assert not (shared / "ledger.jsonl").exists()
+    assert not (shared / "attempt-ledger.jsonl").exists()
+
+
+def test_n_pilot_ledger_and_attempt_allowance_are_durable_and_protocol_bound(tmp_path):
+    root, floor_protocol, freeze = _init_repo(tmp_path)
+    protocol, protocol_sha256, cells, schedule = _n_pilot_fixture(
+        floor_protocol, freeze,
+    )
+    admitted = admission.reserve_n_pilot_holdout_observations(
+        repo_root=root,
+        protocol=protocol,
+        protocol_sha256=protocol_sha256,
+        verified_freeze_document=freeze,
+        freeze_sha256=floor_protocol["freeze"]["sha256"],
+        cells=cells,
+        schedule=schedule,
+        campaign_run_id="n-pilot-attempt",
+        irreversible_pilot_approved=True,
+    )
+    shared = admission.shared_admission_root(root)
+    rows = admission._read_ledger(shared / "ledger.jsonl")  # noqa: SLF001
+    assert len(rows) == 12
+    assert {row["observation_role"] for row in rows} == {
+        admission.OBSERVATION_ROLE_N_PILOT,
+    }
+    assert {row["protocol_sha256"] for row in rows} == {protocol_sha256}
+    assert {row["freeze_sha256"] for row in rows} == {
+        floor_protocol["freeze"]["sha256"],
+    }
+    assert len({row["schedule_sha256"] for row in rows}) == 1
+    assert {row["campaign_run_id"] for row in rows} == {"n-pilot-attempt"}
+    assert {row["irreversible_pilot_approved"] for row in rows} == {True}
+    assert {row["reps"] for row in rows} == {floor_protocol["reps"]}
+
+    token = admission.consume_n_pilot_attempt_ticket(
+        admitted[0], schedule_index=0,
+    )
+    assert_issued_holdout_observation(token)
+    assert token.permitted_run_once_calls == floor_protocol["reps"]
+    ratio = freeze["holdouts"][token.freeze_holdout_key]["ycsb"]["ycsb_rratio"]
+    for _ in range(floor_protocol["reps"]):
+        assert_holdout_observation_admitted(
+            gflags=[f"--ycsb_rratio={ratio}"], admission=token,
+        )
+    with pytest.raises(HoldoutObservationError, match="exhausted"):
+        assert_holdout_observation_admitted(
+            gflags=[f"--ycsb_rratio={ratio}"], admission=token,
+        )
+    with pytest.raises(admission.HoldoutAdmissionError, match="already consumed"):
+        admission.consume_n_pilot_attempt_ticket(admitted[0], schedule_index=0)
+    attempt_rows = admission._read_ledger(  # noqa: SLF001
+        shared / "attempt-ledger.jsonl"
+    )
+    assert len(attempt_rows) == 1
+    assert attempt_rows[0]["observation_role"] == admission.OBSERVATION_ROLE_N_PILOT
 
 
 def test_pilot_claim_requires_irreversible_approval_before_claim(tmp_path):

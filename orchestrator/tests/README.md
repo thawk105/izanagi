@@ -162,6 +162,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s8b_oracle_driver.py
 - test_s8b_oracle_judge.py
 - test_s8b_oracle_manifest.py
+- test_s8b_oracle_n_pilot.py
 - test_s8b_oracle_report.py
 - test_s8b_prediction_runner.py
 - test_s8b_ratified_freeze.py

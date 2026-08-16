@@ -19288,3 +19288,192 @@ job script は **submission nonce との exact 一致**を確認したときだ�
   production が fail-open へ戻る型の回帰も残る。
 - 初期化済み submodule の内容同一性 (HEAD tree・index・worktree の三者照合) まで同時に要求する —
   検査層と実行コストが変わるため本 wave の scope 外とし、別タスクとして起票した。
+
+## D463. 成長比例の判定は秒数でなく入力集合の性質で行う (2026-08-16)
+
+**決定:** D335 の対象かどうかは、node が読む入力集合 F(t) の性質で判定する。実測秒数の
+閾値では判定しない。
+
+- **比例 (D335 対象)**: F(t) が repository の通常運転で単調に増える集合。
+  (a) tip 側の commit 履歴、(b) tracked file 総数または repo 全走査、
+  (c) docs / archive の総量、(d) output artifact corpus。
+- **非比例**: F(t) が固定 path・固定 byte 上限・**固定された歴史 commit の集合**であるもの。
+- **比例だが保留しない第 3 区分**: F(t) が実 repository の subtree でありながら、
+  設計上限のある固定用途集合 (role 定義・特定 tool package など) であるもの。
+  この区分は比例として記録し、保留の可否は D451 と付随損失で別に判定する。
+
+区分の判定には、同一手続き (`git ls-tree -r -l` を複数時点の commit へ適用) で数えた
+**実際の成長率**を根拠として添える。「file が増えれば増える」という論法だけでは
+第 3 区分と (b) を区別できない。
+
+**理由:**
+- 秒数の閾値は成長とともに必ず再突破する。D335 が構造で塞ぐと決めた理由と同じである。
+- 一方「実 subtree を読むなら比例」とすると、ほぼ全テストが対象になり判定式として機能しない。
+  実測では、repository が 30 日で 15 倍・docs が 7 倍になる間に、role 定義と tool package の
+  4 部分木は file 数が変わっていない。両者を同じ語で呼ぶと、保留の意思決定に使えない。
+- 固定された歴史 commit の祖先閉包は将来 commit で増えない。ただし同じ tool の中でも
+  policy epoch の探索のように tip 依存の項が同居しうるため、**呼び出し閉包を最後まで追う**
+  ことを判定の前提に含める。片方だけを見た断定は本 wave で実際に誤りを生んだ。
+
+**却下した選択肢:**
+- 実測秒数の閾値 — 比例構造が残り、成長とともに再突破する。
+- 「実 ROOT を読むなら比例」 — 候補が候補として機能しない広さになり、
+  保留すると失う検出力が費用を上回る取引を大量に生む。
+- 第 3 区分を「非比例」と呼ぶ — 実際には段差で増えることがあり、記録が事実と食い違う。
+
+## D464. campaign claim の排他は生存プロセス単位とし、保証範囲を同一ノード・共有 out_root に限る (2026-08-16)
+
+**決定:** claim record に必須 `protocol_digest` (64 桁小文字 hex) を持たせ、同一 protocol digest の
+claim があり、その持ち主が**生存していると確認できたときだけ**拒否する。生存の判定は
+同一 boot_id かつ `/proc/<pid>/stat` の第 22 field が record の `proc_starttime` と一致し、
+かつ state field が `Z` でないの 3 条件をすべて満たす場合に限る。pid 再利用 (starttime 不一致)、
+zombie (`Z`)、`/proc` 不在はいずれも DEAD として**通す**。別 boot_id は判定不能として通す。
+claim root を列挙できない、`/proc` が permission / I-O で読めない、既存 record が破損している
+場合は通さず error にする。claim の release・stale 自動削除・期限切れ回収は導入しない。
+
+排他の**保証範囲は「同一ノード・同一 boot・共有 out_root」に限る**。この機構を
+「protocol 単位の global な排他」と表現してはならない。別ノードの持ち主の生死は `/proc` からは
+判定できず、別 out_root を与えられた実行同士はそもそも同じ claim root を見ない。
+
+**理由:**
+- 排他の単位を run 識別子から protocol へ移す必要があるが、寿命まで protocol 単位にすると
+  床値 campaign が 1 回で永久停止する。同 campaign は固定 protocol を pilot mode で繰り返し
+  投入する運用であり、claim leaf は release も stale 回収も持たない。
+- 生存判定に必要な材料 (pid・proc_starttime・boot_id) は claim record に既に入っている。
+  親の実測では `/proc/<pid>/stat` の第 22 field は他ユーザーの process でも読めた。
+- pid だけでは pid 再利用で偽の LIVE が出る。starttime との組で消える。
+  reaping されない crash owner が zombie として残ると starttime も一致してしまうため、
+  state field も見る必要がある。
+- 判定できないものを「生きている」と扱うと、裁定が退けた永久停止と同じ結果になる。
+  判定できないことは記録し、拒否の根拠にはしない。
+
+**却下した選択肢:**
+- protocol 単位の永久 claim — 床値 campaign を 1 回で永久に止める。回復手段が claim ファイルの
+  手動削除だけになり、それは leaf が「持たない」と明言した経路である。
+- 別ノードの生死を scheduler へ問い合わせる — クラスタ全体で正しく効く唯一の案だが、
+  Python から scheduler を叩く経路の新設を伴い、混ぜると生存プロセス単位の検証が薄まる。
+  独立した次の判断として分ける。
+- 双方拒否を短命 lock で直列化して必ず一方を通す — 「release も期限切れ回収も持たない」という
+  leaf の設計原則に抵触し、scope も広がる。双方拒否は正当な逐次投入では起きず、
+  両者が死ねば次の投入が通るため永久停止しない。
+
+## D465. submitter 所有 receipt を理由付きで authority と認め、hostname は authority に数えない (2026-08-16)
+
+**決定:** floor の submit receipt (`pegasus-floor-submit-receipt/v1`) を、
+scheduler が付ける `PBS_JOBID` と束縛されているという理由付きで authority として明示的に認め、
+`job_script_sha256` と `nonce` の照合を Python 側にも入れる。照合は site 判定・calibration
+検証・subprocess・環境変数の直読みを持たない pure leaf に置き、既存の静的 admission も
+同じ leaf の consumer にする。receipt の不在・空・truncate・schema 不一致は、
+claim・output・WAL のいずれの副作用よりも前に拒否する。
+
+**hostname の一致は authority ではなく drift の検出として計上する。** 拒否条件にも
+「どのノードで測ったか」の証明にも使わない。
+
+receipt を読む gate は `schema_version` を**最初に**検査してから他の field を読む。
+
+**理由:**
+- 同じ照合は shell wrapper の中に既にあるが、wrapper を通らない呼び手 (Python の直呼び) には
+  無かった。効かせたい先はそこである。
+- 恒真ではない、という限界は正確に記録する必要がある。呼び手が用意できない値は
+  実行時の PBS 環境が本物であることに依存しており、照合そのものは環境変数同士の一致である。
+- 非特権のまま UTS namespace を作れば hostname も FQDN も呼び手が変更でき、boot_id は変わらない。
+  live な OS 状態は呼び手の namespace 権限の外にあることを実測しない限り authority に数えない。
+- receipt schema は 2 系統あり、`nonce` という同名 key が片方にしか存在しない。
+  schema を先に見ないと別系統の receipt を誤って受理する。
+
+**却下した選択肢:**
+- hostname だけ入れて残りを別タスクへ送る — authority でないものを authority として台帳に載せる
+  ことになり、直そうとしている恒真ゲートを 1 つ増やす。
+- 既存の静的 admission 関数をそのまま呼ぶ — 循環 import になり、compute site と active
+  calibration を要求するため、login ノードや通常の単体テストから呼ぶと receipt が正しくても落ちる。
+- oracle 経路にも同じ receipt gate を配線する — oracle を起動して floor receipt を運ぶ実 producer が
+  存在せず、配線すれば正当な実行が常に拒否される。producer が実在してから別途判断する。
+
+## D466. 8b oracle の n は indifference-zone で事前登録し、単一値でなく n(δ, α) を出す (2026-08-17)
+
+**決定:** 8b oracle の `n` を決めるための誤選択率は、**真の best より相対 δ を超えて劣る
+configuration を選ぶ確率**と定義する。δ 以内の差しかない configuration を選ぶのは誤りに数えず、
+`tie` verdict も誤りに数えない (tie 率は別欄で報告する)。目標は
+δ ∈ {0.5%, 1%, 2%, 5%} × α ∈ {0.05, 0.10} の**格子として事前登録**し、
+pilot の出力は単一の `n` ではなく**表 `n(δ, α)`** と各点の片側 Wilson 上側信頼限界、
+全 candidate の合否列、非単調 flag とする。`n` の選択は
+「その candidate 以上の全 candidate が合格する最小の n」とし、単調性を仮定しない。
+
+**理由:**
+
+- 実装されている判定は holdout ごとの 6 configuration の median-of-medians +
+  float 完全一致 argmax である。真の順位を入力に取らないので、素朴な「誤選択率」は定義できない。
+- 連続ノイズ下では、全 configuration が同性能でも有限標本の完全一致 argmax はほぼ必ず
+  唯一勝者を返す。「false unique-best を誤りと呼ぶか」で誤選択率が 0 と 1 の間を反転する。
+- δ を宣言すると両方の逆理が同時に消える。拮抗は定義上「誤りでない」となり、
+  誤りは実用上の損失としてだけ数えられる。
+- 先行 wave は「同じ仮定の変奏で必要な n が 7 から 14 まで振れる」と記録した。振れの原因は
+  **宣言されていない仮定**である。格子として宣言すれば、答えが振れるのは宣言済みの
+  (δ, α) の違いによってだけになる。**同じ (δ, α) なら同じ n が出る。** これが
+  「n を統計的に導出可能にする」ということの内容である。
+- 単一の (δ, α) を選ぶ判断は集約規則の再凍結に従属するため、pilot では選ばない。
+
+**却下した選択肢:**
+
+- **全標本 argmax との一致率 (選択不安定率)** — 真値を仮定せず測れるが、
+  これは pilot 内の安定性であって誤選択率ではない。単独では n の根拠にならない。
+- **検出力** — 真の差の大きさを仮定しないと書けない。仮定を置けば
+  「宣言されていない仮定で答えが振れる」元の問題に戻る。
+- **単一 δ の即決** — 実用的同等幅を選ぶ根拠が現時点で無い。
+  根拠なく 1 点を選ぶと、以後の n がその 1 点に暗黙に束縛される。
+
+## D467. pilot の n は下限として宣言し、条件付けを成果物へ刻む (2026-08-17)
+
+**決定:** pilot が出す `n(δ, α)` は**下限**であると出力 schema に持たせ
+(`status: "lower-bound"`)、`all-rows-eligible` / `three-allocations` /
+`exact-pin-and-binaries` の 3 条件を `conditioning` として同じ成果物へ刻む。
+allocation は 3 本へ均等分割し、allocation 差は**有無と向きだけ**を報告する。
+分散成分の推定にも上側信頼限界にも使わない。
+
+**理由:**
+
+- 実 judge は各 row の verify / eligibility 状態も見るが、pilot は throughput しか集めない。
+  したがって得られる誤選択率は「全 row が eligible」条件下の値であり、
+  **certified error rate と呼んではならない。**
+- 同一 allocation 内の連続 round は cold-boot・温度ドリフトを含まない**下限**である
+  (既存の between-run floor driver が同じ注意を明記している)。
+  下限の分散から導いた n は必要量を過小評価する。
+- K=3 では allocation 変動の自由度が 2 しかない。ここから分散成分や上側信頼限界を作ると、
+  精度の見かけだけが上がる。**測れないものを測ったことにしない。**
+- noise 分布が ccbench pin に対して不変という仮定は未検証である。結果を pin と
+  binary SHA に条件付ければ、後続がその前提を検査できる。
+
+**却下した選択肢:**
+
+- **allocation を 1 本にする** — 母集団が単一割当に閉じ、割当間差の有無すら分からない。
+- **allocation を 5 本以上取る** — 分散成分の推定には要るが、pilot の費用範囲を超える。
+  必要になった時点で独立 campaign として起こす。
+- **下限であることを注記だけに留める** — 下流が schema しか読まない場合に失われる。
+  機械可読な状態として持たせる。
+
+## D468. holdout を測る driver は成果物を repo 外へ出し、書込み前に三軸 gate を通す (2026-08-17)
+
+**決定:** holdout workload を実測する driver は、測定 artifact を repo 外の output root へ書き、
+repo へ commit するのは三軸 conjunction を含まない要約だけとする。JSON / Markdown / spool の
+唯一の writer に `holdout_conjunction_hits` を書込み前 gate として通し、汚染時は
+destination も親 directory も作らない。driver source に workload 値を書かず freeze から読み、
+test の汚染 payload は `HOLDOUTS` から実行時に組み立てる。
+
+**理由:**
+
+- `measure_point` は workload dict をそのまま CLI flag へ展開するため、`ScalePoint.run_cmd` は
+  三軸 conjunction を必ず含む。既存の between-run floor driver は run_cmd を JSON と Markdown の
+  両方へ書いており、**同じ形を holdout workload へ流用すると書いた瞬間に repo が汚染される。**
+- 汚染すると floor / oracle の launch certificate の clean scan が**恒久的に**赤になり、
+  本走が起動不能になる。`enumerate_repository_files` は untracked も列挙するので、
+  一時ファイルでも成立する。
+- 除外領域は凍結ディレクトリだけであり、そこは書込み禁止領域でもある。逃げ場は repo 外しかない。
+- 未知性 gate は**literal hygiene** であって計測事実の台帳ではない。両者を混同しないよう、
+  driver は計測の申告を別 field (`measurement_declaration`) として持つ。
+
+**却下した選択肢:**
+
+- **run_cmd を hash 化して保存** — 再現には freeze SHA・cell ID・binary SHA・環境契約で足り、
+  hash を置く必要がない。置けば「復元できるのでは」という誤解だけが残る。
+- **凍結ディレクトリへ出力** — そこは除外領域だが writer が拒否する保護領域でもある。
+- **書き手の注意に委ねる** — 「気をつける」は gate ではない。機械検査にする。

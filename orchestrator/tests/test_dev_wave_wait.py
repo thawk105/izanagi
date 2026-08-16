@@ -9,11 +9,14 @@ import importlib.util
 import itertools
 import json
 import os
+import select
 import signal
 import shutil
 import subprocess
 import sys
+import threading
 import tracemalloc
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -65,6 +68,61 @@ _SUBMODULE_INDEX_FLAGS_ARGV = (
 _DIFF_ARGV = ("git", "diff", "--binary", "--no-ext-diff", "HEAD", "--")
 _SUBMODULE_STATUS_ARGV = ("git", "submodule", "status", "--recursive")
 _SUBMODULE_READY_ARGV = _SUBMODULE_STATUS_ARGV
+_REAL_PTHREAD_SIGMASK = signal.pthread_sigmask
+_SIGNAL_WATCHDOG_SECONDS = 5.0
+
+
+@pytest.fixture(autouse=True)
+def _handled_signals_are_unblocked() -> Iterator[None]:
+    entry_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
+    entry_blocked = entry_mask.intersection(DW._HANDLED_SIGNALS)
+    if entry_blocked:
+        try:
+            pytest.fail(f"handled signals blocked at test entry: {entry_blocked!r}")
+        finally:
+            _REAL_PTHREAD_SIGMASK(signal.SIG_UNBLOCK, DW._HANDLED_SIGNALS)
+
+    try:
+        yield
+    finally:
+        exit_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
+        exit_blocked = exit_mask.intersection(DW._HANDLED_SIGNALS)
+        try:
+            assert not exit_blocked, (
+                f"handled signals leaked by test: {exit_blocked!r}"
+            )
+        finally:
+            if exit_mask != entry_mask:
+                _REAL_PTHREAD_SIGMASK(signal.SIG_SETMASK, entry_mask)
+
+
+def _await_python_handler(event: threading.Event) -> None:
+    assert event.wait(_SIGNAL_WATCHDOG_SECONDS), "Python signal handler did not run"
+
+
+def _await_wakeup_token(read_fd: int, signum: int) -> None:
+    readable, _, _ = select.select(
+        [read_fd], [], [], _SIGNAL_WATCHDOG_SECONDS
+    )
+    assert readable == [read_fd], "C signal handler did not publish a wakeup token"
+    assert os.read(read_fd, 1) == bytes((signum & 0xFF,))
+
+
+class _InterruptAfterHandledSigblock:
+    def __init__(self, signum: int = signal.SIGTERM) -> None:
+        self.signum = signum
+        self.injected = False
+
+    def __call__(self, how: int, signals: object) -> set[signal.Signals]:
+        result = _REAL_PTHREAD_SIGMASK(how, signals)
+        if (
+            not self.injected
+            and how == signal.SIG_BLOCK
+            and frozenset(signals) == frozenset(DW._HANDLED_SIGNALS)
+        ):
+            self.injected = True
+            raise DW._SignalReceived(self.signum)
+        return result
 
 
 def _scheduler_marker(value: object = "serial", *, relay: bool = False) -> bytes:
@@ -87,6 +145,13 @@ def _provenance_argv(
         str(repo / "tools" / "check_ai_provenance.py"),
         "--message-file",
         str(message),
+    )
+
+
+def _history_provenance_argv(repo: Path = _REPO) -> tuple[str, ...]:
+    return (
+        sys.executable,
+        str(repo / "tools" / "check_ai_provenance.py"),
     )
 
 
@@ -383,7 +448,7 @@ def _helper(
     return argv + (("--main-sha", sha) if sha is not None else ())
 
 
-def _preflight(fake: _FakeEffects) -> None:
+def _preflight(fake: _FakeEffects, *, claim_guards: bool = True) -> None:
     fake.expect_run(
         ("git", "rev-parse", "--is-inside-work-tree"),
         DW._CommandResult(0, "true\n"),
@@ -403,6 +468,13 @@ def _preflight(fake: _FakeEffects) -> None:
     fake.expect_run(_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
     fake.expect_run(_SUBMODULE_INDEX_FLAGS_ARGV, DW._CommandResult(0, ""))
     fake.expect_run(_SUBMODULE_READY_ARGV, DW._CommandResult(0, ""))
+    if not claim_guards:
+        return
+    fake.expect_run(
+        ("git", "rev-list", "--count", "HEAD..main"),
+        DW._CommandResult(0, "0\n"),
+    )
+    fake.expect_run(_history_provenance_argv())
 
 
 def _prerun_status(
@@ -430,13 +502,18 @@ def _postrun_integrity(fake: _FakeEffects, head: str = _SHA_A) -> None:
 
 
 def _provenance(fake: _FakeEffects, result: object = None) -> None:
+    fake.expect_run(_history_provenance_argv())
+    _message_provenance(fake, result)
+
+
+def _message_provenance(fake: _FakeEffects, result: object = None) -> None:
     fake.expect_run(
         _provenance_argv(),
         DW._CommandResult(0) if result is None else result,
     )
 
 
-_PREFLIGHT_EVENTS = [
+_BASE_PREFLIGHT_EVENTS = [
     ("run", ("git", "rev-parse", "--is-inside-work-tree"), _REPO, True),
     ("run", ("git", "rev-parse", "--show-toplevel"), _REPO, True),
     ("run", ("git", "symbolic-ref", "--quiet", "--short", "HEAD"), _REPO, True),
@@ -445,6 +522,16 @@ _PREFLIGHT_EVENTS = [
     ("run", _SUBMODULE_INDEX_FLAGS_ARGV, _REPO, True),
     ("run", _SUBMODULE_READY_ARGV, _REPO, True),
 ]
+_PRECLAIM_GUARD_EVENTS = [
+    (
+        "run",
+        ("git", "rev-list", "--count", "HEAD..main"),
+        _REPO,
+        True,
+    ),
+    ("run", _history_provenance_argv(), _REPO, True),
+]
+_PREFLIGHT_EVENTS = [*_BASE_PREFLIGHT_EVENTS, *_PRECLAIM_GUARD_EVENTS]
 _FINGERPRINT_EVENTS = [
     ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
     ("run", _DIFF_ARGV, _REPO, True),
@@ -772,11 +859,12 @@ def _write_test_provenance_checker(repo: Path) -> None:
         "import argparse\n"
         "from pathlib import Path\n"
         "parser=argparse.ArgumentParser()\n"
-        "parser.add_argument('--message-file', type=Path, required=True)\n"
+        "parser.add_argument('--message-file', type=Path)\n"
         "args=parser.parse_args()\n"
         "expected='AI-Agent: product=codex; model=gpt-5; reasoning=high; "
         "role=author'\n"
-        "raise SystemExit(0 if expected in args.message_file.read_text() else 1)\n",
+        "raise SystemExit(0 if args.message_file is None or "
+        "expected in args.message_file.read_text() else 1)\n",
         encoding="utf-8",
     )
 
@@ -934,6 +1022,7 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self,
         *,
         branch: str = f"feature-{_WAVE}",
+        preclaim_behind: int = 0,
         behind: list[int] | None = None,
         message: str = "merge\nAI-Agent: codex\n",
         head_shas: list[str] | None = None,
@@ -942,12 +1031,15 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         command_result: object = None,
         postclaim_rc: int = 0,
         merge_result: object = None,
+        preclaim_history_provenance_result: object = None,
+        history_provenance_result: object = None,
         provenance_result: object = None,
         lease_dir: Path = _LEASE,
         remove_lease_on_release: bool = False,
     ) -> None:
         super().__init__()
         self.branch = branch
+        self.preclaim_behind = preclaim_behind
         self.behind = list([0] if behind is None else behind)
         self.message = message
         self.head_shas = list([] if head_shas is None else head_shas)
@@ -962,6 +1054,16 @@ class _RoutingAcceptanceEffects(_FakeEffects):
         self.postclaim_rc = postclaim_rc
         self.merge_result = (
             DW._CommandResult(0) if merge_result is None else merge_result
+        )
+        self.preclaim_history_provenance_result = (
+            DW._CommandResult(0)
+            if preclaim_history_provenance_result is None
+            else preclaim_history_provenance_result
+        )
+        self.history_provenance_result = (
+            DW._CommandResult(0)
+            if history_provenance_result is None
+            else history_provenance_result
         )
         self.provenance_result = (
             DW._CommandResult(0)
@@ -1005,12 +1107,18 @@ class _RoutingAcceptanceEffects(_FakeEffects):
                 _held_self_payload(main_sha=_SHA_A),
             )
         if actual == ("git", "rev-list", "--count", "HEAD..main"):
+            if self.claims == 0:
+                return DW._CommandResult(0, f"{self.preclaim_behind}\n")
             assert self.behind
             return DW._CommandResult(0, f"{self.behind.pop(0)}\n")
         if actual == ("git", "diff", "--name-only", "HEAD...main"):
             return DW._CommandResult(0, self.changed_paths)
         if actual == ("git", "merge", "--no-ff", "--no-commit", "main"):
             return self.merge_result
+        if actual == _history_provenance_argv():
+            if self.claims == 0:
+                return self.preclaim_history_provenance_result
+            return self.history_provenance_result
         if actual == _provenance_argv():
             return self.provenance_result
         if actual in {
@@ -3607,15 +3715,34 @@ def test_acceptance_receipt_sigmask_detail(
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
 
 
+@pytest.mark.parametrize(
+    "injected",
+    (
+        OSError(errno.EBUSY, "SIGBLOCK-SECRET-SENTINEL"),
+        ValueError("SIGBLOCK-SECRET-SENTINEL"),
+    ),
+    ids=("oserror", "valueerror"),
+)
 def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
+    injected: BaseException,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = _FakeEffects()
     lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+    known_mask = {signal.SIGUSR1}
+    calls: list[tuple[object, object]] = []
 
     def fail_sigblock(how: object, mask: object) -> set[signal.Signals]:
-        del how, mask
-        raise OSError(errno.EBUSY, "SIGBLOCK-SECRET-SENTINEL")
+        recorded_mask = tuple(mask) if how == signal.SIG_BLOCK else mask
+        calls.append((how, recorded_mask))
+        if how == signal.SIG_BLOCK and recorded_mask == ():
+            return set(known_mask)
+        if (
+            how == signal.SIG_BLOCK
+            and frozenset(mask) == frozenset(DW._HANDLED_SIGNALS)
+        ):
+            raise injected
+        return set()
 
     monkeypatch.setattr(signal, "pthread_sigmask", fail_sigblock)
 
@@ -3629,7 +3756,10 @@ def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
 
     expected = {
         "reason": "receipt-publish-sigblock",
-        "observed": {"exception_type": "OSError", "errno": errno.EBUSY},
+        "observed": {
+            "exception_type": type(injected).__name__,
+            "errno": errno.EBUSY if isinstance(injected, OSError) else None,
+        },
     }
     assert failure.value.outcome == DW._Outcome(
         70,
@@ -3637,7 +3767,14 @@ def test_acceptance_receipt_publish_sigblock_detail_restores_ownership(
         detail=json.dumps(expected, separators=(",", ":"), sort_keys=True),
     )
     assert "SIGBLOCK-SECRET-SENTINEL" not in failure.value.outcome.detail
+    assert calls == [
+        (signal.SIG_BLOCK, ()),
+        (signal.SIG_BLOCK, DW._HANDLED_SIGNALS),
+        (signal.SIG_SETMASK, known_mask),
+    ]
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+    assert lifecycle.receipt_published is False
+    assert fake.receipt_published is False
 
 
 def test_acceptance_receipt_publish_rename_builds_detail_after_mask_restore(
@@ -3805,11 +3942,11 @@ def test_acceptance_receipt_rename_control_flow_passthrough(
     fake = _FakeEffects()
     fake.rename_result = injected
     lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
-    masks: list[object] = []
+    masks: list[tuple[object, object]] = []
 
     def record_mask(how: object, mask: object) -> set[signal.Signals]:
-        masks.append(how)
-        del mask
+        recorded_mask = tuple(mask) if how == signal.SIG_BLOCK else mask
+        masks.append((how, recorded_mask))
         return set()
 
     monkeypatch.setattr(signal, "pthread_sigmask", record_mask)
@@ -3823,7 +3960,11 @@ def test_acceptance_receipt_rename_control_flow_passthrough(
         )
 
     assert raised.value is injected
-    assert masks == [signal.SIG_BLOCK, signal.SIG_SETMASK]
+    assert masks == [
+        (signal.SIG_BLOCK, ()),
+        (signal.SIG_BLOCK, DW._HANDLED_SIGNALS),
+        (signal.SIG_SETMASK, set()),
+    ]
     assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
 
 
@@ -4529,14 +4670,16 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
 ) -> None:
     fake = _FakeEffects()
     lifecycle = DW._AcceptanceLifecycle()
+    entry_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
     _queue_clean_acceptance_prefix(fake)
     fake.expect_run(_COMMAND, DW._CommandResult(0), capture=False)
     real_sigmask = DW.signal.pthread_sigmask
 
     def delayed_signal(how: int, signals: object):
+        previous_mask = real_sigmask(how, signals)
         if how == signal.SIG_SETMASK:
             raise DW._SignalReceived(signal.SIGTERM)
-        return real_sigmask(how, signals)
+        return previous_mask
 
     monkeypatch.setattr(DW.signal, "pthread_sigmask", delayed_signal)
 
@@ -4547,6 +4690,7 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
     assert fake.receipt_published is True
     assert lifecycle.ownership is DW._LeaseOwnership.RETAINED
     fake.assert_drained()
+    assert set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ())) == entry_mask
 
 
 @pytest.mark.parametrize(
@@ -4561,7 +4705,7 @@ def test_signal_after_receipt_publish_does_not_reverse_success(
 )
 def test_receipt_path_rejected_before_claim(case: str) -> None:
     fake = _FakeEffects()
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
     if case == "inside-repo":
         receipt = _REPO / "receipt.json"
     elif case == "reserved-temp-name":
@@ -4588,7 +4732,7 @@ def test_receipt_path_rejected_before_claim(case: str) -> None:
 def test_existing_log_path_is_rejected_before_claim() -> None:
     fake = _FakeEffects()
     fake.existing_paths.add(_LOG)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -4603,7 +4747,7 @@ def test_existing_log_path_is_rejected_before_claim() -> None:
 def test_dangling_log_path_is_rejected_before_claim() -> None:
     fake = _FakeEffects()
     fake.symlinks.add(_LOG)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -4634,7 +4778,7 @@ def test_red_checker_paths_are_rejected_before_claim(case: str) -> None:
         fake.symlinks.add(_LOG.parent)
         if case == "dangling-symlink-probe-root":
             fake.directories.remove(_LOG.parent)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -4670,7 +4814,7 @@ def test_dangling_probe_root_is_rejected_before_claim(
         return original_is_dir(path)
 
     monkeypatch.setattr(fake, "is_dir", is_dir)
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake, log_file=log_file)
 
@@ -4694,7 +4838,7 @@ def test_dangling_probe_root_is_rejected_before_claim(
 def test_acceptance_environment_rejected_before_claim(key: str, value: str) -> None:
     fake = _FakeEffects()
     fake.env[key] = value
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
 
     outcome = _run_acceptance(fake)
 
@@ -5356,6 +5500,120 @@ def test_acquired_reloads_main_before_behind_check() -> None:
     fake.assert_drained()
 
 
+def test_preclaim_merge_message_requirement_never_claims_or_creates_waiter(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=13,
+        lease_dir=lease_dir,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome == DW._Outcome(
+        2,
+        "merge-message-preflight",
+        detail="main が 13 commit 進んでいるので `--merge-message-file` が必要",
+    )
+    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
+    assert list(lease_dir.iterdir()) == []
+    assert not any(
+        event[0] == "run" and "claim" in event[1]
+        for event in fake.events
+    )
+    DW._print_outcome(outcome)
+    assert (
+        "main が 13 commit 進んでいるので `--merge-message-file` が必要"
+        in capsys.readouterr().err
+    )
+
+
+def test_preclaim_behind_with_merge_message_reaches_claim() -> None:
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=1,
+        behind=[1, 0],
+        head_shas=[_SHA_C, _SHA_C],
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 0
+    assert fake.claims == 2
+    first_claim = next(
+        index
+        for index, event in enumerate(fake.events)
+        if event[0] == "run" and "claim" in event[1]
+    )
+    preclaim_behind = fake.events.index(
+        (
+            "run",
+            ("git", "rev-list", "--count", "HEAD..main"),
+            _REPO,
+            True,
+        )
+    )
+    preclaim_provenance = fake.events.index(
+        ("run", _history_provenance_argv(), _REPO, True)
+    )
+    assert preclaim_behind < preclaim_provenance < first_claim
+
+
+def test_preclaim_not_behind_reaches_claim() -> None:
+    fake = _RoutingAcceptanceEffects(behind=[0, 0])
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome.rc == 0
+    assert fake.claims == 2
+
+
+def test_postclaim_merge_message_requirement_still_catches_main_race() -> None:
+    fake = _RoutingAcceptanceEffects(
+        preclaim_behind=0,
+        behind=[1],
+    )
+
+    outcome = _run_acceptance(fake)
+
+    assert outcome == DW._Outcome(70, "merge-message")
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
+
+
+def test_preclaim_history_provenance_failure_never_claims_and_returns_reason(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lease_dir = tmp_path / "lease"
+    lease_dir.mkdir()
+    violation = (
+        "21582897ece7: 実装面に Codex role=author がない — "
+        "paths=tools/example.py"
+    )
+    fake = _RoutingAcceptanceEffects(
+        preclaim_history_provenance_result=DW._CommandResult(
+            1,
+            stderr=violation + "\n",
+        ),
+        lease_dir=lease_dir,
+    )
+
+    outcome = _run_acceptance(fake, lease_dir=lease_dir)
+
+    assert outcome == DW._Outcome(
+        70,
+        "preclaim-history-provenance",
+        source_rc=1,
+        detail=violation,
+    )
+    assert (fake.claims, fake.submissions, fake.releases) == (0, 0, 0)
+    assert list(lease_dir.iterdir()) == []
+    DW._print_outcome(outcome)
+    assert violation in capsys.readouterr().err
+
+
 def test_merge_required_without_message_file_releases_before_submission() -> None:
     fake = _FakeEffects()
     _preflight(fake)
@@ -5414,8 +5672,9 @@ def test_owned_path_overlap_blocks_before_merge_and_releases(
     assert outcome.rc == 70
     assert outcome.stage == "owned-path-overlap"
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -5471,8 +5730,9 @@ def test_owned_path_diff_nonzero_fails_closed_and_releases() -> None:
     assert outcome.stage == "owned-path-diff"
     assert outcome.source_rc == 9
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -5518,6 +5778,7 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
         in {
             ("git", "diff", "--name-only", "HEAD...main"),
             ("git", "merge", "--no-ff", "--no-commit", "main"),
+            _history_provenance_argv(),
             _provenance_argv(),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
@@ -5525,8 +5786,10 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
         }
     ]
     assert selected_calls == [
+        _history_provenance_argv(),
         ("git", "diff", "--name-only", "HEAD...main"),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
+        _history_provenance_argv(),
         _provenance_argv(),
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
         ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
@@ -5558,6 +5821,7 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
         and event[1]
         in {
             ("git", "merge", "--no-ff", "--no-commit", "main"),
+            _history_provenance_argv(),
             _provenance_argv(),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
@@ -5565,7 +5829,9 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
         }
     ]
     assert selected_calls == [
+        _history_provenance_argv(),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
+        _history_provenance_argv(),
         _provenance_argv(),
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
         ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
@@ -5579,14 +5845,14 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
 
 def test_missing_message_preflight_does_not_release_foreign_lease() -> None:
     fake = _FakeEffects()
-    _preflight(fake)
+    _preflight(fake, claim_guards=False)
     fake.is_file_queue.append((_MESSAGE, False))
 
     outcome = _run_acceptance(fake, message=_MESSAGE)
 
     assert outcome.rc == 2
     assert outcome.stage == "merge-message-preflight"
-    assert fake.events == [*_PREFLIGHT_EVENTS, ("is_file", _MESSAGE)]
+    assert fake.events == [*_BASE_PREFLIGHT_EVENTS, ("is_file", _MESSAGE)]
     fake.assert_drained()
 
 
@@ -5647,6 +5913,7 @@ _STAGES = (
     "postclaim-rev-parse",
     "behind-count",
     "merge",
+    "merge-history-provenance",
     "merge-message-provenance",
     "commit-dry-run",
     "commit",
@@ -5683,7 +5950,8 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             DW._CommandResult(9) if stage == "behind-count" else DW._CommandResult(0, "1\n"),
         )
     merge_stages = {
-        "merge", "merge-message-provenance", "commit-dry-run", "commit",
+        "merge", "merge-history-provenance", "merge-message-provenance",
+        "commit-dry-run", "commit",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }
@@ -5694,12 +5962,25 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ("git", "merge", "--no-ff", "--no-commit", "main"),
             DW._CommandResult(9) if stage == "merge" else DW._CommandResult(0),
         )
+    history_provenance_stages = {
+        "merge-history-provenance", "merge-message-provenance",
+        "commit-dry-run", "commit", "commit-rev-parse",
+        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
+    }
+    if stage in history_provenance_stages:
+        fake.expect_run(
+            _history_provenance_argv(),
+            DW._CommandResult(9)
+            if stage == "merge-history-provenance"
+            else DW._CommandResult(0),
+        )
     if stage in {
         "merge-message-provenance", "commit-dry-run", "commit",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }:
-        _provenance(
+        _message_provenance(
             fake,
             DW._CommandResult(9)
             if stage == "merge-message-provenance"
@@ -5756,7 +6037,8 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
     if stage == "prerun-clean":
         _prerun_status(fake, returncode=9)
     if stage in {
-        "merge", "merge-message-provenance", "commit-dry-run", "commit",
+        "merge", "merge-history-provenance", "merge-message-provenance",
+        "commit-dry-run", "commit",
     }:
         _abort_clean(fake)
     if stage != "preclaim-rev-parse":
@@ -5766,9 +6048,16 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
 
     assert outcome.rc == 70
     assert outcome.stage == stage
-    expected = [*_PREFLIGHT_EVENTS]
+    expected = [
+        *(
+            _BASE_PREFLIGHT_EVENTS
+            if stage in merge_stages
+            else _PREFLIGHT_EVENTS
+        )
+    ]
     if stage in merge_stages:
         expected.append(("is_file", _MESSAGE))
+        expected.extend(_PRECLAIM_GUARD_EVENTS)
     expected.extend(
         [
             ("monotonic",),
@@ -5797,6 +6086,13 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
                 ("run", ("git", "merge", "--no-ff", "--no-commit", "main"), _REPO, True),
             ]
         )
+    if stage in {
+        "merge-history-provenance", "merge-message-provenance",
+        "commit-dry-run", "commit", "commit-rev-parse",
+        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
+    }:
+        expected.append(("run", _history_provenance_argv(), _REPO, True))
     if stage in {
         "merge-message-provenance", "commit-dry-run", "commit",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
@@ -5841,7 +6137,8 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
     if stage in merge_stages:
         expected.append(("unlink", _VALIDATED_MESSAGE))
     if stage in {
-        "merge", "merge-message-provenance", "commit-dry-run", "commit",
+        "merge", "merge-history-provenance", "merge-message-provenance",
+        "commit-dry-run", "commit",
     }:
         expected.extend(_ABORT_CLEAN_EVENTS)
     if stage != "preclaim-rev-parse":
@@ -6054,8 +6351,9 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
     )
     fake.assert_drained(
         [
-            *_PREFLIGHT_EVENTS,
+            *_BASE_PREFLIGHT_EVENTS,
             ("is_file", _MESSAGE),
+            *_PRECLAIM_GUARD_EVENTS,
             ("monotonic",),
             ("run", ("git", "rev-parse", "main"), _REPO, True),
             ("monotonic",),
@@ -6076,6 +6374,7 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
                 _REPO,
                 True,
             ),
+            ("run", _history_provenance_argv(), _REPO, True),
             ("run", _provenance_argv(), _REPO, True),
             (
                 "run",
@@ -6200,8 +6499,9 @@ def test_malformed_ai_agent_message_fails_provenance_before_commit() -> None:
     )
     fake.assert_drained(
         [
-            *_PREFLIGHT_EVENTS,
+            *_BASE_PREFLIGHT_EVENTS,
             ("is_file", _MESSAGE),
+            *_PRECLAIM_GUARD_EVENTS,
             ("monotonic",),
             ("run", ("git", "rev-parse", "main"), _REPO, True),
             ("monotonic",),
@@ -6222,12 +6522,72 @@ def test_malformed_ai_agent_message_fails_provenance_before_commit() -> None:
                 _REPO,
                 True,
             ),
+            ("run", _history_provenance_argv(), _REPO, True),
             ("run", _provenance_argv(), _REPO, True),
             ("unlink", _VALIDATED_MESSAGE),
             *_ABORT_CLEAN_EVENTS,
             ("run", _helper("release"), _REPO, True),
         ]
     )
+
+
+def test_merge_history_provenance_failure_blocks_submission_releases_and_returns_reason(
+) -> None:
+    violation = (
+        "21582897ece7: 実装面に Codex role=author がない — "
+        "paths=tools/example.py"
+    )
+    fake = _RoutingAcceptanceEffects(
+        behind=[1],
+        history_provenance_result=DW._CommandResult(
+            1,
+            stderr=violation + "\n",
+        ),
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "merge-history-provenance"
+    assert outcome.source_rc == 1
+    assert outcome.detail == violation
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
+    assert (
+        "run",
+        ("git", "merge", "--abort"),
+        _REPO,
+        True,
+    ) in fake.events
+    assert not any(
+        event[0] == "run"
+        and event[1]
+        in {
+            _provenance_argv(),
+            ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+            ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _COMMAND,
+        }
+        for event in fake.events
+    )
+
+
+def test_merge_history_provenance_unexpected_rc_fails_closed() -> None:
+    reason = "provenance audit infrastructure unavailable"
+    fake = _RoutingAcceptanceEffects(
+        behind=[1],
+        history_provenance_result=DW._CommandResult(
+            29,
+            stderr=reason + "\n",
+        ),
+    )
+
+    outcome = _run_acceptance(fake, message=_MESSAGE)
+
+    assert outcome.rc == 70
+    assert outcome.stage == "merge-history-provenance"
+    assert outcome.source_rc == 29
+    assert outcome.detail == reason
+    assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
 
 
 def test_preflight_submodule_dirty_rejects_before_claim() -> None:
@@ -6271,8 +6631,9 @@ def test_merge_failure_aborts_before_release() -> None:
     outcome = _run_acceptance(fake, message=_MESSAGE)
     assert outcome.rc == 70
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -6598,8 +6959,9 @@ def test_merge_abort_nonzero_is_cleanup_failure() -> None:
     assert outcome.rc == 74
     assert outcome.stage == "merge-abort"
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -6974,8 +7336,9 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
     assert outcome.rc == 70
     assert outcome.stage == "commit-message-postcheck"
     assert fake.events == [
-        *_PREFLIGHT_EVENTS,
+        *_BASE_PREFLIGHT_EVENTS,
         ("is_file", _MESSAGE),
+        *_PRECLAIM_GUARD_EVENTS,
         ("monotonic",),
         ("run", ("git", "rev-parse", "main"), _REPO, True),
         ("monotonic",),
@@ -6986,6 +7349,7 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
         ("read_text", _MESSAGE),
         ("write_temp", b"merge\nAI-Agent: codex\n"),
         ("run", ("git", "merge", "--no-ff", "--no-commit", "main"), _REPO, True),
+        ("run", _history_provenance_argv(), _REPO, True),
         ("run", _provenance_argv(), _REPO, True),
         ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)), _REPO, True),
         ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE)), _REPO, True),
@@ -7062,6 +7426,20 @@ def test_signal_after_core_success_uses_restored_real_handler(
     restored_handler_calls: list[int] = []
     restore_calls = 0
     real_restore = DW._restore_signal_handlers
+    real_install = DW._install_signal_handlers
+    internal_handler_completed = threading.Event()
+
+    def install_observed_handler() -> dict[int, object]:
+        previous = real_install()
+        installed_handler = signal.getsignal(signal.SIGTERM)
+        assert callable(installed_handler)
+
+        def observed_handler(signum: int, frame: object) -> None:
+            internal_handler_completed.set()
+            installed_handler(signum, frame)
+
+        signal.signal(signal.SIGTERM, observed_handler)
+        return previous
 
     def inject_signal_then_restore(previous: dict[int, object]) -> None:
         nonlocal restore_calls
@@ -7070,12 +7448,21 @@ def test_signal_after_core_success_uses_restored_real_handler(
             os.kill(os.getpid(), signal.SIGTERM)
         real_restore(previous)
 
+    monkeypatch.setattr(DW, "_install_signal_handlers", install_observed_handler)
     monkeypatch.setattr(DW, "_restore_signal_handlers", inject_signal_then_restore)
     original = signal.getsignal(signal.SIGTERM)
-    signal.signal(
-        signal.SIGTERM,
-        lambda signum, frame: restored_handler_calls.append(signum),
-    )
+    handler_completed = threading.Event()
+
+    def restored_handler(signum: int, frame: object) -> None:
+        del frame
+        restored_handler_calls.append(signum)
+        handler_completed.set()
+
+    read_fd, write_fd = os.pipe()
+    os.set_blocking(read_fd, False)
+    os.set_blocking(write_fd, False)
+    previous_wakeup_fd = signal.set_wakeup_fd(write_fd)
+    signal.signal(signal.SIGTERM, restored_handler)
     try:
         rc = DW.main(
             [
@@ -7087,9 +7474,16 @@ def test_signal_after_core_success_uses_restored_real_handler(
             effects=fake.effects,
             repo=_REPO,
         )
+        _await_python_handler(internal_handler_completed)
+        _await_wakeup_token(read_fd, signal.SIGTERM)
         os.kill(os.getpid(), signal.SIGTERM)
+        _await_python_handler(handler_completed)
+        _await_wakeup_token(read_fd, signal.SIGTERM)
     finally:
         signal.signal(signal.SIGTERM, original)
+        signal.set_wakeup_fd(previous_wakeup_fd)
+        os.close(read_fd)
+        os.close(write_fd)
 
     assert rc == 0
     assert restore_calls == 2
@@ -7129,10 +7523,18 @@ def test_public_main_failure_restores_handler_without_release() -> None:
     )
     restored_handler_calls: list[int] = []
     original = signal.getsignal(signal.SIGTERM)
-    signal.signal(
-        signal.SIGTERM,
-        lambda signum, frame: restored_handler_calls.append(signum),
-    )
+    handler_completed = threading.Event()
+
+    def restored_handler(signum: int, frame: object) -> None:
+        del frame
+        restored_handler_calls.append(signum)
+        handler_completed.set()
+
+    read_fd, write_fd = os.pipe()
+    os.set_blocking(read_fd, False)
+    os.set_blocking(write_fd, False)
+    previous_wakeup_fd = signal.set_wakeup_fd(write_fd)
+    signal.signal(signal.SIGTERM, restored_handler)
     try:
         rc = DW.main(
             [
@@ -7145,8 +7547,13 @@ def test_public_main_failure_restores_handler_without_release() -> None:
             repo=_REPO,
         )
         os.kill(os.getpid(), signal.SIGTERM)
+        _await_python_handler(handler_completed)
+        _await_wakeup_token(read_fd, signal.SIGTERM)
     finally:
         signal.signal(signal.SIGTERM, original)
+        signal.set_wakeup_fd(previous_wakeup_fd)
+        os.close(read_fd)
+        os.close(write_fd)
 
     assert rc == 2
     assert restored_handler_calls == [signal.SIGTERM]
@@ -7162,6 +7569,159 @@ def test_public_main_failure_restores_handler_without_release() -> None:
             ),
         ]
     )
+
+
+@pytest.mark.parametrize(
+    "signum",
+    (signal.SIGTERM, signal.SIGHUP, signal.SIGINT),
+    ids=("sigterm", "sighup", "sigint"),
+)
+def test_public_main_installs_and_restores_each_handler(signum: int) -> None:
+    fake = _FakeEffects()
+    fake.expect_run(
+        ("git", "rev-parse", "--is-inside-work-tree"),
+        DW._CommandResult(0, "true\n"),
+    )
+    fake.expect_run(
+        ("git", "rev-parse", "--show-toplevel"),
+        DW._CommandResult(0, str(_REPO) + "\n"),
+    )
+    fake.expect_run(
+        ("git", "symbolic-ref", "--quiet", "--short", "HEAD"),
+        DW._CommandResult(0, "wrong-branch\n"),
+    )
+    observed_during_main: list[object] = []
+    original_run = fake.run
+
+    def inspecting_run(argv: object, cwd: Path, capture: bool) -> object:
+        observed_during_main.append(signal.getsignal(signum))
+        return original_run(argv, cwd, capture)
+
+    fake.run = inspecting_run  # type: ignore[method-assign]
+
+    def external_handler(received: int, frame: object) -> None:
+        del received, frame
+
+    original_handler = signal.getsignal(signum)
+    signal.signal(signum, external_handler)
+    try:
+        rc = DW.main(
+            [
+                "acceptance", "--wave", _WAVE, "--lease-dir", str(_LEASE),
+                "--receipt-file", str(_RECEIPT),
+                "--log-file", str(_LOG),
+                "--", *_COMMAND,
+            ],
+            effects=fake.effects,
+            repo=_REPO,
+        )
+        assert rc == 2
+        assert observed_during_main
+        assert all(
+            installed is not external_handler
+            for installed in observed_during_main
+        )
+        assert all(
+            installed is not signal.SIG_IGN
+            and installed is not signal.SIG_DFL
+            and callable(installed)
+            for installed in observed_during_main
+        )
+        installed_handler = observed_during_main[0]
+        assert callable(installed_handler)
+        assert signal.getsignal(signum) is external_handler
+        with pytest.raises(DW._SignalReceived) as received:
+            installed_handler(signum, None)
+        assert received.value.signum == signum
+    finally:
+        signal.signal(signum, original_handler)
+
+    fake.assert_drained(
+        [
+            ("run", ("git", "rev-parse", "--is-inside-work-tree"), _REPO, True),
+            ("run", ("git", "rev-parse", "--show-toplevel"), _REPO, True),
+            (
+                "run",
+                ("git", "symbolic-ref", "--quiet", "--short", "HEAD"),
+                _REPO,
+                True,
+            ),
+        ]
+    )
+
+
+def test_restore_sigblock_interruption_preserves_exact_mask(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
+    proxy = _InterruptAfterHandledSigblock()
+    monkeypatch.setattr(DW.signal, "pthread_sigmask", proxy)
+
+    try:
+        with pytest.raises(DW._SignalReceived) as raised:
+            DW._restore_signal_handlers(
+                {signal.SIGTERM: signal.getsignal(signal.SIGTERM)}
+            )
+        assert raised.value.signum == signal.SIGTERM
+        assert proxy.injected is True
+        assert set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ())) == entry_mask
+    finally:
+        _REAL_PTHREAD_SIGMASK(signal.SIG_SETMASK, entry_mask)
+
+
+def test_cleanup_sigblock_interruption_preserves_exact_mask_without_release(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    entry_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
+    proxy = _InterruptAfterHandledSigblock()
+    monkeypatch.setattr(DW.signal, "pthread_sigmask", proxy)
+
+    try:
+        with pytest.raises(DW._SignalReceived) as raised:
+            DW._cleanup_after_claim(
+                fake.effects,
+                _REPO,
+                _LEASE,
+                _WAVE,
+                merge_pending=False,
+                release_lease=True,
+            )
+        assert raised.value.signum == signal.SIGTERM
+        assert proxy.injected is True
+        assert set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ())) == entry_mask
+        assert fake.events == []
+        fake.assert_drained()
+    finally:
+        _REAL_PTHREAD_SIGMASK(signal.SIG_SETMASK, entry_mask)
+
+
+def test_receipt_sigblock_interruption_restores_ownership_and_exact_mask(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeEffects()
+    lifecycle = DW._AcceptanceLifecycle(DW._LeaseOwnership.ACQUIRED)
+    entry_mask = set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ()))
+    proxy = _InterruptAfterHandledSigblock()
+    monkeypatch.setattr(DW.signal, "pthread_sigmask", proxy)
+
+    try:
+        with pytest.raises(DW._SignalReceived) as raised:
+            DW._publish_acceptance_receipt(
+                effects=fake.effects,
+                lifecycle=lifecycle,
+                receipt_file=_RECEIPT,
+                temp_path=_RECEIPT_TEMP,
+            )
+        assert raised.value.signum == signal.SIGTERM
+        assert proxy.injected is True
+        assert set(_REAL_PTHREAD_SIGMASK(signal.SIG_BLOCK, ())) == entry_mask
+        assert lifecycle.ownership is DW._LeaseOwnership.ACQUIRED
+        assert lifecycle.receipt_published is False
+        assert fake.receipt_published is False
+        fake.assert_drained()
+    finally:
+        _REAL_PTHREAD_SIGMASK(signal.SIG_SETMASK, entry_mask)
 
 
 def test_second_signal_is_deferred_until_cleanup_completes(
@@ -7191,6 +7751,7 @@ def test_second_signal_is_deferred_until_cleanup_completes(
 
     assert outcome is None
     assert fake.events == [
+        ("mask", signal.SIG_BLOCK, ()),
         ("mask", signal.SIG_BLOCK, DW._HANDLED_SIGNALS),
         ("run", _helper("release"), _REPO, True),
         ("mask", signal.SIG_SETMASK, previous_mask),
@@ -7224,6 +7785,7 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
         "raise SystemExit(result.returncode)\n",
         encoding="utf-8",
     )
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7246,6 +7808,7 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
         "tracked.txt",
         "tools/wave_land_window.py",
         "tools/wave_land_window_real.py",
+        "tools/check_ai_provenance.py",
     )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-dirty-real")
@@ -7316,14 +7879,23 @@ def test_real_git_production_provenance_rejects_malformed_merge_message(
     git("init", "-b", "main")
     tracked = repo / "tracked.txt"
     tracked.write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools", "orchestrator")
-    git("commit", "-m", "base")
+    docs = repo / "docs"
+    docs.mkdir()
+    (docs / "ai-provenance.md").write_text(
+        "実装面を変更する AI 関与 commit は Codex author を必須\n",
+        encoding="utf-8",
+    )
+    valid_trailer = (
+        "AI-Agent: product=codex; model=gpt-5; reasoning=high; role=author"
+    )
+    git("add", "tracked.txt", "tools", "orchestrator", "docs")
+    git("commit", "-m", f"base\n\n{valid_trailer}")
     base_sha = git("rev-parse", "HEAD").stdout.strip()
     git("checkout", "-b", "worktree-production-provenance")
     git("checkout", "main")
     tracked.write_text("main advanced\n", encoding="utf-8")
     git("add", "tracked.txt")
-    git("commit", "-m", "advance main")
+    git("commit", "-m", f"advance main\n\n{valid_trailer}")
     git("checkout", "worktree-production-provenance")
     message = tmp_path / "malformed-merge-message.txt"
     message.write_text("merge main\n\nAI-Agent: codex\n", encoding="utf-8")
@@ -7675,6 +8247,7 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
     helper = repo / "tools" / "wave_land_window.py"
     shutil.copy2(_LEASE_HELPER, helper)
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7695,7 +8268,13 @@ def test_default_wiring_second_acceptance_reuses_self_held_lease(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-deadlock")
     main_sha = git("rev-parse", "main")
@@ -7771,6 +8350,7 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7787,7 +8367,13 @@ def test_public_main_real_signal_releases_lease(tmp_path: Path) -> None:
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal")
     signal_child = (
@@ -7832,6 +8418,7 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
     (repo / "tools").mkdir()
     shutil.copy2(_LEASE_HELPER, repo / "tools" / "wave_land_window.py")
     shutil.copy2(_TOOL, repo / "tools" / "dev_wave_wait.py")
+    _write_test_provenance_checker(repo)
     git_env = {
         **{key: value for key, value in os.environ.items() if key not in DW._GIT_ENV_KEYS},
         "GIT_AUTHOR_NAME": "Test",
@@ -7848,25 +8435,52 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
 
     git("init", "-b", "main")
     (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
-    git("add", "tracked.txt", "tools/wave_land_window.py", "tools/dev_wave_wait.py")
+    git(
+        "add",
+        "tracked.txt",
+        "tools/wave_land_window.py",
+        "tools/dev_wave_wait.py",
+        "tools/check_ai_provenance.py",
+    )
     git("commit", "-m", "base")
     git("checkout", "-b", "worktree-signal-success")
     runner = tmp_path / "success-boundary.py"
     runner.write_text(
-        "import importlib.util, os, signal, sys\n"
+        "import importlib.util, os, select, signal, sys, threading\n"
         "from pathlib import Path\n"
         "spec=importlib.util.spec_from_file_location('waiter', sys.argv[1])\n"
         "module=importlib.util.module_from_spec(spec)\n"
         "sys.modules[spec.name]=module\n"
         "spec.loader.exec_module(module)\n"
         "received=[]\n"
-        "signal.signal(signal.SIGTERM, lambda n, f: received.append(n))\n"
-        "rc=module.main(['acceptance','--wave','signal-success',"
+        "handled=threading.Event()\n"
+        "def restored(n, f):\n"
+        "    received.append(n)\n"
+        "    handled.set()\n"
+        "read_fd,write_fd=os.pipe()\n"
+        "os.set_blocking(read_fd, False)\n"
+        "os.set_blocking(write_fd, False)\n"
+        "old_wakeup=signal.set_wakeup_fd(write_fd)\n"
+        "signal.signal(signal.SIGTERM, restored)\n"
+        "try:\n"
+        "    rc=module.main(['acceptance','--wave','signal-success',"
         "'--receipt-file',sys.argv[3],'--log-file',sys.argv[4],'--',"
         "sys.executable,'-c',\"print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
         "{\\\"effective_scheduler\\\":\\\"serial\\\"}')\"], repo=Path(sys.argv[2]))\n"
-        "os.kill(os.getpid(), signal.SIGTERM)\n"
-        "print(f'RESTORED={received} RC={rc}')\n"
+        "    os.kill(os.getpid(), signal.SIGTERM)\n"
+        "    if not handled.wait(5.0):\n"
+        "        raise RuntimeError('Python signal handler did not run')\n"
+        "    readable,_,_=select.select([read_fd], [], [], 5.0)\n"
+        "    if readable != [read_fd]:\n"
+        "        raise RuntimeError('C signal handler did not publish a token')\n"
+        "    token=os.read(read_fd, 1)\n"
+        "    if token != bytes((signal.SIGTERM & 0xff,)):\n"
+        "        raise RuntimeError(f'unexpected wakeup token: {token!r}')\n"
+        "    print(f'RESTORED={received} RC={rc} TOKEN={list(token)}')\n"
+        "finally:\n"
+        "    signal.set_wakeup_fd(old_wakeup)\n"
+        "    os.close(read_fd)\n"
+        "    os.close(write_fd)\n"
         "raise SystemExit(rc)\n",
         encoding="utf-8",
     )
@@ -7889,4 +8503,5 @@ def test_public_main_real_signal_after_success_uses_restored_handler(
 
     assert result.returncode == 0, result.stderr
     assert f"RESTORED=[{signal.SIGTERM}] RC=0" in result.stdout
+    assert f"TOKEN=[{signal.SIGTERM & 0xFF}]" in result.stdout
     assert (lease / "acceptance.lease").is_file()

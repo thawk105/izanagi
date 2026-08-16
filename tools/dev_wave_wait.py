@@ -1382,6 +1382,7 @@ def _run_capture(
     *,
     diagnostic_reason: str | None = None,
     diagnostic_observed: dict[str, object] | None = None,
+    capture_failure_output: bool = False,
 ) -> _CommandResult:
     try:
         result = effects.run(tuple(argv), repo, True)
@@ -1400,15 +1401,23 @@ def _run_capture(
         raise _StageFailure(stage, detail=detail) from None
     if result.returncode != 0:
         detail = None
-        if diagnostic_reason is not None:
+        if capture_failure_output:
+            output = result.stderr.strip() or result.stdout.strip()
+            if output:
+                encoded = output.encode("utf-8", "replace")
+                if len(encoded) > _ATTESTATION_DETAIL_MAX_BYTES:
+                    encoded = encoded[: _ATTESTATION_DETAIL_MAX_BYTES - 3] + b"..."
+                detail = encoded.decode("utf-8", "replace")
+        if diagnostic_reason is not None and detail is None:
+            observed = {
+                **({} if diagnostic_observed is None else diagnostic_observed),
+                "failure_kind": "command",
+                "source_rc": result.returncode,
+                "exception_type": None,
+            }
             detail = _attestation_detail(
                 diagnostic_reason,
-                {
-                    **({} if diagnostic_observed is None else diagnostic_observed),
-                    "failure_kind": "command",
-                    "source_rc": result.returncode,
-                    "exception_type": None,
-                },
+                observed,
             )
         raise _StageFailure(
             stage,
@@ -2413,10 +2422,15 @@ def _cleanup_after_claim(
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
     if pthread_sigmask is not None:
         try:
-            previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+            previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
         except (OSError, ValueError):
             previous_mask = None
     try:
+        if previous_mask is not None:
+            try:
+                pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+            except (OSError, ValueError):
+                previous_mask = None
         if merge_pending:
             abort_outcome = _abort_pending_merge(effects, repo)
             if abort_outcome.rc != RC_OK:
@@ -2880,8 +2894,9 @@ def _publish_acceptance_receipt(
                     {"pthread_sigmask_available": False},
                 ),
             )
+        previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
         lifecycle.ownership = _LeaseOwnership.RETAINED
-        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
         failure_reason = "receipt-publish-rename"
         try:
             rename(temp_path, receipt_file)
@@ -2980,6 +2995,31 @@ def run_acceptance(
         acceptance_environment = _acceptance_environment_preflight(effects, repo)
         if merge_message_file is not None and not effects.is_file(merge_message_file):
             raise _StageFailure("merge-message-preflight", RC_USAGE)
+        preclaim_behind = _behind_count(
+            effects,
+            repo,
+            "preclaim-behind-count",
+        )
+        if preclaim_behind > 0 and merge_message_file is None:
+            raise _StageFailure(
+                "merge-message-preflight",
+                RC_USAGE,
+                detail=(
+                    f"main が {preclaim_behind} commit 進んでいるので "
+                    "`--merge-message-file` が必要"
+                ),
+            )
+        _run_capture(
+            effects,
+            (
+                sys.executable,
+                str(repo / "tools" / "check_ai_provenance.py"),
+            ),
+            repo,
+            "preclaim-history-provenance",
+            diagnostic_reason="full-history-provenance",
+            capture_failure_output=True,
+        )
         if not owned_paths:
             print(
                 "acceptance: --owned-path 未指定のため所有実装面 overlap 判定を省略します",
@@ -3010,6 +3050,17 @@ def run_acceptance(
                 ("git", "merge", "--no-ff", "--no-commit", "main"),
                 repo,
                 "merge",
+            )
+            _run_capture(
+                effects,
+                (
+                    sys.executable,
+                    str(repo / "tools" / "check_ai_provenance.py"),
+                ),
+                repo,
+                "merge-history-provenance",
+                diagnostic_reason="full-history-provenance",
+                capture_failure_output=True,
             )
             _run_capture(
                 effects,
@@ -3371,9 +3422,11 @@ def _restore_signal_handlers(previous: dict[int, object]) -> None:
     previous_mask: set[signal.Signals] | None = None
     pthread_sigmask = getattr(signal, "pthread_sigmask", None)
     if pthread_sigmask is not None:
-        previous_mask = pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
+        previous_mask = pthread_sigmask(signal.SIG_BLOCK, ())
     failure: BaseException | None = None
     try:
+        if pthread_sigmask is not None:
+            pthread_sigmask(signal.SIG_BLOCK, _HANDLED_SIGNALS)
         for signum, handler in previous.items():
             try:
                 signal.signal(signum, handler)

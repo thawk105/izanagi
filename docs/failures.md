@@ -6947,6 +6947,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 3 点照合を通らない完了申告は、その場で偽完了として扱う。本 wave では 2 回とも
   この照合が偽完了を捕まえ、張り直した待ち手が正しい完了時刻を拾った。
 
+
+- **再発: 2026-08-16** — 段 6 の敵対レビュー A の待ち手が、`.done` も成果物も無く
+  producer が生存 (経過 3 分 15 秒) の状態で **rc=0・出力空**のまま返った。
+  投入から待ち手を張るまでは 2 秒で、実際の完了はその約 30 分後だった。
+  3 点照合が偽完了を捕まえ、`Monitor` で張り直した待ち手が正しい完了時刻を拾った。
+  同 wave の他 5 本 (plan、consult 2 本、author、fix) の待ち手は正常に返っており、
+  偽完了は 6 本中 1 本である。
 ### F269. 4 親の merge が受入全走を恒久的に赤にした [手順漏れ]
 
 - 事象: 2026-08-13 00:45:56 に main へ入った merge `d1de13ad`「Merge 3 rulings branches into
@@ -7719,6 +7726,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **「docs-only の差分でも `attributable` になる経路」は 2026-08-15 の記録から塞がれていない。**
   本 wave は受入を再走して緑の receipt を取る経路で処理した (checker 自体は直していない —
   非帰属 checker は tested_main 側で走るため、本 wave では効かない)。
+
+- **再発: 2026-08-16 — ただし本エントリの根本原因記述が誤りであることが判明した。**
+  本 wave が真因を特定した。詳細は supersede 行を参照。
+- **supersede: 2026-08-16** — 本エントリの根本原因「実 signal を扱う subprocess テストが 48 worker の並列下で timing 競合する」は誤りである。真因は `orchestrator/tests/test_dev_wave_wait.py` の `test_signal_after_receipt_publish_does_not_reverse_success` 1 件による決定的な worker signal mask 汚染で、同 test の `delayed_signal` が `SIG_BLOCK` では real `pthread_sigmask` を呼んで実際に mask を変えるのに復元側の `SIG_SETMASK` では real syscall を呼ばず例外を送出し、`monkeypatch` が Python 属性しか戻さないため、当該 worker は寿命の終わりまで `_HANDLED_SIGNALS` が blocked のまま残る。負荷は配送遅延の原因ではなく汚染 node の後ろに誰が配られるかを変える媒介にすぎず、赤 node が族内を移動する観測もこれで説明される。恒久対応「変異検査では族を含む file を runner 範囲から外す」も退役し、本 wave の変異走行は `orchestrator/tests/test_dev_wave_wait.py` を runner 範囲へ戻して行った。
 ### F307. conftest の出力を 1 行増やして別機構の末尾契約を壊した [テスト代表性]
 
 - 事象: 実効 scheduler の marker を `pytest_unconfigure` の最後 (failure digest より後) に出した
@@ -8796,3 +8807,187 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/campaign/campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS` に
   載っている path を編集する wave では、焦点走の赤を実装へ帰属する前に
   統合 commit 後の再走で切り分ける。
+
+### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
+
+- 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
+  44〜56 node のうち **43 node が全変異に共通**していた。この共通核は
+  `contract-loader-drift` (disk bytes が記録 commit blob と不一致) であり、変異の意味とは
+  無関係に「ファイルが 1 byte 変わったこと」だけで発火する。核だけを見て
+  「13/13 KILLED だから検出力がある」と読むと、実際には検出できていない変異
+  (このとき 2 件が該当) を検出済みと誤認する。
+- 根本原因: `campaign_lock` の enforcement source closure に入るソースは、campaign identity が
+  disk bytes と HEAD blob の一致を要求する。変異 harness は HEAD を固定したまま disk を書き換える
+  ため、identity を構築する全テストが変異の内容によらず落ちる。`DW-M03` の「過剰決定した fixture」
+  がソース束縛の形で現れたもの。
+- 恒久対応: `docs/dev-wave/mutation.md` `DW-M02` / `DW-M03` の既存義務 (mask を疑い実効 gate へ
+  再照準する / 過剰決定は単独変異の証拠から外す) を、**共通核の集合演算で機械的に適用する** —
+  全変異の `failed_nodes` の交差を核として取り、核を差し引いた delta が空でないことを
+  変異ごとに確認する。delta が空の変異は KILLED と記録しない。核が非空なら worklog に核の
+  件数と原因を明記する。
+- 再発検知: 変異台帳に核と delta を併記する運用。delta=1 の変異は、その 1 node が唯一の
+  killer であることの証拠になる (本 wave では bench の `record_rep_returncodes=True` 分岐と
+  実 trace 起動の argv がこれに該当した)。
+
+### F359. codex 子は `.git` が read-only で `git merge` を起動できない [手順漏れ]
+
+- 事象: 実装面の main 取り込みを Codex `role=author` の子に投げたところ、
+  `git merge --no-ff --no-commit main` が競合を生成する前に
+  `ORIG_HEAD.lock: Read-only file system` で失敗した。子は差分ゼロで正しく報告して降りたが、
+  1 起動分 (約 2.5 分) が無駄になった。
+- 根本原因: codex の sandbox は working tree を書けても Git 管理領域を書けない。
+  既知の「子は dispatch できず repo 外にも書けない」と同族の制約で、merge は Git 管理領域への
+  書き込みを伴う。
+- 恒久対応: `docs/dev-wave/operations.md` `DW-O17` の merge 手順に、**親が
+  `git merge --no-ff --no-commit` を起こして競合マーカーを作り、Codex `role=author` の子は
+  working tree の競合解決だけを行い、`git add` と commit は親が行う**、という分担を書く。
+  これにより「実装面 path が両親と異なれば Codex `role=author` へ」の義務を満たしたまま
+  実行可能になる。
+- 再発検知: 子の prompt に「`git merge` を自分で実行するな。親が実行済みで競合マーカーが
+  作業木にある」と書く運用。書き忘れても子は fail-closed で降りるため、被害は 1 起動分に留まる。
+
+### F360. 探索 primitive の文字列検索が in-process 呼び出しを落とす [テスト代表性] [手順漏れ]
+
+- 事象: 成長比例テストの全件走査で、子は 209 file / 8,018 top-level test を AST で閉包化し
+  候補 230 件を出したが、少なくとも 11 top-level node を落としていた。落ちた node は
+  `check_docs.main()` や `provenance.main()` を**同一プロセス内で**呼ぶ形と、
+  production の enumerator (`load_role_specs(ROOT)` 等) を経由する形である。
+- 根本原因: 探索 primitive を `(?:check_docs|check_ai_provenance)\.py` のような
+  **実行形の文字列**で定義したため、module 属性経由の呼び出しに構造的に当たらない。
+  subprocess 起動と in-process 呼び出しは同じ費用を払うが、検索面が異なる。
+- 恒久対応: 走査の primitive に「実 ROOT を引数に取る production 関数の呼び出し閉包」を
+  独立の軸として含める。文字列検索の hit 数と候補集合の件数を別々に記録し、
+  ゼロは「宣言した primitive と AST 規則の範囲で未検出」と書く。
+  母集合が閉じたとは書かない (D463 と同 wave の記録)。
+- 再発検知: 棚卸し結果に対する敵対レビューで、同型の取りこぼしを 1 件でも file:line で
+  示せるかを検査面に含める。本 wave では親と敵対レンズ 2 本がそれぞれ独立に検出した。
+
+### F361. 呼び出し閉包の一部だけを見て「非比例」と断定した [捏造/幻覚]
+
+- 事象: 親が段 4 の裁定で、`test_check_ai_provenance.py` の実 repo 2 node を
+  「固定された歴史 commit を渡すので成長比例でない」と断定した。実際は
+  `_audit_history` が毎回 `_scope_policy_commit()` / `_implementation_policy_commit()` を呼び、
+  現在の HEAD に対して `git log -S … -- docs/ai-provenance.md` を走らせる。
+  同じ裁定で「copytree 対象 4 部分木は 1 file も増えていない」とも書いたが、
+  自分が同じ文書に載せた表が `tools/task_runs` の 0 → 7 file を示していた。
+- 根本原因: 入力範囲を決める関数 (`_commit_range`) と祖先展開 (`_build_ancestry`) だけを読み、
+  その手前で毎回走る epoch 探索を読まなかった。表と結論文を別々に書き、突き合わせなかった。
+- 恒久対応: 「非比例」と書く前に**呼び出し閉包を終端まで追い**、自分が同じ文書へ載せた
+  実測表と結論文を突き合わせる。断定を弱める材料が自分の表にあるなら結論を書き換える。
+- 再発検知: 敵対レビューのレンズに「親の実測とその一般化」を明示的に含める
+  (`DW-S03` は既に要求している)。本 wave では段 6 のレビュー 2 本が独立に検出した。
+
+### F362. bounded local の予算が page 境界に乗らない走行が全部 rc=16 で止まる [計測汚染] [恒真ゲート]
+
+- 事象: `tools/run_tests.py` のローカル焦点走が `bounded scope の memory.max /
+  memory.oom.group を走行中に attest できない` で `rc=16` になり、テストが 1 件も走らない。
+  2026-08-16 に本 wave で 6 走中 4 走が該当した。rc=16 はテスト結果ですらないため、
+  赤としても緑としても扱えない。
+- 根本原因: `_scope_properties_are_enforced` が cgroup の `memory.max` を予算値と
+  **文字列で厳密比較**する。一方 kernel は `memory.max` を page 境界へ丸めて保持する。
+  予算は「前回ピーク × 1.25」で算出されるため 4096 の倍数にならず、端数が出た走行は
+  **決定的に**失敗する。実測: 予算 4294967296 (`% 4096 == 0`) の 2 走は成功、
+  2913920000 / 1417630720 / 1545958400 (いずれも `% 4096 == 1024`) の 4 走は全滅。
+  保存ピーク 2331136000 × 1.25 = 2913920000 が失敗した予算値と byte 一致した。
+- なぜ気づきにくいか: 予算は**同じ target set の 2 走目以降**にだけ前回ピークから導出される。
+  初回は既定 4 GiB (page 境界) なので通り、「たまに落ちる」ように見える。
+  `docs/dev-wave/mutation.md` の `DW-M07` が既に「local は同一 target set の 2 巡目以降で
+  予算 attest が落ち収集段が rc=16 になる」と書いていたが、**原因は page 境界と特定されていなかった。**
+- 恒久対応: [T-1268] として起票。本 wave は共有ツールを変更せず、
+  **予算キャッシュの無いファイル組み合わせで走らせる**回避で進めた
+  (キャッシュは `/run/user/<uid>/izanagi-admission/peak-tests-partial-<key>.peak`)。
+- 再発検知: `rc=16` の走行で報告された「算出予算」が `% 4096 != 0` であること。
+
+### F363. `Path.glob()` が列挙拒否を空集合へ変え、走査型の防壁を恒真化する [恒真ゲート]
+
+- 事象: (2026-08-16、段 3 敵対相談の指摘を親が実測) claim root を走査して競合を探す防壁の設計案が
+  `Path.glob("*.claim")` を使っていた。Python 3.10.12 の `pathlib.py:459-460` は
+  `except PermissionError: return` であり、**列挙が権限拒否されると例外を上げずに空を返す**。
+  親が実測したところ、`chmod 000` した directory に対し `Path.glob()` は `[]` を返し、
+  `os.scandir()` は `PermissionError` を送出した。設計文が書いていた
+  「列挙失敗は operational error にする」は `glob` では実装できない。
+- 根本原因: 「走査して見つからなかった」と「走査できなかった」を、標準ライブラリの
+  例外抑制によって同一の戻り値へ潰していた。走査型の防壁は、空集合を「競合なし」と読むため、
+  列挙拒否がそのまま通過へ倒れる。実装前に発見したので成果物への影響はない。
+- 恒久対応: D464 が列挙を `os.scandir()` で明示的に包み、
+  `OSError` を error へ翻訳することを要求する。書込み可能な root の初回 `os.scandir` だけへ
+  `PermissionError` を注入する変異 (本 wave の M06) が、この分岐を戻すと赤くなる。
+- 再発検知: 防壁が directory / 集合を走査して「見つからなければ通す」構造を持つとき、
+  その列挙 API が権限・I-O 失敗を例外として伝えるかを実測すること。
+  `Path.glob` / `Path.rglob` / `Path.iterdir` の失敗時の戻り値を仕様で確認せずに使わない。
+
+### F364. 新設テストが production の保証しない「双方拒否」を要求し、変異走行でだけ露見した [事前登録の不完全]
+
+- 事象: (2026-08-16、変異本走) claim の post-scan を検証する新設 node が
+  `assert [result["ok"] for result in results] == [False, False]` と書かれていた。
+  変異走行の 1 巡でこの node が赤くなり、親が stdout を実測すると
+  `assert [False, True] == [False, False]` だった。待ち時間の上限を引き上げても再現した。
+- 根本原因: post-scan の**双方拒否は production が保証する性質ではない**。先に競合を検出した側は
+  error を送出してプロセスが終了するため、後から post-scan する側からはその PID が存在せず、
+  DEAD として正当に通過する。設計判断は「双方拒否は受容する」であって
+  「必ず双方拒否になる」ではなかったのに、テストが後者を固定していた。
+  親が最初にこれを「高負荷フレーク」と誤診し、待ち時間の引き上げを 1 巡余分に費やした。
+- 影響: 実装は正しく、成果物への影響はない。ただしこの node をそのまま land すれば、
+  他の wave の受入全走が確率的に赤くなり、緑 1 回で 1 回分の land 窓を消費する運用を汚染していた。
+- 恒久対応: 判定を production が実際に保証する 2 点 (成功数は高々 1 / 全 owner 死亡後に次が通る)
+  へ訂正した。二重成功の検出力は `sum(...) <= 1` で維持している。
+- 再発検知: 競合する複数 process の**特定の結果の組合せ**を等値で固定するテストを疑う。
+  固定してよいのは不変条件 (上限・下限・到達可能性) であって、レースの決着そのものではない。
+  「赤が高負荷でだけ出る」と見えたら、待ち時間を疑う前に**失敗した assert の実文**を読むこと。
+
+### F365. 受入は land が要求する全史 provenance 監査を回していなかったため、land 不能な tip で lease を消費し 11,000 件超のテストを走らせていた [防壁の破れ] [検査の非対称]
+
+- 事象: [T-1142] の wave で受入全走を **7 回**回した。うち少なくとも 1 回は
+  land が構造的に不可能な tip で、受入は緑・受領証も発行され、**land で初めて赤**になった。
+  親はその rc を並行 wave の混雑と誤分類して land を計 **42 回** (31 + 11) 空転させた。
+  制御面を実測すると 80 秒間まったく動いておらず (18 サンプル、変化 0)、混雑説は反証された。
+  真因は `land2.log` 最終行の
+  `"reason": "provenance full-history audit rejected the wave (rc=1)"` に書いてあった。
+- 根本原因: 受入経路 (`tools/dev_wave_wait.py` の `run_acceptance`) は lease 取得後に
+  `git merge --no-ff --no-commit main` を行い、続けて
+  `check_ai_provenance.py --message-file <msg>` を回していた。**この呼び出しは merge message の
+  trailer 書式しか検査しない。** land が `DW-O25` / D254 で要求する全史監査 (引数なし) は
+  受入経路に 1 度も存在しなかった。**受入の関門と land の関門が非対称**であり、
+  受入を通っても land を通る保証がないという構造だった。
+  違反を生んだのは受入自身が作る main 取り込み merge (`21582897ece7` / `a8c73d747621`) で、
+  実装面 path の 3 方向結合結果が両親のどちらとも異なるため checker が実装面著作と判定した型。
+- 波及の広さ: 受入 lease は 1 wave あたり TTL 2400 秒で、同時刻の待ち行列は 6 wave、
+  待ち時間は 11〜50 分 (別セッション実測)。**land 不能な tip での 1 走行が、
+  後続 5〜6 wave を待たせる。** 全史監査の実所要は 45 秒 (3,727 commit 時点) / 28 秒
+  (3,752 commit 時点) であり、失われる時間との比は 2 桁違う。
+- 族としての一般化 (DW-G03 が要求する独立 2 例): 別 wave t1180-pilot-approval が同日 20:50 JST に
+  **lease 取得後**に rc=70 で落ちた。原因は「main が 13 commit 進んでいて
+  `--merge-message-file` が必須になっていたのに渡していなかった」で、**テストは 1 件も
+  走らないまま lease 窓を 1 つ捨てた**。原因は別だが「lease を取ってから落ちる」点が同型。
+  共通の性質は、**判定材料が main の進み具合に依存するため投入時点の argv だけでは決まらない**こと。
+- 恒久対応: 判定を 2 箇所へ入れた。位置が意味を持つ。
+  - **claim 前** (`preclaim-behind-count` / `preclaim-history-provenance`): main の進み具合に
+    よる `--merge-message-file` の必要性判定と、全史監査。**wave tip の履歴に既に存在する
+    違反**を捕まえる。[T-1142] が実際に踏んだのはこちらで、claim 前に叩けば lease を
+    取らずに落ちていた。
+  - **merge 後・受入投入前** (`merge-history-provenance`): 全史監査。**その merge 自身が
+    新しく作る違反**を捕まえる。claim 後にしか置けない (違反はまだ存在しないため)。
+  どちらも失敗時は受入コマンドを投入せず、`_StageFailure` から既存 cleanup が
+  `git merge --abort` と lease 解放を行う。想定外 rc も fail-closed。
+- claim 前でなければならない理由 (実測): 待ち札は claim の試行時に作られ
+  (`tools/wave_land_window.py` の `_create_ticket` / `_open_ticket`)、**稼働中の process の
+  heartbeat でしか生き延びない** (`_WAITER_TTL_SECONDS = 300`)。claim 後に落ちると、親が
+  直して再投入するまでに 300 秒を超えるので**札は必ず刈られ、先着順位を失う**。
+  実例として t1180 は札を作り直して先着順位を 52 分ぶん失っている
+  (`queued_at_ns` が 20:50:17 → 21:42:28 に書き換わったのを実測)。
+  したがって「claim 後に落として札を残す」という選択肢は実在しない。
+- 検出: `orchestrator/tests/test_dev_wave_wait.py` に、監査が赤のとき
+  **受入コマンドが 1 度も実行されないこと・lease が解放されること・理由本文が返ること**を
+  同時に主張するテストと、claim 前判定について **claim が 0 回・lease dir が空**
+  (待ち札が作られない) ことを主張するテストを置いた。想定外 rc の fail-closed も固定した。
+- 再発検知: 上記の 4 テスト。**「受入が緑だった」を「land できる」と区別する**ため、
+  検査の緑ではなく **`submissions == 0` (受入コマンドが実行されないこと) と
+  `claims == 0` / lease dir が空 (待ち札が作られないこと)** を固定する。
+  受入が実際に走ってしまったかどうかは受領証の有無からは判別できないため、
+  呼び出しの不在そのものを主張する形にした。
+- 副次的教訓 (規律ではなく機械で縛った理由): 親は rc を自前分類して 42 回空転させ、
+  受入全走 7 回のうち少なくとも 1 本を捨てた。ユーザー裁定は
+  「二度とそんな無駄を繰り返すな。すべてのセッションに対して許さない」
+  「すべてのセッションを調教しろ」であり、prompt 規律では 1 セッションしか直らないため
+  受入経路そのものへ関門を入れた。**rc だけでなく理由本文を呼び手へ返す**のも同じ理由で、
+  rc だけ返すと次の呼び手が同じ「rc を自前分類する」ループを書く。
