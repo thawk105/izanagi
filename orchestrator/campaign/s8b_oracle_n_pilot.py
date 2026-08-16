@@ -40,6 +40,10 @@ from .build_admission import (
 from .p2_2 import _assert_single_tenant
 from .s1_direct_comparison import _PREPARE_CELL_CONFIGURATIONS, prepare_cell
 from .s8b_experiment_numbers import APPROVED_EXTIME_S, APPROVED_REPS
+from .s8b_floor_campaign import (
+    _canonical_floor_fetchcontent_base,
+    _prepare_floor_oracle_dependency,
+)
 from .s8b_freeze_io import load_verified_freeze
 from .s8b_holdout_freeze import holdout_conjunction_hits, verify_document
 from .s8b_materialization import prepared_binding, reviewed_source_capability
@@ -642,6 +646,37 @@ def _observe_toolchain(cc: str, cxx: str) -> dict[str, dict[str, str]]:
     return result
 
 
+def _prepare_sort_swo_oracle_environment(
+    *,
+    toolchain_manifest: Mapping[str, object],
+    ccbench_pin: str,
+    repo_root: Path,
+    fetchcontent_base_fn: Callable[..., Path],
+    dependency_fn: Callable[..., object],
+) -> tuple[Path, str]:
+    """Prebuild the pinned SWO dependency and bind it to the observed C++ compiler."""
+    try:
+        cxx_manifest = toolchain_manifest.get("cxx")
+        if not isinstance(cxx_manifest, Mapping):
+            raise ValueError("toolchain manifest に cxx がない")
+        compiler = cxx_manifest.get("realpath")
+        if type(compiler) is not str or not os.path.isabs(compiler):
+            raise ValueError("cxx.realpath が絶対 path でない")
+        fetchcontent_base = fetchcontent_base_fn(None, repo_root=repo_root)
+        dependency = dependency_fn(
+            fetchcontent_base,
+            ccbench_pin=ccbench_pin,
+            expected_toolchain_manifest=toolchain_manifest,
+            repo_root=repo_root,
+        )
+        dependency_root = Path(getattr(dependency, "source_root"))
+        if not dependency_root.is_absolute():
+            raise ValueError("oracle dependency source_root が絶対 path でない")
+    except Exception as exc:
+        raise PilotError(f"sort_best SWO oracle preflight に失敗: {exc}") from exc
+    return dependency_root, compiler
+
+
 def build_binaries(
     inputs: PilotInputs,
     *,
@@ -653,6 +688,8 @@ def build_binaries(
     monotonic_fn: Callable[[], float] = time.monotonic,
     toolchain_fn: Callable[[str, str], Mapping[str, object]] = _observe_toolchain,
     compiler_fn: Callable[[], tuple[str, str]] = buildcache.compilers_for_current_site,
+    oracle_fetchcontent_base_fn: Callable[..., Path] = _canonical_floor_fetchcontent_base,
+    oracle_dependency_fn: Callable[..., object] = _prepare_floor_oracle_dependency,
     evidence_fn: Callable[..., object] = source_digest.resolve_evidence,
     review_fn: Callable[..., object] = reviewed_source_capability,
     admission_fn: Callable[..., object] = derive_build_admission,
@@ -668,6 +705,36 @@ def build_binaries(
         toolchain_manifest = toolchain_fn(cc, cxx)
     except Exception as exc:
         raise PilotError(f"build toolchain preflight に失敗: {exc}") from exc
+    oracle_dependency_root = None
+    oracle_compiler = None
+    if any(cell.get("configuration_id") == "sort_best" for cell in inputs.cells):
+        oracle_dependency_root, oracle_compiler = _prepare_sort_swo_oracle_environment(
+            toolchain_manifest=toolchain_manifest,
+            ccbench_pin=inputs.protocol.ccbench_pin,
+            repo_root=Path(repo_root),
+            fetchcontent_base_fn=oracle_fetchcontent_base_fn,
+            dependency_fn=oracle_dependency_fn,
+        )
+    effective_prepare_fn = prepare_fn
+    if oracle_dependency_root is not None:
+        def pilot_prepare(
+            prepared_cell,
+            prepared_pin,
+            *,
+            cxx,
+            _dependency_root=oracle_dependency_root,
+            _compiler=oracle_compiler,
+        ):
+            return prepare_fn(
+                prepared_cell,
+                prepared_pin,
+                cxx=cxx,
+                oracle_dependency_root=_dependency_root,
+                oracle_compiler=_compiler,
+                oracle_phase_marker=None,
+            )
+
+        effective_prepare_fn = pilot_prepare
     build_context = context_fn(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
     results: dict[str, PilotBinary] = {}
     seen_worktrees: set[str] = set()
@@ -680,7 +747,7 @@ def build_binaries(
             configuration_id=str(cell["configuration_id"]),
             ccbench_pin=inputs.protocol.ccbench_pin,
             cxx=cxx,
-            prepare_fn=prepare_fn,
+            prepare_fn=effective_prepare_fn,
         ) as (identity, prepared):
             elapsed = monotonic_fn() - started
             if not math.isfinite(elapsed) or elapsed < 0.0:

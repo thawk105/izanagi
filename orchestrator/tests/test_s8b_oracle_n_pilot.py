@@ -294,17 +294,37 @@ def test_m7_load_inputs_preserves_held_markers_and_held_status(tmp_path):
     assert {cell["threads"] for cell in inputs.cells} == {SENTINEL_THREADS}
 
 
-def _build_with_fakes(tmp_path: Path):
-    inputs = _inputs()
+def _build_with_fakes(
+    tmp_path: Path,
+    *,
+    inputs=None,
+    oracle_fetchcontent_base_fn=None,
+    oracle_dependency_fn=None,
+):
+    inputs = inputs or _inputs()
     prepare_calls = []
     build_calls = []
 
     @contextlib.contextmanager
-    def prepare_fn(_cell, _pin, *, cxx):
+    def prepare_fn(
+        _cell,
+        _pin,
+        *,
+        cxx,
+        oracle_dependency_root=None,
+        oracle_compiler=None,
+        oracle_phase_marker=None,
+    ):
         index = len(prepare_calls)
         worktree = tmp_path / f"worktree-{index}"
         worktree.mkdir()
-        prepare_calls.append((worktree, cxx))
+        prepare_calls.append({
+            "worktree": worktree,
+            "cxx": cxx,
+            "oracle_dependency_root": oracle_dependency_root,
+            "oracle_compiler": oracle_compiler,
+            "oracle_phase_marker": oracle_phase_marker,
+        })
         yield PreparedCell(
             genome=Genome("silo", {"BACK_OFF": 0}),
             src_token="stock",
@@ -329,6 +349,14 @@ def _build_with_fakes(tmp_path: Path):
     counter = iter(float(value) for value in range(100))
     cache_root = tmp_path / "persistent-cache"
     cache_root.mkdir()
+    if oracle_fetchcontent_base_fn is None:
+        oracle_fetchcontent_base_fn = lambda *_args, **_kwargs: (
+            tmp_path / "fetchcontent"
+        ).resolve()
+    if oracle_dependency_fn is None:
+        oracle_dependency_fn = lambda *_args, **_kwargs: SimpleNamespace(
+            source_root=(tmp_path / "oracle-dependency").resolve(),
+        )
     result = M.build_binaries(
         inputs,
         cache_root=cache_root,
@@ -337,14 +365,79 @@ def _build_with_fakes(tmp_path: Path):
         repo_root=ROOT,
         worktree_roots=(ROOT,),
         monotonic_fn=lambda: next(counter),
-        toolchain_fn=lambda _cc, _cxx: {"sentinel": "toolchain"},
+        toolchain_fn=lambda _cc, _cxx: {
+            "cxx": {"realpath": str((tmp_path / "cxx-sentinel").resolve())},
+        },
         compiler_fn=lambda: ("cc-sentinel", "cxx-sentinel"),
+        oracle_fetchcontent_base_fn=oracle_fetchcontent_base_fn,
+        oracle_dependency_fn=oracle_dependency_fn,
         evidence_fn=lambda *_args, **_kwargs: evidence,
         review_fn=lambda **_kwargs: "review",
         admission_fn=lambda *_args, **_kwargs: "admission",
         context_fn=lambda **_kwargs: "context",
     )
     return inputs, cache_root.resolve(), prepare_calls, build_calls, result
+
+
+def test_sort_best_materialize_receives_oracle_environment(tmp_path):
+    _inputs_value, _cache, prepare_calls, _build_calls, _result = _build_with_fakes(
+        tmp_path
+    )
+    assert prepare_calls
+    assert all(call["oracle_dependency_root"] is not None for call in prepare_calls)
+    assert all(call["oracle_compiler"] is not None for call in prepare_calls)
+    assert {call["oracle_phase_marker"] for call in prepare_calls} == {None}
+
+
+def test_cells_without_sort_best_skip_oracle_environment(tmp_path):
+    inputs = _inputs()
+    without_sort = replace(
+        inputs,
+        cells=tuple(
+            cell for cell in inputs.cells
+            if cell["configuration_id"] != "sort_best"
+        ),
+    )
+    _inputs_value, _cache, prepare_calls, _build_calls, _result = _build_with_fakes(
+        tmp_path,
+        inputs=without_sort,
+        oracle_fetchcontent_base_fn=lambda *_args, **_kwargs: pytest.fail(
+            "sort_best 無しで oracle preflight が呼ばれた"
+        ),
+        oracle_dependency_fn=lambda *_args, **_kwargs: pytest.fail(
+            "sort_best 無しで oracle dependency prebuild が呼ばれた"
+        ),
+    )
+    assert prepare_calls
+    assert {call["oracle_dependency_root"] for call in prepare_calls} == {None}
+    assert {call["oracle_compiler"] for call in prepare_calls} == {None}
+
+
+def test_sort_best_oracle_preflight_failure_stops_before_build(tmp_path):
+    cache_root = tmp_path / "persistent-cache"
+    cache_root.mkdir()
+    calls = []
+
+    def fail_dependency(*_args, **_kwargs):
+        raise RuntimeError("preflight-sentinel")
+
+    with pytest.raises(M.PilotError, match="sort_best SWO oracle preflight"):
+        M.build_binaries(
+            _inputs(),
+            cache_root=cache_root,
+            prepare_fn=lambda *_args, **_kwargs: calls.append("prepare"),
+            build_fn=lambda *_args, **_kwargs: calls.append("build"),
+            repo_root=ROOT,
+            worktree_roots=(ROOT,),
+            compiler_fn=lambda: ("cc", "cxx"),
+            toolchain_fn=lambda _cc, _cxx: {
+                "cxx": {"realpath": str((tmp_path / "cxx").resolve())},
+            },
+            oracle_fetchcontent_base_fn=lambda *_args, **_kwargs: tmp_path.resolve(),
+            oracle_dependency_fn=fail_dependency,
+            context_fn=lambda **_kwargs: "context",
+        )
+    assert calls == []
 
 
 @pytest.mark.parametrize("kind", ["repo", "freeze", "symlink"])
