@@ -194,6 +194,18 @@ EXPECTED_TEST_HOLD_GROUPS = (
             "the action, so cost grows with tracked files."
         ),
     ),
+    (
+        {
+            "test_check_docs.py::test_real_repo_clean",
+            "test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract",
+            "test_check_docs.py::test_normative_exact_section_pins_accept_real_repo",
+        },
+        "docs_bytes",
+        (
+            "Runs the real tools/check_docs.py with no arguments and reads the full "
+            "documentation corpus, so cost grows with docs bytes."
+        ),
+    ),
 )
 _SHARED_FIXTURE_COLLATERAL = (
     "Holding this node also prevents the shared module fixture from starting, "
@@ -297,6 +309,29 @@ EXPECTED_TEST_COLLATERAL_NOTES = {
     ),
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged": (
         "Holding this node also removes fixed-size top-level and nested writer checks and the frozen-output refusal check."
+    ),
+    "test_check_docs.py::test_real_repo_clean": (
+        "Holding this node removes its fixed-size assertions that the real "
+        "checker returns rc=0, reports no violations, and has zero Pegasus "
+        "admission drift findings. The same checker is still run by default by "
+        "land (tools/dev_wave_land.py) and the wave checker "
+        "(tools/dev_waves/checker.py), but its trigger point regresses from "
+        "acceptance to land."
+    ),
+    "test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract": (
+        "Holding this node removes the fixed-size positive check that the "
+        "current dev-wave model pins do not over-reject the real repository. "
+        "The same checker is still run by default by land "
+        "(tools/dev_wave_land.py) and the wave checker "
+        "(tools/dev_waves/checker.py), but its trigger point regresses from "
+        "acceptance to land."
+    ),
+    "test_check_docs.py::test_normative_exact_section_pins_accept_real_repo": (
+        "Holding this node removes the fixed-size positive check that normative "
+        "section pins do not over-reject the real repository. The same checker "
+        "is still run by default by land (tools/dev_wave_land.py) and the wave "
+        "checker (tools/dev_waves/checker.py), but its trigger point regresses "
+        "from acceptance to land."
     ),
 }
 

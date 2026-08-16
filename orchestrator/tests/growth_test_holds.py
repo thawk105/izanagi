@@ -81,6 +81,15 @@ _REPO_STATUS_REASON = (
     "Runs full real-repository git status snapshots before and after the action, "
     "so cost grows with tracked files."
 )
+_CHECK_DOCS_REASON = (
+    "Runs the real tools/check_docs.py with no arguments and reads the full "
+    "documentation corpus, so cost grows with docs bytes."
+)
+_CHECK_DOCS_LAND_COLLATERAL = (
+    "The same checker is still run by default by land (tools/dev_wave_land.py) "
+    "and the wave checker (tools/dev_waves/checker.py), but its trigger point "
+    "regresses from acceptance to land."
+)
 _SHARED_FIXTURE_COLLATERAL = (
     "Holding this node also prevents the shared module fixture from starting, "
     "so its fixed checks for full SHA format, CURRENT_PIN prefix, an independent "
@@ -457,6 +466,42 @@ _HOLD_ROWS = (
             collateral_note=(
                 "Holding this node also removes fixed-size top-level and nested "
                 "writer checks and the frozen-output refusal check."
+            ),
+        ),
+    ),
+    (
+        "test_check_docs.py::test_real_repo_clean",
+        _hold(
+            "docs_bytes",
+            _CHECK_DOCS_REASON,
+            collateral_note=(
+                "Holding this node removes its fixed-size assertions that the real "
+                "checker returns rc=0, reports no violations, and has zero Pegasus "
+                f"admission drift findings. {_CHECK_DOCS_LAND_COLLATERAL}"
+            ),
+        ),
+    ),
+    (
+        "test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract",
+        _hold(
+            "docs_bytes",
+            _CHECK_DOCS_REASON,
+            collateral_note=(
+                "Holding this node removes the fixed-size positive check that the "
+                "current dev-wave model pins do not over-reject the real repository. "
+                f"{_CHECK_DOCS_LAND_COLLATERAL}"
+            ),
+        ),
+    ),
+    (
+        "test_check_docs.py::test_normative_exact_section_pins_accept_real_repo",
+        _hold(
+            "docs_bytes",
+            _CHECK_DOCS_REASON,
+            collateral_note=(
+                "Holding this node removes the fixed-size positive check that "
+                "normative section pins do not over-reject the real repository. "
+                f"{_CHECK_DOCS_LAND_COLLATERAL}"
             ),
         ),
     ),

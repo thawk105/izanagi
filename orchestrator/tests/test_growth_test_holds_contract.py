@@ -36,9 +36,9 @@ from orchestrator.tests.growth_test_holds import (
 from tools import run_tests as RT
 
 
-_EXPECTED_HOLD_COUNT = 56
-_EXPECTED_KEY_SHA256 = "922510c85e7439818e224d64652b0357b3965bae842c4fe72edda33846ee8408"
-_EXPECTED_ROW_CONTRACT_SHA256 = "cfc9ba15bcbad25e3f9d5fc2031f96b76c96ef7f44b7f4a142df0cad9ecba11c"
+_EXPECTED_HOLD_COUNT = 59
+_EXPECTED_KEY_SHA256 = "30e646a80e6dfc7c04ec2e249462789ac7cb10f1afaa6979491a3312d5d6508c"
+_EXPECTED_ROW_CONTRACT_SHA256 = "374d7a990b57e5cd2100be5b74ee31fa285eac2ecb16ed2e11eb25c8bb4bf065"
 _HELD_SERIAL_NODE = (
     "test_s8b_repo_scan_invariant.py::"
     "test_real_repository_scan_matches_known_hits_and_has_positive_control"
@@ -58,6 +58,28 @@ def _fixture_collateral(detail: str) -> str:
 
 
 _EXPECTED_COLLATERAL_NOTES = {
+    "test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract": (
+        "Holding this node removes the fixed-size positive check that the current "
+        "dev-wave model pins do not over-reject the real repository. The same "
+        "checker is still run by default by land (tools/dev_wave_land.py) and the "
+        "wave checker (tools/dev_waves/checker.py), but its trigger point regresses "
+        "from acceptance to land."
+    ),
+    "test_check_docs.py::test_normative_exact_section_pins_accept_real_repo": (
+        "Holding this node removes the fixed-size positive check that normative "
+        "section pins do not over-reject the real repository. The same checker is "
+        "still run by default by land (tools/dev_wave_land.py) and the wave checker "
+        "(tools/dev_waves/checker.py), but its trigger point regresses from "
+        "acceptance to land."
+    ),
+    "test_check_docs.py::test_real_repo_clean": (
+        "Holding this node removes its fixed-size assertions that the real checker "
+        "returns rc=0, reports no violations, and has zero Pegasus admission drift "
+        "findings. The same checker is still run by default by land "
+        "(tools/dev_wave_land.py) and the wave checker "
+        "(tools/dev_waves/checker.py), but its trigger point regresses from "
+        "acceptance to land."
+    ),
     "test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies": (
         "Holding this node also removes fixed-size checks for corpus count 48, "
         "disjoint success/failure sets, and the complete JSON-pair partition."
@@ -589,6 +611,7 @@ def _combined_output(result: subprocess.CompletedProcess[str]) -> str:
 def test_every_held_module_has_exact_top_level_guard_binding():
     assert _held_filenames() == (
         "test_campaign_import_invariant.py",
+        "test_check_docs.py",
         "test_codex_reasoning_ab.py",
         "test_env_attestation.py",
         "test_real_repo_serialization.py",
