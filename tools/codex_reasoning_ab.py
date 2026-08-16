@@ -284,7 +284,8 @@ def _rollout_matches_session(path: Path, target_session_id: str) -> bool:
     owns_target = False
     first_owns_target = False
     declares_target = False
-    for index, row in enumerate(_session_meta_rows(path)):
+    saw_determinable = False
+    for row in _session_meta_rows(path):
         if row.get("type") != "session_meta":
             continue
         payload = row.get("payload")
@@ -292,19 +293,22 @@ def _rollout_matches_session(path: Path, target_session_id: str) -> bool:
             continue
 
         if "id" not in payload:
-            own_session_id = payload.get("session_id")
+            own_candidate = payload.get("session_id")
         else:
-            payload_id = payload.get("id")
-            own_session_id = (
-                payload_id
-                if isinstance(payload_id, str) and payload_id
-                else None
-            )
+            own_candidate = payload.get("id")
+        own_session_id = (
+            own_candidate
+            if isinstance(own_candidate, str) and own_candidate
+            else None
+        )
+        if own_session_id is None:
+            continue
 
         if own_session_id == target_session_id:
             owns_target = True
-            if index == 0:
+            if not saw_determinable:
                 first_owns_target = True
+        saw_determinable = True
         if (
             own_session_id != target_session_id
             and payload.get("session_id") == target_session_id

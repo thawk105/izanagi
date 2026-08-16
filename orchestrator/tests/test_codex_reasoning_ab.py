@@ -2339,6 +2339,7 @@ def test_find_rollout_appended_child_reference_does_not_promote_duplicate(
     (
         pytest.param(None, "null", id="null"),
         pytest.param(0, "zero", id="zero"),
+        pytest.param(False, "false", id="false"),
         pytest.param("", "empty-string", id="empty-string"),
     ),
 )
@@ -2367,6 +2368,151 @@ def test_find_rollout_true_duplicate_parent_identity_remains_rejected(
     parent_content = _identity_session_meta_bytes(parent_id, parent_id)
     _write_rollout(tmp_path / "rollout-0.jsonl", parent_content)
     _write_rollout(tmp_path / "rollout-1.jsonl", parent_content)
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+
+
+@pytest.mark.parametrize("fork_marker", (False, True), ids=("type-a", "type-b"))
+def test_find_rollout_non_dict_leader_uses_first_determinable_identity(
+    tmp_path: Path,
+    fork_marker: bool,
+) -> None:
+    parent_id = "parent-session"
+    candidate_content = (
+        b'{"type":"session_meta","payload":["not-an-object"]}\n'
+        + _identity_session_meta_bytes(parent_id, parent_id)
+        + _identity_session_meta_bytes(
+            "child-session", parent_id, fork_marker=fork_marker
+        )
+    )
+    _write_rollout(tmp_path / "rollout-0.jsonl", candidate_content)
+    _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+
+
+def test_find_rollout_late_descendant_declaration_vetoes_parent_identity(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    child_id = "child-session"
+    parent = _write_rollout(
+        tmp_path / "rollout-0.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+    child = _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(child_id, child_id)
+        + _identity_session_meta_bytes(parent_id, parent_id)
+        + _identity_session_meta_bytes(child_id, parent_id),
+    )
+
+    assert TOOL._find_rollout(tmp_path, parent_id) == parent.resolve()
+    assert TOOL._find_rollout(tmp_path, child_id) == child.resolve()
+
+
+@pytest.mark.parametrize("fork_marker", (False, True), ids=("type-a", "type-b"))
+def test_find_rollout_ineligible_pin_uses_identity_predicate_on_full_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fork_marker: bool,
+) -> None:
+    label = "test-ineligible-identity-predicate"
+    parent_id = "parent-session"
+    child_id = "child-session"
+    parent_content = _identity_session_meta_bytes(parent_id, parent_id)
+    child_content = _identity_session_meta_bytes(
+        child_id, parent_id, fork_marker=fork_marker
+    )
+    if fork_marker:
+        child_content += parent_content
+    parent = _write_rollout(tmp_path / "rollout-0.jsonl", parent_content)
+    child = _write_rollout(tmp_path / "rollout-1.jsonl", child_content)
+    monkeypatch.setitem(TOOL.SESSION_IDS, label, parent_id)
+    monkeypatch.delitem(TOOL.ROLLOUT_SHA256, label, raising=False)
+
+    assert (
+        TOOL._find_rollout(tmp_path, parent_id, pinned_label=label)
+        == parent.resolve()
+    )
+    assert (
+        TOOL._find_rollout(tmp_path, child_id, pinned_label=label)
+        == child.resolve()
+    )
+
+
+def test_find_rollout_undetermined_identity_does_not_promote_duplicate(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    _write_rollout(
+        tmp_path / "rollout-0.jsonl",
+        _identity_session_meta_bytes(None, parent_id)
+        + _identity_session_meta_bytes(parent_id, parent_id),
+    )
+    _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+
+
+def test_find_rollout_empty_payload_leader_does_not_promote_duplicate(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    candidate_content = (
+        b'{"type":"session_meta","payload":{}}\n'
+        + _identity_session_meta_bytes(parent_id, parent_id)
+        + _identity_session_meta_bytes("child-session", parent_id)
+    )
+    _write_rollout(tmp_path / "rollout-0.jsonl", candidate_content)
+    _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
+
+    with pytest.raises(TOOL.ValidationError) as excinfo:
+        TOOL._find_rollout(tmp_path, parent_id)
+    assert excinfo.value.rc == TOOL.RC_SESSION
+    assert str(excinfo.value) == (
+        "session parent-session rollout count is 2, expected 1"
+    )
+
+
+def test_find_rollout_non_string_session_id_leader_does_not_promote_duplicate(
+    tmp_path: Path,
+) -> None:
+    parent_id = "parent-session"
+    candidate_content = (
+        b'{"type":"session_meta","payload":{"session_id":7}}\n'
+        + _identity_session_meta_bytes(parent_id, parent_id)
+        + _identity_session_meta_bytes("child-session", parent_id)
+    )
+    _write_rollout(tmp_path / "rollout-0.jsonl", candidate_content)
+    _write_rollout(
+        tmp_path / "rollout-1.jsonl",
+        _identity_session_meta_bytes(parent_id, parent_id),
+    )
 
     with pytest.raises(TOOL.ValidationError) as excinfo:
         TOOL._find_rollout(tmp_path, parent_id)
