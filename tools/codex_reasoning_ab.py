@@ -804,10 +804,10 @@ def _seal_one_git_closure(repo: Path, expected_ref: str | None) -> None:
     _run(("git", "prune", "--expire=now"), cwd=repo)
 
     git_dir = _git_dir(repo)
-    # A clone can carry a commit-graph whose entries outlive the commits just
-    # pruned above.  All objects/info entries are derived metadata (including
-    # monolithic/split commit-graphs and the dumb-transport packs cache), so
-    # rebuild none of them for this sealed, local-only snapshot.
+    # A transferred object store can carry a commit-graph whose entries outlive
+    # the commits just pruned above.  All objects/info entries are derived
+    # metadata (including monolithic/split commit-graphs and the dumb-transport
+    # packs cache), so rebuild none of them for this sealed, local-only snapshot.
     _remove_git_object_info_caches(git_dir)
     if expected_ref is not None:
         loose_ref = git_dir / expected_ref
@@ -1351,6 +1351,7 @@ def _one_git_closure_reasons(
         "http alternates": git_dir / "objects" / "info" / "http-alternates",
         "grafts": git_dir / "info" / "grafts",
         "packed-refs": git_dir / "packed-refs",
+        "shallow": git_dir / "shallow",
     }
     for closure_label, path in closure_paths.items():
         if path.is_dir():
@@ -1465,17 +1466,16 @@ def _build_snapshot_base(repo: Path, base: Path) -> Path:
     if parent != BASE_COMMIT or parents != [BASE_COMMIT]:
         raise ValidationError("integrated commit parent topology mismatch", RC_SNAPSHOT)
 
-    completed = subprocess.run(
-        ["git", "clone", "--no-hardlinks", "--no-checkout", str(repo), str(base)],
-        capture_output=True,
-        check=False,
-        env=_clean_environment({"HOME": "/nonexistent"}),
+    _run(("git", "init", "--quiet", os.fspath(base)), cwd=repo)
+    pack = _git(
+        repo,
+        "pack-objects",
+        "--revs",
+        "--stdout",
+        input_bytes=(BASE_COMMIT + "\n").encode("ascii"),
     )
-    if completed.returncode != 0:
-        raise ValidationError(
-            f"git clone failed: {completed.stderr.decode('utf-8', 'replace')}",
-            RC_SNAPSHOT,
-        )
+    _git(base, "index-pack", "--stdin", "--fix-thin", input_bytes=pack)
+    _git(base, "update-ref", f"refs/heads/{BRANCH}", BASE_COMMIT)
     try:
         _git(base, "checkout", "-B", BRANCH, BASE_COMMIT)
         _init_submodules_from_local_source(repo, base)
@@ -1484,7 +1484,7 @@ def _build_snapshot_base(repo: Path, base: Path) -> Path:
         _run(("git", "apply", "--whitespace=nowarn", "-"), cwd=base, input_bytes=diff)
         return base
     except Exception:
-        # 作成途中の clone は診断用に残す。再実行時の上書きも禁止する。
+        # 作成途中の snapshot base は診断用に残す。再実行時の上書きも禁止する。
         raise
 
 

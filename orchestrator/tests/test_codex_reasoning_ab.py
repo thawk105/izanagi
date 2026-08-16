@@ -889,6 +889,124 @@ def test_forbidden_commits_are_unreachable_in_both_cases(
         ).decode().splitlines() == [f"refs/heads/{TOOL.BRANCH}"]
 
 
+def test_build_snapshot_base_pack_transfers_unreferenced_base_closure_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    TOOL._run(("git", "init", "--quiet"), cwd=source)
+    tracked = source / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    TOOL._run(("git", "add", tracked.name), cwd=source)
+    TOOL._run(
+        (
+            "git",
+            "-c",
+            "user.name=T989",
+            "-c",
+            "user.email=t989@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "base",
+        ),
+        cwd=source,
+    )
+    base_commit = TOOL._git(source, "rev-parse", "HEAD").decode().strip()
+    tracked.write_text("integrated\n", encoding="utf-8")
+    TOOL._run(("git", "add", tracked.name), cwd=source)
+    TOOL._run(
+        (
+            "git",
+            "-c",
+            "user.name=T989",
+            "-c",
+            "user.email=t989@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "integrated",
+        ),
+        cwd=source,
+    )
+    integrated_commit = TOOL._git(source, "rev-parse", "HEAD").decode().strip()
+    for ref in TOOL._git(
+        source, "for-each-ref", "--format=%(refname)"
+    ).decode().splitlines():
+        TOOL._git(source, "update-ref", "-d", ref)
+    assert TOOL._git(source, "for-each-ref", "--format=%(refname)") == b""
+
+    monkeypatch.setattr(TOOL, "BASE_COMMIT", base_commit)
+    monkeypatch.setattr(TOOL, "INTEGRATED_COMMIT", integrated_commit)
+    monkeypatch.setattr(TOOL, "BRANCH", "snapshot-test")
+    monkeypatch.setattr(TOOL, "TRACKED_PATHS", (tracked.name,))
+    delegated_run = TOOL._run
+    calls: list[tuple[tuple[str, ...], bytes | None]] = []
+
+    def recording_run(argv: tuple[str, ...], **kwargs: Any) -> Any:
+        calls.append((tuple(argv), kwargs.get("input_bytes")))
+        return delegated_run(argv, **kwargs)
+
+    monkeypatch.setattr(TOOL, "_run", recording_run)
+    snapshot = TOOL._build_snapshot_base(source, tmp_path / "snapshot")
+
+    transfer_calls = [
+        call
+        for call in calls
+        if len(call[0]) > 1
+        and call[0][0] == "git"
+        and call[0][1] in {"init", "pack-objects", "index-pack", "update-ref"}
+    ]
+    assert [argv for argv, _ in transfer_calls] == [
+        ("git", "init", "--quiet", os.fspath(snapshot)),
+        ("git", "pack-objects", "--revs", "--stdout"),
+        ("git", "index-pack", "--stdin", "--fix-thin"),
+        ("git", "update-ref", "refs/heads/snapshot-test", base_commit),
+    ]
+    assert transfer_calls[1][1] == (base_commit + "\n").encode("ascii")
+    assert not any(
+        len(argv) > 1 and argv[0] == "git" and argv[1] in {"clone", "fetch"}
+        for argv, _ in calls
+    )
+
+    source_objects = {
+        row.split(maxsplit=1)[0]
+        for row in TOOL._git(source, "rev-list", "--objects", base_commit).splitlines()
+    }
+    snapshot_objects = set(
+        TOOL._git(
+            snapshot,
+            "cat-file",
+            "--batch-all-objects",
+            "--batch-check=%(objectname)",
+        ).splitlines()
+    )
+    assert snapshot_objects == source_objects
+    assert TOOL._run(
+        ("git", "cat-file", "-e", integrated_commit),
+        cwd=snapshot,
+        check=False,
+    ).returncode != 0
+    assert TOOL._git(
+        snapshot, "for-each-ref", "--format=%(refname)"
+    ).decode().splitlines() == ["refs/heads/snapshot-test"]
+    assert TOOL._git(snapshot, "symbolic-ref", "HEAD").decode().strip() == (
+        "refs/heads/snapshot-test"
+    )
+    git_dir = TOOL._git_dir(snapshot)
+    for relative in ("shallow", "FETCH_HEAD", "packed-refs"):
+        assert not TOOL._path_lexists(git_dir / relative)
+    assert TOOL._git(snapshot, "remote") == b""
+    remote_config = TOOL._run(
+        ("git", "config", "--get-regexp", r"^remote\."),
+        cwd=snapshot,
+        check=False,
+    )
+    assert remote_config.returncode == 1
+    assert remote_config.stdout == b""
+
+
 def test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure(
     benchmark_snapshots: dict[str, Any],
 ) -> None:
@@ -942,6 +1060,43 @@ def test_object_info_derived_caches_are_removed_for_root_and_submodule(
         TOOL._remove_git_object_info_caches(git_dir)
         assert object_info.is_dir()
         assert list(object_info.iterdir()) == []
+
+    for repository in (snapshot, submodule):
+        TOOL._git(repository, "commit-graph", "write", "--reachable")
+        graph = TOOL._git_dir(repository) / "objects/info/commit-graph"
+        assert graph.is_file()
+        assert TOOL._run(
+            ("git", "commit-graph", "verify"),
+            cwd=repository,
+            check=False,
+        ).returncode == 0
+
+    TOOL._seal_git_object_closure(snapshot)
+
+    for repository in (snapshot, submodule):
+        object_info = TOOL._git_dir(repository) / "objects/info"
+        assert object_info.is_dir()
+        assert list(object_info.iterdir()) == []
+
+
+def test_git_closure_rejects_shallow_without_overrejecting_clean_snapshot(
+    tmp_path: Path,
+) -> None:
+    snapshot, _, _ = _synthetic_nested_submodule_snapshot(tmp_path)
+    TOOL._seal_git_object_closure(snapshot)
+    expected_refs = [f"refs/heads/{TOOL.BRANCH}"]
+    reasons, _ = TOOL._one_git_closure_reasons(
+        snapshot, snapshot, expected_refs
+    )
+    assert reasons == []
+
+    git_dir = TOOL._git_dir(snapshot)
+    head = TOOL._git(snapshot, "rev-parse", "HEAD").decode().strip()
+    (git_dir / "shallow").write_text(head + "\n", encoding="ascii")
+    reasons, _ = TOOL._one_git_closure_reasons(
+        snapshot, snapshot, expected_refs
+    )
+    assert reasons == [".: shallow closure is not empty"]
 
 
 def _install_stale_commit_graph(repository: Path) -> str:
