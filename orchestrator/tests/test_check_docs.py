@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """tools/check_docs.py の恒真ゲート回帰 (F9) + positive control (machine 非依存)。
 
-pytest でも 素の `python3 orchestrator/tests/test_check_docs.py` でも走る。
+pytest では保留対象を可視に skip する。D335 の恒久保留により、素の
+`python3 orchestrator/tests/test_check_docs.py` 実行には
+`IZANAGI_RUN_GROWTH_HELD_TESTS=explicit-user-command` が要る。
 
 背景 (F9): LIVING_DOCS の手書き列挙対象が改名/削除で不在になると、旧実装は
 `if not doc.exists(): continue` で黙って skip し、その doc への lint が発火せず
@@ -9636,6 +9638,10 @@ def _run():
                 failed += 1
     print(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0
+
+
+from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
+enforce_held_functions(globals(), __file__, plain_runner="manual")
 
 
 if __name__ == "__main__":

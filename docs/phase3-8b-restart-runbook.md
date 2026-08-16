@@ -232,6 +232,9 @@ official mode の guard は変更していない (受理集合は空のまま)�
   2. `tools/pegasus/submit_floor.sh --dry-run` で submission record を確認する
   3. 同 script を明示実行する。投入インタフェースは同 script が正本で、
      `qsub -v VAR=value <script>` 形を自分で発明しない (runbook §8)
+  4. 床値 pilot を実際に走らせるときは `--confirm-irreversible-pilot-holdout` を付けて明示実行する。
+     付けない投入は driver の pilot 承認 gate で拒否される。**承認は一回性 key の不可逆消費を
+     伴う。** 承認は投入引数だけが与える経路で、`tools/pegasus/README.md` の該当項が挙動の正本
 - 背景 job セッションからの投入は F49 (ii) の例外で許されるが、投入直後に有効性検査 3 点
   (計算ノード側 marker の実在 / `qstat` 可視 / 会計痕跡) を必ず行う
 - **成果物を repo へ commit しない。** driver は `out_root = repo_output_root()` で repo の

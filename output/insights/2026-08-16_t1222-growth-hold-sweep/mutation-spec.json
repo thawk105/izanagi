@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-drop-registered-row",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "    (\n        \"test_check_docs.py::test_real_repo_clean\",\n        _hold(\n            \"docs_bytes\",\n            _CHECK_DOCS_REASON,\n            collateral_note=(\n                \"Holding this node removes its fixed-size assertions that the real \"\n                \"checker returns rc=0, reports no violations, and has zero Pegasus \"\n                f\"admission drift findings. {_CHECK_DOCS_LAND_COLLATERAL}\"\n            ),\n        ),\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_count_and_key_digest_are_independently_pinned",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_output_is_sorted_exact_and_marks_correctness_gates",
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-drop-guard-binding-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "enforce_held_functions(globals(), __file__, plain_runner=\"manual\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding",
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_all_registered_nodes_are_call_time_wrapped"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-plain-runner-mismatch",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_check_docs.py",
+          "old": "enforce_held_functions(globals(), __file__, plain_runner=\"manual\")",
+          "new": "enforce_held_functions(globals(), __file__, plain_runner=\"pytest-delegating\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_every_held_module_has_exact_top_level_guard_binding"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-hold-axis-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/growth_test_holds.py",
+          "old": "        \"test_check_docs.py::test_normative_exact_section_pins_accept_real_repo\",\n        _hold(\n            \"docs_bytes\",",
+          "new": "        \"test_check_docs.py::test_normative_exact_section_pins_accept_real_repo\",\n        _hold(\n            \"commits\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_growth_test_holds_contract.py::test_inventory_count_and_key_digest_are_independently_pinned",
+        "orchestrator/tests/test_hold_inventory.py::test_inventory_projects_exact_registered_source_sets",
+        "orchestrator/tests/test_hold_inventory.py::test_main_dispatches_human_and_json"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
