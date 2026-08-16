@@ -2033,6 +2033,14 @@
   恒久対応は F57 既載の失敗 artifact 保存による原因分離のままで、本 wave では変えていない。
   **本 wave で新たに分かったのは、非帰属 checker の `attributable` 分類が、
   隣で走る他 wave の子による資源競合を差分への帰属と取り違えうるということである。**
+
+- **再発: 2026-08-16** — 族が `test_mutation_harness.py` へ広がった。[T-1180] 段 9 の受入 1 回目で
+  `test_sigterm_handler_stops_child_and_restores_active_mutation` が `gw28` で 1 件だけ落ち、
+  SIGTERM 送信前に子が rc=1 で終了して `128 + SIGTERM` を観測できなかった
+  (1 failed / 11866 passed / 92 skipped)。同 file の単独実走は 80 passed で再現せず、
+  wave の差分 (`tools/pegasus/` の 2 script とその契約テスト) は当該 test へ到達しない。
+  既載は `test_codex_worker_launch.py` に集中しており、負荷依存フレークが launcher 族に
+  限らないことを示す初の実測である。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
