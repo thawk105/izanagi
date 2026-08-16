@@ -68,6 +68,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             ADMITTED_GATEWAY,
             "registered generator receipt is required at the buildcache gateway",
         ),
+    "orchestrator.campaign.s8b_oracle_n_pilot.build_binaries":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "exploratory oracle n pilot builds are ineligible for certified selection",
+        ),
     "orchestrator.campaign.t152_write_intent_coverage._build":
         MaterializerRegistration(
             NON_ADMISSIBLE,
