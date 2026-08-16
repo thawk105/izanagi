@@ -54,6 +54,14 @@ base digest を張ると後発が必ず落ちるため、wave 自身の fragment
   別 ID へ切り出す。
   remaining: none
   base: 6bf73a5f2bdb5b05afbb7eb52500da35bab37fbf76dc73408bcc6c94280c9c73
+- [T-1213] 8c runbook が承認上限を実装と逆に記す件は、**起票時の前提が既に成立していない**と
+  実測で確定した。所有の裁定 (可逆な運用判断として AI 側で処理) の履行として現物を読んだところ、
+  runbook は `--max-generations` の承認上限を「現在 `2` である」と正しく書き、上限 1 の結論が
+  失効した旨も併記していた。修正は `00e1ebdf` (8c 事前登録の証拠契約を第 3 世代へ改訂) が
+  済ませている。残る `MAX_APPROVED_GENERATIONS = 1` の記述は D114 実装時点の歴史記録であり、
+  living doc の矛盾ではない。**編集は行わない** — 直す対象が無い。
+  remaining: none
+  base: 3a9df1694b8f5bf09af67fcc64fda4b01ef1999c7df2692460fe845bb607b7ac
 
 ### 更新
 
