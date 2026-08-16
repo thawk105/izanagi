@@ -103,6 +103,12 @@ def _commit_fixture(repo: Path, message: str) -> str:
     return _git(repo, "rev-parse", "HEAD").stdout.strip()
 
 
+def _advance_wave_tip(repo: Path) -> str:
+    _git(repo, "checkout", "-qb", "acceptance-wave")
+    (repo / "tracked.txt").write_text("wave fixture\n", encoding="utf-8")
+    return _commit_fixture(repo, "wave fixture")
+
+
 def _add_initialized_submodule(repo: Path, tmp_path: Path) -> tuple[str, str, Path]:
     path_text = "external/dependency"
     source = tmp_path / "dependency-source"
@@ -504,20 +510,163 @@ def test_attributable_red_stops_even_beside_non_attributable(
         ),
     )
     outcomes = {
-        _NON_ATTRIBUTABLE: 1,
-        _ATTRIBUTABLE_A: 0,
-        _ATTRIBUTABLE_B: 0,
+        _NON_ATTRIBUTABLE: [1],
+        _ATTRIBUTABLE_A: [0, 1],
+        _ATTRIBUTABLE_B: [0, 1],
     }
+
+    def node_runner(_worktree: Path, nodeid: str) -> int:
+        return outcomes[nodeid].pop(0)
+
     assert CAR.main(
         _arguments(log, tested_main, tmp_path / "receipt.json", probe_root),
         repo_root=repo,
-        node_runner=lambda _worktree, nodeid: outcomes[nodeid],
+        node_runner=node_runner,
     ) == 1
     assert capsys.readouterr().out.splitlines() == [
         "status=attributable-red",
         f"attributable={_ATTRIBUTABLE_A}",
         f"attributable={_ATTRIBUTABLE_B}",
     ]
+
+
+def test_main_green_wave_red_is_attributable(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    log = _write_log(tmp_path, _summary_log((("FAILED", _ATTRIBUTABLE_A),)))
+    receipt = tmp_path / "receipt.json"
+    observed_tips: list[str] = []
+
+    def node_runner(worktree: Path, _nodeid: str) -> int:
+        tip = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+        observed_tips.append(tip)
+        return 0 if tip == tested_main else 1
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            receipt,
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=node_runner,
+    ) == 1
+    assert observed_tips == [tested_main, wave_tip]
+    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"] == [
+        {
+            "classification": "attributable",
+            "main_rerun_rc": 0,
+            "nodeid": _ATTRIBUTABLE_A,
+            "rerun_rc": 0,
+            "wave_rerun_rc": 1,
+        }
+    ]
+
+
+def test_main_green_wave_green_is_recorded_as_flake(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    receipt = tmp_path / "receipt.json"
+    observed_tips: list[str] = []
+
+    def node_runner(worktree: Path, _nodeid: str) -> int:
+        observed_tips.append(_git(worktree, "rev-parse", "HEAD").stdout.strip())
+        return 0
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            receipt,
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=node_runner,
+    ) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "status=non-attributable-only"
+    ]
+    assert observed_tips == [tested_main, wave_tip]
+    document = json.loads(receipt.read_text(encoding="utf-8"))
+    assert document["status"] == "non-attributable-only"
+    assert document["nodes"] == [
+        {
+            "classification": "flake",
+            "main_rerun_rc": 0,
+            "nodeid": _NON_ATTRIBUTABLE,
+            "rerun_rc": 0,
+            "wave_rerun_rc": 0,
+        }
+    ]
+
+
+def test_main_red_is_non_attributable_without_wave_rerun(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    receipt = tmp_path / "receipt.json"
+    observed_tips: list[str] = []
+
+    def node_runner(worktree: Path, _nodeid: str) -> int:
+        observed_tips.append(_git(worktree, "rev-parse", "HEAD").stdout.strip())
+        return 1
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            receipt,
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=node_runner,
+    ) == 0
+    assert observed_tips == [tested_main]
+    assert json.loads(receipt.read_text(encoding="utf-8"))["nodes"] == [
+        {
+            "classification": "non-attributable",
+            "nodeid": _NON_ATTRIBUTABLE,
+            "rerun_rc": 1,
+        }
+    ]
+
+
+def test_wave_rerun_rc_outside_zero_or_one_fails_closed(
+    tmp_path: Path,
+    committed_repo: tuple[Path, str, Path],
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+    outcomes = iter((0, 2))
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            tmp_path / "receipt.json",
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=lambda _worktree, _nodeid: next(outcomes),
+    ) == 2
+    assert not (tmp_path / "receipt.json").exists()
 
 
 def test_probe_worktree_head_mismatch_fails_closed(
@@ -580,6 +729,72 @@ def test_probe_worktree_head_change_after_node_fails_closed(
         node_runner=move_probe_head,
     ) == 2
     assert reached
+    assert list(probe_root.iterdir()) == []
+
+
+def test_wave_probe_head_change_after_node_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def move_wave_probe_head(worktree: Path, _nodeid: str) -> int:
+        if _git(worktree, "rev-parse", "HEAD").stdout.strip() == tested_main:
+            return 0
+        _git(
+            worktree,
+            "-c",
+            "user.name=Acceptance Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "move wave probe head",
+        )
+        return 1
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            tmp_path / "receipt.json",
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=move_wave_probe_head,
+    ) == 2
+    assert list(probe_root.iterdir()) == []
+
+
+def test_wave_probe_fingerprint_change_after_node_fails_closed(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    wave_tip = _advance_wave_tip(repo)
+    log = _write_log(tmp_path, _summary_log((("FAILED", _NON_ATTRIBUTABLE),)))
+
+    def contaminate_wave_probe(worktree: Path, _nodeid: str) -> int:
+        if _git(worktree, "rev-parse", "HEAD").stdout.strip() == tested_main:
+            return 0
+        cache = worktree / "__pycache__"
+        cache.mkdir()
+        (cache / "marker.pyc").write_bytes(b"pollution")
+        return 1
+
+    assert CAR.main(
+        _arguments(
+            log,
+            tested_main,
+            tmp_path / "receipt.json",
+            probe_root,
+            wave_tip=wave_tip,
+        ),
+        repo_root=repo,
+        node_runner=contaminate_wave_probe,
+    ) == 2
     assert list(probe_root.iterdir()) == []
 
 
@@ -852,6 +1067,24 @@ def test_wave_tip_must_equal_repo_head(
         repo_root=repo,
         node_runner=_unexpected_runner,
     ) == 2
+
+
+def test_wave_tip_is_required(
+    tmp_path: Path, committed_repo: tuple[Path, str, Path]
+) -> None:
+    repo, tested_main, probe_root = committed_repo
+    log = _write_log(tmp_path, _summary_log(()))
+    receipt = tmp_path / "receipt.json"
+    arguments = _arguments(log, tested_main, receipt, probe_root)
+    wave_tip_index = arguments.index("--wave-tip")
+    del arguments[wave_tip_index : wave_tip_index + 2]
+
+    assert CAR.main(
+        arguments,
+        repo_root=repo,
+        node_runner=_unexpected_runner,
+    ) == 2
+    assert not receipt.exists()
 
 
 def test_dirty_wave_worktree_fails_closed(

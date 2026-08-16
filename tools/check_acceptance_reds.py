@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""受入 log の赤が tested main にも存在するかを単独再走で判定する。"""
+"""受入 log の赤を tested main と wave tip の単独再走で判定する。"""
 from __future__ import annotations
 
 import argparse
@@ -80,6 +80,14 @@ class _CollectionResult(NamedTuple):
 
 
 CollectionRunner = Callable[[Path, str], Sequence[str] | _CollectionResult]
+
+
+class _NodeProbeResult(NamedTuple):
+    selector: str
+    logged_nodeid: str
+    rerun_rc: int
+    submodules: SubmoduleReceipt
+    collection: _CollectionEvidence | None
 
 
 class _DispatchArtifacts(NamedTuple):
@@ -807,11 +815,15 @@ def _probe_fingerprint(
 
 
 def _assert_probe_identity(
-    worktree: Path, tested_main: str, *, command_runner: CommandRunner,
+    worktree: Path,
+    expected_tip: str,
+    *,
+    tip_label: str = "--tested-main",
+    command_runner: CommandRunner,
 ) -> None:
     head = _git(worktree, ["rev-parse", "HEAD"], command_runner=command_runner)
-    if head.returncode != 0 or head.stdout.strip() != tested_main:
-        raise InvalidInput("probe worktree HEAD does not equal --tested-main")
+    if head.returncode != 0 or head.stdout.strip() != expected_tip:
+        raise InvalidInput(f"probe worktree HEAD does not equal {tip_label}")
     fingerprint = _probe_fingerprint(worktree, command_runner=command_runner)
     if fingerprint != hashlib.sha256(b"").hexdigest():
         raise InvalidInput("probe worktree is not clean, including ignored files")
@@ -1181,10 +1193,129 @@ def _initialize_submodules_cache_only(
     return tuple(receipt)
 
 
+def _probe_node(
+    repo: Path,
+    probe_root: Path,
+    tip: str,
+    reference: str,
+    *,
+    tip_label: str,
+    node_runner: NodeRunner,
+    collection_runner: CollectionRunner | None,
+    selector: str | None = None,
+    logged_nodeid: str | None = None,
+    command_runner: CommandRunner,
+) -> _NodeProbeResult:
+    if (selector is None) != (logged_nodeid is None):
+        raise InvalidInput("probe selector and logged nodeid must be provided together")
+    parent = Path(
+        tempfile.mkdtemp(prefix="izanagi-acceptance-reds-", dir=probe_root)
+    )
+    worktree = parent / "worktree"
+    added = False
+    pending: BaseException | None = None
+    result: _NodeProbeResult | None = None
+    try:
+        add = _git(
+            repo,
+            ["worktree", "add", "--detach", str(worktree), tip],
+            command_runner=command_runner,
+        )
+        if add.returncode != 0:
+            raise InvalidInput(f"git worktree add failed with rc={add.returncode}")
+        added = True
+        submodules = _initialize_submodules_cache_only(
+            worktree, command_runner=command_runner
+        )
+        _assert_probe_identity(
+            worktree,
+            tip,
+            tip_label=tip_label,
+            command_runner=command_runner,
+        )
+        collection_evidence: _CollectionEvidence | None = None
+        if collection_runner is not None:
+            path_text = reference.split("::", 1)[0]
+            collection_output = collection_runner(worktree, path_text)
+            if isinstance(collection_output, _CollectionResult):
+                collected = collection_output.nodeids
+                collection_evidence = collection_output.evidence
+            else:
+                collected = tuple(collection_output)
+                collection_evidence = _CollectionEvidence(
+                    path=path_text,
+                    source="injected-runner",
+                    deleted_receipt_path=None,
+                    submission_nonce=None,
+                    request_id=None,
+                    stdout_sha256=None,
+                )
+            selector, logged_nodeid = _selector_from_collection(reference, collected)
+        assert selector is not None and logged_nodeid is not None
+        _assert_probe_identity(
+            worktree,
+            tip,
+            tip_label=tip_label,
+            command_runner=command_runner,
+        )
+        before_fingerprint = _probe_fingerprint(
+            worktree, command_runner=command_runner
+        )
+        rerun_rc = node_runner(worktree, selector)
+        if type(rerun_rc) is not int or rerun_rc not in {0, 1}:
+            raise InvalidInput(
+                "single-node rerun did not produce pytest rc 0 or 1: "
+                f"{logged_nodeid!r} rc={rerun_rc!r}"
+            )
+        _assert_probe_identity(
+            worktree,
+            tip,
+            tip_label=tip_label,
+            command_runner=command_runner,
+        )
+        after_fingerprint = _probe_fingerprint(
+            worktree, command_runner=command_runner
+        )
+        if before_fingerprint != after_fingerprint:
+            raise InvalidInput("probe worktree fingerprint changed during rerun")
+        result = _NodeProbeResult(
+            selector=selector,
+            logged_nodeid=logged_nodeid,
+            rerun_rc=rerun_rc,
+            submodules=submodules,
+            collection=collection_evidence,
+        )
+    except BaseException as exc:
+        pending = exc
+    try:
+        _cleanup_probe(
+            repo,
+            parent,
+            worktree,
+            added=added,
+            command_runner=command_runner,
+        )
+    except BaseException as exc:
+        raise InvalidInput(
+            f"probe worktree cleanup did not complete: {exc}"
+        ) from pending
+    if pending is not None:
+        if isinstance(pending, (KeyboardInterrupt, SystemExit, _TerminationSignal)):
+            raise pending
+        if isinstance(pending, InvalidInput):
+            raise pending
+        raise InvalidInput(
+            f"single-node rerun failed: {type(pending).__name__}: {pending}"
+        ) from pending
+    assert result is not None
+    return result
+
+
 def _probe_nodes(
     repo: Path,
     probe_root: Path,
     tested_main: str,
+    wave_tip: str,
     nodeids: Sequence[str],
     *,
     node_runner: NodeRunner | None,
@@ -1192,130 +1323,83 @@ def _probe_nodes(
     command_runner: CommandRunner,
 ) -> tuple[
     dict[str, int],
+    dict[str, int],
+    tuple[str, ...],
     tuple[str, ...],
     tuple[str, ...],
     SubmoduleReceipt,
     tuple[_CollectionEvidence, ...],
 ]:
-    rerun_rcs: dict[str, int] = {}
-    attributable: list[str] = []
-    selected_runner: NodeRunner
-    if node_runner is None:
-        selected_runner = lambda path, node: _default_node_runner(
+    selected_runner = (
+        (lambda path, node: _default_node_runner(
             path, node, command_runner=command_runner
-        )
-    else:
-        selected_runner = node_runner
-    if collection_runner is None:
-        selected_collection_runner = lambda path, target: _default_collection_runner(
+        ))
+        if node_runner is None
+        else node_runner
+    )
+    selected_collection_runner = (
+        (lambda path, target: _default_collection_runner(
             path, target, command_runner=command_runner
-        )
-    else:
-        selected_collection_runner = collection_runner
+        ))
+        if collection_runner is None
+        else collection_runner
+    )
+    main_rerun_rcs: dict[str, int] = {}
+    wave_rerun_rcs: dict[str, int] = {}
+    attributable: list[str] = []
+    flakes: list[str] = []
     logged_nodeids: list[str] = []
     collection_evidence: list[_CollectionEvidence] = []
     submodule_receipt: SubmoduleReceipt | None = None
     for reference in sorted(nodeids):
-        parent = Path(
-            tempfile.mkdtemp(prefix="izanagi-acceptance-reds-", dir=probe_root)
+        main_probe = _probe_node(
+            repo,
+            probe_root,
+            tested_main,
+            reference,
+            tip_label="--tested-main",
+            node_runner=selected_runner,
+            collection_runner=selected_collection_runner,
+            command_runner=command_runner,
         )
-        worktree = parent / "worktree"
-        added = False
-        pending: BaseException | None = None
-        try:
-            add = _git(
+        logged_nodeid = main_probe.logged_nodeid
+        if logged_nodeid in main_rerun_rcs:
+            raise InvalidInput(
+                f"pytest FAILED/ERROR nodeids contain duplicates: {logged_nodeid!r}"
+            )
+        main_rerun_rcs[logged_nodeid] = main_probe.rerun_rc
+        if submodule_receipt is None:
+            submodule_receipt = main_probe.submodules
+        elif main_probe.submodules != submodule_receipt:
+            raise InvalidInput(
+                "reference submodule initialization state changed between probes"
+            )
+        assert main_probe.collection is not None
+        collection_evidence.append(main_probe.collection)
+        if main_probe.rerun_rc == 0:
+            wave_probe = _probe_node(
                 repo,
-                ["worktree", "add", "--detach", str(worktree), tested_main],
+                probe_root,
+                wave_tip,
+                reference,
+                tip_label="--wave-tip",
+                node_runner=selected_runner,
+                collection_runner=None,
+                selector=main_probe.selector,
+                logged_nodeid=logged_nodeid,
                 command_runner=command_runner,
             )
-            if add.returncode != 0:
-                raise InvalidInput(f"git worktree add failed with rc={add.returncode}")
-            added = True
-            current_submodules = _initialize_submodules_cache_only(
-                worktree, command_runner=command_runner
-            )
-            if submodule_receipt is None:
-                submodule_receipt = current_submodules
-            elif current_submodules != submodule_receipt:
-                raise InvalidInput(
-                    "reference submodule initialization state changed between probes"
-                )
-            _assert_probe_identity(
-                worktree, tested_main, command_runner=command_runner
-            )
-            path_text = reference.split("::", 1)[0]
-            collection_output = selected_collection_runner(worktree, path_text)
-            if isinstance(collection_output, _CollectionResult):
-                collected = collection_output.nodeids
-                collection_evidence.append(collection_output.evidence)
-            else:
-                collected = tuple(collection_output)
-                collection_evidence.append(
-                    _CollectionEvidence(
-                        path=path_text,
-                        source="injected-runner",
-                        deleted_receipt_path=None,
-                        submission_nonce=None,
-                        request_id=None,
-                        stdout_sha256=None,
-                    )
-                )
-            selector, logged_nodeid = _selector_from_collection(reference, collected)
-            if logged_nodeid in rerun_rcs:
-                raise InvalidInput(
-                    f"pytest FAILED/ERROR nodeids contain duplicates: {logged_nodeid!r}"
-                )
-            _assert_probe_identity(
-                worktree, tested_main, command_runner=command_runner
-            )
-            before_fingerprint = _probe_fingerprint(
-                worktree, command_runner=command_runner
-            )
-            rerun_rc = selected_runner(worktree, selector)
-            if type(rerun_rc) is not int or rerun_rc not in {0, 1}:
-                raise InvalidInput(
-                    "single-node rerun did not produce pytest rc 0 or 1: "
-                    f"{logged_nodeid!r} rc={rerun_rc!r}"
-                )
-            rerun_rcs[logged_nodeid] = rerun_rc
-            if rerun_rc == 0:
+            wave_rerun_rcs[logged_nodeid] = wave_probe.rerun_rc
+            if wave_probe.rerun_rc == 1:
                 attributable.append(logged_nodeid)
-            _assert_probe_identity(
-                worktree, tested_main, command_runner=command_runner
-            )
-            after_fingerprint = _probe_fingerprint(
-                worktree, command_runner=command_runner
-            )
-            if before_fingerprint != after_fingerprint:
-                raise InvalidInput("probe worktree fingerprint changed during rerun")
-            logged_nodeids.append(logged_nodeid)
-        except BaseException as exc:
-            pending = exc
-        try:
-            _cleanup_probe(
-                repo,
-                parent,
-                worktree,
-                added=added,
-                command_runner=command_runner,
-            )
-        except BaseException as exc:
-            raise InvalidInput(
-                f"probe worktree cleanup did not complete: {exc}"
-            ) from pending
-        if pending is not None:
-            if isinstance(
-                pending, (KeyboardInterrupt, SystemExit, _TerminationSignal)
-            ):
-                raise pending
-            if isinstance(pending, InvalidInput):
-                raise pending
-            raise InvalidInput(
-                f"single-node rerun failed: {type(pending).__name__}: {pending}"
-            ) from pending
+            else:
+                flakes.append(logged_nodeid)
+        logged_nodeids.append(logged_nodeid)
     return (
-        rerun_rcs,
+        main_rerun_rcs,
+        wave_rerun_rcs,
         tuple(sorted(attributable)),
+        tuple(sorted(flakes)),
         tuple(sorted(logged_nodeids)),
         submodule_receipt or (),
         tuple(collection_evidence),
@@ -1440,16 +1524,27 @@ def check_acceptance_reds(
         raise InvalidInput("--probe-root must be outside every registered worktree")
     raw, log_sha256 = _read_log(log_path)
     references = parse_pytest_log(raw)
-    rerun_rcs: dict[str, int] = {}
+    main_rerun_rcs: dict[str, int] = {}
+    wave_rerun_rcs: dict[str, int] = {}
     attributable: tuple[str, ...] = ()
+    flakes: tuple[str, ...] = ()
     nodeids: tuple[str, ...] = ()
     submodules: SubmoduleReceipt = ()
     collections: tuple[_CollectionEvidence, ...] = ()
     if references:
-        rerun_rcs, attributable, nodeids, submodules, collections = _probe_nodes(
+        (
+            main_rerun_rcs,
+            wave_rerun_rcs,
+            attributable,
+            flakes,
+            nodeids,
+            submodules,
+            collections,
+        ) = _probe_nodes(
             repo,
             probe,
             tested_main,
+            wave_tip,
             references,
             node_runner=node_runner,
             collection_runner=collection_runner,
@@ -1463,16 +1558,29 @@ def check_acceptance_reds(
         rc, status = 1, "attributable-red"
     else:
         rc, status = 0, "non-attributable-only"
-    nodes = [
-        {
-            "classification": (
-                "attributable" if rerun_rcs[nodeid] == 0 else "non-attributable"
-            ),
-            "nodeid": nodeid,
-            "rerun_rc": rerun_rcs[nodeid],
-        }
-        for nodeid in sorted(nodeids)
-    ]
+    flake_set = set(flakes)
+    nodes = []
+    for nodeid in sorted(nodeids):
+        main_rc = main_rerun_rcs[nodeid]
+        if main_rc == 1:
+            nodes.append(
+                {
+                    "classification": "non-attributable",
+                    "nodeid": nodeid,
+                    "rerun_rc": main_rc,
+                }
+            )
+            continue
+        wave_rc = wave_rerun_rcs[nodeid]
+        nodes.append(
+            {
+                "classification": "flake" if nodeid in flake_set else "attributable",
+                "main_rerun_rc": main_rc,
+                "nodeid": nodeid,
+                "rerun_rc": main_rc,
+                "wave_rerun_rc": wave_rc,
+            }
+        )
     _write_receipt(
         receipt_path,
         {
@@ -1502,7 +1610,10 @@ def check_acceptance_reds(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="受入 log の赤を tested main で単独再走し、差分への帰属を判定する。"
+        description=(
+            "受入 log の赤を tested main と wave tip で単独再走し、"
+            "差分への帰属を判定する。"
+        )
     )
     parser.add_argument("--log", required=True)
     parser.add_argument("--tested-main", required=True)
