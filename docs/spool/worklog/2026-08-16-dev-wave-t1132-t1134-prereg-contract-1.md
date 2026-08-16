@@ -63,26 +63,36 @@ cgroup を attest できず基盤失敗した (F155 の既知事象、本 wave �
 
 ### 更新
 
-- [T-1132] **P1・設計確定・実装は次 wave**: 8c 事前登録の証拠契約が 12 条件すべてを
-  機械検査対象外と記しており、実装済みの条件別評価器 6 本が 1 本も呼ばれない。
-  改訂形は {{D:s8c-prereg-contract-revision}} 決定 (1) で確定した — 評価器を持つ
-  6 条件だけ `machine_checkable` を反転し、**終端と充足可能集合は変えない**。
-  本改訂の実利は受理側ではなく、恒真だった負の対照 6 件が発火することにある
+- [T-1132] **P1・裁定済み (2026-08-16 /rulings 全件、直す) → 設計確定・実装は次 wave**:
+  事前登録の証拠契約が 12 条件すべてを機械検査対象外と記し、実装済みの条件別評価器 6 本が
+  1 本も呼ばれない件を直す。**「検査すると謳って発火しない保証」の型そのもので規律 3 の
+  直撃点**であることが採用根拠。発効経路で最も手前の閂。
+  改訂形は {{D:s8c-prereg-contract-revision}} 決定 (1) で確定した — 評価器を持つ 6 条件だけ
+  `machine_checkable` を反転し、**終端と充足可能集合は変えない**。本改訂の実利は受理側ではなく、
+  同じ契約表示によって恒真化していた負の対照 6 件が発火することにある
   ({{F:vacuous-negative-controls-under-disabled-gate}})。
-  実装は、本 wave が land する決定を裁定参照にできる次 wave が行う。
-  base: feb17c3d080cf7a95c4473bdfa4606eae19ef3490fdc967fd3817deed1eadd97
-- [T-1133] **P1・設計確定・実装は次 wave**: 条件 11 の証拠契約が、作らないと確定した
-  2 件の方針成果物を必須としている。択 (a) の実装形は
-  {{D:s8c-prereg-contract-revision}} 決定 (2)(3) で確定した — 承認上限定数・3 入口の
-  予算 validator・閉じた第二層射影へ差し替え、失われる世代下限は起動形の責務のまま残す。
-  差し替え後、条件 11 は未充足から評価不能へ移り受理集合は広がらない。
-  base: 3932e316d21e7e0a586c615df4f583bb302dedd2f47dabc85c87e4ffdcfaf71d
-- [T-1134] **P1・設計確定・実装は次 wave**: 条件 3 / 8 が発効候補 commit の tree に入る
-  manifest にその commit 自身の識別子を要求し、通常の commit 作成手順で構成できない。
-  択 (a) の実装形は {{D:s8c-prereg-contract-revision}} 決定 (4) で確定した — manifest は
-  自己識別子も自身の digest も持たず、直子の発効 commit が binding record だけを導入し、
-  祖先代用の禁止は親集合の完全一致で維持する。consumer 配線は行わない。
-  base: 12e0c0036eae08bf4cbe72039ef5c5d7aff4b4486a602405d518b76697075a6b
+  **同一 wave での一括改訂は D96 手続の採番順序に阻まれた** ({{F:freeze-ruling-land-order}})。
+  実装は、本 wave が land する決定を裁定参照にできる次 wave が
+  {{T:s8c-contract-revision-implementation}} として行う。
+  base: 0ebe0c8e0510fc66eef124b9d1e73edfded1d519d9ea8c84f54e251e37dd6cd5
+- [T-1133] **P1・裁定済み (2026-08-16 /rulings 全件、択 (a)) → 設計確定・実装は次 wave**:
+  条件 11 の証拠契約を、既存の世代上限・3 入口 validator・閉じた射影・独立 negative control を
+  証拠とする形へ改める。裁定 (7) は成果物を作らないことを定めたのであって、条件 11 を永久に
+  未充足にすることを定めたとは読めない。
+  実装形は {{D:s8c-prereg-contract-revision}} 決定 (2)(3) で確定した。ただし実測で、
+  **これらは独立 4 機構ではなく実質 2 系統であり、承認上限は上限であって世代下限ではない**
+  ことが判明した (予算 validator は 1 以上を受理し、起動側の既定値は 1)。削除する標本設計
+  成果物が持っていた下限は代替されないが、事前登録文書は exact G=2 を起動形の責務として
+  既に規範化しているため差し替え自体は文書と整合する。残余は
+  {{T:s8c-exact-generation-consumer}} へ分離した。
+  base: 9fbfa52432e4da3f350cab05c2b20c1ae9467a47653079db181f544811a962be
+- [T-1134] **P1・裁定済み (2026-08-16 /rulings 全件、択 (a)) → 設計確定・実装は次 wave**:
+  条件 3 / 8 を、内容 commit と発効 commit を分ける二段束縛へ変える。manifest の bytes が
+  識別子の入力である以上、自己識別子を内包する構成は原理的に不可能である。
+  実装形は {{D:s8c-prereg-contract-revision}} 決定 (4) で確定した — manifest は自己識別子も
+  自身の digest も持たず、直子の発効 commit が binding record だけを導入し、祖先代用の禁止は
+  親集合の完全一致で維持する。consumer 配線は {{T:s8c-prereg-binding-consumer-wiring}} へ分離した。
+  base: 28e75e4f39a1244133ae7c996cd97c8ffa2a1bde836945c3d2927d2335eb0d5e
 
 ### 新規
 
