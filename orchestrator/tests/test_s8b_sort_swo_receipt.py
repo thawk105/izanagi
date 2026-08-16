@@ -137,3 +137,7 @@ def test_guarantee_boundary_is_documented_on_module_and_both_public_functions():
         doc = inspect.getdoc(target) or ""
         assert "oracle が実際に走ったことの証明ではない" in doc
         assert "private" in doc and "commitment" in doc
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__]))
