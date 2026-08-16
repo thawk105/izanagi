@@ -139,6 +139,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     `env_contract` と `dependency_prefix` は非既定時だけ素通しして既定 caller の
     evaluate 呼出し形を保つ。`build_context` の安定 policy を campaign identity へ束縛し、
     source ごとの capability resolver は evidence 解決後の pipeline へ渡す。"""
+    if campaign_namespace == "official" and perf_preflight_fn is not None:
+        raise ValueError(
+            "official mode への非 default seam 注入を拒否する: "
+            "['perf_preflight_fn']"
+        )
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
     marker_present = "trigger_gate_binding_schema" in cfg.search_config

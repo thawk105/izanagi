@@ -7789,6 +7789,57 @@ def _run_exploration_with_perf_preflight(mode):
     return summary, bench_calls, layout, producer_calls
 
 
+def test_official_rejects_perf_preflight_seam_while_exploration_accepts_it():
+    from orchestrator.campaign import loop as L
+
+    parent = _tmpdir("izanagi_loop_perf_seam_namespace_")
+    official_root = os.path.join(parent, "official-must-not-exist")
+    cfg = CampaignConfig(
+        spec_slug="t", search_tag="enum", spec_content="perf-seam-namespace",
+        ccbench_commit="deadbeef",
+    )
+    candidate = Genome("silo", {"BACK_OFF": 1})
+    producer_calls = []
+    producer = _perf_preflight_producer("unavailable", producer_calls)
+    common = (
+        cfg, [candidate], PerfConfig(records=1000, threads=2),
+        _AUTH_CONTRACT.env_tag, _AUTH_CONTRACT.clocks_per_us,
+    )
+
+    with pytest.raises(
+            ValueError,
+            match=r"official mode への非 default seam 注入を拒否する: "
+                  r"\['perf_preflight_fn'\]",
+    ):
+        L.run_campaign(
+            *common, numactl=list(_AUTH_CONTRACT.numactl),
+            authorization_contract=_AUTHORIZATION,
+            output_root=official_root, log=lambda *_args: None,
+            build_context=_BUILD_CONTEXT, campaign_namespace="official",
+            perf_preflight_fn=producer,
+        )
+    assert producer_calls == []
+    assert not os.path.exists(official_root)
+
+    exploration_root = os.path.join(parent, "exploration")
+    saved_sd = L.source_digest
+    L.source_digest = _sd_mock("stock")
+    try:
+        with _mock_pipeline(certified=True):
+            summary = L.run_campaign(
+                *common, numactl=list(_AUTH_CONTRACT.numactl),
+                authorization_contract=_AUTHORIZATION,
+                output_root=exploration_root, log=lambda *_args: None,
+                build_context=_BUILD_CONTEXT, campaign_namespace="exploration",
+                perf_preflight_fn=producer,
+            )
+    finally:
+        L.source_digest = saved_sd
+    assert len(producer_calls) == 1
+    assert summary.committed == 1 and summary.aborted == 0
+    assert summary.perf_preflight_receipt["status"] == "unavailable"
+
+
 def test_exploration_no_perf_completes_bench_and_records_not_required():
     summary, bench_calls, layout, producer_calls = \
         _run_exploration_with_perf_preflight("unavailable")
