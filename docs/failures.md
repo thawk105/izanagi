@@ -8105,3 +8105,106 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (投入後 1 分を超えて CPU が 2 秒未満のまま横ばいなら無駄占有)。
   ラッチ (F308) との識別は receipt の `outcome.kind` で行う — `f47` ならラッチ経路、
   `infra` なら親の寿命切れであり、後者では生きた dispatch 親が残らないため qdel でラッチは立たない。
+
+### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
+
+- 事象: `tools/mutation_fanout.py` の admission は、measurement log の
+  `max(samples)` を測定 cgroup の `memory.peak` と完全一致させることを要求する
+  (`_attest_measurement_cgroup`)。この kernel (5.15) に `memory.peak` は存在せず、
+  read が OSError になるため attestation は常に `False` を返す。**どの receipt も必ず拒否され、
+  fan-out は 1 shard も起動できない。** receipt を作る producer 経路も CLI に無く、
+  land から 5 日間、誰も本走を試みていなかったため発覚しなかった。
+- 根本原因: `docs/pegasus-runbook.md` は 2026-08-01 実測として「この kernel に `memory.peak` は
+  無い。専用 scope の `memory.current` を 3 反復以上 sampling して最大値を採る」を正本にしていた。
+  gate はその 3 反復だけを取り込み (`MIN_CERTIFICATION_REPETITIONS = 3`)、
+  runbook に無い kernel 再読を独自に足した。**正本を読んだ痕跡がある実装が、
+  同じ正本が禁じた前提を持ち込んだ。**
+- 検出できなかった理由: 既存テストは attestation callback を stub で差し替えるか、
+  明示的に `False` を返す stub を渡す。**production の述語が実 kernel で真になりうるかを
+  1 件も検査していない** (テスト代表性)。receipt も fixture で捏造するため、
+  producer 不在も表面化しない。
+- 恒久対応: D433 決定 (2) — 環境依存の kernel interface を必須とする
+  gate は、**その interface の実在を親が実データで 1 回通すまで完成と見なさない**
+  (gate tool の live dogfood 規律と同じ扱い)。schema v2 を採る場合は、
+  attestation が要求する各 kernel file の実在検査を、stub を使わない positive control として
+  同じ commit に含める。
+- 再発検知: fan-out を再設計する wave は、`_attest_measurement_cgroup` 相当の述語を
+  **実 cgroup へ直接呼ぶ**テストを持つ。stub を渡す既存テストはこの検出力を持たない。
+
+### F335. holdout 保護を実装する wave が、そのテストで holdout 三軸を同居させ未知性証拠を汚染した [計測汚染] [テスト代表性]
+
+- 事象: holdout 実測の admission を実装した wave が、追加したテストファイルに
+  読み比率 80・偏り 0.9・rmw 0 の三軸を同居させた。freeze の未知性検査は
+  「同一ファイルが三軸の正規表現すべてに一致したら 1 hit」と数えるため、H1 の
+  conjunction hit が 1 件立ち、launch certificate の clean scan が拒否に倒れた。
+  親が全 12,645 file を走査して範囲を確定した (H1 = 当該 1 file、H2 = 0 件)。
+- **同じ wave で 2 度起きた。2 度目は記録段である。** 段 6 レビューの逐語を
+  `output/insights/` へ commit した時点で、レビューが攻撃例として引用した workload dict が
+  三軸を作り、再び clean scan が拒否に倒れた。**実装だけでなく、証拠を記録する行為そのものが
+  汚染源になる。** 段 7 契約が凍結前の三軸走査と可逆 defang を求めているのはこのためだが、
+  親はそれを実施せずに commit していた。可逆 defang + erratum で解消した。
+- 根本原因: 保護対象を扱う実装は、その保護対象の識別子を fixture や逐語に書きたくなる。
+  既存テストが合成 fixture へ実物と違う holdout 名を使い、直後に「実 holdout 名が
+  セル ID に現れない」ことを assert しているのは、まさにこれを避けるためだった。
+  同 wave の別段では、この対になった 2 行の片方だけを書き換えて赤にする違反も起きている
+  (52 箇所の一括改名を親が差し戻した)。
+- 恒久対応: 保護対象を扱う wave では、**コードだけでなく逐語・材料・fragment を含む
+  追加変更した全 file** に対し `orchestrator/campaign/s8b_holdout_freeze.search_repository` を
+  親が走らせ、全 holdout の `conjunction_hits` が空であることを land 前に実測する。
+  **記録 commit の後にも走らせる** (記録そのものが汚染源になるため)。
+  fixture や逐語が保護比率を必要とする場合も、偏りと rmw の literal を同じ file に置かない。
+- 再発検知: launch certificate の clean scan (`clean_scan_digest`) が受入全走で発火する。
+  **ただし通常の焦点テスト走では当該経路が走らず、変異 harness の baseline と
+  受入全走でしか検出されない。** 焦点走の緑を根拠に汚染なしと判断してはならない。
+
+### F336. 実行時に決まる node ID は変異 spec へ事前登録できない [手順漏れ]
+
+- 事象: 変異の期待 node に、実行時サフィックスが付く real-repo 変種の node ID が含まれた。
+  変異 harness は期待 node が pytest の collection に実在することを事前検査するため、
+  この ID を登録できず起動前に停止した (`期待 node が pytest collection に実在しない`)。
+- 根本原因: pytest の collection 時 ID と実行時 ID が一致しない test が存在する。
+  変異の期待集合は実行時の失敗 node から作るため、両者の空間差がそのまま登録不能になる。
+- 恒久対応: 当該 test を変異 runner の対象から明示的に外し (`--deselect`)、
+  期待集合からも除く。**外した test が何によって担保されるかを worklog に書く**
+  (本件では受入全走)。除外を黙って行わない。
+- 再発検知: harness の事前検査そのもの (fail-closed で起動前に停止する)。
+
+### F337. 背景待ち手を投入と同時に張ると空振りし、走行中の子を完了と誤認しうる [手順漏れ]
+
+- 事象: 背景の子を起動した直後に `tools/dev_wave_wait.py producer` を張ったところ、
+  待ち手が数十秒で rc=0 を返した。しかし `.done` も成果物も存在せず、**子は生きていた**
+  (起動 47 秒)。同じ形で 2 回連続して再現した。
+- 根本原因: producer script 自身が pid file を書く契約のため、待ち手の起動と pid file の
+  書き込みが競合する。待ち手が起動時点で pid file も `.done` も見つけられないと、
+  待つべき対象が無いと判断して即座に成功終端する。
+- 恒久対応: 完了判定を**通知だけに依存させない**。成果物の実在・`.done` の内容・
+  子 process の生死の 3 点を照合してから次段へ進む。空振りしていたら待ち手を張り直す。
+  待ち手を張る前に pid file と log の実在を確認するのが最も安い予防である。
+- 再発検知: 3 点照合そのもの。本件は照合により「通知は来たが未完了」と判定でき、
+  走行中の子を完了と誤認せずに済んだ。
+
+### F338. live hostname を authority に数える設計を、非特権 namespace が恒真化する [恒真ゲート]
+
+- 事象: (2026-08-16、[T-1140] 段 3 レンズ A の実測) reservation の `binding.host` を
+  `socket.gethostname()` / `socket.getfqdn()` と照合して「どのノードで測ったか」の
+  authority にする設計を検討したところ、Pegasus login ノードでは
+  `/proc/sys/kernel/unprivileged_userns_clone` が `1`、`/proc/sys/user/max_user_namespaces` が
+  `2147483647` であり、**非特権のまま UTS namespace を作って hostname と FQDN の双方を
+  変更できた**。その際 `/proc/sys/kernel/random/boot_id` は親と同一のままだった。
+  計算ノードでの可否は未実測。
+- 根本原因: 「OS が返す値だから呼び手の支配外」という一段階の推論で authority を認定した。
+  実際には呼び手が namespace を作れる環境では、live な OS 状態も呼び手が用意できる。
+  2026-07-25 [T-088] の A-03 で「環境変数同士の一致を authorization gate に数えない」を
+  設計制約として確定していたが、その制約は「env 対 env」の形でしか書かれておらず、
+  「env 対 live OS 状態」が同じ穴を持つことを覆っていなかった。
+- 影響: 実装前に発見したため成果物への影響はない。実装していれば、材料レポートと proof chain が
+  claim 内の `host` を「scheduler が割り当てたノード」の証明として参照し始めていた。
+  実際に証明されるのは「呼び手が名乗ったノード名と、呼び手が観測させた値が一致すること」だけである。
+- 恒久対応: D435 の項目 3 (authority) が
+  「呼び手が両側を用意できる照合は drift 検出であって authority ではない」を要求する。
+  live OS 状態を authority と数える設計は、その状態が呼び手の namespace 権限の外にあることを
+  当該環境で実測してからでなければ採らない。
+- 再発検知: 「どのノード / どの process / どの環境で実行したか」を証明すると称する検査が、
+  同一 process から読める値 (hostname、FQDN、cgroup 名、環境変数、`/proc/self/*`) だけを
+  照合先にしていること。scheduler・kernel の特権面・外部 authority のいずれにも触れていない
+  照合は authority に数えない。
