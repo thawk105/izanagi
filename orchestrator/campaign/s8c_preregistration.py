@@ -11,6 +11,8 @@
 
 この module は approval、active pointer、revocation を持たない。発効は commit C の
 tree から毎回導出される値である。
+
+``DECIDER_VERSION`` 1 定数が判定器・評価器・射影の受理意味を代表する。
 """
 from __future__ import annotations
 
@@ -43,7 +45,11 @@ EVIDENCE_CONTRACT_PATH = (
 )
 EVALUATOR_MODULE_PATH = "orchestrator/campaign/s8c_preregistration_evidence.py"
 CORE_MODULE_PATH = "orchestrator/campaign/s8c_preregistration.py"
-SCHEMA_VERSION = "s8c-prereg-condition-freeze/v1"
+PROJECTION_MODULE_PATH = "orchestrator/campaign/s8c_generation_projection.py"
+# core/evaluator/projection の受理意味を変える変更は同じ commit で版を bump する。
+DECIDER_VERSION = "s8c-decider/v1"
+LEGACY_SCHEMA_VERSION = "s8c-prereg-condition-freeze/v1"
+SCHEMA_VERSION = "s8c-prereg-condition-freeze/v2"
 NORMALIZATION_VERSION = "s8c-prereg-markdown/v2"
 PREDICATE_IDS = tuple(f"C{number:02d}" for number in range(1, 13))
 
@@ -53,6 +59,7 @@ _GENERATION_RE = re.compile(
     rf"{re.escape(FREEZE_DIR)}/{re.escape(FREEZE_BASENAME)}\.g([1-9][0-9]*)\.json\Z"
 )
 _RULING_RE = re.compile(r"D[1-9][0-9]*\Z")
+_DECIDER_VERSION_RE = re.compile(r"s8c-decider/v[1-9][0-9]*\Z")
 _ATX_RE = re.compile(r"^( {0,3})(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$")
 _TOP_ITEM_RE = re.compile(r"^ {0,3}([0-9]+)[.)][ \t]+(.*)$")
 _UNORDERED_ITEM_RE = re.compile(r"^ {0,3}[-+*][ \t]+(.*)$")
@@ -70,7 +77,7 @@ _PLACEHOLDER_RE = re.compile(
     r"^(?:未記入(?:[ \t]*(?:\([^)]*\)|（[^）]*）|\[[^]]*\]|【[^】]*】))?"
     r"|\(未記入\)|（未記入）|\[未記入\]|【未記入】)$"
 )
-_FREEZE_KEYS = frozenset(
+_FREEZE_KEYS_V1 = frozenset(
     {
         "schema_version",
         "normalization_version",
@@ -87,6 +94,7 @@ _FREEZE_KEYS = frozenset(
         "ruling_reference",
     }
 )
+_FREEZE_KEYS_V2 = _FREEZE_KEYS_V1 | {"decider_version"}
 _GIT_HARDEN = ("-c", "core.useReplaceRefs=false")
 GIT_TIMEOUT_SECONDS = 15.0
 MAX_GENERATIONS = 1024
@@ -193,6 +201,8 @@ class MarkdownContract:
 
 @dataclass(frozen=True)
 class FreezeRecord:
+    schema_version: str
+    decider_version: Optional[str]
     generation_number: int
     supersedes_sha256: Optional[str]
     section5_field_names_sha256: str
@@ -211,6 +221,7 @@ class FreezeRecord:
 class FreezeValidation:
     commit: str
     generation_number: int
+    decider_version: Optional[str]
     protected_sha256: str
     tip_record_sha256: str
     contract: MarkdownContract
@@ -223,10 +234,14 @@ class ActivationReport:
     freeze_generation: Optional[int]
     protected_sha256: Optional[str]
     freeze_reason_code: str
+    decider_version: Optional[str]
+    decider_version_matches: bool
+    decider_version_reason_code: str
     section5_findings: tuple[Section5Finding, ...]
     predicates: tuple[PredicateResult, ...]
     core_module_blob_sha256: Optional[str]
     evaluator_module_blob_sha256: Optional[str]
+    projection_module_blob_sha256: Optional[str]
     effective: bool
 
 
@@ -1039,14 +1054,26 @@ def _load_freeze_record(raw: bytes, *, expected_generation: int) -> FreezeRecord
     value = _strict_json(raw, what=generation_path(expected_generation))
     if not isinstance(value, dict):
         raise PreregistrationError("record-not-object")
-    if frozenset(value) != _FREEZE_KEYS:
+    schema_version = value.get("schema_version")
+    if schema_version == LEGACY_SCHEMA_VERSION:
+        expected_keys = _FREEZE_KEYS_V1
+        decider_version = None
+    elif schema_version == SCHEMA_VERSION:
+        expected_keys = _FREEZE_KEYS_V2
+        decider_version = value.get("decider_version")
+    else:
+        raise PreregistrationError("record-schema-version")
+    if frozenset(value) != expected_keys:
         raise PreregistrationError(
-            "record-schema-keys", repr(sorted(set(value) ^ set(_FREEZE_KEYS)))
+            "record-schema-keys", repr(sorted(set(value) ^ set(expected_keys)))
         )
     if _canonical_bytes(value) != raw:
         raise PreregistrationError("record-not-canonical")
-    if value["schema_version"] != SCHEMA_VERSION:
-        raise PreregistrationError("record-schema-version")
+    if schema_version == SCHEMA_VERSION and (
+        not isinstance(decider_version, str)
+        or not _DECIDER_VERSION_RE.fullmatch(decider_version)
+    ):
+        raise PreregistrationError("record-decider-version")
     if value["normalization_version"] != NORMALIZATION_VERSION:
         raise PreregistrationError("record-normalization-version")
     number = value["generation_number"]
@@ -1084,6 +1111,8 @@ def _load_freeze_record(raw: bytes, *, expected_generation: int) -> FreezeRecord
     elif ruling is not None and (not isinstance(ruling, str) or not _RULING_RE.fullmatch(ruling)):
         raise PreregistrationError("record-ruling-reference")
     return FreezeRecord(
+        schema_version=schema_version,
+        decider_version=decider_version,
         generation_number=number,
         supersedes_sha256=supersedes,
         section5_field_names_sha256=_require_hash(
@@ -1487,6 +1516,7 @@ def validate_condition_freeze_at(
     return FreezeValidation(
         commit=resolved,
         generation_number=final_state.tip_generation_number,
+        decider_version=final_records[-1].decider_version,
         protected_sha256=contract.protected_sha256(evidence_sha),
         tip_record_sha256=final_records[-1].raw_sha256,
         contract=contract,
@@ -1538,24 +1568,26 @@ def _uniform_predicates(status: PredicateStatus, reason: str) -> tuple[Predicate
     )
 
 
-def _default_registry_results(root: Path, commit: str, module_blob: Optional[bytes]):
+def _default_registry_module(
+    module_blob: Optional[bytes],
+) -> tuple[Optional[Any], Optional[tuple[PredicateResult, ...]]]:
     if module_blob is None:
-        return _undefined_predicates("evaluator-module-absent-at-commit")
+        return None, _undefined_predicates("evaluator-module-absent-at-commit")
     module = None
     name = "orchestrator.campaign.s8c_preregistration_evidence"
     try:
         module = importlib.import_module(name)
     except ModuleNotFoundError as exc:
         if exc.name not in {name, name.split(".")[0]}:
-            return tuple(
+            return None, tuple(
                 PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-import-error", ())
                 for identifier in PREDICATE_IDS
             )
     if module is None:
-        return _undefined_predicates("evaluator-module-unavailable")
+        return None, _undefined_predicates("evaluator-module-unavailable")
     module_file = getattr(module, "__file__", None)
     if not module_file:
-        return tuple(
+        return None, tuple(
             PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-file-unavailable", ())
             for identifier in PREDICATE_IDS
         )
@@ -1564,10 +1596,52 @@ def _default_registry_results(root: Path, commit: str, module_blob: Optional[byt
     except OSError:
         live = b""
     if live != module_blob:
-        return tuple(
+        return None, tuple(
             PredicateResult(identifier, PredicateStatus.ERROR, "evaluator-blob-mismatch", ())
             for identifier in PREDICATE_IDS
         )
+    return module, None
+
+
+def _projection_module_identity(
+    module_blob: bytes,
+) -> tuple[Optional[Any], Optional[tuple[PredicateResult, ...]]]:
+    module = None
+    name = "orchestrator.campaign.s8c_generation_projection"
+    try:
+        module = importlib.import_module(name)
+    except ModuleNotFoundError as exc:
+        if exc.name not in {name, name.split(".")[0]}:
+            return None, _uniform_predicates(
+                PredicateStatus.ERROR, "projection-import-error"
+            )
+    except Exception:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-import-error"
+        )
+    if module is None:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-module-unavailable"
+        )
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-file-unavailable"
+        )
+    try:
+        live = Path(module_file).read_bytes()
+    except Exception:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-file-read-error"
+        )
+    if live != module_blob:
+        return None, _uniform_predicates(
+            PredicateStatus.ERROR, "projection-blob-mismatch"
+        )
+    return module, None
+
+
+def _default_registry_results(root: Path, commit: str, module: Any):
     registry: Any = module
     probe = getattr(module, "get_registry", None)
     if callable(probe):
@@ -1595,8 +1669,10 @@ def _activation_report_at(
     resolved = resolve_commit(root, commit)
     core_blob = _module_blob(root, resolved, CORE_MODULE_PATH)
     evaluator_blob = _module_blob(root, resolved, EVALUATOR_MODULE_PATH)
+    projection_blob = _module_blob(root, resolved, PROJECTION_MODULE_PATH)
     core_hash = _sha256(core_blob) if core_blob is not None else None
     evaluator_hash = _sha256(evaluator_blob) if evaluator_blob is not None else None
+    projection_hash = _sha256(projection_blob) if projection_blob is not None else None
     contract: Optional[MarkdownContract] = None
     try:
         source = read_blob_at(root, resolved, SOURCE_PATH, required=True)
@@ -1629,24 +1705,71 @@ def _activation_report_at(
         elif live_core != core_blob:
             predicates = _uniform_predicates(PredicateStatus.ERROR, "core-blob-mismatch")
         else:
-            predicates = _default_registry_results(root, resolved, evaluator_blob)
+            evaluator_module, evaluator_error = _default_registry_module(evaluator_blob)
+            if evaluator_error is not None:
+                predicates = evaluator_error
+            elif projection_blob is None:
+                predicates = _uniform_predicates(
+                    PredicateStatus.ERROR, "projection-module-absent-at-commit"
+                )
+            else:
+                projection_module, projection_error = _projection_module_identity(
+                    projection_blob
+                )
+                if projection_error is not None:
+                    predicates = projection_error
+                else:
+                    assert evaluator_module is not None
+                    assert projection_module is not None
+                    predicates = _default_registry_results(
+                        root, resolved, evaluator_module
+                    )
     findings = contract.section5_findings if contract is not None else ()
     all_filled = bool(findings) and all(item.status is FieldStatus.FILLED for item in findings)
     exact_ids = tuple(item.id for item in predicates) == PREDICATE_IDS
     all_satisfied = exact_ids and all(
         item.status is PredicateStatus.SATISFIED for item in predicates
     )
-    effective = validation is not None and all_filled and all_satisfied
+    decider_version = validation.decider_version if validation is not None else None
+    current_decider_valid = (
+        type(DECIDER_VERSION) is str
+        and _DECIDER_VERSION_RE.fullmatch(DECIDER_VERSION) is not None
+    )
+    if validation is None:
+        decider_version_matches = False
+        decider_version_reason = "decider-version-unavailable"
+    elif decider_version is None:
+        decider_version_matches = False
+        decider_version_reason = "decider-version-unbound"
+    elif (
+        current_decider_valid
+        and str.__eq__(DECIDER_VERSION, decider_version) is True
+    ):
+        decider_version_matches = True
+        decider_version_reason = "decider-version-match"
+    else:
+        decider_version_matches = False
+        decider_version_reason = "decider-version-mismatch"
+    effective = (
+        validation is not None
+        and decider_version_matches
+        and all_filled
+        and all_satisfied
+    )
     return ActivationReport(
         commit=resolved,
         condition_freeze_valid=validation is not None,
         freeze_generation=validation.generation_number if validation else None,
         protected_sha256=validation.protected_sha256 if validation else None,
         freeze_reason_code=freeze_reason,
+        decider_version=decider_version,
+        decider_version_matches=decider_version_matches,
+        decider_version_reason_code=decider_version_reason,
         section5_findings=findings,
         predicates=predicates,
         core_module_blob_sha256=core_hash,
         evaluator_module_blob_sha256=evaluator_hash,
+        projection_module_blob_sha256=projection_hash,
         effective=effective,
     )
 
@@ -1692,6 +1815,7 @@ def _record_document(
 ) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
+        "decider_version": DECIDER_VERSION,
         "normalization_version": NORMALIZATION_VERSION,
         "generation_number": generation,
         "supersedes_sha256": supersedes,
@@ -1869,6 +1993,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             else:
                 state = "EFFECTIVE" if report.effective else "NOT_EFFECTIVE"
                 print(f"{state} commit={report.commit} freeze={report.freeze_reason_code}")
+                print(f"decider_version {report.decider_version_reason_code}")
                 for finding in report.section5_findings:
                     print(f"section5 {finding.status.value} {finding.name}: {finding.reason_code}")
                 for result in report.predicates:
