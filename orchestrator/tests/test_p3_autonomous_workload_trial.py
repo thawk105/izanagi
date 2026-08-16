@@ -5379,6 +5379,7 @@ def test_t1185_m5_cli_default_generation_is_rejected_before_identity_or_run_root
     def downstream(*args, **kwargs):
         pytest.fail("generation mismatch reached campaign identity or artifact work")
 
+    monkeypatch.setattr(A, "build_run_context", downstream)
     monkeypatch.setattr(A, "_prepare_campaign_identity", downstream)
     monkeypatch.setattr(A, "assert_pinned_clean", downstream)
     monkeypatch.setattr(A, "run_trial", downstream)
